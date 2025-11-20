@@ -1,4 +1,4 @@
-import 'package:my_app/polymeta/memory/enhanced_memory_schema.dart';
+import 'package:my_app/mira/memory/enhanced_memory_schema.dart';
 
 /// Inline reflection block that appears within journal entries
 class InlineBlock {

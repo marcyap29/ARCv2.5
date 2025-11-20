@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'dart:io';
 import 'package:file_picker/file_picker.dart';
-import 'package:my_app/polymeta/store/mcp/validation/mcp_validator.dart';
-import 'package:my_app/polymeta/store/mcp/export/manifest_builder.dart';
-import 'package:my_app/polymeta/store/mcp/validation/mcp_bundle_repair_service.dart';
-import 'package:my_app/polymeta/store/mcp/export/zip_utils.dart';
+import 'package:my_app/mira/store/mcp/validation/mcp_validator.dart';
+import 'package:my_app/mira/store/mcp/export/manifest_builder.dart';
+import 'package:my_app/mira/store/mcp/validation/mcp_bundle_repair_service.dart';
+import 'package:my_app/mira/store/mcp/export/zip_utils.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
 

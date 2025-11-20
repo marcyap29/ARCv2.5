@@ -1,7 +1,7 @@
 import 'dart:io';
-import 'package:my_app/polymeta/store/mcp/media_resolver.dart';
+import 'package:my_app/mira/store/mcp/media_resolver.dart';
 import 'package:my_app/services/media_pack_tracking_service.dart';
-import 'package:my_app/polymeta/store/mcp/models/media_pack_metadata.dart';
+import 'package:my_app/mira/store/mcp/models/media_pack_metadata.dart';
 
 /// App-level service for managing MediaResolver instance
 ///

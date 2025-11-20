@@ -58,7 +58,7 @@ Unified all LUMARA assistant prompts under a single, architecture-aligned system
 Aligned with EPI v2.1 Consolidated Architecture:
 - **ARC** - Journaling, Chat UI, Arcform
 - **PRISM.ATLAS** - Phase/Readiness, RIVET, SENTINEL, multimodal analysis
-- **POLYMETA** - Memory graph + MCP/ARCX secure store
+- **MIRA** - Memory graph + MCP/ARCX secure store
 - **AURORA.VEIL** - Circadian scheduling + restorative regimens
 - **ECHO** - LLM interface, guardrails, privacy
 
@@ -73,7 +73,7 @@ Aligned with EPI v2.1 Consolidated Architecture:
 ## Module Handoffs
 
 - `ECHO.guard` - Apply safety/privacy to inputs/outputs
-- `POLYMETA.query` - Retrieve relevant memories
+- `MIRA.query` - Retrieve relevant memories
 - `PRISM.atlas.phase/readiness` - Adjust pacing and firmness
 - `RIVET` - Detect interest/value shifts
 - `AURORA.veil` - Switch to recovery cadence on overload

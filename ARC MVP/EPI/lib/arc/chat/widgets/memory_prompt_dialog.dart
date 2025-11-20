@@ -2,8 +2,8 @@
 // Dialog for prompting user about memory usage in ask_first/suggestive modes
 
 import 'package:flutter/material.dart';
-import 'package:my_app/polymeta/memory/enhanced_memory_schema.dart';
-import 'package:my_app/polymeta/memory/memory_mode_service.dart';
+import 'package:my_app/mira/memory/enhanced_memory_schema.dart';
+import 'package:my_app/mira/memory/memory_mode_service.dart';
 
 /// Response from memory prompt dialog
 class MemoryPromptResponse {

@@ -11,11 +11,11 @@ import 'package:my_app/services/llm_bridge_adapter.dart';
 import '../services/enhanced_lumara_api.dart';
 import '../services/progressive_memory_loader.dart';
 import '../config/api_config.dart';
-import 'package:my_app/polymeta/memory/enhanced_mira_memory_service.dart';
-import 'package:my_app/polymeta/memory/enhanced_memory_schema.dart';
-import 'package:my_app/polymeta/memory/sentence_extraction_util.dart';
-import 'package:my_app/polymeta/memory/attribution_service.dart';
-import 'package:my_app/polymeta/mira_service.dart';
+import 'package:my_app/mira/memory/enhanced_mira_memory_service.dart';
+import 'package:my_app/mira/memory/enhanced_memory_schema.dart';
+import 'package:my_app/mira/memory/sentence_extraction_util.dart';
+import 'package:my_app/mira/memory/attribution_service.dart';
+import 'package:my_app/mira/mira_service.dart';
 import 'package:my_app/telemetry/analytics.dart';
 import '../chat/chat_repo.dart';
 import '../chat/chat_repo_impl.dart';
@@ -437,161 +437,6 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
     }
   }
   
-  /// Process a message and generate response with attribution
-  /// Priority: On-Device → Cloud API → Rule-Based (security-first)
-  Future<Map<String, dynamic>> _processMessageWithAttribution(
-    String text, 
-    LumaraScope scope, {
-    JournalEntry? currentEntry,
-  }) async {
-    // Get context (using provided scope)
-    final context = await _contextProvider.buildContext(scope: scope);
-
-    // Determine task type based on query
-    final task = _determineTaskType(text);
-
-    // Debug logging
-    print('LUMARA Debug: Query: "$text" -> Task: ${task.name}');
-    print('LUMARA Debug: Fallback priority: Enhanced API (with Gemini) → Direct Gemini → Rule-Based');
-
-    // Memory retrieval will be handled in response generation
-
-    // PRIORITY 1: Try Enhanced API with semantic search (uses Gemini under the hood)
-    try {
-      debugPrint('LUMARA Debug: ========== STARTING GEMINI PATH ==========');
-      print('LUMARA Debug: [Gemini] Calling Gemini with journal context...');
-      
-      final contextResult = await _buildEntryContext(
-        context, 
-        userQuery: text,
-        currentEntry: currentEntry,
-      );
-      final entryText = contextResult['context'] as String;
-      final contextAttributionTraces = contextResult['attributionTraces'] as List<AttributionTrace>;
-      final phaseHint = _buildPhaseHint(context);
-      final keywords = _buildKeywordsContext(context);
-      
-      print('LUMARA Debug: [Gemini] Entry text length: ${entryText.length}');
-      print('LUMARA Debug: [Gemini] Phase hint: $phaseHint');
-      print('LUMARA Debug: [Gemini] Keywords: $keywords');
-      print('LUMARA Debug: [Gemini] Attribution traces from context: ${contextAttributionTraces.length}');
-
-      // Use ArcLLM to call Gemini directly with journal context
-      final response = await _arcLLM.chat(
-        userIntent: text,
-        entryText: entryText,
-        phaseHintJson: phaseHint,
-        lastKeywordsJson: keywords,
-      );
-
-      print('LUMARA Debug: [Gemini] ✓ Response received, length: ${response.length}');
-
-      // Use attribution traces from context building (the actual memory nodes used)
-      final traces = contextAttributionTraces;
-      print('LUMARA Debug: [Enhanced API] Using ${traces.length} attribution traces from context building');
-      
-      // Append phase information from attribution traces
-      final enhancedResponse = _appendPhaseInfoFromAttributions(response, traces, context);
-      return {
-        'content': enhancedResponse,
-        'attributionTraces': traces,
-      };
-    } catch (e, stackTrace) {
-      debugPrint('LUMARA Debug: [Enhanced API] ✗✗✗ EXCEPTION CAUGHT ✗✗✗');
-      debugPrint('LUMARA Debug: [Enhanced API] Exception type: ${e.runtimeType}');
-      debugPrint('LUMARA Debug: [Enhanced API] Exception: $e');
-      debugPrint('LUMARA Debug: [Enhanced API] Stack trace: $stackTrace');
-      print('LUMARA Debug: [Enhanced API] Failed: $e');
-    }
-
-    // PRIORITY 2: Try Direct Gemini API fallback
-    try {
-      // Get API key from LumaraAPIConfig instead of environment variable
-      debugPrint('LUMARA Debug: ========== STARTING GEMINI API PATH ==========');
-      
-      debugPrint('LUMARA Debug: [Gemini] Step 1: Initializing API config...');
-      final apiConfig = LumaraAPIConfig.instance;
-      await apiConfig.initialize();
-      debugPrint('LUMARA Debug: [Gemini] Step 1: ✓ API config initialized');
-      
-      debugPrint('LUMARA Debug: [Gemini] Step 2: Getting Gemini config...');
-      final geminiConfig = apiConfig.getConfig(LLMProvider.gemini);
-      final apiKey = geminiConfig?.apiKey ?? '';
-      debugPrint('LUMARA Debug: [Gemini] Step 2: Config exists: ${geminiConfig != null}');
-      debugPrint('LUMARA Debug: [Gemini] Step 2: API key present: ${apiKey.isNotEmpty}');
-      debugPrint('LUMARA Debug: [Gemini] Step 2: API key length: ${apiKey.length}');
-      debugPrint('LUMARA Debug: [Gemini] Step 2: Config isAvailable: ${geminiConfig?.isAvailable}');
-      
-      if (apiKey.isEmpty) {
-        debugPrint('LUMARA Debug: [Gemini] Step 2: ✗ FAILED - API key is empty');
-        throw Exception('Gemini API key is empty');
-      }
-      debugPrint('LUMARA Debug: [Gemini] Step 2: ✓ API key validated');
-      
-      debugPrint('LUMARA Debug: [Gemini] Step 3: Building context for ArcLLM...');
-      // Build context for ArcLLM
-      final contextResult = await _buildEntryContext(
-        context, 
-        userQuery: text,
-        currentEntry: currentEntry,
-      );
-      final entryText = contextResult['context'] as String;
-      final contextAttributionTraces = contextResult['attributionTraces'] as List<AttributionTrace>;
-      final phaseHint = _buildPhaseHint(context);
-      final keywords = _buildKeywordsContext(context);
-      debugPrint('LUMARA Debug: [Gemini] Step 3: Context built');
-      debugPrint('LUMARA Debug: [Gemini] Step 3: Entry text length: ${entryText.length}');
-      debugPrint('LUMARA Debug: [Gemini] Step 3: Phase hint: $phaseHint');
-      debugPrint('LUMARA Debug: [Gemini] Step 3: Keywords: $keywords');
-      debugPrint('LUMARA Debug: [Gemini] Step 3: Attribution traces from context: ${contextAttributionTraces.length}');
-
-      debugPrint('LUMARA Debug: [Gemini] Step 4: Calling _arcLLM.chat()...');
-      debugPrint('LUMARA Debug: [Gemini] Step 4: User intent: $text');
-      // Use ArcLLM chat function with context
-      final response = await _arcLLM.chat(
-        userIntent: text,
-        entryText: entryText,
-        phaseHintJson: phaseHint,
-        lastKeywordsJson: keywords,
-      );
-
-      debugPrint('LUMARA Debug: [Gemini] Step 4: ✓ Response received');
-      debugPrint('LUMARA Debug: [Gemini] Step 4: Response length: ${response.length}');
-      debugPrint('LUMARA Debug: [Gemini] Step 4: Response preview: ${response.substring(0, response.length > 100 ? 100 : response.length)}...');
-
-      if (response.isNotEmpty) {
-        debugPrint('LUMARA Debug: [Gemini] SUCCESS - Using Gemini response');
-        
-        // Use attribution traces from context building (the actual memory nodes used)
-        final traces = contextAttributionTraces;
-        print('LUMARA Debug: Using ${traces.length} attribution traces from context building');
-        for (final trace in traces) {
-          print('LUMARA Debug: Trace - ${trace.nodeRef}: ${trace.relation} (${(trace.confidence * 100).toInt()}%)');
-        }
-
-        debugPrint('LUMARA Debug: ========== GEMINI API PATH COMPLETED ==========');
-        // Append phase information from attribution traces
-        final enhancedResponse = _appendPhaseInfoFromAttributions(response, traces, context);
-        return {
-          'content': enhancedResponse,
-          'attributionTraces': traces,
-        };
-      }
-      
-      debugPrint('LUMARA Debug: [Gemini] ✗ FAILED - Empty response received');
-    } catch (e, stackTrace) {
-      debugPrint('LUMARA Debug: [Gemini] ✗✗✗ EXCEPTION CAUGHT ✗✗✗');
-      debugPrint('LUMARA Debug: [Gemini] Exception type: ${e.runtimeType}');
-      debugPrint('LUMARA Debug: [Gemini] Exception message: $e');
-      debugPrint('LUMARA Debug: [Gemini] Stack trace: $stackTrace');
-    }
-
-
-    // Cloud API only mode - NO automated fallback messages
-    print('LUMARA Debug: Cloud API failed. No automated responses.');
-    throw Exception('Cloud API unavailable - no automated responses');
-  }
-
   /// Map InsightKind to string for on-device model
   String _mapTaskToString(InsightKind task) {
     return switch (task) {

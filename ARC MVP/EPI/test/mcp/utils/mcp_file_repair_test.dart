@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:my_app/polymeta/store/mcp/utils/mcp_file_repair.dart';
-import 'package:my_app/polymeta/store/mcp/models/mcp_schemas.dart';
+import 'package:my_app/mira/store/mcp/utils/mcp_file_repair.dart';
+import 'package:my_app/mira/store/mcp/models/mcp_schemas.dart';
 import 'package:archive/archive.dart';
 import 'dart:io';
 import 'dart:convert';

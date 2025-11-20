@@ -28,7 +28,7 @@ This backup branch captures the state of the EPI MVP codebase after completing s
 - All reflection generation methods now include user comments in context
 
 **Files Modified:**
-- `lib/polymeta/memory/enhanced_mira_memory_service.dart`
+- `lib/mira/memory/enhanced_mira_memory_service.dart`
 - `lib/ui/journal/journal_screen.dart`
 
 **Status:** ✅ Complete - Attribution shows specific source text, user comments are included in context
@@ -58,10 +58,10 @@ PhaseRegimes/
 ```
 
 **Files Modified:**
-- `lib/polymeta/store/mcp/export/mcp_export_service.dart`
-- `lib/polymeta/store/arcx/services/arcx_export_service_v2.dart`
-- `lib/polymeta/store/arcx/services/arcx_import_service_v2.dart`
-- `lib/polymeta/store/arcx/ui/arcx_import_progress_screen.dart`
+- `lib/mira/store/mcp/export/mcp_export_service.dart`
+- `lib/mira/store/arcx/services/arcx_export_service_v2.dart`
+- `lib/mira/store/arcx/services/arcx_import_service_v2.dart`
+- `lib/mira/store/arcx/ui/arcx_import_progress_screen.dart`
 
 **Status:** ✅ Complete - Complete system state backup and restore
 

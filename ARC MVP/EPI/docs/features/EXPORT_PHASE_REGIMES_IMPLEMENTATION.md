@@ -108,10 +108,10 @@ The manifest now includes phase regimes count in scope:
 
 ## Files Modified
 
-1. `lib/polymeta/store/arcx/models/arcx_manifest.dart`
+1. `lib/mira/store/arcx/models/arcx_manifest.dart`
    - Added `phaseRegimesCount` to `ARCXScope`
 
-2. `lib/polymeta/store/arcx/services/arcx_export_service_v2.dart`
+2. `lib/mira/store/arcx/services/arcx_export_service_v2.dart`
    - Added `PhaseRegimeService?` parameter
    - Added `_exportPhaseRegimes()` method
    - Updated all export methods to include phase regimes

@@ -4,7 +4,7 @@
 /// and uncertainty disclosure for dignified, traceable LUMARA responses
 library;
 
-import 'package:my_app/polymeta/mira_service.dart';
+import 'package:my_app/mira/mira_service.dart';
 
 class MiraMemoryGrounding {
   final MiraService _miraService;

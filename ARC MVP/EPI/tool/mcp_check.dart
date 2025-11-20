@@ -6,7 +6,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:args/args.dart';
-import 'package:my_app/polymeta/store/mcp/bundle_doctor/bundle_doctor.dart';
+import 'package:my_app/mira/store/mcp/bundle_doctor/bundle_doctor.dart';
 
 void main(List<String> arguments) async {
   final parser = ArgParser()

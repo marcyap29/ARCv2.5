@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:my_app/polymeta/store/mcp/orchestrator/multimodal_integration_service.dart';
-import 'package:my_app/polymeta/store/mcp/models/mcp_schemas.dart';
+import 'package:my_app/mira/store/mcp/orchestrator/multimodal_integration_service.dart';
+import 'package:my_app/mira/store/mcp/models/mcp_schemas.dart';
 
 /// Quick Journal Entry Widget - Floating multimodal access panel
 class QuickJournalEntryWidget extends StatefulWidget {

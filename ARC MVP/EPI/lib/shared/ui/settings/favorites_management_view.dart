@@ -3,6 +3,8 @@ import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
 import 'package:my_app/arc/chat/services/favorites_service.dart';
 import 'package:my_app/arc/chat/data/models/lumara_favorite.dart';
+import 'package:my_app/arc/ui/timeline/favorite_journal_entries_view.dart';
+import 'package:my_app/arc/chat/chat/ui/enhanced_chats_screen.dart';
 
 /// Screen for managing LUMARA favorites
 class FavoritesManagementView extends StatefulWidget {
@@ -12,25 +14,39 @@ class FavoritesManagementView extends StatefulWidget {
   State<FavoritesManagementView> createState() => _FavoritesManagementViewState();
 }
 
-class _FavoritesManagementViewState extends State<FavoritesManagementView> {
+class _FavoritesManagementViewState extends State<FavoritesManagementView> with SingleTickerProviderStateMixin {
   final FavoritesService _favoritesService = FavoritesService.instance;
-  List<LumaraFavorite> _favorites = [];
+  List<LumaraFavorite> _answers = [];
+  List<LumaraFavorite> _savedChats = [];
+  List<LumaraFavorite> _favoriteEntries = [];
   bool _isLoading = true;
+  late TabController _tabController;
 
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: 3, vsync: this);
     _loadFavorites();
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadFavorites() async {
     setState(() => _isLoading = true);
     try {
       await _favoritesService.initialize();
-      final favorites = await _favoritesService.getAllFavorites();
+      final answers = await _favoritesService.getLumaraAnswers();
+      final chats = await _favoritesService.getSavedChats();
+      final entries = await _favoritesService.getFavoriteJournalEntries();
       if (mounted) {
         setState(() {
-          _favorites = favorites;
+          _answers = answers;
+          _savedChats = chats;
+          _favoriteEntries = entries;
           _isLoading = false;
         });
       }
@@ -79,13 +95,14 @@ class _FavoritesManagementViewState extends State<FavoritesManagementView> {
   }
 
   Future<void> _clearAllFavorites() async {
-    if (_favorites.isEmpty) return;
+    final totalCount = _answers.length + _savedChats.length + _favoriteEntries.length;
+    if (totalCount == 0) return;
 
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Clear All Favorites'),
-        content: Text('Are you sure you want to remove all ${_favorites.length} favorites? This cannot be undone.'),
+        content: Text('Are you sure you want to remove all $totalCount favorites? This cannot be undone.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -119,8 +136,9 @@ class _FavoritesManagementViewState extends State<FavoritesManagementView> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final count = _favorites.length;
-    final maxCount = 25;
+    final answersCount = _answers.length;
+    final chatsCount = _savedChats.length;
+    final entriesCount = _favoriteEntries.length;
 
     return Scaffold(
       backgroundColor: kcBackgroundColor,
@@ -136,102 +154,228 @@ class _FavoritesManagementViewState extends State<FavoritesManagementView> {
           ),
         ),
         iconTheme: const IconThemeData(color: kcPrimaryTextColor),
-        actions: [
-          if (count > 0)
-            IconButton(
-              icon: const Icon(Icons.delete_outline),
-              tooltip: 'Clear All',
-              onPressed: _clearAllFavorites,
+        bottom: TabBar(
+          controller: _tabController,
+          labelColor: kcPrimaryTextColor,
+          unselectedLabelColor: kcTextSecondaryColor,
+          indicatorColor: kcAccentColor,
+          tabs: [
+            Tab(
+              icon: const Icon(Icons.star, color: Color(0xFFFFB300)),
+              text: 'Answers ($answersCount/25)',
             ),
-        ],
+            Tab(
+              icon: const Icon(Icons.bookmark, color: Color(0xFF2196F3)),
+              text: 'Chats ($chatsCount/20)',
+            ),
+            Tab(
+              icon: const Icon(Icons.bookmark, color: Color(0xFF2196F3)),
+              text: 'Entries ($entriesCount/20)',
+            ),
+          ],
+        ),
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : count == 0
-              ? _buildEmptyState(theme)
-              : Column(
-                  children: [
-                    // Explainer text
-                    Container(
-                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                      child: Text(
-                        'With favorites, LUMARA can learn how to answer in a way that suits you.',
-                        style: bodyStyle(context).copyWith(
-                          color: kcSecondaryTextColor,
-                          fontSize: 14,
-                        ),
-                      ),
-                    ),
-                    // Header with count and add button
-                    Container(
-                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.star,
-                            color: kcAccentColor,
-                            size: 24,
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              '$count of $maxCount favorites',
-                              style: heading3Style(context).copyWith(
-                                color: kcPrimaryTextColor,
-                              ),
-                            ),
-                          ),
-                          if (count >= maxCount)
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.orange.withOpacity(0.2),
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(
-                                  color: Colors.orange,
-                                  width: 1,
-                                ),
-                              ),
-                              child: Text(
-                                'Full',
-                                style: bodyStyle(context).copyWith(
-                                  color: Colors.orange,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                          if (count < maxCount) ...[
-                            const SizedBox(width: 8),
-                            IconButton(
-                              icon: const Icon(Icons.add_circle_outline),
-                              color: kcAccentColor,
-                              onPressed: () => _showAddFavoriteDialog(),
-                              tooltip: 'Add Favorite',
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                    // Favorites list
-                    Expanded(
-                      child: ListView.builder(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        itemCount: _favorites.length,
-                        itemBuilder: (context, index) {
-                          final favorite = _favorites[index];
-                          return _buildFavoriteCard(theme, favorite);
-                        },
-                      ),
-                    ),
-                  ],
-                ),
+          : TabBarView(
+              controller: _tabController,
+              children: [
+                _buildAnswersTab(theme, answersCount),
+                _buildSavedChatsTab(chatsCount),
+                _buildFavoriteEntriesTab(entriesCount),
+              ],
+            ),
     );
   }
 
-  Widget _buildEmptyState(ThemeData theme) {
+  Widget _buildAnswersTab(ThemeData theme, int count) {
+    if (count == 0) {
+      return _buildEmptyState(theme, 'answer');
+    }
+    return Column(
+      children: [
+        // Explainer text
+        Container(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+          child: Text(
+            'With favorites, LUMARA can learn how to answer in a way that suits you.',
+            style: bodyStyle(context).copyWith(
+              color: kcSecondaryTextColor,
+              fontSize: 14,
+            ),
+          ),
+        ),
+        // Header with count and add button
+        Container(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+          child: Row(
+            children: [
+              const Icon(Icons.star, color: Color(0xFFFFB300), size: 24),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  '$count of 25 favorites',
+                  style: heading3Style(context).copyWith(
+                    color: kcPrimaryTextColor,
+                  ),
+                ),
+              ),
+              if (count >= 25)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.orange, width: 1),
+                  ),
+                  child: Text(
+                    'Full',
+                    style: bodyStyle(context).copyWith(
+                      color: Colors.orange,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              if (count < 25) ...[
+                const SizedBox(width: 8),
+                IconButton(
+                  icon: const Icon(Icons.add_circle_outline),
+                  color: const Color(0xFFFFB300),
+                  onPressed: () => _showAddFavoriteDialog(),
+                  tooltip: 'Add Favorite',
+                ),
+              ],
+            ],
+          ),
+        ),
+        // Favorites list
+        Expanded(
+          child: ListView.builder(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            itemCount: _answers.length,
+            itemBuilder: (context, index) {
+              return _buildFavoriteCard(theme, _answers[index]);
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSavedChatsTab(int count) {
+    return Column(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(16),
+          child: Text(
+            'Saved chats appear in your chat history with a bookmark icon. Tap below to view them there.',
+            style: bodyStyle(context).copyWith(
+              color: kcSecondaryTextColor,
+              fontSize: 14,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ),
+        if (count > 0)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Text(
+              'You have $count saved chats',
+              style: heading3Style(context).copyWith(
+                color: const Color(0xFF2196F3),
+              ),
+            ),
+          ),
+        const Spacer(),
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: ElevatedButton.icon(
+            onPressed: () {
+              // Navigate to chat history - saved chats will be shown there
+              Navigator.pop(context);
+              // Note: User will need to navigate to chat history manually
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Navigate to Chat History to view saved chats'),
+                  duration: Duration(seconds: 2),
+                ),
+              );
+            },
+            icon: const Icon(Icons.chat, color: Color(0xFF2196F3)),
+            label: const Text('View in Chat History'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF2196F3).withOpacity(0.1),
+              foregroundColor: const Color(0xFF2196F3),
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+      ],
+    );
+  }
+
+  Widget _buildFavoriteEntriesTab(int count) {
+    return Column(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(16),
+          child: Text(
+            'Favorite journal entries appear in your timeline with a bookmark icon. Tap below to view them.',
+            style: bodyStyle(context).copyWith(
+              color: kcSecondaryTextColor,
+              fontSize: 14,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ),
+        if (count > 0)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Text(
+              'You have $count favorite entries',
+              style: heading3Style(context).copyWith(
+                color: const Color(0xFF2196F3),
+              ),
+            ),
+          ),
+        const Spacer(),
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: ElevatedButton.icon(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const FavoriteJournalEntriesView(),
+                ),
+              );
+            },
+            icon: const Icon(Icons.bookmark, color: Color(0xFF2196F3)),
+            label: const Text('View Favorite Entries'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF2196F3).withOpacity(0.1),
+              foregroundColor: const Color(0xFF2196F3),
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+      ],
+    );
+  }
+
+  Widget _buildEmptyState(ThemeData theme, String category) {
+    final icon = category == 'answer' ? Icons.star_outline : Icons.bookmark_border;
+    final title = category == 'answer' 
+        ? 'No Favorites Yet'
+        : category == 'chat'
+            ? 'No Saved Chats Yet'
+            : 'No Favorite Entries Yet';
+    final description = category == 'answer'
+        ? 'Add LUMARA answers you like to help LUMARA learn your preferred style.'
+        : category == 'chat'
+            ? 'Save chat sessions you want to reference later.'
+            : 'Favorite journal entries you want to reference later.';
+
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
@@ -239,42 +383,44 @@ class _FavoritesManagementViewState extends State<FavoritesManagementView> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
-              Icons.star_outline,
+              icon,
               size: 64,
               color: kcSecondaryTextColor.withOpacity(0.5),
             ),
             const SizedBox(height: 16),
             Text(
-              'No Favorites Yet',
+              title,
               style: heading2Style(context).copyWith(
                 color: kcPrimaryTextColor,
               ),
             ),
             const SizedBox(height: 8),
             Text(
-              'Add LUMARA answers you like to help LUMARA learn your preferred style.',
+              description,
               style: bodyStyle(context).copyWith(
                 color: kcSecondaryTextColor,
               ),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 24),
-            Text(
-              'How to add favorites:',
-              style: heading3Style(context).copyWith(
-                color: kcPrimaryTextColor,
+            if (category == 'answer') ...[
+              const SizedBox(height: 24),
+              Text(
+                'How to add favorites:',
+                style: heading3Style(context).copyWith(
+                  color: kcPrimaryTextColor,
+                ),
               ),
-            ),
-            const SizedBox(height: 12),
-            _buildInstructionItem(
-              Icons.star_border,
-              'Tap the star icon on any LUMARA answer',
-            ),
-            const SizedBox(height: 8),
-            _buildInstructionItem(
-              Icons.add_circle_outline,
-              'Use the + button to manually add a favorite',
-            ),
+              const SizedBox(height: 12),
+              _buildInstructionItem(
+                Icons.star_border,
+                'Tap the star icon on any LUMARA answer',
+              ),
+              const SizedBox(height: 8),
+              _buildInstructionItem(
+                Icons.add_circle_outline,
+                'Use the + button to manually add a favorite',
+              ),
+            ],
           ],
         ),
       ),
@@ -440,6 +586,7 @@ class _FavoritesManagementViewState extends State<FavoritesManagementView> {
           sourceId: null,
           sourceType: 'manual',
           metadata: {},
+          category: 'answer', // Manual favorites are always answers
         );
         
         final added = await _favoritesService.addFavorite(favorite);
@@ -455,10 +602,12 @@ class _FavoritesManagementViewState extends State<FavoritesManagementView> {
           }
         } else {
           if (mounted) {
+            final isAtCapacity = await _favoritesService.isCategoryAtCapacity('answer');
+            final limit = _favoritesService.getCategoryLimit('answer');
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Cannot add favorite - at capacity (25/25)'),
-                duration: Duration(seconds: 2),
+              SnackBar(
+                content: Text('Cannot add favorite - at capacity ($limit/$limit)'),
+                duration: const Duration(seconds: 2),
                 backgroundColor: Colors.orange,
               ),
             );

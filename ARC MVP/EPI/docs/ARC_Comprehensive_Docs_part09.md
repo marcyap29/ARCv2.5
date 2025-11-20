@@ -913,7 +913,7 @@ Unified all LUMARA assistant prompts under a single, architecture-aligned system
 Aligned with EPI v2.1 Consolidated Architecture:
 - **ARC** - Journaling, Chat UI, Arcform
 - **PRISM.ATLAS** - Phase/Readiness, RIVET, SENTINEL, multimodal analysis
-- **POLYMETA** - Memory graph + MCP/ARCX secure store
+- **MIRA** - Memory graph + MCP/ARCX secure store
 - **AURORA.VEIL** - Circadian scheduling + restorative regimens
 - **ECHO** - LLM interface, guardrails, privacy
 
@@ -928,7 +928,7 @@ Aligned with EPI v2.1 Consolidated Architecture:
 ## Module Handoffs
 
 - `ECHO.guard` - Apply safety/privacy to inputs/outputs
-- `POLYMETA.query` - Retrieve relevant memories
+- `MIRA.query` - Retrieve relevant memories
 - `PRISM.atlas.phase/readiness` - Adjust pacing and firmness
 - `RIVET` - Detect interest/value shifts
 - `AURORA.veil` - Switch to recovery cadence on overload
@@ -2108,10 +2108,10 @@ The manifest now includes phase regimes count in scope:
 
 ## Files Modified
 
-1. `lib/polymeta/store/arcx/models/arcx_manifest.dart`
+1. `lib/mira/store/arcx/models/arcx_manifest.dart`
    - Added `phaseRegimesCount` to `ARCXScope`
 
-2. `lib/polymeta/store/arcx/services/arcx_export_service_v2.dart`
+2. `lib/mira/store/arcx/services/arcx_export_service_v2.dart`
    - Added `PhaseRegimeService?` parameter
    - Added `_exportPhaseRegimes()` method
    - Updated all export methods to include phase regimes
@@ -4094,7 +4094,7 @@ class LumaraReflectionSettingsService {
 ```
 
 #### 2. Enhanced Memory Service
-**Location**: `lib/polymeta/memory/enhanced_mira_memory_service.dart`
+**Location**: `lib/mira/memory/enhanced_mira_memory_service.dart`
 
 Enhanced `retrieveMemories()` method with new parameters:
 
@@ -4243,7 +4243,7 @@ Future<String> _buildJournalContext(
 
 #### Core Implementation
 - `lib/arc/chat/services/lumara_reflection_settings_service.dart` - **NEW**: Settings service
-- `lib/polymeta/memory/enhanced_mira_memory_service.dart` - Enhanced with semantic search parameters
+- `lib/mira/memory/enhanced_mira_memory_service.dart` - Enhanced with semantic search parameters
 - `lib/arc/chat/bloc/lumara_assistant_cubit.dart` - Updated `_buildEntryContext()` for semantic search
 - `lib/ui/journal/journal_screen.dart` - Updated `_buildJournalContext()` for semantic search
 - `lib/arc/chat/services/enhanced_lumara_api.dart` - Uses reflection settings
@@ -4256,7 +4256,7 @@ Future<String> _buildJournalContext(
 - `lib/arc/chat/services/semantic_similarity_service.dart` - Updated recency boost to respect lookback years
 
 ### Dependencies
-- `EnhancedMiraMemoryService` (POLYMETA module)
+- `EnhancedMiraMemoryService` (MIRA module)
 - `LumaraReflectionSettingsService` (ARC module)
 - `SharedPreferences` (for settings persistence)
 - `JournalRepository` (for fetching full entry content)
@@ -6277,7 +6277,7 @@ EPI uses a 5-module architecture:
 
 1. **ARC**: Journaling interface and UX
 2. **PRISM**: Multimodal perception and analysis
-3. **POLYMETA**: Memory graph and secure store
+3. **MIRA**: Memory graph and secure store
 4. **AURORA**: Circadian orchestration
 5. **ECHO**: Response control and safety
 
@@ -6342,7 +6342,7 @@ flutter test --coverage
 - Risk assessment (RIVET, SENTINEL)
 - Health data integration
 
-**POLYMETA Module**
+**MIRA Module**
 - Unified memory graph (MIRA)
 - MCP-compliant storage
 - ARCX encryption
@@ -6371,15 +6371,15 @@ flutter test --coverage
 
 1. **User Input**: ARC captures user input
 2. **Processing**: PRISM analyzes content
-3. **Storage**: POLYMETA stores in memory graph
+3. **Storage**: MIRA stores in memory graph
 4. **Safety**: ECHO applies guardrails
 5. **Orchestration**: AURORA schedules maintenance
 
 ### Integration Points
 
 - **ARC ↔ PRISM**: Content analysis and phase detection
-- **PRISM ↔ POLYMETA**: Memory storage and retrieval
-- **POLYMETA ↔ ECHO**: Context retrieval for responses
+- **PRISM ↔ MIRA**: Memory storage and retrieval
+- **MIRA ↔ ECHO**: Context retrieval for responses
 - **ECHO ↔ AURORA**: Scheduled safety checks
 - **ARC ↔ ECHO**: Response generation
 

@@ -4027,15 +4027,15 @@ The EPI architecture consolidation is **COMPLETE**. All module structures have b
 
 ---
 
-### ✅ Phase 3: POLYMETA Unification - **PARTIALLY COMPLETE**
+### ✅ Phase 3: MIRA Unification - **PARTIALLY COMPLETE**
 
 **Status:** New structure created with store/mcp and store/arcx, but old modules remain
 
 **Completed:**
-- ✅ `lib/polymeta/` directory created
-- ✅ `lib/polymeta/store/mcp/` - MCP functionality moved
-- ✅ `lib/polymeta/store/arcx/` - ARCX functionality moved
-- ✅ `lib/polymeta/` contains MIRA core, graph, memory, retrieval, etc.
+- ✅ `lib/mira/` directory created
+- ✅ `lib/mira/store/mcp/` - MCP functionality moved
+- ✅ `lib/mira/store/arcx/` - ARCX functionality moved
+- ✅ `lib/mira/` contains MIRA core, graph, memory, retrieval, etc.
 
 **Remaining:**
 - ❌ `lib/mira/` directory still exists (duplicate code - same structure as polymeta!)
@@ -4052,7 +4052,7 @@ The EPI architecture consolidation is **COMPLETE**. All module structures have b
 - Entire `lib/arcx/` directory (if moved to polymeta/store/arcx/)
 - `lib/core/mcp/` directory (merge into polymeta/store/mcp/)
 
-**Note:** It appears `lib/mira/` and `lib/polymeta/` may be identical duplicates. Need to verify.
+**Note:** It appears `lib/mira/` and `lib/mira/` may be identical duplicates. Need to verify.
 
 ---
 
@@ -4104,9 +4104,9 @@ The EPI architecture consolidation is **COMPLETE**. All module structures have b
 | **ATLAS** | `lib/prism/atlas/` | ✅ Created | `lib/atlas/` | ⚠️ Still exists |
 | **LUMARA** | `lib/arc/chat/` | ✅ Created | `lib/lumara/` | ⚠️ Still exists |
 | **ARCFORM** | `lib/arc/arcform/` | ✅ Created | `lib/arcform/` | ⚠️ Still exists |
-| **MIRA** | `lib/polymeta/` | ✅ Created | `lib/mira/` | ⚠️ Still exists |
-| **MCP** | `lib/polymeta/store/mcp/` | ✅ Created | `lib/mcp/`, `lib/core/mcp/` | ⚠️ Still exist |
-| **ARCX** | `lib/polymeta/store/arcx/` | ✅ Created | `lib/arcx/` | ⚠️ Still exists |
+| **MIRA** | `lib/mira/` | ✅ Created | `lib/mira/` | ⚠️ Still exists |
+| **MCP** | `lib/mira/store/mcp/` | ✅ Created | `lib/mcp/`, `lib/core/mcp/` | ⚠️ Still exist |
+| **ARCX** | `lib/mira/store/arcx/` | ✅ Created | `lib/arcx/` | ⚠️ Still exists |
 | **VEIL** | `lib/aurora/regimens/veil/` | ✅ Created | `lib/veil/` | ⚠️ Still exists |
 | **Privacy Core** | `lib/echo/privacy_core/` | ✅ Created | `lib/privacy_core/` | ⚠️ Still exists |
 
@@ -4162,16 +4162,16 @@ package:my_app/lumara/ → package:my_app/arc/chat/
 package:arcform/ → package:arc/arcform/
 package:my_app/arcform/ → package:my_app/arc/arcform/
 
-# MIRA → POLYMETA
+# MIRA → MIRA
 package:mira/ → package:polymeta/
 package:my_app/mira/ → package:my_app/polymeta/
 
-# MCP → POLYMETA
+# MCP → MIRA
 package:mcp/ → package:polymeta/store/mcp/
 package:my_app/mcp/ → package:my_app/polymeta/store/mcp/
 package:my_app/core/mcp/ → package:my_app/polymeta/store/mcp/
 
-# ARCX → POLYMETA
+# ARCX → MIRA
 package:arcx/ → package:polymeta/store/arcx/
 package:my_app/arcx/ → package:my_app/polymeta/store/arcx/
 
@@ -4232,7 +4232,7 @@ package:my_app/privacy_core/ → package:my_app/echo/privacy_core/
 
 ### High Risk
 - ⚠️ Potential for breaking changes if old directories deleted prematurely
-- ⚠️ Need to verify `lib/mira/` and `lib/polymeta/` aren't diverged
+- ⚠️ Need to verify `lib/mira/` and `lib/mira/` aren't diverged
 - ⚠️ Need comprehensive testing after migration
 
 ---
@@ -4251,8 +4251,8 @@ package:my_app/privacy_core/ → package:my_app/echo/privacy_core/
 - [ ] Delete `lib/arcform/` directory
 - [ ] Run tests
 
-### Phase 3: POLYMETA Unification
-- [ ] Verify `lib/mira/` and `lib/polymeta/` are identical
+### Phase 3: MIRA Unification
+- [ ] Verify `lib/mira/` and `lib/mira/` are identical
 - [ ] Merge any differences
 - [ ] Verify all imports use `polymeta/`
 - [ ] Update `epi_module.dart` to use polymeta
@@ -4304,7 +4304,7 @@ package:my_app/privacy_core/ → package:my_app/echo/privacy_core/
 
 ## Overview
 
-Integrated the comprehensive LUMARA Super Prompt into both in-journal and chat contexts, consolidating POLYMETA into MIRA, removing hard-coded fallbacks, and optimizing for cloud API usage.
+Integrated the comprehensive LUMARA Super Prompt into both in-journal and chat contexts, consolidating MIRA into MIRA, removing hard-coded fallbacks, and optimizing for cloud API usage.
 
 ---
 
@@ -4340,9 +4340,9 @@ Integrated the comprehensive LUMARA Super Prompt into both in-journal and chat c
 
 ---
 
-### 2. **Module Consolidation: POLYMETA → MIRA**
+### 2. **Module Consolidation: MIRA → MIRA**
 
-**Change**: Removed POLYMETA as separate module, consolidated functionality into MIRA.
+**Change**: Removed MIRA as separate module, consolidated functionality into MIRA.
 
 **Updated MIRA Description**:
 - Semantic memory graph storing and retrieving memory objects (nodes and edges)
@@ -4434,7 +4434,7 @@ All task-specific prompts updated to align with new philosophy:
 ### Core Prompt Files
 1. `lib/lumara/prompts/lumara_system_prompt.dart`
    - Updated universal prompt with Super Prompt content
-   - Removed POLYMETA references
+   - Removed MIRA references
    - Updated task prompts
    - Removed hard-coded fallbacks
 
@@ -4442,17 +4442,17 @@ All task-specific prompts updated to align with new philosophy:
    - Updated system prompt
    - Updated in-journal prompt with Super Prompt integration
    - Added new chat-specific prompt
-   - Removed POLYMETA references
+   - Removed MIRA references
 
 3. `lib/echo/response/prompts/lumara_system_prompt.dart`
    - Updated to match main prompt files
-   - Removed POLYMETA references
+   - Removed MIRA references
    - Updated task prompts
 
 ### Documentation Files
 1. `docs/architecture/EPI_Architecture.md`
    - Updated LUMARA Prompts Architecture section
-   - Removed POLYMETA references
+   - Removed MIRA references
    - Added chat-specific prompt documentation
    - Updated module descriptions
 
@@ -4484,7 +4484,7 @@ All existing functionality preserved. Changes are additive and improve consisten
 
 This update:
 - ✅ Integrates comprehensive Super Prompt personality across all LUMARA interactions
-- ✅ Consolidates POLYMETA into MIRA for simplified module architecture
+- ✅ Consolidates MIRA into MIRA for simplified module architecture
 - ✅ Removes hard-coded fallbacks, optimizing for cloud API usage
 - ✅ Provides context-specific prompts (universal, in-journal, chat)
 - ✅ Enhances module integration guidelines
@@ -4532,7 +4532,7 @@ Implemented two key features:
 
 ### 1. Enhanced AttributionTrace with Excerpts
 
-**File**: `lib/polymeta/memory/enhanced_memory_schema.dart`
+**File**: `lib/mira/memory/enhanced_memory_schema.dart`
 
 **Changes**:
 - Added `excerpt` field to `AttributionTrace` class
@@ -4552,7 +4552,7 @@ class AttributionTrace {
 
 ### 2. Attribution Service Updates
 
-**File**: `lib/polymeta/memory/attribution_service.dart`
+**File**: `lib/mira/memory/attribution_service.dart`
 
 **Changes**:
 - Updated `createTrace()` to accept `excerpt` parameter
@@ -4560,7 +4560,7 @@ class AttributionTrace {
 
 ### 3. Memory Service Excerpt Extraction
 
-**File**: `lib/polymeta/memory/enhanced_mira_memory_service.dart`
+**File**: `lib/mira/memory/enhanced_mira_memory_service.dart`
 
 **Changes**:
 - Extracts first 200 characters of node narrative as excerpt
@@ -4761,8 +4761,8 @@ if (trace.excerpt != null && trace.excerpt!.isNotEmpty) ...[
 ## Integration Points
 
 ### Memory Attribution
-- **Enhanced Memory Service**: `lib/polymeta/memory/enhanced_mira_memory_service.dart`
-- **Attribution Service**: `lib/polymeta/memory/attribution_service.dart`
+- **Enhanced Memory Service**: `lib/mira/memory/enhanced_mira_memory_service.dart`
+- **Attribution Service**: `lib/mira/memory/attribution_service.dart`
 - **Attribution Display**: `lib/arc/chat/widgets/attribution_display_widget.dart`
 
 ### Weighted Context

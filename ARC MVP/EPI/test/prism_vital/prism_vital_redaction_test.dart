@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:my_app/polymeta/store/mcp/schema/mcp_redaction_policy.dart';
+import 'package:my_app/mira/store/mcp/schema/mcp_redaction_policy.dart';
 
 void main() {
   test('timestamp clamping to date_only', () {

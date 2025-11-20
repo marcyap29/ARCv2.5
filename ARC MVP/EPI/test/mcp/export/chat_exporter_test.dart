@@ -7,7 +7,7 @@ import 'package:my_app/arc/chat/chat/chat_models.dart';
 import 'package:my_app/arc/chat/chat/chat_repo_impl.dart';
 import 'package:my_app/arc/chat/chat/privacy_redactor.dart';
 import 'package:my_app/arc/chat/chat/provenance_tracker.dart';
-import 'package:my_app/polymeta/store/mcp/export/chat_exporter.dart';
+import 'package:my_app/mira/store/mcp/export/chat_exporter.dart';
 
 void main() {
   group('ChatMcpExporter Tests', () {

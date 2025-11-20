@@ -1,5 +1,5 @@
 import 'package:hive/hive.dart';
-import 'package:my_app/polymeta/store/mcp/models/media_pack_metadata.dart';
+import 'package:my_app/mira/store/mcp/models/media_pack_metadata.dart';
 
 /// Service for tracking and managing media pack metadata
 class MediaPackTrackingService {

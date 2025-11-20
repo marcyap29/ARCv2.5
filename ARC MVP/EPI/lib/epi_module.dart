@@ -4,7 +4,7 @@
 export 'arc/arc_module.dart';
 export 'prism/prism_module.dart';
 // ATLAS is now part of PRISM, accessed via prism/atlas/
-export 'polymeta/mira_integration.dart';
+export 'mira/mira_integration.dart';
 export 'aurora/aurora_module.dart';
 // VEIL is now part of AURORA, accessed via aurora/regimens/veil/
 export 'echo/echo_module.dart';
@@ -14,7 +14,7 @@ export 'echo/echo_module.dart';
 /// Coordinates all five core modules of the Evolving Personal Intelligence system:
 /// - ARC: Journaling app & main UX (includes LUMARA + ARCFORM)
 /// - PRISM: Multimodal perception & analysis (includes ATLAS)
-/// - POLYMETA: Memory graph, recall, encryption, data container (includes MIRA + MCP + ARCX)
+/// - MIRA: Memory graph, recall, encryption, data container (includes MCP + ARCX)
 /// - AURORA: Circadian orchestration & job scheduling (includes VEIL)
 /// - ECHO: Response control, LLM interface, safety & privacy (includes Privacy Core)
 class EPIModule {

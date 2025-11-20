@@ -1,7 +1,7 @@
 import 'dart:io';
 import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:my_app/polymeta/store/mcp/import/ndjson_stream_reader.dart';
+import 'package:my_app/mira/store/mcp/import/ndjson_stream_reader.dart';
 
 void main() {
   group('NdjsonStreamReader', () {

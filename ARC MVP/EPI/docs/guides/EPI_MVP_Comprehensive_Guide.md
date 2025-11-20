@@ -226,7 +226,7 @@ EPI uses a 5-module architecture:
 
 1. **ARC**: Journaling interface and UX
 2. **PRISM**: Multimodal perception and analysis
-3. **POLYMETA**: Memory graph and secure store
+3. **MIRA**: Memory graph and secure store
 4. **AURORA**: Circadian orchestration
 5. **ECHO**: Response control and safety
 
@@ -291,7 +291,7 @@ flutter test --coverage
 - Risk assessment (RIVET, SENTINEL)
 - Health data integration
 
-**POLYMETA Module**
+**MIRA Module**
 - Unified memory graph (MIRA)
 - MCP-compliant storage
 - ARCX encryption
@@ -320,15 +320,15 @@ flutter test --coverage
 
 1. **User Input**: ARC captures user input
 2. **Processing**: PRISM analyzes content
-3. **Storage**: POLYMETA stores in memory graph
+3. **Storage**: MIRA stores in memory graph
 4. **Safety**: ECHO applies guardrails
 5. **Orchestration**: AURORA schedules maintenance
 
 ### Integration Points
 
 - **ARC ↔ PRISM**: Content analysis and phase detection
-- **PRISM ↔ POLYMETA**: Memory storage and retrieval
-- **POLYMETA ↔ ECHO**: Context retrieval for responses
+- **PRISM ↔ MIRA**: Memory storage and retrieval
+- **MIRA ↔ ECHO**: Context retrieval for responses
 - **ECHO ↔ AURORA**: Scheduled safety checks
 - **ARC ↔ ECHO**: Response generation
 

@@ -8,6 +8,7 @@ import 'package:my_app/services/journal_session_cache.dart';
 import 'package:my_app/ui/journal/journal_screen.dart';
 import 'package:my_app/arc/ui/timeline/timeline_entry_model.dart';
 import 'package:my_app/models/phase_models.dart';
+import 'package:my_app/arc/ui/timeline/favorite_journal_entries_view.dart';
 
 class TimelineView extends StatelessWidget {
   const TimelineView({super.key});
@@ -311,6 +312,18 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
               }
             },
             tooltip: _isSearchExpanded ? 'Hide Search' : 'Search Entries',
+          ),
+          IconButton(
+            icon: const Icon(Icons.bookmark, color: Color(0xFF2196F3)),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const FavoriteJournalEntriesView(),
+                ),
+              );
+            },
+            tooltip: 'Favorite Journal Entries',
           ),
           IconButton(
             icon: const Icon(Icons.checklist),

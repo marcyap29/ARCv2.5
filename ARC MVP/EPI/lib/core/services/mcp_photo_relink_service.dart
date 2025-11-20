@@ -5,7 +5,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:my_app/data/models/media_item.dart';
 import 'package:my_app/core/services/media_store.dart';
 import 'package:my_app/core/services/media_sanitizer.dart';
-import 'package:my_app/polymeta/store/mcp/orchestrator/ios_vision_orchestrator.dart';
+import 'package:my_app/mira/store/mcp/orchestrator/ios_vision_orchestrator.dart';
 import 'package:my_app/core/services/photo_library_service.dart';
 
 /// Service for handling mandatory photo relinking during MCP import

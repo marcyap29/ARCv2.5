@@ -4330,7 +4330,7 @@ The EPI system is organized into 5 core modules:
    - Risk assessment (RIVET, SENTINEL)
    - Health data integration
 
-3. **POLYMETA** - Memory Graph & Secure Store
+3. **MIRA** - Memory Graph & Secure Store
    - Unified memory graph (MIRA)
    - MCP-compliant storage
    - ARCX encryption
@@ -4398,7 +4398,7 @@ The system was successfully consolidated from 8+ separate modules into 5 clean m
 ### Technical Features ✅
 
 - **ECHO Response System**: Complete dignified response generation layer
-- **POLYMETA Semantic Memory**: Complete semantic memory graph with MCP support
+- **MIRA Semantic Memory**: Complete semantic memory graph with MCP support
 - **On-Device AI**: Qwen models with llama.cpp and Metal acceleration
 - **Privacy Protection**: PII detection, masking, and encryption
 - **Phase Detection**: Real-time phase detection with RIVET and SENTINEL
@@ -5501,7 +5501,7 @@ The EPI MVP is **fully operational** with all core systems working correctly. Th
 | **LUMARA (Chat)** | ✅ Operational | Persistent memory, multimodal reflection working |
 | **ARCForm (Visualization)** | ✅ Operational | 3D constellations, phase-aware layouts working |
 | **PRISM (Analysis)** | ✅ Operational | Phase detection, RIVET, SENTINEL all working |
-| **POLYMETA (Memory)** | ✅ Operational | MCP export/import, memory graph working |
+| **MIRA (Memory)** | ✅ Operational | MCP export/import, memory graph working |
 | **AURORA (Orchestration)** | ✅ Operational | Scheduled jobs, VEIL regimens working |
 | **ECHO (Safety)** | ✅ Operational | Guardrails, privacy masking working |
 | **PRISM Scrubbing** | ✅ Operational | PII scrubbing before cloud APIs, restoration after receiving |
@@ -5898,7 +5898,7 @@ This backup branch captures the state of the EPI MVP codebase after completing s
 - All reflection generation methods now include user comments in context
 
 **Files Modified:**
-- `lib/polymeta/memory/enhanced_mira_memory_service.dart`
+- `lib/mira/memory/enhanced_mira_memory_service.dart`
 - `lib/ui/journal/journal_screen.dart`
 
 **Status:** ✅ Complete - Attribution shows specific source text, user comments are included in context
@@ -5928,10 +5928,10 @@ PhaseRegimes/
 ```
 
 **Files Modified:**
-- `lib/polymeta/store/mcp/export/mcp_export_service.dart`
-- `lib/polymeta/store/arcx/services/arcx_export_service_v2.dart`
-- `lib/polymeta/store/arcx/services/arcx_import_service_v2.dart`
-- `lib/polymeta/store/arcx/ui/arcx_import_progress_screen.dart`
+- `lib/mira/store/mcp/export/mcp_export_service.dart`
+- `lib/mira/store/arcx/services/arcx_export_service_v2.dart`
+- `lib/mira/store/arcx/services/arcx_import_service_v2.dart`
+- `lib/mira/store/arcx/ui/arcx_import_progress_screen.dart`
 
 **Status:** ✅ Complete - Complete system state backup and restore
 
@@ -6428,7 +6428,7 @@ Or restore specific files:
 - ✅ Consolidated from 8+ modules to 5 clean modules
 - ✅ ARC: Journaling, chat (LUMARA), arcform visualization
 - ✅ PRISM: Multimodal perception with ATLAS integration
-- ✅ POLYMETA: Memory graph with MCP and ARCX
+- ✅ MIRA: Memory graph with MCP and ARCX
 - ✅ AURORA: Circadian orchestration with VEIL
 - ✅ ECHO: Response control with safety and privacy
 

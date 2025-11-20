@@ -61,20 +61,20 @@ EPI (Evolving Personal Intelligence) is a 5-module intelligent journaling system
 
 ---
 
-### 3. POLYMETA - Memory Graph & Secure Store
-**Location:** `lib/polymeta/`  
+### 3. MIRA - Memory Graph & Secure Store
+**Location:** `lib/mira/`  
 **Purpose:** Memory storage, encryption, and data container management
 
 **Submodules:**
 - `store/mcp/` - Memory Container Protocol (formerly separate modules)
 - `store/arcx/` - ARCX encryption and export (formerly separate module)
-- `core/` - Memory graph core services (formerly MIRA)
+- `core/` - Memory graph core services
 - `graph/` - Memory graph construction
 - `memory/` - Memory storage and retrieval
 - `retrieval/` - Vector search and retrieval
 
 **Key Features:**
-- Unified memory graph (formerly MIRA)
+- Unified memory graph
 - MCP-compliant storage format
 - ARCX encryption (AES-256-GCM + Ed25519 signing)
 - Vector search and semantic retrieval
@@ -82,10 +82,10 @@ EPI (Evolving Personal Intelligence) is a 5-module intelligent journaling system
 
 **Unified API:**
 ```dart
-polymeta.put(event)                              // Store event
-polymeta.query(vector, k: 10)                    // Vector search
-polymeta.export(format: 'mcp', envelope: 'arcx') // Export
-polymeta.import(file)                            // Import
+mira.put(event)                              // Store event
+mira.query(vector, k: 10)                    // Vector search
+mira.export(format: 'mcp', envelope: 'arcx') // Export
+mira.import(file)                            // Import
 ```
 
 ---
@@ -148,7 +148,7 @@ echo.privacy.detect(input)      // Detect PII
 ├─────────────────────────────────────────────────────────────┤
 │                                                             │
 │  ┌──────────┐      ┌──────────┐      ┌──────────┐         │
-│  │   ARC    │──────▶│  PRISM   │──────▶│ POLYMETA │         │
+│  │   ARC    │──────▶│  PRISM   │──────▶│   MIRA   │         │
 │  │          │      │          │      │          │         │
 │  │ Journal  │      │ Analysis │      │ Memory   │         │
 │  │ Chat     │      │ ATLAS    │      │ Store    │         │
@@ -180,7 +180,7 @@ echo.privacy.detect(input)      // Detect PII
 ## Module Relationships
 
 ```
-ARC  ─►  PRISM.atlas  ─►  POLYMETA.store
+ARC  ─►  PRISM.atlas  ─►  MIRA.store
  ↑           │                │
  │           └── ECHO.guard   │
  └─────── AURORA.regimens ────┘
@@ -189,7 +189,7 @@ ARC  ─►  PRISM.atlas  ─►  POLYMETA.store
 **Data Flow:**
 1. User creates journal entry in **ARC**
 2. **PRISM** processes and analyzes content (ATLAS detects phases)
-3. **POLYMETA** stores encrypted memories (MCP/ARCX format)
+3. **MIRA** stores encrypted memories (MCP/ARCX format)
 4. **ECHO** provides guardrails and privacy filtering
 5. **AURORA** orchestrates scheduled jobs (VEIL restoration cycles)
 
@@ -222,7 +222,7 @@ ARC  ─►  PRISM.atlas  ─►  POLYMETA.store
 ### Completed (November 4, 2025)
 - ✅ PRISM.ATLAS migration (phase, RIVET, SENTINEL unified)
 - ✅ ARC consolidation (LUMARA + ARCFORM merged)
-- ✅ POLYMETA unification (MIRA + MCP + ARCX merged)
+- ✅ MIRA unification (MCP + ARCX merged)
 - ✅ VEIL regimen (moved to AURORA)
 - ✅ Privacy merge (moved to ECHO)
 - ✅ Import path updates across codebase
@@ -233,9 +233,9 @@ The following modules have been consolidated and are deprecated:
 - ❌ ATLAS → Now `prism/atlas/`
 - ❌ LUMARA → Now `arc/chat/`
 - ❌ ARCFORM → Now `arc/arcform/`
-- ❌ MIRA → Now `polymeta/`
-- ❌ MCP → Now `polymeta/store/mcp/`
-- ❌ ARCX → Now `polymeta/store/arcx/`
+- ❌ MIRA → Now `mira/` (renamed to MIRA)
+- ❌ MCP → Now `mira/store/mcp/`
+- ❌ ARCX → Now `mira/store/arcx/`
 - ❌ VEIL → Now `aurora/regimens/veil/`
 - ❌ Privacy Core → Now `echo/privacy_core/`
 

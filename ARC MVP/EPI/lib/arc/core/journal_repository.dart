@@ -3,8 +3,8 @@ import 'package:hive/hive.dart';
 import 'package:my_app/models/journal_entry_model.dart';
 import 'package:my_app/arc/ui/timeline/timeline_state.dart';
 import 'package:my_app/arc/core/sage_annotation_model.dart';
-import 'package:my_app/polymeta/mira_service.dart';
-import 'package:my_app/polymeta/core/ids.dart';
+import 'package:my_app/mira/mira_service.dart';
+import 'package:my_app/mira/core/ids.dart';
 import 'package:my_app/data/models/media_item.dart';
 
 /// Self-initializing repository with consistent box name.

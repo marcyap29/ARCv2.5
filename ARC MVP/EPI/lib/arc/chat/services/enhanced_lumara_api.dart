@@ -18,9 +18,14 @@ import '../../../services/gemini_send.dart';
 import 'lumara_reflection_settings_service.dart';
 import '../llm/prompts/lumara_master_prompt.dart';
 import 'lumara_control_state_builder.dart';
-import '../../../polymeta/memory/attribution_service.dart';
-import '../../../polymeta/memory/enhanced_memory_schema.dart';
-import '../../../polymeta/memory/sentence_extraction_util.dart';
+import '../../../mira/memory/attribution_service.dart';
+import '../../../mira/memory/enhanced_memory_schema.dart';
+import '../../../mira/memory/sentence_extraction_util.dart';
+import '../../../arc/core/journal_repository.dart';
+import '../../../models/journal_entry_model.dart';
+import '../../../arc/chat/chat/chat_repo.dart';
+import '../../../arc/chat/chat/chat_repo_impl.dart';
+import '../../../arc/chat/chat/chat_models.dart';
 
 /// Result of generating a reflection with attribution traces
 class ReflectionResult {
@@ -40,6 +45,8 @@ class EnhancedLumaraApi {
   final SemanticSimilarityService _similarity = SemanticSimilarityService();
   final ReflectivePromptGenerator _promptGen = ReflectivePromptGenerator();
   final AttributionService _attributionService = AttributionService();
+  final JournalRepository _journalRepo = JournalRepository();
+  final ChatRepo _chatRepo = ChatRepoImpl.instance;
 
   static const String _standardReflectionLengthRule =
       'Return the full reflection as 2–3 complete sentences so it stays concise inside the journal entry. Avoid bullet points.';
@@ -305,11 +312,37 @@ class EnhancedLumaraApi {
           print('LUMARA Enhanced API v2.3: Calling Gemini API directly (same as main chat)');
           
           // Build PRISM activity context from request and matches
+          // Query repositories for actual data instead of using empty arrays
+          final recentJournalEntries = await _getRecentJournalEntries(limit: 20);
+          final drafts = await _getDrafts(limit: 10);
+          final recentChats = await _getRecentChats(limit: 10);
+          final mediaFromEntries = await _extractMediaFromEntries(recentJournalEntries);
+          
+          // Combine current entry with recent entries
+          final allJournalEntries = [
+            request.userText,
+            ...recentJournalEntries.map((e) => e.content).take(19), // Current entry + up to 19 more
+          ];
+          
+          // Combine provided chat context with recent chats
+          final allChats = <String>[];
+          if (chatContext != null && chatContext.isNotEmpty) {
+            allChats.add(chatContext);
+          }
+          allChats.addAll(recentChats);
+          
+          // Combine provided media context with media from entries
+          final allMedia = <String>[];
+          if (mediaContext != null && mediaContext.isNotEmpty) {
+            allMedia.add(mediaContext);
+          }
+          allMedia.addAll(mediaFromEntries);
+          
           final prismActivity = <String, dynamic>{
-            'journal_entries': [request.userText],
-            'drafts': [],
-            'chats': chatContext != null && chatContext.isNotEmpty ? [chatContext] : [],
-            'media': mediaContext != null && mediaContext.isNotEmpty ? [mediaContext] : [],
+            'journal_entries': allJournalEntries,
+            'drafts': drafts.map((e) => e.content).toList(),
+            'chats': allChats,
+            'media': allMedia,
             'patterns': matches.map((m) => m.excerpt ?? '').where((e) => e.isNotEmpty).toList(),
             'emotional_tone': mood ?? 'neutral',
             'cognitive_load': 'moderate', // Could be enhanced with analysis
@@ -617,5 +650,94 @@ class EnhancedLumaraApi {
   Future<void> clearCorruptedDownloads() async {
     // No-op for now
     print('LUMARA: clearCorruptedDownloads called (no-op)');
+  }
+
+  /// Get recent journal entries from repository
+  Future<List<JournalEntry>> _getRecentJournalEntries({int limit = 20}) async {
+    try {
+      final allEntries = _journalRepo.getAllJournalEntries();
+      // Sort by date, newest first
+      allEntries.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      return allEntries.take(limit).toList();
+    } catch (e) {
+      print('LUMARA Enhanced API: Error getting recent journal entries: $e');
+      return [];
+    }
+  }
+
+  /// Get draft entries from repository
+  /// Drafts are entries with empty title or very short content
+  Future<List<JournalEntry>> _getDrafts({int limit = 10}) async {
+    try {
+      final allEntries = _journalRepo.getAllJournalEntries();
+      final drafts = allEntries.where((entry) {
+        // Consider it a draft if title is empty or content is very short
+        return entry.title.isEmpty || entry.content.length < 50;
+      }).toList();
+      // Sort by date, newest first
+      drafts.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      return drafts.take(limit).toList();
+    } catch (e) {
+      print('LUMARA Enhanced API: Error getting drafts: $e');
+      return [];
+    }
+  }
+
+  /// Get recent chats from repository
+  Future<List<String>> _getRecentChats({int limit = 10}) async {
+    try {
+      await _chatRepo.initialize();
+      final sessions = await _chatRepo.listActive();
+      // Sort by most recent (assuming sessions have createdAt or similar)
+      sessions.sort((a, b) {
+        // Try to get creation date from metadata or use a default
+        final aDate = a.metadata?['createdAt'] as DateTime?;
+        final bDate = b.metadata?['createdAt'] as DateTime?;
+        if (aDate != null && bDate != null) {
+          return bDate.compareTo(aDate);
+        }
+        return 0;
+      });
+      
+      final chatTexts = <String>[];
+      for (final session in sessions.take(limit)) {
+        try {
+          final messages = await _chatRepo.getMessages(session.id, lazy: true);
+          // Format messages as conversation text
+          final conversationText = messages.map((msg) {
+            final role = msg.role == MessageRole.user ? 'User' : 'LUMARA';
+            return '$role: ${msg.textContent}';
+          }).join('\n');
+          if (conversationText.isNotEmpty) {
+            chatTexts.add('Chat: ${session.subject}\n$conversationText');
+          }
+        } catch (e) {
+          print('LUMARA Enhanced API: Error getting messages for session ${session.id}: $e');
+        }
+      }
+      return chatTexts;
+    } catch (e) {
+      print('LUMARA Enhanced API: Error getting recent chats: $e');
+      return [];
+    }
+  }
+
+  /// Extract media references from journal entries
+  Future<List<String>> _extractMediaFromEntries(List<JournalEntry> entries) async {
+    final mediaRefs = <String>[];
+    for (final entry in entries) {
+      for (final media in entry.media) {
+        // Include media type and any available transcript/OCR text
+        final mediaDesc = '${media.type.name}: ${media.uri}';
+        if (media.transcript != null && media.transcript!.isNotEmpty) {
+          mediaRefs.add('$mediaDesc - Transcript: ${media.transcript}');
+        } else if (media.ocrText != null && media.ocrText!.isNotEmpty) {
+          mediaRefs.add('$mediaDesc - OCR: ${media.ocrText}');
+        } else {
+          mediaRefs.add(mediaDesc);
+        }
+      }
+    }
+    return mediaRefs;
   }
 }

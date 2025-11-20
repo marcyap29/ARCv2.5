@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:my_app/prism/services/health_service.dart';
-import 'package:my_app/polymeta/store/mcp/mcp_fs.dart';
+import 'package:my_app/mira/store/mcp/mcp_fs.dart';
 import 'package:health/health.dart';
 
 class HealthSettingsDialog extends StatefulWidget {

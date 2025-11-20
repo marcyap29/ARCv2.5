@@ -2,7 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:my_app/arc/chat/chat/chat_models.dart';
 import 'package:my_app/arc/chat/chat/content_parts.dart';
 import 'package:my_app/arc/chat/chat/multimodal_chat_service.dart';
-import 'package:my_app/polymeta/store/mcp/export/chat_mcp_exporter.dart';
+import 'package:my_app/mira/store/mcp/export/chat_mcp_exporter.dart';
 import 'package:my_app/echo/config/echo_config.dart';
 
 void main() {

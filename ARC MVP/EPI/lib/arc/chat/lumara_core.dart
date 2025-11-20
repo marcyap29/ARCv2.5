@@ -3,12 +3,12 @@
 
 import 'prompts/lumara_system_prompt.dart';
 import 'prompts/prompt_library.dart';
-import 'package:my_app/polymeta/store/mcp/bundle_doctor/mcp_models.dart';
+import 'package:my_app/mira/store/mcp/bundle_doctor/mcp_models.dart';
 
 export 'prompts/lumara_system_prompt.dart';
 export 'prompts/prompt_library.dart';
-export 'package:my_app/polymeta/store/mcp/bundle_doctor/bundle_doctor.dart';
-export 'package:my_app/polymeta/store/mcp/bundle_doctor/mcp_models.dart';
+export 'package:my_app/mira/store/mcp/bundle_doctor/bundle_doctor.dart';
+export 'package:my_app/mira/store/mcp/bundle_doctor/mcp_models.dart';
 
 /// LUMARA Core Integration
 ///

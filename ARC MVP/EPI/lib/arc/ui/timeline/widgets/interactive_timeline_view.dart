@@ -23,7 +23,7 @@ import 'package:my_app/prism/atlas/rivet/rivet_service.dart';
 import 'package:hive/hive.dart';
 import 'package:my_app/services/user_phase_service.dart';
 import 'package:my_app/arc/ui/arcforms/phase_recommender.dart';
-import 'package:my_app/polymeta/mira_service.dart';
+import 'package:my_app/mira/mira_service.dart';
 import 'package:uuid/uuid.dart';
 import 'dart:math' as math;
 import 'package:my_app/services/phase_regime_service.dart';
@@ -31,6 +31,10 @@ import 'package:my_app/services/analytics_service.dart';
 import 'package:my_app/services/rivet_sweep_service.dart';
 import 'package:my_app/services/phase_index.dart';
 import '../../../../ui/phase/arcform_timeline_view.dart';
+import 'package:my_app/arc/chat/services/favorites_service.dart';
+import 'package:my_app/arc/chat/data/models/lumara_favorite.dart';
+import 'package:my_app/arc/core/journal_repository.dart';
+import 'package:my_app/shared/ui/settings/favorites_management_view.dart';
 
 class InteractiveTimelineView extends StatefulWidget {
   final VoidCallback? onJumpToDate;
@@ -594,12 +598,21 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
                                     ),
                                   ),
                                 ),
-                                if (entry.hasArcform)
-                                  Icon(
-                                    Icons.auto_awesome,
-                                    size: 16,
-                                    color: kcPrimaryColor,
-                                  ),
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    if (entry.hasArcform)
+                                      Icon(
+                                        Icons.auto_awesome,
+                                        size: 16,
+                                        color: kcPrimaryColor,
+                                      ),
+                                    const SizedBox(width: 8),
+                                    _FavoriteBookmarkButton(
+                                      entryId: entry.id,
+                                    ),
+                                  ],
+                                ),
                               ],
                             ),
                             // Entry title (if present)
@@ -3161,5 +3174,178 @@ class _StickyHeaderDelegate extends SliverPersistentHeaderDelegate {
   @override
   bool shouldRebuild(covariant SliverPersistentHeaderDelegate oldDelegate) {
     return false;
+  }
+}
+
+class _FavoriteBookmarkButton extends StatefulWidget {
+  final String entryId;
+
+  const _FavoriteBookmarkButton({required this.entryId});
+
+  @override
+  State<_FavoriteBookmarkButton> createState() => _FavoriteBookmarkButtonState();
+}
+
+class _FavoriteBookmarkButtonState extends State<_FavoriteBookmarkButton> {
+  final FavoritesService _favoritesService = FavoritesService.instance;
+  bool _isFavorited = false;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkIfFavorited();
+  }
+
+  Future<void> _checkIfFavorited() async {
+    try {
+      await _favoritesService.initialize();
+      final isFavorited = await _favoritesService.isJournalEntryFavorited(widget.entryId);
+      if (mounted) {
+        setState(() {
+          _isFavorited = isFavorited;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      print('Error checking if entry is favorited: $e');
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  Future<void> _toggleFavorite() async {
+    if (_isLoading) return;
+
+    try {
+      await _favoritesService.initialize();
+      
+      if (_isFavorited) {
+        // Unfavorite
+        final favorite = await _favoritesService.findFavoriteJournalEntryByEntryId(widget.entryId);
+        if (favorite != null) {
+          await _favoritesService.removeFavorite(favorite.id);
+          if (mounted) {
+            setState(() {
+              _isFavorited = false;
+            });
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Entry unfavorited'),
+                duration: Duration(seconds: 2),
+              ),
+            );
+          }
+        }
+      } else {
+        // Favorite
+        final isAtCapacity = await _favoritesService.isCategoryAtCapacity('journal_entry');
+        if (isAtCapacity) {
+          _showCapacityPopup();
+          return;
+        }
+
+        // Get the journal entry
+        final journalRepo = JournalRepository();
+        final entry = journalRepo.getJournalEntryById(widget.entryId);
+        if (entry == null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Entry not found'),
+              duration: Duration(seconds: 2),
+            ),
+          );
+          return;
+        }
+
+        final favorite = LumaraFavorite.fromJournalEntry(
+          entryId: widget.entryId,
+          content: entry.content,
+          sourceId: widget.entryId,
+          metadata: {
+            'title': entry.title,
+            'createdAt': entry.createdAt.toIso8601String(),
+          },
+        );
+
+        final added = await _favoritesService.addFavoriteJournalEntry(favorite);
+        if (added && mounted) {
+          setState(() {
+            _isFavorited = true;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Entry favorited'),
+              duration: Duration(seconds: 2),
+            ),
+          );
+        } else if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Cannot favorite entry - at capacity (20/20)'),
+              duration: Duration(seconds: 2),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      print('Error toggling favorite: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${e.toString()}'),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    }
+  }
+
+  void _showCapacityPopup() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Favorite Entries Full'),
+        content: const Text(
+          'You have reached the maximum of 20 favorite journal entries. Please remove some favorites before adding new ones.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const FavoritesManagementView(),
+                ),
+              );
+            },
+            child: const Text('Manage Favorites'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const SizedBox.shrink();
+    }
+
+    return GestureDetector(
+      onTap: _toggleFavorite,
+      child: Icon(
+        _isFavorited ? Icons.bookmark : Icons.bookmark_border,
+        size: 16,
+        color: _isFavorited ? const Color(0xFF2196F3) : kcSecondaryTextColor,
+      ),
+    );
   }
 }

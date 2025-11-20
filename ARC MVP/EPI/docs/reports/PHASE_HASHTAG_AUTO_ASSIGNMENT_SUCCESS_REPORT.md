@@ -113,11 +113,11 @@ Future<String> _ensurePhaseHashtagInContent({
    - Updated all save methods to use Phase Regimes
    - Enhanced phase change handlers to update regimes and hashtags
 
-2. **`lib/polymeta/store/arcx/services/arcx_import_service_v2.dart`**
+2. **`lib/mira/store/arcx/services/arcx_import_service_v2.dart`**
    - Updated `_convertEntryJsonToJournalEntry()` to use Phase Regimes
    - Added helper method `_getPhaseLabelNameFromEnum()`
 
-3. **`lib/polymeta/store/arcx/services/arcx_import_service.dart`**
+3. **`lib/mira/store/arcx/services/arcx_import_service.dart`**
    - Updated `_convertMCPNodeToJournalEntry()` to use Phase Regimes
    - Added helper method `_getPhaseLabelNameFromEnum()`
 

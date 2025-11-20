@@ -32,7 +32,7 @@ The EPI MVP is **fully operational** with all core systems working correctly. Th
 | **LUMARA (Chat)** | ✅ Operational | Persistent memory, multimodal reflection working |
 | **ARCForm (Visualization)** | ✅ Operational | 3D constellations, phase-aware layouts working |
 | **PRISM (Analysis)** | ✅ Operational | Phase detection, RIVET, SENTINEL all working |
-| **POLYMETA (Memory)** | ✅ Operational | MCP export/import, memory graph working |
+| **MIRA (Memory)** | ✅ Operational | MCP export/import, memory graph working |
 | **AURORA (Orchestration)** | ✅ Operational | Scheduled jobs, VEIL regimens working |
 | **ECHO (Safety)** | ✅ Operational | Guardrails, privacy masking working |
 | **PRISM Scrubbing** | ✅ Operational | PII scrubbing before cloud APIs, restoration after receiving |

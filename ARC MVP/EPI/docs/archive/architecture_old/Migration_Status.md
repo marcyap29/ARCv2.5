@@ -57,15 +57,15 @@ The EPI architecture consolidation is **COMPLETE**. All module structures have b
 
 ---
 
-### ✅ Phase 3: POLYMETA Unification - **PARTIALLY COMPLETE**
+### ✅ Phase 3: MIRA Unification - **PARTIALLY COMPLETE**
 
 **Status:** New structure created with store/mcp and store/arcx, but old modules remain
 
 **Completed:**
-- ✅ `lib/polymeta/` directory created
-- ✅ `lib/polymeta/store/mcp/` - MCP functionality moved
-- ✅ `lib/polymeta/store/arcx/` - ARCX functionality moved
-- ✅ `lib/polymeta/` contains MIRA core, graph, memory, retrieval, etc.
+- ✅ `lib/mira/` directory created
+- ✅ `lib/mira/store/mcp/` - MCP functionality moved
+- ✅ `lib/mira/store/arcx/` - ARCX functionality moved
+- ✅ `lib/mira/` contains MIRA core, graph, memory, retrieval, etc.
 
 **Remaining:**
 - ❌ `lib/mira/` directory still exists (duplicate code - same structure as polymeta!)
@@ -82,7 +82,7 @@ The EPI architecture consolidation is **COMPLETE**. All module structures have b
 - Entire `lib/arcx/` directory (if moved to polymeta/store/arcx/)
 - `lib/core/mcp/` directory (merge into polymeta/store/mcp/)
 
-**Note:** It appears `lib/mira/` and `lib/polymeta/` may be identical duplicates. Need to verify.
+**Note:** It appears `lib/mira/` and `lib/mira/` may be identical duplicates. Need to verify.
 
 ---
 
@@ -134,9 +134,9 @@ The EPI architecture consolidation is **COMPLETE**. All module structures have b
 | **ATLAS** | `lib/prism/atlas/` | ✅ Created | `lib/atlas/` | ⚠️ Still exists |
 | **LUMARA** | `lib/arc/chat/` | ✅ Created | `lib/lumara/` | ⚠️ Still exists |
 | **ARCFORM** | `lib/arc/arcform/` | ✅ Created | `lib/arcform/` | ⚠️ Still exists |
-| **MIRA** | `lib/polymeta/` | ✅ Created | `lib/mira/` | ⚠️ Still exists |
-| **MCP** | `lib/polymeta/store/mcp/` | ✅ Created | `lib/mcp/`, `lib/core/mcp/` | ⚠️ Still exist |
-| **ARCX** | `lib/polymeta/store/arcx/` | ✅ Created | `lib/arcx/` | ⚠️ Still exists |
+| **MIRA** | `lib/mira/` | ✅ Created | `lib/mira/` | ⚠️ Still exists |
+| **MCP** | `lib/mira/store/mcp/` | ✅ Created | `lib/mcp/`, `lib/core/mcp/` | ⚠️ Still exist |
+| **ARCX** | `lib/mira/store/arcx/` | ✅ Created | `lib/arcx/` | ⚠️ Still exists |
 | **VEIL** | `lib/aurora/regimens/veil/` | ✅ Created | `lib/veil/` | ⚠️ Still exists |
 | **Privacy Core** | `lib/echo/privacy_core/` | ✅ Created | `lib/privacy_core/` | ⚠️ Still exists |
 
@@ -192,16 +192,16 @@ package:my_app/lumara/ → package:my_app/arc/chat/
 package:arcform/ → package:arc/arcform/
 package:my_app/arcform/ → package:my_app/arc/arcform/
 
-# MIRA → POLYMETA
+# MIRA → MIRA
 package:mira/ → package:polymeta/
 package:my_app/mira/ → package:my_app/polymeta/
 
-# MCP → POLYMETA
+# MCP → MIRA
 package:mcp/ → package:polymeta/store/mcp/
 package:my_app/mcp/ → package:my_app/polymeta/store/mcp/
 package:my_app/core/mcp/ → package:my_app/polymeta/store/mcp/
 
-# ARCX → POLYMETA
+# ARCX → MIRA
 package:arcx/ → package:polymeta/store/arcx/
 package:my_app/arcx/ → package:my_app/polymeta/store/arcx/
 
@@ -262,7 +262,7 @@ package:my_app/privacy_core/ → package:my_app/echo/privacy_core/
 
 ### High Risk
 - ⚠️ Potential for breaking changes if old directories deleted prematurely
-- ⚠️ Need to verify `lib/mira/` and `lib/polymeta/` aren't diverged
+- ⚠️ Need to verify `lib/mira/` and `lib/mira/` aren't diverged
 - ⚠️ Need comprehensive testing after migration
 
 ---
@@ -281,8 +281,8 @@ package:my_app/privacy_core/ → package:my_app/echo/privacy_core/
 - [ ] Delete `lib/arcform/` directory
 - [ ] Run tests
 
-### Phase 3: POLYMETA Unification
-- [ ] Verify `lib/mira/` and `lib/polymeta/` are identical
+### Phase 3: MIRA Unification
+- [ ] Verify `lib/mira/` and `lib/mira/` are identical
 - [ ] Merge any differences
 - [ ] Verify all imports use `polymeta/`
 - [ ] Update `epi_module.dart` to use polymeta

@@ -19,5 +19,5 @@ export 'privacy/visual_content_masker.dart';
 export 'privacy/audio_content_scrubber.dart';
 
 // MCP functionality
-export 'package:my_app/polymeta/store/mcp/mcp_formatter.dart';
+export 'package:my_app/mira/store/mcp/mcp_formatter.dart';
 export 'mcp/structured_data_builder.dart';

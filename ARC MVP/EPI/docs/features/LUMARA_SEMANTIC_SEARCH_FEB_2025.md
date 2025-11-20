@@ -145,7 +145,7 @@ class LumaraReflectionSettingsService {
 ```
 
 #### 2. Enhanced Memory Service
-**Location**: `lib/polymeta/memory/enhanced_mira_memory_service.dart`
+**Location**: `lib/mira/memory/enhanced_mira_memory_service.dart`
 
 Enhanced `retrieveMemories()` method with new parameters:
 
@@ -294,7 +294,7 @@ Future<String> _buildJournalContext(
 
 #### Core Implementation
 - `lib/arc/chat/services/lumara_reflection_settings_service.dart` - **NEW**: Settings service
-- `lib/polymeta/memory/enhanced_mira_memory_service.dart` - Enhanced with semantic search parameters
+- `lib/mira/memory/enhanced_mira_memory_service.dart` - Enhanced with semantic search parameters
 - `lib/arc/chat/bloc/lumara_assistant_cubit.dart` - Updated `_buildEntryContext()` for semantic search
 - `lib/ui/journal/journal_screen.dart` - Updated `_buildJournalContext()` for semantic search
 - `lib/arc/chat/services/enhanced_lumara_api.dart` - Uses reflection settings
@@ -307,7 +307,7 @@ Future<String> _buildJournalContext(
 - `lib/arc/chat/services/semantic_similarity_service.dart` - Updated recency boost to respect lookback years
 
 ### Dependencies
-- `EnhancedMiraMemoryService` (POLYMETA module)
+- `EnhancedMiraMemoryService` (MIRA module)
 - `LumaraReflectionSettingsService` (ARC module)
 - `SharedPreferences` (for settings persistence)
 - `JournalRepository` (for fetching full entry content)

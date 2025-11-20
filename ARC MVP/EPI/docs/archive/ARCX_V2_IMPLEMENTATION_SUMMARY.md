@@ -22,7 +22,7 @@
   - Improved media lookup with direct ID access and fallback search
   - Creates MediaItems from embedded data if files exist in photos directory
 - **Result**: Media items now properly linked to entries during import (tested with 98 media items)
-- **Files Modified**: `lib/polymeta/store/arcx/services/arcx_import_service_v2.dart`
+- **Files Modified**: `lib/mira/store/arcx/services/arcx_import_service_v2.dart`
 
 ### Media Import Display Fix (January 2025)
 - **Issue**: Imported media was correctly saved to database but not displaying in journal UI

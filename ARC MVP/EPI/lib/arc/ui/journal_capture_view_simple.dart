@@ -8,8 +8,8 @@ import 'package:my_app/data/models/media_item.dart';
 import 'package:my_app/arc/core/media/media_strip.dart';
 
 // Import multimodal integration
-import 'package:my_app/polymeta/store/mcp/orchestrator/multimodal_integration_service.dart';
-import 'package:my_app/polymeta/store/mcp/models/mcp_schemas.dart';
+import 'package:my_app/mira/store/mcp/orchestrator/multimodal_integration_service.dart';
+import 'package:my_app/mira/store/mcp/models/mcp_schemas.dart';
 
 class JournalCaptureViewMultimodal extends StatefulWidget {
   final String? initialEmotion;

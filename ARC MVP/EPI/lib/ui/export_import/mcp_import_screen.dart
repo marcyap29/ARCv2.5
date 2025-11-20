@@ -8,22 +8,22 @@ import 'package:archive/archive.dart';
 import '../../shared/app_colors.dart';
 import '../../shared/text_style.dart';
 import 'package:my_app/arc/core/journal_repository.dart';
-import 'package:my_app/polymeta/store/mcp/import/mcp_pack_import_service.dart' show McpPackImportService, McpImportResult;
-import 'package:my_app/polymeta/store/mcp/import/enhanced_mcp_import_service.dart';
-import 'package:my_app/polymeta/store/mcp/import/mcp_import_service.dart' show McpImportOptions;
+import 'package:my_app/mira/store/mcp/import/mcp_pack_import_service.dart' show McpPackImportService, McpImportResult;
+import 'package:my_app/mira/store/mcp/import/enhanced_mcp_import_service.dart';
+import 'package:my_app/mira/store/mcp/import/mcp_import_service.dart' show McpImportOptions;
 import 'package:my_app/arc/chat/services/favorites_service.dart';
 import 'package:my_app/arc/chat/data/models/lumara_favorite.dart';
-import 'package:my_app/polymeta/store/mcp/models/mcp_schemas.dart';
+import 'package:my_app/mira/store/mcp/models/mcp_schemas.dart';
 import 'package:my_app/arc/chat/chat/chat_repo_impl.dart';
 import 'package:my_app/services/phase_regime_service.dart';
 import 'package:my_app/services/rivet_sweep_service.dart';
 import 'package:my_app/services/analytics_service.dart';
 import '../../utils/file_utils.dart';
 import 'package:my_app/arc/ui/timeline/timeline_cubit.dart';
-import 'package:my_app/polymeta/store/arcx/ui/arcx_import_progress_screen.dart';
-import 'package:my_app/polymeta/store/arcx/services/arcx_import_service_v2.dart';
-import 'package:my_app/polymeta/store/arcx/services/arcx_import_service.dart';
-import 'package:my_app/polymeta/store/arcx/models/arcx_result.dart';
+import 'package:my_app/mira/store/arcx/ui/arcx_import_progress_screen.dart';
+import 'package:my_app/mira/store/arcx/services/arcx_import_service_v2.dart';
+import 'package:my_app/mira/store/arcx/services/arcx_import_service.dart';
+import 'package:my_app/mira/store/arcx/models/arcx_result.dart';
 import 'package:my_app/shared/ui/home/home_view.dart';
 
 /// MCP Import Screen - Restore from MCP Package (.zip) or Secure Archive (.arcx)
@@ -603,7 +603,8 @@ class _McpImportScreenState extends State<McpImportScreen> {
             totalMedia += result.mediaImported;
             // Favorites are only in entries+chats archive, not in media-only archives
             if (groupType != 'Media') {
-              totalFavorites += result.lumaraFavoritesImported;
+              final favoritesMap = result.lumaraFavoritesImported;
+              totalFavorites += (favoritesMap['answers'] ?? 0) + (favoritesMap['chats'] ?? 0) + (favoritesMap['entries'] ?? 0);
             }
             if (result.warnings != null && result.warnings!.isNotEmpty) {
               warnings.addAll(result.warnings!);
@@ -799,7 +800,8 @@ class _McpImportScreenState extends State<McpImportScreen> {
             totalChats += result.chatsImported;
             totalMedia += result.mediaImported;
             // Accumulate favorites from all archives (they're typically in entries+chats archives)
-            totalFavorites += result.lumaraFavoritesImported;
+            final favoritesMap = result.lumaraFavoritesImported;
+            totalFavorites += (favoritesMap['answers'] ?? 0) + (favoritesMap['chats'] ?? 0) + (favoritesMap['entries'] ?? 0);
             if (result.warnings != null && result.warnings!.isNotEmpty) {
               warnings.addAll(result.warnings!);
             }

@@ -2,7 +2,7 @@
 // Widget for displaying memory attribution traces in chat responses
 
 import 'package:flutter/material.dart';
-import 'package:my_app/polymeta/memory/enhanced_memory_schema.dart';
+import 'package:my_app/mira/memory/enhanced_memory_schema.dart';
 
 /// Widget that displays memory attribution traces for a response
 class AttributionDisplayWidget extends StatefulWidget {

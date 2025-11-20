@@ -1,5 +1,5 @@
 import 'package:equatable/equatable.dart';
-import 'package:my_app/polymeta/memory/enhanced_memory_schema.dart';
+import 'package:my_app/mira/memory/enhanced_memory_schema.dart';
 import '../../chat/chat_models.dart';
 
 /// Role of a LUMARA message

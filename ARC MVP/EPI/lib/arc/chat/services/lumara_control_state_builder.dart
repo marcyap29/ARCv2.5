@@ -192,11 +192,12 @@ class LumaraControlStateBuilder {
     // ============================================================
     final prism = <String, dynamic>{};
     
+    // Start with provided PRISM activity or default
+    Map<String, dynamic> finalPrismActivity;
     if (prismActivity != null) {
-      prism['prism_activity'] = prismActivity;
+      finalPrismActivity = Map<String, dynamic>.from(prismActivity);
     } else {
-      // Default empty activity
-      prism['prism_activity'] = {
+      finalPrismActivity = {
         'journal_entries': [],
         'drafts': [],
         'chats': [],
@@ -207,6 +208,34 @@ class LumaraControlStateBuilder {
       };
     }
     
+    // Add saved chats and favorite journal entries with higher weight
+    try {
+      final favoritesService = FavoritesService.instance;
+      await favoritesService.initialize();
+      
+      // Get saved chats and add to PRISM activity (with higher priority)
+      final savedChats = await favoritesService.getSavedChats();
+      if (savedChats.isNotEmpty) {
+        final savedChatContents = savedChats.map((fav) => fav.content).toList();
+        // Prepend saved chats to regular chats for higher weight
+        final existingChats = finalPrismActivity['chats'] as List<dynamic>? ?? [];
+        finalPrismActivity['chats'] = [...savedChatContents, ...existingChats];
+      }
+      
+      // Get favorite journal entries and add to PRISM activity (with higher priority)
+      final favoriteEntries = await favoritesService.getFavoriteJournalEntries();
+      if (favoriteEntries.isNotEmpty) {
+        final favoriteEntryContents = favoriteEntries.map((fav) => fav.content).toList();
+        // Prepend favorite entries to regular entries for higher weight
+        final existingEntries = finalPrismActivity['journal_entries'] as List<dynamic>? ?? [];
+        finalPrismActivity['journal_entries'] = [...favoriteEntryContents, ...existingEntries];
+      }
+    } catch (e) {
+      print('LUMARA Control State: Error adding favorites to PRISM activity: $e');
+      // Continue without favorites if there's an error
+    }
+    
+    prism['prism_activity'] = finalPrismActivity;
     state['prism'] = prism;
     
     // ============================================================

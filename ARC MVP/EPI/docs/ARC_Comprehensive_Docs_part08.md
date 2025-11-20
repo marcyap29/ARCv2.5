@@ -991,8 +991,8 @@ References
   - Improved layout for long labels like "LUMARA Favorites imported:"
 
 **Files Modified**:
-- `lib/polymeta/store/arcx/services/arcx_import_service_v2.dart` - Added timeouts and improved error handling
-- `lib/polymeta/store/arcx/ui/arcx_import_progress_screen.dart` - Navigation improvements, UI fixes
+- `lib/mira/store/arcx/services/arcx_import_service_v2.dart` - Added timeouts and improved error handling
+- `lib/mira/store/arcx/ui/arcx_import_progress_screen.dart` - Navigation improvements, UI fixes
 - `lib/ui/export_import/mcp_import_screen.dart` - Navigation improvements, UI fixes, favorites display
 
 **Status**: ✅ Complete - All import issues resolved, improved UX and stability
@@ -1023,9 +1023,9 @@ References
 - **UI Updates**: Updated `_showSeparatedImportSuccessDialog()` to display favorites count
 
 **Files Modified**:
-- `lib/polymeta/store/arcx/services/arcx_export_service_v2.dart` - Added favorites export
-- `lib/polymeta/store/arcx/services/arcx_import_service_v2.dart` - Added favorites import
-- `lib/polymeta/store/arcx/models/arcx_manifest.dart` - Added favorites count to manifest
+- `lib/mira/store/arcx/services/arcx_export_service_v2.dart` - Added favorites export
+- `lib/mira/store/arcx/services/arcx_import_service_v2.dart` - Added favorites import
+- `lib/mira/store/arcx/models/arcx_manifest.dart` - Added favorites count to manifest
 - `lib/ui/export_import/mcp_import_screen.dart` - Updated import dialog to show favorites count
 
 **Status**: ✅ Complete - ARCX favorites export/import fully implemented and tested
@@ -1307,7 +1307,7 @@ References
 - **Status**: ✅ Complete - LUMARA maintains conversation context across in-journal interactions
 
 **Files Modified**:
-- `lib/polymeta/memory/enhanced_mira_memory_service.dart` - Enhanced excerpt extraction
+- `lib/mira/memory/enhanced_mira_memory_service.dart` - Enhanced excerpt extraction
 - `lib/ui/journal/journal_screen.dart` - Added enrichment and user comment support
 
 ---
@@ -1342,10 +1342,10 @@ References
 - **Status**: ✅ Complete - Complete system state backup and restore
 
 **Files Modified**:
-- `lib/polymeta/store/mcp/export/mcp_export_service.dart` - Added export methods
-- `lib/polymeta/store/arcx/services/arcx_export_service_v2.dart` - Added export methods
-- `lib/polymeta/store/arcx/services/arcx_import_service_v2.dart` - Added import methods
-- `lib/polymeta/store/arcx/ui/arcx_import_progress_screen.dart` - Updated UI to show import counts
+- `lib/mira/store/mcp/export/mcp_export_service.dart` - Added export methods
+- `lib/mira/store/arcx/services/arcx_export_service_v2.dart` - Added export methods
+- `lib/mira/store/arcx/services/arcx_import_service_v2.dart` - Added import methods
+- `lib/mira/store/arcx/ui/arcx_import_progress_screen.dart` - Updated UI to show import counts
 
 ---
 
@@ -1414,9 +1414,9 @@ References
 - **Draft Handling**: Journal screen creates temporary entries from draft state for LUMARA context
 
 **Files Modified**:
-- `lib/polymeta/memory/enhanced_memory_schema.dart` - Added excerpt field to AttributionTrace
-- `lib/polymeta/memory/attribution_service.dart` - Updated to accept excerpt parameter
-- `lib/polymeta/memory/enhanced_mira_memory_service.dart` - Extracts excerpts when creating traces
+- `lib/mira/memory/enhanced_memory_schema.dart` - Added excerpt field to AttributionTrace
+- `lib/mira/memory/attribution_service.dart` - Updated to accept excerpt parameter
+- `lib/mira/memory/enhanced_mira_memory_service.dart` - Extracts excerpts when creating traces
 - `lib/arc/chat/widgets/attribution_display_widget.dart` - Displays excerpt in UI
 - `lib/arc/chat/bloc/lumara_assistant_cubit.dart` - Weighted context building, attribution from context
 - `lib/arc/chat/ui/lumara_assistant_screen.dart` - Draft entry support, most recent entry fallback
@@ -1535,7 +1535,7 @@ References
 
 #### Files Modified
 - `lib/arc/chat/services/lumara_reflection_settings_service.dart` - **NEW**: Settings service
-- `lib/polymeta/memory/enhanced_mira_memory_service.dart` - Enhanced with semantic search parameters
+- `lib/mira/memory/enhanced_mira_memory_service.dart` - Enhanced with semantic search parameters
 - `lib/arc/chat/bloc/lumara_assistant_cubit.dart` - Updated `_buildEntryContext()` for semantic search
 - `lib/ui/journal/journal_screen.dart` - Updated `_buildJournalContext()` for semantic search
 - `lib/arc/chat/services/enhanced_lumara_api.dart` - Uses reflection settings
@@ -1801,7 +1801,7 @@ References
 
 #### Intelligent Mode Selector
 - **Enhanced Decision Mode Selector**: Upgraded from binary routing to intelligent multi-mode selection
-  - **POLYMETA Memory Integration**: Selector now considers similar past decisions, value evolution, and phase history
+  - **MIRA Memory Integration**: Selector now considers similar past decisions, value evolution, and phase history
   - **Therapeutic Presence Integration**: Reads depth slider (1-3) and adjusts routing accordingly
   - **Blended Mode**: New hybrid mode that combines attunement and analysis based on calculated ratio (0.35-0.65)
   - **Confidence Scoring**: Calculates routing confidence for better mode selection decisions
@@ -1818,10 +1818,10 @@ References
 #### Mode Enhancements
 - **Base Mode (Analytical)**: Optimized for clear, logical analysis when emotional weight is low
   - References shared framework
-  - POLYMETA memory pattern integration
+  - MIRA memory pattern integration
   - Best for low emotion + high time pressure scenarios
-- **Attuned Mode (Hybrid)**: Enhanced with POLYMETA context integration
-  - 7-step workflow including POLYMETA memory review
+- **Attuned Mode (Hybrid)**: Enhanced with MIRA context integration
+  - 7-step workflow including MIRA memory review
   - Phase-aware tone adjustment
   - Similar decision pattern recognition
   - Value evolution tracking
@@ -1898,9 +1898,9 @@ References
 
 #### Files Modified
 - `lib/arc/chat/bloc/lumara_assistant_cubit.dart` - Phase info extraction, Therapeutic Presence
-- `lib/polymeta/memory/enhanced_memory_schema.dart` - Added phaseContext to AttributionTrace
-- `lib/polymeta/memory/attribution_service.dart` - Phase context support
-- `lib/polymeta/memory/enhanced_mira_memory_service.dart` - Phase context in traces
+- `lib/mira/memory/enhanced_memory_schema.dart` - Added phaseContext to AttributionTrace
+- `lib/mira/memory/attribution_service.dart` - Phase context support
+- `lib/mira/memory/enhanced_mira_memory_service.dart` - Phase context in traces
 - `lib/arc/chat/widgets/attribution_display_widget.dart` - Phase display in UI
 - `lib/arc/chat/data/context_provider.dart` - Phase-focused summaries
 - `lib/arc/chat/prompts/lumara_profile.json` - Therapeutic Presence mode
@@ -1989,15 +1989,15 @@ References
 - `lib/arc/ui/timeline/timeline_cubit.dart` - Title support in timeline entries
 - `lib/arc/ui/timeline/widgets/interactive_timeline_view.dart` - Title display in timeline
 - `lib/ui/journal/journal_screen.dart` - Title editing, display
-- `lib/polymeta/store/arcx/services/arcx_import_service_v2.dart` - Media linking fix
+- `lib/mira/store/arcx/services/arcx_import_service_v2.dart` - Media linking fix
 - `lib/arc/core/journal_repository.dart` - Media adapter registration fix
 - `lib/arc/chat/chat/chat_repo.dart` - Added deleteMessage method
 - `lib/arc/chat/chat/chat_repo_impl.dart` - deleteMessage implementation
 - `lib/arc/chat/chat/enhanced_chat_repo.dart` - deleteMessage delegate
 - `lib/arc/chat/chat/enhanced_chat_repo_impl.dart` - deleteMessage delegate
 - `lib/services/llm_bridge_adapter.dart` - Fixed import paths
-- `lib/polymeta/mira_basics.dart` - Fixed import paths
-- `lib/polymeta/store/mcp/import/mcp_pack_import_service.dart` - Fixed import paths
+- `lib/mira/mira_basics.dart` - Fixed import paths
+- `lib/mira/store/mcp/import/mcp_pack_import_service.dart` - Fixed import paths
 - `lib/insights/analytics_page.dart` - Fixed missing widget imports
 - `test/mcp/chat_mcp_test.dart` - Added deleteMessage to mock
 
@@ -2201,7 +2201,7 @@ Unified all LUMARA assistant prompts under a single, architecture-aligned system
   - **Tone Archetypes**: Five adjustable archetypes (Challenger, Sage, Connector, Gardener, Strategist)
   - **Communication Ethics**: Encourage (never flatter), Support (never enable), Reflect (never project), Mentor (never manipulate)
   - **Domain Expertise**: Automatic matching to user's professional domains (engineering, theology, marketing, therapy, physics, etc.)
-- **Module Consolidation**: POLYMETA consolidated into MIRA
+- **Module Consolidation**: MIRA consolidated into MIRA
   - **MIRA Enhanced**: Now handles both semantic memory graph and long-term contextual memory
   - **Simplified Architecture**: Reduced from 8 to 7 EPI modules (ARC, ATLAS, AURORA, VEIL, MIRA, PRISM, RIVET)
 - **Context-Specific Prompts**: Three optimized prompts for different contexts
@@ -2218,8 +2218,8 @@ Unified all LUMARA assistant prompts under a single, architecture-aligned system
   - Pattern analysis connects to narrative arcs
 
 #### Files Modified
-- `lib/lumara/prompts/lumara_system_prompt.dart` - Integrated Super Prompt, removed POLYMETA
-- `lib/lumara/prompts/lumara_prompts.dart` - Added chat prompt, updated in-journal prompt, removed POLYMETA
+- `lib/lumara/prompts/lumara_system_prompt.dart` - Integrated Super Prompt, removed MIRA
+- `lib/lumara/prompts/lumara_prompts.dart` - Added chat prompt, updated in-journal prompt, removed MIRA
 - `lib/echo/response/prompts/lumara_system_prompt.dart` - Updated to match main prompts
 - `docs/architecture/EPI_Architecture.md` - Updated LUMARA Prompts Architecture section
 - `docs/features/LUMARA_PROMPT_UPDATE_FEB_2025.md` - Comprehensive update documentation

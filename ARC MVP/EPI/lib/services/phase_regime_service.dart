@@ -10,7 +10,7 @@ import 'phase_index.dart';
 import 'rivet_sweep_service.dart';
 import 'analytics_service.dart';
 import 'package:my_app/prism/pipelines/prism_joiner.dart';
-import 'package:my_app/polymeta/store/mcp/mcp_fs.dart';
+import 'package:my_app/mira/store/mcp/mcp_fs.dart';
 
 class PhaseRegimeService {
   static const String _regimesBoxName = 'phase_regimes';

@@ -65,7 +65,7 @@ The EPI system is organized into 5 core modules:
    - Risk assessment (RIVET, SENTINEL)
    - Health data integration
 
-3. **POLYMETA** - Memory Graph & Secure Store
+3. **MIRA** - Memory Graph & Secure Store
    - Unified memory graph (MIRA)
    - MCP-compliant storage
    - ARCX encryption
@@ -133,7 +133,7 @@ The system was successfully consolidated from 8+ separate modules into 5 clean m
 ### Technical Features ✅
 
 - **ECHO Response System**: Complete dignified response generation layer
-- **POLYMETA Semantic Memory**: Complete semantic memory graph with MCP support
+- **MIRA Semantic Memory**: Complete semantic memory graph with MCP support
 - **On-Device AI**: Qwen models with llama.cpp and Metal acceleration
 - **Privacy Protection**: PII detection, masking, and encryption
 - **Phase Detection**: Real-time phase detection with RIVET and SENTINEL

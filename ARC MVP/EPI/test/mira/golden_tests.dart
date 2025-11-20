@@ -4,12 +4,12 @@
 
 import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:my_app/polymeta/core/schema_v2.dart';
-import 'package:my_app/polymeta/retrieval/retrieval_engine.dart';
-import 'package:my_app/polymeta/policy/policy_engine.dart';
-import 'package:my_app/polymeta/veil/veil_jobs.dart';
-import 'package:my_app/polymeta/sync/crdt_sync.dart';
-import 'package:my_app/polymeta/multimodal/multimodal_pointers.dart';
+import 'package:my_app/mira/core/schema_v2.dart';
+import 'package:my_app/mira/retrieval/retrieval_engine.dart';
+import 'package:my_app/mira/policy/policy_engine.dart';
+import 'package:my_app/mira/veil/veil_jobs.dart';
+import 'package:my_app/mira/sync/crdt_sync.dart';
+import 'package:my_app/mira/multimodal/multimodal_pointers.dart';
 
 /// Golden test data for MIRA system
 class GoldenTestData {

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:my_app/polymeta/store/mcp/orchestrator/multimodal_integration_service.dart';
+import 'package:my_app/mira/store/mcp/orchestrator/multimodal_integration_service.dart';
 
 /// Test route for multimodal functionality
 class MultimodalTestRoute extends StatelessWidget {

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:my_app/polymeta/memory/enhanced_memory_schema.dart';
+import 'package:my_app/mira/memory/enhanced_memory_schema.dart';
 import 'package:my_app/arc/chat/widgets/attribution_display_widget.dart';
 import 'package:my_app/arc/chat/services/favorites_service.dart';
 import 'package:my_app/arc/chat/data/models/lumara_favorite.dart';

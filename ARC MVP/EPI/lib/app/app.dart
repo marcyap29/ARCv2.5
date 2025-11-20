@@ -5,7 +5,7 @@ import 'package:provider/provider.dart';
 
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/ui/home/home_view.dart';
-import 'package:my_app/polymeta/store/arcx/ui/arcx_import_progress_screen.dart';
+import 'package:my_app/mira/store/arcx/ui/arcx_import_progress_screen.dart';
 import 'package:my_app/arc/chat/ui/lumara_splash_screen.dart';
 
 // Global repo + cubit

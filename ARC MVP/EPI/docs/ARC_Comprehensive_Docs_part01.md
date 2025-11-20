@@ -591,8 +591,8 @@ EPI (Evolving Personal Intelligence) is a 5-module intelligent journaling system
 
 ---
 
-### 3. POLYMETA - Memory Graph & Secure Store
-**Location:** `lib/polymeta/`  
+### 3. MIRA - Memory Graph & Secure Store
+**Location:** `lib/mira/`  
 **Purpose:** Memory storage, encryption, and data container management
 
 **Submodules:**
@@ -612,10 +612,10 @@ EPI (Evolving Personal Intelligence) is a 5-module intelligent journaling system
 
 **Unified API:**
 ```dart
-polymeta.put(event)                              // Store event
-polymeta.query(vector, k: 10)                    // Vector search
-polymeta.export(format: 'mcp', envelope: 'arcx') // Export
-polymeta.import(file)                            // Import
+mira.put(event)                              // Store event
+mira.query(vector, k: 10)                    // Vector search
+mira.export(format: 'mcp', envelope: 'arcx') // Export
+mira.import(file)                            // Import
 ```
 
 ---
@@ -678,7 +678,7 @@ echo.privacy.detect(input)      // Detect PII
 ├─────────────────────────────────────────────────────────────┤
 │                                                             │
 │  ┌──────────┐      ┌──────────┐      ┌──────────┐         │
-│  │   ARC    │──────▶│  PRISM   │──────▶│ POLYMETA │         │
+│  │   ARC    │──────▶│  PRISM   │──────▶│ MIRA │         │
 │  │          │      │          │      │          │         │
 │  │ Journal  │      │ Analysis │      │ Memory   │         │
 │  │ Chat     │      │ ATLAS    │      │ Store    │         │
@@ -710,7 +710,7 @@ echo.privacy.detect(input)      // Detect PII
 ## Module Relationships
 
 ```
-ARC  ─►  PRISM.atlas  ─►  POLYMETA.store
+ARC  ─►  PRISM.atlas  ─►  MIRA.store
  ↑           │                │
  │           └── ECHO.guard   │
  └─────── AURORA.regimens ────┘
@@ -719,7 +719,7 @@ ARC  ─►  PRISM.atlas  ─►  POLYMETA.store
 **Data Flow:**
 1. User creates journal entry in **ARC**
 2. **PRISM** processes and analyzes content (ATLAS detects phases)
-3. **POLYMETA** stores encrypted memories (MCP/ARCX format)
+3. **MIRA** stores encrypted memories (MCP/ARCX format)
 4. **ECHO** provides guardrails and privacy filtering
 5. **AURORA** orchestrates scheduled jobs (VEIL restoration cycles)
 
@@ -752,7 +752,7 @@ ARC  ─►  PRISM.atlas  ─►  POLYMETA.store
 ### Completed (November 4, 2025)
 - ✅ PRISM.ATLAS migration (phase, RIVET, SENTINEL unified)
 - ✅ ARC consolidation (LUMARA + ARCFORM merged)
-- ✅ POLYMETA unification (MIRA + MCP + ARCX merged)
+- ✅ MIRA unification (MIRA + MCP + ARCX merged)
 - ✅ VEIL regimen (moved to AURORA)
 - ✅ Privacy merge (moved to ECHO)
 - ✅ Import path updates across codebase
@@ -837,9 +837,9 @@ Unify the EPI codebase by merging redundant modules, correcting directory mismat
 - ✅ `lib/prism/atlas/` - ATLAS unified under PRISM (phase, RIVET, SENTINEL)
 - ✅ `lib/arc/chat/` - LUMARA moved to ARC (with deprecation shim)
 - ✅ `lib/arc/arcform/` - ARCFORM moved to ARC
-- ✅ `lib/polymeta/store/mcp/` - MCP moved to POLYMETA (merged from core/mcp/)
-- ✅ `lib/polymeta/store/arcx/` - ARCX moved to POLYMETA
-- ✅ `lib/polymeta/` - MIRA renamed to POLYMETA
+- ✅ `lib/mira/store/mcp/` - MCP moved to MIRA (merged from core/mcp/)
+- ✅ `lib/mira/store/arcx/` - ARCX moved to MIRA
+- ✅ `lib/mira/` - MIRA renamed to MIRA
 - ✅ `lib/aurora/regimens/veil/` - VEIL moved to AURORA
 - ✅ `lib/echo/privacy_core/` - Privacy Core moved to ECHO
 
@@ -863,7 +863,7 @@ Unify the EPI codebase by merging redundant modules, correcting directory mismat
 **Five consolidated modules:**
 1. **ARC** - Journaling app & main UX (includes LUMARA + ARCFORM)
 2. **PRISM** - Multimodal perception & analysis (includes ATLAS)
-3. **POLYMETA** - Memory graph, recall, encryption, data container (includes MIRA + MCP + ARCX)
+3. **MIRA** - Memory graph, recall, encryption, data container (includes MIRA + MCP + ARCX)
 4. **AURORA** - Circadian orchestration & job scheduling (includes VEIL)
 5. **ECHO** - Response control, LLM interface, safety & privacy (includes Privacy Core)
 
@@ -879,7 +879,7 @@ Unify the EPI codebase by merging redundant modules, correcting directory mismat
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
 │  ┌──────────────┐      ┌──────────────┐      ┌──────────────┐ │
-│  │     ARC      │──────▶│    PRISM     │──────▶│  POLYMETA    │ │
+│  │     ARC      │──────▶│    PRISM     │──────▶│  MIRA    │ │
 │  │              │      │              │      │              │ │
 │  │ • Journaling │      │ • Perception │      │ • Memory     │ │
 │  │ • Chat       │      │ • Analysis   │      │ • Encryption │ │
@@ -913,7 +913,7 @@ Unify the EPI codebase by merging redundant modules, correcting directory mismat
 ### Module Relationships
 
 ```
-ARC  ─►  PRISM.atlas  ─►  POLYMETA.store
+ARC  ─►  PRISM.atlas  ─►  MIRA.store
  ↑           │                │
  │           └── ECHO.guard   │
  └─────── AURORA.regimens ────┘
@@ -922,7 +922,7 @@ ARC  ─►  PRISM.atlas  ─►  POLYMETA.store
 **Data Flow:**
 1. User creates journal entry in **ARC**
 2. **PRISM** processes and analyzes content (ATLAS detects phases)
-3. **POLYMETA** stores encrypted memories (MCP/ARCX format)
+3. **MIRA** stores encrypted memories (MCP/ARCX format)
 4. **ECHO** provides guardrails and privacy filtering
 5. **AURORA** orchestrates scheduled jobs (VEIL restoration cycles)
 
@@ -1058,7 +1058,7 @@ export 'sentinel/models.dart';
 
 ---
 
-### 3. POLYMETA Module (`lib/polymeta/`)
+### 3. MIRA Module (`lib/mira/`)
 
 **Purpose:** Memory graph, recall, encryption, and data container
 
@@ -1081,27 +1081,27 @@ export 'sentinel/models.dart';
 - Export/import with format conversion
 
 **Migration Notes:**
-- `lib/mira/` → `lib/polymeta/` (rename)
-- `lib/mcp/` → `lib/polymeta/store/mcp/`
-- `lib/core/mcp/` → `lib/polymeta/store/mcp/` (merge)
-- `lib/arcx/` → `lib/polymeta/store/arcx/`
+- `lib/mira/` → `lib/mira/` (rename)
+- `lib/mcp/` → `lib/mira/store/mcp/`
+- `lib/core/mcp/` → `lib/mira/store/mcp/` (merge)
+- `lib/arcx/` → `lib/mira/store/arcx/`
 - Update imports: `package:mira/...` → `package:polymeta/...`
 - Update imports: `package:mcp/...` → `package:polymeta/store/mcp/...`
 - Update imports: `package:arcx/...` → `package:polymeta/store/arcx/...`
 
 **Unified API:**
 ```dart
-// Unified POLYMETA API
-polymeta.put(event)                    // Store event
-polymeta.query(vector, k)              // Vector search
-polymeta.export(format:'mcp', envelope:'arcx')  // Export
-polymeta.import(file)                  // Import
-polymeta.convert(input:'mcp:zip', output:'mcp+arcx')  // Convert
+// Unified MIRA API
+mira.put(event)                    // Store event
+mira.query(vector, k)              // Vector search
+mira.export(format:'mcp', envelope:'arcx')  // Export
+mira.import(file)                  // Import
+mira.convert(input:'mcp:zip', output:'mcp+arcx')  // Convert
 ```
 
 **Directory Structure:**
 ```
-lib/polymeta/
+lib/mira/
 ├── polymeta_module.dart
 ├── store/
 │   ├── mcp/                # MCP (formerly lib/mcp/ and lib/core/mcp/)
@@ -1275,20 +1275,20 @@ lib/echo/
 
 ---
 
-### Phase 3: POLYMETA Unification - **PARTIALLY COMPLETE**
+### Phase 3: MIRA Unification - **PARTIALLY COMPLETE**
 
 **Scope:** Merge MIRA + MCP + ARCX
 
 **Status:** ✅ New structure created with store/mcp and store/arcx, but old modules remain
 
 **Completed:**
-- ✅ `lib/polymeta/` directory created
-- ✅ `lib/polymeta/store/mcp/` - MCP functionality moved
-- ✅ `lib/polymeta/store/arcx/` - ARCX functionality moved
+- ✅ `lib/mira/` directory created
+- ✅ `lib/mira/store/mcp/` - MCP functionality moved
+- ✅ `lib/mira/store/arcx/` - ARCX functionality moved
 - ✅ MIRA core, graph, memory, retrieval moved to polymeta
 
 **Remaining Tasks:**
-1. Verify `lib/mira/` and `lib/polymeta/` are identical (check for divergence)
+1. Verify `lib/mira/` and `lib/mira/` are identical (check for divergence)
 2. Merge any differences between mira and polymeta
 3. Update all imports:
    - `package:mira/...` → `package:polymeta/...`
@@ -1301,11 +1301,11 @@ lib/echo/
    - `lib/mcp/`
    - `lib/arcx/`
    - Merge `lib/core/mcp/` into `polymeta/store/mcp/`
-6. Implement unified API (`polymeta.put`, `polymeta.query`, etc.)
+6. Implement unified API (`mira.put`, `mira.query`, etc.)
 7. Run tests and verify functionality
 
 **Verification:**
-- Round-trip crypto tests: Validate `POLYMETA.store` can export/import ARCX archives with AES-256-GCM and Ed25519 signature verification
+- Round-trip crypto tests: Validate `MIRA.store` can export/import ARCX archives with AES-256-GCM and Ed25519 signature verification
 - Memory graph tests pass
 - MCP compliance tests pass
 - Vector search tests pass
@@ -1414,10 +1414,10 @@ lib/echo/
        └─> ATLAS phase detection (lib/prism/atlas/phase/)
        
 3. PRISM extracts insights
-   └─> POLYMETA (lib/polymeta/core/)
+   └─> MIRA (lib/mira/core/)
        ├─> Store in memory graph
-       ├─> Encrypt with ARCX (lib/polymeta/store/arcx/)
-       └─> Export to MCP format (lib/polymeta/store/mcp/)
+       ├─> Encrypt with ARCX (lib/mira/store/arcx/)
+       └─> Export to MCP format (lib/mira/store/mcp/)
        
 4. ECHO applies guardrails
    └─> ECHO (lib/echo/privacy_core/)
@@ -1440,8 +1440,8 @@ lib/echo/
    └─> ECHO (lib/echo/providers/)
        └─> LLM provider selection
        
-3. POLYMETA retrieves context
-   └─> POLYMETA (lib/polymeta/retrieval/)
+3. MIRA retrieves context
+   └─> MIRA (lib/mira/retrieval/)
        └─> Vector search for relevant memories
        
 4. PRISM analyzes context
@@ -1479,8 +1479,8 @@ lib/echo/
    └─> PRISM ATLAS (lib/prism/atlas/sentinel/)
        └─> Risk detection and alerts
        
-5. POLYMETA stores phase data
-   └─> POLYMETA (lib/polymeta/core/)
+5. MIRA stores phase data
+   └─> MIRA (lib/mira/core/)
        └─> Store phase regimes in memory graph
 ```
 
@@ -1530,32 +1530,32 @@ final rivetProvider = atlas.RivetProvider();
 final sentinel = atlas.SentinelRiskDetector();
 ```
 
-### POLYMETA Module API
+### MIRA Module API
 
 ```dart
-// POLYMETA Module
+// MIRA Module
 import 'package:polymeta/polymeta_module.dart';
 
-// Initialize POLYMETA
-PolymetaModule.initialize();
+// Initialize MIRA
+MiraModule.initialize();
 
 // Unified API
-final polymeta = PolymetaService();
+final polymeta = MiraService();
 
 // Store event
-await polymeta.put(event);
+await mira.put(event);
 
 // Query memories
-final results = await polymeta.query(vector, k: 10);
+final results = await mira.query(vector, k: 10);
 
 // Export
-await polymeta.export(format: 'mcp', envelope: 'arcx');
+await mira.export(format: 'mcp', envelope: 'arcx');
 
 // Import
-await polymeta.import(file);
+await mira.import(file);
 
 // Convert
-await polymeta.convert(input: 'mcp:zip', output: 'mcp+arcx');
+await mira.convert(input: 'mcp:zip', output: 'mcp+arcx');
 ```
 
 ### AURORA Module API
@@ -1614,13 +1614,13 @@ final piiService = PIIDetectionService();
    - Validate RIVET sweep consistency
 
 2. **Round-Trip Crypto Tests**
-   - Validate POLYMETA.store can export/import ARCX archives
+   - Validate MIRA.store can export/import ARCX archives
    - Verify AES-256-GCM encryption
    - Confirm Ed25519 signature verification
    - Test MCP compliance
 
 3. **Regression Tests**
-   - Journal → PRISM → POLYMETA → ECHO response → ARC UI
+   - Journal → PRISM → MIRA → ECHO response → ARC UI
    - AURORA nightly regimen triggers `veil` cleanup job
    - Chat interactions with memory retrieval
    - Phase detection and regime creation
@@ -1639,7 +1639,7 @@ flutter test test/atlas/ test/rivet/ test/prism/
 # Phase 2: ARC Consolidation
 flutter test test/arc/ test/lumara/ test/arcform/
 
-# Phase 3: POLYMETA Unification
+# Phase 3: MIRA Unification
 flutter test test/mira/ test/mcp/ test/arcx/
 
 # Phase 4: VEIL Regimen
@@ -1688,7 +1688,7 @@ export 'package:arc/chat/...';
 
 ✅ `lib/arc/` → complete app with chat + arcform  
 ✅ `lib/prism/atlas/` → phase, rivet, sentinel unified  
-✅ `lib/polymeta/` → memory + store + crypto  
+✅ `lib/mira/` → memory + store + crypto  
 ✅ `lib/aurora/regimens/veil/` → restorative jobs  
 ✅ `lib/echo/privacy_core/` → safety + PII  
 ✅ All tests green and old imports deprecated cleanly  
@@ -1703,7 +1703,7 @@ export 'package:arc/chat/...';
 
 1. **ARC** — Journaling & Chat (LUMARA), Arcform visualization
 2. **PRISM** — Perception layer (Atlas, Rivet, Sentinel included)
-3. **POLYMETA** — Memory graph and secure store (MCP + ARCX)
+3. **MIRA** — Memory graph and secure store (MCP + ARCX)
 4. **AURORA** — Circadian orchestration (includes VEIL regimen)
 5. **ECHO** — Guardrails, LLMs, and privacy filter
 
@@ -1824,7 +1824,7 @@ The EPI system is organized into 5 core modules:
 
 1. **ARC** - Core Journaling Interface
 2. **PRISM** - Multimodal Perception & Analysis
-3. **POLYMETA** - Memory Graph & Secure Store
+3. **MIRA** - Memory Graph & Secure Store
 4. **AURORA** - Circadian Orchestration
 5. **ECHO** - Response Control & Safety
 
@@ -1836,7 +1836,7 @@ The EPI system is organized into 5 core modules:
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
 │  ┌──────────────┐      ┌──────────────┐      ┌──────────────┐ │
-│  │     ARC      │──────▶│    PRISM     │──────▶│  POLYMETA    │ │
+│  │     ARC      │──────▶│    PRISM     │──────▶│  MIRA    │ │
 │  │              │      │              │      │              │ │
 │  │ • Journaling │      │ • Perception │      │ • Memory     │ │
 │  │ • Chat       │      │ • Analysis   │      │ • Encryption │ │
@@ -1957,7 +1957,7 @@ lib/prism/
 
 ---
 
-### 3. POLYMETA Module (`lib/polymeta/`)
+### 3. MIRA Module (`lib/mira/`)
 
 **Purpose:** Memory graph, recall, encryption, and data container
 
@@ -1981,15 +1981,15 @@ lib/prism/
 
 **Unified API:**
 ```dart
-polymeta.put(event)                              // Store event
-polymeta.query(vector, k: 10)                    // Vector search
-polymeta.export(format: 'mcp', envelope: 'arcx') // Export
-polymeta.import(file)                            // Import
+mira.put(event)                              // Store event
+mira.query(vector, k: 10)                    // Vector search
+mira.export(format: 'mcp', envelope: 'arcx') // Export
+mira.import(file)                            // Import
 ```
 
 **Directory Structure:**
 ```
-lib/polymeta/
+lib/mira/
 ├── polymeta_module.dart
 ├── store/
 │   ├── mcp/                # MCP (formerly lib/mcp/ and lib/core/mcp/)
@@ -2172,10 +2172,10 @@ lib/echo/
        └─> ATLAS phase detection (lib/prism/atlas/phase/)
        
 3. PRISM extracts insights
-   └─> POLYMETA (lib/polymeta/core/)
+   └─> MIRA (lib/mira/core/)
        ├─> Store in memory graph
-       ├─> Encrypt with ARCX (lib/polymeta/store/arcx/)
-       └─> Export to MCP format (lib/polymeta/store/mcp/)
+       ├─> Encrypt with ARCX (lib/mira/store/arcx/)
+       └─> Export to MCP format (lib/mira/store/mcp/)
        
 4. ECHO applies guardrails
    └─> ECHO (lib/echo/privacy_core/)
@@ -2198,8 +2198,8 @@ lib/echo/
    └─> ECHO (lib/echo/providers/)
        └─> LLM provider selection
        
-3. POLYMETA retrieves context
-   └─> POLYMETA (lib/polymeta/retrieval/)
+3. MIRA retrieves context
+   └─> MIRA (lib/mira/retrieval/)
        └─> Vector search for relevant memories
        
 4. PRISM analyzes context
@@ -2237,8 +2237,8 @@ lib/echo/
    └─> PRISM ATLAS (lib/prism/atlas/sentinel/)
        └─> Risk detection and alerts
        
-5. POLYMETA stores phase data
-   └─> POLYMETA (lib/polymeta/core/)
+5. MIRA stores phase data
+   └─> MIRA (lib/mira/core/)
        └─> Store phase regimes in memory graph
 ```
 
@@ -2283,7 +2283,7 @@ The system implements specific attribution excerpts and weighted context priorit
 - **Draft Entry Support**: Unsaved draft entries can be used as context, including current text, media, and metadata
 - **Integration Points**:
   - `lib/arc/chat/bloc/lumara_assistant_cubit.dart`: Weighted context building, attribution from context
-  - `lib/polymeta/memory/enhanced_mira_memory_service.dart`: Excerpt extraction for attribution traces
+  - `lib/mira/memory/enhanced_mira_memory_service.dart`: Excerpt extraction for attribution traces
   - `lib/arc/chat/widgets/attribution_display_widget.dart`: Displays specific excerpts in UI
   - `lib/ui/journal/journal_screen.dart`: Draft entry creation for context
 
@@ -2416,29 +2416,29 @@ final rivetProvider = atlas.RivetProvider();
 final sentinel = atlas.SentinelRiskDetector();
 ```
 
-### POLYMETA Module API
+### MIRA Module API
 
 ```dart
-// POLYMETA Module
+// MIRA Module
 import 'package:polymeta/polymeta_module.dart';
 
-// Initialize POLYMETA
-PolymetaModule.initialize();
+// Initialize MIRA
+MiraModule.initialize();
 
 // Unified API
-final polymeta = PolymetaService();
+final polymeta = MiraService();
 
 // Store event
-await polymeta.put(event);
+await mira.put(event);
 
 // Query memories
-final results = await polymeta.query(vector, k: 10);
+final results = await mira.query(vector, k: 10);
 
 // Export
-await polymeta.export(format: 'mcp', envelope: 'arcx');
+await mira.export(format: 'mcp', envelope: 'arcx');
 
 // Import
-await polymeta.import(file);
+await mira.import(file);
 ```
 
 ### AURORA Module API
@@ -2496,7 +2496,7 @@ final piiDetected = await echo.privacy.detect(input);
 
 - **ARC Module**: Journal capture, chat, arcform visualization
 - **PRISM Module**: Phase detection, RIVET, SENTINEL
-- **POLYMETA Module**: Memory storage, retrieval, export/import
+- **MIRA Module**: Memory storage, retrieval, export/import
 - **AURORA Module**: Job scheduling, VEIL regimens
 - **ECHO Module**: Guardrails, privacy masking, LLM providers
 
@@ -3381,7 +3381,7 @@ Total Files Analyzed: 40+
   - Improved media lookup with direct ID access and fallback search
   - Creates MediaItems from embedded data if files exist in photos directory
 - **Result**: Media items now properly linked to entries during import (tested with 98 media items)
-- **Files Modified**: `lib/polymeta/store/arcx/services/arcx_import_service_v2.dart`
+- **Files Modified**: `lib/mira/store/arcx/services/arcx_import_service_v2.dart`
 
 ### Media Import Display Fix (January 2025)
 - **Issue**: Imported media was correctly saved to database but not displaying in journal UI

@@ -29,6 +29,8 @@ class SettingsView extends StatefulWidget {
 
 class _SettingsViewState extends State<SettingsView> {
   int _favoritesCount = 0;
+  int _savedChatsCount = 0;
+  int _favoriteEntriesCount = 0;
   bool _favoritesCountLoaded = false;
   bool _advancedAnalyticsEnabled = false;
   bool _advancedAnalyticsLoading = true;
@@ -46,10 +48,14 @@ class _SettingsViewState extends State<SettingsView> {
   Future<void> _loadFavoritesCount() async {
     try {
       await FavoritesService.instance.initialize();
-      final count = await FavoritesService.instance.getCount();
+      final answersCount = await FavoritesService.instance.getCountByCategory('answer');
+      final chatsCount = await FavoritesService.instance.getCountByCategory('chat');
+      final entriesCount = await FavoritesService.instance.getCountByCategory('journal_entry');
       if (mounted) {
         setState(() {
-          _favoritesCount = count;
+          _favoritesCount = answersCount;
+          _savedChatsCount = chatsCount;
+          _favoriteEntriesCount = entriesCount;
           _favoritesCountLoaded = true;
         });
       }
@@ -300,8 +306,8 @@ class _SettingsViewState extends State<SettingsView> {
                   context,
                   title: 'LUMARA Favorites',
                   subtitle: _favoritesCountLoaded
-                      ? 'Manage your favorite answer styles ($_favoritesCount/25)'
-                      : 'Manage your favorite answer styles',
+                      ? 'Answers ($_favoritesCount/25), Chats ($_savedChatsCount/20), Entries ($_favoriteEntriesCount/20)'
+                      : 'Manage your favorites',
                   icon: Icons.star,
                   onTap: () async {
                     final result = await Navigator.push(

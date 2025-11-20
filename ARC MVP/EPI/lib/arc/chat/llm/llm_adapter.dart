@@ -215,11 +215,27 @@ class LLMAdapter implements ModelAdapter {
         // Full path: complete context for complex queries
         debugPrint('📚 Using FULL prompt with context');
         
-        // Load favorites for style examples
+        // Load favorites for style examples (include all categories: answers, chats, entries)
         final favoritesService = FavoritesService.instance;
         await favoritesService.initialize();
-        final favorites = await favoritesService.getFavoritesForPrompt(count: 5);
-        final favoriteExamples = favorites.map((f) => f.content).toList();
+        
+        // Get favorites from all categories
+        final answers = await favoritesService.getLumaraAnswers();
+        final savedChats = await favoritesService.getSavedChats();
+        final favoriteEntries = await favoritesService.getFavoriteJournalEntries();
+        
+        // Combine and format for prompt (limit total to 7 for variety)
+        final allFavorites = <String>[];
+        // Add answers (style examples)
+        allFavorites.addAll(answers.take(3).map((f) => f.content));
+        // Add saved chats (conversation examples)
+        allFavorites.addAll(savedChats.take(2).map((f) => 'Conversation example:\n${f.content}'));
+        // Add favorite entries (context examples)
+        allFavorites.addAll(favoriteEntries.take(2).map((f) => 'User journal context:\n${f.content}'));
+        
+        // Shuffle for variety and take up to 7
+        allFavorites.shuffle();
+        final favoriteExamples = allFavorites.take(7).toList();
         
         final contextBuilder = LumaraPromptAssembler.createContextBuilder(
           userName: 'Marc Yap', // TODO: Get from user profile

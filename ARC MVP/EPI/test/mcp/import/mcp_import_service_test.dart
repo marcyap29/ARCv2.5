@@ -3,13 +3,13 @@ import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:my_app/polymeta/store/mcp/import/mcp_import_service.dart';
-import 'package:my_app/polymeta/store/mcp/import/manifest_reader.dart';
-import 'package:my_app/polymeta/store/mcp/import/ndjson_stream_reader.dart';
-import 'package:my_app/polymeta/store/mcp/validation/mcp_import_validator.dart';
-import 'package:my_app/polymeta/store/mcp/adapters/mira_writer.dart';
-import 'package:my_app/polymeta/store/mcp/adapters/cas_resolver.dart';
-import 'package:my_app/polymeta/store/mcp/models/mcp_schemas.dart';
+import 'package:my_app/mira/store/mcp/import/mcp_import_service.dart';
+import 'package:my_app/mira/store/mcp/import/manifest_reader.dart';
+import 'package:my_app/mira/store/mcp/import/ndjson_stream_reader.dart';
+import 'package:my_app/mira/store/mcp/validation/mcp_import_validator.dart';
+import 'package:my_app/mira/store/mcp/adapters/mira_writer.dart';
+import 'package:my_app/mira/store/mcp/adapters/cas_resolver.dart';
+import 'package:my_app/mira/store/mcp/models/mcp_schemas.dart';
 
 // Mock classes
 class MockManifestReader extends Mock implements ManifestReader {}

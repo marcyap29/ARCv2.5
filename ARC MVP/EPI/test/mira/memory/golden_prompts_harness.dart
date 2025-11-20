@@ -3,8 +3,8 @@
 // Based on the testable contract specification
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:my_app/polymeta/memory/enhanced_mira_memory_service.dart';
-import 'package:my_app/polymeta/memory/enhanced_memory_schema.dart';
+import 'package:my_app/mira/memory/enhanced_mira_memory_service.dart';
+import 'package:my_app/mira/memory/enhanced_memory_schema.dart';
 
 class GoldenPrompt {
   final String id;

@@ -5,7 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'dart:io';
 import 'package:my_app/arc/chat/chat/chat_models.dart';
 import 'package:my_app/arc/chat/chat/chat_repo.dart';
-import 'package:my_app/polymeta/store/mcp/export/mcp_export_service.dart';
+import 'package:my_app/mira/store/mcp/export/mcp_export_service.dart';
 import 'package:my_app/arc/chat/services/mcp_bundle_parser.dart';
 import 'package:my_app/arc/chat/models/reflective_node.dart';
 

@@ -10,6 +10,8 @@ import 'archive_screen.dart';
 import 'session_view.dart';
 import 'category_management_screen.dart';
 import 'chat_export_import_screen.dart';
+import '../../services/favorites_service.dart';
+import '../../data/models/lumara_favorite.dart';
 
 /// Enhanced screen showing chat sessions with category support
 class EnhancedChatsScreen extends StatefulWidget {
@@ -31,6 +33,7 @@ class _EnhancedChatsScreenState extends State<EnhancedChatsScreen>
   List<ChatSession> _sessions = [];
   List<ChatCategory> _categories = [];
   List<ChatSession> _filteredSessions = [];
+  List<LumaraFavorite> _savedChats = [];
   bool _isLoading = true;
   String? _error;
   
@@ -40,6 +43,8 @@ class _EnhancedChatsScreenState extends State<EnhancedChatsScreen>
   // Batch selection state
   bool _isSelectionMode = false;
   Set<String> _selectedSessionIds = {};
+  
+  final FavoritesService _favoritesService = FavoritesService.instance;
 
   late TabController _tabController;
 
@@ -81,10 +86,15 @@ class _EnhancedChatsScreenState extends State<EnhancedChatsScreen>
       final categories = await widget.chatRepo.getCategories();
       final sessions = await widget.chatRepo.listActive();
       
+      // Load saved chats
+      await _favoritesService.initialize();
+      final savedChats = await _favoritesService.getSavedChats();
+      
       setState(() {
         _categories = categories;
         _sessions = sessions;
         _filteredSessions = sessions;
+        _savedChats = savedChats;
         _isLoading = false;
         _error = null;
       });
@@ -518,6 +528,67 @@ class _EnhancedChatsScreenState extends State<EnhancedChatsScreen>
     );
   }
 
+  Widget _buildSavedChatsSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Row(
+            children: [
+              const Icon(Icons.bookmark, color: Color(0xFF2196F3), size: 20),
+              const SizedBox(width: 8),
+              Text(
+                'Saved Chats (${_savedChats.length}/20)',
+                style: heading2Style(context).copyWith(
+                  color: const Color(0xFF2196F3),
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 8),
+        ..._savedChats.map((favorite) {
+          // Find the corresponding session if it exists
+          final session = _sessions.firstWhere(
+            (s) => s.id == favorite.sessionId,
+            orElse: () => ChatSession(
+              id: favorite.sessionId ?? '',
+              subject: 'Saved Chat',
+              createdAt: favorite.timestamp,
+              updatedAt: favorite.timestamp,
+              tags: [],
+              metadata: {},
+            ),
+          );
+          
+          return _SavedChatCard(
+            favorite: favorite,
+            session: session,
+            onTap: () {
+              if (session.id.isNotEmpty && _sessions.any((s) => s.id == session.id)) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => SessionView(
+                      sessionId: session.id,
+                      chatRepo: ChatRepoImpl.instance,
+                    ),
+                  ),
+                );
+              }
+            },
+            onUnsave: () async {
+              await _favoritesService.removeFavorite(favorite.id);
+              await _loadData();
+            },
+          );
+        }),
+      ],
+    );
+  }
+
   Widget _buildContent() {
     if (_isLoading) {
       return const Center(child: CircularProgressIndicator());
@@ -568,30 +639,36 @@ class _EnhancedChatsScreenState extends State<EnhancedChatsScreen>
 
     return RefreshIndicator(
       onRefresh: _loadData,
-      child: ListView.builder(
+      child: ListView(
         padding: const EdgeInsets.symmetric(horizontal: 16),
-        itemCount: _filteredSessions.length,
-        itemBuilder: (context, index) {
-          final session = _filteredSessions[index];
-          return _ChatSessionCard(
-            session: session,
-            isSelectionMode: _isSelectionMode,
-            isSelected: _selectedSessionIds.contains(session.id),
-            onTap: _isSelectionMode
-              ? () => _toggleSessionSelection(session.id)
-              : () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => SessionView(
-                      sessionId: session.id,
-                      chatRepo: ChatRepoImpl.instance,
+        children: [
+          // Saved Chats Section
+          if (_savedChats.isNotEmpty) ...[
+            _buildSavedChatsSection(),
+            const SizedBox(height: 16),
+          ],
+          // Regular Chat Sessions
+          ..._filteredSessions.map((session) {
+            return _ChatSessionCard(
+              session: session,
+              isSelectionMode: _isSelectionMode,
+              isSelected: _selectedSessionIds.contains(session.id),
+              onTap: _isSelectionMode
+                ? () => _toggleSessionSelection(session.id)
+                : () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => SessionView(
+                        sessionId: session.id,
+                        chatRepo: ChatRepoImpl.instance,
+                      ),
                     ),
                   ),
-                ),
-            onPin: () => _pinSession(session),
-            onArchive: () => _archiveSession(session),
-          );
-        },
+              onPin: () => _pinSession(session),
+              onArchive: () => _archiveSession(session),
+            );
+          }),
+        ],
       ),
     );
   }
@@ -768,6 +845,94 @@ class _ChatSessionCard extends StatelessWidget {
     final now = DateTime.now();
     final difference = now.difference(date);
 
+    if (difference.inDays == 0) {
+      return 'Today';
+    } else if (difference.inDays == 1) {
+      return 'Yesterday';
+    } else if (difference.inDays < 7) {
+      return '${difference.inDays} days ago';
+    } else {
+      return '${date.day}/${date.month}/${date.year}';
+    }
+  }
+}
+
+class _SavedChatCard extends StatelessWidget {
+  final LumaraFavorite favorite;
+  final ChatSession session;
+  final VoidCallback onTap;
+  final VoidCallback onUnsave;
+
+  const _SavedChatCard({
+    required this.favorite,
+    required this.session,
+    required this.onTap,
+    required this.onUnsave,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      color: const Color(0xFF2196F3).withOpacity(0.05),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: const BorderSide(color: Color(0xFF2196F3), width: 1),
+      ),
+      child: ListTile(
+        contentPadding: const EdgeInsets.all(16),
+        leading: const Icon(Icons.bookmark, color: Color(0xFF2196F3), size: 24),
+        title: Row(
+          children: [
+            Expanded(
+              child: Text(
+                session.subject,
+                style: heading2Style(context).copyWith(
+                  fontSize: 16,
+                  color: const Color(0xFF2196F3),
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 4),
+            Text(
+              'Saved ${_formatDate(favorite.timestamp)}',
+              style: captionStyle(context),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              favorite.content.length > 100
+                  ? '${favorite.content.substring(0, 100)}...'
+                  : favorite.content,
+              style: bodyStyle(context).copyWith(
+                fontSize: 12,
+                color: kcTextSecondaryColor,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
+        trailing: IconButton(
+          icon: const Icon(Icons.bookmark, color: Color(0xFF2196F3)),
+          onPressed: onUnsave,
+          tooltip: 'Unsave chat',
+        ),
+        onTap: onTap,
+      ),
+    );
+  }
+
+  String _formatDate(DateTime date) {
+    final now = DateTime.now();
+    final difference = now.difference(date);
+    
     if (difference.inDays == 0) {
       return 'Today';
     } else if (difference.inDays == 1) {

@@ -3,11 +3,11 @@ import 'dart:io';
 import 'dart:convert';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
-import 'package:my_app/polymeta/store/mcp/export/chat_mcp_exporter.dart';
-import 'package:my_app/polymeta/store/mcp/models/mcp_schemas.dart';
+import 'package:my_app/mira/store/mcp/export/chat_mcp_exporter.dart';
+import 'package:my_app/mira/store/mcp/models/mcp_schemas.dart';
 import '../../core/services/keyword_cleanup_service.dart';
 import 'package:my_app/prism/pipelines/prism_joiner.dart';
-import 'package:my_app/polymeta/store/mcp/mcp_fs.dart';
+import 'package:my_app/mira/store/mcp/mcp_fs.dart';
 
 /// VEIL/AURORA rhythm scheduler for nightly tasks
 class VeilAuroraScheduler {

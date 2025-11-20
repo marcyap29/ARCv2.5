@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
-import 'package:my_app/polymeta/store/mcp/mcp_fs.dart';
+import 'package:my_app/mira/store/mcp/mcp_fs.dart';
 
 class HealthDetailScreen extends StatefulWidget {
   final String? monthKey; // e.g., "2025-10" - optional, if not provided loads last 30 days

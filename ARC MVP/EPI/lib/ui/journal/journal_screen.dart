@@ -37,7 +37,7 @@ import 'package:my_app/core/services/draft_cache_service.dart';
 import 'package:my_app/core/services/photo_library_service.dart';
 import 'package:my_app/data/models/media_item.dart';
 import 'media_conversion_utils.dart';
-import 'package:my_app/polymeta/store/mcp/orchestrator/ios_vision_orchestrator.dart';
+import 'package:my_app/mira/store/mcp/orchestrator/ios_vision_orchestrator.dart';
 import 'widgets/lumara_suggestion_sheet.dart';
 import 'widgets/inline_reflection_block.dart';
 // import '../../features/timeline/widgets/entry_content_renderer.dart'; // TODO: EntryContentRenderer not yet implemented
@@ -50,10 +50,10 @@ import 'package:my_app/arc/chat/chat/chat_models.dart';
 import 'package:my_app/aurora/services/circadian_profile_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:my_app/arc/chat/services/lumara_reflection_settings_service.dart';
-import 'package:my_app/polymeta/memory/enhanced_mira_memory_service.dart';
-import 'package:my_app/polymeta/memory/enhanced_memory_schema.dart';
-import 'package:my_app/polymeta/memory/sentence_extraction_util.dart';
-import 'package:my_app/polymeta/mira_service.dart';
+import 'package:my_app/mira/memory/enhanced_mira_memory_service.dart';
+import 'package:my_app/mira/memory/enhanced_memory_schema.dart';
+import 'package:my_app/mira/memory/sentence_extraction_util.dart';
+import 'package:my_app/mira/mira_service.dart';
 
 /// Main journal screen with integrated LUMARA companion and OCR scanning
 class JournalScreen extends StatefulWidget {

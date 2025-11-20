@@ -2,9 +2,12 @@ import 'package:hive/hive.dart';
 import '../data/models/lumara_favorite.dart';
 
 /// Service for managing LUMARA favorites
-/// Enforces 25-item limit per user
+/// Enforces category-specific limits: 25 for answers, 20 for chats, 20 for journal entries
 class FavoritesService {
-  static const int _maxFavorites = 25;
+  static const int _maxAnswers = 25;
+  static const int _maxChats = 20;
+  static const int _maxJournalEntries = 20;
+  static const int _maxFavorites = 25; // Legacy limit for backward compatibility
   static const String _boxName = 'lumara_favorites';
   static const String _firstTimeKey = 'favorites_first_time_shown';
 
@@ -36,6 +39,9 @@ class FavoritesService {
       // Open settings box for first-time flag
       _settingsBox = await Hive.openBox('settings');
 
+      // Migration: Ensure existing favorites have category field (default to 'answer')
+      await _migrateExistingFavorites();
+
       _initialized = true;
       print('✅ FavoritesService initialized');
     } catch (e) {
@@ -57,6 +63,55 @@ class FavoritesService {
     final favorites = _favoritesBox!.values.toList();
     favorites.sort((a, b) => b.timestamp.compareTo(a.timestamp));
     return favorites;
+  }
+
+  /// Get favorites by category
+  Future<List<LumaraFavorite>> getFavoritesByCategory(String category) async {
+    await _ensureInitialized();
+    final all = await getAllFavorites();
+    return all.where((fav) => fav.category == category).toList();
+  }
+
+  /// Get saved chats (category: 'chat')
+  Future<List<LumaraFavorite>> getSavedChats() async {
+    return getFavoritesByCategory('chat');
+  }
+
+  /// Get favorite journal entries (category: 'journal_entry')
+  Future<List<LumaraFavorite>> getFavoriteJournalEntries() async {
+    return getFavoritesByCategory('journal_entry');
+  }
+
+  /// Get LUMARA answers (category: 'answer')
+  Future<List<LumaraFavorite>> getLumaraAnswers() async {
+    return getFavoritesByCategory('answer');
+  }
+
+  /// Get category-specific limit
+  int getCategoryLimit(String category) {
+    switch (category) {
+      case 'answer':
+        return _maxAnswers;
+      case 'chat':
+        return _maxChats;
+      case 'journal_entry':
+        return _maxJournalEntries;
+      default:
+        return _maxFavorites; // Legacy default
+    }
+  }
+
+  /// Get count for a specific category
+  Future<int> getCountByCategory(String category) async {
+    final favorites = await getFavoritesByCategory(category);
+    return favorites.length;
+  }
+
+  /// Check if a category is at capacity
+  Future<bool> isCategoryAtCapacity(String category) async {
+    final count = await getCountByCategory(category);
+    final limit = getCategoryLimit(category);
+    return count >= limit;
   }
 
   /// Get a subset of favorites for prompt inclusion (typically 3-7)
@@ -90,7 +145,7 @@ class FavoritesService {
     }
   }
 
-  /// Add a favorite (enforces 25-item limit)
+  /// Add a favorite (enforces category-specific limits)
   /// Returns true if added, false if at capacity
   Future<bool> addFavorite(LumaraFavorite favorite) async {
     await _ensureInitialized();
@@ -104,16 +159,34 @@ class FavoritesService {
       }
     }
 
-    // Check capacity
-    if (_favoritesBox!.length >= _maxFavorites) {
-      print('⚠️ Favorites at capacity: $_maxFavorites');
+    // Check category-specific capacity
+    final category = favorite.category;
+    if (await isCategoryAtCapacity(category)) {
+      final limit = getCategoryLimit(category);
+      print('⚠️ Favorites at capacity for category $category: $limit');
       return false;
     }
 
     // Add favorite
     await _favoritesBox!.put(favorite.id, favorite);
-    print('✅ Added favorite: ${favorite.id}');
+    print('✅ Added favorite: ${favorite.id} (category: $category)');
     return true;
+  }
+
+  /// Add a saved chat
+  Future<bool> addSavedChat(LumaraFavorite favorite) async {
+    if (favorite.category != 'chat') {
+      throw ArgumentError('Favorite must have category "chat"');
+    }
+    return addFavorite(favorite);
+  }
+
+  /// Add a favorite journal entry
+  Future<bool> addFavoriteJournalEntry(LumaraFavorite favorite) async {
+    if (favorite.category != 'journal_entry') {
+      throw ArgumentError('Favorite must have category "journal_entry"');
+    }
+    return addFavorite(favorite);
   }
 
   /// Remove a favorite by ID
@@ -140,10 +213,50 @@ class FavoritesService {
     return _favoritesBox!.length;
   }
 
-  /// Check if at capacity
+  /// Check if at capacity (legacy method - checks total count)
   Future<bool> isAtCapacity() async {
     final count = await getCount();
     return count >= _maxFavorites;
+  }
+
+  /// Check if a specific chat session is saved
+  Future<bool> isChatSaved(String sessionId) async {
+    await _ensureInitialized();
+    return _favoritesBox!.values.any((fav) => 
+      fav.category == 'chat' && fav.sessionId == sessionId
+    );
+  }
+
+  /// Check if a specific journal entry is favorited
+  Future<bool> isJournalEntryFavorited(String entryId) async {
+    await _ensureInitialized();
+    return _favoritesBox!.values.any((fav) => 
+      fav.category == 'journal_entry' && fav.entryId == entryId
+    );
+  }
+
+  /// Find favorite chat by session ID
+  Future<LumaraFavorite?> findFavoriteChatBySessionId(String sessionId) async {
+    await _ensureInitialized();
+    try {
+      return _favoritesBox!.values.firstWhere(
+        (fav) => fav.category == 'chat' && fav.sessionId == sessionId,
+      );
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /// Find favorite journal entry by entry ID
+  Future<LumaraFavorite?> findFavoriteJournalEntryByEntryId(String entryId) async {
+    await _ensureInitialized();
+    try {
+      return _favoritesBox!.values.firstWhere(
+        (fav) => fav.category == 'journal_entry' && fav.entryId == entryId,
+      );
+    } catch (e) {
+      return null;
+    }
   }
 
   /// Check if first-time snackbar has been shown
@@ -163,6 +276,32 @@ class FavoritesService {
     await _ensureInitialized();
     await _favoritesBox!.clear();
     print('✅ Cleared all favorites');
+  }
+
+  /// Migrate existing favorites to have category='answer' for backward compatibility
+  Future<void> _migrateExistingFavorites() async {
+    try {
+      bool needsMigration = false;
+      for (final key in _favoritesBox!.keys) {
+        final favorite = _favoritesBox!.get(key);
+        if (favorite != null) {
+          // If category is empty or invalid, set to 'answer' (backward compatibility)
+          if (favorite.category.isEmpty || 
+              (favorite.category != 'answer' && favorite.category != 'chat' && favorite.category != 'journal_entry')) {
+            final updated = favorite.copyWith(category: 'answer');
+            await _favoritesBox!.put(key, updated);
+            needsMigration = true;
+          }
+        }
+      }
+      
+      if (needsMigration) {
+        print('✅ Migrated existing favorites to include category field');
+      }
+    } catch (e) {
+      print('⚠️ Error during favorites migration: $e');
+      // Don't fail initialization if migration fails
+    }
   }
 }
 

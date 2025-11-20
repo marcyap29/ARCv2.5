@@ -2,8 +2,8 @@
 // Enhanced attribution display widget supporting multiple source types and filtering
 
 import 'package:flutter/material.dart';
-import '../../../polymeta/memory/enhanced_attribution_schema.dart';
-import '../../../polymeta/memory/lumara_attribution_explainer.dart';
+import '../../../mira/memory/enhanced_attribution_schema.dart';
+import '../../../mira/memory/lumara_attribution_explainer.dart';
 
 /// Enhanced widget for displaying multi-source memory attributions
 class EnhancedAttributionDisplayWidget extends StatefulWidget {

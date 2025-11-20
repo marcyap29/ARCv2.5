@@ -65,10 +65,12 @@ class _SessionViewState extends State<SessionView> {
   String? _error;
   bool _isSending = false;
   String? _editingMessageId; // Track which message is being edited
+  bool _isChatSaved = false;
   
   LumaraAssistantCubit? _lumaraCubit;
   LumaraScope _scope = LumaraScope.defaultScope;
   AudioIO? _audioIO;
+  final FavoritesService _favoritesService = FavoritesService.instance;
 
   @override
   void initState() {
@@ -77,6 +79,22 @@ class _SessionViewState extends State<SessionView> {
     _loadSession();
     _setupAutoSave();
     _initializeAudioIO();
+    _checkIfChatSaved();
+  }
+
+  Future<void> _checkIfChatSaved() async {
+    if (widget.sessionId.isEmpty) return;
+    try {
+      await _favoritesService.initialize();
+      final isSaved = await _favoritesService.isChatSaved(widget.sessionId);
+      if (mounted) {
+        setState(() {
+          _isChatSaved = isSaved;
+        });
+      }
+    } catch (e) {
+      print('Error checking if chat is saved: $e');
+    }
   }
   
   Future<void> _initializeAudioIO() async {
@@ -161,6 +179,9 @@ class _SessionViewState extends State<SessionView> {
         _messages = messages;
         _isLoading = false;
       });
+      
+      // Check if chat is saved after loading session
+      _checkIfChatSaved();
     } catch (e) {
       setState(() {
         _error = e.toString();
@@ -405,6 +426,117 @@ class _SessionViewState extends State<SessionView> {
     }
   }
 
+  Future<void> _toggleSaveChat() async {
+    if (_session == null) return;
+
+    try {
+      await _favoritesService.initialize();
+      
+      if (_isChatSaved) {
+        // Unsave chat
+        final favorite = await _favoritesService.findFavoriteChatBySessionId(widget.sessionId);
+        if (favorite != null) {
+          await _favoritesService.removeFavorite(favorite.id);
+          if (mounted) {
+            setState(() {
+              _isChatSaved = false;
+            });
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Chat unsaved'),
+                duration: Duration(seconds: 2),
+              ),
+            );
+          }
+        }
+      } else {
+        // Save chat
+        final isAtCapacity = await _favoritesService.isCategoryAtCapacity('chat');
+        if (isAtCapacity) {
+          _showChatCapacityPopup();
+          return;
+        }
+
+        // Format all messages as conversation text
+        final conversationText = _messages.map((msg) {
+          final role = msg.role == MessageRole.user ? 'User' : 'LUMARA';
+          return '$role: ${msg.textContent}';
+        }).join('\n\n');
+
+        final favorite = LumaraFavorite.fromChatSession(
+          sessionId: widget.sessionId,
+          content: 'Chat: ${_session!.subject}\n\n$conversationText',
+          sourceId: widget.sessionId,
+          metadata: {
+            'subject': _session!.subject,
+            'messageCount': _messages.length,
+          },
+        );
+
+        final added = await _favoritesService.addSavedChat(favorite);
+        if (added && mounted) {
+          setState(() {
+            _isChatSaved = true;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Chat saved'),
+              duration: Duration(seconds: 2),
+            ),
+          );
+        } else if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Cannot save chat - at capacity (20/20)'),
+              duration: Duration(seconds: 2),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      print('Error toggling save chat: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${e.toString()}'),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    }
+  }
+
+  void _showChatCapacityPopup() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Saved Chats Full'),
+        content: const Text(
+          'You have reached the maximum of 20 saved chats. Please remove some saved chats before adding new ones.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const FavoritesManagementView(),
+                ),
+              );
+            },
+            child: const Text('Manage Favorites'),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showSessionOptions() {
     showModalBottomSheet(
       context: context,
@@ -454,6 +586,14 @@ class _SessionViewState extends State<SessionView> {
         ),
         actions: [
           if (_session != null) ...[
+            IconButton(
+              icon: Icon(
+                _isChatSaved ? Icons.bookmark : Icons.bookmark_border,
+                color: _isChatSaved ? const Color(0xFF2196F3) : null,
+              ),
+              onPressed: _toggleSaveChat,
+              tooltip: _isChatSaved ? 'Unsave Chat' : 'Save Chat',
+            ),
             IconButton(
               icon: const Icon(Icons.settings),
               onPressed: _showSessionOptions,

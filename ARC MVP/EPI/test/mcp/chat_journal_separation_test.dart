@@ -1,9 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:my_app/polymeta/store/mcp/export/mcp_export_service.dart';
-import 'package:my_app/polymeta/store/mcp/import/mcp_import_service.dart';
+import 'package:my_app/mira/store/mcp/export/mcp_export_service.dart';
+import 'package:my_app/mira/store/mcp/import/mcp_import_service.dart';
 import 'package:my_app/models/journal_entry_model.dart';
-import 'package:my_app/polymeta/store/mcp/models/mcp_schemas.dart';
-import 'package:my_app/polymeta/store/mcp/utils/chat_journal_detector.dart';
+import 'package:my_app/mira/store/mcp/models/mcp_schemas.dart';
+import 'package:my_app/mira/store/mcp/utils/chat_journal_detector.dart';
 import 'dart:io';
 
 void main() {

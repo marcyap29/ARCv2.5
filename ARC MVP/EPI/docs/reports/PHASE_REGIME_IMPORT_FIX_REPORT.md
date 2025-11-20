@@ -131,7 +131,7 @@ When converting an entry from ARCX:
 
 ## Files Modified
 
-1. **`lib/polymeta/store/arcx/services/arcx_import_service_v2.dart`**
+1. **`lib/mira/store/arcx/services/arcx_import_service_v2.dart`**
    - Reordered import sequence (Phase Regimes before Entries)
    - Fixed service instance usage in `_convertEntryJsonToJournalEntry()`
    - Added service re-initialization after importing regimes

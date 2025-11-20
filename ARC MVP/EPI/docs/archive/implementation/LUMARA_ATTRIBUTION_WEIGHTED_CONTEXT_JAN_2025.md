@@ -33,7 +33,7 @@ Implemented two key features:
 
 ### 1. Enhanced AttributionTrace with Excerpts
 
-**File**: `lib/polymeta/memory/enhanced_memory_schema.dart`
+**File**: `lib/mira/memory/enhanced_memory_schema.dart`
 
 **Changes**:
 - Added `excerpt` field to `AttributionTrace` class
@@ -53,7 +53,7 @@ class AttributionTrace {
 
 ### 2. Attribution Service Updates
 
-**File**: `lib/polymeta/memory/attribution_service.dart`
+**File**: `lib/mira/memory/attribution_service.dart`
 
 **Changes**:
 - Updated `createTrace()` to accept `excerpt` parameter
@@ -61,7 +61,7 @@ class AttributionTrace {
 
 ### 3. Memory Service Excerpt Extraction
 
-**File**: `lib/polymeta/memory/enhanced_mira_memory_service.dart`
+**File**: `lib/mira/memory/enhanced_mira_memory_service.dart`
 
 **Changes**:
 - Extracts first 200 characters of node narrative as excerpt
@@ -262,8 +262,8 @@ if (trace.excerpt != null && trace.excerpt!.isNotEmpty) ...[
 ## Integration Points
 
 ### Memory Attribution
-- **Enhanced Memory Service**: `lib/polymeta/memory/enhanced_mira_memory_service.dart`
-- **Attribution Service**: `lib/polymeta/memory/attribution_service.dart`
+- **Enhanced Memory Service**: `lib/mira/memory/enhanced_mira_memory_service.dart`
+- **Attribution Service**: `lib/mira/memory/attribution_service.dart`
 - **Attribution Display**: `lib/arc/chat/widgets/attribution_display_widget.dart`
 
 ### Weighted Context

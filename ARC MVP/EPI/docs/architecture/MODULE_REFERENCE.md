@@ -18,7 +18,7 @@ This document provides a comprehensive reference guide to all modules, submodule
 lib/
 ├── arc/              # Core Journaling Interface
 ├── prism/            # Multimodal Perception & Analysis
-├── polymeta/         # Memory Graph & Secure Store
+├── mira/             # Memory Graph & Secure Store
 ├── aurora/           # Circadian Orchestration
 ├── echo/             # Response Control & Safety
 ├── core/             # Shared infrastructure
@@ -95,6 +95,12 @@ arc/
 - LLM providers: Qwen, Ollama, Rule-based, Native
 - Voice chat with push-to-talk
 - Memory integration via MCP
+- **Favorites System**: Three-category favorites (Answers, Saved Chats, Favorite Entries)
+  - Answers: Style examples for LUMARA responses (25 limit)
+  - Saved Chats: Entire chat sessions saved for reference (20 limit)
+  - Favorite Entries: Journal entries marked for quick access (20 limit)
+  - Integrated into PRISM activity and control state for modulation
+  - ARCX export/import support with category tracking
 
 **ARCForm**
 - 3D visualization with nebula effects
@@ -192,7 +198,7 @@ prism/
 
 ---
 
-## 3. POLYMETA Module (`lib/polymeta/`)
+## 3. MIRA Module (`lib/mira/`)
 
 ### Purpose
 Memory storage, encryption, and data container management.
@@ -200,7 +206,7 @@ Memory storage, encryption, and data container management.
 ### Directory Structure
 
 ```
-polymeta/
+mira/
 ├── mira_service.dart          # Main service entry point
 ├── mira_integration.dart      # Integration layer
 ├── core/                      # Core memory graph
@@ -445,23 +451,23 @@ Key services:
 ```
 ARC
   ├── depends on: PRISM (for analysis)
-  ├── depends on: POLYMETA (for storage)
+  ├── depends on: MIRA (for storage)
   ├── depends on: ECHO (for LLM)
   └── depends on: AURORA (for scheduling)
 
 PRISM
-  ├── depends on: POLYMETA (for storage)
+  ├── depends on: MIRA (for storage)
   └── depends on: ECHO (for safety)
 
-POLYMETA
+MIRA
   └── (standalone, no dependencies)
 
 AURORA
   ├── depends on: PRISM (for batch jobs)
-  └── depends on: POLYMETA (for compaction)
+  └── depends on: MIRA (for compaction)
 
 ECHO
-  ├── depends on: POLYMETA (for memory grounding)
+  ├── depends on: MIRA (for memory grounding)
   └── depends on: PRISM (for phase integration)
 ```
 
