@@ -49,8 +49,6 @@ class _HomeViewState extends State<HomeView> {
     return const ['Journal', 'LUMARA', 'Insights'];
   }
 
-  late final List<Widget> _pages;
-
   @override
   void initState() {
     super.initState();
