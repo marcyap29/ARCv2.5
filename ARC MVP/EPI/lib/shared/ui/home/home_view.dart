@@ -157,7 +157,10 @@ class _HomeViewState extends State<HomeView> {
               body: SafeArea(
                 child: Stack(
                   children: [
-                    _getPageForIndex(selectedIndex, context),
+                    // Main content - use Expanded or SizedBox.expand to prevent overflow
+                    Positioned.fill(
+                      child: _getPageForIndex(selectedIndex, context),
+                    ),
                     // Status indicators at top right
                     Positioned(
                       top: 0,
