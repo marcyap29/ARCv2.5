@@ -19,7 +19,6 @@ import 'package:my_app/ui/journal/journal_screen.dart';
 import 'package:my_app/services/journal_session_cache.dart';
 import 'package:my_app/arc/chat/ui/lumara_assistant_screen.dart';
 import 'package:my_app/arc/chat/bloc/lumara_assistant_cubit.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 
 // Debug flag for showing RIVET engineering labels
 const bool kShowRivetDebugLabels = false;
