@@ -217,63 +217,12 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
                         ),
                       ),
                     ),
-                  // Custom header (replaces AppBar) - scrolls with content, collapsible
-                  if (!_isArcformTimelineVisible && _isTopBarVisible)
+                  // Custom header (replaces AppBar) - always visible, scrolls with content
+                  if (!_isArcformTimelineVisible)
                     SliverToBoxAdapter(
-            child: Column(
-              children: [
-                          _buildScrollableHeader(),
-                          // Close button to hide the bar
-                          GestureDetector(
-                            onTap: () {
-                              setState(() {
-                                _isTopBarVisible = false;
-                              });
-                            },
-                            child: Container(
-                              height: 8,
-                              margin: const EdgeInsets.symmetric(horizontal: 16),
-                              decoration: BoxDecoration(
-                                color: kcSurfaceAltColor.withOpacity(0.3),
-                                borderRadius: const BorderRadius.only(
-                                  bottomLeft: Radius.circular(8),
-                                  bottomRight: Radius.circular(8),
-                                ),
-                              ),
-                              child: Center(
-                                child: Icon(
-                                  Icons.keyboard_arrow_up,
-                                  size: 16,
-                                  color: kcPrimaryTextColor.withOpacity(0.5),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
+                      child: _buildScrollableHeader(),
                     ),
-                  // Timeline label - above Phase Preview, below dropdown
-                  if (!_isArcformTimelineVisible && !_isSelectionMode)
-                    SliverToBoxAdapter(
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 6), // Reduced by 1/2 from 12 to 6
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(Icons.timeline, size: 21), // Increased by 1/2 from 14 to 21
-                            const SizedBox(width: 4),
-                            Text(
-                              'Timeline',
-                              style: heading3Style(context).copyWith(
-                                fontSize: 17.0625, // Increased by 1/2 from 11.375 to 17.0625
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  // Phase preview - scrolls with content, below Timeline label
+                  // Phase preview - scrolls with content, below header
                   if (!_isArcformTimelineVisible && !_isSelectionMode)
                     SliverToBoxAdapter(
                       child: const CurrentPhaseArcformPreview(),
