@@ -550,7 +550,7 @@ class _CompactArcformPreviewState extends State<_CompactArcformPreview> {
                             skin: arcformData.skin,
                             showNebula: true,
                             enableLabels: false, // Disable labels for compact preview
-                            initialZoom: 1.0, // Compact zoom level (zoomed out by 1/2)
+                            initialZoom: 0.5, // Compact zoom level (zoomed out further)
                           ),
                         )
                       : Center(
