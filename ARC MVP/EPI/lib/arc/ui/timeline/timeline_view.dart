@@ -222,26 +222,52 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
               padding: EdgeInsets.only(top: topPadding),
               child: Column(
                 children: [
-                  // Current Phase Arcform Preview - above timeline icons
+                  // Scrollable top section with Arcform preview and search
                   if (!_isArcformTimelineVisible && !_isSelectionMode)
-                    const CurrentPhaseArcformPreview(),
-                  AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 250),
-                    child: _isArcformTimelineVisible
-                        ? const SizedBox.shrink()
-                        : AnimatedSize(
-                            duration: const Duration(milliseconds: 300),
-                            curve: Curves.easeInOut,
-                            child: _isSearchExpanded
-                                ? Column(
-                                    children: [
-                                      _buildSearchBar(state),
-                                      _buildFilterButtons(state),
-                                    ],
-                                  )
-                                : const SizedBox.shrink(),
-                          ),
-                  ),
+                    Flexible(
+                      child: SingleChildScrollView(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            // Current Phase Arcform Preview - above timeline icons
+                            const CurrentPhaseArcformPreview(),
+                            AnimatedSwitcher(
+                              duration: const Duration(milliseconds: 250),
+                              child: AnimatedSize(
+                                duration: const Duration(milliseconds: 300),
+                                curve: Curves.easeInOut,
+                                child: _isSearchExpanded
+                                    ? Column(
+                                        children: [
+                                          _buildSearchBar(state),
+                                          _buildFilterButtons(state),
+                                        ],
+                                      )
+                                    : const SizedBox.shrink(),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    )
+                  else
+                    AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 250),
+                      child: _isArcformTimelineVisible
+                          ? const SizedBox.shrink()
+                          : AnimatedSize(
+                              duration: const Duration(milliseconds: 300),
+                              curve: Curves.easeInOut,
+                              child: _isSearchExpanded
+                                  ? Column(
+                                      children: [
+                                        _buildSearchBar(state),
+                                        _buildFilterButtons(state),
+                                      ],
+                                    )
+                                  : const SizedBox.shrink(),
+                            ),
+                    ),
               AnimatedSwitcher(
                 duration: const Duration(milliseconds: 250),
                 child: _isArcformTimelineVisible

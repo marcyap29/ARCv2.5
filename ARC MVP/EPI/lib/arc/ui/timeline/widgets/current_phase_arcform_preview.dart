@@ -180,10 +180,11 @@ class _CurrentPhaseArcformPreviewState extends State<CurrentPhaseArcformPreview>
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
-                            'Current Phase: ${state.currentPhase}',
+                            state.currentPhase,
                             style: heading3Style(context).copyWith(
                               color: kcPrimaryTextColor,
                               fontWeight: FontWeight.w600,
+                              fontSize: 16, // Reduced from 24 to 16 (2/3 of original)
                             ),
                           ),
                         ),
