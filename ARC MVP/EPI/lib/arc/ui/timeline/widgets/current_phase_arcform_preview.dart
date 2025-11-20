@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:my_app/ui/phase/phase_analysis_view.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
 import 'package:my_app/arc/arcform/models/arcform_models.dart';
@@ -12,6 +11,8 @@ import 'package:my_app/services/phase_regime_service.dart';
 import 'package:my_app/services/analytics_service.dart';
 import 'package:my_app/services/rivet_sweep_service.dart';
 import 'package:my_app/arc/core/journal_repository.dart';
+import 'package:my_app/arc/arcform/share/arcform_share_models.dart';
+import 'package:my_app/arc/arcform/share/arcform_share_sheet.dart';
 
 /// Compact preview widget showing current phase Arcform visualization
 /// Uses the same architecture as Insights->Phase->Arcform visualizations
@@ -464,13 +465,14 @@ class _CompactArcformPreviewState extends State<_CompactArcformPreview> {
 
     return GestureDetector(
       onTap: () {
-        // Navigate to Phase Analysis view (Insights->Phase->Arcform visualizations)
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => const PhaseAnalysisView(),
-          ),
-        );
+        // Navigate directly to full-screen 3D Arcform viewer (same as clicking in Arcform Visualizations)
+        if (arcformData != null) {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (context) => _FullScreenArcformViewer(arcform: arcformData),
+            ),
+          );
+        }
       },
       child: Container(
         height: 180,
@@ -609,6 +611,95 @@ class _CompactArcformPreviewState extends State<_CompactArcformPreview> {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Full-screen ARCForm viewer (same as SimplifiedArcformView3D)
+class _FullScreenArcformViewer extends StatelessWidget {
+  final Arcform3DData arcform;
+
+  const _FullScreenArcformViewer({required this.arcform});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: kcBackgroundColor,
+      appBar: AppBar(
+        backgroundColor: kcBackgroundColor,
+        title: Text(arcform.title, style: heading1Style(context)),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.share_outlined),
+            onPressed: () => _showShareSheet(context, arcform),
+            tooltip: 'Share Arcform',
+          ),
+          IconButton(
+            icon: const Icon(Icons.info_outline),
+            onPressed: () => _showInfo(context),
+          ),
+        ],
+      ),
+      body: Arcform3D(
+        nodes: arcform.nodes,
+        edges: arcform.edges,
+        phase: arcform.phase,
+        skin: arcform.skin,
+        showNebula: true,
+        enableLabels: true,
+      ),
+    );
+  }
+
+  void _showInfo(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('ARCForm Info', style: heading2Style(context)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Phase: ${arcform.phase}'),
+            Text('Nodes: ${arcform.nodes.length}'),
+            Text('Edges: ${arcform.edges.length}'),
+            const SizedBox(height: 16),
+            const Text('About this ARCForm:'),
+            Text(arcform.content ?? '', style: const TextStyle(fontSize: 12, fontStyle: FontStyle.italic)),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showShareSheet(BuildContext context, Arcform3DData arcform) {
+    final keywords = arcform.nodes.map((node) => node.label).toList();
+    
+    final payload = ArcformSharePayload(
+      shareMode: ArcShareMode.social,
+      arcformId: arcform.id,
+      phase: arcform.phase,
+      keywords: keywords,
+    );
+
+    showArcformShareSheet(
+      context: context,
+      payload: payload,
+      fromView: 'arcform_view',
+      arcformPreview: Arcform3D(
+        nodes: arcform.nodes,
+        edges: arcform.edges,
+        phase: arcform.phase,
+        skin: arcform.skin,
+        showNebula: true,
+        enableLabels: true,
+      ),
     );
   }
 }
