@@ -43,6 +43,9 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
   // Search expansion state
   bool _isSearchExpanded = false;
   bool _isArcformTimelineVisible = false;
+  
+  // Top bar visibility state
+  bool _isTopBarVisible = false;
 
   @override
   void initState() {
@@ -195,10 +198,72 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
             child: NestedScrollView(
               headerSliverBuilder: (BuildContext context, bool innerBoxIsScrolled) {
                 return <Widget>[
-                  // Custom header (replaces AppBar) - scrolls with content
-                  if (!_isArcformTimelineVisible)
+                  // Subtle tab hint for top bar
+                  if (!_isArcformTimelineVisible && !_isTopBarVisible)
                     SliverToBoxAdapter(
-                      child: _buildScrollableHeader(),
+                      child: GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            _isTopBarVisible = true;
+                          });
+                        },
+                        child: Container(
+                          height: 8,
+                          margin: const EdgeInsets.symmetric(horizontal: 16),
+                          decoration: BoxDecoration(
+                            color: kcSurfaceAltColor.withOpacity(0.3),
+                            borderRadius: const BorderRadius.only(
+                              bottomLeft: Radius.circular(8),
+                              bottomRight: Radius.circular(8),
+                            ),
+                          ),
+                          child: Center(
+                            child: Container(
+                              width: 40,
+                              height: 3,
+                              decoration: BoxDecoration(
+                                color: kcPrimaryTextColor.withOpacity(0.3),
+                                borderRadius: BorderRadius.circular(2),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  // Custom header (replaces AppBar) - scrolls with content, collapsible
+                  if (!_isArcformTimelineVisible && _isTopBarVisible)
+                    SliverToBoxAdapter(
+                      child: Column(
+                        children: [
+                          _buildScrollableHeader(),
+                          // Close button to hide the bar
+                          GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                _isTopBarVisible = false;
+                              });
+                            },
+                            child: Container(
+                              height: 8,
+                              margin: const EdgeInsets.symmetric(horizontal: 16),
+                              decoration: BoxDecoration(
+                                color: kcSurfaceAltColor.withOpacity(0.3),
+                                borderRadius: const BorderRadius.only(
+                                  bottomLeft: Radius.circular(8),
+                                  bottomRight: Radius.circular(8),
+                                ),
+                              ),
+                              child: Center(
+                                child: Icon(
+                                  Icons.keyboard_arrow_up,
+                                  size: 16,
+                                  color: kcPrimaryTextColor.withOpacity(0.5),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   // Phase preview - scrolls with content
                   if (!_isArcformTimelineVisible && !_isSelectionMode)
