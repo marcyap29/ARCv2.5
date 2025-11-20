@@ -484,59 +484,6 @@ List<PhaseSegmentProposal> proposals,
     );
   }
 
-  /// Build phase navigation button
-  Widget _buildPhaseButton(String value, String label, IconData icon) {
-    final isSelected = _selectedView == value;
-    return GestureDetector(
-      onTap: () {
-        if (value == 'settings') {
-          // Navigate to Settings screen
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const SettingsView(),
-            ),
-          );
-        } else {
-        setState(() {
-          _selectedView = value;
-          // Refresh ARCForms when switching to ARCForms view
-          if (_selectedView == 'arcforms') {
-            print('DEBUG: ARCForms view selected, refreshing...');
-            _refreshArcforms();
-          }
-        });
-        }
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        decoration: BoxDecoration(
-          color: isSelected ? Colors.purple.withOpacity(0.3) : Colors.grey.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: isSelected ? Colors.purple : Colors.grey.withOpacity(0.3),
-            width: isSelected ? 2 : 1,
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 14, color: isSelected ? Colors.white : Colors.grey), // Reduced icon size
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 11, // Reduced font size
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-                color: isSelected ? Colors.white : Colors.grey,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   /// Build content based on selected view (flattened navigation)
   Widget _buildContentForView(String view) {
     switch (view) {
