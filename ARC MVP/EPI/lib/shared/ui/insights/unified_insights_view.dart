@@ -182,116 +182,11 @@ class _UnifiedInsightsViewState extends State<UnifiedInsightsView>
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoadingPreference || _tabController == null) {
-      return Scaffold(
-        backgroundColor: kcBackgroundColor,
-        body: const Center(
-          child: CircularProgressIndicator(),
-        ),
-      );
-    }
-
-    // Build tabs list based on preference with different sizes
-    // When OFF: 2 tabs (Phase, Settings) with larger icons and font
-    // When ON: 4 tabs (Phase, Health, Analytics, Settings) with smaller icons and font
-    final tabs = <Widget>[];
-    
-    if (_advancedAnalyticsEnabled) {
-      // 4 tabs with smaller icons and font
-      tabs.addAll([
-        const Tab(
-          icon: Icon(Icons.auto_awesome, size: 16),
-          text: 'Phase',
-        ),
-        const Tab(
-          icon: Icon(Icons.favorite, size: 16),
-          text: 'Health',
-        ),
-        const Tab(
-          icon: Icon(Icons.analytics, size: 16),
-          text: 'Analytics',
-        ),
-        const Tab(
-          icon: Icon(Icons.settings, size: 16),
-          text: 'Settings',
-        ),
-      ]);
-    } else {
-      // 2 tabs with larger icons and font for better balance
-      tabs.addAll([
-        const Tab(
-          icon: Icon(Icons.auto_awesome, size: 24), // Even larger icon
-          text: 'Phase',
-        ),
-        const Tab(
-          icon: Icon(Icons.settings, size: 24), // Even larger icon
-          text: 'Settings',
-        ),
-      ]);
-    }
-
-    // Build children list for TabBarView
-    final children = <Widget>[
-      const PhaseAnalysisView(),
-    ];
-    
-    if (_advancedAnalyticsEnabled) {
-      children.addAll([
-        const HealthView(),
-        const AnalyticsPage(),
-      ]);
-    }
-    
-    children.add(
-      const SizedBox.shrink(), // Settings placeholder (will navigate instead)
-    );
-
+    // No longer need tab controller or preference loading
+    // Just show PhaseAnalysisView directly
     return Scaffold(
       body: SafeArea(
-        child: Column(
-          children: [
-            // Tab bar for Phase, Health (conditional), Analytics (conditional), and Settings
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 300),
-              curve: Curves.easeInOut,
-              padding: EdgeInsets.symmetric(
-                horizontal: _advancedAnalyticsEnabled ? 6.0 : 0.0, // No horizontal padding when 2 tabs (centered by TabBar)
-              ),
-              color: kcBackgroundColor,
-              child: SizedBox(
-                height: _advancedAnalyticsEnabled ? 36 : 48, // Taller when only 2 tabs to accommodate larger icons
-                child: TabBar(
-                  controller: _tabController!,
-                  isScrollable: false, // Never scrollable - tabs will be centered automatically
-                  labelColor: Colors.white,
-                  unselectedLabelColor: Colors.grey,
-                  indicatorColor: Colors.purple,
-                  indicatorWeight: 2,
-                  labelPadding: EdgeInsets.symmetric(
-                    horizontal: _advancedAnalyticsEnabled ? 8.0 : 16.0, // More padding when 2 tabs
-                    vertical: 0,
-                  ),
-                  labelStyle: TextStyle(
-                    fontSize: _advancedAnalyticsEnabled ? 13 : 17, // Larger font when 2 tabs
-                    fontWeight: _advancedAnalyticsEnabled ? FontWeight.normal : FontWeight.w600, // Bolder when 2 tabs
-                  ),
-                  unselectedLabelStyle: TextStyle(
-                    fontSize: _advancedAnalyticsEnabled ? 13 : 17, // Larger font when 2 tabs
-                  ),
-                  tabs: tabs,
-                ),
-              ),
-            ),
-            // Tab bar view content
-            Expanded(
-              child: TabBarView(
-                controller: _tabController!,
-                physics: const NeverScrollableScrollPhysics(),
-                children: children,
-              ),
-            ),
-          ],
-        ),
+        child: const PhaseAnalysisView(),
       ),
     );
   }

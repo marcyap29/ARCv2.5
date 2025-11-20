@@ -379,6 +379,8 @@ List<PhaseSegmentProposal> proposals,
                     _buildPhaseButton('timeline', 'Timeline', Icons.timeline),
                     const SizedBox(width: 8),
                     _buildPhaseButton('analysis', 'Analysis', Icons.analytics),
+                    const SizedBox(width: 8),
+                    _buildPhaseButton('settings', 'Settings', Icons.settings),
                   ],
                 ),
               ),
@@ -398,14 +400,24 @@ List<PhaseSegmentProposal> proposals,
     final isSelected = _selectedView == value;
     return GestureDetector(
       onTap: () {
-        setState(() {
-          _selectedView = value;
-          // Refresh ARCForms when switching to ARCForms view
-          if (_selectedView == 'arcforms') {
-            print('DEBUG: ARCForms view selected, refreshing...');
-            _refreshArcforms();
-          }
-        });
+        if (value == 'settings') {
+          // Navigate to Settings screen
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const SettingsView(),
+            ),
+          );
+        } else {
+          setState(() {
+            _selectedView = value;
+            // Refresh ARCForms when switching to ARCForms view
+            if (_selectedView == 'arcforms') {
+              print('DEBUG: ARCForms view selected, refreshing...');
+              _refreshArcforms();
+            }
+          });
+        }
       },
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
