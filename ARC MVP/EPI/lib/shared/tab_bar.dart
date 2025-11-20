@@ -33,7 +33,7 @@ class _CustomTabBarState extends State<CustomTabBar> {
         left: 8,
         right: 8,
         top: 2,
-        bottom: 12, // Increased bottom padding for better spacing
+        bottom: 18, // Increased bottom padding by 6px (from 12 to 18)
       ),
       decoration: BoxDecoration(
         color: kcSurfaceAltColor,
