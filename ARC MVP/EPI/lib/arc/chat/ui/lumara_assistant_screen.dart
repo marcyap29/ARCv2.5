@@ -964,9 +964,9 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
                 onLongPress: () => _showLumaraMenuOptions(),
                 child: IconButton(
                   icon: const Icon(Icons.psychology, size: 20),
-                  padding: const EdgeInsets.all(8),
-                  constraints: const BoxConstraints(),
-                  onPressed: _sendCurrentMessage,
+                padding: const EdgeInsets.all(8),
+                constraints: const BoxConstraints(),
+                onPressed: _sendCurrentMessage,
                   tooltip: 'Send (long-press for options)',
                 ),
               ),

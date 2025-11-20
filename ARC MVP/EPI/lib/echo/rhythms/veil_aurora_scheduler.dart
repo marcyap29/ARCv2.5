@@ -8,6 +8,10 @@ import 'package:my_app/mira/store/mcp/models/mcp_schemas.dart';
 import '../../core/services/keyword_cleanup_service.dart';
 import 'package:my_app/prism/pipelines/prism_joiner.dart';
 import 'package:my_app/mira/store/mcp/mcp_fs.dart';
+import 'package:my_app/arc/core/journal_repository.dart';
+import 'package:my_app/services/phase_regime_service.dart';
+import 'package:my_app/services/rivet_sweep_service.dart';
+import 'package:my_app/services/analytics_service.dart';
 
 /// VEIL/AURORA rhythm scheduler for nightly tasks
 class VeilAuroraScheduler {
@@ -73,6 +77,9 @@ class VeilAuroraScheduler {
       
       // 6. Keyword cleanup - remove duplicates across all entries
       await _cleanupKeywords();
+      
+      // 7. Periodic phase analysis - analyze entries for phase regime changes
+      await _runPeriodicPhaseAnalysis();
       
       print('VEIL/AURORA Scheduler: Nightly tasks completed successfully');
     } catch (e) {
@@ -289,6 +296,50 @@ class VeilAuroraScheduler {
       
     } catch (e) {
       print('VEIL/AURORA: Error during keyword cleanup - $e');
+    }
+  }
+
+  /// Run periodic phase analysis to detect phase regime changes
+  static Future<void> _runPeriodicPhaseAnalysis() async {
+    try {
+      print('VEIL/AURORA: Starting periodic phase analysis...');
+      
+      // Get all journal entries
+      final journalRepo = JournalRepository();
+      final allEntries = journalRepo.getAllJournalEntriesSync();
+      
+      // Check if enough entries exist for analysis (minimum 5 entries)
+      if (allEntries.length < 5) {
+        print('VEIL/AURORA: Insufficient entries for phase analysis (${allEntries.length} < 5), skipping');
+        return;
+      }
+      
+      // Initialize phase regime service
+      final analyticsService = AnalyticsService();
+      final rivetSweepService = RivetSweepService(analyticsService);
+      final phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
+      await phaseRegimeService.initialize();
+      
+      // Run RIVET sweep if needed (this checks if analysis is needed and runs it)
+      final needsAnalysis = phaseRegimeService.needsRivetSweep(allEntries);
+      
+      if (!needsAnalysis) {
+        print('VEIL/AURORA: Phase analysis not needed (no new patterns detected), skipping');
+        return;
+      }
+      
+      print('VEIL/AURORA: Running RIVET sweep for phase analysis...');
+      final hasReviewItems = await phaseRegimeService.runRivetSweepIfNeeded(allEntries);
+      
+      if (hasReviewItems) {
+        print('VEIL/AURORA: Phase analysis completed - some proposals require user review');
+      } else {
+        print('VEIL/AURORA: Phase analysis completed - all proposals auto-applied');
+      }
+      
+    } catch (e) {
+      // Don't break nightly tasks if phase analysis fails
+      print('VEIL/AURORA: Error during periodic phase analysis - $e');
     }
   }
 

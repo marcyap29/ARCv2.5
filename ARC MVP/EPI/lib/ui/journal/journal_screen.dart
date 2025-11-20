@@ -563,7 +563,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     // If entry has text, directly generate a reflection using LUMARA
     _generateLumaraReflection();
   }
-
+  
   /// Show LUMARA menu options (long-press on LUMARA button)
   void _showLumaraMenuOptions() {
     if (!_isLumaraConfigured) {
@@ -1756,25 +1756,25 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
                         GestureDetector(
                           onLongPress: _isLumaraConfigured ? () => _showLumaraMenuOptions() : null,
                           child: IconButton(
-                            onPressed: _onLumaraFabTapped,
-                            icon: Icon(
-                              Icons.psychology, 
-                              size: 18,
-                              color: _isLumaraConfigured 
-                                ? null 
-                                : theme.colorScheme.onSurface.withOpacity(0.5),
-                            ),
-                            tooltip: _isLumaraConfigured 
+                          onPressed: _onLumaraFabTapped,
+                          icon: Icon(
+                            Icons.psychology, 
+                            size: 18,
+                            color: _isLumaraConfigured 
+                              ? null 
+                              : theme.colorScheme.onSurface.withOpacity(0.5),
+                          ),
+                          tooltip: _isLumaraConfigured 
                               ? 'Reflect with LUMARA (long-press for options)' 
-                              : 'LUMARA needs API key configuration',
-                            padding: const EdgeInsets.all(4),
-                            constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
-                            style: IconButton.styleFrom(
-                              backgroundColor: _showLumaraBox 
-                                ? theme.colorScheme.primary.withOpacity(0.2)
-                                : _isLumaraConfigured 
-                                  ? null 
-                                  : theme.colorScheme.surface.withOpacity(0.5),
+                            : 'LUMARA needs API key configuration',
+                          padding: const EdgeInsets.all(4),
+                          constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                          style: IconButton.styleFrom(
+                            backgroundColor: _showLumaraBox 
+                              ? theme.colorScheme.primary.withOpacity(0.2)
+                              : _isLumaraConfigured 
+                                ? null 
+                                : theme.colorScheme.surface.withOpacity(0.5),
                             ),
                           ),
                         ),

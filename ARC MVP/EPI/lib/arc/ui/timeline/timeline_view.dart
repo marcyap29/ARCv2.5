@@ -3,6 +3,10 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:my_app/arc/ui/timeline/timeline_cubit.dart';
 import 'package:my_app/arc/ui/timeline/timeline_state.dart';
 import 'package:my_app/arc/ui/timeline/widgets/interactive_timeline_view.dart';
+import 'package:my_app/arc/ui/timeline/widgets/current_phase_arcform_preview.dart';
+import 'package:my_app/arc/ui/arcforms/arcform_renderer_cubit.dart';
+import 'package:my_app/arc/ui/arcforms/arcform_renderer_state.dart';
+import 'package:my_app/services/user_phase_service.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/services/journal_session_cache.dart';
 import 'package:my_app/ui/journal/journal_screen.dart';
@@ -53,7 +57,44 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
     // Refresh timeline when view is first shown to ensure latest data
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _timelineCubit.refreshEntries();
+      // Check for phase changes and refresh Arcform visualization
+      _checkAndRefreshPhase();
     });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Check for phase changes when view becomes visible
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkAndRefreshPhase();
+    });
+  }
+
+  /// Check if phase has changed and refresh ArcformRendererCubit if needed
+  Future<void> _checkAndRefreshPhase() async {
+    try {
+      // Get current phase from UserPhaseService
+      final currentPhase = await UserPhaseService.getCurrentPhase();
+      
+      // Get ArcformRendererCubit from context
+      final arcformCubit = context.read<ArcformRendererCubit>();
+      
+      // Check if cubit state has a different phase
+      if (arcformCubit.state is ArcformRendererLoaded) {
+        final state = arcformCubit.state as ArcformRendererLoaded;
+        if (state.currentPhase != currentPhase) {
+          print('Timeline: Phase changed from ${state.currentPhase} to $currentPhase, refreshing Arcform...');
+          await arcformCubit.refreshPhase();
+        }
+      } else {
+        // Not loaded yet, just refresh to load with current phase
+        await arcformCubit.refreshPhase();
+      }
+    } catch (e) {
+      print('Timeline: Error checking phase change: $e');
+      // Don't throw - phase check failure shouldn't break timeline
+    }
   }
 
   @override
@@ -168,34 +209,39 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<TimelineCubit, TimelineState>(
-      builder: (context, state) {
-        final double topPadding =
-            _isArcformTimelineVisible ? MediaQuery.of(context).padding.top : 0.0;
+    return BlocProvider(
+      create: (context) => ArcformRendererCubit()..initialize(),
+      child: BlocBuilder<TimelineCubit, TimelineState>(
+        builder: (context, state) {
+          final double topPadding =
+              _isArcformTimelineVisible ? MediaQuery.of(context).padding.top : 0.0;
 
-        return Scaffold(
-          appBar: _buildAppBar(),
-          body: Padding(
-            padding: EdgeInsets.only(top: topPadding),
-            child: Column(
-              children: [
-              AnimatedSwitcher(
-                duration: const Duration(milliseconds: 250),
-                child: _isArcformTimelineVisible
-                    ? const SizedBox.shrink()
-                    : AnimatedSize(
-                        duration: const Duration(milliseconds: 300),
-                        curve: Curves.easeInOut,
-                        child: _isSearchExpanded
-                            ? Column(
-                                children: [
-                                  _buildSearchBar(state),
-                                  _buildFilterButtons(state),
-                                ],
-                              )
-                            : const SizedBox.shrink(),
-                      ),
-              ),
+          return Scaffold(
+            appBar: _buildAppBar(),
+            body: Padding(
+              padding: EdgeInsets.only(top: topPadding),
+              child: Column(
+                children: [
+                  // Current Phase Arcform Preview - above timeline icons
+                  if (!_isArcformTimelineVisible && !_isSelectionMode)
+                    const CurrentPhaseArcformPreview(),
+                  AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 250),
+                    child: _isArcformTimelineVisible
+                        ? const SizedBox.shrink()
+                        : AnimatedSize(
+                            duration: const Duration(milliseconds: 300),
+                            curve: Curves.easeInOut,
+                            child: _isSearchExpanded
+                                ? Column(
+                                    children: [
+                                      _buildSearchBar(state),
+                                      _buildFilterButtons(state),
+                                    ],
+                                  )
+                                : const SizedBox.shrink(),
+                          ),
+                  ),
               AnimatedSwitcher(
                 duration: const Duration(milliseconds: 250),
                 child: _isArcformTimelineVisible
@@ -237,8 +283,9 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
             ],
           ),
         ),
-        );
-      },
+          );
+        },
+      ),
     );
   }
 

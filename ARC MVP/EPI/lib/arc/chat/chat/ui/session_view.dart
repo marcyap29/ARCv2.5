@@ -1007,14 +1007,14 @@ class _SessionViewState extends State<SessionView> {
               GestureDetector(
                 onLongPress: _isSending ? null : () => _showLumaraMenuOptions(),
                 child: IconButton(
-                  icon: _isSending
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
+                icon: _isSending
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
                       : const Icon(Icons.psychology),
-                  onPressed: _isSending ? null : _sendMessage,
+                onPressed: _isSending ? null : _sendMessage,
                   tooltip: 'Send (long-press for options)',
                 ),
               ),

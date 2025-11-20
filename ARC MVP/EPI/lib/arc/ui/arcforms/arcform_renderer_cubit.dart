@@ -663,6 +663,37 @@ class ArcformRendererCubit extends Cubit<ArcformRendererState> {
     }
   }
 
+  /// Refresh phase data from UserPhaseService and reload if phase changed
+  Future<void> refreshPhase() async {
+    try {
+      // Get current phase from UserPhaseService
+      final currentPhase = await UserPhaseService.getCurrentPhase();
+      
+      // Check if we have a loaded state
+      if (state is ArcformRendererLoaded) {
+        final currentState = state as ArcformRendererLoaded;
+        
+        // Compare with existing phase
+        if (currentState.currentPhase == currentPhase) {
+          // Phase hasn't changed, no-op
+          print('DEBUG: ArcformRendererCubit - Phase unchanged ($currentPhase), skipping refresh');
+          return;
+        }
+        
+        // Phase changed, reload data
+        print('DEBUG: ArcformRendererCubit - Phase changed from ${currentState.currentPhase} to $currentPhase, reloading...');
+        await _loadArcformData();
+      } else {
+        // Not loaded yet, just initialize
+        print('DEBUG: ArcformRendererCubit - Not loaded yet, initializing...');
+        await _loadArcformData();
+      }
+    } catch (e) {
+      print('ERROR: Failed to refresh phase: $e');
+      emit(ArcformRendererError('Failed to refresh phase: $e'));
+    }
+  }
+
   /// Change the renderer mode
   void changeRendererMode(ArcformRendererMode mode) {
     final currentState = state;

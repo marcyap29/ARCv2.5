@@ -28,6 +28,7 @@ import 'package:my_app/models/arcform_snapshot_model.dart';
 import 'package:my_app/arc/chat/services/favorites_service.dart';
 import 'package:my_app/arc/chat/data/models/lumara_favorite.dart';
 import 'package:hive/hive.dart';
+import 'package:my_app/models/user_profile_model.dart';
 
 const _uuid = Uuid();
 
@@ -266,6 +267,9 @@ class ARCXImportServiceV2 {
           if (phaseRegimesImported > 0) {
             await _phaseRegimeService!.initialize();
             print('ARCX Import V2: ✓ Re-initialized PhaseRegimeService after importing $phaseRegimesImported regimes');
+            
+            // Update user profile with current phase from imported regimes
+            await _updateUserPhaseFromRegimes();
           }
           
           // Import RIVET state, Sentinel state, ArcForm timeline, and LUMARA favorites alongside phase regimes
@@ -286,6 +290,12 @@ class ARCXImportServiceV2 {
             options: options,
             onProgress: onProgress,
           );
+          
+          // Update user profile with current phase after entries are imported
+          // (in case phase regimes were imported and current phase should be updated)
+          if (_phaseRegimeService != null && phaseRegimesImported > 0) {
+            await _updateUserPhaseFromRegimes();
+          }
         }
         
         // Import Chats
@@ -1464,6 +1474,60 @@ class ARCXImportServiceV2 {
         return 'recovery';
       case PhaseLabel.breakthrough:
         return 'breakthrough';
+    }
+  }
+
+  /// Update user profile with current phase from phase regimes
+  Future<void> _updateUserPhaseFromRegimes() async {
+    try {
+      if (_phaseRegimeService == null) {
+        print('ARCX Import V2: No PhaseRegimeService available, skipping phase update');
+        return;
+      }
+
+      // Determine current phase from phase index
+      String? currentPhaseName;
+      final currentRegime = _phaseRegimeService!.phaseIndex.currentRegime;
+      
+      if (currentRegime != null) {
+        // Use current ongoing regime
+        currentPhaseName = _getPhaseLabelNameFromEnum(currentRegime.label);
+        // Capitalize first letter
+        currentPhaseName = currentPhaseName.substring(0, 1).toUpperCase() + currentPhaseName.substring(1);
+      } else {
+        // No current ongoing regime, use most recent one
+        final allRegimes = _phaseRegimeService!.phaseIndex.allRegimes;
+        if (allRegimes.isNotEmpty) {
+          final sortedRegimes = List<PhaseRegime>.from(allRegimes)
+            ..sort((a, b) => b.start.compareTo(a.start));
+          final mostRecent = sortedRegimes.first;
+          currentPhaseName = _getPhaseLabelNameFromEnum(mostRecent.label);
+          // Capitalize first letter
+          currentPhaseName = currentPhaseName.substring(0, 1).toUpperCase() + currentPhaseName.substring(1);
+        } else {
+          // No regimes at all, use default
+          currentPhaseName = 'Discovery';
+        }
+      }
+
+      // Update user profile
+      final userBox = await Hive.openBox<UserProfile>('user_profile');
+      final userProfile = userBox.get('profile');
+      
+      if (userProfile != null) {
+        final updatedProfile = userProfile.copyWith(
+          onboardingCurrentSeason: currentPhaseName,
+          currentPhase: currentPhaseName,
+          lastPhaseChangeAt: DateTime.now(),
+        );
+        await userBox.put('profile', updatedProfile);
+        print('ARCX Import V2: ✓ Updated user profile phase to: $currentPhaseName');
+      } else {
+        print('ARCX Import V2: ⚠️ No user profile found, cannot update phase');
+      }
+    } catch (e) {
+      print('ARCX Import V2: ⚠️ Error updating user phase from regimes: $e');
+      // Don't throw - phase update failure shouldn't break import
     }
   }
 }

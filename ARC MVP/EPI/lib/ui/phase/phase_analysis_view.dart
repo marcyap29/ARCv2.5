@@ -16,6 +16,8 @@ import 'simplified_arcform_view_3d.dart';
 import 'phase_arcform_3d_screen.dart';
 import '../../shared/app_colors.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:hive/hive.dart';
+import 'package:my_app/models/user_profile_model.dart';
 
 class PhaseAnalysisView extends StatefulWidget {
   const PhaseAnalysisView({super.key});
@@ -1496,10 +1498,13 @@ List<PhaseSegmentProposal> proposals,
       // 1. Reload phase data (includes Phase Regimes and Phase Statistics)
       await _loadPhaseData();
       
-      // 2. Refresh ARCForms
+      // 2. Update user profile with current phase from phase regimes
+      await _updateUserPhaseFromRegimes();
+      
+      // 3. Refresh ARCForms
       _refreshArcforms();
       
-      // 3. Trigger comprehensive rebuild of all analysis components
+      // 4. Trigger comprehensive rebuild of all analysis components
       setState(() {
         // This will trigger rebuild of:
         // - Phase Statistics card (_buildPhaseStats)
@@ -1530,6 +1535,66 @@ List<PhaseSegmentProposal> proposals,
           ),
         );
       }
+    }
+  }
+
+  /// Update user profile with current phase from phase regimes
+  Future<void> _updateUserPhaseFromRegimes() async {
+    try {
+      if (_phaseIndex == null) {
+        print('Phase Analysis: No phase index available, skipping phase update');
+        return;
+      }
+
+      // Determine current phase from phase index
+      String? currentPhaseName;
+      final currentRegime = _phaseIndex!.currentRegime;
+      
+      if (currentRegime != null) {
+        // Use current ongoing regime
+        currentPhaseName = _getPhaseLabelName(currentRegime.label);
+        // Capitalize first letter
+        currentPhaseName = currentPhaseName.substring(0, 1).toUpperCase() + currentPhaseName.substring(1);
+      } else {
+        // No current ongoing regime, use most recent one
+        final allRegimes = _phaseIndex!.allRegimes;
+        if (allRegimes.isNotEmpty) {
+          final sortedRegimes = List.from(allRegimes)..sort((a, b) => b.start.compareTo(a.start));
+          final mostRecent = sortedRegimes.first;
+          currentPhaseName = _getPhaseLabelName(mostRecent.label);
+          // Capitalize first letter
+          currentPhaseName = currentPhaseName.substring(0, 1).toUpperCase() + currentPhaseName.substring(1);
+        } else {
+          // No regimes at all, use default
+          currentPhaseName = 'Discovery';
+        }
+      }
+
+      // Update user profile
+      final userBox = await Hive.openBox<UserProfile>('user_profile');
+      final userProfile = userBox.get('profile');
+      
+      if (userProfile != null) {
+        final oldPhase = userProfile.onboardingCurrentSeason ?? userProfile.currentPhase;
+        
+        // Only update if phase actually changed
+        if (oldPhase != currentPhaseName) {
+          final updatedProfile = userProfile.copyWith(
+            onboardingCurrentSeason: currentPhaseName,
+            currentPhase: currentPhaseName,
+            lastPhaseChangeAt: DateTime.now(),
+          );
+          await userBox.put('profile', updatedProfile);
+          print('Phase Analysis: ✓ Updated user profile phase from $oldPhase to $currentPhaseName');
+        } else {
+          print('Phase Analysis: Phase unchanged ($currentPhaseName), skipping profile update');
+        }
+      } else {
+        print('Phase Analysis: ⚠️ No user profile found, cannot update phase');
+      }
+    } catch (e) {
+      print('Phase Analysis: ⚠️ Error updating user phase from regimes: $e');
+      // Don't throw - phase update failure shouldn't break refresh
     }
   }
 
