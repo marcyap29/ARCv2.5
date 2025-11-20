@@ -273,25 +273,39 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
       color: kcBackgroundColor,
       child: Column(
         children: [
-          // Header bar with title and actions
+          // Header bar with Timeline label, title and actions
           Container(
             height: kToolbarHeight,
             padding: const EdgeInsets.symmetric(horizontal: 8),
             child: Row(
               children: [
+                // Timeline icon + text on the left
+                if (!_isSelectionMode)
+                  Row(
+                    children: [
+                      const Icon(Icons.timeline, size: 14),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Timeline',
+                        style: heading3Style(context).copyWith(
+                          fontSize: 11.375,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                    ],
+                  ),
                 if (_isSelectionMode)
                   IconButton(
-              icon: const Icon(Icons.close),
-              onPressed: () {
-                _timelineViewKey.currentState?.exitSelectionMode();
-                setState(() {
-                  _isSelectionMode = false;
-                  _selectedCount = 0;
-                });
-              },
-            )
-                else
-                  const SizedBox(width: 48), // Spacer for alignment
+                    icon: const Icon(Icons.close),
+                    onPressed: () {
+                      _timelineViewKey.currentState?.exitSelectionMode();
+                      setState(() {
+                        _isSelectionMode = false;
+                        _selectedCount = 0;
+                      });
+                    },
+                  ),
                 Expanded(
                   child: Text(
                     _isSelectionMode ? 'Select Entries' : '',
@@ -377,6 +391,18 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
             icon: const Icon(Icons.add),
             onPressed: _onWritePressed,
             tooltip: 'New Entry',
+          ),
+          IconButton(
+            icon: const Icon(Icons.settings, size: 14),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const SettingsView(),
+                ),
+              );
+            },
+            tooltip: 'Settings',
           ),
         ],
       ],
