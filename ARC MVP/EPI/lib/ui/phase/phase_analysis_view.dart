@@ -348,28 +348,19 @@ List<PhaseSegmentProposal> proposals,
 
     return Scaffold(
       appBar: AppBar(
-        title: Row(
-          children: [
-            IconButton(
-              icon: const Icon(Icons.help_outline),
-              onPressed: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (context) => const PhaseHelpScreen(),
-                  ),
-                );
-              },
-              tooltip: 'Phase Help',
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(),
-            ),
-            const SizedBox(width: 8),
-            const Expanded(
-              child: Text('Phase Analysis'),
-            ),
-          ],
+        leading: IconButton(
+          icon: const Icon(Icons.help_outline),
+          onPressed: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (context) => const PhaseHelpScreen(),
+              ),
+            );
+          },
+          tooltip: 'Phase Help',
         ),
-        centerTitle: false,
+        title: const Text('Phase Analysis'),
+        centerTitle: true,
         actions: [
           PopupMenuButton<String>(
             icon: const Icon(Icons.more_vert),
