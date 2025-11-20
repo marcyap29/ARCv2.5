@@ -155,7 +155,7 @@ class _HomeViewState extends State<HomeView> {
               body: SafeArea(
                 child: Stack(
                   children: [
-                    _pages[selectedIndex],
+                    _getPageForIndex(selectedIndex),
                     // Status indicators at top right
                     Positioned(
                       top: 0,
