@@ -27,12 +27,12 @@ class _CustomTabBarState extends State<CustomTabBar> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: widget.height ?? 75, // Increased from 65 to 75 to accommodate larger icons/text
+      height: widget.height ?? 85, // Increased from 75 to 85 to accommodate larger icons (31.25) and text (14.0625)
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
       padding: const EdgeInsets.only(
         left: 8,
         right: 8,
-        top: 2,
+        top: 4, // Increased top padding for better spacing
         bottom: 18, // Increased bottom padding by 6px (from 12 to 18)
       ),
       decoration: BoxDecoration(
@@ -120,7 +120,7 @@ class _CustomTabBarState extends State<CustomTabBar> {
             size: 31.25, // Increased by 1/4 from 25 to 31.25
             color: textColor,
           ),
-          const SizedBox(height: 1),
+          const SizedBox(height: 2), // Increased spacing between icon and text
           Text(
             tab.text!,
             style: TextStyle(
