@@ -66,16 +66,6 @@ class _HomeViewState extends State<HomeView> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _checkPhotoPermissionsAndRefresh();
     });
-
-    // Pages: 3 main views
-    _pages = [
-      const UnifiedJournalView(),  // index 0 - Journal (Timeline)
-      BlocProvider.value(
-        value: context.read<LumaraAssistantCubit>(),
-        child: const LumaraAssistantScreen(), // index 1 - LUMARA
-      ),
-      const UnifiedInsightsView(), // index 2 - Insights (Phase + Health + Analytics)
-    ];
     
     // Initialize ethereal music (P22)
     _initializeEtherealMusic();
@@ -250,6 +240,24 @@ class _HomeViewState extends State<HomeView> {
         ),
       ),
     );
+  }
+
+  /// Get the appropriate page widget for the given index
+  Widget _getPageForIndex(int index) {
+    switch (index) {
+      case 0:
+        return const UnifiedJournalView();
+      case 1:
+        // LUMARA - wrap with BlocProvider to access cubit from app level
+        return BlocProvider.value(
+          value: context.read<LumaraAssistantCubit>(),
+          child: const LumaraAssistantScreen(),
+        );
+      case 2:
+        return const UnifiedInsightsView();
+      default:
+        return const UnifiedJournalView();
+    }
   }
 
   /// Refresh the phase cache when Phase tab is opened
