@@ -340,7 +340,7 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
     // Get scroll controller: use provided one, or PrimaryScrollController from NestedScrollView
     // If neither is available, ListView will create its own internal controller
     final scrollController = _scrollController ?? PrimaryScrollController.maybeOf(context);
-    
+
     return RefreshIndicator(
       onRefresh: _refreshTimeline,
       child: ListView.builder(

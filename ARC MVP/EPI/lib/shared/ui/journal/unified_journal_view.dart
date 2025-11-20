@@ -95,19 +95,19 @@ class _UnifiedJournalViewState extends State<UnifiedJournalView>
           children: [
             // Tab bar for Timeline and LUMARA
             Container(
-              padding: const EdgeInsets.only(bottom: 2), // Reduced bottom padding
+              padding: const EdgeInsets.only(bottom: 4), // Bottom padding
               color: kcBackgroundColor,
               child: SizedBox(
-                height: 32, // Reduced height to save vertical space
+                height: 38, // Container height
                 child: TabBar(
                   controller: _tabController,
                   labelColor: Colors.white,
                   unselectedLabelColor: Colors.grey,
                   indicatorColor: Colors.purple,
                   indicatorWeight: 2,
-                  labelPadding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 0), // Reduced vertical padding
-                  labelStyle: const TextStyle(fontSize: 13), // Increased from 11 to 13 for better readability
-                  unselectedLabelStyle: const TextStyle(fontSize: 13), // Increased from 11 to 13 for better readability
+                  labelPadding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4), // Vertical padding
+                  labelStyle: const TextStyle(fontSize: 13), // Font size
+                  unselectedLabelStyle: const TextStyle(fontSize: 13), // Font size
                   tabs: [
                     const Tab(
                       icon: Icon(Icons.timeline, size: 16), // Reduced from 18 to 16

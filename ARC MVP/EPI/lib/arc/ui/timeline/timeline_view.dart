@@ -211,13 +211,13 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
                         duration: const Duration(milliseconds: 300),
                         curve: Curves.easeInOut,
                         child: Column(
-                          children: [
-                            _buildSearchBar(state),
-                            _buildFilterButtons(state),
-                          ],
+                                children: [
+                                  _buildSearchBar(state),
+                                  _buildFilterButtons(state),
+                                ],
                         ),
                       ),
-                    ),
+              ),
                   // Phase legend dropdown for arcform timeline
                   if (_isArcformTimelineVisible)
                     SliverToBoxAdapter(
@@ -226,38 +226,38 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
                             horizontal: 16, vertical: 8),
                         child: _buildPhaseLegendDropdown(context),
                       ),
-                    ),
+              ),
                 ];
               },
               body: InteractiveTimelineView(
-                key: _timelineViewKey,
+                  key: _timelineViewKey,
                 scrollController: null, // Let NestedScrollView handle scrolling coordination
-                onJumpToDate: _showJumpToDateDialog,
-                onSelectionChanged: (isSelectionMode, selectedCount, totalEntries) {
-                  // Only update state if values actually changed to prevent rebuild loops
-                  if (_isSelectionMode != isSelectionMode || 
-                      _selectedCount != selectedCount || 
-                      _totalEntries != totalEntries) {
-                    setState(() {
-                      _isSelectionMode = isSelectionMode;
-                      _selectedCount = selectedCount;
-                      _totalEntries = totalEntries;
-                    });
-                  }
-                },
-                onArcformTimelineVisibilityChanged: (visible) {
-                  setState(() {
-                    _isArcformTimelineVisible = visible;
-                    if (visible && _isSearchExpanded) {
-                      _isSearchExpanded = false;
-                      _searchController.clear();
-                      _timelineCubit.setSearchQuery('');
+                  onJumpToDate: _showJumpToDateDialog,
+                  onSelectionChanged: (isSelectionMode, selectedCount, totalEntries) {
+                    // Only update state if values actually changed to prevent rebuild loops
+                    if (_isSelectionMode != isSelectionMode || 
+                        _selectedCount != selectedCount || 
+                        _totalEntries != totalEntries) {
+                      setState(() {
+                        _isSelectionMode = isSelectionMode;
+                        _selectedCount = selectedCount;
+                        _totalEntries = totalEntries;
+                      });
                     }
-                  });
-                },
-              ),
-            ),
+                  },
+                  onArcformTimelineVisibilityChanged: (visible) {
+                    setState(() {
+                      _isArcformTimelineVisible = visible;
+                      if (visible && _isSearchExpanded) {
+                        _isSearchExpanded = false;
+                        _searchController.clear();
+                        _timelineCubit.setSearchQuery('');
+                      }
+                    });
+                  },
+                ),
           ),
+        ),
         );
       },
     );
@@ -281,15 +281,15 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
               children: [
                 if (_isSelectionMode)
                   IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: () {
-                      _timelineViewKey.currentState?.exitSelectionMode();
-                      setState(() {
-                        _isSelectionMode = false;
-                        _selectedCount = 0;
-                      });
-                    },
-                  )
+              icon: const Icon(Icons.close),
+              onPressed: () {
+                _timelineViewKey.currentState?.exitSelectionMode();
+                setState(() {
+                  _isSelectionMode = false;
+                  _selectedCount = 0;
+                });
+              },
+            )
                 else
                   const SizedBox(width: 48), // Spacer for alignment
                 Expanded(
@@ -303,54 +303,54 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
                   ),
                 ),
                 // Actions
-                if (_isSelectionMode) ...[
-                  IconButton(
-                    icon: const Icon(Icons.select_all),
-                    onPressed: () {
-                      if (_selectedCount == _totalEntries) {
-                        _timelineViewKey.currentState?.deselectAll();
-                      } else {
-                        _timelineViewKey.currentState?.selectAll();
-                      }
-                    },
-                    tooltip:
-                        _selectedCount == _totalEntries ? 'Deselect All' : 'Select All',
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.clear),
-                    onPressed: () {
-                      _timelineViewKey.currentState?.clearSelection();
-                    },
-                    tooltip: 'Clear Selection',
-                  ),
-                  if (_selectedCount > 0)
-                    IconButton(
-                      icon: const Icon(Icons.delete),
-                      onPressed: () {
-                        _timelineViewKey.currentState?.deleteSelectedEntries();
-                      },
-                      tooltip: 'Delete Selected',
-                    ),
-                ] else ...[
-                  IconButton(
-                    icon: const Icon(Icons.calendar_today),
-                    onPressed: _showJumpToDateDialog,
-                    tooltip: 'Jump to Date',
-                  ),
-                  IconButton(
-                    icon: Icon(_isSearchExpanded ? Icons.search_off : Icons.search),
-                    onPressed: () {
-                      final wasExpanded = _isSearchExpanded;
-                      setState(() {
-                        _isSearchExpanded = !_isSearchExpanded;
-                      });
-                      if (wasExpanded) {
-                        _searchController.clear();
-                        _timelineCubit.setSearchQuery('');
-                      }
-                    },
-                    tooltip: _isSearchExpanded ? 'Hide Search' : 'Search Entries',
-                  ),
+        if (_isSelectionMode) ...[
+          IconButton(
+            icon: const Icon(Icons.select_all),
+            onPressed: () {
+              if (_selectedCount == _totalEntries) {
+                _timelineViewKey.currentState?.deselectAll();
+              } else {
+                _timelineViewKey.currentState?.selectAll();
+              }
+            },
+            tooltip:
+                _selectedCount == _totalEntries ? 'Deselect All' : 'Select All',
+          ),
+          IconButton(
+            icon: const Icon(Icons.clear),
+            onPressed: () {
+              _timelineViewKey.currentState?.clearSelection();
+            },
+            tooltip: 'Clear Selection',
+          ),
+          if (_selectedCount > 0)
+            IconButton(
+              icon: const Icon(Icons.delete),
+              onPressed: () {
+                _timelineViewKey.currentState?.deleteSelectedEntries();
+              },
+              tooltip: 'Delete Selected',
+            ),
+        ] else ...[
+          IconButton(
+            icon: const Icon(Icons.calendar_today),
+            onPressed: _showJumpToDateDialog,
+            tooltip: 'Jump to Date',
+          ),
+          IconButton(
+            icon: Icon(_isSearchExpanded ? Icons.search_off : Icons.search),
+            onPressed: () {
+              final wasExpanded = _isSearchExpanded;
+              setState(() {
+                _isSearchExpanded = !_isSearchExpanded;
+              });
+              if (wasExpanded) {
+                _searchController.clear();
+                _timelineCubit.setSearchQuery('');
+              }
+            },
+            tooltip: _isSearchExpanded ? 'Hide Search' : 'Search Entries',
+          ),
                   IconButton(
                     icon: const Icon(Icons.bookmark, color: Color(0xFF2196F3)),
                     onPressed: () {
@@ -363,23 +363,23 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
                     },
                     tooltip: 'Favorite Journal Entries',
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.checklist),
-                    onPressed: () {
-                      _timelineViewKey.currentState?.enterSelectionMode();
-                      setState(() {
-                        _isSelectionMode = true;
-                      });
-                    },
-                    tooltip: 'Select Mode',
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.add),
-                    onPressed: _onWritePressed,
-                    tooltip: 'New Entry',
-                  ),
-                ],
-              ],
+          IconButton(
+            icon: const Icon(Icons.checklist),
+            onPressed: () {
+              _timelineViewKey.currentState?.enterSelectionMode();
+              setState(() {
+                _isSelectionMode = true;
+              });
+            },
+            tooltip: 'Select Mode',
+          ),
+          IconButton(
+            icon: const Icon(Icons.add),
+            onPressed: _onWritePressed,
+            tooltip: 'New Entry',
+          ),
+        ],
+      ],
             ),
           ),
         ],
