@@ -262,12 +262,12 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
                   break;
                 case 'history':
                   Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => EnhancedChatsScreen(
-                        chatRepo: EnhancedChatRepoImpl(ChatRepoImpl.instance),
-                      ),
-                    ),
+              context,
+              MaterialPageRoute(
+                builder: (context) => EnhancedChatsScreen(
+                  chatRepo: EnhancedChatRepoImpl(ChatRepoImpl.instance),
+                ),
+              ),
                   );
                   break;
                 case 'clear':
@@ -284,7 +284,7 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
                     SizedBox(width: 12),
                     Text('New Chat'),
                   ],
-                ),
+          ),
               ),
               const PopupMenuItem<String>(
                 value: 'settings',

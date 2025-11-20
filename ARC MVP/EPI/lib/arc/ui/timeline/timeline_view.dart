@@ -252,27 +252,6 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
                         ],
                       ),
                     ),
-                  // Timeline label - above Phase Preview, below dropdown
-                  if (!_isArcformTimelineVisible && !_isSelectionMode)
-                    SliverToBoxAdapter(
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 6), // Reduced by 1/2 from 12 to 6
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(Icons.timeline, size: 21), // Increased by 1/2 from 14 to 21
-                            const SizedBox(width: 4),
-                            Text(
-                              'Timeline',
-                              style: heading3Style(context).copyWith(
-                                fontSize: 17.0625, // Increased by 1/2 from 11.375 to 17.0625
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
                   // Phase preview - scrolls with content, below Timeline label
                   if (!_isArcformTimelineVisible && !_isSelectionMode)
                     SliverToBoxAdapter(
@@ -347,118 +326,178 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
       color: kcBackgroundColor,
       child: Column(
         children: [
-          // Header bar with Timeline label, title and actions
+          // Header bar with Timeline label and dropdown menu
           Container(
             height: kToolbarHeight,
-            padding: const EdgeInsets.symmetric(horizontal: 74), // Left and right padding balanced at 74px
+            padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Row(
               children: [
                 if (_isSelectionMode)
                   IconButton(
-              icon: const Icon(Icons.close),
-              onPressed: () {
-                _timelineViewKey.currentState?.exitSelectionMode();
-                setState(() {
-                  _isSelectionMode = false;
-                  _selectedCount = 0;
-                });
-              },
-                  ),
-                Expanded(
-                  child: Text(
-                    _isSelectionMode ? 'Select Entries' : '',
-                    style: heading1Style(context).copyWith(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w600,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-                // Actions
-        if (_isSelectionMode) ...[
-          IconButton(
-            icon: const Icon(Icons.select_all),
-            onPressed: () {
-              if (_selectedCount == _totalEntries) {
-                _timelineViewKey.currentState?.deselectAll();
-              } else {
-                _timelineViewKey.currentState?.selectAll();
-              }
-            },
-            tooltip:
-                _selectedCount == _totalEntries ? 'Deselect All' : 'Select All',
-          ),
-          IconButton(
-            icon: const Icon(Icons.clear),
-            onPressed: () {
-              _timelineViewKey.currentState?.clearSelection();
-            },
-            tooltip: 'Clear Selection',
-          ),
-          if (_selectedCount > 0)
-            IconButton(
-              icon: const Icon(Icons.delete),
-              onPressed: () {
-                _timelineViewKey.currentState?.deleteSelectedEntries();
-              },
-              tooltip: 'Delete Selected',
-            ),
-        ] else ...[
-          IconButton(
-            icon: const Icon(Icons.calendar_today, size: 24), // Standardized to 24
-            onPressed: _showJumpToDateDialog,
-            tooltip: 'Jump to Date',
-          ),
-          IconButton(
-            icon: Icon(_isSearchExpanded ? Icons.search_off : Icons.search, size: 24), // Standardized to 24
-            onPressed: () {
-              final wasExpanded = _isSearchExpanded;
-              setState(() {
-                _isSearchExpanded = !_isSearchExpanded;
-              });
-              if (wasExpanded) {
-                _searchController.clear();
-                _timelineCubit.setSearchQuery('');
-              }
-            },
-            tooltip: _isSearchExpanded ? 'Hide Search' : 'Search Entries',
-          ),
-                  IconButton(
-                    icon: const Icon(Icons.bookmark, color: Color(0xFF2196F3), size: 24), // Standardized to 24
+                    icon: const Icon(Icons.close),
                     onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const FavoriteJournalEntriesView(),
-                        ),
-                      );
+                      _timelineViewKey.currentState?.exitSelectionMode();
+                      setState(() {
+                        _isSelectionMode = false;
+                        _selectedCount = 0;
+                      });
                     },
-                    tooltip: 'Favorite Journal Entries',
-          ),
-          IconButton(
-            icon: const Icon(Icons.checklist, size: 24), // Standardized to 24
-            onPressed: () {
-              _timelineViewKey.currentState?.enterSelectionMode();
-              setState(() {
-                _isSelectionMode = true;
-              });
-            },
-            tooltip: 'Select Mode',
-          ),
-          IconButton(
-            icon: const Icon(Icons.settings, size: 24), // Standardized to 24 (was 14)
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const SettingsView(),
-                ),
-              );
-            },
-            tooltip: 'Settings',
-          ),
-        ],
-      ],
+                  ),
+                if (_isSelectionMode)
+                  Expanded(
+                    child: Text(
+                      'Select Entries',
+                      style: heading1Style(context).copyWith(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  )
+                else
+                  Expanded(
+                    child: Row(
+                      children: [
+                        const Icon(Icons.timeline, size: 21),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Timeline',
+                          style: heading3Style(context).copyWith(
+                            fontSize: 17.0625,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                // Actions
+                if (_isSelectionMode) ...[
+                  IconButton(
+                    icon: const Icon(Icons.select_all),
+                    onPressed: () {
+                      if (_selectedCount == _totalEntries) {
+                        _timelineViewKey.currentState?.deselectAll();
+                      } else {
+                        _timelineViewKey.currentState?.selectAll();
+                      }
+                    },
+                    tooltip:
+                        _selectedCount == _totalEntries ? 'Deselect All' : 'Select All',
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.clear),
+                    onPressed: () {
+                      _timelineViewKey.currentState?.clearSelection();
+                    },
+                    tooltip: 'Clear Selection',
+                  ),
+                  if (_selectedCount > 0)
+                    IconButton(
+                      icon: const Icon(Icons.delete),
+                      onPressed: () {
+                        _timelineViewKey.currentState?.deleteSelectedEntries();
+                      },
+                      tooltip: 'Delete Selected',
+                    ),
+                ] else ...[
+                  PopupMenuButton<String>(
+                    icon: const Icon(Icons.more_vert),
+                    onSelected: (value) {
+                      switch (value) {
+                        case 'jump_to_date':
+                          _showJumpToDateDialog();
+                          break;
+                        case 'search':
+                          setState(() {
+                            _isSearchExpanded = !_isSearchExpanded;
+                            if (!_isSearchExpanded) {
+                              _searchController.clear();
+                              _timelineCubit.setSearchQuery('');
+                            }
+                          });
+                          break;
+                        case 'favorites':
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const FavoriteJournalEntriesView(),
+                            ),
+                          );
+                          break;
+                        case 'select_mode':
+                          _timelineViewKey.currentState?.enterSelectionMode();
+                          setState(() {
+                            _isSelectionMode = true;
+                          });
+                          break;
+                        case 'settings':
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const SettingsView(),
+                            ),
+                          );
+                          break;
+                      }
+                    },
+                    itemBuilder: (BuildContext context) => [
+                      PopupMenuItem<String>(
+                        value: 'jump_to_date',
+                        child: Row(
+                          children: [
+                            const Icon(Icons.calendar_today, size: 20),
+                            const SizedBox(width: 12),
+                            const Text('Jump to Date'),
+                          ],
+                        ),
+                      ),
+                      PopupMenuItem<String>(
+                        value: 'search',
+                        child: Row(
+                          children: [
+                            Icon(
+                              _isSearchExpanded ? Icons.search_off : Icons.search,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 12),
+                            Text(_isSearchExpanded ? 'Hide Search' : 'Search Entries'),
+                          ],
+                        ),
+                      ),
+                      PopupMenuItem<String>(
+                        value: 'favorites',
+                        child: Row(
+                          children: [
+                            const Icon(Icons.bookmark, color: Color(0xFF2196F3), size: 20),
+                            const SizedBox(width: 12),
+                            const Text('Favorite Journal Entries'),
+                          ],
+                        ),
+                      ),
+                      PopupMenuItem<String>(
+                        value: 'select_mode',
+                        child: Row(
+                          children: [
+                            const Icon(Icons.checklist, size: 20),
+                            const SizedBox(width: 12),
+                            const Text('Select Mode'),
+                          ],
+                        ),
+                      ),
+                      PopupMenuItem<String>(
+                        value: 'settings',
+                        child: Row(
+                          children: [
+                            const Icon(Icons.settings, size: 20),
+                            const SizedBox(width: 12),
+                            const Text('Settings'),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ],
             ),
           ),
         ],
