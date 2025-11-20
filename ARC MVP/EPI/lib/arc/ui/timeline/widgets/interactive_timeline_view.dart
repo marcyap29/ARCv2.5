@@ -621,7 +621,7 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
                                 Text(
                                   entry.title!,
                                   style: bodyStyle(context).copyWith(
-                                    fontSize: 16,
+                                    fontSize: 14, // Reduced by 1/8 from 16 to 14
                                     fontWeight: FontWeight.w600,
                                     color: kcPrimaryTextColor,
                                   ),
@@ -638,7 +638,7 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
                                       : entry.preview
                                   : 'No content',
                               style: bodyStyle(context).copyWith(
-                                fontSize: 14,
+                                fontSize: 12.25, // Reduced by 1/8 from 14 to 12.25
                                 color: kcPrimaryTextColor,
                               ),
                               maxLines: 4,
@@ -1018,7 +1018,7 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
         Text(
           'JOURNAL ENTRY',
           style: captionStyle(context).copyWith(
-            fontSize: 12,
+            fontSize: 10.5, // Reduced by 1/8 from 12 to 10.5
             fontWeight: FontWeight.w600,
             letterSpacing: 1.2,
             color: isCurrentEntry
@@ -1033,7 +1033,7 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
         Text(
           entry.date,
           style: bodyStyle(context).copyWith(
-            fontSize: 16,
+            fontSize: 14, // Reduced by 1/8 from 16 to 14
             fontWeight: FontWeight.w500,
             color: isCurrentEntry
                 ? kcPrimaryTextColor
@@ -1047,7 +1047,7 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
           Text(
             entry.title!,
             style: bodyStyle(context).copyWith(
-              fontSize: 20,
+              fontSize: 17.5, // Reduced by 1/8 from 20 to 17.5
               fontWeight: FontWeight.w700,
               color: isCurrentEntry
                   ? kcPrimaryTextColor
