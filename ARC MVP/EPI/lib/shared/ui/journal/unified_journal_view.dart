@@ -2,13 +2,7 @@
 // Unified Journal View - Combines Timeline and LUMARA into a single section
 
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:my_app/arc/ui/timeline/timeline_view.dart';
-import 'package:my_app/arc/chat/ui/lumara_assistant_screen.dart';
-import 'package:my_app/arc/chat/bloc/lumara_assistant_cubit.dart';
-import 'package:my_app/arc/chat/data/context_provider.dart';
-import 'package:my_app/arc/chat/data/context_scope.dart';
-import 'package:my_app/core/app_flags.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/ui/settings/settings_view.dart';
 
@@ -22,31 +16,22 @@ class UnifiedJournalView extends StatefulWidget {
 class _UnifiedJournalViewState extends State<UnifiedJournalView>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  LumaraAssistantCubit? _lumaraCubit;
   int _previousIndex = 0;
   bool _isNavigatingToSettings = false;
 
   @override
   void initState() {
     super.initState();
-    // Tab controller length: Timeline + LUMARA (if enabled) + Settings = 2 or 3
-    final tabCount = AppFlags.isLumaraEnabled ? 3 : 2;
+    // Tab controller length: Timeline + Settings = 2 (LUMARA moved to bottom navigation)
+    final tabCount = 2;
     _tabController = TabController(length: tabCount, vsync: this);
     _tabController.addListener(_handleTabChange);
-    
-    // Initialize LUMARA cubit if enabled
-    if (AppFlags.isLumaraEnabled) {
-      _lumaraCubit = LumaraAssistantCubit(
-        contextProvider: ContextProvider(LumaraScope.defaultScope),
-      );
-      _lumaraCubit!.initializeLumara();
-    }
   }
 
   void _handleTabChange() {
     if (!mounted) return;
     
-    final tabCount = AppFlags.isLumaraEnabled ? 3 : 2;
+    final tabCount = 2; // Timeline + Settings
     
     // Navigate to Settings when Settings tab is selected
     if (_tabController.index == tabCount - 1 && !_isNavigatingToSettings) {
@@ -81,7 +66,6 @@ class _UnifiedJournalViewState extends State<UnifiedJournalView>
   void dispose() {
     _tabController.removeListener(_handleTabChange);
     _tabController.dispose();
-    _lumaraCubit?.close();
     super.dispose();
   }
 
@@ -113,11 +97,6 @@ class _UnifiedJournalViewState extends State<UnifiedJournalView>
                       icon: Icon(Icons.timeline, size: 16), // Reduced from 18 to 16
                       text: 'Timeline',
                     ),
-                    if (AppFlags.isLumaraEnabled)
-                      const Tab(
-                        icon: Icon(Icons.psychology, size: 16), // Reduced from 18 to 16
-                        text: 'LUMARA',
-                      ),
                     const Tab(
                       icon: Icon(Icons.settings, size: 16), // Reduced from 18 to 16
                       text: 'Settings',
@@ -131,24 +110,12 @@ class _UnifiedJournalViewState extends State<UnifiedJournalView>
               child: TabBarView(
                 controller: _tabController,
                 physics: const NeverScrollableScrollPhysics(), // Disable swipe to prevent accessing Settings tab
-                children: AppFlags.isLumaraEnabled
-                    ? [
-                        // Timeline tab
-                        const TimelineView(),
-                        // LUMARA tab
-                        BlocProvider<LumaraAssistantCubit>.value(
-                          value: _lumaraCubit!,
-                          child: const LumaraAssistantScreen(),
-                        ),
-                        // Settings placeholder (will navigate instead)
-                        const SizedBox.shrink(),
-                      ]
-                    : [
-                        // Timeline tab only
-                        const TimelineView(),
-                        // Settings placeholder (will navigate instead)
-                        const SizedBox.shrink(),
-                      ],
+                children: [
+                  // Timeline tab
+                  const TimelineView(),
+                  // Settings placeholder (will navigate instead)
+                  const SizedBox.shrink(),
+                ],
               ),
             ),
           ],
