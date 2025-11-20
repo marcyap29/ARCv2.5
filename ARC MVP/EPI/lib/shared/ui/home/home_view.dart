@@ -18,6 +18,8 @@ import 'package:my_app/shared/ui/insights/unified_insights_view.dart';
 import 'package:my_app/ui/journal/journal_screen.dart';
 import 'package:my_app/services/journal_session_cache.dart';
 import 'package:my_app/arc/chat/ui/lumara_assistant_screen.dart';
+import 'package:my_app/arc/chat/bloc/lumara_assistant_cubit.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 // Debug flag for showing RIVET engineering labels
 const bool kShowRivetDebugLabels = false;
@@ -69,7 +71,10 @@ class _HomeViewState extends State<HomeView> {
     // Pages: 3 main views
     _pages = [
       const UnifiedJournalView(),  // index 0 - Journal (Timeline)
-      const LumaraAssistantScreen(), // index 1 - LUMARA
+      BlocProvider.value(
+        value: context.read<LumaraAssistantCubit>(),
+        child: const LumaraAssistantScreen(), // index 1 - LUMARA
+      ),
       const UnifiedInsightsView(), // index 2 - Insights (Phase + Health + Analytics)
     ];
     
