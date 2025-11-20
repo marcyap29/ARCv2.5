@@ -89,7 +89,7 @@ class _UnifiedJournalViewState extends State<UnifiedJournalView>
                   unselectedLabelColor: Colors.grey,
                   indicatorColor: Colors.purple,
                   indicatorWeight: 2, // Reduced from 3 to 2
-                  labelPadding: const EdgeInsets.only(left: 8.0, right: 8.0, top: 2, bottom: 8), // Increased bottom padding by 6 (from 2 to 8)
+                  labelPadding: const EdgeInsets.only(left: 8.0, right: 8.0, top: 2, bottom: 10), // Bottom padding set to 10px
                   labelStyle: const TextStyle(fontSize: 13), // Increased from 11 to 13 for better readability
                   unselectedLabelStyle: const TextStyle(fontSize: 13), // Increased from 11 to 13 for better readability
                   tabs: [
