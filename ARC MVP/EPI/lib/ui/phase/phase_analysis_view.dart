@@ -348,45 +348,133 @@ List<PhaseSegmentProposal> proposals,
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Phase Analysis'),
-        centerTitle: true,
+        title: Row(
+          children: [
+            IconButton(
+              icon: const Icon(Icons.help_outline),
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) => const PhaseHelpScreen(),
+                  ),
+                );
+              },
+              tooltip: 'Phase Help',
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(),
+            ),
+            const SizedBox(width: 8),
+            const Expanded(
+              child: Text('Phase Analysis'),
+            ),
+          ],
+        ),
+        centerTitle: false,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.help_outline),
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (context) => const PhaseHelpScreen(),
-                ),
-              );
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert),
+            onSelected: (value) {
+              switch (value) {
+                case 'arcforms':
+                  setState(() {
+                    _selectedView = 'arcforms';
+                    _refreshArcforms();
+                  });
+                  break;
+                case 'timeline':
+                  setState(() {
+                    _selectedView = 'timeline';
+                  });
+                  break;
+                case 'analysis':
+                  setState(() {
+                    _selectedView = 'analysis';
+                  });
+                  break;
+                case 'settings':
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const SettingsView(),
+                    ),
+                  );
+                  break;
+              }
             },
-            tooltip: 'Phase Help',
+            itemBuilder: (BuildContext context) => [
+              PopupMenuItem<String>(
+                value: 'arcforms',
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.auto_awesome,
+                      size: 20,
+                      color: _selectedView == 'arcforms' ? Colors.purple : null,
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      'ARCForms',
+                      style: TextStyle(
+                        fontWeight: _selectedView == 'arcforms' ? FontWeight.w600 : FontWeight.normal,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              PopupMenuItem<String>(
+                value: 'timeline',
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.timeline,
+                      size: 20,
+                      color: _selectedView == 'timeline' ? Colors.purple : null,
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      'Timeline',
+                      style: TextStyle(
+                        fontWeight: _selectedView == 'timeline' ? FontWeight.w600 : FontWeight.normal,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              PopupMenuItem<String>(
+                value: 'analysis',
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.analytics,
+                      size: 20,
+                      color: _selectedView == 'analysis' ? Colors.purple : null,
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      'Analysis',
+                      style: TextStyle(
+                        fontWeight: _selectedView == 'analysis' ? FontWeight.w600 : FontWeight.normal,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              PopupMenuItem<String>(
+                value: 'settings',
+                child: Row(
+                  children: [
+                    const Icon(Icons.settings, size: 20),
+                    const SizedBox(width: 12),
+                    const Text('Settings'),
+                  ],
+                ),
+              ),
+            ],
           ),
         ],
       ),
       body: Column(
         children: [
-          // Horizontally scrollable button bar - single row with all 4 options
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 4.0),
-            child: SizedBox(
-              height: 36, // Reduced height for compact bar
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: [
-                    _buildPhaseButton('arcforms', 'ARCForms', Icons.auto_awesome),
-                    const SizedBox(width: 8),
-                    _buildPhaseButton('timeline', 'Timeline', Icons.timeline),
-                    const SizedBox(width: 8),
-                    _buildPhaseButton('analysis', 'Analysis', Icons.analytics),
-                    const SizedBox(width: 8),
-                    _buildPhaseButton('settings', 'Settings', Icons.settings),
-                  ],
-                ),
-              ),
-            ),
-          ),
           // Content based on selection
           Expanded(
             child: _buildContentForView(_selectedView),
