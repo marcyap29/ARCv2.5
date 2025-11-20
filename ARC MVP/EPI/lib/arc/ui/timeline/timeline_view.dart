@@ -11,6 +11,7 @@ import 'package:my_app/ui/journal/journal_screen.dart';
 import 'package:my_app/arc/ui/timeline/timeline_entry_model.dart';
 import 'package:my_app/models/phase_models.dart';
 import 'package:my_app/arc/ui/timeline/favorite_journal_entries_view.dart';
+import 'package:my_app/shared/ui/settings/settings_view.dart';
 
 class TimelineView extends StatelessWidget {
   const TimelineView({super.key});

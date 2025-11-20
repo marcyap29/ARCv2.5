@@ -3,8 +3,6 @@
 
 import 'package:flutter/material.dart';
 import 'package:my_app/arc/ui/timeline/timeline_view.dart';
-import 'package:my_app/shared/app_colors.dart';
-import 'package:my_app/shared/ui/settings/settings_view.dart';
 
 class UnifiedJournalView extends StatefulWidget {
   const UnifiedJournalView({super.key});
