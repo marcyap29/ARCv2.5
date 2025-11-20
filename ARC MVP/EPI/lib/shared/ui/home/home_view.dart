@@ -19,6 +19,8 @@ import 'package:my_app/ui/journal/journal_screen.dart';
 import 'package:my_app/services/journal_session_cache.dart';
 import 'package:my_app/arc/chat/ui/lumara_assistant_screen.dart';
 import 'package:my_app/arc/chat/bloc/lumara_assistant_cubit.dart';
+import 'package:my_app/arc/chat/data/context_provider.dart';
+import 'package:my_app/arc/chat/data/context_scope.dart';
 
 // Debug flag for showing RIVET engineering labels
 const bool kShowRivetDebugLabels = false;
@@ -155,7 +157,7 @@ class _HomeViewState extends State<HomeView> {
               body: SafeArea(
                 child: Stack(
                   children: [
-                    _getPageForIndex(selectedIndex),
+                    _getPageForIndex(selectedIndex, context),
                     // Status indicators at top right
                     Positioned(
                       top: 0,
@@ -241,15 +243,36 @@ class _HomeViewState extends State<HomeView> {
   }
 
   /// Get the appropriate page widget for the given index
-  Widget _getPageForIndex(int index) {
+  Widget _getPageForIndex(int index, BuildContext context) {
     switch (index) {
       case 0:
         return const UnifiedJournalView();
       case 1:
-        // LUMARA - wrap with BlocProvider to access cubit from app level
-        return BlocProvider.value(
-          value: context.read<LumaraAssistantCubit>(),
-          child: const LumaraAssistantScreen(),
+        // LUMARA - use Builder to get context with provider access
+        return Builder(
+          builder: (builderContext) {
+            // Try to access cubit from app level
+            try {
+              final cubit = BlocProvider.of<LumaraAssistantCubit>(builderContext, listen: false);
+              return BlocProvider.value(
+                value: cubit,
+                child: const LumaraAssistantScreen(),
+              );
+            } catch (e) {
+              // If provider not available, create a local one
+              debugPrint('LUMARA: Provider not found at app level, creating local instance: $e');
+              return BlocProvider(
+                create: (context) {
+                  const scope = LumaraScope.defaultScope;
+                  final contextProvider = ContextProvider(scope);
+                  return LumaraAssistantCubit(
+                    contextProvider: contextProvider,
+                  )..initialize();
+                },
+                child: const LumaraAssistantScreen(),
+              );
+            }
+          },
         );
       case 2:
         return const UnifiedInsightsView();
