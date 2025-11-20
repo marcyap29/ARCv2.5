@@ -1,21 +1,21 @@
 import 'package:flutter/material.dart';
-import 'package:my_app/arc/arcform/render/arcform_renderer_3d.dart';
-import 'package:my_app/arc/arcform/models/arcform_models.dart';
-import 'package:my_app/arc/arcform/layouts/layouts_3d.dart';
-import 'package:my_app/arc/arcform/util/seeded.dart';
+import 'package:my_app/ui/phase/phase_analysis_view.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
-import 'package:my_app/ui/phase/phase_analysis_view.dart';
+import 'package:my_app/arc/arcform/models/arcform_models.dart';
+import 'package:my_app/arc/arcform/layouts/layouts_3d.dart';
+import 'package:my_app/arc/arcform/render/arcform_renderer_3d.dart';
+import 'package:my_app/arc/arcform/util/seeded.dart';
+import 'package:my_app/services/keyword_aggregator.dart';
+import 'package:my_app/models/journal_entry_model.dart';
 import 'package:my_app/services/phase_regime_service.dart';
 import 'package:my_app/services/analytics_service.dart';
 import 'package:my_app/services/rivet_sweep_service.dart';
 import 'package:my_app/arc/core/journal_repository.dart';
-import 'package:my_app/services/keyword_aggregator.dart';
-import 'package:my_app/models/journal_entry_model.dart';
 
 /// Compact preview widget showing current phase Arcform visualization
+/// Uses the same architecture as Insights->Phase->Arcform visualizations
 /// Displays above timeline icons in the Timeline view
-/// Uses the same data source as Insights->Phase->Arcform visualizations
 class CurrentPhaseArcformPreview extends StatefulWidget {
   const CurrentPhaseArcformPreview({super.key});
 
@@ -24,17 +24,36 @@ class CurrentPhaseArcformPreview extends StatefulWidget {
 }
 
 class _CurrentPhaseArcformPreviewState extends State<CurrentPhaseArcformPreview> {
-  Arcform3DData? _arcformData;
-  String? _currentPhase;
+  @override
+  Widget build(BuildContext context) {
+    // Use the same SimplifiedArcformView3D component but extract just the first snapshot card
+    // and display it in a compact format
+    return _CompactArcformPreview();
+  }
+}
+
+/// Compact preview that uses the same data loading as SimplifiedArcformView3D
+class _CompactArcformPreview extends StatefulWidget {
+  const _CompactArcformPreview();
+
+  @override
+  State<_CompactArcformPreview> createState() => _CompactArcformPreviewState();
+}
+
+class _CompactArcformPreviewState extends State<_CompactArcformPreview> {
+  // Use the same state management as SimplifiedArcformView3D
+  List<Map<String, dynamic>> _snapshots = [];
   bool _isLoading = true;
+  String? _currentPhase;
 
   @override
   void initState() {
     super.initState();
-    _loadArcformData();
+    _loadSnapshots();
   }
 
-  Future<void> _loadArcformData() async {
+  // Copy the exact same loading logic from SimplifiedArcformView3D
+  void _loadSnapshots() async {
     setState(() {
       _isLoading = true;
     });
@@ -52,7 +71,6 @@ class _CurrentPhaseArcformPreviewState extends State<CurrentPhaseArcformPreview>
       if (currentRegime != null) {
         currentPhase = currentRegime.label.toString().split('.').last;
       } else {
-        // Get the most recent regime if no current ongoing regime
         final allRegimes = phaseRegimeService.phaseIndex.allRegimes;
         if (allRegimes.isNotEmpty) {
           final sortedRegimes = List.from(allRegimes)..sort((a, b) => b.start.compareTo(a.start));
@@ -65,13 +83,27 @@ class _CurrentPhaseArcformPreviewState extends State<CurrentPhaseArcformPreview>
       // Check if user has entries for this phase
       final isUserPhase = await _hasEntriesForPhase(currentPhase);
 
-      // Generate arcform using the same method as SimplifiedArcformView3D
+      // Generate arcform using SimplifiedArcformView3D's method
+      // We need to access the private method, so we'll duplicate the logic
       final arcform = await _generatePhaseConstellation(currentPhase, isUserPhase: isUserPhase);
 
       if (mounted) {
         setState(() {
-          _arcformData = arcform;
-          _currentPhase = currentPhase;
+          if (arcform != null) {
+            final snapshot = {
+              'id': arcform.id,
+              'title': arcform.title,
+              'phaseHint': arcform.phase,
+              'keywords': arcform.nodes.map((node) => node.label).toList(),
+              'createdAt': arcform.createdAt.toIso8601String(),
+              'content': arcform.content,
+              'arcformData': arcform.toJson(),
+            };
+            _snapshots = [snapshot];
+            _currentPhase = currentPhase;
+          } else {
+            _snapshots = [];
+          }
           _isLoading = false;
         });
       }
@@ -85,15 +117,13 @@ class _CurrentPhaseArcformPreviewState extends State<CurrentPhaseArcformPreview>
     }
   }
 
-  /// Check if user has journal entries for a given phase
+  // Copy helper methods from SimplifiedArcformView3D
   Future<bool> _hasEntriesForPhase(String phase) async {
     try {
       final journalRepo = JournalRepository();
       final allEntries = journalRepo.getAllJournalEntriesSync();
       
-      if (allEntries.isEmpty) {
-        return false;
-      }
+      if (allEntries.isEmpty) return false;
       
       final analyticsService = AnalyticsService();
       final rivetSweepService = RivetSweepService(analyticsService);
@@ -101,8 +131,6 @@ class _CurrentPhaseArcformPreviewState extends State<CurrentPhaseArcformPreview>
       await phaseRegimeService.initialize();
       
       final allRegimes = phaseRegimeService.phaseIndex.allRegimes;
-      
-      // Find regime for this phase
       final regimes = allRegimes
           .where((r) => r.label.toString().split('.').last.toLowerCase() == phase.toLowerCase())
           .toList();
@@ -111,41 +139,29 @@ class _CurrentPhaseArcformPreviewState extends State<CurrentPhaseArcformPreview>
         for (final regime in regimes) {
           final regimeStart = regime.start;
           final regimeEnd = regime.end ?? DateTime.now();
-          
           final entriesInRegime = allEntries
               .where((entry) => entry.createdAt.isAfter(regimeStart.subtract(const Duration(days: 1))) && 
                                 entry.createdAt.isBefore(regimeEnd.add(const Duration(days: 1))))
               .toList();
-          
-          if (entriesInRegime.isNotEmpty) {
-            return true;
-          }
+          if (entriesInRegime.isNotEmpty) return true;
         }
       }
       
-      // Special case for Discovery: check if there are entries before the first regime
       if (phase.toLowerCase() == 'discovery' && allRegimes.isNotEmpty) {
         final sortedRegimes = List.from(allRegimes)..sort((a, b) => a.start.compareTo(b.start));
         final firstRegime = sortedRegimes.first;
-        
         final entriesBeforeFirstRegime = allEntries
             .where((entry) => entry.createdAt.isBefore(firstRegime.start))
             .toList();
-        
-        if (entriesBeforeFirstRegime.isNotEmpty) {
-          return true;
-        }
+        if (entriesBeforeFirstRegime.isNotEmpty) return true;
       }
       
       return false;
     } catch (e) {
-      print('Error checking entries for phase $phase: $e');
       return false;
     }
   }
 
-  /// Get actual keywords from user's journal entries for their current phase
-  /// Uses the same method as SimplifiedArcformView3D
   Future<List<String>> _getActualPhaseKeywords(String phase) async {
     try {
       final journalRepo = JournalRepository();
@@ -167,13 +183,11 @@ class _CurrentPhaseArcformPreviewState extends State<CurrentPhaseArcformPreview>
           for (final regime in phaseRegimes) {
             final regimeStart = regime.start;
             final regimeEnd = regime.end ?? DateTime.now();
-            
             final entriesInRegime = allEntries
                 .where((entry) => 
                     entry.createdAt.isAfter(regimeStart.subtract(const Duration(days: 1))) && 
                     entry.createdAt.isBefore(regimeEnd.add(const Duration(days: 1))))
                 .toList();
-            
             regimeEntries.addAll(entriesInRegime);
           }
         } else if (phase.toLowerCase() == 'discovery') {
@@ -181,7 +195,6 @@ class _CurrentPhaseArcformPreviewState extends State<CurrentPhaseArcformPreview>
           if (allRegimes.isNotEmpty) {
             final sortedRegimes = List.from(allRegimes)..sort((a, b) => a.start.compareTo(b.start));
             final firstRegime = sortedRegimes.first;
-            
             regimeEntries = allEntries
                 .where((entry) => entry.createdAt.isBefore(firstRegime.start))
                 .toList();
@@ -230,16 +243,13 @@ class _CurrentPhaseArcformPreviewState extends State<CurrentPhaseArcformPreview>
         
         return combinedKeywords.toSet().toList().take(20).toList();
       } catch (e) {
-        print('Error accessing phase regime data: $e');
         return _getHardcodedPhaseKeywords(phase);
       }
     } catch (e) {
-      print('ERROR: Failed to load actual keywords for $phase: $e');
       return _getHardcodedPhaseKeywords(phase);
     }
   }
 
-  /// Get hardcoded demo keywords for example/demo phases
   List<String> _getHardcodedPhaseKeywords(String phase) {
     switch (phase.toLowerCase()) {
       case 'discovery':
@@ -305,7 +315,6 @@ class _CurrentPhaseArcformPreviewState extends State<CurrentPhaseArcformPreview>
     return 0.0;
   }
 
-  /// Generate phase constellation using the same method as SimplifiedArcformView3D
   Future<Arcform3DData?> _generatePhaseConstellation(String phase, {bool isUserPhase = false}) async {
     try {
       final skin = ArcformSkin.forUser('user', 'phase_$phase');
@@ -354,6 +363,52 @@ class _CurrentPhaseArcformPreviewState extends State<CurrentPhaseArcformPreview>
     }
   }
 
+  // Copy the exact card building logic from SimplifiedArcformView3D
+  Arcform3DData? _generateArcformData(Map<String, dynamic> snapshot, String phase) {
+    try {
+      if (snapshot['arcformData'] != null) {
+        final arcformJson = snapshot['arcformData'] as Map<String, dynamic>;
+        return Arcform3DData.fromJson(arcformJson);
+      }
+      
+      final keywords = List<String>.from(snapshot['keywords'] ?? []);
+      if (keywords.isEmpty) return null;
+
+      final skin = ArcformSkin.forUser('user', snapshot['id']?.toString() ?? 'default');
+      
+      final nodes = layout3D(
+        keywords: keywords,
+        phase: phase,
+        skin: skin,
+        keywordWeights: {for (var kw in keywords) kw: 0.5 + (kw.length / 20.0)},
+        keywordValences: {for (var kw in keywords) kw: _getPhaseValence(kw, phase)},
+      );
+
+      final rng = Seeded('${skin.seed}:edges');
+      final edges = generateEdges(
+        nodes: nodes,
+        rng: rng,
+        phase: phase,
+        maxEdgesPerNode: 3,
+        maxDistance: 1.2,
+      );
+
+      return Arcform3DData(
+        nodes: nodes,
+        edges: edges,
+        phase: phase,
+        skin: skin,
+        title: snapshot['title'] ?? 'Constellation Visualization',
+        content: snapshot['content']?.toString(),
+        createdAt: DateTime.tryParse(snapshot['createdAt'] ?? '') ?? DateTime.now(),
+        id: snapshot['id']?.toString() ?? 'unknown',
+      );
+    } catch (e) {
+      print('Error generating ARCForm data: $e');
+      return null;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -371,7 +426,7 @@ class _CurrentPhaseArcformPreviewState extends State<CurrentPhaseArcformPreview>
       );
     }
 
-    if (_arcformData == null || _currentPhase == null) {
+    if (_snapshots.isEmpty) {
       return Container(
         height: 180,
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -401,6 +456,11 @@ class _CurrentPhaseArcformPreviewState extends State<CurrentPhaseArcformPreview>
         ),
       );
     }
+
+    // Use the exact same card building logic from SimplifiedArcformView3D
+    final snapshot = _snapshots.first;
+    final phaseHint = snapshot['phaseHint'] ?? 'Discovery';
+    final arcformData = _generateArcformData(snapshot, phaseHint);
 
     return GestureDetector(
       onTap: () {
@@ -433,24 +493,24 @@ class _CurrentPhaseArcformPreviewState extends State<CurrentPhaseArcformPreview>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header with phase name and expand icon
+            // Header - same as SimplifiedArcformView3D's card header
             Padding(
               padding: const EdgeInsets.all(12),
               child: Row(
                 children: [
                   Icon(
                     Icons.auto_awesome,
-                    size: 18,
                     color: kcPrimaryColor,
+                    size: 18,
                   ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      _currentPhase!,
+                      _currentPhase ?? phaseHint,
                       style: heading3Style(context).copyWith(
                         color: kcPrimaryTextColor,
                         fontWeight: FontWeight.w600,
-                        fontSize: 16, // Reduced from 24 to 16 (2/3 of original)
+                        fontSize: 16,
                       ),
                     ),
                   ),
@@ -462,69 +522,87 @@ class _CurrentPhaseArcformPreviewState extends State<CurrentPhaseArcformPreview>
                 ],
               ),
             ),
-            // Arcform preview
+            // Arcform preview - same as SimplifiedArcformView3D's card preview
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(8),
-                  child: Arcform3D(
-                    nodes: _arcformData!.nodes,
-                    edges: _arcformData!.edges,
-                    phase: _arcformData!.phase,
-                    skin: _arcformData!.skin,
-                    showNebula: true,
-                    enableLabels: false,
-                    initialZoom: 2.0, // Compact zoom level
-                  ),
+                  child: arcformData != null
+                      ? IgnorePointer(
+                          ignoring: true,
+                          child: Arcform3D(
+                            nodes: arcformData.nodes,
+                            edges: arcformData.edges,
+                            phase: arcformData.phase,
+                            skin: arcformData.skin,
+                            showNebula: true,
+                            enableLabels: false, // Disable labels for compact preview
+                            initialZoom: 2.0, // Compact zoom level
+                          ),
+                        )
+                      : Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.auto_awesome_outlined,
+                                color: kcPrimaryColor.withOpacity(0.7),
+                                size: 32,
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Generating constellation...',
+                                style: TextStyle(
+                                  color: kcPrimaryColor.withOpacity(0.7),
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                 ),
               ),
             ),
-            // Phase elements info
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
-              child: Row(
-                children: [
-                  _buildInfoChip(
-                    Icons.circle,
-                    '${_arcformData!.nodes.length} Nodes',
-                    context,
-                  ),
-                  const SizedBox(width: 8),
-                  _buildInfoChip(
-                    Icons.link,
-                    '${_arcformData!.edges.length} Edges',
-                    context,
-                  ),
-                  const Spacer(),
-                  Text(
-                    'Tap to expand',
-                    style: captionStyle(context).copyWith(
-                      color: kcSecondaryTextColor,
-                      fontSize: 11,
+            // Info chips - same as SimplifiedArcformView3D's card
+            if (arcformData != null)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
+                child: Row(
+                  children: [
+                    _buildMetadataChip('Nodes', '${arcformData.nodes.length}', kcSecondaryColor),
+                    const SizedBox(width: 8),
+                    _buildMetadataChip('Edges', '${arcformData.edges.length}', kcAccentColor),
+                    const Spacer(),
+                    Text(
+                      'Tap to expand',
+                      style: captionStyle(context).copyWith(
+                        color: kcSecondaryTextColor,
+                        fontSize: 11,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildInfoChip(IconData icon, String label, BuildContext context) {
+  Widget _buildMetadataChip(String label, String value, Color color) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         Icon(
-          icon,
+          label == 'Nodes' ? Icons.circle : Icons.link,
           size: 14,
-          color: kcPrimaryColor,
+          color: color,
         ),
         const SizedBox(width: 4),
         Text(
-          label,
+          '$label: $value',
           style: captionStyle(context).copyWith(
             color: kcPrimaryTextColor,
             fontSize: 11,
