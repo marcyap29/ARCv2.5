@@ -27,7 +27,7 @@ class _CustomTabBarState extends State<CustomTabBar> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: widget.height ?? 65,
+      height: widget.height ?? 75, // Increased from 65 to 75 to accommodate larger icons/text
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
       padding: const EdgeInsets.only(
         left: 8,
