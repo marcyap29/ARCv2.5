@@ -294,7 +294,7 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
                   const SizedBox(width: 48), // Spacer for alignment
                 Expanded(
                   child: Text(
-                    _isSelectionMode ? 'Select Entries' : 'Timeline',
+                    _isSelectionMode ? 'Select Entries' : '',
                     style: heading1Style(context).copyWith(
                       fontSize: 20,
                       fontWeight: FontWeight.w600,
