@@ -100,7 +100,7 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
   
   // Auto-save and compaction - Updated for 25-message summarization
   static const int _maxMessagesBeforeCompaction = 25;
-  static const int _compactionThreshold = 25; // Summarize after 25 messages
+  static const int _compactionThreshold = 150; // Summarize after 150 messages
   bool _isCompacting = false;
   
   // Voiceover/TTS for AI responses
@@ -896,17 +896,11 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
     final messageIndex = currentState.messages.indexWhere((m) => m.id == messageId);
     if (messageIndex == -1) return;
 
-    // Remove all messages from this one onwards (including the assistant response)
+    // Remove all messages from this one onwards
     final messagesToKeep = currentState.messages.sublist(0, messageIndex);
     
-    // Update the message with new text
-    final updatedMessages = [
-      ...messagesToKeep,
-      currentState.messages[messageIndex].copyWith(content: newText),
-    ];
-
-    // Update state to remove assistant response
-    emit(currentState.copyWith(messages: updatedMessages));
+    // Update state with truncated messages
+    emit(currentState.copyWith(messages: messagesToKeep));
   }
   
   /// Start a new chat (saves current chat to history, then clears UI)
@@ -1849,32 +1843,44 @@ Your exported MCP bundle can be imported into any MCP-compatible system, ensurin
     _isCompacting = true;
     
     try {
-      // Get the first 25 messages to summarize and archive
-      final messagesToArchive = messages.take(25).toList();
+      // Get the first 150 messages to summarize and archive
+      final messagesToArchive = messages.take(150).toList();
       
       if (messagesToArchive.isEmpty) return;
       
       // Emit a state to show popup/notice while summarizing
+      // We don't set isProcessing=true so the user can continue chatting
+      
+      print('LUMARA Chat: Summarizing first 150 messages...');
+      
+      // Add a temporary system message to show "Summarizing Conversation..."
+      final tempSummaryId = 'temp_summary_${DateTime.now().millisecondsSinceEpoch}';
+      final tempSummaryMessage = ChatMessage.createLegacy(
+        sessionId: currentChatSessionId!,
+        role: 'system',
+        content: '🔄 **Summarizing Conversation...**\n\nConsolidating older messages to keep our chat fresh. You can continue talking.',
+      );
+      
+      // Add temp message to state
       if (state is LumaraAssistantLoaded) {
         final currentState = state as LumaraAssistantLoaded;
-        emit(currentState.copyWith(
-          isProcessing: true,
-        ));
+        // Convert ChatMessage to LumaraMessage
+        final tempLumaraMessage = LumaraMessage.fromChatMessage(tempSummaryMessage);
+        final List<LumaraMessage> messagesWithTemp = [tempLumaraMessage, ...currentState.messages];
+        emit(currentState.copyWith(messages: messagesWithTemp));
       }
       
-      print('LUMARA Chat: Summarizing first 25 messages...');
-      
-      // Create summary of the first 25 messages using Gemini
+      // Create summary of the messages using Gemini
       final summary = await _createConversationSummaryWithLLM(messagesToArchive);
       
-      // Create a summary message
+      // Create the final summary message
       final summaryMessage = ChatMessage.createLegacy(
         sessionId: currentChatSessionId!,
         role: 'system',
-        content: '📝 **Conversation Summary** (First 25 messages archived)\n\n$summary',
+        content: '📝 **Conversation Summary** (Older messages archived)\n\n$summary',
       );
       
-      // Archive the first 25 messages by deleting them (they're preserved in MCP memory)
+      // Archive the messages by deleting them (they're preserved in MCP memory)
       await _archiveMessages(messagesToArchive);
       
       // Add the summary message at the beginning
@@ -1886,30 +1892,37 @@ Your exported MCP bundle can be imported into any MCP-compatible system, ensurin
       
       print('LUMARA Chat: Archived ${messagesToArchive.length} messages and created summary');
       
-      // Clear working memory context (reload context without archived messages)
-      // This happens automatically when we reload messages
+      // Reload messages to reflect changes (this will remove the temp message and show the real summary)
+      await _reloadMessages(currentChatSessionId!);
       
       // Show notification to user
       _showCompactionNotification(messagesToArchive.length);
       
-      // Resume processing
-      if (state is LumaraAssistantLoaded) {
-        final currentState = state as LumaraAssistantLoaded;
-        emit(currentState.copyWith(
-          isProcessing: false,
-        ));
-      }
-      
     } catch (e) {
       print('LUMARA Chat: Error compacting conversation: $e');
       if (state is LumaraAssistantLoaded) {
-        final currentState = state as LumaraAssistantLoaded;
-        emit(currentState.copyWith(
-          isProcessing: false,
-        ));
+        // Reload messages to ensure consistent state on error
+        if (currentChatSessionId != null) {
+          await _reloadMessages(currentChatSessionId!);
+        }
       }
-    } finally {
-      _isCompacting = false;
+    }
+  }
+
+  /// Reload messages from repository and update state
+  Future<void> _reloadMessages(String sessionId) async {
+    if (state is! LumaraAssistantLoaded) return;
+    
+    try {
+      final chatMessages = await _chatRepo.getMessages(sessionId, lazy: false);
+      final lumaraMessages = chatMessages.map((m) => LumaraMessage.fromChatMessage(m)).toList();
+      
+      if (state is LumaraAssistantLoaded) {
+        final currentState = state as LumaraAssistantLoaded;
+        emit(currentState.copyWith(messages: lumaraMessages));
+      }
+    } catch (e) {
+      print('LUMARA Chat: Error reloading messages: $e');
     }
   }
   

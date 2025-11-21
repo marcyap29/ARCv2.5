@@ -1,11 +1,34 @@
 # EPI MVP - Update Log
 
-**Version:** 1.0.5  
-**Last Updated:** January 2025
+**Version:** 1.0.6  
+**Last Updated:** November 2025
 
 ---
 
 ## Update History
+
+### Version 2.1.28 (November 2025)
+
+#### Build System Fixes
+- ✅ Fixed Dart type inference compilation error in `lumara_assistant_cubit.dart`
+- ✅ Resolved CocoaPods Podfile.lock synchronization issues
+- ✅ iOS builds now compile successfully without errors
+- ✅ All dependencies properly installed and synchronized
+
+### Version 2.1.27 (November 2025)
+
+#### LUMARA Knowledge Attribution & Response Variety
+- ✅ Explicit distinction between EPI Knowledge and General Knowledge
+- ✅ Eliminated repetitive stock phrases in journal responses
+- ✅ Improved response variety with varied closings
+
+#### Calendar Scroll Sync Fix
+- ✅ Fixed visual desynchronization between timeline scroll and weekly calendar
+- ✅ Added logic to prevent calendar jitter during programmatic scrolls
+
+#### Saved Chats Navigation Fix
+- ✅ Created dedicated `SavedChatsScreen` for viewing all saved chats
+- ✅ Improved navigation with clear access to saved conversations
 
 ### Version 2.1.23 (January 2025)
 
@@ -216,6 +239,6 @@
 
 ---
 
-**Last Updated:** November 17, 2025  
-**Version:** 1.0.1
+**Last Updated:** November 2025  
+**Version:** 1.0.6
 

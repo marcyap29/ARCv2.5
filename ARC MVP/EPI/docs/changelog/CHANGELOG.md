@@ -1,7 +1,29 @@
 # EPI ARC MVP - Changelog
 
-**Version:** 2.1.27  
+**Version:** 2.1.28  
 **Last Updated:** November 2025
+
+## [2.1.28] - November 2025
+
+### **Build System Fixes** - Complete
+
+#### Type Inference Fix
+- **Dart Compilation Error**: Fixed type inference issue in `lumara_assistant_cubit.dart` where `messagesWithTemp` was being inferred as `List<Object>` instead of `List<LumaraMessage>`.
+- **Explicit Typing**: Added explicit type annotation `List<LumaraMessage>` to resolve compilation error.
+- **Build Status**: ✅ Complete - Dart code now compiles successfully.
+
+#### CocoaPods Synchronization Fix
+- **Podfile.lock Sync Issue**: Resolved "The sandbox is not in sync with the Podfile.lock" error.
+- **Encoding Fix**: Ran `pod install` with proper UTF-8 encoding (`LANG=en_US.UTF-8`).
+- **Dependencies**: All iOS dependencies properly installed and synchronized.
+- **Build Status**: ✅ Complete - iOS builds now complete successfully.
+
+**Files Modified**:
+- `lib/arc/chat/bloc/lumara_assistant_cubit.dart` - Fixed type inference on line 1869
+
+**Status**: ✅ Complete - Build system fully operational
+
+---
 
 ## [2.1.27] - November 2025
 
