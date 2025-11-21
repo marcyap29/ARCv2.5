@@ -56,10 +56,10 @@ class _CalendarWeekTimelineState extends State<CalendarWeekTimeline> {
     const colors = {
       PhaseLabel.discovery: Colors.blue,
       PhaseLabel.expansion: Colors.green,
-      PhaseLabel.transition: Colors.purple,
-      PhaseLabel.consolidation: Colors.orange,
-      PhaseLabel.recovery: Colors.teal,
-      PhaseLabel.breakthrough: Colors.red,
+      PhaseLabel.transition: Colors.orange,
+      PhaseLabel.consolidation: Colors.purple,
+      PhaseLabel.recovery: Colors.red,
+      PhaseLabel.breakthrough: Colors.amber,
     };
     return colors[label] ?? Colors.grey;
   }
