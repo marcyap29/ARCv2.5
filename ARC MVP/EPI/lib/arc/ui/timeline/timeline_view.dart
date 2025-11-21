@@ -171,18 +171,41 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
     }
     
     // Use PrimaryScrollController to scroll to the entry in InteractiveTimelineView
-    final primaryScrollController = PrimaryScrollController.maybeOf(context);
-    if (primaryScrollController != null && primaryScrollController.hasClients) {
-      // Approximate height of each timeline entry (including margins)
-      final itemHeight = 216.0; // 200 (card) + 16 (margin)
-      final targetOffset = targetIndex * itemHeight;
-      
-      primaryScrollController.animateTo(
-        targetOffset.clamp(0.0, primaryScrollController.position.maxScrollExtent),
-        duration: const Duration(milliseconds: 500),
-        curve: Curves.easeInOut,
-      );
-    }
+    // Wait a frame to ensure the list is built
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final primaryScrollController = PrimaryScrollController.maybeOf(context);
+      if (primaryScrollController != null && primaryScrollController.hasClients) {
+        // Find the actual entry ID to scroll to
+        final targetEntryId = targetEntry.id;
+        
+        // Try to find the entry in the current state and get its index
+        final currentState = _timelineCubit.state;
+        if (currentState is TimelineLoaded) {
+          final allEntries = <TimelineEntry>[];
+          for (final group in currentState.groupedEntries) {
+            allEntries.addAll(group.entries);
+          }
+          
+          final sortedEntries = List<TimelineEntry>.from(allEntries);
+          sortedEntries.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+          
+          final actualIndex = sortedEntries.indexWhere((e) => e.id == targetEntryId);
+          if (actualIndex >= 0) {
+            // Approximate height of each timeline entry (including margins)
+            // Account for header height in NestedScrollView
+            final headerHeight = 200.0; // Approximate header height
+            final itemHeight = 216.0; // 200 (card) + 16 (margin)
+            final targetOffset = headerHeight + (actualIndex * itemHeight);
+            
+            primaryScrollController.animateTo(
+              targetOffset.clamp(0.0, primaryScrollController.position.maxScrollExtent),
+              duration: const Duration(milliseconds: 500),
+              curve: Curves.easeInOut,
+            );
+          }
+        }
+      }
+    });
     
     // Show feedback
     final entryDateOnly = DateTime(targetEntry.createdAt.year, targetEntry.createdAt.month, targetEntry.createdAt.day);

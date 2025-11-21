@@ -77,7 +77,7 @@ class _CalendarWeekTimelineState extends State<CalendarWeekTimeline> {
     const colors = {
       PhaseLabel.discovery: Colors.blue,
       PhaseLabel.expansion: Colors.green,
-      PhaseLabel.transition: Color(0xFFD97706), // Orange to match journal entries
+      PhaseLabel.transition: Color(0xFFFF9500), // Brighter orange to match journal entries
       PhaseLabel.consolidation: Colors.purple,
       PhaseLabel.recovery: Colors.red,
       PhaseLabel.breakthrough: Colors.amber,
