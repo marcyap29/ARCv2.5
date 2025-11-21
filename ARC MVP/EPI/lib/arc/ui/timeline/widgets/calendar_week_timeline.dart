@@ -58,12 +58,6 @@ class _CalendarWeekTimelineState extends State<CalendarWeekTimeline> {
         return Colors.blue;
       case PhaseLabel.transition:
         return Colors.purple;
-      case PhaseLabel.growth:
-        return Colors.green;
-      case PhaseLabel.integration:
-        return Colors.orange;
-      case PhaseLabel.mastery:
-        return Colors.red;
       default:
         return Colors.grey;
     }
@@ -78,7 +72,6 @@ class _CalendarWeekTimelineState extends State<CalendarWeekTimeline> {
       );
     }
 
-    final regimes = _phaseIndex?.allRegimes ?? [];
     final weekDays = List.generate(7, (index) => _currentWeekStart.add(Duration(days: index)));
 
     return Container(
