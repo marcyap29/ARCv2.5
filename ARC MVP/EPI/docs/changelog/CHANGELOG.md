@@ -1,7 +1,28 @@
 # EPI ARC MVP - Changelog
 
-**Version:** 2.1.26  
-**Last Updated:** January 2025
+**Version:** 2.1.27  
+**Last Updated:** November 2025
+
+## [2.1.27] - November 2025
+
+### **LUMARA Knowledge Attribution & Response Variety** - Complete
+
+#### Knowledge Attribution Fix
+- **Explicit Distinction**: Updated `LumaraMasterPrompt` to explicitly distinguish between **EPI Knowledge** (user context) and **General Knowledge** (world facts).
+- **No "General EPI Knowledge"**: LUMARA is now strictly forbidden from using the confusing term "General EPI Knowledge".
+- **Clear Attribution**: General facts (e.g., "Kalman filter") are attributed to "General Knowledge" or stated as facts, while user data is attributed to "your journal" or "past chats".
+
+#### Journal Response Variety
+- **Reduced Repetition**: Explicitly instructed LUMARA to avoid repetitive stock phrases like "Would it help to name one small step...".
+- **Varied Closings**: The "Open" step of the ECHO framework now requires varied language tailored to the specific entry.
+
+**Files Modified**:
+- `lib/arc/chat/llm/prompts/lumara_master_prompt.dart` - Added Knowledge Attribution and Avoid Repetition rules
+- `lib/arc/chat/prompts/archive/lumara_unified_prompts.dart` - Updated ECHO framework instructions
+
+**Status**: ✅ Complete - Fixed attribution logic and improved response variety
+
+---
 
 ## [2.1.26] - January 2025
 

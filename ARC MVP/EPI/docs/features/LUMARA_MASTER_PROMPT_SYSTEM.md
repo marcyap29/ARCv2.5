@@ -76,6 +76,8 @@ The master prompt enforces these integration rules:
 5. **Apply PRISM** - Emotional + narrative context
 6. **Apply THERAPY MODE** - Relational stance + pacing
 7. **If sentinelAlert = true** - Override everything with maximum safety
+8. **Knowledge Attribution** - Strictly distinguish between EPI Knowledge (user context) and General Knowledge (world facts). NEVER use "General EPI Knowledge".
+9. **Response Variety** - Avoid repetitive stock phrases (e.g., "Would it help to name one small step..."). Vary closing questions.
 
 ## Migration from Previous Systems
 
@@ -117,6 +119,6 @@ See `lib/arc/chat/prompts/README_MASTER_PROMPT.md` for detailed control state st
 ---
 
 **Status**: ✅ Active  
-**Last Updated**: January 2025  
+**Last Updated**: November 2025  
 **Version**: 2.0
 
