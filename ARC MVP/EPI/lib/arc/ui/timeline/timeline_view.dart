@@ -4,6 +4,7 @@ import 'package:my_app/arc/ui/timeline/timeline_cubit.dart';
 import 'package:my_app/arc/ui/timeline/timeline_state.dart';
 import 'package:my_app/arc/ui/timeline/widgets/interactive_timeline_view.dart';
 import 'package:my_app/arc/ui/timeline/widgets/current_phase_arcform_preview.dart';
+import 'package:my_app/arc/ui/timeline/widgets/calendar_week_timeline.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
 import 'package:my_app/arc/ui/timeline/timeline_entry_model.dart';
@@ -187,7 +188,15 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
                     SliverToBoxAdapter(
                       child: _buildScrollableHeader(),
                     ),
-                  // Phase preview - scrolls with content, below header
+                  // Timeline visualization (calendar week) - scrolls with content, below header
+                  if (!_isArcformTimelineVisible && !_isSelectionMode)
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        child: const CalendarWeekTimeline(),
+                      ),
+                    ),
+                  // Phase preview - scrolls with content, below timeline visualization
                   if (!_isArcformTimelineVisible && !_isSelectionMode)
                     SliverToBoxAdapter(
                       child: const CurrentPhaseArcformPreview(),

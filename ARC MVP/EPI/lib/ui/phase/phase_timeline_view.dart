@@ -224,7 +224,7 @@ class _PhaseTimelineViewState extends State<PhaseTimelineView> {
               _buildTimelineAxis(theme),
               const SizedBox(height: 8),
               Container(
-                height: 120,
+                height: 60, // Reduced by 1/2 from 120 to 60
                 decoration: BoxDecoration(
                   border: Border.all(color: theme.dividerColor),
                   borderRadius: BorderRadius.circular(8),
@@ -243,7 +243,7 @@ class _PhaseTimelineViewState extends State<PhaseTimelineView> {
                       onTapDown: (details) => _handleTimelineTap(details, regimes),
                       child: Container(
                         width: double.infinity,
-                        height: 120,
+                        height: 60, // Reduced by 1/2 from 120 to 60
                       ),
                     ),
                   ),
