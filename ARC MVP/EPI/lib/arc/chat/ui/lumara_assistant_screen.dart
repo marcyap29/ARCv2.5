@@ -1617,16 +1617,25 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
 
   /// Show LUMARA menu options (long-press on send button)
   void _showLumaraMenuOptions() {
+    // Dismiss keyboard first
+    FocusScope.of(context).unfocus();
+    
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (context) => Container(
-        padding: const EdgeInsets.symmetric(vertical: 20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
+      builder: (context) => Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).viewInsets.bottom,
+        ),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
             _buildMenuOption(
               context,
               Icons.insights,
@@ -1675,6 +1684,7 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
           ],
         ),
       ),
+    ),
     );
   }
 

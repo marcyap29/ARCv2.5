@@ -137,41 +137,71 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
     final sortedEntries = List<TimelineEntry>.from(allEntries);
     sortedEntries.sort((a, b) => b.createdAt.compareTo(a.createdAt));
     
-    // Find the closest entry to the target date
-    int closestIndex = 0;
-    int minDaysDifference = 999999;
+    // Find entries for the target date (exact match first)
+    final targetDateOnly = DateTime(targetDate.year, targetDate.month, targetDate.day);
+    final exactMatches = sortedEntries.where((entry) {
+      final entryDateOnly = DateTime(entry.createdAt.year, entry.createdAt.month, entry.createdAt.day);
+      return entryDateOnly == targetDateOnly;
+    }).toList();
     
-    for (int i = 0; i < sortedEntries.length; i++) {
-      final entry = sortedEntries[i];
-      final daysDifference = (entry.createdAt.difference(targetDate).inDays).abs();
+    int targetIndex;
+    TimelineEntry targetEntry;
+    
+    if (exactMatches.isNotEmpty) {
+      // Use the first exact match
+      targetEntry = exactMatches.first;
+      targetIndex = sortedEntries.indexOf(targetEntry);
+    } else {
+      // Find the closest entry to the target date
+      int closestIndex = 0;
+      int minDaysDifference = 999999;
       
-      if (daysDifference < minDaysDifference) {
-        minDaysDifference = daysDifference;
-        closestIndex = i;
+      for (int i = 0; i < sortedEntries.length; i++) {
+        final entry = sortedEntries[i];
+        final entryDateOnly = DateTime(entry.createdAt.year, entry.createdAt.month, entry.createdAt.day);
+        final daysDifference = (entryDateOnly.difference(targetDateOnly).inDays).abs();
+        
+        if (daysDifference < minDaysDifference) {
+          minDaysDifference = daysDifference;
+          closestIndex = i;
+        }
       }
+      targetIndex = closestIndex;
+      targetEntry = sortedEntries[targetIndex];
     }
     
-    // Scroll to the closest entry
-    if (_scrollController.hasClients) {
-      final itemHeight = 200.0; // Approximate height of each timeline entry
-      final targetOffset = closestIndex * itemHeight;
+    // Use PrimaryScrollController to scroll to the entry in InteractiveTimelineView
+    final primaryScrollController = PrimaryScrollController.maybeOf(context);
+    if (primaryScrollController != null && primaryScrollController.hasClients) {
+      // Approximate height of each timeline entry (including margins)
+      final itemHeight = 216.0; // 200 (card) + 16 (margin)
+      final targetOffset = targetIndex * itemHeight;
       
-      _scrollController.animateTo(
-        targetOffset,
+      primaryScrollController.animateTo(
+        targetOffset.clamp(0.0, primaryScrollController.position.maxScrollExtent),
         duration: const Duration(milliseconds: 500),
         curve: Curves.easeInOut,
       );
     }
     
     // Show feedback
-    final closestEntry = sortedEntries[closestIndex];
-    final daysDiff = (closestEntry.createdAt.difference(targetDate).inDays).abs();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Jumped to entry from ${closestEntry.createdAt.toString().split(' ')[0]} (${daysDiff} days ${targetDate.isBefore(closestEntry.createdAt) ? 'after' : 'before'} target date)'),
-        duration: const Duration(seconds: 3),
-      ),
-    );
+    final entryDateOnly = DateTime(targetEntry.createdAt.year, targetEntry.createdAt.month, targetEntry.createdAt.day);
+    final daysDiff = (entryDateOnly.difference(targetDateOnly).inDays).abs();
+    if (daysDiff == 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Found entry for ${targetDate.month}/${targetDate.day}/${targetDate.year}'),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Jumped to entry from ${targetEntry.createdAt.toString().split(' ')[0]} (${daysDiff} days ${targetDateOnly.isBefore(entryDateOnly) ? 'after' : 'before'} target date)'),
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
   }
 
   @override
