@@ -170,47 +170,59 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
       targetEntry = sortedEntries[targetIndex];
     }
     
-    // Use a different approach: find the entry and scroll using ensureVisible
-    // Wait a frame to ensure the list is built
+    // Use a different approach: scroll using PrimaryScrollController with better calculation
+    // Wait multiple frames to ensure the list is fully built and rendered
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      // Find the entry in the current state
-      final currentState = _timelineCubit.state;
-      if (currentState is TimelineLoaded) {
-        final allEntries = <TimelineEntry>[];
-        for (final group in currentState.groupedEntries) {
-          allEntries.addAll(group.entries);
-        }
-        
-        final sortedEntries = List<TimelineEntry>.from(allEntries);
-        sortedEntries.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-        
-        final targetEntryId = targetEntry.id;
-        final actualIndex = sortedEntries.indexWhere((e) => e.id == targetEntryId);
-        
-        if (actualIndex >= 0) {
-          // Use the timeline view key to access the state and scroll
-          final timelineState = _timelineViewKey.currentState;
-          if (timelineState != null) {
-            // Scroll after a short delay to ensure rendering is complete
-            Future.delayed(const Duration(milliseconds: 100), () {
-              final primaryScrollController = PrimaryScrollController.maybeOf(context);
-              if (primaryScrollController != null && primaryScrollController.hasClients) {
-                // Calculate offset more accurately
-                // Header: ~60 (calendar) + ~200 (phase preview) + ~60 (search if expanded) = ~320
-                final headerHeight = _isSearchExpanded ? 320.0 : 260.0;
-                final itemHeight = 250.0; // More accurate: card + margins + spacing
-                final targetOffset = headerHeight + (actualIndex * itemHeight);
-                
-                primaryScrollController.animateTo(
-                  targetOffset.clamp(0.0, primaryScrollController.position.maxScrollExtent),
-                  duration: const Duration(milliseconds: 800),
-                  curve: Curves.easeInOut,
-                );
-              }
-            });
+      Future.delayed(const Duration(milliseconds: 200), () {
+        // Find the entry in the current state
+        final currentState = _timelineCubit.state;
+        if (currentState is TimelineLoaded) {
+          final allEntries = <TimelineEntry>[];
+          for (final group in currentState.groupedEntries) {
+            allEntries.addAll(group.entries);
+          }
+          
+          final sortedEntries = List<TimelineEntry>.from(allEntries);
+          sortedEntries.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+          
+          final targetEntryId = targetEntry.id;
+          final actualIndex = sortedEntries.indexWhere((e) => e.id == targetEntryId);
+          
+          if (actualIndex >= 0) {
+            final primaryScrollController = PrimaryScrollController.maybeOf(context);
+            if (primaryScrollController != null && primaryScrollController.hasClients) {
+              // Calculate offset more accurately with multiple attempts
+              // Header: ~60 (calendar) + ~200 (phase preview) + ~60 (search if expanded) = ~320
+              final headerHeight = _isSearchExpanded ? 320.0 : 260.0;
+              final itemHeight = 280.0; // Increased: card (~220) + margins (16*2) + spacing (28)
+              final targetOffset = headerHeight + (actualIndex * itemHeight);
+              
+              // Try scrolling with a longer duration and ensure we scroll past the header
+              primaryScrollController.animateTo(
+                targetOffset.clamp(0.0, primaryScrollController.position.maxScrollExtent),
+                duration: const Duration(milliseconds: 1000),
+                curve: Curves.easeInOut,
+              );
+              
+              // If that doesn't work, try again after a delay with a larger offset
+              Future.delayed(const Duration(milliseconds: 1200), () {
+                if (primaryScrollController.hasClients) {
+                  final currentOffset = primaryScrollController.offset;
+                  final expectedOffset = headerHeight + (actualIndex * itemHeight);
+                  // If we didn't scroll far enough, scroll more
+                  if ((expectedOffset - currentOffset).abs() > 50) {
+                    primaryScrollController.animateTo(
+                      expectedOffset.clamp(0.0, primaryScrollController.position.maxScrollExtent),
+                      duration: const Duration(milliseconds: 500),
+                      curve: Curves.easeInOut,
+                    );
+                  }
+                }
+              });
+            }
           }
         }
-      }
+      });
     });
     
     // Show feedback
