@@ -1796,9 +1796,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
                               ? null 
                               : theme.colorScheme.onSurface.withOpacity(0.5),
                           ),
-                          tooltip: _isLumaraConfigured 
-                              ? 'Reflect with LUMARA (long-press for options)' 
-                            : 'LUMARA needs API key configuration',
+                          tooltip: null, // Remove tooltip - menu shows immediately on long press
                           padding: const EdgeInsets.all(4),
                           constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
                           style: IconButton.styleFrom(
