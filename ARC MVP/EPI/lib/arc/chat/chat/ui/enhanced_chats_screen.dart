@@ -35,6 +35,7 @@ class _EnhancedChatsScreenState extends State<EnhancedChatsScreen>
   List<ChatCategory> _categories = [];
   List<ChatSession> _filteredSessions = [];
   List<LumaraFavorite> _savedChats = [];
+  List<LumaraFavorite> _allSavedChats = []; // Keep track of all saved chats for display
   bool _isLoading = true;
   String? _error;
   
@@ -95,7 +96,8 @@ class _EnhancedChatsScreenState extends State<EnhancedChatsScreen>
         _categories = categories;
         _sessions = sessions;
         _filteredSessions = sessions;
-        _savedChats = savedChats;
+        _savedChats = savedChats; // Keep all saved chats (SavedChatsScreen will handle filtering)
+        _allSavedChats = savedChats; // Keep all saved chats for display count
         _isLoading = false;
         _error = null;
       });
@@ -555,7 +557,7 @@ class _EnhancedChatsScreenState extends State<EnhancedChatsScreen>
           ),
         ),
         subtitle: Text(
-          '${_savedChats.length} saved items',
+          '${_allSavedChats.length} saved items',
           style: captionStyle(context).copyWith(
             color: const Color(0xFF2196F3).withOpacity(0.8),
           ),
@@ -628,8 +630,8 @@ class _EnhancedChatsScreenState extends State<EnhancedChatsScreen>
       child: ListView(
         padding: const EdgeInsets.symmetric(horizontal: 16),
         children: [
-          // Saved Chats Section
-          if (_savedChats.isNotEmpty) ...[
+          // Saved Chats Section - Always show if there are any saved chats
+          if (_allSavedChats.isNotEmpty) ...[
             _buildSavedChatsSection(),
             const SizedBox(height: 16),
           ],

@@ -54,6 +54,10 @@ import 'package:my_app/mira/memory/enhanced_mira_memory_service.dart';
 import 'package:my_app/mira/memory/enhanced_memory_schema.dart';
 import 'package:my_app/mira/memory/sentence_extraction_util.dart';
 import 'package:my_app/mira/mira_service.dart';
+import 'package:my_app/arc/chat/data/context_provider.dart';
+import 'package:my_app/arc/chat/data/context_scope.dart';
+import 'package:my_app/services/user_phase_service.dart';
+import 'package:my_app/shared/widgets/lumara_icon.dart';
 
 /// Main journal screen with integrated LUMARA companion and OCR scanning
 class JournalScreen extends StatefulWidget {
@@ -616,14 +620,201 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
   }
   
   Future<void> _generateJournalingPrompt() async {
-    // TODO: Implement journaling prompt generation based on entries, chats, drafts, media, phase
-    // For now, show a placeholder message
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Journaling prompt feature coming soon!'),
-          duration: Duration(seconds: 2),
+    if (!mounted) return;
+    
+    // Show loading indicator
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: CircularProgressIndicator(),
+      ),
+    );
+    
+    try {
+      // Get context from past entries, chats, and phase
+      final scope = LumaraScope.defaultScope;
+      final contextProvider = ContextProvider(scope);
+      final contextWindow = await contextProvider.buildContext(
+        daysBack: 30,
+        maxEntries: 50,
+      );
+      
+      // Get current phase
+      String currentPhase = 'Discovery';
+      try {
+        currentPhase = await UserPhaseService.getCurrentPhase();
+      } catch (e) {
+        print('JournalScreen: Error getting current phase: $e');
+      }
+      
+      // Analyze context to generate prompts
+      final contextAwarePrompts = _generateContextAwarePrompts(contextWindow, currentPhase);
+      
+      // Traditional writing prompts
+      final traditionalPrompts = _getTraditionalPrompts();
+      
+      // Combine prompts
+      final allPrompts = [...contextAwarePrompts, ...traditionalPrompts];
+      
+      // Close loading dialog
+      if (mounted) Navigator.of(context).pop();
+      
+      // Show prompt selection dialog
+      if (mounted) {
+        await _showPromptSelectionDialog(allPrompts);
+      }
+    } catch (e) {
+      // Close loading dialog
+      if (mounted) Navigator.of(context).pop();
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error generating prompts: $e'),
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    }
+  }
+  
+  List<String> _generateContextAwarePrompts(ContextWindow context, String currentPhase) {
+    final prompts = <String>[];
+    
+    // Get recent journal entries
+    final journalNodes = context.nodes.where((n) => n['type'] == 'journal').toList();
+    final recentEntries = journalNodes.take(5).toList();
+    
+    // Get recent chat sessions
+    final chatNodes = context.nodes.where((n) => n['type'] == 'chat').toList();
+    final recentChats = chatNodes.take(3).toList();
+    
+    // Phase-based prompts
+    prompts.add('What does being in the $currentPhase phase mean to you right now?');
+    prompts.add('How has your journey through $currentPhase been different from what you expected?');
+    
+    // Context from recent entries
+    if (recentEntries.isNotEmpty) {
+      final lastEntry = recentEntries.first;
+      final lastEntryText = lastEntry['text'] as String? ?? '';
+      if (lastEntryText.length > 50) {
+        final preview = lastEntryText.substring(0, 50);
+        prompts.add('Continue exploring: "$preview..." - What else comes to mind?');
+      }
+      
+      // Extract themes from recent entries
+      final keywords = recentEntries
+          .map((e) => e['meta']?['keywords'] as List? ?? [])
+          .expand((k) => k)
+          .whereType<List>()
+          .map((k) => k[0] as String? ?? '')
+          .where((k) => k.isNotEmpty)
+          .toSet()
+          .take(3)
+          .toList();
+      
+      if (keywords.isNotEmpty) {
+        prompts.add('You\'ve been reflecting on ${keywords.join(", ")}. What new insights have emerged?');
+      }
+    }
+    
+    // Context from recent chats
+    if (recentChats.isNotEmpty) {
+      final lastChat = recentChats.first;
+      final chatSubject = lastChat['meta']?['subject'] as String? ?? 'conversations';
+      prompts.add('You recently discussed "$chatSubject" with LUMARA. What would you like to explore further?');
+    }
+    
+    // Time-based prompts
+    final daysSinceStart = context.startDate.difference(DateTime.now()).inDays.abs();
+    if (daysSinceStart > 7) {
+      prompts.add('Looking back over the past ${daysSinceStart} days, what patterns do you notice?');
+    }
+    
+    return prompts;
+  }
+  
+  List<String> _getTraditionalPrompts() {
+    return [
+      'What\'s one thing that surprised you today?',
+      'Describe a moment when you felt truly yourself.',
+      'What question have you been avoiding asking yourself?',
+      'Write about something you\'re grateful for that you haven\'t acknowledged recently.',
+      'What would you tell your past self from a month ago?',
+      'Describe a challenge you\'re facing and what you\'ve learned from it.',
+      'What does growth look like for you right now?',
+      'Write about a relationship that has changed recently.',
+      'What are you curious about exploring?',
+      'Describe a moment of clarity you\'ve had recently.',
+    ];
+  }
+  
+  Future<void> _showPromptSelectionDialog(List<String> prompts) async {
+    if (!mounted) return;
+    
+    final selectedPrompt = await showDialog<String>(
+      context: context,
+      builder: (context) => Dialog(
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 500, maxHeight: 600),
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Choose a Writing Prompt',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Expanded(
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: prompts.length,
+                  itemBuilder: (context, index) {
+                    final prompt = prompts[index];
+                    return Card(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      child: ListTile(
+                        title: Text(
+                          prompt,
+                          style: Theme.of(context).textTheme.bodyMedium,
+                        ),
+                        onTap: () => Navigator.of(context).pop(prompt),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text('Cancel'),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
+      ),
+    );
+    
+    if (selectedPrompt != null && mounted) {
+      // Insert the selected prompt into the text field
+      setState(() {
+        _entryState.text = selectedPrompt;
+        _textController.text = selectedPrompt;
+      });
+      
+      // Optionally focus the text field
+      _textController.selection = TextSelection.fromPosition(
+        TextPosition(offset: selectedPrompt.length),
       );
     }
   }
@@ -1645,15 +1836,15 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
                                 padding: const EdgeInsets.all(4),
                                 constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
                               ),
-                              
-                              // Add video button
-                              IconButton(
-                                onPressed: _handleVideoGallery,
-                                icon: const Icon(Icons.videocam, size: 18),
-                                tooltip: 'Add Video',
-                                padding: const EdgeInsets.all(4),
-                                constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
-                              ),
+                        
+                        // Add video button
+                        IconButton(
+                          onPressed: _handleVideoGallery,
+                          icon: const Icon(Icons.videocam, size: 18),
+                          tooltip: 'Add Video',
+                          padding: const EdgeInsets.all(4),
+                          constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                        ),
                               
                               // Keyword toggle button
                               IconButton(
@@ -1669,32 +1860,31 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
                                   backgroundColor: _showKeywordsDiscovered 
                                     ? theme.colorScheme.primary.withOpacity(0.2)
                                     : null,
-                                ),
-                              ),
-                              
+                          ),
+                        ),
+                        
                               // LUMARA button
                               IconButton(
-                                onPressed: _onLumaraFabTapped,
-                                icon: Icon(
-                                  Icons.psychology, 
-                                  size: 18,
-                                  color: _isLumaraConfigured 
-                                    ? null 
-                                    : theme.colorScheme.onSurface.withOpacity(0.5),
-                                ),
+                          onPressed: _onLumaraFabTapped,
+                          icon: LumaraIcon(
+                            size: 18,
+                            color: _isLumaraConfigured 
+                              ? null 
+                              : theme.colorScheme.onSurface.withOpacity(0.5),
+                          ),
                                 tooltip: 'LUMARA',
-                                padding: const EdgeInsets.all(4),
-                                constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
-                                style: IconButton.styleFrom(
-                                  backgroundColor: _showLumaraBox 
-                                    ? theme.colorScheme.primary.withOpacity(0.2)
-                                    : _isLumaraConfigured 
-                                      ? null 
-                                      : theme.colorScheme.surface.withOpacity(0.5),
-                                ),
-                              ),
-                              
-                              // Continue button
+                          padding: const EdgeInsets.all(4),
+                          constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                          style: IconButton.styleFrom(
+                            backgroundColor: _showLumaraBox 
+                              ? theme.colorScheme.primary.withOpacity(0.2)
+                              : _isLumaraConfigured 
+                                ? null 
+                                : theme.colorScheme.surface.withOpacity(0.5),
+                          ),
+                        ),
+                        
+                        // Continue button
                               // Enable if entry has user text OR LUMARA blocks (allow entries that start with reflections)
                               ElevatedButton(
                                 onPressed: (_entryState.text.trim().isNotEmpty || _entryState.blocks.isNotEmpty) ? _onContinue : null,

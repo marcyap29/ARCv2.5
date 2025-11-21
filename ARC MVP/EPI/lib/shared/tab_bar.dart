@@ -88,58 +88,58 @@ class _CustomTabBarState extends State<CustomTabBar> {
           Expanded(
             child: Row(
               children: [
-                // First tab (Journal)
-                Expanded(
-                  child: GestureDetector(
-                    onTap: () => widget.onTabSelected(0),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 250),
-                      margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                      decoration: BoxDecoration(
-                        gradient: widget.selectedIndex == 0 ? kcPrimaryGradient : null,
-                        color: widget.selectedIndex == 0 ? null : kcSurfaceAltColor,
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Center(
-                        child: _buildTabContent(widget.tabs[0], widget.selectedIndex == 0),
-                      ),
-                    ),
-                  ),
+          // First tab (Journal)
+          Expanded(
+            child: GestureDetector(
+              onTap: () => widget.onTabSelected(0),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 250),
+                margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                decoration: BoxDecoration(
+                  gradient: widget.selectedIndex == 0 ? kcPrimaryGradient : null,
+                  color: widget.selectedIndex == 0 ? null : kcSurfaceAltColor,
+                  borderRadius: BorderRadius.circular(16),
                 ),
+                child: Center(
+                  child: _buildTabContent(widget.tabs[0], widget.selectedIndex == 0),
+                ),
+              ),
+            ),
+          ),
                 // Second tab (LUMARA)
-                Expanded(
-                  child: GestureDetector(
-                    onTap: () => widget.onTabSelected(1),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 250),
-                      margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                      decoration: BoxDecoration(
-                        gradient: widget.selectedIndex == 1 ? kcPrimaryGradient : null,
-                        color: widget.selectedIndex == 1 ? null : kcSurfaceAltColor,
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Center(
-                        child: _buildTabContent(widget.tabs[1], widget.selectedIndex == 1),
-                      ),
-                    ),
-                  ),
+          Expanded(
+            child: GestureDetector(
+              onTap: () => widget.onTabSelected(1),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 250),
+                margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                decoration: BoxDecoration(
+                  gradient: widget.selectedIndex == 1 ? kcPrimaryGradient : null,
+                  color: widget.selectedIndex == 1 ? null : kcSurfaceAltColor,
+                  borderRadius: BorderRadius.circular(16),
                 ),
-                // Third tab (Insights)
-                Expanded(
-                  child: GestureDetector(
-                    onTap: () => widget.onTabSelected(2),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 250),
-                      margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                      decoration: BoxDecoration(
-                        gradient: widget.selectedIndex == 2 ? kcPrimaryGradient : null,
-                        color: widget.selectedIndex == 2 ? null : kcSurfaceAltColor,
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Center(
-                        child: _buildTabContent(widget.tabs[2], widget.selectedIndex == 2),
-                      ),
-                    ),
+                child: Center(
+                  child: _buildTabContent(widget.tabs[1], widget.selectedIndex == 1),
+                ),
+              ),
+            ),
+          ),
+          // Third tab (Insights)
+          Expanded(
+            child: GestureDetector(
+              onTap: () => widget.onTabSelected(2),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 250),
+                margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                decoration: BoxDecoration(
+                  gradient: widget.selectedIndex == 2 ? kcPrimaryGradient : null,
+                  color: widget.selectedIndex == 2 ? null : kcSurfaceAltColor,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Center(
+                  child: _buildTabContent(widget.tabs[2], widget.selectedIndex == 2),
+                ),
+              ),
                   ),
                 ),
               ],

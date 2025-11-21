@@ -27,6 +27,7 @@ import '../../../telemetry/analytics.dart';
 import 'package:my_app/models/journal_entry_model.dart';
 import 'package:my_app/arc/core/journal_repository.dart';
 import '../services/favorites_service.dart';
+import 'package:my_app/shared/widgets/lumara_icon.dart';
 import '../data/models/lumara_favorite.dart';
 import 'package:my_app/shared/ui/settings/favorites_management_view.dart';
 import '../voice/audio_io.dart';
@@ -227,6 +228,26 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
     });
   }
 
+  void _scrollToNewAnswer() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients) {
+        // Scroll down a small amount (approx 2 lines + padding) to show answer started
+        final currentOffset = _scrollController.offset;
+        final targetOffset = currentOffset + 100.0; // Adjust based on line height
+        
+        // Don't scroll past max extent
+        final maxExtent = _scrollController.position.maxScrollExtent;
+        final finalOffset = targetOffset > maxExtent ? maxExtent : targetOffset;
+
+        _scrollController.animateTo(
+          finalOffset,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
+    });
+  }
+
   void _dismissKeyboard() {
     // Multiple methods to ensure keyboard is dismissed
     FocusScope.of(context).unfocus();
@@ -361,6 +382,40 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
                     );
                   }
                 }
+
+                // Handle scrolling for new messages
+                if (state is LumaraAssistantLoaded) {
+                  // We can't easily access 'previous' state here without listenWhen, 
+                  // but we can check if the last message is new or if we are processing.
+                  // A better approach for scrolling is often to trigger it when the list changes.
+                  // However, since we want specific behavior for "new answer", we can check:
+                  if (state.messages.isNotEmpty) {
+                    final lastMessage = state.messages.last;
+                    if (lastMessage.role == 'user') {
+                      _scrollToBottom();
+                    } else if (lastMessage.role == 'assistant' && state.isProcessing) {
+                      // If assistant is processing (streaming/typing), just nudge scroll
+                      // We might need a flag to ensure we only do this once per response start
+                      // For now, let's rely on the fact that this listener fires on state changes.
+                    }
+                  }
+                }
+              },
+              listenWhen: (previous, current) {
+                // Return true to trigger listener
+                if (previous is LumaraAssistantLoaded && current is LumaraAssistantLoaded) {
+                  // Check if a new message was added
+                  if (current.messages.length > previous.messages.length) {
+                    final newMessage = current.messages.last;
+                    if (newMessage.role == 'user') {
+                      _scrollToBottom();
+                    } else if (newMessage.role == 'assistant') {
+                      _scrollToNewAnswer();
+                    }
+                    return true; // Trigger listener for other logic
+                  }
+                }
+                return true; // Default behavior
               },
               builder: (context, state) {
                 if (state is LumaraAssistantLoading) {
@@ -625,7 +680,7 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
             CircleAvatar(
               radius: 16,
               backgroundColor: Colors.blue[100],
-              child: Icon(Icons.psychology, size: 16, color: Colors.blue[700]),
+              child: LumaraIcon(size: 16, color: Colors.blue[700]),
             ),
             const Gap(8),
           ],
@@ -1007,36 +1062,33 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
                 onPressed: _showHealthPreview,
               ),
               Expanded(
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.vertical,
-                  child: TextField(
-                    controller: _messageController,
-                    focusNode: _inputFocusNode,
-                    decoration: InputDecoration(
-                      hintText: isEditing ? 'Edit your message...' : 'Ask LUMARA anything...',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 8,
-                      ),
-                      isDense: true,
+                child: TextField(
+                  controller: _messageController,
+                  focusNode: _inputFocusNode,
+                  decoration: InputDecoration(
+                    hintText: isEditing ? 'Edit your message...' : 'Ask LUMARA anything...',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(20),
                     ),
-                    minLines: 1,
-                    maxLines: 5, // Limit to 5 lines, then scroll
-                    textCapitalization: TextCapitalization.sentences,
-                    textInputAction: TextInputAction.newline,
-                    onSubmitted: (_) => _sendCurrentMessage(),
-                    onTap: () {
-                      // Ensure input is visible when tapped
-                      setState(() => _isInputVisible = true);
-                    },
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    isDense: true,
                   ),
+                  minLines: 1,
+                  maxLines: 5, // Limit to 5 lines, then scroll
+                  textCapitalization: TextCapitalization.sentences,
+                  textInputAction: TextInputAction.newline,
+                  onSubmitted: (_) => _sendCurrentMessage(),
+                  onTap: () {
+                    // Ensure input is visible when tapped
+                    setState(() => _isInputVisible = true);
+                  },
                 ),
               ),
               IconButton(
-                icon: const Icon(Icons.psychology, size: 20),
+                icon: const LumaraIcon(size: 20),
                 padding: const EdgeInsets.all(8),
                 constraints: const BoxConstraints(),
                 onPressed: _sendCurrentMessage,

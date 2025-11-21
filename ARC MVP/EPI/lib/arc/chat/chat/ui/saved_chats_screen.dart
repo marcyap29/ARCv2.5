@@ -36,12 +36,14 @@ class _SavedChatsScreenState extends State<SavedChatsScreen> {
     try {
       await _favoritesService.initialize();
       final savedChats = await _favoritesService.getSavedChats();
-      final sessions = await widget.chatRepo.listActive();
+      // Get all sessions (including archived) to match saved chats
+      final allSessions = await widget.chatRepo.listAll(includeArchived: true);
 
       if (mounted) {
         setState(() {
+          _sessions = allSessions;
+          // Show all saved chats - we'll handle missing sessions in the UI
           _savedChats = savedChats;
-          _sessions = sessions;
           _isLoading = false;
         });
       }
@@ -96,23 +98,33 @@ class _SavedChatsScreenState extends State<SavedChatsScreen> {
                       ),
                     );
 
+                    // Check if session exists (active or archived)
+                    final sessionExists = _sessions.any((s) => s.id == session.id);
+                    final actualSession = sessionExists 
+                        ? _sessions.firstWhere((s) => s.id == session.id)
+                        : session;
+
                     return SavedChatCard(
                       favorite: favorite,
-                      session: session,
+                      session: actualSession,
+                      isSessionAvailable: sessionExists,
                       onTap: () {
-                        if (session.id.isNotEmpty && _sessions.any((s) => s.id == session.id)) {
+                        if (sessionExists && actualSession.id.isNotEmpty) {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
                               builder: (context) => SessionView(
-                                sessionId: session.id,
+                                sessionId: actualSession.id,
                                 chatRepo: ChatRepoImpl.instance,
                               ),
                             ),
                           );
                         } else {
-                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Original chat session not found')),
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Original chat session no longer available'),
+                              duration: Duration(seconds: 2),
+                            ),
                           );
                         }
                       },
@@ -130,6 +142,7 @@ class _SavedChatsScreenState extends State<SavedChatsScreen> {
 class SavedChatCard extends StatelessWidget {
   final LumaraFavorite favorite;
   final ChatSession session;
+  final bool isSessionAvailable;
   final VoidCallback onTap;
   final VoidCallback onUnsave;
 
@@ -137,6 +150,7 @@ class SavedChatCard extends StatelessWidget {
     super.key,
     required this.favorite,
     required this.session,
+    this.isSessionAvailable = true,
     required this.onTap,
     required this.onUnsave,
   });
@@ -145,14 +159,27 @@ class SavedChatCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
-      color: const Color(0xFF2196F3).withOpacity(0.05),
+      color: isSessionAvailable 
+          ? const Color(0xFF2196F3).withOpacity(0.05)
+          : Colors.grey.withOpacity(0.05),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: const BorderSide(color: Color(0xFF2196F3), width: 1),
+        side: BorderSide(
+          color: isSessionAvailable 
+              ? const Color(0xFF2196F3)
+              : Colors.grey.withOpacity(0.5),
+          width: 1,
+        ),
       ),
       child: ListTile(
         contentPadding: const EdgeInsets.all(16),
-        leading: const Icon(Icons.bookmark, color: Color(0xFF2196F3), size: 24),
+        leading: Icon(
+          Icons.bookmark,
+          color: isSessionAvailable 
+              ? const Color(0xFF2196F3)
+              : Colors.grey,
+          size: 24,
+        ),
         title: Row(
           children: [
             Expanded(
@@ -160,12 +187,25 @@ class SavedChatCard extends StatelessWidget {
                 session.subject,
                 style: heading2Style(context).copyWith(
                   fontSize: 16,
-                  color: const Color(0xFF2196F3),
+                  color: isSessionAvailable 
+                      ? const Color(0xFF2196F3)
+                      : Colors.grey,
                 ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
             ),
+            if (!isSessionAvailable)
+              Padding(
+                padding: const EdgeInsets.only(left: 8),
+                child: Text(
+                  '(Unavailable)',
+                  style: captionStyle(context).copyWith(
+                    color: Colors.grey,
+                    fontSize: 11,
+                  ),
+                ),
+              ),
           ],
         ),
         subtitle: Column(

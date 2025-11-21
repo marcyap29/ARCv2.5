@@ -1,11 +1,20 @@
 # EPI MVP - Update Log
 
-**Version:** 1.0.6  
+**Version:** 1.0.7  
 **Last Updated:** November 2025
 
 ---
 
 ## Update History
+
+### Version 2.1.29 (November 2025)
+
+#### LUMARA Prompt Feature & Saved Chats Fix
+- ✅ Empty entry writing prompts - Context-aware prompts based on past entries, chats, and phase
+- ✅ Traditional writing prompts included for variety
+- ✅ Fixed saved chats display - Now shows all saved chats including archived sessions
+- ✅ LUMARA icon replacement - Custom golden circular logo throughout the app
+- ✅ Visual indicators for unavailable saved chat sessions
 
 ### Version 2.1.28 (November 2025)
 
@@ -240,5 +249,5 @@
 ---
 
 **Last Updated:** November 2025  
-**Version:** 1.0.6
+**Version:** 1.0.7
 

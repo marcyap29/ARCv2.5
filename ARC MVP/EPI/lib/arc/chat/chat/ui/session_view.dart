@@ -9,6 +9,7 @@ import '../../services/favorites_service.dart';
 import '../../data/models/lumara_favorite.dart';
 import 'package:my_app/shared/ui/settings/favorites_management_view.dart';
 import '../../voice/audio_io.dart';
+import 'package:my_app/shared/widgets/lumara_icon.dart';
 
 // Real context provider for SessionView that respects scope
 class SessionContextProvider extends ContextProvider {
@@ -712,7 +713,7 @@ class _SessionViewState extends State<SessionView> {
             CircleAvatar(
               radius: 16,
               backgroundColor: Colors.blue[100],
-              child: Icon(Icons.psychology, size: 16, color: Colors.blue[700]),
+              child: LumaraIcon(size: 16, color: Colors.blue[700]),
             ),
             const SizedBox(width: 8),
           ],
@@ -939,7 +940,7 @@ class _SessionViewState extends State<SessionView> {
                         height: 20,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
-                      : const Icon(Icons.psychology),
+                      : const LumaraIcon(size: 20),
                 onPressed: _isSending ? null : _sendMessage,
                 tooltip: 'Send',
               ),

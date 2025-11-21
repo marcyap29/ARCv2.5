@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
+import 'package:my_app/shared/widgets/lumara_icon.dart';
 
 /// LUMARA navigation item for the bottom navigation
 class LumaraNavItem extends StatelessWidget {
@@ -28,10 +29,9 @@ class LumaraNavItem extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              Icons.psychology,
-              color: isSelected ? Colors.blue : Colors.grey[600],
+            LumaraIcon(
               size: 24,
+              color: isSelected ? Colors.blue : Colors.grey[600],
             ),
             const Gap(4),
             Text(

@@ -29,7 +29,7 @@ dependencies:
   flutter_cube: ^0.1.1
   vector_math: ^2.1.4
   shared_preferences: ^2.2.2
-  device_info_plus: ^10.1.0
+  device_info_plus: ^12.2.0
   package_info_plus: ^8.0.0
   share_plus: ^11.1.0
   archive: ^3.4.10
@@ -42,7 +42,7 @@ dependencies:
   cryptography: ^2.5.0
   photo_manager: ^3.5.0
   args: ^2.4.2
-  health: ^10.2.0
+  health: ^13.2.1
   fl_chart: ^0.68.0
   # FFmpeg temporarily disabled due to iOS simulator architecture incompatibility
   # See Bug_Tracker-3.md for details. FFmpeg is currently unused (stub implementation).

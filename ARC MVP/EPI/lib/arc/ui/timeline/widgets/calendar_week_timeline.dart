@@ -109,10 +109,10 @@ class _CalendarWeekTimelineState extends State<CalendarWeekTimeline> {
       } else {
         // Fallback to journal repository if timeline not loaded yet
         final entries = _journalRepo.getAllJournalEntries();
-        for (final entry in entries) {
-          // Normalize to date only (remove time component)
-          final dateOnly = DateTime(entry.createdAt.year, entry.createdAt.month, entry.createdAt.day);
-          datesWithEntries.add(dateOnly);
+      for (final entry in entries) {
+        // Normalize to date only (remove time component)
+        final dateOnly = DateTime(entry.createdAt.year, entry.createdAt.month, entry.createdAt.day);
+        datesWithEntries.add(dateOnly);
         }
       }
       
@@ -236,14 +236,14 @@ class _CalendarWeekTimelineState extends State<CalendarWeekTimeline> {
           _datesWithEntries = datesWithEntries;
         }
         
-        if (_isLoading) {
-          return const SizedBox(
-            height: 60,
-            child: Center(child: CircularProgressIndicator()),
-          );
-        }
+    if (_isLoading) {
+      return const SizedBox(
+        height: 60,
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
 
-        final weekDays = List.generate(7, (index) => _currentWeekStart.add(Duration(days: index)));
+    final weekDays = List.generate(7, (index) => _currentWeekStart.add(Duration(days: index)));
 
     return Container(
       height: 60, // Reduced height

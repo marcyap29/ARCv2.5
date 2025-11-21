@@ -42,7 +42,7 @@ class _HomeViewState extends State<HomeView> {
   List<TabItem> get _tabs {
     return const [
       TabItem(icon: Icons.book, text: 'Journal'),
-      TabItem(icon: Icons.psychology, text: 'LUMARA'),
+      TabItem(icon: Icons.psychology, text: 'LUMARA'), // Note: TabItem uses IconData, keeping Icons.psychology for now
       TabItem(icon: Icons.insights, text: 'Insights'),
     ];
   }
@@ -192,16 +192,16 @@ class _HomeViewState extends State<HomeView> {
                   _homeCubit.changeTab(index);
                 },
                 onNewJournalPressed: () async {
-                  // Clear any existing session cache to ensure fresh start
-                  await JournalSessionCache.clearSession();
-                  
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const JournalScreen(),
-                    ),
-                  );
-                },
+                        // Clear any existing session cache to ensure fresh start
+                        await JournalSessionCache.clearSession();
+                        
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const JournalScreen(),
+                          ),
+                        );
+                      },
                 showCenterButton: false,
               ),
             );

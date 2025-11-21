@@ -1,7 +1,43 @@
 # EPI ARC MVP - Changelog
 
-**Version:** 2.1.28  
+**Version:** 2.1.29  
 **Last Updated:** November 2025
+
+## [2.1.29] - November 2025
+
+### **LUMARA Prompt Feature & Saved Chats Fix** - Complete
+
+#### Empty Entry Writing Prompts
+- **Feature**: When writing for the first time in a journal entry (no text body, title optional), clicking the LUMARA head icon provides intelligent writing prompts.
+- **Context-Aware Generation**: System analyzes past 30 days of journal entries, recent chat sessions, current phase, and extracted keywords to generate personalized prompts.
+- **Traditional Prompts**: Includes 10 general writing prompts for variety and inspiration.
+- **User Experience**: Shows loading indicator while gathering context, then displays scrollable dialog with multiple prompt options to choose from.
+- **Implementation**: Uses `ContextProvider` to gather context from journal entries, chat history, and phase data.
+
+#### Saved Chats Display Fix
+- **Problem**: Saved chats card showed count (e.g., "2 saved items") but clicking it displayed "No saved chats yet" screen.
+- **Root Cause**: `SavedChatsScreen` was filtering saved chats to only show those with active sessions, but some saved chats referenced archived or deleted sessions.
+- **Solution**: Updated `SavedChatsScreen` to show all saved chats using `listAll(includeArchived: true)`, and added visual indicators for unavailable sessions.
+- **Visual Feedback**: Unavailable sessions are marked with "(Unavailable)" label and gray styling instead of blue.
+
+#### LUMARA Icon Replacement
+- **Custom Logo**: Replaced `Icons.psychology` with custom golden circular LUMARA logo throughout the app.
+- **Reusable Widget**: Created `LumaraIcon` widget that loads `assets/images/lumara_logo.png` with fallback to psychology icon.
+- **Locations Updated**: Journal screen LUMARA button, chat send buttons, message bubble avatars, navigation items.
+
+**Files Modified**:
+- `lib/ui/journal/journal_screen.dart` - Added prompt generation feature, replaced icon
+- `lib/arc/chat/chat/ui/saved_chats_screen.dart` - Fixed filtering to show all saved chats
+- `lib/arc/chat/chat/ui/enhanced_chats_screen.dart` - Fixed saved chats count display
+- `lib/arc/chat/ui/lumara_assistant_screen.dart` - Replaced icon
+- `lib/arc/chat/chat/ui/session_view.dart` - Replaced icon
+- `lib/arc/chat/ui/lumara_nav_item.dart` - Replaced icon
+- `lib/shared/widgets/lumara_icon.dart` - New reusable icon widget
+- `assets/images/lumara_logo.png` - New custom LUMARA logo
+
+**Status**: ✅ Complete - Enhanced journaling prompts, fixed saved chats, and custom LUMARA branding
+
+---
 
 ## [2.1.28] - November 2025
 
