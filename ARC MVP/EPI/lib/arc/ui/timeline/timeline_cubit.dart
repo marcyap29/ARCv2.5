@@ -197,8 +197,60 @@ class TimelineCubit extends Cubit<TimelineState> {
     }
 
     final searchLower = query.toLowerCase().trim();
+    
+    // Try to parse as date (supports formats: MM/DD/YYYY, MM-DD-YYYY, YYYY-MM-DD, MM/DD, etc.)
+    DateTime? searchDate;
+    try {
+      // Try common date formats
+      final datePatterns = [
+        RegExp(r'(\d{1,2})[/-](\d{1,2})[/-](\d{4})'), // MM/DD/YYYY or MM-DD-YYYY
+        RegExp(r'(\d{1,2})[/-](\d{1,2})'), // MM/DD (current year)
+        RegExp(r'(\d{4})[/-](\d{1,2})[/-](\d{1,2})'), // YYYY-MM-DD
+      ];
+      
+      for (final pattern in datePatterns) {
+        final match = pattern.firstMatch(query);
+        if (match != null) {
+          if (match.groupCount == 3) {
+            // Full date
+            final month = int.parse(match.group(1)!);
+            final day = int.parse(match.group(2)!);
+            final year = int.parse(match.group(3)!);
+            searchDate = DateTime(year, month, day);
+            break;
+          } else if (match.groupCount == 2) {
+            // Month/Day - use current year
+            final month = int.parse(match.group(1)!);
+            final day = int.parse(match.group(2)!);
+            final now = DateTime.now();
+            searchDate = DateTime(now.year, month, day);
+            break;
+          }
+        }
+      }
+    } catch (e) {
+      // Not a valid date, continue with text search
+    }
+    
     return groups.map((group) {
       final filteredEntries = group.entries.where((entry) {
+        // If search is a date, match by date
+        if (searchDate != null) {
+          final entryDate = DateTime(
+            entry.createdAt.year,
+            entry.createdAt.month,
+            entry.createdAt.day,
+          );
+          final searchDateOnly = DateTime(
+            searchDate.year,
+            searchDate.month,
+            searchDate.day,
+          );
+          if (entryDate == searchDateOnly) {
+            return true;
+          }
+        }
+        
         // Search in preview text
         if (entry.preview.toLowerCase().contains(searchLower)) {
           return true;
@@ -209,6 +261,11 @@ class TimelineCubit extends Cubit<TimelineState> {
         }
         // Search in keywords
         if (entry.keywords.any((keyword) => keyword.toLowerCase().contains(searchLower))) {
+          return true;
+        }
+        // Search in date string representation
+        final entryDateStr = '${entry.createdAt.month}/${entry.createdAt.day}/${entry.createdAt.year}';
+        if (entryDateStr.contains(query)) {
           return true;
         }
         return false;

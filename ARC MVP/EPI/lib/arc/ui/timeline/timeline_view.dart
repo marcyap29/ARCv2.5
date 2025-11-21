@@ -170,38 +170,44 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
       targetEntry = sortedEntries[targetIndex];
     }
     
-    // Use PrimaryScrollController to scroll to the entry in InteractiveTimelineView
+    // Use a different approach: find the entry and scroll using ensureVisible
     // Wait a frame to ensure the list is built
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final primaryScrollController = PrimaryScrollController.maybeOf(context);
-      if (primaryScrollController != null && primaryScrollController.hasClients) {
-        // Find the actual entry ID to scroll to
-        final targetEntryId = targetEntry.id;
+      // Find the entry in the current state
+      final currentState = _timelineCubit.state;
+      if (currentState is TimelineLoaded) {
+        final allEntries = <TimelineEntry>[];
+        for (final group in currentState.groupedEntries) {
+          allEntries.addAll(group.entries);
+        }
         
-        // Try to find the entry in the current state and get its index
-        final currentState = _timelineCubit.state;
-        if (currentState is TimelineLoaded) {
-          final allEntries = <TimelineEntry>[];
-          for (final group in currentState.groupedEntries) {
-            allEntries.addAll(group.entries);
-          }
-          
-          final sortedEntries = List<TimelineEntry>.from(allEntries);
-          sortedEntries.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-          
-          final actualIndex = sortedEntries.indexWhere((e) => e.id == targetEntryId);
-          if (actualIndex >= 0) {
-            // Approximate height of each timeline entry (including margins)
-            // Account for header height in NestedScrollView
-            final headerHeight = 200.0; // Approximate header height
-            final itemHeight = 216.0; // 200 (card) + 16 (margin)
-            final targetOffset = headerHeight + (actualIndex * itemHeight);
-            
-            primaryScrollController.animateTo(
-              targetOffset.clamp(0.0, primaryScrollController.position.maxScrollExtent),
-              duration: const Duration(milliseconds: 500),
-              curve: Curves.easeInOut,
-            );
+        final sortedEntries = List<TimelineEntry>.from(allEntries);
+        sortedEntries.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        
+        final targetEntryId = targetEntry.id;
+        final actualIndex = sortedEntries.indexWhere((e) => e.id == targetEntryId);
+        
+        if (actualIndex >= 0) {
+          // Use the timeline view key to access the state and scroll
+          final timelineState = _timelineViewKey.currentState;
+          if (timelineState != null) {
+            // Scroll after a short delay to ensure rendering is complete
+            Future.delayed(const Duration(milliseconds: 100), () {
+              final primaryScrollController = PrimaryScrollController.maybeOf(context);
+              if (primaryScrollController != null && primaryScrollController.hasClients) {
+                // Calculate offset more accurately
+                // Header: ~60 (calendar) + ~200 (phase preview) + ~60 (search if expanded) = ~320
+                final headerHeight = _isSearchExpanded ? 320.0 : 260.0;
+                final itemHeight = 250.0; // More accurate: card + margins + spacing
+                final targetOffset = headerHeight + (actualIndex * itemHeight);
+                
+                primaryScrollController.animateTo(
+                  targetOffset.clamp(0.0, primaryScrollController.position.maxScrollExtent),
+                  duration: const Duration(milliseconds: 800),
+                  curve: Curves.easeInOut,
+                );
+              }
+            });
           }
         }
       }
@@ -522,7 +528,7 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
                 return TextField(
                   controller: _searchController,
                   decoration: InputDecoration(
-                    hintText: 'Search entries...',
+                    hintText: 'Search entries or dates (MM/DD/YYYY)...',
                     prefixIcon: const Icon(Icons.search, color: kcPrimaryTextColor),
                     suffixIcon: _searchController.text.isNotEmpty
                         ? IconButton(

@@ -579,10 +579,15 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     // Dismiss keyboard first
     FocusScope.of(context).unfocus();
     
-    showModalBottomSheet(
+    // Auto-dismiss after 5 seconds
+    Timer? autoDismissTimer;
+    
+    final bottomSheet = showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
+      isDismissible: true,
+      enableDrag: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -601,6 +606,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
               'More depth',
               () {
                 Navigator.pop(context);
+                autoDismissTimer?.cancel();
                 _generateLumaraReflectionWithIntent('more_depth');
               },
             ),
@@ -610,6 +616,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
               'Suggest some ideas',
               () {
                 Navigator.pop(context);
+                autoDismissTimer?.cancel();
                 _generateLumaraReflectionWithIntent('suggest_ideas');
               },
             ),
@@ -619,6 +626,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
               'Help me think things through',
               () {
                 Navigator.pop(context);
+                autoDismissTimer?.cancel();
                 _generateLumaraReflectionWithIntent('think_through');
               },
             ),
@@ -628,6 +636,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
               'Offer a different perspective',
               () {
                 Navigator.pop(context);
+                autoDismissTimer?.cancel();
                 _generateLumaraReflectionWithIntent('different_perspective');
               },
             ),
@@ -637,6 +646,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
               'Suggest next steps',
               () {
                 Navigator.pop(context);
+                autoDismissTimer?.cancel();
                 _generateLumaraReflectionWithIntent('next_steps');
               },
             ),
@@ -645,6 +655,18 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
       ),
     ),
     );
+    
+    // Auto-dismiss after 5 seconds
+    autoDismissTimer = Timer(const Duration(seconds: 5), () {
+      if (Navigator.of(context).canPop()) {
+        Navigator.of(context).pop();
+      }
+    });
+    
+    // Cancel timer when sheet is dismissed
+    bottomSheet.then((_) {
+      autoDismissTimer?.cancel();
+    });
   }
 
   Widget _buildMenuOption(BuildContext context, IconData icon, String title, VoidCallback onTap) {
