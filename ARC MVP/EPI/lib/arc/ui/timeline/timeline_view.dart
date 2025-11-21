@@ -193,7 +193,9 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
                     SliverToBoxAdapter(
                       child: Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                        child: const CalendarWeekTimeline(),
+                        child: CalendarWeekTimeline(
+                          onDateTap: _jumpToDate,
+                        ),
                       ),
                     ),
                   // Phase preview - scrolls with content, below timeline visualization
