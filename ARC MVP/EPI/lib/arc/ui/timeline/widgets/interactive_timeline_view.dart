@@ -35,12 +35,13 @@ import 'package:my_app/arc/chat/services/favorites_service.dart';
 import 'package:my_app/arc/chat/data/models/lumara_favorite.dart';
 import 'package:my_app/arc/core/journal_repository.dart';
 import 'package:my_app/shared/ui/settings/favorites_management_view.dart';
+import 'package:scroll_to_index/scroll_to_index.dart';
 
 class InteractiveTimelineView extends StatefulWidget {
   final VoidCallback? onJumpToDate;
   final Function(bool isSelectionMode, int selectedCount, int totalEntries)? onSelectionChanged;
   final ValueChanged<bool>? onArcformTimelineVisibilityChanged;
-  final ScrollController? scrollController; // Optional - if null, NestedScrollView will handle scrolling
+  final AutoScrollController? scrollController; // Changed to AutoScrollController
   
   final ValueChanged<DateTime>? onVisibleEntryDateChanged;
 
@@ -65,7 +66,7 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
   List<TimelineEntry> _entries = [];
   bool _isSelectionMode = false;
   final Set<String> _selectedEntryIds = {};
-  ScrollController? _scrollController;
+  AutoScrollController? _scrollController;
   
   // Track previous notification state to prevent unnecessary callbacks
   bool _previousSelectionMode = false;
@@ -345,6 +346,9 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
     // Get scroll controller: use provided one, or PrimaryScrollController from NestedScrollView
     // If neither is available, ListView will create its own internal controller
     final scrollController = _scrollController ?? PrimaryScrollController.maybeOf(context);
+    
+    // Check if we have an AutoScrollController
+    final autoScrollController = scrollController is AutoScrollController ? scrollController : null;
 
     bool handleScroll(ScrollNotification notification) {
       if (notification.metrics.axis != Axis.vertical || sortedEntries.isEmpty) {
@@ -369,10 +373,23 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
           itemBuilder: (context, index) {
             print('DEBUG: Building timeline card for entry $index');
             final entry = sortedEntries[index];
-            return Container(
+            
+            final child = Container(
               margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: _buildTimelineEntryCard(entry, 0, index),
             );
+            
+            // Only wrap in AutoScrollTag if we have an AutoScrollController
+            if (autoScrollController != null) {
+              return AutoScrollTag(
+                key: ValueKey(index),
+                controller: autoScrollController,
+                index: index,
+                child: child,
+              );
+            }
+            
+            return child;
           },
         ),
       ),

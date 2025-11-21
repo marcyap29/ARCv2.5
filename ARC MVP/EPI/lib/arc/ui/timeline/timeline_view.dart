@@ -11,6 +11,7 @@ import 'package:my_app/arc/ui/timeline/timeline_entry_model.dart';
 import 'package:my_app/models/phase_models.dart';
 import 'package:my_app/arc/ui/timeline/favorite_journal_entries_view.dart';
 import 'package:my_app/shared/ui/settings/settings_view.dart';
+import 'package:scroll_to_index/scroll_to_index.dart';
 
 class TimelineView extends StatelessWidget {
   const TimelineView({super.key});
@@ -29,7 +30,7 @@ class TimelineViewContent extends StatefulWidget {
 }
 
 class _TimelineViewContentState extends State<TimelineViewContent> {
-  final ScrollController _scrollController = ScrollController();
+  late AutoScrollController _scrollController;
   late TimelineCubit _timelineCubit;
   final GlobalKey<InteractiveTimelineViewState> _timelineViewKey = GlobalKey<InteractiveTimelineViewState>();
   final TextEditingController _searchController = TextEditingController();
@@ -47,6 +48,9 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
   @override
   void initState() {
     super.initState();
+    _scrollController = AutoScrollController(
+      viewportBoundaryGetter: () => Rect.fromLTRB(0, 0, 0, MediaQuery.of(context).padding.bottom),
+    );
     _timelineCubit = context.read<TimelineCubit>();
     _scrollController.addListener(_onScroll);
     // Sync search controller with state
@@ -181,7 +185,7 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
       targetEntry = sortedEntries[targetIndex];
     }
     
-    // Use a different approach: scroll using PrimaryScrollController with better calculation
+    // Use AutoScrollController to scroll to the specific index
     // Wait multiple frames to ensure the list is fully built and rendered
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Future.delayed(const Duration(milliseconds: 200), () {
@@ -200,37 +204,11 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
           final actualIndex = sortedEntries.indexWhere((e) => e.id == targetEntryId);
           
           if (actualIndex >= 0) {
-            final primaryScrollController = PrimaryScrollController.maybeOf(context);
-            if (primaryScrollController != null && primaryScrollController.hasClients) {
-              // Calculate offset more accurately with multiple attempts
-              // Header: ~60 (calendar) + ~200 (phase preview) + ~60 (search if expanded) = ~320
-              final headerHeight = _isSearchExpanded ? 320.0 : 260.0;
-              final itemHeight = 280.0; // Increased: card (~220) + margins (16*2) + spacing (28)
-              final targetOffset = headerHeight + (actualIndex * itemHeight);
-              
-              // Try scrolling with a longer duration and ensure we scroll past the header
-              primaryScrollController.animateTo(
-                targetOffset.clamp(0.0, primaryScrollController.position.maxScrollExtent),
-                duration: const Duration(milliseconds: 1000),
-                curve: Curves.easeInOut,
-              );
-              
-              // If that doesn't work, try again after a delay with a larger offset
-              Future.delayed(const Duration(milliseconds: 1200), () {
-                if (primaryScrollController.hasClients) {
-                  final currentOffset = primaryScrollController.offset;
-                  final expectedOffset = headerHeight + (actualIndex * itemHeight);
-                  // If we didn't scroll far enough, scroll more
-                  if ((expectedOffset - currentOffset).abs() > 50) {
-                    primaryScrollController.animateTo(
-                      expectedOffset.clamp(0.0, primaryScrollController.position.maxScrollExtent),
-        duration: const Duration(milliseconds: 500),
-        curve: Curves.easeInOut,
-      );
-    }
-                }
-              });
-            }
+            _scrollController.scrollToIndex(
+              actualIndex,
+              preferPosition: AutoScrollPosition.begin,
+              duration: const Duration(milliseconds: 1000),
+            );
           }
         }
       });
@@ -247,12 +225,12 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
         ),
       );
     } else {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
           content: Text('Jumped to entry from ${targetEntry.createdAt.toString().split(' ')[0]} (${daysDiff} days ${targetDateOnly.isBefore(entryDateOnly) ? 'after' : 'before'} target date)'),
-        duration: const Duration(seconds: 3),
-      ),
-    );
+          duration: const Duration(seconds: 3),
+        ),
+      );
     }
   }
 
@@ -317,7 +295,7 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
               },
               body: InteractiveTimelineView(
                   key: _timelineViewKey,
-                scrollController: null, // Let NestedScrollView handle scrolling coordination
+                  scrollController: _scrollController, // Pass the AutoScrollController
                   onJumpToDate: _showJumpToDateDialog,
                   onSelectionChanged: (isSelectionMode, selectedCount, totalEntries) {
                     // Only update state if values actually changed to prevent rebuild loops

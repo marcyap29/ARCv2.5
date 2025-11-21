@@ -55,6 +55,7 @@ dependencies:
   collection: ^1.18.0
   flutter_secure_storage: ^9.2.2
   graphview: ^1.2.0
+  scroll_to_index: ^3.0.1
   
   # LUMARA Dependencies - On-Device AI with Qwen Stack
   # Runtime options: llama.cpp (GGUF) or MLC LLM
