@@ -69,6 +69,11 @@ The EPI MVP is **fully operational** with all core systems working correctly. Th
 - **Smart Guards**: Added logic to prevent calendar jitter during programmatic scrolls.
 - **Status**: ✅ Complete - Timeline and calendar now stay perfectly aligned.
 
+#### ✅ Saved Chats Navigation Fix (November 2025)
+- **Dedicated UI**: Implemented a dedicated screen for viewing all saved chats.
+- **Clear Navigation**: Replaced inline list with a distinct navigation entry in Chat History.
+- **Status**: ✅ Complete - Users can now easily access and manage their saved conversations.
+
 #### ✅ LUMARA Knowledge Attribution & Response Variety (November 2025)
 - **Attribution Logic**: Explicitly distinguished between EPI (user) and General knowledge.
 - **Response Variety**: Eliminated repetitive stock phrases in journal responses.

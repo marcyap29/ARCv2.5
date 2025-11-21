@@ -12,6 +12,7 @@ import 'category_management_screen.dart';
 import 'chat_export_import_screen.dart';
 import '../../services/favorites_service.dart';
 import '../../data/models/lumara_favorite.dart';
+import 'saved_chats_screen.dart';
 
 /// Enhanced screen showing chat sessions with category support
 class EnhancedChatsScreen extends StatefulWidget {
@@ -529,63 +530,48 @@ class _EnhancedChatsScreenState extends State<EnhancedChatsScreen>
   }
 
   Widget _buildSavedChatsSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          child: Row(
-            children: [
-              const Icon(Icons.bookmark, color: Color(0xFF2196F3), size: 20),
-              const SizedBox(width: 8),
-              Text(
-                'Saved Chats (${_savedChats.length}/20)',
-                style: heading2Style(context).copyWith(
-                  color: const Color(0xFF2196F3),
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
+    return Card(
+      margin: const EdgeInsets.only(bottom: 16),
+      color: const Color(0xFF2196F3).withOpacity(0.1),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: const BorderSide(color: Color(0xFF2196F3), width: 1),
+      ),
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        leading: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: const Color(0xFF2196F3).withOpacity(0.2),
+            shape: BoxShape.circle,
+          ),
+          child: const Icon(Icons.bookmark, color: Color(0xFF2196F3), size: 24),
+        ),
+        title: Text(
+          'Saved Chats',
+          style: heading2Style(context).copyWith(
+            color: const Color(0xFF2196F3),
+            fontWeight: FontWeight.bold,
           ),
         ),
-        const SizedBox(height: 8),
-        ..._savedChats.map((favorite) {
-          // Find the corresponding session if it exists
-          final session = _sessions.firstWhere(
-            (s) => s.id == favorite.sessionId,
-            orElse: () => ChatSession(
-              id: favorite.sessionId ?? '',
-              subject: 'Saved Chat',
-              createdAt: favorite.timestamp,
-              updatedAt: favorite.timestamp,
-              tags: [],
-              metadata: {},
+        subtitle: Text(
+          '${_savedChats.length} saved items',
+          style: captionStyle(context).copyWith(
+            color: const Color(0xFF2196F3).withOpacity(0.8),
+          ),
+        ),
+        trailing: const Icon(Icons.arrow_forward_ios, color: Color(0xFF2196F3), size: 16),
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => SavedChatsScreen(
+                chatRepo: widget.chatRepo,
+              ),
             ),
-          );
-          
-          return _SavedChatCard(
-            favorite: favorite,
-            session: session,
-            onTap: () {
-              if (session.id.isNotEmpty && _sessions.any((s) => s.id == session.id)) {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => SessionView(
-                      sessionId: session.id,
-                      chatRepo: ChatRepoImpl.instance,
-                    ),
-                  ),
-                );
-              }
-            },
-            onUnsave: () async {
-              await _favoritesService.removeFavorite(favorite.id);
-              await _loadData();
-            },
-          );
-        }),
-      ],
+          ).then((_) => _loadData()); // Reload when returning
+        },
+      ),
     );
   }
 
@@ -857,93 +843,7 @@ class _ChatSessionCard extends StatelessWidget {
   }
 }
 
-class _SavedChatCard extends StatelessWidget {
-  final LumaraFavorite favorite;
-  final ChatSession session;
-  final VoidCallback onTap;
-  final VoidCallback onUnsave;
 
-  const _SavedChatCard({
-    required this.favorite,
-    required this.session,
-    required this.onTap,
-    required this.onUnsave,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      color: const Color(0xFF2196F3).withOpacity(0.05),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: const BorderSide(color: Color(0xFF2196F3), width: 1),
-      ),
-      child: ListTile(
-        contentPadding: const EdgeInsets.all(16),
-        leading: const Icon(Icons.bookmark, color: Color(0xFF2196F3), size: 24),
-        title: Row(
-          children: [
-            Expanded(
-              child: Text(
-                session.subject,
-                style: heading2Style(context).copyWith(
-                  fontSize: 16,
-                  color: const Color(0xFF2196F3),
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ],
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 4),
-            Text(
-              'Saved ${_formatDate(favorite.timestamp)}',
-              style: captionStyle(context),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              favorite.content.length > 100
-                  ? '${favorite.content.substring(0, 100)}...'
-                  : favorite.content,
-              style: bodyStyle(context).copyWith(
-                fontSize: 12,
-                color: kcTextSecondaryColor,
-              ),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
-        ),
-        trailing: IconButton(
-          icon: const Icon(Icons.bookmark, color: Color(0xFF2196F3)),
-          onPressed: onUnsave,
-          tooltip: 'Unsave chat',
-        ),
-        onTap: onTap,
-          ),
-    );
-  }
-
-  String _formatDate(DateTime date) {
-    final now = DateTime.now();
-    final difference = now.difference(date);
-
-    if (difference.inDays == 0) {
-      return 'Today';
-    } else if (difference.inDays == 1) {
-      return 'Yesterday';
-    } else if (difference.inDays < 7) {
-      return '${difference.inDays} days ago';
-    } else {
-      return '${date.day}/${date.month}/${date.year}';
-    }
-  }
-}
 
 class _NewChatDialog extends StatefulWidget {
   final List<ChatCategory> categories;

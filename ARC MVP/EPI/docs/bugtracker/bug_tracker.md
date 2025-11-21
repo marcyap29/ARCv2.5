@@ -11,3 +11,9 @@
   1. Reduced `_timelineCardHeight` to 180.0 for better accuracy.
   2. Implemented `_isProgrammaticScroll` flag in `TimelineView` to suppress calendar updates during jump animations.
 - **Status**: ✅ Fixed
+
+### Saved Chats Navigation Issue
+- **Issue**: Clicking on "Saved Chats" in Chat History did not navigate to a list of saved chats, making them inaccessible.
+- **Root Cause**: Missing dedicated screen and navigation logic for the saved chats section.
+- **Resolution**: Created `SavedChatsScreen` and updated `EnhancedChatsScreen` to navigate to it.
+- **Status**: ✅ Fixed

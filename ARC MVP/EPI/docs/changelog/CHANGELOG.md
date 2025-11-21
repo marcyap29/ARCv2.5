@@ -30,6 +30,14 @@
 - `lib/arc/ui/timeline/timeline_view.dart` - Added scroll guards and improved synchronization logic
 - `lib/arc/ui/timeline/widgets/interactive_timeline_view.dart` - Adjusted card height constants for better accuracy
 
+#### Saved Chats Navigation Fix
+- **Dedicated Screen**: Created `SavedChatsScreen` to display a full list of saved chats.
+- **Improved Navigation**: Updated `EnhancedChatsScreen` to replace the inline list with a navigation card, providing clear access to saved conversations.
+
+**Files Modified**:
+- `lib/arc/chat/chat/ui/saved_chats_screen.dart` - New screen for saved chats
+- `lib/arc/chat/chat/ui/enhanced_chats_screen.dart` - Updated navigation logic
+
 ---
 
 ## [2.1.26] - January 2025
