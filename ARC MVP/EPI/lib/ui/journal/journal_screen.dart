@@ -643,6 +643,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
           ],
         ),
       ),
+    ),
     );
   }
 
