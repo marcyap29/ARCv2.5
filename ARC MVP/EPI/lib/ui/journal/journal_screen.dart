@@ -564,118 +564,6 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     _generateLumaraReflection();
   }
   
-  /// Show LUMARA menu options (long-press on LUMARA button)
-  void _showLumaraMenuOptions() {
-    if (!_isLumaraConfigured) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('LUMARA needs API key configuration'),
-          duration: Duration(seconds: 2),
-        ),
-      );
-      return;
-    }
-
-    // Dismiss keyboard first
-    FocusScope.of(context).unfocus();
-    
-    // Auto-dismiss after 5 seconds
-    Timer? autoDismissTimer;
-    
-    final bottomSheet = showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      isDismissible: true,
-      enableDrag: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) => Padding(
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.of(context).viewInsets.bottom,
-        ),
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-            _buildMenuOption(
-              context,
-              Icons.insights,
-              'More depth',
-              () {
-                Navigator.pop(context);
-                autoDismissTimer?.cancel();
-                _generateLumaraReflectionWithIntent('more_depth');
-              },
-            ),
-            _buildMenuOption(
-              context,
-              Icons.lightbulb,
-              'Suggest some ideas',
-              () {
-                Navigator.pop(context);
-                autoDismissTimer?.cancel();
-                _generateLumaraReflectionWithIntent('suggest_ideas');
-              },
-            ),
-            _buildMenuOption(
-              context,
-              Icons.psychology,
-              'Help me think things through',
-              () {
-                Navigator.pop(context);
-                autoDismissTimer?.cancel();
-                _generateLumaraReflectionWithIntent('think_through');
-              },
-            ),
-            _buildMenuOption(
-              context,
-              Icons.flip,
-              'Offer a different perspective',
-              () {
-                Navigator.pop(context);
-                autoDismissTimer?.cancel();
-                _generateLumaraReflectionWithIntent('different_perspective');
-              },
-            ),
-            _buildMenuOption(
-              context,
-              Icons.navigation,
-              'Suggest next steps',
-              () {
-                Navigator.pop(context);
-                autoDismissTimer?.cancel();
-                _generateLumaraReflectionWithIntent('next_steps');
-              },
-            ),
-          ],
-        ),
-      ),
-    ),
-    );
-    
-    // Auto-dismiss after 5 seconds
-    autoDismissTimer = Timer(const Duration(seconds: 5), () {
-      if (Navigator.of(context).canPop()) {
-        Navigator.of(context).pop();
-      }
-    });
-    
-    // Cancel timer when sheet is dismissed
-    bottomSheet.then((_) {
-      autoDismissTimer?.cancel();
-    });
-  }
-
-  Widget _buildMenuOption(BuildContext context, IconData icon, String title, VoidCallback onTap) {
-    return ListTile(
-      leading: Icon(icon, color: Theme.of(context).colorScheme.primary),
-      title: Text(title),
-      onTap: onTap,
-    );
-  }
 
   Future<void> _generateLumaraReflectionWithIntent(String intent) async {
     // Store original text
@@ -1757,15 +1645,15 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
                                 padding: const EdgeInsets.all(4),
                                 constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
                               ),
-                        
-                        // Add video button
-                        IconButton(
-                          onPressed: _handleVideoGallery,
-                          icon: const Icon(Icons.videocam, size: 18),
-                          tooltip: 'Add Video',
-                          padding: const EdgeInsets.all(4),
-                          constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
-                        ),
+                              
+                              // Add video button
+                              IconButton(
+                                onPressed: _handleVideoGallery,
+                                icon: const Icon(Icons.videocam, size: 18),
+                                tooltip: 'Add Video',
+                                padding: const EdgeInsets.all(4),
+                                constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                              ),
                               
                               // Keyword toggle button
                               IconButton(
@@ -1781,35 +1669,32 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
                                   backgroundColor: _showKeywordsDiscovered 
                                     ? theme.colorScheme.primary.withOpacity(0.2)
                                     : null,
-                          ),
-                        ),
-                        
-                        // LUMARA button with long-press menu
-                        GestureDetector(
-                          onLongPress: _isLumaraConfigured ? () => _showLumaraMenuOptions() : null,
-                          child: IconButton(
-                          onPressed: _onLumaraFabTapped,
-                          icon: Icon(
-                            Icons.psychology, 
-                            size: 18,
-                            color: _isLumaraConfigured 
-                              ? null 
-                              : theme.colorScheme.onSurface.withOpacity(0.5),
-                          ),
-                          tooltip: null, // Remove tooltip - menu shows immediately on long press
-                          padding: const EdgeInsets.all(4),
-                          constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
-                          style: IconButton.styleFrom(
-                            backgroundColor: _showLumaraBox 
-                              ? theme.colorScheme.primary.withOpacity(0.2)
-                              : _isLumaraConfigured 
-                                ? null 
-                                : theme.colorScheme.surface.withOpacity(0.5),
-                            ),
-                          ),
-                        ),
-                        
-                        // Continue button
+                                ),
+                              ),
+                              
+                              // LUMARA button
+                              IconButton(
+                                onPressed: _onLumaraFabTapped,
+                                icon: Icon(
+                                  Icons.psychology, 
+                                  size: 18,
+                                  color: _isLumaraConfigured 
+                                    ? null 
+                                    : theme.colorScheme.onSurface.withOpacity(0.5),
+                                ),
+                                tooltip: 'LUMARA',
+                                padding: const EdgeInsets.all(4),
+                                constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                                style: IconButton.styleFrom(
+                                  backgroundColor: _showLumaraBox 
+                                    ? theme.colorScheme.primary.withOpacity(0.2)
+                                    : _isLumaraConfigured 
+                                      ? null 
+                                      : theme.colorScheme.surface.withOpacity(0.5),
+                                ),
+                              ),
+                              
+                              // Continue button
                               // Enable if entry has user text OR LUMARA blocks (allow entries that start with reflections)
                               ElevatedButton(
                                 onPressed: (_entryState.text.trim().isNotEmpty || _entryState.blocks.isNotEmpty) ? _onContinue : null,

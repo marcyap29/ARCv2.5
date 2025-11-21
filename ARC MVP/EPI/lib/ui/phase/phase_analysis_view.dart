@@ -349,16 +349,16 @@ List<PhaseSegmentProposal> proposals,
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
-          icon: const Icon(Icons.help_outline),
-          onPressed: () {
-            Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (context) => const PhaseHelpScreen(),
-              ),
-            );
-          },
-          tooltip: 'Phase Help',
-        ),
+            icon: const Icon(Icons.help_outline),
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => const PhaseHelpScreen(),
+                ),
+              );
+            },
+            tooltip: 'Phase Help',
+          ),
         title: const Text('Phase Analysis'),
         centerTitle: true,
         actions: [
@@ -427,28 +427,28 @@ List<PhaseSegmentProposal> proposals,
                       style: TextStyle(
                         fontWeight: _selectedView == 'timeline' ? FontWeight.w600 : FontWeight.normal,
                       ),
-                    ),
-                  ],
-                ),
+          ),
+        ],
+      ),
               ),
               PopupMenuItem<String>(
                 value: 'analysis',
-                child: Row(
-                  children: [
+        child: Row(
+          children: [
                     Icon(
                       Icons.analytics,
                       size: 20,
                       color: _selectedView == 'analysis' ? Colors.purple : null,
                     ),
                     const SizedBox(width: 12),
-                    Text(
+            Text(
                       'Analysis',
-                      style: TextStyle(
+              style: TextStyle(
                         fontWeight: _selectedView == 'analysis' ? FontWeight.w600 : FontWeight.normal,
-                      ),
-                    ),
-                  ],
-                ),
+              ),
+            ),
+          ],
+        ),
               ),
               PopupMenuItem<String>(
                 value: 'settings',

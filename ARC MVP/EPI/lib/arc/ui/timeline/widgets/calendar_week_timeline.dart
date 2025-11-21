@@ -16,8 +16,13 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 class CalendarWeekTimeline extends StatefulWidget {
   final Function(DateTime)? onDateTap;
+  final ValueNotifier<DateTime>? weekStartNotifier;
   
-  const CalendarWeekTimeline({super.key, this.onDateTap});
+  const CalendarWeekTimeline({
+    super.key,
+    this.onDateTap,
+    this.weekStartNotifier,
+  });
 
   @override
   State<CalendarWeekTimeline> createState() => _CalendarWeekTimelineState();
@@ -29,6 +34,7 @@ class _CalendarWeekTimelineState extends State<CalendarWeekTimeline> {
   bool _isLoading = true;
   Set<DateTime> _datesWithEntries = {};
   final JournalRepository _journalRepo = JournalRepository();
+  ValueNotifier<DateTime>? _externalWeekNotifier;
 
   static DateTime _getWeekStart(DateTime date) {
     // Get Monday of the week
@@ -36,8 +42,43 @@ class _CalendarWeekTimelineState extends State<CalendarWeekTimeline> {
     return date.subtract(Duration(days: weekday - 1));
   }
 
+  void _syncWeekFromNotifier() {
+    final notifier = _externalWeekNotifier;
+    if (notifier == null) return;
+    final value = notifier.value;
+    if (!_isSameWeek(value, _currentWeekStart)) {
+      setState(() {
+        _currentWeekStart = value;
+      });
+    }
+  }
+
+  void _updateWeekState(DateTime date) {
+    final newWeek = _getWeekStart(date);
+    if (!_isSameWeek(newWeek, _currentWeekStart)) {
+      setState(() {
+        _currentWeekStart = newWeek;
+      });
+    }
+    _externalWeekNotifier?.value = newWeek;
+  }
+
+  bool _isSameWeek(DateTime a, DateTime b) {
+    return a.year == b.year && a.month == b.month && a.day == b.day;
+  }
+
+  void _shiftWeek(Duration offset) {
+    final newWeek = _currentWeekStart.add(offset);
+    setState(() {
+      _currentWeekStart = newWeek;
+    });
+    _externalWeekNotifier?.value = newWeek;
+  }
+
   @override
   void initState() {
+    _externalWeekNotifier = widget.weekStartNotifier;
+    _externalWeekNotifier?.addListener(_syncWeekFromNotifier);
     super.initState();
     _loadData();
   }
@@ -50,13 +91,29 @@ class _CalendarWeekTimelineState extends State<CalendarWeekTimeline> {
       final phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
       await phaseRegimeService.initialize();
       
-      // Load journal entries to find dates with entries
-      final entries = _journalRepo.getAllJournalEntries();
+      // Load dates with entries from timeline cubit if available
+      final cubit = context.read<TimelineCubit>();
+      final currentState = cubit.state;
+      
       final datesWithEntries = <DateTime>{};
-      for (final entry in entries) {
-        // Normalize to date only (remove time component)
-        final dateOnly = DateTime(entry.createdAt.year, entry.createdAt.month, entry.createdAt.day);
-        datesWithEntries.add(dateOnly);
+      
+      if (currentState is TimelineLoaded) {
+        // Use timeline entries from cubit
+        for (final group in currentState.groupedEntries) {
+          for (final entry in group.entries) {
+            // Normalize to date only (remove time component)
+            final dateOnly = DateTime(entry.createdAt.year, entry.createdAt.month, entry.createdAt.day);
+            datesWithEntries.add(dateOnly);
+          }
+        }
+      } else {
+        // Fallback to journal repository if timeline not loaded yet
+        final entries = _journalRepo.getAllJournalEntries();
+        for (final entry in entries) {
+          // Normalize to date only (remove time component)
+          final dateOnly = DateTime(entry.createdAt.year, entry.createdAt.month, entry.createdAt.day);
+          datesWithEntries.add(dateOnly);
+        }
       }
       
       setState(() {
@@ -85,15 +142,11 @@ class _CalendarWeekTimelineState extends State<CalendarWeekTimeline> {
     return colors[label] ?? Colors.grey;
   }
   
-  bool _hasEntriesForDate(DateTime date) {
-    final dateOnly = DateTime(date.year, date.month, date.day);
-    return _datesWithEntries.contains(dateOnly);
-  }
-  
   void _navigateToDateEntries(DateTime targetDate) {
     // Call the callback if provided, otherwise use the default implementation
     if (widget.onDateTap != null) {
       widget.onDateTap!(targetDate);
+      _updateWeekState(targetDate);
       return;
     }
     
@@ -141,16 +194,56 @@ class _CalendarWeekTimelineState extends State<CalendarWeekTimeline> {
     }
   }
 
+  Set<DateTime> _getDatesWithEntriesFromTimeline(TimelineState timelineState) {
+    if (timelineState is TimelineLoaded) {
+      final datesWithEntries = <DateTime>{};
+      for (final group in timelineState.groupedEntries) {
+        for (final entry in group.entries) {
+          final dateOnly = DateTime(entry.createdAt.year, entry.createdAt.month, entry.createdAt.day);
+          datesWithEntries.add(dateOnly);
+        }
+      }
+      return datesWithEntries;
+    }
+    return _datesWithEntries; // Return existing if timeline not loaded
+  }
+
+  @override
+  void didUpdateWidget(covariant CalendarWeekTimeline oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.weekStartNotifier != widget.weekStartNotifier) {
+      oldWidget.weekStartNotifier?.removeListener(_syncWeekFromNotifier);
+      _externalWeekNotifier = widget.weekStartNotifier;
+      _externalWeekNotifier?.addListener(_syncWeekFromNotifier);
+    }
+  }
+
+  @override
+  void dispose() {
+    _externalWeekNotifier?.removeListener(_syncWeekFromNotifier);
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) {
-      return const SizedBox(
-        height: 60,
-        child: Center(child: CircularProgressIndicator()),
-      );
-    }
+    // Listen to timeline cubit changes to get dates with entries
+    return BlocBuilder<TimelineCubit, TimelineState>(
+      builder: (context, timelineState) {
+        // Get dates with entries from timeline state
+        final datesWithEntries = _getDatesWithEntriesFromTimeline(timelineState);
+        if (_datesWithEntries.length != datesWithEntries.length ||
+            !datesWithEntries.containsAll(_datesWithEntries)) {
+          _datesWithEntries = datesWithEntries;
+        }
+        
+        if (_isLoading) {
+          return const SizedBox(
+            height: 60,
+            child: Center(child: CircularProgressIndicator()),
+          );
+        }
 
-    final weekDays = List.generate(7, (index) => _currentWeekStart.add(Duration(days: index)));
+        final weekDays = List.generate(7, (index) => _currentWeekStart.add(Duration(days: index)));
 
     return Container(
       height: 60, // Reduced height
@@ -166,9 +259,7 @@ class _CalendarWeekTimelineState extends State<CalendarWeekTimeline> {
           IconButton(
             icon: const Icon(Icons.chevron_left, size: 20),
             onPressed: () {
-              setState(() {
-                _currentWeekStart = _currentWeekStart.subtract(const Duration(days: 7));
-              });
+              _shiftWeek(const Duration(days: -7));
             },
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(),
@@ -184,7 +275,8 @@ class _CalendarWeekTimelineState extends State<CalendarWeekTimeline> {
                 final isToday = day.year == DateTime.now().year &&
                     day.month == DateTime.now().month &&
                     day.day == DateTime.now().day;
-                final hasEntries = _hasEntriesForDate(day);
+                final dayDateOnly = DateTime(day.year, day.month, day.day);
+                final hasEntries = datesWithEntries.contains(dayDateOnly);
 
                 return Expanded(
                   child: GestureDetector(
@@ -255,15 +347,15 @@ class _CalendarWeekTimelineState extends State<CalendarWeekTimeline> {
           IconButton(
             icon: const Icon(Icons.chevron_right, size: 20),
             onPressed: () {
-              setState(() {
-                _currentWeekStart = _currentWeekStart.add(const Duration(days: 7));
-              });
+              _shiftWeek(const Duration(days: 7));
             },
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(),
           ),
         ],
       ),
+    );
+      },
     );
   }
 

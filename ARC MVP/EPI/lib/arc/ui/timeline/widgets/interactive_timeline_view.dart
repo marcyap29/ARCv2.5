@@ -42,12 +42,15 @@ class InteractiveTimelineView extends StatefulWidget {
   final ValueChanged<bool>? onArcformTimelineVisibilityChanged;
   final ScrollController? scrollController; // Optional - if null, NestedScrollView will handle scrolling
   
+  final ValueChanged<DateTime>? onVisibleEntryDateChanged;
+
   const InteractiveTimelineView({
     super.key,
     this.onJumpToDate,
     this.onSelectionChanged,
     this.onArcformTimelineVisibilityChanged,
     this.scrollController,
+    this.onVisibleEntryDateChanged,
   });
 
   @override
@@ -73,6 +76,8 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
   bool _showArcformTimeline = false;
   PhaseIndex? _phaseIndex;
   bool _isArcformTimelineLoading = false;
+  static const double _timelineCardHeight = 280.0;
+  DateTime? _lastVisibleEntryDate;
 
   @override
   void initState() {
@@ -341,20 +346,35 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
     // If neither is available, ListView will create its own internal controller
     final scrollController = _scrollController ?? PrimaryScrollController.maybeOf(context);
 
+    bool handleScroll(ScrollNotification notification) {
+      if (notification.metrics.axis != Axis.vertical || sortedEntries.isEmpty) {
+        return false;
+      }
+      final offset = notification.metrics.pixels.clamp(0.0, notification.metrics.maxScrollExtent);
+      final index = offset ~/ _timelineCardHeight;
+      final safeIndex = index.clamp(0, sortedEntries.length - 1);
+      final entry = sortedEntries[safeIndex];
+      _notifyVisibleEntryDate(entry.createdAt);
+      return false;
+    }
+
     return RefreshIndicator(
       onRefresh: _refreshTimeline,
-      child: ListView.builder(
-        controller: scrollController,
-        physics: const AlwaysScrollableScrollPhysics(),
-        itemCount: sortedEntries.length,
-        itemBuilder: (context, index) {
-          print('DEBUG: Building timeline card for entry $index');
-          final entry = sortedEntries[index];
-          return Container(
-            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: _buildTimelineEntryCard(entry, 0, index),
-          );
-        },
+      child: NotificationListener<ScrollNotification>(
+        onNotification: handleScroll,
+        child: ListView.builder(
+          controller: scrollController,
+          physics: const AlwaysScrollableScrollPhysics(),
+          itemCount: sortedEntries.length,
+          itemBuilder: (context, index) {
+            print('DEBUG: Building timeline card for entry $index');
+            final entry = sortedEntries[index];
+            return Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: _buildTimelineEntryCard(entry, 0, index),
+            );
+          },
+        ),
       ),
     );
   }
@@ -416,6 +436,18 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
   DateTime _getWeekStart(DateTime date) {
     final weekday = date.weekday;
     return date.subtract(Duration(days: weekday - 1));
+  }
+
+  void _notifyVisibleEntryDate(DateTime date) {
+    final dateOnly = DateTime(date.year, date.month, date.day);
+    if (_lastVisibleEntryDate == null || !_isSameDay(_lastVisibleEntryDate!, dateOnly)) {
+      _lastVisibleEntryDate = dateOnly;
+      widget.onVisibleEntryDateChanged?.call(date);
+    }
+  }
+
+  bool _isSameDay(DateTime a, DateTime b) {
+    return a.year == b.year && a.month == b.month && a.day == b.day;
   }
 
   int _getWeekNumber(DateTime date) {

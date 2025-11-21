@@ -837,6 +837,40 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
                         ),
                       ],
                     ),
+                    // Action buttons (same as in-journal LUMARA Answers)
+                    const Gap(12),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 4,
+                      children: [
+                        _ActionButton(
+                          label: 'Regenerate',
+                          icon: Icons.refresh,
+                          onPressed: () => _handleRegenerate(message),
+                        ),
+                        _ActionButton(
+                          label: 'Soften tone',
+                          icon: Icons.favorite_outline,
+                          onPressed: () => _handleSoftenTone(message),
+                        ),
+                        _ActionButton(
+                          label: 'More depth',
+                          icon: Icons.insights,
+                          onPressed: () => _handleMoreDepth(message),
+                        ),
+                        _ActionButton(
+                          label: 'Continue thought',
+                          icon: Icons.play_arrow,
+                          onPressed: () => _continueAssistantThought(message),
+                        ),
+                        _ActionButton(
+                          label: 'Explore LUMARA conversation options',
+                          icon: Icons.chat,
+                          onPressed: () => _handleExploreConversation(message),
+                          isPrimary: true,
+                        ),
+                      ],
+                    ),
                   ],
                   
                   // Enhanced Attribution display for assistant messages
@@ -1001,15 +1035,12 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
                   ),
                 ),
               ),
-              GestureDetector(
-                onLongPress: () => _showLumaraMenuOptions(),
-                child: IconButton(
-                  icon: const Icon(Icons.psychology, size: 20),
+              IconButton(
+                icon: const Icon(Icons.psychology, size: 20),
                 padding: const EdgeInsets.all(8),
                 constraints: const BoxConstraints(),
                 onPressed: _sendCurrentMessage,
-                  tooltip: 'Send (long-press for options)',
-                ),
+                tooltip: 'Send',
               ),
               IconButton(
                 icon: const Icon(Icons.palette, size: 20),
@@ -1615,122 +1646,6 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
     );
   }
 
-  /// Show LUMARA menu options (long-press on send button)
-  void _showLumaraMenuOptions() {
-    // Dismiss keyboard first
-    FocusScope.of(context).unfocus();
-    
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) => Padding(
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.of(context).viewInsets.bottom,
-        ),
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-            _buildMenuOption(
-              context,
-              Icons.insights,
-              'More depth',
-              () {
-                Navigator.pop(context);
-                _sendMessageWithIntent('more_depth');
-              },
-            ),
-            _buildMenuOption(
-              context,
-              Icons.lightbulb,
-              'Suggest some ideas',
-              () {
-                Navigator.pop(context);
-                _sendMessageWithIntent('suggest_ideas');
-              },
-            ),
-            _buildMenuOption(
-              context,
-              Icons.psychology,
-              'Help me think things through',
-              () {
-                Navigator.pop(context);
-                _sendMessageWithIntent('think_through');
-              },
-            ),
-            _buildMenuOption(
-              context,
-              Icons.flip,
-              'Offer a different perspective',
-              () {
-                Navigator.pop(context);
-                _sendMessageWithIntent('different_perspective');
-              },
-            ),
-            _buildMenuOption(
-              context,
-              Icons.navigation,
-              'Suggest next steps',
-              () {
-                Navigator.pop(context);
-                _sendMessageWithIntent('next_steps');
-              },
-            ),
-          ],
-        ),
-      ),
-    ),
-    );
-  }
-
-  Widget _buildMenuOption(BuildContext context, IconData icon, String title, VoidCallback onTap) {
-    return ListTile(
-      leading: Icon(icon, color: Theme.of(context).colorScheme.primary),
-      title: Text(title),
-      onTap: onTap,
-    );
-  }
-
-  void _sendMessageWithIntent(String intent) {
-    final message = _messageController.text.trim();
-    String intentMessage = message;
-    
-    switch (intent) {
-      case 'more_depth':
-        intentMessage = message.isEmpty 
-          ? 'Can you provide more depth on this topic?' 
-          : '$message\n\nCan you provide more depth on this?';
-        break;
-      case 'suggest_ideas':
-        intentMessage = message.isEmpty 
-          ? 'Can you suggest some ideas?' 
-          : '$message\n\nCan you suggest some ideas related to this?';
-        break;
-      case 'think_through':
-        intentMessage = message.isEmpty 
-          ? 'Help me think things through' 
-          : '$message\n\nHelp me think things through this.';
-        break;
-      case 'different_perspective':
-        intentMessage = message.isEmpty 
-          ? 'Can you offer a different perspective?' 
-          : '$message\n\nCan you offer a different perspective on this?';
-        break;
-      case 'next_steps':
-        intentMessage = message.isEmpty 
-          ? 'What are the next steps?' 
-          : '$message\n\nWhat are the next steps?';
-        break;
-    }
-    
-    _messageController.text = intentMessage;
-    _sendCurrentMessage();
-  }
 
   /// Handle attribution weight changes
   void _handleAttributionWeightChange(String messageId, AttributionTrace trace, double newWeight) {
@@ -1945,4 +1860,73 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
     );
   }
 
+  // Handler methods for action buttons
+  void _handleRegenerate(LumaraMessage message) {
+    if (message.role != LumaraMessageRole.assistant) return;
+    _messageController.text = 'Can you regenerate your last response with a different approach?';
+    _sendCurrentMessage();
+  }
+
+  void _handleSoftenTone(LumaraMessage message) {
+    if (message.role != LumaraMessageRole.assistant) return;
+    _messageController.text = 'Can you soften the tone of your last response?';
+    _sendCurrentMessage();
+  }
+
+  void _handleMoreDepth(LumaraMessage message) {
+    if (message.role != LumaraMessageRole.assistant) return;
+    _messageController.text = 'Can you provide more depth on this topic?';
+    _sendCurrentMessage();
+  }
+
+  void _handleExploreConversation(LumaraMessage message) {
+    if (message.role != LumaraMessageRole.assistant) return;
+    // This is already in a chat, so just focus the input
+    _inputFocusNode.requestFocus();
+  }
+}
+
+/// Action button for chat message bubbles (same style as in-journal)
+class _ActionButton extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final VoidCallback onPressed;
+  final bool isPrimary;
+
+  const _ActionButton({
+    required this.label,
+    required this.icon,
+    required this.onPressed,
+    this.isPrimary = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    
+    return TextButton.icon(
+      onPressed: onPressed,
+      icon: Icon(
+        icon,
+        size: 16,
+        color: isPrimary 
+            ? theme.colorScheme.primary 
+            : theme.colorScheme.onSurfaceVariant,
+      ),
+      label: Text(
+        label,
+        style: theme.textTheme.labelSmall?.copyWith(
+          color: isPrimary 
+              ? theme.colorScheme.primary 
+              : theme.colorScheme.onSurfaceVariant,
+          fontWeight: isPrimary ? FontWeight.w600 : FontWeight.w500,
+        ),
+      ),
+      style: TextButton.styleFrom(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        minimumSize: const Size(44, 32), // Accessibility minimum
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      ),
+    );
+  }
 }

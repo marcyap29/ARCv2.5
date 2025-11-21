@@ -1,7 +1,52 @@
 # EPI ARC MVP - Changelog
 
-**Version:** 2.1.25  
+**Version:** 2.1.26  
 **Last Updated:** January 2025
+
+## [2.1.26] - January 2025
+
+### **LUMARA UI/UX Improvements & Navigation Updates**
+
+#### Removed Long Press Menu
+- **Journal Interface**: Removed long press on LUMARA head icon that showed menu options
+- **Chat Interface**: Removed long press on LUMARA send button that showed menu options
+- **Simplified Interaction**: Users now access options directly from action buttons at bottom of LUMARA responses
+
+#### In-Chat Action Buttons
+- **Unified Experience**: Added same action buttons from in-journal LUMARA Answers to bottom of in-chat LUMARA bubbles
+- **Action Buttons Available**:
+  - **Regenerate**: Regenerate response with different approach
+  - **Soften tone**: Request gentler, slower rhythm response
+  - **More depth**: Request deeper exploration of topic
+  - **Continue thought**: Continue assistant's thought
+  - **Explore LUMARA conversation options**: Focus input for further conversation
+- **Consistent Placement**: Action buttons appear at bottom of LUMARA bubbles in both journal and chat interfaces
+- **Visual Consistency**: Same button style and layout across all LUMARA interfaces
+
+#### Bottom Tab Navigation Improvements
+- **+ Button Repositioned**: Moved + button from floating action button to center of bottom tab bar
+- **Above Tabs**: + button now positioned above Journal|LUMARA|Insights tabs
+- **Size Reduction**: + button and border shrunk by 1/4 (50×50 → 37.5×37.5, border 1 → 0.75, icon 24 → 18)
+- **Better Integration**: + button no longer blocks other UI elements or text boxes
+- **Tab Container Height**: Increased tab container height to accommodate + button
+
+#### Timeline Date Connection
+- **Data Integration**: Calendar week timeline date boxes now connected to timeline cubit data
+- **Accurate Display**: Date boxes show accurate dates with entries based on timeline state
+- **Real-time Updates**: Calendar updates when timeline entries change
+- **BlocBuilder Integration**: Uses BlocBuilder to listen to timeline state changes
+
+**Files Modified**:
+- `lib/ui/journal/journal_screen.dart` - Removed long press handler and menu method
+- `lib/arc/chat/chat/ui/session_view.dart` - Removed long press handler, added action buttons to LUMARA bubbles
+- `lib/arc/chat/ui/lumara_assistant_screen.dart` - Removed long press handler, added action buttons to LUMARA bubbles
+- `lib/shared/tab_bar.dart` - Moved + button above tabs, reduced size by 1/4
+- `lib/shared/ui/home/home_view.dart` - Removed floating action button, connected + button to tab bar
+- `lib/arc/ui/timeline/widgets/calendar_week_timeline.dart` - Connected date boxes to timeline cubit data
+
+**Status**: ✅ Complete - Unified LUMARA UX, improved navigation, accurate timeline dates
+
+---
 
 ## [2.1.25] - January 2025
 

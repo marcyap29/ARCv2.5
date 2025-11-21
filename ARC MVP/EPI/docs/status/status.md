@@ -1,8 +1,8 @@
 # EPI MVP - Current Status
 
-**Version:** 2.1.16  
+**Version:** 2.1.26  
 **Last Updated:** January 2025  
-**Branch:** main  
+**Branch:** journal-updates  
 **Status:** ✅ Production Ready - MVP Fully Operational
 
 ---
@@ -32,7 +32,7 @@ The EPI MVP is **fully operational** with all core systems working correctly. Th
 | **LUMARA (Chat)** | ✅ Operational | Persistent memory, multimodal reflection working |
 | **ARCForm (Visualization)** | ✅ Operational | 3D constellations, phase-aware layouts working |
 | **PRISM (Analysis)** | ✅ Operational | Phase detection, RIVET, SENTINEL all working |
-| **MIRA (Memory)** | ✅ Operational | MCP export/import, memory graph working |
+| **POLYMETA (Memory)** | ✅ Operational | MCP export/import, memory graph working |
 | **AURORA (Orchestration)** | ✅ Operational | Scheduled jobs, VEIL regimens working |
 | **ECHO (Safety)** | ✅ Operational | Guardrails, privacy masking working |
 | **PRISM Scrubbing** | ✅ Operational | PII scrubbing before cloud APIs, restoration after receiving |
@@ -42,6 +42,10 @@ The EPI MVP is **fully operational** with all core systems working correctly. Th
 | **LUMARA Context Sync** | ✅ Operational | Text state syncing prevents stale text, date information helps identify latest entry |
 | **Advanced Analytics Toggle** | ✅ Operational | Settings toggle to show/hide Health and Analytics tabs, default OFF |
 | **Dynamic Tab Management** | ✅ Operational | Insights tabs dynamically adjust (2 tabs when Advanced Analytics OFF, 4 tabs when ON) |
+| **ARCForm Timeline Chrome** | ✅ Operational | Phase-colored rail toggles full-height ARCForm preview; legend shows only when expanded |
+| **LUMARA Action Buttons** | ✅ Operational | In-chat LUMARA bubbles now have action buttons (Regenerate, Soften tone, More depth, Continue thought, Explore conversation) at bottom, matching in-journal UX |
+| **Timeline Date Connection** | ✅ Operational | Calendar week timeline date boxes now connected to timeline cubit data, showing accurate dates with entries |
+| **Bottom Tab Navigation** | ✅ Operational | + button moved from floating to bottom tabs, positioned above Journal|LUMARA|Insights tabs |
 
 ### Platform Support
 
@@ -60,6 +64,37 @@ The EPI MVP is **fully operational** with all core systems working correctly. Th
 
 ### January 2025
 
+#### ✅ LUMARA UI/UX Improvements & Navigation Updates (January 2025)
+- **Removed Long Press Menu**: Removed long press functionality on LUMARA head icon in both journal and chat interfaces
+- **In-Chat Action Buttons**: Added same action buttons from in-journal LUMARA Answers to bottom of in-chat LUMARA bubbles:
+  - Regenerate
+  - Soften tone
+  - More depth
+  - Continue thought
+  - Explore LUMARA conversation options
+- **Unified Experience**: In-chat and in-journal now have consistent action button placement and functionality
+- **Bottom Tab Navigation**: Moved + button from floating action button to center of bottom tab bar, positioned above Journal|LUMARA|Insights tabs
+- **Button Sizing**: + button and border shrunk by 1/4 for better proportions
+- **Timeline Date Connection**: Calendar week timeline date boxes now properly connected to timeline cubit data, showing accurate dates with entries
+- **Status**: ✅ Complete - Unified LUMARA UX across all interfaces, improved navigation
+
+#### ✅ LUMARA Favorites ARCX Export/Import (January 2025)
+- **ARCX Export**: LUMARA favorites are now exported to ARCX archives in `PhaseRegimes/lumara_favorites.json`
+- **Manifest Tracking**: Favorites count included in ARCX manifest `scope.lumara_favorites_count`
+- **ARCX Import**: Favorites automatically imported from ARCX archives during import process
+- **Import Dialog**: Import completion dialog now displays "LUMARA Favorites imported: X" when favorites are imported
+- **Duplicate Prevention**: Import checks for existing favorites by `sourceId` to prevent duplicates
+- **Capacity Enforcement**: Import respects 25-item limit and skips favorites when at capacity
+- **Status**: ✅ Complete - ARCX favorites export/import fully implemented and tested
+
+#### ✅ Voiceover Mode & Favorites UI Improvements (January 2025)
+- **Voiceover Mode**: Settings toggle to enable AI responses being spoken aloud using TTS
+- **Voiceover Icons**: Added volume_up icon between copy and star icons in both in-chat and in-journal responses
+- **Text Cleaning**: Markdown formatting removed before speech for natural reading
+- **Favorites UI**: Removed long-press menu, reduced title font to 24px, added explainer text and + button for manual addition
+- **Export/Import**: Confirmed LUMARA Favorites are fully exported and imported in MCP bundles
+- **Status**: ✅ Complete - Voiceover mode working, favorites UI improved
+
 #### ✅ LUMARA Favorites Style System (January 2025)
 - **Favorites System**: Users can mark exemplary LUMARA replies as style exemplars (up to 25 favorites)
 - **Style Adaptation**: LUMARA adapts tone, structure, rhythm, and depth based on favorites while maintaining factual accuracy
@@ -71,6 +106,12 @@ The EPI MVP is **fully operational** with all core systems working correctly. Th
 - **Status**: ✅ Complete - Favorites system fully implemented and integrated
 
 ### November 2025
+
+#### ✅ Phase Legend On-Demand Toggle (November 17, 2025)
+- **Chrome Collapse**: Tapping the journal timeline’s phase rail hides the double app bars plus search/filter chrome, giving the ARCForm preview nearly full height.
+- **Legend Visibility**: Phase legend dropdown mounts only while ARCForm is expanded, preventing visual clutter when browsing entries normally.
+- **Interaction Cues**: The rail now includes an “ARC ✨” hint and drag gestures (right to open, left to close) to advertise the hidden preview.
+- **Status**: ✅ Complete - Journal timeline is distraction-free by default with contextual overlays on demand.
 
 #### ✅ Advanced Analytics Toggle & UI/UX Improvements (November 15, 2025)
 - **Advanced Analytics Toggle**: Settings toggle to show/hide Health and Analytics tabs in Insights
@@ -219,4 +260,4 @@ The EPI MVP is **fully operational** with all core systems working correctly. Th
 **Overall Status**: 🟢 **PRODUCTION READY** - All critical MVP functionality working correctly
 
 **Last Updated**: January 2025  
-**Version**: 2.1.16
+**Version**: 2.1.26

@@ -42,6 +42,7 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
   // Search expansion state
   bool _isSearchExpanded = false;
   bool _isArcformTimelineVisible = false;
+  final ValueNotifier<DateTime> _weekNotifier = ValueNotifier(_calculateWeekStart(DateTime.now()));
 
   @override
   void initState() {
@@ -80,6 +81,7 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
     _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
     _searchController.dispose();
+    _weekNotifier.dispose();
     super.dispose();
   }
 
@@ -88,6 +90,11 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
         _scrollController.position.maxScrollExtent - 200) {
       _timelineCubit.loadMoreEntries();
     }
+  }
+
+  static DateTime _calculateWeekStart(DateTime date) {
+    final weekday = date.weekday;
+    return date.subtract(Duration(days: weekday - 1));
   }
 
 
@@ -105,6 +112,10 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
   }
 
   void _jumpToDate(DateTime targetDate) {
+    final weekStart = _calculateWeekStart(targetDate);
+    if (_weekNotifier.value != weekStart) {
+      _weekNotifier.value = weekStart;
+    }
     // Get current state to access entries
     final currentState = _timelineCubit.state;
     if (currentState is! TimelineLoaded) {
@@ -152,20 +163,20 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
       targetEntry = exactMatches.first;
       targetIndex = sortedEntries.indexOf(targetEntry);
     } else {
-      // Find the closest entry to the target date
-      int closestIndex = 0;
-      int minDaysDifference = 999999;
-      
-      for (int i = 0; i < sortedEntries.length; i++) {
-        final entry = sortedEntries[i];
+    // Find the closest entry to the target date
+    int closestIndex = 0;
+    int minDaysDifference = 999999;
+    
+    for (int i = 0; i < sortedEntries.length; i++) {
+      final entry = sortedEntries[i];
         final entryDateOnly = DateTime(entry.createdAt.year, entry.createdAt.month, entry.createdAt.day);
         final daysDifference = (entryDateOnly.difference(targetDateOnly).inDays).abs();
-        
-        if (daysDifference < minDaysDifference) {
-          minDaysDifference = daysDifference;
-          closestIndex = i;
-        }
+      
+      if (daysDifference < minDaysDifference) {
+        minDaysDifference = daysDifference;
+        closestIndex = i;
       }
+    }
       targetIndex = closestIndex;
       targetEntry = sortedEntries[targetIndex];
     }
@@ -213,10 +224,10 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
                   if ((expectedOffset - currentOffset).abs() > 50) {
                     primaryScrollController.animateTo(
                       expectedOffset.clamp(0.0, primaryScrollController.position.maxScrollExtent),
-                      duration: const Duration(milliseconds: 500),
-                      curve: Curves.easeInOut,
-                    );
-                  }
+        duration: const Duration(milliseconds: 500),
+        curve: Curves.easeInOut,
+      );
+    }
                 }
               });
             }
@@ -236,12 +247,12 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
         ),
       );
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
           content: Text('Jumped to entry from ${targetEntry.createdAt.toString().split(' ')[0]} (${daysDiff} days ${targetDateOnly.isBefore(entryDateOnly) ? 'after' : 'before'} target date)'),
-          duration: const Duration(seconds: 3),
-        ),
-      );
+        duration: const Duration(seconds: 3),
+      ),
+    );
     }
   }
 
@@ -265,7 +276,12 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
                       child: Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                         child: CalendarWeekTimeline(
-                          onDateTap: _jumpToDate,
+                          onDateTap: (date) {
+                            final weekStart = _calculateWeekStart(date);
+                            _weekNotifier.value = weekStart;
+                            _jumpToDate(date);
+                          },
+                          weekStartNotifier: _weekNotifier,
                         ),
                       ),
                     ),
@@ -324,6 +340,9 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
                         _timelineCubit.setSearchQuery('');
                       }
                     });
+                  },
+                  onVisibleEntryDateChanged: (date) {
+                    _weekNotifier.value = _calculateWeekStart(date);
                   },
                 ),
           ),
