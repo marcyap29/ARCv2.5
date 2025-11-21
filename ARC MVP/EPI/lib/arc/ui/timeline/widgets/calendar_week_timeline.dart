@@ -53,14 +53,15 @@ class _CalendarWeekTimelineState extends State<CalendarWeekTimeline> {
 
   Color _getPhaseColor(PhaseLabel? label) {
     if (label == null) return Colors.grey;
-    switch (label) {
-      case PhaseLabel.discovery:
-        return Colors.blue;
-      case PhaseLabel.transition:
-        return Colors.purple;
-      default:
-        return Colors.grey;
-    }
+    const colors = {
+      PhaseLabel.discovery: Colors.blue,
+      PhaseLabel.expansion: Colors.green,
+      PhaseLabel.transition: Colors.purple,
+      PhaseLabel.consolidation: Colors.orange,
+      PhaseLabel.recovery: Colors.teal,
+      PhaseLabel.breakthrough: Colors.red,
+    };
+    return colors[label] ?? Colors.grey;
   }
 
   @override
