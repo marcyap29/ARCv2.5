@@ -1,7 +1,7 @@
 # EPI Documentation
 
-**Last Updated:** January 2025  
-**Version:** 2.1.26
+**Last Updated:** November 2025  
+**Version:** 2.1.27
 
 ## Documentation Structure
 
@@ -80,8 +80,8 @@ Policy specifications:
 
 ## Version Information
 
-**Current Version:** 2.1.26  
-**Last Major Update:** January 2025 (LUMARA UI/UX refresh, unified navigation, and timeline linkage)
+**Current Version:** 2.1.27  
+**Last Major Update:** November 2025 (LUMARA Knowledge Attribution, Response Variety, and Calendar Scroll Sync Fix)
 
 See `changelog/CHANGELOG.md` for detailed version history.
 

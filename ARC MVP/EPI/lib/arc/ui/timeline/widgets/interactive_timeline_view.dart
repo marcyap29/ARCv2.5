@@ -77,7 +77,7 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
   bool _showArcformTimeline = false;
   PhaseIndex? _phaseIndex;
   bool _isArcformTimelineLoading = false;
-  static const double _timelineCardHeight = 280.0;
+  static const double _timelineCardHeight = 180.0;
   DateTime? _lastVisibleEntryDate;
 
   @override

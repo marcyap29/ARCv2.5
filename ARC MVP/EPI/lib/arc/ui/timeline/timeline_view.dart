@@ -44,6 +44,7 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
   bool _isSearchExpanded = false;
   bool _isArcformTimelineVisible = false;
   final ValueNotifier<DateTime> _weekNotifier = ValueNotifier(_calculateWeekStart(DateTime.now()));
+  bool _isProgrammaticScroll = false;
 
   @override
   void initState() {
@@ -188,6 +189,7 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
     // Use AutoScrollController to scroll to the specific index
     // Wait multiple frames to ensure the list is fully built and rendered
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      _isProgrammaticScroll = true;
       Future.delayed(const Duration(milliseconds: 200), () {
         // Find the entry in the current state
         final currentState = _timelineCubit.state;
@@ -208,8 +210,19 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
               actualIndex,
               preferPosition: AutoScrollPosition.begin,
               duration: const Duration(milliseconds: 1000),
-            );
+            ).then((_) {
+              // Reset flag after scroll animation completes
+              Future.delayed(const Duration(milliseconds: 200), () {
+                if (mounted) {
+                  _isProgrammaticScroll = false;
+                }
+              });
+            });
+          } else {
+            _isProgrammaticScroll = false;
           }
+        } else {
+          _isProgrammaticScroll = false;
         }
       });
     });
@@ -320,7 +333,9 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
                     });
                   },
                   onVisibleEntryDateChanged: (date) {
-                    _weekNotifier.value = _calculateWeekStart(date);
+                    if (!_isProgrammaticScroll) {
+                      _weekNotifier.value = _calculateWeekStart(date);
+                    }
                   },
                 ),
           ),

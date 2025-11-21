@@ -1,7 +1,7 @@
 # EPI MVP - Current Status
 
-**Version:** 2.1.26  
-**Last Updated:** January 2025  
+**Version:** 2.1.27  
+**Last Updated:** November 2025  
 **Branch:** journal-updates  
 **Status:** ✅ Production Ready - MVP Fully Operational
 
@@ -61,6 +61,18 @@ The EPI MVP is **fully operational** with all core systems working correctly. Th
 ---
 
 ## Recent Achievements
+
+### November 2025
+
+#### ✅ Calendar Scroll Sync Fix (November 2025)
+- **Precision Sync**: Fixed visual desynchronization between timeline scroll and weekly calendar.
+- **Smart Guards**: Added logic to prevent calendar jitter during programmatic scrolls.
+- **Status**: ✅ Complete - Timeline and calendar now stay perfectly aligned.
+
+#### ✅ LUMARA Knowledge Attribution & Response Variety (November 2025)
+- **Attribution Logic**: Explicitly distinguished between EPI (user) and General knowledge.
+- **Response Variety**: Eliminated repetitive stock phrases in journal responses.
+- **Status**: ✅ Complete - More natural and accurate AI interactions.
 
 ### January 2025
 
@@ -264,5 +276,5 @@ The EPI MVP is **fully operational** with all core systems working correctly. Th
 
 **Overall Status**: 🟢 **PRODUCTION READY** - All critical MVP functionality working correctly
 
-**Last Updated**: January 2025  
-**Version**: 2.1.26
+**Last Updated**: November 2025  
+**Version**: 2.1.27

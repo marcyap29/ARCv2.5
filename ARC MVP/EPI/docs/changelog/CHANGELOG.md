@@ -22,6 +22,14 @@
 
 **Status**: ✅ Complete - Fixed attribution logic and improved response variety
 
+#### Calendar Scroll Sync Fix
+- **Precise Scrolling**: Fixed an issue where the weekly calendar would jump ahead of the selected date.
+- **Logic Update**: Adjusted timeline card height estimation and added programmatic scroll guards to ensure the calendar stays perfectly synced with the visible journal entry.
+
+**Files Modified**:
+- `lib/arc/ui/timeline/timeline_view.dart` - Added scroll guards and improved synchronization logic
+- `lib/arc/ui/timeline/widgets/interactive_timeline_view.dart` - Adjusted card height constants for better accuracy
+
 ---
 
 ## [2.1.26] - January 2025
