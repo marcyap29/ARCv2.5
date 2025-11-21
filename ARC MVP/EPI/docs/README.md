@@ -1,7 +1,7 @@
 # EPI Documentation
 
 **Last Updated:** January 2025  
-**Version:** 2.1.23
+**Version:** 2.1.26
 
 ## Documentation Structure
 
@@ -80,8 +80,8 @@ Policy specifications:
 
 ## Version Information
 
-**Current Version:** 2.1.23  
-**Last Major Update:** January 2025 (Always Show Favorites Link - Persistent access to Favorites management from snackbar)
+**Current Version:** 2.1.26  
+**Last Major Update:** January 2025 (LUMARA UI/UX refresh, unified navigation, and timeline linkage)
 
 See `changelog/CHANGELOG.md` for detailed version history.
 

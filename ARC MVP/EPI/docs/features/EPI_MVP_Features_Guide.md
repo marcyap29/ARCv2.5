@@ -72,6 +72,12 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 - **Entry Editing**: Inline editing capabilities
 - **Adaptive ARCForm Preview**: Timeline chrome collapses and the phase legend appears only when the ARCForm timeline rail is expanded, giving users a full-height preview when they need it and a clean journal canvas otherwise.
 
+### Timeline Navigation & LUMARA Links
+
+- **Calendar Week Sync**: The calendar week view now highlights the week containing the journal entry currently visible in the timeline list, and tapping a day scrolls the list to that entry. This keeps the calendar tightly coupled to the actual entries that users are browsing.
+- **Tab Bar Action Center**: The + journal action now shares the bottom navigation bar surface, sitting centered above the Journal | LUMARA | Insights tabs so it stays visible without floating over content.
+- **Unified Action Buttons**: Both in-chat and in-journal LUMARA bubbles expose the identical toolbar (Regenerate, Soften tone, More depth, Continue thought, Explore conversation), simplifying UI patterns and making advanced conversation actions more discoverable.
+
 ---
 
 ## AI Features

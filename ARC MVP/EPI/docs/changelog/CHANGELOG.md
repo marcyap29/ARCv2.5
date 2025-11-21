@@ -36,6 +36,12 @@
 - **Real-time Updates**: Calendar updates when timeline entries change
 - **BlocBuilder Integration**: Uses BlocBuilder to listen to timeline state changes
 
+#### Documentation Refresh
+- **Architecture**: Added the navigation and timeline linkage story to the architecture overview
+- **Archive & Bugtracker**: Summarized the new UX state in archive snapshots and the bug tracker
+- **Features & Guides**: Highlighted the unified action buttons, timeline sync, and navigation steps in the feature guide and quick-start guide
+- **Status & README**: Raised the documentation version to 2.1.26 and described the UI/UX highlights
+
 **Files Modified**:
 - `lib/ui/journal/journal_screen.dart` - Removed long press handler and menu method
 - `lib/arc/chat/chat/ui/session_view.dart` - Removed long press handler, added action buttons to LUMARA bubbles

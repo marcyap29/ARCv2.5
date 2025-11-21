@@ -157,6 +157,14 @@ results.forEach((path, exists) {
 
 ---
 
+## 🧭 Navigation & Timeline Sync
+
+- **Tab Bar Journal Action**: The + (create journal) action now lives above the Journal | LUMARA | Insights tabs instead of floating over the screen, keeping the navigation chrome cohesive.
+- **Calendar Week Linkage**: Scrolling the timeline entries updates the highlighted week tile, and tapping a calendar day scrolls the list to those entries while keeping the navigation state synchronized.
+- **Unified LUMARA Actions**: Both in-journal and in-chat LUMARA responses now expose the same toolbar (Regenerate, Soften tone, More depth, Continue thought, Explore conversation), so advanced prompts behave consistently in every context.
+
+---
+
 ## 🎨 Timeline Visual Indicators
 
 | Border | Meaning | Format |

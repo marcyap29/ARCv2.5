@@ -215,6 +215,11 @@ ARC  ─►  PRISM.atlas  ─►  MIRA.store
 - Ed25519 signing for data integrity
 - PII detection and masking at multiple layers
 
+### January 2025 UI/UX & Timeline Linkage
+- **Unified Navigation Surface**: The floating journal action was migrated into the bottom tab bar, centering the + button above Journal | LUMARA | Insights so core actions sit within the navigation chrome instead of floating.
+- **Action Button Consistency**: Both in-journal and in-chat LUMARA bubbles now expose the same toolbar (Regenerate, Soften tone, More depth, Continue thought, Explore conversation), aligning the experience between interfaces and simplifying the architecture.
+- **Timeline-Date Connection**: The calendar week timeline synchronizes directly with the visible entries (scroll to entry highlights the matching week and scrolling updates the week tiles), ensuring the timeline and journal data layers are tightly coupled within the ARC module while still respecting the layered architecture.
+
 ---
 
 ## Migration History

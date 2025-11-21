@@ -171,6 +171,11 @@ The EPI MVP is **fully operational** with all core systems working correctly. Th
 - **iOS Parity**: Dart implementation now matches iOS `PrismScrubber` functionality
 - **Status**: ✅ Complete - All cloud API calls now scrub PII before sending and restore after receiving
 
+#### ✅ Documentation & Navigation Refresh (January 2025)
+- **Docs Updated**: Architecture, archive snapshot, bug tracker, changelog, features guide, quick-start guide, status, and README now describe the navigation shift, unified LUMARA actions, and timeline-date connections (v2.1.26).
+- **Navigation Update**: + button moved into the bottom tab plan above Journal|LUMARA|Insights and the calendar week view syncs with the visible journal entry, so navigation, timeline tiles, and entry actions stay aligned.
+- **Status**: ✅ Complete - Documentation now reflects the current UI/UX story and timeline integration.
+
 #### ✅ Phase Detector Service & Enhanced ARCForm Shapes (January 23, 2025)
 - **Real-Time Phase Detector Service**: New keyword-based service to detect current phase from recent journal entries
 - **Enhanced ARCForm 3D Visualizations**: Dramatically improved Consolidation, Recovery, and Breakthrough shape recognition
