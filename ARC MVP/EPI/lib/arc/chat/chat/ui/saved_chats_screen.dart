@@ -108,8 +108,20 @@ class _SavedChatsScreenState extends State<SavedChatsScreen> {
                       favorite: favorite,
                       session: actualSession,
                       isSessionAvailable: sessionExists,
-                      onTap: () {
-                        if (sessionExists && actualSession.id.isNotEmpty) {
+                      onTap: () async {
+                        // Always allow navigation - SessionView will handle restoration
+                        if (actualSession.id.isNotEmpty) {
+                          // If session is archived, restore it first
+                          if (sessionExists && actualSession.isArchived) {
+                            try {
+                              await widget.chatRepo.archiveSession(actualSession.id, false);
+                              // Reload data to refresh the session state
+                              await _loadData();
+                            } catch (e) {
+                              print('Error restoring archived session: $e');
+                            }
+                          }
+                          
                           Navigator.push(
                             context,
                             MaterialPageRoute(
@@ -118,11 +130,11 @@ class _SavedChatsScreenState extends State<SavedChatsScreen> {
                                 chatRepo: ChatRepoImpl.instance,
                               ),
                             ),
-                          );
+                          ).then((_) => _loadData()); // Reload when returning
                         } else {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
-                              content: Text('Original chat session no longer available'),
+                              content: Text('Unable to open chat - session ID missing'),
                               duration: Duration(seconds: 2),
                             ),
                           );

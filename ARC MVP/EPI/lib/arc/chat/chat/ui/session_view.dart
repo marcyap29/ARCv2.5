@@ -164,15 +164,26 @@ class _SessionViewState extends State<SessionView> {
         _error = null;
       });
 
-      final session = await widget.chatRepo.getSession(widget.sessionId);
+      var session = await widget.chatRepo.getSession(widget.sessionId);
+      
+      // If session doesn't exist, try to restore it from archived or create from saved chat
       if (session == null) {
-        setState(() {
-          _error = 'Session not found';
-          _isLoading = false;
-        });
-        return;
+        // Check if it's in archived sessions
+        final allSessions = await widget.chatRepo.listAll(includeArchived: true);
+        session = allSessions.firstWhere(
+          (s) => s.id == widget.sessionId,
+          orElse: () => throw Exception('Session not found'),
+        );
+        
+        // If it's archived, restore it automatically
+        if (session.isArchived) {
+          await widget.chatRepo.archiveSession(session.id, false);
+          // Reload to get updated session
+          session = await widget.chatRepo.getSession(widget.sessionId);
+        }
       }
 
+      // Load messages (works for both active and archived sessions)
       final messages = await widget.chatRepo.getMessages(widget.sessionId);
       
       setState(() {
@@ -185,7 +196,7 @@ class _SessionViewState extends State<SessionView> {
       _checkIfChatSaved();
     } catch (e) {
       setState(() {
-        _error = e.toString();
+        _error = 'Session not found. It may have been deleted.';
         _isLoading = false;
       });
     }
@@ -200,6 +211,13 @@ class _SessionViewState extends State<SessionView> {
     });
 
     try {
+      // If session is archived, restore it automatically when continuing conversation
+      if (_session != null && _session!.isArchived) {
+        await widget.chatRepo.archiveSession(widget.sessionId, false);
+        // Reload session to get updated state
+        await _loadSession();
+      }
+      
       // If editing, remove messages after the edited one
       if (_editingMessageId != null) {
         _resubmitMessage(_editingMessageId!, content);

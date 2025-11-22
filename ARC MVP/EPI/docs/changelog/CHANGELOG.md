@@ -1,7 +1,38 @@
 # EPI ARC MVP - Changelog
 
-**Version:** 2.1.29  
+**Version:** 2.1.30  
 **Last Updated:** November 2025
+
+## [2.1.30] - November 2025
+
+### **Saved Chats Restoration & Continuation** - Complete
+
+#### Auto-Restore Archived Sessions
+- **Feature**: Saved chats with archived sessions now automatically restore when opened from the saved chats screen.
+- **User Experience**: No more "Unavailable" errors - all saved chats are accessible regardless of archive status.
+- **Implementation**: `SessionView` now checks for archived sessions and automatically restores them when loading.
+
+#### Continue Conversations from Archived Sessions
+- **Feature**: Users can continue conversations from archived sessions, just like Gemini and ChatGPT.
+- **Auto-Restore on Message**: Sending a message to an archived session automatically restores it to active status.
+- **Seamless Experience**: Archived sessions behave exactly like active sessions when accessed from saved chats.
+
+#### ARCX Export/Import Confirmed
+- **Export**: Saved chats are exported to `PhaseRegimes/lumara_favorites.json` in ARCX archives.
+- **Import**: Saved chats are imported from the same file during ARCX import.
+- **Complete Backup**: All saved chats (answers, chats, entries) are fully backed up and can be restored.
+
+#### Improved Error Handling
+- **Better Messages**: Clear error messages distinguish between archived (auto-restored) and truly deleted sessions.
+- **Graceful Degradation**: System handles missing sessions gracefully with informative error messages.
+
+**Files Modified**:
+- `lib/arc/chat/chat/ui/session_view.dart` - Added auto-restore logic for archived sessions
+- `lib/arc/chat/chat/ui/saved_chats_screen.dart` - Auto-restore archived sessions when opening saved chats
+
+**Status**: ✅ Complete - Saved chats now work seamlessly with archived sessions, full ARCX support confirmed
+
+---
 
 ## [2.1.29] - November 2025
 

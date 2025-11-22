@@ -1,11 +1,20 @@
 # EPI MVP - Update Log
 
-**Version:** 1.0.7  
+**Version:** 1.0.8  
 **Last Updated:** November 2025
 
 ---
 
 ## Update History
+
+### Version 2.1.30 (November 2025)
+
+#### Saved Chats Restoration & Continuation
+- ✅ Auto-restore archived sessions when opening saved chats
+- ✅ Continue conversations from archived sessions (like Gemini/ChatGPT)
+- ✅ Auto-restore archived sessions when sending messages
+- ✅ ARCX export/import confirmed for saved chats
+- ✅ Improved error handling for deleted vs archived sessions
 
 ### Version 2.1.29 (November 2025)
 
@@ -249,5 +258,5 @@
 ---
 
 **Last Updated:** November 2025  
-**Version:** 1.0.7
+**Version:** 1.0.8
 
