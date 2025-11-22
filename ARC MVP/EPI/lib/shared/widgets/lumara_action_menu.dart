@@ -7,6 +7,8 @@ class LumaraActionMenu extends StatefulWidget {
   final bool isExpanded;
   final ValueChanged<bool>? onExpansionChanged;
   final String label;
+  final AlignmentGeometry alignment;
+  final double? maxWidth; // Optional max width for content
 
   const LumaraActionMenu({
     super.key,
@@ -14,6 +16,8 @@ class LumaraActionMenu extends StatefulWidget {
     this.isExpanded = false,
     this.onExpansionChanged,
     this.label = 'Actions',
+    this.alignment = Alignment.topLeft,
+    this.maxWidth,
   });
 
   @override
@@ -68,8 +72,16 @@ class _LumaraActionMenuState extends State<LumaraActionMenu> with SingleTickerPr
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     
+    // Determine cross axis alignment based on alignment geometry
+    CrossAxisAlignment crossAxis = CrossAxisAlignment.start;
+    if (widget.alignment == Alignment.topRight || 
+        widget.alignment == Alignment.centerRight ||
+        widget.alignment == Alignment.bottomRight) {
+      crossAxis = CrossAxisAlignment.end;
+    }
+
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: crossAxis,
       mainAxisSize: MainAxisSize.min,
       children: [
         InkWell(
@@ -112,19 +124,25 @@ class _LumaraActionMenuState extends State<LumaraActionMenu> with SingleTickerPr
             return ClipRect(
               child: Align(
                 heightFactor: _heightFactor.value,
-                alignment: Alignment.topLeft,
+                alignment: widget.alignment,
                 child: child,
               ),
             );
           },
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.only(top: 8.0, left: 4.0),
-            child: Row(
-              children: widget.actions.map((action) => Padding(
-                padding: const EdgeInsets.only(right: 8.0),
-                child: action,
-              )).toList(),
+          child: Container(
+            constraints: widget.maxWidth != null 
+                ? BoxConstraints(maxWidth: widget.maxWidth!) 
+                : null,
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.only(top: 8.0, left: 4.0),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: widget.actions.map((action) => Padding(
+                  padding: const EdgeInsets.only(right: 8.0),
+                  child: action,
+                )).toList(),
+              ),
             ),
           ),
         ),

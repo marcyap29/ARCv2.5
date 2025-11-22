@@ -228,11 +228,13 @@ class _InlineReflectionBlockState extends State<InlineReflectionBlock> {
                       ),
                       const Spacer(),
                       // Actions Menu (Moved to right side)
-                      LumaraActionMenu(
-                        label: '', // Icon only
-                        actions: [
-                          LumaraActionButton(
-                            label: 'Regenerate',
+                      Flexible(
+                        child: LumaraActionMenu(
+                          label: '', // Icon only
+                          alignment: Alignment.topRight,
+                          actions: [
+                            LumaraActionButton(
+                              label: 'Regenerate',
                             icon: Icons.refresh,
                             onPressed: widget.isLoading ? () {} : widget.onRegenerate,
                           ),
@@ -259,9 +261,9 @@ class _InlineReflectionBlockState extends State<InlineReflectionBlock> {
                           ),
                         ],
                       ),
-                    ],
-                  ),
-                ],
+                    ),
+                  ],
+                ),
               ],
             ],
           ),
