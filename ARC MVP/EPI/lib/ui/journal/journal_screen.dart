@@ -2361,48 +2361,56 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
       return const SizedBox.shrink();
     }
     
-    return TextField(
-      controller: controller,
-      maxLines: null,
-      textCapitalization: TextCapitalization.sentences,
-      style: theme.textTheme.bodyMedium?.copyWith(
-        color: Colors.white,
-        fontSize: 16,
-        height: 1.5,
-      ),
-      cursorColor: Colors.white,
-      decoration: InputDecoration(
-        hintText: 'Continue your thoughts...',
-        hintStyle: theme.textTheme.bodyMedium?.copyWith(
-          color: Colors.white.withOpacity(0.4),
-          fontSize: 16,
-          height: 1.5,
-        ),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(
-            color: theme.colorScheme.outline.withOpacity(0.3),
-            width: 1,
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        Expanded(
+          child: TextField(
+            controller: controller,
+            maxLines: null,
+            textCapitalization: TextCapitalization.sentences,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurface,
+              fontSize: 16,
+              height: 1.5,
+            ),
+            cursorColor: theme.colorScheme.primary,
+            decoration: InputDecoration(
+              hintText: 'Write...',
+              hintStyle: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant.withOpacity(0.6),
+                fontSize: 16,
+                height: 1.5,
+              ),
+              border: InputBorder.none,
+              enabledBorder: InputBorder.none,
+              focusedBorder: InputBorder.none,
+              filled: false,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 0, vertical: 12),
+            ),
           ),
         ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(
-            color: theme.colorScheme.outline.withOpacity(0.3),
-            width: 1,
-          ),
+        const SizedBox(width: 8),
+        ValueListenableBuilder<TextEditingValue>(
+          valueListenable: controller,
+          builder: (context, value, child) {
+            if (value.text.isEmpty) return const SizedBox.shrink();
+            return Container(
+              decoration: BoxDecoration(
+                color: theme.colorScheme.primary,
+                shape: BoxShape.circle,
+              ),
+              child: IconButton(
+                onPressed: () => _onContinueThought(blockIndex),
+                icon: const Icon(Icons.arrow_upward, size: 20),
+                color: theme.colorScheme.onPrimary,
+                tooltip: 'Send to LUMARA',
+                constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+              ),
+            );
+          },
         ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(
-            color: theme.colorScheme.primary.withOpacity(0.5),
-            width: 2,
-          ),
-        ),
-        filled: true,
-        fillColor: theme.colorScheme.surfaceContainerHighest.withOpacity(0.2),
-        contentPadding: const EdgeInsets.all(12),
-      ),
+      ],
     );
   }
 

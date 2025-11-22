@@ -4,6 +4,7 @@ import 'package:my_app/mira/memory/enhanced_memory_schema.dart';
 import 'package:my_app/arc/chat/widgets/attribution_display_widget.dart';
 import 'package:my_app/arc/chat/services/favorites_service.dart';
 import 'package:my_app/arc/chat/data/models/lumara_favorite.dart';
+import 'package:my_app/shared/widgets/lumara_action_menu.dart';
 import 'package:my_app/shared/ui/settings/favorites_management_view.dart';
 import 'package:my_app/arc/chat/voice/audio_io.dart';
 
@@ -92,72 +93,25 @@ class _InlineReflectionBlockState extends State<InlineReflectionBlock> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final bg = theme.colorScheme.surfaceContainerHighest.withOpacity(0.3);
-    final borderColor = theme.colorScheme.primary;
-
+    // Remove card styling - make transparent and minimal (Rosebud style)
+    final bg = Colors.transparent; 
+    
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 8),
+      // Minimal container without border or shadow
       decoration: BoxDecoration(
         color: bg,
-        borderRadius: BorderRadius.circular(12),
-        border: Border(
-          left: BorderSide(width: 3, color: borderColor),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: borderColor.withOpacity(0.1),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
       ),
       child: Padding(
-          padding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
+          padding: const EdgeInsets.fromLTRB(0, 10, 0, 6), // Remove horizontal padding
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header with LUMARA icon and phase
-              Row(
-                children: [
-                  Icon(
-                    Icons.auto_awesome,
-                    size: 16,
-                    color: theme.colorScheme.primary,
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    'LUMARA',
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      fontWeight: FontWeight.w600,
-                      color: theme.colorScheme.primary,
-                    ),
-                  ),
-                  if (widget.phase != null) ...[
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.primary.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        widget.phase!,
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          color: theme.colorScheme.primary,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-              const SizedBox(height: 8),
-              // Reflection content or loading indicator with progress meter
-              // Unified with in-chat LUMARA loading indicator UI/UX
+              // Reflection content or loading indicator
               if (widget.isLoading)
                 Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+                  padding: const EdgeInsets.symmetric(vertical: 16),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -186,22 +140,11 @@ class _InlineReflectionBlockState extends State<InlineReflectionBlock> {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 12),
-                      // Progress meter
-                      LinearProgressIndicator(
-                        minHeight: 4,
-                        borderRadius: BorderRadius.circular(2),
-                        valueColor: AlwaysStoppedAnimation<Color>(
-                          theme.colorScheme.primary,
-                        ),
-                        backgroundColor: theme.colorScheme.surfaceContainerHighest,
-                      ),
                     ],
                   ),
                 )
               else ...[
-                // Reflection content (different color to distinguish from user text)
-                // Split content into paragraphs for better readability
+                // Reflection content (Blue color for LUMARA, distinct from user text)
                 ..._buildParagraphs(widget.content, theme),
                 
                 // Attribution display (if available)
@@ -209,34 +152,36 @@ class _InlineReflectionBlockState extends State<InlineReflectionBlock> {
                   const SizedBox(height: 12),
                   Builder(
                     builder: (context) {
-                      print('InlineReflectionBlock: Rendering AttributionDisplayWidget with ${widget.attributionTraces!.length} traces');
                       return AttributionDisplayWidget(
                         traces: widget.attributionTraces!,
                         responseId: widget.blockId ?? 'journal_${DateTime.now().millisecondsSinceEpoch}',
                       );
                     },
                   ),
-                ] else if (widget.attributionTraces != null) ...[
-                  // Debug: Show why attributions aren't showing
-                  Builder(
-                    builder: (context) {
-                      print('InlineReflectionBlock: Attribution traces is null or empty (null: ${widget.attributionTraces == null}, empty: ${widget.attributionTraces?.isEmpty ?? true})');
-                      return const SizedBox.shrink();
-                    },
-                  ),
                 ],
                 
-                // Copy, star, and delete buttons (lower left - unified with in-chat UX)
+                // Minimal Action Row (Rosebud Style: Play, Share, Menu)
                 if (!widget.isLoading && widget.content.isNotEmpty) ...[
                   const SizedBox(height: 8),
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
+                      // Speak (Play icon)
                       IconButton(
-                        icon: Icon(Icons.copy, size: 16, color: theme.colorScheme.onSurfaceVariant.withOpacity(0.6)),
+                        icon: Icon(Icons.play_arrow_outlined, size: 20, color: theme.colorScheme.onSurfaceVariant.withOpacity(0.6)),
                         padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(),
+                        constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                        onPressed: () => _speakContent(),
+                        tooltip: 'Speak',
+                      ),
+                      const SizedBox(width: 8),
+                      // Share (Replace Copy with Share)
+                      IconButton(
+                        icon: Icon(Icons.ios_share, size: 18, color: theme.colorScheme.onSurfaceVariant.withOpacity(0.6)),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
                         onPressed: () {
+                          // For now, copy to clipboard as requested functionality, but with share icon
                           Clipboard.setData(ClipboardData(text: widget.content));
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
@@ -247,13 +192,8 @@ class _InlineReflectionBlockState extends State<InlineReflectionBlock> {
                         },
                         tooltip: 'Copy',
                       ),
-                      IconButton(
-                        icon: Icon(Icons.volume_up, size: 16, color: theme.colorScheme.onSurfaceVariant.withOpacity(0.6)),
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(),
-                        onPressed: () => _speakContent(),
-                        tooltip: 'Speak',
-                      ),
+                      const SizedBox(width: 8),
+                      // Favorite
                       FutureBuilder<bool>(
                         future: widget.blockId != null
                             ? FavoritesService.instance.isFavorite(widget.blockId!)
@@ -263,13 +203,13 @@ class _InlineReflectionBlockState extends State<InlineReflectionBlock> {
                           return IconButton(
                             icon: Icon(
                               isFavorite ? Icons.star : Icons.star_border,
-                              size: 16,
+                              size: 18,
                               color: isFavorite
                                   ? Colors.amber
                                   : theme.colorScheme.onSurfaceVariant.withOpacity(0.6),
                             ),
                             padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints(),
+                            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
                             onPressed: widget.blockId != null
                                 ? () => _toggleFavorite(context)
                                 : null,
@@ -277,51 +217,51 @@ class _InlineReflectionBlockState extends State<InlineReflectionBlock> {
                           );
                         },
                       ),
+                      const SizedBox(width: 8),
+                      // Actions Menu
+                      LumaraActionMenu(
+                        label: '', // Icon only
+                        actions: [
+                          LumaraActionButton(
+                            label: 'Regenerate',
+                            icon: Icons.refresh,
+                            onPressed: widget.isLoading ? () {} : widget.onRegenerate,
+                          ),
+                          LumaraActionButton(
+                            label: 'Soften tone',
+                            icon: Icons.favorite_outline,
+                            onPressed: widget.isLoading ? () {} : widget.onSoften,
+                          ),
+                          LumaraActionButton(
+                            label: 'More depth',
+                            icon: Icons.insights,
+                            onPressed: widget.isLoading ? () {} : widget.onMoreDepth,
+                          ),
+                          LumaraActionButton(
+                            label: 'Continue thought',
+                            icon: Icons.play_arrow,
+                            onPressed: widget.isLoading ? () {} : widget.onContinueThought,
+                          ),
+                          LumaraActionButton(
+                            label: 'Explore LUMARA conversation options',
+                            icon: Icons.chat,
+                            onPressed: widget.isLoading ? () {} : widget.onContinueWithLumara,
+                            isPrimary: true,
+                          ),
+                        ],
+                      ),
+                      const Spacer(),
+                      // Delete (Keep in journal as requested)
                       IconButton(
-                        icon: Icon(Icons.close, size: 16, color: theme.colorScheme.onSurfaceVariant.withOpacity(0.6)),
+                        icon: Icon(Icons.close, size: 18, color: theme.colorScheme.onSurfaceVariant.withOpacity(0.6)),
                         padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(),
+                        constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
                         onPressed: widget.onDelete,
                         tooltip: 'Delete',
                       ),
                     ],
                   ),
                 ],
-                
-                const SizedBox(height: 12),
-                // Action buttons
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 4,
-                  children: [
-                    _ActionButton(
-                      label: 'Regenerate',
-                      icon: Icons.refresh,
-                      onPressed: widget.isLoading ? () {} : widget.onRegenerate,
-                    ),
-                    _ActionButton(
-                      label: 'Soften tone',
-                      icon: Icons.favorite_outline,
-                      onPressed: widget.isLoading ? () {} : widget.onSoften,
-                    ),
-                    _ActionButton(
-                      label: 'More depth',
-                      icon: Icons.insights,
-                      onPressed: widget.isLoading ? () {} : widget.onMoreDepth,
-                    ),
-                    _ActionButton(
-                      label: 'Continue thought',
-                      icon: Icons.play_arrow,
-                      onPressed: widget.isLoading ? () {} : widget.onContinueThought,
-                    ),
-                    _ActionButton(
-                      label: 'Explore LUMARA conversation options',
-                      icon: Icons.chat,
-                      onPressed: widget.isLoading ? () {} : widget.onContinueWithLumara,
-                      isPrimary: true,
-                    ),
-                  ],
-                ),
               ],
             ],
           ),
@@ -349,7 +289,6 @@ class _InlineReflectionBlockState extends State<InlineReflectionBlock> {
     // If still single paragraph, try splitting by sentence endings for better readability
     if (paragraphs.length == 1) {
       // Split by periods/exclamation/question marks followed by space and capital letter
-      // This creates natural paragraph breaks for long responses
       final sentencePattern = RegExp(r'([.!?])\s+([A-Z])');
       final matches = sentencePattern.allMatches(content);
       
@@ -385,10 +324,10 @@ class _InlineReflectionBlockState extends State<InlineReflectionBlock> {
             child: SelectableText(
               paragraph,
               style: theme.textTheme.bodyMedium?.copyWith(
-                height: 1.6, // Increased line height for better mobile readability
-                fontSize: 15, // Slightly larger font for mobile
-                color: theme.colorScheme.secondary,
-                fontStyle: FontStyle.italic,
+                height: 1.6,
+                fontSize: 16, // Rosebud style: clear, readable text
+                color: theme.colorScheme.primary, // Blue text for AI
+                fontWeight: FontWeight.w400,
               ),
             ),
           ),
@@ -401,9 +340,9 @@ class _InlineReflectionBlockState extends State<InlineReflectionBlock> {
         content,
         style: theme.textTheme.bodyMedium?.copyWith(
           height: 1.6,
-          fontSize: 15,
-          color: theme.colorScheme.secondary,
-          fontStyle: FontStyle.italic,
+          fontSize: 16,
+          color: theme.colorScheme.primary, // Blue text for AI
+          fontWeight: FontWeight.w400,
         ),
       )
     ] : widgets;
@@ -530,51 +469,6 @@ class _InlineReflectionBlockState extends State<InlineReflectionBlock> {
             );
           },
         ),
-      ),
-    );
-  }
-}
-
-/// Action button for inline reflection block
-class _ActionButton extends StatelessWidget {
-  final String label;
-  final IconData icon;
-  final VoidCallback onPressed;
-  final bool isPrimary;
-
-  const _ActionButton({
-    required this.label,
-    required this.icon,
-    required this.onPressed,
-    this.isPrimary = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    
-    return TextButton.icon(
-      onPressed: onPressed,
-      icon: Icon(
-        icon,
-        size: 16,
-        color: isPrimary 
-            ? theme.colorScheme.primary 
-            : theme.colorScheme.onSurfaceVariant,
-      ),
-      label: Text(
-        label,
-        style: theme.textTheme.labelSmall?.copyWith(
-          color: isPrimary 
-              ? theme.colorScheme.primary 
-              : theme.colorScheme.onSurfaceVariant,
-          fontWeight: isPrimary ? FontWeight.w600 : FontWeight.w500,
-        ),
-      ),
-      style: TextButton.styleFrom(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        minimumSize: const Size(44, 32), // Accessibility minimum
-        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
       ),
     );
   }

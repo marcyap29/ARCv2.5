@@ -29,6 +29,7 @@ import 'package:my_app/arc/core/journal_repository.dart';
 import '../services/favorites_service.dart';
 import 'package:my_app/shared/widgets/lumara_icon.dart';
 import '../data/models/lumara_favorite.dart';
+import 'package:my_app/shared/widgets/lumara_action_menu.dart';
 import 'package:my_app/shared/ui/settings/favorites_management_view.dart';
 import '../voice/audio_io.dart';
 
@@ -826,18 +827,18 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         IconButton(
-                          icon: Icon(Icons.copy, size: 16, color: Colors.grey[600]),
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(),
-                          onPressed: () => _copyMessage(message.content),
-                          tooltip: 'Copy',
-                        ),
-                        IconButton(
                           icon: Icon(Icons.volume_up, size: 16, color: Colors.grey[600]),
                           padding: EdgeInsets.zero,
                           constraints: const BoxConstraints(),
                           onPressed: () => _speakMessage(message.content),
                           tooltip: 'Speak',
+                        ),
+                        IconButton(
+                          icon: Icon(Icons.ios_share, size: 16, color: Colors.grey[600]),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                          onPressed: () => _copyMessage(message.content),
+                          tooltip: 'Copy/Share',
                         ),
                         IconButton(
                           icon: Icon(Icons.play_arrow, size: 16, color: Colors.grey[600]),
@@ -863,13 +864,8 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
                             );
                           },
                         ),
-                        IconButton(
-                          icon: Icon(Icons.close, size: 16, color: Colors.grey[600]),
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(),
-                          onPressed: () => _deleteMessage(message),
-                          tooltip: 'Delete',
-                        ),
+                        // Removed Delete icon from chat bubbles as requested
+                        
                         // Bookmark icon to save entire chat
                         FutureBuilder<String?>(
                           future: _getCurrentSessionId(),
@@ -899,32 +895,30 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
                       ],
                     ),
                     // Action buttons (same as in-journal LUMARA Answers)
-                    const Gap(12),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 4,
-                      children: [
-                        _ActionButton(
+                    const Gap(8),
+                    LumaraActionMenu(
+                      actions: [
+                        LumaraActionButton(
                           label: 'Regenerate',
                           icon: Icons.refresh,
                           onPressed: () => _handleRegenerate(message),
                         ),
-                        _ActionButton(
+                        LumaraActionButton(
                           label: 'Soften tone',
                           icon: Icons.favorite_outline,
                           onPressed: () => _handleSoftenTone(message),
                         ),
-                        _ActionButton(
+                        LumaraActionButton(
                           label: 'More depth',
                           icon: Icons.insights,
                           onPressed: () => _handleMoreDepth(message),
                         ),
-                        _ActionButton(
+                        LumaraActionButton(
                           label: 'Continue thought',
                           icon: Icons.play_arrow,
                           onPressed: () => _continueAssistantThought(message),
                         ),
-                        _ActionButton(
+                        LumaraActionButton(
                           label: 'Explore LUMARA conversation options',
                           icon: Icons.chat,
                           onPressed: () => _handleExploreConversation(message),
@@ -1242,61 +1236,6 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
         duration: Duration(seconds: 2),
       ),
     );
-  }
-
-  Future<void> _deleteMessage(LumaraMessage message) async {
-    // Show confirmation dialog
-    final shouldDelete = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete message?'),
-        content: const Text('This message will be permanently deleted. This action cannot be undone.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            style: TextButton.styleFrom(
-              foregroundColor: Colors.red,
-            ),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
-    );
-
-    if (shouldDelete != true) return;
-
-    try {
-      // Delete the message through the cubit
-      await context.read<LumaraAssistantCubit>().deleteMessage(message.id);
-      
-      // Force UI update
-      if (mounted) {
-        setState(() {});
-        
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Message deleted'),
-            duration: Duration(seconds: 2),
-          ),
-        );
-      }
-    } catch (e) {
-      // Show error if deletion fails
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to delete message: ${e.toString()}'),
-            duration: const Duration(seconds: 3),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-      debugPrint('Error deleting message: $e');
-    }
   }
 
   Future<void> _toggleFavorite(LumaraMessage message) async {
@@ -1941,50 +1880,5 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
     if (message.role != LumaraMessageRole.assistant) return;
     // This is already in a chat, so just focus the input
     _inputFocusNode.requestFocus();
-  }
-}
-
-/// Action button for chat message bubbles (same style as in-journal)
-class _ActionButton extends StatelessWidget {
-  final String label;
-  final IconData icon;
-  final VoidCallback onPressed;
-  final bool isPrimary;
-
-  const _ActionButton({
-    required this.label,
-    required this.icon,
-    required this.onPressed,
-    this.isPrimary = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    
-    return TextButton.icon(
-      onPressed: onPressed,
-      icon: Icon(
-        icon,
-        size: 16,
-        color: isPrimary 
-            ? theme.colorScheme.primary 
-            : theme.colorScheme.onSurfaceVariant,
-      ),
-      label: Text(
-        label,
-        style: theme.textTheme.labelSmall?.copyWith(
-          color: isPrimary 
-              ? theme.colorScheme.primary 
-              : theme.colorScheme.onSurfaceVariant,
-          fontWeight: isPrimary ? FontWeight.w600 : FontWeight.w500,
-        ),
-      ),
-      style: TextButton.styleFrom(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        minimumSize: const Size(44, 32), // Accessibility minimum
-        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-      ),
-    );
   }
 }
