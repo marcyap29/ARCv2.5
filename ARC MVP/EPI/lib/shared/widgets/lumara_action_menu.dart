@@ -117,12 +117,14 @@ class _LumaraActionMenuState extends State<LumaraActionMenu> with SingleTickerPr
               ),
             );
           },
-          child: Padding(
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.only(top: 8.0, left: 4.0),
-            child: Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: widget.actions,
+            child: Row(
+              children: widget.actions.map((action) => Padding(
+                padding: const EdgeInsets.only(right: 8.0),
+                child: action,
+              )).toList(),
             ),
           ),
         ),

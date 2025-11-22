@@ -218,7 +218,16 @@ class _InlineReflectionBlockState extends State<InlineReflectionBlock> {
                         },
                       ),
                       const SizedBox(width: 8),
-                      // Actions Menu
+                      // Delete (Moved to be just after Star)
+                      IconButton(
+                        icon: Icon(Icons.close, size: 18, color: theme.colorScheme.onSurfaceVariant.withOpacity(0.6)),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                        onPressed: widget.onDelete,
+                        tooltip: 'Delete',
+                      ),
+                      const Spacer(),
+                      // Actions Menu (Moved to right side)
                       LumaraActionMenu(
                         label: '', // Icon only
                         actions: [
@@ -249,15 +258,6 @@ class _InlineReflectionBlockState extends State<InlineReflectionBlock> {
                             isPrimary: true,
                           ),
                         ],
-                      ),
-                      const Spacer(),
-                      // Delete (Keep in journal as requested)
-                      IconButton(
-                        icon: Icon(Icons.close, size: 18, color: theme.colorScheme.onSurfaceVariant.withOpacity(0.6)),
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                        onPressed: widget.onDelete,
-                        tooltip: 'Delete',
                       ),
                     ],
                   ),
