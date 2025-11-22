@@ -1,7 +1,36 @@
 # EPI ARC MVP - Changelog
 
-**Version:** 2.1.30  
+**Version:** 2.1.31  
 **Last Updated:** November 2025
+
+## [2.1.31] - November 2025
+
+### **LUMARA & Phase Analysis Updates** - Complete
+
+#### LUMARA External Access
+- **Core Rule Update**: Updated LUMARA's core rules to explicitly allow access to external resources for biblical, factual, and scientific data.
+- **Safety**: Maintained strict "no-politics/news" filter while enabling broader knowledge access.
+- **Implementation**: Updated `prompt_library.dart` in both `echo` and `chat` modules.
+
+#### LUMARA Chat UI Refinements
+- **Simplified Intro**: The initial "Hello, I'm LUMARA..." message now appears as a simple greeting without action buttons (Copy, Speak, Save, etc.).
+- **User Focus**: Reduces visual clutter at the start of a conversation, focusing the user on their first interaction.
+- **Implementation**: Added conditional rendering in `LumaraAssistantScreen` to identify and simplify intro messages.
+
+#### ARCForm Visualization Cleanup
+- **UI Simplification**: Removed the "3D View" button and "Refresh" icon from the ARCForm Visualizations header in Phase Analysis.
+- **Streamlined View**: The visualization section now focuses purely on the content without redundant controls.
+- **Implementation**: Updated `PhaseAnalysisView` to remove unused/redundant widgets.
+
+**Files Modified**:
+- `lib/echo/response/prompts/prompt_library.dart` - Updated core rules
+- `lib/arc/chat/prompts/prompt_library.dart` - Updated core rules
+- `lib/arc/chat/ui/lumara_assistant_screen.dart` - Conditional UI for intro message
+- `lib/ui/phase/phase_analysis_view.dart` - Removed 3D View/Refresh buttons
+
+**Status**: ✅ Complete - Rules updated, UI simplified
+
+---
 
 ## [2.1.30] - November 2025
 

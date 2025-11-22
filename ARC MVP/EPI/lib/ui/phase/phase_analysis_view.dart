@@ -1451,34 +1451,6 @@ List<PhaseSegmentProposal> proposals,
                   ),
                 ),
               ),
-              // Refresh button with RIVET Sweep functionality
-              IconButton(
-                icon: const Icon(Icons.refresh),
-                iconSize: 18,
-                tooltip: 'Run Phase Analysis & Refresh',
-                onPressed: () async {
-                  // Run RIVET Sweep for phase analysis (includes comprehensive refresh)
-                  await _runRivetSweep();
-                },
-              ),
-              ElevatedButton.icon(
-                onPressed: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (context) => PhaseArcform3DScreen(
-                        phase: _phaseIndex?.currentRegime?.label.name,
-                        title: '3D Constellation View',
-                      ),
-                    ),
-                  );
-                },
-                icon: const Icon(Icons.auto_awesome),
-                label: const Text('3D View'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: kcPrimaryColor,
-                  foregroundColor: Colors.white,
-                ),
-              ),
             ],
           ),
         ),

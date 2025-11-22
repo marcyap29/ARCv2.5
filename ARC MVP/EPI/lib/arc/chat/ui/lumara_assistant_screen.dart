@@ -669,6 +669,12 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
   Widget _buildMessageBubble(LumaraMessage message) {
     final isUser = message.role == LumaraMessageRole.user;
     final isEditing = _editingMessageId == message.id;
+    // Check if this is the intro message to hide actions
+    final isIntroMessage = !isUser && (
+      message.content.startsWith("Hello! I'm LUMARA") || 
+      message.content.startsWith("Hi there! I'm LUMARA") || 
+      message.content.startsWith("Hey! I'm LUMARA")
+    );
 
     return Padding(
       key: Key('message_bubble_${message.id}'), // Unique key prevents GlobalKey conflicts
@@ -814,7 +820,7 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
                   ],
                   
                   // Copy, star, and delete buttons for assistant messages (lower left)
-                  if (!isUser) ...[
+                  if (!isUser && !isIntroMessage) ...[
                     const Gap(8),
                     Row(
                       mainAxisSize: MainAxisSize.min,

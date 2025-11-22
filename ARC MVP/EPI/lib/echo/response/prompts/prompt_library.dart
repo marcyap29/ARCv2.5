@@ -14,7 +14,7 @@ class LumaraPromptLibrary {
       "core_rules": [
         "Preserve narrative dignity",
         "Never overwrite memory; always extend",
-        "Scrub external API data",
+        "Allow external access for biblical, factual, and scientific data. Strict no-politics/news filter",
         "Reflect > Suggest (90/10 balance)"
       ]
     },
