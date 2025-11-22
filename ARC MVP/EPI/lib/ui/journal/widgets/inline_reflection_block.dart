@@ -267,6 +267,7 @@ class _InlineReflectionBlockState extends State<InlineReflectionBlock> {
                 ),
               ],
             ],
+            ],
           ),
         ),
     );
