@@ -684,11 +684,7 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
         mainAxisAlignment: isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
         children: [
           if (!isUser) ...[
-            CircleAvatar(
-              radius: 16,
-              backgroundColor: Colors.blue[100],
-              child: LumaraIcon(size: 16, color: Colors.blue[700]),
-            ),
+            const LumaraIcon(size: 32),
             const Gap(8),
           ],
           Flexible(
