@@ -45,8 +45,9 @@ class InlineReflectionBlock extends StatefulWidget {
   State<InlineReflectionBlock> createState() => _InlineReflectionBlockState();
 }
 
-class _InlineReflectionBlockState extends State<InlineReflectionBlock> {
+class _InlineReflectionBlockState extends State<InlineReflectionBlock> with SingleTickerProviderStateMixin {
   AudioIO? _audioIO;
+  bool _showActions = false;
   
   @override
   void initState() {
@@ -227,45 +228,76 @@ class _InlineReflectionBlockState extends State<InlineReflectionBlock> {
                         tooltip: 'Delete',
                       ),
                       const Spacer(),
-                      // Actions Menu (Moved to right side)
-                      Flexible(
-                        child: LumaraActionMenu(
-                          label: '', // Icon only
-                          alignment: Alignment.topRight,
-                          maxWidth: MediaQuery.of(context).size.width - 60, // Constraint width (accounting for padding)
-                          actions: [
-                            LumaraActionButton(
-                              label: 'Regenerate',
-                              icon: Icons.refresh,
-                              onPressed: widget.isLoading ? () {} : widget.onRegenerate,
-                            ),
-                            LumaraActionButton(
-                              label: 'Soften tone',
-                              icon: Icons.favorite_outline,
-                              onPressed: widget.isLoading ? () {} : widget.onSoften,
-                            ),
-                            LumaraActionButton(
-                              label: 'More depth',
-                              icon: Icons.insights,
-                              onPressed: widget.isLoading ? () {} : widget.onMoreDepth,
-                            ),
-                            LumaraActionButton(
-                              label: 'Continue thought',
-                              icon: Icons.play_arrow,
-                              onPressed: widget.isLoading ? () {} : widget.onContinueThought,
-                            ),
-                            LumaraActionButton(
-                              label: 'Explore LUMARA conversation options',
-                              icon: Icons.chat,
-                              onPressed: widget.isLoading ? () {} : widget.onContinueWithLumara,
-                              isPrimary: true,
-                            ),
-                          ],
+                      // Toggle Action Menu
+                      IconButton(
+                        icon: Icon(
+                          _showActions ? Icons.expand_less : Icons.tune,
+                          size: 18,
+                          color: _showActions 
+                              ? theme.colorScheme.primary 
+                              : theme.colorScheme.onSurfaceVariant.withOpacity(0.6),
                         ),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                        onPressed: () {
+                          setState(() {
+                            _showActions = !_showActions;
+                          });
+                        },
+                        tooltip: 'More Actions',
                       ),
-                  ],
-                ),
-              ],
+                    ],
+                  ),
+                  
+                  // Expandable Action Row (Drops down below)
+                  AnimatedSize(
+                    duration: const Duration(milliseconds: 200),
+                    curve: Curves.easeOut,
+                    alignment: Alignment.topCenter,
+                    child: _showActions 
+                      ? Padding(
+                          padding: const EdgeInsets.only(top: 12.0),
+                          child: SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            child: Row(
+                              children: [
+                                LumaraActionButton(
+                                  label: 'Regenerate',
+                                  icon: Icons.refresh,
+                                  onPressed: widget.isLoading ? () {} : widget.onRegenerate,
+                                ),
+                                const SizedBox(width: 8),
+                                LumaraActionButton(
+                                  label: 'Soften tone',
+                                  icon: Icons.favorite_outline,
+                                  onPressed: widget.isLoading ? () {} : widget.onSoften,
+                                ),
+                                const SizedBox(width: 8),
+                                LumaraActionButton(
+                                  label: 'More depth',
+                                  icon: Icons.insights,
+                                  onPressed: widget.isLoading ? () {} : widget.onMoreDepth,
+                                ),
+                                const SizedBox(width: 8),
+                                LumaraActionButton(
+                                  label: 'Continue thought',
+                                  icon: Icons.play_arrow,
+                                  onPressed: widget.isLoading ? () {} : widget.onContinueThought,
+                                ),
+                                const SizedBox(width: 8),
+                                LumaraActionButton(
+                                  label: 'Explore LUMARA conversation options',
+                                  icon: Icons.chat,
+                                  onPressed: widget.isLoading ? () {} : widget.onContinueWithLumara,
+                                  isPrimary: true,
+                                ),
+                              ],
+                            ),
+                          ),
+                        )
+                      : const SizedBox.shrink(),
+                  ),
+                ],
             ],
             ],
           ),
