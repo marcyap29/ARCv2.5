@@ -337,7 +337,23 @@ class _McpImportScreenState extends State<McpImportScreen> {
       } else {
         // Legacy MCP (.zip) import
         final journalRepo = context.read<JournalRepository>();
-        final importService = McpPackImportService(journalRepo: journalRepo);
+        
+        // Initialize PhaseRegimeService for import
+        PhaseRegimeService? phaseRegimeService;
+        try {
+          final analyticsService = AnalyticsService();
+          final rivetSweepService = RivetSweepService(analyticsService);
+          phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
+          await phaseRegimeService.initialize();
+          print('MCP Import: PhaseRegimeService initialized');
+        } catch (e) {
+          print('Warning: Could not initialize PhaseRegimeService: $e');
+        }
+        
+        final importService = McpPackImportService(
+          journalRepo: journalRepo,
+          phaseRegimeService: phaseRegimeService,
+        );
 
         // Show progress dialog
         _showProgressDialog();

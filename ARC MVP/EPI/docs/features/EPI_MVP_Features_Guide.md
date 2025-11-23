@@ -348,17 +348,30 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 ### MCP Export/Import
 
 **Export Features**
-- **Single File Format**: .zip only for simplicity
-- **Storage Profiles**: Minimal, balanced, hi-fidelity
-- **SAGE Integration**: Situation, Action, Growth, Essence extraction
+- **Dual Format Support**: Choose between Secure Archive (.arcx) with encryption or standard ZIP (.zip) for compatibility
+- **Complete Content Export**: Both formats export all data types:
+  - Journal entries with full metadata
+  - Media (photos, videos, audio, files)
+  - Chat sessions and messages
+  - Health data streams
+  - Phase Regimes
+  - RIVET state
+  - Sentinel state
+  - ArcForm timeline snapshots
+  - LUMARA Favorites (all categories: answers, chats, journal entries)
+- **Date Range Filtering**: Export entries, chats, and media within custom date ranges
+- **Extended Data**: All extended data exported to `extensions/` directory in ZIP format
 - **Privacy Protection**: PII detection and flagging
 - **Deterministic Exports**: Same input = same output
 
 **Import Features**
-- **Format Support**: MCP v1 compliant
-- **Timeline Integration**: Automatic timeline refresh
-- **Media Handling**: Photo and media import
-- **Duplicate Detection**: Prevents duplicate entries
+- **Format Support**: MCP v1 compliant ZIP files and ARCX encrypted archives
+- **Extended Data Import**: Full support for importing Phase Regimes, RIVET state, Sentinel state, ArcForm timeline, and LUMARA Favorites
+- **Category Preservation**: Favorite categories (answers, chats, journal entries) are preserved during import
+- **Capacity Management**: Import respects category-specific limits (25 answers, 20 chats, 20 journal entries)
+- **Timeline Integration**: Automatic timeline refresh after import
+- **Media Handling**: Photo and media import with deduplication
+- **Duplicate Detection**: Prevents duplicate entries and favorites
 
 ### ARCX Encryption
 
@@ -371,13 +384,15 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 ### Data Portability
 
 **Export Formats**
-- MCP (Memory Container Protocol)
-- ARCX (encrypted MCP)
+- **Secure Archive (.arcx)**: Encrypted with AES-256-GCM and Ed25519 signing
+- **ZIP (.zip)**: Standard unencrypted ZIP archive for compatibility
+- Both formats include identical content (entries, media, chats, extended data)
 - JSON (legacy support)
 
 **Import Formats**
-- MCP bundles
-- ARCX archives
+- **MCP bundles (.zip)**: Standard ZIP files with full extended data support
+- **ARCX archives (.arcx)**: Encrypted archives with signature verification
+- Both formats restore all content types including Phase Regimes, RIVET state, and LUMARA Favorites
 - Legacy formats (with conversion)
 
 ---

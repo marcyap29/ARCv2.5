@@ -7,6 +7,12 @@ import 'package:my_app/platform/photo_bridge.dart';
 import 'package:my_app/core/services/photo_library_service.dart';
 import 'package:my_app/mira/store/mcp/utils/image_processing.dart' show sha256Hex, reencodeFull;
 import 'package:my_app/arc/chat/chat/chat_repo.dart';
+import 'package:my_app/services/phase_regime_service.dart';
+import 'package:my_app/arc/chat/services/favorites_service.dart';
+import 'package:my_app/prism/atlas/rivet/rivet_storage.dart';
+import 'package:my_app/prism/atlas/rivet/rivet_models.dart' as rivet_models;
+import 'package:my_app/models/arcform_snapshot_model.dart';
+import 'package:hive/hive.dart';
 import 'package:archive/archive.dart';
 import 'package:archive/archive_io.dart';
 import 'package:path/path.dart' as path;
@@ -19,16 +25,19 @@ class McpPackExportService {
   final String _outputPath;
   final bool _isDebugMode;
   final ChatRepo? _chatRepo;
+  final PhaseRegimeService? _phaseRegimeService;
 
   McpPackExportService({
     required String bundleId,
     required String outputPath,
     bool isDebugMode = false,
     ChatRepo? chatRepo,
+    PhaseRegimeService? phaseRegimeService,
   }) : _bundleId = bundleId,
        _outputPath = outputPath,
        _isDebugMode = isDebugMode,
-       _chatRepo = chatRepo;
+       _chatRepo = chatRepo,
+       _phaseRegimeService = phaseRegimeService;
 
   /// Export journal entries to MCP package format
   Future<McpExportResult> exportJournal({
@@ -104,6 +113,14 @@ class McpPackExportService {
         } catch (e) {
           print('⚠️ MCP Export: Failed to export chat data: $e');
         }
+      }
+
+      // Export extended data (Phase Regimes, Rivet, Sentinel, ArcForm, Favorites)
+      // These are placed in mcp/extensions/ to maintain backward compatibility while adding new data
+      try {
+        await _exportExtendedData(mcpDir);
+      } catch (e) {
+        print('⚠️ MCP Export: Failed to export extended data: $e');
       }
 
       // Create manifest
@@ -697,6 +714,166 @@ class McpPackExportService {
     } catch (e) {
       print('❌ Chat export failed: $e');
       return {'sessionCount': 0, 'messageCount': 0};
+    }
+  }
+
+  /// Export extended data (Phase Regimes, Rivet, etc.)
+  Future<void> _exportExtendedData(Directory mcpDir) async {
+    final extensionsDir = Directory(path.join(mcpDir.path, 'extensions'));
+    await extensionsDir.create(recursive: true);
+
+    // 1. Phase Regimes
+    if (_phaseRegimeService != null) {
+      try {
+        final regimes = _phaseRegimeService!.allRegimes;
+        if (regimes.isNotEmpty) {
+          final exportData = _phaseRegimeService!.exportForMcp();
+          final phaseRegimesFile = File(path.join(extensionsDir.path, 'phase_regimes.json'));
+          await phaseRegimesFile.writeAsString(
+            const JsonEncoder.withIndent('  ').convert(exportData)
+          );
+          print('📦 MCP Export: Exported ${regimes.length} phase regimes');
+        }
+      } catch (e) {
+        print('⚠️ MCP Export: Failed to export phase regimes: $e');
+      }
+    }
+
+    // 2. RIVET State
+    try {
+      if (!Hive.isBoxOpen(RivetBox.boxName)) {
+        await Hive.openBox(RivetBox.boxName);
+      }
+      
+      final stateBox = Hive.box(RivetBox.boxName);
+      final eventsBox = Hive.isBoxOpen(RivetBox.eventsBoxName) 
+          ? Hive.box(RivetBox.eventsBoxName)
+          : await Hive.openBox(RivetBox.eventsBoxName);
+
+      final rivetStates = <String, dynamic>{};
+      
+      for (final userId in stateBox.keys) {
+        final stateData = stateBox.get(userId);
+        if (stateData == null) continue;
+
+        final rivetState = rivet_models.RivetState.fromJson(
+          stateData is Map<String, dynamic> 
+              ? stateData 
+              : Map<String, dynamic>.from(stateData as Map),
+        );
+
+        final eventsData = eventsBox.get(userId, defaultValue: <dynamic>[]);
+        final events = <rivet_models.RivetEvent>[];
+        if (eventsData is List) {
+          for (final eventData in eventsData) {
+            try {
+              final eventMap = eventData is Map<String, dynamic>
+                  ? eventData
+                  : Map<String, dynamic>.from(eventData as Map);
+              events.add(rivet_models.RivetEvent.fromJson(eventMap));
+            } catch (e) {
+              // Skip invalid events
+            }
+          }
+        }
+
+        rivetStates[userId.toString()] = {
+          'state': rivetState.toJson(),
+          'events': events.map((e) => e.toJson()).toList(),
+          'exported_at': DateTime.now().toIso8601String(),
+        };
+      }
+
+      if (rivetStates.isNotEmpty) {
+        final rivetStateFile = File(path.join(extensionsDir.path, 'rivet_state.json'));
+        await rivetStateFile.writeAsString(
+          const JsonEncoder.withIndent('  ').convert({
+            'rivet_states': rivetStates,
+            'exported_at': DateTime.now().toIso8601String(),
+            'version': '1.0',
+          })
+        );
+        print('📦 MCP Export: Exported RIVET state');
+      }
+    } catch (e) {
+      print('⚠️ MCP Export: Failed to export RIVET state: $e');
+    }
+
+    // 3. Sentinel State
+    try {
+      final sentinelStateFile = File(path.join(extensionsDir.path, 'sentinel_state.json'));
+      await sentinelStateFile.writeAsString(
+        const JsonEncoder.withIndent('  ').convert({
+          'sentinel_state': {
+            'state': 'ok',
+            'notes': [],
+            'exported_at': DateTime.now().toIso8601String(),
+            'note': 'Sentinel state is computed dynamically. This export represents the system state at export time.',
+          },
+          'exported_at': DateTime.now().toIso8601String(),
+          'version': '1.0',
+        })
+      );
+    } catch (e) {
+      print('⚠️ MCP Export: Failed to export Sentinel state: $e');
+    }
+
+    // 4. ArcForm Timeline
+    try {
+      if (!Hive.isBoxOpen('arcform_snapshots')) {
+        await Hive.openBox<ArcformSnapshot>('arcform_snapshots');
+      }
+
+      final box = Hive.box<ArcformSnapshot>('arcform_snapshots');
+      final snapshots = box.values.toList();
+
+      if (snapshots.isNotEmpty) {
+        final arcformTimelineFile = File(path.join(extensionsDir.path, 'arcform_timeline.json'));
+        await arcformTimelineFile.writeAsString(
+          const JsonEncoder.withIndent('  ').convert({
+            'arcform_snapshots': snapshots.map((s) => s.toJson()).toList(),
+            'exported_at': DateTime.now().toIso8601String(),
+            'version': '1.0',
+          })
+        );
+        print('📦 MCP Export: Exported ${snapshots.length} ArcForm snapshots');
+      }
+    } catch (e) {
+      print('⚠️ MCP Export: Failed to export ArcForm timeline: $e');
+    }
+
+    // 5. LUMARA Favorites
+    try {
+      final favoritesService = FavoritesService.instance;
+      await favoritesService.initialize();
+      final allFavorites = await favoritesService.getAllFavorites();
+
+      if (allFavorites.isNotEmpty) {
+        final favoritesFile = File(path.join(extensionsDir.path, 'lumara_favorites.json'));
+        await favoritesFile.writeAsString(
+          JsonEncoder.withIndent('  ').convert({
+            'lumara_favorites': allFavorites.map((f) {
+              final map = <String, dynamic>{
+                'id': f.id,
+                'content': f.content,
+                'timestamp': f.timestamp.toIso8601String(),
+                'source_id': f.sourceId,
+                'source_type': f.sourceType,
+                'metadata': f.metadata,
+                'category': f.category,
+              };
+              if (f.sessionId != null) map['session_id'] = f.sessionId;
+              if (f.entryId != null) map['entry_id'] = f.entryId;
+              return map;
+            }).toList(),
+            'exported_at': DateTime.now().toIso8601String(),
+            'version': '1.1',
+          })
+        );
+        print('📦 MCP Export: Exported ${allFavorites.length} LUMARA favorites');
+      }
+    } catch (e) {
+      print('⚠️ MCP Export: Failed to export LUMARA favorites: $e');
     }
   }
 

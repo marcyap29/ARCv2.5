@@ -9,17 +9,27 @@ import 'package:my_app/data/models/media_item.dart';
 import 'package:my_app/arc/core/journal_repository.dart';
 import 'package:my_app/core/utils/timestamp_parser.dart';
 import 'package:my_app/core/utils/title_generator.dart';
+import 'package:my_app/services/phase_regime_service.dart';
+import 'package:my_app/arc/chat/services/favorites_service.dart';
+import 'package:my_app/arc/chat/data/models/lumara_favorite.dart';
+import 'package:my_app/prism/atlas/rivet/rivet_storage.dart';
+import 'package:my_app/prism/atlas/rivet/rivet_models.dart' as rivet_models;
+import 'package:my_app/models/arcform_snapshot_model.dart';
+import 'package:hive/hive.dart';
 
 /// MCP Pack Import Service for .zip files only
 class McpPackImportService {
   final JournalRepository? _journalRepo;
+  final PhaseRegimeService? _phaseRegimeService;
 
   // Media deduplication cache - maps URI to MediaItem to prevent duplicates
   final Map<String, MediaItem> _mediaCache = {};
 
   McpPackImportService({
     JournalRepository? journalRepo,
-  }) : _journalRepo = journalRepo;
+    PhaseRegimeService? phaseRegimeService,
+  }) : _journalRepo = journalRepo,
+       _phaseRegimeService = phaseRegimeService;
   
   /// Clear the media cache (call before starting a new import)
   void clearMediaCache() {
@@ -80,6 +90,13 @@ class McpPackImportService {
       final entriesImported = entryImportResult['imported'] as int;
       final entriesTotal = entryImportResult['total'] as int;
       print('📝 Imported $entriesImported/$entriesTotal journal entries');
+      
+      // Import extended data (Phase Regimes, Rivet, Sentinel, ArcForm, Favorites)
+      try {
+        await _importExtendedData(mcpDir);
+      } catch (e) {
+        print('⚠️ MCP Import: Failed to import extended data: $e');
+      }
       
       // Log media cache statistics
       print('📊 Media Cache Statistics:');
@@ -662,6 +679,185 @@ class McpPackImportService {
   /// Parse media timestamp with robust handling (can be null)
   DateTime _parseMediaTimestamp(String? timestamp) {
     return TimestampParser.parseMediaTimestamp(timestamp);
+  }
+
+  /// Import extended data from extensions/ directory
+  Future<void> _importExtendedData(Directory mcpDir) async {
+    final extensionsDir = Directory(path.join(mcpDir.path, 'extensions'));
+    if (!await extensionsDir.exists()) {
+      print('📦 MCP Import: No extensions directory found (legacy format)');
+      return;
+    }
+
+    // 1. Phase Regimes
+    if (_phaseRegimeService != null) {
+      try {
+        final phaseRegimesFile = File(path.join(extensionsDir.path, 'phase_regimes.json'));
+        if (await phaseRegimesFile.exists()) {
+          final content = await phaseRegimesFile.readAsString();
+          final data = jsonDecode(content) as Map<String, dynamic>;
+          await _phaseRegimeService!.importFromMcp(data);
+          final regimes = data['phase_regimes'] as List? ?? [];
+          print('📦 MCP Import: ✓ Imported ${regimes.length} phase regimes');
+        }
+      } catch (e) {
+        print('⚠️ MCP Import: Failed to import phase regimes: $e');
+      }
+    }
+
+    // 2. RIVET State
+    try {
+      final rivetStateFile = File(path.join(extensionsDir.path, 'rivet_state.json'));
+      if (await rivetStateFile.exists()) {
+        final content = await rivetStateFile.readAsString();
+        final data = jsonDecode(content) as Map<String, dynamic>;
+        final rivetStates = data['rivet_states'] as Map<String, dynamic>? ?? {};
+        
+        if (!Hive.isBoxOpen(RivetBox.boxName)) {
+          await Hive.openBox(RivetBox.boxName);
+        }
+        if (!Hive.isBoxOpen(RivetBox.eventsBoxName)) {
+          await Hive.openBox(RivetBox.eventsBoxName);
+        }
+        
+        final stateBox = Hive.box(RivetBox.boxName);
+        final eventsBox = Hive.box(RivetBox.eventsBoxName);
+        
+        int importedCount = 0;
+        for (final entry in rivetStates.entries) {
+          final userId = entry.key;
+          final userData = entry.value as Map<String, dynamic>;
+          
+          final stateJson = userData['state'] as Map<String, dynamic>;
+          final rivetState = rivet_models.RivetState.fromJson(stateJson);
+          
+          await stateBox.put(userId, rivetState.toJson());
+          
+          final eventsJson = userData['events'] as List<dynamic>? ?? [];
+          if (eventsJson.isNotEmpty) {
+            final events = eventsJson
+                .map((e) => rivet_models.RivetEvent.fromJson(e as Map<String, dynamic>))
+                .toList();
+            await eventsBox.put(userId, events.map((e) => e.toJson()).toList());
+          }
+          
+          importedCount++;
+        }
+        
+        print('📦 MCP Import: ✓ Imported RIVET state for $importedCount users');
+      }
+    } catch (e) {
+      print('⚠️ MCP Import: Failed to import RIVET state: $e');
+    }
+
+    // 3. Sentinel State (read-only, informational)
+    try {
+      final sentinelStateFile = File(path.join(extensionsDir.path, 'sentinel_state.json'));
+      if (await sentinelStateFile.exists()) {
+        print('📦 MCP Import: ✓ Found Sentinel state (informational only)');
+      }
+    } catch (e) {
+      print('⚠️ MCP Import: Failed to read Sentinel state: $e');
+    }
+
+    // 4. ArcForm Timeline
+    try {
+      final arcformTimelineFile = File(path.join(extensionsDir.path, 'arcform_timeline.json'));
+      if (await arcformTimelineFile.exists()) {
+        final content = await arcformTimelineFile.readAsString();
+        final data = jsonDecode(content) as Map<String, dynamic>;
+        final snapshotsJson = data['arcform_snapshots'] as List<dynamic>? ?? [];
+        
+        if (!Hive.isBoxOpen('arcform_snapshots')) {
+          await Hive.openBox<ArcformSnapshot>('arcform_snapshots');
+        }
+        
+        final box = Hive.box<ArcformSnapshot>('arcform_snapshots');
+        int importedCount = 0;
+        
+        for (final snapshotJson in snapshotsJson) {
+          try {
+            final snapshot = ArcformSnapshot.fromJson(snapshotJson as Map<String, dynamic>);
+            await box.put(snapshot.id, snapshot);
+            importedCount++;
+          } catch (e) {
+            print('⚠️ MCP Import: Failed to import ArcForm snapshot: $e');
+          }
+        }
+        
+        print('📦 MCP Import: ✓ Imported $importedCount ArcForm snapshots');
+      }
+    } catch (e) {
+      print('⚠️ MCP Import: Failed to import ArcForm timeline: $e');
+    }
+
+    // 5. LUMARA Favorites
+    try {
+      final favoritesFile = File(path.join(extensionsDir.path, 'lumara_favorites.json'));
+      if (await favoritesFile.exists()) {
+        final content = await favoritesFile.readAsString();
+        final data = jsonDecode(content) as Map<String, dynamic>;
+        final favoritesJson = data['lumara_favorites'] as List<dynamic>? ?? [];
+        
+        final favoritesService = FavoritesService.instance;
+        await favoritesService.initialize();
+        
+        int importedCount = 0;
+        for (final favJson in favoritesJson) {
+          try {
+            final favoriteMap = favJson as Map<String, dynamic>;
+            
+            // Preserve all fields including category, sessionId, and entryId
+            final favorite = LumaraFavorite(
+              id: favoriteMap['id'] as String,
+              content: favoriteMap['content'] as String,
+              timestamp: DateTime.parse(favoriteMap['timestamp'] as String),
+              sourceId: favoriteMap['source_id'] as String?,
+              sourceType: favoriteMap['source_type'] as String?,
+              metadata: favoriteMap['metadata'] as Map<String, dynamic>? ?? {},
+              category: favoriteMap['category'] as String? ?? 'answer', // Preserve category (answer, chat, journal_entry)
+              sessionId: favoriteMap['session_id'] as String?, // For saved chats
+              entryId: favoriteMap['entry_id'] as String?, // For favorite journal entries
+            );
+            
+            // Check if favorite already exists
+            bool shouldImport = true;
+            if (favorite.sourceId != null) {
+              final existing = await favoritesService.findFavoriteBySourceId(favorite.sourceId!);
+              if (existing != null) {
+                shouldImport = false;
+              }
+            }
+            
+            // Check category-specific capacity (not just total capacity)
+            if (shouldImport) {
+              final category = favorite.category;
+              if (await favoritesService.isCategoryAtCapacity(category)) {
+                final limit = favoritesService.getCategoryLimit(category);
+                print('⚠️ MCP Import: Category $category at capacity ($limit), skipping favorite');
+                shouldImport = false;
+              }
+            }
+            
+            if (shouldImport) {
+              final added = await favoritesService.addFavorite(favorite);
+              if (added) {
+                importedCount++;
+                print('📦 MCP Import: ✓ Imported favorite ${favorite.id} (category: ${favorite.category})');
+              } else {
+                print('⚠️ MCP Import: Failed to add favorite ${favorite.id} (category: ${favorite.category})');
+              }
+            }
+          } catch (e) {
+            print('⚠️ MCP Import: Failed to import favorite: $e');
+          }
+        }
+        
+        print('📦 MCP Import: ✓ Imported $importedCount LUMARA favorites');
+      }
+    } catch (e) {
+      print('⚠️ MCP Import: Failed to import LUMARA favorites: $e');
+    }
   }
 }
 
