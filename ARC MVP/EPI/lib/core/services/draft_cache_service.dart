@@ -208,6 +208,71 @@ class DraftCacheService {
     await _cleanupOldDrafts();
   }
 
+  /// Remove duplicate drafts (same content + linkedEntryId or same content without linkedEntryId)
+  Future<int> removeDuplicateDrafts() async {
+    await _ensureInitialized();
+    
+    print('🔍 DraftCacheService: Starting duplicate draft removal...');
+    
+    // Helper function to normalize content for comparison
+    String normalizeContent(String content) {
+      return content
+          .toLowerCase()
+          .replaceAll(RegExp(r'[^\w\s]'), '') // Remove punctuation
+          .replaceAll(RegExp(r'\s+'), '') // Remove all whitespace
+          .trim();
+    }
+    
+    final allDrafts = await getAllDrafts();
+    final originalCount = allDrafts.length;
+    
+    // Group drafts by normalized content + linkedEntryId
+    final draftMap = <String, List<JournalDraft>>{};
+    for (final draft in allDrafts) {
+      final normalizedContent = normalizeContent(draft.content);
+      final key = '${draft.linkedEntryId ?? 'unlinked'}|$normalizedContent';
+      
+      if (!draftMap.containsKey(key)) {
+        draftMap[key] = [];
+      }
+      draftMap[key]!.add(draft);
+    }
+    
+    final draftsToDelete = <String>[];
+    
+    // For each group with duplicates, keep the most recent
+    for (final draftList in draftMap.values) {
+      if (draftList.length > 1) {
+        print('⚠️ DraftCacheService: Found ${draftList.length} duplicate drafts');
+        // Sort by lastModified descending, keep the first (most recent)
+        draftList.sort((a, b) => b.lastModified.compareTo(a.lastModified));
+        final keepDraft = draftList.first;
+        
+        // Mark others for deletion
+        for (int i = 1; i < draftList.length; i++) {
+          final duplicateDraft = draftList[i];
+          if (!draftsToDelete.contains(duplicateDraft.id)) {
+            draftsToDelete.add(duplicateDraft.id);
+            print('   ✅ Marking duplicate draft for deletion: ${duplicateDraft.id} (keeping ${keepDraft.id})');
+          }
+        }
+      }
+    }
+    
+    // Delete duplicate drafts
+    int deletedCount = 0;
+    if (draftsToDelete.isNotEmpty) {
+      await deleteDrafts(draftsToDelete);
+      deletedCount = draftsToDelete.length;
+    }
+    
+    print('🔍 DraftCacheService: Duplicate draft removal complete');
+    print('   Original drafts: $originalCount');
+    print('   Duplicates removed: $deletedCount');
+    
+    return deletedCount;
+  }
+
   /// Create a new draft session or reuse existing one (single-draft-per-entry invariant)
   Future<String> createDraft({
     String? initialEmotion,
@@ -218,6 +283,14 @@ class DraftCacheService {
     String? baseVersionId, // If editing an old version, reference the base version
   }) async {
     await _ensureInitialized();
+    
+    // Run deduplication before creating new draft (silently in background)
+    try {
+      await removeDuplicateDrafts();
+    } catch (e) {
+      debugPrint('DraftCacheService: Error running deduplication: $e');
+      // Continue even if deduplication fails
+    }
 
     // SINGLE-DRAFT INVARIANT: If editing an existing entry, check for existing draft
     if (linkedEntryId != null) {
@@ -694,9 +767,56 @@ class DraftCacheService {
 
   Future<void> _saveDraft(JournalDraft draft) async {
     try {
+      // Check for duplicate drafts before saving
+      await _checkAndRemoveDuplicateDrafts(draft);
       await _box?.put(_currentDraftKey, draft.toJson());
     } catch (e) {
       debugPrint('DraftCacheService: Error saving draft - $e');
+    }
+  }
+  
+  /// Check for and remove duplicate drafts matching the current draft
+  Future<void> _checkAndRemoveDuplicateDrafts(JournalDraft currentDraft) async {
+    try {
+      // Helper function to normalize content
+      String normalizeContent(String content) {
+        return content
+            .toLowerCase()
+            .replaceAll(RegExp(r'[^\w\s]'), '')
+            .replaceAll(RegExp(r'\s+'), '')
+            .trim();
+      }
+      
+      final allDrafts = await getAllDrafts();
+      final normalizedCurrent = normalizeContent(currentDraft.content);
+      final currentKey = '${currentDraft.linkedEntryId ?? 'unlinked'}|$normalizedCurrent';
+      
+      final duplicatesToDelete = <String>[];
+      
+      for (final draft in allDrafts) {
+        // Skip the current draft itself
+        if (draft.id == currentDraft.id) continue;
+        
+        final normalizedDraft = normalizeContent(draft.content);
+        final draftKey = '${draft.linkedEntryId ?? 'unlinked'}|$normalizedDraft';
+        
+        // If same normalized content and same linkedEntryId (or both unlinked), mark for deletion
+        if (draftKey == currentKey) {
+          // Keep the one with later lastModified, delete the older one
+          if (draft.lastModified.isBefore(currentDraft.lastModified)) {
+            duplicatesToDelete.add(draft.id);
+            debugPrint('DraftCacheService: Found duplicate draft ${draft.id}, will delete (keeping ${currentDraft.id})');
+          }
+        }
+      }
+      
+      if (duplicatesToDelete.isNotEmpty) {
+        await deleteDrafts(duplicatesToDelete);
+        debugPrint('DraftCacheService: Removed ${duplicatesToDelete.length} duplicate drafts');
+      }
+    } catch (e) {
+      debugPrint('DraftCacheService: Error checking for duplicate drafts: $e');
+      // Don't fail draft save if deduplication check fails
     }
   }
 

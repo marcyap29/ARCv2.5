@@ -266,6 +266,14 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
 
       // Save the entry first
       await _journalRepository.createJournalEntry(entry);
+      
+      // Run deduplication after saving (silently in background)
+      try {
+        await _journalRepository.removeDuplicateEntries();
+      } catch (e) {
+        print('DEBUG: Error running deduplication after save: $e');
+        // Continue even if deduplication fails
+      }
 
       // Enqueue for sync
       await _syncService.enqueue(
@@ -357,6 +365,14 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
 
       // Save the entry first
       await _journalRepository.createJournalEntry(entry);
+      
+      // Run deduplication after saving (silently in background)
+      try {
+        await _journalRepository.removeDuplicateEntries();
+      } catch (e) {
+        print('DEBUG: Error running deduplication after save: $e');
+        // Continue even if deduplication fails
+      }
 
       // Publish draft if one exists (promotes to latest version)
       final draft = _draftCache.getCurrentDraft();
@@ -608,6 +624,14 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
 
       // Save the entry first
       await _journalRepository.createJournalEntry(entry);
+      
+      // Run deduplication after saving (silently in background)
+      try {
+        await _journalRepository.removeDuplicateEntries();
+      } catch (e) {
+        print('DEBUG: Error running deduplication after save: $e');
+        // Continue even if deduplication fails
+      }
 
       // Adjust dates of other entries by the same offset if we have one
       if (dateOffset != null && dateOffset != Duration.zero) {
@@ -707,6 +731,14 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
 
       // Save the entry first
       await _journalRepository.createJournalEntry(entry);
+      
+      // Run deduplication after saving (silently in background)
+      try {
+        await _journalRepository.removeDuplicateEntries();
+      } catch (e) {
+        print('DEBUG: Error running deduplication after save: $e');
+        // Continue even if deduplication fails
+      }
 
       // Emit saved state immediately - don't wait for background processing
       emit(JournalCaptureSaved());
@@ -768,6 +800,14 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
 
       // Save the entry first
       await _journalRepository.createJournalEntry(entry);
+      
+      // Run deduplication after saving (silently in background)
+      try {
+        await _journalRepository.removeDuplicateEntries();
+      } catch (e) {
+        print('DEBUG: Error running deduplication after save: $e');
+        // Continue even if deduplication fails
+      }
 
       // Emit saved state immediately - don't wait for background processing
       emit(JournalCaptureSaved());
@@ -905,6 +945,14 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
 
       // Update the entry
       await _journalRepository.updateJournalEntry(updatedEntry);
+      
+      // Run deduplication after updating (silently in background)
+      try {
+        await _journalRepository.removeDuplicateEntries();
+      } catch (e) {
+        print('DEBUG: Error running deduplication after update: $e');
+        // Continue even if deduplication fails
+      }
 
       // Emit saved state
       emit(JournalCaptureSaved());

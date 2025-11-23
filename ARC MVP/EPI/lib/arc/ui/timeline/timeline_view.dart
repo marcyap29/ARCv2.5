@@ -3,7 +3,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:my_app/arc/ui/timeline/timeline_cubit.dart';
 import 'package:my_app/arc/ui/timeline/timeline_state.dart';
 import 'package:my_app/arc/ui/timeline/widgets/interactive_timeline_view.dart';
-import 'package:my_app/arc/ui/timeline/widgets/current_phase_arcform_preview.dart';
 import 'package:my_app/arc/ui/timeline/widgets/calendar_week_timeline.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
@@ -11,6 +10,7 @@ import 'package:my_app/arc/ui/timeline/timeline_entry_model.dart';
 import 'package:my_app/models/phase_models.dart';
 import 'package:my_app/arc/ui/timeline/favorite_journal_entries_view.dart';
 import 'package:my_app/shared/ui/settings/settings_view.dart';
+import 'package:my_app/arc/core/journal_repository.dart';
 import 'package:scroll_to_index/scroll_to_index.dart';
 
 class TimelineView extends StatelessWidget {
@@ -247,6 +247,97 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
     }
   }
 
+  Future<void> _removeDuplicateEntries() async {
+    // Show confirmation dialog
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: kcSurfaceColor,
+        title: Text(
+          'Remove Duplicate Entries',
+          style: heading1Style(context),
+        ),
+        content: Text(
+          'This will scan all journal entries and remove duplicates, keeping the most recent version of each. This action cannot be undone.',
+          style: bodyStyle(context),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text(
+              'Cancel',
+              style: buttonStyle(context).copyWith(color: kcSecondaryTextColor),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.orange,
+            ),
+            child: Text(
+              'Remove Duplicates',
+              style: buttonStyle(context),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    // Show loading dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        backgroundColor: kcSurfaceColor,
+        content: Row(
+          children: [
+            const CircularProgressIndicator(),
+            const SizedBox(width: 20),
+            Text(
+              'Scanning for duplicates...',
+              style: bodyStyle(context),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    try {
+      final journalRepository = JournalRepository();
+      final deletedCount = await journalRepository.removeDuplicateEntries();
+
+      if (!mounted) return;
+      Navigator.of(context).pop(); // Close loading dialog
+
+      // Refresh timeline
+      _timelineCubit.refreshEntries();
+
+      // Show result
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            deletedCount > 0
+                ? 'Removed $deletedCount duplicate ${deletedCount == 1 ? 'entry' : 'entries'}'
+                : 'No duplicate entries found',
+          ),
+          backgroundColor: deletedCount > 0 ? kcSuccessColor : kcSecondaryTextColor,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      Navigator.of(context).pop(); // Close loading dialog
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to remove duplicates: $e'),
+          backgroundColor: kcDangerColor,
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<TimelineCubit, TimelineState>(
@@ -261,25 +352,23 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
                     SliverToBoxAdapter(
                       child: _buildScrollableHeader(),
                     ),
-                  // Timeline visualization (calendar week) - scrolls with content, below header
+                  // Timeline visualization (calendar week) - pinned at top, stays fixed
                   if (!_isArcformTimelineVisible && !_isSelectionMode)
-                    SliverToBoxAdapter(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                        child: CalendarWeekTimeline(
-                          onDateTap: (date) {
-                            final weekStart = _calculateWeekStart(date);
-                            _weekNotifier.value = weekStart;
-                            _jumpToDate(date);
-                          },
-                          weekStartNotifier: _weekNotifier,
+                    SliverPersistentHeader(
+                      pinned: true,
+                      delegate: _CalendarWeekHeaderDelegate(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          child: CalendarWeekTimeline(
+                            onDateTap: (date) {
+                              final weekStart = _calculateWeekStart(date);
+                              _weekNotifier.value = weekStart;
+                              _jumpToDate(date);
+                            },
+                            weekStartNotifier: _weekNotifier,
+                          ),
                         ),
                       ),
-                    ),
-                  // Phase preview - scrolls with content, below timeline visualization
-                  if (!_isArcformTimelineVisible && !_isSelectionMode)
-                    SliverToBoxAdapter(
-                      child: const CurrentPhaseArcformPreview(),
                     ),
                   // Search bar - scrolls with content
                   if (!_isArcformTimelineVisible && _isSearchExpanded)
@@ -309,6 +398,7 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
               body: InteractiveTimelineView(
                   key: _timelineViewKey,
                   scrollController: _scrollController, // Pass the AutoScrollController
+                  showArcformPreview: !_isArcformTimelineVisible && !_isSelectionMode,
                   onJumpToDate: _showJumpToDateDialog,
                   onSelectionChanged: (isSelectionMode, selectedCount, totalEntries) {
                     // Only update state if values actually changed to prevent rebuild loops
@@ -446,6 +536,9 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
                 _isSelectionMode = true;
               });
                       break;
+                    case 'remove_duplicates':
+                      _removeDuplicateEntries();
+                      break;
                     case 'settings':
                       Navigator.push(
                         context,
@@ -497,6 +590,16 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
                         const Icon(Icons.checklist, size: 20),
                         const SizedBox(width: 12),
                         const Text('Select Mode'),
+                      ],
+                    ),
+                  ),
+                  PopupMenuItem<String>(
+                    value: 'remove_duplicates',
+                    child: Row(
+                      children: [
+                        const Icon(Icons.cleaning_services, color: Colors.orange, size: 20),
+                        const SizedBox(width: 12),
+                        const Text('Remove Duplicate Entries'),
                       ],
                     ),
                   ),
@@ -777,5 +880,31 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
         ),
       ],
     );
+  }
+}
+
+// Delegate for pinned calendar week header
+class _CalendarWeekHeaderDelegate extends SliverPersistentHeaderDelegate {
+  final Widget child;
+
+  _CalendarWeekHeaderDelegate({required this.child});
+
+  @override
+  double get minExtent => 76.0; // 60 (calendar) + 16 (padding)
+
+  @override
+  double get maxExtent => 76.0; // 60 (calendar) + 16 (padding)
+
+  @override
+  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
+    return Container(
+      color: kcBackgroundColor,
+      child: child,
+    );
+  }
+
+  @override
+  bool shouldRebuild(_CalendarWeekHeaderDelegate oldDelegate) {
+    return child != oldDelegate.child;
   }
 }

@@ -288,6 +288,171 @@ class JournalRepository {
     return box.length;
   }
 
+  /// Remove duplicate entries, keeping the most recent version of each
+  /// Duplicates are identified by:
+  /// 1. Same ID (shouldn't happen with Hive, but check anyway)
+  /// 2. Same content + createdAt (within 1 second tolerance)
+  Future<int> removeDuplicateEntries() async {
+    print('🔍 JournalRepository: Starting duplicate removal...');
+    final box = await _ensureBox();
+    final allEntries = box.values.toList();
+    final originalCount = allEntries.length;
+    
+    // Track entries to keep and delete
+    final entriesToKeep = <String, JournalEntry>{};
+    final entriesToDelete = <String>[];
+    
+    // First pass: Check for duplicate IDs (shouldn't happen, but check)
+    final idMap = <String, List<JournalEntry>>{};
+    for (final entry in allEntries) {
+      if (!idMap.containsKey(entry.id)) {
+        idMap[entry.id] = [];
+      }
+      idMap[entry.id]!.add(entry);
+    }
+    
+    // If we find duplicate IDs, keep the one with the latest updatedAt
+    for (final entryList in idMap.values) {
+      if (entryList.length > 1) {
+        print('⚠️ JournalRepository: Found ${entryList.length} entries with same ID: ${entryList.first.id}');
+        // Sort by updatedAt descending, keep the first (most recent)
+        entryList.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+        entriesToKeep[entryList.first.id] = entryList.first;
+        // Mark others for deletion
+        for (int i = 1; i < entryList.length; i++) {
+          entriesToDelete.add(entryList[i].id);
+          print('   Marking duplicate ID entry for deletion: ${entryList[i].id}');
+        }
+      } else {
+        entriesToKeep[entryList.first.id] = entryList.first;
+      }
+    }
+    
+    // Helper function to normalize content for comparison
+    String normalizeContent(String content) {
+      // Remove all whitespace, convert to lowercase, remove punctuation
+      return content
+          .toLowerCase()
+          .replaceAll(RegExp(r'[^\w\s]'), '') // Remove punctuation
+          .replaceAll(RegExp(r'\s+'), '') // Remove all whitespace
+          .trim();
+    }
+    
+    // Helper function to get date-only key (ignore time)
+    String getDateKey(DateTime date) {
+      return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+    }
+    
+    // Second pass: Check for duplicate content + date (by day only, normalized content)
+    final contentDateMap = <String, List<JournalEntry>>{};
+    for (final entry in entriesToKeep.values) {
+      // Create a key from normalized content + date (day only)
+      final dateKey = getDateKey(entry.createdAt);
+      final normalizedContent = normalizeContent(entry.content);
+      final key = '$dateKey|$normalizedContent';
+      
+      if (!contentDateMap.containsKey(key)) {
+        contentDateMap[key] = [];
+      }
+      contentDateMap[key]!.add(entry);
+    }
+    
+    // For entries with same normalized content + date, keep the one with latest updatedAt
+    for (final entryList in contentDateMap.values) {
+      if (entryList.length > 1) {
+        print('⚠️ JournalRepository: Found ${entryList.length} entries with same content and date');
+        for (final e in entryList) {
+          print('   Entry ID: ${e.id}, Date: ${e.createdAt}, Updated: ${e.updatedAt}');
+          print('   Content preview: ${e.content.substring(0, e.content.length > 100 ? 100 : e.content.length)}...');
+        }
+        
+        // Sort by updatedAt descending, keep the first (most recent)
+        entryList.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+        final keepEntry = entryList.first;
+        
+        // Mark others for deletion
+        for (int i = 1; i < entryList.length; i++) {
+          final duplicateEntry = entryList[i];
+          // Only delete if not already marked for deletion
+          if (!entriesToDelete.contains(duplicateEntry.id)) {
+            entriesToDelete.add(duplicateEntry.id);
+            print('   ✅ Marking duplicate content entry for deletion: ${duplicateEntry.id} (keeping ${keepEntry.id})');
+          }
+        }
+      }
+    }
+    
+    // Third pass: Also check for entries with very similar content (fuzzy match)
+    // This catches cases where content might have minor differences
+    if (entriesToDelete.isEmpty) {
+      print('🔍 JournalRepository: No exact duplicates found, checking for similar content...');
+      final remainingEntries = entriesToKeep.values.where((e) => !entriesToDelete.contains(e.id)).toList();
+      
+      for (int i = 0; i < remainingEntries.length; i++) {
+        final entry1 = remainingEntries[i];
+        if (entriesToDelete.contains(entry1.id)) continue;
+        
+        final date1 = getDateKey(entry1.createdAt);
+        final content1 = normalizeContent(entry1.content);
+        
+        // Skip if content is too short (likely not a real duplicate)
+        if (content1.length < 20) continue;
+        
+        for (int j = i + 1; j < remainingEntries.length; j++) {
+          final entry2 = remainingEntries[j];
+          if (entriesToDelete.contains(entry2.id)) continue;
+          
+          final date2 = getDateKey(entry2.createdAt);
+          final content2 = normalizeContent(entry2.content);
+          
+          // Check if same date and very similar content (95% similarity)
+          if (date1 == date2 && content1.length > 20 && content2.length > 20) {
+            // Calculate similarity
+            final longer = content1.length > content2.length ? content1 : content2;
+            final shorter = content1.length > content2.length ? content2 : content1;
+            
+            // Check if shorter is contained in longer (with some tolerance)
+            if (longer.contains(shorter) || shorter.length >= longer.length * 0.95) {
+              // Very similar content on same date - likely duplicates
+              print('⚠️ JournalRepository: Found similar entries (${(shorter.length / longer.length * 100).toStringAsFixed(1)}% match)');
+              print('   Entry 1 ID: ${entry1.id}, Date: ${entry1.createdAt}');
+              print('   Entry 2 ID: ${entry2.id}, Date: ${entry2.createdAt}');
+              
+              // Keep the one with latest updatedAt
+              final toKeep = entry1.updatedAt.isAfter(entry2.updatedAt) ? entry1 : entry2;
+              final toDelete = entry1.updatedAt.isAfter(entry2.updatedAt) ? entry2 : entry1;
+              
+              if (!entriesToDelete.contains(toDelete.id)) {
+                entriesToDelete.add(toDelete.id);
+                print('   ✅ Marking similar entry for deletion: ${toDelete.id} (keeping ${toKeep.id})');
+              }
+            }
+          }
+        }
+      }
+    }
+    
+    // Delete duplicate entries
+    int deletedCount = 0;
+    for (final entryId in entriesToDelete) {
+      try {
+        await box.delete(entryId);
+        deletedCount++;
+        print('✅ JournalRepository: Deleted duplicate entry: $entryId');
+      } catch (e) {
+        print('❌ JournalRepository: Error deleting duplicate entry $entryId: $e');
+      }
+    }
+    
+    final finalCount = box.length;
+    print('🔍 JournalRepository: Duplicate removal complete');
+    print('   Original entries: $originalCount');
+    print('   Duplicates removed: $deletedCount');
+    print('   Remaining entries: $finalCount');
+    
+    return deletedCount;
+  }
+
   // Pagination methods for timeline
   Future<List<JournalEntry>> getEntriesPaginated({
     required int page,

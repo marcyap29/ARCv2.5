@@ -36,12 +36,14 @@ import 'package:my_app/arc/chat/data/models/lumara_favorite.dart';
 import 'package:my_app/arc/core/journal_repository.dart';
 import 'package:my_app/shared/ui/settings/favorites_management_view.dart';
 import 'package:scroll_to_index/scroll_to_index.dart';
+import 'package:my_app/arc/ui/timeline/widgets/current_phase_arcform_preview.dart';
 
 class InteractiveTimelineView extends StatefulWidget {
   final VoidCallback? onJumpToDate;
   final Function(bool isSelectionMode, int selectedCount, int totalEntries)? onSelectionChanged;
   final ValueChanged<bool>? onArcformTimelineVisibilityChanged;
   final AutoScrollController? scrollController; // Changed to AutoScrollController
+  final bool showArcformPreview; // Whether to show arcform preview as first item
   
   final ValueChanged<DateTime>? onVisibleEntryDateChanged;
 
@@ -52,6 +54,7 @@ class InteractiveTimelineView extends StatefulWidget {
     this.onArcformTimelineVisibilityChanged,
     this.scrollController,
     this.onVisibleEntryDateChanged,
+    this.showArcformPreview = false,
   });
 
   @override
@@ -343,15 +346,17 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
       );
     }
 
-    // Get scroll controller: use provided one, or PrimaryScrollController from NestedScrollView
-    // If neither is available, ListView will create its own internal controller
+    // Get scroll controller: prioritize the provided AutoScrollController (needed for scrollToIndex),
+    // otherwise use PrimaryScrollController from NestedScrollView if available,
+    // or ListView will create its own internal controller
+    // Note: AutoScrollController works fine with NestedScrollView when used as the body's controller
     final scrollController = _scrollController ?? PrimaryScrollController.maybeOf(context);
     
     // Check if we have an AutoScrollController
     final autoScrollController = scrollController is AutoScrollController ? scrollController : null;
 
     bool handleScroll(ScrollNotification notification) {
-      if (notification.metrics.axis != Axis.vertical || sortedEntries.isEmpty) {
+      if (notification.metrics.axis != Axis.vertical || sortedEntries.length == 0) {
         return false;
       }
       final offset = notification.metrics.pixels.clamp(0.0, notification.metrics.maxScrollExtent);
@@ -361,7 +366,9 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
       _notifyVisibleEntryDate(entry.createdAt);
       return false;
     }
-
+    // Calculate item count - add 1 if showing arcform preview
+    final itemCount = sortedEntries.length + (widget.showArcformPreview ? 1 : 0);
+    
     return RefreshIndicator(
       onRefresh: _refreshTimeline,
       child: NotificationListener<ScrollNotification>(
@@ -369,27 +376,81 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
         child: ListView.builder(
           controller: scrollController,
           physics: const AlwaysScrollableScrollPhysics(),
-          itemCount: sortedEntries.length,
+          itemCount: itemCount,
           itemBuilder: (context, index) {
-            print('DEBUG: Building timeline card for entry $index');
-            final entry = sortedEntries[index];
+            // First item is arcform preview if enabled
+            if (widget.showArcformPreview && index == 0) {
+              return const CurrentPhaseArcformPreview();
+            }
             
-            final child = Container(
+            // Adjust index for entries (subtract 1 if arcform preview is shown)
+            final entryIndex = widget.showArcformPreview ? index - 1 : index;
+            print('DEBUG: Building timeline card for entry $entryIndex');
+            final entry = sortedEntries[entryIndex];
+            
+            // Wrap entry card in Dismissible for swipe gestures (only when not in selection mode)
+            Widget entryCard = Container(
               margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: _buildTimelineEntryCard(entry, 0, index),
             );
             
-            // Only wrap in AutoScrollTag if we have an AutoScrollController
-            if (autoScrollController != null) {
-              return AutoScrollTag(
-                key: ValueKey(index),
-                controller: autoScrollController,
-                index: index,
-                child: child,
+            // Add swipe gesture for delete when not in selection mode
+            if (!_isSelectionMode) {
+              entryCard = Dismissible(
+                key: Key('entry_${entry.id}'),
+                direction: DismissDirection.endToStart, // Only allow left swipe (delete)
+                background: Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: kcDangerColor,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  alignment: Alignment.centerLeft,
+                  padding: const EdgeInsets.only(left: 20),
+                  child: const Row(
+                    children: [
+                      Icon(Icons.delete, color: Colors.white, size: 28),
+                      SizedBox(width: 12),
+                      Text(
+                        'Delete',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                confirmDismiss: (direction) async {
+                  if (direction == DismissDirection.endToStart) {
+                    // Swipe left to delete
+                    return await _confirmDelete(entry);
+                  }
+                  return false;
+                },
+                onDismissed: (direction) async {
+                  if (direction == DismissDirection.endToStart) {
+                    // Delete
+                    await _deleteSingleEntry(entry.id);
+                  }
+                },
+                child: entryCard,
               );
             }
             
-            return child;
+            // Only wrap in AutoScrollTag if we have an AutoScrollController
+            // Use entryIndex for AutoScrollTag so scrollToIndex works correctly
+            if (autoScrollController != null) {
+              return AutoScrollTag(
+                key: ValueKey('entry_$entryIndex'),
+                controller: autoScrollController,
+                index: entryIndex,
+                child: entryCard,
+              );
+            }
+            
+            return entryCard;
           },
         ),
       ),
@@ -903,6 +964,18 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
         _notifySelectionChanged();
       });
     } else {
+      // Run deduplication before opening entry (silently in background)
+      try {
+        final journalRepository = context.read<JournalRepository>();
+        await journalRepository.removeDuplicateEntries();
+        // Refresh timeline if duplicates were found
+        final timelineCubit = context.read<TimelineCubit>();
+        timelineCubit.refreshEntries();
+      } catch (e) {
+        print('DEBUG: Error running deduplication when opening entry: $e');
+        // Continue even if deduplication fails
+      }
+      
       // Fetch the full journal entry for editing
       try {
         final journalRepository = context.read<JournalRepository>();
@@ -1503,6 +1576,86 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
             ),
           );
         }
+      }
+    }
+  }
+
+  // Confirm delete for single entry
+  Future<bool> _confirmDelete(TimelineEntry entry) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: kcSurfaceColor,
+        title: Text(
+          'Delete Entry',
+          style: heading1Style(context),
+        ),
+        content: Text(
+          'Are you sure you want to delete this journal entry? This action cannot be undone.',
+          style: bodyStyle(context),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text(
+              'Cancel',
+              style: buttonStyle(context).copyWith(color: kcSecondaryTextColor),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: kcDangerColor,
+            ),
+            child: Text(
+              'Delete',
+              style: buttonStyle(context),
+            ),
+          ),
+        ],
+      ),
+    );
+    return confirmed ?? false;
+  }
+
+  // Delete single entry
+  Future<void> _deleteSingleEntry(String entryId) async {
+    try {
+      final journalRepository = JournalRepository();
+      
+      // Delete the entry
+      await journalRepository.deleteJournalEntry(entryId);
+      
+      // Clean up MIRA nodes and edges
+      await _cleanupMiraDataForEntry(entryId);
+      
+      // Recalculate RIVET state after deletion
+      await _recalculateRivetState();
+      
+      // Refresh the timeline
+      final timelineCubit = context.read<TimelineCubit>();
+      final allEntriesDeleted = await timelineCubit.checkIfAllEntriesDeleted();
+      
+      if (!allEntriesDeleted) {
+        timelineCubit.refreshEntries();
+      }
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Entry deleted successfully'),
+            backgroundColor: kcSuccessColor,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to delete entry: $e'),
+            backgroundColor: kcDangerColor,
+          ),
+        );
       }
     }
   }
