@@ -1,7 +1,7 @@
 # EPI MVP - Comprehensive Architecture Document
 
-**Version:** 1.0.2  
-**Last Updated:** November 2025  
+**Version:** 1.0.3  
+**Last Updated:** January 2025  
 **Status:** ✅ Production Ready - MVP Fully Operational
 
 ---
@@ -138,7 +138,8 @@ The EPI system is organized into 5 core modules:
 - LUMARA chat interface (maintains LUMARA branding)
 - ARCForm visualization with phase-aware layouts
 - Privacy-first data handling
-- Timeline management
+- Timeline management with accurate date navigation
+- Calendar header and arcform preview UI improvements
 - Draft management with auto-save
 
 **Directory Structure:**

@@ -1,7 +1,36 @@
 # EPI ARC MVP - Changelog
 
-**Version:** 2.1.31  
-**Last Updated:** November 2025
+**Version:** 2.1.32  
+**Last Updated:** January 2025
+
+## [2.1.32] - January 2025
+
+### **Timeline UI Improvements & Date Navigation Fixes** - Complete
+
+#### Calendar & Arcform Preview Clipping Fix
+- **Problem**: The calendar week header and arcform preview containers were clipping into each other when scrolling.
+- **Solution**: 
+  - Increased calendar header height from 76px to 108px to properly account for month text display
+  - Added proper container wrapper with background color for calendar header
+  - Increased arcform preview top margin from 8px to 16px to prevent clipping with pinned calendar header
+- **User Experience**: Calendar and arcform preview now display cleanly without visual overlap
+
+#### Date Jumping Accuracy Fix
+- **Problem**: When selecting a date (e.g., 10/13/2025), the timeline would jump to an incorrect date (e.g., 09/24/2025).
+- **Root Cause**: The date jumping logic was using unfiltered entries, while the displayed timeline uses filtered and deduplicated entries, causing index mismatches.
+- **Solution**: 
+  - Updated `_jumpToDate` to use the same filtering and deduplication logic as `InteractiveTimelineView._getFilteredEntries`
+  - Ensures the calculated scroll index matches what's actually displayed in the timeline
+  - Added debug logging for troubleshooting date matching
+- **User Experience**: Date selection now accurately scrolls to the correct entry on the selected date
+
+**Files Modified**:
+- `lib/arc/ui/timeline/timeline_view.dart` - Fixed date jumping logic and calendar header height
+- `lib/arc/ui/timeline/widgets/current_phase_arcform_preview.dart` - Increased top margin to prevent clipping
+
+**Status**: ✅ Complete - Timeline UI improvements and accurate date navigation
+
+---
 
 ## [2.1.31] - November 2025
 

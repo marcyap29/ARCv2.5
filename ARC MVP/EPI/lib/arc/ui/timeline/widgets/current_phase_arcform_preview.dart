@@ -486,7 +486,7 @@ class _CompactArcformPreviewState extends State<_CompactArcformPreview> {
       },
       child: Container(
         height: 180,
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        margin: const EdgeInsets.fromLTRB(16, 16, 16, 8), // Increased top margin to prevent clipping with pinned calendar
         decoration: BoxDecoration(
           color: kcSurfaceColor,
           borderRadius: BorderRadius.circular(12),

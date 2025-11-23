@@ -1,3 +1,5 @@
+// ignore_for_file: unused_element
+
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
@@ -12,7 +14,6 @@ import 'package:my_app/ui/journal/journal_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'package:my_app/arc/ui/arcforms/arcform_renderer_state.dart';
-import 'package:my_app/arc/core/journal_repository.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
 import 'package:my_app/shared/ui/onboarding/phase_quiz_prompt_view.dart';
@@ -23,7 +24,6 @@ import 'package:my_app/prism/atlas/rivet/rivet_service.dart';
 import 'package:hive/hive.dart';
 import 'package:my_app/services/user_phase_service.dart';
 import 'package:my_app/arc/ui/arcforms/phase_recommender.dart';
-import 'package:my_app/mira/mira_service.dart';
 import 'package:uuid/uuid.dart';
 import 'dart:math' as math;
 import 'package:my_app/services/phase_regime_service.dart';
@@ -36,12 +36,15 @@ import 'package:my_app/arc/chat/data/models/lumara_favorite.dart';
 import 'package:my_app/arc/core/journal_repository.dart';
 import 'package:my_app/shared/ui/settings/favorites_management_view.dart';
 import 'package:scroll_to_index/scroll_to_index.dart';
+import 'package:my_app/arc/ui/timeline/widgets/current_phase_arcform_preview.dart';
 
 class InteractiveTimelineView extends StatefulWidget {
   final VoidCallback? onJumpToDate;
   final Function(bool isSelectionMode, int selectedCount, int totalEntries)? onSelectionChanged;
   final ValueChanged<bool>? onArcformTimelineVisibilityChanged;
   final AutoScrollController? scrollController; // Changed to AutoScrollController
+  final bool showArcformPreview; // Whether to show arcform preview as first item
+  final VoidCallback? onRequestPreserveScrollPosition;
   
   final ValueChanged<DateTime>? onVisibleEntryDateChanged;
 
@@ -52,6 +55,8 @@ class InteractiveTimelineView extends StatefulWidget {
     this.onArcformTimelineVisibilityChanged,
     this.scrollController,
     this.onVisibleEntryDateChanged,
+    this.showArcformPreview = false,
+    this.onRequestPreserveScrollPosition,
   });
 
   @override
@@ -107,45 +112,6 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
   // Removed PageView-related methods for 2D grid layout
 
   /// Clean up MIRA nodes and edges when a journal entry is deleted
-  Future<void> _cleanupMiraDataForEntry(String entryId) async {
-    try {
-      final miraService = MiraService.instance;
-      final miraRepo = miraService.repo;
-
-      // Generate the MIRA node ID for this entry
-      final miraNodeId = 'je_$entryId';
-
-      print('🧹 Cleaning up MIRA data for entry $entryId (node: $miraNodeId)');
-
-      // Delete all edges where this node is source or target
-      final allEdges = await miraRepo
-          .exportAll()
-          .where((record) => record['kind'] == 'edge')
-          .map((record) => record)
-          .toList();
-
-      for (final edgeRecord in allEdges) {
-        final src = edgeRecord['src'] as String?;
-        final dst = edgeRecord['dst'] as String?;
-        final edgeId = edgeRecord['id'] as String?;
-
-        if (edgeId != null && (src == miraNodeId || dst == miraNodeId)) {
-          await miraRepo.removeEdge(edgeId);
-          print('🧹 Deleted edge $edgeId');
-        }
-      }
-
-      // Delete the entry node itself
-      await miraRepo.removeNode(miraNodeId);
-      print('🧹 Deleted node $miraNodeId');
-
-      // Note: Keyword nodes are kept for other entries that may reference them
-      // They will be cleaned up by a separate orphan cleanup process if needed
-    } catch (e) {
-      print('⚠️ Error cleaning up MIRA data for entry $entryId: $e');
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return BlocListener<TimelineCubit, TimelineState>(
@@ -302,11 +268,11 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
   }
 
   Widget _build2DGridTimeline() {
-    print('DEBUG: _build2DGridTimeline - _entries has ${_entries?.length ?? 0} entries');
+    print('DEBUG: _build2DGridTimeline - _entries has ${_entries.length} entries');
 
-    // Safety check for null or empty entries
-    if (_entries == null || _entries.isEmpty) {
-      print('DEBUG: _entries is null or empty, returning empty state');
+    // Safety check for empty entries
+    if (_entries.isEmpty) {
+      print('DEBUG: _entries is empty, returning empty state');
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(32.0),
@@ -343,15 +309,17 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
       );
     }
 
-    // Get scroll controller: use provided one, or PrimaryScrollController from NestedScrollView
-    // If neither is available, ListView will create its own internal controller
+    // Get scroll controller: prioritize the provided AutoScrollController (needed for scrollToIndex),
+    // otherwise use PrimaryScrollController from NestedScrollView if available,
+    // or ListView will create its own internal controller
+    // Note: AutoScrollController works fine with NestedScrollView when used as the body's controller
     final scrollController = _scrollController ?? PrimaryScrollController.maybeOf(context);
     
     // Check if we have an AutoScrollController
     final autoScrollController = scrollController is AutoScrollController ? scrollController : null;
 
     bool handleScroll(ScrollNotification notification) {
-      if (notification.metrics.axis != Axis.vertical || sortedEntries.isEmpty) {
+      if (notification.metrics.axis != Axis.vertical || sortedEntries.length == 0) {
         return false;
       }
       final offset = notification.metrics.pixels.clamp(0.0, notification.metrics.maxScrollExtent);
@@ -361,7 +329,9 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
       _notifyVisibleEntryDate(entry.createdAt);
       return false;
     }
-
+    // Calculate item count - add 1 if showing arcform preview
+    final itemCount = sortedEntries.length + (widget.showArcformPreview ? 1 : 0);
+    
     return RefreshIndicator(
       onRefresh: _refreshTimeline,
       child: NotificationListener<ScrollNotification>(
@@ -369,27 +339,81 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
         child: ListView.builder(
           controller: scrollController,
           physics: const AlwaysScrollableScrollPhysics(),
-          itemCount: sortedEntries.length,
+          itemCount: itemCount,
           itemBuilder: (context, index) {
-            print('DEBUG: Building timeline card for entry $index');
-            final entry = sortedEntries[index];
+            // First item is arcform preview if enabled
+            if (widget.showArcformPreview && index == 0) {
+              return const CurrentPhaseArcformPreview();
+            }
             
-            final child = Container(
+            // Adjust index for entries (subtract 1 if arcform preview is shown)
+            final entryIndex = widget.showArcformPreview ? index - 1 : index;
+            print('DEBUG: Building timeline card for entry $entryIndex');
+            final entry = sortedEntries[entryIndex];
+            
+            // Wrap entry card in Dismissible for swipe gestures (only when not in selection mode)
+            Widget entryCard = Container(
               margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: _buildTimelineEntryCard(entry, 0, index),
             );
             
-            // Only wrap in AutoScrollTag if we have an AutoScrollController
-            if (autoScrollController != null) {
-              return AutoScrollTag(
-                key: ValueKey(index),
-                controller: autoScrollController,
-                index: index,
-                child: child,
+            // Add swipe gesture for delete when not in selection mode
+            if (!_isSelectionMode) {
+              entryCard = Dismissible(
+                key: Key('entry_${entry.id}'),
+                direction: DismissDirection.endToStart, // Only allow left swipe (delete)
+                background: Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: kcDangerColor,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  alignment: Alignment.centerLeft,
+                  padding: const EdgeInsets.only(left: 20),
+                  child: const Row(
+                    children: [
+                      Icon(Icons.delete, color: Colors.white, size: 28),
+                      SizedBox(width: 12),
+                      Text(
+                        'Delete',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                confirmDismiss: (direction) async {
+                  if (direction == DismissDirection.endToStart) {
+                    // Swipe left to delete
+                    return await _confirmDelete(entry);
+                  }
+                  return false;
+                },
+                onDismissed: (direction) async {
+                  if (direction == DismissDirection.endToStart) {
+                    // Delete
+                    await _deleteSingleEntry(entry.id);
+                  }
+                },
+                child: entryCard,
               );
             }
             
-            return child;
+            // Only wrap in AutoScrollTag if we have an AutoScrollController
+            // Use entryIndex for AutoScrollTag so scrollToIndex works correctly
+            if (autoScrollController != null) {
+              return AutoScrollTag(
+                key: ValueKey('entry_$entryIndex'),
+                controller: autoScrollController,
+                index: entryIndex,
+                child: entryCard,
+              );
+            }
+            
+            return entryCard;
           },
         ),
       ),
@@ -903,6 +927,21 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
         _notifySelectionChanged();
       });
     } else {
+      // Run deduplication before opening entry (silently in background)
+      try {
+        final journalRepository = context.read<JournalRepository>();
+        final deletedCount = await journalRepository.removeDuplicateEntries();
+        if (deletedCount > 0) {
+          widget.onRequestPreserveScrollPosition?.call();
+          // Refresh timeline if duplicates were found
+          final timelineCubit = context.read<TimelineCubit>();
+          timelineCubit.refreshEntries();
+        }
+      } catch (e) {
+        print('DEBUG: Error running deduplication when opening entry: $e');
+        // Continue even if deduplication fails
+      }
+      
       // Fetch the full journal entry for editing
       try {
         final journalRepository = context.read<JournalRepository>();
@@ -1365,6 +1404,7 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
 
   Future<void> _refreshTimeline() async {
     print('DEBUG: Refreshing timeline...');
+    widget.onRequestPreserveScrollPosition?.call();
     final timelineCubit = context.read<TimelineCubit>();
     await timelineCubit.refreshEntries();
     print('DEBUG: Timeline refresh completed');
@@ -1428,13 +1468,13 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
         final countBefore = await journalRepository.getEntryCount();
         print('DEBUG: Total entries before deletion: $countBefore');
 
+        widget.onRequestPreserveScrollPosition?.call();
+        
         // Delete all selected entries
         for (final entryId in _selectedEntryIds) {
           print('DEBUG: Deleting entry: $entryId');
           await journalRepository.deleteJournalEntry(entryId);
-
-          // NEW: Clean up MIRA nodes and edges for this entry
-          await _cleanupMiraDataForEntry(entryId);
+          // MIRA cleanup is handled by deleteJournalEntry
 
           // Verify deletion
           final deletedEntry = journalRepository.getJournalEntryById(entryId);
@@ -1507,20 +1547,110 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
     }
   }
 
+  // Confirm delete for single entry
+  Future<bool> _confirmDelete(TimelineEntry entry) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: kcSurfaceColor,
+        title: Text(
+          'Delete Entry',
+          style: heading1Style(context),
+        ),
+        content: Text(
+          'Are you sure you want to delete this journal entry? This action cannot be undone.',
+          style: bodyStyle(context),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text(
+              'Cancel',
+              style: buttonStyle(context).copyWith(color: kcSecondaryTextColor),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: kcDangerColor,
+            ),
+            child: Text(
+              'Delete',
+              style: buttonStyle(context),
+            ),
+          ),
+        ],
+      ),
+    );
+    return confirmed ?? false;
+  }
+
+  // Delete single entry
+  Future<void> _deleteSingleEntry(String entryId) async {
+    try {
+      widget.onRequestPreserveScrollPosition?.call();
+      
+      final journalRepository = JournalRepository();
+      
+      // Delete the entry
+      await journalRepository.deleteJournalEntry(entryId);
+      
+      // Recalculate RIVET state after deletion
+      await _recalculateRivetState();
+      
+      // Refresh the timeline
+      final timelineCubit = context.read<TimelineCubit>();
+      final allEntriesDeleted = await timelineCubit.checkIfAllEntriesDeleted();
+      
+      if (!allEntriesDeleted) {
+        timelineCubit.refreshEntries();
+      }
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Entry deleted successfully'),
+            backgroundColor: kcSuccessColor,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to delete entry: $e'),
+            backgroundColor: kcDangerColor,
+          ),
+        );
+      }
+    }
+  }
+
   List<TimelineEntry> _getFilteredEntries(TimelineLoaded state) {
     // Flatten all entries from grouped data
     List<TimelineEntry> allEntries = [];
     print('DEBUG: _getFilteredEntries - Processing ${state.groupedEntries.length} groups');
 
     for (final group in state.groupedEntries) {
-      print('DEBUG: Group has ${group.entries?.length ?? 0} entries');
-      if (group.entries != null) {
-        allEntries.addAll(group.entries!);
-      }
+      print('DEBUG: Group has ${group.entries.length} entries');
+      allEntries.addAll(group.entries);
     }
 
     print('DEBUG: Total flattened entries: ${allEntries.length}');
     print('DEBUG: Current filter: ${state.filter}');
+
+    // Ensure we only show one card per unique entry ID. Duplicate IDs can
+    // appear when the cubit rebuilds rapidly or when pagination merges pages.
+    final Map<String, TimelineEntry> uniqueEntries = {};
+    for (final entry in allEntries) {
+      if (!uniqueEntries.containsKey(entry.id)) {
+        uniqueEntries[entry.id] = entry;
+      } else {
+        print('DEBUG: Skipping duplicate timeline entry ID ${entry.id}');
+      }
+    }
+    allEntries = uniqueEntries.values.toList();
+    print('DEBUG: After removing duplicate IDs: ${allEntries.length}');
 
     // Apply filter with null safety
     List<TimelineEntry> filteredEntries;
@@ -1530,14 +1660,10 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
           filteredEntries = allEntries;
           break;
         case TimelineFilter.textOnly:
-          filteredEntries = allEntries.where((entry) => entry != null && !entry.hasArcform).toList();
+          filteredEntries = allEntries.where((entry) => !entry.hasArcform).toList();
           break;
         case TimelineFilter.withArcform:
-          filteredEntries = allEntries.where((entry) => entry != null && entry.hasArcform).toList();
-          break;
-        default:
-          print('DEBUG: Unknown filter type: ${state.filter}, defaulting to all entries');
-          filteredEntries = allEntries;
+          filteredEntries = allEntries.where((entry) => entry.hasArcform).toList();
           break;
       }
     } catch (e) {

@@ -11,7 +11,6 @@ import 'package:my_app/services/phase_regime_service.dart';
 import 'package:my_app/models/journal_entry_model.dart' as model;
 import 'package:my_app/mira/mira_service.dart';
 import 'package:my_app/mira/core/schema.dart';
-import 'package:my_app/mira/core/ids.dart';
 import 'package:my_app/data/models/media_item.dart';
 import 'package:my_app/platform/photo_bridge.dart';
 import 'package:my_app/core/services/photo_library_service.dart';
@@ -379,6 +378,16 @@ class McpSettingsCubit extends Cubit<McpSettingsState> {
     }
   }
 
+  /// Generate unique MIRA node ID that includes journal entry ID
+  /// This ensures each entry gets its own MIRA node, even if content and timestamp are identical
+  String _generateUniqueMiraNodeId(String entryId, String content, DateTime timestamp) {
+    // Include entry ID in the hash to ensure uniqueness
+    final normalized = content.trim();
+    final combined = '$entryId|$normalized|${timestamp.toUtc().toIso8601String()}';
+    final hash = sha1.convert(utf8.encode(combined)).toString().substring(0, 12);
+    return 'entry_$hash';
+  }
+
   /// Convert journal entry model to MIRA node
   MiraNode _convertToMiraNode(model.JournalEntry entry) {
     // Extract SAGE narrative from sageAnnotation field
@@ -397,8 +406,12 @@ class McpSettingsCubit extends Cubit<McpSettingsState> {
       print('🔍 MCP Settings: Entry ${entry.id} has NO media items');
     }
 
+    // Generate unique MIRA node ID that includes journal entry ID to ensure uniqueness
+    // This prevents duplicate entries from sharing the same MIRA node
+    final uniqueMiraNodeId = _generateUniqueMiraNodeId(entry.id, entry.content, entry.createdAt);
+    
     final miraNode = MiraNode.entry(
-      id: deterministicEntryId(entry.content, entry.createdAt),
+      id: uniqueMiraNodeId,
       narrative: entry.content,
       keywords: entry.keywords,
       timestamp: entry.createdAt,

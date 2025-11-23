@@ -533,15 +533,6 @@ class _SimplifiedArcformView3DState extends State<SimplifiedArcformView3D> {
                       fontSize: 12,
                     ),
                   ),
-                  const Spacer(),
-                  Text(
-                    'Tap to view 3D',
-                    style: TextStyle(
-                      color: kcPrimaryColor,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
                 ],
               ),
             ],

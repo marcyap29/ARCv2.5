@@ -263,8 +263,9 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
       _locationController = TextEditingController();
     }
 
-    // Initialize draft cache and create new draft (done after checking for linked drafts)
+    // Run deduplication before initializing draft
     WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await _runDeduplication();
       await _initializeDraftCache();
     });
     
@@ -4480,6 +4481,27 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
   }
 
   /// Initialize draft cache and create new draft
+  /// Run deduplication on journal entries (silently in background)
+  Future<void> _runDeduplication() async {
+    try {
+      // Run deduplication silently in background
+      final deletedCount = await _journalRepository.removeDuplicateEntries();
+      if (deletedCount > 0) {
+        debugPrint('JournalScreen: Removed $deletedCount duplicate entries during initialization');
+        // Refresh timeline if we're in a context that has it
+        try {
+          final timelineCubit = context.read<TimelineCubit>();
+          timelineCubit.refreshEntries();
+        } catch (e) {
+          // Timeline cubit not available, that's okay
+        }
+      }
+    } catch (e) {
+      debugPrint('JournalScreen: Error running deduplication: $e');
+      // Don't show error to user - this is a background operation
+    }
+  }
+
   Future<void> _initializeDraftCache() async {
     try {
       await _draftCache.initialize();
