@@ -85,8 +85,8 @@ class McpManagementScreen extends StatelessWidget {
               children: [
                 _buildActionCard(
                   context,
-                  title: 'Create MCP Package',
-                  subtitle: 'Export all your journal entries and photos to a single portable file',
+                  title: 'Create ARCX Secure Package',
+                  subtitle: 'Export to encrypted .arcx file with AES-256-GCM encryption and Ed25519 digital signatures. Your data is protected with industry-standard security.',
                   icon: Icons.cloud_upload,
                   color: kcAccentColor,
                   onTap: () => _navigateToExport(context),
