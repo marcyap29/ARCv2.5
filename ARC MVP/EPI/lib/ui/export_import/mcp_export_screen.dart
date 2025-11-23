@@ -20,7 +20,9 @@ import 'package:intl/intl.dart';
 
 /// MCP Export Screen - Create MCP Package (.mcpkg)
 class McpExportScreen extends StatefulWidget {
-  const McpExportScreen({super.key});
+  final String? initialFormat; // 'arcx' or 'zip' - optional format pre-selection
+  
+  const McpExportScreen({super.key, this.initialFormat});
 
   @override
   State<McpExportScreen> createState() => _McpExportScreenState();
@@ -59,6 +61,10 @@ class _McpExportScreenState extends State<McpExportScreen> {
   @override
   void initState() {
     super.initState();
+    // Set initial format if provided
+    if (widget.initialFormat != null) {
+      _exportFormat = widget.initialFormat!;
+    }
     _loadJournalStats();
   }
 

@@ -85,6 +85,15 @@ class McpManagementScreen extends StatelessWidget {
                   color: kcAccentColor,
                   onTap: () => _navigateToExport(context),
                 ),
+                const SizedBox(height: 12),
+                _buildActionCard(
+                  context,
+                  title: 'Export Data',
+                  subtitle: 'Export to unencrypted ZIP file with all journal entries, media, chats, and extended data',
+                  icon: Icons.archive,
+                  color: Colors.blue,
+                  onTap: () => _navigateToZipExport(context),
+                ),
               ],
             ),
 
@@ -132,12 +141,22 @@ class McpManagementScreen extends StatelessWidget {
     );
   }
 
-  /// Navigate to export screen
+  /// Navigate to export screen (ARCX format)
   void _navigateToExport(BuildContext context) {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => const McpExportScreen(),
+        builder: (context) => const McpExportScreen(initialFormat: 'arcx'),
+      ),
+    );
+  }
+
+  /// Navigate to export screen (ZIP format)
+  void _navigateToZipExport(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const McpExportScreen(initialFormat: 'zip'),
       ),
     );
   }
