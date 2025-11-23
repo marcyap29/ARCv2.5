@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:file_picker/file_picker.dart';
 import 'dart:io';
 import 'package:my_app/arc/core/journal_repository.dart';
@@ -11,6 +12,7 @@ import 'package:my_app/services/analytics_service.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
 import 'package:my_app/utils/file_utils.dart';
+import 'package:my_app/arc/ui/timeline/timeline_cubit.dart';
 
 /// Screen for managing MCP (Memory Container Protocol) operations
 ///
@@ -196,7 +198,17 @@ class McpManagementScreen extends StatelessWidget {
                 parentContext: context,
               ),
             ),
-          );
+          ).then((result) {
+            // Refresh timeline after ARCX import completes
+            if (context.mounted && result != null) {
+              try {
+                context.read<TimelineCubit>().reloadAllEntries();
+                print('✅ Timeline refreshed after ARCX import');
+              } catch (e) {
+                print('⚠️ Could not refresh timeline: $e');
+              }
+            }
+          });
         } else {
           // Multiple ARCX files - show error for now (separated packages need more complex handling)
           _showError(context, 'Multiple ARCX files selected. Please select one file at a time.');
@@ -243,6 +255,14 @@ class McpManagementScreen extends StatelessWidget {
             Navigator.pop(context); // Close loading dialog
 
             if (importResult.success) {
+              // Refresh timeline before showing success dialog
+              try {
+                context.read<TimelineCubit>().reloadAllEntries();
+                print('✅ Timeline refreshed after import');
+              } catch (e) {
+                print('⚠️ Could not refresh timeline: $e');
+              }
+              
               _showSuccess(
                 context,
                 'Import Complete',
