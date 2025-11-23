@@ -64,7 +64,10 @@ class McpManagementScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Create portable packages containing all your journal entries and photos. Export to .mcpkg files or .mcp/ folders for easy backup and sharing.',
+                    'MCP is a standardized format for storing journal entries, photos, chats, and extended data together. It ensures your data is portable and can be restored on any device.\n\n'
+                    'Export formats:\n'
+                    '• Secure Archive (.arcx) - Encrypted with AES-256-GCM and Ed25519 signatures for maximum security\n'
+                    '• ZIP File (.zip) - Unencrypted standard ZIP format for compatibility and easy access',
                     style: bodyStyle(context).copyWith(
                       color: kcSecondaryTextColor,
                     ),
@@ -109,26 +112,6 @@ class McpManagementScreen extends StatelessWidget {
               ],
             ),
 
-            const SizedBox(height: 24),
-
-            // Info Section
-            _buildSection(
-              context,
-              title: 'About MCP',
-              children: [
-                _buildInfoCard(
-                  context,
-                  title: 'What is MCP?',
-                  content: 'MCP is a standardized format for storing journal entries and photos together. It ensures your data is portable and can be restored on any device.',
-                ),
-                const SizedBox(height: 12),
-                _buildInfoCard(
-                  context,
-                  title: 'File Formats',
-                  content: '• .mcpkg - Zipped package (recommended for sharing)\n• .mcp/ - Folder format (useful for debugging)',
-                ),
-              ],
-            ),
           ],
         ),
       ),
@@ -409,38 +392,4 @@ class McpManagementScreen extends StatelessWidget {
     );
   }
 
-  /// Build an info card
-  Widget _buildInfoCard(
-    BuildContext context, {
-    required String title,
-    required String content,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withOpacity(0.1)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: heading3Style(context).copyWith(
-              color: kcPrimaryTextColor,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            content,
-            style: bodyStyle(context).copyWith(
-              color: kcSecondaryTextColor,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }
