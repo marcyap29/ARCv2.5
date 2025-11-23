@@ -57,6 +57,9 @@ class _McpExportScreenState extends State<McpExportScreen> {
   String _dateRangeSelection = 'all'; // 'all', 'custom'
   DateTime? _customStartDate;
   DateTime? _customEndDate;
+  
+  // Media pack target size (MB)
+  int _mediaPackTargetSizeMB = 200;
 
   @override
   void initState() {
@@ -288,6 +291,7 @@ class _McpExportScreenState extends State<McpExportScreen> {
             compression: 'auto',
             dedupeMedia: true,
             includeChecksums: true,
+            mediaPackTargetSizeMB: _mediaPackTargetSizeMB,
             startDate: startDate,
             endDate: endDate,
           ),
@@ -428,6 +432,7 @@ class _McpExportScreenState extends State<McpExportScreen> {
           includeChats: true,
           includeArchivedChats: _includeArchivedChats,
           chatDatesFilter: chatDatesFilter,
+          mediaPackTargetSizeMB: _mediaPackTargetSizeMB,
         );
         
         if (result.success) {
@@ -875,6 +880,47 @@ class _McpExportScreenState extends State<McpExportScreen> {
                   ),
                   const SizedBox(height: 8),
                   _buildDateRangeSelector(),
+                  const SizedBox(height: 24),
+                  Text(
+                    'Media Pack Target Size',
+                    style: bodyStyle(context).copyWith(
+                      color: kcPrimaryTextColor,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Slider(
+                          value: _mediaPackTargetSizeMB.toDouble(),
+                          min: 50,
+                          max: 500,
+                          divisions: 9,
+                          label: '$_mediaPackTargetSizeMB MB',
+                          onChanged: (value) {
+                            setState(() {
+                              _mediaPackTargetSizeMB = value.round();
+                            });
+                          },
+                        ),
+                      ),
+                      SizedBox(
+                        width: 60,
+                        child: Text(
+                          '$_mediaPackTargetSizeMB MB',
+                          style: bodyStyle(context),
+                          textAlign: TextAlign.right,
+                        ),
+                      ),
+                    ],
+                  ),
+                  Text(
+                    'Media files will be organized into packs of approximately $_mediaPackTargetSizeMB MB each',
+                    style: captionStyle(context).copyWith(
+                      color: Colors.grey[600],
+                    ),
+                  ),
                 ],
               ),
             ),

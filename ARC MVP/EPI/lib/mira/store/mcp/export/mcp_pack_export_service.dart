@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:typed_data';
 import 'dart:convert';
+import 'package:crypto/crypto.dart';
 import 'package:my_app/models/journal_entry_model.dart';
 import 'package:my_app/data/models/media_item.dart';
 import 'package:my_app/platform/photo_bridge.dart';
@@ -47,6 +48,7 @@ class McpPackExportService {
     bool includeChats = false,
     bool includeArchivedChats = false,
     Set<String>? chatDatesFilter, // Optional: filter chats by journal entry dates
+    int mediaPackTargetSizeMB = 200, // Media pack target size in MB (default 200MB)
   }) async {
     Directory? tempDir;
     try {
@@ -86,7 +88,16 @@ class McpPackExportService {
       await Directory(path.join(mcpDir.path, 'nodes', 'media', 'photo')).create(recursive: true);
       await Directory(path.join(mcpDir.path, 'nodes', 'chat', 'session')).create(recursive: true);
       await Directory(path.join(mcpDir.path, 'nodes', 'chat', 'message')).create(recursive: true);
-      await Directory(path.join(mcpDir.path, 'media', 'photos')).create(recursive: true);
+      // Create media packs directory structure if using packs
+      if (includePhotos && mediaPackTargetSizeMB > 0) {
+        await Directory(path.join(mcpDir.path, 'Media', 'packs')).create(recursive: true);
+      } else {
+        // Legacy: direct media directories
+        await Directory(path.join(mcpDir.path, 'media', 'photos')).create(recursive: true);
+        await Directory(path.join(mcpDir.path, 'media', 'videos')).create(recursive: true);
+        await Directory(path.join(mcpDir.path, 'media', 'audio')).create(recursive: true);
+        await Directory(path.join(mcpDir.path, 'media', 'files')).create(recursive: true);
+      }
       await Directory(path.join(mcpDir.path, 'streams', 'health')).create(recursive: true);
       
       // Extract journal entry dates for health filtering
@@ -101,19 +112,47 @@ class McpPackExportService {
         await _copyFilteredHealthStreams(sourceHealthDir, Directory(path.join(mcpDir.path, 'streams', 'health')), journalDates);
       }
       
-      // Process each entry
+      // Process each entry (collect media metadata but don't write files yet if using packs)
       final processedEntries = <Map<String, dynamic>>[];
+      final allMediaItems = <MediaItem>[]; // Collect all media items for pack organization
       int totalPhotos = 0;
       
       for (int i = 0; i < entries.length; i++) {
         final entry = entries[i];
-        final processedEntry = await _processJournalEntry(entry, i, mcpDir, includePhotos, reducePhotoSize);
+        final processedEntry = await _processJournalEntry(
+          entry, 
+          i, 
+          mcpDir, 
+          includePhotos, 
+          reducePhotoSize,
+          usePacks: includePhotos && mediaPackTargetSizeMB > 0,
+        );
         processedEntries.add(processedEntry);
+        
+        // Collect media items for pack organization
+        if (includePhotos && mediaPackTargetSizeMB > 0) {
+          for (final media in entry.media) {
+            if (!allMediaItems.any((m) => m.id == media.id)) {
+              allMediaItems.add(media);
+            }
+          }
+        }
         
         // Count photos in this entry
         final media = processedEntry['media'] as List<dynamic>;
         // Media kind uses MediaType.name which is 'image' for photos, not 'photo'
         totalPhotos += media.where((m) => m['kind'] == 'image' || m['kind'] == 'photo').length;
+      }
+      
+      // Export media with packs if enabled
+      if (includePhotos && mediaPackTargetSizeMB > 0 && allMediaItems.isNotEmpty) {
+        print('📦 MCP Export: Organizing ${allMediaItems.length} media items into packs...');
+        await _exportMediaWithPacks(
+          mediaItems: allMediaItems,
+          mcpDir: mcpDir,
+          packTargetSizeMB: mediaPackTargetSizeMB,
+          reducePhotoSize: reducePhotoSize,
+        );
       }
 
       // Export chat data if requested
@@ -237,8 +276,9 @@ class McpPackExportService {
     int index,
     Directory mcpDir,
     bool includePhotos,
-    bool reducePhotoSize,
-  ) async {
+    bool reducePhotoSize, {
+    bool usePacks = false, // If true, only create metadata, don't write files
+  }) async {
     final processedMedia = <Map<String, dynamic>>[];
 
     if (includePhotos) {
@@ -246,21 +286,28 @@ class McpPackExportService {
       for (final media in entry.media) {
         try {
           print('McpPackExportService: Processing media ${media.id} with URI: ${media.uri}');
-          final processedMediaItem = await _processMediaItem(media, mcpDir, reducePhotoSize);
-          if (processedMediaItem != null) {
-            processedMedia.add(processedMediaItem);
-            print('McpPackExportService: ✓ Successfully processed media ${media.id}');
+          if (usePacks) {
+            // When using packs, only create metadata - files will be written later in packs
+            final mediaMetadata = await _createMediaMetadata(media, reducePhotoSize);
+            if (mediaMetadata != null) {
+              processedMedia.add(mediaMetadata);
+              print('McpPackExportService: ✓ Created metadata for media ${media.id} (will be packed later)');
+            }
           } else {
-            print('McpPackExportService: ⚠️ Failed to process media ${media.id} - photo will NOT be included in export');
-            print('McpPackExportService:   URI: ${media.uri}');
-            print('McpPackExportService:   Type: ${media.type}');
-            // Don't add placeholder - let the export continue without this photo
-            // The entry will still have its media metadata, but the actual photo file won't be included
+            // Legacy: write files directly
+            final processedMediaItem = await _processMediaItem(media, mcpDir, reducePhotoSize);
+            if (processedMediaItem != null) {
+              processedMedia.add(processedMediaItem);
+              print('McpPackExportService: ✓ Successfully processed media ${media.id}');
+            } else {
+              print('McpPackExportService: ⚠️ Failed to process media ${media.id} - photo will NOT be included in export');
+              print('McpPackExportService:   URI: ${media.uri}');
+              print('McpPackExportService:   Type: ${media.type}');
+            }
           }
         } catch (e, stackTrace) {
           print('McpPackExportService: ✗ Error processing media ${media.id}: $e');
           print('McpPackExportService: Stack trace: $stackTrace');
-          // Don't add placeholder - let the export continue without this photo
         }
       }
       final successfulCount = processedMedia.length;
@@ -905,6 +952,360 @@ class McpPackExportService {
       return '${isoString}Z';
     }
   }
+
+  /// Create media metadata without writing files (for pack mode)
+  Future<Map<String, dynamic>?> _createMediaMetadata(
+    MediaItem media,
+    bool reducePhotoSize,
+  ) async {
+    // Get original bytes to compute hash and determine file info
+    Uint8List? originalBytes;
+    String? originalFormat;
+    final mediaType = media.type;
+
+    // Try to get bytes (same logic as _processMediaItem but don't write)
+    final isUriScheme = media.uri.startsWith('ph://') || 
+                       media.uri.startsWith('placeholder://') || 
+                       media.uri.startsWith('mcp://') ||
+                       media.uri.startsWith('file://');
+    
+    if (!isUriScheme) {
+      final file = File(media.uri);
+      if (await file.exists()) {
+        try {
+          originalBytes = await file.readAsBytes();
+          originalFormat = _getFileExtension(media.uri);
+        } catch (e) {
+          print('McpPackExportService: ⚠️ Error reading file ${media.uri}: $e');
+        }
+      }
+    } else if (media.uri.startsWith('file://')) {
+      final filePath = media.uri.replaceFirst('file://', '');
+      final file = File(filePath);
+      if (await file.exists()) {
+        try {
+          originalBytes = await file.readAsBytes();
+          originalFormat = _getFileExtension(filePath);
+        } catch (e) {
+          print('McpPackExportService: ⚠️ Error reading file:// URI $filePath: $e');
+        }
+      }
+    } else if (PhotoBridge.isPhotoLibraryUri(media.uri)) {
+      final localId = PhotoBridge.extractLocalIdentifier(media.uri);
+      if (localId != null && mediaType == MediaType.image) {
+        final photoData = await PhotoBridge.getPhotoBytes(localId);
+        if (photoData != null) {
+          originalBytes = photoData['bytes'] as Uint8List;
+          originalFormat = photoData['ext'] as String;
+        }
+      }
+    }
+
+    if (originalBytes == null) {
+      return null; // Can't create metadata without bytes
+    }
+
+    // Compute hash
+    String sha;
+    if (media.sha256 != null && media.sha256!.isNotEmpty) {
+      sha = media.sha256!;
+    } else {
+      sha = sha256Hex(originalBytes);
+    }
+
+    // Determine file extension
+    String defaultExt;
+    switch (mediaType) {
+      case MediaType.video:
+        defaultExt = 'mp4';
+        break;
+      case MediaType.audio:
+        defaultExt = 'm4a';
+        break;
+      case MediaType.file:
+        defaultExt = originalFormat ?? 'bin';
+        break;
+      case MediaType.image:
+        defaultExt = 'jpg';
+        break;
+    }
+
+    // Create metadata (pack will be assigned later)
+    return {
+      'id': media.id,
+      'kind': mediaType.name,
+      'type': mediaType.name,
+      'sha256': sha,
+      'filename': '$sha.${originalFormat ?? defaultExt}',
+      'createdAt': media.createdAt.toIso8601String(),
+      'originalPath': media.uri,
+      'bytes': originalBytes.length,
+      if (media.duration != null) 'duration': media.duration!.inSeconds,
+      if (media.sizeBytes != null) 'sizeBytes': media.sizeBytes,
+      if (media.altText != null) 'altText': media.altText,
+      if (media.ocrText != null) 'ocrText': media.ocrText,
+      if (media.transcript != null) 'transcript': media.transcript,
+      if (media.analysisData != null) 'analysisData': media.analysisData,
+    };
+  }
+
+  /// Export media with packs to /Media/packs/pack-XXX/ and /Media/media_index.json
+  Future<void> _exportMediaWithPacks({
+    required List<MediaItem> mediaItems,
+    required Directory mcpDir,
+    required int packTargetSizeMB,
+    required bool reducePhotoSize,
+  }) async {
+    if (mediaItems.isEmpty) return;
+
+    final mediaDir = Directory(path.join(mcpDir.path, 'Media'));
+    await mediaDir.create(recursive: true);
+    final packsDir = Directory(path.join(mediaDir.path, 'packs'));
+    await packsDir.create(recursive: true);
+
+    final mediaIndex = <String, dynamic>{
+      'packs': <Map<String, dynamic>>[],
+      'total_media_items': 0,
+      'total_bytes': 0,
+      'items': <Map<String, dynamic>>[],
+    };
+
+    final packTargetSizeBytes = packTargetSizeMB * 1024 * 1024;
+    final packs = <Map<String, dynamic>>[];
+    final currentPack = <Map<String, dynamic>>[];
+    int currentPackSize = 0;
+    int packNumber = 1;
+    int totalMediaBytes = 0;
+    final seenMediaHashes = <String, String>{};
+
+    for (int i = 0; i < mediaItems.length; i++) {
+      final mediaItem = mediaItems[i];
+      print('📦 MCP Export: Processing media ${i + 1}/${mediaItems.length} for packs...');
+
+      try {
+        // Get media bytes (same logic as _processMediaItem)
+        Uint8List? originalBytes;
+        String? originalFormat;
+        final mediaType = mediaItem.type;
+
+        final isUriScheme = mediaItem.uri.startsWith('ph://') || 
+                           mediaItem.uri.startsWith('placeholder://') || 
+                           mediaItem.uri.startsWith('mcp://') ||
+                           mediaItem.uri.startsWith('file://');
+        
+        if (!isUriScheme) {
+          final file = File(mediaItem.uri);
+          if (await file.exists()) {
+            try {
+              originalBytes = await file.readAsBytes();
+              originalFormat = _getFileExtension(mediaItem.uri);
+            } catch (e) {
+              print('McpPackExportService: ⚠️ Error reading file ${mediaItem.uri}: $e');
+            }
+          }
+        } else if (mediaItem.uri.startsWith('file://')) {
+          final filePath = mediaItem.uri.replaceFirst('file://', '');
+          final file = File(filePath);
+          if (await file.exists()) {
+            try {
+              originalBytes = await file.readAsBytes();
+              originalFormat = _getFileExtension(filePath);
+            } catch (e) {
+              print('McpPackExportService: ⚠️ Error reading file:// URI $filePath: $e');
+            }
+          }
+        } else if (PhotoBridge.isPhotoLibraryUri(mediaItem.uri)) {
+          final localId = PhotoBridge.extractLocalIdentifier(mediaItem.uri);
+          if (localId != null && mediaType == MediaType.image) {
+            final photoData = await PhotoBridge.getPhotoBytes(localId);
+            if (photoData != null) {
+              originalBytes = photoData['bytes'] as Uint8List;
+              originalFormat = photoData['ext'] as String;
+            }
+          }
+        }
+
+        if (originalBytes == null) {
+          print('McpPackExportService: ⚠️ Could not get bytes for media ${mediaItem.id}');
+          continue;
+        }
+
+        // Process photo based on size reduction setting
+        Uint8List finalBytes = originalBytes;
+        bool wasReduced = false;
+        if (mediaType == MediaType.image && reducePhotoSize) {
+          final reencoded = reencodeFull(originalBytes, maxEdge: 1920, quality: 85);
+          finalBytes = reencoded.bytes;
+          wasReduced = true;
+        }
+
+        final mediaHash = sha256.convert(finalBytes).toString();
+
+        // Deduplicate
+        if (seenMediaHashes.containsKey(mediaHash)) {
+          print('McpPackExportService: Skipping duplicate media (hash: ${mediaHash.substring(0, 8)}...)');
+          final existingId = seenMediaHashes[mediaHash]!;
+          (mediaIndex['items'] as List<Map<String, dynamic>>).add({
+            'id': mediaItem.id,
+            'type': 'media',
+            'origin': 'upload',
+            'created_at': mediaItem.createdAt.toUtc().toIso8601String(),
+            'pack': 'existing',
+            'filename': path.basename(mediaItem.uri),
+            'bytes': finalBytes.length,
+            'duplicate_of': existingId,
+          });
+          continue;
+        }
+
+        seenMediaHashes[mediaHash] = mediaItem.id;
+
+        // Check if we need a new pack
+        if (currentPackSize + finalBytes.length > packTargetSizeBytes && currentPack.isNotEmpty) {
+          // Finalize current pack
+          final packName = 'pack-${packNumber.toString().padLeft(3, '0')}';
+          await _finalizeMcpPack(
+            packName: packName,
+            packItems: currentPack,
+            packsDir: packsDir,
+            mediaIndex: mediaIndex,
+            prevPack: packs.isNotEmpty ? packs.last['name'] as String? : null,
+          );
+
+          if (packs.isNotEmpty) {
+            packs.last['next'] = packName;
+          }
+
+          packs.add({
+            'name': packName,
+            'prev': packs.isNotEmpty ? packs.last['name'] : null,
+            'next': null,
+            'total_bytes': currentPackSize,
+            'items': currentPack.map((item) => item['id'] as String).toList(),
+          });
+
+          currentPack.clear();
+          currentPackSize = 0;
+          packNumber++;
+        }
+
+        // Copy media file to current pack
+        final packName = 'pack-${packNumber.toString().padLeft(3, '0')}';
+        final packDir = Directory(path.join(packsDir.path, packName));
+        await packDir.create(recursive: true);
+
+        String defaultExt;
+        switch (mediaType) {
+          case MediaType.video:
+            defaultExt = 'mp4';
+            break;
+          case MediaType.audio:
+            defaultExt = 'm4a';
+            break;
+          case MediaType.file:
+            defaultExt = originalFormat ?? 'bin';
+            break;
+          case MediaType.image:
+            defaultExt = 'jpg';
+            break;
+        }
+
+        final fileName = '${mediaHash.substring(0, 16)}.${originalFormat ?? defaultExt}';
+        final destFile = File(path.join(packDir.path, fileName));
+        await destFile.writeAsBytes(finalBytes);
+
+        // Add to current pack
+        currentPack.add({
+          'id': mediaItem.id,
+          'type': 'media',
+          'origin': 'upload',
+          'created_at': mediaItem.createdAt.toUtc().toIso8601String(),
+          'pack': packName,
+          'filename': fileName,
+          'bytes': finalBytes.length,
+          'sha256': mediaHash,
+        });
+
+        currentPackSize += finalBytes.length;
+        totalMediaBytes += finalBytes.length;
+
+        // Also create media node JSON
+        final mediaNodeSubDir = Directory(path.join(mcpDir.path, 'nodes', 'media', mediaType.name == 'image' ? 'photo' : mediaType.name));
+        await mediaNodeSubDir.create(recursive: true);
+        final mediaNodeFile = File(path.join(mediaNodeSubDir.path, '${mediaItem.id}.json'));
+        await mediaNodeFile.writeAsString(jsonEncode({
+          'id': mediaItem.id,
+          'kind': mediaType.name,
+          'type': mediaType.name,
+          'sha256': mediaHash,
+          'filename': fileName,
+          'pack': packName,
+          'createdAt': mediaItem.createdAt.toIso8601String(),
+          'originalPath': mediaItem.uri,
+          if (mediaItem.duration != null) 'duration': mediaItem.duration!.inSeconds,
+          if (mediaItem.sizeBytes != null) 'sizeBytes': mediaItem.sizeBytes,
+          if (mediaItem.altText != null) 'altText': mediaItem.altText,
+          if (mediaItem.ocrText != null) 'ocrText': mediaItem.ocrText,
+          if (mediaItem.transcript != null) 'transcript': mediaItem.transcript,
+          if (mediaItem.analysisData != null) 'analysisData': mediaItem.analysisData,
+          if (wasReduced) 'reduced': true,
+        }));
+
+      } catch (e) {
+        print('McpPackExportService: Error exporting media ${mediaItem.id}: $e');
+      }
+    }
+
+    // Finalize last pack
+    if (currentPack.isNotEmpty) {
+      final packName = 'pack-${packNumber.toString().padLeft(3, '0')}';
+      await _finalizeMcpPack(
+        packName: packName,
+        packItems: currentPack,
+        packsDir: packsDir,
+        mediaIndex: mediaIndex,
+        prevPack: packs.isNotEmpty ? packs.last['name'] as String? : null,
+      );
+
+      if (packs.isNotEmpty) {
+        packs.last['next'] = packName;
+      }
+
+      packs.add({
+        'name': packName,
+        'prev': packs.isNotEmpty ? packs.last['name'] : null,
+        'next': null,
+        'total_bytes': currentPackSize,
+        'items': currentPack.map((item) => item['id'] as String).toList(),
+      });
+    }
+
+    // Update media index
+    mediaIndex['packs'] = packs;
+    mediaIndex['total_media_items'] = (mediaIndex['items'] as List).length;
+    mediaIndex['total_bytes'] = totalMediaBytes;
+
+    // Write media index
+    final mediaIndexFile = File(path.join(mediaDir.path, 'media_index.json'));
+    await mediaIndexFile.writeAsString(jsonEncode(mediaIndex));
+
+    print('📦 MCP Export: Exported ${(mediaIndex['items'] as List).length} media items in ${packs.length} packs');
+  }
+
+  /// Finalize a media pack
+  Future<void> _finalizeMcpPack({
+    required String packName,
+    required List<Map<String, dynamic>> packItems,
+    required Directory packsDir,
+    required Map<String, dynamic> mediaIndex,
+    String? prevPack,
+  }) async {
+    // Add items to media index
+    for (final item in packItems) {
+      (mediaIndex['items'] as List<Map<String, dynamic>>).add(item);
+    }
+  }
+
 }
 
 /// Result of an MCP export operation
