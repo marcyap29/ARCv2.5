@@ -51,6 +51,20 @@ class McpPackExportService {
     Directory? tempDir;
     try {
       print('📦 Starting MCP export to: $_outputPath');
+      print('📦 MCP Export: Received ${entries.length} entries to export');
+      
+      // Validate entries list
+      if (entries.isEmpty) {
+        print('❌ MCP Export: No entries provided for export');
+        return McpExportResult(
+          success: false,
+          error: 'No entries to export. Please ensure you have journal entries and that your date range selection includes entries.',
+          outputPath: null,
+          totalEntries: 0,
+          totalPhotos: 0,
+          isDebugMode: _isDebugMode,
+        );
+      }
 
       // Create temporary directory for MCP structure
       // Use getApplicationDocumentsDirectory instead of systemTemp for iOS compatibility

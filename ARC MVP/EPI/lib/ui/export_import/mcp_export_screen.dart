@@ -135,10 +135,11 @@ class _McpExportScreenState extends State<McpExportScreen> {
       } else {
         // Export all entries
         entries = await journalRepo.getAllJournalEntries();
-
-      if (entries.isEmpty) {
-        _showErrorDialog('No entries to export');
-        return;
+        
+        if (entries.isEmpty) {
+          setState(() => _isExporting = false);
+          _showErrorDialog('No entries to export');
+          return;
         }
       }
 
