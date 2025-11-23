@@ -13,6 +13,7 @@ import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
 import 'package:my_app/utils/file_utils.dart';
 import 'package:my_app/arc/ui/timeline/timeline_cubit.dart';
+import 'package:my_app/shared/ui/home/home_view.dart';
 
 /// Screen for managing MCP (Memory Container Protocol) operations
 ///
@@ -204,6 +205,18 @@ class McpManagementScreen extends StatelessWidget {
               try {
                 context.read<TimelineCubit>().reloadAllEntries();
                 print('✅ Timeline refreshed after ARCX import');
+                
+                // Navigate to timeline (Journal tab in HomeView)
+                Future.delayed(const Duration(milliseconds: 300), () {
+                  if (context.mounted) {
+                    Navigator.of(context).pushAndRemoveUntil(
+                      MaterialPageRoute(
+                        builder: (context) => const HomeView(initialTab: 0), // Journal tab
+                      ),
+                      (route) => false, // Remove all previous routes
+                    );
+                  }
+                });
               } catch (e) {
                 print('⚠️ Could not refresh timeline: $e');
               }
@@ -263,11 +276,24 @@ class McpManagementScreen extends StatelessWidget {
                 print('⚠️ Could not refresh timeline: $e');
               }
               
+              // Show success dialog briefly, then navigate to timeline
               _showSuccess(
                 context,
                 'Import Complete',
                 'Imported ${importResult.totalEntries} entries and ${importResult.totalPhotos} media items.',
               );
+              
+              // Navigate to timeline after a short delay (allows dialog to show)
+              Future.delayed(const Duration(milliseconds: 500), () {
+                if (context.mounted) {
+                  Navigator.of(context).pushAndRemoveUntil(
+                    MaterialPageRoute(
+                      builder: (context) => const HomeView(initialTab: 0), // Journal tab
+                    ),
+                    (route) => false, // Remove all previous routes
+                  );
+                }
+              });
             } else {
               _showError(context, importResult.error ?? 'Import failed');
             }
