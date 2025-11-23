@@ -733,13 +733,6 @@ class _McpExportScreenState extends State<McpExportScreen> {
       appBar: AppBar(
         backgroundColor: kcBackgroundColor,
         elevation: 0,
-        title: Text(
-          'Create MCP Package',
-          style: heading1Style(context).copyWith(
-            color: kcPrimaryTextColor,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
         centerTitle: true,
         iconTheme: const IconThemeData(color: kcPrimaryTextColor),
       ),
@@ -1035,7 +1028,7 @@ class _McpExportScreenState extends State<McpExportScreen> {
               child: ElevatedButton(
                 onPressed: _isExporting ? null : _exportMcpPackage,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: kcAccentColor,
+                  backgroundColor: _exportFormat == 'zip' ? Colors.blue : kcAccentColor,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(

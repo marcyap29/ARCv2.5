@@ -33,13 +33,6 @@ class McpManagementScreen extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: kcBackgroundColor,
         elevation: 0,
-        title: Text(
-          'MCP Management',
-          style: heading1Style(context).copyWith(
-            color: kcPrimaryTextColor,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
         centerTitle: true,
         iconTheme: const IconThemeData(color: kcPrimaryTextColor),
       ),
