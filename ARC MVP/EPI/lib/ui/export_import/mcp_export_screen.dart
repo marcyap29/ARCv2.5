@@ -431,10 +431,14 @@ class _McpExportScreenState extends State<McpExportScreen> {
         );
         
         if (result.success) {
+          // Close progress dialog first
+          Navigator.of(context).pop();
+          
           // Show success dialog with result
           // Use similar dialog style but customized for ZIP
           showDialog(
             context: context,
+            barrierDismissible: false,
             builder: (context) => AlertDialog(
               title: const Row(
                 children: [
@@ -457,13 +461,20 @@ class _McpExportScreenState extends State<McpExportScreen> {
               ),
               actions: [
                 TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
+                  onPressed: () {
+                    Navigator.of(context).pop(); // Close success dialog
+                    Navigator.of(context).pop(); // Navigate back to MCP Management screen
+                  },
                   child: const Text('OK'),
                 ),
                 ElevatedButton(
                   onPressed: () {
-                    Navigator.of(context).pop();
-                    _shareMcpPackage(outputPath);
+                    Navigator.of(context).pop(); // Close success dialog
+                    Navigator.of(context).pop(); // Navigate back to MCP Management screen
+                    // Share after navigation completes
+                    Future.delayed(const Duration(milliseconds: 100), () {
+                      _shareMcpPackage(outputPath);
+                    });
                   },
                   child: const Text('Share'),
                 ),
@@ -471,6 +482,7 @@ class _McpExportScreenState extends State<McpExportScreen> {
             ),
           );
         } else {
+          Navigator.of(context).pop(); // Close progress dialog
           _showErrorDialog(result.error ?? 'ZIP export failed');
         }
       }

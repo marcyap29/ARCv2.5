@@ -112,7 +112,8 @@ class McpPackExportService {
         
         // Count photos in this entry
         final media = processedEntry['media'] as List<dynamic>;
-        totalPhotos += media.where((m) => m['kind'] == 'photo').length;
+        // Media kind uses MediaType.name which is 'image' for photos, not 'photo'
+        totalPhotos += media.where((m) => m['kind'] == 'image' || m['kind'] == 'photo').length;
       }
 
       // Export chat data if requested
