@@ -1,7 +1,7 @@
 # EPI MVP - Comprehensive Features Guide
 
-**Version:** 1.0.5  
-**Last Updated:** November 2025
+**Version:** 1.0.6  
+**Last Updated:** January 2025
 
 ---
 
@@ -66,11 +66,13 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 - Empty state handling
 
 **Timeline Features**
-- **Date Navigation**: Jump to specific dates
+- **Date Navigation**: Jump to specific dates with accurate positioning
 - **Entry Selection**: Multi-select for batch operations
 - **Entry Viewing**: Full entry view with media
 - **Entry Editing**: Inline editing capabilities
-- **Adaptive ARCForm Preview**: Timeline chrome collapses and the phase legend appears only when the ARCForm timeline rail is expanded, giving users a full-height preview when they need it and a clean journal canvas otherwise.
+- **Adaptive ARCForm Preview**: Timeline chrome collapses and the phase legend appears only when the ARCForm timeline rail is expanded, giving users a full-height preview when they need it and a clean journal canvas otherwise
+- **Calendar Header**: Month display above weekly calendar for better date context
+- **UI Layout**: Calendar header and arcform preview properly spaced to prevent clipping
 
 ### Timeline Navigation & LUMARA Links
 

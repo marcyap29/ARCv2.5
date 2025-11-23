@@ -1,7 +1,7 @@
 # EPI Documentation
 
-**Last Updated:** November 2025  
-**Version:** 2.1.30
+**Last Updated:** January 2025  
+**Version:** 2.1.32
 
 ## Documentation Structure
 
@@ -33,6 +33,7 @@ User and developer guides:
 
 ### 📁 `/implementation/`
 Implementation details and technical notes:
+- `ARC_Comprehensive_Docs_v1.0.md` - Comprehensive ARC documentation (v1.0)
 - Phase analysis implementation
 - System implementation details
 
@@ -80,8 +81,8 @@ Policy specifications:
 
 ## Version Information
 
-**Current Version:** 2.1.27  
-**Last Major Update:** November 2025 (LUMARA Knowledge Attribution, Response Variety, and Calendar Scroll Sync Fix)
+**Current Version:** 2.1.32  
+**Last Major Update:** January 2025 (Timeline UI Improvements & Date Navigation Fixes)
 
 See `changelog/CHANGELOG.md` for detailed version history.
 

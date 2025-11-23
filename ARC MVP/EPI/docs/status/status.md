@@ -1,8 +1,8 @@
 # EPI MVP - Current Status
 
-**Version:** 2.1.27  
-**Last Updated:** November 2025  
-**Branch:** journal-updates  
+**Version:** 2.1.32  
+**Last Updated:** January 2025  
+**Branch:** clean-timeline  
 **Status:** ✅ Production Ready - MVP Fully Operational
 
 ---
@@ -46,6 +46,7 @@ The EPI MVP is **fully operational** with all core systems working correctly. Th
 | **LUMARA Action Buttons** | ✅ Operational | In-chat LUMARA bubbles now have action buttons (Regenerate, Soften tone, More depth, Continue thought, Explore conversation) at bottom, matching in-journal UX |
 | **Timeline Date Connection** | ✅ Operational | Calendar week timeline date boxes now connected to timeline cubit data, showing accurate dates with entries |
 | **Bottom Tab Navigation** | ✅ Operational | + button moved from floating to bottom tabs, positioned above Journal|LUMARA|Insights tabs |
+| **Timeline UI Improvements** | ✅ Operational | Calendar header and arcform preview clipping fixed, date jumping accuracy improved |
 
 ### Platform Support
 
@@ -80,6 +81,11 @@ The EPI MVP is **fully operational** with all core systems working correctly. Th
 - **Status**: ✅ Complete - More natural and accurate AI interactions.
 
 ### January 2025
+
+#### ✅ Timeline UI Improvements & Date Navigation Fixes (January 2025)
+- **Calendar & Arcform Preview Clipping Fix**: Increased calendar header height to 108px to account for month text, added proper container wrapper, and increased arcform preview top margin to prevent clipping with pinned calendar header
+- **Date Jumping Accuracy Fix**: Updated date jumping logic to use same filtering/deduplication logic as displayed entries, ensuring accurate scroll to selected dates
+- **Status**: ✅ Complete - Timeline UI improvements and accurate date navigation
 
 #### ✅ LUMARA UI/UX Improvements & Navigation Updates (January 2025)
 - **Removed Long Press Menu**: Removed long press functionality on LUMARA head icon in both journal and chat interfaces

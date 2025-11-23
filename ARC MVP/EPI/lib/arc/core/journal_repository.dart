@@ -1,10 +1,12 @@
 import 'dart:async';
+import 'dart:convert';
+import 'package:crypto/crypto.dart';
 import 'package:hive/hive.dart';
 import 'package:my_app/models/journal_entry_model.dart';
 import 'package:my_app/arc/ui/timeline/timeline_state.dart';
 import 'package:my_app/arc/core/sage_annotation_model.dart';
 import 'package:my_app/mira/mira_service.dart';
-import 'package:my_app/mira/core/ids.dart';
+import 'package:my_app/mira/core/schema.dart';
 import 'package:my_app/data/models/media_item.dart';
 
 /// Self-initializing repository with consistent box name.
@@ -258,7 +260,52 @@ class JournalRepository {
     if (entry != null) {
       try {
         final miraService = MiraService.instance;
-        final miraNodeId = deterministicEntryId(entry.content, entry.createdAt);
+        
+        // Find MIRA node by original_entry_id in metadata (more reliable than deterministic ID)
+        // This ensures we delete the correct node even if there are duplicate entries
+        String? miraNodeId;
+        List<String> candidateNodeIds = [];
+        
+        try {
+          final entryNodes = await miraService.getNodesByType(NodeType.entry, limit: 10000);
+          print('🔍 Journal: Searching through ${entryNodes.length} MIRA entry nodes for entry $id');
+          
+          for (final node in entryNodes) {
+            final metadata = node.data;
+            
+            // Check for original_entry_id match
+            if (metadata.containsKey('original_entry_id') && 
+                metadata['original_entry_id'] == id) {
+              miraNodeId = node.id;
+              print('🔍 Journal: Found MIRA node by original_entry_id: $miraNodeId');
+              break;
+            }
+            
+            // Also check if node ID contains the entry ID (for nodes created with unique ID)
+            if (node.id.contains(id) || node.id.endsWith(id.substring(0, 8))) {
+              candidateNodeIds.add(node.id);
+              print('🔍 Journal: Found candidate MIRA node by ID pattern: ${node.id}');
+            }
+          }
+          
+          // If no exact match but we have candidates, use the first one
+          if (miraNodeId == null && candidateNodeIds.isNotEmpty) {
+            miraNodeId = candidateNodeIds.first;
+            print('🔍 Journal: Using candidate MIRA node ID: $miraNodeId');
+          }
+        } catch (e) {
+          print('⚠️ Journal: Error searching for MIRA node by original_entry_id: $e');
+        }
+        
+        // Fallback: Try generating unique ID that includes entry ID
+        if (miraNodeId == null) {
+          // Generate unique ID that includes entry ID to ensure we get the right node
+          final normalized = entry.content.trim();
+          final combined = '$id|$normalized|${entry.createdAt.toUtc().toIso8601String()}';
+          final hash = sha1.convert(utf8.encode(combined)).toString().substring(0, 12);
+          miraNodeId = 'entry_$hash';
+          print('🔍 Journal: Generated unique MIRA node ID with entry ID: $miraNodeId');
+        }
         
         print('🔍 Journal: Cleaning up MIRA data for entry $id (MIRA node: $miraNodeId)');
         
@@ -328,13 +375,22 @@ class JournalRepository {
       }
     }
     
-    // Helper function to normalize content for comparison
-    String normalizeContent(String content) {
-      // Remove all whitespace, convert to lowercase, remove punctuation
+    // Helper functions to normalize content for comparison/key generation
+    String normalizeContentForKey(String content) {
+      // Remove punctuation and collapse whitespace entirely so identical content maps to same key
       return content
           .toLowerCase()
-          .replaceAll(RegExp(r'[^\w\s]'), '') // Remove punctuation
-          .replaceAll(RegExp(r'\s+'), '') // Remove all whitespace
+          .replaceAll(RegExp(r'[^\w\s]'), '')
+          .replaceAll(RegExp(r'\s+'), '')
+          .trim();
+    }
+
+    String normalizeContentForWords(String content) {
+      // Remove punctuation but keep single spaces so we can compare word tokens
+      return content
+          .toLowerCase()
+          .replaceAll(RegExp(r'[^\w\s]'), ' ')
+          .replaceAll(RegExp(r'\s+'), ' ')
           .trim();
     }
     
@@ -348,7 +404,7 @@ class JournalRepository {
     for (final entry in entriesToKeep.values) {
       // Create a key from normalized content + date (day only)
       final dateKey = getDateKey(entry.createdAt);
-      final normalizedContent = normalizeContent(entry.content);
+      final normalizedContent = normalizeContentForKey(entry.content);
       final key = '$dateKey|$normalizedContent';
       
       if (!contentDateMap.containsKey(key)) {
@@ -384,48 +440,64 @@ class JournalRepository {
     
     // Third pass: Also check for entries with very similar content (fuzzy match)
     // This catches cases where content might have minor differences
-    if (entriesToDelete.isEmpty) {
-      print('🔍 JournalRepository: No exact duplicates found, checking for similar content...');
-      final remainingEntries = entriesToKeep.values.where((e) => !entriesToDelete.contains(e.id)).toList();
+    // Always run this check, not just when no exact duplicates are found
+    print('🔍 JournalRepository: Checking for similar content entries...');
+    final remainingEntries = entriesToKeep.values.where((e) => !entriesToDelete.contains(e.id)).toList();
+    
+    // Helper function to calculate Jaccard similarity
+    double calculateJaccardSimilarity(String s1, String s2) {
+      final set1 = s1.split(' ').where((w) => w.isNotEmpty).toSet();
+      final set2 = s2.split(' ').where((w) => w.isNotEmpty).toSet();
       
-      for (int i = 0; i < remainingEntries.length; i++) {
-        final entry1 = remainingEntries[i];
-        if (entriesToDelete.contains(entry1.id)) continue;
+      if (set1.isEmpty && set2.isEmpty) return 1.0;
+      if (set1.isEmpty || set2.isEmpty) return 0.0;
+      
+      final intersection = set1.intersection(set2).length;
+      final union = set1.length + set2.length - intersection;
+      return intersection / union;
+    }
+    
+    for (int i = 0; i < remainingEntries.length; i++) {
+      final entry1 = remainingEntries[i];
+      if (entriesToDelete.contains(entry1.id)) continue;
+      
+      final content1 = normalizeContentForWords(entry1.content);
+      
+      // Skip if content is too short (likely not a real duplicate)
+      if (content1.length < 20) continue;
+      
+      for (int j = i + 1; j < remainingEntries.length; j++) {
+        final entry2 = remainingEntries[j];
+        if (entriesToDelete.contains(entry2.id)) continue;
         
-        final date1 = getDateKey(entry1.createdAt);
-        final content1 = normalizeContent(entry1.content);
+        final content2 = normalizeContentForWords(entry2.content);
         
-        // Skip if content is too short (likely not a real duplicate)
-        if (content1.length < 20) continue;
+        // Skip if content is too short
+        if (content2.length < 20) continue;
         
-        for (int j = i + 1; j < remainingEntries.length; j++) {
-          final entry2 = remainingEntries[j];
-          if (entriesToDelete.contains(entry2.id)) continue;
+        if (content1.isEmpty || content2.isEmpty) continue;
+
+        // Consider entries saved within a short window (12 hours) as potential duplicates
+        final timeDifference =
+            entry1.createdAt.difference(entry2.createdAt).abs();
+        if (timeDifference <= const Duration(hours: 12)) {
+          final similarity = calculateJaccardSimilarity(content1, content2);
           
-          final date2 = getDateKey(entry2.createdAt);
-          final content2 = normalizeContent(entry2.content);
-          
-          // Check if same date and very similar content (95% similarity)
-          if (date1 == date2 && content1.length > 20 && content2.length > 20) {
-            // Calculate similarity
-            final longer = content1.length > content2.length ? content1 : content2;
-            final shorter = content1.length > content2.length ? content2 : content1;
+          if (similarity > 0.95) {
+            // Very similar content on same date - likely duplicates
+            print('⚠️ JournalRepository: Found similar entries (similarity: ${similarity.toStringAsFixed(2)})');
+            print('   Entry 1 ID: ${entry1.id}, Date: ${entry1.createdAt}, Updated: ${entry1.updatedAt}');
+            print('   Entry 2 ID: ${entry2.id}, Date: ${entry2.createdAt}, Updated: ${entry2.updatedAt}');
+            print('   Content 1 preview: ${entry1.content.substring(0, entry1.content.length > 100 ? 100 : entry1.content.length)}...');
+            print('   Content 2 preview: ${entry2.content.substring(0, entry2.content.length > 100 ? 100 : entry2.content.length)}...');
             
-            // Check if shorter is contained in longer (with some tolerance)
-            if (longer.contains(shorter) || shorter.length >= longer.length * 0.95) {
-              // Very similar content on same date - likely duplicates
-              print('⚠️ JournalRepository: Found similar entries (${(shorter.length / longer.length * 100).toStringAsFixed(1)}% match)');
-              print('   Entry 1 ID: ${entry1.id}, Date: ${entry1.createdAt}');
-              print('   Entry 2 ID: ${entry2.id}, Date: ${entry2.createdAt}');
-              
-              // Keep the one with latest updatedAt
-              final toKeep = entry1.updatedAt.isAfter(entry2.updatedAt) ? entry1 : entry2;
-              final toDelete = entry1.updatedAt.isAfter(entry2.updatedAt) ? entry2 : entry1;
-              
-              if (!entriesToDelete.contains(toDelete.id)) {
-                entriesToDelete.add(toDelete.id);
-                print('   ✅ Marking similar entry for deletion: ${toDelete.id} (keeping ${toKeep.id})');
-              }
+            // Keep the one with latest updatedAt
+            final toKeep = entry1.updatedAt.isAfter(entry2.updatedAt) ? entry1 : entry2;
+            final toDelete = entry1.updatedAt.isAfter(entry2.updatedAt) ? entry2 : entry1;
+            
+            if (!entriesToDelete.contains(toDelete.id)) {
+              entriesToDelete.add(toDelete.id);
+              print('   ✅ Marking similar entry for deletion: ${toDelete.id} (keeping ${toKeep.id})');
             }
           }
         }
@@ -473,8 +545,8 @@ class JournalRepository {
           filtered = allEntries.where((e) => e.sageAnnotation != null).toList();
           break;
         case TimelineFilter.all:
-        default:
           filtered = allEntries;
+          break;
       }
     }
 
@@ -492,7 +564,7 @@ class JournalRepository {
     TimelineFilter? filter,
   }) {
     final allEntries = getAllJournalEntriesSync();
-    allEntries.sort((a, b) => a.createdAt.compareTo(b.createdAt)); // Oldest first
+    allEntries.sort((a, b) => b.createdAt.compareTo(a.createdAt)); // Newest first (fixed)
 
     // Apply filter if provided
     List<JournalEntry> filtered = allEntries;
@@ -505,8 +577,8 @@ class JournalRepository {
           filtered = allEntries.where((e) => e.sageAnnotation != null).toList();
           break;
         case TimelineFilter.all:
-        default:
           filtered = allEntries;
+          break;
       }
     }
 

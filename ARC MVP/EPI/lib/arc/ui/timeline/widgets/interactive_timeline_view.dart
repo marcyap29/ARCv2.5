@@ -1,3 +1,5 @@
+// ignore_for_file: unused_element
+
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
@@ -12,7 +14,6 @@ import 'package:my_app/ui/journal/journal_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'package:my_app/arc/ui/arcforms/arcform_renderer_state.dart';
-import 'package:my_app/arc/core/journal_repository.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
 import 'package:my_app/shared/ui/onboarding/phase_quiz_prompt_view.dart';
@@ -23,7 +24,6 @@ import 'package:my_app/prism/atlas/rivet/rivet_service.dart';
 import 'package:hive/hive.dart';
 import 'package:my_app/services/user_phase_service.dart';
 import 'package:my_app/arc/ui/arcforms/phase_recommender.dart';
-import 'package:my_app/mira/mira_service.dart';
 import 'package:uuid/uuid.dart';
 import 'dart:math' as math;
 import 'package:my_app/services/phase_regime_service.dart';
@@ -44,6 +44,7 @@ class InteractiveTimelineView extends StatefulWidget {
   final ValueChanged<bool>? onArcformTimelineVisibilityChanged;
   final AutoScrollController? scrollController; // Changed to AutoScrollController
   final bool showArcformPreview; // Whether to show arcform preview as first item
+  final VoidCallback? onRequestPreserveScrollPosition;
   
   final ValueChanged<DateTime>? onVisibleEntryDateChanged;
 
@@ -55,6 +56,7 @@ class InteractiveTimelineView extends StatefulWidget {
     this.scrollController,
     this.onVisibleEntryDateChanged,
     this.showArcformPreview = false,
+    this.onRequestPreserveScrollPosition,
   });
 
   @override
@@ -110,45 +112,6 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
   // Removed PageView-related methods for 2D grid layout
 
   /// Clean up MIRA nodes and edges when a journal entry is deleted
-  Future<void> _cleanupMiraDataForEntry(String entryId) async {
-    try {
-      final miraService = MiraService.instance;
-      final miraRepo = miraService.repo;
-
-      // Generate the MIRA node ID for this entry
-      final miraNodeId = 'je_$entryId';
-
-      print('🧹 Cleaning up MIRA data for entry $entryId (node: $miraNodeId)');
-
-      // Delete all edges where this node is source or target
-      final allEdges = await miraRepo
-          .exportAll()
-          .where((record) => record['kind'] == 'edge')
-          .map((record) => record)
-          .toList();
-
-      for (final edgeRecord in allEdges) {
-        final src = edgeRecord['src'] as String?;
-        final dst = edgeRecord['dst'] as String?;
-        final edgeId = edgeRecord['id'] as String?;
-
-        if (edgeId != null && (src == miraNodeId || dst == miraNodeId)) {
-          await miraRepo.removeEdge(edgeId);
-          print('🧹 Deleted edge $edgeId');
-        }
-      }
-
-      // Delete the entry node itself
-      await miraRepo.removeNode(miraNodeId);
-      print('🧹 Deleted node $miraNodeId');
-
-      // Note: Keyword nodes are kept for other entries that may reference them
-      // They will be cleaned up by a separate orphan cleanup process if needed
-    } catch (e) {
-      print('⚠️ Error cleaning up MIRA data for entry $entryId: $e');
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return BlocListener<TimelineCubit, TimelineState>(
@@ -305,11 +268,11 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
   }
 
   Widget _build2DGridTimeline() {
-    print('DEBUG: _build2DGridTimeline - _entries has ${_entries?.length ?? 0} entries');
+    print('DEBUG: _build2DGridTimeline - _entries has ${_entries.length} entries');
 
-    // Safety check for null or empty entries
-    if (_entries == null || _entries.isEmpty) {
-      print('DEBUG: _entries is null or empty, returning empty state');
+    // Safety check for empty entries
+    if (_entries.isEmpty) {
+      print('DEBUG: _entries is empty, returning empty state');
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(32.0),
@@ -967,10 +930,13 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
       // Run deduplication before opening entry (silently in background)
       try {
         final journalRepository = context.read<JournalRepository>();
-        await journalRepository.removeDuplicateEntries();
-        // Refresh timeline if duplicates were found
-        final timelineCubit = context.read<TimelineCubit>();
-        timelineCubit.refreshEntries();
+        final deletedCount = await journalRepository.removeDuplicateEntries();
+        if (deletedCount > 0) {
+          widget.onRequestPreserveScrollPosition?.call();
+          // Refresh timeline if duplicates were found
+          final timelineCubit = context.read<TimelineCubit>();
+          timelineCubit.refreshEntries();
+        }
       } catch (e) {
         print('DEBUG: Error running deduplication when opening entry: $e');
         // Continue even if deduplication fails
@@ -1438,6 +1404,7 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
 
   Future<void> _refreshTimeline() async {
     print('DEBUG: Refreshing timeline...');
+    widget.onRequestPreserveScrollPosition?.call();
     final timelineCubit = context.read<TimelineCubit>();
     await timelineCubit.refreshEntries();
     print('DEBUG: Timeline refresh completed');
@@ -1501,13 +1468,13 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
         final countBefore = await journalRepository.getEntryCount();
         print('DEBUG: Total entries before deletion: $countBefore');
 
+        widget.onRequestPreserveScrollPosition?.call();
+        
         // Delete all selected entries
         for (final entryId in _selectedEntryIds) {
           print('DEBUG: Deleting entry: $entryId');
           await journalRepository.deleteJournalEntry(entryId);
-
-          // NEW: Clean up MIRA nodes and edges for this entry
-          await _cleanupMiraDataForEntry(entryId);
+          // MIRA cleanup is handled by deleteJournalEntry
 
           // Verify deletion
           final deletedEntry = journalRepository.getJournalEntryById(entryId);
@@ -1621,13 +1588,12 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
   // Delete single entry
   Future<void> _deleteSingleEntry(String entryId) async {
     try {
+      widget.onRequestPreserveScrollPosition?.call();
+      
       final journalRepository = JournalRepository();
       
       // Delete the entry
       await journalRepository.deleteJournalEntry(entryId);
-      
-      // Clean up MIRA nodes and edges
-      await _cleanupMiraDataForEntry(entryId);
       
       // Recalculate RIVET state after deletion
       await _recalculateRivetState();
@@ -1666,14 +1632,25 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
     print('DEBUG: _getFilteredEntries - Processing ${state.groupedEntries.length} groups');
 
     for (final group in state.groupedEntries) {
-      print('DEBUG: Group has ${group.entries?.length ?? 0} entries');
-      if (group.entries != null) {
-        allEntries.addAll(group.entries!);
-      }
+      print('DEBUG: Group has ${group.entries.length} entries');
+      allEntries.addAll(group.entries);
     }
 
     print('DEBUG: Total flattened entries: ${allEntries.length}');
     print('DEBUG: Current filter: ${state.filter}');
+
+    // Ensure we only show one card per unique entry ID. Duplicate IDs can
+    // appear when the cubit rebuilds rapidly or when pagination merges pages.
+    final Map<String, TimelineEntry> uniqueEntries = {};
+    for (final entry in allEntries) {
+      if (!uniqueEntries.containsKey(entry.id)) {
+        uniqueEntries[entry.id] = entry;
+      } else {
+        print('DEBUG: Skipping duplicate timeline entry ID ${entry.id}');
+      }
+    }
+    allEntries = uniqueEntries.values.toList();
+    print('DEBUG: After removing duplicate IDs: ${allEntries.length}');
 
     // Apply filter with null safety
     List<TimelineEntry> filteredEntries;
@@ -1683,14 +1660,10 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
           filteredEntries = allEntries;
           break;
         case TimelineFilter.textOnly:
-          filteredEntries = allEntries.where((entry) => entry != null && !entry.hasArcform).toList();
+          filteredEntries = allEntries.where((entry) => !entry.hasArcform).toList();
           break;
         case TimelineFilter.withArcform:
-          filteredEntries = allEntries.where((entry) => entry != null && entry.hasArcform).toList();
-          break;
-        default:
-          print('DEBUG: Unknown filter type: ${state.filter}, defaulting to all entries');
-          filteredEntries = allEntries;
+          filteredEntries = allEntries.where((entry) => entry.hasArcform).toList();
           break;
       }
     } catch (e) {
