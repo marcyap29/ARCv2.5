@@ -742,40 +742,6 @@ class _McpExportScreenState extends State<McpExportScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Description
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.05),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.white.withOpacity(0.1)),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Choose your export format: Legacy MCP (.zip) for compatibility, or Secure Archive (.arcx) with AES-256 encryption.',
-                    style: bodyStyle(context).copyWith(
-                      color: kcSecondaryTextColor,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'You can re-import either format at any time to restore your data.',
-                    style: bodyStyle(context).copyWith(
-                      color: kcSecondaryTextColor,
-                      fontSize: 14,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 24),
-
-            // Export format
-            _buildFormatSelection(),
-
-            const SizedBox(height: 24),
 
             // Redaction settings (ARCX format only)
             if (_exportFormat == 'arcx') ...[
@@ -1088,85 +1054,6 @@ class _McpExportScreenState extends State<McpExportScreen> {
     );
   }
 
-  Widget _buildFormatSelection() {
-    return Column(
-      children: [
-        _buildFormatCard(
-          id: 'arcx',
-          title: 'Secure Archive (.arcx)',
-          subtitle: 'Encrypted with AES-256-GCM and Ed25519 signing',
-          icon: Icons.lock,
-          color: Colors.green,
-        ),
-        const SizedBox(height: 12),
-        _buildFormatCard(
-          id: 'zip',
-          title: 'Export Zip File (.zip)',
-          subtitle: 'Standard ZIP archive (Unencrypted)',
-          icon: Icons.folder_zip,
-          color: Colors.blue,
-        ),
-      ],
-    );
-  }
-
-  Widget _buildFormatCard({
-    required String id,
-    required String title,
-    required String subtitle,
-    required IconData icon,
-    required MaterialColor color,
-  }) {
-    final isSelected = _exportFormat == id;
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          _exportFormat = id;
-        });
-      },
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: isSelected ? color.withOpacity(0.1) : Colors.white.withOpacity(0.05),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: isSelected ? color.withOpacity(0.5) : Colors.white.withOpacity(0.1),
-            width: isSelected ? 2 : 1,
-          ),
-        ),
-        child: Row(
-          children: [
-            Icon(icon, color: isSelected ? color : kcSecondaryTextColor, size: 24),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: heading3Style(context).copyWith(
-                      color: isSelected ? color : kcPrimaryTextColor,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    subtitle,
-                    style: bodyStyle(context).copyWith(
-                      color: kcSecondaryTextColor,
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            if (isSelected)
-              Icon(Icons.check_circle, color: color, size: 24),
-          ],
-        ),
-      ),
-    );
-  }
 
   Widget _buildDateRangeSelector() {
     return Container(
