@@ -322,29 +322,6 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 
 ## Data Management Features
 
-### Export/Import System
-
-**MCP Export**
-- **Memory Bundle**: Complete memory graph export in MCP format
-- **Phase Regimes**: Phase timeline export
-- **System States**: RIVET state, Sentinel state, ArcForm timeline export
-- **Chat History**: Complete chat session export
-- **Media References**: Media item references in export
-
-**ARCX Export**
-- **Encrypted Archive**: AES-256-GCM encryption with Ed25519 signatures
-- **Structured Payload**: Organized directory structure (Entries, Media, Chats, PhaseRegimes)
-- **System State Backup**: Complete system state backup in PhaseRegimes/ directory
-- **Import Tracking**: Detailed import completion with counts for all data types
-
-**Import Features**
-- **Phase Regime Import**: Restores phase timeline from exports
-- **System State Import**: Restores RIVET state, Sentinel state, ArcForm timeline
-- **Progress Tracking**: Real-time import progress with detailed counts
-- **Error Handling**: Graceful error handling with detailed warnings
-
-## Data Management Features
-
 ### MCP Export/Import
 
 **Export Features**
@@ -359,6 +336,13 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
   - Sentinel state
   - ArcForm timeline snapshots
   - LUMARA Favorites (all categories: answers, chats, journal entries)
+- **Media Pack Organization**: Media files organized into packs for efficient storage:
+  - Configurable pack size (50-500 MB, default 200 MB)
+  - Media organized into `/Media/packs/pack-XXX/` directories
+  - `media_index.json` file tracks all packs and media items
+  - Pack linking (prev/next) for sequential access
+  - Deduplication support within packs
+  - Available for both ARCX and ZIP export formats
 - **Date Range Filtering**: Export entries, chats, and media within custom date ranges
 - **Extended Data**: All extended data exported to `extensions/` directory in ZIP format
 - **Privacy Protection**: PII detection and flagging

@@ -1,7 +1,7 @@
 # EPI Documentation
 
 **Last Updated:** January 2025  
-**Version:** 2.1.33
+**Version:** 2.1.34
 
 ---
 
@@ -68,15 +68,16 @@ Welcome to the EPI (Evolving Personal Intelligence) documentation. This director
 
 ## Version Information
 
-**Current Version:** 2.1.33  
-**Last Major Update:** January 2025 (ZIP Export Option & Export UI Improvements)
+**Current Version:** 2.1.34  
+**Last Major Update:** January 2025 (Media Packs for ZIP Exports & Configuration UI)
 
 ### Recent Highlights
 
+- ✅ **Media Packs for ZIP Exports**: ZIP exports now support media pack organization matching ARCX format
+- ✅ **Media Pack Configuration**: Restored Media Pack Target Size slider (50-500 MB) for both ARCX and ZIP exports
 - ✅ **ZIP Export Option**: Added unencrypted ZIP export alongside secure ARCX format
 - ✅ **Extended Data Support**: Full export/import of Phase Regimes, RIVET state, Sentinel state, ArcForm timeline, and LUMARA Favorites
-- ✅ **Export UI Simplification**: Removed Media Pack Target Size card, improved date range filtering
-- ✅ **Import Enhancements**: Category preservation for favorites, capacity management
+- ✅ **Export Bug Fixes**: Fixed empty entries error, navigation loop, and photo count display
 
 ---
 
@@ -95,6 +96,7 @@ Welcome to the EPI (Evolving Personal Intelligence) documentation. This director
 
 - **Dual Format Support**: Secure Archive (.arcx) with encryption or standard ZIP (.zip)
 - **Complete Content**: All data types exported (entries, media, chats, extended data)
+- **Media Pack Organization**: Configurable media packs (50-500 MB) for efficient storage in both formats
 - **Extended Data**: Phase Regimes, RIVET state, Sentinel state, ArcForm timeline, LUMARA Favorites
 - **Category Preservation**: Favorite categories (answers, chats, journal entries) preserved
 
@@ -120,4 +122,4 @@ Welcome to the EPI (Evolving Personal Intelligence) documentation. This director
 
 **Status**: ✅ Production Ready  
 **Last Updated**: January 2025  
-**Version**: 2.1.33
+**Version**: 2.1.34

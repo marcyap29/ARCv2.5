@@ -1,7 +1,34 @@
 # EPI MVP - Bug Tracker
 
-**Version:** 2.1.32  
+**Version:** 2.1.34  
 **Last Updated:** January 2025
+
+## Resolved Issues (v2.1.34)
+
+### ZIP Export Empty Entries Error
+- **Issue**: When exporting ZIP files with "All Entries" selected, export would fail with "No entries to export" error even though entries existed.
+- **Root Cause**: Missing validation checks before calling export service and incorrect photo counting logic.
+- **Resolution**: 
+  1. Added validation in export screen to check filteredEntries.isEmpty before calling service
+  2. Added validation in McpPackExportService to check entries list at start
+  3. Fixed photo counting to check for both 'image' and 'photo' kinds (MediaType.name returns 'image')
+  4. Added debug logging to track entry count and date range selection
+- **Status**: ✅ Fixed
+
+### ZIP Export Navigation Loop
+- **Issue**: After completing ZIP export, clicking "OK" on success dialog would show export screen again, causing navigation loop.
+- **Root Cause**: Progress dialog wasn't closed before showing success dialog, and navigation wasn't handled properly.
+- **Resolution**: 
+  1. Close progress dialog before showing success dialog
+  2. Navigate back to MCP Management screen when clicking OK or Share
+  3. Added barrierDismissible: false to prevent accidental dismissal
+- **Status**: ✅ Fixed
+
+### ZIP Export Photo Count Display
+- **Issue**: Photos were exported but not counted correctly in export summary (showed 0 photos).
+- **Root Cause**: Media nodes use MediaType.name which is 'image' for photos, but code was checking for 'photo'.
+- **Resolution**: Updated counting logic to check for both 'image' and 'photo' kinds.
+- **Status**: ✅ Fixed
 
 ## Resolved Issues (v2.1.32)
 

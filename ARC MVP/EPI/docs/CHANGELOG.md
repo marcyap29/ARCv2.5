@@ -1,7 +1,43 @@
 # EPI ARC MVP - Changelog
 
-**Version:** 2.1.33  
+**Version:** 2.1.34  
 **Last Updated:** January 2025
+
+## [2.1.34] - January 2025
+
+### **Media Packs for ZIP Exports & Configuration UI** - Complete
+
+#### Media Pack Support for ZIP Exports
+- **Feature**: ZIP exports now support media packs, matching ARCX export functionality
+- **Organization**: Media files are organized into `/Media/packs/pack-XXX/` directories
+- **Pack Structure**: Media items grouped into packs based on target size (default 200MB)
+- **Media Index**: Creates `media_index.json` file tracking all packs and media items
+- **Pack Linking**: Packs linked with prev/next references for sequential access
+- **Deduplication**: Media deduplication supported within packs
+- **Media Nodes**: Media node JSON files reference pack location for easy lookup
+- **Backward Compatibility**: Legacy direct media directories still created if packs disabled (mediaPackTargetSizeMB = 0)
+
+#### Media Pack Configuration UI Restored
+- **Restored**: Media Pack Target Size slider in Advanced Export Options
+- **Availability**: Available for both ARCX and ZIP export formats
+- **Configuration**: Range 50-500 MB with 9 divisions (default 200MB)
+- **User Control**: Users can configure pack size for both export formats
+- **Description**: Clear explanation of how media packs work
+
+#### Export Service Updates
+- **McpPackExportService**: Added `mediaPackTargetSizeMB` parameter to `exportJournal()`
+- **ARCXExportServiceV2**: Already supported media packs, now configurable via UI
+- **Consistent Behavior**: Both export formats now use identical media pack structure
+- **Implementation**: `_exportMediaWithPacks()` method handles pack organization for ZIP exports
+
+**Files Modified**:
+- `lib/mira/store/mcp/export/mcp_pack_export_service.dart` - Added media pack support with pack organization logic
+- `lib/ui/export_import/mcp_export_screen.dart` - Restored media pack target size UI slider for both formats
+- `lib/mira/store/arcx/services/arcx_export_service_v2.dart` - Already supported, now configurable via UI
+
+**Status**: ✅ Complete - Media packs now available for both ARCX and ZIP exports with user-configurable pack size
+
+---
 
 ## [2.1.33] - January 2025
 

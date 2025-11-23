@@ -259,6 +259,9 @@ MIRA Store → MCP Export Service → ZIP/ARCX Archive
                               - Sentinel State
                               - ArcForm Timeline
                               - LUMARA Favorites
+                              - Media Packs (/Media/packs/pack-XXX/)
+                                    ↓
+                              media_index.json (pack tracking)
 ```
 
 ---
