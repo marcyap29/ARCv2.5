@@ -1,7 +1,53 @@
 # EPI ARC MVP - Changelog
 
-**Version:** 2.1.32  
+**Version:** 2.1.33  
 **Last Updated:** January 2025
+
+## [2.1.33] - January 2025
+
+### **ZIP Export Option & Export UI Improvements** - Complete
+
+#### Unencrypted ZIP Export Option
+- **Feature**: Added unencrypted ZIP export option alongside secure ARCX format
+- **User Choice**: Users can now choose between Secure Archive (.arcx) with encryption or standard ZIP (.zip) for compatibility
+- **Same Content**: ZIP exports include all the same content as ARCX exports:
+  - Journal entries with full metadata
+  - Media (photos, videos, audio, files)
+  - Chat sessions and messages
+  - Health data streams
+  - Phase Regimes
+  - RIVET state
+  - Sentinel state
+  - ArcForm timeline snapshots
+  - LUMARA Favorites (all categories: answers, chats, journal entries)
+- **Extended Data**: All extended data is exported to `extensions/` directory in ZIP format
+- **Import Support**: ZIP files with extended data are fully importable with all content types restored
+
+#### Export UI Simplification
+- **Removed**: Media Pack Target Size card (no longer user-configurable)
+- **Removed**: Size measurement from Export Summary card (was inaccurate)
+- **Fixed**: Custom date range export now correctly includes all entries/media on the selected end date
+- **Improved**: Date range filtering applies consistently to entries, chats, and media
+
+#### Import Enhancements
+- **Extended Data Import**: ZIP import now supports all extended data types:
+  - Phase Regimes restoration
+  - RIVET state restoration
+  - Sentinel state (informational)
+  - ArcForm timeline snapshots
+  - LUMARA Favorites (all categories with proper categorization)
+- **Category Preservation**: Favorite categories (answers, chats, journal entries) are preserved during import
+- **Capacity Management**: Import respects category-specific limits (25 answers, 20 chats, 20 journal entries)
+
+**Files Modified**:
+- `lib/ui/export_import/mcp_export_screen.dart` - Added ZIP format option, removed Media Pack size UI, fixed date range
+- `lib/mira/store/mcp/export/mcp_pack_export_service.dart` - Added extended data export (Phase Regimes, Rivet, Sentinel, ArcForm, Favorites)
+- `lib/mira/store/mcp/import/mcp_pack_import_service.dart` - Added extended data import with category preservation
+- `lib/ui/export_import/mcp_import_screen.dart` - Updated to pass PhaseRegimeService for extended data import
+
+**Status**: ✅ Complete - ZIP export/import with full content support, simplified UI
+
+---
 
 ## [2.1.32] - January 2025
 

@@ -9,8 +9,8 @@ import '../../shared/text_style.dart';
 import 'package:my_app/arc/core/journal_repository.dart';
 import 'package:my_app/models/journal_entry_model.dart';
 import 'package:my_app/data/models/media_item.dart';
-import '../../utils/file_utils.dart';
 import 'package:my_app/mira/store/arcx/services/arcx_export_service_v2.dart';
+import 'package:my_app/mira/store/mcp/export/mcp_pack_export_service.dart';
 import 'package:my_app/arc/chat/chat/chat_repo_impl.dart';
 import 'package:my_app/arc/chat/services/favorites_service.dart';
 import 'package:my_app/services/phase_regime_service.dart';
@@ -20,7 +20,9 @@ import 'package:intl/intl.dart';
 
 /// MCP Export Screen - Create MCP Package (.mcpkg)
 class McpExportScreen extends StatefulWidget {
-  const McpExportScreen({super.key});
+  final String? initialFormat; // 'arcx' or 'zip' - optional format pre-selection
+  
+  const McpExportScreen({super.key, this.initialFormat});
 
   @override
   State<McpExportScreen> createState() => _McpExportScreenState();
@@ -28,11 +30,11 @@ class McpExportScreen extends StatefulWidget {
 
 class _McpExportScreenState extends State<McpExportScreen> {
   bool _isExporting = false;
+  String _exportFormat = 'arcx'; // 'arcx' or 'zip'
   int _entryCount = 0;
   int _photoCount = 0;
   int _chatCount = 0;
   int _favoritesCount = 0;
-  String _archiveSize = 'Calculating...';
   
   // Always using ARCX secure format (per spec - .zip option removed)
   
@@ -50,16 +52,22 @@ class _McpExportScreenState extends State<McpExportScreen> {
   
   // ARCX V2 export options
   ARCXExportStrategy _exportStrategy = ARCXExportStrategy.together; // Export strategy
-  int _mediaPackTargetSizeMB = 200; // Target size for media packs in MB
   
   // Date range filtering
   String _dateRangeSelection = 'all'; // 'all', 'custom'
   DateTime? _customStartDate;
   DateTime? _customEndDate;
+  
+  // Media pack target size (MB)
+  int _mediaPackTargetSizeMB = 200;
 
   @override
   void initState() {
     super.initState();
+    // Set initial format if provided
+    if (widget.initialFormat != null) {
+      _exportFormat = widget.initialFormat!;
+    }
     _loadJournalStats();
   }
 
@@ -100,17 +108,10 @@ class _McpExportScreenState extends State<McpExportScreen> {
         _photoCount = photoCount;
         _chatCount = chatCount;
         _favoritesCount = favoritesCount;
-        _archiveSize = _calculateEstimatedSize(entries);
       });
     } catch (e) {
       print('Error loading journal stats: $e');
     }
-  }
-
-  String _calculateEstimatedSize(List<JournalEntry> entries) {
-    // Rough estimation: 1KB per entry + 500KB per photo
-    final estimatedBytes = (_entryCount * 1024) + (_photoCount * 500 * 1024);
-    return FileUtils.formatFileSize(estimatedBytes);
   }
 
   Future<void> _exportMcpPackage() async {
@@ -137,10 +138,11 @@ class _McpExportScreenState extends State<McpExportScreen> {
       } else {
         // Export all entries
         entries = await journalRepo.getAllJournalEntries();
-
-      if (entries.isEmpty) {
-        _showErrorDialog('No entries to export');
-        return;
+        
+        if (entries.isEmpty) {
+          setState(() => _isExporting = false);
+          _showErrorDialog('No entries to export');
+          return;
         }
       }
 
@@ -151,7 +153,7 @@ class _McpExportScreenState extends State<McpExportScreen> {
       _showProgressDialog(progressNotifier);
 
       // Always use ARCX secure format (per spec - .zip option removed)
-      {
+      if (_exportFormat == 'arcx') {
         // Secure .arcx export
         final outputDir = await getApplicationDocumentsDirectory();
         final exportsDir = Directory(path.join(outputDir.path, 'Exports'));
@@ -166,7 +168,15 @@ class _McpExportScreenState extends State<McpExportScreen> {
         switch (_dateRangeSelection) {
           case 'custom':
             startDate = _customStartDate;
-            endDate = _customEndDate;
+            if (_customEndDate != null) {
+              // Set end date to end of day to include all entries/media on that day
+              endDate = DateTime(
+                _customEndDate!.year, 
+                _customEndDate!.month, 
+                _customEndDate!.day, 
+                23, 59, 59, 999
+              );
+            }
             break;
           case 'all':
           default:
@@ -267,7 +277,7 @@ class _McpExportScreenState extends State<McpExportScreen> {
           print('Warning: Could not load chats for export: $e');
         }
         
-        final result = await arcxExportV2.export(
+          final result = await arcxExportV2.export(
           selection: ARCXExportSelection(
             entryIds: entryIds,
             chatThreadIds: chatThreadIds,
@@ -277,11 +287,11 @@ class _McpExportScreenState extends State<McpExportScreen> {
           ),
           options: ARCXExportOptions(
             strategy: _exportStrategy,
-            mediaPackTargetSizeMB: _mediaPackTargetSizeMB,
             encrypt: true,
             compression: 'auto',
             dedupeMedia: true,
             includeChecksums: true,
+            mediaPackTargetSizeMB: _mediaPackTargetSizeMB,
             startDate: startDate,
             endDate: endDate,
           ),
@@ -302,21 +312,183 @@ class _McpExportScreenState extends State<McpExportScreen> {
         if (result.success) {
           // Update archive size with actual file size
           if (result.arcxPath != null) {
-            try {
-              final file = File(result.arcxPath!);
-              if (await file.exists()) {
-                final fileSize = await file.length();
-                setState(() {
-                  _archiveSize = FileUtils.formatFileSize(fileSize);
-                });
-              }
-            } catch (e) {
-              print('Error getting archive file size: $e');
-            }
+            // File size update removed
           }
           _showArcSuccessDialogV2(result);
         } else {
           _showErrorDialog(result.error ?? 'ARCX export failed');
+        }
+      } else if (_exportFormat == 'zip') {
+        // Standard ZIP export using McpPackExportService
+        
+        print('📦 ZIP Export: Starting export with ${entries.length} total entries');
+        print('📦 ZIP Export: Date range selection: $_dateRangeSelection');
+        
+        // Calculate date range based on selection
+        DateTime? startDate;
+        DateTime? endDate;
+        
+        switch (_dateRangeSelection) {
+          case 'custom':
+            startDate = _customStartDate;
+            if (_customEndDate != null) {
+              // Set end date to end of day
+              endDate = DateTime(
+                _customEndDate!.year, 
+                _customEndDate!.month, 
+                _customEndDate!.day, 
+                23, 59, 59, 999
+              );
+            }
+            print('📦 ZIP Export: Custom date range - Start: $startDate, End: $endDate');
+            break;
+          case 'all':
+          default:
+            print('📦 ZIP Export: Exporting all entries (no date filter)');
+            break;
+        }
+        
+        // Filter entries by date range
+        List<JournalEntry> filteredEntries = entries;
+        if (startDate != null || endDate != null) {
+          filteredEntries = entries.where((entry) {
+            if (startDate != null && entry.createdAt.isBefore(startDate)) return false;
+            if (endDate != null && entry.createdAt.isAfter(endDate)) return false;
+            return true;
+          }).toList();
+        }
+        
+        // Validate we have entries to export
+        if (filteredEntries.isEmpty) {
+          Navigator.of(context).pop(); // Close progress dialog
+          setState(() => _isExporting = false);
+          _showErrorDialog('No entries found to export. Please check your date range selection.');
+          return;
+        }
+        
+        print('📦 ZIP Export: Exporting ${filteredEntries.length} entries (from ${entries.length} total)');
+        
+        // Prepare output path
+        final outputDir = await getApplicationDocumentsDirectory();
+        final exportsDir = Directory(path.join(outputDir.path, 'Exports'));
+        if (!await exportsDir.exists()) {
+          await exportsDir.create(recursive: true);
+        }
+        
+        final timestamp = DateFormat('yyyy-MM-dd_HH-mm').format(DateTime.now());
+        final outputPath = path.join(exportsDir.path, 'export_$timestamp.zip');
+        
+        // Prepare chat dates filter if date range is used
+        Set<String>? chatDatesFilter;
+        if (startDate != null || endDate != null) {
+          chatDatesFilter = {};
+          // Add all dates in range to the filter set
+          // This is a bit simplistic but works for McpPackExportService which expects a Set of date strings
+          final start = startDate ?? DateTime(2000);
+          final end = endDate ?? DateTime.now();
+          
+          for (var d = start; d.isBefore(end) || d.isAtSameMomentAs(end); d = d.add(const Duration(days: 1))) {
+            final dateKey = '${d.year.toString().padLeft(4, '0')}-'
+                          '${d.month.toString().padLeft(2, '0')}-'
+                          '${d.day.toString().padLeft(2, '0')}';
+            chatDatesFilter.add(dateKey);
+          }
+        }
+        
+        // Initialize ChatRepo
+        final chatRepo = ChatRepoImpl.instance;
+        try {
+          await chatRepo.initialize();
+        } catch (e) {
+          print('Warning: Could not initialize ChatRepo: $e');
+        }
+        
+        // Initialize PhaseRegimeService for export
+        PhaseRegimeService? phaseRegimeService;
+        try {
+          final analyticsService = AnalyticsService();
+          final rivetSweepService = RivetSweepService(analyticsService);
+          phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
+          await phaseRegimeService.initialize();
+          print('McpPackExportService: PhaseRegimeService initialized');
+        } catch (e) {
+          print('Warning: Could not initialize PhaseRegimeService: $e');
+        }
+
+        final mcpPackService = McpPackExportService(
+          bundleId: 'export_$timestamp',
+          outputPath: outputPath,
+          chatRepo: chatRepo,
+          phaseRegimeService: phaseRegimeService,
+        );
+        
+        // Pass progress updates
+        // McpPackExportService doesn't support callback, so we just show "Exporting..."
+        
+        final result = await mcpPackService.exportJournal(
+          entries: filteredEntries,
+          includePhotos: true,
+          reducePhotoSize: false,
+          includeChats: true,
+          includeArchivedChats: _includeArchivedChats,
+          chatDatesFilter: chatDatesFilter,
+          mediaPackTargetSizeMB: _mediaPackTargetSizeMB,
+        );
+        
+        if (result.success) {
+          // Close progress dialog first
+          Navigator.of(context).pop();
+          
+          // Show success dialog with result
+          // Use similar dialog style but customized for ZIP
+          showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (context) => AlertDialog(
+              title: const Row(
+                children: [
+                  Icon(Icons.check_circle, color: Colors.blue),
+                  SizedBox(width: 8),
+                  Text('Export Complete'),
+                ],
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Successfully exported ${result.totalEntries} entries, ${result.totalChatSessions} chats, and ${result.totalPhotos} media items.'),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Location: ${path.basename(outputPath)}',
+                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(context).pop(); // Close success dialog
+                    Navigator.of(context).pop(); // Navigate back to MCP Management screen
+                  },
+                  child: const Text('OK'),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.of(context).pop(); // Close success dialog
+                    Navigator.of(context).pop(); // Navigate back to MCP Management screen
+                    // Share after navigation completes
+                    Future.delayed(const Duration(milliseconds: 100), () {
+                      _shareMcpPackage(outputPath);
+                    });
+                  },
+                  child: const Text('Share'),
+                ),
+              ],
+            ),
+          );
+        } else {
+          Navigator.of(context).pop(); // Close progress dialog
+          _showErrorDialog(result.error ?? 'ZIP export failed');
         }
       }
 
@@ -476,39 +648,6 @@ class _McpExportScreenState extends State<McpExportScreen> {
     );
   }
 
-  Widget _buildFilePath(String label, String path) {
-    // Extract just the filename for display
-    final filename = path.split('/').last;
-    // Truncate if too long (keep first 30 and last 10 chars with ellipsis)
-    final truncatedFilename = filename.length > 40 
-        ? '${filename.substring(0, 30)}...${filename.substring(filename.length - 10)}' 
-        : filename;
-    
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
-      child: Row(
-        children: [
-          Text(
-            '$label: ',
-            style: bodyStyle(context).copyWith(
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          Expanded(
-            child: Text(
-              truncatedFilename,
-              style: bodyStyle(context).copyWith(
-                fontFamily: 'monospace',
-                fontSize: 10,
-              ),
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   void _showPasswordDialog() {
     final controller = TextEditingController();
     final confirmController = TextEditingController();
@@ -627,13 +766,6 @@ class _McpExportScreenState extends State<McpExportScreen> {
       appBar: AppBar(
         backgroundColor: kcBackgroundColor,
         elevation: 0,
-        title: Text(
-          'Create MCP Package',
-          style: heading1Style(context).copyWith(
-            color: kcPrimaryTextColor,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
         centerTitle: true,
         iconTheme: const IconThemeData(color: kcPrimaryTextColor),
       ),
@@ -643,78 +775,9 @@ class _McpExportScreenState extends State<McpExportScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Description
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.05),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.white.withOpacity(0.1)),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Choose your export format: Legacy MCP (.zip) for compatibility, or Secure Archive (.arcx) with AES-256 encryption.',
-                    style: bodyStyle(context).copyWith(
-                      color: kcSecondaryTextColor,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'You can re-import either format at any time to restore your data.',
-                    style: bodyStyle(context).copyWith(
-                      color: kcSecondaryTextColor,
-                      fontSize: 14,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 24),
-
-            // Export format - ARCX is now the only format (per spec)
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.green.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.green.withOpacity(0.3)),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.lock, color: Colors.green, size: 24),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Secure Archive (.arcx)',
-                          style: heading3Style(context).copyWith(
-                            color: Colors.green,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Encrypted with AES-256-GCM and Ed25519 signing',
-                          style: bodyStyle(context).copyWith(
-                            color: kcSecondaryTextColor,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 24),
 
             // Redaction settings (ARCX format only)
-            ...[
+            if (_exportFormat == 'arcx') ...[
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
@@ -787,68 +850,81 @@ class _McpExportScreenState extends State<McpExportScreen> {
                 ),
               ),
               const SizedBox(height: 24),
-              
-              // ARCX V2 Advanced Options
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.05),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.white.withOpacity(0.1)),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Advanced Export Options',
-                      style: heading3Style(context).copyWith(
-                        color: kcPrimaryTextColor,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Date Range',
-                      style: bodyStyle(context).copyWith(
-                        color: kcPrimaryTextColor,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    _buildDateRangeSelector(),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Media pack target size: ${_mediaPackTargetSizeMB} MB',
-                      style: bodyStyle(context).copyWith(
-                        color: kcPrimaryTextColor,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Slider(
-                      value: _mediaPackTargetSizeMB.toDouble(),
-                      min: 50,
-                      max: 500,
-                      divisions: 9, // 50, 100, 150, ..., 500
-                      label: '${_mediaPackTargetSizeMB} MB',
-                      onChanged: (value) {
-                        setState(() {
-                          _mediaPackTargetSizeMB = value.round();
-                        });
-                      },
-                    ),
-                    Text(
-                      'Media will be split into packs of approximately ${_mediaPackTargetSizeMB} MB each',
-                      style: bodyStyle(context).copyWith(
-                        color: kcSecondaryTextColor,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 24),
             ],
+
+            // Advanced Export Options (Date Range) - Available for both formats
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.05),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.white.withOpacity(0.1)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Advanced Export Options',
+                    style: heading3Style(context).copyWith(
+                      color: kcPrimaryTextColor,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Date Range',
+                    style: bodyStyle(context).copyWith(
+                      color: kcPrimaryTextColor,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  _buildDateRangeSelector(),
+                  const SizedBox(height: 24),
+                  Text(
+                    'Media Pack Target Size',
+                    style: bodyStyle(context).copyWith(
+                      color: kcPrimaryTextColor,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Slider(
+                          value: _mediaPackTargetSizeMB.toDouble(),
+                          min: 50,
+                          max: 500,
+                          divisions: 9,
+                          label: '$_mediaPackTargetSizeMB MB',
+                          onChanged: (value) {
+                            setState(() {
+                              _mediaPackTargetSizeMB = value.round();
+                            });
+                          },
+                        ),
+                      ),
+                      SizedBox(
+                        width: 60,
+                        child: Text(
+                          '$_mediaPackTargetSizeMB MB',
+                          style: bodyStyle(context),
+                          textAlign: TextAlign.right,
+                        ),
+                      ),
+                    ],
+                  ),
+                  Text(
+                    'Media files will be organized into packs of approximately $_mediaPackTargetSizeMB MB each',
+                    style: captionStyle(context).copyWith(
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
 
             // Options
             Text(
@@ -980,7 +1056,6 @@ class _McpExportScreenState extends State<McpExportScreen> {
                   _buildSummaryRow('Photos:', '$_photoCount'),
                   _buildSummaryRow('Chats:', '$_chatCount'),
                   _buildSummaryRow('LUMARA Favorites:', '$_favoritesCount'),
-                  _buildSummaryRow('Size:', _archiveSize),
                 ],
               ),
             ),
@@ -993,7 +1068,7 @@ class _McpExportScreenState extends State<McpExportScreen> {
               child: ElevatedButton(
                 onPressed: _isExporting ? null : _exportMcpPackage,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: kcAccentColor,
+                  backgroundColor: _exportFormat == 'zip' ? Colors.blue : kcAccentColor,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(
@@ -1016,9 +1091,9 @@ class _McpExportScreenState extends State<McpExportScreen> {
                           Text('Creating Package...'),
                         ],
                       )
-                    : const Text(
-                        'Create Secure Archive (.arcx)',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    : Text(
+                        _exportFormat == 'arcx' ? 'Create Secure Archive (.arcx)' : 'Create Zip File (.zip)',
+                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                       ),
               ),
             ),
@@ -1052,6 +1127,7 @@ class _McpExportScreenState extends State<McpExportScreen> {
       ),
     );
   }
+
 
   Widget _buildDateRangeSelector() {
     return Container(

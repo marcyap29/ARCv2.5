@@ -1,103 +1,125 @@
 # EPI Documentation
 
 **Last Updated:** January 2025  
-**Version:** 2.1.32
+**Version:** 2.1.34
+
+---
+
+## Overview
+
+Welcome to the EPI (Evolving Personal Intelligence) documentation. This directory contains comprehensive documentation for the EPI MVP intelligent journaling application.
 
 ## Documentation Structure
 
-### 📁 `/architecture/`
-Core architecture documentation and system design:
-- `ARCHITECTURE_OVERVIEW.md` - Current system architecture (v2.1.1) including dynamic journal chrome notes
-- `EPI_Consolidated_Architecture.md` - Detailed architecture consolidation
-- `Migration_Status.md` - Migration progress and status
+### 📄 Core Documentation Files
 
-### 📁 `/changelog/`
-Version history and release notes:
-- `CHANGELOG.md` - Complete changelog with version history
-- `Changelogs/` - Historical changelog files
+- **[ARCHITECTURE.md](ARCHITECTURE.md)** - Complete system architecture overview
+  - 5-module architecture (ARC, PRISM, MIRA, ECHO, AURORA)
+  - Technical stack and deployment
+  - Data flow and integration patterns
+  - Security and privacy architecture
 
-### 📁 `/features/`
-Feature documentation and specifications:
-- `LUMARA_FAVORITES_SYSTEM.md` - LUMARA Favorites Style System (January 2025)
-- Feature implementation guides
-- Feature progress tracking
-- Feature specifications
+- **[FEATURES.md](FEATURES.md)** - Comprehensive features guide
+  - Core journaling features
+  - AI features (LUMARA assistant)
+  - Visualization features (ARCForm constellations)
+  - Analysis features (phase detection, pattern recognition)
+  - Privacy & security features
+  - Data management (export/import)
 
-### 📁 `/guides/`
-User and developer guides:
-- `QUICK_START_GUIDE.md` - Getting started guide
-- `Model_Download_System.md` - Model management guide
-- `MULTIMODAL_INTEGRATION_GUIDE.md` - Multimodal features guide
-- Health integration guides
-- UI integration guides
+- **[CHANGELOG.md](CHANGELOG.md)** - Version history and release notes
+  - Complete changelog with version history
+  - Recent updates and improvements
+  - Bug fixes and enhancements
 
-### 📁 `/implementation/`
-Implementation details and technical notes:
-- `ARC_Comprehensive_Docs_v1.0.md` - Comprehensive ARC documentation (v1.0)
-- Phase analysis implementation
-- System implementation details
+- **[BUGTRACKER.md](BUGTRACKER.md)** - Bug tracking and issue management
+  - Resolved issues
+  - Known issues
+  - Bug resolution history
 
-### 📁 `/project/`
-Project management and planning:
-- `PROJECT_BRIEF.md` - Project overview
-- `README.md` - Project documentation
-- Status updates and planning documents
+### 📁 Additional Resources
 
-### 📁 `/reports/`
-Success reports and analysis:
-- LLAMA.cpp modernization reports
-- Memory management reports
-- Root cause analysis reports
+- **`/bugtracker/`** - Active bug tracking
+  - `bug_tracker.md` - Main bug tracker
+  - `records/` - Individual bug records
+  - `archive/` - Archived bug reports
 
-### 📁 `/status/`
-Current status and active tracking:
-- `STATUS.md` - Current system status
-- Active feature status tracking
-- Current issue tracking
+- **`/archive/`** - Archived documentation
+  - Historical documentation
+  - Legacy architecture docs
+  - Previous versions and updates
 
-### 📁 `/updates/`
-Update notes and announcements:
-- Phase visualization updates
-- Feature updates
+---
 
-### 📁 `/bugtracker/`
-Bug tracking and issue management:
-- `Bug_Tracker.md` - Active bug tracker
-- `records/` - Bug records and resolutions
-- `archive/` - Archived bug reports
+## Quick Start
 
-### 📁 `/archive/`
-Archived documentation:
-- `status_2024/` - Archived status docs from 2024
-- `status_2025/` - Archived status docs from 2025
-- `architecture_legacy/` - Legacy architecture docs
-- `Archive/` - General archive folder
-- Other archived documentation
+### For Developers
 
-### 📁 `/policy/`
-Policy specifications:
-- Transition policy specifications
-- System policies
+1. **Architecture**: Start with [ARCHITECTURE.md](ARCHITECTURE.md) to understand the system design
+2. **Features**: Review [FEATURES.md](FEATURES.md) to understand capabilities
+3. **Recent Changes**: Check [CHANGELOG.md](CHANGELOG.md) for latest updates
+
+### For Users
+
+1. **Features**: See [FEATURES.md](FEATURES.md) for available features
+2. **Updates**: Check [CHANGELOG.md](CHANGELOG.md) for new features and improvements
+
+---
 
 ## Version Information
 
-**Current Version:** 2.1.32  
-**Last Major Update:** January 2025 (Timeline UI Improvements & Date Navigation Fixes)
+**Current Version:** 2.1.34  
+**Last Major Update:** January 2025 (Media Packs for ZIP Exports & Configuration UI)
 
-See `changelog/CHANGELOG.md` for detailed version history.
+### Recent Highlights
 
-## Quick Links
+- ✅ **Media Packs for ZIP Exports**: ZIP exports now support media pack organization matching ARCX format
+- ✅ **Media Pack Configuration**: Restored Media Pack Target Size slider (50-500 MB) for both ARCX and ZIP exports
+- ✅ **ZIP Export Option**: Added unencrypted ZIP export alongside secure ARCX format
+- ✅ **Extended Data Support**: Full export/import of Phase Regimes, RIVET state, Sentinel state, ArcForm timeline, and LUMARA Favorites
+- ✅ **Export Bug Fixes**: Fixed empty entries error, navigation loop, and photo count display
 
-- [Architecture Overview](architecture/ARCHITECTURE_OVERVIEW.md)
-- [Changelog](changelog/CHANGELOG.md)
-- [Current Status](status/STATUS.md)
-- [Quick Start Guide](guides/QUICK_START_GUIDE.md)
-- [Project Brief](project/PROJECT_BRIEF.md)
+---
+
+## Key Features
+
+### Core Capabilities
+
+- **Intelligent Journaling**: Text, voice, photo, and video journaling with OCR
+- **AI Assistant (LUMARA)**: Context-aware responses with persistent chat memory
+- **Pattern Recognition**: Keyword extraction, phase detection, and emotional mapping
+- **3D Visualization**: ARCForm constellations showing journal themes
+- **Privacy-First**: On-device processing, PII detection, and encryption
+- **Data Portability**: MCP export/import for AI ecosystem interoperability
+
+### Export/Import
+
+- **Dual Format Support**: Secure Archive (.arcx) with encryption or standard ZIP (.zip)
+- **Complete Content**: All data types exported (entries, media, chats, extended data)
+- **Media Pack Organization**: Configurable media packs (50-500 MB) for efficient storage in both formats
+- **Extended Data**: Phase Regimes, RIVET state, Sentinel state, ArcForm timeline, LUMARA Favorites
+- **Category Preservation**: Favorite categories (answers, chats, journal entries) preserved
+
+---
 
 ## Documentation Standards
 
-- All documentation should include version numbers and last updated dates
-- Status documents older than 3 months should be archived
-- Feature documentation should be kept current with implementation
-- Architecture docs should reflect the current system state
+- All documentation includes version numbers and last updated dates
+- Status documents older than 3 months are archived
+- Feature documentation is kept current with implementation
+- Architecture docs reflect the current system state
 
+---
+
+## Related Links
+
+- [Architecture Overview](ARCHITECTURE.md)
+- [Features Guide](FEATURES.md)
+- [Changelog](CHANGELOG.md)
+- [Bug Tracker](BUGTRACKER.md)
+
+---
+
+**Status**: ✅ Production Ready  
+**Last Updated**: January 2025  
+**Version**: 2.1.34
