@@ -45,6 +45,8 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
   bool _isArcformTimelineVisible = false;
   final ValueNotifier<DateTime> _weekNotifier = ValueNotifier(_calculateWeekStart(DateTime.now()));
   bool _isProgrammaticScroll = false;
+  DateTime? _lastVisibleEntryDate;
+  DateTime? _pendingScrollDate;
 
   @override
   void initState() {
@@ -97,9 +99,34 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
     }
   }
 
+  void _preserveScrollPosition() {
+    if (_lastVisibleEntryDate != null) {
+      _pendingScrollDate = _lastVisibleEntryDate;
+    }
+  }
+
   static DateTime _calculateWeekStart(DateTime date) {
     final weekday = date.weekday;
     return date.subtract(Duration(days: weekday - 1));
+  }
+
+  String _formatMonthYear(DateTime date) {
+    const months = [
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
+    ];
+    final monthName = months[date.month - 1];
+    return '$monthName ${date.year}';
   }
 
 
@@ -133,7 +160,7 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
       return;
     }
 
-    // Flatten all entries from grouped structure
+    // Flatten all entries from grouped structure and apply same filtering as InteractiveTimelineView
     final allEntries = <TimelineEntry>[];
     for (final group in currentState.groupedEntries) {
       allEntries.addAll(group.entries);
@@ -149,40 +176,92 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
       return;
     }
 
+    // Deduplicate by ID (same as InteractiveTimelineView._getFilteredEntries)
+    final Map<String, TimelineEntry> uniqueEntries = {};
+    for (final entry in allEntries) {
+      if (!uniqueEntries.containsKey(entry.id)) {
+        uniqueEntries[entry.id] = entry;
+      }
+    }
+    final deduplicatedEntries = uniqueEntries.values.toList();
+    
+    // Apply filter (same as InteractiveTimelineView)
+    List<TimelineEntry> filteredEntries;
+    switch (currentState.filter) {
+      case TimelineFilter.all:
+        filteredEntries = deduplicatedEntries;
+        break;
+      case TimelineFilter.textOnly:
+        filteredEntries = deduplicatedEntries.where((entry) => !entry.hasArcform).toList();
+        break;
+      case TimelineFilter.withArcform:
+        filteredEntries = deduplicatedEntries.where((entry) => entry.hasArcform).toList();
+        break;
+    }
+
     // Sort entries by date (newest first, same as display)
-    final sortedEntries = List<TimelineEntry>.from(allEntries);
+    final sortedEntries = List<TimelineEntry>.from(filteredEntries);
     sortedEntries.sort((a, b) => b.createdAt.compareTo(a.createdAt));
     
     // Find entries for the target date (exact match first)
     final targetDateOnly = DateTime(targetDate.year, targetDate.month, targetDate.day);
+    print('DEBUG: Jumping to date: $targetDateOnly');
+    
     final exactMatches = sortedEntries.where((entry) {
       final entryDateOnly = DateTime(entry.createdAt.year, entry.createdAt.month, entry.createdAt.day);
-      return entryDateOnly == targetDateOnly;
+      final isMatch = entryDateOnly == targetDateOnly;
+      if (isMatch) {
+        print('DEBUG: Found exact match: ${entry.createdAt} (ID: ${entry.id})');
+      }
+      return isMatch;
     }).toList();
+    
+    print('DEBUG: Found ${exactMatches.length} exact matches for $targetDateOnly');
     
     int targetIndex;
     TimelineEntry targetEntry;
     
     if (exactMatches.isNotEmpty) {
-      // Use the first exact match
+      // Use the first exact match (newest first, so this is the most recent entry on that date)
       targetEntry = exactMatches.first;
       targetIndex = sortedEntries.indexOf(targetEntry);
+      print('DEBUG: Using exact match at index $targetIndex: ${targetEntry.createdAt}');
     } else {
-    // Find the closest entry to the target date
-    int closestIndex = 0;
-    int minDaysDifference = 999999;
-    
-    for (int i = 0; i < sortedEntries.length; i++) {
-      final entry = sortedEntries[i];
-        final entryDateOnly = DateTime(entry.createdAt.year, entry.createdAt.month, entry.createdAt.day);
-        final daysDifference = (entryDateOnly.difference(targetDateOnly).inDays).abs();
+      // Find the closest entry to the target date
+      // Prefer entries on or before the target date, but if none exist, use the closest after
+      int closestIndex = 0;
+      int minDaysDifference = 999999;
+      int? bestBeforeIndex;
+      int minDaysBefore = 999999;
       
-      if (daysDifference < minDaysDifference) {
-        minDaysDifference = daysDifference;
-        closestIndex = i;
+      for (int i = 0; i < sortedEntries.length; i++) {
+        final entry = sortedEntries[i];
+        final entryDateOnly = DateTime(entry.createdAt.year, entry.createdAt.month, entry.createdAt.day);
+        final daysDifference = entryDateOnly.difference(targetDateOnly).inDays;
+        
+        // Prefer entries on or before the target date
+        if (daysDifference <= 0) {
+          final absDiff = daysDifference.abs();
+          if (absDiff < minDaysBefore) {
+            minDaysBefore = absDiff;
+            bestBeforeIndex = i;
+          }
+        }
+        
+        // Also track the absolute closest for fallback
+        final absDifference = daysDifference.abs();
+        if (absDifference < minDaysDifference) {
+          minDaysDifference = absDifference;
+          closestIndex = i;
+        }
       }
-    }
-      targetIndex = closestIndex;
+      
+      // Use the best entry on or before target date, or fall back to closest overall
+      if (bestBeforeIndex != null) {
+        targetIndex = bestBeforeIndex;
+      } else {
+        targetIndex = closestIndex;
+      }
       targetEntry = sortedEntries[targetIndex];
     }
     
@@ -191,23 +270,56 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _isProgrammaticScroll = true;
       Future.delayed(const Duration(milliseconds: 200), () {
-        // Find the entry in the current state
+        // Find the entry in the current state using the same filtering logic as InteractiveTimelineView
         final currentState = _timelineCubit.state;
         if (currentState is TimelineLoaded) {
+          // Use the same filtering/deduplication logic as InteractiveTimelineView._getFilteredEntries
           final allEntries = <TimelineEntry>[];
           for (final group in currentState.groupedEntries) {
             allEntries.addAll(group.entries);
           }
           
-          final sortedEntries = List<TimelineEntry>.from(allEntries);
-          sortedEntries.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+          // Deduplicate by ID (same as InteractiveTimelineView)
+          final Map<String, TimelineEntry> uniqueEntries = {};
+          for (final entry in allEntries) {
+            if (!uniqueEntries.containsKey(entry.id)) {
+              uniqueEntries[entry.id] = entry;
+            }
+          }
+          final deduplicatedEntries = uniqueEntries.values.toList();
+          
+          // Apply filter (same as InteractiveTimelineView)
+          List<TimelineEntry> filteredEntries;
+          switch (currentState.filter) {
+            case TimelineFilter.all:
+              filteredEntries = deduplicatedEntries;
+              break;
+            case TimelineFilter.textOnly:
+              filteredEntries = deduplicatedEntries.where((entry) => !entry.hasArcform).toList();
+              break;
+            case TimelineFilter.withArcform:
+              filteredEntries = deduplicatedEntries.where((entry) => entry.hasArcform).toList();
+              break;
+          }
+          
+          // Sort entries by date (newest first, same as display)
+          filteredEntries.sort((a, b) => b.createdAt.compareTo(a.createdAt));
           
           final targetEntryId = targetEntry.id;
-          final actualIndex = sortedEntries.indexWhere((e) => e.id == targetEntryId);
+          final actualIndex = filteredEntries.indexWhere((e) => e.id == targetEntryId);
+          
+          print('DEBUG: Scroll - Found entry at index $actualIndex (target ID: $targetEntryId)');
+          print('DEBUG: Scroll - Total filtered entries: ${filteredEntries.length}');
           
           if (actualIndex >= 0) {
+            // Account for arcform preview if it's shown (adds 1 to index)
+            final showArcformPreview = !_isArcformTimelineVisible && !_isSelectionMode;
+            final scrollIndex = showArcformPreview ? actualIndex + 1 : actualIndex;
+            
+            print('DEBUG: Scroll - Scrolling to index $scrollIndex (arcform preview: $showArcformPreview)');
+            
             _scrollController.scrollToIndex(
-              actualIndex,
+              scrollIndex,
               preferPosition: AutoScrollPosition.begin,
               duration: const Duration(milliseconds: 1000),
             ).then((_) {
@@ -219,6 +331,7 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
               });
             });
           } else {
+            print('DEBUG: Scroll - Entry not found in filtered list!');
             _isProgrammaticScroll = false;
           }
         } else {
@@ -340,70 +453,93 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<TimelineCubit, TimelineState>(
-      builder: (context, state) {
-        return Scaffold(
-          body: SafeArea(
-            child: NestedScrollView(
-              headerSliverBuilder: (BuildContext context, bool innerBoxIsScrolled) {
-                return <Widget>[
-                  // Custom header (replaces AppBar) - always visible, scrolls with content
-                  if (!_isArcformTimelineVisible)
-                    SliverToBoxAdapter(
-                      child: _buildScrollableHeader(),
-                    ),
-                  // Timeline visualization (calendar week) - pinned at top, stays fixed
-                  if (!_isArcformTimelineVisible && !_isSelectionMode)
-                    SliverPersistentHeader(
-                      pinned: true,
-                      delegate: _CalendarWeekHeaderDelegate(
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                          child: CalendarWeekTimeline(
-                            onDateTap: (date) {
-                              final weekStart = _calculateWeekStart(date);
-                              _weekNotifier.value = weekStart;
-                              _jumpToDate(date);
-                            },
-                            weekStartNotifier: _weekNotifier,
+    return BlocListener<TimelineCubit, TimelineState>(
+      listener: (context, state) {
+        if (state is TimelineLoaded && _pendingScrollDate != null) {
+          final dateToRestore = _pendingScrollDate!;
+          _pendingScrollDate = null;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _jumpToDate(dateToRestore);
+          });
+        }
+      },
+      child: BlocBuilder<TimelineCubit, TimelineState>(
+        builder: (context, state) {
+          return Scaffold(
+            body: SafeArea(
+              child: NestedScrollView(
+                headerSliverBuilder: (BuildContext context, bool innerBoxIsScrolled) {
+                  return <Widget>[
+                    if (!_isArcformTimelineVisible)
+                      SliverToBoxAdapter(
+                        child: _buildScrollableHeader(),
+                      ),
+                    if (!_isArcformTimelineVisible && !_isSelectionMode)
+                      SliverPersistentHeader(
+                        pinned: true,
+                        delegate: _CalendarWeekHeaderDelegate(
+                          child: Container(
+                            color: kcBackgroundColor,
+                            padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                            child: ValueListenableBuilder<DateTime>(
+                              valueListenable: _weekNotifier,
+                              builder: (context, weekStart, _) => Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    _formatMonthYear(weekStart),
+                                    style: heading2Style(context).copyWith(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  CalendarWeekTimeline(
+                                    onDateTap: (date) {
+                                      final weekStart = _calculateWeekStart(date);
+                                      _weekNotifier.value = weekStart;
+                                      _jumpToDate(date);
+                                    },
+                                    weekStartNotifier: _weekNotifier,
+                                  ),
+                                ],
+                              ),
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                  // Search bar - scrolls with content
-                  if (!_isArcformTimelineVisible && _isSearchExpanded)
-                    SliverToBoxAdapter(
-                      child: AnimatedSize(
-                        duration: const Duration(milliseconds: 300),
-                        curve: Curves.easeInOut,
-                        child: Column(
-                                children: [
-                                  _buildSearchBar(state),
-                                  _buildFilterButtons(state),
-                                ],
+                    if (!_isArcformTimelineVisible && _isSearchExpanded)
+                      SliverToBoxAdapter(
+                        child: AnimatedSize(
+                          duration: const Duration(milliseconds: 300),
+                          curve: Curves.easeInOut,
+                          child: Column(
+                            children: [
+                              _buildSearchBar(state),
+                              _buildFilterButtons(state),
+                            ],
+                          ),
                         ),
                       ),
-              ),
-                  // Phase legend dropdown for arcform timeline
-                  if (_isArcformTimelineVisible)
-                    SliverToBoxAdapter(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 8),
-                        child: _buildPhaseLegendDropdown(context),
+                    if (_isArcformTimelineVisible)
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          child: _buildPhaseLegendDropdown(context),
+                        ),
                       ),
-              ),
-                ];
-              },
-              body: InteractiveTimelineView(
+                  ];
+                },
+                body: InteractiveTimelineView(
                   key: _timelineViewKey,
-                  scrollController: _scrollController, // Pass the AutoScrollController
+                  scrollController: _scrollController,
                   showArcformPreview: !_isArcformTimelineVisible && !_isSelectionMode,
                   onJumpToDate: _showJumpToDateDialog,
+                  onRequestPreserveScrollPosition: _preserveScrollPosition,
                   onSelectionChanged: (isSelectionMode, selectedCount, totalEntries) {
-                    // Only update state if values actually changed to prevent rebuild loops
-                    if (_isSelectionMode != isSelectionMode || 
-                        _selectedCount != selectedCount || 
+                    if (_isSelectionMode != isSelectionMode ||
+                        _selectedCount != selectedCount ||
                         _totalEntries != totalEntries) {
                       setState(() {
                         _isSelectionMode = isSelectionMode;
@@ -423,15 +559,17 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
                     });
                   },
                   onVisibleEntryDateChanged: (date) {
+                    _lastVisibleEntryDate = date;
                     if (!_isProgrammaticScroll) {
                       _weekNotifier.value = _calculateWeekStart(date);
                     }
                   },
                 ),
-          ),
-        ),
-        );
-      },
+              ),
+            ),
+          );
+        },
+      ),
     );
   }
 
@@ -890,17 +1028,14 @@ class _CalendarWeekHeaderDelegate extends SliverPersistentHeaderDelegate {
   _CalendarWeekHeaderDelegate({required this.child});
 
   @override
-  double get minExtent => 76.0; // 60 (calendar) + 16 (padding)
+  double get minExtent => 108.0; // ~24 (month text) + 8 (spacing) + 60 (calendar) + 16 (padding)
 
   @override
-  double get maxExtent => 76.0; // 60 (calendar) + 16 (padding)
+  double get maxExtent => 108.0; // ~24 (month text) + 8 (spacing) + 60 (calendar) + 16 (padding)
 
   @override
   Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
-    return Container(
-      color: kcBackgroundColor,
-      child: child,
-    );
+    return child;
   }
 
   @override
