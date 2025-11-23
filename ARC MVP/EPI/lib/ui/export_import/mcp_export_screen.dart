@@ -316,6 +316,9 @@ class _McpExportScreenState extends State<McpExportScreen> {
       } else if (_exportFormat == 'zip') {
         // Standard ZIP export using McpPackExportService
         
+        print('📦 ZIP Export: Starting export with ${entries.length} total entries');
+        print('📦 ZIP Export: Date range selection: $_dateRangeSelection');
+        
         // Calculate date range based on selection
         DateTime? startDate;
         DateTime? endDate;
@@ -332,9 +335,11 @@ class _McpExportScreenState extends State<McpExportScreen> {
                 23, 59, 59, 999
               );
             }
+            print('📦 ZIP Export: Custom date range - Start: $startDate, End: $endDate');
             break;
           case 'all':
           default:
+            print('📦 ZIP Export: Exporting all entries (no date filter)');
             break;
         }
         
@@ -347,6 +352,16 @@ class _McpExportScreenState extends State<McpExportScreen> {
             return true;
           }).toList();
         }
+        
+        // Validate we have entries to export
+        if (filteredEntries.isEmpty) {
+          Navigator.of(context).pop(); // Close progress dialog
+          setState(() => _isExporting = false);
+          _showErrorDialog('No entries found to export. Please check your date range selection.');
+          return;
+        }
+        
+        print('📦 ZIP Export: Exporting ${filteredEntries.length} entries (from ${entries.length} total)');
         
         // Prepare output path
         final outputDir = await getApplicationDocumentsDirectory();
