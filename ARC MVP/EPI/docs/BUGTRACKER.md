@@ -1,7 +1,33 @@
 # EPI MVP - Bug Tracker
 
-**Version:** 2.1.34  
+**Version:** 2.1.35  
 **Last Updated:** January 2025
+
+## Resolved Issues (v2.1.35)
+
+### Phase Detection Discovery Default Issue
+- **Issue**: Discovery phase was defaulting too often, overriding other phases incorrectly.
+- **Root Cause**: `getHighestScoringPhase` defaulted to Discovery if all scores were 0.0, and normalization didn't ensure at least one phase had a non-zero score.
+- **Resolution**: 
+  1. Added safety check in normalization to assign equal probability if all scores are zero
+  2. Normalization ensures phases with evidence get minimum scores
+  3. Discovery only wins if it has the highest score, not as a default
+- **Status**: ✅ Fixed
+
+### Older Entries Showing Wrong Phase in Dropdown
+- **Issue**: Older entries showed "Consolidation" in dropdown even though Discovery was first in list.
+- **Root Cause**: Older entries had `phase` set but no `autoPhase` or `legacyPhaseTag`, so `computedPhase` fell back to old `phase` field.
+- **Resolution**: 
+  1. Added `ensureLegacyPhaseTag()` method to populate `legacyPhaseTag` from `phase` for older entries
+  2. Updated `computedPhase` getter to handle legacy phase tag population dynamically
+  3. Auto-populate and save `legacyPhaseTag` when older entries are displayed
+- **Status**: ✅ Fixed
+
+### Build Error: List to Set Conversion
+- **Issue**: Build error: `The argument type 'List<String>' can't be assigned to the parameter type 'Set<String>'` in `rivet_models.g.dart`.
+- **Root Cause**: Generated Hive adapter was trying to assign List to Set field.
+- **Resolution**: Added `.toSet()` conversion in generated file.
+- **Status**: ✅ Fixed
 
 ## Resolved Issues (v2.1.34)
 

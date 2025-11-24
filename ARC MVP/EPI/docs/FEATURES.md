@@ -39,8 +39,9 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 **Text Journaling**
 - Rich text entry with auto-capitalization
 - Real-time keyword analysis
-- **Automatic Phase Hashtag Assignment**: Phase hashtags (e.g., `#discovery`, `#transition`) are automatically added based on Phase Regimes - no manual tagging required
-- Phase detection and suggestions
+- **Automatic Phase Detection**: Phase automatically detected from content using versioned inference pipeline
+- **Phase Display**: Phase shown in timeline and entry editor with Auto/Manual indicators
+- **User Overrides**: Manual phase selection available for existing entries via dropdown
 - Draft management with auto-save
 
 **Multimodal Journaling**
@@ -239,20 +240,30 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 
 ### Phase Detection
 
-**Real-Time Detection**
-- **Phase Detector Service**: Keyword-based detection
-- **Multi-Tier Scoring**: Exact, partial, content matches
-- **Confidence Calculation**: 0.0-1.0 scale
-- **Adaptive Window**: Temporal or count-based
+**Versioned Phase Inference**
+- **PhaseInferenceService**: Pure inference service ignoring hashtags and legacy tags
+- **Version Tracking**: `CURRENT_PHASE_INFERENCE_VERSION = 1` tracks inference pipeline version
+- **Multi-Factor Scoring**: Keyword-based (70% weight), emotion-based, content-based, structure-based
+- **Confidence Calculation**: 0.0-1.0 scale with normalization
+- **Expanded Keywords**: 60-120 keywords per phase for improved accuracy
 
 **Phase Analysis**
 - **RIVET Integration**: Evidence-based validation
 - **SENTINEL Monitoring**: Risk assessment
-- **Phase Transitions**: Change point detection
-- **Phase Regimes**: Timeline-based phase segments
+- **Phase Transitions**: Change point detection via PhaseTracker
+- **Phase Regimes**: Timeline-based phase segments for stable phase assignment
+- **Migration Service**: On-demand recomputation for entries needing phase updates
 
-**Automatic Phase Hashtag System**
-- **Phase Regime-Based Assignment**: Phase hashtags automatically assigned based on which Phase Regime the entry's date falls into
+**User Phase Overrides**
+- **Manual Selection**: Dropdown for existing entries (not during composition)
+- **Lock Mechanism**: `isPhaseLocked` prevents auto-overwrite of manual overrides
+- **Reset to Auto**: Button to clear manual overrides and unlock phase
+- **Auto/Manual Indicators**: Visual indicators show phase source
+
+**Automatic Phase Detection**
+- **No Hashtag Dependency**: Phase detection ignores inline hashtags completely
+- **Content-Based**: Uses entry content, emotion, keywords, and structure
+- **Regime-Based Assignment**: Entries derive phase from regime they fall into based on creation date
 - **No Manual Input Required**: Users no longer need to manually type `#phase` hashtags - system handles it automatically
 - **Consistent Tagging**: All entries within the same time period (same regime) receive the same phase hashtag
 - **Automatic Updates**: When phase changes occur at regime level, all affected entries' hashtags are updated automatically
