@@ -205,8 +205,16 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 
 ### Phase Detection & Transition
 
+**Versioned Phase Inference Pipeline**
+- **Auto Phase Detection**: Always the default source of truth for each entry
+- **Version Tracking**: All entries track `phaseInferenceVersion` for audit trail
+- **Migration Support**: On-demand phase recomputation for eligible entries
+- **Hashtag Independence**: Inline hashtags never control phase assignment
+- **Legacy Data Handling**: Legacy phase tags preserved as reference but not used for inference
+
 **Phase Transition Detection**
 - **Current Phase Display**: Shows current detected phase with color-coded visualization
+- **Phase Regimes Integration**: Phase changes aggregated into stable regimes to prevent erratic changes
 - **Imported Phase Support**: Uses imported phase regimes from ARCX/MCP files
 - **Phase History**: Displays when current phase started (if ongoing)
 - **Fallback Logic**: Shows most recent phase if no current ongoing phase
@@ -220,6 +228,7 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 - **Actionable Tips**: Provides specific suggestions for what to write about to complete phase transition
 - **Phase Statistics**: Comprehensive phase timeline statistics
 - **Phase Regimes**: Timeline of life phases (Discovery, Expansion, Transition, Consolidation, Recovery, Breakthrough)
+- **Expanded Keyword Detection**: 60-120 keywords per phase for improved detection accuracy
 - **System State Export**: Complete phase-related system state backup (RIVET, Sentinel, ArcForm)
 - **Advanced Analytics Toggle**: Settings toggle to show/hide Health and Analytics tabs (default OFF)
 - **Dynamic Tab Management**: Insights tabs dynamically adjust based on Advanced Analytics preference
