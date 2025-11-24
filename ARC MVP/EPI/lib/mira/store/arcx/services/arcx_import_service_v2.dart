@@ -29,6 +29,7 @@ import 'package:my_app/arc/chat/services/favorites_service.dart';
 import 'package:my_app/arc/chat/data/models/lumara_favorite.dart';
 import 'package:hive/hive.dart';
 import 'package:my_app/models/user_profile_model.dart';
+import 'package:my_app/prism/atlas/phase/phase_inference_service.dart';
 
 const _uuid = Uuid();
 
@@ -571,6 +572,11 @@ class ARCXImportServiceV2 {
             await _journalRepo!.createJournalEntry(entry);
             _entryIdMap[entryId] = entry.id;
             imported++;
+            
+            // If entry needs phase inference, run it after import
+            if (entry.phaseMigrationStatus == 'PENDING' && !entry.isPhaseLocked) {
+              _inferPhaseForImportedEntry(entry);
+            }
           }
           
         } catch (e) {
@@ -1211,51 +1217,30 @@ class ARCXImportServiceV2 {
         }
       }
       
-      // Apply auto-hashtag logic for imported entries using Phase Regimes
-      // Check if content already has a phase hashtag
-      final phaseHashtagPattern = RegExp(
-        r'#(discovery|expansion|transition|consolidation|recovery|breakthrough)',
-        caseSensitive: false,
-      );
+      // Read phase fields from imported JSON (new versioned phase system)
+      // Preserve phase data from newer archives, set migration status for older ones
+      final autoPhase = entryJson['autoPhase'] as String?;
+      final autoPhaseConfidence = (entryJson['autoPhaseConfidence'] as num?)?.toDouble();
+      final userPhaseOverride = entryJson['userPhaseOverride'] as String?;
+      final isPhaseLocked = entryJson['isPhaseLocked'] as bool? ?? false;
+      final legacyPhaseTag = entryJson['legacyPhaseTag'] as String? ?? entryJson['phase'] as String?;
+      final importSource = entryJson['importSource'] as String? ?? 'ARCHX';
+      final phaseInferenceVersion = entryJson['phaseInferenceVersion'] as int?;
+      final phaseMigrationStatus = entryJson['phaseMigrationStatus'] as String?;
       
-      String contentWithPhase = content;
-      if (!phaseHashtagPattern.hasMatch(content)) {
-        // No phase hashtag found - use Phase Regime system to determine phase based on entry date
-        // Use the existing _phaseRegimeService instance (which should have imported regimes)
-        if (_phaseRegimeService != null) {
-          try {
-            // Service should already be initialized with imported regimes
-            // No need to call initialize() again - it's already done after import
-            
-            // Find the regime that contains the entry's date
-            final regime = _phaseRegimeService!.phaseIndex.regimeFor(createdAt);
-            
-            if (regime != null) {
-              // Entry date falls within a phase regime - use that phase
-              final phaseName = _getPhaseLabelNameFromEnum(regime.label).toLowerCase();
-              final phaseHashtag = '#$phaseName';
-              contentWithPhase = '$content $phaseHashtag'.trim();
-              
-              print('ARCX Import V2: Auto-added phase hashtag $phaseHashtag to imported entry $entryId (from regime: ${regime.label}, date: $createdAt)');
-            } else {
-              // Entry date doesn't fall within any regime - no hashtag added
-              print('ARCX Import V2: Entry $entryId date $createdAt does not fall within any phase regime, skipping hashtag');
-            }
-          } catch (e) {
-            print('ARCX Import V2: ERROR: Failed to determine phase from regime for entry $entryId: $e');
-            // Fallback: return content as-is if regime lookup fails
-          }
-        } else {
-          print('ARCX Import V2: WARNING: No PhaseRegimeService available, cannot auto-tag entry $entryId');
-        }
-      } else {
-        print('ARCX Import V2: Entry $entryId already has phase hashtag, preserving existing');
-      }
+      // Determine migration status:
+      // - If phaseInferenceVersion is null or < CURRENT_VERSION, mark as PENDING
+      // - If phase fields are present, preserve them
+      // - Otherwise, set to PENDING for inference after import
+      final migrationStatus = phaseMigrationStatus ?? 
+          (phaseInferenceVersion == null || phaseInferenceVersion < CURRENT_PHASE_INFERENCE_VERSION 
+              ? 'PENDING' 
+              : 'DONE');
       
       return JournalEntry(
         id: entryId,
         title: title,
-        content: contentWithPhase, // Use content with auto-added phase hashtag
+        content: content, // Content without auto-added phase hashtag
         createdAt: createdAt,
         updatedAt: createdAt,
         media: mediaItems,
@@ -1264,7 +1249,15 @@ class ARCXImportServiceV2 {
         mood: entryJson['emotion'] as String? ?? '',
         emotion: entryJson['emotion'] as String?,
         emotionReason: entryJson['emotionReason'] as String?,
-        phase: entryJson['phase'] as String?,
+        phase: legacyPhaseTag, // Keep old phase field for backward compatibility
+        autoPhase: autoPhase,
+        autoPhaseConfidence: autoPhaseConfidence,
+        userPhaseOverride: userPhaseOverride,
+        isPhaseLocked: isPhaseLocked,
+        legacyPhaseTag: legacyPhaseTag,
+        importSource: importSource,
+        phaseInferenceVersion: phaseInferenceVersion,
+        phaseMigrationStatus: migrationStatus,
         metadata: {
           'imported_from_arcx_v2': true,
           'original_export_id': entryJson['id'],
@@ -1528,6 +1521,49 @@ class ARCXImportServiceV2 {
     } catch (e) {
       print('ARCX Import V2: ⚠️ Error updating user phase from regimes: $e');
       // Don't throw - phase update failure shouldn't break import
+    }
+  }
+  
+  /// Infer phase for an imported entry that needs migration
+  Future<void> _inferPhaseForImportedEntry(JournalEntry entry) async {
+    try {
+      if (_journalRepo == null) return;
+      
+      // Get recent entries for context
+      final allEntries = _journalRepo!.getAllJournalEntries();
+      allEntries.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      final recentEntries = allEntries.take(7).toList();
+      
+      // Get user profile for userId
+      final userBox = await Hive.openBox<UserProfile>('user_profile');
+      final userProfile = userBox.get('profile');
+      final userId = userProfile?.id ?? '';
+      
+      // Run phase inference
+      final inferenceResult = await PhaseInferenceService.inferPhaseForEntry(
+        entryContent: entry.content,
+        userId: userId,
+        createdAt: entry.createdAt,
+        recentEntries: recentEntries,
+        emotion: entry.emotion,
+        emotionReason: entry.emotionReason,
+        selectedKeywords: entry.keywords,
+      );
+      
+      // Update entry with phase fields
+      final updatedEntry = entry.copyWith(
+        autoPhase: inferenceResult.phase,
+        autoPhaseConfidence: inferenceResult.confidence,
+        phaseInferenceVersion: CURRENT_PHASE_INFERENCE_VERSION,
+        phaseMigrationStatus: 'DONE',
+      );
+      
+      // Save updated entry
+      await _journalRepo!.updateJournalEntry(updatedEntry);
+      
+      print('ARCX Import V2: ✓ Phase inference completed for entry ${entry.id}: ${inferenceResult.phase} (confidence: ${inferenceResult.confidence.toStringAsFixed(3)})');
+    } catch (e) {
+      print('ARCX Import V2: ✗ Phase inference failed for entry ${entry.id}: $e');
     }
   }
 }

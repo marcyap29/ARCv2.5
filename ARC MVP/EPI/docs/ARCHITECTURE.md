@@ -136,7 +136,12 @@ The EPI system is organized into 5 core modules:
 
 **Submodules:**
 - `atlas/` - Phase detection, RIVET, SENTINEL
-  - `phase/` - Phase detection with EMA smoothing and hysteresis
+  - `phase/` - Versioned phase inference pipeline with Phase Regimes integration
+    - `phase_inference_service.dart` - Pure inference ignoring hashtags and legacy tags
+    - `phase_regime_tracker.dart` - Bridges PhaseTracker and PhaseRegimeService
+    - `phase_migration_service.dart` - On-demand phase recomputation for eligible entries
+    - `phase_scoring.dart` - Expanded keyword sets (60-120 keywords per phase)
+    - `phase_tracker.dart` - EMA smoothing and hysteresis for stable phase detection
   - `rivet/` - Risk-Validation Evidence Tracker
   - `sentinel/` - Severity evaluation and negative trend identification
 - `extractors/` - Keyword, emotion, context, metadata extraction
@@ -146,7 +151,11 @@ The EPI system is organized into 5 core modules:
 
 **Key Features:**
 - Multi-modal content analysis (OCR, object detection, transcription)
-- Phase detection with cooldown and hysteresis
+- Versioned phase detection with traceability (phaseInferenceVersion tracking)
+- Phase Regimes integration for stable phase changes (prevents erratic day-to-day changes)
+- Expanded keyword detection (60-120 keywords per phase for improved accuracy)
+- User phase overrides with lock mechanism
+- Automatic migration of legacy phase data
 - RIVET gating for phase transitions
 - SENTINEL risk monitoring
 - Health data integration

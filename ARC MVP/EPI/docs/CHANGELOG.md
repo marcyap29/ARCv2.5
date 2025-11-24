@@ -1,7 +1,76 @@
 # EPI ARC MVP - Changelog
 
-**Version:** 2.1.34  
+**Version:** 2.1.35  
 **Last Updated:** January 2025
+
+## [2.1.35] - January 2025
+
+### **Phase Detection Refactor with Versioned Inference** - Complete
+
+#### Versioned Phase Inference Pipeline
+- **New Service**: `PhaseInferenceService` provides pure phase inference ignoring hashtags and legacy tags
+- **Version Tracking**: `CURRENT_PHASE_INFERENCE_VERSION = 1` tracks inference pipeline version
+- **Migration Support**: `PhaseMigrationService` enables on-demand phase recomputation for eligible entries
+- **Traceability**: All entries track `phaseInferenceVersion` and `phaseMigrationStatus` for audit trail
+
+#### Phase Detection Architecture
+- **Auto Phase Detection**: Always the default source of truth for each entry
+- **User Overrides**: Explicit manual override via dropdown, only available after entry is saved
+- **Hashtag Independence**: Inline hashtags never control phase assignment, including for imported entries
+- **Legacy Data Handling**: Legacy phase tags preserved as reference but not used for inference
+
+#### Phase Regimes Integration
+- **Stable Phase Changes**: PhaseTracker aggregates entries using EMA to determine regime changes
+- **Regime Creation**: When PhaseTracker approves phase change, creates/updates Phase Regimes
+- **Entry Phase Assignment**: Entries derive phase from regime they fall into based on creation date
+- **Prevents Erratic Changes**: Regimes provide stable time periods, not per-entry assignments
+
+#### New Phase Fields in JournalEntry
+- `autoPhase` (String?) - Model-detected phase, authoritative
+- `autoPhaseConfidence` (double?) - Confidence score 0.0-1.0
+- `userPhaseOverride` (String?) - Manual override via dropdown
+- `isPhaseLocked` (bool) - If true, don't auto-overwrite
+- `legacyPhaseTag` (String?) - From old phase field or imports (reference only)
+- `importSource` (String?) - "NATIVE", "ARCHX", "ZIP", "OTHER"
+- `phaseInferenceVersion` (int?) - Version of inference pipeline used
+- `phaseMigrationStatus` (String?) - "PENDING", "DONE", "SKIPPED"
+
+#### Expanded Keyword Detection
+- **Recovery**: Expanded from 19 to 60+ keywords (emotional states, recovery actions, healing terms)
+- **Discovery**: Expanded from 17 to 80+ keywords (exploration, learning, creativity, spirituality)
+- **Expansion**: Expanded from 18 to 90+ keywords (abundance, growth, opportunities, positive energy)
+- **Transition**: Expanded from 15 to 70+ keywords (uncertainty, life domains, movement, patterns)
+- **Consolidation**: Expanded from 15 to 100+ keywords (reflection, stability, integration, relationships)
+- **Breakthrough**: Expanded from 21 to 120+ keywords (clarity, epiphany, transformation, wisdom)
+
+#### Export/Import Support
+- **ARCX Format**: All 8 phase fields exported and imported correctly
+- **ZIP Format**: All 8 phase fields exported and imported correctly
+- **Backward Compatibility**: Older archives import without errors, auto-migrate to new system
+- **Migration Status**: Imported entries automatically get phase inference if needed
+
+#### UI Improvements
+- **Phase Dropdown**: Added for existing entries only (not during composition)
+- **Auto/Manual Indicators**: Visual indicators show whether phase is auto-detected or manually overridden
+- **Reset to Auto**: Button to clear manual overrides and unlock phase
+- **Legacy Phase Handling**: Older entries automatically populate `legacyPhaseTag` from old `phase` field
+
+**Files Modified**:
+- `lib/models/journal_entry_model.dart` - Added 8 new phase fields
+- `lib/prism/atlas/phase/phase_inference_service.dart` - New inference service
+- `lib/prism/atlas/phase/phase_regime_tracker.dart` - New regime integration service
+- `lib/prism/atlas/phase/phase_migration_service.dart` - New migration service
+- `lib/prism/atlas/phase/phase_scoring.dart` - Expanded keyword sets (60-120 keywords per phase)
+- `lib/arc/core/journal_capture_cubit.dart` - Updated entry creation flow
+- `lib/ui/journal/journal_screen.dart` - Added phase override dropdown
+- `lib/mira/store/arcx/services/arcx_export_service_v2.dart` - Export phase fields
+- `lib/mira/store/arcx/services/arcx_import_service_v2.dart` - Import phase fields
+- `lib/mira/store/mcp/export/mcp_pack_export_service.dart` - Export phase fields
+- `lib/mira/store/mcp/import/mcp_pack_import_service.dart` - Import phase fields
+
+**Status**: ✅ Complete - Phase detection refactored with versioned inference, Phase Regimes integration, and full export/import support
+
+---
 
 ## [2.1.34] - January 2025
 

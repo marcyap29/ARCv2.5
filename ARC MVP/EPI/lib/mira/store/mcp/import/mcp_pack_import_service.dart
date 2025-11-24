@@ -16,6 +16,8 @@ import 'package:my_app/prism/atlas/rivet/rivet_storage.dart';
 import 'package:my_app/prism/atlas/rivet/rivet_models.dart' as rivet_models;
 import 'package:my_app/models/arcform_snapshot_model.dart';
 import 'package:hive/hive.dart';
+import 'package:my_app/prism/atlas/phase/phase_inference_service.dart';
+import 'package:my_app/models/user_profile_model.dart';
 
 /// MCP Pack Import Service for .zip files only
 class McpPackImportService {
@@ -378,6 +380,22 @@ class McpPackImportService {
             }
           }
 
+          // Read phase fields from imported JSON (new versioned phase system)
+          final autoPhase = entryJson['autoPhase'] as String?;
+          final autoPhaseConfidence = (entryJson['autoPhaseConfidence'] as num?)?.toDouble();
+          final userPhaseOverride = entryJson['userPhaseOverride'] as String?;
+          final isPhaseLocked = entryJson['isPhaseLocked'] as bool? ?? false;
+          final legacyPhaseTag = entryJson['legacyPhaseTag'] as String? ?? entryJson['phase'] as String?;
+          final importSource = entryJson['importSource'] as String? ?? 'ZIP';
+          final phaseInferenceVersion = entryJson['phaseInferenceVersion'] as int?;
+          final phaseMigrationStatus = entryJson['phaseMigrationStatus'] as String?;
+          
+          // Determine migration status
+          final migrationStatus = phaseMigrationStatus ?? 
+              (phaseInferenceVersion == null || phaseInferenceVersion < CURRENT_PHASE_INFERENCE_VERSION 
+                  ? 'PENDING' 
+                  : 'DONE');
+          
           // Create journal entry
           JournalEntry journalEntry;
           try {
@@ -405,11 +423,19 @@ class McpPackImportService {
             mood: entryJson['emotion'] as String? ?? 'Neutral',
             emotion: entryJson['emotion'] as String?,
             emotionReason: entryJson['emotionReason'] as String?,
+            phase: legacyPhaseTag, // Keep old phase field for backward compatibility
+            autoPhase: autoPhase,
+            autoPhaseConfidence: autoPhaseConfidence,
+            userPhaseOverride: userPhaseOverride,
+            isPhaseLocked: isPhaseLocked,
+            legacyPhaseTag: legacyPhaseTag,
+            importSource: importSource,
+            phaseInferenceVersion: phaseInferenceVersion,
+            phaseMigrationStatus: migrationStatus,
             metadata: {
               'imported_from_mcp': true,
                 'original_mcp_id': entryId,
               'import_timestamp': DateTime.now().toIso8601String(),
-              'phase': entryJson['phase'],
               ...?entryJson['metadata'] as Map<String, dynamic>?,
             },
           );
@@ -438,6 +464,11 @@ class McpPackImportService {
               }
               
               print('✅ Successfully imported entry ${journalEntry.id}: ${journalEntry.title} (${mediaItems.length} media items)');
+              
+              // If entry needs phase inference, run it after import
+              if (journalEntry.phaseMigrationStatus == 'PENDING' && !journalEntry.isPhaseLocked) {
+                _inferPhaseForImportedEntry(journalEntry);
+              }
             } catch (e, stackTrace) {
               print('❌ ERROR: Failed to save entry ${journalEntry.id} to repository: $e');
               print('   Stack trace: $stackTrace');
@@ -857,6 +888,49 @@ class McpPackImportService {
       }
     } catch (e) {
       print('⚠️ MCP Import: Failed to import LUMARA favorites: $e');
+    }
+  }
+  
+  /// Infer phase for an imported entry that needs migration
+  Future<void> _inferPhaseForImportedEntry(JournalEntry entry) async {
+    try {
+      if (_journalRepo == null) return;
+      
+      // Get recent entries for context
+      final allEntries = _journalRepo!.getAllJournalEntries();
+      allEntries.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      final recentEntries = allEntries.take(7).toList();
+      
+      // Get user profile for userId
+      final userBox = await Hive.openBox<UserProfile>('user_profile');
+      final userProfile = userBox.get('profile');
+      final userId = userProfile?.id ?? '';
+      
+      // Run phase inference
+      final inferenceResult = await PhaseInferenceService.inferPhaseForEntry(
+        entryContent: entry.content,
+        userId: userId,
+        createdAt: entry.createdAt,
+        recentEntries: recentEntries,
+        emotion: entry.emotion,
+        emotionReason: entry.emotionReason,
+        selectedKeywords: entry.keywords,
+      );
+      
+      // Update entry with phase fields
+      final updatedEntry = entry.copyWith(
+        autoPhase: inferenceResult.phase,
+        autoPhaseConfidence: inferenceResult.confidence,
+        phaseInferenceVersion: CURRENT_PHASE_INFERENCE_VERSION,
+        phaseMigrationStatus: 'DONE',
+      );
+      
+      // Save updated entry
+      await _journalRepo!.updateJournalEntry(updatedEntry);
+      
+      print('MCP Import: ✓ Phase inference completed for entry ${entry.id}: ${inferenceResult.phase} (confidence: ${inferenceResult.confidence.toStringAsFixed(3)})');
+    } catch (e) {
+      print('MCP Import: ✗ Phase inference failed for entry ${entry.id}: $e');
     }
   }
 }

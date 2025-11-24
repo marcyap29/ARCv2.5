@@ -37,6 +37,9 @@ import 'package:my_app/platform/photo_bridge.dart';
 import 'package:my_app/services/phase_regime_service.dart';
 import 'package:my_app/services/rivet_sweep_service.dart';
 import 'package:my_app/models/phase_models.dart';
+import 'package:my_app/prism/atlas/phase/phase_inference_service.dart';
+import 'package:my_app/prism/atlas/phase/phase_regime_tracker.dart';
+import 'package:my_app/prism/atlas/phase/phase_scoring.dart';
 
 class JournalCaptureCubit extends Cubit<JournalCaptureState> {
   final JournalRepository _journalRepository;
@@ -241,20 +244,11 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
           ? selectedKeywords! 
           : SimpleKeywordExtractor.extractKeywords(content);
       
-      // Automatically add phase hashtag to content if missing
-      // Uses Phase Regime system (date-based) to determine phase
       final now = DateTime.now();
-      final contentWithPhase = await _ensurePhaseHashtagInContent(
-        content: content,
-        entryDate: now,
-        emotion: null,
-        emotionReason: null,
-        selectedKeywords: keywords,
-      );
       final entry = JournalEntry(
         id: const Uuid().v4(),
-        title: _generateTitle(contentWithPhase),
-        content: contentWithPhase, // Use content with auto-added phase hashtag
+        title: _generateTitle(content),
+        content: content, // Content without auto-added phase hashtag
         createdAt: now,
         updatedAt: now,
         tags: const [], // Tags could be extracted from content in a more advanced implementation
@@ -262,10 +256,15 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
         audioUri: _audioPath,
         keywords: keywords, // Now populated with extracted keywords
         media: media ?? [], // Include media items
+        importSource: 'NATIVE',
+        phaseMigrationStatus: 'DONE',
       );
 
       // Save the entry first
       await _journalRepository.createJournalEntry(entry);
+      
+      // Run phase inference after saving
+      await _inferAndSetPhaseForEntry(entry);
       
       // Run deduplication after saving (silently in background)
       try {
@@ -1184,7 +1183,51 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
     }
   }
 
-  /// Perform phase stability analysis using PhaseTracker
+  /// Infer phase for entry and update entry with phase fields
+  Future<void> _inferAndSetPhaseForEntry(JournalEntry entry) async {
+    try {
+      // Get recent entries for context
+      final allEntries = _journalRepository.getAllJournalEntries();
+      // Sort by createdAt descending and take 7 most recent
+      allEntries.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      final recentEntries = allEntries.take(7).toList();
+      
+      // Get user profile for userId
+      final userBox = await Hive.openBox<UserProfile>('user_profile');
+      final userProfile = userBox.get('profile');
+      final userId = userProfile?.id ?? '';
+      
+      // Run phase inference
+      final inferenceResult = await PhaseInferenceService.inferPhaseForEntry(
+        entryContent: entry.content,
+        userId: userId,
+        createdAt: entry.createdAt,
+        recentEntries: recentEntries,
+        emotion: entry.emotion,
+        emotionReason: entry.emotionReason,
+        selectedKeywords: entry.keywords,
+      );
+      
+      // Update entry with phase fields
+      final updatedEntry = entry.copyWith(
+        autoPhase: inferenceResult.phase,
+        autoPhaseConfidence: inferenceResult.confidence,
+        phaseInferenceVersion: CURRENT_PHASE_INFERENCE_VERSION,
+      );
+      
+      // Save updated entry
+      await _journalRepository.updateJournalEntry(updatedEntry);
+      
+      print('DEBUG: Phase inference completed for entry ${entry.id}: ${inferenceResult.phase} (confidence: ${inferenceResult.confidence.toStringAsFixed(3)})');
+      
+      // Run phase stability analysis for regime aggregation
+      _performPhaseStabilityAnalysis(updatedEntry, entry.emotion, entry.emotionReason, null);
+    } catch (e) {
+      print('ERROR: Phase inference failed for entry ${entry.id}: $e');
+    }
+  }
+
+  /// Perform phase stability analysis using PhaseTracker and PhaseRegimeTracker
   void _performPhaseStabilityAnalysis(JournalEntry entry, String? emotion, String? emotionReason, BuildContext? context) async {
     try {
       // Initialize PhaseHistoryRepository
@@ -1199,22 +1242,45 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
         return;
       }
       
+      // Initialize PhaseRegimeService
+      final analyticsService = AnalyticsService();
+      final rivetSweepService = RivetSweepService(analyticsService);
+      final phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
+      await phaseRegimeService.initialize();
+      
       // Create PhaseTracker instance
       final phaseTracker = PhaseTracker(userProfile: userProfile);
       
-      // Get phase scores for this entry
-      final phaseScores = PhaseRecommender.score(
-        emotion: emotion ?? '',
-        reason: emotionReason ?? '',
-        text: entry.content,
-        selectedKeywords: entry.keywords,
+      // Create PhaseRegimeTracker to bridge PhaseTracker and PhaseRegimeService
+      final phaseRegimeTracker = PhaseRegimeTracker(
+        phaseTracker: phaseTracker,
+        phaseRegimeService: phaseRegimeService,
+        userProfile: userProfile,
       );
       
-      print('DEBUG: Phase Stability Analysis - Entry: ${entry.id}');
-      print('DEBUG: Phase scores: ${PhaseRecommender.getScoringSummary(phaseScores)}');
+      // Get phase scores for this entry (use autoPhase if available, otherwise infer)
+      Map<String, double> phaseScores;
+      if (entry.autoPhase != null && entry.autoPhaseConfidence != null) {
+        // Use existing autoPhase scores
+        phaseScores = {
+          for (final phase in PhaseScoring.allPhases)
+            phase: phase == entry.autoPhase ? entry.autoPhaseConfidence! : 0.0,
+        };
+      } else {
+        // Fallback to PhaseRecommender scoring
+        phaseScores = PhaseRecommender.score(
+          emotion: emotion ?? '',
+          reason: emotionReason ?? '',
+          text: entry.content,
+          selectedKeywords: entry.keywords,
+        );
+      }
       
-      // Update phase tracking with new scores
-      final result = await phaseTracker.updatePhaseScores(
+      print('DEBUG: Phase Stability Analysis - Entry: ${entry.id}');
+      print('DEBUG: Phase scores: ${PhaseScoring.getScoringSummary(phaseScores)}');
+      
+      // Update phase tracking and regimes
+      final result = await phaseRegimeTracker.updatePhaseScoresAndRegimes(
         phaseScores: phaseScores,
         journalEntryId: entry.id,
         emotion: emotion ?? '',
@@ -1222,13 +1288,13 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
         text: entry.content,
       );
       
-      print('DEBUG: Phase tracking result: ${result.reason}');
+      print('DEBUG: Phase tracking result: ${result.phaseTrackingResult.reason}');
       print('DEBUG: Phase changed: ${result.phaseChanged}');
       
       if (result.phaseChanged && result.newPhase != null) {
-        // Phase change approved by PhaseTracker
+        // Phase change approved and regime created
         print('INFO: PhaseTracker approved phase change: ${result.previousPhase} → ${result.newPhase}');
-        await _updateUserPhaseWithStability(result.newPhase!, result.reason);
+        await _updateUserPhaseWithStability(result.newPhase!, result.phaseTrackingResult.reason);
         
         // Show phase celebration if context is available
         if (context != null) {
@@ -1236,14 +1302,14 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
         }
       } else {
         // No phase change - maintain current phase
-        print('DEBUG: PhaseTracker - No phase change needed: ${result.reason}');
+        print('DEBUG: PhaseTracker - No phase change needed: ${result.phaseTrackingResult.reason}');
         
         // Show phase stability notification if context is available and it's a meaningful reason
-        if (context != null && _shouldShowStabilityNotification(result.reason)) {
+        if (context != null && _shouldShowStabilityNotification(result.phaseTrackingResult.reason)) {
           PhaseChangeNotifier.showPhaseStabilityNotification(
             context,
             currentPhase: result.previousPhase ?? 'Unknown',
-            reason: result.reason,
+            reason: result.phaseTrackingResult.reason,
           );
         }
       }

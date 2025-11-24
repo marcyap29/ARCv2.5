@@ -68,16 +68,18 @@ Welcome to the EPI (Evolving Personal Intelligence) documentation. This director
 
 ## Version Information
 
-**Current Version:** 2.1.34  
-**Last Major Update:** January 2025 (Media Packs for ZIP Exports & Configuration UI)
+**Current Version:** 2.1.35  
+**Last Major Update:** January 2025 (Phase Detection Refactor with Versioned Inference)
 
 ### Recent Highlights
 
-- ✅ **Media Packs for ZIP Exports**: ZIP exports now support media pack organization matching ARCX format
-- ✅ **Media Pack Configuration**: Restored Media Pack Target Size slider (50-500 MB) for both ARCX and ZIP exports
-- ✅ **ZIP Export Option**: Added unencrypted ZIP export alongside secure ARCX format
-- ✅ **Extended Data Support**: Full export/import of Phase Regimes, RIVET state, Sentinel state, ArcForm timeline, and LUMARA Favorites
-- ✅ **Export Bug Fixes**: Fixed empty entries error, navigation loop, and photo count display
+- ✅ **Phase Detection Refactor**: Complete overhaul of phase detection system with versioned inference pipeline
+- ✅ **Versioned Phase Inference**: Phase detection now uses versioned pipeline (v1) with full traceability
+- ✅ **Phase Regimes Integration**: Phase changes aggregated into stable regimes to prevent erratic day-to-day changes
+- ✅ **User Phase Overrides**: Manual phase selection via dropdown for existing entries with lock mechanism
+- ✅ **Expanded Keyword Detection**: 60-120 keywords per phase for improved detection accuracy
+- ✅ **Export/Import Support**: All phase fields properly exported/imported in ARCX and ZIP formats
+- ✅ **Legacy Data Migration**: Automatic migration of older entries with phase inference
 
 ---
 
@@ -122,4 +124,4 @@ Welcome to the EPI (Evolving Personal Intelligence) documentation. This director
 
 **Status**: ✅ Production Ready  
 **Last Updated**: January 2025  
-**Version**: 2.1.34
+**Version**: 2.1.35

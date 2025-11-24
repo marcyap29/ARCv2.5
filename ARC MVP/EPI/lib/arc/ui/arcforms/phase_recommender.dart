@@ -13,14 +13,7 @@ class PhaseRecommender {
     final r = reason.toLowerCase();
     final t = text.toLowerCase();
     
-    // FIRST: Check for explicit phase hashtags in content (highest priority)
-    final phaseHashtag = _extractPhaseHashtag(text);
-    if (phaseHashtag != null) {
-      print('DEBUG: PhaseRecommender - Found explicit phase hashtag: $phaseHashtag');
-      _lastRecommendationWasKeywordBased = false;
-      return phaseHashtag;
-    }
-    
+    // NOTE: Phase hashtags are no longer used for inference - they are reference only
     // Keyword-based phase detection (prioritized when keywords are available)
     if (selectedKeywords != null && selectedKeywords.isNotEmpty) {
       final keywordPhase = _getPhaseFromKeywords(selectedKeywords);
@@ -125,6 +118,7 @@ class PhaseRecommender {
   static bool get wasLastRecommendationKeywordBased => _lastRecommendationWasKeywordBased;
 
   /// Extract phase hashtag from text (e.g., #discovery, #transition)
+  /// NOTE: This is kept for display/reference purposes only, not for inference
   static String? _extractPhaseHashtag(String text) {
     // Match hashtags followed by phase names (case-insensitive)
     final hashtagPattern = RegExp(r'#(discovery|expansion|transition|consolidation|recovery|breakthrough)', caseSensitive: false);
