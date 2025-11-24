@@ -452,7 +452,7 @@ class RivetSweepService {
       }
       
       // Convert string to PhaseLabel enum
-      final recommendedPhase = _stringToPhaseLabel(recommendedPhaseStr);
+      final recommendedPhase = _stringToPhaseLabel(recommendedPhaseStr ?? 'Discovery');
       
       // Count phase occurrences
       phaseCounts[recommendedPhase] = (phaseCounts[recommendedPhase] ?? 0) + 1;
