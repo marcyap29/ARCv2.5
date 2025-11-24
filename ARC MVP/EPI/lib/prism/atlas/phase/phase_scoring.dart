@@ -262,6 +262,16 @@ class PhaseScoring {
         scores[phase] = math.max(scores[phase]!, 0.2);
       }
     }
+    
+    // Safety check: if all scores are zero (shouldn't happen), assign equal small scores
+    final maxScore = scores.values.reduce(math.max);
+    if (maxScore == 0.0) {
+      // This shouldn't happen, but if it does, assign equal probability to all phases
+      final equalScore = 1.0 / allPhases.length;
+      for (final phase in allPhases) {
+        scores[phase] = equalScore;
+      }
+    }
   }
 
   /// Get the highest scoring phase from a score map

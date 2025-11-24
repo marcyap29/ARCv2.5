@@ -263,7 +263,9 @@ class JournalEntry extends Equatable {
       autoPhaseConfidence: (json['autoPhaseConfidence'] as num?)?.toDouble(),
       userPhaseOverride: json['userPhaseOverride'] as String?,
       isPhaseLocked: json['isPhaseLocked'] as bool? ?? false,
-      legacyPhaseTag: json['legacyPhaseTag'] as String?,
+      // Populate legacyPhaseTag from phase if autoPhase is null (for older entries)
+      legacyPhaseTag: json['legacyPhaseTag'] as String? ?? 
+          (json['autoPhase'] == null && json['phase'] != null ? json['phase'] as String? : null),
       importSource: json['importSource'] as String?,
       phaseInferenceVersion: json['phaseInferenceVersion'] as int?,
       phaseMigrationStatus: json['phaseMigrationStatus'] as String?,
@@ -271,10 +273,23 @@ class JournalEntry extends Equatable {
   }
 
   /// Get the computed phase for display (user override > auto phase > legacy phase)
+  /// Note: phase (old field) is only used as last resort for backward compatibility
   String? get computedPhase {
-    return userPhaseOverride ?? autoPhase ?? legacyPhaseTag ?? phase;
+    // Priority: user override > auto phase > legacy tag > old phase field
+    // If legacyPhaseTag is null but phase exists and autoPhase is null, use phase
+    final effectiveLegacyTag = legacyPhaseTag ?? (autoPhase == null && phase != null ? phase : null);
+    return userPhaseOverride ?? autoPhase ?? effectiveLegacyTag;
   }
 
   /// Check if phase is manually overridden
   bool get isPhaseManuallyOverridden => userPhaseOverride != null;
+  
+  /// Ensure legacyPhaseTag is populated from phase if needed (for older entries)
+  /// Returns a new entry with legacyPhaseTag populated if it was null but phase exists
+  JournalEntry ensureLegacyPhaseTag() {
+    if (legacyPhaseTag == null && phase != null && autoPhase == null) {
+      return copyWith(legacyPhaseTag: phase);
+    }
+    return this;
+  }
 }

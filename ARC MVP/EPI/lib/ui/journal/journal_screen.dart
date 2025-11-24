@@ -2258,8 +2258,18 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     final entry = widget.existingEntry;
     if (entry == null) return const SizedBox.shrink();
     
-    final currentPhase = entry.computedPhase ?? 'Discovery';
-    final isManual = entry.isPhaseManuallyOverridden;
+    // Ensure legacyPhaseTag is populated for older entries (and save if needed)
+    final entryWithLegacy = entry.ensureLegacyPhaseTag();
+    if (entryWithLegacy != entry) {
+      // Save the entry with legacyPhaseTag populated
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        final journalRepository = JournalRepository();
+        await journalRepository.updateJournalEntry(entryWithLegacy);
+      });
+    }
+    
+    final currentPhase = entryWithLegacy.computedPhase ?? 'Discovery';
+    final isManual = entryWithLegacy.isPhaseManuallyOverridden;
     
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -2340,7 +2350,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
                 }).toList(),
                 onChanged: (String? newPhase) {
                   if (newPhase != null) {
-                    _updateEntryPhaseOverride(entry, newPhase);
+                    _updateEntryPhaseOverride(entryWithLegacy, newPhase);
                   }
                 },
               ),
@@ -2348,7 +2358,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
             if (isManual) ...[
               const SizedBox(width: 8),
               TextButton.icon(
-                onPressed: () => _resetPhaseToAuto(entry),
+                onPressed: () => _resetPhaseToAuto(entryWithLegacy),
                 icon: const Icon(Icons.refresh, size: 16),
                 label: const Text('Reset to Auto'),
                 style: TextButton.styleFrom(
