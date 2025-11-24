@@ -61,6 +61,31 @@ class JournalEntry extends Equatable {
   @HiveField(16)
   final bool isEdited; // Whether this entry has been edited from original
 
+  // New phase detection fields (versioned inference pipeline)
+  @HiveField(19)
+  final String? autoPhase; // Model-detected phase, authoritative
+  
+  @HiveField(20)
+  final double? autoPhaseConfidence; // Confidence score 0.0-1.0
+  
+  @HiveField(21)
+  final String? userPhaseOverride; // Manual override via dropdown
+  
+  @HiveField(22)
+  final bool isPhaseLocked; // If true, don't auto-overwrite
+  
+  @HiveField(23)
+  final String? legacyPhaseTag; // From old phase field or imports (reference only)
+  
+  @HiveField(24)
+  final String? importSource; // "NATIVE", "ARCHX", "ZIP", "OTHER"
+  
+  @HiveField(25)
+  final int? phaseInferenceVersion; // Version of inference pipeline used
+  
+  @HiveField(26)
+  final String? phaseMigrationStatus; // "PENDING", "DONE", "SKIPPED"
+
   const JournalEntry({
     required this.id,
     required this.title,
@@ -80,6 +105,14 @@ class JournalEntry extends Equatable {
     this.phase,
     this.phaseAtTime,
     this.isEdited = false,
+    this.autoPhase,
+    this.autoPhaseConfidence,
+    this.userPhaseOverride,
+    this.isPhaseLocked = false,
+    this.legacyPhaseTag,
+    this.importSource,
+    this.phaseInferenceVersion,
+    this.phaseMigrationStatus,
   });
 
   JournalEntry copyWith({
@@ -101,6 +134,14 @@ class JournalEntry extends Equatable {
     String? phase,
     DateTime? phaseAtTime,
     bool? isEdited,
+    String? autoPhase,
+    double? autoPhaseConfidence,
+    String? userPhaseOverride,
+    bool? isPhaseLocked,
+    String? legacyPhaseTag,
+    String? importSource,
+    int? phaseInferenceVersion,
+    String? phaseMigrationStatus,
   }) {
     return JournalEntry(
       id: id ?? this.id,
@@ -121,6 +162,14 @@ class JournalEntry extends Equatable {
       phase: phase ?? this.phase,
       phaseAtTime: phaseAtTime ?? this.phaseAtTime,
       isEdited: isEdited ?? this.isEdited,
+      autoPhase: autoPhase ?? this.autoPhase,
+      autoPhaseConfidence: autoPhaseConfidence ?? this.autoPhaseConfidence,
+      userPhaseOverride: userPhaseOverride ?? this.userPhaseOverride,
+      isPhaseLocked: isPhaseLocked ?? this.isPhaseLocked,
+      legacyPhaseTag: legacyPhaseTag ?? this.legacyPhaseTag,
+      importSource: importSource ?? this.importSource,
+      phaseInferenceVersion: phaseInferenceVersion ?? this.phaseInferenceVersion,
+      phaseMigrationStatus: phaseMigrationStatus ?? this.phaseMigrationStatus,
     );
   }
 
@@ -144,6 +193,14 @@ class JournalEntry extends Equatable {
         phase,
         phaseAtTime,
         isEdited,
+        autoPhase,
+        autoPhaseConfidence,
+        userPhaseOverride,
+        isPhaseLocked,
+        legacyPhaseTag,
+        importSource,
+        phaseInferenceVersion,
+        phaseMigrationStatus,
       ];
 
   Map<String, dynamic> toJson() {
@@ -166,6 +223,14 @@ class JournalEntry extends Equatable {
       'phase': phase,
       'phaseAtTime': phaseAtTime?.toIso8601String(),
       'isEdited': isEdited,
+      'autoPhase': autoPhase,
+      'autoPhaseConfidence': autoPhaseConfidence,
+      'userPhaseOverride': userPhaseOverride,
+      'isPhaseLocked': isPhaseLocked,
+      'legacyPhaseTag': legacyPhaseTag,
+      'importSource': importSource,
+      'phaseInferenceVersion': phaseInferenceVersion,
+      'phaseMigrationStatus': phaseMigrationStatus,
     };
   }
 
@@ -194,6 +259,22 @@ class JournalEntry extends Equatable {
       phase: json['phase'] as String?,
       phaseAtTime: json['phaseAtTime'] != null ? DateTime.parse(json['phaseAtTime']) : null,
       isEdited: json['isEdited'] as bool? ?? false,
+      autoPhase: json['autoPhase'] as String?,
+      autoPhaseConfidence: (json['autoPhaseConfidence'] as num?)?.toDouble(),
+      userPhaseOverride: json['userPhaseOverride'] as String?,
+      isPhaseLocked: json['isPhaseLocked'] as bool? ?? false,
+      legacyPhaseTag: json['legacyPhaseTag'] as String?,
+      importSource: json['importSource'] as String?,
+      phaseInferenceVersion: json['phaseInferenceVersion'] as int?,
+      phaseMigrationStatus: json['phaseMigrationStatus'] as String?,
     );
   }
+
+  /// Get the computed phase for display (user override > auto phase > legacy phase)
+  String? get computedPhase {
+    return userPhaseOverride ?? autoPhase ?? legacyPhaseTag ?? phase;
+  }
+
+  /// Check if phase is manually overridden
+  bool get isPhaseManuallyOverridden => userPhaseOverride != null;
 }

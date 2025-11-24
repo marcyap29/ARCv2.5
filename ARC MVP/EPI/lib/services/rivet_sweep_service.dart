@@ -434,14 +434,13 @@ class RivetSweepService {
     int totalConsecutive = 0;
 
     for (final entry in entries) {
-      // Check for explicit phase hashtag first (highest priority)
+      // Use PhaseRecommender for phase detection (hashtags are no longer used for inference)
+      // If entry has autoPhase, use that; otherwise use PhaseRecommender
       String? recommendedPhaseStr;
       
-      // Extract phase hashtag from content if present
-      final phaseHashtag = _extractPhaseHashtag(entry.content);
-      if (phaseHashtag != null) {
-        recommendedPhaseStr = phaseHashtag;
-        print('DEBUG: RIVET Sweep - Entry ${entry.id} has explicit phase hashtag: $phaseHashtag');
+      if (entry.autoPhase != null) {
+        recommendedPhaseStr = entry.autoPhase;
+        print('DEBUG: RIVET Sweep - Entry ${entry.id} has autoPhase: $recommendedPhaseStr');
       } else {
         // Use PhaseRecommender for phase detection
         recommendedPhaseStr = PhaseRecommender.recommend(

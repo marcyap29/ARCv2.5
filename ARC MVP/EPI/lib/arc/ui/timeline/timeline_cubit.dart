@@ -423,20 +423,21 @@ class TimelineCubit extends Cubit<TimelineState> {
 
   List<TimelineEntry> _mapToTimelineEntries(List<JournalEntry> journalEntries) {
     return journalEntries.map((entry) {
-      // Priority 1: Extract phase from hashtag in content (highest priority)
-      String? phase;
+      // Use computedPhase which follows: userPhaseOverride > autoPhase > legacyPhaseTag > phase
+      // Final fallback to Discovery if no phase found
+      String? phase = entry.computedPhase ?? 'Discovery';
+      
+      // Show indicator if phase is manually overridden
+      final isManual = entry.isPhaseManuallyOverridden;
+      if (isManual) {
+        print('DEBUG: Entry ${entry.id} - Using manual phase override: $phase');
+      } else if (entry.autoPhase != null) {
+        print('DEBUG: Entry ${entry.id} - Using auto-detected phase: $phase');
+      } else {
+        print('DEBUG: Entry ${entry.id} - Using fallback phase: $phase');
+      }
+      
       String? geometry;
-
-      phase = _extractPhaseHashtag(entry.content);
-      if (phase != null) {
-        print('DEBUG: Entry ${entry.id} - Using phase from hashtag in content - Phase: $phase');
-      }
-
-      // Priority 2: Final fallback to Discovery if no hashtag found
-      if (phase == null) {
-        phase = 'Discovery';
-        print('DEBUG: Entry ${entry.id} - No phase hashtag found, using default: $phase');
-      }
 
       print('DEBUG: Entry ${entry.id} - Final phase: $phase, Media count: ${entry.media.length}');
       

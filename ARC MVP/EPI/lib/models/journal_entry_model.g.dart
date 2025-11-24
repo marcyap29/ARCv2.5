@@ -35,13 +35,21 @@ class JournalEntryAdapter extends TypeAdapter<JournalEntry> {
       phase: fields[15] as String?,
       phaseAtTime: fields[18] as DateTime?,
       isEdited: fields[16] as bool,
+      autoPhase: fields[19] as String?,
+      autoPhaseConfidence: fields[20] as double?,
+      userPhaseOverride: fields[21] as String?,
+      isPhaseLocked: fields[22] as bool,
+      legacyPhaseTag: fields[23] as String?,
+      importSource: fields[24] as String?,
+      phaseInferenceVersion: fields[25] as int?,
+      phaseMigrationStatus: fields[26] as String?,
     );
   }
 
   @override
   void write(BinaryWriter writer, JournalEntry obj) {
     writer
-      ..writeByte(18)
+      ..writeByte(26)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -77,7 +85,23 @@ class JournalEntryAdapter extends TypeAdapter<JournalEntry> {
       ..writeByte(18)
       ..write(obj.phaseAtTime)
       ..writeByte(16)
-      ..write(obj.isEdited);
+      ..write(obj.isEdited)
+      ..writeByte(19)
+      ..write(obj.autoPhase)
+      ..writeByte(20)
+      ..write(obj.autoPhaseConfidence)
+      ..writeByte(21)
+      ..write(obj.userPhaseOverride)
+      ..writeByte(22)
+      ..write(obj.isPhaseLocked)
+      ..writeByte(23)
+      ..write(obj.legacyPhaseTag)
+      ..writeByte(24)
+      ..write(obj.importSource)
+      ..writeByte(25)
+      ..write(obj.phaseInferenceVersion)
+      ..writeByte(26)
+      ..write(obj.phaseMigrationStatus);
   }
 
   @override

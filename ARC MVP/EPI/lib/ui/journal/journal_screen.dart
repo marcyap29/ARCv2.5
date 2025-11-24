@@ -2244,9 +2244,164 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
               });
             },
           ),
+          const SizedBox(height: 12),
+          
+          // Phase override dropdown
+          _buildPhaseOverrideSection(theme),
         ],
       ),
     );
+  }
+  
+  /// Build phase override section for existing entries
+  Widget _buildPhaseOverrideSection(ThemeData theme) {
+    final entry = widget.existingEntry;
+    if (entry == null) return const SizedBox.shrink();
+    
+    final currentPhase = entry.computedPhase ?? 'Discovery';
+    final isManual = entry.isPhaseManuallyOverridden;
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(
+              Icons.auto_awesome,
+              size: 16,
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              'Phase',
+              style: theme.textTheme.labelMedium?.copyWith(
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const Spacer(),
+            if (isManual)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.secondaryContainer,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  'Manual',
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: theme.colorScheme.onSecondaryContainer,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              )
+            else
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primaryContainer.withOpacity(0.5),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  'Auto',
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: theme.colorScheme.onPrimaryContainer,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: DropdownButtonFormField<String>(
+                value: currentPhase,
+                decoration: InputDecoration(
+                  labelText: 'Phase',
+                  hintText: 'Select phase',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                ),
+                items: const [
+                  'Discovery',
+                  'Expansion',
+                  'Transition',
+                  'Consolidation',
+                  'Recovery',
+                  'Breakthrough',
+                ].map((phase) {
+                  return DropdownMenuItem<String>(
+                    value: phase,
+                    child: Text(phase),
+                  );
+                }).toList(),
+                onChanged: (String? newPhase) {
+                  if (newPhase != null) {
+                    _updateEntryPhaseOverride(entry, newPhase);
+                  }
+                },
+              ),
+            ),
+            if (isManual) ...[
+              const SizedBox(width: 8),
+              TextButton.icon(
+                onPressed: () => _resetPhaseToAuto(entry),
+                icon: const Icon(Icons.refresh, size: 16),
+                label: const Text('Reset to Auto'),
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ],
+    );
+  }
+  
+  /// Update entry phase override
+  Future<void> _updateEntryPhaseOverride(JournalEntry entry, String newPhase) async {
+    try {
+      final updatedEntry = entry.copyWith(
+        userPhaseOverride: newPhase,
+        isPhaseLocked: true,
+      );
+      
+      final journalRepository = JournalRepository();
+      await journalRepository.updateJournalEntry(updatedEntry);
+      
+      setState(() {
+        _hasBeenModified = true;
+      });
+      
+      print('DEBUG: Updated entry ${entry.id} phase override to: $newPhase');
+    } catch (e) {
+      print('ERROR: Failed to update phase override: $e');
+    }
+  }
+  
+  /// Reset phase to auto-detected
+  Future<void> _resetPhaseToAuto(JournalEntry entry) async {
+    try {
+      final updatedEntry = entry.copyWith(
+        userPhaseOverride: null,
+        isPhaseLocked: false,
+      );
+      
+      final journalRepository = JournalRepository();
+      await journalRepository.updateJournalEntry(updatedEntry);
+      
+      setState(() {
+        _hasBeenModified = true;
+      });
+      
+      print('DEBUG: Reset entry ${entry.id} phase to auto-detected');
+    } catch (e) {
+      print('ERROR: Failed to reset phase: $e');
+    }
   }
 
   /// Build content showing photos, videos, and reflections (without duplicating text)

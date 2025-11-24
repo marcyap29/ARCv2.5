@@ -289,6 +289,16 @@ class McpExportService {
             'created_at': entry.createdAt.toIso8601String(),
             'updated_at': entry.updatedAt.toIso8601String(),
             'keywords': entry.keywords,
+            'phase': entry.phase, // Legacy field for backward compatibility
+            // New phase detection fields
+            'autoPhase': entry.autoPhase,
+            'autoPhaseConfidence': entry.autoPhaseConfidence,
+            'userPhaseOverride': entry.userPhaseOverride,
+            'isPhaseLocked': entry.isPhaseLocked,
+            'legacyPhaseTag': entry.legacyPhaseTag,
+            'importSource': entry.importSource,
+            'phaseInferenceVersion': entry.phaseInferenceVersion,
+            'phaseMigrationStatus': entry.phaseMigrationStatus,
             'media': entry.media.map((m) => {
               'id': m.id,
               'uri': m.uri,
