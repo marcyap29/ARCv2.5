@@ -1,9 +1,9 @@
 # EPI ARC MVP - Changelog
 
 **Version:** 2.1.36  
-**Last Updated:** January 2025
+**Last Updated:** November 23, 2025
 
-## [2.1.36] - January 2025
+## [2.1.36] - November 23, 2025
 
 ### **LUMARA Reflective Queries & Notification System** - Complete
 

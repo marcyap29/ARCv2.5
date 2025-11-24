@@ -1,7 +1,7 @@
 # EPI Documentation
 
-**Last Updated:** January 2025  
-**Version:** 2.1.34
+**Last Updated:** November 23, 2025  
+**Version:** 2.1.36
 
 ---
 
@@ -69,7 +69,7 @@ Welcome to the EPI (Evolving Personal Intelligence) documentation. This director
 ## Version Information
 
 **Current Version:** 2.1.36  
-**Last Major Update:** January 2025 (LUMARA Reflective Queries & Notification System)
+**Last Major Update:** November 23, 2025 (LUMARA Reflective Queries & Notification System)
 
 ### Recent Highlights
 
@@ -126,5 +126,5 @@ Welcome to the EPI (Evolving Personal Intelligence) documentation. This director
 ---
 
 **Status**: ✅ Production Ready  
-**Last Updated**: January 2025  
+**Last Updated**: November 23, 2025  
 **Version**: 2.1.35

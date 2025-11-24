@@ -1,7 +1,7 @@
 # EPI MVP - Bug Tracker
 
 **Version:** 2.1.36  
-**Last Updated:** January 2025
+**Last Updated:** November 23, 2025
 
 ## Resolved Issues (v2.1.36)
 
