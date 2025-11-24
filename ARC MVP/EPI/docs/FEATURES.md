@@ -57,6 +57,8 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 - **Delete Entries**: Confirmation dialogs and undo
 - **Search & Filter**: Keyword and date-based filtering
 - **Entry Metadata**: Date, time, location, phase, keywords
+- **Original Creation Time Preservation**: `createdAt` never changes when updating entries
+- **Edit Tracking**: `updatedAt` tracks last modification, `isEdited` flag indicates edits
 
 ### Timeline
 
@@ -92,12 +94,26 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 - Context-aware responses
 - Phase-aware reflections
 - Multimodal understanding
+- **Reflective Queries**: Three EPI-standard anti-harm queries
+  - "Show me three times I handled something hard" - Finds resilience examples with SAGE filtering
+  - "What was I struggling with around this time last year?" - Temporal struggle analysis
+  - "Which themes have softened in the last six months?" - Theme frequency comparison
+- **Query Detection**: Automatic recognition of reflective query patterns
+- **Safety Filtering**: VEIL integration, trauma detection, night mode handling
 
 **Memory System**
 - **Automatic Persistence**: Chat history automatically saved
 - **Cross-Session Continuity**: Remembers past discussions
 - **Rolling Summaries**: Map-reduce summarization every 10 messages
 - **Memory Commands**: /memory show, forget, export
+
+**Notification System** (Backend Ready)
+- **Time Echo Reminders**: Periodic reflective reminders at 1 month, 3 months, 6 months, 1 year, 2 years, 5 years, 10 years
+- **Active Window Detection**: Automatically learns user's natural reflection times from journal patterns
+- **Sleep Protection**: Detects and respects sleep windows (default 22:00-07:00)
+- **Abstinence Windows**: User-configurable quiet periods
+- **Circadian Awareness**: AURORA integration for timing-aware notifications
+- **Note**: Requires notification plugin integration for full functionality
 
 **Response Features**
 - **Context-Aware**: Uses journal entries and chat history

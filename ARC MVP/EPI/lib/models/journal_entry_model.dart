@@ -292,4 +292,18 @@ class JournalEntry extends Equatable {
     }
     return this;
   }
+
+  /// Get the original creation time (from metadata if available, otherwise createdAt)
+  /// This ensures Time Echo reminders use the true original creation time
+  DateTime get originalCreatedAt {
+    if (metadata != null && metadata!.containsKey('originalCreatedAt')) {
+      try {
+        return DateTime.parse(metadata!['originalCreatedAt'] as String);
+      } catch (e) {
+        // Fall back to createdAt if parsing fails
+        return createdAt;
+      }
+    }
+    return createdAt;
+  }
 }

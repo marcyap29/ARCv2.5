@@ -68,11 +68,14 @@ Welcome to the EPI (Evolving Personal Intelligence) documentation. This director
 
 ## Version Information
 
-**Current Version:** 2.1.35  
-**Last Major Update:** January 2025 (Phase Detection Refactor with Versioned Inference)
+**Current Version:** 2.1.36  
+**Last Major Update:** January 2025 (LUMARA Reflective Queries & Notification System)
 
 ### Recent Highlights
 
+- ✅ **LUMARA Reflective Queries**: Three EPI-standard anti-harm queries for resilience, temporal reflection, and theme analysis
+- ✅ **Notification System Foundation**: Time Echo reminders and Active Window detection (backend ready)
+- ✅ **CreatedAt Preservation**: Original creation time never changes on updates, ensuring historical accuracy
 - ✅ **Phase Detection Refactor**: Complete overhaul of phase detection system with versioned inference pipeline
 - ✅ **Versioned Phase Inference**: Phase detection now uses versioned pipeline (v1) with full traceability
 - ✅ **Phase Regimes Integration**: Phase changes aggregated into stable regimes to prevent erratic day-to-day changes

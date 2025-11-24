@@ -27,6 +27,10 @@ import 'package:my_app/shared/ui/settings/voiceover_preference_service.dart';
 import '../voice/audio_io.dart';
 import '../llm/prompts/lumara_master_prompt.dart';
 import '../services/lumara_control_state_builder.dart';
+import '../services/reflective_query_service.dart';
+import '../services/reflective_query_formatter.dart';
+import 'package:my_app/prism/atlas/phase/phase_history_repository.dart';
+import 'package:my_app/aurora/services/circadian_profile_service.dart';
 
 /// LUMARA Assistant Cubit State
 abstract class LumaraAssistantState {}
@@ -98,6 +102,10 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
   // Attribution Service for creating traces
   final AttributionService _attributionService = AttributionService();
   
+  // Reflective Query Service
+  late final ReflectiveQueryService _reflectiveQueryService;
+  late final ReflectiveQueryFormatter _reflectiveFormatter;
+  
   // Auto-save and compaction - Updated for 25-message summarization
   static const int _maxMessagesBeforeCompaction = 25;
   static const int _compactionThreshold = 150; // Summarize after 150 messages
@@ -118,6 +126,11 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
     _enhancedApi = EnhancedLumaraApi(_analytics);
     // Initialize progressive memory loader
     _memoryLoader = ProgressiveMemoryLoader(_journalRepository);
+    // Initialize reflective query service (will be updated after memory service is initialized)
+    _reflectiveQueryService = ReflectiveQueryService(
+      journalRepository: _journalRepository,
+    );
+    _reflectiveFormatter = ReflectiveQueryFormatter();
   }
   
   /// Initialize the assistant with parallel service loading
@@ -223,6 +236,15 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
     await _addToChatSession(text, 'user', messageId: userMessage.id, timestamp: userMessage.timestamp);
 
     print('LUMARA Debug: Added user message, new count: ${updatedMessages.length}');
+
+    // Check if this is a reflective query
+    final taskType = _determineTaskType(text);
+    if (taskType == InsightKind.reflectiveHandledHard ||
+        taskType == InsightKind.reflectiveTemporalStruggle ||
+        taskType == InsightKind.reflectiveThemeSoftening) {
+      await _handleReflectiveQuery(taskType, text, updatedMessages, currentState);
+      return;
+    }
 
     try {
       // Get provider status from LumaraAPIConfig (the authoritative source)
@@ -446,6 +468,9 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
       InsightKind.phaseRationale => 'phase_rationale',
       InsightKind.comparePeriod => 'compare_period',
       InsightKind.promptSuggestion => 'prompt_suggestion',
+      InsightKind.reflectiveHandledHard => 'reflective_handled_hard',
+      InsightKind.reflectiveTemporalStruggle => 'reflective_temporal_struggle',
+      InsightKind.reflectiveThemeSoftening => 'reflective_theme_softening',
     };
   }
 
@@ -754,6 +779,9 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
       InsightKind.comparePeriod => 'analyze',
       InsightKind.promptSuggestion => 'ideas',
       InsightKind.chat => 'think',
+      InsightKind.reflectiveHandledHard => 'reflect',
+      InsightKind.reflectiveTemporalStruggle => 'reflect',
+      InsightKind.reflectiveThemeSoftening => 'reflect',
     };
   }
   
@@ -809,6 +837,51 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
         lowerQuery.contains('write')) {
       print('LUMARA Debug: Detected prompt suggestion task');
       return InsightKind.promptSuggestion;
+    }
+    
+    // Reflective Query 1: "Show me three times I handled something hard"
+    if ((lowerQuery.contains('three times') || lowerQuery.contains('3 times')) &&
+        (lowerQuery.contains('handled') || lowerQuery.contains('dealt with') || 
+         lowerQuery.contains('got through') || lowerQuery.contains('overcame'))) {
+      print('LUMARA Debug: Detected reflective handled hard query');
+      return InsightKind.reflectiveHandledHard;
+    }
+    if (lowerQuery.contains('show me') && 
+        (lowerQuery.contains('handled') || lowerQuery.contains('hard') || 
+         lowerQuery.contains('difficult') || lowerQuery.contains('challenge'))) {
+      print('LUMARA Debug: Detected reflective handled hard query (variant)');
+      return InsightKind.reflectiveHandledHard;
+    }
+    
+    // Reflective Query 2: "What was I struggling with around this time last year?"
+    if ((lowerQuery.contains('struggling') || lowerQuery.contains('struggle')) &&
+        (lowerQuery.contains('this time last year') || lowerQuery.contains('around this time') ||
+         lowerQuery.contains('same time last year') || lowerQuery.contains('year ago'))) {
+      print('LUMARA Debug: Detected reflective temporal struggle query');
+      return InsightKind.reflectiveTemporalStruggle;
+    }
+    if (lowerQuery.contains('what was') && 
+        (lowerQuery.contains('last year') || lowerQuery.contains('year ago')) &&
+        (lowerQuery.contains('struggling') || lowerQuery.contains('dealing with'))) {
+      print('LUMARA Debug: Detected reflective temporal struggle query (variant)');
+      return InsightKind.reflectiveTemporalStruggle;
+    }
+    
+    // Reflective Query 3: "Which themes have softened in the last six months?"
+    if ((lowerQuery.contains('themes') || lowerQuery.contains('theme')) &&
+        (lowerQuery.contains('softened') || lowerQuery.contains('soften') ||
+         lowerQuery.contains('less') || lowerQuery.contains('decreased')) &&
+        (lowerQuery.contains('six months') || lowerQuery.contains('6 months') ||
+         lowerQuery.contains('last 6') || lowerQuery.contains('past 6'))) {
+      print('LUMARA Debug: Detected reflective theme softening query');
+      return InsightKind.reflectiveThemeSoftening;
+    }
+    if (lowerQuery.contains('which') && 
+        (lowerQuery.contains('softened') || lowerQuery.contains('gotten better') ||
+         lowerQuery.contains('improved')) &&
+        (lowerQuery.contains('months') || lowerQuery.contains('recent'))) {
+      print('LUMARA Debug: Detected reflective theme softening query (variant)');
+      return InsightKind.reflectiveThemeSoftening;
     }
     
     // Specific greetings and common queries
@@ -1496,6 +1569,12 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
         currentPhase: currentPhase,
       );
 
+      // Update reflective query service with memory service
+      _reflectiveQueryService.updateDependencies(
+        memoryService: _memoryService,
+        phaseHistory: PhaseHistoryRepository(),
+      );
+
       print('LUMARA Memory: Enhanced MIRA memory system initialized for user $_userId');
       if (currentPhase != null) {
         print('LUMARA Memory: Current phase: $currentPhase');
@@ -2161,6 +2240,79 @@ Available: ${yearsAgo} more year${yearsAgo > 1 ? 's' : ''} of history''';
     // TODO: Enhanced memory service manages sessions internally
     // Session deletion not implemented yet
     print('LUMARA Memory: Session deletion not available in enhanced memory system');
+  }
+
+  /// Handle reflective queries
+  Future<void> _handleReflectiveQuery(
+    InsightKind taskType,
+    String query,
+    List<LumaraMessage> updatedMessages,
+    LumaraAssistantLoaded currentState,
+  ) async {
+    try {
+      // Get circadian context for night mode
+      final allEntries = _journalRepository.getAllJournalEntries();
+      final circadianService = CircadianProfileService();
+      final circadianContext = await circadianService.compute(allEntries);
+      final nightMode = circadianContext.window == 'evening' || 
+                       DateTime.now().hour >= 22 || 
+                       DateTime.now().hour < 7;
+
+      String response;
+      
+      if (taskType == InsightKind.reflectiveHandledHard) {
+        final result = await _reflectiveQueryService.queryHandledHard(
+          userId: _userId,
+          currentPhase: _currentPhase,
+          nightMode: nightMode,
+        );
+        response = await _reflectiveFormatter.formatHandledHard(result);
+      } else if (taskType == InsightKind.reflectiveTemporalStruggle) {
+        final result = await _reflectiveQueryService.queryTemporalStruggle(
+          userId: _userId,
+          currentPhase: _currentPhase,
+          nightMode: nightMode,
+        );
+        response = await _reflectiveFormatter.formatTemporalStruggle(result);
+      } else if (taskType == InsightKind.reflectiveThemeSoftening) {
+        final result = await _reflectiveQueryService.queryThemeSoftening(
+          userId: _userId,
+        );
+        response = await _reflectiveFormatter.formatThemeSoftening(result);
+      } else {
+        response = 'I\'m not sure how to process that reflective query.';
+      }
+
+      // Record assistant response
+      await _recordAssistantMessage(response);
+
+      // Create assistant message
+      final assistantMessage = LumaraMessage.assistant(content: response);
+
+      // Add to chat session
+      await _addToChatSession(response, 'assistant', 
+          messageId: assistantMessage.id, 
+          timestamp: assistantMessage.timestamp);
+
+      // Speak response if voiceover enabled
+      _speakResponseIfEnabled(response);
+
+      emit(currentState.copyWith(
+        messages: [...updatedMessages, assistantMessage],
+        isProcessing: false,
+        apiErrorMessage: null,
+      ));
+    } catch (e) {
+      print('LUMARA ReflectiveQuery: Error: $e');
+      final errorMessage = LumaraMessage.assistant(
+        content: 'I encountered an error processing your reflective query. Please try again.',
+      );
+      emit(currentState.copyWith(
+        messages: [...updatedMessages, errorMessage],
+        isProcessing: false,
+        apiErrorMessage: 'Error processing reflective query',
+      ));
+    }
   }
 
   /// Get memory statistics

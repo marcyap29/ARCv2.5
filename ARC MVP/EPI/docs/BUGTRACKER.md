@@ -1,7 +1,21 @@
 # EPI MVP - Bug Tracker
 
-**Version:** 2.1.35  
+**Version:** 2.1.36  
 **Last Updated:** January 2025
+
+## Resolved Issues (v2.1.36)
+
+### CreatedAt Changing on Entry Updates
+- **Issue**: When updating an existing journal entry, the `createdAt` timestamp could be changed if user selected a new date/time, breaking Time Echo reminders and historical accuracy.
+- **Root Cause**: `updateEntryWithKeywords` method allowed `createdAt` to be modified when user selected a new date/time.
+- **Resolution**: 
+  1. Modified `updateEntryWithKeywords` to always preserve original `createdAt`
+  2. Added `originalCreatedAt` storage in metadata for safety
+  3. Added `originalCreatedAt` getter to `JournalEntry` model
+  4. Updated all reflective query services to use `originalCreatedAt` instead of `createdAt`
+  5. `updatedAt` always reflects last modification time
+- **Impact**: Time Echo reminders now use correct historical dates, ensuring accurate periodic reflections
+- **Status**: ✅ Fixed
 
 ## Resolved Issues (v2.1.35)
 

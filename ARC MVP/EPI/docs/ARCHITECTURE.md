@@ -113,6 +113,14 @@ The EPI system is organized into 5 core modules:
 
 **Submodules:**
 - `chat/` - LUMARA conversational AI
+  - `services/reflective_query_service.dart` - EPI-standard reflective queries
+  - `services/reflective_query_formatter.dart` - Response formatting
+  - `services/lumara_notification_service.dart` - Time Echo and Active Window reminders
+  - `services/active_window_detector.dart` - User reflection pattern detection
+  - `services/sleep_protection_service.dart` - Sleep/abstinence window management
+  - `services/theme_analysis_service.dart` - Longitudinal theme tracking
+  - `models/reflective_query_models.dart` - Query result models
+  - `models/notification_models.dart` - Notification data models
 - `arcform/` - 3D visualization and analysis forms
 - `core/` - Journal entry processing and state management
 - `ui/` - Journaling interface components
@@ -122,11 +130,17 @@ The EPI system is organized into 5 core modules:
 
 **Key Features:**
 - Journal entry capture and editing
-- LUMARA chat interface
+- **LUMARA Reflective Queries**: Three EPI-standard anti-harm queries
+  - "Show me three times I handled something hard"
+  - "What was I struggling with around this time last year?"
+  - "Which themes have softened in the last six months?"
+- **Notification System**: Time Echo reminders and Active Window detection
+- LUMARA chat interface with persistent memory
 - ARCForm visualization with phase-aware layouts
 - Privacy-first data handling
 - Timeline management with accurate date navigation
 - Draft management with auto-save
+- **Original Creation Time Preservation**: `createdAt` never changes on updates
 
 ---
 

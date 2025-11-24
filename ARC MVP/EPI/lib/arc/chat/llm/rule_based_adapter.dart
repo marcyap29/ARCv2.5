@@ -8,6 +8,9 @@ enum InsightKind {
   comparePeriod,
   promptSuggestion,
   chat,
+  reflectiveHandledHard,
+  reflectiveTemporalStruggle,
+  reflectiveThemeSoftening,
 }
 
 /// Rule-based adapter for LUMARA responses when models are not available
@@ -33,6 +36,11 @@ class RuleBasedAdapter {
         return _generatePromptSuggestion(context);
       case InsightKind.chat:
         return _generateChatResponse(userQuery, context);
+      case InsightKind.reflectiveHandledHard:
+      case InsightKind.reflectiveTemporalStruggle:
+      case InsightKind.reflectiveThemeSoftening:
+        // These are handled by ReflectiveQueryService
+        return 'Processing your reflective query...';
     }
   }
   

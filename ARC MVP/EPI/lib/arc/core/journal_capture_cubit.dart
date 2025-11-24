@@ -848,48 +848,37 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
         }
       }
       
-      // Combine date and time if provided
-      DateTime? newCreatedAt = existingEntry.createdAt;
-      print('DEBUG: Original createdAt: ${existingEntry.createdAt}');
-      print('DEBUG: Selected date: $selectedDate');
-      print('DEBUG: Selected time: $selectedTime');
+      // PRESERVE original creation time - never change createdAt when updating
+      // This is critical for Time Echo reminders and historical accuracy
+      // If user wants to change the date, they should create a new entry
+      final originalCreatedAt = existingEntry.createdAt;
       
-      if (selectedDate != null && selectedTime != null) {
-        newCreatedAt = DateTime(
-          selectedDate.year,
-          selectedDate.month,
-          selectedDate.day,
-          selectedTime.hour,
-          selectedTime.minute,
-        );
-        print('DEBUG: New createdAt (date + time): $newCreatedAt');
-      } else if (selectedDate != null) {
-        newCreatedAt = DateTime(
-          selectedDate.year,
-          selectedDate.month,
-          selectedDate.day,
-          existingEntry.createdAt.hour,
-          existingEntry.createdAt.minute,
-        );
-        print('DEBUG: New createdAt (date only): $newCreatedAt');
-      } else {
-        print('DEBUG: No date change, keeping original: $newCreatedAt');
+      // Store original creation time in metadata if not already present
+      // This allows us to track the true original time even if createdAt is ever changed
+      final metadata = existingEntry.metadata ?? <String, dynamic>{};
+      if (!metadata.containsKey('originalCreatedAt')) {
+        metadata['originalCreatedAt'] = originalCreatedAt.toIso8601String();
       }
+      
+      print('DEBUG: Preserving original createdAt: $originalCreatedAt');
+      print('DEBUG: Selected date: $selectedDate (ignored for updates)');
+      print('DEBUG: Selected time: $selectedTime (ignored for updates)');
 
       // Automatically add phase hashtag to content if missing
       // Uses Phase Regime system (date-based) to determine phase
+      // Use original creation date for phase determination (not edited date)
       final contentWithPhase = await _ensurePhaseHashtagInContent(
         content: content,
-        entryDate: newCreatedAt, // Use the entry's date (may have been changed)
+        entryDate: originalCreatedAt, // Always use original creation date
         emotion: emotion,
         emotionReason: emotionReason,
         selectedKeywords: selectedKeywords,
       );
       
-      // Save LUMARA blocks to metadata
-      final metadata = blocks != null && blocks.isNotEmpty
-          ? {'inlineBlocks': blocks}
-          : existingEntry.metadata;
+      // Save LUMARA blocks to metadata (merge with existing metadata)
+      if (blocks != null && blocks.isNotEmpty) {
+        metadata['inlineBlocks'] = blocks;
+      }
       
       // Prevent keyword duplication - merge with existing keywords, remove duplicates
       final existingKeywords = List<String>.from(existingEntry.keywords);
@@ -924,6 +913,7 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
       }
        
       // Create updated entry
+      // IMPORTANT: createdAt is NEVER changed - preserves original creation time
       final updatedEntry = existingEntry.copyWith(
         title: title?.trim().isNotEmpty == true ? title!.trim() : existingEntry.title,
         content: contentWithPhase, // Use content with auto-added phase hashtag
@@ -931,12 +921,12 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
         keywords: finalKeywords, // Use deduplicated keywords
         emotion: emotion,
         emotionReason: emotionReason,
-        createdAt: newCreatedAt,
-        updatedAt: DateTime.now(),
+        createdAt: originalCreatedAt, // PRESERVE original creation time
+        updatedAt: DateTime.now(), // Always update this to track when entry was last modified
         location: selectedLocation,
         // Phase is determined automatically by phase regime system, not manually set
         isEdited: true,
-        metadata: metadata,
+        metadata: metadata, // Contains originalCreatedAt for safety
         media: media ?? existingEntry.media, // Update media items or keep existing
       );
       

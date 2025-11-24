@@ -1,7 +1,61 @@
 # EPI ARC MVP - Changelog
 
-**Version:** 2.1.35  
+**Version:** 2.1.36  
 **Last Updated:** January 2025
+
+## [2.1.36] - January 2025
+
+### **LUMARA Reflective Queries & Notification System** - Complete
+
+#### Reflective Query System
+- **Three EPI-Standard Queries**: Anti-harm mechanisms countering anxiety, depression, loneliness, and loss of agency
+  - Query 1: "Show me three times I handled something hard" - SAGE filtering, emotional transitions, diversity constraints
+  - Query 2: "What was I struggling with around this time last year?" - Temporal filtering, theme clustering, narrative arcs
+  - Query 3: "Which themes have softened in the last six months?" - Longitudinal theme analysis, frequency comparison
+- **Query Detection**: Automatic pattern recognition in LUMARA chat interface
+- **Safety Integration**: VEIL filtering, trauma detection, night mode handling, grief anniversary checks
+- **Response Formatting**: Conversational, phase-aware responses with follow-up suggestions
+
+#### Notification System Foundation
+- **Time Echo Reminders**: Periodic reflective reminders (1 month, 3 months, 6 months, 1 year, 2 years, 5 years, 10 years)
+- **Active Window Detection**: Learns user's natural reflection windows from journal entry patterns
+- **Sleep Protection**: Automatic sleep window detection and abstinence period management
+- **Circadian Integration**: AURORA-aware timing for notification scheduling
+- **Notification Models**: Complete data models for Time Echo and Active Window notifications
+
+#### Data Integrity Fixes
+- **CreatedAt Preservation**: `createdAt` field now never changes when updating entries
+- **Original Creation Time**: Stored in metadata as `originalCreatedAt` for safety
+- **Time Echo Accuracy**: All reflective queries use `originalCreatedAt` for historical accuracy
+- **UpdatedAt Tracking**: `updatedAt` always reflects last modification time
+
+#### New Services
+- `ReflectiveQueryService` - Core query implementation with EPI module integration
+- `ReflectiveQueryFormatter` - Conversational response formatting
+- `LumaraNotificationService` - Main notification coordinator
+- `ActiveWindowDetector` - Pattern detection from journal timestamps
+- `SleepProtectionService` - Sleep/abstinence window management
+- `ThemeAnalysisService` - Longitudinal theme frequency analysis
+
+**Files Added**:
+- `lib/arc/chat/services/reflective_query_service.dart`
+- `lib/arc/chat/services/reflective_query_formatter.dart`
+- `lib/arc/chat/services/lumara_notification_service.dart`
+- `lib/arc/chat/services/active_window_detector.dart`
+- `lib/arc/chat/services/sleep_protection_service.dart`
+- `lib/arc/chat/services/theme_analysis_service.dart`
+- `lib/arc/chat/models/reflective_query_models.dart`
+- `lib/arc/chat/models/notification_models.dart`
+
+**Files Modified**:
+- `lib/arc/chat/bloc/lumara_assistant_cubit.dart` - Added query detection and routing
+- `lib/arc/chat/llm/rule_based_adapter.dart` - Added new InsightKind enum values
+- `lib/arc/core/journal_capture_cubit.dart` - Preserved createdAt on updates
+- `lib/models/journal_entry_model.dart` - Added `originalCreatedAt` getter
+
+**Status**: ✅ Complete - Reflective queries fully functional, notification system ready for plugin integration
+
+---
 
 ## [2.1.35] - January 2025
 
