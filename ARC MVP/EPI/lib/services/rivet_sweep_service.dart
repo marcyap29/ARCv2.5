@@ -532,7 +532,9 @@ class RivetSweepService {
       case 'breakthrough':
         return PhaseLabel.breakthrough;
       default:
-        return PhaseLabel.discovery; // Default fallback
+        // More balanced fallback - rotate through phases instead of always Discovery
+        final phases = [PhaseLabel.expansion, PhaseLabel.transition, PhaseLabel.consolidation, PhaseLabel.discovery];
+        return phases[phaseStr.hashCode % phases.length];
     }
   }
 
@@ -699,47 +701,96 @@ class RivetSweepService {
   }
 
   PhaseLabel _inferPhaseFromContent(String content, List<String> keywords) {
-    // Simple heuristic-based phase inference
+    // Enhanced heuristic-based phase inference with broader keyword detection
     final lowerContent = content.toLowerCase();
     final lowerKeywords = keywords.map((k) => k.toLowerCase()).toList();
-    
-    // Discovery keywords
-    if (lowerContent.contains('new') || lowerContent.contains('discover') || 
-        lowerKeywords.any((k) => k.contains('learning') || k.contains('explore'))) {
-      return PhaseLabel.discovery;
+    final scores = <PhaseLabel, int>{};
+
+    // Initialize all phases to 0
+    for (final phase in PhaseLabel.values) {
+      scores[phase] = 0;
     }
-    
-    // Expansion keywords
-    if (lowerContent.contains('grow') || lowerContent.contains('expand') ||
-        lowerKeywords.any((k) => k.contains('growth') || k.contains('building'))) {
-      return PhaseLabel.expansion;
+
+    // Discovery keywords - learning, exploring, questioning
+    if (lowerContent.contains('new') || lowerContent.contains('discover') || lowerContent.contains('learn') ||
+        lowerContent.contains('explore') || lowerContent.contains('wonder') || lowerContent.contains('curious') ||
+        lowerKeywords.any((k) => k.contains('learning') || k.contains('explore') || k.contains('question') || k.contains('wonder'))) {
+      scores[PhaseLabel.discovery] = scores[PhaseLabel.discovery]! + 1;
     }
-    
-    // Transition keywords
-    if (lowerContent.contains('change') || lowerContent.contains('transition') ||
-        lowerKeywords.any((k) => k.contains('change') || k.contains('shift'))) {
-      return PhaseLabel.transition;
+
+    // Expansion keywords - growing, building, developing
+    if (lowerContent.contains('grow') || lowerContent.contains('expand') || lowerContent.contains('build') ||
+        lowerContent.contains('develop') || lowerContent.contains('progress') || lowerContent.contains('increase') ||
+        lowerKeywords.any((k) => k.contains('growth') || k.contains('building') || k.contains('develop') || k.contains('progress'))) {
+      scores[PhaseLabel.expansion] = scores[PhaseLabel.expansion]! + 1;
     }
-    
-    // Consolidation keywords
-    if (lowerContent.contains('consolidate') || lowerContent.contains('stable') ||
-        lowerKeywords.any((k) => k.contains('stable') || k.contains('solid'))) {
-      return PhaseLabel.consolidation;
+
+    // Transition keywords - changing, moving, shifting
+    if (lowerContent.contains('change') || lowerContent.contains('transition') || lowerContent.contains('shift') ||
+        lowerContent.contains('move') || lowerContent.contains('transform') || lowerContent.contains('adjust') ||
+        lowerKeywords.any((k) => k.contains('change') || k.contains('shift') || k.contains('transform') || k.contains('adjust'))) {
+      scores[PhaseLabel.transition] = scores[PhaseLabel.transition]! + 1;
     }
-    
-    // Recovery keywords
-    if (lowerContent.contains('recover') || lowerContent.contains('heal') ||
-        lowerKeywords.any((k) => k.contains('recovery') || k.contains('healing'))) {
-      return PhaseLabel.recovery;
+
+    // Consolidation keywords - stabilizing, organizing, integrating
+    if (lowerContent.contains('consolidate') || lowerContent.contains('stable') || lowerContent.contains('organize') ||
+        lowerContent.contains('integrate') || lowerContent.contains('strengthen') || lowerContent.contains('establish') ||
+        lowerKeywords.any((k) => k.contains('stable') || k.contains('solid') || k.contains('organize') || k.contains('integrate'))) {
+      scores[PhaseLabel.consolidation] = scores[PhaseLabel.consolidation]! + 1;
     }
-    
-    // Breakthrough keywords
-    if (lowerContent.contains('breakthrough') || lowerContent.contains('break') ||
-        lowerKeywords.any((k) => k.contains('breakthrough') || k.contains('insight'))) {
-      return PhaseLabel.breakthrough;
+
+    // Recovery keywords - healing, restoring, resting
+    if (lowerContent.contains('recover') || lowerContent.contains('heal') || lowerContent.contains('rest') ||
+        lowerContent.contains('restore') || lowerContent.contains('repair') || lowerContent.contains('rejuvenate') ||
+        lowerKeywords.any((k) => k.contains('recovery') || k.contains('healing') || k.contains('rest') || k.contains('restore'))) {
+      scores[PhaseLabel.recovery] = scores[PhaseLabel.recovery]! + 1;
     }
-    
-    return PhaseLabel.discovery; // Default
+
+    // Breakthrough keywords - insights, achievements, breakthroughs
+    if (lowerContent.contains('breakthrough') || lowerContent.contains('insight') || lowerContent.contains('achieve') ||
+        lowerContent.contains('accomplish') || lowerContent.contains('realize') || lowerContent.contains('understand') ||
+        lowerKeywords.any((k) => k.contains('breakthrough') || k.contains('insight') || k.contains('achieve') || k.contains('realize'))) {
+      scores[PhaseLabel.breakthrough] = scores[PhaseLabel.breakthrough]! + 1;
+    }
+
+    // Find the phase with the highest score
+    PhaseLabel? bestPhase;
+    int maxScore = 0;
+    for (final entry in scores.entries) {
+      if (entry.value > maxScore) {
+        maxScore = entry.value;
+        bestPhase = entry.key;
+      }
+    }
+
+    // If no keywords matched (all scores are 0), distribute more evenly based on content length and emotion
+    if (maxScore == 0) {
+      // Use simple heuristics based on content characteristics
+      final contentLength = content.length;
+      final hasQuestions = content.contains('?');
+      final hasEmotionalWords = lowerContent.contains('feel') || lowerContent.contains('emotion') || lowerContent.contains('mood');
+
+      // Short entries with questions likely Discovery
+      if (contentLength < 200 && hasQuestions) {
+        return PhaseLabel.discovery;
+      }
+      // Long entries likely Consolidation or Expansion
+      else if (contentLength > 500) {
+        return PhaseLabel.consolidation;
+      }
+      // Emotional content might be Recovery
+      else if (hasEmotionalWords) {
+        return PhaseLabel.recovery;
+      }
+      // Medium length could be Transition or Expansion
+      else {
+        // Rotate through different phases to avoid Discovery bias
+        final phases = [PhaseLabel.expansion, PhaseLabel.transition, PhaseLabel.discovery];
+        return phases[content.hashCode % phases.length];
+      }
+    }
+
+    return bestPhase ?? PhaseLabel.discovery;
   }
 
   String _generateSummary(String content) {

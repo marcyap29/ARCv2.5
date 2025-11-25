@@ -613,19 +613,14 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
                         alignment: Alignment.centerRight,
                         child: RotatedBox(
                           quarterTurns: 3,
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(Icons.auto_awesome, size: 12, color: Colors.white),
-                              const SizedBox(width: 2),
-                              Text(
-                                'ARC',
-                                style: captionStyle(context).copyWith(
-                                  fontSize: 10,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ],
+                          child: Text(
+                            _getPhaseDisplayName(entry.phase),
+                            style: captionStyle(context).copyWith(
+                              fontSize: 9,
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            textAlign: TextAlign.center,
                           ),
                         ),
                       ),
@@ -739,7 +734,7 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
                                 ],
                                 Expanded(
                                   child: Text(
-                                    entry.phase ?? 'Discovery',
+                                    entry.phase ?? 'No Phase',
                                     style: captionStyle(context).copyWith(
                                       color: kcSecondaryTextColor,
                                       fontSize: 12,
@@ -1074,19 +1069,46 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
 
     switch (normalized) {
       case 'discovery':
-        return const Color(0xFF4F46E5); // Blue
+        return const Color(0xFF7C3AED); // Purple
       case 'expansion':
         return const Color(0xFF059669); // Green
       case 'transition':
         return const Color(0xFFD97706); // Orange
       case 'consolidation':
-        return const Color(0xFF7C3AED); // Purple
+        return const Color(0xFF4F46E5); // Blue
       case 'recovery':
         return const Color(0xFFDC2626); // Red
       case 'breakthrough':
-        return const Color(0xFF7C2D12); // Brown
+        return const Color(0xFFF59E0B); // Amber
       default:
         return kcSecondaryTextColor;
+    }
+  }
+
+  String _getPhaseDisplayName(String? phase) {
+    if (phase == null) return 'UNKNOWN';
+
+    final normalized = phase
+        .replaceAll('#', '')
+        .replaceAll('_', ' ')
+        .trim()
+        .toLowerCase();
+
+    switch (normalized) {
+      case 'discovery':
+        return 'DISCOVERY';
+      case 'expansion':
+        return 'EXPANSION';
+      case 'transition':
+        return 'TRANSITION';
+      case 'consolidation':
+        return 'CONSOLIDATION';
+      case 'recovery':
+        return 'RECOVERY';
+      case 'breakthrough':
+        return 'BREAKTHROUGH';
+      default:
+        return 'UNKNOWN';
     }
   }
 

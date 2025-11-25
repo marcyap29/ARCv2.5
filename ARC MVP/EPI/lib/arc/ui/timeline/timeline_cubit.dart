@@ -424,8 +424,8 @@ class TimelineCubit extends Cubit<TimelineState> {
   List<TimelineEntry> _mapToTimelineEntries(List<JournalEntry> journalEntries) {
     return journalEntries.map((entry) {
       // Use computedPhase which follows: userPhaseOverride > autoPhase > legacyPhaseTag > phase
-      // Final fallback to Discovery if no phase found
-      String? phase = entry.computedPhase ?? 'Discovery';
+      // No fallback - let null phases remain null to avoid false Discovery attribution
+      String? phase = entry.computedPhase;
       
       // Show indicator if phase is manually overridden
       final isManual = entry.isPhaseManuallyOverridden;

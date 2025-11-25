@@ -983,13 +983,13 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
   Color _phaseColor(PhaseLabel label) {
     switch (label) {
       case PhaseLabel.discovery:
-        return Colors.blue;
+        return Colors.purple;
       case PhaseLabel.expansion:
         return Colors.green;
       case PhaseLabel.transition:
         return Colors.orange;
       case PhaseLabel.consolidation:
-        return Colors.purple;
+        return Colors.blue;
       case PhaseLabel.recovery:
         return Colors.red;
       case PhaseLabel.breakthrough:
