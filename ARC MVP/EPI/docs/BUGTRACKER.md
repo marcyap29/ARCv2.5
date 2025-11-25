@@ -1,7 +1,20 @@
 # EPI MVP - Bug Tracker
 
-**Version:** 2.1.36  
-**Last Updated:** November 23, 2025
+**Version:** 2.1.37
+**Last Updated:** November 25, 2025
+
+## Resolved Issues (v2.1.37)
+
+### LUMARA Favorites Incorrect Limit Detection
+- **Issue**: Users with 20 favorites total were unable to add new LUMARA answer favorites, receiving "25 limit reached" error despite being under the actual limit.
+- **Root Cause**: Three key files were using the legacy `isAtCapacity()` method which checked total count against 25, instead of using the category-specific `isCategoryAtCapacity('answer')` method.
+- **Resolution**:
+  1. Updated `lumara_assistant_screen.dart:1258` to use `isCategoryAtCapacity('answer')`
+  2. Updated `inline_reflection_block.dart:408` to use `isCategoryAtCapacity('answer')`
+  3. Updated `session_view.dart:338` to use `isCategoryAtCapacity('answer')`
+  4. Upgraded saved chats and favorite journal entries limits from 20 to 25 for consistency
+- **Impact**: All favorite categories now properly enforce their correct limits (25 each) and users can add favorites up to the actual limits
+- **Status**: ✅ Fixed
 
 ## Resolved Issues (v2.1.36)
 

@@ -1,7 +1,38 @@
 # EPI ARC MVP - Changelog
 
-**Version:** 2.1.36  
-**Last Updated:** November 23, 2025
+**Version:** 2.1.37
+**Last Updated:** November 25, 2025
+
+## [2.1.37] - November 25, 2025
+
+### **LUMARA Favorites System Fixes & Upgrades** - Complete
+
+#### Bug Fixes
+- **Fixed Incorrect Limit Detection**: Resolved issue where users with 20 favorites total couldn't add new LUMARA answer favorites due to incorrect limit checking
+  - Updated `lumara_assistant_screen.dart` to use category-specific limit checking
+  - Updated `inline_reflection_block.dart` for journal LUMARA responses
+  - Updated `session_view.dart` for chat session favorites
+  - Fixed three instances of legacy `isAtCapacity()` usage replaced with `isCategoryAtCapacity('answer')`
+
+#### Feature Upgrades
+- **Consistent Favorite Limits**: Upgraded all favorite categories to 25-item limit for consistency
+  - LUMARA Answers: 25 (unchanged)
+  - Saved Chats: 25 (upgraded from 20)
+  - Favorite Journal Entries: 25 (upgraded from 20)
+
+#### Documentation Updates
+- Updated FEATURES.md to reflect new consistent limits
+- Updated BUGTRACKER.md with fix details
+- Updated ARCHITECTURE.md version to 1.0.4
+
+**Files Modified**:
+- `lib/arc/chat/services/favorites_service.dart` - Updated limit constants
+- `lib/arc/chat/ui/lumara_assistant_screen.dart` - Fixed limit checking
+- `lib/ui/journal/widgets/inline_reflection_block.dart` - Fixed limit checking
+- `lib/arc/chat/chat/ui/session_view.dart` - Fixed limit checking
+- `docs/FEATURES.md` - Updated limit documentation
+- `docs/BUGTRACKER.md` - Added bug fix entry
+- `docs/ARCHITECTURE.md` - Version update
 
 ## [2.1.36] - November 23, 2025
 

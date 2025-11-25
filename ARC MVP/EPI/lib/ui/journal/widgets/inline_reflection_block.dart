@@ -405,7 +405,7 @@ class _InlineReflectionBlockState extends State<InlineReflectionBlock> with Sing
         }
       } else {
         // Add to favorites
-        final atCapacity = await FavoritesService.instance.isAtCapacity();
+        final atCapacity = await FavoritesService.instance.isCategoryAtCapacity('answer');
         if (atCapacity) {
           _showCapacityPopup(context);
           return;

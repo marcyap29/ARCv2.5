@@ -335,7 +335,7 @@ class _SessionViewState extends State<SessionView> {
         }
       } else {
         // Add to favorites
-        final atCapacity = await FavoritesService.instance.isAtCapacity();
+        final atCapacity = await FavoritesService.instance.isCategoryAtCapacity('answer');
         if (atCapacity) {
           _showCapacityPopup();
           return;

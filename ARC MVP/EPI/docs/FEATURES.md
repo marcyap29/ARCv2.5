@@ -1,7 +1,7 @@
 # EPI MVP - Comprehensive Features Guide
 
-**Version:** 1.0.6  
-**Last Updated:** November 23, 2025
+**Version:** 1.0.7
+**Last Updated:** November 25, 2025
 
 ---
 
@@ -388,7 +388,7 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 - **Format Support**: MCP v1 compliant ZIP files and ARCX encrypted archives
 - **Extended Data Import**: Full support for importing Phase Regimes, RIVET state, Sentinel state, ArcForm timeline, and LUMARA Favorites
 - **Category Preservation**: Favorite categories (answers, chats, journal entries) are preserved during import
-- **Capacity Management**: Import respects category-specific limits (25 answers, 20 chats, 20 journal entries)
+- **Capacity Management**: Import respects category-specific limits (25 answers, 25 chats, 25 journal entries)
 - **Timeline Integration**: Automatic timeline refresh after import
 - **Media Handling**: Photo and media import with deduplication
 - **Duplicate Detection**: Prevents duplicate entries and favorites
@@ -458,7 +458,7 @@ All core features are production-ready and fully operational:
 
 ---
 
-**Features Guide Status:** ✅ Complete  
-**Last Updated:** November 17, 2025  
-**Version:** 1.0.3
+**Features Guide Status:** ✅ Complete
+**Last Updated:** November 25, 2025
+**Version:** 1.0.7
 

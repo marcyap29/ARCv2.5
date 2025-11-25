@@ -1255,7 +1255,7 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
         }
       } else {
         // Add to favorites
-        final atCapacity = await FavoritesService.instance.isAtCapacity();
+        final atCapacity = await FavoritesService.instance.isCategoryAtCapacity('answer');
         if (atCapacity) {
           _showCapacityPopup();
           return;

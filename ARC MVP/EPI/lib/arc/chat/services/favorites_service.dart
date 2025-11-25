@@ -2,11 +2,11 @@ import 'package:hive/hive.dart';
 import '../data/models/lumara_favorite.dart';
 
 /// Service for managing LUMARA favorites
-/// Enforces category-specific limits: 25 for answers, 20 for chats, 20 for journal entries
+/// Enforces category-specific limits: 25 for answers, 25 for chats, 25 for journal entries
 class FavoritesService {
   static const int _maxAnswers = 25;
-  static const int _maxChats = 20;
-  static const int _maxJournalEntries = 20;
+  static const int _maxChats = 25;
+  static const int _maxJournalEntries = 25;
   static const int _maxFavorites = 25; // Legacy limit for backward compatibility
   static const String _boxName = 'lumara_favorites';
   static const String _firstTimeKey = 'favorites_first_time_shown';
