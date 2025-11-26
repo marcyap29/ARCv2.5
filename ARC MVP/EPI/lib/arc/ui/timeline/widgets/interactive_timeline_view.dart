@@ -1001,6 +1001,7 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
                 existingEntry: fullEntry, // Pass the full entry with media
                 isViewOnly: false, // Open in edit mode - entry is opened directly
                 openAsEdit: true, // Flag to indicate this is an edit (not creating draft initially)
+                isTimelineEditing: true, // Allow timestamp editing when editing from timeline
               ),
             ),
           );
@@ -1075,11 +1076,11 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
       case 'transition':
         return const Color(0xFFD97706); // Orange
       case 'consolidation':
-        return const Color(0xFF4F46E5); // Blue
+        return const Color(0xFF2563EB); // Blue
       case 'recovery':
         return const Color(0xFFDC2626); // Red
       case 'breakthrough':
-        return const Color(0xFFF59E0B); // Amber
+        return const Color(0xFFFBBF24); // Yellow
       default:
         return kcSecondaryTextColor;
     }

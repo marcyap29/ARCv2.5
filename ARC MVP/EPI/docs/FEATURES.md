@@ -322,6 +322,16 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 - **VEIL**: Edge detection and relationship mapping
 - **Sentinel**: Emotional risk detection and pattern analysis
 
+**Advanced Analytics View**
+- **Access**: Insights → 3-dot menu (⋮) → Advanced Analytics
+- **4-Part Horizontal Tabs**: Horizontally scrollable tabs for easy navigation
+  - **Patterns**: Your Patterns visualization + Medical Connections (30/60/90 day health data import)
+  - **AURORA**: Circadian Intelligence insights
+  - **VEIL**: AI Prompt Intelligence + Policy settings
+  - **SENTINEL**: Emotional risk detection and pattern analysis
+- **Swipe Navigation**: Smooth swiping between analytics sections
+- **Visual Design**: Selected tab highlighted, intuitive interface
+
 ---
 
 ## Privacy & Security Features

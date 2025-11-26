@@ -5,17 +5,48 @@ import 'package:my_app/arc/core/journal_repository.dart';
 import 'package:my_app/models/journal_entry_model.dart';
 import 'package:my_app/models/arcform_snapshot_model.dart';
 import 'package:my_app/data/models/media_item.dart';
+import 'package:my_app/models/phase_models.dart';
+import 'package:my_app/services/phase_index.dart';
+import 'package:my_app/services/phase_regime_service.dart';
+import 'package:my_app/services/analytics_service.dart';
+import 'package:my_app/services/rivet_sweep_service.dart';
+import 'package:my_app/services/atlas_phase_decision_service.dart';
 import 'package:hive/hive.dart';
 
 class TimelineCubit extends Cubit<TimelineState> {
   final JournalRepository _journalRepository;
+  PhaseIndex? _phaseIndex;
+  PhaseRegimeService? _phaseRegimeService;
   static const int _pageSize = 10;
   int _currentPage = 0;
   bool _hasMore = true;
 
   TimelineCubit({JournalRepository? journalRepository})
       : _journalRepository = journalRepository ?? JournalRepository(),
-        super(const TimelineInitial());
+        super(const TimelineInitial()) {
+    _initializePhaseIndex();
+  }
+
+  /// Initialize phase index for regime-based phase lookup
+  Future<void> _initializePhaseIndex() async {
+    try {
+      final analyticsService = AnalyticsService();
+      final rivetSweepService = RivetSweepService(analyticsService);
+      _phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
+      await _phaseRegimeService!.initialize();
+      _phaseIndex = _phaseRegimeService!.phaseIndex;
+    } catch (e) {
+      print('Warning: Could not initialize phase index: $e');
+      // Continue without phase index - entries will fall back to explicit phase data only
+    }
+  }
+
+  /// Refresh phase index when regimes have been updated
+  Future<void> refreshPhaseIndex() async {
+    await _initializePhaseIndex();
+    // Refresh timeline to reflect updated regime assignments
+    await refreshEntries();
+  }
 
   Future<void> loadEntries() async {
     emit(const TimelineLoading());
@@ -339,6 +370,9 @@ class TimelineCubit extends Cubit<TimelineState> {
   Future<void> _loadAllEntries({TimelineFilter? filter, String? searchQuery}) async {
     print('DEBUG: TimelineCubit._loadAllEntries() called with filter: $filter, searchQuery: $searchQuery');
     try {
+      // Ensure phase index is available before resolving phases for entries
+      await _initializePhaseIndex();
+
       final currentState = state is TimelineLoaded
           ? state as TimelineLoaded
           : const TimelineLoaded(
@@ -351,8 +385,21 @@ class TimelineCubit extends Cubit<TimelineState> {
       final effectiveFilter = filter ?? currentState.filter;
       final effectiveSearchQuery = searchQuery ?? currentState.searchQuery;
 
-      // Get all entries without pagination
-      final allJournalEntries = _journalRepository.getAllJournalEntriesSync();
+      // Get all entries without pagination (async to ensure Hive box opens)
+      final allJournalEntries = await _journalRepository.getAllJournalEntries();
+
+      // Rebuild phase regimes from entries with a 14-day minimum per regime to align Timeline with Rivet analysis
+      try {
+        if (_phaseRegimeService != null) {
+          await _phaseRegimeService!.rebuildRegimesFromEntries(
+            allJournalEntries,
+            minDays: 14,
+          );
+          _phaseIndex = _phaseRegimeService!.phaseIndex;
+        }
+      } catch (e) {
+        print('Warning: Failed to rebuild phase regimes from entries: $e');
+      }
       
       // Apply filter
       List<JournalEntry> filteredEntries = allJournalEntries;
@@ -423,9 +470,11 @@ class TimelineCubit extends Cubit<TimelineState> {
 
   List<TimelineEntry> _mapToTimelineEntries(List<JournalEntry> journalEntries) {
     return journalEntries.map((entry) {
-      // Use computedPhase which follows: userPhaseOverride > autoPhase > legacyPhaseTag > phase
-      // No fallback - let null phases remain null to avoid false Discovery attribution
-      String? phase = entry.computedPhase;
+      // Priority order for phase determination:
+      // 1. Entry explicit phase data (userPhaseOverride > autoPhase > legacyPhaseTag > phase)
+      // 2. Active phase regime for entry timestamp
+      // 3. Create/infer appropriate regime if none exists
+      String? phase = _getEntryPhase(entry);
       
       // Show indicator if phase is manually overridden
       final isManual = entry.isPhaseManuallyOverridden;
@@ -609,5 +658,123 @@ class TimelineCubit extends Cubit<TimelineState> {
       default:
         return 'Discovery';
     }
+  }
+
+  /// Get phase for entry using regime-based lookup
+  String? _getEntryPhase(JournalEntry entry) {
+    // 1. Check for explicit phase data first (highest priority)
+    final explicitPhase = entry.computedPhase ?? _getPhaseFromMetadata(entry.metadata);
+    if (explicitPhase != null && explicitPhase.trim().isNotEmpty) {
+      return _normalizePhaseName(explicitPhase);
+    }
+
+    // 2. Look up phase from regime covering this entry's timestamp
+    if (_phaseIndex != null) {
+      final regime = _phaseIndex!.regimeFor(entry.createdAt);
+      if (regime != null) {
+        return _phaseLabelToString(regime.label);
+      }
+    }
+
+    // 3. Infer from content as a final fallback (keeps timeline colorful even if regimes missing)
+    final inferredPhase = _inferPhaseFromEntry(entry);
+    if (inferredPhase != null) {
+      return inferredPhase;
+    }
+
+    // 4. Try to recover from hashtags inside the content
+    final hashtagPhase = _extractPhaseHashtag(entry.content);
+    if (hashtagPhase != null) {
+      return hashtagPhase;
+    }
+
+    // 3. No regime exists - for now return null, could create regime in future
+    // This maintains temporal stability - entries without regimes show as "No Phase"
+    return null;
+  }
+
+  String? _getPhaseFromMetadata(Map<String, dynamic>? metadata) {
+    if (metadata == null) return null;
+    final candidates = [
+      metadata['phase'],
+      metadata['autoPhase'],
+      metadata['phase_label'],
+      metadata['phaseLabel'],
+    ];
+
+    for (final candidate in candidates) {
+      if (candidate is String && candidate.trim().isNotEmpty) {
+        return candidate;
+      }
+    }
+    return null;
+  }
+
+  String _normalizePhaseName(String raw) {
+    final normalized = raw
+        .replaceAll('#', '')
+        .replaceAll('_', ' ')
+        .trim()
+        .toLowerCase();
+
+    switch (normalized) {
+      case 'discovery':
+        return 'Discovery';
+      case 'expansion':
+        return 'Expansion';
+      case 'transition':
+        return 'Transition';
+      case 'consolidation':
+        return 'Consolidation';
+      case 'recovery':
+        return 'Recovery';
+      case 'breakthrough':
+        return 'Breakthrough';
+      default:
+        return raw;
+    }
+  }
+
+  /// Convert PhaseLabel enum to string
+  String _phaseLabelToString(PhaseLabel label) {
+    switch (label) {
+      case PhaseLabel.discovery:
+        return 'Discovery';
+      case PhaseLabel.expansion:
+        return 'Expansion';
+      case PhaseLabel.transition:
+        return 'Transition';
+      case PhaseLabel.consolidation:
+        return 'Consolidation';
+      case PhaseLabel.recovery:
+        return 'Recovery';
+      case PhaseLabel.breakthrough:
+        return 'Breakthrough';
+    }
+  }
+
+  /// Infer phase from entry using ATLAS phase decision scoring system
+  /// No Discovery bias - uses score-based decisions with hysteresis
+  String? _inferPhaseFromEntry(JournalEntry entry, {PhaseLabel? prevPhase}) {
+    // Generate phase scores from entry content
+    final scores = AtlasPhaseDecisionService.generatePhaseScores(
+      content: entry.content,
+      keywords: entry.keywords,
+      emotion: entry.emotion,
+      emotionReason: entry.emotionReason,
+    );
+
+    // Debug print scores for development
+    if (entry.content.length > 50) { // Only for substantial entries
+      AtlasPhaseDecisionService.debugPrintScores(scores, 'Entry ${entry.id.substring(0, 8)}');
+    }
+
+    // Use ATLAS decision logic to determine phase
+    final decidedPhase = AtlasPhaseDecisionService.decidePhaseForEntry(
+      scores: scores,
+      prevPhase: prevPhase,
+    );
+
+    return decidedPhase != null ? _phaseLabelToString(decidedPhase) : null;
   }
 }

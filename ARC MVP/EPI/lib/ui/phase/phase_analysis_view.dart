@@ -13,12 +13,11 @@ import 'phase_help_screen.dart';
 import 'phase_change_readiness_card.dart';
 import 'phase_timeline_view.dart';
 import 'simplified_arcform_view_3d.dart';
-import 'phase_arcform_3d_screen.dart';
-import '../../shared/app_colors.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:hive/hive.dart';
 import 'package:my_app/models/user_profile_model.dart';
 import 'package:my_app/shared/ui/settings/settings_view.dart';
+import 'package:my_app/ui/phase/advanced_analytics_view.dart';
 
 class PhaseAnalysisView extends StatefulWidget {
   const PhaseAnalysisView({super.key});
@@ -382,6 +381,14 @@ List<PhaseSegmentProposal> proposals,
                     _selectedView = 'analysis';
                   });
                   break;
+                case 'advanced_analytics':
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const AdvancedAnalyticsView(),
+                    ),
+                  );
+                  break;
                 case 'settings':
                   Navigator.push(
                     context,
@@ -449,6 +456,16 @@ List<PhaseSegmentProposal> proposals,
             ),
           ],
         ),
+              ),
+              PopupMenuItem<String>(
+                value: 'advanced_analytics',
+                child: Row(
+                  children: [
+                    const Icon(Icons.analytics, size: 20),
+                    const SizedBox(width: 12),
+                    const Text('Advanced Analytics'),
+                  ],
+                ),
               ),
               PopupMenuItem<String>(
                 value: 'settings',

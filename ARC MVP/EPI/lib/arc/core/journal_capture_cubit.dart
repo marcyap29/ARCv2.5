@@ -837,6 +837,7 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
     List<MediaItem>? media,
     List<Map<String, dynamic>>? blocks,
     String? title,
+    bool allowTimestampEditing = false, // Only allow when editing from timeline
   }) async {
     try {
       print('DEBUG: JournalCaptureCubit.updateEntryWithKeywords - Existing media count: ${existingEntry.media.length}');
@@ -848,25 +849,42 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
         }
       }
       
-      // PRESERVE original creation time - never change createdAt when updating
-      // This is critical for Time Echo reminders and historical accuracy
-      // If user wants to change the date, they should create a new entry
+      // Timestamp handling: Lock by default, only allow changes when editing from timeline
       final originalCreatedAt = existingEntry.createdAt;
-      
+      final originalUpdatedAt = existingEntry.updatedAt;
+
+      // Determine final timestamps based on context
+      late final DateTime finalCreatedAt;
+      late final DateTime finalUpdatedAt;
+
+      if (allowTimestampEditing && selectedDate != null) {
+        // Timeline editing: Allow timestamp changes
+        final finalTime = selectedTime ?? TimeOfDay.fromDateTime(originalCreatedAt);
+        finalCreatedAt = DateTime(
+          selectedDate.year,
+          selectedDate.month,
+          selectedDate.day,
+          finalTime.hour,
+          finalTime.minute,
+        );
+        finalUpdatedAt = DateTime.now(); // Update modification time when user explicitly changes timestamp
+        print('DEBUG: Timeline editing - updating timestamps: createdAt=$finalCreatedAt, updatedAt=$finalUpdatedAt');
+      } else {
+        // Regular editing: Lock both timestamps to preserve chronological integrity
+        finalCreatedAt = originalCreatedAt;
+        finalUpdatedAt = originalUpdatedAt; // Keep original modification time
+        print('DEBUG: Regular editing - preserving all timestamps: createdAt=$finalCreatedAt, updatedAt=$finalUpdatedAt');
+      }
+
       // Store original creation time in metadata if not already present
-      // This allows us to track the true original time even if createdAt is ever changed
       final metadata = existingEntry.metadata ?? <String, dynamic>{};
       if (!metadata.containsKey('originalCreatedAt')) {
         metadata['originalCreatedAt'] = originalCreatedAt.toIso8601String();
       }
-      
-      print('DEBUG: Preserving original createdAt: $originalCreatedAt');
-      print('DEBUG: Selected date: $selectedDate (ignored for updates)');
-      print('DEBUG: Selected time: $selectedTime (ignored for updates)');
 
       // Automatically add phase hashtag to content if missing
       // Uses Phase Regime system (date-based) to determine phase
-      // Use original creation date for phase determination (not edited date)
+      // Use final creation date for phase determination
       final contentWithPhase = await _ensurePhaseHashtagInContent(
         content: content,
         entryDate: originalCreatedAt, // Always use original creation date
@@ -921,8 +939,8 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
         keywords: finalKeywords, // Use deduplicated keywords
         emotion: emotion,
         emotionReason: emotionReason,
-        createdAt: originalCreatedAt, // PRESERVE original creation time
-        updatedAt: DateTime.now(), // Always update this to track when entry was last modified
+        createdAt: finalCreatedAt, // Use locked or timeline-updated timestamp
+        updatedAt: finalUpdatedAt, // Lock to preserve chronological integrity (except timeline editing)
         location: selectedLocation,
         // Phase is determined automatically by phase regime system, not manually set
         isEdited: true,

@@ -132,12 +132,12 @@ class _CalendarWeekTimelineState extends State<CalendarWeekTimeline> {
   Color _getPhaseColor(PhaseLabel? label) {
     if (label == null) return Colors.grey;
     const colors = {
-      PhaseLabel.discovery: Colors.blue,
-      PhaseLabel.expansion: Colors.green,
-      PhaseLabel.transition: Color(0xFFFF9500), // Brighter orange to match journal entries
-      PhaseLabel.consolidation: Colors.purple,
-      PhaseLabel.recovery: Colors.red,
-      PhaseLabel.breakthrough: Colors.amber,
+      PhaseLabel.discovery: Color(0xFF7C3AED), // Purple
+      PhaseLabel.expansion: Color(0xFF059669), // Green
+      PhaseLabel.transition: Color(0xFFD97706), // Orange
+      PhaseLabel.consolidation: Color(0xFF2563EB), // Blue
+      PhaseLabel.recovery: Color(0xFFDC2626), // Red
+      PhaseLabel.breakthrough: Color(0xFFFBBF24), // Yellow
     };
     return colors[label] ?? Colors.grey;
   }
@@ -364,4 +364,3 @@ class _CalendarWeekTimelineState extends State<CalendarWeekTimeline> {
     return days[weekday - 1];
   }
 }
-

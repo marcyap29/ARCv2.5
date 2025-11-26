@@ -1162,17 +1162,17 @@ class _SimplifiedArcformView3DState extends State<SimplifiedArcformView3D> {
   Color _getPhaseColor(String phase) {
     switch (phase.toLowerCase()) {
       case 'discovery':
-        return Colors.blue;
+        return const Color(0xFF7C3AED); // Purple
       case 'expansion':
-        return Colors.green;
+        return const Color(0xFF059669); // Green
       case 'transition':
-        return Colors.orange;
+        return const Color(0xFFD97706); // Orange
       case 'consolidation':
-        return Colors.purple;
+        return const Color(0xFF2563EB); // Blue
       case 'recovery':
-        return Colors.red;
+        return const Color(0xFFDC2626); // Red
       case 'breakthrough':
-        return Colors.amber;
+        return const Color(0xFFFBBF24); // Yellow
       default:
         return kcPrimaryColor;
     }

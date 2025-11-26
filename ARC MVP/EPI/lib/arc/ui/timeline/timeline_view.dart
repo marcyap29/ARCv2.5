@@ -105,6 +105,83 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
     }
   }
 
+  List<TimelineEntry> _getFilteredEntriesFromState(TimelineLoaded state) {
+    final allEntries = <TimelineEntry>[];
+    for (final group in state.groupedEntries) {
+      allEntries.addAll(group.entries);
+    }
+
+    final Map<String, TimelineEntry> uniqueEntries = {};
+    for (final entry in allEntries) {
+      uniqueEntries.putIfAbsent(entry.id, () => entry);
+    }
+
+    List<TimelineEntry> filteredEntries;
+    switch (state.filter) {
+      case TimelineFilter.all:
+        filteredEntries = uniqueEntries.values.toList();
+        break;
+      case TimelineFilter.textOnly:
+        filteredEntries =
+            uniqueEntries.values.where((entry) => !entry.hasArcform).toList();
+        break;
+      case TimelineFilter.withArcform:
+        filteredEntries =
+            uniqueEntries.values.where((entry) => entry.hasArcform).toList();
+        break;
+    }
+
+    filteredEntries.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    return filteredEntries;
+  }
+
+  Future<void> _scrollToTop() async {
+    final currentState = _timelineCubit.state;
+    if (currentState is! TimelineLoaded) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Timeline not loaded yet'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+
+    final filteredEntries = _getFilteredEntriesFromState(currentState);
+    if (filteredEntries.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No entries to scroll to'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+
+    if (!_scrollController.hasClients) {
+      return;
+    }
+
+    final latestEntry = filteredEntries.first;
+    final showArcformPreview = !_isArcformTimelineVisible && !_isSelectionMode;
+    final targetIndex = showArcformPreview ? 1 : 0;
+
+    _isProgrammaticScroll = true;
+    await _scrollController.scrollToIndex(
+      targetIndex,
+      preferPosition: AutoScrollPosition.begin,
+      duration: const Duration(milliseconds: 500),
+    );
+
+    _weekNotifier.value = _calculateWeekStart(latestEntry.createdAt);
+
+    Future.delayed(const Duration(milliseconds: 200), () {
+      if (mounted) {
+        _isProgrammaticScroll = false;
+      }
+    });
+  }
+
   static DateTime _calculateWeekStart(DateTime date) {
     final weekday = date.weekday;
     return date.subtract(Duration(days: weekday - 1));
@@ -160,13 +237,8 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
       return;
     }
 
-    // Flatten all entries from grouped structure and apply same filtering as InteractiveTimelineView
-    final allEntries = <TimelineEntry>[];
-    for (final group in currentState.groupedEntries) {
-      allEntries.addAll(group.entries);
-    }
-    
-    if (allEntries.isEmpty) {
+    final sortedEntries = _getFilteredEntriesFromState(currentState);
+    if (sortedEntries.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('No entries available'),
@@ -175,33 +247,6 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
       );
       return;
     }
-
-    // Deduplicate by ID (same as InteractiveTimelineView._getFilteredEntries)
-    final Map<String, TimelineEntry> uniqueEntries = {};
-    for (final entry in allEntries) {
-      if (!uniqueEntries.containsKey(entry.id)) {
-        uniqueEntries[entry.id] = entry;
-      }
-    }
-    final deduplicatedEntries = uniqueEntries.values.toList();
-    
-    // Apply filter (same as InteractiveTimelineView)
-    List<TimelineEntry> filteredEntries;
-    switch (currentState.filter) {
-      case TimelineFilter.all:
-        filteredEntries = deduplicatedEntries;
-        break;
-      case TimelineFilter.textOnly:
-        filteredEntries = deduplicatedEntries.where((entry) => !entry.hasArcform).toList();
-        break;
-      case TimelineFilter.withArcform:
-        filteredEntries = deduplicatedEntries.where((entry) => entry.hasArcform).toList();
-        break;
-    }
-
-    // Sort entries by date (newest first, same as display)
-    final sortedEntries = List<TimelineEntry>.from(filteredEntries);
-    sortedEntries.sort((a, b) => b.createdAt.compareTo(a.createdAt));
     
     // Find entries for the target date (exact match first)
     final targetDateOnly = DateTime(targetDate.year, targetDate.month, targetDate.day);
@@ -273,38 +318,7 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
         // Find the entry in the current state using the same filtering logic as InteractiveTimelineView
         final currentState = _timelineCubit.state;
         if (currentState is TimelineLoaded) {
-          // Use the same filtering/deduplication logic as InteractiveTimelineView._getFilteredEntries
-          final allEntries = <TimelineEntry>[];
-          for (final group in currentState.groupedEntries) {
-            allEntries.addAll(group.entries);
-          }
-          
-          // Deduplicate by ID (same as InteractiveTimelineView)
-          final Map<String, TimelineEntry> uniqueEntries = {};
-          for (final entry in allEntries) {
-            if (!uniqueEntries.containsKey(entry.id)) {
-              uniqueEntries[entry.id] = entry;
-            }
-          }
-          final deduplicatedEntries = uniqueEntries.values.toList();
-          
-          // Apply filter (same as InteractiveTimelineView)
-          List<TimelineEntry> filteredEntries;
-          switch (currentState.filter) {
-            case TimelineFilter.all:
-              filteredEntries = deduplicatedEntries;
-              break;
-            case TimelineFilter.textOnly:
-              filteredEntries = deduplicatedEntries.where((entry) => !entry.hasArcform).toList();
-              break;
-            case TimelineFilter.withArcform:
-              filteredEntries = deduplicatedEntries.where((entry) => entry.hasArcform).toList();
-              break;
-          }
-          
-          // Sort entries by date (newest first, same as display)
-          filteredEntries.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-          
+          final filteredEntries = _getFilteredEntriesFromState(currentState);
           final targetEntryId = targetEntry.id;
           final actualIndex = filteredEntries.indexWhere((e) => e.id == targetEntryId);
           
@@ -465,108 +479,123 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
       },
       child: BlocBuilder<TimelineCubit, TimelineState>(
         builder: (context, state) {
-          return Scaffold(
-            body: SafeArea(
-              child: NestedScrollView(
-                headerSliverBuilder: (BuildContext context, bool innerBoxIsScrolled) {
-                  return <Widget>[
-                    if (!_isArcformTimelineVisible)
-                      SliverToBoxAdapter(
-                        child: _buildScrollableHeader(),
-                      ),
-                    if (!_isArcformTimelineVisible && !_isSelectionMode)
-                      SliverPersistentHeader(
-                        pinned: true,
-                        delegate: _CalendarWeekHeaderDelegate(
-                          child: Container(
-                            color: kcBackgroundColor,
-                            padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-                            child: ValueListenableBuilder<DateTime>(
-                              valueListenable: _weekNotifier,
-                              builder: (context, weekStart, _) => Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                mainAxisSize: MainAxisSize.min,
+          return Stack(
+            children: [
+              Scaffold(
+                body: SafeArea(
+                  child: NestedScrollView(
+                    headerSliverBuilder: (BuildContext context, bool innerBoxIsScrolled) {
+                      return <Widget>[
+                        if (!_isArcformTimelineVisible)
+                          SliverToBoxAdapter(
+                            child: _buildScrollableHeader(),
+                          ),
+                        if (!_isArcformTimelineVisible && !_isSelectionMode)
+                          SliverPersistentHeader(
+                            pinned: true,
+                            delegate: _CalendarWeekHeaderDelegate(
+                              child: Container(
+                                color: kcBackgroundColor,
+                                padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                                child: ValueListenableBuilder<DateTime>(
+                                  valueListenable: _weekNotifier,
+                                  builder: (context, weekStart, _) => Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        _formatMonthYear(weekStart),
+                                        style: heading2Style(context).copyWith(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      CalendarWeekTimeline(
+                                        onDateTap: (date) {
+                                          final weekStart = _calculateWeekStart(date);
+                                          _weekNotifier.value = weekStart;
+                                          _jumpToDate(date);
+                                        },
+                                        weekStartNotifier: _weekNotifier,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        if (!_isArcformTimelineVisible && _isSearchExpanded)
+                          SliverToBoxAdapter(
+                            child: AnimatedSize(
+                              duration: const Duration(milliseconds: 300),
+                              curve: Curves.easeInOut,
+                              child: Column(
                                 children: [
-                                  Text(
-                                    _formatMonthYear(weekStart),
-                                    style: heading2Style(context).copyWith(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  CalendarWeekTimeline(
-                                    onDateTap: (date) {
-                                      final weekStart = _calculateWeekStart(date);
-                                      _weekNotifier.value = weekStart;
-                                      _jumpToDate(date);
-                                    },
-                                    weekStartNotifier: _weekNotifier,
-                                  ),
+                                  _buildSearchBar(state),
+                                  _buildFilterButtons(state),
                                 ],
                               ),
                             ),
                           ),
-                        ),
-                      ),
-                    if (!_isArcformTimelineVisible && _isSearchExpanded)
-                      SliverToBoxAdapter(
-                        child: AnimatedSize(
-                          duration: const Duration(milliseconds: 300),
-                          curve: Curves.easeInOut,
-                          child: Column(
-                            children: [
-                              _buildSearchBar(state),
-                              _buildFilterButtons(state),
-                            ],
+                        if (_isArcformTimelineVisible)
+                          SliverToBoxAdapter(
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                              child: _buildPhaseLegendDropdown(context),
+                            ),
                           ),
-                        ),
-                      ),
-                    if (_isArcformTimelineVisible)
-                      SliverToBoxAdapter(
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                          child: _buildPhaseLegendDropdown(context),
-                        ),
-                      ),
-                  ];
-                },
-                body: InteractiveTimelineView(
-                  key: _timelineViewKey,
-                  scrollController: _scrollController,
-                  showArcformPreview: !_isArcformTimelineVisible && !_isSelectionMode,
-                  onJumpToDate: _showJumpToDateDialog,
-                  onRequestPreserveScrollPosition: _preserveScrollPosition,
-                  onSelectionChanged: (isSelectionMode, selectedCount, totalEntries) {
-                    if (_isSelectionMode != isSelectionMode ||
-                        _selectedCount != selectedCount ||
-                        _totalEntries != totalEntries) {
-                      setState(() {
-                        _isSelectionMode = isSelectionMode;
-                        _selectedCount = selectedCount;
-                        _totalEntries = totalEntries;
-                      });
-                    }
-                  },
-                  onArcformTimelineVisibilityChanged: (visible) {
-                    setState(() {
-                      _isArcformTimelineVisible = visible;
-                      if (visible && _isSearchExpanded) {
-                        _isSearchExpanded = false;
-                        _searchController.clear();
-                        _timelineCubit.setSearchQuery('');
-                      }
-                    });
-                  },
-                  onVisibleEntryDateChanged: (date) {
-                    _lastVisibleEntryDate = date;
-                    if (!_isProgrammaticScroll) {
-                      _weekNotifier.value = _calculateWeekStart(date);
-                    }
-                  },
+                      ];
+                    },
+                    body: InteractiveTimelineView(
+                      key: _timelineViewKey,
+                      scrollController: _scrollController,
+                      showArcformPreview: !_isArcformTimelineVisible && !_isSelectionMode,
+                      onJumpToDate: _showJumpToDateDialog,
+                      onRequestPreserveScrollPosition: _preserveScrollPosition,
+                      onSelectionChanged: (isSelectionMode, selectedCount, totalEntries) {
+                        if (_isSelectionMode != isSelectionMode ||
+                            _selectedCount != selectedCount ||
+                            _totalEntries != totalEntries) {
+                          setState(() {
+                            _isSelectionMode = isSelectionMode;
+                            _selectedCount = selectedCount;
+                            _totalEntries = totalEntries;
+                          });
+                        }
+                      },
+                      onArcformTimelineVisibilityChanged: (visible) {
+                        setState(() {
+                          _isArcformTimelineVisible = visible;
+                          if (visible && _isSearchExpanded) {
+                            _isSearchExpanded = false;
+                            _searchController.clear();
+                            _timelineCubit.setSearchQuery('');
+                          }
+                        });
+                      },
+                      onVisibleEntryDateChanged: (date) {
+                        _lastVisibleEntryDate = date;
+                        if (!_isProgrammaticScroll) {
+                          _weekNotifier.value = _calculateWeekStart(date);
+                        }
+                      },
+                    ),
+                  ),
                 ),
               ),
-            ),
+              // Invisible tap area at the top to scroll to the latest entry
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                height: 30,
+                child: GestureDetector(
+                  behavior: HitTestBehavior.translucent,
+                  onTap: _scrollToTop,
+                ),
+              ),
+            ],
           );
         },
       ),
@@ -615,6 +644,17 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
               ),
             ),
             // Actions
+          // Add a button to scroll to the latest entry
+          IconButton(
+            icon: const Icon(Icons.arrow_upward),
+            tooltip: 'Jump to Latest',
+            onPressed: _scrollToTop,
+          ),
+          IconButton(
+            icon: const Icon(Icons.help_outline),
+            tooltip: 'Phase Legend & Tips',
+            onPressed: _showPhaseLegendSheet,
+          ),
         if (_isSelectionMode) ...[
           IconButton(
             icon: const Icon(Icons.select_all),
@@ -972,6 +1012,8 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
                         filled: false),
                   ],
                 ),
+                const SizedBox(height: 16),
+                _buildPhaseTutorial(theme),
               ],
             ),
           ),
@@ -983,17 +1025,17 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
   Color _phaseColor(PhaseLabel label) {
     switch (label) {
       case PhaseLabel.discovery:
-        return Colors.purple;
+        return const Color(0xFF7C3AED);
       case PhaseLabel.expansion:
-        return Colors.green;
+        return const Color(0xFF059669);
       case PhaseLabel.transition:
-        return Colors.orange;
+        return const Color(0xFFD97706);
       case PhaseLabel.consolidation:
-        return Colors.blue;
+        return const Color(0xFF2563EB);
       case PhaseLabel.recovery:
-        return Colors.red;
+        return const Color(0xFFDC2626);
       case PhaseLabel.breakthrough:
-        return Colors.amber;
+        return const Color(0xFFFBBF24);
     }
   }
 
@@ -1018,6 +1060,123 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
         ),
       ],
     );
+  }
+
+  void _showPhaseLegendSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: kcSurfaceColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) {
+        final theme = Theme.of(context);
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.palette),
+                      const SizedBox(width: 8),
+                      Text('Phase Legend', style: heading2Style(context)),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  _buildPhaseLegendDropdown(context),
+                  const SizedBox(height: 16),
+                  Text(
+                    'How phases work',
+                    style: heading3Style(context),
+                  ),
+                  const SizedBox(height: 8),
+                  _buildPhaseTutorial(theme),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildPhaseTutorial(ThemeData theme) {
+    const descriptions = {
+      PhaseLabel.discovery: 'Exploration, hypothesis, early signals.',
+      PhaseLabel.expansion: 'Scaling effort, momentum, higher output.',
+      PhaseLabel.transition: 'Shifts, pivots, reorientation and tradeoffs.',
+      PhaseLabel.consolidation: 'Stabilizing, documenting, paying down debt.',
+      PhaseLabel.recovery: 'Rest, repair, restoring energy and clarity.',
+      PhaseLabel.breakthrough: 'Non-linear leap, synthesis, strong insight.',
+    };
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: descriptions.entries.map((entry) {
+        final color = _phaseColor(entry.key);
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 10),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 12,
+                height: 12,
+                margin: const EdgeInsets.only(top: 4),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.2),
+                  border: Border.all(color: color, width: 2),
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _phaseLabelToTitle(entry.key),
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: kcPrimaryTextColor,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      entry.value,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: kcSecondaryTextColor,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  String _phaseLabelToTitle(PhaseLabel label) {
+    switch (label) {
+      case PhaseLabel.discovery:
+        return 'Discovery';
+      case PhaseLabel.expansion:
+        return 'Expansion';
+      case PhaseLabel.transition:
+        return 'Transition';
+      case PhaseLabel.consolidation:
+        return 'Consolidation';
+      case PhaseLabel.recovery:
+        return 'Recovery';
+      case PhaseLabel.breakthrough:
+        return 'Breakthrough';
+    }
   }
 }
 

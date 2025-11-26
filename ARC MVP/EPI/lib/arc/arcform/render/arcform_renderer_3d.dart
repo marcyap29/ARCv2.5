@@ -213,21 +213,33 @@ class _Arcform3DState extends State<Arcform3D> {
   }
 
   void _buildScene() {
+    final basePhaseColor = _phaseColor(widget.phase);
+    final basePhaseHsl = rgbToHsl(vm.Vector3(
+      basePhaseColor.red / 255.0,
+      basePhaseColor.green / 255.0,
+      basePhaseColor.blue / 255.0,
+    ));
+
     // Build stars from nodes
     _stars = widget.nodes.map((node) {
       final rng = Seeded('${widget.skin.seed}:${node.id}');
-      final color = arcRgb(
-        valence: node.valence,
-        rng: rng,
-        skin: widget.skin,
-      );
-      
+      final hueJitter = (rng.nextDouble() - 0.5) * 2.0 * widget.skin.hueJitter;
+      final satJitter = (rng.nextDouble() - 0.5) * 0.08;
+      final lightnessJitter = (rng.nextDouble() - 0.5) * 0.08;
+
+      final valence = node.valence.clamp(-1.0, 1.0);
+      final hue = (basePhaseHsl.x + hueJitter).clamp(0.0, 1.0);
+      final saturation = (basePhaseHsl.y * (1.0 + satJitter)).clamp(0.35, 1.0);
+      final lightness = (basePhaseHsl.z * (1.0 + valence * 0.15 + lightnessJitter)).clamp(0.25, 0.85);
+
+      final colorVec = hslToRgb(hue, saturation, lightness);
+
       return _Star(
         position: vm.Vector3(node.x * 2, node.y * 2, node.z * 2), // Original molecular spacing
         color: Color.fromRGBO(
-          (color.x * 255).toInt(),
-          (color.y * 255).toInt(),
-          (color.z * 255).toInt(),
+          (colorVec.x * 255).toInt(),
+          (colorVec.y * 255).toInt(),
+          (colorVec.z * 255).toInt(),
           1.0,
         ),
         size: 6.0 + node.weight * 8.0, // Larger, more visible stars
@@ -248,28 +260,12 @@ class _Arcform3DState extends State<Arcform3D> {
         final targetStar = starByLabel[targetNode.label];
         if (sourceStar != null && targetStar != null) {
           final rng = Seeded('${widget.skin.seed}:edge:${edge.sourceId}:${edge.targetId}');
-          
-          // Blend colors of both connected stars for constellation lines
-          final sourceHsl = rgbToHsl(vm.Vector3(
-            sourceStar.color.red / 255.0,
-            sourceStar.color.green / 255.0,
-            sourceStar.color.blue / 255.0,
-          ));
-          final targetHsl = rgbToHsl(vm.Vector3(
-            targetStar.color.red / 255.0,
-            targetStar.color.green / 255.0,
-            targetStar.color.blue / 255.0,
-          ));
-          
-          // Blend the hues, saturations, and lightness of both stars
-          final blendedHue = (sourceHsl.x + targetHsl.x) / 2.0;
-          final blendedSat = (sourceHsl.y + targetHsl.y) / 2.0;
-          final blendedLight = (sourceHsl.z + targetHsl.z) / 2.0;
-          
-          // Add subtle jitter for variation
-          final jitter = (rng.nextDouble() - 0.5) * 0.1; // Reduced jitter for more stable colors
-          final finalHue = (blendedHue + jitter).clamp(0.0, 1.0);
-          final rgb = hslToRgb(finalHue, blendedSat * 0.8, blendedLight * 0.9);
+          // Use base phase hue with slight jitter for connectors to stay phase-consistent
+          final jitter = (rng.nextDouble() - 0.5) * widget.skin.lineHueJitter;
+          final hue = (basePhaseHsl.x + jitter).clamp(0.0, 1.0);
+          final sat = (basePhaseHsl.y * 0.85).clamp(0.3, 1.0);
+          final light = (basePhaseHsl.z * 0.85).clamp(0.25, 0.8);
+          final rgb = hslToRgb(hue, sat, light);
           
           _edges.add(_Edge(
             start: vm.Vector3(sourceStar.position.x, sourceStar.position.y, sourceStar.position.z),
@@ -301,6 +297,25 @@ class _Arcform3DState extends State<Arcform3D> {
 
     if (mounted) {
       setState(() {});
+    }
+  }
+
+  Color _phaseColor(String phase) {
+    switch (phase.toLowerCase()) {
+      case 'discovery':
+        return const Color(0xFF7C3AED); // Purple
+      case 'expansion':
+        return const Color(0xFF059669); // Green
+      case 'transition':
+        return const Color(0xFFD97706); // Orange
+      case 'consolidation':
+        return const Color(0xFF2563EB); // Blue
+      case 'recovery':
+        return const Color(0xFFDC2626); // Red
+      case 'breakthrough':
+        return const Color(0xFFFBBF24); // Yellow
+      default:
+        return const Color(0xFF7C3AED);
     }
   }
 
@@ -1330,4 +1345,3 @@ class _ConstellationLinesPainter extends CustomPainter {
         oldDelegate.cameraY != cameraY;
   }
 }
-

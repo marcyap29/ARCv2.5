@@ -25,7 +25,8 @@ class KeywordAnalysisView extends StatefulWidget {
   final List<MediaItem>? mediaItems; // Media items from journal screen
   final List<Map<String, dynamic>>? lumaraBlocks; // LUMARA inline blocks
   final String? title; // Title from journal screen
-  
+  final bool isTimelineEditing; // Flag to allow timestamp editing when editing from timeline
+
   const KeywordAnalysisView({
     super.key,
     required this.content,
@@ -42,6 +43,7 @@ class KeywordAnalysisView extends StatefulWidget {
     this.mediaItems,
     this.lumaraBlocks,
     this.title,
+    this.isTimelineEditing = false, // Default to locked timestamps
   });
 
   @override
@@ -221,6 +223,7 @@ class _KeywordAnalysisViewState extends State<KeywordAnalysisView>
         media: widget.mediaItems, // Pass media items
         blocks: widget.lumaraBlocks, // Pass LUMARA blocks
         title: _titleController.text.trim(),
+        allowTimestampEditing: widget.isTimelineEditing, // Allow timestamp editing only when editing from timeline
       );
       
       // Show success message with keyword count

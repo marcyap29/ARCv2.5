@@ -15,6 +15,14 @@ import 'package:my_app/mira/store/mcp/mcp_fs.dart';
 class PhaseRegimeService {
   static const String _regimesBoxName = 'phase_regimes';
   static const String _lastAnalysisKey = 'last_phase_analysis_date';
+  static const Map<PhaseLabel, String> _colorNames = {
+    PhaseLabel.discovery: 'Discovery',
+    PhaseLabel.expansion: 'Expansion',
+    PhaseLabel.transition: 'Transition',
+    PhaseLabel.consolidation: 'Consolidation',
+    PhaseLabel.recovery: 'Recovery',
+    PhaseLabel.breakthrough: 'Breakthrough',
+  };
 
   // final AnalyticsService _analytics; // TODO: Use analytics
   final RivetSweepService _rivetSweep;
@@ -55,10 +63,144 @@ class PhaseRegimeService {
     return _phaseIndex ?? PhaseIndex([]);
   }
 
+  /// Rebuild phase regimes from journal entries by aggregating per-day phases and enforcing a minimum regime duration.
+  /// This aligns Timeline with Rivet analysis while smoothing single-entry noise.
+  Future<void> rebuildRegimesFromEntries(List<JournalEntry> entries, {int minDays = 14}) async {
+    if (entries.isEmpty) {
+      return;
+    }
+
+    // Group entries by day and pick a dominant phase per day
+    final dailyPhases = <DateTime, PhaseLabel>{};
+    final dailyScores = <DateTime, Map<PhaseLabel, double>>{};
+
+    for (final entry in entries) {
+      final day = DateTime(entry.createdAt.year, entry.createdAt.month, entry.createdAt.day);
+      final phaseLabel = _normalizePhase(entry.computedPhase ?? entry.autoPhase ?? entry.phase);
+      if (phaseLabel == null) continue;
+
+      final weight = entry.autoPhaseConfidence ?? 1.0;
+      dailyScores.putIfAbsent(day, () => {});
+      dailyScores[day]![phaseLabel] = (dailyScores[day]![phaseLabel] ?? 0) + weight;
+    }
+
+    for (final day in dailyScores.keys) {
+      final scores = dailyScores[day]!;
+      if (scores.isEmpty) continue;
+      final best = scores.entries.reduce((a, b) => a.value >= b.value ? a : b);
+      dailyPhases[day] = best.key;
+    }
+
+    if (dailyPhases.isEmpty) {
+      return;
+    }
+
+    // Build contiguous runs
+    final sortedDays = dailyPhases.keys.toList()..sort();
+    final segments = <_PhaseSegment>[];
+    DateTime runStart = sortedDays.first;
+    PhaseLabel runPhase = dailyPhases[runStart]!;
+    for (var i = 1; i < sortedDays.length; i++) {
+      final day = sortedDays[i];
+      final phase = dailyPhases[day]!;
+      final prevDay = sortedDays[i - 1];
+      final isNextDay = day.difference(prevDay).inDays == 1;
+      if (phase == runPhase && isNextDay) {
+        continue;
+      } else {
+        final runEnd = prevDay;
+        segments.add(_PhaseSegment(runPhase, runStart, runEnd));
+        runPhase = phase;
+        runStart = day;
+      }
+    }
+    segments.add(_PhaseSegment(runPhase, runStart!, sortedDays.last));
+
+    // Merge segments shorter than minDays into neighbors
+    bool merged = true;
+    while (merged) {
+      merged = false;
+      for (var i = 0; i < segments.length; i++) {
+        final seg = segments[i];
+        if (seg.lengthInDays >= minDays) continue;
+        if (segments.length == 1) break;
+
+        // Choose neighbor with longer length (prefer previous if tie)
+        final prev = i > 0 ? segments[i - 1] : null;
+        final next = i < segments.length - 1 ? segments[i + 1] : null;
+        if (prev == null && next != null) {
+          next.mergeStart(seg.start);
+          merged = true;
+          segments.removeAt(i);
+          break;
+        } else if (next == null && prev != null) {
+          prev.mergeEnd(seg.end);
+          merged = true;
+          segments.removeAt(i);
+          break;
+        } else if (prev != null && next != null) {
+          if (prev.lengthInDays >= next.lengthInDays) {
+            prev.mergeEnd(seg.end);
+            merged = true;
+            segments.removeAt(i);
+            break;
+          } else {
+            next.mergeStart(seg.start);
+            merged = true;
+            segments.removeAt(i);
+            break;
+          }
+        }
+      }
+    }
+
+    // Persist regimes
+    await _regimesBox?.clear();
+    for (final seg in segments) {
+      final regime = PhaseRegime(
+        id: 'regime_${seg.start.millisecondsSinceEpoch}',
+        label: seg.phase,
+        start: seg.start,
+        end: seg.end.add(const Duration(days: 1)), // inclusive day -> end at next day midnight
+        source: PhaseSource.rivet,
+        confidence: 1.0,
+        inferredAt: DateTime.now(),
+        anchors: const [],
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
+      await _regimesBox?.put(regime.id, regime);
+    }
+
+    _loadPhaseIndex();
+  }
+
+
   /// Load phase index from storage
   void _loadPhaseIndex() {
     final regimes = _regimesBox?.values.toList() ?? [];
     _phaseIndex = PhaseIndex(regimes);
+  }
+
+  PhaseLabel? _normalizePhase(String? phaseName) {
+    if (phaseName == null) return null;
+    final normalized = phaseName.replaceAll('#', '').replaceAll('_', ' ').trim().toLowerCase();
+    switch (normalized) {
+      case 'discovery':
+        return PhaseLabel.discovery;
+      case 'expansion':
+        return PhaseLabel.expansion;
+      case 'transition':
+        return PhaseLabel.transition;
+      case 'consolidation':
+        return PhaseLabel.consolidation;
+      case 'recovery':
+        return PhaseLabel.recovery;
+      case 'breakthrough':
+        return PhaseLabel.breakthrough;
+      default:
+        return null;
+    }
   }
 
   /// Get current phase
@@ -755,5 +897,23 @@ class PhaseRegimeService {
       print('DEBUG: Error updating hashtags for regime: $e');
       return 0;
     }
+  }
+}
+
+class _PhaseSegment {
+  PhaseLabel phase;
+  DateTime start;
+  DateTime end;
+
+  _PhaseSegment(this.phase, this.start, this.end);
+
+  int get lengthInDays => end.difference(start).inDays + 1;
+
+  void mergeStart(DateTime newStart) {
+    start = newStart.isBefore(start) ? newStart : start;
+  }
+
+  void mergeEnd(DateTime newEnd) {
+    end = newEnd.isAfter(end) ? newEnd : end;
   }
 }

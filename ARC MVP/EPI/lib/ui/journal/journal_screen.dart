@@ -67,7 +67,8 @@ class JournalScreen extends StatefulWidget {
   final JournalEntry? existingEntry; // For loading existing entries with media
   final bool isViewOnly; // New parameter to distinguish viewing vs editing
   final bool openAsEdit; // Flag to indicate entry is opened directly for editing (no initial draft)
-  
+  final bool isTimelineEditing; // Flag to allow timestamp editing when editing from timeline
+
   const JournalScreen({
     super.key,
     this.selectedEmotion,
@@ -76,6 +77,7 @@ class JournalScreen extends StatefulWidget {
     this.existingEntry,
     this.isViewOnly = false, // Default to editing mode for backward compatibility
     this.openAsEdit = false, // Default to false - will create draft normally
+    this.isTimelineEditing = false, // Default to locked timestamps - only allow changes from timeline
   });
 
   @override
@@ -246,12 +248,60 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
       
       // Convert MediaItems back to attachments
       if (widget.existingEntry!.media.isNotEmpty) {
+        print('DEBUG: Loading ${widget.existingEntry!.media.length} media items from existing entry');
+        // Debug: Log media types before conversion
+        for (int i = 0; i < widget.existingEntry!.media.length; i++) {
+          final media = widget.existingEntry!.media[i];
+          print('DEBUG: Media $i - Type: ${media.type}, URI: ${media.uri}, ID: ${media.id}');
+        }
+        
         final attachments = MediaConversionUtils.mediaItemsToAttachments(widget.existingEntry!.media);
+        print('DEBUG: Converted to ${attachments.length} attachments');
+        
+        // Debug: Log attachment types after conversion
+        int photoCount = 0;
+        int videoCount = 0;
+        int scanCount = 0;
+        for (final attachment in attachments) {
+          if (attachment is PhotoAttachment) {
+            photoCount++;
+          } else if (attachment is VideoAttachment) {
+            videoCount++;
+            print('DEBUG: Video attachment - Path: ${attachment.videoPath}, ID: ${attachment.videoId}, Duration: ${attachment.duration}');
+            // Verify video file exists (async check will be done in post-frame callback)
+            final videoFile = File(attachment.videoPath);
+            final existsSync = videoFile.existsSync();
+            print('DEBUG: Video attachment file exists (sync check): $existsSync');
+            if (!existsSync) {
+              print('WARNING: Video attachment file does not exist: ${attachment.videoPath}');
+            }
+          } else if (attachment is ScanAttachment) {
+            scanCount++;
+          }
+        }
+        print('DEBUG: Attachment breakdown - Photos: $photoCount, Videos: $videoCount, Scans: $scanCount');
+        
         _entryState.attachments.addAll(attachments);
-        print('DEBUG: Loaded ${attachments.length} attachments from existing entry');
+        print('DEBUG: Total attachments in state: ${_entryState.attachments.length}');
         print('DEBUG: Entry ID: ${widget.existingEntry!.id}');
         print('DEBUG: Entry content length: ${widget.existingEntry!.content.length}');
-        print('DEBUG: Entry media count: ${widget.existingEntry!.media.length}');
+        
+        // Verify video files exist asynchronously and update UI
+        WidgetsBinding.instance.addPostFrameCallback((_) async {
+          for (final attachment in attachments) {
+            if (attachment is VideoAttachment) {
+              final videoFile = File(attachment.videoPath);
+              final exists = await videoFile.exists();
+              if (!exists) {
+                print('WARNING: Video file does not exist (async check): ${attachment.videoPath}');
+              }
+            }
+          }
+          // Force UI update to show videos
+          if (mounted) {
+            setState(() {});
+          }
+        });
       }
       
       // Check for existing draft linked to this entry (3d requirement) - after UI is ready
@@ -1616,6 +1666,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
             })(),
             lumaraBlocks: _entryState.blocks.map((b) => b.toJson()).toList(),
             title: _titleController.text.trim().isNotEmpty ? _titleController.text.trim() : null,
+            isTimelineEditing: widget.isTimelineEditing, // Pass timeline editing flag for timestamp control
             ),
           );
         },
@@ -2427,6 +2478,15 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     final videoAttachments = _entryState.attachments
         .whereType<VideoAttachment>()
         .toList();
+    
+    // Debug: Log video attachments found
+    if (videoAttachments.isNotEmpty) {
+      print('DEBUG: Found ${videoAttachments.length} video attachments to display');
+      for (int i = 0; i < videoAttachments.length; i++) {
+        final video = videoAttachments[i];
+        print('DEBUG: Video $i - Path: ${video.videoPath}, ID: ${video.videoId}, Exists: ${File(video.videoPath).existsSync()}');
+      }
+    }
 
     // Sort photos by insertion position if available, otherwise by timestamp
     photoAttachments.sort((a, b) {
@@ -2628,6 +2688,10 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     final videoIndex = _entryState.attachments.indexOf(video);
     final isSelected = _selectedPhotoIndices.contains(videoIndex);
     
+    // Check if video file exists
+    final videoFile = File(video.videoPath);
+    final fileExists = videoFile.existsSync();
+    
     return GestureDetector(
       onTap: () {
         if (_isPhotoSelectionMode) {
@@ -2639,7 +2703,17 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
             }
           });
         } else {
-          _playVideo(video.videoPath);
+          if (fileExists) {
+            _playVideo(video.videoPath);
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Video file not found: ${video.videoPath.split('/').last}'),
+                backgroundColor: Theme.of(context).colorScheme.error,
+                duration: const Duration(seconds: 3),
+              ),
+            );
+          }
         }
       },
       onLongPress: () {
@@ -2653,12 +2727,16 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
         decoration: BoxDecoration(
           color: isSelected 
               ? theme.colorScheme.primary.withOpacity(0.3)
-              : theme.colorScheme.surfaceContainerHighest,
+              : fileExists
+                  ? theme.colorScheme.surfaceContainerHighest
+                  : theme.colorScheme.errorContainer.withOpacity(0.3),
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
             color: isSelected 
                 ? theme.colorScheme.primary 
-                : theme.colorScheme.outline.withOpacity(0.3),
+                : fileExists
+                    ? theme.colorScheme.outline.withOpacity(0.3)
+                    : theme.colorScheme.error.withOpacity(0.5),
             width: isSelected ? 2 : 1,
           ),
         ),
@@ -2667,10 +2745,29 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
           children: [
             // Video thumbnail placeholder or icon
             Center(
-              child: Icon(
-                Icons.play_circle_outline,
-                size: 40,
-                color: theme.colorScheme.primary,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    fileExists ? Icons.play_circle_outline : Icons.error_outline,
+                    size: 40,
+                    color: fileExists 
+                        ? theme.colorScheme.primary 
+                        : theme.colorScheme.error,
+                  ),
+                  if (!fileExists)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Text(
+                        'Missing',
+                        style: TextStyle(
+                          fontSize: 8,
+                          color: theme.colorScheme.error,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                ],
               ),
             ),
             // Duration overlay if available
@@ -4880,8 +4977,25 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
       // Get video file info if possible
       final videoFile = File(videoPath);
       int? sizeBytes;
+      Duration? duration;
+      
       if (await videoFile.exists()) {
         sizeBytes = await videoFile.length();
+        print('DEBUG: Video file exists, size: $sizeBytes bytes');
+        
+        // Try to get video duration using video_player package if available
+        // For now, we'll leave it null and it can be populated later
+        // TODO: Extract video duration using video_player or similar package
+      } else {
+        print('WARNING: Video file does not exist at path: $videoPath');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Video file not found: ${videoPath.split('/').last}'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+        return;
       }
 
       // Create a VideoAttachment directly
@@ -4891,11 +5005,16 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
         timestamp: DateTime.now().millisecondsSinceEpoch,
         videoId: DateTime.now().millisecondsSinceEpoch.toString(),
         sizeBytes: sizeBytes,
+        duration: duration,
         altText: 'Video: ${videoPath.split('/').last}',
       );
 
       setState(() {
         _entryState.addVideoAttachment(videoAttachment);
+        print('DEBUG: Video attachment added to state. Total attachments: ${_entryState.attachments.length}');
+        // Count videos
+        final videoCount = _entryState.attachments.whereType<VideoAttachment>().length;
+        print('DEBUG: Total videos in attachments: $videoCount');
       });
       
       // Update draft if exists
@@ -4903,13 +5022,14 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
         final mediaItems = MediaConversionUtils.attachmentsToMediaItems(_entryState.attachments);
         final blocksJson = _entryState.blocks.map((b) => b.toJson()).toList();
         await _draftCache.updateDraftContentAndMedia(_entryState.text, mediaItems, lumaraBlocks: blocksJson);
+        print('DEBUG: Updated draft with ${mediaItems.length} media items');
       }
       
-      print('DEBUG: Video added to entry');
+      print('DEBUG: Video added to entry successfully');
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Video added to entry'),
-          duration: Duration(seconds: 2),
+        SnackBar(
+          content: Text('Video added to entry (${_formatFileSize(sizeBytes ?? 0)})'),
+          duration: const Duration(seconds: 2),
         ),
       );
     } catch (e) {
@@ -4921,6 +5041,14 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
         ),
       );
     }
+  }
+  
+  /// Format file size for display
+  String _formatFileSize(int bytes) {
+    if (bytes < 1024) return '$bytes B';
+    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
+    if (bytes < 1024 * 1024 * 1024) return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+    return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';
   }
 
   Future<void> _handleCamera() async {

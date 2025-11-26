@@ -1,7 +1,41 @@
 # EPI ARC MVP - Changelog
 
-**Version:** 2.1.37
-**Last Updated:** November 25, 2025
+**Version:** 2.1.38
+**Last Updated:** December 2025
+
+## [2.1.38] - December 2025
+
+### **Advanced Analytics View with Horizontal Tabs** - Complete
+
+#### New Feature
+- **Advanced Analytics Access**: New "Advanced Analytics" option in Insights 3-dot menu (⋮)
+- **4-Part Horizontal Tab System**: Horizontally scrollable tabs for Patterns, AURORA, VEIL, and SENTINEL
+- **Swipe Navigation**: PageView enables smooth swiping between analytics sections
+- **Tab Selection Sync**: Tab selection and page navigation are synchronized
+- **Visual Design**: Selected tab highlighted with accent color, unselected tabs use surface color
+
+#### Tab Content
+- **Patterns Tab**: 
+  - Your Patterns visualization card (navigates to YourPatternsView with 4 views: wordCloud, network, timeline, radial)
+  - Medical Connections card (navigates to HealthSettingsDialog with 30/60/90 day import options)
+- **AURORA Tab**: Circadian Intelligence card
+- **VEIL Tab**: AI Prompt Intelligence card + VEIL Policy card
+- **SENTINEL Tab**: Emotional risk detection and pattern analysis
+
+#### User Experience
+- **Accessible Navigation**: Easy access via Insights → 3-dot menu → Advanced Analytics
+- **Intuitive Interface**: Horizontal scrolling tabs with clear visual indicators
+- **Consistent Design**: Matches existing app design language and color scheme
+
+**Files Added**:
+- `lib/ui/phase/advanced_analytics_view.dart` - New Advanced Analytics view with horizontal tabs
+
+**Files Modified**:
+- `lib/ui/phase/phase_analysis_view.dart` - Added "Advanced Analytics" menu item to 3-dot menu
+
+**Status**: ✅ Complete - Advanced Analytics accessible via Insights menu with 4-part horizontal tab system
+
+---
 
 ## [2.1.37] - November 25, 2025
 

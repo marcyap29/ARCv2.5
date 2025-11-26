@@ -9,18 +9,21 @@ import 'phase_index.dart';
 // import 'semantic_similarity_service.dart'; // TODO: Implement or use existing
 import 'analytics_service.dart';
 import 'package:my_app/arc/ui/arcforms/phase_recommender.dart';
+import 'atlas_phase_decision_service.dart';
 
 class RivetSweepService {
   // final SemanticSimilarityService _similarityService; // TODO: Implement
   // final AnalyticsService _analytics; // TODO: Use analytics
   
-  // Configuration
-  static const Duration _minWindowDays = Duration(days: 10);
+  // Configuration - Minimum regime durations ensure meaningful life periods
+  static const Duration _minRegimeDuration = Duration(days: 14); // Minimum 2 weeks per regime
+  static const Duration _preferredMinDuration = Duration(days: 21); // Preferred 3 weeks minimum
+  static const Duration _shortTermThreshold = Duration(days: 7); // Flag regimes shorter than 1 week
   static const double _minConfidence = 0.70;
   static const double _reviewConfidence = 0.50;
   static const double _hysteresisThreshold = 0.15;
-  // static const int _maxSegmentsPerYear = 15; // TODO: Use in future
-  // static const int _minSegmentsPerYear = 6; // TODO: Use in future
+  static const int _maxRegimesPerYear = 12; // Maximum 12 regimes per year (monthly average)
+  static const int _minRegimesPerYear = 4; // Minimum 4 regimes per year (seasonal)
 
   RivetSweepService(AnalyticsService analytics);
 
@@ -301,15 +304,15 @@ class RivetSweepService {
 
   /// Detect change points using binary segmentation
   List<PhaseChangePoint> _detectChangePoints(List<DailySignal> signals) {
-    if (signals.length < _minWindowDays.inDays * 2) return [];
-    
+    if (signals.length < _minRegimeDuration.inDays * 2) return [];
+
     final changePoints = <PhaseChangePoint>[];
     final compositeScores = signals.map((s) => s.composite).toList();
-    
+
     // Simple change point detection - find significant drops in composite score
-    for (int i = _minWindowDays.inDays; i < compositeScores.length - _minWindowDays.inDays; i++) {
-      final before = compositeScores.sublist(i - _minWindowDays.inDays, i);
-      final after = compositeScores.sublist(i, i + _minWindowDays.inDays);
+    for (int i = _minRegimeDuration.inDays; i < compositeScores.length - _minRegimeDuration.inDays; i++) {
+      final before = compositeScores.sublist(i - _minRegimeDuration.inDays, i);
+      final after = compositeScores.sublist(i, i + _minRegimeDuration.inDays);
       
       final beforeMean = before.reduce((a, b) => a + b) / before.length;
       final afterMean = after.reduce((a, b) => a + b) / after.length;
@@ -546,10 +549,27 @@ class RivetSweepService {
     final phaseCounts = trends['phase_counts'] as Map<PhaseLabel, int>?;
     
     if (phaseCounts == null || phaseCounts.isEmpty) {
-      // Fallback to content-based inference
+      // Fallback to content-based inference using ATLAS scoring
       final content = entries.map((e) => e.content).join(' ');
       final keywords = entries.expand((e) => e.keywords).toList();
-      return _inferPhaseFromContent(content, keywords);
+      final inferredPhase = _inferPhaseFromContent(content, keywords);
+
+      // If ATLAS scoring returns null (weak signal), use a balanced fallback
+      if (inferredPhase == null) {
+        // Rotate through phases based on content characteristics to avoid bias
+        final contentLength = content.length;
+        if (contentLength < 200) {
+          return PhaseLabel.discovery; // Short content suggests exploration
+        } else if (contentLength > 800) {
+          return PhaseLabel.consolidation; // Long content suggests integration
+        } else {
+          // Medium content - rotate through transition/expansion
+          final phases = [PhaseLabel.transition, PhaseLabel.expansion];
+          return phases[content.hashCode % phases.length];
+        }
+      }
+
+      return inferredPhase;
     }
 
     // Find phase with highest count
@@ -616,52 +636,118 @@ class RivetSweepService {
     return confidence;
   }
 
-  /// Apply hysteresis and minimum dwell constraints
+  /// Apply hysteresis and minimum dwell constraints with enhanced duration validation
   List<PhaseSegmentProposal> _applyHysteresisAndMinDwell(List<PhaseSegmentProposal> proposals) {
     if (proposals.isEmpty) return [];
-    
+
     final result = <PhaseSegmentProposal>[];
     PhaseLabel? lastLabel;
     double lastConfidence = 0.0;
-    
+
     for (int i = 0; i < proposals.length; i++) {
       final proposal = proposals[i];
-      
-      // Check minimum dwell
       final duration = proposal.end.difference(proposal.start);
-      if (duration.inDays < _minWindowDays.inDays) {
-        // Merge with previous if same label, otherwise skip
+
+      // Enhanced minimum duration validation
+      if (duration.inDays < _minRegimeDuration.inDays) {
+        print('DEBUG: Rejecting regime shorter than minimum duration: ${duration.inDays} days (${proposal.proposedLabel})');
+
+        // Try to merge with adjacent regimes of same phase
         if (lastLabel == proposal.proposedLabel && result.isNotEmpty) {
           final lastProposal = result.last;
-          result[result.length - 1] = PhaseSegmentProposal(
-            start: lastProposal.start,
-            end: proposal.end,
-            proposedLabel: proposal.proposedLabel,
-            confidence: (lastProposal.confidence + proposal.confidence) / 2,
-            signals: {...lastProposal.signals, ...proposal.signals},
-            entryIds: [...lastProposal.entryIds, ...proposal.entryIds],
-            summary: lastProposal.summary,
-            topKeywords: lastProposal.topKeywords,
-          );
+          final mergedDuration = proposal.end.difference(lastProposal.start);
+
+          if (mergedDuration.inDays >= _minRegimeDuration.inDays) {
+            print('DEBUG: Merging short regime with previous: ${mergedDuration.inDays} days');
+            result[result.length - 1] = PhaseSegmentProposal(
+              start: lastProposal.start,
+              end: proposal.end,
+              proposedLabel: proposal.proposedLabel,
+              confidence: (lastProposal.confidence + proposal.confidence) / 2,
+              signals: {...lastProposal.signals, ...proposal.signals},
+              entryIds: [...lastProposal.entryIds, ...proposal.entryIds],
+              summary: lastProposal.summary,
+              topKeywords: [...lastProposal.topKeywords, ...proposal.topKeywords].take(5).toList(),
+            );
+          }
+        }
+        // Try to merge with next regime if same phase
+        else if (i + 1 < proposals.length && proposals[i + 1].proposedLabel == proposal.proposedLabel) {
+          final nextProposal = proposals[i + 1];
+          final mergedDuration = nextProposal.end.difference(proposal.start);
+
+          if (mergedDuration.inDays >= _minRegimeDuration.inDays) {
+            print('DEBUG: Merging short regime with next: ${mergedDuration.inDays} days');
+            // Skip current proposal, next iteration will handle the merged regime
+            proposals[i + 1] = PhaseSegmentProposal(
+              start: proposal.start,
+              end: nextProposal.end,
+              proposedLabel: proposal.proposedLabel,
+              confidence: (proposal.confidence + nextProposal.confidence) / 2,
+              signals: {...proposal.signals, ...nextProposal.signals},
+              entryIds: [...proposal.entryIds, ...nextProposal.entryIds],
+              summary: proposal.summary,
+              topKeywords: [...proposal.topKeywords, ...nextProposal.topKeywords].take(5).toList(),
+            );
+          }
         }
         continue;
       }
-      
+
+      // Flag short-term regimes for review
+      PhaseSegmentProposal finalProposal = proposal;
+      if (duration.inDays < _preferredMinDuration.inDays) {
+        print('DEBUG: Short regime flagged for review: ${duration.inDays} days (${proposal.proposedLabel})');
+        // Reduce confidence for short regimes to encourage manual review
+        finalProposal = PhaseSegmentProposal(
+          start: proposal.start,
+          end: proposal.end,
+          proposedLabel: proposal.proposedLabel,
+          confidence: proposal.confidence * 0.8, // Reduce confidence by 20%
+          signals: proposal.signals,
+          entryIds: proposal.entryIds,
+          summary: '${proposal.summary ?? ''} [Short regime - review recommended]',
+          topKeywords: proposal.topKeywords,
+        );
+      }
+
       // Apply hysteresis
-      if (lastLabel != null && lastLabel == proposal.proposedLabel) {
+      if (lastLabel != null && lastLabel == finalProposal.proposedLabel) {
         // Same label as previous - check if confidence improved enough
-        if (proposal.confidence - lastConfidence < _hysteresisThreshold) {
+        if (finalProposal.confidence - lastConfidence < _hysteresisThreshold) {
           // Not enough improvement, keep previous label
           continue;
         }
       }
-      
-      result.add(proposal);
-      lastLabel = proposal.proposedLabel;
-      lastConfidence = proposal.confidence;
+
+      result.add(finalProposal);
+      lastLabel = finalProposal.proposedLabel;
+      lastConfidence = finalProposal.confidence;
     }
-    
-    return result;
+
+    // Final validation: ensure we don't have too many regimes per year
+    return _validateRegimeFrequency(result);
+  }
+
+  /// Validate that we don't have too many regimes per year (prevents micro-regimes)
+  List<PhaseSegmentProposal> _validateRegimeFrequency(List<PhaseSegmentProposal> proposals) {
+    if (proposals.isEmpty) return proposals;
+
+    final sortedProposals = List<PhaseSegmentProposal>.from(proposals)
+      ..sort((a, b) => a.start.compareTo(b.start));
+
+    final totalDuration = sortedProposals.last.end.difference(sortedProposals.first.start);
+    final yearsSpanned = totalDuration.inDays / 365.0;
+    final regimesPerYear = proposals.length / yearsSpanned;
+
+    print('DEBUG: Regime frequency validation: ${proposals.length} regimes over ${yearsSpanned.toStringAsFixed(1)} years = ${regimesPerYear.toStringAsFixed(1)} regimes/year');
+
+    if (regimesPerYear > _maxRegimesPerYear) {
+      print('WARNING: Too many regimes detected (${regimesPerYear.toStringAsFixed(1)}/year > $_maxRegimesPerYear/year limit)');
+      print('Consider increasing minimum duration or reducing detection sensitivity.');
+    }
+
+    return proposals;
   }
 
   // Helper methods
@@ -700,97 +786,27 @@ class RivetSweepService {
     return 1.0 - (dotProduct / (sqrt(normA) * sqrt(normB)));
   }
 
-  PhaseLabel _inferPhaseFromContent(String content, List<String> keywords) {
-    // Enhanced heuristic-based phase inference with broader keyword detection
-    final lowerContent = content.toLowerCase();
-    final lowerKeywords = keywords.map((k) => k.toLowerCase()).toList();
-    final scores = <PhaseLabel, int>{};
+  /// Infer phase from content using ATLAS phase decision scoring system
+  /// Replaces old keyword-based detection with scoring system that eliminates Discovery bias
+  PhaseLabel? _inferPhaseFromContent(String content, List<String> keywords, {PhaseLabel? prevPhase}) {
+    // Generate phase scores using ATLAS decision system
+    final scores = AtlasPhaseDecisionService.generatePhaseScores(
+      content: content,
+      keywords: keywords,
+    );
 
-    // Initialize all phases to 0
-    for (final phase in PhaseLabel.values) {
-      scores[phase] = 0;
-    }
+    // Use ATLAS decision logic to determine phase with hysteresis
+    final decidedPhase = AtlasPhaseDecisionService.decidePhaseForEntry(
+      scores: scores,
+      prevPhase: prevPhase,
+    );
 
-    // Discovery keywords - learning, exploring, questioning
-    if (lowerContent.contains('new') || lowerContent.contains('discover') || lowerContent.contains('learn') ||
-        lowerContent.contains('explore') || lowerContent.contains('wonder') || lowerContent.contains('curious') ||
-        lowerKeywords.any((k) => k.contains('learning') || k.contains('explore') || k.contains('question') || k.contains('wonder'))) {
-      scores[PhaseLabel.discovery] = scores[PhaseLabel.discovery]! + 1;
-    }
+    print('DEBUG: RIVET Phase inference for content (${content.length} chars):');
+    AtlasPhaseDecisionService.debugPrintScores(scores, 'segment');
+    print('  Previous: ${AtlasPhaseDecisionService.phaseToString(prevPhase)}');
+    print('  Decided: ${AtlasPhaseDecisionService.phaseToString(decidedPhase)}');
 
-    // Expansion keywords - growing, building, developing
-    if (lowerContent.contains('grow') || lowerContent.contains('expand') || lowerContent.contains('build') ||
-        lowerContent.contains('develop') || lowerContent.contains('progress') || lowerContent.contains('increase') ||
-        lowerKeywords.any((k) => k.contains('growth') || k.contains('building') || k.contains('develop') || k.contains('progress'))) {
-      scores[PhaseLabel.expansion] = scores[PhaseLabel.expansion]! + 1;
-    }
-
-    // Transition keywords - changing, moving, shifting
-    if (lowerContent.contains('change') || lowerContent.contains('transition') || lowerContent.contains('shift') ||
-        lowerContent.contains('move') || lowerContent.contains('transform') || lowerContent.contains('adjust') ||
-        lowerKeywords.any((k) => k.contains('change') || k.contains('shift') || k.contains('transform') || k.contains('adjust'))) {
-      scores[PhaseLabel.transition] = scores[PhaseLabel.transition]! + 1;
-    }
-
-    // Consolidation keywords - stabilizing, organizing, integrating
-    if (lowerContent.contains('consolidate') || lowerContent.contains('stable') || lowerContent.contains('organize') ||
-        lowerContent.contains('integrate') || lowerContent.contains('strengthen') || lowerContent.contains('establish') ||
-        lowerKeywords.any((k) => k.contains('stable') || k.contains('solid') || k.contains('organize') || k.contains('integrate'))) {
-      scores[PhaseLabel.consolidation] = scores[PhaseLabel.consolidation]! + 1;
-    }
-
-    // Recovery keywords - healing, restoring, resting
-    if (lowerContent.contains('recover') || lowerContent.contains('heal') || lowerContent.contains('rest') ||
-        lowerContent.contains('restore') || lowerContent.contains('repair') || lowerContent.contains('rejuvenate') ||
-        lowerKeywords.any((k) => k.contains('recovery') || k.contains('healing') || k.contains('rest') || k.contains('restore'))) {
-      scores[PhaseLabel.recovery] = scores[PhaseLabel.recovery]! + 1;
-    }
-
-    // Breakthrough keywords - insights, achievements, breakthroughs
-    if (lowerContent.contains('breakthrough') || lowerContent.contains('insight') || lowerContent.contains('achieve') ||
-        lowerContent.contains('accomplish') || lowerContent.contains('realize') || lowerContent.contains('understand') ||
-        lowerKeywords.any((k) => k.contains('breakthrough') || k.contains('insight') || k.contains('achieve') || k.contains('realize'))) {
-      scores[PhaseLabel.breakthrough] = scores[PhaseLabel.breakthrough]! + 1;
-    }
-
-    // Find the phase with the highest score
-    PhaseLabel? bestPhase;
-    int maxScore = 0;
-    for (final entry in scores.entries) {
-      if (entry.value > maxScore) {
-        maxScore = entry.value;
-        bestPhase = entry.key;
-      }
-    }
-
-    // If no keywords matched (all scores are 0), distribute more evenly based on content length and emotion
-    if (maxScore == 0) {
-      // Use simple heuristics based on content characteristics
-      final contentLength = content.length;
-      final hasQuestions = content.contains('?');
-      final hasEmotionalWords = lowerContent.contains('feel') || lowerContent.contains('emotion') || lowerContent.contains('mood');
-
-      // Short entries with questions likely Discovery
-      if (contentLength < 200 && hasQuestions) {
-        return PhaseLabel.discovery;
-      }
-      // Long entries likely Consolidation or Expansion
-      else if (contentLength > 500) {
-        return PhaseLabel.consolidation;
-      }
-      // Emotional content might be Recovery
-      else if (hasEmotionalWords) {
-        return PhaseLabel.recovery;
-      }
-      // Medium length could be Transition or Expansion
-      else {
-        // Rotate through different phases to avoid Discovery bias
-        final phases = [PhaseLabel.expansion, PhaseLabel.transition, PhaseLabel.discovery];
-        return phases[content.hashCode % phases.length];
-      }
-    }
-
-    return bestPhase ?? PhaseLabel.discovery;
+    return decidedPhase;
   }
 
   String _generateSummary(String content) {

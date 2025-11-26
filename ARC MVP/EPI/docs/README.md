@@ -1,7 +1,7 @@
 # EPI Documentation
 
-**Last Updated:** November 23, 2025  
-**Version:** 2.1.36
+**Last Updated:** December 2025  
+**Version:** 2.1.38
 
 ---
 
@@ -68,11 +68,13 @@ Welcome to the EPI (Evolving Personal Intelligence) documentation. This director
 
 ## Version Information
 
-**Current Version:** 2.1.36  
-**Last Major Update:** November 23, 2025 (LUMARA Reflective Queries & Notification System)
+**Current Version:** 2.1.38  
+**Last Major Update:** December 2025 (Advanced Analytics View with Horizontal Tabs)
 
 ### Recent Highlights
 
+- ✅ **Advanced Analytics View**: New 4-part horizontal tab system accessible via Insights menu
+- ✅ **Medical Connections**: Health data integration with 30/60/90 day import options
 - ✅ **LUMARA Reflective Queries**: Three EPI-standard anti-harm queries for resilience, temporal reflection, and theme analysis
 - ✅ **Notification System Foundation**: Time Echo reminders and Active Window detection (backend ready)
 - ✅ **CreatedAt Preservation**: Original creation time never changes on updates, ensuring historical accuracy
