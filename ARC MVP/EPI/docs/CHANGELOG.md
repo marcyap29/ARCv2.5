@@ -48,6 +48,47 @@
 
 **Status**: ✅ Complete - Web access safety layer implemented, attribution displays improved
 
+### **Video Insertion Functionality Fixes** - Complete
+
+#### Video Player Integration
+- **video_player Dependency**: Added video_player package (v2.8.2) to support comprehensive video functionality
+  - Enables video duration extraction and in-app video playback
+  - Provides cross-platform video handling for iOS and Android
+  - Adds video timeline scrubbing and playback controls
+- **Video Duration Extraction**: Implemented automatic video duration metadata extraction
+  - Uses VideoPlayerController to initialize and read video duration
+  - Properly extracts duration during video processing workflow
+  - Includes error handling for corrupted or unsupported video files
+  - Duration data now properly stored in VideoAttachment objects
+
+#### Video Playback & Preview
+- **Full-Screen Video Player**: Added comprehensive video playback functionality
+  - Custom _VideoPlayerScreen widget with professional video controls
+  - Play/pause toggle with tap-to-control interface
+  - Video progress indicator with scrubbing capability
+  - Auto-play functionality when video loads
+  - Proper aspect ratio handling for all video formats
+- **Enhanced Media Preview Dialog**: Replaced placeholder TODO with working video playback
+  - Navigation to full-screen video player from media preview
+  - Loading states and error handling for failed video initialization
+  - Seamless integration with existing media preview workflow
+
+#### Technical Implementation
+- **VideoPlayerController Lifecycle**: Proper initialization and disposal of video controllers
+  - Prevents memory leaks through automatic controller cleanup
+  - Handles video loading failures gracefully with user feedback
+  - 3-second timeout protection for video initialization
+- **Import Integration**: Added video_player imports to journal_screen.dart and media_preview_dialog.dart
+  - Clean integration with existing MediaItem and VideoAttachment models
+  - Maintains backward compatibility with existing video storage system
+
+**Files Modified**:
+- `pubspec.yaml` - Added video_player: ^2.8.2 dependency
+- `lib/ui/journal/journal_screen.dart` - Video duration extraction implementation (line 5200)
+- `lib/arc/ui/media/media_preview_dialog.dart` - Video playback functionality (line 254)
+
+**Status**: ✅ Complete - Video insertion now works end-to-end with duration extraction and playback
+
 ---
 
 ## [2.1.39] - December 2025

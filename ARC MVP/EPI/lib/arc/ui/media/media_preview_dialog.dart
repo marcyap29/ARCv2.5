@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:video_player/video_player.dart';
+import 'dart:io';
 import 'package:my_app/data/models/media_item.dart';
 
 /// Full-screen dialog for previewing media items
@@ -251,7 +253,7 @@ class MediaPreviewDialog extends StatelessWidget {
               ),
               child: ElevatedButton(
                 onPressed: () {
-                  // TODO: Implement video playback
+                  _playVideo(context);
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.purple,
@@ -415,6 +417,15 @@ class MediaPreviewDialog extends StatelessWidget {
     return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
   }
   
+  void _playVideo(BuildContext context) {
+    // Navigate to a full-screen video player
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => _VideoPlayerScreen(videoPath: mediaItem.uri),
+      ),
+    );
+  }
+
   String _formatFileSize(int sizeBytes) {
     if (sizeBytes < 1024) {
       return '${sizeBytes}B';
@@ -423,5 +434,189 @@ class MediaPreviewDialog extends StatelessWidget {
     } else {
       return '${(sizeBytes / (1024 * 1024)).toStringAsFixed(1)}MB';
     }
+  }
+}
+
+/// Fullscreen video player widget
+class _VideoPlayerScreen extends StatefulWidget {
+  final String videoPath;
+
+  const _VideoPlayerScreen({required this.videoPath});
+
+  @override
+  State<_VideoPlayerScreen> createState() => _VideoPlayerScreenState();
+}
+
+class _VideoPlayerScreenState extends State<_VideoPlayerScreen> {
+  late VideoPlayerController _controller;
+  bool _isPlaying = false;
+  bool _isInitialized = false;
+  String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeVideo();
+  }
+
+  Future<void> _initializeVideo() async {
+    try {
+      // Create controller for local file
+      _controller = VideoPlayerController.file(File(widget.videoPath));
+
+      // Initialize the controller
+      await _controller.initialize();
+
+      setState(() {
+        _isInitialized = true;
+      });
+
+      // Auto-play the video
+      _controller.play();
+      setState(() {
+        _isPlaying = true;
+      });
+
+      // Listen for video completion
+      _controller.addListener(() {
+        if (_controller.value.position >= _controller.value.duration) {
+          setState(() {
+            _isPlaying = false;
+          });
+        }
+      });
+    } catch (e) {
+      setState(() {
+        _errorMessage = 'Failed to load video: $e';
+      });
+      print('Error initializing video: $e');
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _togglePlayPause() {
+    if (_controller.value.isPlaying) {
+      _controller.pause();
+      setState(() {
+        _isPlaying = false;
+      });
+    } else {
+      _controller.play();
+      setState(() {
+        _isPlaying = true;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        iconTheme: const IconThemeData(color: Colors.white),
+        title: const Text(
+          'Video Player',
+          style: TextStyle(color: Colors.white),
+        ),
+      ),
+      body: Center(
+        child: _errorMessage != null
+            ? Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(
+                    Icons.error_outline,
+                    color: Colors.red,
+                    size: 64,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    _errorMessage!,
+                    style: const TextStyle(color: Colors.white),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text('Close'),
+                  ),
+                ],
+              )
+            : !_isInitialized
+                ? const Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      CircularProgressIndicator(color: Colors.white),
+                      SizedBox(height: 16),
+                      Text(
+                        'Loading video...',
+                        style: TextStyle(color: Colors.white),
+                      ),
+                    ],
+                  )
+                : Stack(
+                    children: [
+                      // Video player
+                      Center(
+                        child: AspectRatio(
+                          aspectRatio: _controller.value.aspectRatio,
+                          child: VideoPlayer(_controller),
+                        ),
+                      ),
+                      // Play/pause overlay
+                      Positioned.fill(
+                        child: GestureDetector(
+                          onTap: _togglePlayPause,
+                          child: Container(
+                            color: Colors.transparent,
+                            child: Center(
+                              child: AnimatedOpacity(
+                                opacity: _isPlaying ? 0.0 : 1.0,
+                                duration: const Duration(milliseconds: 300),
+                                child: Container(
+                                  decoration: const BoxDecoration(
+                                    color: Colors.black54,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  padding: const EdgeInsets.all(20),
+                                  child: Icon(
+                                    _isPlaying ? Icons.pause : Icons.play_arrow,
+                                    color: Colors.white,
+                                    size: 48,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      // Video progress indicator
+                      Positioned(
+                        bottom: 20,
+                        left: 20,
+                        right: 20,
+                        child: _isInitialized
+                            ? VideoProgressIndicator(
+                                _controller,
+                                allowScrubbing: true,
+                                colors: const VideoProgressColors(
+                                  playedColor: Colors.red,
+                                  bufferedColor: Colors.grey,
+                                  backgroundColor: Colors.white30,
+                                ),
+                              )
+                            : const SizedBox.shrink(),
+                      ),
+                    ],
+                  ),
+      ),
+    );
   }
 }

@@ -3,8 +3,10 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:video_player/video_player.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
@@ -35,6 +37,7 @@ import '../../arc/core/widgets/keyword_analysis_view.dart';
 import 'package:my_app/arc/ui/timeline/timeline_cubit.dart';
 import 'package:my_app/core/services/draft_cache_service.dart';
 import 'package:my_app/core/services/photo_library_service.dart';
+import 'package:my_app/aurora/services/circadian_profile_service.dart';
 import 'package:my_app/data/models/media_item.dart';
 import 'media_conversion_utils.dart';
 import 'package:my_app/mira/store/mcp/orchestrator/ios_vision_orchestrator.dart';
@@ -46,8 +49,7 @@ import '../../ui/widgets/location_picker_dialog.dart';
 import 'drafts_screen.dart';
 import 'package:my_app/models/journal_entry_model.dart';
 import 'package:my_app/arc/chat/chat/chat_repo_impl.dart';
-import 'package:my_app/arc/chat/chat/chat_models.dart';
-import 'package:my_app/aurora/services/circadian_profile_service.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:my_app/arc/chat/services/lumara_reflection_settings_service.dart';
 import 'package:my_app/mira/memory/enhanced_mira_memory_service.dart';
@@ -2743,33 +2745,43 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
         child: Stack(
           fit: StackFit.expand,
           children: [
-            // Video thumbnail placeholder or icon
-            Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    fileExists ? Icons.play_circle_outline : Icons.error_outline,
-                    size: 40,
-                    color: fileExists 
-                        ? theme.colorScheme.primary 
-                        : theme.colorScheme.error,
-                  ),
-                  if (!fileExists)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 4),
-                      child: Text(
-                        'Missing',
-                        style: TextStyle(
-                          fontSize: 8,
-                          color: theme.colorScheme.error,
-                          fontWeight: FontWeight.bold,
+            // Try to show video thumbnail if available
+            if (fileExists && video.thumbnailPath != null && File(video.thumbnailPath!).existsSync())
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: Image.file(
+                  File(video.thumbnailPath!),
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) {
+                    return _buildVideoThumbnailPlaceholder(theme, fileExists);
+                  },
+                ),
+              )
+            else if (fileExists)
+              // Try to load thumbnail from photo library if it's a photo library video
+              FutureBuilder<String?>(
+                future: _getVideoThumbnailPath(video.videoPath),
+                builder: (context, snapshot) {
+                  if (snapshot.hasData && snapshot.data != null) {
+                    final thumbPath = snapshot.data!;
+                    if (File(thumbPath).existsSync()) {
+                      return ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Image.file(
+                          File(thumbPath),
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) {
+                            return _buildVideoThumbnailPlaceholder(theme, fileExists);
+                          },
                         ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
+                      );
+                    }
+                  }
+                  return _buildVideoThumbnailPlaceholder(theme, fileExists);
+                },
+              )
+            else
+              _buildVideoThumbnailPlaceholder(theme, fileExists),
             // Duration overlay if available
             if (video.duration != null)
               Positioned(
@@ -2829,15 +2841,216 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     }
   }
 
-  /// Play video
-  void _playVideo(String videoPath) {
-    // TODO: Implement video player - can use video_player package
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Playing video: ${videoPath.split('/').last}'),
-        duration: const Duration(seconds: 2),
+  /// Play video using native iOS Photos framework or fallback methods
+  Future<void> _playVideo(String videoPath) async {
+    try {
+      print('DEBUG: Attempting to play video: $videoPath');
+      
+      // Check if file exists
+      final videoFile = File(videoPath);
+      if (!await videoFile.exists()) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Video file not found: ${videoPath.split('/').last}'),
+              backgroundColor: Theme.of(context).colorScheme.error,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
+        return;
+      }
+
+      // Try native iOS Photos framework first, then fallback methods
+      final success = await _tryOpenSpecificVideo(videoPath);
+      
+      if (!success && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Could not open video player. Please try opening the file manually.'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    } catch (e) {
+      print('ERROR: Failed to play video: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to play video: ${e.toString()}'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    }
+  }
+
+  /// Try to open a specific video using native iOS Photos framework or fallback methods
+  Future<bool> _tryOpenSpecificVideo(String videoPath) async {
+    try {
+      final file = File(videoPath);
+      if (!await file.exists()) {
+        print('DEBUG: Video file does not exist: $videoPath');
+        return false;
+      }
+
+      // Method 1: Try to use native iOS Photos framework to find and open the specific video
+      if (Platform.isIOS) {
+        try {
+          const platform = MethodChannel('com.epi.arcmvp/photos');
+          // Use timeout and comprehensive error handling to prevent crashes
+          final result = await platform.invokeMethod(
+            'getVideoIdentifierAndOpen', 
+            videoPath,
+          ).timeout(
+            const Duration(seconds: 3),
+            onTimeout: () {
+              print('DEBUG: MethodChannel timeout - method may not exist or is slow');
+              return false;
+            },
+          ).catchError((e, stackTrace) {
+            print('DEBUG: MethodChannel invokeMethod failed (non-fatal): $e');
+            print('DEBUG: Stack trace: $stackTrace');
+            return false; // Return false instead of throwing to prevent crash
+          });
+          
+          if (result == true) {
+            print('DEBUG: Successfully opened video using native iOS Photos framework');
+            return true;
+          }
+        } catch (e, stackTrace) {
+          print('DEBUG: Native iOS Photos method failed (non-fatal): $e');
+          print('DEBUG: Stack trace: $stackTrace');
+          // Don't rethrow - continue to fallback methods to prevent crash
+        }
+      }
+
+      // Method 2: Try to extract video identifier from path and use photos:// scheme
+      final fileName = videoPath.split('/').last;
+      final videoId = _extractPhotoIdFromFileName(fileName);
+
+      if (videoId != null) {
+        final photosUri = Uri.parse('photos://$videoId');
+        if (await canLaunchUrl(photosUri)) {
+          await launchUrl(photosUri, mode: LaunchMode.externalApplication);
+          print('DEBUG: Opened video using photos:// scheme');
+          return true;
+        }
+      }
+
+      // Method 3: Try to open with file:// scheme
+      final fileUri = Uri.file(videoPath);
+      if (await canLaunchUrl(fileUri)) {
+        await launchUrl(fileUri, mode: LaunchMode.externalApplication);
+        print('DEBUG: Opened video using file:// scheme');
+        return true;
+      }
+
+      // Method 4: Try to use the Photos app with a search query
+      final searchUri = Uri.parse(
+          'photos-redirect://search?query=${Uri.encodeComponent(fileName)}');
+      if (await canLaunchUrl(searchUri)) {
+        await launchUrl(searchUri, mode: LaunchMode.externalApplication);
+        print('DEBUG: Opened video using photos-redirect:// scheme');
+        return true;
+      }
+
+      return false;
+    } catch (e) {
+      print('ERROR: Error trying to open specific video: $e');
+      return false;
+    }
+  }
+
+  /// Build video thumbnail placeholder (icon)
+  Widget _buildVideoThumbnailPlaceholder(ThemeData theme, bool fileExists) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            fileExists ? Icons.play_circle_outline : Icons.error_outline,
+            size: 40,
+            color: fileExists 
+                ? theme.colorScheme.primary 
+                : theme.colorScheme.error,
+          ),
+          if (!fileExists)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                'Missing',
+                style: TextStyle(
+                  fontSize: 8,
+                  color: theme.colorScheme.error,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+        ],
       ),
     );
+  }
+
+  /// Try to get video thumbnail path from photo library or generate one
+  Future<String?> _getVideoThumbnailPath(String videoPath) async {
+    try {
+      // For now, videos from image_picker are temporary files, not photo library references
+      // So we can't use PhotoLibraryService.getPhotoThumbnail for them
+      // TODO: Generate video thumbnails when video is first selected using video_player or platform channels
+      
+      // Check if this is a photo library video (starts with ph://)
+      if (videoPath.startsWith('ph://')) {
+        // Try to get thumbnail using PhotoLibraryService
+        final thumbnailPath = await PhotoLibraryService.getPhotoThumbnail(
+          videoPath,
+          size: 200,
+        );
+        if (thumbnailPath != null && File(thumbnailPath).existsSync()) {
+          return thumbnailPath;
+        }
+      }
+      
+      // For temporary video files from image_picker, we'd need to generate thumbnails
+      // This is not yet implemented - will show placeholder for now
+      return null;
+    } catch (e) {
+      print('DEBUG: Error getting video thumbnail: $e');
+      return null;
+    }
+  }
+
+  /// Extract photo/video identifier from filename (for photos:// scheme)
+  String? _extractPhotoIdFromFileName(String fileName) {
+    // Try to extract identifier from filename patterns like:
+    // image_picker_45FE5AF3-DE4A-43B8-A7A0-E3219BFC36D8-19957-000003EB1F39CDE7IMG_5364.mov
+    // Look for UUID-like patterns or photo identifiers
+    try {
+      // Pattern 1: Extract UUID from image_picker filenames
+      final uuidPattern = RegExp(r'([A-F0-9]{8}-[A-F0-9]{4}-[A-F0-9]{4}-[A-F0-9]{4}-[A-F0-9]{12})');
+      final uuidMatch = uuidPattern.firstMatch(fileName);
+      if (uuidMatch != null) {
+        return uuidMatch.group(1);
+      }
+
+      // Pattern 2: Extract from IMG_ or VID_ patterns
+      final imgPattern = RegExp(r'(IMG|VID)_([A-Z0-9]+)');
+      final imgMatch = imgPattern.firstMatch(fileName);
+      if (imgMatch != null) {
+        return imgMatch.group(2);
+      }
+
+      // Pattern 3: Try to use the filename without extension as identifier
+      final nameWithoutExt = fileName.split('.').first;
+      if (nameWithoutExt.isNotEmpty) {
+        return nameWithoutExt;
+      }
+    } catch (e) {
+      print('DEBUG: Error extracting photo ID from filename: $e');
+    }
+    return null;
   }
 
   /// Show context menu for a video (long-press)
@@ -4983,9 +5196,24 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
         sizeBytes = await videoFile.length();
         print('DEBUG: Video file exists, size: $sizeBytes bytes');
         
-        // Try to get video duration using video_player package if available
-        // For now, we'll leave it null and it can be populated later
-        // TODO: Extract video duration using video_player or similar package
+        // Extract video duration using video_player package
+        try {
+          final videoController = VideoPlayerController.file(videoFile);
+          await videoController.initialize();
+
+          if (videoController.value.isInitialized) {
+            duration = videoController.value.duration;
+            print('DEBUG: Video duration extracted: $duration');
+          } else {
+            print('WARNING: VideoPlayer failed to initialize for: $videoPath');
+          }
+
+          // Clean up the controller
+          await videoController.dispose();
+        } catch (e) {
+          print('WARNING: Failed to extract video duration: $e');
+          // Duration remains null, which is acceptable for fallback behavior
+        }
       } else {
         print('WARNING: Video file does not exist at path: $videoPath');
         ScaffoldMessenger.of(context).showSnackBar(
