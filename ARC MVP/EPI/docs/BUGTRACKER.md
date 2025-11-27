@@ -1,7 +1,45 @@
 # EPI MVP - Bug Tracker
 
-**Version:** 2.1.39
-**Last Updated:** December 2025
+**Version:** 2.1.40
+**Last Updated:** January 2025
+
+## Resolved Issues (v2.1.40)
+
+### Video Insertion Duration Extraction Missing
+- **Issue**: Video insertion workflow was incomplete - videos could be selected but duration metadata was not extracted, leading to videos showing no duration in UI
+- **Root Cause**: TODO placeholder in `journal_screen.dart:5200` where video duration extraction should occur using video_player package
+- **Resolution**:
+  1. Added `video_player: ^2.8.2` dependency to pubspec.yaml
+  2. Implemented complete video duration extraction using VideoPlayerController
+  3. Added proper initialization, extraction, and cleanup of video controllers
+  4. Included error handling for corrupted or unsupported video files
+  5. Duration now properly stored in VideoAttachment objects and displayed in UI
+- **Impact**: Video insertion now works end-to-end with accurate duration metadata extraction and display
+- **Status**: ✅ Fixed
+
+### Video Playback Not Implemented
+- **Issue**: Media preview dialog showed "TODO: Implement video playback" placeholder instead of functional video playback
+- **Root Cause**: Video playback functionality was never implemented in media_preview_dialog.dart
+- **Resolution**:
+  1. Created comprehensive _VideoPlayerScreen widget with professional video controls
+  2. Implemented full-screen video player with play/pause toggle and progress scrubbing
+  3. Added auto-play functionality and proper aspect ratio handling
+  4. Included loading states and error handling for failed video initialization
+  5. Added navigation from media preview to full-screen video player
+- **Impact**: Users can now preview and play videos with professional playback controls
+- **Status**: ✅ Fixed
+
+### Export All Entries Bug
+- **Issue**: After exporting a filtered subset of entries, switching back to "Export All Entries" would still export only the same filtered subset instead of all entries
+- **Root Cause**: Export state variables (_dateRangeSelection, _customStartDate, _customEndDate) were never reset, causing filters to persist across export attempts
+- **Resolution**:
+  1. Added _resetExportState() method to clear all filter settings to defaults
+  2. Called state reset in initState() for clean screen initialization
+  3. Added dispose() method to clean up state when leaving screen
+  4. Enhanced multi-select toggle to reset ALL filters, not just selected entry IDs
+  5. Reset state after successful export completion in both ARCX and ZIP dialogs
+- **Impact**: "Export All Entries" now properly exports all entries regardless of previous filtered exports
+- **Status**: ✅ Fixed
 
 ## Resolved Issues (v2.1.39)
 

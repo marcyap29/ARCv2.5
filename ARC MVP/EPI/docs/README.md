@@ -68,11 +68,13 @@ Welcome to the EPI (Evolving Personal Intelligence) documentation. This director
 
 ## Version Information
 
-**Current Version:** 2.1.39  
-**Last Major Update:** December 2025 (Video Playback Fixes & Advanced Analytics Updates)
+**Current Version:** 2.1.40
+**Last Major Update:** January 2025 (Video Insertion Functionality & Export Bug Fixes)
 
 ### Recent Highlights
 
+- 🆕 **Video Insertion Functionality**: Complete end-to-end video insertion with duration extraction and playback
+- 🆕 **Export Bug Fix**: Resolved issue where "export all entries" would export filtered subsets instead of all entries
 - ✅ **Video Playback Fixes**: Crash prevention and thumbnail support for video attachments
 - ✅ **Advanced Analytics Updates**: Medical tab added, toggle removed from Settings
 - ✅ **Advanced Analytics View**: 5-part horizontal tab system (Patterns, AURORA, VEIL, SENTINEL, Medical)

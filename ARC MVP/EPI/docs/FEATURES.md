@@ -48,7 +48,12 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 - **Photo Capture**: Camera integration with OCR
 - **Photo Selection**: Gallery access with thumbnails
 - **Voice Recording**: Audio capture with transcription
-- **Video Capture**: Video recording and analysis
+- **Video Capture & Playback**: Complete video functionality with:
+  - Video selection from gallery with automatic duration extraction
+  - Full-screen video player with play/pause controls and progress scrubbing
+  - Video preview in media attachment dialog with professional playback interface
+  - Auto-play functionality and proper aspect ratio handling
+  - Error handling for corrupted or unsupported video files
 - **Location Tagging**: Automatic and manual location
 
 **Entry Management**
@@ -404,6 +409,7 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
   - Deduplication support within packs
   - Available for both ARCX and ZIP export formats
 - **Date Range Filtering**: Export entries, chats, and media within custom date ranges
+- **Robust State Management**: Proper state reset ensures "Export All Entries" works correctly after filtered exports
 - **Extended Data**: All extended data exported to `extensions/` directory in ZIP format
 - **Privacy Protection**: PII detection and flagging
 - **Deterministic Exports**: Same input = same output
