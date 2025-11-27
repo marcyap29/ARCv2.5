@@ -1,7 +1,7 @@
 # EPI Documentation
 
 **Last Updated:** December 2025  
-**Version:** 2.1.38
+**Version:** 2.1.39
 
 ---
 
@@ -68,13 +68,15 @@ Welcome to the EPI (Evolving Personal Intelligence) documentation. This director
 
 ## Version Information
 
-**Current Version:** 2.1.38  
-**Last Major Update:** December 2025 (Advanced Analytics View with Horizontal Tabs)
+**Current Version:** 2.1.39  
+**Last Major Update:** December 2025 (Video Playback Fixes & Advanced Analytics Updates)
 
 ### Recent Highlights
 
-- ✅ **Advanced Analytics View**: New 4-part horizontal tab system accessible via Insights menu
-- ✅ **Medical Connections**: Health data integration with 30/60/90 day import options
+- ✅ **Video Playback Fixes**: Crash prevention and thumbnail support for video attachments
+- ✅ **Advanced Analytics Updates**: Medical tab added, toggle removed from Settings
+- ✅ **Advanced Analytics View**: 5-part horizontal tab system (Patterns, AURORA, VEIL, SENTINEL, Medical)
+- ✅ **Medical Tracking**: Full health data integration with Overview, Details, and Medications
 - ✅ **LUMARA Reflective Queries**: Three EPI-standard anti-harm queries for resilience, temporal reflection, and theme analysis
 - ✅ **Notification System Foundation**: Time Echo reminders and Active Window detection (backend ready)
 - ✅ **CreatedAt Preservation**: Original creation time never changes on updates, ensuring historical accuracy

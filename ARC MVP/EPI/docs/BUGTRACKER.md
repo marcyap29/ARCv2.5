@@ -1,7 +1,32 @@
 # EPI MVP - Bug Tracker
 
-**Version:** 2.1.38
+**Version:** 2.1.39
 **Last Updated:** December 2025
+
+## Resolved Issues (v2.1.39)
+
+### Video Playback Crashes
+- **Issue**: App crashed when attempting to play videos, making video attachments unusable
+- **Root Cause**: MethodChannel calls to native iOS Photos framework were not properly error-handled, causing crashes when methods didn't exist or timed out
+- **Resolution**:
+  1. Added 3-second timeout to MethodChannel calls to prevent hanging
+  2. Added comprehensive `.catchError()` handlers to gracefully handle method failures
+  3. Improved error logging with stack traces for debugging
+  4. All errors are now caught and handled without crashing the app
+  5. Multiple fallback methods (photos://, file://, photos-redirect://) ensure video can still be opened
+- **Impact**: Videos can now be played without crashing the app, with graceful fallback to system video player
+- **Status**: ✅ Fixed
+
+### Video Thumbnails Not Displaying
+- **Issue**: Video thumbnails were not showing up, only placeholder icons displayed
+- **Root Cause**: No thumbnail generation or loading logic implemented for video attachments
+- **Resolution**:
+  1. Added support for displaying thumbnails from `thumbnailPath` if available
+  2. Added attempt to load thumbnails from PhotoLibraryService for photo library videos
+  3. Created reusable `_buildVideoThumbnailPlaceholder` method for consistent fallback
+  4. FutureBuilder implementation for async thumbnail loading
+- **Impact**: Video thumbnails now display when available, with graceful fallback to placeholder
+- **Status**: ✅ Fixed (Note: Thumbnail generation for temporary video files from image_picker not yet implemented)
 
 ## Resolved Issues (v2.1.37)
 

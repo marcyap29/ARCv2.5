@@ -298,11 +298,11 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 ### Insights
 
 **Unified Insights View**
-- **Dynamic Tab Layout**: 2 tabs (Phase, Settings) when Advanced Analytics OFF, 4 tabs (Phase, Health, Analytics, Settings) when ON
-- **Adaptive Sizing**: Larger icons (24px) and font (17px) when 2 tabs, smaller (16px icons, 13px font) when 4 tabs
+- **Simplified Tab Layout**: 2 tabs (Phase, Settings) for clean interface
+- **Advanced Analytics Access**: Available via 3-dot menu (⋮) → Advanced Analytics
+- **No Toggle Required**: Advanced Analytics always accessible (toggle removed from Settings)
+- **Adaptive Sizing**: Larger icons (24px) and font (17px) for 2-tab layout
 - **Automatic Centering**: TabBar automatically centers 2-tab layout
-- **Advanced Analytics Toggle**: Settings control to show/hide Health and Analytics tabs
-- **Sentinel Integration**: Sentinel moved to Analytics page as expandable card
 
 **Pattern Analysis**
 - Keyword patterns over time
@@ -324,13 +324,15 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 
 **Advanced Analytics View**
 - **Access**: Insights → 3-dot menu (⋮) → Advanced Analytics
-- **4-Part Horizontal Tabs**: Horizontally scrollable tabs for easy navigation
-  - **Patterns**: Your Patterns visualization + Medical Connections (30/60/90 day health data import)
+- **5-Part Horizontal Tabs**: Horizontally scrollable tabs for easy navigation
+  - **Patterns**: Your Patterns visualization (wordCloud, network, timeline, radial views)
   - **AURORA**: Circadian Intelligence insights
   - **VEIL**: AI Prompt Intelligence + Policy settings
   - **SENTINEL**: Emotional risk detection and pattern analysis
+  - **Medical**: Health data tracking with Overview, Details, and Medications (30/60/90 day import)
 - **Swipe Navigation**: Smooth swiping between analytics sections
 - **Visual Design**: Selected tab highlighted, intuitive interface
+- **No Toggle Required**: Advanced Analytics always accessible via menu (toggle removed from Settings)
 
 ---
 

@@ -1,7 +1,42 @@
 # EPI ARC MVP - Changelog
 
-**Version:** 2.1.38
+**Version:** 2.1.39
 **Last Updated:** December 2025
+
+## [2.1.39] - December 2025
+
+### **Video Playback Fixes & Advanced Analytics Updates** - Complete
+
+#### Video Playback Improvements
+- **Crash Prevention**: Fixed app crashes when playing videos by adding comprehensive error handling
+  - Added 3-second timeout to MethodChannel calls to prevent hanging
+  - Added `.catchError()` handlers to gracefully handle method failures
+  - Improved error logging with stack traces for debugging
+  - All errors are caught and handled without crashing the app
+- **Video Thumbnail Support**: Added video thumbnail display functionality
+  - Displays thumbnails from `thumbnailPath` if available
+  - Attempts to load thumbnails from PhotoLibraryService for photo library videos
+  - Falls back to placeholder icon if thumbnail isn't available
+  - Extracted placeholder into reusable method
+
+#### Advanced Analytics Updates
+- **Removed Advanced Analytics Toggle**: Removed toggle from Settings (no longer needed)
+- **Added Medical Tab**: Medical tracking now integrated as 5th tab in Advanced Analytics
+  - Medical tab shows full HealthView with Overview, Details, and Medications
+  - Includes 30/60/90 day health data import options
+  - Removed Medical Connections card from Patterns tab (now in dedicated Medical tab)
+- **5-Part Horizontal Tab System**: Updated from 4 to 5 tabs
+  - Patterns, AURORA, VEIL, SENTINEL, Medical
+  - All tabs accessible via horizontal scrolling
+
+**Files Modified**:
+- `lib/ui/journal/journal_screen.dart` - Video playback error handling and thumbnail support
+- `lib/ui/phase/advanced_analytics_view.dart` - Added Medical tab, removed unused code
+- `lib/shared/ui/settings/settings_view.dart` - Removed Advanced Analytics toggle (already removed)
+
+**Status**: ✅ Complete - Video playback stable, Advanced Analytics includes Medical tracking
+
+---
 
 ## [2.1.38] - December 2025
 
@@ -9,7 +44,7 @@
 
 #### New Feature
 - **Advanced Analytics Access**: New "Advanced Analytics" option in Insights 3-dot menu (⋮)
-- **4-Part Horizontal Tab System**: Horizontally scrollable tabs for Patterns, AURORA, VEIL, and SENTINEL
+- **5-Part Horizontal Tab System**: Horizontally scrollable tabs for Patterns, AURORA, VEIL, SENTINEL, and Medical
 - **Swipe Navigation**: PageView enables smooth swiping between analytics sections
 - **Tab Selection Sync**: Tab selection and page navigation are synchronized
 - **Visual Design**: Selected tab highlighted with accent color, unselected tabs use surface color
@@ -17,10 +52,10 @@
 #### Tab Content
 - **Patterns Tab**: 
   - Your Patterns visualization card (navigates to YourPatternsView with 4 views: wordCloud, network, timeline, radial)
-  - Medical Connections card (navigates to HealthSettingsDialog with 30/60/90 day import options)
 - **AURORA Tab**: Circadian Intelligence card
 - **VEIL Tab**: AI Prompt Intelligence card + VEIL Policy card
 - **SENTINEL Tab**: Emotional risk detection and pattern analysis
+- **Medical Tab**: Health data tracking with Overview, Details, and Medications (30/60/90 day import)
 
 #### User Experience
 - **Accessible Navigation**: Easy access via Insights → 3-dot menu → Advanced Analytics
@@ -33,7 +68,7 @@
 **Files Modified**:
 - `lib/ui/phase/phase_analysis_view.dart` - Added "Advanced Analytics" menu item to 3-dot menu
 
-**Status**: ✅ Complete - Advanced Analytics accessible via Insights menu with 4-part horizontal tab system
+**Status**: ✅ Complete - Advanced Analytics accessible via Insights menu with 5-part horizontal tab system
 
 ---
 
