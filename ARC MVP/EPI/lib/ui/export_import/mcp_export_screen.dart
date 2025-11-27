@@ -68,7 +68,27 @@ class _McpExportScreenState extends State<McpExportScreen> {
     if (widget.initialFormat != null) {
       _exportFormat = widget.initialFormat!;
     }
+    // Reset export state to ensure clean initialization
+    _resetExportState();
     _loadJournalStats();
+  }
+
+  @override
+  void dispose() {
+    // Clean up state when leaving the screen
+    _resetExportState();
+    super.dispose();
+  }
+
+  /// Resets all export state to default values
+  void _resetExportState() {
+    _useMultiSelect = false;
+    _selectedEntryIds.clear();
+    _dateRangeSelection = 'all';
+    _customStartDate = null;
+    _customEndDate = null;
+    _usePasswordEncryption = false;
+    _exportPassword = null;
   }
 
   Future<void> _loadJournalStats() async {
@@ -467,6 +487,9 @@ class _McpExportScreenState extends State<McpExportScreen> {
               actions: [
                 TextButton(
                   onPressed: () {
+                    // Reset export state after successful export
+                    _resetExportState();
+                    setState(() {});
                     Navigator.of(context).pop(); // Close success dialog
                     Navigator.of(context).pop(); // Navigate back to MCP Management screen
                   },
@@ -619,7 +642,12 @@ class _McpExportScreenState extends State<McpExportScreen> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(context).pop(),
+            onPressed: () {
+              // Reset export state after successful export
+              _resetExportState();
+              setState(() {});
+              Navigator.of(context).pop();
+            },
             child: const Text('OK'),
           ),
           if (result.arcxPath != null)
@@ -945,7 +973,8 @@ class _McpExportScreenState extends State<McpExportScreen> {
                 setState(() {
                   _useMultiSelect = value;
                   if (!value) {
-                    _selectedEntryIds.clear(); // Clear selection when disabled
+                    // Reset all export state when disabling multi-select
+                    _resetExportState();
                   }
                 });
               },
