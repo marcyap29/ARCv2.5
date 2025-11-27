@@ -1597,7 +1597,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
               tooltip: 'Cancel selection',
             ),
           ] else ...[
-            // Always show delete option when in selection mode but no photos selected yet
+            // Prompt for selection when mode active but nothing selected
             if (_isPhotoSelectionMode && _selectedPhotoIndices.isEmpty) ...[
               Text(
                 'Tap photos to select',
@@ -1616,6 +1616,39 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
           ],
         ],
       ),
+    );
+  }
+
+  /// Combined photo selection toggle + gallery grid displayed near the top of the entry
+  Widget _buildPhotoGallerySection(ThemeData theme) {
+    final photoAttachments = _entryState.attachments
+        .whereType<PhotoAttachment>()
+        .toList();
+
+    if (photoAttachments.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    // Preserve user ordering or fallback to timestamp ordering
+    photoAttachments.sort((a, b) {
+      if (a.insertionPosition != null && b.insertionPosition != null) {
+        return a.insertionPosition!.compareTo(b.insertionPosition!);
+      } else if (a.insertionPosition != null) {
+        return -1;
+      } else if (b.insertionPosition != null) {
+        return 1;
+      } else {
+        return a.timestamp.compareTo(b.timestamp);
+      }
+    });
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _buildPhotoSelectionControls(),
+        const SizedBox(height: 12),
+        _buildPhotoThumbnailGrid(photoAttachments, theme),
+      ],
     );
   }
 
@@ -1786,12 +1819,6 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        // Photo/video selection controls (show at top when there are photos or videos)
-                        if (_entryState.attachments.any((attachment) => attachment is PhotoAttachment || attachment is VideoAttachment)) ...[
-                          _buildPhotoSelectionControls(),
-                          const SizedBox(height: 16),
-                        ],
-
                         // Entry title - always show field for new and existing entries
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -1823,6 +1850,11 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
                           _buildMetadataEditingSection(theme),
                           const SizedBox(height: 16),
                         ],
+
+                        // Photo gallery + selection (displayed near top, before main text)
+                        _buildPhotoGallerySection(theme),
+                        if (_entryState.attachments.whereType<PhotoAttachment>().isNotEmpty)
+                          const SizedBox(height: 16),
 
                         // Always show the TextField (handles view-only vs edit mode internally)
                         _buildAITextField(theme),
@@ -2471,11 +2503,6 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
   List<Widget> _buildInterleavedContent(ThemeData theme) {
     final widgets = <Widget>[];
 
-    // Get all photo attachments - show all photos when loading existing entries
-    final photoAttachments = _entryState.attachments
-        .whereType<PhotoAttachment>()
-        .toList();
-
     // Get all video attachments
     final videoAttachments = _entryState.attachments
         .whereType<VideoAttachment>()
@@ -2490,20 +2517,6 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
       }
     }
 
-    // Sort photos by insertion position if available, otherwise by timestamp
-    photoAttachments.sort((a, b) {
-      if (a.insertionPosition != null && b.insertionPosition != null) {
-        return a.insertionPosition!.compareTo(b.insertionPosition!);
-      } else if (a.insertionPosition != null) {
-        return -1; // a has position, b doesn't - a comes first
-      } else if (b.insertionPosition != null) {
-        return 1; // b has position, a doesn't - b comes first
-      } else {
-        // Neither has position, sort by timestamp
-        return a.timestamp.compareTo(b.timestamp);
-      }
-    });
-
     // Sort videos by insertion position if available, otherwise by timestamp
     videoAttachments.sort((a, b) {
       if (a.insertionPosition != null && b.insertionPosition != null) {
@@ -2516,12 +2529,6 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
         return a.timestamp.compareTo(b.timestamp);
       }
     });
-
-    // Show photos as a clean grid of thumbnails
-    if (photoAttachments.isNotEmpty) {
-      widgets.add(_buildPhotoThumbnailGrid(photoAttachments, theme));
-      widgets.add(const SizedBox(height: 16));
-    }
 
     // Show videos as a grid
     if (videoAttachments.isNotEmpty) {
@@ -3950,7 +3957,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
   /// Build content view with inline thumbnails for view-only mode
   Widget _buildContentView(ThemeData theme) {
     // In view-only mode, just show the text content
-    // Photos are displayed separately via _buildInterleavedContent -> _buildPhotoThumbnailGrid
+    // Photos are displayed separately via _buildPhotoGallerySection -> _buildPhotoThumbnailGrid
     return Container(
       padding: const EdgeInsets.all(16),
       child: Column(

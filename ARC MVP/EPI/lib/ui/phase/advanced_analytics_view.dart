@@ -9,7 +9,7 @@ import 'package:my_app/ui/veil/veil_policy_card.dart';
 import 'package:my_app/ui/phase/sentinel_analysis_view.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
-import 'package:my_app/arc/ui/health/health_settings_dialog.dart';
+import 'package:my_app/arc/ui/health/health_view.dart';
 import 'dart:math' as math;
 
 class AdvancedAnalyticsView extends StatefulWidget {
@@ -43,6 +43,11 @@ class _AdvancedAnalyticsViewState extends State<AdvancedAnalyticsView> {
       title: 'SENTINEL',
       icon: Icons.shield,
       subtitle: 'Emotional risk detection',
+    ),
+    _AnalyticsTab(
+      title: 'Medical',
+      icon: Icons.medical_services,
+      subtitle: 'Health data tracking',
     ),
   ];
 
@@ -140,6 +145,7 @@ class _AdvancedAnalyticsViewState extends State<AdvancedAnalyticsView> {
                 _buildAuroraTab(),
                 _buildVeilTab(),
                 _buildSentinelTab(),
+                _buildMedicalTab(),
               ],
             ),
           ),
@@ -155,8 +161,7 @@ class _AdvancedAnalyticsViewState extends State<AdvancedAnalyticsView> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildMiraGraphCard(context),
-          const SizedBox(height: 16),
-          _buildMedicalConnectionsCard(context),
+          // Medical Connections removed - now in dedicated Medical tab
         ],
       ),
     );
@@ -249,92 +254,6 @@ class _AdvancedAnalyticsViewState extends State<AdvancedAnalyticsView> {
     );
   }
 
-  Widget _buildMedicalConnectionsCard(BuildContext context) {
-    return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => const HealthSettingsDialog(),
-          ),
-        );
-      },
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: kcSurfaceAltColor,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: kcBorderColor,
-          ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.medical_services, color: kcAccentColor, size: 24),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Medical Connections',
-                        style: heading2Style(context).copyWith(fontSize: 18),
-                      ),
-                      Text(
-                        'Link health data with journal entries',
-                        style: bodyStyle(context).copyWith(
-                          fontSize: 11,
-                          color: kcPrimaryTextColor.withOpacity(0.6),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Icon(
-                  Icons.arrow_forward_ios,
-                  size: 16,
-                  color: kcPrimaryTextColor.withOpacity(0.6),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: kcSurfaceColor,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'How it works',
-                    style: bodyStyle(context).copyWith(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: kcPrimaryTextColor.withOpacity(0.9),
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'Connect medications, health metrics, and wellness data from Apple Health with your journal entries. See correlations between health events and your emotional patterns.',
-                    style: bodyStyle(context).copyWith(
-                      fontSize: 11,
-                      color: kcPrimaryTextColor.withOpacity(0.7),
-                      height: 1.3,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
   Widget _buildMiniRadialIcon() {
     return Container(
@@ -386,6 +305,10 @@ class _AdvancedAnalyticsViewState extends State<AdvancedAnalyticsView> {
         ],
       ),
     );
+  }
+
+  Widget _buildMedicalTab() {
+    return const HealthView();
   }
 }
 

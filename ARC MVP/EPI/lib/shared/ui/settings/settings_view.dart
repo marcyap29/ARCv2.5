@@ -13,7 +13,6 @@ import 'package:my_app/shared/ui/settings/conflict_management_view.dart';
 import 'package:my_app/shared/ui/settings/lumara_settings_view.dart';
 import 'package:my_app/shared/ui/settings/arcx_settings_view.dart';
 import 'package:my_app/shared/ui/settings/favorites_management_view.dart';
-import 'package:my_app/shared/ui/settings/advanced_analytics_preference_service.dart';
 import 'package:my_app/shared/ui/settings/voiceover_preference_service.dart';
 import 'package:my_app/ui/screens/mcp_management_screen.dart';
 import 'package:my_app/arc/core/journal_repository.dart';
@@ -32,8 +31,6 @@ class _SettingsViewState extends State<SettingsView> {
   int _savedChatsCount = 0;
   int _favoriteEntriesCount = 0;
   bool _favoritesCountLoaded = false;
-  bool _advancedAnalyticsEnabled = false;
-  bool _advancedAnalyticsLoading = true;
   bool _voiceoverEnabled = false;
   bool _voiceoverLoading = true;
 
@@ -41,7 +38,6 @@ class _SettingsViewState extends State<SettingsView> {
   void initState() {
     super.initState();
     _loadFavoritesCount();
-    _loadAdvancedAnalyticsPreference();
     _loadVoiceoverPreference();
   }
 
@@ -69,24 +65,6 @@ class _SettingsViewState extends State<SettingsView> {
     }
   }
 
-  Future<void> _loadAdvancedAnalyticsPreference() async {
-    try {
-      final enabled = await AdvancedAnalyticsPreferenceService.instance.isAdvancedAnalyticsEnabled();
-      if (mounted) {
-        setState(() {
-          _advancedAnalyticsEnabled = enabled;
-          _advancedAnalyticsLoading = false;
-        });
-      }
-    } catch (e) {
-      print('Error loading advanced analytics preference: $e');
-      if (mounted) {
-        setState(() {
-          _advancedAnalyticsLoading = false;
-        });
-      }
-    }
-  }
 
   Future<void> _loadVoiceoverPreference() async {
     try {
@@ -138,38 +116,6 @@ class _SettingsViewState extends State<SettingsView> {
     }
   }
 
-  Future<void> _toggleAdvancedAnalytics(bool value) async {
-    try {
-      await AdvancedAnalyticsPreferenceService.instance.setAdvancedAnalyticsEnabled(value);
-      if (mounted) {
-        setState(() {
-          _advancedAnalyticsEnabled = value;
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              value
-                  ? 'Advanced Analytics enabled - Health and Analytics tabs are now visible'
-                  : 'Advanced Analytics disabled - Health and Analytics tabs are now hidden',
-            ),
-            duration: const Duration(seconds: 2),
-            backgroundColor: value ? Colors.green : Colors.lightBlue,
-          ),
-        );
-        // Pop settings and return true to indicate preference changed
-        Navigator.of(context).pop(true);
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error toggling Advanced Analytics: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -193,59 +139,6 @@ class _SettingsViewState extends State<SettingsView> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Advanced Analytics Section (Above Import & Export)
-            _buildSection(
-              context,
-              title: 'Advanced Analytics',
-              children: [
-                Container(
-                  margin: const EdgeInsets.only(bottom: 8),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.05),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.1),
-                    ),
-                  ),
-                  child: SwitchListTile(
-                    title: Text(
-                      'Show Advanced Analytics',
-                      style: heading3Style(context).copyWith(
-                        color: kcPrimaryTextColor,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    subtitle: Text(
-                      'Show/hide Health and Analytics tabs in Insights',
-                      style: bodyStyle(context).copyWith(
-                        color: kcSecondaryTextColor,
-                      ),
-                    ),
-                    value: _advancedAnalyticsEnabled,
-                    onChanged: _advancedAnalyticsLoading
-                        ? null
-                        : (value) => _toggleAdvancedAnalytics(value),
-                    secondary: _advancedAnalyticsLoading
-                        ? const SizedBox(
-                            width: 24,
-                            height: 24,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : Icon(
-                            Icons.analytics,
-                            color: kcAccentColor,
-                            size: 24,
-                          ),
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 8,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 32),
 
             // Import & Export Section (Top Priority)
             _buildSection(

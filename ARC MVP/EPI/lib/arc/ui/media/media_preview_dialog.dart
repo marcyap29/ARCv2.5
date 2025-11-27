@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 import 'dart:io';
 import 'package:my_app/data/models/media_item.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'dart:async';
 
 /// Full-screen dialog for previewing media items
 class MediaPreviewDialog extends StatelessWidget {
@@ -89,7 +91,7 @@ class MediaPreviewDialog extends StatelessWidget {
                 
                 // Media content
                 Expanded(
-                  child: _buildMediaContent(),
+                  child: _buildMediaContent(context),
                 ),
                 
                 // Footer with metadata
@@ -105,14 +107,14 @@ class MediaPreviewDialog extends StatelessWidget {
     );
   }
   
-  Widget _buildMediaContent() {
+  Widget _buildMediaContent(BuildContext context) {
     switch (mediaItem.type) {
       case MediaType.audio:
         return _buildAudioContent();
       case MediaType.image:
         return _buildImageContent();
       case MediaType.video:
-        return _buildVideoContent();
+        return _buildVideoContent(context);
       case MediaType.file:
         return _buildFileContent();
     }
@@ -212,7 +214,7 @@ class MediaPreviewDialog extends StatelessWidget {
     );
   }
   
-  Widget _buildVideoContent() {
+  Widget _buildVideoContent(BuildContext context) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -448,7 +450,7 @@ class _VideoPlayerScreen extends StatefulWidget {
 }
 
 class _VideoPlayerScreenState extends State<_VideoPlayerScreen> {
-  late VideoPlayerController _controller;
+  VideoPlayerController? _controller;
   bool _isPlaying = false;
   bool _isInitialized = false;
   String? _errorMessage;
@@ -461,54 +463,180 @@ class _VideoPlayerScreenState extends State<_VideoPlayerScreen> {
 
   Future<void> _initializeVideo() async {
     try {
+      // Handle ph:// URIs (photo library videos) - can't use VideoPlayerController directly
+      if (widget.videoPath.startsWith('ph://')) {
+        setState(() {
+          _errorMessage = 'Photo library videos must be opened externally. Closing player...';
+        });
+        // Wait a moment to show message, then close and open externally
+        await Future.delayed(const Duration(seconds: 1));
+        if (mounted) {
+          Navigator.of(context).pop();
+          // Try to open externally
+          await _openVideoExternally(widget.videoPath);
+        }
+        return;
+      }
+
+      // Validate video URI before attempting to create controller
+      if (!_isValidVideoUri(widget.videoPath)) {
+        setState(() {
+          _errorMessage = 'Invalid video file: Video not found or corrupted';
+        });
+        return;
+      }
+
       // Create controller for local file
       _controller = VideoPlayerController.file(File(widget.videoPath));
 
-      // Initialize the controller
-      await _controller.initialize();
+      // Initialize the controller with timeout to prevent hanging
+      try {
+        await _controller!.initialize().timeout(
+          const Duration(seconds: 3),
+          onTimeout: () {
+            print('Video initialization timeout after 3 seconds');
+            throw TimeoutException('Video initialization timed out', const Duration(seconds: 3));
+          },
+        );
+      } catch (e) {
+        // Clean up controller on timeout or error
+        await _controller?.dispose();
+        _controller = null;
+        throw e;
+      }
+
+      // Verify controller is initialized
+      if (_controller == null || !_controller!.value.isInitialized) {
+        setState(() {
+          _errorMessage = 'Failed to initialize video player';
+        });
+        return;
+      }
 
       setState(() {
         _isInitialized = true;
       });
 
       // Auto-play the video
-      _controller.play();
-      setState(() {
-        _isPlaying = true;
-      });
+      try {
+        await _controller!.play();
+        setState(() {
+          _isPlaying = true;
+        });
+      } catch (e) {
+        print('Error playing video: $e');
+        setState(() {
+          _errorMessage = 'Failed to play video: $e';
+        });
+        return;
+      }
 
       // Listen for video completion
-      _controller.addListener(() {
-        if (_controller.value.position >= _controller.value.duration) {
-          setState(() {
-            _isPlaying = false;
-          });
-        }
-      });
-    } catch (e) {
-      setState(() {
-        _errorMessage = 'Failed to load video: $e';
-      });
+      _controller!.addListener(_videoListener);
+    } catch (e, stackTrace) {
       print('Error initializing video: $e');
+      print('Stack trace: $stackTrace');
+      setState(() {
+        _errorMessage = 'Failed to load video: ${e.toString()}';
+      });
+      // Clean up on error
+      await _controller?.dispose();
+      _controller = null;
+    }
+  }
+
+  void _videoListener() {
+    if (_controller != null && 
+        _controller!.value.isInitialized &&
+        _controller!.value.position >= _controller!.value.duration &&
+        _controller!.value.duration.inMilliseconds > 0) {
+      setState(() {
+        _isPlaying = false;
+      });
+    }
+  }
+
+  /// Open video externally (for ph:// URIs or when VideoPlayerController fails)
+  Future<void> _openVideoExternally(String videoPath) async {
+    try {
+      // Try photos:// scheme for photo library videos
+      if (videoPath.startsWith('ph://')) {
+        final localId = videoPath.replaceFirst('ph://', '');
+        final photosUri = Uri.parse('photos://$localId');
+        if (await canLaunchUrl(photosUri)) {
+          await launchUrl(photosUri, mode: LaunchMode.externalApplication);
+          return;
+        }
+      }
+
+      // Try file:// scheme for local files
+      final fileUri = Uri.file(videoPath);
+      if (await canLaunchUrl(fileUri)) {
+        await launchUrl(fileUri, mode: LaunchMode.externalApplication);
+        return;
+      }
+    } catch (e) {
+      print('Error opening video externally: $e');
+    }
+  }
+
+  /// Validates if the video URI is valid and the file exists
+  bool _isValidVideoUri(String videoPath) {
+    // Check for placeholder URIs that indicate missing videos
+    if (videoPath.startsWith('placeholder://')) {
+      return false;
+    }
+
+    // ph:// URIs are valid but need external player (handled separately)
+    if (videoPath.startsWith('ph://')) {
+      return true; // Valid, but will be handled externally
+    }
+
+    // Check for other invalid schemes
+    if (videoPath.startsWith('http://') || videoPath.startsWith('https://')) {
+      return false; // Remote videos not supported in this player
+    }
+
+    // For local file paths, check if file exists
+    try {
+      final file = File(videoPath);
+      return file.existsSync();
+    } catch (e) {
+      print('Error checking video file existence: $e');
+      return false;
     }
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    // Remove listener before disposing
+    _controller?.removeListener(_videoListener);
+    _controller?.dispose();
+    _controller = null;
     super.dispose();
   }
 
   void _togglePlayPause() {
-    if (_controller.value.isPlaying) {
-      _controller.pause();
+    if (_controller == null || !_isInitialized || !_controller!.value.isInitialized) {
+      return; // Don't attempt to play if controller isn't ready
+    }
+
+    try {
+      if (_controller!.value.isPlaying) {
+        _controller!.pause();
+        setState(() {
+          _isPlaying = false;
+        });
+      } else {
+        _controller!.play();
+        setState(() {
+          _isPlaying = true;
+        });
+      }
+    } catch (e) {
+      print('Error toggling play/pause: $e');
       setState(() {
-        _isPlaying = false;
-      });
-    } else {
-      _controller.play();
-      setState(() {
-        _isPlaying = true;
+        _errorMessage = 'Failed to control playback: $e';
       });
     }
   }
@@ -565,10 +693,12 @@ class _VideoPlayerScreenState extends State<_VideoPlayerScreen> {
                     children: [
                       // Video player
                       Center(
-                        child: AspectRatio(
-                          aspectRatio: _controller.value.aspectRatio,
-                          child: VideoPlayer(_controller),
-                        ),
+                        child: _controller != null && _controller!.value.isInitialized
+                            ? AspectRatio(
+                                aspectRatio: _controller!.value.aspectRatio,
+                                child: VideoPlayer(_controller!),
+                              )
+                            : const CircularProgressIndicator(color: Colors.white),
                       ),
                       // Play/pause overlay
                       Positioned.fill(
@@ -602,9 +732,9 @@ class _VideoPlayerScreenState extends State<_VideoPlayerScreen> {
                         bottom: 20,
                         left: 20,
                         right: 20,
-                        child: _isInitialized
+                        child: _isInitialized && _controller != null
                             ? VideoProgressIndicator(
-                                _controller,
+                                _controller!,
                                 allowScrubbing: true,
                                 colors: const VideoProgressColors(
                                   playedColor: Colors.red,

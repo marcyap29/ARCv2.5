@@ -142,18 +142,25 @@ class McpPackImportService {
 
     // Get app documents directory for permanent storage
     final appDir = await getApplicationDocumentsDirectory();
+    int importedFromPacks = 0;
+
+    // New format: /Media/packs + media_index.json
+    final mediaPacksDir = Directory(path.join(mcpDir.path, 'Media'));
+    if (await mediaPacksDir.exists()) {
+      importedFromPacks = await _importMediaFromPacks(
+        mediaDir: mediaPacksDir,
+        appDir: appDir,
+        mediaMapping: mediaMapping,
+      );
+    }
     
-    // Import photos
-    await _importMediaType(mcpDir, appDir, 'photos', 'photos', mediaMapping);
-    
-    // Import videos
-    await _importMediaType(mcpDir, appDir, 'videos', 'videos', mediaMapping);
-    
-    // Import audio
-    await _importMediaType(mcpDir, appDir, 'audio', 'audio', mediaMapping);
-    
-    // Import files
-    await _importMediaType(mcpDir, appDir, 'files', 'files', mediaMapping);
+    // Legacy format fallback: /media/{photos,videos,...}
+    if (importedFromPacks == 0) {
+      await _importMediaType(mcpDir, appDir, 'photos', 'photos', mediaMapping);
+      await _importMediaType(mcpDir, appDir, 'videos', 'videos', mediaMapping);
+      await _importMediaType(mcpDir, appDir, 'audio', 'audio', mediaMapping);
+      await _importMediaType(mcpDir, appDir, 'files', 'files', mediaMapping);
+    }
 
     return mediaMapping;
   }
@@ -194,6 +201,82 @@ class McpPackImportService {
         }
       }
     }
+  }
+
+  /// Import media from /Media/packs using media_index.json (new MCP pack format)
+  Future<int> _importMediaFromPacks({
+    required Directory mediaDir,
+    required Directory appDir,
+    required Map<String, String> mediaMapping,
+  }) async {
+    final mediaIndexFile = File(path.join(mediaDir.path, 'media_index.json'));
+    if (!await mediaIndexFile.exists()) {
+      print('📦 MCP Import: No media_index.json found in Media directory');
+      return 0;
+    }
+
+    final packsDir = Directory(path.join(mediaDir.path, 'packs'));
+    if (!await packsDir.exists()) {
+      print('📦 MCP Import: No packs directory found inside Media');
+      return 0;
+    }
+
+    final mediaIndexJson = jsonDecode(await mediaIndexFile.readAsString()) as Map<String, dynamic>;
+    final items = mediaIndexJson['items'] as List<dynamic>? ?? [];
+
+    if (items.isEmpty) {
+      print('📦 MCP Import: media_index.json contained no media items');
+      return 0;
+    }
+
+    int imported = 0;
+
+    for (final rawItem in items) {
+      if (rawItem is! Map<String, dynamic>) continue;
+
+      final filename = rawItem['filename'] as String?;
+      final packName = rawItem['pack'] as String?;
+
+      if (filename == null || filename.isEmpty || packName == null || packName.isEmpty) {
+        continue;
+      }
+
+      final sourceFile = File(path.join(packsDir.path, packName, filename));
+      if (!await sourceFile.exists()) {
+        print('📦 MCP Import: Missing file $filename in pack $packName');
+        continue;
+      }
+
+      final contentType = rawItem['content_type'] as String? ?? 'image/jpeg';
+      final targetSubDir = _targetSubDirForContentType(contentType);
+      final permanentDir = Directory(path.join(appDir.path, targetSubDir));
+      await permanentDir.create(recursive: true);
+
+      final destFile = File(path.join(permanentDir.path, filename));
+      try {
+        await sourceFile.copy(destFile.path);
+        mediaMapping[filename] = destFile.path;
+        imported++;
+      } catch (e) {
+        print('📦 MCP Import: Failed to copy $filename from pack $packName: $e');
+      }
+    }
+
+    print('📦 MCP Import: Imported $imported media items from Media packs');
+    return imported;
+  }
+
+  String _targetSubDirForContentType(String contentType) {
+    if (contentType.startsWith('video/')) {
+      return 'videos';
+    }
+    if (contentType.startsWith('audio/')) {
+      return 'audio';
+    }
+    if (contentType.startsWith('image/')) {
+      return 'photos';
+    }
+    return 'files';
   }
 
   /// Load photo metadata files from nodes/media/photo directory
@@ -337,7 +420,7 @@ class McpPackImportService {
                 }
                 
                 final mediaItem = await _createMediaItemFromJson(enhancedMediaJson, photoMapping, entryJson['id'] as String? ?? 'unknown');
-              if (mediaItem != null) {
+                if (mediaItem != null) {
                   // Check cache for deduplication
                   final cacheKey = mediaItem.uri;
                   if (_mediaCache.containsKey(cacheKey)) {
@@ -346,11 +429,11 @@ class McpPackImportService {
                     print('♻️ Reusing cached media: ${cachedMediaItem.id} -> $cacheKey');
                   } else {
                     _mediaCache[cacheKey] = mediaItem;
-                mediaItems.add(mediaItem);
+                    mediaItems.add(mediaItem);
                     print('✅ Added media item ${mediaItem.id} to entry ${entryJson['id']}');
                   }
                 } else {
-                  print('⚠️ Failed to create media item for entry ${entryJson['id']}');
+                  print('⚠️ Skipped media item ${mediaId} - file not found during import');
                 }
               } catch (e, stackTrace) {
                 print('⚠️ ERROR creating media item for entry ${entryJson['id']}: $e');
@@ -583,7 +666,7 @@ class McpPackImportService {
       String? permanentPath;
       if (filename != null && filename.isNotEmpty) {
         permanentPath = photoMapping[filename];
-      if (permanentPath == null) {
+        if (permanentPath == null) {
           // Try matching by SHA-256 if filename doesn't match
           final sha256 = mediaJson['sha256'] as String?;
           if (sha256 != null && sha256.isNotEmpty) {
@@ -639,14 +722,14 @@ class McpPackImportService {
               finalUri = constructedPath;
               print('   Found media at constructed path: $constructedPath');
             } else {
-              // Last resort: placeholder URI
-              finalUri = 'placeholder://$mediaId';
-              print('⚠️ Could not find media file, using placeholder: $finalUri');
+              // Media file not found - skip this media item instead of creating broken reference
+              print('⚠️ Could not find media file for $mediaId, skipping import');
+              return null;
             }
           } else {
-            // Last resort: placeholder URI
-            finalUri = 'placeholder://$mediaId';
-            print('⚠️ No filename or path found, using placeholder: $finalUri');
+            // No filename or path found - skip this media item
+            print('⚠️ No filename or path found for $mediaId, skipping import');
+            return null;
           }
         }
       }
