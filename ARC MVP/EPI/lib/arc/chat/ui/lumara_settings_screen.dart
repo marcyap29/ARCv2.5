@@ -54,6 +54,9 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
   int _therapeuticDepthLevel = 2; // 1=Light, 2=Moderate, 3=Deep
   bool _therapeuticAutomaticMode = false;
   
+  // Web Access settings
+  bool _webAccessEnabled = false; // Opt-in by default
+  
   /// Safe progress calculation to prevent NaN and infinite values
   double _safeProgress(double progress) {
     if (progress.isNaN || !progress.isFinite) {
@@ -414,6 +417,7 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
         _therapeuticPresenceEnabled = settings['therapeuticPresenceEnabled'] as bool;
         _therapeuticDepthLevel = settings['therapeuticDepthLevel'] as int;
         _therapeuticAutomaticMode = settings['therapeuticAutomaticMode'] as bool;
+        _webAccessEnabled = settings['webAccessEnabled'] as bool;
       });
     }
   }
@@ -428,6 +432,7 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
       therapeuticPresenceEnabled: _therapeuticPresenceEnabled,
       therapeuticDepthLevel: _therapeuticDepthLevel,
       therapeuticAutomaticMode: _therapeuticAutomaticMode,
+      webAccessEnabled: _webAccessEnabled,
     );
   }
 
@@ -465,6 +470,10 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
 
             // Therapeutic Presence Section
             _buildTherapeuticPresenceCard(theme),
+            const SizedBox(height: 24),
+
+            // Web Access Section
+            _buildWebAccessCard(theme),
             const SizedBox(height: 24),
 
             // Provider Selection (includes download button)
@@ -2010,6 +2019,94 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
                           ),
                         );
                       }).toList(),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildWebAccessCard(ThemeData theme) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.language,
+                  color: theme.colorScheme.primary,
+                  size: 24,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Web Access',
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            _buildSwitchTile(
+              theme,
+              title: 'Enable Web Access',
+              subtitle: 'Allow LUMARA to search the web when information is not available in your personal data',
+              value: _webAccessEnabled,
+              onChanged: (value) {
+                setState(() {
+                  _webAccessEnabled = value;
+                });
+                _saveReflectionSettings();
+              },
+            ),
+            if (_webAccessEnabled) ...[
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primaryContainer.withOpacity(0.3),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: theme.colorScheme.primaryContainer.withOpacity(0.5),
+                  ),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(
+                      Icons.info_outline,
+                      color: theme.colorScheme.primary,
+                      size: 18,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Safety & Privacy',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              fontWeight: FontWeight.w600,
+                              color: theme.colorScheme.primary,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'All web searches are filtered for safety and relevance. Sensitive content is automatically filtered. LUMARA prioritizes your personal data and only uses web access when necessary.',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                              fontSize: 12,
+                            ),
                           ),
                         ],
                       ),

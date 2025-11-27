@@ -1,7 +1,54 @@
 # EPI ARC MVP - Changelog
 
-**Version:** 2.1.39
-**Last Updated:** December 2025
+**Version:** 2.1.40
+**Last Updated:** January 2025
+
+## [2.1.40] - January 2025
+
+### **Web Access Safety Layer & Attribution Display Improvements** - Complete
+
+#### Web Access Feature
+- **Web Access Safety Layer**: Added comprehensive web access safety prompt to LUMARA Master Prompt
+  - Primary source priority: Always prioritizes user's personal context first
+  - Explicit need check: Only searches web when information unavailable internally
+  - Content safety boundaries: Automatic filtering of violent, graphic, or harmful content
+  - Research mode filter: Prioritizes peer-reviewed sources for research queries
+  - Containment framing: Safe handling of sensitive topics (mental health, trauma)
+  - Transparent sourcing: Clear indication when external information is used
+  - Contextual integration: Web info integrated with user's ARC themes and ATLAS phase
+- **Web Access Settings**: Added opt-in web access toggle in LUMARA Settings
+  - Default: Disabled (opt-in by default for safety)
+  - Safety information displayed when enabled
+  - Persistent storage via LumaraReflectionSettingsService
+- **Web Source Indicators**: Visual indicators when web sources are used
+  - "External Information Used" badge in chat messages
+  - Same indicator in journal reflection blocks
+  - Appears above attribution display
+  - Helper methods detect web sources from attribution traces
+
+#### Attribution Display Improvements
+- **Expanded by Default**: Attribution drop-down references now expanded by default
+  - Matches in-journal behavior
+  - Users can still collapse if desired
+  - Applied to both chat and journal attribution displays
+- **Web Source Support**: Enhanced attribution display for web references
+  - Web reference icon (🌐) and color coding
+  - Proper display in attribution widgets
+  - Integration with enhanced attribution system
+
+**Files Modified**:
+- `lib/arc/chat/llm/prompts/lumara_master_prompt.dart` - Added Web Access Safety Layer section
+- `lib/arc/chat/services/lumara_reflection_settings_service.dart` - Added web access setting
+- `lib/arc/chat/ui/lumara_settings_screen.dart` - Added web access toggle UI
+- `lib/shared/ui/settings/lumara_settings_view.dart` - Added web access toggle UI
+- `lib/arc/chat/ui/lumara_assistant_screen.dart` - Added web source indicator
+- `lib/ui/journal/widgets/inline_reflection_block.dart` - Added web source indicator
+- `lib/arc/chat/widgets/attribution_display_widget.dart` - Default expanded view
+- `lib/arc/chat/widgets/enhanced_attribution_display_widget.dart` - Web reference support
+
+**Status**: ✅ Complete - Web access safety layer implemented, attribution displays improved
+
+---
 
 ## [2.1.39] - December 2025
 

@@ -1,7 +1,7 @@
 # EPI MVP - Comprehensive Features Guide
 
-**Version:** 1.0.7
-**Last Updated:** November 25, 2025
+**Version:** 1.0.8
+**Last Updated:** January 2025
 
 ---
 
@@ -120,6 +120,14 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 - **Phase-Aware**: Adapts to user's current phase
 - **Multimodal**: Understands text, images, audio, video
 - **Reflective**: Provides thoughtful reflections and insights
+- **Web Access** (Opt-In): Safe, scoped web search when information unavailable internally
+  - Primary source priority: Always prioritizes user's personal data first
+  - Safety filtering: Automatic filtering of violent, graphic, or harmful content
+  - Research mode: Prioritizes peer-reviewed sources for research queries
+  - Sensitive topic handling: Safe containment framing for mental health/trauma topics
+  - Transparent sourcing: Clear indicators when external information is used
+  - Visual indicators: "External Information Used" badge in chat and journal
+  - Settings control: Opt-in toggle in LUMARA Settings (default: disabled)
 
 **In-Journal LUMARA Priority & Context Rules**
 - **Question-First Detection**: Detects questions first and prioritizes direct answers
@@ -133,6 +141,10 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 - **Quick Copy**: Copy icon button for entire LUMARA answer
 - **Message Deletion**: Delete individual messages in-chat with confirmation dialog
 - **Unified Loading Indicator**: Same "LUMARA is thinking..." design across both interfaces
+- **Attribution Display**: Memory source references shown with drop-down details (expanded by default)
+  - Shows memory sources, confidence scores, excerpts, and cross-references
+  - Web source indicators when external information is used
+  - Consistent display in both chat and journal reflection blocks
 
 **LUMARA Context & Text State**
 - **Text State Syncing**: Automatically syncs text state before context retrieval to prevent stale text

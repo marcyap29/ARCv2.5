@@ -3,7 +3,6 @@
 
 import 'package:flutter/material.dart';
 import '../../../mira/memory/enhanced_attribution_schema.dart';
-import '../../../mira/memory/lumara_attribution_explainer.dart';
 
 /// Enhanced widget for displaying multi-source memory attributions
 class EnhancedAttributionDisplayWidget extends StatefulWidget {
@@ -19,7 +18,7 @@ class EnhancedAttributionDisplayWidget extends StatefulWidget {
     super.key,
     required this.responseTrace,
     required this.responseId,
-    this.showDetailedView = false,
+    this.showDetailedView = true, // Default to expanded to show all references
     this.onToggleDetailed,
     this.onWeightChanged,
     this.onExcludeMemory,
@@ -774,7 +773,9 @@ class _EnhancedAttributionDisplayWidgetState
       case SourceType.summary: return '📋';
       case SourceType.relatedContent: return '🔗';
       case SourceType.previousMention: return '👁️';
-      default: return '📄';
+      case SourceType.webReference: return '🌐';
+      case SourceType.bookReference: return '📚';
+      case SourceType.documentUpload: return '📄';
     }
   }
 
@@ -803,6 +804,9 @@ class _EnhancedAttributionDisplayWidgetState
       case SourceType.emotionTracking: return Colors.pink;
       case SourceType.lumaraResponse: return Colors.indigo;
       case SourceType.insight: return Colors.amber;
+      case SourceType.webReference: return Colors.blue;
+      case SourceType.bookReference: return Colors.brown;
+      case SourceType.documentUpload: return Colors.grey[700]!;
       default: return Colors.grey;
     }
   }

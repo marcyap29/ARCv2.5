@@ -1,7 +1,7 @@
 # EPI Documentation
 
-**Last Updated:** December 2025  
-**Version:** 2.1.39
+**Last Updated:** January 2025  
+**Version:** 2.1.40
 
 ---
 
@@ -21,7 +21,7 @@ Welcome to the EPI (Evolving Personal Intelligence) documentation. This director
 
 - **[FEATURES.md](FEATURES.md)** - Comprehensive features guide
   - Core journaling features
-  - AI features (LUMARA assistant)
+  - AI features (LUMARA assistant with web access)
   - Visualization features (ARCForm constellations)
   - Analysis features (phase detection, pattern recognition)
   - Privacy & security features

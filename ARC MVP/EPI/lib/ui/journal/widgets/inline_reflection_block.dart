@@ -64,6 +64,26 @@ class _InlineReflectionBlockState extends State<InlineReflectionBlock> with Sing
     }
   }
 
+  /// Check if reflection has web sources
+  bool _hasWebSource() {
+    if (widget.attributionTraces == null || widget.attributionTraces!.isEmpty) {
+      return false;
+    }
+    
+    // Check if any trace mentions web or external source
+    for (final trace in widget.attributionTraces!) {
+      final nodeRef = trace.nodeRef.toLowerCase();
+      if (nodeRef.contains('web') || 
+          nodeRef.contains('external') || 
+          nodeRef.contains('search') ||
+          trace.relation.toLowerCase().contains('web')) {
+        return true;
+      }
+    }
+    
+    return false;
+  }
+
   Future<void> _speakContent() async {
     try {
       if (_audioIO != null && widget.content.isNotEmpty) {
@@ -147,6 +167,41 @@ class _InlineReflectionBlockState extends State<InlineReflectionBlock> with Sing
               else ...[
                 // Reflection content (Blue color for LUMARA, distinct from user text)
                 ..._buildParagraphs(widget.content, theme),
+                
+                // Web source indicator
+                if (_hasWebSource()) ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: Colors.blue.withOpacity(0.3),
+                        width: 1,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.language,
+                          size: 14,
+                          color: Colors.blue[700],
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          'External Information Used',
+                          style: TextStyle(
+                            color: Colors.blue[700],
+                            fontSize: 11,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
                 
                 // Attribution display (if available)
                 if (widget.attributionTraces != null && widget.attributionTraces!.isNotEmpty) ...[

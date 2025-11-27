@@ -25,6 +25,9 @@ class _LumaraSettingsViewState extends State<LumaraSettingsView> {
   bool _therapeuticPresenceEnabled = true;
   int _therapeuticDepthLevel = 2; // 1=Light, 2=Moderate, 3=Deep
   bool _therapeuticAutomaticMode = false;
+  
+  // Web Access settings
+  bool _webAccessEnabled = false; // Opt-in by default
 
   @override
   void initState() {
@@ -45,6 +48,7 @@ class _LumaraSettingsViewState extends State<LumaraSettingsView> {
         _therapeuticPresenceEnabled = settings['therapeuticPresenceEnabled'] as bool;
         _therapeuticDepthLevel = settings['therapeuticDepthLevel'] as int;
         _therapeuticAutomaticMode = settings['therapeuticAutomaticMode'] as bool;
+        _webAccessEnabled = settings['webAccessEnabled'] as bool;
       });
     }
   }
@@ -59,6 +63,7 @@ class _LumaraSettingsViewState extends State<LumaraSettingsView> {
       therapeuticPresenceEnabled: _therapeuticPresenceEnabled,
       therapeuticDepthLevel: _therapeuticDepthLevel,
       therapeuticAutomaticMode: _therapeuticAutomaticMode,
+      webAccessEnabled: _webAccessEnabled,
     );
     
     _analytics.logLumaraEvent('settings_updated', data: {
@@ -69,6 +74,7 @@ class _LumaraSettingsViewState extends State<LumaraSettingsView> {
       'therapeuticPresenceEnabled': _therapeuticPresenceEnabled,
       'therapeuticDepthLevel': _therapeuticDepthLevel,
       'therapeuticAutomaticMode': _therapeuticAutomaticMode,
+      'webAccessEnabled': _webAccessEnabled,
     });
   }
   
@@ -318,6 +324,75 @@ class _LumaraSettingsViewState extends State<LumaraSettingsView> {
                 ),
                 if (_therapeuticPresenceEnabled) ...[
                   _buildDepthSliderTile(context),
+                ],
+              ],
+            ),
+
+            const SizedBox(height: 32),
+
+            // Web Access Settings Section
+            _buildSection(
+              context,
+              title: 'Web Access',
+              children: [
+                _buildSwitchTile(
+                  context,
+                  title: 'Enable Web Access',
+                  subtitle: 'Allow LUMARA to search the web when information is not available in your personal data',
+                  value: _webAccessEnabled,
+                  onChanged: (value) {
+                    setState(() {
+                      _webAccessEnabled = value;
+                    });
+                    _saveSettings();
+                  },
+                ),
+                if (_webAccessEnabled) ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: Colors.blue.withValues(alpha: 0.3),
+                      ),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(
+                          Icons.info_outline,
+                          color: Colors.blue[700],
+                          size: 18,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Safety & Privacy',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.blue[700],
+                                  fontSize: 12,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'All web searches are filtered for safety and relevance. Sensitive content is automatically filtered. LUMARA prioritizes your personal data and only uses web access when necessary.',
+                                style: TextStyle(
+                                  color: Colors.grey[700],
+                                  fontSize: 11,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ],
               ],
             ),

@@ -17,7 +17,7 @@ class AttributionDisplayWidget extends StatefulWidget {
     super.key,
     required this.traces,
     required this.responseId,
-    this.showDetailedView = false, // Default to collapsed
+    this.showDetailedView = true, // Default to expanded to show all references
     this.onToggleDetailed,
     this.onWeightChanged,
     this.onExcludeMemory,

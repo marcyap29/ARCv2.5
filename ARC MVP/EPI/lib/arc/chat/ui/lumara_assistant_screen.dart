@@ -969,6 +969,41 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
                     ),
                   ],
                   
+                  // Web source indicator
+                  if (!isUser && _hasWebSource(message)) ...[
+                    const Gap(8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: Colors.blue.withOpacity(0.3),
+                          width: 1,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.language,
+                            size: 14,
+                            color: Colors.blue[700],
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            'External Information Used',
+                            style: TextStyle(
+                              color: Colors.blue[700],
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                  
                   if (message.sources.isNotEmpty) ...[
                     const Gap(8),
                     Wrap(
@@ -1641,6 +1676,40 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
 
 
   /// Handle attribution weight changes
+  /// Check if message has web sources
+  bool _hasWebSource(LumaraMessage message) {
+    // Check attribution traces for web references
+    if (message.attributionTraces != null && message.attributionTraces!.isNotEmpty) {
+      // Check if any trace mentions web or external source
+      for (final trace in message.attributionTraces!) {
+        final nodeRef = trace.nodeRef.toLowerCase();
+        if (nodeRef.contains('web') || 
+            nodeRef.contains('external') || 
+            nodeRef.contains('search') ||
+            trace.relation.toLowerCase().contains('web')) {
+          return true;
+        }
+      }
+    }
+    
+    // Check sources list
+    for (final source in message.sources) {
+      if (source.toLowerCase().contains('web') || 
+          source.toLowerCase().contains('external') ||
+          source.toLowerCase().contains('search')) {
+        return true;
+      }
+    }
+    
+    // Check metadata
+    if (message.metadata.containsKey('web_search') || 
+        message.metadata.containsKey('external_source')) {
+      return true;
+    }
+    
+    return false;
+  }
+
   void _handleAttributionWeightChange(String messageId, AttributionTrace trace, double newWeight) {
     // TODO: Implement weight change logic
     // This would update the memory influence in real-time
