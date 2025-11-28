@@ -990,8 +990,8 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
             }
           }
           
-          // Navigate to journal screen with full entry for editing (not view-only)
-          // Open entry directly without creating a draft initially
+          // Navigate to journal screen with full entry in view-only mode by default
+          // User must click Edit button to unlock for editing (prevents accidental changes)
           Navigator.of(context).push(
             MaterialPageRoute(
               builder: (context) => JournalScreen(
@@ -999,9 +999,9 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
                 selectedEmotion: fullEntry.emotion,
                 selectedReason: fullEntry.emotionReason,
                 existingEntry: fullEntry, // Pass the full entry with media
-                isViewOnly: false, // Open in edit mode - entry is opened directly
-                openAsEdit: true, // Flag to indicate this is an edit (not creating draft initially)
-                isTimelineEditing: true, // Allow timestamp editing when editing from timeline
+                isViewOnly: true, // Open in view-only mode - user must click Edit to unlock
+                openAsEdit: false, // Not opening as edit initially
+                isTimelineEditing: true, // Allow timestamp editing when editing from timeline (after Edit is clicked)
               ),
             ),
           );

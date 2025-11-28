@@ -1,7 +1,76 @@
 # EPI ARC MVP - Changelog
 
-**Version:** 2.1.40
+**Version:** 2.1.41
 **Last Updated:** January 2025
+
+## [2.1.41] - January 2025
+
+### **Chat UI Improvements & Data Persistence Fixes** - Complete
+
+#### Chat Input Improvements
+- **Scrollable Text Input**: Made chat text input scrollable with max height constraint
+  - TextField wrapped in ConstrainedBox with maxHeight: 120px (~5 lines)
+  - Prevents send button from being blocked when pasting large text
+  - Text scrolls internally when content exceeds 5 lines
+  - Proper button alignment with CrossAxisAlignment.end
+- **Auto-Minimize on Outside Click**: Added ChatGPT-like auto-minimize behavior
+  - Input area automatically minimizes when clicking outside chat area
+  - Only minimizes if text field is empty
+  - Maintains input visibility when text is present
+  - Improved user experience matching modern chat interfaces
+
+#### Chat History Import Fixes
+- **Enhanced Import Logging**: Added comprehensive logging for chat import debugging
+  - Logs file discovery, chat details, message counts, and import status
+  - Tracks processed, imported, skipped, and error counts
+  - Better error messages with stack traces
+- **Archived Chat Handling**: Fixed imported chats being archived by default
+  - Only archives chats if explicitly marked as archived in export
+  - Ensures imported chats are visible in active chat list
+  - Automatically restores archived sessions when needed
+- **Message Import Verification**: Added verification that messages were imported correctly
+  - Checks message count after import
+  - Logs success/failure for each chat session
+  - Ensures complete data restoration
+
+#### Saved Chats Navigation
+- **Direct Navigation**: Improved saved chat navigation in favorites
+  - Removed unnecessary snackbars - navigates directly to chat sessions
+  - Simplified navigation code to rely on SessionView's built-in handling
+  - Better error handling with clear messages only when needed
+  - Respects auto-save behavior of SessionView
+
+#### Session Restoration from Saved Chats
+- **Auto-Recreate Missing Sessions**: Added ability to recreate sessions from saved chat favorites
+  - Parses saved chat content to extract subject and messages
+  - Recreates session and messages when session is missing
+  - Updates saved chat favorite to point to new session ID
+  - Handles both "Chat: {subject}" and "Chat Session" content formats
+  - Supports multi-line messages and user comments
+
+#### Journal Entry Persistence
+- **LUMARA Blocks Saving**: Fixed LUMARA comments and user responses not persisting
+  - Blocks now properly saved to entry metadata when saving/updating
+  - Preserves existing blocks when updating entries (unless explicitly cleared)
+  - Blocks restored from metadata when loading entries
+  - Export/import flow verified to preserve blocks through ARCX archives
+- **Timeline Entry Protection**: Made timeline entries read-only by default
+  - Entries from timeline open in view-only mode
+  - Edit button in app bar to unlock for editing
+  - Prevents accidental edits when viewing saved entries
+  - User must explicitly click Edit to modify entries
+
+**Files Modified**:
+- `lib/arc/chat/ui/lumara_assistant_screen.dart` - Chat input scrollability and auto-minimize
+- `lib/mira/store/arcx/services/arcx_import_service_v2.dart` - Enhanced chat import with better logging and archived handling
+- `lib/arc/chat/chat/ui/session_view.dart` - Session restoration from saved chats
+- `lib/shared/ui/settings/favorites_management_view.dart` - Improved saved chat navigation
+- `lib/arc/core/journal_capture_cubit.dart` - LUMARA blocks preservation in updates
+- `lib/arc/ui/timeline/widgets/interactive_timeline_view.dart` - Timeline entries read-only by default
+
+**Status**: ✅ Complete - Chat UI improved, data persistence fixed, entries protected from accidental edits
+
+---
 
 ## [2.1.40] - January 2025
 

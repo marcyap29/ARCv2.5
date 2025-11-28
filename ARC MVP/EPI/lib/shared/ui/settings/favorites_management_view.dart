@@ -4,7 +4,10 @@ import 'package:my_app/shared/text_style.dart';
 import 'package:my_app/arc/chat/services/favorites_service.dart';
 import 'package:my_app/arc/chat/data/models/lumara_favorite.dart';
 import 'package:my_app/arc/ui/timeline/favorite_journal_entries_view.dart';
-import 'package:my_app/arc/chat/chat/ui/enhanced_chats_screen.dart';
+import 'package:my_app/arc/chat/chat/ui/session_view.dart';
+import 'package:my_app/arc/chat/chat/chat_repo_impl.dart';
+import 'package:my_app/arc/chat/chat/chat_models.dart';
+import 'package:my_app/arc/chat/chat/enhanced_chat_repo_impl.dart';
 
 /// Screen for managing LUMARA favorites
 class FavoritesManagementView extends StatefulWidget {
@@ -19,6 +22,7 @@ class _FavoritesManagementViewState extends State<FavoritesManagementView> with 
   List<LumaraFavorite> _answers = [];
   List<LumaraFavorite> _savedChats = [];
   List<LumaraFavorite> _favoriteEntries = [];
+  List<ChatSession> _chatSessions = [];
   bool _isLoading = true;
   late TabController _tabController;
 
@@ -42,6 +46,21 @@ class _FavoritesManagementViewState extends State<FavoritesManagementView> with 
       final answers = await _favoritesService.getLumaraAnswers();
       final chats = await _favoritesService.getSavedChats();
       final entries = await _favoritesService.getFavoriteJournalEntries();
+      
+      // Load chat sessions to match with saved chats
+      try {
+        final chatRepo = EnhancedChatRepoImpl(ChatRepoImpl.instance);
+        await chatRepo.initialize();
+        final allSessions = await chatRepo.listAll(includeArchived: true);
+        if (mounted) {
+          setState(() {
+            _chatSessions = allSessions;
+          });
+        }
+      } catch (e) {
+        print('Error loading chat sessions: $e');
+      }
+      
       if (mounted) {
         setState(() {
           _answers = answers;
@@ -263,55 +282,227 @@ class _FavoritesManagementViewState extends State<FavoritesManagementView> with 
   }
 
   Widget _buildSavedChatsTab(int count) {
+    if (count == 0) {
+      return _buildEmptyState(Theme.of(context), 'chat');
+    }
+    
     return Column(
       children: [
+        // Explainer text
         Container(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
           child: Text(
-            'Saved chats appear in your chat history with a bookmark icon. Tap below to view them there.',
+            'Tap on any saved chat to open it directly in chat history.',
             style: bodyStyle(context).copyWith(
               color: kcSecondaryTextColor,
               fontSize: 14,
             ),
-            textAlign: TextAlign.center,
           ),
         ),
-        if (count > 0)
-          Padding(
+        // Header with count
+        Container(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+          child: Row(
+            children: [
+              const Icon(Icons.bookmark, color: Color(0xFF2196F3), size: 24),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  '$count of 20 saved chats',
+                  style: heading3Style(context).copyWith(
+                    color: kcPrimaryTextColor,
+                  ),
+                ),
+              ),
+              if (count >= 20)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.orange, width: 1),
+                  ),
+                  child: Text(
+                    'Full',
+                    style: bodyStyle(context).copyWith(
+                      color: Colors.orange,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+        // Saved chats list
+        Expanded(
+          child: ListView.builder(
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Text(
-              'You have $count saved chats',
-              style: heading3Style(context).copyWith(
-                color: const Color(0xFF2196F3),
+            itemCount: _savedChats.length,
+            itemBuilder: (context, index) {
+              final favorite = _savedChats[index];
+              return _buildSavedChatCard(favorite);
+            },
+          ),
+        ),
+      ],
+    );
+  }
+  
+  Widget _buildSavedChatCard(LumaraFavorite favorite) {
+    // Find matching session
+    final session = _chatSessions.firstWhere(
+      (s) => s.id == favorite.sessionId,
+      orElse: () => ChatSession(
+        id: favorite.sessionId ?? '',
+        subject: favorite.content.split('\n').firstOrNull ?? 'Saved Chat',
+        createdAt: favorite.timestamp,
+        updatedAt: favorite.timestamp,
+        tags: [],
+        metadata: {},
+      ),
+    );
+    
+    final sessionExists = _chatSessions.any((s) => s.id == favorite.sessionId);
+    final actualSession = sessionExists 
+        ? _chatSessions.firstWhere((s) => s.id == favorite.sessionId)
+        : session;
+    
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      color: sessionExists 
+          ? const Color(0xFF2196F3).withOpacity(0.05)
+          : Colors.grey.withOpacity(0.05),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(
+          color: sessionExists 
+              ? const Color(0xFF2196F3)
+              : Colors.grey.withOpacity(0.5),
+          width: 1,
+        ),
+      ),
+      child: ListTile(
+        contentPadding: const EdgeInsets.all(16),
+        leading: Icon(
+          Icons.bookmark,
+          color: sessionExists 
+              ? const Color(0xFF2196F3)
+              : Colors.grey,
+          size: 24,
+        ),
+        title: Row(
+          children: [
+            Expanded(
+              child: Text(
+                actualSession.subject,
+                style: heading2Style(context).copyWith(
+                  fontSize: 16,
+                  color: sessionExists 
+                      ? const Color(0xFF2196F3)
+                      : Colors.grey,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
-          ),
-        const Spacer(),
-        Padding(
-          padding: const EdgeInsets.all(16),
-          child: ElevatedButton.icon(
-            onPressed: () {
-              // Navigate to chat history - saved chats will be shown there
-              Navigator.pop(context);
-              // Note: User will need to navigate to chat history manually
+            if (!sessionExists)
+              Padding(
+                padding: const EdgeInsets.only(left: 8),
+                child: Text(
+                  '(Unavailable)',
+                  style: captionStyle(context).copyWith(
+                    color: Colors.grey,
+                    fontSize: 11,
+                  ),
+                ),
+              ),
+          ],
+        ),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 4),
+            Text(
+              'Saved ${_formatDate(favorite.timestamp)}',
+              style: captionStyle(context),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              favorite.content.length > 100
+                  ? '${favorite.content.substring(0, 100)}...'
+                  : favorite.content,
+              style: bodyStyle(context).copyWith(
+                fontSize: 12,
+                color: kcTextSecondaryColor,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
+        trailing: IconButton(
+          icon: const Icon(Icons.delete_outline, color: Colors.grey),
+          onPressed: () => _deleteFavorite(favorite),
+          tooltip: 'Remove from favorites',
+        ),
+        onTap: () async {
+          // Get session ID from favorite
+          final sessionId = favorite.sessionId ?? actualSession.id;
+          
+          if (sessionId.isEmpty) {
+            // Only show snackbar if we truly can't find a session ID
+            if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
-                  content: Text('Navigate to Chat History to view saved chats'),
+                  content: Text('Unable to open chat - session ID missing'),
                   duration: Duration(seconds: 2),
                 ),
               );
-            },
-            icon: const Icon(Icons.chat, color: Color(0xFF2196F3)),
-            label: const Text('View in Chat History'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF2196F3).withOpacity(0.1),
-              foregroundColor: const Color(0xFF2196F3),
-            ),
-          ),
-        ),
-        const SizedBox(height: 16),
-      ],
+            }
+            return;
+          }
+          
+          // Navigate directly to the chat session
+          // SessionView will handle:
+          // - Loading the session (including archived sessions)
+          // - Auto-restoring archived sessions if needed
+          // - Auto-saving conversations to history
+          // - Error handling if session doesn't exist
+          if (mounted) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => SessionView(
+                  sessionId: sessionId,
+                  chatRepo: ChatRepoImpl.instance,
+                ),
+              ),
+            ).then((_) {
+              // Reload when returning to refresh any changes
+              // (SessionView auto-saves, so we want to see updated state)
+              if (mounted) {
+                _loadFavorites();
+              }
+            });
+          }
+        },
+      ),
     );
+  }
+  
+  String _formatDate(DateTime date) {
+    final now = DateTime.now();
+    final difference = now.difference(date);
+
+    if (difference.inDays == 0) {
+      return 'Today';
+    } else if (difference.inDays == 1) {
+      return 'Yesterday';
+    } else if (difference.inDays < 7) {
+      return '${difference.inDays} days ago';
+    } else {
+      return '${date.day}/${date.month}/${date.year}';
+    }
   }
 
   Widget _buildFavoriteEntriesTab(int count) {

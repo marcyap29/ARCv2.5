@@ -894,9 +894,18 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
       );
       
       // Save LUMARA blocks to metadata (merge with existing metadata)
+      // IMPORTANT: Preserve existing blocks if new blocks are not provided
       if (blocks != null && blocks.isNotEmpty) {
         metadata['inlineBlocks'] = blocks;
+      } else if (blocks == null) {
+        // If blocks is null (not explicitly cleared), preserve existing blocks
+        final existingBlocks = existingEntry.metadata?['inlineBlocks'];
+        if (existingBlocks != null) {
+          metadata['inlineBlocks'] = existingBlocks;
+          print('DEBUG: Preserving existing LUMARA blocks from entry metadata');
+        }
       }
+      // If blocks is empty list, it means user explicitly cleared them, so don't preserve
       
       // Prevent keyword duplication - merge with existing keywords, remove duplicates
       final existingKeywords = List<String>.from(existingEntry.keywords);

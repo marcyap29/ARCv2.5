@@ -984,17 +984,33 @@ class ARCXImportServiceV2 {
       return 0;
     }
     
+    // Check if Chats directory exists
+    if (!await chatsDir.exists()) {
+      print('ARCX Import V2: ⚠️ Chats directory does not exist: ${chatsDir.path}');
+      return 0;
+    }
+    
     int imported = 0;
     int processed = 0;
+    int skipped = 0;
+    int errors = 0;
+    
+    print('ARCX Import V2: 🔍 Scanning for chat files in ${chatsDir.path}...');
     
     // Recursively find all chat JSON files
     await for (final entity in chatsDir.list(recursive: true)) {
       if (entity is File && entity.path.endsWith('.arcx.json')) {
         processed++;
         try {
+          print('ARCX Import V2: 📄 Found chat file: ${entity.path}');
           final chatJson = jsonDecode(await entity.readAsString()) as Map<String, dynamic>;
           
-          final chatId = chatJson['id'] as String;
+          final chatId = chatJson['id'] as String? ?? 'unknown';
+          final subject = chatJson['subject'] as String? ?? 'Imported Chat';
+          final messages = chatJson['messages'] as List<dynamic>? ?? [];
+          final isArchived = chatJson['is_archived'] as bool? ?? false;
+          
+          print('ARCX Import V2: 📋 Chat details - ID: $chatId, Subject: "$subject", Messages: ${messages.length}, Archived: $isArchived');
           
           // Check if already exists
           if (options.skipExisting) {
@@ -1003,6 +1019,7 @@ class ARCXImportServiceV2 {
               if (existing != null) {
                 print('ARCX Import V2: ⚠️ Chat $chatId already exists, skipping');
                 _chatIdMap[chatId] = chatId; // Map to itself
+                skipped++;
                 continue;
               }
             } catch (_) {
@@ -1010,24 +1027,32 @@ class ARCXImportServiceV2 {
             }
           }
           
-          onProgress?.call('Importing chat $processed...');
+          onProgress?.call('Importing chat $processed: "$subject"...');
           
           // Convert and import chat
           final chat = await _convertChatJsonToChatSession(chatJson);
           if (chat != null) {
-            // Create session (this will be handled by ChatRepo)
-            // For now, we'll map the ID
+            // Verify messages were imported
+            final importedMessages = await _chatRepo!.getMessages(chat.id);
+            print('ARCX Import V2: ✅ Imported chat "${chat.subject}" (${chat.id}) with ${importedMessages.length}/${messages.length} messages');
+            
+            // Map the ID
             _chatIdMap[chatId] = chat.id;
             imported++;
+          } else {
+            print('ARCX Import V2: ✗ Failed to import chat $chatId');
+            errors++;
           }
           
-        } catch (e) {
+        } catch (e, stackTrace) {
           print('ARCX Import V2: ✗ Error importing chat ${entity.path}: $e');
+          print('ARCX Import V2: Stack trace: $stackTrace');
+          errors++;
         }
       }
     }
     
-    print('ARCX Import V2: ✓ Imported $imported chats');
+    print('ARCX Import V2: ✓ Chat import complete - Processed: $processed, Imported: $imported, Skipped: $skipped, Errors: $errors');
     return imported;
   }
   
@@ -1337,15 +1362,31 @@ class ARCXImportServiceV2 {
       }
       
       // Update session metadata if needed
-      if (chatJson['is_archived'] == true) {
+      // Only archive if explicitly set to true (don't archive by default)
+      final isArchived = chatJson['is_archived'] as bool? ?? false;
+      if (isArchived) {
         await _chatRepo!.archiveSession(sessionId, true);
+        print('ARCX Import V2: 📦 Chat $sessionId was archived in export, keeping archived status');
+      } else {
+        // Ensure chat is NOT archived (in case it was archived before)
+        await _chatRepo!.archiveSession(sessionId, false);
+        print('ARCX Import V2: ✅ Chat $sessionId is active (not archived)');
       }
       
       if (chatJson['is_pinned'] == true) {
         await _chatRepo!.pinSession(sessionId, true);
       }
       
-      print('ARCX Import V2: ✓ Imported chat session $sessionId with ${messages.length} messages');
+      // Verify final state
+      final finalSession = await _chatRepo!.getSession(sessionId);
+      final finalMessages = await _chatRepo!.getMessages(sessionId);
+      
+      print('ARCX Import V2: ✓ Imported chat session $sessionId');
+      print('  - Subject: "${finalSession?.subject ?? subject}"');
+      print('  - Messages: ${finalMessages.length}/${messages.length}');
+      print('  - Archived: ${finalSession?.isArchived ?? false}');
+      print('  - Pinned: ${finalSession?.isPinned ?? false}');
+      
       return session;
     } catch (e) {
       print('ARCX Import V2: ✗ Error converting chat: $e');

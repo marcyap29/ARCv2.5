@@ -258,6 +258,7 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
     FocusManager.instance.primaryFocus?.unfocus();
     
     // Hide input area when dismissing keyboard (if text is empty)
+    // Like ChatGPT, minimize when clicking outside
     setState(() {
       if (_messageController.text.isEmpty) {
         _isInputVisible = false;
@@ -345,6 +346,7 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
               body: GestureDetector(
                 onTap: () {
                   // Dismiss keyboard and hide input when tapping conversation area
+                  // Like ChatGPT - auto minimize when clicking outside
                   _dismissKeyboard();
                 },
                 behavior: HitTestBehavior.opaque,
@@ -355,6 +357,7 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
             child: GestureDetector(
               onTap: () {
                 // Hide input when tapping conversation area
+                // Auto minimize like ChatGPT
                 _dismissKeyboard();
               },
               onDoubleTap: () {
@@ -1084,6 +1087,7 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
               ),
             ),
           Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               IconButton(
                 icon: const Icon(Icons.favorite, size: 20),
@@ -1093,29 +1097,35 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
                 onPressed: _showHealthPreview,
               ),
               Expanded(
-                child: TextField(
-                  controller: _messageController,
-                  focusNode: _inputFocusNode,
-                  decoration: InputDecoration(
-                    hintText: isEditing ? 'Edit your message...' : 'Ask LUMARA anything...',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 8,
-                    ),
-                    isDense: true,
+                  child: ConstrainedBox(
+                  constraints: const BoxConstraints(
+                    maxHeight: 120.0, // Max height for ~5 lines (24px per line)
                   ),
-                  minLines: 1,
-                  maxLines: 5, // Limit to 5 lines, then scroll
-                  textCapitalization: TextCapitalization.sentences,
-                  textInputAction: TextInputAction.newline,
-                  onSubmitted: (_) => _sendCurrentMessage(),
-                  onTap: () {
-                    // Ensure input is visible when tapped
-                    setState(() => _isInputVisible = true);
-                  },
+                  child: TextField(
+                    controller: _messageController,
+                    focusNode: _inputFocusNode,
+                    decoration: InputDecoration(
+                      hintText: isEditing ? 'Edit your message...' : 'Ask LUMARA anything...',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                      isDense: true,
+                    ),
+                    minLines: 1,
+                    maxLines: 5, // Limit to 5 lines, then scroll
+                    textCapitalization: TextCapitalization.sentences,
+                    textInputAction: TextInputAction.newline,
+                    keyboardType: TextInputType.multiline,
+                    onSubmitted: (_) => _sendCurrentMessage(),
+                    onTap: () {
+                      // Ensure input is visible when tapped
+                      setState(() => _isInputVisible = true);
+                    },
+                  ),
                 ),
               ),
               IconButton(
