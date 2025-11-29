@@ -1,7 +1,71 @@
 # EPI ARC MVP - Changelog
 
-**Version:** 2.1.41
-**Last Updated:** January 2025
+**Version:** 2.1.42
+**Last Updated:** November 29, 2025
+
+## [2.1.42] - November 29, 2025
+
+### **LUMARA In-Journal Comments Persistence** - Complete
+
+#### Core Persistence Fixes
+- **Added `lumaraBlocks` Field to JournalEntry Model**: 
+  - Added `@HiveField(27)` for `lumaraBlocks: List<InlineBlock>` in JournalEntry
+  - Updated `copyWith`, `toJson`, `fromJson` to include lumaraBlocks
+  - Regenerated Hive adapters to support new field
+- **Made InlineBlock a Hive Type**: 
+  - Added `@HiveType(typeId: 103)` to InlineBlock class
+  - Stored `attributionTraces` as JSON string for Hive compatibility
+  - Regenerated InlineBlockAdapter for proper serialization
+- **Fixed Migration Code**: 
+  - `_normalize()` now properly migrates `metadata.inlineBlocks` → `lumaraBlocks`
+  - Persists migrated entries immediately during `getAllJournalEntries()`
+  - Removes `inlineBlocks` from metadata after migration to use `lumaraBlocks` as single source of truth
+- **Fixed Persistence Methods**: 
+  - `updateJournalEntry()` now removes `inlineBlocks` from metadata
+  - `_persistLumaraBlocksToEntry()` in journal_screen.dart saves blocks correctly
+  - `getJournalEntryById()` is now async and normalizes entries with migration
+
+#### Import/Export Fixes
+- **MCP Import Service**: 
+  - `_parseLumaraBlocks()` correctly converts `inlineBlocks` to `lumaraBlocks`
+  - Removes `inlineBlocks` from metadata during import
+  - Properly saves blocks to dedicated field
+- **ARCX Import Service**: 
+  - Added `await` to all `getJournalEntryById()` calls
+  - Ensures blocks are properly loaded and migrated
+
+#### UI Improvements
+- **LUMARA Tag in Timeline**: 
+  - Added `hasLumaraBlocks` field to `TimelineEntry` model
+  - Purple "LUMARA" tag appears on entries with LUMARA blocks
+  - Tag displays in timeline view with proper styling
+- **Async Method Updates**: 
+  - Made `getJournalEntryById()` async across codebase
+  - Fixed all call sites to use `await` properly
+  - Updated test mocks to match async signature
+
+#### Performance Improvements
+- **UI Thread Yielding**: 
+  - Added `Future.microtask` every 20 entries during normalization
+  - Prevents white screen blocking during data loading
+  - Deferred timeline loading to avoid blocking startup
+- **Reduced Logging**: 
+  - Removed excessive verbose logging that was slowing down app
+  - Simplified migration logging to only show success/errors
+
+#### Technical Details
+- **Hive Adapter Updates**: 
+  - JournalEntryAdapter now includes lumaraBlocks field (HiveField 27)
+  - InlineBlockAdapter properly serializes/deserializes blocks
+  - AttributionTraces stored as JSON string for compatibility
+- **Data Migration**: 
+  - Automatic migration from `metadata.inlineBlocks` to `lumaraBlocks` field
+  - Migration runs on startup and during entry loading
+  - Ensures backward compatibility with old data format
+
+### Breaking Changes
+- `getJournalEntryById()` is now async - all call sites must use `await`
+- `getAllJournalEntries()` is async - all call sites must use `await`
 
 ## [2.1.41] - January 2025
 

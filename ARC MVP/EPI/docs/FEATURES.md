@@ -1,7 +1,7 @@
 # EPI MVP - Comprehensive Features Guide
 
-**Version:** 2.1.41
-**Last Updated:** January 2025
+**Version:** 2.1.42
+**Last Updated:** November 29, 2025
 
 ---
 
@@ -66,6 +66,11 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 - **Edit Tracking**: `updatedAt` tracks last modification, `isEdited` flag indicates edits
 - **Read-Only Protection**: Entries from timeline open read-only by default with Edit button to unlock
 - **LUMARA Blocks Persistence**: LUMARA comments and user responses properly saved and restored
+  - Dedicated `lumaraBlocks` field in JournalEntry model (HiveField 27)
+  - Automatic migration from legacy `metadata.inlineBlocks` format
+  - Purple "LUMARA" tag displayed in timeline for entries with LUMARA comments
+  - Blocks persist across app restarts and imports/exports
+  - User comments in continuation fields properly saved
 
 ### Timeline
 

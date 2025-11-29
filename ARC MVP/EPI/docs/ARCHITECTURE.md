@@ -1,7 +1,7 @@
 # EPI MVP - Architecture Overview
 
-**Version:** 2.1.40
-**Last Updated:** January 2025
+**Version:** 2.1.42
+**Last Updated:** November 29, 2025
 **Status:** ✅ Production Ready - MVP Fully Operational
 
 ---
@@ -242,6 +242,9 @@ The EPI system is organized into 5 core modules:
 
 ### Backend Services
 - **Storage**: Hive (local NoSQL database)
+  - JournalEntry model with `lumaraBlocks` field (HiveField 27)
+  - InlineBlock type (HiveType 103) for LUMARA reflection blocks
+  - Automatic migration from legacy `metadata.inlineBlocks` format
 - **File System**: path_provider, file_picker
 - **Networking**: http, dio
 - **Crypto**: crypto, pointycastle
