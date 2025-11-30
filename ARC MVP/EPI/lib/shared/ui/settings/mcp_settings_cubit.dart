@@ -100,7 +100,7 @@ class McpSettingsCubit extends Cubit<McpSettingsState> {
 
     try {
       // Get all journal entries
-      final journalEntries = _journalRepository.getAllJournalEntries();
+      final journalEntries = await _journalRepository.getAllJournalEntries();
 
       // Debug logging - specifically check for media
       print('🔍 MCP Export Debug: Found ${journalEntries.length} journal entries');

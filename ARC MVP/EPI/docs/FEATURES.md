@@ -1,7 +1,7 @@
 # EPI MVP - Comprehensive Features Guide
 
-**Version:** 2.1.40
-**Last Updated:** January 2025
+**Version:** 2.1.42
+**Last Updated:** November 29, 2025
 
 ---
 
@@ -64,6 +64,13 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 - **Entry Metadata**: Date, time, location, phase, keywords
 - **Original Creation Time Preservation**: `createdAt` never changes when updating entries
 - **Edit Tracking**: `updatedAt` tracks last modification, `isEdited` flag indicates edits
+- **Read-Only Protection**: Entries from timeline open read-only by default with Edit button to unlock
+- **LUMARA Blocks Persistence**: LUMARA comments and user responses properly saved and restored
+  - Dedicated `lumaraBlocks` field in JournalEntry model (HiveField 27)
+  - Automatic migration from legacy `metadata.inlineBlocks` format
+  - Purple "LUMARA" tag displayed in timeline for entries with LUMARA comments
+  - Blocks persist across app restarts and imports/exports
+  - User comments in continuation fields properly saved
 
 ### Timeline
 
@@ -99,12 +106,15 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 - Context-aware responses
 - Phase-aware reflections
 - Multimodal understanding
+- **Scrollable Text Input**: Text input scrolls when content exceeds 5 lines, send button always accessible
+- **Auto-Minimize**: Input area automatically minimizes when clicking outside (ChatGPT-like behavior)
 - **Reflective Queries**: Three EPI-standard anti-harm queries
   - "Show me three times I handled something hard" - Finds resilience examples with SAGE filtering
   - "What was I struggling with around this time last year?" - Temporal struggle analysis
   - "Which themes have softened in the last six months?" - Theme frequency comparison
 - **Query Detection**: Automatic recognition of reflective query patterns
 - **Safety Filtering**: VEIL integration, trauma detection, night mode handling
+- **Saved Chats Navigation**: Direct navigation from favorites, automatic session restoration
 
 **Memory System**
 - **Automatic Persistence**: Chat history automatically saved

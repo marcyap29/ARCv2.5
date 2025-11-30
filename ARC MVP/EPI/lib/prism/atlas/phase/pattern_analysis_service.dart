@@ -14,13 +14,13 @@ class PatternAnalysisService {
   PatternAnalysisService(this._journalRepository);
 
   /// MINIMAL VIABLE FUNCTION - Count keywords, analyze emotions, return nodes
-  (List<KeywordNode>, List<KeywordEdge>) analyzePatterns({
+  Future<(List<KeywordNode>, List<KeywordEdge>)> analyzePatterns({
     double minWeight = 0.1,
     int maxNodes = 8,
-  }) {
+  }) async {
     print('DEBUG: PatternAnalysisService - Starting minimal analysis');
     
-    final entries = _journalRepository.getAllJournalEntries();
+    final entries = await _journalRepository.getAllJournalEntries();
     print('DEBUG: Found ${entries.length} journal entries');
 
     if (entries.isEmpty) {

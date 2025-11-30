@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
@@ -15,6 +16,7 @@ import 'package:my_app/services/user_phase_service.dart';
 import 'package:my_app/prism/atlas/rivet/rivet_provider.dart';
 import 'package:my_app/prism/atlas/rivet/rivet_models.dart';
 import 'package:my_app/models/user_profile_model.dart';
+import 'package:my_app/state/journal_entry_state.dart';
 import 'package:my_app/prism/atlas/phase/phase_tracker.dart';
 import 'package:my_app/prism/atlas/phase/phase_history_repository.dart';
 import 'package:my_app/prism/atlas/phase/phase_change_notifier.dart';
@@ -598,10 +600,23 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
         selectedKeywords: selectedKeywords,
       );
       
-      // Save LUMARA blocks to metadata
-      final metadata = blocks != null && blocks.isNotEmpty
-          ? {'inlineBlocks': blocks}
-          : null;
+      // Convert LUMARA blocks from JSON to InlineBlock objects
+      List<InlineBlock> lumaraBlocks = const [];
+      if (blocks != null && blocks.isNotEmpty) {
+        lumaraBlocks = blocks.map((blockJson) => InlineBlock.fromJson(blockJson)).toList();
+        print('DEBUG: saveEntryWithKeywords - Converted ${lumaraBlocks.length} LUMARA blocks from JSON to InlineBlock objects');
+      }
+      
+      // Debug logging for blocks
+      if (blocks != null) {
+        print('DEBUG: saveEntryWithKeywords - Saving ${blocks.length} LUMARA blocks');
+        for (int i = 0; i < blocks.length; i++) {
+          final block = blocks[i];
+          print('DEBUG: Block $i - type: ${block['type']}, intent: ${block['intent']}, hasComment: ${block['userComment'] != null}');
+        }
+      } else {
+        print('DEBUG: saveEntryWithKeywords - No blocks provided (blocks is null)');
+      }
       
       final entry = JournalEntry(
         id: const Uuid().v4(),
@@ -616,13 +631,48 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
         emotion: emotion,
         emotionReason: emotionReason,
         media: processedMedia, // Use processed media with permanent paths
-        metadata: metadata, // Include LUMARA blocks
+        lumaraBlocks: lumaraBlocks, // Include LUMARA blocks directly
       );
-      
+
       print('DEBUG: JournalEntry created with ${entry.media.length} media items');
+      print('DEBUG: JournalEntry created with ${entry.lumaraBlocks.length} LUMARA blocks');
+      for (int i = 0; i < entry.lumaraBlocks.length; i++) {
+        final block = entry.lumaraBlocks[i];
+        print('DEBUG: Block $i - type: ${block.type}, intent: ${block.intent}, hasComment: ${block.userComment != null && block.userComment!.isNotEmpty}');
+        if (block.userComment != null && block.userComment!.isNotEmpty) {
+          print('DEBUG: Block $i userComment: ${block.userComment!.substring(0, block.userComment!.length > 50 ? 50 : block.userComment!.length)}...');
+        }
+      }
 
       // Save the entry first
+      print('🚨 DEBUG: About to save new entry ${entry.id} with ${entry.lumaraBlocks.length} LUMARA blocks');
       await _journalRepository.createJournalEntry(entry);
+      print('✅ DEBUG: Successfully saved new entry ${entry.id}');
+
+      // Verify entry was saved with blocks
+      final savedEntry = await _journalRepository.getJournalEntryById(entry.id);
+      if (savedEntry != null) {
+        print('✅ DEBUG: Verification - Entry ${entry.id} exists in repository');
+        print('✅ DEBUG: Verification - Saved entry has ${savedEntry.lumaraBlocks.length} LUMARA blocks');
+        if (savedEntry.lumaraBlocks.length != entry.lumaraBlocks.length) {
+          print('❌ DEBUG: CRITICAL - Block count mismatch! Expected: ${entry.lumaraBlocks.length}, Got: ${savedEntry.lumaraBlocks.length}');
+        } else if (entry.lumaraBlocks.isNotEmpty) {
+          // Verify each block was saved correctly
+          for (int i = 0; i < entry.lumaraBlocks.length; i++) {
+            final originalBlock = entry.lumaraBlocks[i];
+            final savedBlock = savedEntry.lumaraBlocks[i];
+            if (originalBlock.content != savedBlock.content) {
+              print('❌ DEBUG: Block $i content mismatch!');
+            }
+            if (originalBlock.userComment != savedBlock.userComment) {
+              print('❌ DEBUG: Block $i userComment mismatch!');
+            }
+          }
+          print('✅ DEBUG: All blocks verified successfully');
+        }
+      } else {
+        print('❌ DEBUG: CRITICAL - Entry ${entry.id} NOT FOUND after save!');
+      }
       
       // Run deduplication after saving (silently in background)
       try {
@@ -635,7 +685,7 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
       // Adjust dates of other entries by the same offset if we have one
       if (dateOffset != null && dateOffset != Duration.zero) {
         try {
-          final allEntries = _journalRepository.getAllJournalEntries();
+          final allEntries = await _journalRepository.getAllJournalEntries();
           // Exclude the entry we just created
           final otherEntries = allEntries.where((e) => e.id != entry.id).toList();
           
@@ -657,7 +707,28 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
               sageAnnotation: otherEntry.sageAnnotation,
               metadata: otherEntry.metadata,
             );
-            await _journalRepository.updateJournalEntry(updatedEntry);
+            // Verify metadata before saving
+      print('DEBUG: updateEntryWithKeywords - About to save entry ${updatedEntry.id}');
+      print('DEBUG: updateEntryWithKeywords - Entry metadata keys: ${updatedEntry.metadata?.keys ?? "null"}');
+      if (updatedEntry.metadata != null && updatedEntry.metadata!.containsKey('inlineBlocks')) {
+        final savedBlocks = updatedEntry.metadata!['inlineBlocks'] as List?;
+        print('DEBUG: updateEntryWithKeywords - Entry has ${savedBlocks?.length ?? 0} inlineBlocks before save');
+      }
+      
+      await _journalRepository.updateJournalEntry(updatedEntry);
+      
+      // Verify entry was saved correctly
+      final savedEntry = await _journalRepository.getJournalEntryById(updatedEntry.id);
+      if (savedEntry != null) {
+        print('DEBUG: updateEntryWithKeywords - Entry ${savedEntry.id} saved successfully');
+        print('DEBUG: updateEntryWithKeywords - Saved entry has ${savedEntry.lumaraBlocks.length} LUMARA blocks');
+        for (int i = 0; i < savedEntry.lumaraBlocks.length; i++) {
+          final block = savedEntry.lumaraBlocks[i];
+          print('DEBUG: Saved Block $i - type: ${block.type}, intent: ${block.intent}, hasComment: ${block.userComment != null}');
+        }
+      } else {
+        print('DEBUG: updateEntryWithKeywords - ⚠️ ERROR: Could not retrieve saved entry!');
+      }
           }
           print('DEBUG: Adjusted ${otherEntries.length} entries by offset ${dateOffset.inHours} hours');
         } catch (e) {
@@ -893,9 +964,19 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
         selectedKeywords: selectedKeywords,
       );
       
-      // Save LUMARA blocks to metadata (merge with existing metadata)
+      // Handle LUMARA blocks - convert from JSON and preserve existing blocks if needed
+      List<InlineBlock> lumaraBlocks;
       if (blocks != null && blocks.isNotEmpty) {
-        metadata['inlineBlocks'] = blocks;
+        lumaraBlocks = blocks.map((blockJson) => InlineBlock.fromJson(blockJson)).toList();
+        print('DEBUG: updateEntryWithKeywords - Converted ${lumaraBlocks.length} LUMARA blocks from JSON');
+      } else if (blocks == null) {
+        // If blocks is null (not explicitly cleared), preserve existing blocks
+        lumaraBlocks = existingEntry.lumaraBlocks;
+        print('DEBUG: Preserving existing ${lumaraBlocks.length} LUMARA blocks from entry');
+      } else {
+        // If blocks is empty list, it means user explicitly cleared them
+        lumaraBlocks = const [];
+        print('DEBUG: Clearing LUMARA blocks as explicitly requested');
       }
       
       // Prevent keyword duplication - merge with existing keywords, remove duplicates
@@ -932,6 +1013,24 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
        
       // Create updated entry
       // IMPORTANT: createdAt is NEVER changed - preserves original creation time
+      // IMPORTANT: Merge metadata to preserve all existing metadata fields
+      // BUT: Remove inlineBlocks from metadata since we're using lumaraBlocks field now
+      final finalMetadata = <String, dynamic>{};
+      // Start with existing metadata
+      if (existingEntry.metadata != null) {
+        finalMetadata.addAll(existingEntry.metadata!);
+      }
+      // Remove old inlineBlocks from metadata (we use lumaraBlocks field now)
+      finalMetadata.remove('inlineBlocks');
+      // Override with new metadata (but don't include inlineBlocks)
+      finalMetadata.addAll(metadata);
+      // Ensure inlineBlocks is not in metadata
+      finalMetadata.remove('inlineBlocks');
+      
+      print('DEBUG: updateEntryWithKeywords - Final metadata keys: ${finalMetadata.keys}');
+      print('DEBUG: updateEntryWithKeywords - inlineBlocks removed from metadata (using lumaraBlocks field)');
+      print('DEBUG: updateEntryWithKeywords - lumaraBlocks count: ${lumaraBlocks.length}');
+      
       final updatedEntry = existingEntry.copyWith(
         title: title?.trim().isNotEmpty == true ? title!.trim() : existingEntry.title,
         content: contentWithPhase, // Use content with auto-added phase hashtag
@@ -944,14 +1043,33 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
         location: selectedLocation,
         // Phase is determined automatically by phase regime system, not manually set
         isEdited: true,
-        metadata: metadata, // Contains originalCreatedAt for safety
+        lumaraBlocks: lumaraBlocks, // Use direct LUMARA blocks field
+        metadata: finalMetadata, // Use cleaned metadata (no inlineBlocks)
         media: media ?? existingEntry.media, // Update media items or keep existing
       );
       
       print('DEBUG: Updated JournalEntry created with ${updatedEntry.media.length} media items');
+      print('DEBUG: Updated JournalEntry has ${updatedEntry.lumaraBlocks.length} LUMARA blocks');
 
       // Update the entry
+      // Verify LUMARA blocks before saving
+      print('DEBUG: updateEntryWithKeywords - About to save entry ${updatedEntry.id}');
+      print('DEBUG: updateEntryWithKeywords - Entry has ${updatedEntry.lumaraBlocks.length} LUMARA blocks before save');
+      
       await _journalRepository.updateJournalEntry(updatedEntry);
+      
+      // Verify entry was saved correctly
+      final savedEntry = await _journalRepository.getJournalEntryById(updatedEntry.id);
+      if (savedEntry != null) {
+        print('DEBUG: updateEntryWithKeywords - Entry ${savedEntry.id} saved successfully');
+        print('DEBUG: updateEntryWithKeywords - Saved entry has ${savedEntry.lumaraBlocks.length} LUMARA blocks');
+        for (int i = 0; i < savedEntry.lumaraBlocks.length; i++) {
+          final block = savedEntry.lumaraBlocks[i];
+          print('DEBUG: Saved Block $i - type: ${block.type}, intent: ${block.intent}, hasComment: ${block.userComment != null}');
+        }
+      } else {
+        print('DEBUG: updateEntryWithKeywords - ⚠️ ERROR: Could not retrieve saved entry!');
+      }
       
       // Run deduplication after updating (silently in background)
       try {
@@ -1003,7 +1121,28 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
 
         // Update the entry with the annotation
         final updatedEntry = entry.copyWith(sageAnnotation: annotation);
-        await _journalRepository.updateJournalEntry(updatedEntry);
+        // Verify metadata before saving
+      print('DEBUG: updateEntryWithKeywords - About to save entry ${updatedEntry.id}');
+      print('DEBUG: updateEntryWithKeywords - Entry metadata keys: ${updatedEntry.metadata?.keys ?? "null"}');
+      if (updatedEntry.metadata != null && updatedEntry.metadata!.containsKey('inlineBlocks')) {
+        final savedBlocks = updatedEntry.metadata!['inlineBlocks'] as List?;
+        print('DEBUG: updateEntryWithKeywords - Entry has ${savedBlocks?.length ?? 0} inlineBlocks before save');
+      }
+      
+      await _journalRepository.updateJournalEntry(updatedEntry);
+      
+      // Verify entry was saved correctly
+      final savedEntry = await _journalRepository.getJournalEntryById(updatedEntry.id);
+      if (savedEntry != null) {
+        print('DEBUG: updateEntryWithKeywords - Entry ${savedEntry.id} saved successfully');
+        print('DEBUG: updateEntryWithKeywords - Saved entry has ${savedEntry.lumaraBlocks.length} LUMARA blocks');
+        for (int i = 0; i < savedEntry.lumaraBlocks.length; i++) {
+          final block = savedEntry.lumaraBlocks[i];
+          print('DEBUG: Saved Block $i - type: ${block.type}, intent: ${block.intent}, hasComment: ${block.userComment != null}');
+        }
+      } else {
+        print('DEBUG: updateEntryWithKeywords - ⚠️ ERROR: Could not retrieve saved entry!');
+      }
       }
     } catch (e) {
       // Silently fail if SAGE processing fails - it's not critical
@@ -1195,7 +1334,7 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
   Future<void> _inferAndSetPhaseForEntry(JournalEntry entry) async {
     try {
       // Get recent entries for context
-      final allEntries = _journalRepository.getAllJournalEntries();
+      final allEntries = await _journalRepository.getAllJournalEntries();
       // Sort by createdAt descending and take 7 most recent
       allEntries.sort((a, b) => b.createdAt.compareTo(a.createdAt));
       final recentEntries = allEntries.take(7).toList();
@@ -1224,7 +1363,28 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
       );
       
       // Save updated entry
+      // Verify metadata before saving
+      print('DEBUG: updateEntryWithKeywords - About to save entry ${updatedEntry.id}');
+      print('DEBUG: updateEntryWithKeywords - Entry metadata keys: ${updatedEntry.metadata?.keys ?? "null"}');
+      if (updatedEntry.metadata != null && updatedEntry.metadata!.containsKey('inlineBlocks')) {
+        final savedBlocks = updatedEntry.metadata!['inlineBlocks'] as List?;
+        print('DEBUG: updateEntryWithKeywords - Entry has ${savedBlocks?.length ?? 0} inlineBlocks before save');
+      }
+      
       await _journalRepository.updateJournalEntry(updatedEntry);
+      
+      // Verify entry was saved correctly
+      final savedEntry = await _journalRepository.getJournalEntryById(updatedEntry.id);
+      if (savedEntry != null) {
+        print('DEBUG: updateEntryWithKeywords - Entry ${savedEntry.id} saved successfully');
+        print('DEBUG: updateEntryWithKeywords - Saved entry has ${savedEntry.lumaraBlocks.length} LUMARA blocks');
+        for (int i = 0; i < savedEntry.lumaraBlocks.length; i++) {
+          final block = savedEntry.lumaraBlocks[i];
+          print('DEBUG: Saved Block $i - type: ${block.type}, intent: ${block.intent}, hasComment: ${block.userComment != null}');
+        }
+      } else {
+        print('DEBUG: updateEntryWithKeywords - ⚠️ ERROR: Could not retrieve saved entry!');
+      }
       
       print('DEBUG: Phase inference completed for entry ${entry.id}: ${inferenceResult.phase} (confidence: ${inferenceResult.confidence.toStringAsFixed(3)})');
       

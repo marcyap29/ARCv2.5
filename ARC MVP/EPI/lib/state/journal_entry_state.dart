@@ -1,14 +1,27 @@
+import 'dart:convert';
 import 'package:my_app/mira/memory/enhanced_memory_schema.dart';
+import 'package:hive/hive.dart';
+
+part 'journal_entry_state.g.dart';
 
 /// Inline reflection block that appears within journal entries
+@HiveType(typeId: 103)
 class InlineBlock {
+  @HiveField(0)
   final String type; // 'inline_reflection'
+  @HiveField(1)
   final String intent; // ideas | think | perspective | next | analyze
+  @HiveField(2)
   final String content;
+  @HiveField(3)
   final int timestamp;
+  @HiveField(4)
   final String? phase; // Discovery, Recovery, Breakthrough, Consolidation
+  @HiveField(5)
   final String? userComment; // User's comment/continuation text after the reflection
-  final List<AttributionTrace>? attributionTraces; // Memory attribution traces for this reflection
+  // AttributionTrace stored as JSON string since it's complex
+  @HiveField(6)
+  final String? attributionTracesJson;
 
   InlineBlock({
     required this.type,
@@ -17,8 +30,29 @@ class InlineBlock {
     required this.timestamp,
     this.phase,
     this.userComment,
-    this.attributionTraces,
-  });
+    List<AttributionTrace>? attributionTraces,
+    this.attributionTracesJson,
+  }) : _attributionTraces = attributionTraces;
+
+  // Store attributionTraces separately (not in Hive)
+  final List<AttributionTrace>? _attributionTraces;
+  
+  // Getter for attributionTraces
+  List<AttributionTrace>? get attributionTraces {
+    if (_attributionTraces != null) return _attributionTraces;
+    if (attributionTracesJson == null) return null;
+    try {
+      final decoded = jsonDecode(attributionTracesJson!);
+      if (decoded is List) {
+        return decoded
+            .map((t) => AttributionTrace.fromJson(t as Map<String, dynamic>))
+            .toList();
+      }
+    } catch (e) {
+      return null;
+    }
+    return null;
+  }
 
   Map<String, dynamic> toJson() => {
     'type': type,
@@ -29,20 +63,39 @@ class InlineBlock {
     'userComment': userComment,
     'attributionTraces': attributionTraces?.map((t) => t.toJson()).toList(),
   };
+  
+  // Helper to create InlineBlock with attributionTraces for JSON serialization
+  InlineBlock withAttributionTraces(List<AttributionTrace>? traces) {
+    return InlineBlock(
+      type: type,
+      intent: intent,
+      content: content,
+      timestamp: timestamp,
+      phase: phase,
+      userComment: userComment,
+      attributionTraces: traces,
+      attributionTracesJson: traces != null ? jsonEncode(traces.map((t) => t.toJson()).toList()) : null,
+    );
+  }
 
-  factory InlineBlock.fromJson(Map<String, dynamic> json) => InlineBlock(
-    type: json['type'] as String,
-    intent: json['intent'] as String,
-    content: json['content'] as String,
-    timestamp: json['timestamp'] as int,
-    phase: json['phase'] as String?,
-    userComment: json['userComment'] as String?,
-    attributionTraces: json['attributionTraces'] != null
+  factory InlineBlock.fromJson(Map<String, dynamic> json) {
+    final traces = json['attributionTraces'] != null
         ? (json['attributionTraces'] as List)
             .map((t) => AttributionTrace.fromJson(t as Map<String, dynamic>))
             .toList()
-        : null,
-  );
+        : null;
+    
+    return InlineBlock(
+      type: json['type'] as String,
+      intent: json['intent'] as String,
+      content: json['content'] as String,
+      timestamp: json['timestamp'] as int,
+      phase: json['phase'] as String?,
+      userComment: json['userComment'] as String?,
+      attributionTraces: traces,
+      attributionTracesJson: traces != null ? jsonEncode(traces.map((t) => t.toJson()).toList()) : null,
+    );
+  }
 
   /// Create a copy with updated fields
   InlineBlock copyWith({
@@ -53,7 +106,9 @@ class InlineBlock {
     String? phase,
     String? userComment,
     List<AttributionTrace>? attributionTraces,
+    String? attributionTracesJson,
   }) {
+    final traces = attributionTraces ?? this.attributionTraces;
     return InlineBlock(
       type: type ?? this.type,
       intent: intent ?? this.intent,
@@ -61,7 +116,9 @@ class InlineBlock {
       timestamp: timestamp ?? this.timestamp,
       phase: phase ?? this.phase,
       userComment: userComment ?? this.userComment,
-      attributionTraces: attributionTraces ?? this.attributionTraces,
+      attributionTraces: traces,
+      attributionTracesJson: attributionTracesJson ?? 
+          (traces != null ? jsonEncode(traces.map((t) => t.toJson()).toList()) : this.attributionTracesJson),
     );
   }
 }

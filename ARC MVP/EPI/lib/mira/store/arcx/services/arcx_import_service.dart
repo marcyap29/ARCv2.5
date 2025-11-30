@@ -311,7 +311,7 @@ class ARCXImportService {
             if (!dryRun && _journalRepo != null) {
               try {
                 // Check if entry already exists - skip to preserve original dates
-                final existingEntry = _journalRepo!.getJournalEntryById(entry.id);
+                final existingEntry = await _journalRepo!.getJournalEntryById(entry.id);
                 if (existingEntry != null) {
                   print('ARCX Import: ⚠️ Entry ${entry.id} already exists - SKIPPING to preserve original dates');
                   print('   Existing createdAt: ${existingEntry.createdAt}');

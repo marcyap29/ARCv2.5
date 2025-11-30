@@ -108,7 +108,7 @@ class _CalendarWeekTimelineState extends State<CalendarWeekTimeline> {
         }
       } else {
         // Fallback to journal repository if timeline not loaded yet
-        final entries = _journalRepo.getAllJournalEntries();
+        final entries = await _journalRepo.getAllJournalEntries();
       for (final entry in entries) {
         // Normalize to date only (remove time component)
         final dateOnly = DateTime(entry.createdAt.year, entry.createdAt.month, entry.createdAt.day);

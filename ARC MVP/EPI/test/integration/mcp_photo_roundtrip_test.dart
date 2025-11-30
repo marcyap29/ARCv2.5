@@ -373,5 +373,6 @@ class MockJournalRepository extends JournalRepository {
   List<JournalEntry> entries = [];
   
   @override
-  List<JournalEntry> getAllJournalEntries() => entries;
+  @override
+  Future<List<JournalEntry>> getAllJournalEntries() async => entries;
 }

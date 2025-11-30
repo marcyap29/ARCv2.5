@@ -655,7 +655,7 @@ class EnhancedLumaraApi {
   /// Get recent journal entries from repository
   Future<List<JournalEntry>> _getRecentJournalEntries({int limit = 20}) async {
     try {
-      final allEntries = _journalRepo.getAllJournalEntries();
+      final allEntries = await _journalRepo.getAllJournalEntries();
       // Sort by date, newest first
       allEntries.sort((a, b) => b.createdAt.compareTo(a.createdAt));
       return allEntries.take(limit).toList();
@@ -669,7 +669,7 @@ class EnhancedLumaraApi {
   /// Drafts are entries with empty title or very short content
   Future<List<JournalEntry>> _getDrafts({int limit = 10}) async {
     try {
-      final allEntries = _journalRepo.getAllJournalEntries();
+      final allEntries = await _journalRepo.getAllJournalEntries();
       final drafts = allEntries.where((entry) {
         // Consider it a draft if title is empty or content is very short
         return entry.title.isEmpty || entry.content.length < 50;

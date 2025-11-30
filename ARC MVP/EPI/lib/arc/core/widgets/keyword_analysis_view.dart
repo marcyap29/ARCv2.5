@@ -98,7 +98,7 @@ class _KeywordAnalysisViewState extends State<KeywordAnalysisView>
 
   Future<void> _loadPastKeywords() async {
     try {
-      final entries = _journalRepository.getAllJournalEntries();
+      final entries = await _journalRepository.getAllJournalEntries();
       final allKeywords = <String>{};
       
       for (final entry in entries) {

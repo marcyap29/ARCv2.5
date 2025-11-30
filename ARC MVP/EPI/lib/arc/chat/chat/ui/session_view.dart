@@ -166,25 +166,33 @@ class _SessionViewState extends State<SessionView> {
 
       var session = await widget.chatRepo.getSession(widget.sessionId);
       
-      // If session doesn't exist, try to restore it from archived or create from saved chat
+      // If session doesn't exist, try to restore it from archived or recreate from saved chat
       if (session == null) {
         // Check if it's in archived sessions
         final allSessions = await widget.chatRepo.listAll(includeArchived: true);
-        session = allSessions.firstWhere(
-          (s) => s.id == widget.sessionId,
-          orElse: () => throw Exception('Session not found'),
-        );
-        
-        // If it's archived, restore it automatically
-        if (session.isArchived) {
-          await widget.chatRepo.archiveSession(session.id, false);
-          // Reload to get updated session
-          session = await widget.chatRepo.getSession(widget.sessionId);
+        try {
+          session = allSessions.firstWhere(
+            (s) => s.id == widget.sessionId,
+          );
+          
+          // If it's archived, restore it automatically
+          if (session.isArchived) {
+            await widget.chatRepo.archiveSession(session.id, false);
+            // Reload to get updated session
+            session = await widget.chatRepo.getSession(widget.sessionId);
+          }
+        } catch (_) {
+          // Session not found in active or archived - try to recreate from saved chat
+          session = await _tryRecreateSessionFromSavedChat();
+          if (session == null) {
+            throw Exception('Session not found and could not be recreated from saved chat');
+          }
         }
       }
 
-      // Load messages (works for both active and archived sessions)
-      final messages = await widget.chatRepo.getMessages(widget.sessionId);
+      // Load messages using the actual session ID (may differ from widget.sessionId if recreated)
+      // At this point, session is guaranteed to be non-null (exception thrown if recreation fails)
+      final messages = await widget.chatRepo.getMessages(session!.id);
       
       setState(() {
         _session = session;
@@ -199,6 +207,144 @@ class _SessionViewState extends State<SessionView> {
         _error = 'Session not found. It may have been deleted.';
         _isLoading = false;
       });
+    }
+  }
+
+  /// Try to recreate a session from a saved chat favorite
+  Future<ChatSession?> _tryRecreateSessionFromSavedChat() async {
+    try {
+      final favoritesService = FavoritesService.instance;
+      await favoritesService.initialize();
+      
+      // Find saved chat with matching session ID
+      final savedChats = await favoritesService.getSavedChats();
+      final savedChat = savedChats.firstWhere(
+        (fav) => fav.sessionId == widget.sessionId,
+        orElse: () => throw Exception('Saved chat not found'),
+      );
+      
+      print('🔄 SessionView: Attempting to recreate session ${widget.sessionId} from saved chat');
+      
+      // Parse the saved chat content to extract subject and messages
+      final content = savedChat.content;
+      String subject = 'Restored Chat';
+      final messages = <Map<String, String>>[];
+      
+      // Parse content format: "Chat: {subject}\n\nUser: {msg}\n\nLUMARA: {msg}\n\n..."
+      if (content.startsWith('Chat Session\n\n') || content.startsWith('Chat:')) {
+        final lines = content.split('\n');
+        int lineIndex = 0;
+        
+        // Extract subject
+        if (content.startsWith('Chat:')) {
+          final subjectLine = lines[0];
+          subject = subjectLine.replaceFirst('Chat:', '').trim();
+          if (subject.isEmpty) subject = 'Restored Chat';
+          lineIndex = 1; // Skip subject line
+        } else if (content.startsWith('Chat Session\n\n')) {
+          subject = 'Restored Chat';
+          lineIndex = 2; // Skip "Chat Session" and empty line
+        }
+        
+        // Parse messages
+        String? currentRole;
+        String? currentContent;
+        
+        for (int i = lineIndex; i < lines.length; i++) {
+          final line = lines[i].trim();
+          
+          if (line.isEmpty) {
+            // Empty line - save current message if any
+            if (currentRole != null && currentContent != null && currentContent.isNotEmpty) {
+              messages.add({
+                'role': currentRole,
+                'content': currentContent.trim(),
+              });
+              currentRole = null;
+              currentContent = null;
+            }
+            continue;
+          }
+          
+          if (line.startsWith('User:') || line.startsWith('LUMARA:')) {
+            // Save previous message if any
+            if (currentRole != null && currentContent != null && currentContent.isNotEmpty) {
+              messages.add({
+                'role': currentRole,
+                'content': currentContent.trim(),
+              });
+            }
+            
+            // Start new message
+            if (line.startsWith('User:')) {
+              currentRole = 'user';
+              currentContent = line.replaceFirst('User:', '').trim();
+            } else if (line.startsWith('LUMARA:')) {
+              currentRole = 'assistant';
+              currentContent = line.replaceFirst('LUMARA:', '').trim();
+            }
+          } else if (currentRole != null) {
+            // Continuation of current message
+            if (currentContent != null) {
+              currentContent += '\n$line';
+            } else {
+              currentContent = line;
+            }
+          }
+        }
+        
+        // Save last message if any
+        if (currentRole != null && currentContent != null && currentContent.isNotEmpty) {
+          messages.add({
+            'role': currentRole,
+            'content': currentContent.trim(),
+          });
+        }
+      }
+      
+      // Use metadata subject if available
+      if (savedChat.metadata.containsKey('subject')) {
+        subject = savedChat.metadata['subject'] as String? ?? subject;
+      }
+      
+      print('🔄 SessionView: Recreating session "$subject" with ${messages.length} messages');
+      
+      // Create the session with the original ID
+      final newSessionId = await widget.chatRepo.createSession(
+        subject: subject,
+        tags: [],
+      );
+      
+      // If the new session ID doesn't match, we need to update the saved chat
+      // But for now, let's try to use the original ID if possible
+      // Actually, we can't control the session ID when creating, so we'll use the new one
+      
+      // Add all messages
+      for (final msg in messages) {
+        await widget.chatRepo.addMessage(
+          sessionId: newSessionId,
+          role: msg['role']!,
+          content: msg['content']!,
+        );
+      }
+      
+      // Update the saved chat to point to the new session ID
+      if (newSessionId != widget.sessionId) {
+        print('⚠️ SessionView: Created new session $newSessionId (original: ${widget.sessionId})');
+        // Update the favorite's sessionId by removing and re-adding
+        await favoritesService.removeFavorite(savedChat.id);
+        final updatedFavorite = savedChat.copyWith(sessionId: newSessionId);
+        await favoritesService.addSavedChat(updatedFavorite);
+      }
+      
+      // Get the created session
+      final createdSession = await widget.chatRepo.getSession(newSessionId);
+      print('✅ SessionView: Successfully recreated session $newSessionId');
+      
+      return createdSession;
+    } catch (e) {
+      print('❌ SessionView: Failed to recreate session from saved chat: $e');
+      return null;
     }
   }
 

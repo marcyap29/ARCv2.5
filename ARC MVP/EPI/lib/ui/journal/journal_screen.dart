@@ -212,37 +212,58 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
         _showKeywordsDiscovered = true;
       }
       
-      // Restore LUMARA blocks from metadata if present
-      if (widget.existingEntry!.metadata != null) {
-        final inlineBlocks = widget.existingEntry!.metadata!['inlineBlocks'] as List?;
-        if (inlineBlocks != null && inlineBlocks.isNotEmpty) {
-          for (int i = 0; i < inlineBlocks.length; i++) {
-            final blockJson = inlineBlocks[i];
-            try {
-              final block = InlineBlock.fromJson(Map<String, dynamic>.from(blockJson));
-              _entryState.addReflection(block);
+      // Debug: Check entry state before loading blocks
+      debugPrint('JournalScreen: Loading entry ${widget.existingEntry!.id}');
+      debugPrint('JournalScreen: Entry lumaraBlocks count: ${widget.existingEntry!.lumaraBlocks.length}');
+      if (widget.existingEntry!.metadata != null && widget.existingEntry!.metadata!.containsKey('inlineBlocks')) {
+        final metadataBlocks = widget.existingEntry!.metadata!['inlineBlocks'];
+        debugPrint('JournalScreen: Entry has inlineBlocks in metadata, type: ${metadataBlocks.runtimeType}');
+        if (metadataBlocks is List) {
+          debugPrint('JournalScreen: Metadata has ${metadataBlocks.length} blocks');
+        }
+      }
+      
+      // Load LUMARA blocks from the entry's lumaraBlocks field
+      // This is the single source of truth - blocks are stored here, not in metadata
+      final lumaraBlocks = widget.existingEntry!.lumaraBlocks;
+      
+      if (lumaraBlocks.isNotEmpty) {
+        debugPrint('✅ JournalScreen: Loading ${lumaraBlocks.length} LUMARA blocks from entry ${widget.existingEntry!.id}');
+        
+        for (int i = 0; i < lumaraBlocks.length; i++) {
+          final block = lumaraBlocks[i];
+          debugPrint('   Block $i: type=${block.type}, intent=${block.intent}, hasComment=${block.userComment != null && block.userComment!.isNotEmpty}');
+
+          // Add block to entry state
+          _entryState.addReflection(block);
+
+          // Create controller for continuation field
+          final controller = TextEditingController(text: block.userComment ?? '');
+          _continuationControllers[i] = controller;
+          
+          // Listen for changes to user comments
+          controller.addListener(() {
+            if (i < _entryState.blocks.length && mounted) {
+              setState(() {
+                _entryState.blocks[i] = _entryState.blocks[i].copyWith(
+                  userComment: controller.text.trim().isEmpty ? null : controller.text.trim(),
+                );
+                _hasBeenModified = true;
+              });
               
-              // Create and initialize continuation controller for this block
-              final controller = TextEditingController(text: block.userComment ?? '');
-              _continuationControllers[i] = controller;
-              controller.addListener(() {
-                // Save comment to block when text changes
-                if (i < _entryState.blocks.length) {
-                  _entryState.blocks[i] = _entryState.blocks[i].copyWith(
-                    userComment: controller.text.trim().isEmpty ? null : controller.text.trim(),
-                  );
-                  // Mark as modified
-                  _hasBeenModified = true;
-                  // Auto-save draft with updated blocks
-                  _updateDraftContent(_entryState.text);
+              // Persist after a short delay (debounced)
+              Future.delayed(const Duration(milliseconds: 500), () {
+                if (widget.existingEntry != null && mounted) {
+                  _persistLumaraBlocksToEntry();
                 }
               });
-            } catch (e) {
-              debugPrint('JournalScreen: Error loading LUMARA block: $e');
             }
-          }
-          debugPrint('JournalScreen: Restored ${_entryState.blocks.length} LUMARA blocks from metadata');
+          });
         }
+        
+        debugPrint('✅ JournalScreen: Successfully loaded ${_entryState.blocks.length} LUMARA blocks');
+      } else {
+        debugPrint('JournalScreen: Entry has no LUMARA blocks');
       }
       
       // Initialize text controllers
@@ -414,6 +435,19 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     WidgetsBinding.instance.removeObserver(this);
     
     _autoSaveTimer?.cancel();
+    
+    // Persist LUMARA blocks one final time before disposing if editing existing entry
+    if (widget.existingEntry != null && _entryState.blocks.isNotEmpty) {
+      // Save immediately before disposing
+      final lumaraBlocks = List<InlineBlock>.from(_entryState.blocks);
+      final updatedEntry = widget.existingEntry!.copyWith(
+        lumaraBlocks: lumaraBlocks,
+        updatedAt: DateTime.now(),
+      );
+      _journalRepository.updateJournalEntry(updatedEntry).catchError((e) {
+        debugPrint('JournalScreen: Error persisting LUMARA blocks on dispose: $e');
+      });
+    }
     
     // Save current draft before disposing (2 requirement)
     if (_currentDraftId != null && (!widget.isViewOnly || _isEditMode)) {
@@ -1138,6 +1172,11 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
         });
       }
       
+      // Persist blocks to entry immediately if editing existing entry
+      if (widget.existingEntry != null) {
+        await _persistLumaraBlocksToEntry();
+      }
+      
       // Create controller for the new block if it doesn't exist
       if (!_continuationControllers.containsKey(blockIndex)) {
         final controller = TextEditingController();
@@ -1151,6 +1190,10 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
               _hasBeenModified = true;
             });
             _updateDraftContent(_entryState.text);
+            // Persist blocks to entry if editing existing entry
+            if (widget.existingEntry != null) {
+              _persistLumaraBlocksToEntry();
+            }
           }
         });
       }
@@ -1699,7 +1742,15 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
               }
               return mediaItems;
             })(),
-            lumaraBlocks: _entryState.blocks.map((b) => b.toJson()).toList(),
+            lumaraBlocks: () {
+              final blocksJson = _entryState.blocks.map((b) => b.toJson()).toList();
+              debugPrint('JournalScreen: Saving entry with ${blocksJson.length} LUMARA blocks');
+              for (int i = 0; i < blocksJson.length; i++) {
+                final block = blocksJson[i];
+                debugPrint('JournalScreen: Block $i - type: ${block['type']}, intent: ${block['intent']}, hasComment: ${block['userComment'] != null}');
+              }
+              return blocksJson;
+            }(),
             title: _titleController.text.trim().isNotEmpty ? _titleController.text.trim() : null,
             isTimelineEditing: widget.isTimelineEditing, // Pass timeline editing flag for timestamp control
             ),
@@ -2556,6 +2607,14 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
             });
             // Auto-save draft with updated blocks
             _updateDraftContent(_entryState.text);
+            // Persist blocks to entry if editing existing entry (debounced)
+            if (widget.existingEntry != null) {
+              Future.delayed(const Duration(milliseconds: 500), () {
+                if (widget.existingEntry != null && mounted) {
+                  _persistLumaraBlocksToEntry();
+                }
+              });
+            }
           }
         });
       }
@@ -4086,7 +4145,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
             // If we found an entry ID, try to get the full entry
             if (entryId != null && !addedEntryIds.contains(entryId)) {
               try {
-                final allEntries = _journalRepository.getAllJournalEntries();
+                final allEntries = await _journalRepository.getAllJournalEntries();
                 final entry = allEntries.firstWhere(
                   (e) => e.id == entryId,
                   orElse: () => allEntries.first,
@@ -4235,7 +4294,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     
     // Compute circadian context from all entries
     final circadianService = CircadianProfileService();
-    final allEntries = _journalRepository.getAllJournalEntries();
+    final allEntries = await _journalRepository.getAllJournalEntries();
     final chronoContext = await circadianService.compute(allEntries);
     context['chronoContext'] = {
       'window': chronoContext.window,
@@ -4865,6 +4924,11 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
         _lumaraLoadingMessages[newBlockIndex] = null;
       });
       
+      // Persist blocks to entry immediately if editing existing entry
+      if (widget.existingEntry != null) {
+        await _persistLumaraBlocksToEntry();
+      }
+      
       // Create controller for the new block
       final controller = TextEditingController();
       _continuationControllers[newBlockIndex] = controller;
@@ -4879,6 +4943,14 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
           });
           // Auto-save draft with updated blocks
           _updateDraftContent(_textController.text);
+          // Persist blocks to entry if editing existing entry (debounced)
+          if (widget.existingEntry != null) {
+            Future.delayed(const Duration(milliseconds: 500), () {
+              if (widget.existingEntry != null && mounted) {
+                _persistLumaraBlocksToEntry();
+              }
+            });
+          }
         }
       });
       
@@ -5058,6 +5130,39 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
       }
     
     debugPrint('JournalScreen: Draft content updated with ${blocksJson.length} LUMARA blocks');
+  }
+
+  /// Persist LUMARA blocks to journal entry immediately
+  /// This is called whenever blocks change (generation, user comments, etc.)
+  Future<void> _persistLumaraBlocksToEntry() async {
+    if (widget.existingEntry == null) return;
+    
+    try {
+      // Get current blocks from entry state
+      final lumaraBlocks = List<InlineBlock>.from(_entryState.blocks);
+      
+      // Create updated entry with current blocks
+      final updatedEntry = widget.existingEntry!.copyWith(
+        lumaraBlocks: lumaraBlocks,
+        updatedAt: DateTime.now(),
+      );
+      
+      // Save to database
+      await _journalRepository.updateJournalEntry(updatedEntry);
+      
+      debugPrint('✅ JournalScreen: Saved ${lumaraBlocks.length} LUMARA blocks to entry ${widget.existingEntry!.id}');
+      
+      // Verify the save worked
+      final savedEntry = await _journalRepository.getJournalEntryById(widget.existingEntry!.id);
+      if (savedEntry != null && savedEntry.lumaraBlocks.length == lumaraBlocks.length) {
+        debugPrint('✅ JournalScreen: Verified ${savedEntry.lumaraBlocks.length} blocks saved correctly');
+      } else {
+        debugPrint('❌ JournalScreen: WARNING - Block count mismatch after save!');
+      }
+    } catch (e, stackTrace) {
+      debugPrint('❌ JournalScreen: ERROR persisting LUMARA blocks: $e');
+      debugPrint('Stack: $stackTrace');
+    }
   }
 
   /// Navigate to drafts screen
@@ -5552,7 +5657,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
         // If we found an entry ID, try to get the actual journal entry
         if (entryId != null) {
           try {
-            final allEntries = _journalRepository.getAllJournalEntries();
+            final allEntries = await _journalRepository.getAllJournalEntries();
             JournalEntry entry;
             try {
               entry = allEntries.firstWhere((e) => e.id == entryId);

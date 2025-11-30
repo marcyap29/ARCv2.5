@@ -2,6 +2,7 @@ import 'package:equatable/equatable.dart';
 import 'package:hive/hive.dart';
 import 'package:my_app/arc/core/sage_annotation_model.dart';
 import 'package:my_app/data/models/media_item.dart';
+import 'package:my_app/state/journal_entry_state.dart';
 
 part 'journal_entry_model.g.dart';
 
@@ -86,6 +87,9 @@ class JournalEntry extends Equatable {
   @HiveField(26)
   final String? phaseMigrationStatus; // "PENDING", "DONE", "SKIPPED"
 
+  @HiveField(27)
+  final List<InlineBlock> lumaraBlocks; // LUMARA inline reflection blocks
+
   const JournalEntry({
     required this.id,
     required this.title,
@@ -113,6 +117,7 @@ class JournalEntry extends Equatable {
     this.importSource,
     this.phaseInferenceVersion,
     this.phaseMigrationStatus,
+    this.lumaraBlocks = const [], // LUMARA inline reflection blocks
   });
 
   JournalEntry copyWith({
@@ -142,6 +147,7 @@ class JournalEntry extends Equatable {
     String? importSource,
     int? phaseInferenceVersion,
     String? phaseMigrationStatus,
+    List<InlineBlock>? lumaraBlocks,
   }) {
     return JournalEntry(
       id: id ?? this.id,
@@ -170,6 +176,7 @@ class JournalEntry extends Equatable {
       importSource: importSource ?? this.importSource,
       phaseInferenceVersion: phaseInferenceVersion ?? this.phaseInferenceVersion,
       phaseMigrationStatus: phaseMigrationStatus ?? this.phaseMigrationStatus,
+      lumaraBlocks: lumaraBlocks ?? this.lumaraBlocks,
     );
   }
 
@@ -201,6 +208,7 @@ class JournalEntry extends Equatable {
         importSource,
         phaseInferenceVersion,
         phaseMigrationStatus,
+        lumaraBlocks,
       ];
 
   Map<String, dynamic> toJson() {
@@ -231,6 +239,7 @@ class JournalEntry extends Equatable {
       'importSource': importSource,
       'phaseInferenceVersion': phaseInferenceVersion,
       'phaseMigrationStatus': phaseMigrationStatus,
+      'lumaraBlocks': lumaraBlocks.map((b) => b.toJson()).toList(),
     };
   }
 
@@ -269,6 +278,9 @@ class JournalEntry extends Equatable {
       importSource: json['importSource'] as String?,
       phaseInferenceVersion: json['phaseInferenceVersion'] as int?,
       phaseMigrationStatus: json['phaseMigrationStatus'] as String?,
+      lumaraBlocks: (json['lumaraBlocks'] as List?)
+          ?.map((b) => InlineBlock.fromJson(b as Map<String, dynamic>))
+          .toList() ?? [],
     );
   }
 

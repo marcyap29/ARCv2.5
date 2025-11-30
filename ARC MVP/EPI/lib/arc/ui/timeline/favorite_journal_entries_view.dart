@@ -38,7 +38,7 @@ class _FavoriteJournalEntriesViewState extends State<FavoriteJournalEntriesView>
       final entryMap = <String, JournalEntry>{};
       for (final favorite in favorites) {
         if (favorite.entryId != null) {
-          final entry = _journalRepo.getJournalEntryById(favorite.entryId!);
+          final entry = await _journalRepo.getJournalEntryById(favorite.entryId!);
           if (entry != null) {
             entryMap[favorite.entryId!] = entry;
           }

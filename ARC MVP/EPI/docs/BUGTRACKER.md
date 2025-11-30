@@ -1,7 +1,34 @@
 # EPI MVP - Bug Tracker
 
-**Version:** 2.1.40
-**Last Updated:** January 2025
+**Version:** 2.1.42
+**Last Updated:** November 29, 2025
+
+## Resolved Issues (v2.1.42)
+
+### LUMARA In-Journal Comments Not Persisting
+- **Issue**: LUMARA comments generated during journal entry creation disappeared after app restart
+- **Root Cause**: LUMARA blocks were stored in `metadata.inlineBlocks` but not migrated to dedicated `lumaraBlocks` field, and migration code wasn't persisting changes back to Hive
+- **Resolution**:
+  1. Added `lumaraBlocks: List<InlineBlock>` field to JournalEntry model with HiveField(27)
+  2. Made InlineBlock a Hive type (typeId: 103) with proper adapter
+  3. Fixed `_normalize()` method to persist migrated blocks immediately
+  4. Updated `updateJournalEntry()` to remove `inlineBlocks` from metadata
+  5. Fixed MCP import to convert `inlineBlocks` to `lumaraBlocks` during import
+  6. Added purple "LUMARA" tag to timeline entries with blocks
+  7. Fixed all async/await issues for `getJournalEntryById()` across codebase
+- **Impact**: LUMARA comments now persist correctly across app restarts and imports/exports
+- **Status**: ✅ Fixed
+
+### White Screen on App Startup
+- **Issue**: App would lock on white screen during startup
+- **Root Cause**: Excessive logging and synchronous processing during data loading blocked UI thread
+- **Resolution**:
+  1. Deferred timeline loading using `Future.microtask()` to avoid blocking widget tree construction
+  2. Added UI thread yielding every 20 entries during normalization
+  3. Reduced verbose logging that was slowing down app
+  4. Simplified migration logging to only show success/errors
+- **Impact**: App now loads smoothly without blocking UI thread
+- **Status**: ✅ Fixed
 
 ## Resolved Issues (v2.1.40)
 

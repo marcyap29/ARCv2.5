@@ -16,7 +16,7 @@ class DataExportService {
       onProgress('Preparing data for export...');
       
       // Get all journal entries
-      final entries = journalRepository.getAllJournalEntries();
+      final entries = await journalRepository.getAllJournalEntries();
       onProgress('Found ${entries.length} journal entries');
       
       // Get all arcform snapshots
@@ -79,7 +79,7 @@ class DataExportService {
     required JournalRepository journalRepository,
   }) async {
     try {
-      final entries = journalRepository.getAllJournalEntries();
+      final entries = await journalRepository.getAllJournalEntries();
       final arcformService = ArcformService();
       final snapshots = await arcformService.getAllSnapshots();
       

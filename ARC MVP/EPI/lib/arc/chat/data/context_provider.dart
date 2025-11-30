@@ -191,7 +191,7 @@ class ContextProvider {
 
     try {
       // Get all journal entries from repository
-      final allEntries = _journalRepository.getAllJournalEntries();
+      final allEntries = await _journalRepository.getAllJournalEntries();
       print('LUMARA Context: Found ${allEntries.length} total journal entries');
 
       // Debug: Print details of first few entries
@@ -293,7 +293,7 @@ class ContextProvider {
 
     // Get phase history from real journal entries
     try {
-      final allEntries = _journalRepository.getAllJournalEntries();
+      final allEntries = await _journalRepository.getAllJournalEntries();
       // Get phase history from all journal entries (using content analysis)
       final entriesWithPhases = allEntries.toList();
 

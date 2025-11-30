@@ -54,7 +54,7 @@ class JournalManager {
   Future<void> appendToDate(DateTime date, String text) async {
     try {
       // Get all entries and filter by date
-      final allEntries = _repository.getAllJournalEntries();
+      final allEntries = await _repository.getAllJournalEntries();
       final startOfDay = DateTime(date.year, date.month, date.day);
       final endOfDay = startOfDay.add(const Duration(days: 1));
       
@@ -88,7 +88,7 @@ class JournalManager {
       final end = endDate ?? DateTime.now();
 
       // Get all entries and filter by date range
-      final allEntries = _repository.getAllJournalEntries();
+      final allEntries = await _repository.getAllJournalEntries();
       final entries = allEntries.where((entry) {
         return entry.createdAt.isAfter(start) && entry.createdAt.isBefore(end);
       }).toList();

@@ -709,7 +709,7 @@ class ARCXExportServiceV2 {
     
     final entries = <JournalEntry>[];
     for (final id in entryIds) {
-      final entry = _journalRepo!.getJournalEntryById(id);
+      final entry = await _journalRepo!.getJournalEntryById(id);
       if (entry != null) {
         // Apply date filtering if provided
         if (startDate != null && entry.createdAt.isBefore(startDate)) continue;

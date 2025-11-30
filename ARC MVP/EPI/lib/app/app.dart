@@ -82,9 +82,12 @@ class _AppState extends State<App> {
         providers: [
           // Long‑lived cubit used by multiple screens (timeline, etc.)
           BlocProvider(
-            create: (context) =>
-                TimelineCubit(journalRepository: context.read<JournalRepository>())
-                  ..loadEntries(),
+            create: (context) {
+              final cubit = TimelineCubit(journalRepository: context.read<JournalRepository>());
+              // Defer loading to avoid blocking UI during startup
+              Future.microtask(() => cubit.loadEntries());
+              return cubit;
+            },
           ),
           // Journal capture cubit for creating new entries
           BlocProvider(

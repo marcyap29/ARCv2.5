@@ -133,7 +133,8 @@ class LumaraNotificationService {
     DateTime targetDate,
   ) async {
     // Check for recent themes or open loops
-    final recentEntries = _journalRepository.getAllJournalEntries()
+    final allEntries = await _journalRepository.getAllJournalEntries();
+    final recentEntries = allEntries
         .where((e) => e.createdAt.isAfter(
           DateTime.now().subtract(const Duration(days: 7))
         ))
@@ -246,7 +247,7 @@ class LumaraNotificationService {
     }
 
     // Check circadian context
-    final allEntries = _journalRepository.getAllJournalEntries();
+    final allEntries = await _journalRepository.getAllJournalEntries();
     final circadianContext = await _circadianService.compute(allEntries);
     
     // Don't send during evening if user is in low-energy phase

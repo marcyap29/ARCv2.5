@@ -30,7 +30,9 @@ class AtlasPhaseIntegration {
       final patternService = PatternAnalysisService(JournalRepository());
 
       // Get latest phase analysis
-      final (nodes, edges) = patternService.analyzePatterns();
+      final result = await patternService.analyzePatterns();
+      final nodes = result.$1;
+      final edges = result.$2;
 
       // Process the pattern analysis results
       if (nodes.isNotEmpty) {

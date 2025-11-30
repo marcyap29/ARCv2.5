@@ -16,7 +16,7 @@ class SleepProtectionService {
 
   /// Detect user's sleep window from journal entry patterns
   Future<SleepWindow> detectSleepWindow() async {
-    final allEntries = _journalRepository.getAllJournalEntries();
+    final allEntries = await _journalRepository.getAllJournalEntries();
     
     if (allEntries.isEmpty) {
       return _getDefaultSleepWindow();

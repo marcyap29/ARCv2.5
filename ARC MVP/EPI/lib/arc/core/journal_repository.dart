@@ -8,12 +8,14 @@ import 'package:my_app/arc/core/sage_annotation_model.dart';
 import 'package:my_app/mira/mira_service.dart';
 import 'package:my_app/mira/core/schema.dart';
 import 'package:my_app/data/models/media_item.dart';
+import 'package:my_app/state/journal_entry_state.dart';
 
 /// Self-initializing repository with consistent box name.
 /// No external init() needed.
 class JournalRepository {
   static const String _boxName = 'journal_entries';
   Box<JournalEntry>? _box;
+  bool _lumaraMigrationDone = false;
 
   Future<Box<JournalEntry>> _openBoxSafely({int retries = 5}) async {
     for (var i = 0; i < retries; i++) {
@@ -31,13 +33,92 @@ class JournalRepository {
   }
 
   Future<Box<JournalEntry>> _ensureBox() async {
+    // Register adapters before opening the box so Hive can deserialize nested types (InlineBlock, MediaItem)
+    _ensureAdapters();
     if (_box != null && _box!.isOpen) return _box!;
     _box = await _openBoxSafely();
+
+    // Run one-time migration to persist LUMARA blocks into the dedicated field
+    if (!_lumaraMigrationDone) {
+      await _migrateLumaraBlocks();
+      _lumaraMigrationDone = true;
+    }
+
     return _box!;
   }
 
-  /// Ensure MediaItem adapter is registered before saving entries with media
-  void _ensureMediaItemAdapter() {
+  /// Public migration entrypoint so startup code can force persistence of legacy inline blocks.
+  Future<void> migrateLumaraBlocks() async {
+    await _ensureBox();
+    if (_lumaraMigrationDone) return;
+    await _migrateLumaraBlocks();
+    _lumaraMigrationDone = true;
+  }
+
+  /// Convert legacy metadata.inlineBlocks into the lumaraBlocks field and persist.
+  Future<void> _migrateLumaraBlocks() async {
+    final box = _box;
+    if (box == null) return;
+
+    try {
+      for (final key in box.keys) {
+        final entry = box.get(key);
+        if (entry == null) continue;
+
+        // Skip if already has lumaraBlocks
+        if (entry.lumaraBlocks.isNotEmpty) continue;
+
+        final inlineBlocksData = entry.metadata?['inlineBlocks'];
+        if (inlineBlocksData == null) continue;
+
+        final convertedBlocks = _convertInlineBlocks(inlineBlocksData);
+        if (convertedBlocks.isEmpty) continue;
+
+        // Remove inlineBlocks from metadata when migrating
+        final cleanedMetadata = entry.metadata != null 
+            ? Map<String, dynamic>.from(entry.metadata!) 
+            : <String, dynamic>{};
+        cleanedMetadata.remove('inlineBlocks');
+        
+        final updated = entry.copyWith(
+          lumaraBlocks: convertedBlocks,
+          metadata: cleanedMetadata,
+        );
+        await box.put(entry.id, updated);
+        print('🔄 Migrated ${convertedBlocks.length} LUMARA blocks for entry ${entry.id}');
+      }
+    } catch (e) {
+      print('⚠️ LUMARA migration error: $e');
+    }
+  }
+
+  /// Helper to convert legacy inlineBlocks data (List or JSON string) to InlineBlock list.
+  List<InlineBlock> _convertInlineBlocks(dynamic inlineBlocksData) {
+    try {
+      if (inlineBlocksData is List) {
+        return inlineBlocksData
+            .whereType<Map>()
+            .map((block) => InlineBlock.fromJson(Map<String, dynamic>.from(block)))
+            .toList();
+      }
+
+      if (inlineBlocksData is String) {
+        final decoded = jsonDecode(inlineBlocksData);
+        if (decoded is List) {
+          return decoded
+              .whereType<Map>()
+              .map((block) => InlineBlock.fromJson(Map<String, dynamic>.from(block)))
+              .toList();
+        }
+      }
+    } catch (e) {
+      print('⚠️ LUMARA inlineBlocks conversion error: $e');
+    }
+    return const [];
+  }
+
+  /// Ensure required adapters are registered before saving entries
+  void _ensureAdapters() {
     if (!Hive.isAdapterRegistered(10)) {
       Hive.registerAdapter(MediaTypeAdapter());
       print('🔍 JournalRepository: Registered MediaTypeAdapter (ID: 10)');
@@ -46,6 +127,10 @@ class JournalRepository {
       Hive.registerAdapter(MediaItemAdapter());
       print('🔍 JournalRepository: Registered MediaItemAdapter (ID: 11)');
     }
+    if (!Hive.isAdapterRegistered(103)) {
+      Hive.registerAdapter(InlineBlockAdapter());
+      print('🔍 JournalRepository: Registered InlineBlockAdapter (ID: 103)');
+    }
   }
 
   // Create
@@ -53,10 +138,36 @@ class JournalRepository {
     print('🔍 JournalRepository: Creating journal entry with ID: ${entry.id}');
     print('🔍 JournalRepository: Entry content: ${entry.content}');
     print('🔍 JournalRepository: Entry media count: ${entry.media.length}');
+
+    // Debug metadata before saving
+    if (entry.metadata != null) {
+      print('🔍 JournalRepository: Entry metadata keys: ${entry.metadata!.keys}');
+      print('🔍 JournalRepository: Full metadata: ${entry.metadata}');
+      if (entry.metadata!.containsKey('inlineBlocks')) {
+        final blocks = entry.metadata!['inlineBlocks'];
+        print('🔍 JournalRepository: inlineBlocks type: ${blocks.runtimeType}');
+        if (blocks is String) {
+          print('🔍 JournalRepository: inlineBlocks is JSON string (length: ${blocks.length})');
+          print('🔍 JournalRepository: JSON content preview: ${blocks.substring(0, blocks.length > 200 ? 200 : blocks.length)}...');
+        } else if (blocks is List) {
+          print('🔍 JournalRepository: inlineBlocks is List with ${blocks.length} items');
+          for (int i = 0; i < blocks.length; i++) {
+            final block = blocks[i];
+            print('🔍 JournalRepository: Block $i type: ${block.runtimeType}, keys: ${block is Map ? block.keys : "not a map"}');
+          }
+        } else {
+          print('🔍 JournalRepository: ❌ UNEXPECTED inlineBlocks type: ${blocks.runtimeType}, value: $blocks');
+        }
+      } else {
+        print('🔍 JournalRepository: ❌ No inlineBlocks key in metadata');
+      }
+    } else {
+      print('🔍 JournalRepository: Entry has NO metadata');
+    }
     
-    // Ensure MediaItem adapter is registered if entry has media
-    if (entry.media.isNotEmpty) {
-      _ensureMediaItemAdapter();
+    // Ensure required adapters are registered
+    if (entry.media.isNotEmpty || entry.lumaraBlocks.isNotEmpty) {
+      _ensureAdapters();
       if (!Hive.isAdapterRegistered(11)) {
         print('❌ JournalRepository: CRITICAL - MediaItemAdapter (ID: 11) is NOT registered!');
       } else {
@@ -74,6 +185,36 @@ class JournalRepository {
       if (savedEntry != null) {
         print('🔍 JournalRepository: Verification - Entry ${entry.id} found in database');
         print('🔍 JournalRepository: Verification - Saved entry media count: ${savedEntry.media.length}');
+        print('🔍 JournalRepository: Verification - Saved entry LUMARA blocks count: ${savedEntry.lumaraBlocks.length}');
+
+        // Verify lumaraBlocks were saved correctly
+        if (savedEntry.lumaraBlocks.length != entry.lumaraBlocks.length) {
+          print('❌ JournalRepository: CRITICAL - LUMARA blocks count mismatch! Saved: ${entry.lumaraBlocks.length}, Retrieved: ${savedEntry.lumaraBlocks.length}');
+        } else if (entry.lumaraBlocks.isNotEmpty) {
+          print('✅ JournalRepository: Verification - LUMARA blocks count matches: ${savedEntry.lumaraBlocks.length}');
+          // Verify each block
+          for (int i = 0; i < entry.lumaraBlocks.length; i++) {
+            final originalBlock = entry.lumaraBlocks[i];
+            final savedBlock = savedEntry.lumaraBlocks[i];
+            if (originalBlock.userComment != savedBlock.userComment) {
+              print('❌ JournalRepository: Block $i userComment mismatch!');
+            }
+          }
+        }
+
+        // Verify metadata was saved correctly (should NOT have inlineBlocks - we use lumaraBlocks field now)
+        if (savedEntry.metadata != null) {
+          print('🔍 JournalRepository: Verification - Saved entry metadata keys: ${savedEntry.metadata!.keys}');
+          if (savedEntry.metadata!.containsKey('inlineBlocks')) {
+            print('⚠️ JournalRepository: WARNING - Saved entry still has inlineBlocks in metadata (legacy format)');
+            print('   This should be removed - blocks should only be in lumaraBlocks field');
+          } else {
+            print('✅ JournalRepository: Verification - No inlineBlocks in metadata (correct - using lumaraBlocks field)');
+          }
+        } else {
+          print('✅ JournalRepository: Verification - Entry has no metadata (acceptable)');
+        }
+
         if (savedEntry.media.length != entry.media.length) {
           print('❌ JournalRepository: CRITICAL - Media count mismatch! Saved: ${entry.media.length}, Retrieved: ${savedEntry.media.length}');
           if (savedEntry.media.isEmpty && entry.media.isNotEmpty) {
@@ -93,55 +234,47 @@ class JournalRepository {
     }
   }
 
-  // Read
-  List<JournalEntry> getAllJournalEntries() {
+  // Read - Async version that ensures box is properly opened
+  Future<List<JournalEntry>> getAllJournalEntries() async {
     try {
-      print('🔍 JournalRepository: getAllJournalEntries called');
-      
       // Ensure MediaItem adapter is registered before loading entries
-      _ensureMediaItemAdapter();
-      if (!Hive.isAdapterRegistered(11)) {
-        print('❌ JournalRepository: CRITICAL - MediaItemAdapter (ID: 11) is NOT registered when loading entries!');
-      } else {
-        print('✅ JournalRepository: Verified MediaItemAdapter (ID: 11) is registered when loading');
-      }
+      _ensureAdapters();
       
-      if (Hive.isBoxOpen(_boxName)) {
-        final box = Hive.box<JournalEntry>(_boxName);
-        print('🔍 JournalRepository: Box $_boxName is open, retrieving entries...');
-        final entries = box.values.toList();
-        print('🔍 JournalRepository: Retrieved ${entries.length} journal entries from open box');
+      // Ensure box is open before trying to read
+      final box = await _ensureBox();
+      
+      // Normalize all entries and track which ones need migration persistence
+      final rawEntries = box.values.toList();
+      final entries = <JournalEntry>[];
+      final entriesToPersist = <JournalEntry>[];
+      
+      // Process entries in batches to avoid blocking UI thread
+      for (int i = 0; i < rawEntries.length; i++) {
+        final rawEntry = rawEntries[i];
+        final normalized = _normalize(rawEntry);
         
-        // Debug: Print details of each entry
-        for (int i = 0; i < entries.length; i++) {
-          final entry = entries[i];
-          print('🔍 JournalRepository: Entry $i - ID: ${entry.id}, Content: ${entry.content.substring(0, entry.content.length > 50 ? 50 : entry.content.length)}..., Media: ${entry.media.length}');
-          if (entry.media.isNotEmpty) {
-            print('🔍 JournalRepository: Entry ${entry.id} has ${entry.media.length} media items:');
-            for (int j = 0; j < entry.media.length && j < 3; j++) {
-              final media = entry.media[j];
-              print('  Media $j: id=${media.id}, type=${media.type.name}, uri=${media.uri.substring(0, media.uri.length > 60 ? 60 : media.uri.length)}...');
-            }
-            if (entry.media.length > 3) {
-              print('  ... and ${entry.media.length - 3} more');
-            }
+        // If migration occurred (entry had blocks in metadata but not in lumaraBlocks, and now it does),
+        // persist immediately to ensure blocks are saved
+        if (rawEntry.lumaraBlocks.isEmpty && 
+            normalized.lumaraBlocks.isNotEmpty && 
+            rawEntry.metadata?.containsKey('inlineBlocks') == true) {
+          try {
+            // Persist immediately to ensure migration is saved
+            await box.put(normalized.id, normalized);
+          } catch (e) {
+            print('❌ JournalRepository: Error persisting migration for entry ${normalized.id}: $e');
           }
         }
         
-        return entries;
-      } else {
-        print('🔍 JournalRepository: WARNING - Box $_boxName is not open, cannot retrieve entries');
-        // Try to open the box synchronously if possible
-        try {
-          final box = Hive.box<JournalEntry>(_boxName);
-          final entries = box.values.toList();
-          print('🔍 JournalRepository: Successfully opened box and retrieved ${entries.length} entries');
-          return entries;
-        } catch (e) {
-          print('🔍 JournalRepository: ERROR - Could not open box $_boxName: $e');
-          return const [];
+        entries.add(normalized);
+        
+        // Yield to UI thread every 20 entries to prevent blocking
+        if (i % 20 == 0 && i > 0) {
+          await Future.microtask(() {});
         }
       }
+      
+      return entries;
     } catch (e) {
       print('🔍 JournalRepository: ERROR in getAllJournalEntries: $e');
       return const [];
@@ -150,8 +283,8 @@ class JournalRepository {
 
   // Synchronous version for backward compatibility
   List<JournalEntry> getAllJournalEntriesSync() {
-    // Ensure MediaItem adapter is registered before loading entries
-    _ensureMediaItemAdapter();
+    // Ensure required adapters are registered before loading entries
+    _ensureAdapters();
     if (!Hive.isAdapterRegistered(11)) {
       print('❌ JournalRepository: CRITICAL - MediaItemAdapter (ID: 11) is NOT registered when loading entries synchronously!');
     } else {
@@ -163,31 +296,54 @@ class JournalRepository {
     }
     final box = Hive.box<JournalEntry>(_boxName);
     final entries = <JournalEntry>[];
+    final entriesToPersist = <JournalEntry>[]; // Track entries that need migration persistence
+    
     for (final key in box.keys) {
       final e = box.get(key);
       if (e == null) continue;
       
-      // Debug: Check media before normalization
-      if (e.media.isNotEmpty) {
-        print('🔍 JournalRepository: Entry ${e.id} has ${e.media.length} media items BEFORE normalization');
-        for (int j = 0; j < e.media.length && j < 3; j++) {
-          final media = e.media[j];
-          print('  Media $j: id=${media.id}, type=${media.type.name}, uri=${media.uri.substring(0, media.uri.length > 60 ? 60 : media.uri.length)}...');
-        }
-      }
-      
       final normalized = _normalize(e);
       
-      // Debug: Check media after normalization
+      // If migration occurred (entry had blocks in metadata but not in lumaraBlocks, and now it does),
+      // mark it for persistence
+      if (e.lumaraBlocks.isEmpty && 
+          normalized.lumaraBlocks.isNotEmpty && 
+          e.metadata?.containsKey('inlineBlocks') == true) {
+        print('🔄 JournalRepository: Entry ${e.id} was migrated in memory - will persist migration');
+        entriesToPersist.add(normalized);
+      }
+      
+      // Debug: Check media after normalization (only log errors)
       if (normalized.media.length != e.media.length) {
         print('❌ JournalRepository: CRITICAL - Media count changed during normalization! Before: ${e.media.length}, After: ${normalized.media.length}');
-      }
-      if (normalized.media.isNotEmpty) {
-        print('🔍 JournalRepository: Entry ${normalized.id} has ${normalized.media.length} media items AFTER normalization');
       }
       
       entries.add(normalized);
     }
+    
+    // Persist migrations asynchronously (don't block the sync call)
+    if (entriesToPersist.isNotEmpty) {
+      print('🔄 JournalRepository: Persisting ${entriesToPersist.length} migrated entries');
+      Future.microtask(() async {
+        try {
+          final box = await _ensureBox();
+          for (final entry in entriesToPersist) {
+            // Remove inlineBlocks from metadata when persisting migration
+            final cleanedMetadata = entry.metadata != null 
+                ? Map<String, dynamic>.from(entry.metadata!) 
+                : <String, dynamic>{};
+            cleanedMetadata.remove('inlineBlocks');
+            
+            final cleanedEntry = entry.copyWith(metadata: cleanedMetadata);
+            await box.put(cleanedEntry.id, cleanedEntry);
+            print('✅ JournalRepository: Persisted migration for entry ${cleanedEntry.id} with ${cleanedEntry.lumaraBlocks.length} blocks (removed inlineBlocks from metadata)');
+          }
+        } catch (e) {
+          print('❌ JournalRepository: Error persisting migrations: $e');
+        }
+      });
+    }
+    
     return entries;
   }
 
@@ -215,6 +371,65 @@ class JournalRepository {
         print('❌ JournalRepository: CRITICAL - Media list was lost during normalization! Original count: ${e.media.length}');
       }
 
+      // Deep copy metadata to ensure inline blocks are preserved
+      Map<String, dynamic>? normalizedMetadata;
+      List<InlineBlock> migratedLumaraBlocks = List.from(e.lumaraBlocks);
+
+      if (e.metadata != null) {
+        normalizedMetadata = Map<String, dynamic>.from(e.metadata!);
+        
+        // MIGRATION: Convert old metadata-based LUMARA blocks to new lumaraBlocks field
+        if (e.metadata!.containsKey('inlineBlocks') && migratedLumaraBlocks.isEmpty) {
+          final inlineBlocksData = e.metadata!['inlineBlocks'];
+          
+          if (inlineBlocksData != null) {
+            try {
+              List<InlineBlock> convertedBlocks = [];
+
+              if (inlineBlocksData is String) {
+                // JSON string format
+                final decoded = jsonDecode(inlineBlocksData);
+                if (decoded is List) {
+                  convertedBlocks = decoded
+                      .map((blockJson) => InlineBlock.fromJson(Map<String, dynamic>.from(blockJson)))
+                      .toList();
+                }
+              } else if (inlineBlocksData is List) {
+                // Direct List format
+                convertedBlocks = inlineBlocksData
+                    .map((blockJson) {
+                      if (blockJson is Map) {
+                        try {
+                          return InlineBlock.fromJson(Map<String, dynamic>.from(blockJson));
+                        } catch (err) {
+                          return null;
+                        }
+                      }
+                      return null;
+                    })
+                    .whereType<InlineBlock>()
+                    .toList();
+              }
+
+              if (convertedBlocks.isNotEmpty) {
+                migratedLumaraBlocks = convertedBlocks;
+              }
+            } catch (err) {
+              // Silently handle migration errors - entry will work without migrated blocks
+            }
+          }
+
+          // Remove inlineBlocks from metadata after migration (we use lumaraBlocks field now)
+          normalizedMetadata.remove('inlineBlocks');
+        } else if (e.metadata!.containsKey('inlineBlocks') && migratedLumaraBlocks.isNotEmpty) {
+          // Remove inlineBlocks from metadata since blocks are already in lumaraBlocks field
+          normalizedMetadata.remove('inlineBlocks');
+        }
+        
+        // Remove inlineBlocks from metadata if it still exists (cleanup)
+        normalizedMetadata.remove('inlineBlocks');
+      }
+
       // Create a new entry with normalized data
       return JournalEntry(
         id: e.id,
@@ -230,21 +445,91 @@ class JournalRepository {
         sageAnnotation: sageAnnotation,
         emotion: e.emotion,
         emotionReason: e.emotionReason,
-        metadata: e.metadata,
+        metadata: normalizedMetadata, // Use deep-copied metadata
+        location: e.location,
+        phase: e.phase,
+        phaseAtTime: e.phaseAtTime,
+        isEdited: e.isEdited,
+        autoPhase: e.autoPhase,
+        autoPhaseConfidence: e.autoPhaseConfidence,
+        userPhaseOverride: e.userPhaseOverride,
+        isPhaseLocked: e.isPhaseLocked,
+        legacyPhaseTag: e.legacyPhaseTag,
+        importSource: e.importSource,
+        phaseInferenceVersion: e.phaseInferenceVersion,
+        phaseMigrationStatus: e.phaseMigrationStatus,
+        lumaraBlocks: migratedLumaraBlocks, // Use migrated LUMARA blocks
       );
     }
 
-  JournalEntry? getJournalEntryById(String id) {
+  Future<JournalEntry?> getJournalEntryById(String id) async {
+    final box = await _ensureBox();
+    final entry = box.get(id);
+    if (entry != null) {
+      // Normalize to ensure lumaraBlocks are migrated if needed
+      final normalized = _normalize(entry);
+      
+      // If migration occurred, persist immediately
+      if (entry.lumaraBlocks.isEmpty && 
+          normalized.lumaraBlocks.isNotEmpty && 
+          entry.metadata?.containsKey('inlineBlocks') == true) {
+        await box.put(normalized.id, normalized);
+      }
+      
+      return normalized;
+    }
+    return null;
+  }
+  
+  // Synchronous version for backward compatibility
+  JournalEntry? getJournalEntryByIdSync(String id) {
     if (Hive.isBoxOpen(_boxName)) {
-      return Hive.box<JournalEntry>(_boxName).get(id);
+      final entry = Hive.box<JournalEntry>(_boxName).get(id);
+      if (entry != null) {
+        return _normalize(entry);
+      }
     }
     return null;
   }
 
   // Update
   Future<void> updateJournalEntry(JournalEntry entry) async {
+    // Remove inlineBlocks from metadata if present (blocks are now in lumaraBlocks field)
+    final cleanedMetadata = entry.metadata != null 
+        ? Map<String, dynamic>.from(entry.metadata!) 
+        : <String, dynamic>{};
+    cleanedMetadata.remove('inlineBlocks');
+    
+    final cleanedEntry = cleanedMetadata != entry.metadata 
+        ? entry.copyWith(metadata: cleanedMetadata.isEmpty ? null : cleanedMetadata)
+        : entry;
+
     final box = await _ensureBox();
-    await box.put(entry.id, entry);
+    await box.put(cleanedEntry.id, cleanedEntry);
+
+    // Verify the update was successful - check lumaraBlocks field directly
+    final updatedEntry = box.get(entry.id);
+    if (updatedEntry != null) {
+      print('🔍 JournalRepository: Update verification - Retrieved entry has ${updatedEntry.lumaraBlocks.length} LUMARA blocks');
+      if (updatedEntry.lumaraBlocks.length != entry.lumaraBlocks.length) {
+        print('❌ JournalRepository: Update verification - Block count mismatch! Saved: ${entry.lumaraBlocks.length}, Retrieved: ${updatedEntry.lumaraBlocks.length}');
+      } else if (entry.lumaraBlocks.isNotEmpty) {
+        // Verify user comments were saved
+        for (int i = 0; i < entry.lumaraBlocks.length; i++) {
+          final originalComment = entry.lumaraBlocks[i].userComment;
+          final savedComment = updatedEntry.lumaraBlocks[i].userComment;
+          if (originalComment != savedComment) {
+            print('❌ JournalRepository: Update verification - Block $i userComment mismatch!');
+            print('   Original: ${originalComment ?? "null"}');
+            print('   Saved: ${savedComment ?? "null"}');
+          } else if (originalComment != null && originalComment.isNotEmpty) {
+            print('✅ JournalRepository: Update verification - Block $i userComment saved correctly (length: ${originalComment.length})');
+          }
+        }
+      }
+    } else {
+      print('❌ JournalRepository: Update verification - Updated entry missing!');
+    }
   }
 
   // Delete
@@ -531,7 +816,7 @@ class JournalRepository {
     required int pageSize,
     TimelineFilter? filter,
   }) async {
-    final allEntries = getAllJournalEntries();
+    final allEntries = await getAllJournalEntries();
     allEntries.sort((a, b) => b.createdAt.compareTo(a.createdAt)); // Newest first
 
     // Apply filter if provided

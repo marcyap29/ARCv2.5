@@ -27,6 +27,7 @@ import 'package:my_app/prism/atlas/rivet/rivet_models.dart' as rivet_models;
 import 'package:my_app/models/arcform_snapshot_model.dart';
 import 'package:my_app/arc/chat/services/favorites_service.dart';
 import 'package:my_app/arc/chat/data/models/lumara_favorite.dart';
+import 'package:my_app/state/journal_entry_state.dart';
 import 'package:hive/hive.dart';
 import 'package:my_app/models/user_profile_model.dart';
 import 'package:my_app/prism/atlas/phase/phase_inference_service.dart';
@@ -556,7 +557,7 @@ class ARCXImportServiceV2 {
           
           // Check if already exists
           if (options.skipExisting) {
-            final existing = _journalRepo!.getJournalEntryById(entryId);
+            final existing = await _journalRepo!.getJournalEntryById(entryId);
             if (existing != null) {
               print('ARCX Import V2: ⚠️ Entry $entryId already exists, skipping');
               _entryIdMap[entryId] = entryId; // Map to itself
@@ -984,17 +985,33 @@ class ARCXImportServiceV2 {
       return 0;
     }
     
+    // Check if Chats directory exists
+    if (!await chatsDir.exists()) {
+      print('ARCX Import V2: ⚠️ Chats directory does not exist: ${chatsDir.path}');
+      return 0;
+    }
+    
     int imported = 0;
     int processed = 0;
+    int skipped = 0;
+    int errors = 0;
+    
+    print('ARCX Import V2: 🔍 Scanning for chat files in ${chatsDir.path}...');
     
     // Recursively find all chat JSON files
     await for (final entity in chatsDir.list(recursive: true)) {
       if (entity is File && entity.path.endsWith('.arcx.json')) {
         processed++;
         try {
+          print('ARCX Import V2: 📄 Found chat file: ${entity.path}');
           final chatJson = jsonDecode(await entity.readAsString()) as Map<String, dynamic>;
           
-          final chatId = chatJson['id'] as String;
+          final chatId = chatJson['id'] as String? ?? 'unknown';
+          final subject = chatJson['subject'] as String? ?? 'Imported Chat';
+          final messages = chatJson['messages'] as List<dynamic>? ?? [];
+          final isArchived = chatJson['is_archived'] as bool? ?? false;
+          
+          print('ARCX Import V2: 📋 Chat details - ID: $chatId, Subject: "$subject", Messages: ${messages.length}, Archived: $isArchived');
           
           // Check if already exists
           if (options.skipExisting) {
@@ -1003,6 +1020,7 @@ class ARCXImportServiceV2 {
               if (existing != null) {
                 print('ARCX Import V2: ⚠️ Chat $chatId already exists, skipping');
                 _chatIdMap[chatId] = chatId; // Map to itself
+                skipped++;
                 continue;
               }
             } catch (_) {
@@ -1010,24 +1028,32 @@ class ARCXImportServiceV2 {
             }
           }
           
-          onProgress?.call('Importing chat $processed...');
+          onProgress?.call('Importing chat $processed: "$subject"...');
           
           // Convert and import chat
           final chat = await _convertChatJsonToChatSession(chatJson);
           if (chat != null) {
-            // Create session (this will be handled by ChatRepo)
-            // For now, we'll map the ID
+            // Verify messages were imported
+            final importedMessages = await _chatRepo!.getMessages(chat.id);
+            print('ARCX Import V2: ✅ Imported chat "${chat.subject}" (${chat.id}) with ${importedMessages.length}/${messages.length} messages');
+            
+            // Map the ID
             _chatIdMap[chatId] = chat.id;
             imported++;
+          } else {
+            print('ARCX Import V2: ✗ Failed to import chat $chatId');
+            errors++;
           }
           
-        } catch (e) {
+        } catch (e, stackTrace) {
           print('ARCX Import V2: ✗ Error importing chat ${entity.path}: $e');
+          print('ARCX Import V2: Stack trace: $stackTrace');
+          errors++;
         }
       }
     }
     
-    print('ARCX Import V2: ✓ Imported $imported chats');
+    print('ARCX Import V2: ✓ Chat import complete - Processed: $processed, Imported: $imported, Skipped: $skipped, Errors: $errors');
     return imported;
   }
   
@@ -1046,7 +1072,7 @@ class ARCXImportServiceV2 {
       final newId = entryIdMapping.value;
       
       try {
-        final entry = _journalRepo!.getJournalEntryById(newId);
+        final entry = await _journalRepo!.getJournalEntryById(newId);
         if (entry != null) {
           // Check if entry has unresolved media links
           // The media should already be resolved during entry import,
@@ -1227,6 +1253,12 @@ class ARCXImportServiceV2 {
       final importSource = entryJson['importSource'] as String? ?? 'ARCHX';
       final phaseInferenceVersion = entryJson['phaseInferenceVersion'] as int?;
       final phaseMigrationStatus = entryJson['phaseMigrationStatus'] as String?;
+
+      // Extract LUMARA blocks from new or legacy locations
+      final lumaraBlocks = _parseLumaraBlocks(
+        entryJson['lumaraBlocks'] ??
+            (entryJson['metadata'] as Map<String, dynamic>?)?['inlineBlocks'],
+      );
       
       // Determine migration status:
       // - If phaseInferenceVersion is null or < CURRENT_VERSION, mark as PENDING
@@ -1258,6 +1290,7 @@ class ARCXImportServiceV2 {
         importSource: importSource,
         phaseInferenceVersion: phaseInferenceVersion,
         phaseMigrationStatus: migrationStatus,
+        lumaraBlocks: lumaraBlocks,
         metadata: {
           'imported_from_arcx_v2': true,
           'original_export_id': entryJson['id'],
@@ -1337,15 +1370,31 @@ class ARCXImportServiceV2 {
       }
       
       // Update session metadata if needed
-      if (chatJson['is_archived'] == true) {
+      // Only archive if explicitly set to true (don't archive by default)
+      final isArchived = chatJson['is_archived'] as bool? ?? false;
+      if (isArchived) {
         await _chatRepo!.archiveSession(sessionId, true);
+        print('ARCX Import V2: 📦 Chat $sessionId was archived in export, keeping archived status');
+      } else {
+        // Ensure chat is NOT archived (in case it was archived before)
+        await _chatRepo!.archiveSession(sessionId, false);
+        print('ARCX Import V2: ✅ Chat $sessionId is active (not archived)');
       }
       
       if (chatJson['is_pinned'] == true) {
         await _chatRepo!.pinSession(sessionId, true);
       }
       
-      print('ARCX Import V2: ✓ Imported chat session $sessionId with ${messages.length} messages');
+      // Verify final state
+      final finalSession = await _chatRepo!.getSession(sessionId);
+      final finalMessages = await _chatRepo!.getMessages(sessionId);
+      
+      print('ARCX Import V2: ✓ Imported chat session $sessionId');
+      print('  - Subject: "${finalSession?.subject ?? subject}"');
+      print('  - Messages: ${finalMessages.length}/${messages.length}');
+      print('  - Archived: ${finalSession?.isArchived ?? false}');
+      print('  - Pinned: ${finalSession?.isPinned ?? false}');
+      
       return session;
     } catch (e) {
       print('ARCX Import V2: ✗ Error converting chat: $e');
@@ -1405,6 +1454,34 @@ class ARCXImportServiceV2 {
     }
     
     return mediaData ?? [];
+  }
+
+  /// Parse LUMARA inline blocks from either List<Map> or JSON string formats used in older exports.
+  List<InlineBlock> _parseLumaraBlocks(dynamic rawBlocks) {
+    if (rawBlocks == null) return const [];
+
+    try {
+      if (rawBlocks is List) {
+        return rawBlocks
+            .whereType<Map>()
+            .map((block) => InlineBlock.fromJson(block.cast<String, dynamic>()))
+            .toList();
+      }
+
+      if (rawBlocks is String) {
+        final decoded = jsonDecode(rawBlocks);
+        if (decoded is List) {
+          return decoded
+              .whereType<Map>()
+              .map((block) => InlineBlock.fromJson(block.cast<String, dynamic>()))
+              .toList();
+        }
+      }
+    } catch (e) {
+      print('ARCX Import V2: ⚠️ Error parsing LUMARA blocks: $e');
+    }
+
+    return const [];
   }
   
   /// Create MediaItem from embedded data (wrapper for _createMediaItemFromJson)
@@ -1530,7 +1607,7 @@ class ARCXImportServiceV2 {
       if (_journalRepo == null) return;
       
       // Get recent entries for context
-      final allEntries = _journalRepo!.getAllJournalEntries();
+      final allEntries = await _journalRepo!.getAllJournalEntries();
       allEntries.sort((a, b) => b.createdAt.compareTo(a.createdAt));
       final recentEntries = allEntries.take(7).toList();
       
@@ -1628,4 +1705,3 @@ class ARCXImportResultV2 {
     );
   }
 }
-

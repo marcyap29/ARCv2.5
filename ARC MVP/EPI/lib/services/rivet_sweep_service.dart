@@ -147,7 +147,7 @@ class RivetSweepService {
       int updatedCount = 0;
       for (final entryId in entryIds) {
         try {
-          final entry = journalRepo.getJournalEntryById(entryId);
+          final entry = await journalRepo.getJournalEntryById(entryId);
           if (entry == null) {
             print('DEBUG: RIVET Sweep - Entry $entryId not found, skipping');
             continue;

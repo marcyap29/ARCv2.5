@@ -1,7 +1,140 @@
 # EPI ARC MVP - Changelog
 
-**Version:** 2.1.40
-**Last Updated:** January 2025
+**Version:** 2.1.42
+**Last Updated:** November 29, 2025
+
+## [2.1.42] - November 29, 2025
+
+### **LUMARA In-Journal Comments Persistence** - Complete
+
+#### Core Persistence Fixes
+- **Added `lumaraBlocks` Field to JournalEntry Model**: 
+  - Added `@HiveField(27)` for `lumaraBlocks: List<InlineBlock>` in JournalEntry
+  - Updated `copyWith`, `toJson`, `fromJson` to include lumaraBlocks
+  - Regenerated Hive adapters to support new field
+- **Made InlineBlock a Hive Type**: 
+  - Added `@HiveType(typeId: 103)` to InlineBlock class
+  - Stored `attributionTraces` as JSON string for Hive compatibility
+  - Regenerated InlineBlockAdapter for proper serialization
+- **Fixed Migration Code**: 
+  - `_normalize()` now properly migrates `metadata.inlineBlocks` → `lumaraBlocks`
+  - Persists migrated entries immediately during `getAllJournalEntries()`
+  - Removes `inlineBlocks` from metadata after migration to use `lumaraBlocks` as single source of truth
+- **Fixed Persistence Methods**: 
+  - `updateJournalEntry()` now removes `inlineBlocks` from metadata
+  - `_persistLumaraBlocksToEntry()` in journal_screen.dart saves blocks correctly
+  - `getJournalEntryById()` is now async and normalizes entries with migration
+
+#### Import/Export Fixes
+- **MCP Import Service**: 
+  - `_parseLumaraBlocks()` correctly converts `inlineBlocks` to `lumaraBlocks`
+  - Removes `inlineBlocks` from metadata during import
+  - Properly saves blocks to dedicated field
+- **ARCX Import Service**: 
+  - Added `await` to all `getJournalEntryById()` calls
+  - Ensures blocks are properly loaded and migrated
+
+#### UI Improvements
+- **LUMARA Tag in Timeline**: 
+  - Added `hasLumaraBlocks` field to `TimelineEntry` model
+  - Purple "LUMARA" tag appears on entries with LUMARA blocks
+  - Tag displays in timeline view with proper styling
+- **Async Method Updates**: 
+  - Made `getJournalEntryById()` async across codebase
+  - Fixed all call sites to use `await` properly
+  - Updated test mocks to match async signature
+
+#### Performance Improvements
+- **UI Thread Yielding**: 
+  - Added `Future.microtask` every 20 entries during normalization
+  - Prevents white screen blocking during data loading
+  - Deferred timeline loading to avoid blocking startup
+- **Reduced Logging**: 
+  - Removed excessive verbose logging that was slowing down app
+  - Simplified migration logging to only show success/errors
+
+#### Technical Details
+- **Hive Adapter Updates**: 
+  - JournalEntryAdapter now includes lumaraBlocks field (HiveField 27)
+  - InlineBlockAdapter properly serializes/deserializes blocks
+  - AttributionTraces stored as JSON string for compatibility
+- **Data Migration**: 
+  - Automatic migration from `metadata.inlineBlocks` to `lumaraBlocks` field
+  - Migration runs on startup and during entry loading
+  - Ensures backward compatibility with old data format
+
+### Breaking Changes
+- `getJournalEntryById()` is now async - all call sites must use `await`
+- `getAllJournalEntries()` is async - all call sites must use `await`
+
+## [2.1.41] - January 2025
+
+### **Chat UI Improvements & Data Persistence Fixes** - Complete
+
+#### Chat Input Improvements
+- **Scrollable Text Input**: Made chat text input scrollable with max height constraint
+  - TextField wrapped in ConstrainedBox with maxHeight: 120px (~5 lines)
+  - Prevents send button from being blocked when pasting large text
+  - Text scrolls internally when content exceeds 5 lines
+  - Proper button alignment with CrossAxisAlignment.end
+- **Auto-Minimize on Outside Click**: Added ChatGPT-like auto-minimize behavior
+  - Input area automatically minimizes when clicking outside chat area
+  - Only minimizes if text field is empty
+  - Maintains input visibility when text is present
+  - Improved user experience matching modern chat interfaces
+
+#### Chat History Import Fixes
+- **Enhanced Import Logging**: Added comprehensive logging for chat import debugging
+  - Logs file discovery, chat details, message counts, and import status
+  - Tracks processed, imported, skipped, and error counts
+  - Better error messages with stack traces
+- **Archived Chat Handling**: Fixed imported chats being archived by default
+  - Only archives chats if explicitly marked as archived in export
+  - Ensures imported chats are visible in active chat list
+  - Automatically restores archived sessions when needed
+- **Message Import Verification**: Added verification that messages were imported correctly
+  - Checks message count after import
+  - Logs success/failure for each chat session
+  - Ensures complete data restoration
+
+#### Saved Chats Navigation
+- **Direct Navigation**: Improved saved chat navigation in favorites
+  - Removed unnecessary snackbars - navigates directly to chat sessions
+  - Simplified navigation code to rely on SessionView's built-in handling
+  - Better error handling with clear messages only when needed
+  - Respects auto-save behavior of SessionView
+
+#### Session Restoration from Saved Chats
+- **Auto-Recreate Missing Sessions**: Added ability to recreate sessions from saved chat favorites
+  - Parses saved chat content to extract subject and messages
+  - Recreates session and messages when session is missing
+  - Updates saved chat favorite to point to new session ID
+  - Handles both "Chat: {subject}" and "Chat Session" content formats
+  - Supports multi-line messages and user comments
+
+#### Journal Entry Persistence
+- **LUMARA Blocks Saving**: Fixed LUMARA comments and user responses not persisting
+  - Blocks now properly saved to entry metadata when saving/updating
+  - Preserves existing blocks when updating entries (unless explicitly cleared)
+  - Blocks restored from metadata when loading entries
+  - Export/import flow verified to preserve blocks through ARCX archives
+- **Timeline Entry Protection**: Made timeline entries read-only by default
+  - Entries from timeline open in view-only mode
+  - Edit button in app bar to unlock for editing
+  - Prevents accidental edits when viewing saved entries
+  - User must explicitly click Edit to modify entries
+
+**Files Modified**:
+- `lib/arc/chat/ui/lumara_assistant_screen.dart` - Chat input scrollability and auto-minimize
+- `lib/mira/store/arcx/services/arcx_import_service_v2.dart` - Enhanced chat import with better logging and archived handling
+- `lib/arc/chat/chat/ui/session_view.dart` - Session restoration from saved chats
+- `lib/shared/ui/settings/favorites_management_view.dart` - Improved saved chat navigation
+- `lib/arc/core/journal_capture_cubit.dart` - LUMARA blocks preservation in updates
+- `lib/arc/ui/timeline/widgets/interactive_timeline_view.dart` - Timeline entries read-only by default
+
+**Status**: ✅ Complete - Chat UI improved, data persistence fixed, entries protected from accidental edits
+
+---
 
 ## [2.1.40] - January 2025
 

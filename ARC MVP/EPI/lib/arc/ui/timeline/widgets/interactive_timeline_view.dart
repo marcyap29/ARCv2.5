@@ -11,6 +11,7 @@ import 'package:my_app/arc/ui/timeline/timeline_entry_model.dart';
 import 'package:my_app/arc/ui/timeline/widgets/entry_content_renderer.dart';
 import 'package:my_app/data/models/media_item.dart';
 import 'package:my_app/ui/journal/journal_screen.dart';
+import 'package:my_app/state/journal_entry_state.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'package:my_app/arc/ui/arcforms/arcform_renderer_state.dart';
@@ -712,10 +713,45 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
                               maxLines: 4,
                               overflow: TextOverflow.ellipsis,
                             ),
+
                             const SizedBox(height: 8),
                             // Entry metadata
                             Row(
                               children: [
+                                if (entry.hasLumaraBlocks) ...[
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: Colors.purple.withOpacity(0.15),
+                                      borderRadius: BorderRadius.circular(6),
+                                      border: Border.all(
+                                        color: Colors.purple.withOpacity(0.3),
+                                        width: 1,
+                                      ),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(
+                                          Icons.auto_awesome,
+                                          size: 14,
+                                          color: Colors.purple[700],
+                                        ),
+                                        const SizedBox(width: 6),
+                                        Text(
+                                          'LUMARA',
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w700,
+                                            color: Colors.purple[700],
+                                            letterSpacing: 0.3,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                ],
                                 if (entry.media.isNotEmpty) ...[
                                   Icon(
                                     Icons.photo,
@@ -940,7 +976,7 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
       // Fetch the full journal entry for editing
       try {
         final journalRepository = context.read<JournalRepository>();
-        final fullEntry = journalRepository.getJournalEntryById(entry.id);
+        final fullEntry = await journalRepository.getJournalEntryById(entry.id);
 
         if (fullEntry != null) {
           // Check for existing draft linked to this entry (3c, 3d requirement)
@@ -990,8 +1026,8 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
             }
           }
           
-          // Navigate to journal screen with full entry for editing (not view-only)
-          // Open entry directly without creating a draft initially
+          // Navigate to journal screen with full entry in view-only mode by default
+          // User must click Edit button to unlock for editing (prevents accidental changes)
           Navigator.of(context).push(
             MaterialPageRoute(
               builder: (context) => JournalScreen(
@@ -999,9 +1035,9 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
                 selectedEmotion: fullEntry.emotion,
                 selectedReason: fullEntry.emotionReason,
                 existingEntry: fullEntry, // Pass the full entry with media
-                isViewOnly: false, // Open in edit mode - entry is opened directly
-                openAsEdit: true, // Flag to indicate this is an edit (not creating draft initially)
-                isTimelineEditing: true, // Allow timestamp editing when editing from timeline
+                isViewOnly: true, // Open in view-only mode - user must click Edit to unlock
+                openAsEdit: false, // Not opening as edit initially
+                isTimelineEditing: true, // Allow timestamp editing when editing from timeline (after Edit is clicked)
               ),
             ),
           );
@@ -1500,7 +1536,7 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
           // MIRA cleanup is handled by deleteJournalEntry
 
           // Verify deletion
-          final deletedEntry = journalRepository.getJournalEntryById(entryId);
+          final deletedEntry = await journalRepository.getJournalEntryById(entryId);
           if (deletedEntry == null) {
             print('DEBUG: ✅ Entry $entryId successfully deleted');
           } else {
@@ -2393,6 +2429,132 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
             );
           },
         ),
+      ),
+    );
+  }
+
+  /// Build a simplified display of LUMARA inline blocks for timeline view
+  Widget _buildTimelineLumaraBlock(InlineBlock block) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.purple.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: Colors.purple.withOpacity(0.3),
+          width: 1.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.purple.withOpacity(0.1),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: Colors.purple.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Icon(
+                  Icons.auto_awesome,
+                  size: 14,
+                  color: Colors.purple[700],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'LUMARA',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.purple[700],
+                  letterSpacing: 0.5,
+                ),
+              ),
+              if (block.intent.isNotEmpty) ...[
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.purple.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    block.intent.toUpperCase(),
+                    style: TextStyle(
+                      fontSize: 9,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.purple[800],
+                      letterSpacing: 0.3,
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            block.content.length > 150
+                ? '${block.content.substring(0, 150)}...'
+                : block.content,
+            style: TextStyle(
+              fontSize: 13,
+              color: Colors.grey[800],
+              height: 1.5,
+            ),
+            maxLines: 4,
+            overflow: TextOverflow.ellipsis,
+          ),
+          // Show user comment if present
+          if (block.userComment != null && block.userComment!.trim().isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.grey.withOpacity(0.05),
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(
+                  color: Colors.grey.withOpacity(0.2),
+                  width: 1,
+                ),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(
+                    Icons.edit_note,
+                    size: 12,
+                    color: Colors.grey[600],
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      block.userComment!,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey[700],
+                        fontStyle: FontStyle.italic,
+                        height: 1.4,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }
@@ -3350,6 +3512,7 @@ class _PhotoSearchDialogState extends State<PhotoSearchDialog> {
       return false;
     }
   }
+
 }
 
 class _StickyHeaderDelegate extends SliverPersistentHeaderDelegate {
@@ -3445,7 +3608,7 @@ class _FavoriteBookmarkButtonState extends State<_FavoriteBookmarkButton> {
 
         // Get the journal entry
         final journalRepo = JournalRepository();
-        final entry = journalRepo.getJournalEntryById(widget.entryId);
+        final entry = await journalRepo.getJournalEntryById(widget.entryId);
         if (entry == null) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(

@@ -258,6 +258,7 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
     FocusManager.instance.primaryFocus?.unfocus();
     
     // Hide input area when dismissing keyboard (if text is empty)
+    // Like ChatGPT, minimize when clicking outside
     setState(() {
       if (_messageController.text.isEmpty) {
         _isInputVisible = false;
@@ -345,6 +346,7 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
               body: GestureDetector(
                 onTap: () {
                   // Dismiss keyboard and hide input when tapping conversation area
+                  // Like ChatGPT - auto minimize when clicking outside
                   _dismissKeyboard();
                 },
                 behavior: HitTestBehavior.opaque,
@@ -355,6 +357,7 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
             child: GestureDetector(
               onTap: () {
                 // Hide input when tapping conversation area
+                // Auto minimize like ChatGPT
                 _dismissKeyboard();
               },
               onDoubleTap: () {
@@ -594,7 +597,7 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
         return Padding(
           padding: const EdgeInsets.symmetric(vertical: 4),
           child: InkWell(
-            onTap: () => _sendMessage(suggestion),
+            onTap: () async => await _sendMessage(suggestion),
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
@@ -897,17 +900,17 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
                         LumaraActionButton(
                           label: 'Regenerate',
                           icon: Icons.refresh,
-                          onPressed: () => _handleRegenerate(message),
+                          onPressed: () async => await _handleRegenerate(message),
                         ),
                         LumaraActionButton(
                           label: 'Soften tone',
                           icon: Icons.favorite_outline,
-                          onPressed: () => _handleSoftenTone(message),
+                          onPressed: () async => await _handleSoftenTone(message),
                         ),
                         LumaraActionButton(
                           label: 'More depth',
                           icon: Icons.insights,
-                          onPressed: () => _handleMoreDepth(message),
+                          onPressed: () async => await _handleMoreDepth(message),
                         ),
                         LumaraActionButton(
                           label: 'Continue thought',
@@ -1084,6 +1087,7 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
               ),
             ),
           Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               IconButton(
                 icon: const Icon(Icons.favorite, size: 20),
@@ -1093,29 +1097,35 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
                 onPressed: _showHealthPreview,
               ),
               Expanded(
-                child: TextField(
-                  controller: _messageController,
-                  focusNode: _inputFocusNode,
-                  decoration: InputDecoration(
-                    hintText: isEditing ? 'Edit your message...' : 'Ask LUMARA anything...',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 8,
-                    ),
-                    isDense: true,
+                  child: ConstrainedBox(
+                  constraints: const BoxConstraints(
+                    maxHeight: 120.0, // Max height for ~5 lines (24px per line)
                   ),
-                  minLines: 1,
-                  maxLines: 5, // Limit to 5 lines, then scroll
-                  textCapitalization: TextCapitalization.sentences,
-                  textInputAction: TextInputAction.newline,
-                  onSubmitted: (_) => _sendCurrentMessage(),
-                  onTap: () {
-                    // Ensure input is visible when tapped
-                    setState(() => _isInputVisible = true);
-                  },
+                  child: TextField(
+                    controller: _messageController,
+                    focusNode: _inputFocusNode,
+                    decoration: InputDecoration(
+                      hintText: isEditing ? 'Edit your message...' : 'Ask LUMARA anything...',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                      isDense: true,
+                    ),
+                    minLines: 1,
+                    maxLines: 5, // Limit to 5 lines, then scroll
+                    textCapitalization: TextCapitalization.sentences,
+                    textInputAction: TextInputAction.newline,
+                    keyboardType: TextInputType.multiline,
+                    onSubmitted: (_) async => await _sendCurrentMessage(),
+                    onTap: () {
+                      // Ensure input is visible when tapped
+                      setState(() => _isInputVisible = true);
+                    },
+                  ),
                 ),
               ),
               IconButton(
@@ -1173,13 +1183,13 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
     );
   }
 
-  void _sendCurrentMessage() {
+  Future<void> _sendCurrentMessage() async {
     final text = _messageController.text.trim();
     if (text.isNotEmpty) {
       if (_editingMessageId != null) {
-        _resubmitMessage(_editingMessageId!, text);
+        await _resubmitMessage(_editingMessageId!, text);
       } else {
-        _sendMessage(text);
+        await _sendMessage(text);
       }
       _messageController.clear();
       _editingMessageId = null;
@@ -1215,12 +1225,12 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
     });
   }
 
-  void _resubmitMessage(String messageId, String newText) {
+  Future<void> _resubmitMessage(String messageId, String newText) async {
     // Update the cubit to remove messages after the edited one
     context.read<LumaraAssistantCubit>().editAndResubmitMessage(messageId, newText);
     
     // Send the edited message
-    _sendMessage(newText);
+    await _sendMessage(newText);
   }
 
   Future<void> _initializeAudioIO() async {
@@ -1406,14 +1416,14 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
     }
   }
 
-  void _sendMessage(String message) {
+  Future<void> _sendMessage(String message) async {
     // Get current entry - prioritize widget's currentEntry, then try to get most recent entry
     JournalEntry? entryToUse = _currentEntry;
     
     // If no entry provided, try to get the most recent entry as fallback
     // This ensures we always have context from the user's journal
     if (entryToUse == null) {
-      entryToUse = _getMostRecentEntry();
+      entryToUse = await _getMostRecentEntry();
       if (entryToUse != null) {
         print('LUMARA: Using most recent entry ${entryToUse.id} as context');
       }
@@ -1435,10 +1445,10 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
   
   /// Get the most recent journal entry as fallback for context
   /// This ensures LUMARA always has access to the user's latest journal content
-  JournalEntry? _getMostRecentEntry() {
+  Future<JournalEntry?> _getMostRecentEntry() async {
     try {
       final journalRepository = JournalRepository();
-      final allEntries = journalRepository.getAllJournalEntries();
+      final allEntries = await journalRepository.getAllJournalEntries();
       if (allEntries.isNotEmpty) {
         // Sort by creation date, most recent first
         allEntries.sort((a, b) => b.createdAt.compareTo(a.createdAt));
@@ -1923,22 +1933,22 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
   }
 
   // Handler methods for action buttons
-  void _handleRegenerate(LumaraMessage message) {
+  Future<void> _handleRegenerate(LumaraMessage message) async {
     if (message.role != LumaraMessageRole.assistant) return;
     _messageController.text = 'Can you regenerate your last response with a different approach?';
-    _sendCurrentMessage();
+    await _sendCurrentMessage();
   }
 
-  void _handleSoftenTone(LumaraMessage message) {
+  Future<void> _handleSoftenTone(LumaraMessage message) async {
     if (message.role != LumaraMessageRole.assistant) return;
     _messageController.text = 'Can you soften the tone of your last response?';
-    _sendCurrentMessage();
+    await _sendCurrentMessage();
   }
 
-  void _handleMoreDepth(LumaraMessage message) {
+  Future<void> _handleMoreDepth(LumaraMessage message) async {
     if (message.role != LumaraMessageRole.assistant) return;
     _messageController.text = 'Can you provide more depth on this topic?';
-    _sendCurrentMessage();
+    await _sendCurrentMessage();
   }
 
   void _handleExploreConversation(LumaraMessage message) {

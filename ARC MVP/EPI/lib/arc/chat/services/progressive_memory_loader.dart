@@ -25,7 +25,7 @@ class ProgressiveMemoryLoader {
     print('LUMARA Memory Loader: Initializing...');
     
     // Get all entries to detect available years
-    final allEntries = _journalRepository.getAllJournalEntries();
+    final allEntries = await _journalRepository.getAllJournalEntries();
     
     for (final entry in allEntries) {
       final year = entry.createdAt.year;
@@ -49,7 +49,7 @@ class ProgressiveMemoryLoader {
     
     print('LUMARA Memory Loader: Loading year $year...');
     
-    final allEntries = _journalRepository.getAllJournalEntries();
+    final allEntries = await _journalRepository.getAllJournalEntries();
     final yearEntries = allEntries.where((entry) => entry.createdAt.year == year).toList();
     
     _yearCache[year] = yearEntries;
@@ -145,8 +145,9 @@ class ProgressiveMemoryLoader {
   }
   
   /// Get count of entries in all available years
-  int getTotalEntryCount() {
-    return _journalRepository.getAllJournalEntries().length;
+  Future<int> getTotalEntryCount() async {
+    final entries = await _journalRepository.getAllJournalEntries();
+    return entries.length;
   }
 }
 

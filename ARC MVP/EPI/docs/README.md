@@ -1,7 +1,7 @@
 # EPI Documentation
 
-**Last Updated:** January 2025  
-**Version:** 2.1.40
+**Last Updated:** November 29, 2025  
+**Version:** 2.1.42
 
 ---
 
@@ -68,11 +68,21 @@ Welcome to the EPI (Evolving Personal Intelligence) documentation. This director
 
 ## Version Information
 
-**Current Version:** 2.1.40
-**Last Major Update:** January 2025 (Video Insertion Functionality & Export Bug Fixes)
+**Current Version:** 2.1.42
+**Last Major Update:** November 29, 2025 (LUMARA In-Journal Comments Persistence)
 
 ### Recent Highlights
 
+- 🆕 **Chat UI Improvements**: Scrollable text input, auto-minimize on outside click, send button always accessible
+- 🆕 **Chat History Import Fixes**: Enhanced logging, proper archived handling, message verification
+- 🆕 **Saved Chats Navigation**: Direct navigation from favorites, session restoration from saved chats
+- 🆕 **LUMARA Blocks Persistence (v2.1.42)**: Complete persistence fix for LUMARA in-journal comments
+  - Added dedicated `lumaraBlocks` field to JournalEntry model (HiveField 27)
+  - Automatic migration from legacy `metadata.inlineBlocks` format
+  - Purple "LUMARA" tag displayed in timeline for entries with comments
+  - Blocks persist across app restarts and imports/exports
+  - Fixed async/await issues across codebase
+- 🆕 **Timeline Entry Protection**: Entries open read-only by default with Edit button to unlock
 - 🆕 **Video Insertion Functionality**: Complete end-to-end video insertion with duration extraction and playback
 - 🆕 **Export Bug Fix**: Resolved issue where "export all entries" would export filtered subsets instead of all entries
 - ✅ **Video Playback Fixes**: Crash prevention and thumbnail support for video attachments
@@ -132,5 +142,5 @@ Welcome to the EPI (Evolving Personal Intelligence) documentation. This director
 ---
 
 **Status**: ✅ Production Ready
-**Last Updated**: November 27, 2025
-**Version**: 2.1.40
+**Last Updated**: November 29, 2025
+**Version**: 2.1.42

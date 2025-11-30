@@ -13,6 +13,7 @@ class TimelineEntry extends Equatable {
   final String? geometry; // Geometry pattern at time of entry
   final List<MediaItem> media; // Multimodal media attachments
   final DateTime createdAt; // Original date for sorting
+  final bool hasLumaraBlocks; // Whether entry has LUMARA inline blocks
 
   const TimelineEntry({
     required this.id,
@@ -26,8 +27,9 @@ class TimelineEntry extends Equatable {
     this.geometry,
     this.media = const [],
     required this.createdAt,
+    this.hasLumaraBlocks = false,
   });
 
   @override
-  List<Object?> get props => [id, date, monthYear, preview, title, hasArcform, keywords, phase, geometry, media, createdAt];
+  List<Object?> get props => [id, date, monthYear, preview, title, hasArcform, keywords, phase, geometry, media, createdAt, hasLumaraBlocks];
 }

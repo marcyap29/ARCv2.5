@@ -64,7 +64,7 @@ class MemoryNotificationService {
   }) async {
     final memories = <MemoryNotification>[];
     
-    final allEntries = _journalRepository.getAllJournalEntries();
+    final allEntries = await _journalRepository.getAllJournalEntries();
     final todayMonth = _today.month;
     final todayDay = _today.day;
     
@@ -174,7 +174,7 @@ class MemoryNotificationService {
   }) async {
     final memories = <MemoryNotification>[];
     
-    final allEntries = _journalRepository.getAllJournalEntries();
+    final allEntries = await _journalRepository.getAllJournalEntries();
     final targetMonth = date.month;
     final targetDay = date.day;
     
@@ -230,7 +230,7 @@ class MemoryNotificationService {
     final memories = <MemoryNotification>[];
     final queryLower = query.toLowerCase();
     
-    final allEntries = _journalRepository.getAllJournalEntries();
+    final allEntries = await _journalRepository.getAllJournalEntries();
     
     for (final entry in allEntries) {
       final entryDate = entry.createdAt;
@@ -285,7 +285,7 @@ class MemoryNotificationService {
     final memories = <MemoryNotification>[];
     final weekStart = DateTime(_today.year, _today.month, _today.day - _today.weekday);
     
-    final allEntries = _journalRepository.getAllJournalEntries();
+    final allEntries = await _journalRepository.getAllJournalEntries();
     
     for (final entry in allEntries) {
       final entryDate = entry.createdAt;
@@ -320,7 +320,7 @@ class MemoryNotificationService {
   Future<List<MemoryNotification>> getMonthlyMemories() async {
     final memories = <MemoryNotification>[];
     
-    final allEntries = _journalRepository.getAllJournalEntries();
+    final allEntries = await _journalRepository.getAllJournalEntries();
     
     for (final entry in allEntries) {
       final entryDate = entry.createdAt;
