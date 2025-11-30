@@ -19,7 +19,7 @@ class McpEntryProjector {
     JournalRepository? repo,
   }) async {
     final repository = repo ?? JournalRepository();
-    final entries = repository.getAllJournalEntries();
+    final entries = await repository.getAllJournalEntries();
     final results = <Map<String, dynamic>>[];
 
     for (final entry in entries) {
@@ -68,7 +68,7 @@ class McpEntryProjector {
     int nodeCount = 0, edgeCount = 0, pointerCount = 0, embeddingCount = 0;
 
     // Get all journal entries from the fixed repository
-    final entries = repo.getAllJournalEntries();
+    final entries = await repo.getAllJournalEntries();
 
     for (final entry in entries) {
       final text = _extractEntryText(entry);

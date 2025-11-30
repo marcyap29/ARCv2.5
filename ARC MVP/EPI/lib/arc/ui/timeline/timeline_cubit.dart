@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:my_app/arc/ui/timeline/timeline_state.dart';
 import 'package:my_app/arc/ui/timeline/timeline_entry_model.dart';
@@ -11,6 +12,7 @@ import 'package:my_app/services/phase_regime_service.dart';
 import 'package:my_app/services/analytics_service.dart';
 import 'package:my_app/services/rivet_sweep_service.dart';
 import 'package:my_app/services/atlas_phase_decision_service.dart';
+import 'package:my_app/state/journal_entry_state.dart';
 import 'package:hive/hive.dart';
 
 class TimelineCubit extends Cubit<TimelineState> {
@@ -97,7 +99,7 @@ class TimelineCubit extends Cubit<TimelineState> {
   Future<void> updateEntryPhase(String entryId, String newPhase, String newGeometry) async {
     try {
       // Get the existing journal entry
-      final existingEntry = _journalRepository.getJournalEntryById(entryId);
+      final existingEntry = await _journalRepository.getJournalEntryById(entryId);
       if (existingEntry == null) {
         print('DEBUG: Entry $entryId not found for update');
         return;
@@ -385,6 +387,10 @@ class TimelineCubit extends Cubit<TimelineState> {
       final effectiveFilter = filter ?? currentState.filter;
       final effectiveSearchQuery = searchQuery ?? currentState.searchQuery;
 
+      // Add a small delay to ensure Hive box is fully opened and metadata is deserialized
+      // This is especially important after app resume/restart
+      await Future.delayed(const Duration(milliseconds: 100));
+      
       // Get all entries without pagination (async to ensure Hive box opens)
       final allJournalEntries = await _journalRepository.getAllJournalEntries();
 
@@ -509,7 +515,30 @@ class TimelineCubit extends Cubit<TimelineState> {
         }
       }
 
-      return TimelineEntry(
+      // Extract LUMARA inline blocks directly from the lumaraBlocks field
+      final inlineBlocks = entry.lumaraBlocks;
+      print('🔍 TIMELINE DEBUG: Entry ${entry.id} - Found ${inlineBlocks.length} LUMARA blocks in lumaraBlocks field');
+
+      // Also check if entry has old metadata format (for debugging migration)
+      if (entry.metadata != null && entry.metadata!.containsKey('inlineBlocks')) {
+        final oldBlocks = entry.metadata!['inlineBlocks'];
+        print('🔍 TIMELINE DEBUG: Entry ${entry.id} - Has old format metadata: ${oldBlocks.runtimeType}');
+        if (oldBlocks is List && oldBlocks.isNotEmpty) {
+          print('🔍 TIMELINE DEBUG: Entry ${entry.id} - Old format has ${oldBlocks.length} blocks but new field has ${inlineBlocks.length}');
+        }
+      }
+
+      if (inlineBlocks.isNotEmpty) {
+        print('✅ TIMELINE: Entry ${entry.id} HAS ${inlineBlocks.length} LUMARA blocks - tag should appear!');
+        for (int i = 0; i < inlineBlocks.length; i++) {
+          final block = inlineBlocks[i];
+          print('   Block $i - type: ${block.type}, intent: ${block.intent}, hasComment: ${block.userComment != null && block.userComment!.isNotEmpty}');
+        }
+      } else {
+        print('⚠️ TIMELINE: Entry ${entry.id} - NO LUMARA blocks in lumaraBlocks field - tag will NOT appear');
+      }
+
+      final timelineEntry = TimelineEntry(
         id: entry.id,
         date: _formatDate(entry.createdAt),
         monthYear: _formatMonthYear(entry.createdAt),
@@ -522,8 +551,11 @@ class TimelineCubit extends Cubit<TimelineState> {
         phase: phase,
         geometry: geometry,
         media: finalMedia, // Use reconstructed media if available
+        hasLumaraBlocks: entry.lumaraBlocks.isNotEmpty, // Check if entry has LUMARA blocks
         createdAt: entry.createdAt, // Store original date for sorting
       );
+      
+      return timelineEntry;
     }).toList();
   }
 

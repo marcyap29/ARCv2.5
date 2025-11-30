@@ -64,7 +64,7 @@ class PhaseMigrationService {
   /// 
   /// Returns suggestions with old/new phase comparison
   Future<PhaseRecomputeResult> recomputePhasesForUser() async {
-    final allEntries = _journalRepository.getAllJournalEntries();
+    final allEntries = await _journalRepository.getAllJournalEntries();
     
     // Filter candidates
     final candidates = allEntries.where((entry) {
@@ -148,7 +148,7 @@ class PhaseMigrationService {
     
     for (final suggestion in suggestions) {
       try {
-        final entry = _journalRepository.getJournalEntryById(suggestion.entryId);
+        final entry = await _journalRepository.getJournalEntryById(suggestion.entryId);
         
         if (entry == null) {
           print('WARNING: Entry ${suggestion.entryId} not found, skipping');
@@ -186,7 +186,7 @@ class PhaseMigrationService {
 
   /// Get entries that need migration (for UI display)
   Future<List<JournalEntry>> getEntriesNeedingMigration() async {
-    final allEntries = _journalRepository.getAllJournalEntries();
+    final allEntries = await _journalRepository.getAllJournalEntries();
     
     return allEntries.where((entry) {
       if (entry.isPhaseLocked) return false;

@@ -1332,7 +1332,7 @@ List<PhaseSegmentProposal> proposals,
       int updatedCount = 0;
       for (final entryId in entryIds) {
         try {
-          final entry = journalRepo.getJournalEntryById(entryId);
+          final entry = await journalRepo.getJournalEntryById(entryId);
           if (entry == null) {
             print('DEBUG: Entry $entryId not found, skipping');
             continue;

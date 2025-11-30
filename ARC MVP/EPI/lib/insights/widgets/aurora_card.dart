@@ -30,7 +30,7 @@ class _AuroraCardState extends State<AuroraCard> {
     try {
       final journalRepo = JournalRepository();
       final aurora = CircadianProfileService();
-      final entries = journalRepo.getAllJournalEntries();
+      final entries = await journalRepo.getAllJournalEntries();
       
       _hasSufficientData = aurora.hasSufficientData(entries);
       final circadianContext = await aurora.compute(entries);

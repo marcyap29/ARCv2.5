@@ -41,7 +41,7 @@ class ReflectiveQueryService {
     String? currentPhase,
     bool nightMode = false,
   }) async {
-    final allEntries = _journalRepository.getAllJournalEntries();
+    final allEntries = await _journalRepository.getAllJournalEntries();
     
     // Filter for entries with SAGE tags (Action + Growth moments)
     final candidateEntries = allEntries.where((entry) {
@@ -165,7 +165,7 @@ class ReflectiveQueryService {
     final startDate = targetDate.subtract(const Duration(days: 14));
     final endDate = targetDate.add(const Duration(days: 14));
 
-    final allEntries = _journalRepository.getAllJournalEntries();
+    final allEntries = await _journalRepository.getAllJournalEntries();
     
     // Get entries from ±2 weeks around same date in prior years
     // Use originalCreatedAt to ensure we get entries from the correct historical date
@@ -255,7 +255,7 @@ class ReflectiveQueryService {
     final pastStart = now.subtract(const Duration(days: 180)); // 3-6 months
     final pastEnd = now.subtract(const Duration(days: 90));
 
-    final allEntries = _journalRepository.getAllJournalEntries();
+    final allEntries = await _journalRepository.getAllJournalEntries();
     
     // Split into two windows using original creation time
     final recentEntries = allEntries.where((e) => 

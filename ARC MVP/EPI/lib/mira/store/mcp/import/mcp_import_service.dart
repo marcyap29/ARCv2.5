@@ -20,6 +20,7 @@ import 'package:my_app/arc/core/journal_repository.dart';
 import 'package:my_app/prism/atlas/rivet/rivet_provider.dart';
 import 'package:my_app/prism/atlas/rivet/rivet_models.dart';
 import 'package:my_app/services/user_phase_service.dart';
+import 'package:my_app/state/journal_entry_state.dart';
 import 'package:my_app/arc/ui/arcforms/phase_recommender.dart';
 import 'package:my_app/core/services/photo_library_service.dart';
 import 'package:my_app/data/models/photo_metadata.dart';
@@ -1043,6 +1044,37 @@ class McpImportService {
         }
       }
       
+      // Pull LUMARA inline blocks from legacy metadata formats
+      // Check multiple possible locations for inlineBlocks
+      dynamic inlineBlocksData;
+      if (node.metadata != null) {
+        inlineBlocksData = node.metadata!['inlineBlocks'] ??
+            (node.metadata!['journal_entry'] as Map<String, dynamic>?)?['inlineBlocks'];
+      }
+      
+      // Also check the original entry JSON if available (for direct imports)
+      if (inlineBlocksData == null && node.metadata != null) {
+        // The metadata might contain the full entry JSON structure
+        final entryData = node.metadata!['journal_entry'] as Map<String, dynamic>?;
+        if (entryData != null && entryData.containsKey('metadata')) {
+          final entryMetadata = entryData['metadata'] as Map<String, dynamic>?;
+          inlineBlocksData = entryMetadata?['inlineBlocks'];
+        }
+      }
+      
+      final lumaraBlocks = _parseLumaraBlocks(inlineBlocksData);
+      
+      if (lumaraBlocks.isNotEmpty) {
+        print('✅ MCP Import: Parsed ${lumaraBlocks.length} LUMARA blocks for entry ${node.id}');
+        for (int i = 0; i < lumaraBlocks.length; i++) {
+          final block = lumaraBlocks[i];
+          print('   Block $i: type=${block.type}, intent=${block.intent}, hasComment=${block.userComment != null && block.userComment!.isNotEmpty}');
+        }
+      } else if (inlineBlocksData != null) {
+        print('⚠️ MCP Import: Found inlineBlocks data but failed to parse for entry ${node.id}');
+        print('   inlineBlocksData type: ${inlineBlocksData.runtimeType}');
+      }
+
       // Create the journal entry
       return JournalEntry(
         id: _extractOriginalId(node.id),
@@ -1056,14 +1088,20 @@ class McpImportService {
         mood: mood,
         emotion: emotion,
         emotionReason: emotionReason,
-        metadata: {
-          'imported_from_mcp': true,
-          'original_mcp_id': node.id,
-          'import_timestamp': DateTime.now().toIso8601String(),
-          'phase_hint': node.phaseHint,
-          // Preserve original metadata from MCP (including inlineBlocks from LUMARA)
-          ...?node.metadata,
-        },
+        lumaraBlocks: lumaraBlocks,
+        metadata: () {
+          // Create metadata without inlineBlocks (blocks are now in lumaraBlocks field)
+          final metadata = <String, dynamic>{
+            'imported_from_mcp': true,
+            'original_mcp_id': node.id,
+            'import_timestamp': DateTime.now().toIso8601String(),
+            'phase_hint': node.phaseHint,
+            // Preserve original metadata from MCP but remove inlineBlocks
+            ...?node.metadata,
+          };
+          metadata.remove('inlineBlocks'); // Remove since we use lumaraBlocks field
+          return metadata;
+        }(),
       );
     } catch (e) {
       print('  Failed to convert MCP node ${node.id} to journal entry: $e');
@@ -1085,6 +1123,13 @@ class McpImportService {
   /// Import a journal entry into the journal repository
   Future<void> _importJournalEntry(JournalEntry entry) async {
     print('  DEBUG: _importJournalEntry called for entry: ${entry.title}');
+    print('  DEBUG: Entry has ${entry.lumaraBlocks.length} LUMARA blocks');
+    if (entry.lumaraBlocks.isNotEmpty) {
+      for (int i = 0; i < entry.lumaraBlocks.length; i++) {
+        final block = entry.lumaraBlocks[i];
+        print('  DEBUG: Block $i: type=${block.type}, intent=${block.intent}, hasComment=${block.userComment != null && block.userComment!.isNotEmpty}');
+      }
+    }
     try {
       if (_journalRepo == null) {
         print('  Warning: No journal repository available - cannot import journal entry: ${entry.title}');
@@ -1093,14 +1138,26 @@ class McpImportService {
       
       // Store the journal entry in the repository
       await _journalRepo!.createJournalEntry(entry);
-      print('  Stored journal entry: ${entry.title}');
+      print('  ✅ Stored journal entry: ${entry.title} with ${entry.lumaraBlocks.length} LUMARA blocks');
+      
+      // Verify the entry was saved correctly
+      final savedEntry = await _journalRepo!.getJournalEntryById(entry.id);
+      if (savedEntry != null) {
+        print('  ✅ Verification: Reloaded entry has ${savedEntry.lumaraBlocks.length} LUMARA blocks');
+        if (savedEntry.lumaraBlocks.length != entry.lumaraBlocks.length) {
+          print('  ❌ WARNING: Block count mismatch! Expected: ${entry.lumaraBlocks.length}, Got: ${savedEntry.lumaraBlocks.length}');
+        }
+      } else {
+        print('  ❌ ERROR: Could not reload entry after save!');
+      }
       
       // Create RIVET event for the imported entry
       print('  DEBUG: Creating RIVET event for imported entry...');
       await _createRivetEventForEntry(entry);
       
-    } catch (e) {
-      print('  Failed to import journal entry ${entry.id}: $e');
+    } catch (e, stackTrace) {
+      print('  ❌ Failed to import journal entry ${entry.id}: $e');
+      print('  Stack trace: $stackTrace');
     }
   }
 
@@ -1820,5 +1877,65 @@ class McpImportService {
     );
   }
 
+  /// Parse LUMARA inline blocks from legacy metadata formats (List<Map> or JSON string).
+  List<InlineBlock> _parseLumaraBlocks(dynamic rawBlocks) {
+    if (rawBlocks == null) {
+      print('MCP Import: No rawBlocks data provided');
+      return const [];
+    }
 
+    print('MCP Import: Parsing LUMARA blocks, type: ${rawBlocks.runtimeType}');
+    
+    try {
+      if (rawBlocks is List) {
+        print('MCP Import: Raw blocks is a List with ${rawBlocks.length} items');
+        final blocks = rawBlocks
+            .whereType<Map>()
+            .map((block) {
+              try {
+                return InlineBlock.fromJson(block.cast<String, dynamic>());
+              } catch (e) {
+                print('MCP Import: ⚠️ Error parsing individual block: $e');
+                print('MCP Import: Block data: $block');
+                return null;
+              }
+            })
+            .whereType<InlineBlock>()
+            .toList();
+        print('MCP Import: ✅ Successfully parsed ${blocks.length} LUMARA blocks from List');
+        return blocks;
+      }
+
+      if (rawBlocks is String) {
+        print('MCP Import: Raw blocks is a String, attempting to decode JSON');
+        final decoded = jsonDecode(rawBlocks);
+        if (decoded is List) {
+          print('MCP Import: Decoded JSON is a List with ${decoded.length} items');
+          final blocks = decoded
+              .whereType<Map>()
+              .map((block) {
+                try {
+                  return InlineBlock.fromJson(block.cast<String, dynamic>());
+                } catch (e) {
+                  print('MCP Import: ⚠️ Error parsing individual block from JSON string: $e');
+                  return null;
+                }
+              })
+              .whereType<InlineBlock>()
+              .toList();
+          print('MCP Import: ✅ Successfully parsed ${blocks.length} LUMARA blocks from JSON string');
+          return blocks;
+        } else {
+          print('MCP Import: ⚠️ Decoded JSON is not a List, type: ${decoded.runtimeType}');
+        }
+      } else {
+        print('MCP Import: ⚠️ Raw blocks is neither List nor String, type: ${rawBlocks.runtimeType}');
+      }
+    } catch (e, stackTrace) {
+      print('MCP Import: ❌ Error parsing LUMARA blocks: $e');
+      print('MCP Import: Stack trace: $stackTrace');
+    }
+
+    return const [];
+  }
 }

@@ -13,7 +13,9 @@ import 'package:my_app/utils/flavors.dart';
 import 'package:my_app/models/user_profile_model.dart';
 import 'package:my_app/models/journal_entry_model.dart';
 import 'package:my_app/models/arcform_snapshot_model.dart';
+import 'package:my_app/state/journal_entry_state.dart';
 import 'package:my_app/arc/core/sage_annotation_model.dart';
+import 'package:my_app/arc/core/journal_repository.dart';
 import 'package:my_app/data/models/media_item.dart';
 import 'package:my_app/prism/atlas/rivet/rivet_storage.dart';
 import 'package:my_app/services/analytics_service.dart';
@@ -176,7 +178,7 @@ class _BootstrapErrorWidgetState extends State<BootstrapErrorWidget> {
 }
 
 /// Safely registers Hive adapters without conflicts
-void _registerHiveAdapters() {
+Future<void> _registerHiveAdapters() async {
   try {
     // Check if adapters are already registered to avoid conflicts
     // Register MediaItem adapters FIRST since JournalEntry depends on them
@@ -244,6 +246,20 @@ void _registerHiveAdapters() {
     if (!Hive.isAdapterRegistered(80)) {
       Hive.registerAdapter(LumaraFavoriteAdapter());
       logger.d('✅ Registered LumaraFavoriteAdapter (ID: 80)');
+    }
+    // LUMARA inline reflection blocks (used inside JournalEntry.lumaraBlocks)
+    if (!Hive.isAdapterRegistered(103)) {
+      Hive.registerAdapter(InlineBlockAdapter());
+      logger.d('✅ Registered InlineBlockAdapter (ID: 103)');
+    }
+
+    // Run a one-time migration to persist legacy LUMARA blocks into the dedicated field
+    try {
+      final journalRepo = JournalRepository();
+      await journalRepo.migrateLumaraBlocks();
+      logger.i('✅ Completed LUMARA inline block migration on startup');
+    } catch (e) {
+      logger.w('⚠️ LUMARA migration skipped/failed: $e');
     }
     
     // Verify MediaItemAdapter is registered
@@ -448,6 +464,26 @@ Future<void> _recoverBoxWithTypeHandling(String boxName, Type boxType, Object or
   try {
     logger.w('Attempting recovery for $boxName (type: $boxType) due to: $originalError');
     
+    // CRITICAL: Never delete journal_entries box - it contains user data!
+    if (boxName == 'journal_entries') {
+      logger.e('❌ CRITICAL: Attempted to delete journal_entries box - ABORTING to prevent data loss!');
+      logger.e('Error was: $originalError');
+      // Try to reopen the box without deleting it
+      try {
+        if (Hive.isBoxOpen(boxName)) {
+          await Hive.box(boxName).close();
+        }
+        await _openTypedBox(boxName, boxType);
+        logger.i('Successfully reopened journal_entries box without data loss');
+        return;
+      } catch (e) {
+        logger.e('Failed to reopen journal_entries box: $e');
+        // Don't delete - just log the error and continue
+        logger.e('⚠️ WARNING: journal_entries box may be in an inconsistent state');
+        return;
+      }
+    }
+    
     // Close any existing box first
     if (Hive.isBoxOpen(boxName)) {
       try {
@@ -458,7 +494,7 @@ Future<void> _recoverBoxWithTypeHandling(String boxName, Type boxType, Object or
       }
     }
     
-    // For type mismatch errors, delete the box from disk
+    // For type mismatch errors, delete the box from disk (but NOT journal_entries)
     if (originalError.toString().contains('already open') || 
         originalError.toString().contains('type') ||
         originalError.toString().contains('dynamic')) {
@@ -478,7 +514,12 @@ Future<void> _recoverBoxWithTypeHandling(String boxName, Type boxType, Object or
   } catch (recoveryError, st) {
     logger.e('Failed to recover Hive box: $boxName', recoveryError, st);
     
-    // Last resort: try generic box opening
+    // Last resort: try generic box opening (but NOT for journal_entries)
+    if (boxName == 'journal_entries') {
+      logger.e('❌ CRITICAL: Cannot recover journal_entries box - preserving data');
+      return;
+    }
+    
     try {
       await Hive.openBox(boxName);
       logger.w('Opened box as generic type: $boxName');
@@ -490,20 +531,47 @@ Future<void> _recoverBoxWithTypeHandling(String boxName, Type boxType, Object or
 }
 
 /// Clears corrupted Hive data to allow app recovery
+/// NOTE: This should NEVER be called automatically - it's only for manual recovery
 Future<void> _clearCorruptedHiveData() async {
   try {
-    logger.w('Clearing potentially corrupted Hive data');
+    logger.w('⚠️ WARNING: Clearing potentially corrupted Hive data');
+    logger.w('⚠️ This will NOT delete journal_entries box to preserve user data');
     
-    // Close all open boxes first
-    await Hive.close();
+    // Close all open boxes first (except journal_entries)
+    final openBoxes = <String>[];
+    try {
+      // Get list of open boxes before closing
+      // Note: Hive doesn't provide a direct way to list open boxes, so we'll be careful
+      if (Hive.isBoxOpen('journal_entries')) {
+        logger.i('Preserving journal_entries box - will not close it');
+        openBoxes.add('journal_entries');
+      }
+    } catch (e) {
+      logger.w('Error checking for journal_entries box: $e');
+    }
     
-    // Reinitialize Hive
+    // Close boxes individually, skipping journal_entries
+    final boxesToClose = ['user_profile', 'arcform_snapshots', 'insights', 'sync_queue', 
+                         'coach_droplet_templates', 'coach_droplet_resesponses', 
+                         'coach_share_bundles', 'settings'];
+    for (final boxName in boxesToClose) {
+      if (Hive.isBoxOpen(boxName)) {
+        try {
+          await Hive.box(boxName).close();
+          logger.d('Closed box: $boxName');
+        } catch (e) {
+          logger.w('Error closing box $boxName: $e');
+        }
+      }
+    }
+    
+    // Reinitialize Hive (this won't affect already-open boxes)
     await Hive.initFlutter();
     
     // Re-register adapters safely
-    _registerHiveAdapters();
+    await _registerHiveAdapters();
     
-    logger.i('Hive data cleared and reinitialized');
+    logger.i('Hive data cleared and reinitialized (journal_entries preserved)');
   } catch (e, st) {
     logger.e('Failed to clear corrupted Hive data', e, st);
     rethrow;
@@ -628,7 +696,7 @@ Future<void> _recoverFromStartupFailure() async {
     await Hive.initFlutter();
     
     // Re-register all adapters safely
-    _registerHiveAdapters();
+    await _registerHiveAdapters();
     
     // Reopen essential boxes
     await _openHiveBoxes();
@@ -714,7 +782,7 @@ Future<bool> _initializeHive() async {
     logger.d('Hive.initFlutter() completed');
     
     // Register adapters (must match @HiveType typeIds) - check if already registered
-    _registerHiveAdapters();
+    await _registerHiveAdapters();
     logger.d('Hive adapters registered');
 
     // Open boxes with consistent snake_case names - with error recovery

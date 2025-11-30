@@ -27,6 +27,7 @@ import 'package:my_app/prism/atlas/rivet/rivet_models.dart' as rivet_models;
 import 'package:my_app/models/arcform_snapshot_model.dart';
 import 'package:my_app/arc/chat/services/favorites_service.dart';
 import 'package:my_app/arc/chat/data/models/lumara_favorite.dart';
+import 'package:my_app/state/journal_entry_state.dart';
 import 'package:hive/hive.dart';
 import 'package:my_app/models/user_profile_model.dart';
 import 'package:my_app/prism/atlas/phase/phase_inference_service.dart';
@@ -556,7 +557,7 @@ class ARCXImportServiceV2 {
           
           // Check if already exists
           if (options.skipExisting) {
-            final existing = _journalRepo!.getJournalEntryById(entryId);
+            final existing = await _journalRepo!.getJournalEntryById(entryId);
             if (existing != null) {
               print('ARCX Import V2: ⚠️ Entry $entryId already exists, skipping');
               _entryIdMap[entryId] = entryId; // Map to itself
@@ -1071,7 +1072,7 @@ class ARCXImportServiceV2 {
       final newId = entryIdMapping.value;
       
       try {
-        final entry = _journalRepo!.getJournalEntryById(newId);
+        final entry = await _journalRepo!.getJournalEntryById(newId);
         if (entry != null) {
           // Check if entry has unresolved media links
           // The media should already be resolved during entry import,
@@ -1252,6 +1253,12 @@ class ARCXImportServiceV2 {
       final importSource = entryJson['importSource'] as String? ?? 'ARCHX';
       final phaseInferenceVersion = entryJson['phaseInferenceVersion'] as int?;
       final phaseMigrationStatus = entryJson['phaseMigrationStatus'] as String?;
+
+      // Extract LUMARA blocks from new or legacy locations
+      final lumaraBlocks = _parseLumaraBlocks(
+        entryJson['lumaraBlocks'] ??
+            (entryJson['metadata'] as Map<String, dynamic>?)?['inlineBlocks'],
+      );
       
       // Determine migration status:
       // - If phaseInferenceVersion is null or < CURRENT_VERSION, mark as PENDING
@@ -1283,6 +1290,7 @@ class ARCXImportServiceV2 {
         importSource: importSource,
         phaseInferenceVersion: phaseInferenceVersion,
         phaseMigrationStatus: migrationStatus,
+        lumaraBlocks: lumaraBlocks,
         metadata: {
           'imported_from_arcx_v2': true,
           'original_export_id': entryJson['id'],
@@ -1447,6 +1455,34 @@ class ARCXImportServiceV2 {
     
     return mediaData ?? [];
   }
+
+  /// Parse LUMARA inline blocks from either List<Map> or JSON string formats used in older exports.
+  List<InlineBlock> _parseLumaraBlocks(dynamic rawBlocks) {
+    if (rawBlocks == null) return const [];
+
+    try {
+      if (rawBlocks is List) {
+        return rawBlocks
+            .whereType<Map>()
+            .map((block) => InlineBlock.fromJson(block.cast<String, dynamic>()))
+            .toList();
+      }
+
+      if (rawBlocks is String) {
+        final decoded = jsonDecode(rawBlocks);
+        if (decoded is List) {
+          return decoded
+              .whereType<Map>()
+              .map((block) => InlineBlock.fromJson(block.cast<String, dynamic>()))
+              .toList();
+        }
+      }
+    } catch (e) {
+      print('ARCX Import V2: ⚠️ Error parsing LUMARA blocks: $e');
+    }
+
+    return const [];
+  }
   
   /// Create MediaItem from embedded data (wrapper for _createMediaItemFromJson)
   MediaItem? _createMediaItemFromEmbeddedData(Map<String, dynamic> mediaJson, String filePath) {
@@ -1571,7 +1607,7 @@ class ARCXImportServiceV2 {
       if (_journalRepo == null) return;
       
       // Get recent entries for context
-      final allEntries = _journalRepo!.getAllJournalEntries();
+      final allEntries = await _journalRepo!.getAllJournalEntries();
       allEntries.sort((a, b) => b.createdAt.compareTo(a.createdAt));
       final recentEntries = allEntries.take(7).toList();
       
@@ -1669,4 +1705,3 @@ class ARCXImportResultV2 {
     );
   }
 }
-

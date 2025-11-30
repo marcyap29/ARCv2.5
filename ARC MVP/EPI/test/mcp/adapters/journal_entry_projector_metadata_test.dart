@@ -289,7 +289,8 @@ class MockJournalRepository implements arc.JournalRepository {
   List<JournalEntry> entries = [];
   
   @override
-  List<JournalEntry> getAllJournalEntries() => entries;
+  @override
+  Future<List<JournalEntry>> getAllJournalEntries() async => entries;
   
   @override
   List<JournalEntry> getAllJournalEntriesSync() => entries;
@@ -325,7 +326,8 @@ class MockJournalRepository implements arc.JournalRepository {
   }
   
   @override
-  JournalEntry? getJournalEntryById(String id) {
+  @override
+  Future<JournalEntry?> getJournalEntryById(String id) async {
     try {
       return entries.firstWhere((e) => e.id == id);
     } catch (e) {
@@ -335,7 +337,12 @@ class MockJournalRepository implements arc.JournalRepository {
   
   @override
   JournalEntry? getJournalEntryByIdSync(String id) {
-    return getJournalEntryById(id);
+    // For test, just find synchronously
+    try {
+      return entries.firstWhere((e) => e.id == id);
+    } catch (e) {
+      return null;
+    }
   }
   
   @override

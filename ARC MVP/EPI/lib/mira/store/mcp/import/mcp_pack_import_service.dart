@@ -980,7 +980,7 @@ class McpPackImportService {
       if (_journalRepo == null) return;
       
       // Get recent entries for context
-      final allEntries = _journalRepo!.getAllJournalEntries();
+      final allEntries = await _journalRepo!.getAllJournalEntries();
       allEntries.sort((a, b) => b.createdAt.compareTo(a.createdAt));
       final recentEntries = allEntries.take(7).toList();
       

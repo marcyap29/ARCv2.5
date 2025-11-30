@@ -15,7 +15,7 @@ class ActiveWindowDetector {
 
   /// Detect active windows from journal entry patterns
   Future<List<ActiveWindow>> detectActiveWindows() async {
-    final allEntries = _journalRepository.getAllJournalEntries();
+    final allEntries = await _journalRepository.getAllJournalEntries();
     
     if (allEntries.length < _minEntriesForReliability) {
       return [];

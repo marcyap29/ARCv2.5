@@ -9,7 +9,7 @@ void main() async {
   final service = PatternAnalysisService(repository);
   
   // Get all journal entries
-  final entries = repository.getAllJournalEntries();
+  final entries = await repository.getAllJournalEntries();
   print('Total journal entries: ${entries.length}');
   
   if (entries.isNotEmpty) {
@@ -18,7 +18,7 @@ void main() async {
   }
   
   // Analyze patterns
-  final result = service.analyzePatterns(
+  final result = await service.analyzePatterns(
     minWeight: 0.3,
     maxNodes: 8,
   );

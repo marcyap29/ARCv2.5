@@ -43,13 +43,14 @@ class JournalEntryAdapter extends TypeAdapter<JournalEntry> {
       importSource: fields[24] as String?,
       phaseInferenceVersion: fields[25] as int?,
       phaseMigrationStatus: fields[26] as String?,
+      lumaraBlocks: (fields[27] as List).cast<InlineBlock>(),
     );
   }
 
   @override
   void write(BinaryWriter writer, JournalEntry obj) {
     writer
-      ..writeByte(26)
+      ..writeByte(27)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -101,7 +102,9 @@ class JournalEntryAdapter extends TypeAdapter<JournalEntry> {
       ..writeByte(25)
       ..write(obj.phaseInferenceVersion)
       ..writeByte(26)
-      ..write(obj.phaseMigrationStatus);
+      ..write(obj.phaseMigrationStatus)
+      ..writeByte(27)
+      ..write(obj.lumaraBlocks);
   }
 
   @override

@@ -1176,7 +1176,7 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
           // If we found an entry ID, try to get the full entry
           if (entryId != null && !addedEntryIds.contains(entryId)) {
             try {
-              final allEntries = _journalRepository.getAllJournalEntries();
+              final allEntries = await _journalRepository.getAllJournalEntries();
               final entry = allEntries.firstWhere(
                 (e) => e.id == entryId,
                 orElse: () => allEntries.first, // Fallback
@@ -1466,7 +1466,7 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
         // If we found an entry ID, try to get the actual journal entry
         if (entryId != null) {
           try {
-            final allEntries = _journalRepository.getAllJournalEntries();
+            final allEntries = await _journalRepository.getAllJournalEntries();
             JournalEntry entry;
             try {
               entry = allEntries.firstWhere((e) => e.id == entryId);
@@ -2251,7 +2251,7 @@ Available: ${yearsAgo} more year${yearsAgo > 1 ? 's' : ''} of history''';
   ) async {
     try {
       // Get circadian context for night mode
-      final allEntries = _journalRepository.getAllJournalEntries();
+      final allEntries = await _journalRepository.getAllJournalEntries();
       final circadianService = CircadianProfileService();
       final circadianContext = await circadianService.compute(allEntries);
       final nightMode = circadianContext.window == 'evening' || 
