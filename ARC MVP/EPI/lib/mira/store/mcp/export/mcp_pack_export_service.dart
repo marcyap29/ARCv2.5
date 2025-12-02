@@ -355,6 +355,8 @@ class McpPackExportService {
       'phaseMigrationStatus': entry.phaseMigrationStatus,
       'metadata': entry.metadata,
       'health_association': healthAssociation,
+      // LUMARA blocks in new format (migrated from legacy inlineBlocks)
+      'lumaraBlocks': entry.lumaraBlocks.map((block) => block.toJson()).toList(),
     };
 
     // Write entry JSON

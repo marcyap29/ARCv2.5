@@ -706,7 +706,11 @@ class ARCXExportServiceV2 {
   /// Load entries by IDs with optional date filtering
   Future<List<JournalEntry>> _loadEntries(List<String> entryIds, DateTime? startDate, DateTime? endDate) async {
     if (_journalRepo == null || entryIds.isEmpty) return [];
-    
+
+    // Ensure LUMARA migration runs before export to convert legacy inlineBlocks to lumaraBlocks
+    print('ARCX Export V2: Ensuring LUMARA migration is complete before export...');
+    await _journalRepo!.migrateLumaraBlocks();
+
     final entries = <JournalEntry>[];
     for (final id in entryIds) {
       final entry = await _journalRepo!.getJournalEntryById(id);
@@ -717,6 +721,15 @@ class ARCXExportServiceV2 {
         entries.add(entry);
       }
     }
+
+    // Log LUMARA blocks found for verification
+    final totalLumaraBlocks = entries.fold(0, (sum, entry) => sum + entry.lumaraBlocks.length);
+    if (totalLumaraBlocks > 0) {
+      print('ARCX Export V2: ✓ Found $totalLumaraBlocks LUMARA blocks across ${entries.length} entries');
+    } else {
+      print('ARCX Export V2: ⚠️ No LUMARA blocks found in ${entries.length} entries');
+    }
+
     return entries;
   }
   
@@ -943,6 +956,8 @@ class ARCXExportServiceV2 {
         'phaseInferenceVersion': entry.phaseInferenceVersion,
         'phaseMigrationStatus': entry.phaseMigrationStatus,
         'metadata': entry.metadata ?? {},
+        // LUMARA blocks in new format (migrated from legacy inlineBlocks)
+        'lumaraBlocks': entry.lumaraBlocks.map((block) => block.toJson()).toList(),
       };
       
       // Write entry file

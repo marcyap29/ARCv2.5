@@ -18,6 +18,7 @@ import 'package:my_app/models/arcform_snapshot_model.dart';
 import 'package:hive/hive.dart';
 import 'package:my_app/prism/atlas/phase/phase_inference_service.dart';
 import 'package:my_app/models/user_profile_model.dart';
+import 'package:my_app/state/journal_entry_state.dart';
 
 /// MCP Pack Import Service for .zip files only
 class McpPackImportService {
@@ -479,6 +480,27 @@ class McpPackImportService {
                   ? 'PENDING' 
                   : 'DONE');
           
+          // Parse LUMARA blocks from JSON
+          final List<InlineBlock> lumaraBlocks = [];
+          final lumaraBlocksJson = entryJson['lumaraBlocks'] as List<dynamic>? ?? [];
+          for (final blockJson in lumaraBlocksJson) {
+            if (blockJson is Map<String, dynamic>) {
+              try {
+                final inlineBlock = InlineBlock.fromJson(blockJson);
+                lumaraBlocks.add(inlineBlock);
+                print('✅ Parsed LUMARA block: ${inlineBlock.type} - ${inlineBlock.content?.substring(0, 50) ?? 'No content'}...');
+              } catch (e) {
+                print('⚠️ Failed to parse LUMARA block: $e');
+                print('   Block JSON: $blockJson');
+                // Continue with other blocks - don't let one failure stop the import
+              }
+            }
+          }
+
+          if (lumaraBlocks.isNotEmpty) {
+            print('📝 Entry $entryId: Found ${lumaraBlocks.length} LUMARA blocks');
+          }
+
           // Create journal entry
           JournalEntry journalEntry;
           try {
@@ -515,6 +537,7 @@ class McpPackImportService {
             importSource: importSource,
             phaseInferenceVersion: phaseInferenceVersion,
             phaseMigrationStatus: migrationStatus,
+            lumaraBlocks: lumaraBlocks, // Import LUMARA blocks from JSON
             metadata: {
               'imported_from_mcp': true,
                 'original_mcp_id': entryId,

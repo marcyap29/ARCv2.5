@@ -2,6 +2,7 @@
 // Centralized API configuration and key management for LUMARA
 
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -214,6 +215,48 @@ class LumaraAPIConfig {
           }
         } catch (e) {
           debugPrint('LUMARA API: Error loading saved configs: $e');
+        }
+      }
+      
+      // Auto-save API keys from runtime environment variables if not already saved
+      // This allows users to set GEMINI_API_KEY as an environment variable and have it persist
+      final runtimeGeminiKey = Platform.environment['GEMINI_API_KEY'];
+      if (runtimeGeminiKey != null && runtimeGeminiKey.isNotEmpty) {
+        final savedConfigsJson = _prefs!.getString(_prefsKey);
+        Map<String, dynamic> savedConfigs = {};
+        if (savedConfigsJson != null) {
+          try {
+            savedConfigs = jsonDecode(savedConfigsJson) as Map<String, dynamic>;
+          } catch (e) {
+            debugPrint('LUMARA API: Error parsing saved configs for auto-save: $e');
+          }
+        }
+        
+        // Check if Gemini key is already saved
+        final geminiConfig = savedConfigs['gemini'] as Map<String, dynamic>?;
+        final savedGeminiKey = geminiConfig?['apiKey'] as String?;
+        
+        if (savedGeminiKey == null || savedGeminiKey.isEmpty) {
+          debugPrint('LUMARA API: Auto-saving Gemini API key from runtime environment variable...');
+          savedConfigs['gemini'] = {
+            'provider': 'gemini',
+            'name': 'Google Gemini',
+            'apiKey': runtimeGeminiKey,
+            'baseUrl': 'https://generativelanguage.googleapis.com/v1beta',
+            'isInternal': false,
+            'isAvailable': true,
+          };
+          await _prefs!.setString(_prefsKey, jsonEncode(savedConfigs));
+          
+          // Update the in-memory config
+          final currentConfig = _configs[LLMProvider.gemini];
+          if (currentConfig != null) {
+            _configs[LLMProvider.gemini] = currentConfig.copyWith(apiKey: runtimeGeminiKey);
+            final maskedKey = runtimeGeminiKey.length > 8
+                ? '${runtimeGeminiKey.substring(0, 4)}...${runtimeGeminiKey.substring(runtimeGeminiKey.length - 4)}'
+                : '***';
+            debugPrint('LUMARA API: Auto-saved Gemini API key from environment: $maskedKey (length: ${runtimeGeminiKey.length})');
+          }
         }
       }
     }
