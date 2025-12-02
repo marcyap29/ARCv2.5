@@ -549,4 +549,8 @@ tmp/
 # OS generated files
 Thumbs.db
 ehthumbs.db
-Desktop.inigoogle-cloud-sdk/
+Desktop.ini
+
+# Google Cloud SDK (at repository root)
+gcloud/
+google-cloud-sdk/
