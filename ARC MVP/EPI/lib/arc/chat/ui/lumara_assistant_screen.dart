@@ -565,7 +565,7 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
                         _buildMessageInput(), // Temporary: always show input
                       ],
                     ),
-                  ),
+                    ),
           // TODO: Fix navigation drawer structure - temporarily commented out
           // Navigation drawer overlay - second child of Stack
           /*
