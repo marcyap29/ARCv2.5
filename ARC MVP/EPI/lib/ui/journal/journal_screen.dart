@@ -51,6 +51,7 @@ import 'package:my_app/models/journal_entry_model.dart';
 import 'package:my_app/arc/chat/chat/chat_repo_impl.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:my_app/arc/chat/services/lumara_reflection_settings_service.dart';
 import 'package:my_app/mira/memory/enhanced_mira_memory_service.dart';
 import 'package:my_app/mira/memory/enhanced_memory_schema.dart';
@@ -735,21 +736,50 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
         print('JournalScreen: Error getting current phase: $e');
       }
       
-      // Analyze context to generate prompts
-      final contextAwarePrompts = _generateContextAwarePrompts(contextWindow, currentPhase);
+      // Prepare context for backend
+      final journalNodes = contextWindow.nodes.where((n) => n['type'] == 'journal').toList();
+      final recentEntries = journalNodes.take(5).map((n) {
+        final text = n['text'] as String? ?? '';
+        return text.length > 200 ? text.substring(0, 200) + '...' : text;
+      }).toList();
       
-      // Traditional writing prompts
-      final traditionalPrompts = _getTraditionalPrompts();
+      final chatNodes = contextWindow.nodes.where((n) => n['type'] == 'chat').toList();
+      final recentChats = chatNodes.take(3).map((n) {
+        final subject = n['meta']?['subject'] as String? ?? 'conversation';
+        return subject;
+      }).toList();
       
-      // Combine prompts
-      final allPrompts = [...contextAwarePrompts, ...traditionalPrompts];
+      // Call backend to generate initial prompts (4 prompts)
+      final functions = FirebaseFunctions.instance;
+      final generatePrompts = functions.httpsCallable('generateJournalPrompts');
+      
+      final result = await generatePrompts.call({
+        'expanded': false,
+        'context': {
+          'recentEntries': recentEntries,
+          'recentChats': recentChats,
+          'currentPhase': currentPhase,
+        },
+      });
+      
+      final initialPrompts = (result.data['prompts'] as List<dynamic>?)
+          ?.map((p) => p.toString())
+          .toList() ?? [];
       
       // Close loading dialog
       if (mounted) Navigator.of(context).pop();
       
-      // Show prompt selection dialog
-      if (mounted) {
-        await _showPromptSelectionDialog(allPrompts);
+      // Show prompt selection dialog with initial 4 prompts
+      if (mounted && initialPrompts.isNotEmpty) {
+        await _showPromptSelectionDialog(initialPrompts, recentEntries, recentChats, currentPhase);
+      } else {
+        // Fallback to old method if backend fails
+        final contextAwarePrompts = _generateContextAwarePrompts(contextWindow, currentPhase);
+        final traditionalPrompts = _getTraditionalPrompts();
+        final allPrompts = [...contextAwarePrompts, ...traditionalPrompts];
+        if (mounted) {
+          await _showPromptSelectionDialog(allPrompts, recentEntries, recentChats, currentPhase);
+        }
       }
     } catch (e) {
       // Close loading dialog
@@ -837,56 +867,128 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     ];
   }
   
-  Future<void> _showPromptSelectionDialog(List<String> prompts) async {
+  Future<void> _showPromptSelectionDialog(
+    List<String> prompts,
+    List<String> recentEntries,
+    List<String> recentChats,
+    String currentPhase,
+  ) async {
     if (!mounted) return;
+    
+    bool showingExpanded = false;
+    List<String> expandedPrompts = [];
+    bool isLoadingExpanded = false;
     
     final selectedPrompt = await showDialog<String>(
       context: context,
-      builder: (context) => Dialog(
-        child: Container(
-          constraints: const BoxConstraints(maxWidth: 500, maxHeight: 600),
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Choose a Writing Prompt',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 16),
-              Expanded(
-                child: ListView.builder(
-                  shrinkWrap: true,
-                  itemCount: prompts.length,
-                  itemBuilder: (context, index) {
-                    final prompt = prompts[index];
-                    return Card(
-                      margin: const EdgeInsets.only(bottom: 8),
-                      child: ListTile(
-                        title: Text(
-                          prompt,
-                          style: Theme.of(context).textTheme.bodyMedium,
-                        ),
-                        onTap: () => Navigator.of(context).pop(prompt),
-                      ),
-                    );
-                  },
-                ),
-              ),
-              const SizedBox(height: 16),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  TextButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    child: const Text('Cancel'),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => Dialog(
+          child: Container(
+            constraints: const BoxConstraints(maxWidth: 500, maxHeight: 600),
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Choose a Writing Prompt',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
                   ),
-                ],
-              ),
-            ],
+                ),
+                const SizedBox(height: 16),
+                Expanded(
+                  child: ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: showingExpanded ? expandedPrompts.length : prompts.length,
+                    itemBuilder: (context, index) {
+                      final prompt = showingExpanded 
+                          ? expandedPrompts[index]
+                          : prompts[index];
+                      return Card(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        child: ListTile(
+                          title: Text(
+                            prompt,
+                            style: Theme.of(context).textTheme.bodyMedium,
+                          ),
+                          onTap: () => Navigator.of(context).pop(prompt),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(height: 16),
+                // Show "See more" button if showing initial prompts
+                if (!showingExpanded && !isLoadingExpanded)
+                  Center(
+                    child: TextButton.icon(
+                      onPressed: () async {
+                        setDialogState(() {
+                          isLoadingExpanded = true;
+                        });
+                        
+                        try {
+                          // Call backend to generate expanded prompts
+                          final functions = FirebaseFunctions.instance;
+                          final generatePrompts = functions.httpsCallable('generateJournalPrompts');
+                          
+                          final result = await generatePrompts.call({
+                            'expanded': true,
+                            'context': {
+                              'recentEntries': recentEntries,
+                              'recentChats': recentChats,
+                              'currentPhase': currentPhase,
+                            },
+                          });
+                          
+                          final newExpandedPrompts = (result.data['prompts'] as List<dynamic>?)
+                              ?.map((p) => p.toString())
+                              .toList() ?? [];
+                          
+                          setDialogState(() {
+                            expandedPrompts = newExpandedPrompts;
+                            showingExpanded = true;
+                            isLoadingExpanded = false;
+                          });
+                        } catch (e) {
+                          setDialogState(() {
+                            isLoadingExpanded = false;
+                          });
+                          
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Error loading more prompts: $e'),
+                                duration: const Duration(seconds: 2),
+                              ),
+                            );
+                          }
+                        }
+                      },
+                      icon: const Icon(Icons.expand_more),
+                      label: const Text('See more prompts'),
+                    ),
+                  ),
+                if (isLoadingExpanded)
+                  const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(16.0),
+                      child: CircularProgressIndicator(),
+                    ),
+                  ),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      child: const Text('Cancel'),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       ),
