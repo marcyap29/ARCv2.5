@@ -556,13 +556,13 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
                               },
                             ),
                           ),
-          
-          // Message input - show/hide based on visibility state
-          // Also show a button to bring it back if hidden
-          if (_isInputVisible) _buildMessageInput(),
-          if (!_isInputVisible) _buildShowInputButton(),
-        ],
-      ),
+                        
+                        // Message input - show/hide based on visibility state
+                        // Also show a button to bring it back if hidden
+                        if (_isInputVisible) _buildMessageInput(),
+                        if (!_isInputVisible) _buildShowInputButton(),
+                      ],
+                    ),
           ),
           // TODO: Fix navigation drawer structure - temporarily commented out
           // Navigation drawer overlay - second child of Stack
