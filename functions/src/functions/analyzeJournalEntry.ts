@@ -11,7 +11,6 @@ import {
   SubscriptionTier,
   AnalysisResponse,
   UserDocument,
-  JournalEntryDocument,
 } from "../types";
 import {
   GEMINI_API_KEY,
@@ -117,10 +116,22 @@ Provide a structured analysis with:
 - Suggestions: Actionable suggestions for reflection or growth`;
 
       // Generate analysis
-      const analysisText = await client.generateContent(
-        analysisPrompt,
-        systemPrompt
-      );
+      // Handle different client types (Gemini uses generateContent, Claude uses generateMessage)
+      let analysisText: string;
+      if (modelConfig.family === "GEMINI_FLASH" || modelConfig.family === "GEMINI_PRO") {
+        const geminiClient = client as any;
+        analysisText = await geminiClient.generateContent(
+          analysisPrompt,
+          systemPrompt
+        );
+      } else {
+        // Claude or other clients
+        const claudeClient = client as any;
+        analysisText = await claudeClient.generateMessage(
+          analysisPrompt,
+          systemPrompt
+        );
+      }
 
       // Parse the analysis (in production, you might want more structured parsing)
       // For now, we'll extract summary, themes, and suggestions from the response

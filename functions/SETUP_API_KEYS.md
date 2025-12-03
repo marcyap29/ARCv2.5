@@ -71,3 +71,4 @@ firebase functions:secrets:delete [WRONG_SECRET_NAME]
 # Then set it correctly
 firebase functions:secrets:set GEMINI_API_KEY
 ```
+

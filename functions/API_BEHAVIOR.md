@@ -97,3 +97,4 @@ LUMARA API → Stripe for Subscription Webhooks
 
 **Upgrade Path:**
 If you switch to a new model (OpenAI, DeepSeek, local), you only change the backend inference router. Users never see it.
+

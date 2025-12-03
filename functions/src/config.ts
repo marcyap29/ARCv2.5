@@ -1,6 +1,7 @@
 // config.ts - Environment configuration and model settings
 
 import { defineString, defineSecret } from "firebase-functions/params";
+import { ModelFamily, ModelConfig } from "./types";
 
 /**
  * Environment variables and secrets

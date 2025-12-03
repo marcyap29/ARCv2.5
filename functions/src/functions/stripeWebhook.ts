@@ -3,7 +3,6 @@
 import { onRequest } from "firebase-functions/v2/https";
 import { logger } from "firebase-functions";
 import { admin } from "../admin";
-import { SubscriptionTier, SubscriptionStatus } from "../types";
 
 const db = admin.firestore();
 

@@ -1,6 +1,6 @@
 // llmClients.ts - LLM API clients for Gemini and Claude
 
-import { ModelConfig, ModelFamily } from "./types";
+import { ModelConfig } from "./types";
 
 /**
  * Gemini API Client
@@ -282,10 +282,8 @@ export class ClaudeClient {
  * Example: http://localhost:8080/v1/chat/completions
  */
 export class LocalEISClient {
-  private config: ModelConfig;
-
-  constructor(config: ModelConfig) {
-    this.config = config;
+  constructor(_config: ModelConfig) {
+    // Config stored but not used in placeholder implementation
   }
 
   /**

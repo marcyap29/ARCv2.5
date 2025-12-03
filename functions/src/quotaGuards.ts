@@ -2,7 +2,6 @@
 
 import { admin } from "./admin";
 import {
-  SubscriptionTier,
   QuotaCheckResult,
   UserDocument,
   JournalEntryDocument,
