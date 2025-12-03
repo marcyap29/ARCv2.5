@@ -358,8 +358,8 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
       ),
       body: Stack(
         children: [
-                  // Main content
-                  GestureDetector(
+          // Main content
+          GestureDetector(
                     onTap: () {
                       // Dismiss keyboard and hide input when tapping conversation area
                       // Like ChatGPT - auto minimize when clicking outside
