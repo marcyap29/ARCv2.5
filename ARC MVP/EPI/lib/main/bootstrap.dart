@@ -35,11 +35,10 @@ import 'package:my_app/shared/text_style.dart';
 // ==========================================================
 // NOTES FOR AI AGENT
 // ==========================================================
-// IMPORTANT: When Firebase is configured and firebase_options.dart exists:
-// 1. Uncomment the import below and the initialize block in bootstrap()
-// 2. Remove these comment lines once Firebase is connected and the line below is uncommented
+// Firebase initialization - tries to initialize using platform-specific config files
+// If firebase_options.dart exists, uncomment the import and use DefaultFirebaseOptions
+import 'package:firebase_core/firebase_core.dart';
 // import 'package:my_app/firebase_options.dart';
-// import 'package:firebase_core/firebase_core.dart';
 
 /// Logger instance for application-wide logging
 final logger = Logger(
@@ -337,19 +336,24 @@ Future<void> bootstrap({
       logger.d('Initialization completed: Hive=$hiveInitialized, ${initializationResults.where((r) => r).length}/4 additional services successful');
 
       // ===========================================================
-      // NOTES FOR AI AGENT
+      // Firebase Initialization
       // ===========================================================
-      // IMPORTANT: When Firebase is configured and firebase_options.dart exists:
-      // 1. Uncomment the ENTIRE block below, INCLUDING the options parameter
-      // 2. Remove these comment lines once Firebase is connected and the line below is uncommented
-      // try {
-      //   await Firebase.initializeApp(
-      //         options: DefaultFirebaseOptions.currentPlatform,
-      //       );
-      //   logger.d('Firebase initialized');
-      // } catch (e, st) {
-      //   logger.e('Failed to initialize Firebase', e, st);
-      // }
+      // Try to initialize Firebase using platform-specific config files
+      // (GoogleService-Info.plist for iOS, google-services.json for Android)
+      // If firebase_options.dart exists, use: options: DefaultFirebaseOptions.currentPlatform
+      try {
+        // Check if Firebase is already initialized
+        if (Firebase.apps.isEmpty) {
+          await Firebase.initializeApp();
+          logger.d('Firebase initialized successfully');
+        } else {
+          logger.d('Firebase already initialized');
+        }
+      } catch (e) {
+        // Firebase initialization failed - app will use fallback methods
+        logger.w('Failed to initialize Firebase (this is OK if Firebase is not configured): $e');
+        // Don't throw - allow app to continue without Firebase
+      }
 
       // =========================================================
       // CRITICAL: SENTRY CONFIGURATION - DO NOT MODIFY OR REMOVE

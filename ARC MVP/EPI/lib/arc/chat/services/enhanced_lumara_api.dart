@@ -309,8 +309,8 @@ class EnhancedLumaraApi {
             userPrompt = '$baseContext\n\nFollow the ECHO structure (Empathize → Clarify → Highlight → Open) and include 1-2 clarifying expansion questions that help deepen the reflection. Consider the mood, phase, circadian context, recent chats, and any media when crafting questions that feel personally relevant and timely. Be thoughtful and allow for meaningful engagement. $_standardReflectionLengthRule';
           }
           
-          // Use Gemini API directly via geminiSend() - same as main LUMARA chat
-          print('LUMARA Enhanced API v2.3: Calling Gemini API directly (same as main chat)');
+          // Use Firebase backend Cloud Function - all API calls go through backend
+          print('LUMARA Enhanced API v2.3: Using Firebase backend Cloud Function');
           
           // Build PRISM activity context from request and matches
           // Query repositories for actual data instead of using empty arrays

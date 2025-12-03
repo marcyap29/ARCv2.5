@@ -53,6 +53,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:my_app/arc/chat/services/lumara_reflection_settings_service.dart';
 import 'package:my_app/mira/memory/enhanced_mira_memory_service.dart';
 import 'package:my_app/mira/memory/enhanced_memory_schema.dart';
@@ -726,17 +727,22 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
       ),
     );
     
+    // Declare variables outside try block for use in catch block
+    ContextWindow? contextWindow;
+    String currentPhase = 'Discovery';
+    List<String> recentEntries = [];
+    List<String> recentChats = [];
+    
     try {
       // Get context from past entries, chats, and phase
       final scope = LumaraScope.defaultScope;
       final contextProvider = ContextProvider(scope);
-      final contextWindow = await contextProvider.buildContext(
+      contextWindow = await contextProvider.buildContext(
         daysBack: 30,
         maxEntries: 50,
       );
       
       // Get current phase
-      String currentPhase = 'Discovery';
       try {
         currentPhase = await UserPhaseService.getCurrentPhase();
       } catch (e) {
@@ -745,60 +751,98 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
       
       // Prepare context for backend
       final journalNodes = contextWindow.nodes.where((n) => n['type'] == 'journal').toList();
-      final recentEntries = journalNodes.take(5).map((n) {
+      recentEntries = journalNodes.take(5).map((n) {
         final text = n['text'] as String? ?? '';
         return text.length > 200 ? text.substring(0, 200) + '...' : text;
       }).toList();
       
       final chatNodes = contextWindow.nodes.where((n) => n['type'] == 'chat').toList();
-      final recentChats = chatNodes.take(3).map((n) {
+      recentChats = chatNodes.take(3).map((n) {
         final subject = n['meta']?['subject'] as String? ?? 'conversation';
         return subject;
       }).toList();
       
-      // Call backend to generate initial prompts (4 prompts)
-      final functions = FirebaseFunctions.instance;
-      final generatePrompts = functions.httpsCallable('generateJournalPrompts');
+      // Check if Firebase is initialized before using it
+      bool useBackendPrompts = false;
+      List<String> initialPrompts = [];
       
-      final result = await generatePrompts.call({
-        'expanded': false,
-        'context': {
-          'recentEntries': recentEntries,
-          'recentChats': recentChats,
-          'currentPhase': currentPhase,
-        },
-      });
-      
-      final initialPrompts = (result.data['prompts'] as List<dynamic>?)
-          ?.map((p) => p.toString())
-          .toList() ?? [];
+      try {
+        // Check if Firebase is initialized
+        final firebaseApps = Firebase.apps;
+        if (firebaseApps.isNotEmpty) {
+          // Call backend to generate initial prompts (4 prompts)
+          final functions = FirebaseFunctions.instance;
+          final generatePrompts = functions.httpsCallable('generateJournalPrompts');
+          
+          final result = await generatePrompts.call({
+            'expanded': false,
+            'context': {
+              'recentEntries': recentEntries,
+              'recentChats': recentChats,
+              'currentPhase': currentPhase,
+            },
+          });
+          
+          initialPrompts = (result.data['prompts'] as List<dynamic>?)
+              ?.map((p) => p.toString())
+              .toList() ?? [];
+          
+          useBackendPrompts = initialPrompts.isNotEmpty;
+        }
+      } catch (e) {
+        // Firebase not initialized or backend call failed - fall back to local prompts
+        print('JournalScreen: Firebase not available or backend call failed: $e');
+        useBackendPrompts = false;
+      }
       
       // Close loading dialog
       if (mounted) Navigator.of(context).pop();
       
-      // Show prompt selection dialog with initial 4 prompts
-      if (mounted && initialPrompts.isNotEmpty) {
-        await _showPromptSelectionDialog(initialPrompts, recentEntries, recentChats, currentPhase);
-      } else {
-        // Fallback to old method if backend fails
-        final contextAwarePrompts = _generateContextAwarePrompts(contextWindow, currentPhase);
-        final traditionalPrompts = _getTraditionalPrompts();
-        final allPrompts = [...contextAwarePrompts, ...traditionalPrompts];
-        if (mounted) {
-          await _showPromptSelectionDialog(allPrompts, recentEntries, recentChats, currentPhase);
+      // Show prompt selection dialog
+      if (mounted) {
+        if (useBackendPrompts && initialPrompts.isNotEmpty) {
+          // Use backend-generated prompts
+          await _showPromptSelectionDialog(initialPrompts, recentEntries, recentChats, currentPhase);
+        } else {
+          // Fallback to local prompt generation
+          if (contextWindow != null) {
+            final contextAwarePrompts = _generateContextAwarePrompts(contextWindow, currentPhase);
+            final traditionalPrompts = _getTraditionalPrompts();
+            final allPrompts = [...contextAwarePrompts, ...traditionalPrompts];
+            await _showPromptSelectionDialog(allPrompts, recentEntries, recentChats, currentPhase);
+          }
         }
       }
     } catch (e) {
       // Close loading dialog
       if (mounted) Navigator.of(context).pop();
       
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error generating prompts: $e'),
-            duration: const Duration(seconds: 3),
-          ),
-        );
+      // Fallback to local prompt generation on any error
+      try {
+        if (contextWindow != null) {
+          final contextAwarePrompts = _generateContextAwarePrompts(contextWindow, currentPhase);
+          final traditionalPrompts = _getTraditionalPrompts();
+          final allPrompts = [...contextAwarePrompts, ...traditionalPrompts];
+          if (mounted) {
+            await _showPromptSelectionDialog(allPrompts, recentEntries, recentChats, currentPhase);
+          }
+        } else {
+          // If contextWindow is null, use traditional prompts only
+          final traditionalPrompts = _getTraditionalPrompts();
+          if (mounted) {
+            await _showPromptSelectionDialog(traditionalPrompts, [], [], currentPhase);
+          }
+        }
+      } catch (fallbackError) {
+        // If even fallback fails, show error
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error generating prompts: $fallbackError'),
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
       }
     }
   }

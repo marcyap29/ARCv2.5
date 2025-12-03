@@ -23,6 +23,8 @@ import '../chat/chat_models.dart';
 import 'package:my_app/arc/core/journal_repository.dart';
 import '../services/lumara_reflection_settings_service.dart';
 import 'package:my_app/models/journal_entry_model.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:my_app/shared/ui/settings/voiceover_preference_service.dart';
 import '../voice/audio_io.dart';
 import '../llm/prompts/lumara_master_prompt.dart';
@@ -291,13 +293,70 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
           final phaseHint = _buildPhaseHint(context);
           final keywords = _buildKeywordsContext(context);
           
-          // Use ArcLLM to call Gemini directly with all journal context
-          final response = await _arcLLM.chat(
-            userIntent: text,
-            entryText: entryText,
-            phaseHintJson: phaseHint,
-            lastKeywordsJson: keywords,
-          );
+          // Try to use backend Cloud Function if Firebase is initialized
+          String? response;
+          try {
+            final firebaseApps = Firebase.apps;
+            print('LUMARA Debug: [Backend] Firebase apps count: ${firebaseApps.length}');
+            print('LUMARA Debug: [Backend] Current session ID: ${currentState.currentSessionId}');
+            
+            if (firebaseApps.isNotEmpty && currentState.currentSessionId != null) {
+              print('LUMARA Debug: [Backend] Attempting to use backend Cloud Function...');
+              final functions = FirebaseFunctions.instance;
+              final sendChatMessage = functions.httpsCallable('sendChatMessage');
+              
+              // Build enriched message with context for backend
+              final enrichedMessage = text; // For now, just send the user message
+              // TODO: Backend could be enhanced to accept context separately
+              
+              print('LUMARA Debug: [Backend] Calling sendChatMessage with threadId: ${currentState.currentSessionId}');
+              
+              final result = await sendChatMessage.call({
+                'threadId': currentState.currentSessionId,
+                'message': enrichedMessage,
+              });
+              
+              print('LUMARA Debug: [Backend] Received result from backend');
+              final responseData = result.data as Map<String, dynamic>?;
+              
+              if (responseData != null) {
+                final chatMessage = responseData['message'] as Map<String, dynamic>?;
+                response = chatMessage?['content'] as String?;
+                
+                if (response != null && response.isNotEmpty) {
+                  print('LUMARA Debug: [Backend] ✓ Response received from backend, length: ${response.length}');
+                } else {
+                  print('LUMARA Debug: [Backend] Backend returned empty response');
+                  throw Exception('Backend returned empty response');
+                }
+              } else {
+                print('LUMARA Debug: [Backend] Backend returned null response data');
+                throw Exception('Backend returned null response data');
+              }
+            } else {
+              if (firebaseApps.isEmpty) {
+                print('LUMARA Debug: [Backend] Firebase not initialized, skipping backend call');
+              }
+              if (currentState.currentSessionId == null) {
+                print('LUMARA Debug: [Backend] No session ID available, skipping backend call');
+              }
+            }
+          } catch (backendError, stackTrace) {
+            print('LUMARA Debug: [Backend] Backend call failed: $backendError');
+            print('LUMARA Debug: [Backend] Stack trace: $stackTrace');
+            print('LUMARA Debug: [Backend] Falling back to direct API call...');
+            // Fall through to use ArcLLM
+          }
+          
+          // If backend didn't work, throw error - we no longer support local API keys
+          if (response == null || response.isEmpty) {
+            final firebaseApps = Firebase.apps;
+            if (firebaseApps.isEmpty) {
+              throw Exception('Firebase is not initialized. Please ensure Firebase is properly configured. Local API keys are no longer supported - all API calls must go through the Firebase backend.');
+            } else {
+              throw Exception('Backend API call failed. Please check Firebase configuration and ensure the sendChatMessage Cloud Function is deployed. Local API keys are no longer supported.');
+            }
+          }
           
           print('LUMARA Debug: [Gemini] ✓ Response received on attempt $attempt, length: ${response.length}');
           
@@ -419,14 +478,51 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
       final phaseHint = _buildPhaseHint(context);
       final keywords = _buildKeywordsContext(context);
 
-      final response = await _arcLLM.chat(
-        userIntent: userIntent,
-        entryText: entryText,
-        phaseHintJson: phaseHint,
-        lastKeywordsJson: keywords,
-        isContinuation: true,
-        previousAssistantReply: targetMessage.content,
-      );
+      // Use Firebase backend for continuation
+      String? response;
+      try {
+        final firebaseApps = Firebase.apps;
+        if (firebaseApps.isNotEmpty && currentState.currentSessionId != null) {
+          print('LUMARA Debug: [Backend] Using backend for continuation...');
+          final functions = FirebaseFunctions.instance;
+          final sendChatMessage = functions.httpsCallable('sendChatMessage');
+          
+          // Build continuation prompt
+          final continuationPrompt = '''$userIntent
+
+Previous assistant text:
+"""
+${targetMessage.content}
+"""
+
+Please continue exactly where it stopped without restating earlier paragraphs.''';
+          
+          final result = await sendChatMessage.call({
+            'threadId': currentState.currentSessionId,
+            'message': continuationPrompt,
+          });
+          
+          final responseData = result.data as Map<String, dynamic>?;
+          final chatMessage = responseData?['message'] as Map<String, dynamic>?;
+          response = chatMessage?['content'] as String?;
+          
+          if (response == null || response.isEmpty) {
+            throw Exception('Backend returned empty continuation response');
+          }
+        }
+      } catch (backendError) {
+        print('LUMARA Debug: [Backend] Continuation backend call failed: $backendError');
+        final firebaseApps = Firebase.apps;
+        if (firebaseApps.isEmpty) {
+          throw Exception('Firebase is not initialized. Cannot continue message without Firebase backend.');
+        } else {
+          throw Exception('Backend API call failed for continuation. Please check Firebase configuration.');
+        }
+      }
+      
+      if (response == null || response.isEmpty) {
+        throw Exception('Failed to get continuation response from backend');
+      }
 
       if (attributionTraces.isNotEmpty) {
         attributionTraces = await _enrichAttributionTraces(attributionTraces);
@@ -2078,16 +2174,23 @@ Your exported MCP bundle can be imported into any MCP-compatible system, ensurin
     }
   }
   
-  /// Create a summary using LLM (Gemini)
+  /// Create a summary using LLM (via Firebase backend)
   Future<String> _createConversationSummaryWithLLM(List<ChatMessage> messages) async {
     try {
+      // Check if Firebase is available
+      final firebaseApps = Firebase.apps;
+      if (firebaseApps.isEmpty) {
+        print('LUMARA Chat: Firebase not initialized, using simple summary');
+        return _createConversationSummary(messages);
+      }
+      
       // Build conversation text
       final conversationText = messages.map((m) {
         final role = m.role == 'user' ? 'User' : 'Assistant';
         return '$role: ${m.textContent}';
       }).join('\n\n');
       
-      // Use Gemini to create a concise summary
+      // Use backend to create a concise summary via sendChatMessage
       final summaryPrompt = '''Summarize the following conversation in 2-3 paragraphs, highlighting:
 1. Main topics discussed
 2. Key insights or decisions
@@ -2098,13 +2201,31 @@ $conversationText
 
 Summary:''';
       
-      final summary = await geminiSend(
-        system: 'You are a helpful assistant that creates concise conversation summaries.',
-        user: summaryPrompt,
-        jsonExpected: false,
-      );
+      try {
+        final functions = FirebaseFunctions.instance;
+        final sendChatMessage = functions.httpsCallable('sendChatMessage');
+        
+        // Use a temporary thread ID for summary generation
+        final tempThreadId = 'summary_${DateTime.now().millisecondsSinceEpoch}';
+        
+        final result = await sendChatMessage.call({
+          'threadId': tempThreadId,
+          'message': summaryPrompt,
+        });
+        
+        final responseData = result.data as Map<String, dynamic>?;
+        final chatMessage = responseData?['message'] as Map<String, dynamic>?;
+        final summary = chatMessage?['content'] as String?;
+        
+        if (summary != null && summary.isNotEmpty) {
+          return summary.trim();
+        }
+      } catch (backendError) {
+        print('LUMARA Chat: Backend summary generation failed: $backendError');
+      }
       
-      return summary.trim();
+      // Fallback to simple summary
+      return _createConversationSummary(messages);
     } catch (e) {
       print('LUMARA Chat: Error creating LLM summary: $e');
       // Fallback to simple summary
