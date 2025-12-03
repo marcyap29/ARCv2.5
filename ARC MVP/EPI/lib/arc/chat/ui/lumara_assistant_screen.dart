@@ -565,7 +565,9 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
             _buildShowInputButton(),
         ],
       ),
+                  // TODO: Fix navigation drawer structure - temporarily commented out
                   // Navigation drawer overlay - second child of Stack
+                  /*
                   AnimatedPositioned(
                     duration: const Duration(milliseconds: 250),
                     curve: Curves.easeInOut,
@@ -609,6 +611,7 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
                         ),
                       ),
                     ),
+                  */
                 ],
               ),
             ),
