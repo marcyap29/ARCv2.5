@@ -846,7 +846,7 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
                   ],
                   
                   // Format content into paragraphs for better readability (especially for assistant messages)
-                  if (isUser)
+                  if (isUser) ...[
                     Text(
                       message.content,
                       style: TextStyle(
@@ -854,8 +854,8 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
                         fontSize: 16,
                         decoration: isEditing ? TextDecoration.none : null,
                       ),
-                    )
-                  else
+                    ),
+                  ] else ...[
                     ..._buildParagraphs(
                       message.content,
                       TextStyle(
@@ -864,6 +864,7 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
                         height: 1.6, // Increased line height for better mobile readability
                       ),
                     ),
+                  ],
                   
                   // Action buttons for user messages (edit/copy)
                   if (isUser) ...[
