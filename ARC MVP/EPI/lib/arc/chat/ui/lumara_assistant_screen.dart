@@ -356,8 +356,8 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
           ),
         ],
       ),
-              body: Stack(
-                children: [
+      body: Stack(
+        children: [
                   // Main content
                   GestureDetector(
                     onTap: () {
@@ -566,57 +566,56 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
           ],
         ],
       ),
-                  // TODO: Fix navigation drawer structure - temporarily commented out
-                  // Navigation drawer overlay - second child of Stack
-                  /*
-                  AnimatedPositioned(
-                    duration: const Duration(milliseconds: 250),
-                    curve: Curves.easeInOut,
-                    left: _isDrawerOpen ? 0 : -MediaQuery.of(context).size.width * 0.75,
-                    top: 0,
-                    bottom: 0,
-                    child: GestureDetector(
-                      onTap: () {}, // Prevent taps from closing drawer
-                      child: ChatNavigationDrawer(
-                        chatRepo: EnhancedChatRepoImpl(ChatRepoImpl.instance),
-                        currentSessionId: context.read<LumaraAssistantCubit>().currentChatSessionId,
-                        onSessionSelected: (sessionId) async {
-                          // Load the selected session
-                          await _loadSession(sessionId);
-                          setState(() => _isDrawerOpen = false);
-                        },
-                        onNewChat: () {
-                          _startNewChat();
-                          setState(() => _isDrawerOpen = false);
-                        },
-                        onScratchpad: () {
-                          // Create or load scratchpad session
-                          _loadScratchpad();
-                          setState(() => _isDrawerOpen = false);
-                        },
-                        onSandbox: () {
-                          // Create or load sandbox session
-                          _loadSandbox();
-                          setState(() => _isDrawerOpen = false);
-                        },
-                      ),
-                    ),
-                  ),
-                  // Backdrop overlay when drawer is open
-                  if (_isDrawerOpen)
-                    Positioned.fill(
-                      child: GestureDetector(
-                        onTap: () => setState(() => _isDrawerOpen = false),
-                        child: Container(
-                          color: Colors.black.withOpacity(0.3),
-                        ),
-                      ),
-                    ),
-                  */
-                ],
+          // TODO: Fix navigation drawer structure - temporarily commented out
+          // Navigation drawer overlay - second child of Stack
+          /*
+          AnimatedPositioned(
+            duration: const Duration(milliseconds: 250),
+            curve: Curves.easeInOut,
+            left: _isDrawerOpen ? 0 : -MediaQuery.of(context).size.width * 0.75,
+            top: 0,
+            bottom: 0,
+            child: GestureDetector(
+              onTap: () {}, // Prevent taps from closing drawer
+              child: ChatNavigationDrawer(
+                chatRepo: EnhancedChatRepoImpl(ChatRepoImpl.instance),
+                currentSessionId: context.read<LumaraAssistantCubit>().currentChatSessionId,
+                onSessionSelected: (sessionId) async {
+                  // Load the selected session
+                  await _loadSession(sessionId);
+                  setState(() => _isDrawerOpen = false);
+                },
+                onNewChat: () {
+                  _startNewChat();
+                  setState(() => _isDrawerOpen = false);
+                },
+                onScratchpad: () {
+                  // Create or load scratchpad session
+                  _loadScratchpad();
+                  setState(() => _isDrawerOpen = false);
+                },
+                onSandbox: () {
+                  // Create or load sandbox session
+                  _loadSandbox();
+                  setState(() => _isDrawerOpen = false);
+                },
               ),
             ),
-          );
+          ),
+          // Backdrop overlay when drawer is open
+          if (_isDrawerOpen)
+            Positioned.fill(
+              child: GestureDetector(
+                onTap: () => setState(() => _isDrawerOpen = false),
+                child: Container(
+                  color: Colors.black.withOpacity(0.3),
+                ),
+              ),
+            ),
+          */
+        ],
+      ),
+    );
 
 
   Widget _buildEmptyState() {
