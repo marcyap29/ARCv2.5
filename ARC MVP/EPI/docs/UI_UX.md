@@ -1,7 +1,7 @@
 # EPI MVP - UI/UX Feature Documentation
 
 **Version:** 2.1.42
-**Last Updated:** December 1, 2025
+**Last Updated:** December 2, 2025
 **Status:** ✅ Comprehensive Feature Analysis Complete
 
 ---
@@ -579,11 +579,12 @@ Long Press → Edit Mode | Scroll Up → Load History
 
 ### 🤖 LUMARA Configuration
 **AI Model Settings:**
-- **Provider Selection:** Choose between AI services (Anthropic, Gemini, etc.)
-- **Download Status:** Track local model installation progress
-- **Parameter Tuning:** Adjust temperature, context window, response style
-- **Response Formatting:** Configure output preferences and tone
-- **Memory Integration:** Control conversation memory retention
+- **Backend-Managed:** All API keys and model selection handled automatically by Firebase Cloud Functions
+- **No User Configuration Required:** Users no longer need to input API keys or select providers
+- **Reflection Settings:** Similarity threshold, lookback period, max matches, cross-modal awareness
+- **Therapeutic Presence:** Enable/disable with depth levels (Light, Moderate, Deep)
+- **Web Access:** Opt-in toggle for safe web search capabilities
+- **Context Sources:** Control what data LUMARA can access (journal, phase, ARCForms, voice, media, drafts, chats)
 
 ### 🔒 Privacy & Security Settings
 **File:** `lib/shared/ui/settings/privacy_settings_view.dart`
