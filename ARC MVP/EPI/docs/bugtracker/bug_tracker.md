@@ -1,9 +1,21 @@
 # EPI MVP - Bug Tracker
 
 **Version:** 2.1.43  
-**Last Updated:** December 3, 2025
+**Last Updated:** December 4, 2025
 
 ## Resolved Issues (v2.1.43)
+
+### Build Error: Missing FirebaseAuth Import
+- **Issue**: iOS build failing with error: `The getter 'FirebaseAuth' isn't defined for the type '_JournalScreenState'` at line 611 in `journal_screen.dart`
+- **Root Cause**: Missing import statement for `firebase_auth` package in `journal_screen.dart`. The code was using `FirebaseAuth.instance` but the import was not present.
+- **Resolution**:
+  1. Added missing import: `import 'package:firebase_auth/firebase_auth.dart';` to `journal_screen.dart`
+  2. Import added after `cloud_functions` import to maintain logical grouping
+- **Impact**: 
+  - iOS build now compiles successfully
+  - `_checkLumaraConfiguration()` method can now properly access Firebase Auth
+  - No functional changes, only missing import added
+- **Status**: ✅ Fixed
 
 ### In-Journal LUMARA API Key Requirement
 - **Issue**: In-journal LUMARA was requiring users to configure a local Gemini API key, even though the backend handles API keys via Firebase Secrets. Users would see "LUMARA needs an API key to work" error messages.

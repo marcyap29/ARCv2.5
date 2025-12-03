@@ -1,7 +1,7 @@
 # EPI Documentation
 
-**Last Updated:** November 29, 2025  
-**Version:** 2.1.42
+**Last Updated:** December 4, 2025  
+**Version:** 2.1.43
 
 ---
 
@@ -68,8 +68,8 @@ Welcome to the EPI (Evolving Personal Intelligence) documentation. This director
 
 ## Version Information
 
-**Current Version:** 2.1.42
-**Last Major Update:** December 3, 2025 (In-Journal LUMARA Backend Integration)
+**Current Version:** 2.1.43
+**Last Major Update:** December 4, 2025 (Build Fix: FirebaseAuth Import)
 
 ### Recent Highlights
 
@@ -142,5 +142,5 @@ Welcome to the EPI (Evolving Personal Intelligence) documentation. This director
 ---
 
 **Status**: ✅ Production Ready
-**Last Updated**: November 29, 2025
-**Version**: 2.1.42
+**Last Updated**: December 4, 2025
+**Version**: 2.1.43

@@ -1,7 +1,17 @@
 # EPI ARC MVP - Changelog
 
 **Version:** 2.1.43
-**Last Updated:** December 3, 2025
+**Last Updated:** December 4, 2025
+
+## [2.1.43] - December 4, 2025
+
+### **Build Fix: FirebaseAuth Import** - Complete
+
+#### Bug Fix
+- **Fixed Missing Import**: Added missing `import 'package:firebase_auth/firebase_auth.dart';` to `journal_screen.dart`
+- **Issue**: iOS build was failing with error: `The getter 'FirebaseAuth' isn't defined for the type '_JournalScreenState'`
+- **Resolution**: Added import statement to enable `FirebaseAuth.instance` usage in `_checkLumaraConfiguration()` method
+- **Impact**: iOS build now compiles successfully
 
 ## [2.1.43] - December 3, 2025
 

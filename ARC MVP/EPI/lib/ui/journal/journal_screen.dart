@@ -52,6 +52,7 @@ import 'package:my_app/arc/chat/chat/chat_repo_impl.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:my_app/arc/chat/services/lumara_reflection_settings_service.dart';
 import 'package:my_app/mira/memory/enhanced_mira_memory_service.dart';
 import 'package:my_app/mira/memory/enhanced_memory_schema.dart';
