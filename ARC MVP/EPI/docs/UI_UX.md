@@ -42,7 +42,7 @@ The EPI (Evolving Personal Intelligence) Flutter application provides a sophisti
 **Features:**
 - **3-Tab Bottom Navigation:** Journal | LUMARA | Insights
 - **Elevated Create Button:** Floating "+" positioned above tabs
-- **Status Indicators:** First Responder and Coach mode toggles (top-right)
+- **Status Indicators:** (Removed - unused features)
 - **Sacred Atmosphere:** Ethereal music with fade-in/out effects
 - **Gradient Background:** Navy (#0C0F14) with subtle texture
 
@@ -557,14 +557,11 @@ Long Press → Edit Mode | Scroll Up → Load History
 3. **🔒 Privacy Settings** - Data protection and redaction controls
 4. **⚡ Throttle** - Developer throttle unlock (password-protected rate limit bypass)
 5. **🧠 Memory Mode** - Memory snapshots and lifecycle management
-6. **📦 MCP Bundle Health** - Data validation and integrity
-7. **🎵 Music Control** - Audio experience settings
-8. **🔄 Sync Settings** - Cloud synchronization and device linking
-9. **🚨 First Responder Mode** - Emergency incident tracking
-10. **🏃 Coach Mode** - Coaching parameter configuration
-11. **⚖️ Conflict Management** - Resolution workflow settings
-12. **🎨 Personalization** - UI customization and preferences
-13. **ℹ️ About** - App information and credits
+6. **🎵 Music Control** - Audio experience settings
+7. **🔄 Sync Settings** - Cloud synchronization and device linking
+8. **⚖️ Conflict Management** - Resolution workflow settings
+9. **🎨 Personalization** - UI customization and preferences
+10. **ℹ️ About** - App information and credits
 
 ### 💝 Favorites Management
 **File:** `lib/shared/ui/settings/favorites_management_view.dart`
@@ -634,15 +631,6 @@ Long Press → Edit Mode | Scroll Up → Load History
 - **Storage Status:** Memory usage and capacity monitoring
 - **Integration Controls:** How memory integrates with chat and journaling
 
-### 📦 MCP Bundle Health
-**File:** `lib/shared/ui/settings/mcp_bundle_health_view.dart`
-
-**Data Integrity Features:**
-- **Bundle Validation:** Check data consistency and completeness
-- **Repair Options:** Fix corrupted or incomplete data
-- **Import/Export Status:** Monitor data transfer operations
-- **Manifest Viewing:** Inspect data structure and contents
-- **Health Scoring:** Overall data quality assessment
 
 ### 🎨 Personalization Options
 **File:** `lib/shared/ui/settings/personalization_view.dart`
@@ -977,20 +965,6 @@ Long Press → Edit Mode | Scroll Up → Load History
 - **Position Management:** Smart positioning to avoid UI overlap
 
 ### 📊 Status & Feedback Components
-
-#### First Responder Status Indicator
-**File:** `lib/mode/first_responder/widgets/fr_status_indicator.dart`
-
-**Features:**
-- **Mode Toggle:** Visual button for activating/deactivating mode
-- **Status Dot:** Color-coded indicator for current state
-- **Quick Access:** Immediate access to mode-specific features
-
-#### Coach Mode Status Indicator
-**File:** `lib/mode/coach/widgets/coach_mode_status_indicator.dart`
-
-- **Similar Implementation:** Consistent design with FR mode
-- **Mode-Specific Styling:** Unique visual identity for coach mode
 
 ### 🎭 Interactive Components
 

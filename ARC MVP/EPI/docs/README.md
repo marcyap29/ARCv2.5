@@ -115,7 +115,7 @@ Welcome to the EPI (Evolving Personal Intelligence) documentation. This director
 
 ### Export/Import
 
-- **Dual Format Support**: Secure Archive (.arcx) with encryption or standard ZIP (.zip)
+- **Format Support**: Standard ZIP (.zip) format
 - **Complete Content**: All data types exported (entries, media, chats, extended data)
 - **Media Pack Organization**: Configurable media packs (50-500 MB) for efficient storage in both formats
 - **Extended Data**: Phase Regimes, RIVET state, Sentinel state, ArcForm timeline, LUMARA Favorites

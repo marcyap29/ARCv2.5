@@ -412,7 +412,7 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 ### MCP Export/Import
 
 **Export Features**
-- **Dual Format Support**: Choose between Secure Archive (.arcx) with encryption or standard ZIP (.zip) for compatibility
+- **Format Support**: Standard ZIP (.zip) format for compatibility
 - **Complete Content Export**: Both formats export all data types:
   - Journal entries with full metadata
   - Media (photos, videos, audio, files)
@@ -445,26 +445,16 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 - **Media Handling**: Photo and media import with deduplication
 - **Duplicate Detection**: Prevents duplicate entries and favorites
 
-### ARCX Encryption
-
-**Encryption Features**
-- **AES-256-GCM**: Symmetric encryption
-- **Ed25519**: Digital signatures
-- **Optional Encryption**: User choice for exports
-- **Key Management**: Secure key storage
-
 ### Data Portability
 
 **Export Formats**
-- **Secure Archive (.arcx)**: Encrypted with AES-256-GCM and Ed25519 signing
-- **ZIP (.zip)**: Standard unencrypted ZIP archive for compatibility
-- Both formats include identical content (entries, media, chats, extended data)
+- **ZIP (.zip)**: Standard ZIP archive format
+- Includes all content types: entries, media, chats, extended data
 - JSON (legacy support)
 
 **Import Formats**
 - **MCP bundles (.zip)**: Standard ZIP files with full extended data support
-- **ARCX archives (.arcx)**: Encrypted archives with signature verification
-- Both formats restore all content types including Phase Regimes, RIVET state, and LUMARA Favorites
+- Restores all content types including Phase Regimes, RIVET state, and LUMARA Favorites
 - Legacy formats (with conversion)
 
 ---

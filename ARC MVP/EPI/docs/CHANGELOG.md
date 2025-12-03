@@ -1,7 +1,44 @@
 # EPI ARC MVP - Changelog
 
 **Version:** 2.1.42
-**Last Updated:** November 29, 2025
+**Last Updated:** December 1, 2025
+
+## [2.1.42] - December 1, 2025
+
+### **Removed Unused Features** - Code Cleanup
+
+#### Features Removed
+- **Bundle Health Check**: Removed from Settings menu and all underlying code
+  - Deleted `mcp_bundle_health_view.dart` and related files
+  - Removed bundle validation UI and functionality
+- **Secure Archive Settings**: Removed from Settings menu and all underlying code
+  - Deleted `arcx_settings_view.dart`
+  - ARCX format still supported for import/export, but settings UI removed
+- **First Responder Mode**: Completely removed
+  - Deleted entire `/lib/mode/first_responder/` directory (40+ files)
+  - Removed all UI components, services, and integrations
+  - Removed from onboarding options
+  - Removed AppMode enum value
+- **Coach Mode**: Completely removed
+  - Deleted entire `/lib/mode/coach/` directory (15+ files)
+  - Removed all UI components, services, and integrations
+  - Removed AppMode enum value
+
+#### Code Cleanup
+- **69 files changed**: 21,036+ lines of code removed
+- **Removed references from**:
+  - `app.dart` (removed BlocProviders)
+  - `home_view.dart` (removed status indicators)
+  - `journal_capture_*.dart` files (removed suggestion services)
+  - `onboarding_cubit.dart` and `onboarding_view.dart`
+  - Storage and privacy settings files
+  - `enhanced_export_service.dart` (deleted - depended on FR mode)
+- **Settings Menu**: Now streamlined with only actively used features
+
+#### Impact
+- **Reduced codebase size**: Significant reduction in unused code
+- **Simplified Settings**: Cleaner, more focused settings menu
+- **No functional impact**: All removed features were unused or non-functional
 
 ## [2.1.42] - November 29, 2025
 
