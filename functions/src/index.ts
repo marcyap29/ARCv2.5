@@ -14,11 +14,13 @@
 import { analyzeJournalEntry } from "./functions/analyzeJournalEntry";
 import { sendChatMessage } from "./functions/sendChatMessage";
 import { stripeWebhook } from "./functions/stripeWebhook";
+import { unlockThrottle, lockThrottle, checkThrottleStatus } from "./functions/unlockThrottle";
 
 // Export all Cloud Functions
 export { analyzeJournalEntry };
 export { sendChatMessage };
 export { stripeWebhook };
+export { unlockThrottle, lockThrottle, checkThrottleStatus };
 
 /**
  * Architecture Overview:

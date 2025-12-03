@@ -14,6 +14,7 @@ import 'package:my_app/shared/ui/settings/lumara_settings_view.dart';
 import 'package:my_app/shared/ui/settings/arcx_settings_view.dart';
 import 'package:my_app/shared/ui/settings/favorites_management_view.dart';
 import 'package:my_app/shared/ui/settings/voiceover_preference_service.dart';
+import 'package:my_app/shared/ui/settings/throttle_settings_view.dart';
 import 'package:my_app/ui/screens/mcp_management_screen.dart';
 import 'package:my_app/arc/core/journal_repository.dart';
 import 'package:my_app/arc/chat/services/favorites_service.dart';
@@ -281,6 +282,18 @@ class _SettingsViewState extends State<SettingsView> {
               context,
               title: 'Privacy & Security',
               children: [
+                _buildSettingsTile(
+                  context,
+                  title: 'Throttle',
+                  subtitle: 'Manage rate limiting settings',
+                  icon: Icons.speed,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const ThrottleSettingsView()),
+                    );
+                  },
+                ),
                 _buildSettingsTile(
                   context,
                   title: 'Privacy Protection',

@@ -48,6 +48,11 @@ export async function checkRateLimit(
       return { allowed: true };
     }
 
+    // Check if throttle is unlocked via password (dev/admin feature)
+    if (user.throttleUnlocked === true) {
+      return { allowed: true };
+    }
+
     // Free tier: Check rate limits
     const now = admin.firestore.Timestamp.now();
     const rateLimitRef = db.collection("rateLimits").doc(userId);

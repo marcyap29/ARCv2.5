@@ -30,6 +30,8 @@ export interface UserDocument {
   subscriptionStatus?: SubscriptionStatus;
   stripeCustomerId?: string;
   stripeSubscriptionId?: string;
+  throttleUnlocked?: boolean; // Password-protected throttle unlock (dev/admin feature)
+  throttleUnlockedAt?: admin.firestore.Timestamp; // When throttle was unlocked
   createdAt: admin.firestore.Timestamp;
   updatedAt: admin.firestore.Timestamp;
 }

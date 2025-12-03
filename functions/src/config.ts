@@ -9,6 +9,9 @@ import { defineString, defineSecret } from "firebase-functions/params";
 export const GEMINI_API_KEY = defineSecret("GEMINI_API_KEY");
 export const ANTHROPIC_API_KEY = defineSecret("ANTHROPIC_API_KEY");
 
+// Throttle unlock password (stored as secret for security)
+export const THROTTLE_UNLOCK_PASSWORD = defineSecret("THROTTLE_UNLOCK_PASSWORD");
+
 // Model IDs - easily swappable for Gemini 3.0 or newer models
 export const GEMINI_FLASH_MODEL_ID = defineString("GEMINI_FLASH_MODEL_ID", {
   default: "gemini-2.5-flash", // Updated to Gemini 2.5 Flash (1.5 and 2.0 are deprecated) - Free tier with backend-enforced quotas
