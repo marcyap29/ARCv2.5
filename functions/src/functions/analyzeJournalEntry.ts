@@ -5,6 +5,7 @@ import { logger } from "firebase-functions";
 import { admin } from "../admin";
 import { ModelRouter } from "../modelRouter";
 import { checkCanAnalyzeEntry, incrementAnalysisCount } from "../quotaGuards";
+import { checkRateLimit } from "../rateLimiter";
 import { createLLMClient } from "../llmClients";
 import {
   SubscriptionTier,
@@ -67,9 +68,21 @@ export const analyzeJournalEntry = onCall(
       }
 
       const user = userDoc.data() as UserDocument;
-      const tier = user.subscriptionTier as SubscriptionTier;
+      // Support both 'plan' and 'subscriptionTier' fields
+      const plan = user.plan || user.subscriptionTier?.toLowerCase() || "free";
+      const tier: SubscriptionTier = (plan === "pro" ? "PAID" : "FREE") as SubscriptionTier;
 
-      // Check quota
+      // Check rate limit (primary quota enforcement)
+      const rateLimitCheck = await checkRateLimit(userId);
+      if (!rateLimitCheck.allowed) {
+        throw new HttpsError(
+          "resource-exhausted",
+          rateLimitCheck.error?.message || "Rate limit exceeded",
+          rateLimitCheck.error
+        );
+      }
+
+      // Check legacy per-entry quota (secondary, for backward compatibility)
       const quotaCheck = await checkCanAnalyzeEntry(userId, entryId);
       if (!quotaCheck.allowed) {
         throw new HttpsError(
@@ -79,12 +92,12 @@ export const analyzeJournalEntry = onCall(
         );
       }
 
-      // Select model based on tier
-      const modelFamily = ModelRouter.selectModel(tier, "journal_analysis");
+      // Select model (internal only - Gemini by default)
+      const modelFamily = await ModelRouter.selectModelWithFailover(tier, "journal_analysis");
       const modelConfig = ModelRouter.getConfig(modelFamily);
       const client = createLLMClient(modelConfig);
 
-      logger.info(`Using model: ${modelFamily} (${modelConfig.modelId})`);
+      logger.info(`Using model: ${modelFamily} (${modelConfig.modelId}) - Internal only, not exposed to user`);
 
       // Build analysis prompt
       const systemPrompt = `You are a thoughtful journaling assistant. Analyze journal entries to provide:
@@ -118,13 +131,13 @@ Provide a structured analysis with:
       // Increment analysis count
       await incrementAnalysisCount(entryId);
 
-      // Build response
+      // Build response (modelUsed removed - internal only)
       const response: AnalysisResponse = {
         summary,
         themes,
         suggestions,
         tier,
-        modelUsed: modelFamily,
+        // modelUsed removed - not exposed to users
       };
 
       logger.info(`Analysis complete for entry ${entryId}`);

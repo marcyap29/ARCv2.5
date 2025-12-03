@@ -6,69 +6,58 @@ import { getModelConfig } from "./config";
 /**
  * Model Router
  * 
- * Selects the appropriate model based on:
- * - User subscription tier
- * - Operation type
- * - Model availability
+ * SYSTEM: LUMARA does not present API choices to the user.
+ * The system uses Gemini as the default and primary inference engine.
+ * Model selection is internal and upgradeable.
  * 
  * Architecture:
- * Client → Firebase Auth → Cloud Function → Tier Resolver → Quota Checks → 
- * Model Router → Gemini/Claude Client → Response → Firestore Updates → Client
+ * Client → Firebase Auth → Cloud Function → Rate Limiter → 
+ * Model Router (Gemini by default) → Gemini Client → Response → Firestore Updates → Client
  */
 export class ModelRouter {
   /**
    * Select the appropriate model for an operation
    * 
-   * Routing Rules:
-   * - FREE tier: Always Gemini Flash (backend enforces quotas: 4 analyses/entry, 200 messages/thread)
-   * - PAID tier:
-   *   - journal_analysis: Gemini 2.5 (unlimited)
-   *   - deep_reflection: Claude Sonnet
-   *   - chat_message: Gemini 2.5 (unlimited)
-   *   - theme_extraction: Gemini 2.5
-   *   - monthly_summary: Claude Sonnet
+   * Routing Rules (INTERNAL ONLY - never exposed to users):
+   * - Default: Always Gemini 2.5 (or Gemini 2.5 Flash for free tier)
+   * - Failover: If Gemini unavailable, silently failover to backup (Claude)
+   * - User never sees model selection or API provider names
    * 
-   * Note: FREE and PAID both use Gemini 2.5 - difference is backend quota enforcement, not model capability
-   * 
-   * Future: LOCAL_EIS can be selected when:
-   * - Local inference server is available
-   * - User opts in to local processing
-   * - Operation doesn't require cloud features
+   * Note: Model selection is completely internal. Users only see LUMARA responses.
    */
   static selectModel(
     tier: SubscriptionTier,
     operationType: OperationType
   ): ModelFamily {
-    // Free tier: Always Gemini Flash
-    if (tier === "FREE") {
+    // Always use Gemini by default
+    // FREE tier uses Flash, PAID uses Pro (same model, different quotas)
+    if (tier === "FREE" || tier === "free") {
       return "GEMINI_FLASH";
     }
+    
+    // PAID/PRO tier uses Gemini Pro
+    return "GEMINI_PRO";
+  }
 
-    // Paid tier: Route based on operation type
-    switch (operationType) {
-      case "journal_analysis":
-        return "GEMINI_PRO";
-      
-      case "deep_reflection":
-        // Use Claude Sonnet for deeper, more nuanced reflections
-        return "CLAUDE_SONNET";
-      
-      case "chat_message":
-        // Default to Gemini Pro for chat (fast, cost-effective)
-        // Could be made configurable per user preference
-        return "GEMINI_PRO";
-      
-      case "theme_extraction":
-        return "GEMINI_PRO";
-      
-      case "monthly_summary":
-        // Use Claude Sonnet for comprehensive summaries
-        return "CLAUDE_SONNET";
-      
-      default:
-        // Fallback to Gemini Pro
-        return "GEMINI_PRO";
-    }
+  /**
+   * Check if Gemini is available, with silent failover
+   * Returns the model to use (Gemini preferred, Claude as backup)
+   */
+  static async selectModelWithFailover(
+    tier: SubscriptionTier,
+    operationType: OperationType
+  ): Promise<ModelFamily> {
+    // Try Gemini first (always preferred)
+    const primaryModel = this.selectModel(tier, operationType);
+    
+    // TODO: Implement health check for Gemini API
+    // If Gemini unavailable, silently failover to Claude
+    // const isGeminiAvailable = await this.checkGeminiHealth();
+    // if (!isGeminiAvailable) {
+    //   return "CLAUDE_HAIKU"; // Silent failover
+    // }
+    
+    return primaryModel;
   }
 
   /**

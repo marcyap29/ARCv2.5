@@ -30,15 +30,26 @@ export const CLAUDE_SONNET_MODEL_ID = defineString("CLAUDE_SONNET_MODEL_ID", {
   description: "Claude Sonnet model ID (paid tier, deep reflection)",
 });
 
-// Quota limits
+// Rate limiting configuration
+export const FREE_MAX_REQUESTS_PER_DAY = defineString("FREE_MAX_REQUESTS_PER_DAY", {
+  default: "20",
+  description: "Maximum requests per day for free tier",
+});
+
+export const FREE_MAX_REQUESTS_PER_MINUTE = defineString("FREE_MAX_REQUESTS_PER_MINUTE", {
+  default: "3",
+  description: "Maximum requests per minute for free tier",
+});
+
+// Legacy quota limits (kept for backward compatibility, but rate limiting takes precedence)
 export const FREE_MAX_ANALYSES_PER_ENTRY = defineString("FREE_MAX_ANALYSES_PER_ENTRY", {
   default: "4",
-  description: "Maximum deep analyses per journal entry for free tier",
+  description: "Maximum deep analyses per journal entry for free tier (legacy)",
 });
 
 export const FREE_MAX_CHAT_TURNS_PER_THREAD = defineString("FREE_MAX_CHAT_TURNS_PER_THREAD", {
   default: "200",
-  description: "Maximum chat turns per thread for free tier",
+  description: "Maximum chat turns per thread for free tier (legacy)",
 });
 
 /**

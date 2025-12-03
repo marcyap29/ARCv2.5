@@ -4,8 +4,9 @@ import * as admin from "firebase-admin";
 
 /**
  * Subscription tier types
+ * Note: "PAID" is also referred to as "pro" in Stripe/webhook context
  */
-export type SubscriptionTier = "FREE" | "PAID";
+export type SubscriptionTier = "FREE" | "PAID" | "free" | "pro";
 export type SubscriptionStatus = "active" | "canceled" | "trial";
 
 /**
@@ -23,10 +24,26 @@ export type OperationType = "journal_analysis" | "deep_reflection" | "chat_messa
  * User document structure in Firestore
  */
 export interface UserDocument {
-  subscriptionTier: SubscriptionTier;
-  subscriptionStatus: SubscriptionStatus;
+  userId: string;
+  plan: "free" | "pro"; // Simplified plan field (maps to subscriptionTier)
+  subscriptionTier?: SubscriptionTier; // Legacy field, use 'plan' instead
+  subscriptionStatus?: SubscriptionStatus;
   stripeCustomerId?: string;
+  stripeSubscriptionId?: string;
   createdAt: admin.firestore.Timestamp;
+  updatedAt: admin.firestore.Timestamp;
+}
+
+/**
+ * Rate limit tracking document
+ */
+export interface RateLimitDocument {
+  userId: string;
+  requestsToday: number;
+  requestsLastMinute: number;
+  lastRequestTimestamp: admin.firestore.Timestamp;
+  lastMinuteWindowStart: admin.firestore.Timestamp;
+  lastDayWindowStart: admin.firestore.Timestamp;
   updatedAt: admin.firestore.Timestamp;
 }
 
@@ -54,12 +71,13 @@ export interface ChatThreadDocument {
 
 /**
  * Chat message structure
+ * Note: modelUsed is internal only, not exposed to users
  */
 export interface ChatMessage {
   role: "user" | "assistant";
   content: string;
   timestamp: admin.firestore.Timestamp;
-  modelUsed?: ModelFamily;
+  // modelUsed removed from user-facing structure (internal tracking only)
 }
 
 /**
@@ -86,28 +104,31 @@ export interface QuotaCheckResult {
     limit: number;
     upgradeRequired: boolean;
     tier: SubscriptionTier;
+    retryAfter?: number; // Seconds until retry allowed
   };
 }
 
 /**
  * Analysis response structure
+ * Note: modelUsed is removed from user-facing responses (internal only)
  */
 export interface AnalysisResponse {
   summary: string;
   themes: string[];
   suggestions: string[];
   tier: SubscriptionTier;
-  modelUsed: ModelFamily;
+  // modelUsed removed - not exposed to users
 }
 
 /**
  * Chat response structure
+ * Note: modelUsed is removed from user-facing responses (internal only)
  */
 export interface ChatResponse {
   threadId: string;
   message: ChatMessage;
   messageCount: number;
-  modelUsed: ModelFamily;
+  // modelUsed removed - not exposed to users
 }
 
 /**

@@ -44,15 +44,12 @@ export const stripeWebhook = onRequest(
 
     try {
       switch (event.type) {
-        case "customer.subscription.created":
-        case "customer.subscription.updated": {
-          const subscription = event.data.object;
-          const customerId = subscription.customer;
-          const status = subscription.status;
+        case "checkout.session.completed": {
+          // User completed checkout - upgrade to pro
+          const session = event.data.object;
+          const customerId = session.customer as string;
+          const subscriptionId = session.subscription as string;
 
-          // Map customerId to userId
-          // In production, you might have a customers/{customerId} collection
-          // or store customerId in users/{userId}/stripeCustomerId
           const usersSnapshot = await db
             .collection("users")
             .where("stripeCustomerId", "==", customerId)
@@ -66,25 +63,75 @@ export const stripeWebhook = onRequest(
           }
 
           const userId = usersSnapshot.docs[0].id;
-          const subscriptionStatus: SubscriptionStatus =
-            status === "active" ? "active" : status === "canceled" ? "canceled" : "trial";
 
-          // Update user document
+          // Upgrade to pro
           await db.collection("users").doc(userId).update({
-            subscriptionTier: "PAID",
-            subscriptionStatus: subscriptionStatus,
+            plan: "pro",
+            subscriptionTier: "PAID", // Legacy field
+            subscriptionStatus: "active",
+            stripeSubscriptionId: subscriptionId,
             updatedAt: admin.firestore.FieldValue.serverTimestamp(),
           });
 
-          logger.info(`Updated user ${userId} to PAID tier, status: ${subscriptionStatus}`);
+          logger.info(`Upgraded user ${userId} to pro plan`);
+          break;
+        }
+
+        case "invoice.payment_succeeded": {
+          // Payment succeeded - ensure user is pro
+          const invoice = event.data.object;
+          const customerId = invoice.customer as string;
+          const subscriptionId = invoice.subscription as string;
+
+          const usersSnapshot = await db
+            .collection("users")
+            .where("stripeCustomerId", "==", customerId)
+            .limit(1)
+            .get();
+
+          if (!usersSnapshot.empty) {
+            const userId = usersSnapshot.docs[0].id;
+            await db.collection("users").doc(userId).update({
+              plan: "pro",
+              subscriptionTier: "PAID", // Legacy field
+              subscriptionStatus: "active",
+              stripeSubscriptionId: subscriptionId,
+              updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            });
+            logger.info(`Confirmed pro status for user ${userId}`);
+          }
+          break;
+        }
+
+        case "invoice.payment_failed": {
+          // Payment failed - downgrade to free
+          const invoice = event.data.object;
+          const customerId = invoice.customer as string;
+
+          const usersSnapshot = await db
+            .collection("users")
+            .where("stripeCustomerId", "==", customerId)
+            .limit(1)
+            .get();
+
+          if (!usersSnapshot.empty) {
+            const userId = usersSnapshot.docs[0].id;
+            await db.collection("users").doc(userId).update({
+              plan: "free",
+              subscriptionTier: "FREE", // Legacy field
+              subscriptionStatus: "canceled",
+              updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            });
+            logger.info(`Downgraded user ${userId} to free plan (payment failed)`);
+          }
           break;
         }
 
         case "customer.subscription.deleted": {
+          // Subscription canceled - downgrade to free
           const subscription = event.data.object;
           const customerId = subscription.customer;
 
-          // Find user by customerId
           const usersSnapshot = await db
             .collection("users")
             .where("stripeCustomerId", "==", customerId)
@@ -99,14 +146,49 @@ export const stripeWebhook = onRequest(
 
           const userId = usersSnapshot.docs[0].id;
 
-          // Downgrade to FREE tier
+          // Downgrade to free
           await db.collection("users").doc(userId).update({
-            subscriptionTier: "FREE",
+            plan: "free",
+            subscriptionTier: "FREE", // Legacy field
             subscriptionStatus: "canceled",
             updatedAt: admin.firestore.FieldValue.serverTimestamp(),
           });
 
-          logger.info(`Downgraded user ${userId} to FREE tier`);
+          logger.info(`Downgraded user ${userId} to free plan`);
+          break;
+        }
+
+        case "customer.subscription.created":
+        case "customer.subscription.updated": {
+          // Legacy support - handle subscription events
+          const subscription = event.data.object;
+          const customerId = subscription.customer;
+          const status = subscription.status;
+
+          const usersSnapshot = await db
+            .collection("users")
+            .where("stripeCustomerId", "==", customerId)
+            .limit(1)
+            .get();
+
+          if (usersSnapshot.empty) {
+            logger.warn(`No user found for Stripe customer: ${customerId}`);
+            res.status(200).send({ received: true });
+            return;
+          }
+
+          const userId = usersSnapshot.docs[0].id;
+          const isActive = status === "active";
+
+          await db.collection("users").doc(userId).update({
+            plan: isActive ? "pro" : "free",
+            subscriptionTier: isActive ? "PAID" : "FREE", // Legacy field
+            subscriptionStatus: status === "active" ? "active" : status === "canceled" ? "canceled" : "trial",
+            stripeSubscriptionId: subscription.id,
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          });
+
+          logger.info(`Updated user ${userId} to ${isActive ? "pro" : "free"} plan`);
           break;
         }
 
