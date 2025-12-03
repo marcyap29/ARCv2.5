@@ -371,9 +371,9 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
                     behavior: HitTestBehavior.opaque,
                     child: Column(
                       children: [
-                    // Messages list
-                    Expanded(
-            child: GestureDetector(
+                        // Messages list
+                        Expanded(
+                          child: GestureDetector(
               onTap: () {
                 // Hide input when tapping conversation area
                 // Auto minimize like ChatGPT
