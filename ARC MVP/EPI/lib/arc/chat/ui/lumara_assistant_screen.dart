@@ -1829,23 +1829,14 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
       final matches = sentencePattern.allMatches(content);
       
       if (matches.length >= 2) {
-        paragraphs = [];
+        // Extract all sentences
+        final sentences = <String>[];
         int lastIndex = 0;
-        int sentenceCount = 0;
         for (final match in matches) {
           if (match.start > lastIndex) {
             final sentence = content.substring(lastIndex, match.start + 1).trim();
             if (sentence.isNotEmpty) {
-              paragraphs.add(sentence);
-              sentenceCount++;
-              // Group sentences into paragraphs (2-3 sentences per paragraph for readability)
-              if (sentenceCount >= 2 && paragraphs.length > 1) {
-                // Combine last 2-3 sentences into a paragraph
-                final lastTwo = paragraphs.sublist(paragraphs.length - 2);
-                paragraphs = paragraphs.sublist(0, paragraphs.length - 2);
-                paragraphs.add(lastTwo.join(' '));
-                sentenceCount = 0;
-              }
+              sentences.add(sentence);
             }
             lastIndex = match.start + 1;
           }
@@ -1853,13 +1844,16 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
         if (lastIndex < content.length) {
           final remaining = content.substring(lastIndex).trim();
           if (remaining.isNotEmpty) {
-            if (sentenceCount > 0 && paragraphs.isNotEmpty) {
-              // Add to last paragraph if we have a partial group
-              paragraphs[paragraphs.length - 1] = '${paragraphs.last} $remaining';
-            } else {
-              paragraphs.add(remaining);
-            }
+            sentences.add(remaining);
           }
+        }
+        
+        // Group sentences into paragraphs (2-3 sentences per paragraph for readability)
+        paragraphs = [];
+        for (int i = 0; i < sentences.length; i += 3) {
+          final endIndex = (i + 3 < sentences.length) ? i + 3 : sentences.length;
+          final paragraphGroup = sentences.sublist(i, endIndex).join(' ');
+          paragraphs.add(paragraphGroup);
         }
       }
     }
