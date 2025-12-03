@@ -1821,8 +1821,8 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
       paragraphs = content.split('\n').map((p) => p.trim()).where((p) => p.isNotEmpty).toList();
     }
     
-    // If still single paragraph, try splitting by sentence endings for better readability
-    if (paragraphs.length == 1) {
+    // If still single paragraph and it's long, split by sentence endings for better readability
+    if (paragraphs.length == 1 && content.length > 150) {
       // Split by periods/exclamation/question marks followed by space and capital letter
       // This creates natural paragraph breaks for long responses
       final sentencePattern = RegExp(r'([.!?])\s+([A-Z])');
@@ -1831,11 +1831,21 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
       if (matches.length >= 2) {
         paragraphs = [];
         int lastIndex = 0;
+        int sentenceCount = 0;
         for (final match in matches) {
           if (match.start > lastIndex) {
             final sentence = content.substring(lastIndex, match.start + 1).trim();
             if (sentence.isNotEmpty) {
               paragraphs.add(sentence);
+              sentenceCount++;
+              // Group sentences into paragraphs (2-3 sentences per paragraph for readability)
+              if (sentenceCount >= 2 && paragraphs.length > 1) {
+                // Combine last 2-3 sentences into a paragraph
+                final lastTwo = paragraphs.sublist(paragraphs.length - 2);
+                paragraphs = paragraphs.sublist(0, paragraphs.length - 2);
+                paragraphs.add(lastTwo.join(' '));
+                sentenceCount = 0;
+              }
             }
             lastIndex = match.start + 1;
           }
@@ -1843,9 +1853,34 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
         if (lastIndex < content.length) {
           final remaining = content.substring(lastIndex).trim();
           if (remaining.isNotEmpty) {
-            paragraphs.add(remaining);
+            if (sentenceCount > 0 && paragraphs.isNotEmpty) {
+              // Add to last paragraph if we have a partial group
+              paragraphs[paragraphs.length - 1] = '${paragraphs.last} $remaining';
+            } else {
+              paragraphs.add(remaining);
+            }
           }
         }
+      }
+    }
+    
+    // If still a single very long paragraph (no sentence breaks found), split by length
+    if (paragraphs.length == 1 && content.length > 300) {
+      // Split into chunks of ~200 characters at natural word boundaries
+      final words = content.split(' ');
+      paragraphs = [];
+      String currentParagraph = '';
+      
+      for (final word in words) {
+        if ((currentParagraph + word).length > 200 && currentParagraph.isNotEmpty) {
+          paragraphs.add(currentParagraph.trim());
+          currentParagraph = word;
+        } else {
+          currentParagraph += (currentParagraph.isEmpty ? '' : ' ') + word;
+        }
+      }
+      if (currentParagraph.trim().isNotEmpty) {
+        paragraphs.add(currentParagraph.trim());
       }
     }
 

@@ -161,8 +161,9 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
       // Start or resume a conversation session
       final sessionId = await _getOrCreateSession();
 
-      // Add welcome message (only automated message allowed)
-      final welcomeContent = "Hello! I'm LUMARA, your personal assistant. I can help you understand your patterns, explain your current phase, and provide insights about your journey. What would you like to know?";
+    // Add welcome message (only automated message allowed)
+    // Split into paragraphs for better readability
+    final welcomeContent = "Hello! I'm LUMARA, your personal assistant.\n\nI can help you understand your patterns, explain your current phase, and provide insights about your journey.\n\nWhat would you like to know?";
 
       final List<LumaraMessage> messages = [
         LumaraMessage.assistant(content: welcomeContent),
@@ -1078,7 +1079,8 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
     currentChatSessionId = null;
     
     // Add welcome message (only automated message allowed)
-    const welcomeContent = "Hello! I'm LUMARA, your personal assistant. I can help you understand your patterns, explain your current phase, and provide insights about your journey. What would you like to know?";
+    // Split into paragraphs for better readability
+    const welcomeContent = "Hello! I'm LUMARA, your personal assistant.\n\nI can help you understand your patterns, explain your current phase, and provide insights about your journey.\n\nWhat would you like to know?";
     
     final List<LumaraMessage> messages = [
       LumaraMessage.assistant(content: welcomeContent),
