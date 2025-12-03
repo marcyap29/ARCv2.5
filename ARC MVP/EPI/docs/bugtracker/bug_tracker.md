@@ -1,7 +1,28 @@
 # EPI MVP - Bug Tracker
 
-**Version:** 2.1.32  
-**Last Updated:** January 2025
+**Version:** 2.1.43  
+**Last Updated:** December 3, 2025
+
+## Resolved Issues (v2.1.43)
+
+### In-Journal LUMARA API Key Requirement
+- **Issue**: In-journal LUMARA was requiring users to configure a local Gemini API key, even though the backend handles API keys via Firebase Secrets. Users would see "LUMARA needs an API key to work" error messages.
+- **Root Cause**: 
+  1. `EnhancedLumaraApi` was still using direct `geminiSend()` calls which required a local API key from `LumaraAPIConfig`
+  2. `_checkLumaraConfiguration()` was checking for local API keys instead of just verifying Firebase Auth
+  3. In-journal LUMARA was not using the backend Cloud Functions infrastructure
+- **Resolution**:
+  1. Created new `generateJournalReflection` Cloud Function to handle in-journal LUMARA reflections via backend
+  2. Updated `EnhancedLumaraApi.generatePromptedReflectionV23()` to call backend Cloud Function instead of `geminiSend()`
+  3. Simplified `_checkLumaraConfiguration()` to only check Firebase Auth (backend handles API keys)
+  4. Updated error messages to clarify that backend handles API keys automatically
+  5. All API keys now managed securely via Firebase Secrets (no local configuration needed)
+- **Impact**: 
+  - Users no longer need to configure local API keys for in-journal LUMARA
+  - Unified backend infrastructure for both chat and in-journal LUMARA features
+  - Consistent rate limiting and tier system across all LUMARA features
+  - Improved security with centralized API key management
+- **Status**: ✅ Fixed
 
 ## Resolved Issues (v2.1.32)
 
