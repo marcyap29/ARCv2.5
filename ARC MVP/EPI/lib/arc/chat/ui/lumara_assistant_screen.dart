@@ -559,10 +559,11 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
           
           // Message input - show/hide based on visibility state
           // Also show a button to bring it back if hidden
-          if (_isInputVisible)
-            _buildMessageInput()
-          else
+          if (_isInputVisible) ...[
+            _buildMessageInput(),
+          ] else ...[
             _buildShowInputButton(),
+          ],
         ],
       ),
                   // TODO: Fix navigation drawer structure - temporarily commented out
