@@ -8,6 +8,18 @@ The system uses Gemini as the default and primary inference engine with **Google
 
 The model layer is upgradeable internally and is never exposed to the user.
 
+### Closing Statement Engine
+
+LUMARA uses a sophisticated closing statement engine to prevent repetitive, robotic endings:
+
+- **75+ closing variations** across 5 context categories (Reflection/Emotion, Planning/Action, Identity/Phase, Regulation/Overwhelm, Neutral/Light)
+- **7 ending styles** rotated to avoid patterns (soft question, reflective echo, gentle prompt, non-prompt closure, pause-affirmation, next-step suggestion, user-led turn)
+- **ATLAS phase integration** - Closings adapt to user's current life phase
+- **Anti-repetition enforcement** - Never repeats the same closing within the last 15 messages
+- **Context-aware selection** - Closings match conversation content and energy level
+
+See `CLOSING_STATEMENT_ENGINE.md` for full documentation.
+
 ## Web Access & Information Priority
 
 **LUMARA has access to real-time web information via Google Search Grounding (Gemini models only).**
