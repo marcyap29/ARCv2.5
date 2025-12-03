@@ -976,6 +976,63 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
     emit(currentState.copyWith(messages: messagesToKeep));
   }
   
+  /// Fork chat from a specific message - creates new thread with context up to that message
+  Future<String?> forkChatFromMessage(String messageId) async {
+    final currentState = state;
+    if (currentState is! LumaraAssistantLoaded) return null;
+
+    // Find the message index
+    final messageIndex = currentState.messages.indexWhere((m) => m.id == messageId);
+    if (messageIndex == -1) return null;
+
+    // Get all messages up to and including the fork point
+    final messagesToFork = currentState.messages.sublist(0, messageIndex + 1);
+    
+    // Create new session with fork subject
+    final forkSubject = 'Fork: ${ChatSession.generateSubject(messagesToFork.last.content)}';
+    final newSessionId = await _chatRepo.createSession(
+      subject: forkSubject,
+      tags: ['forked'],
+    );
+    
+    // Store fork metadata by updating session (metadata is stored in ChatSession)
+    // Note: We'll need to get the session and update it with metadata if needed
+    // For now, we'll store fork info in tags and use session metadata field if available
+
+    // Copy messages to new session
+    for (final message in messagesToFork) {
+      await _chatRepo.addMessage(
+        sessionId: newSessionId,
+        role: message.role == LumaraMessageRole.user ? 'user' : 'assistant',
+        content: message.content,
+        messageId: message.id,
+        timestamp: message.timestamp,
+      );
+    }
+
+    // Update current session ID and load the forked chat
+    currentChatSessionId = newSessionId;
+    
+    // Load messages from new session
+    final forkedMessages = await _chatRepo.getMessages(newSessionId);
+    final lumaraMessages = forkedMessages.map((msg) {
+      return LumaraMessage(
+        id: msg.id,
+        role: msg.role == 'user' ? LumaraMessageRole.user : LumaraMessageRole.assistant,
+        content: msg.textContent,
+        timestamp: msg.createdAt,
+        metadata: msg.metadata ?? {},
+      );
+    }).toList();
+
+    emit(currentState.copyWith(
+      messages: lumaraMessages,
+      currentSessionId: newSessionId,
+    ));
+
+    return newSessionId;
+  }
+
   /// Start a new chat (saves current chat to history, then clears UI)
   Future<void> startNewChat() async {
     final currentState = state;
@@ -1863,6 +1920,7 @@ Your exported MCP bundle can be imported into any MCP-compatible system, ensurin
     final sessionId = await _chatRepo.createSession(
       subject: subject,
       tags: ['auto-created', 'lumara'],
+      metadata: {},
     );
     print('LUMARA Chat: Created session "$subject" with ID $sessionId');
     return sessionId;
