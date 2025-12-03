@@ -370,7 +370,7 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
                     },
                     behavior: HitTestBehavior.opaque,
                     child: Column(
-                  children: [
+                      children: [
                     // Messages list
                     Expanded(
             child: GestureDetector(
@@ -559,9 +559,10 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
           
           // Message input - show/hide based on visibility state
           // Also show a button to bring it back if hidden
-          ...(_isInputVisible 
-            ? [_buildMessageInput()]
-            : [_buildShowInputButton()]),
+          if (_isInputVisible)
+            _buildMessageInput()
+          else
+            _buildShowInputButton(),
         ],
       ),
           ),
