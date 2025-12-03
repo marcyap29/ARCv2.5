@@ -3,15 +3,11 @@ import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
 import 'package:my_app/shared/ui/settings/sync_settings_section.dart';
 import 'package:my_app/shared/ui/settings/music_control_section.dart';
-import 'package:my_app/shared/ui/settings/first_responder_settings_section.dart';
-import 'package:my_app/shared/ui/settings/coach_mode_settings_section.dart';
-import 'package:my_app/shared/ui/settings/mcp_bundle_health_view.dart';
 import 'package:my_app/shared/ui/settings/privacy_settings_view.dart';
 import 'package:my_app/shared/ui/settings/memory_mode_settings_view.dart';
 import 'package:my_app/shared/ui/settings/memory_snapshot_management_view.dart';
 import 'package:my_app/shared/ui/settings/conflict_management_view.dart';
 import 'package:my_app/shared/ui/settings/lumara_settings_view.dart';
-import 'package:my_app/shared/ui/settings/arcx_settings_view.dart';
 import 'package:my_app/shared/ui/settings/favorites_management_view.dart';
 import 'package:my_app/shared/ui/settings/voiceover_preference_service.dart';
 import 'package:my_app/shared/ui/settings/throttle_settings_view.dart';
@@ -159,30 +155,6 @@ class _SettingsViewState extends State<SettingsView> {
                           journalRepository: context.read<JournalRepository>(),
                         ),
                       ),
-                    );
-                  },
-                ),
-                _buildSettingsTile(
-                  context,
-                  title: 'Bundle Health Check',
-                  subtitle: 'Validate and repair backup files',
-                  icon: Icons.health_and_safety,
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const McpBundleHealthView()),
-                    );
-                  },
-                ),
-                _buildSettingsTile(
-                  context,
-                  title: 'Secure Archive Settings',
-                  subtitle: 'Configure .arcx encryption and redaction',
-                  icon: Icons.security,
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const ARCXSettingsView()),
                     );
                   },
                 ),
@@ -354,16 +326,6 @@ class _SettingsViewState extends State<SettingsView> {
 
             // Music Control Section
             const MusicControlSection(),
-
-            const SizedBox(height: 32),
-
-            // First Responder Settings Section
-            const FirstResponderSettingsSection(),
-
-            const SizedBox(height: 32),
-
-            // Coach Mode Settings Section
-            const CoachModeSettingsSection(),
 
             const SizedBox(height: 32),
             
