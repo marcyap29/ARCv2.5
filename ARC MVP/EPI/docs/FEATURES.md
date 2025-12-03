@@ -393,6 +393,18 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 - Chat history control
 - Location privacy
 
+### Throttle Unlock (Developer/Admin Feature)
+
+**Password-Protected Rate Limit Bypass**
+- **Throttle Settings**: Hidden settings menu option in Privacy & Security section
+- **Password Protection**: Secure password verification using timing-safe comparison
+- **Empty Password Field**: No password length hints for security
+- **Status Display**: Real-time throttle unlock status (locked/unlocked)
+- **Lock/Unlock Toggle**: Ability to lock throttle after unlocking
+- **Backend Integration**: Firebase Cloud Functions for secure password verification
+- **Rate Limit Bypass**: Removes all rate limiting (20/day, 3/minute) when unlocked
+- **Developer Feature**: Intended for developers/admins, not regular users
+
 ---
 
 ## Data Management Features

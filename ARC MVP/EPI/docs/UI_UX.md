@@ -555,15 +555,16 @@ Long Press → Edit Mode | Scroll Up → Load History
 1. **👥 Favorites Management** - Saved content organization
 2. **🤖 LUMARA Settings** - AI model and behavior configuration
 3. **🔒 Privacy Settings** - Data protection and redaction controls
-4. **🧠 Memory Mode** - Memory snapshots and lifecycle management
-5. **📦 MCP Bundle Health** - Data validation and integrity
-6. **🎵 Music Control** - Audio experience settings
-7. **🔄 Sync Settings** - Cloud synchronization and device linking
-8. **🚨 First Responder Mode** - Emergency incident tracking
-9. **🏃 Coach Mode** - Coaching parameter configuration
-10. **⚖️ Conflict Management** - Resolution workflow settings
-11. **🎨 Personalization** - UI customization and preferences
-12. **ℹ️ About** - App information and credits
+4. **⚡ Throttle** - Developer throttle unlock (password-protected rate limit bypass)
+5. **🧠 Memory Mode** - Memory snapshots and lifecycle management
+6. **📦 MCP Bundle Health** - Data validation and integrity
+7. **🎵 Music Control** - Audio experience settings
+8. **🔄 Sync Settings** - Cloud synchronization and device linking
+9. **🚨 First Responder Mode** - Emergency incident tracking
+10. **🏃 Coach Mode** - Coaching parameter configuration
+11. **⚖️ Conflict Management** - Resolution workflow settings
+12. **🎨 Personalization** - UI customization and preferences
+13. **ℹ️ About** - App information and credits
 
 ### 💝 Favorites Management
 **File:** `lib/shared/ui/settings/favorites_management_view.dart`
@@ -594,6 +595,33 @@ Long Press → Edit Mode | Scroll Up → Load History
 - **Privacy Mode:** Enhanced protection during sensitive sessions
 - **Consent Management:** Granular permission controls
 - **Data Deletion:** Secure removal of personal information
+
+### ⚡ Throttle Settings (Developer/Admin Feature)
+**File:** `lib/shared/ui/settings/throttle_settings_view.dart`
+
+**Password-Protected Rate Limit Bypass:**
+- **Empty Password Field:** Text input with no length hints or character count
+- **Obscure Text:** Password field with toggle to show/hide characters
+- **Status Display:** Real-time throttle unlock status indicator
+  - Green indicator when unlocked
+  - Red indicator when locked
+  - Loading state during verification
+- **Unlock Button:** Submit password to unlock throttle (bypasses rate limits)
+- **Lock Button:** Remove throttle unlock (restores rate limiting)
+- **Status Check:** Automatic status check on screen load
+- **Error Handling:** User-friendly error messages for incorrect passwords
+- **Security Features:**
+  - Timing-safe password comparison (prevents timing attacks)
+  - Firebase Functions secret storage for password
+  - No password hints or length indicators
+  - Secure backend validation
+
+**UI Components:**
+- Password input field with obscure text toggle
+- Status card showing current throttle state
+- Action buttons (Unlock/Lock) with loading states
+- Error message display area
+- Settings tile integration in Privacy & Security section
 
 ### 🧠 Memory Mode Configuration
 **File:** `lib/shared/ui/settings/memory_mode_settings_view.dart`
