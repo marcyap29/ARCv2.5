@@ -603,39 +603,24 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
 
   /// Check if LUMARA is properly configured
   /// Since backend handles API keys via Firebase Secrets, we just need to check if user is authenticated
-  /// Note: In-journal LUMARA still uses EnhancedLumaraApi which calls geminiSend() directly
-  /// This requires a local API key until EnhancedLumaraApi is updated to use backend Cloud Functions
+  /// EnhancedLumaraApi now uses backend Cloud Functions, so no local API key is needed
   Future<bool> _checkLumaraConfiguration() async {
     try {
-      // Check Firebase Auth first (backend requirement)
+      // Backend handles API keys, so we just need to verify Firebase Auth is available
+      // The backend Cloud Functions will handle API key access via Firebase Secrets
       final auth = FirebaseAuth.instance;
       final user = auth.currentUser;
       
-      if (user == null) {
+      if (user != null) {
+        print('LUMARA Journal: User authenticated - backend will handle API keys');
+        return true;
+      } else {
         print('LUMARA Journal: User not authenticated - LUMARA requires Firebase Auth');
         return false;
       }
-      
-      // TODO: EnhancedLumaraApi still uses geminiSend() which requires local API key
-      // Once EnhancedLumaraApi is updated to use backend Cloud Functions, we can remove this check
-      // For now, check if local API key is available as fallback
-      final apiConfig = LumaraAPIConfig.instance;
-      await apiConfig.initialize();
-      final geminiConfig = apiConfig.getConfig(LLMProvider.gemini);
-      final hasLocalKey = geminiConfig?.apiKey?.isNotEmpty ?? false;
-      
-      if (hasLocalKey) {
-        print('LUMARA Journal: Local API key available (legacy mode)');
-        return true;
-      }
-      
-      // Backend handles API keys, but EnhancedLumaraApi still needs local key for now
-      // Return true anyway - let the actual API call handle the error with a better message
-      print('LUMARA Journal: User authenticated - backend handles API keys (but EnhancedLumaraApi still needs local key)');
-      return true; // Allow it to proceed, backend will handle API keys
     } catch (e) {
       print('LUMARA Journal: Configuration check error: $e');
-      // If check fails, assume configured (backend will handle errors)
+      // If Firebase Auth check fails, assume configured (backend will handle errors)
       return true;
     }
   }
