@@ -50,6 +50,10 @@ export class GeminiClient {
         temperature: this.config.temperature || 0.7,
         maxOutputTokens: this.config.maxTokens || 8192,
       },
+      // Enable Google Search Grounding for real-time web information
+      tools: [{
+        googleSearchRetrieval: {}
+      }],
     };
 
     if (systemInstruction) {
@@ -95,6 +99,10 @@ export class GeminiClient {
         temperature: this.config.temperature || 0.7,
         maxOutputTokens: this.config.maxTokens || 8192,
       },
+      // Enable Google Search Grounding for real-time web information
+      tools: [{
+        googleSearchRetrieval: {}
+      }],
     };
 
     if (systemInstruction) {

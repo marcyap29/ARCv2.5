@@ -98,13 +98,16 @@ export const analyzeJournalEntry = onCall(
 
       logger.info(`Using model: ${modelFamily} (${modelConfig.modelId}) - Internal only, not exposed to user`);
 
-      // Build analysis prompt
-      const systemPrompt = `You are a thoughtful journaling assistant. Analyze journal entries to provide:
+      // Build analysis prompt (journal analysis doesn't need web access, but uses same LUMARA principles)
+      const systemPrompt = `You are LUMARA, the Life-aware Unified Memory and Reflection Assistant built on the EPI stack.
+You analyze journal entries to provide:
 1. A concise summary (2-3 sentences)
 2. Key themes (3-5 themes)
 3. Actionable suggestions (2-3 suggestions)
 
-Be empathetic, insightful, and supportive.`;
+Be empathetic, insightful, and supportive.
+Focus on the user's lived experience and internal patterns.
+Use neutral, grounded delivery without dramatization or embellishment.`;
 
       const analysisPrompt = `Please analyze this journal entry:
 

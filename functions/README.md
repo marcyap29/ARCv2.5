@@ -16,13 +16,21 @@ Quota Guard (checkCanAnalyzeEntry / checkCanSendMessage)
 Model Router (selectModel)
   ↓ Choose Model (Gemini Flash/Pro or Claude)
 LLM Client (GeminiClient / ClaudeClient)
-  ↓ Call API
+  ↓ Call API with Google Search Grounding (Gemini only)
 Gemini/Claude API
-  ↓ Response
+  ↓ Response (with web search results if needed)
 Parse & Structure Response
   ↓ Update Firestore (increment counters)
 Return to Client
 ```
+
+## Web Access
+
+**Gemini models have Google Search Grounding enabled** for real-time web information:
+- Access to Wikipedia, current events, and public web content
+- Automatic search when user requests external information
+- Trigger-safety protocol for potentially graphic content
+- Priority given to user's private data before web search
 
 ## Setup
 
