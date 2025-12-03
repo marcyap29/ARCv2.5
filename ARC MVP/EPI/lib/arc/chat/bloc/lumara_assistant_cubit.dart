@@ -1936,7 +1936,6 @@ Your exported MCP bundle can be imported into any MCP-compatible system, ensurin
     final sessionId = await _chatRepo.createSession(
       subject: subject,
       tags: ['auto-created', 'lumara'],
-      metadata: {},
     );
     print('LUMARA Chat: Created session "$subject" with ID $sessionId');
     return sessionId;

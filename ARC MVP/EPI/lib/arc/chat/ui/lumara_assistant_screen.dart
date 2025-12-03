@@ -1040,7 +1040,8 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
                         );
                       },
                     ),
-                  ] else if (!isUser) ...[
+                  ],
+                  if (!isUser && (message.attributionTraces == null || message.attributionTraces!.isEmpty)) ...[
                     // Debug: Show why attributions aren't showing
                     Builder(
                       builder: (context) {
