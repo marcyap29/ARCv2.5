@@ -559,8 +559,10 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
                         
                         // Message input - show/hide based on visibility state
                         // Also show a button to bring it back if hidden
-                        if (_isInputVisible) _buildMessageInput(),
-                        if (!_isInputVisible) _buildShowInputButton(),
+                        // TODO: Fix if statement syntax - temporarily commented out
+                        // if (_isInputVisible) _buildMessageInput(),
+                        // if (!_isInputVisible) _buildShowInputButton(),
+                        _buildMessageInput(), // Temporary: always show input
                       ],
                     ),
           ),
