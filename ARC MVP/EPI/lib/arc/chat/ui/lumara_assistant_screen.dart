@@ -374,20 +374,20 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
                         // Messages list
                         Expanded(
                           child: GestureDetector(
-              onTap: () {
-                // Hide input when tapping conversation area
-                // Auto minimize like ChatGPT
-                _dismissKeyboard();
-              },
-              onDoubleTap: () {
-                // Show input on double tap to make it easy to bring back
-                setState(() {
-                  _isInputVisible = true;
-                });
-                _inputFocusNode.requestFocus();
-              },
-              child: BlocConsumer<LumaraAssistantCubit, LumaraAssistantState>(
-              listener: (context, state) {
+                            onTap: () {
+                              // Hide input when tapping conversation area
+                              // Auto minimize like ChatGPT
+                              _dismissKeyboard();
+                            },
+                            onDoubleTap: () {
+                              // Show input on double tap to make it easy to bring back
+                              setState(() {
+                                _isInputVisible = true;
+                              });
+                              _inputFocusNode.requestFocus();
+                            },
+                            child: BlocConsumer<LumaraAssistantCubit, LumaraAssistantState>(
+                              listener: (context, state) {
                 // Show input when LUMARA finishes responding
                 if (state is LumaraAssistantLoaded && !state.isProcessing) {
                   setState(() {
@@ -439,8 +439,8 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
                   }
                 }
                 return true; // Default behavior
-              },
-              builder: (context, state) {
+                              },
+                              builder: (context, state) {
                 if (state is LumaraAssistantLoading) {
                   return const Center(child: CircularProgressIndicator());
                 }
@@ -537,13 +537,13 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
                       if (isForked) _buildForkBreadcrumb(context, state.currentSessionId!),
                       Expanded(
                         child: ListView.builder(
-                    controller: _scrollController,
-                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-                    itemCount: state.messages.length,
-                    itemBuilder: (context, index) {
-                      final message = state.messages[index];
-                      return _buildMessageBubble(message);
-                    },
+                          controller: _scrollController,
+                          padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                          itemCount: state.messages.length,
+                          itemBuilder: (context, index) {
+                            final message = state.messages[index];
+                            return _buildMessageBubble(message);
+                          },
                         ),
                       ),
                       // Show progress indicator at bottom when processing
@@ -553,9 +553,9 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
                 }
                 
                 return const SizedBox.shrink();
-              },
-            ),
-          ),
+                              },
+                            ),
+                          ),
           
           // Message input - show/hide based on visibility state
           // Also show a button to bring it back if hidden
