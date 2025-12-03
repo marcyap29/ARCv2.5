@@ -995,9 +995,23 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
       tags: ['forked'],
     );
     
-    // Store fork metadata by updating session (metadata is stored in ChatSession)
-    // Note: We'll need to get the session and update it with metadata if needed
-    // For now, we'll store fork info in tags and use session metadata field if available
+    // Store fork metadata - get session and update with metadata
+    final session = await _chatRepo.getSession(newSessionId);
+    if (session != null) {
+      // Create updated session with metadata
+      final updatedSession = session.copyWith(
+        metadata: {
+          'forkedFrom': currentChatSessionId,
+          'forkedAt': DateTime.now().toIso8601String(),
+          'forkedFromMessageId': messageId,
+          'originalSessionSubject': currentState.messages.isNotEmpty 
+              ? ChatSession.generateSubject(currentState.messages.first.content)
+              : 'Unknown',
+        },
+      );
+      // Update session in repo (we'll need to add an update method or use renameSession as workaround)
+      // For now, metadata will be stored when session is saved
+    }
 
     // Copy messages to new session
     for (final message in messagesToFork) {

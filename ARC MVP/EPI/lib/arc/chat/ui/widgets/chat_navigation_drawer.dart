@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:my_app/arc/chat/chat/chat_repo.dart';
+import 'package:my_app/arc/chat/chat/enhanced_chat_repo.dart';
 import 'package:my_app/arc/chat/chat/chat_models.dart';
 import 'package:my_app/arc/chat/services/favorites_service.dart';
 import 'package:my_app/arc/chat/data/models/lumara_favorite.dart';
@@ -7,7 +7,7 @@ import 'package:my_app/shared/ui/settings/favorites_management_view.dart';
 
 /// Left-side expanding navigation drawer for chat history
 class ChatNavigationDrawer extends StatefulWidget {
-  final ChatRepo chatRepo;
+  final EnhancedChatRepo chatRepo;
   final String? currentSessionId;
   final Function(String sessionId) onSessionSelected;
   final Function() onNewChat;

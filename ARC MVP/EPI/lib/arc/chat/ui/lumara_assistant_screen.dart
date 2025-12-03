@@ -35,6 +35,7 @@ import '../voice/audio_io.dart';
 import 'widgets/chat_navigation_drawer.dart';
 import '../chat/chat_repo_impl.dart';
 import '../chat/enhanced_chat_repo_impl.dart';
+import '../chat/chat_models.dart';
 
 /// Main LUMARA Assistant screen
 class LumaraAssistantScreen extends StatefulWidget {
@@ -513,6 +514,9 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
                 }
                 
                 if (state is LumaraAssistantLoaded) {
+                  // Show breadcrumb if this is a forked chat
+                  final isForked = state.currentSessionId != null;
+                  
                   if (state.messages.isEmpty) {
                     // Show loading indicator even when messages are empty
                     if (state.isProcessing) {
@@ -529,6 +533,8 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
                   // Show messages with loading indicator at the bottom when processing
                   return Column(
                     children: [
+                      // Breadcrumb for forked chats
+                      if (isForked) _buildForkBreadcrumb(context, state.currentSessionId!),
                       Expanded(
                         child: ListView.builder(
                     controller: _scrollController,
@@ -561,7 +567,6 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
         ],
       ),
     ),
-                  ),
                   // Navigation drawer overlay
                   AnimatedPositioned(
                     duration: const Duration(milliseconds: 250),
@@ -608,8 +613,8 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
                     ),
                 ],
               ),
-    );
-  }
+            ),
+          );
 
 
   Widget _buildEmptyState() {
@@ -2071,5 +2076,97 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Sandbox not yet implemented')),
     );
+  }
+
+  /// Build breadcrumb widget for forked chats
+  Widget _buildForkBreadcrumb(BuildContext context, String sessionId) {
+    return FutureBuilder<ChatSession?>(
+      future: EnhancedChatRepoImpl(ChatRepoImpl.instance).getSession(sessionId),
+      builder: (context, snapshot) {
+        final session = snapshot.data;
+        if (session?.metadata == null || session!.metadata!['forkedFrom'] == null) {
+          return const SizedBox.shrink();
+        }
+
+        final forkedFrom = session.metadata!['forkedFrom'] as String;
+        final originalSubject = session.metadata!['originalSessionSubject'] as String? ?? 'Original Chat';
+        final forkedAt = session.metadata!['forkedAt'] as String?;
+
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surfaceContainerHighest,
+            border: Border(
+              bottom: BorderSide(color: Theme.of(context).dividerColor),
+            ),
+          ),
+          child: InkWell(
+            onTap: () => _navigateToOriginalChat(forkedFrom),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.call_split,
+                  size: 16,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Forked from: $originalSubject',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                if (forkedAt != null) ...[
+                  const SizedBox(width: 8),
+                  Text(
+                    _formatForkTime(forkedAt),
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
+                const SizedBox(width: 4),
+                Icon(
+                  Icons.arrow_forward_ios,
+                  size: 12,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  String _formatForkTime(String isoString) {
+    try {
+      final forkedAt = DateTime.parse(isoString);
+      final now = DateTime.now();
+      final difference = now.difference(forkedAt);
+
+      if (difference.inMinutes < 1) {
+        return 'just now';
+      } else if (difference.inHours < 1) {
+        return '${difference.inMinutes}m ago';
+      } else if (difference.inDays < 1) {
+        return '${difference.inHours}h ago';
+      } else {
+        return '${difference.inDays}d ago';
+      }
+    } catch (e) {
+      return '';
+    }
+  }
+
+  /// Navigate to original chat session
+  Future<void> _navigateToOriginalChat(String originalSessionId) async {
+    // Load the original session
+    await _loadSession(originalSessionId);
   }
 }
