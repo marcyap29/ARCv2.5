@@ -566,6 +566,7 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
           ],
         ],
       ),
+          ),
           // TODO: Fix navigation drawer structure - temporarily commented out
           // Navigation drawer overlay - second child of Stack
           /*
