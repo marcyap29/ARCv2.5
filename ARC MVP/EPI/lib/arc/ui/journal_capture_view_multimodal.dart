@@ -49,7 +49,6 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
   final List<McpPointer> _mcpPointers = []; // New: MCP pointers for multimodal content
   final MediaStore _mediaStore = MediaStore();
   // final OCRService _ocrService = OCRService(); // TODO: Implement OCR service
-  final FRModeSuggestionService _frSuggestionService = FRModeSuggestionService();
 
   @override
   void initState() {
