@@ -217,6 +217,28 @@ class ChatRepoImpl implements ChatRepo {
   }
 
   @override
+  Future<void> updateSessionMetadata(String sessionId, Map<String, dynamic> metadata) async {
+    _ensureInitialized();
+
+    final session = await getSession(sessionId);
+    if (session == null) {
+      throw ArgumentError('Session not found: $sessionId');
+    }
+
+    // Merge with existing metadata if present
+    final existingMetadata = session.metadata ?? {};
+    final mergedMetadata = {...existingMetadata, ...metadata};
+
+    final updatedSession = session.copyWith(
+      metadata: mergedMetadata,
+      updatedAt: DateTime.now(),
+    );
+
+    await _sessionsBox!.put(sessionId, updatedSession);
+    print('ChatRepo: Updated metadata for session $sessionId');
+  }
+
+  @override
   Future<void> pinSession(String sessionId, bool pin) async {
     _ensureInitialized();
 

@@ -1107,6 +1107,7 @@ class McpPackImportService {
             final tags = (sessionJson['tags'] as List<dynamic>?)?.cast<String>() ?? [];
             final isArchived = sessionJson['isArchived'] as bool? ?? false;
             final isPinned = sessionJson['isPinned'] as bool? ?? false;
+            final metadata = sessionJson['metadata'] as Map<String, dynamic>?;
             
             // Create session
             final newSessionId = await _chatRepo!.createSession(
@@ -1116,6 +1117,35 @@ class McpPackImportService {
             
             // Store mapping (use the full "session:{id}" format)
             sessionIdMap[mcpSessionId] = newSessionId;
+            
+            // Update session with metadata if present (preserves fork relationships, etc.)
+            if (metadata != null && metadata.isNotEmpty) {
+              final session = await _chatRepo!.getSession(newSessionId);
+              if (session != null) {
+                // Update fork metadata to point to new session IDs if forked
+                Map<String, dynamic> updatedMetadata = Map<String, dynamic>.from(metadata);
+                if (updatedMetadata.containsKey('forkedFrom')) {
+                  final originalForkedFrom = updatedMetadata['forkedFrom'] as String?;
+                  if (originalForkedFrom != null) {
+                    // Map original forkedFrom ID to new session ID if it exists
+                    final mcpForkedFromId = originalForkedFrom.startsWith('session:')
+                        ? originalForkedFrom
+                        : 'session:$originalForkedFrom';
+                    final newForkedFromId = sessionIdMap[mcpForkedFromId];
+                    if (newForkedFromId != null) {
+                      updatedMetadata['forkedFrom'] = newForkedFromId;
+                    } else {
+                      // Keep original but mark as unresolved
+                      updatedMetadata['forkedFromOriginal'] = originalForkedFrom;
+                      updatedMetadata['forkedFrom'] = null;
+                    }
+                  }
+                }
+                
+                // Update session with metadata
+                await _chatRepo!.updateSessionMetadata(newSessionId, updatedMetadata);
+              }
+            }
             
             // Set archived/pinned status if needed
             if (isArchived) {

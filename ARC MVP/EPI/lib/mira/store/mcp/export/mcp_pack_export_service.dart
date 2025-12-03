@@ -737,6 +737,8 @@ class McpPackExportService {
           'tags': session.tags,
           'isArchived': session.isArchived,
           'isPinned': session.isPinned,
+          if (session.metadata != null && session.metadata!.isNotEmpty)
+            'metadata': session.metadata, // Include metadata (fork info, etc.)
         };
         final sessionFile = File(path.join(mcpDir.path, 'nodes', 'chat', 'session', '${session.id}.json'));
         await sessionFile.writeAsString(jsonEncode(sessionNode));

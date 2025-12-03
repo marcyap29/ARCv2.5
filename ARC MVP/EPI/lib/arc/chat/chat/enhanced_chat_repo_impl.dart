@@ -70,6 +70,10 @@ class EnhancedChatRepoImpl implements EnhancedChatRepo {
       _baseRepo.renameSession(sessionId, subject);
 
   @override
+  Future<void> updateSessionMetadata(String sessionId, Map<String, dynamic> metadata) =>
+      _baseRepo.updateSessionMetadata(sessionId, metadata);
+
+  @override
   Future<void> pinSession(String sessionId, bool pin) =>
       _baseRepo.pinSession(sessionId, pin);
 
@@ -296,6 +300,27 @@ class EnhancedChatRepoImpl implements EnhancedChatRepo {
         
         // Map original ID to new ID
         sessionIdMap[session.id] = newSessionId;
+        
+        // Update fork metadata to point to new session IDs if forked
+        if (session.metadata != null && session.metadata!.isNotEmpty) {
+          Map<String, dynamic> updatedMetadata = Map<String, dynamic>.from(session.metadata!);
+          if (updatedMetadata.containsKey('forkedFrom')) {
+            final originalForkedFrom = updatedMetadata['forkedFrom'] as String?;
+            if (originalForkedFrom != null) {
+              // Map original forkedFrom ID to new session ID if it exists
+              final newForkedFromId = sessionIdMap[originalForkedFrom];
+              if (newForkedFromId != null) {
+                updatedMetadata['forkedFrom'] = newForkedFromId;
+              } else {
+                // Keep original but mark as unresolved
+                updatedMetadata['forkedFromOriginal'] = originalForkedFrom;
+                updatedMetadata['forkedFrom'] = null;
+              }
+            }
+          }
+          // Preserve all metadata (including fork relationships)
+          await _baseRepo.updateSessionMetadata(newSessionId, updatedMetadata);
+        }
         
         // Set additional properties if needed
         if (session.isPinned) {

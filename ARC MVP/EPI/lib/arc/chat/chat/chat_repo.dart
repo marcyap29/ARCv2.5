@@ -36,6 +36,9 @@ abstract class ChatRepo {
   /// Rename a session
   Future<void> renameSession(String sessionId, String subject);
 
+  /// Update session metadata
+  Future<void> updateSessionMetadata(String sessionId, Map<String, dynamic> metadata);
+
   /// Pin or unpin a session
   Future<void> pinSession(String sessionId, bool pin);
 
