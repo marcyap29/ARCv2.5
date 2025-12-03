@@ -617,7 +617,7 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
         ],
       ),
     );
-
+  }
 
   Widget _buildEmptyState() {
     return Center(
