@@ -601,21 +601,26 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     }
   }
 
-  /// Check if LUMARA is properly configured with an API key
+  /// Check if LUMARA is properly configured
+  /// Since backend handles API keys via Firebase Secrets, we just need to check if user is authenticated
   Future<bool> _checkLumaraConfiguration() async {
     try {
-      final apiConfig = LumaraAPIConfig.instance;
-      await apiConfig.initialize();
-      final availableProviders = apiConfig.getAvailableProviders();
-      final bestProvider = apiConfig.getBestProvider();
+      // Backend handles API keys, so we just need to verify Firebase Auth is available
+      // The backend Cloud Functions will handle API key access via Firebase Secrets
+      final auth = FirebaseAuth.instance;
+      final user = auth.currentUser;
       
-      print('LUMARA Journal: Available providers: ${availableProviders.map((p) => p.name).join(', ')}');
-      print('LUMARA Journal: Best provider: ${bestProvider?.name ?? 'none'}');
-      
-      return bestProvider != null && availableProviders.isNotEmpty;
+      if (user != null) {
+        print('LUMARA Journal: User authenticated - backend will handle API keys');
+        return true;
+      } else {
+        print('LUMARA Journal: User not authenticated - LUMARA requires Firebase Auth');
+        return false;
+      }
     } catch (e) {
       print('LUMARA Journal: Configuration check error: $e');
-      return false;
+      // If Firebase Auth check fails, assume configured (backend will handle errors)
+      return true;
     }
   }
 
@@ -1085,7 +1090,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('LUMARA needs an API key to work. Configure it in Settings.'),
+              content: Text('LUMARA requires Firebase authentication. Please sign in to use LUMARA.'),
               backgroundColor: Theme.of(context).colorScheme.error,
               action: SnackBarAction(
                 label: 'Settings',
@@ -1330,7 +1335,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('LUMARA needs a Gemini API key to work. Configure it in Settings.'),
+              content: Text('LUMARA requires Firebase authentication. Please sign in to use LUMARA.'),
               backgroundColor: Theme.of(context).colorScheme.error,
               action: SnackBarAction(
                 label: 'Settings',
