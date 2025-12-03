@@ -32,8 +32,8 @@ Future<String> geminiSend({
   print('DEBUG GEMINI: Gemini config available: ${geminiConfig?.isAvailable}');
 
   if (apiKey.isEmpty) {
-    print('DEBUG GEMINI: No API key found, throwing StateError');
-    throw StateError('Gemini API key not configured. Please add your API key in LUMARA Settings.');
+    print('DEBUG GEMINI: No local API key found');
+    throw StateError('Gemini API key not configured. The backend handles API keys via Firebase Secrets, but in-journal LUMARA still requires a local API key until it is updated to use backend Cloud Functions. Please add your API key in LUMARA Settings, or wait for the backend integration update.');
   }
 
   // PRISM: Scrub PII from user input and system prompt before sending to cloud API
