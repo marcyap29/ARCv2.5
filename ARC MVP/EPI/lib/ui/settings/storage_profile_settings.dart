@@ -401,10 +401,6 @@ class _StorageProfileSettingsState extends State<StorageProfileSettings> {
     switch (mode) {
       case AppMode.personal:
         return 'Personal Journaling';
-      case AppMode.firstResponder:
-        return 'First Responder Mode';
-      case AppMode.coach:
-        return 'Coach Mode';
     }
   }
 

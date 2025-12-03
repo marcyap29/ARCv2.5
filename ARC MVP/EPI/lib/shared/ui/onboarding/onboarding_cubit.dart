@@ -7,7 +7,6 @@ import 'package:my_app/models/journal_entry_model.dart';
 import 'package:logger/logger.dart';
 import 'package:my_app/services/starter_arcform_service.dart';
 import 'package:my_app/services/user_phase_service.dart';
-import 'package:my_app/mode/first_responder/fr_settings_cubit.dart';
 
 class OnboardingCubit extends Cubit<OnboardingState> {
   OnboardingCubit() : super(const OnboardingState());
@@ -113,16 +112,6 @@ class OnboardingCubit extends Cubit<OnboardingState> {
 
       await userBox.put('profile', updatedProfile);
       
-      // Activate First Responder mode if selected during onboarding
-      if (state.purpose == 'First Responder') {
-        try {
-          await FRSettingsCubit.activateFirstResponderMode();
-          _logger.i('First Responder mode activated during onboarding');
-        } catch (e) {
-          _logger.e('Error activating First Responder mode: $e');
-          // Don't block onboarding completion for this error
-        }
-      }
       
       emit(state.copyWith(isCompleted: true));
 

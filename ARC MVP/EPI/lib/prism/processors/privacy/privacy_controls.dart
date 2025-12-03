@@ -457,19 +457,6 @@ class PrivacySettingsStore {
     
     // Apply mode-specific overrides
     switch (mode) {
-      case 'first_responder':
-        // First responder mode may need more analysis
-        return base.copyWith(
-          detectFaces: true,
-          storeFaceBoxes: true,
-          enablePiiDetection: true,
-        );
-      case 'coach':
-        // Coach mode is privacy-focused
-        return base.copyWith(
-          locationPrecision: LocationPrecision.city,
-          redactExif: true,
-        );
       default:
         return base;
     }

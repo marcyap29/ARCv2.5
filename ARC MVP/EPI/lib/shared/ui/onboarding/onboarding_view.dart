@@ -230,7 +230,6 @@ class _OnboardingPage1 extends StatelessWidget {
               'Journaling',
               'Growth',
               'Recovery',
-              'First Responder',
             ],
             type: OnboardingOptionType.purpose,
           ),

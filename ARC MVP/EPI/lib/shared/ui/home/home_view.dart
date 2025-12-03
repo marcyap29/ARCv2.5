@@ -8,8 +8,6 @@ import 'package:my_app/shared/tab_bar.dart';
 import 'package:my_app/services/user_phase_service.dart';
 import 'package:my_app/services/analytics_service.dart';
 import 'package:my_app/core/services/audio_service.dart';
-import 'package:my_app/mode/first_responder/widgets/fr_status_indicator.dart';
-import 'package:my_app/mode/coach/widgets/coach_mode_status_indicator.dart';
 import 'package:flutter/foundation.dart';
 import 'package:my_app/core/services/photo_library_service.dart';
 import 'dart:math' as math;
@@ -169,14 +167,7 @@ class _HomeViewState extends State<HomeView> {
                         constraints: BoxConstraints(
                           maxWidth: MediaQuery.of(context).size.width * 0.6,
                         ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: [
-                            FRStatusIndicator(),
-                            CoachModeStatusIndicator(),
-                          ],
-                        ),
+                        child: const SizedBox.shrink(),
                       ),
                     ),
                   ],

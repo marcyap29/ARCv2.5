@@ -14,10 +14,6 @@ enum StoragePolicy {
 enum AppMode {
   @JsonValue('personal')
   personal,
-  @JsonValue('firstResponder')
-  firstResponder,
-  @JsonValue('coach')
-  coach,
 }
 
 @JsonSerializable()
@@ -125,8 +121,6 @@ class StorageSettings {
     globalDefault: StoragePolicy.minimal,
     modeOverrides: {
       AppMode.personal: StoragePolicy.minimal,
-      AppMode.firstResponder: StoragePolicy.hiFidelity,
-      AppMode.coach: StoragePolicy.hiFidelity,
     },
     enableAutoOffload: true,
     autoOffloadDays: 30,

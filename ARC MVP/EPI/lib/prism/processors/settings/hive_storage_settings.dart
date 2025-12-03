@@ -76,8 +76,6 @@ class HiveStorageSettings extends HiveObject {
   static Map<String, StorageProfile> _defaultModeSettings() {
     return {
       'personal': StorageProfile.minimal,
-      'first_responder': StorageProfile.hifi,
-      'coach': StorageProfile.hifi,
     };
   }
 
@@ -259,16 +257,6 @@ class MediaSettingsManager {
     
     // Apply mode-specific overrides
     switch (mode) {
-      case 'first_responder':
-        return basePrivacy.copyWith(
-          detectFaces: true,
-          enablePiiDetection: true,
-        );
-      case 'coach':
-        return basePrivacy.copyWith(
-          locationPrecision: LocationPrecision.city,
-          redactExif: true,
-        );
       default:
         return basePrivacy;
     }

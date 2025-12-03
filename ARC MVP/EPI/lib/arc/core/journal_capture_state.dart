@@ -1,5 +1,4 @@
 import 'package:equatable/equatable.dart';
-import 'package:my_app/mode/first_responder/fr_settings_cubit.dart';
 import 'package:my_app/core/services/draft_cache_service.dart';
 import 'package:my_app/core/services/journal_version_service.dart';
 import 'package:my_app/data/models/media_item.dart';
@@ -84,18 +83,6 @@ class JournalCaptureTranscribed extends JournalCaptureState {
   List<Object> get props => [transcription];
 }
 
-class JournalCaptureFRSuggestionTriggered extends JournalCaptureState {
-  final String draftContent;
-  final FRSettingsCubit frCubit;
-
-  const JournalCaptureFRSuggestionTriggered({
-    required this.draftContent,
-    required this.frCubit,
-  });
-
-  @override
-  List<Object> get props => [draftContent, frCubit];
-}
 
 // Draft-related states
 class JournalCaptureDraftRecoverable extends JournalCaptureState {

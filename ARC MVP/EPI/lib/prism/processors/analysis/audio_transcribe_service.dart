@@ -293,7 +293,6 @@ class NativeTranscribeService implements AudioTranscribeService {
       'I had some challenges with the authentication flow.',
       'The user feedback has been overwhelmingly positive.',
       'Tomorrow I plan to work on the analytics dashboard.',
-      'The coach mode is performing better than expected.',
       'I need to refactor the media handling code.',
       'The team meeting went well this morning.',
     ];

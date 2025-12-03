@@ -17,7 +17,6 @@ import 'package:my_app/arc/core/media/ocr_text_insert_dialog.dart';
 import 'package:my_app/core/services/media_store.dart';
 import 'package:my_app/mira/store/mcp/orchestrator/ios_vision_orchestrator.dart';
 import 'package:my_app/core/services/photo_library_service.dart';
-import 'package:my_app/mode/first_responder/fr_mode_suggestion_service.dart';
 import 'package:image_picker/image_picker.dart';
 
 class JournalCaptureView extends StatefulWidget {
@@ -43,7 +42,6 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
   final List<MediaItem> _mediaItems = [];
   final MediaStore _mediaStore = MediaStore();
   // final OCRService _ocrService = OCRService(); // TODO: Implement OCR service
-  final FRModeSuggestionService _frSuggestionService = FRModeSuggestionService();
   final ImagePicker _imagePicker = ImagePicker();
 
   @override
@@ -300,15 +298,6 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
               Navigator.pop(context);
             } else if (state is JournalCaptureTranscribed) {
               _textController.text = state.transcription;
-            } else if (state is JournalCaptureFRSuggestionTriggered) {
-              // Show first responder mode suggestion
-              _frSuggestionService.showFRModeSuggestion(
-                context,
-                state.frCubit,
-                onDismiss: () {
-                  // Optional: Handle dismissal if needed
-                },
-              );
             } else if (state is JournalCaptureDraftRestored) {
               // Restore draft content and media
               _textController.text = state.content;

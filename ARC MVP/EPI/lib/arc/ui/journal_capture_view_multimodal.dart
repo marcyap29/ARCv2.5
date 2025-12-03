@@ -17,7 +17,6 @@ import 'package:my_app/arc/core/media/media_preview_dialog.dart';
 import 'package:my_app/arc/core/media/ocr_text_insert_dialog.dart';
 import 'package:my_app/core/services/media_store.dart';
 import 'package:my_app/mira/store/mcp/orchestrator/ios_vision_orchestrator.dart';
-import 'package:my_app/mode/first_responder/fr_mode_suggestion_service.dart';
 import 'package:my_app/arc/ui/widgets/draft_recovery_dialog.dart';
 
 // Import the Multimodal MCP Orchestrator
