@@ -45,7 +45,7 @@ class McpPackExportService {
     required List<JournalEntry> entries,
     bool includePhotos = true,
     bool reducePhotoSize = false,
-    bool includeChats = false,
+    bool includeChats = true, // Default to true to ensure chats are exported
     bool includeArchivedChats = false,
     Set<String>? chatDatesFilter, // Optional: filter chats by journal entry dates
     int mediaPackTargetSizeMB = 200, // Media pack target size in MB (default 200MB)

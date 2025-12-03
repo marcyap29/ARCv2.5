@@ -350,9 +350,14 @@ class _McpImportScreenState extends State<McpImportScreen> {
           print('Warning: Could not initialize PhaseRegimeService: $e');
         }
         
+        // Initialize ChatRepo for chat import
+        final chatRepo = ChatRepoImpl.instance;
+        await chatRepo.initialize();
+        
         final importService = McpPackImportService(
           journalRepo: journalRepo,
           phaseRegimeService: phaseRegimeService,
+          chatRepo: chatRepo,
         );
 
         // Show progress dialog

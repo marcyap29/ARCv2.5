@@ -14,6 +14,7 @@ import 'package:my_app/shared/text_style.dart';
 import 'package:my_app/utils/file_utils.dart';
 import 'package:my_app/arc/ui/timeline/timeline_cubit.dart';
 import 'package:my_app/shared/ui/home/home_view.dart';
+import 'package:my_app/arc/chat/chat/chat_repo_impl.dart';
 
 /// Screen for managing MCP (Memory Container Protocol) operations
 ///
@@ -259,9 +260,14 @@ class McpManagementScreen extends StatelessWidget {
               print('Warning: Could not initialize PhaseRegimeService: $e');
             }
 
+            // Initialize ChatRepo for chat import
+            final chatRepo = ChatRepoImpl.instance;
+            await chatRepo.initialize();
+            
             final importService = McpPackImportService(
               journalRepo: journalRepository,
               phaseRegimeService: phaseRegimeService,
+              chatRepo: chatRepo,
             );
 
             final importResult = await importService.importFromPath(files.first);
