@@ -549,12 +549,11 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
                       // Show progress indicator at bottom when processing
                       if (state.isProcessing) _buildLoadingIndicator(context),
                     ],
-                );
-              }
+                  );
+                }
                 
-              return const SizedBox.shrink();
+                return const SizedBox.shrink();
               },
-            ),
             ),
           ),
           
@@ -566,8 +565,7 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
             _buildShowInputButton(),
         ],
       ),
-    ),
-                  // Navigation drawer overlay
+                  // Navigation drawer overlay - second child of Stack
                   AnimatedPositioned(
                     duration: const Duration(milliseconds: 250),
                     curve: Curves.easeInOut,
