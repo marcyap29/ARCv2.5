@@ -1091,7 +1091,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('LUMARA requires Firebase authentication. Please sign in to use LUMARA.'),
+              content: Text('LUMARA requires Firebase authentication. Please sign in to use LUMARA. The backend handles all API keys automatically.'),
               backgroundColor: Theme.of(context).colorScheme.error,
               action: SnackBarAction(
                 label: 'Settings',
@@ -1336,7 +1336,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('LUMARA requires Firebase authentication. Please sign in to use LUMARA.'),
+              content: Text('LUMARA requires Firebase authentication. Please sign in to use LUMARA. The backend handles all API keys automatically.'),
               backgroundColor: Theme.of(context).colorScheme.error,
               action: SnackBarAction(
                 label: 'Settings',

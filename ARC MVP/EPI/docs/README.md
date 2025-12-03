@@ -69,7 +69,7 @@ Welcome to the EPI (Evolving Personal Intelligence) documentation. This director
 ## Version Information
 
 **Current Version:** 2.1.42
-**Last Major Update:** November 29, 2025 (LUMARA In-Journal Comments Persistence)
+**Last Major Update:** December 3, 2025 (In-Journal LUMARA Backend Integration)
 
 ### Recent Highlights
 

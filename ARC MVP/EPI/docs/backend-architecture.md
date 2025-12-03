@@ -1,6 +1,6 @@
 # Backend Architecture: Gemini 2.5 + Claude with Tier-Based Routing
 
-**Last Updated:** December 2, 2025
+**Last Updated:** December 3, 2025
 
 ## Overview
 
@@ -178,6 +178,29 @@ LOCAL_EIS_MODEL_ID="eis-o1-local" # For future local model integration
   1. Verify Firebase Auth token
   2. Load user document
   3. Return `{ unlocked: boolean }`
+
+### 7. `generateJournalPrompts`
+- **Input**: `{ expanded: boolean, context?: { recentEntries?: string[], recentChats?: string[], currentPhase?: string } }`
+- **Process**:
+  1. Verify Firebase Auth token
+  2. Check rate limits
+  3. Route to appropriate model
+  4. Generate contextual journal prompts (4 initial or 12-18 expanded)
+  5. Return `{ prompts: string[], count: number }`
+
+### 8. `generateJournalReflection`
+- **Input**: `{ entryText: string, phase?: string, mood?: string, chronoContext?: object, chatContext?: string, mediaContext?: string, options?: object }`
+- **Process**:
+  1. Verify Firebase Auth token
+  2. Load user from Firestore
+  3. Check rate limits (primary: 20/day, 3/minute for free tier)
+  4. Route to appropriate model (Gemini 2.5 Flash/Pro or Claude)
+  5. Build system prompt with LUMARA Master Prompt (simplified for journal reflections)
+  6. Build user prompt based on options and context
+  7. Generate reflection using LLM
+  8. Return `{ reflection: string }`
+- **Purpose**: In-journal LUMARA reflections (replaces direct `geminiSend()` calls)
+- **Note**: Backend handles all API keys via Firebase Secrets; no local API key needed
 
 ## Model Routing Logic
 

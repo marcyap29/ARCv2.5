@@ -1,7 +1,38 @@
 # EPI ARC MVP - Changelog
 
-**Version:** 2.1.42
-**Last Updated:** December 1, 2025
+**Version:** 2.1.43
+**Last Updated:** December 3, 2025
+
+## [2.1.43] - December 3, 2025
+
+### **In-Journal LUMARA Backend Integration** - Complete
+
+#### Backend Cloud Function
+- **Created `generateJournalReflection` Cloud Function**:
+  - Handles in-journal LUMARA reflections via backend
+  - Uses Firebase Secrets for API keys (no local key needed)
+  - Supports all reflection options (tone modes, conversation modes, etc.)
+  - Enforces rate limits and tier-based model routing
+  - Returns reflection text for in-journal display
+
+#### Frontend Updates
+- **Updated `EnhancedLumaraApi`**:
+  - Replaced direct `geminiSend()` calls with backend Cloud Function calls
+  - Now uses `FirebaseFunctions.instance.httpsCallable('generateJournalReflection')`
+  - Maintains all existing functionality and context support
+  - No local API key required
+
+#### Configuration Simplification
+- **Updated `_checkLumaraConfiguration`**:
+  - Removed local API key requirement check
+  - Now only checks Firebase Auth (backend handles API keys)
+  - Updated error messages to clarify backend handles API keys automatically
+
+#### Impact
+- **Unified Backend**: In-journal LUMARA now uses same backend infrastructure as chat
+- **No Local Keys**: All API keys managed securely via Firebase Secrets
+- **Consistent Experience**: Same rate limiting and tier system across all LUMARA features
+- **Simplified Setup**: Users only need Firebase Auth, no API key configuration
 
 ## [2.1.42] - December 1, 2025
 
