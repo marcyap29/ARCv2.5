@@ -15,6 +15,7 @@ import '../llm/llm_provider.dart';
 import '../config/api_config.dart';
 import 'lumara_response_scoring.dart' as scoring;
 import '../../../services/gemini_send.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'lumara_reflection_settings_service.dart';
 import '../llm/prompts/lumara_master_prompt.dart';
 import 'lumara_control_state_builder.dart';
@@ -363,48 +364,69 @@ class EnhancedLumaraApi {
           print('LUMARA Enhanced API v2.3: System prompt length: ${systemPrompt.length}');
           print('LUMARA Enhanced API v2.3: User prompt length: ${userPrompt.length}');
           
-          onProgress?.call('Calling cloud API...');
+          onProgress?.call('Calling backend API...');
           
-          // Call Gemini API directly - no fallbacks, no hard-coded responses
+          // Call backend Cloud Function instead of direct Gemini API
           String? geminiResponse;
           int retryCount = 0;
           const maxRetries = 2;
           
           while (retryCount <= maxRetries && geminiResponse == null) {
             try {
-              // Direct Gemini API call - same protocol as main LUMARA chat
-              geminiResponse = await geminiSend(
-                system: systemPrompt,
-                user: userPrompt,
-                jsonExpected: false,
-              );
+              // Call backend Cloud Function for journal reflection
+              final functions = FirebaseFunctions.instance;
+              final callable = functions.httpsCallable('generateJournalReflection');
               
-              print('LUMARA: Gemini API response received (length: ${geminiResponse.length})');
+              final result = await callable.call({
+                'entryText': request.userText,
+                'phase': currentPhase?.name,
+                'mood': mood,
+                'chronoContext': chronoContext,
+                'chatContext': chatContext,
+                'mediaContext': mediaContext,
+                'options': {
+                  'preferQuestionExpansion': request.options.preferQuestionExpansion,
+                  'toneMode': request.options.toneMode.name,
+                  'regenerate': request.options.regenerate,
+                  'conversationMode': request.options.conversationMode?.name,
+                },
+              });
+              
+              geminiResponse = result.data['reflection'] as String?;
+              
+              if (geminiResponse == null || geminiResponse.isEmpty) {
+                throw Exception('Backend returned empty reflection');
+              }
+              
+              print('LUMARA: Backend API response received (length: ${geminiResponse.length})');
               onProgress?.call('Processing response...');
               break; // Success, exit retry loop
             } catch (e) {
               retryCount++;
               if (retryCount > maxRetries) {
-                print('LUMARA: Gemini API error after $maxRetries retries: $e');
-                // Re-throw the error - no fallbacks, user needs to configure API key
+                print('LUMARA: Backend API error after $maxRetries retries: $e');
+                // Re-throw the error
                 rethrow;
               }
-              // Only retry on 503/overloaded errors
-              if (!e.toString().contains('503') && 
-                  !e.toString().contains('overloaded') && 
-                  !e.toString().contains('UNAVAILABLE')) {
-                print('LUMARA: Gemini API error (non-retryable): $e');
-                // Re-throw immediately for non-retryable errors (like API key missing)
+              // Only retry on 503/overloaded errors or network errors
+              final errorStr = e.toString();
+              if (!errorStr.contains('503') && 
+                  !errorStr.contains('overloaded') && 
+                  !errorStr.contains('UNAVAILABLE') &&
+                  !errorStr.contains('network') &&
+                  !errorStr.contains('timeout')) {
+                print('LUMARA: Backend API error (non-retryable): $e');
+                // Re-throw immediately for non-retryable errors
                 rethrow;
               }
               onProgress?.call('Retrying API... ($retryCount/$maxRetries)');
-              print('LUMARA: Gemini API retry $retryCount/$maxRetries - waiting 2 seconds...');
+              print('LUMARA: Backend API retry $retryCount/$maxRetries - waiting 2 seconds...');
               await Future.delayed(const Duration(seconds: 2));
             }
           }
           
           if (geminiResponse == null) {
-            throw Exception('Failed to generate response from Gemini API');
+            throw Exception('Failed to generate response from backend API');
           }
           
           onProgress?.call('Finalizing insights...');

@@ -16,6 +16,7 @@ import { sendChatMessage } from "./functions/sendChatMessage";
 import { stripeWebhook } from "./functions/stripeWebhook";
 import { unlockThrottle, lockThrottle, checkThrottleStatus } from "./functions/unlockThrottle";
 import { generateJournalPrompts } from "./functions/generateJournalPrompts";
+import { generateJournalReflection } from "./functions/generateJournalReflection";
 
 // Export all Cloud Functions
 export { analyzeJournalEntry };
@@ -23,6 +24,7 @@ export { sendChatMessage };
 export { stripeWebhook };
 export { unlockThrottle, lockThrottle, checkThrottleStatus };
 export { generateJournalPrompts };
+export { generateJournalReflection };
 
 /**
  * Architecture Overview:
