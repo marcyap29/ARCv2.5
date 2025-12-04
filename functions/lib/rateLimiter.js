@@ -36,8 +36,16 @@ async function checkRateLimit(userId) {
         }
         const user = userDoc.data();
         // Support both 'plan' and 'subscriptionTier' fields
-        const plan = user.plan || user.subscriptionTier?.toLowerCase() || "free";
-        const isPro = plan === "pro" || plan === "PAID";
+        const userPlan = user.plan;
+        const userTier = user.subscriptionTier;
+        let plan = "free";
+        if (userPlan === "pro") {
+            plan = "pro";
+        }
+        else if (userTier === "PAID") {
+            plan = "pro";
+        }
+        const isPro = plan === "pro";
         // Pro/Paid tier: Unlimited
         if (isPro) {
             return { allowed: true };

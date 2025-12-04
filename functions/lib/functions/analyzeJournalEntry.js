@@ -30,7 +30,7 @@ const db = admin_1.admin.firestore();
  * Response: { summary, themes, suggestions, tier, modelUsed }
  */
 exports.analyzeJournalEntry = (0, https_1.onCall)({
-    secrets: [config_1.GEMINI_API_KEY, config_1.ANTHROPIC_API_KEY],
+    secrets: [config_1.GEMINI_API_KEY],
 }, async (request) => {
     const { entryId, entryContent } = request.data;
     // Validate request
@@ -67,13 +67,16 @@ exports.analyzeJournalEntry = (0, https_1.onCall)({
         const modelConfig = modelRouter_1.ModelRouter.getConfig(modelFamily);
         const client = (0, llmClients_1.createLLMClient)(modelConfig);
         firebase_functions_1.logger.info(`Using model: ${modelFamily} (${modelConfig.modelId}) - Internal only, not exposed to user`);
-        // Build analysis prompt
-        const systemPrompt = `You are a thoughtful journaling assistant. Analyze journal entries to provide:
+        // Build analysis prompt (journal analysis doesn't need web access, but uses same LUMARA principles)
+        const systemPrompt = `You are LUMARA, the Life-aware Unified Memory and Reflection Assistant built on the EPI stack.
+You analyze journal entries to provide:
 1. A concise summary (2-3 sentences)
 2. Key themes (3-5 themes)
 3. Actionable suggestions (2-3 suggestions)
 
-Be empathetic, insightful, and supportive.`;
+Be empathetic, insightful, and supportive.
+Focus on the user's lived experience and internal patterns.
+Use neutral, grounded delivery without dramatization or embellishment.`;
         const analysisPrompt = `Please analyze this journal entry:
 
 ${entryContent}
@@ -83,7 +86,17 @@ Provide a structured analysis with:
 - Themes: Key themes or patterns you notice
 - Suggestions: Actionable suggestions for reflection or growth`;
         // Generate analysis
-        const analysisText = await client.generateContent(analysisPrompt, systemPrompt);
+        // Handle different client types (Gemini uses generateContent, Claude uses generateMessage)
+        let analysisText;
+        if (modelConfig.family === "GEMINI_FLASH" || modelConfig.family === "GEMINI_PRO") {
+            const geminiClient = client;
+            analysisText = await geminiClient.generateContent(analysisPrompt, systemPrompt);
+        }
+        else {
+            // Claude or other clients
+            const claudeClient = client;
+            analysisText = await claudeClient.generateMessage(analysisPrompt, systemPrompt);
+        }
         // Parse the analysis (in production, you might want more structured parsing)
         // For now, we'll extract summary, themes, and suggestions from the response
         const summary = extractSummary(analysisText);

@@ -14,10 +14,12 @@ import {
   UserDocument,
   ChatThreadDocument,
 } from "../types";
+import { GEMINI_API_KEY } from "../config";
 import {
-  GEMINI_API_KEY,
-  ANTHROPIC_API_KEY,
-} from "../config";
+  selectClosingStatement,
+  classifyConversationCategory,
+  detectEnergyLevel
+} from "../closingTracker.js";
 
 const db = admin.firestore();
 
@@ -43,7 +45,7 @@ const db = admin.firestore();
  */
 export const sendChatMessage = onCall(
   {
-    secrets: [GEMINI_API_KEY, ANTHROPIC_API_KEY],
+    secrets: [GEMINI_API_KEY],
   },
   async (request) => {
     const { threadId, message } = request.data;
@@ -332,7 +334,7 @@ Be thoughtful, empathetic, and supportive while maintaining these protocols.`;
 
       // Generate response
       let assistantResponse: string;
-      
+
       if (modelConfig.family === "GEMINI_FLASH" || modelConfig.family === "GEMINI_PRO") {
         // Use Gemini client
         const geminiClient = client as any;
@@ -350,6 +352,16 @@ Be thoughtful, empathetic, and supportive while maintaining these protocols.`;
           conversationHistory
         );
       }
+
+      // PROGRAMMATIC CLOSING STATEMENT ENFORCEMENT
+      // Apply post-processing to ensure closing variety and prevent repetition
+      assistantResponse = await enforceClosingRotation(
+        assistantResponse,
+        user.userId,
+        threadId,
+        message,
+        undefined // Atlas phase not yet tracked in ChatThreadDocument
+      );
 
       // Create message objects
       const userMessage: ChatMessage = {
@@ -405,3 +417,74 @@ Be thoughtful, empathetic, and supportive while maintaining these protocols.`;
   }
 );
 
+/**
+ * Enforce closing statement rotation using programmatic tracking
+ *
+ * This function:
+ * 1. Detects if the response has a closing question/statement
+ * 2. Classifies the conversation context
+ * 3. Selects a non-repetitive closing using the tracking system
+ * 4. Replaces the existing closing with the selected one
+ */
+async function enforceClosingRotation(
+  response: string,
+  userId: string,
+  conversationId: string,
+  userMessage: string,
+  atlasPhase?: string
+): Promise<string> {
+  try {
+    // Check if response has a closing statement (ends with a question)
+    const hasClosingQuestion = response.trim().endsWith('?');
+
+    if (!hasClosingQuestion) {
+      // No closing detected, return as-is
+      return response;
+    }
+
+    // Classify conversation category
+    const category = classifyConversationCategory(userMessage, atlasPhase as any);
+
+    // Detect energy level
+    const energyLevel = detectEnergyLevel(userMessage);
+
+    // Select appropriate closing statement
+    const selectedClosing = selectClosingStatement(
+      userId,
+      conversationId,
+      category,
+      atlasPhase as any,
+      energyLevel
+    );
+
+    if (!selectedClosing) {
+      // No closing available, return original
+      logger.warn(`No closing statement available for category ${category}`);
+      return response;
+    }
+
+    // Replace the last sentence (closing) with our selected one
+    const sentences = response.trim().split(/[.!?]+/);
+    if (sentences.length > 1) {
+      // Remove empty last element and the last sentence
+      const filteredSentences = sentences.filter(s => s.trim().length > 0);
+      if (filteredSentences.length > 1) {
+        // Remove the last sentence and add our selected closing
+        filteredSentences.pop();
+        const baseResponse = filteredSentences.join('. ').trim() + '. ';
+
+        // Add our programmatically selected closing
+        return baseResponse + selectedClosing.text;
+      }
+    }
+
+    // Fallback: append our closing if we can't parse properly
+    const baseResponse = response.replace(/[.!?]+\s*$/, '. ');
+    return baseResponse + selectedClosing.text;
+
+  } catch (error) {
+    logger.error('Error in enforceClosingRotation:', error);
+    // Return original response on error
+    return response;
+  }
+}

@@ -40,6 +40,10 @@ class GeminiClient {
                 temperature: this.config.temperature || 0.7,
                 maxOutputTokens: this.config.maxTokens || 8192,
             },
+            // Enable Google Search Grounding for real-time web information
+            tools: [{
+                    googleSearchRetrieval: {}
+                }],
         };
         if (systemInstruction) {
             requestBody.systemInstruction = {
@@ -76,6 +80,10 @@ class GeminiClient {
                 temperature: this.config.temperature || 0.7,
                 maxOutputTokens: this.config.maxTokens || 8192,
             },
+            // Enable Google Search Grounding for real-time web information
+            tools: [{
+                    googleSearchRetrieval: {}
+                }],
         };
         if (systemInstruction) {
             requestBody.systemInstruction = {
@@ -230,8 +238,8 @@ exports.ClaudeClient = ClaudeClient;
  * Example: http://localhost:8080/v1/chat/completions
  */
 class LocalEISClient {
-    constructor(config) {
-        this.config = config;
+    constructor(_config) {
+        // Config stored but not used in placeholder implementation
     }
     /**
      * Generate content using local EIS model
@@ -252,15 +260,12 @@ exports.LocalEISClient = LocalEISClient;
 /**
  * LLM Client Factory
  * Creates the appropriate client based on model family
- */
+  */
 function createLLMClient(config) {
     switch (config.family) {
         case "GEMINI_FLASH":
         case "GEMINI_PRO":
             return new GeminiClient(config);
-        case "CLAUDE_HAIKU":
-        case "CLAUDE_SONNET":
-            return new ClaudeClient(config);
         case "LOCAL_EIS":
             return new LocalEISClient(config);
         default:

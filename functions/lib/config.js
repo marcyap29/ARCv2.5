@@ -1,7 +1,7 @@
 "use strict";
 // config.ts - Environment configuration and model settings
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.ANTHROPIC_BASE_URL = exports.GEMINI_BASE_URL = exports.FREE_MAX_CHAT_TURNS_PER_THREAD = exports.FREE_MAX_ANALYSES_PER_ENTRY = exports.FREE_MAX_REQUESTS_PER_MINUTE = exports.FREE_MAX_REQUESTS_PER_DAY = exports.CLAUDE_SONNET_MODEL_ID = exports.CLAUDE_HAIKU_MODEL_ID = exports.GEMINI_PRO_MODEL_ID = exports.GEMINI_FLASH_MODEL_ID = exports.THROTTLE_UNLOCK_PASSWORD = exports.ANTHROPIC_API_KEY = exports.GEMINI_API_KEY = void 0;
+exports.GEMINI_BASE_URL = exports.FREE_MAX_CHAT_TURNS_PER_THREAD = exports.FREE_MAX_ANALYSES_PER_ENTRY = exports.FREE_MAX_REQUESTS_PER_MINUTE = exports.FREE_MAX_REQUESTS_PER_DAY = exports.GEMINI_PRO_MODEL_ID = exports.GEMINI_FLASH_MODEL_ID = exports.THROTTLE_UNLOCK_PASSWORD = exports.GEMINI_API_KEY = void 0;
 exports.getModelConfig = getModelConfig;
 const params_1 = require("firebase-functions/params");
 /**
@@ -9,7 +9,6 @@ const params_1 = require("firebase-functions/params");
  * These are set via Firebase Functions config or secrets
  */
 exports.GEMINI_API_KEY = (0, params_1.defineSecret)("GEMINI_API_KEY");
-exports.ANTHROPIC_API_KEY = (0, params_1.defineSecret)("ANTHROPIC_API_KEY");
 // Throttle unlock password (stored as secret for security)
 exports.THROTTLE_UNLOCK_PASSWORD = (0, params_1.defineSecret)("THROTTLE_UNLOCK_PASSWORD");
 // Model IDs - easily swappable for Gemini 3.0 or newer models
@@ -20,14 +19,6 @@ exports.GEMINI_FLASH_MODEL_ID = (0, params_1.defineString)("GEMINI_FLASH_MODEL_I
 exports.GEMINI_PRO_MODEL_ID = (0, params_1.defineString)("GEMINI_PRO_MODEL_ID", {
     default: "gemini-2.5", // Updated to Gemini 2.5 (1.5 is deprecated) - Same model as Flash, backend enforces free tier limits
     description: "Gemini 2.5 model ID (paid tier - unlimited access to same model)",
-});
-exports.CLAUDE_HAIKU_MODEL_ID = (0, params_1.defineString)("CLAUDE_HAIKU_MODEL_ID", {
-    default: "claude-3-haiku-20240307",
-    description: "Claude Haiku model ID (paid tier, fast operations)",
-});
-exports.CLAUDE_SONNET_MODEL_ID = (0, params_1.defineString)("CLAUDE_SONNET_MODEL_ID", {
-    default: "claude-3-5-sonnet-20241022",
-    description: "Claude Sonnet model ID (paid tier, deep reflection)",
 });
 // Rate limiting configuration
 exports.FREE_MAX_REQUESTS_PER_DAY = (0, params_1.defineString)("FREE_MAX_REQUESTS_PER_DAY", {
@@ -51,7 +42,6 @@ exports.FREE_MAX_CHAT_TURNS_PER_THREAD = (0, params_1.defineString)("FREE_MAX_CH
  * API Base URLs
  */
 exports.GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
-exports.ANTHROPIC_BASE_URL = "https://api.anthropic.com/v1";
 /**
  * Model configuration factory
  * Returns ModelConfig based on model family
@@ -75,24 +65,6 @@ function getModelConfig(family) {
                 baseUrl: exports.GEMINI_BASE_URL,
                 maxTokens: 8192,
                 temperature: 0.7,
-            };
-        case "CLAUDE_HAIKU":
-            return {
-                family: "CLAUDE_HAIKU",
-                modelId: exports.CLAUDE_HAIKU_MODEL_ID.value(),
-                apiKey: exports.ANTHROPIC_API_KEY.value(),
-                baseUrl: exports.ANTHROPIC_BASE_URL,
-                maxTokens: 4096,
-                temperature: 0.7,
-            };
-        case "CLAUDE_SONNET":
-            return {
-                family: "CLAUDE_SONNET",
-                modelId: exports.CLAUDE_SONNET_MODEL_ID.value(),
-                apiKey: exports.ANTHROPIC_API_KEY.value(),
-                baseUrl: exports.ANTHROPIC_BASE_URL,
-                maxTokens: 8192,
-                temperature: 0.8,
             };
         case "LOCAL_EIS":
             // Future: Local EIS-O1/EIS-E1 model

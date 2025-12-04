@@ -1,7 +1,7 @@
 "use strict";
 // index.ts - Main entry point for Cloud Functions
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.checkThrottleStatus = exports.lockThrottle = exports.unlockThrottle = exports.stripeWebhook = exports.sendChatMessage = exports.analyzeJournalEntry = void 0;
+exports.generateJournalReflection = exports.generateJournalPrompts = exports.checkThrottleStatus = exports.lockThrottle = exports.unlockThrottle = exports.stripeWebhook = exports.sendChatMessage = exports.analyzeJournalEntry = void 0;
 /**
  * Firebase Cloud Functions - ARC Backend
  *
@@ -22,6 +22,10 @@ const unlockThrottle_1 = require("./functions/unlockThrottle");
 Object.defineProperty(exports, "unlockThrottle", { enumerable: true, get: function () { return unlockThrottle_1.unlockThrottle; } });
 Object.defineProperty(exports, "lockThrottle", { enumerable: true, get: function () { return unlockThrottle_1.lockThrottle; } });
 Object.defineProperty(exports, "checkThrottleStatus", { enumerable: true, get: function () { return unlockThrottle_1.checkThrottleStatus; } });
+const generateJournalPrompts_1 = require("./functions/generateJournalPrompts");
+Object.defineProperty(exports, "generateJournalPrompts", { enumerable: true, get: function () { return generateJournalPrompts_1.generateJournalPrompts; } });
+const generateJournalReflection_1 = require("./functions/generateJournalReflection");
+Object.defineProperty(exports, "generateJournalReflection", { enumerable: true, get: function () { return generateJournalReflection_1.generateJournalReflection; } });
 /**
  * Architecture Overview:
  *
