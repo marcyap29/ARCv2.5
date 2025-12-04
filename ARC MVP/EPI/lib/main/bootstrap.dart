@@ -38,6 +38,9 @@ import 'package:my_app/shared/text_style.dart';
 // Firebase initialization - tries to initialize using platform-specific config files
 // If firebase_options.dart exists, uncomment the import and use DefaultFirebaseOptions
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_functions/cloud_functions.dart';
+import 'package:my_app/services/firebase_service.dart';
 // import 'package:my_app/firebase_options.dart';
 
 /// Logger instance for application-wide logging
@@ -338,17 +341,11 @@ Future<void> bootstrap({
       // ===========================================================
       // Firebase Initialization
       // ===========================================================
-      // Try to initialize Firebase using platform-specific config files
-      // (GoogleService-Info.plist for iOS, google-services.json for Android)
-      // If firebase_options.dart exists, use: options: DefaultFirebaseOptions.currentPlatform
+      // Use the centralized Firebase service for reliable initialization
       try {
-        // Check if Firebase is already initialized
-        if (Firebase.apps.isEmpty) {
-          await Firebase.initializeApp();
-          logger.d('Firebase initialized successfully');
-        } else {
-          logger.d('Firebase already initialized');
-        }
+        logger.d('Initializing Firebase via FirebaseService...');
+        await FirebaseService.instance.initialize();
+        logger.d('Firebase initialization complete and verified');
       } catch (e) {
         // Firebase initialization failed - app will use fallback methods
         logger.w('Failed to initialize Firebase (this is OK if Firebase is not configured): $e');

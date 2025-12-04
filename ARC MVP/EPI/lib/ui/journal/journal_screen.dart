@@ -54,6 +54,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
+import '../../services/firebase_service.dart';
 import 'package:my_app/arc/chat/services/lumara_reflection_settings_service.dart';
 import 'package:my_app/mira/memory/enhanced_mira_memory_service.dart';
 import 'package:my_app/mira/memory/enhanced_memory_schema.dart';
@@ -608,37 +609,15 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
   /// EnhancedLumaraApi now uses backend Cloud Functions, so no local API key is needed
   Future<bool> _checkLumaraConfiguration() async {
     try {
-      // Ensure Firebase is properly initialized before accessing Auth
-      FirebaseApp app;
-      try {
-        // Try to get existing app first
-        app = Firebase.app();
-
-        // Verify the app is fully initialized by attempting to access a service
-        try {
-          FirebaseAuth.instanceFor(app: app);
-        } catch (serviceError) {
-          throw Exception('Firebase app exists but services not ready: $serviceError');
-        }
-      } catch (e) {
-        // If no app exists or not fully initialized, reinitialize it
-        print('LUMARA Journal: Initializing Firebase due to: $e');
-
-        // Wait a bit for any ongoing initialization to complete
-        await Future.delayed(Duration(milliseconds: 100));
-
-        try {
-          app = await Firebase.initializeApp();
-        } catch (initError) {
-          // If initialization fails, try to get existing app again
-          print('LUMARA Journal: Initialization failed, trying to get existing app: $initError');
-          app = Firebase.app();
-        }
+      // Use the centralized Firebase service for reliable access
+      if (!await FirebaseService.instance.ensureReady()) {
+        print('LUMARA Journal: Firebase service not ready');
+        return false;
       }
 
       // Backend handles API keys, so we just need to verify Firebase Auth is available
       // The backend Cloud Functions will handle API key access via Firebase Secrets
-      final auth = FirebaseAuth.instanceFor(app: app);
+      final auth = FirebaseService.instance.getAuth();
       final user = auth.currentUser;
       
       if (user != null) {
@@ -795,21 +774,12 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
       List<String> initialPrompts = [];
       
       try {
-        // Ensure Firebase is properly initialized before using it
-        try {
-          FirebaseApp app;
-          try {
-            // Try to get existing app first
-            app = Firebase.app();
-          } catch (e) {
-            // If no app exists, initialize it
-            app = await Firebase.initializeApp();
-          }
-
+        // Use the centralized Firebase service for reliable access
+        if (await FirebaseService.instance.ensureReady()) {
           // Call backend to generate initial prompts (4 prompts)
-          final functions = FirebaseFunctions.instanceFor(app: app);
+          final functions = FirebaseService.instance.getFunctions();
           final generatePrompts = functions.httpsCallable('generateJournalPrompts');
-          
+
           final result = await generatePrompts.call({
             'expanded': false,
             'context': {
@@ -818,15 +788,14 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
               'currentPhase': currentPhase,
             },
           });
-          
+
           initialPrompts = (result.data['prompts'] as List<dynamic>?)
               ?.map((p) => p.toString())
               .toList() ?? [];
 
           useBackendPrompts = initialPrompts.isNotEmpty;
-        } catch (e) {
-          // Firebase initialization or function call failed
-          print('JournalScreen: Firebase initialization or function call failed: $e');
+        } else {
+          print('JournalScreen: Firebase service not ready');
           useBackendPrompts = false;
         }
       } catch (e) {
@@ -1020,18 +989,13 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
                         });
                         
                         try {
-                          // Ensure Firebase is properly initialized before using it
-                          FirebaseApp app;
-                          try {
-                            // Try to get existing app first
-                            app = Firebase.app();
-                          } catch (e) {
-                            // If no app exists, initialize it
-                            app = await Firebase.initializeApp();
+                          // Use the centralized Firebase service for reliable access
+                          if (!await FirebaseService.instance.ensureReady()) {
+                            throw Exception('Firebase service not ready');
                           }
 
                           // Call backend to generate expanded prompts
-                          final functions = FirebaseFunctions.instanceFor(app: app);
+                          final functions = FirebaseService.instance.getFunctions();
                           final generatePrompts = functions.httpsCallable('generateJournalPrompts');
                           
                           final result = await generatePrompts.call({

@@ -20,6 +20,7 @@ import '../../../services/gemini_send.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../../services/firebase_service.dart';
 import 'lumara_reflection_settings_service.dart';
 import '../llm/prompts/lumara_master_prompt.dart';
 import 'lumara_control_state_builder.dart';
@@ -377,36 +378,13 @@ class EnhancedLumaraApi {
           
           while (retryCount <= maxRetries && geminiResponse == null) {
             try {
-              // Ensure Firebase is properly initialized before accessing Functions
-              FirebaseApp app;
-              try {
-                // Try to get existing app first
-                app = Firebase.app();
-
-                // Verify the app is fully initialized by attempting to access a service
-                try {
-                  FirebaseFunctions.instanceFor(app: app);
-                } catch (serviceError) {
-                  throw Exception('Firebase app exists but services not ready: $serviceError');
-                }
-              } catch (e) {
-                // If no app exists or not fully initialized, reinitialize it
-                print('Enhanced LUMARA API: Initializing Firebase due to: $e');
-
-                // Wait a bit for any ongoing initialization to complete
-                await Future.delayed(Duration(milliseconds: 100));
-
-                try {
-                  app = await Firebase.initializeApp();
-                } catch (initError) {
-                  // If initialization fails, try to get existing app again
-                  print('Enhanced LUMARA API: Initialization failed, trying to get existing app: $initError');
-                  app = Firebase.app();
-                }
+              // Use the centralized Firebase service for reliable access
+              if (!await FirebaseService.instance.ensureReady()) {
+                throw Exception('Firebase service not ready');
               }
 
               // Call backend Cloud Function for journal reflection
-              final functions = FirebaseFunctions.instanceFor(app: app);
+              final functions = FirebaseService.instance.getFunctions();
               final callable = functions.httpsCallable('generateJournalReflection');
               
               final result = await callable.call({
@@ -595,33 +573,12 @@ class EnhancedLumaraApi {
           );
       } catch (e) {
         print('LUMARA Enhanced API: ✗ Error calling Firebase backend: $e');
-        print('LUMARA Enhanced API: Attempting fallback to local Gemini API...');
+        // For security, only use secure Firebase backend - no local API key fallback
+        // The local fallback is kept for emergency use but disabled by default
+        print('LUMARA Enhanced API: Firebase backend required for security - no fallback');
 
-        // Fallback to local Gemini API if Firebase backend fails
-        try {
-          onProgress?.call('Trying local API fallback...');
-          final localResponse = await _callLocalGeminiAPI(
-            request.userText,
-            currentPhase,
-            mood,
-            chronoContext,
-            chatContext,
-            mediaContext,
-            request.options,
-            onProgress,
-          );
-
-          if (localResponse != null) {
-            print('LUMARA Enhanced API: ✓ Local Gemini API fallback successful');
-            return localResponse;
-          }
-        } catch (fallbackError) {
-          print('LUMARA Enhanced API: ✗ Local API fallback failed: $fallbackError');
-        }
-
-        // If both backend and fallback fail, rethrow original error
-        print('LUMARA Enhanced API: ✗ Both Firebase backend and local API failed');
-        rethrow;
+        // Provide helpful error message about Firebase requirements
+        throw Exception('LUMARA requires Firebase backend connection for security. Please check your internet connection and Firebase configuration.');
       }
     } catch (e) {
       print('LUMARA Enhanced API: ✗ Fatal error: $e');
