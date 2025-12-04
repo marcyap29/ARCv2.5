@@ -302,7 +302,18 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
             
             if (firebaseApps.isNotEmpty && currentState.currentSessionId != null) {
               print('LUMARA Debug: [Backend] Attempting to use backend Cloud Function...');
-              final functions = FirebaseFunctions.instance;
+
+              // Ensure Firebase is properly initialized before accessing Functions
+              FirebaseApp app;
+              try {
+                // Try to get existing app first
+                app = Firebase.app();
+              } catch (e) {
+                // If no app exists, initialize it
+                app = await Firebase.initializeApp();
+              }
+
+              final functions = FirebaseFunctions.instanceFor(app: app);
               final sendChatMessage = functions.httpsCallable('sendChatMessage');
               
               // Build enriched message with context for backend
@@ -484,7 +495,18 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
         final firebaseApps = Firebase.apps;
         if (firebaseApps.isNotEmpty && currentState.currentSessionId != null) {
           print('LUMARA Debug: [Backend] Using backend for continuation...');
-          final functions = FirebaseFunctions.instance;
+
+          // Ensure Firebase is properly initialized before accessing Functions
+          FirebaseApp app;
+          try {
+            // Try to get existing app first
+            app = Firebase.app();
+          } catch (e) {
+            // If no app exists, initialize it
+            app = await Firebase.initializeApp();
+          }
+
+          final functions = FirebaseFunctions.instanceFor(app: app);
           final sendChatMessage = functions.httpsCallable('sendChatMessage');
           
           // Build continuation prompt
@@ -2202,7 +2224,17 @@ $conversationText
 Summary:''';
       
       try {
-        final functions = FirebaseFunctions.instance;
+        // Ensure Firebase is properly initialized before accessing Functions
+        FirebaseApp app;
+        try {
+          // Try to get existing app first
+          app = Firebase.app();
+        } catch (e) {
+          // If no app exists, initialize it
+          app = await Firebase.initializeApp();
+        }
+
+        final functions = FirebaseFunctions.instanceFor(app: app);
         final sendChatMessage = functions.httpsCallable('sendChatMessage');
         
         // Use a temporary thread ID for summary generation

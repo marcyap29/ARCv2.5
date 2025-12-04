@@ -16,6 +16,7 @@ import '../config/api_config.dart';
 import 'lumara_response_scoring.dart' as scoring;
 import '../../../services/gemini_send.dart';
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'lumara_reflection_settings_service.dart';
 import '../llm/prompts/lumara_master_prompt.dart';
 import 'lumara_control_state_builder.dart';
@@ -373,8 +374,18 @@ class EnhancedLumaraApi {
           
           while (retryCount <= maxRetries && geminiResponse == null) {
             try {
+              // Ensure Firebase is properly initialized before accessing Functions
+              FirebaseApp app;
+              try {
+                // Try to get existing app first
+                app = Firebase.app();
+              } catch (e) {
+                // If no app exists, initialize it
+                app = await Firebase.initializeApp();
+              }
+
               // Call backend Cloud Function for journal reflection
-              final functions = FirebaseFunctions.instance;
+              final functions = FirebaseFunctions.instanceFor(app: app);
               final callable = functions.httpsCallable('generateJournalReflection');
               
               final result = await callable.call({

@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
 
@@ -39,7 +40,17 @@ class _ThrottleSettingsViewState extends State<ThrottleSettingsView> {
         _errorMessage = null;
       });
 
-      final callable = FirebaseFunctions.instance.httpsCallable('checkThrottleStatus');
+      // Ensure Firebase is properly initialized before accessing Functions
+      FirebaseApp app;
+      try {
+        // Try to get existing app first
+        app = Firebase.app();
+      } catch (e) {
+        // If no app exists, initialize it
+        app = await Firebase.initializeApp();
+      }
+
+      final callable = FirebaseFunctions.instanceFor(app: app).httpsCallable('checkThrottleStatus');
       final result = await callable.call();
 
       if (mounted) {
@@ -74,7 +85,17 @@ class _ThrottleSettingsViewState extends State<ThrottleSettingsView> {
         _errorMessage = null;
       });
 
-      final callable = FirebaseFunctions.instance.httpsCallable('unlockThrottle');
+      // Ensure Firebase is properly initialized before accessing Functions
+      FirebaseApp app;
+      try {
+        // Try to get existing app first
+        app = Firebase.app();
+      } catch (e) {
+        // If no app exists, initialize it
+        app = await Firebase.initializeApp();
+      }
+
+      final callable = FirebaseFunctions.instanceFor(app: app).httpsCallable('unlockThrottle');
       final result = await callable.call({'password': password});
 
       if (result.data['success'] == true) {
@@ -118,7 +139,17 @@ class _ThrottleSettingsViewState extends State<ThrottleSettingsView> {
         _errorMessage = null;
       });
 
-      final callable = FirebaseFunctions.instance.httpsCallable('lockThrottle');
+      // Ensure Firebase is properly initialized before accessing Functions
+      FirebaseApp app;
+      try {
+        // Try to get existing app first
+        app = Firebase.app();
+      } catch (e) {
+        // If no app exists, initialize it
+        app = await Firebase.initializeApp();
+      }
+
+      final callable = FirebaseFunctions.instanceFor(app: app).httpsCallable('lockThrottle');
       final result = await callable.call();
 
       if (result.data['success'] == true) {

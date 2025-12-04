@@ -608,9 +608,19 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
   /// EnhancedLumaraApi now uses backend Cloud Functions, so no local API key is needed
   Future<bool> _checkLumaraConfiguration() async {
     try {
+      // Ensure Firebase is properly initialized before accessing Auth
+      FirebaseApp app;
+      try {
+        // Try to get existing app first
+        app = Firebase.app();
+      } catch (e) {
+        // If no app exists, initialize it
+        app = await Firebase.initializeApp();
+      }
+
       // Backend handles API keys, so we just need to verify Firebase Auth is available
       // The backend Cloud Functions will handle API key access via Firebase Secrets
-      final auth = FirebaseAuth.instance;
+      final auth = FirebaseAuth.instanceFor(app: app);
       final user = auth.currentUser;
       
       if (user != null) {
@@ -767,11 +777,19 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
       List<String> initialPrompts = [];
       
       try {
-        // Check if Firebase is initialized
-        final firebaseApps = Firebase.apps;
-        if (firebaseApps.isNotEmpty) {
+        // Ensure Firebase is properly initialized before using it
+        try {
+          FirebaseApp app;
+          try {
+            // Try to get existing app first
+            app = Firebase.app();
+          } catch (e) {
+            // If no app exists, initialize it
+            app = await Firebase.initializeApp();
+          }
+
           // Call backend to generate initial prompts (4 prompts)
-          final functions = FirebaseFunctions.instance;
+          final functions = FirebaseFunctions.instanceFor(app: app);
           final generatePrompts = functions.httpsCallable('generateJournalPrompts');
           
           final result = await generatePrompts.call({
@@ -786,8 +804,12 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
           initialPrompts = (result.data['prompts'] as List<dynamic>?)
               ?.map((p) => p.toString())
               .toList() ?? [];
-          
+
           useBackendPrompts = initialPrompts.isNotEmpty;
+        } catch (e) {
+          // Firebase initialization or function call failed
+          print('JournalScreen: Firebase initialization or function call failed: $e');
+          useBackendPrompts = false;
         }
       } catch (e) {
         // Firebase not initialized or backend call failed - fall back to local prompts
@@ -980,8 +1002,18 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
                         });
                         
                         try {
+                          // Ensure Firebase is properly initialized before using it
+                          FirebaseApp app;
+                          try {
+                            // Try to get existing app first
+                            app = Firebase.app();
+                          } catch (e) {
+                            // If no app exists, initialize it
+                            app = await Firebase.initializeApp();
+                          }
+
                           // Call backend to generate expanded prompts
-                          final functions = FirebaseFunctions.instance;
+                          final functions = FirebaseFunctions.instanceFor(app: app);
                           final generatePrompts = functions.httpsCallable('generateJournalPrompts');
                           
                           final result = await generatePrompts.call({

@@ -32,10 +32,10 @@ import '../data/models/lumara_favorite.dart';
 import 'package:my_app/shared/widgets/lumara_action_menu.dart';
 import 'package:my_app/shared/ui/settings/favorites_management_view.dart';
 import '../voice/audio_io.dart';
-import 'widgets/chat_navigation_drawer.dart';
 import '../chat/chat_repo_impl.dart';
 import '../chat/enhanced_chat_repo_impl.dart';
 import '../chat/chat_models.dart';
+import 'widgets/chat_navigation_drawer.dart';
 
 /// Main LUMARA Assistant screen
 class LumaraAssistantScreen extends StatefulWidget {
@@ -559,17 +559,13 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
                         ),
                         
                         // Message input - show/hide based on visibility state
-                        // Also show a button to bring it back if hidden
-                        // TODO: Fix if statement syntax - temporarily commented out
-                        // if (_isInputVisible) _buildMessageInput(),
-                        // if (!_isInputVisible) _buildShowInputButton(),
-                        _buildMessageInput(), // Temporary: always show input
+                        if (_isInputVisible) _buildMessageInput(),
+                        if (!_isInputVisible) _buildShowInputButton(),
                       ],
                     ),
                         ),
-          // TODO: Fix navigation drawer structure - temporarily commented out
-          // Navigation drawer overlay - second child of Stack
-          /*
+
+          // Navigation drawer overlay - slides in from left
           AnimatedPositioned(
             duration: const Duration(milliseconds: 250),
             curve: Curves.easeInOut,
@@ -603,6 +599,7 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
               ),
             ),
           ),
+
           // Backdrop overlay when drawer is open
           if (_isDrawerOpen)
             Positioned.fill(
@@ -613,7 +610,6 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
                 ),
               ),
             ),
-          */
         ],
       ),
     );
@@ -936,6 +932,16 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
                             );
                           },
                         ),
+
+                        // Fork button - create new chat from this message
+                        IconButton(
+                          icon: Icon(Icons.call_split, size: 16, color: Colors.grey[600]),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                          onPressed: () => _forkChatFromMessage(message),
+                          tooltip: 'Fork Chat',
+                        ),
+
                         // Removed Delete icon from chat bubbles as requested
                         
                         // Bookmark icon to save entire chat
