@@ -379,9 +379,27 @@ class EnhancedLumaraApi {
               try {
                 // Try to get existing app first
                 app = Firebase.app();
+
+                // Verify the app is fully initialized by attempting to access a service
+                try {
+                  FirebaseFunctions.instanceFor(app: app);
+                } catch (serviceError) {
+                  throw Exception('Firebase app exists but services not ready: $serviceError');
+                }
               } catch (e) {
-                // If no app exists, initialize it
-                app = await Firebase.initializeApp();
+                // If no app exists or not fully initialized, reinitialize it
+                print('Enhanced LUMARA API: Initializing Firebase due to: $e');
+
+                // Wait a bit for any ongoing initialization to complete
+                await Future.delayed(Duration(milliseconds: 100));
+
+                try {
+                  app = await Firebase.initializeApp();
+                } catch (initError) {
+                  // If initialization fails, try to get existing app again
+                  print('Enhanced LUMARA API: Initialization failed, trying to get existing app: $initError');
+                  app = Firebase.app();
+                }
               }
 
               // Call backend Cloud Function for journal reflection

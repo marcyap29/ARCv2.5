@@ -613,9 +613,27 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
       try {
         // Try to get existing app first
         app = Firebase.app();
+
+        // Verify the app is fully initialized by attempting to access a service
+        try {
+          FirebaseAuth.instanceFor(app: app);
+        } catch (serviceError) {
+          throw Exception('Firebase app exists but services not ready: $serviceError');
+        }
       } catch (e) {
-        // If no app exists, initialize it
-        app = await Firebase.initializeApp();
+        // If no app exists or not fully initialized, reinitialize it
+        print('LUMARA Journal: Initializing Firebase due to: $e');
+
+        // Wait a bit for any ongoing initialization to complete
+        await Future.delayed(Duration(milliseconds: 100));
+
+        try {
+          app = await Firebase.initializeApp();
+        } catch (initError) {
+          // If initialization fails, try to get existing app again
+          print('LUMARA Journal: Initialization failed, trying to get existing app: $initError');
+          app = Firebase.app();
+        }
       }
 
       // Backend handles API keys, so we just need to verify Firebase Auth is available
