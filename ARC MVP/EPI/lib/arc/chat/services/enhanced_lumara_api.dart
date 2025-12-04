@@ -2,6 +2,8 @@
 // Enhanced LUMARA API with multimodal reflection
 
 import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
 import 'dart:math';
 import 'package:my_app/telemetry/analytics.dart';
 import '../models/reflective_node.dart';
@@ -17,6 +19,7 @@ import 'lumara_response_scoring.dart' as scoring;
 import '../../../services/gemini_send.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'lumara_reflection_settings_service.dart';
 import '../llm/prompts/lumara_master_prompt.dart';
 import 'lumara_control_state_builder.dart';
@@ -591,9 +594,33 @@ class EnhancedLumaraApi {
             attributionTraces: attributionTraces,
           );
       } catch (e) {
-        print('LUMARA Enhanced API: ✗ Error calling Gemini API: $e');
-        // No fallbacks - rethrow the error so user knows API call failed
-        // Same behavior as main LUMARA chat - no hard-coded responses
+        print('LUMARA Enhanced API: ✗ Error calling Firebase backend: $e');
+        print('LUMARA Enhanced API: Attempting fallback to local Gemini API...');
+
+        // Fallback to local Gemini API if Firebase backend fails
+        try {
+          onProgress?.call('Trying local API fallback...');
+          final localResponse = await _callLocalGeminiAPI(
+            request.userText,
+            currentPhase,
+            mood,
+            chronoContext,
+            chatContext,
+            mediaContext,
+            request.options,
+            onProgress,
+          );
+
+          if (localResponse != null) {
+            print('LUMARA Enhanced API: ✓ Local Gemini API fallback successful');
+            return localResponse;
+          }
+        } catch (fallbackError) {
+          print('LUMARA Enhanced API: ✗ Local API fallback failed: $fallbackError');
+        }
+
+        // If both backend and fallback fail, rethrow original error
+        print('LUMARA Enhanced API: ✗ Both Firebase backend and local API failed');
         rethrow;
       }
     } catch (e) {
@@ -790,5 +817,146 @@ class EnhancedLumaraApi {
       }
     }
     return mediaRefs;
+  }
+
+  /// Fallback method to call local Gemini API when Firebase backend fails
+  Future<ReflectionResult?> _callLocalGeminiAPI(
+    String userText,
+    PhaseHint? currentPhase,
+    String? mood,
+    Map<String, dynamic>? chronoContext,
+    String? chatContext,
+    String? mediaContext,
+    models.LumaraReflectionOptions options,
+    void Function(String)? onProgress,
+  ) async {
+    try {
+      // Get API key from SharedPreferences or dart-define
+      final prefs = await SharedPreferences.getInstance();
+      String? apiKey = prefs.getString('gemini_api_key');
+
+      // Check dart-define as fallback
+      if (apiKey == null || apiKey.isEmpty) {
+        const dartDefineKey = String.fromEnvironment('GEMINI_API_KEY');
+        if (dartDefineKey.isNotEmpty) {
+          apiKey = dartDefineKey;
+        }
+      }
+
+      if (apiKey == null || apiKey.isEmpty) {
+        print('LUMARA Local API: No API key available');
+        return null;
+      }
+
+      onProgress?.call('Using local Gemini API...');
+
+      // Build context for the prompt (simplified version)
+      final contextParts = <String>[];
+      if (chronoContext != null) {
+        final window = chronoContext['window'] ?? 'unknown';
+        final chronotype = chronoContext['chronotype'] ?? 'unknown';
+        contextParts.add('Time context: $window ($chronotype rhythm)');
+      }
+      if (chatContext != null && chatContext.isNotEmpty) {
+        contextParts.add('Chat history: $chatContext');
+      }
+      if (mediaContext != null && mediaContext.isNotEmpty) {
+        contextParts.add('Media context: $mediaContext');
+      }
+
+      // Create a simplified reflection prompt
+      final prompt = '''As LUMARA, an empathetic AI companion, provide a thoughtful reflection on the following journal entry.
+
+${contextParts.isNotEmpty ? 'Context:\n${contextParts.join('\n')}\n' : ''}
+Journal Entry: "$userText"
+
+Please provide a warm, empathetic response that:
+1. Acknowledges the emotions and experiences shared
+2. Offers gentle insights or observations
+3. Provides supportive perspective when appropriate
+4. Remains authentic and caring
+
+Response:''';
+
+      // Make simple HTTP call to Gemini API using the geminiSend function
+      // But we need to call it directly with our API key
+      final response = await _makeGeminiCall(prompt, apiKey);
+
+      if (response != null && response.isNotEmpty) {
+        print('LUMARA Local API: ✓ Received response (length: ${response.length})');
+
+        // Format response similar to backend
+        final formatted = '✨ Reflection\n\n$response';
+
+        return ReflectionResult(
+          reflection: formatted,
+          attributionTraces: [], // No attribution traces for local fallback
+        );
+      } else {
+        print('LUMARA Local API: ✗ Empty response');
+        return null;
+      }
+    } catch (e) {
+      print('LUMARA Local API: ✗ Error: $e');
+      return null;
+    }
+  }
+
+  /// Helper method to call Gemini API directly with custom API key
+  Future<String?> _makeGeminiCall(String prompt, String apiKey) async {
+    try {
+      // We need to make a direct HTTP call since geminiSend uses the config
+      const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
+
+      final client = HttpClient();
+      try {
+        final uri = Uri.parse('$url?key=$apiKey');
+        final request = await client.postUrl(uri);
+        request.headers.set(HttpHeaders.contentTypeHeader, 'application/json; charset=utf-8');
+
+        final body = {
+          'contents': [
+            {
+              'role': 'user',
+              'parts': [
+                {'text': prompt}
+              ]
+            }
+          ],
+        };
+
+        request.write(jsonEncode(body));
+        final response = await request.close();
+
+        if (response.statusCode != 200) {
+          final errorBody = await response.transform(utf8.decoder).join();
+          throw Exception('Gemini API error: ${response.statusCode}\n$errorBody');
+        }
+
+        final responseBody = await response.transform(utf8.decoder).join();
+        final json = jsonDecode(responseBody) as Map<String, dynamic>;
+        final candidates = json['candidates'] as List?;
+
+        if (candidates == null || candidates.isEmpty) {
+          return null;
+        }
+
+        final content = candidates.first['content'] as Map<String, dynamic>?;
+        final parts = content?['parts'] as List? ?? const [];
+        final buffer = StringBuffer();
+
+        for (final p in parts) {
+          final t = (p as Map)['text'];
+          if (t is String) buffer.write(t);
+        }
+
+        return buffer.toString();
+      } finally {
+        client.close(force: true);
+      }
+    } catch (e) {
+      print('LUMARA Local API: HTTP request error: $e');
+      throw e;
+    }
   }
 }

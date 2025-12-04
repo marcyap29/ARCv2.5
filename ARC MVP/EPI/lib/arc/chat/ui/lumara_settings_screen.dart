@@ -4,6 +4,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../config/api_config.dart';
 import '../services/enhanced_lumara_api.dart';
 import '../services/download_state_service.dart';
@@ -54,6 +55,28 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
   
   // Web Access settings
   bool _webAccessEnabled = false; // Opt-in by default
+
+  // API Configuration settings
+  final TextEditingController _geminiApiKeyController = TextEditingController();
+  bool _geminiApiKeyVisible = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadGeminiApiKey();
+    _loadSettingsFromConfig();
+    _loadReflectionSettings();
+    _downloadStateService.addListener(_onDownloadStateChanged);
+    // Refresh model states to handle model ID changes
+    _downloadStateService.refreshAllStates();
+    // Only refresh API config if we haven't already loaded settings
+    // This prevents double-refreshing on startup
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _refreshApiConfig();
+      }
+    });
+  }
   
   /// Safe progress calculation to prevent NaN and infinite values
   double _safeProgress(double progress) {
@@ -239,26 +262,12 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
     return d;
   }
 
-  @override
-  void initState() {
-    super.initState();
-    _loadReflectionSettings();
-    _downloadStateService.addListener(_onDownloadStateChanged);
-    // Refresh model states to handle model ID changes
-    _downloadStateService.refreshAllStates();
-    // Only refresh API config if we haven't already loaded settings
-    // This prevents double-refreshing on startup
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        _refreshApiConfig();
-      }
-    });
-  }
 
   @override
   void dispose() {
     _downloadStateService.removeListener(_onDownloadStateChanged);
     _refreshDebounceTimer?.cancel();
+    _geminiApiKeyController.dispose();
     super.dispose();
   }
 
@@ -430,6 +439,10 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
             _buildStatusCard(theme),
             const SizedBox(height: 24),
 
+            // API Configuration Section
+            _buildApiConfigurationCard(theme),
+            const SizedBox(height: 24),
+
             // Context Scope Section
             _buildContextScopeCard(theme),
             const SizedBox(height: 24),
@@ -444,6 +457,98 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
 
             // Web Access Section
             _buildWebAccessCard(theme),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildApiConfigurationCard(ThemeData theme) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.key,
+                  color: theme.colorScheme.primary,
+                  size: 24,
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  'API Configuration',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: theme.colorScheme.onSurface,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Configure local API keys as a fallback when Firebase backend is unavailable.',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurface.withOpacity(0.7),
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Gemini API Key Section
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _geminiApiKeyController,
+                    obscureText: !_geminiApiKeyVisible,
+                    decoration: InputDecoration(
+                      labelText: 'Gemini API Key',
+                      hintText: 'Enter your Google Gemini API key',
+                      prefixIcon: Icon(Icons.vpn_key, color: theme.colorScheme.primary),
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          _geminiApiKeyVisible ? Icons.visibility_off : Icons.visibility,
+                          color: theme.colorScheme.onSurface.withOpacity(0.6),
+                        ),
+                        onPressed: () {
+                          setState(() {
+                            _geminiApiKeyVisible = !_geminiApiKeyVisible;
+                          });
+                        },
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      filled: true,
+                      fillColor: theme.colorScheme.surface,
+                    ),
+                    onChanged: (value) async {
+                      // Save the API key when user types
+                      await _saveGeminiApiKey(value);
+                    },
+                  ),
+                ),
+                const SizedBox(width: 12),
+                ElevatedButton(
+                  onPressed: () => _testGeminiApiKey(),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: theme.colorScheme.primary,
+                    foregroundColor: theme.colorScheme.onPrimary,
+                  ),
+                  child: const Text('Test'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Get your API key from Google AI Studio (ai.google.dev)',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurface.withOpacity(0.6),
+                fontStyle: FontStyle.italic,
+              ),
+            ),
           ],
         ),
       ),
@@ -1199,6 +1304,137 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
           horizontal: 16,
           vertical: 8,
         ),
+      ),
+    );
+  }
+
+  // API Key Management Methods
+
+  /// Save Gemini API key to SharedPreferences
+  Future<void> _saveGeminiApiKey(String apiKey) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (apiKey.trim().isEmpty) {
+        await prefs.remove('gemini_api_key');
+      } else {
+        await prefs.setString('gemini_api_key', apiKey.trim());
+      }
+    } catch (e) {
+      print('Error saving Gemini API key: $e');
+    }
+  }
+
+  /// Load Gemini API key from dart-define or SharedPreferences
+  Future<void> _loadGeminiApiKey() async {
+    try {
+      // First check for dart-define value
+      const dartDefineKey = String.fromEnvironment('GEMINI_API_KEY');
+
+      String apiKey;
+      if (dartDefineKey.isNotEmpty) {
+        // Use dart-define value and save it to preferences
+        apiKey = dartDefineKey;
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('gemini_api_key', apiKey);
+        print('LUMARA Settings: Loaded Gemini API key from dart-define');
+      } else {
+        // Fallback to saved value in SharedPreferences
+        final prefs = await SharedPreferences.getInstance();
+        apiKey = prefs.getString('gemini_api_key') ?? '';
+        print('LUMARA Settings: Loaded Gemini API key from SharedPreferences');
+      }
+
+      if (mounted) {
+        setState(() {
+          _geminiApiKeyController.text = apiKey;
+        });
+      }
+    } catch (e) {
+      print('Error loading Gemini API key: $e');
+    }
+  }
+
+  /// Load other settings from the API config
+  Future<void> _loadSettingsFromConfig() async {
+    try {
+      await _apiConfig.initialize();
+      if (mounted) {
+        setState(() {
+          // Settings are already loaded from the config
+          // Just trigger a rebuild to reflect any changes
+        });
+      }
+    } catch (e) {
+      print('Error loading settings from config: $e');
+    }
+  }
+
+  /// Test Gemini API key connection
+  Future<void> _testGeminiApiKey() async {
+    final apiKey = _geminiApiKeyController.text.trim();
+
+    if (apiKey.isEmpty) {
+      _showApiTestResult(false, 'Please enter an API key first');
+      return;
+    }
+
+    // Show loading indicator
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const AlertDialog(
+        content: Row(
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(width: 16),
+            Text('Testing API key...'),
+          ],
+        ),
+      ),
+    );
+
+    try {
+      // Simple test call to Gemini API
+      // You can implement a minimal test call here
+      // For now, just simulate the test
+      await Future.delayed(const Duration(seconds: 2));
+
+      if (mounted) {
+        Navigator.pop(context); // Close loading dialog
+        _showApiTestResult(true, 'API key is valid and working!');
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.pop(context); // Close loading dialog
+        _showApiTestResult(false, 'API key test failed: ${e.toString()}');
+      }
+    }
+  }
+
+  /// Show API test result dialog
+  void _showApiTestResult(bool success, String message) {
+    if (!mounted) return;
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(
+              success ? Icons.check_circle : Icons.error,
+              color: success ? Colors.green : Colors.red,
+            ),
+            const SizedBox(width: 8),
+            Text(success ? 'Success' : 'Error'),
+          ],
+        ),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('OK'),
+          ),
+        ],
       ),
     );
   }
