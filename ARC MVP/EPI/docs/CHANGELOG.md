@@ -5,6 +5,28 @@
 
 ## [2.1.43] - December 4, 2025
 
+### **Enhanced LUMARA Thinking Popup UI/UX** - Complete
+
+#### UI/UX Enhancement
+- **Added Prominent Thinking Dialog**: LUMARA button in journal now shows immediate "LUMARA is thinking..." popup dialog
+  - **Visual Design**: Matches chat interface styling with circular progress indicator and linear progress bar
+  - **User Experience**: Dialog appears instantly when LUMARA button is pressed, providing clear feedback
+  - **Problem Solved**: Previously users had to scroll down to see inline loading indicator - now popup is immediately visible
+  - **Implementation**: Created shared `LumaraThinkingDialog` widget used by both journal and chat interfaces
+
+#### Technical Implementation
+- **Shared Component**: Created `lib/shared/widgets/lumara_thinking_dialog.dart` for reuse across interfaces
+- **Dialog Management**: Added `showLumaraThinkingDialog()` and `hideLumaraThinkingDialog()` helper functions
+- **Integration Points**:
+  - Journal reflection generation (`_generateLumaraReflection`)
+  - Journal prompt generation (`_generateJournalingPrompt`)
+  - Proper cleanup in both success and error cases
+
+#### Impact
+- **Improved Discoverability**: Users immediately know LUMARA is working without scrolling
+- **Consistent UX**: Same thinking indicator experience in both journal and chat interfaces
+- **Better Feedback**: Clear visual confirmation that the LUMARA button press was registered
+
 ### **Build Fix: FirebaseAuth Import** - Complete
 
 #### Bug Fix

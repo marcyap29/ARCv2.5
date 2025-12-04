@@ -155,7 +155,10 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 - **Selectable Text**: In-journal LUMARA text is selectable and copyable
 - **Quick Copy**: Copy icon button for entire LUMARA answer
 - **Message Deletion**: Delete individual messages in-chat with confirmation dialog
-- **Unified Loading Indicator**: Same "LUMARA is thinking..." design across both interfaces
+- **Enhanced Thinking Popup**: Prominent "LUMARA is thinking..." dialog appears immediately when LUMARA button is pressed
+  - **Instant Feedback**: Dialog shows immediately without requiring scrolling
+  - **Consistent Design**: Same visual styling across journal and chat interfaces
+  - **Progress Indicators**: Circular spinner and linear progress bar for visual feedback
 - **Attribution Display**: Memory source references shown with drop-down details (expanded by default)
   - Shows memory sources, confidence scores, excerpts, and cross-references
   - Web source indicators when external information is used

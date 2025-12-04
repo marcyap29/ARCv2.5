@@ -20,6 +20,7 @@ import '../../telemetry/analytics.dart';
 import '../../services/periodic_discovery_service.dart';
 import 'package:my_app/services/lumara/lumara_inline_api.dart';
 import 'package:my_app/arc/chat/services/enhanced_lumara_api.dart';
+import 'package:my_app/services/firebase_service.dart';
 import 'package:my_app/arc/chat/models/lumara_reflection_options.dart' as lumara_models;
 import 'package:my_app/arc/chat/services/progressive_memory_loader.dart';
 import 'package:my_app/arc/chat/ui/lumara_settings_screen.dart';
@@ -45,16 +46,13 @@ import 'widgets/lumara_suggestion_sheet.dart';
 import 'widgets/inline_reflection_block.dart';
 // import '../../features/timeline/widgets/entry_content_renderer.dart'; // TODO: EntryContentRenderer not yet implemented
 import 'widgets/full_screen_photo_viewer.dart' show FullScreenPhotoViewer, PhotoData;
+import '../../shared/widgets/lumara_thinking_dialog.dart';
 import '../../ui/widgets/location_picker_dialog.dart';
 import 'drafts_screen.dart';
 import 'package:my_app/models/journal_entry_model.dart';
 import 'package:my_app/arc/chat/chat/chat_repo_impl.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:cloud_functions/cloud_functions.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_core/firebase_core.dart';
-import '../../services/firebase_service.dart';
 import 'package:my_app/arc/chat/services/lumara_reflection_settings_service.dart';
 import 'package:my_app/mira/memory/enhanced_mira_memory_service.dart';
 import 'package:my_app/mira/memory/enhanced_memory_schema.dart';
@@ -604,32 +602,29 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     }
   }
 
-  /// Check if LUMARA is properly configured
-  /// Since backend handles API keys via Firebase Secrets, we just need to check if user is authenticated
-  /// EnhancedLumaraApi now uses backend Cloud Functions, so no local API key is needed
+  /// Check if LUMARA is properly configured with an API key
   Future<bool> _checkLumaraConfiguration() async {
     try {
-      // Use the centralized Firebase service for reliable access
-      if (!await FirebaseService.instance.ensureReady()) {
-        print('LUMARA Journal: Firebase service not ready');
-        return false;
+      // If Firebase is initialized, consider LUMARA configured even without local API keys
+      final firebaseReady = await FirebaseService.instance.ensureReady();
+      if (firebaseReady) {
+        print('LUMARA Journal: Firebase ready, treating configuration as satisfied');
+        return true;
       }
 
-      // Backend handles API keys, so we just need to verify Firebase Auth is available
-      // The backend Cloud Functions will handle API key access via Firebase Secrets
-      final auth = FirebaseService.instance.getAuth();
-      final user = auth.currentUser;
-      
-      if (user != null) {
-        print('LUMARA Journal: User authenticated - backend will handle API keys');
-        return true;
-      } else {
-        print('LUMARA Journal: User not authenticated - LUMARA requires Firebase Auth');
-        return false;
-      }
+      final apiConfig = LumaraAPIConfig.instance;
+      await apiConfig.initialize();
+      final availableProviders = apiConfig.getAvailableProviders();
+      final bestProvider = apiConfig.getBestProvider();
+
+      print('LUMARA Journal: Available providers: ${availableProviders.map((p) => p.name).join(', ')}');
+      print('LUMARA Journal: Best provider: ${bestProvider?.name ?? 'none'}');
+
+      // Even if no local keys, return true to avoid blocking when backend is present
+      return bestProvider != null && availableProviders.isNotEmpty || firebaseReady;
     } catch (e) {
       print('LUMARA Journal: Configuration check error: $e');
-      // If Firebase Auth check fails, assume configured (backend will handle errors)
+      // Fail open to avoid blocking UX if config check fails
       return true;
     }
   }
@@ -724,15 +719,9 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
   
   Future<void> _generateJournalingPrompt() async {
     if (!mounted) return;
-    
-    // Show loading indicator
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => const Center(
-        child: CircularProgressIndicator(),
-      ),
-    );
+
+    // Show prominent "LUMARA is thinking" dialog
+    showLumaraThinkingDialog(context, message: 'LUMARA is generating prompts...');
     
     // Declare variables outside try block for use in catch block
     ContextWindow? contextWindow;
@@ -769,44 +758,15 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
         return subject;
       }).toList();
       
-      // Check if Firebase is initialized before using it
       bool useBackendPrompts = false;
       List<String> initialPrompts = [];
       
-      try {
-        // Use the centralized Firebase service for reliable access
-        if (await FirebaseService.instance.ensureReady()) {
-          // Call backend to generate initial prompts (4 prompts)
-          final functions = FirebaseService.instance.getFunctions();
-          final generatePrompts = functions.httpsCallable('generateJournalPrompts');
+      // Use local prompt generation directly
+      useBackendPrompts = false;
 
-          final result = await generatePrompts.call({
-            'expanded': false,
-            'context': {
-              'recentEntries': recentEntries,
-              'recentChats': recentChats,
-              'currentPhase': currentPhase,
-            },
-          });
+      // Hide the "LUMARA is thinking" dialog
+      if (mounted) hideLumaraThinkingDialog(context);
 
-          initialPrompts = (result.data['prompts'] as List<dynamic>?)
-              ?.map((p) => p.toString())
-              .toList() ?? [];
-
-          useBackendPrompts = initialPrompts.isNotEmpty;
-        } else {
-          print('JournalScreen: Firebase service not ready');
-          useBackendPrompts = false;
-        }
-      } catch (e) {
-        // Firebase not initialized or backend call failed - fall back to local prompts
-        print('JournalScreen: Firebase not available or backend call failed: $e');
-        useBackendPrompts = false;
-      }
-      
-      // Close loading dialog
-      if (mounted) Navigator.of(context).pop();
-      
       // Show prompt selection dialog
       if (mounted) {
         if (useBackendPrompts && initialPrompts.isNotEmpty) {
@@ -823,9 +783,9 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
         }
       }
     } catch (e) {
-      // Close loading dialog
-      if (mounted) Navigator.of(context).pop();
-      
+      // Hide the "LUMARA is thinking" dialog
+      if (mounted) hideLumaraThinkingDialog(context);
+
       // Fallback to local prompt generation on any error
       try {
         if (contextWindow != null) {
@@ -988,47 +948,18 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
                           isLoadingExpanded = true;
                         });
                         
-                        try {
-                          // Use the centralized Firebase service for reliable access
-                          if (!await FirebaseService.instance.ensureReady()) {
-                            throw Exception('Firebase service not ready');
-                          }
+                        // Expanded prompts feature not available with direct API
+                        setDialogState(() {
+                          isLoadingExpanded = false;
+                        });
 
-                          // Call backend to generate expanded prompts
-                          final functions = FirebaseService.instance.getFunctions();
-                          final generatePrompts = functions.httpsCallable('generateJournalPrompts');
-                          
-                          final result = await generatePrompts.call({
-                            'expanded': true,
-                            'context': {
-                              'recentEntries': recentEntries,
-                              'recentChats': recentChats,
-                              'currentPhase': currentPhase,
-                            },
-                          });
-                          
-                          final newExpandedPrompts = (result.data['prompts'] as List<dynamic>?)
-                              ?.map((p) => p.toString())
-                              .toList() ?? [];
-                          
-                          setDialogState(() {
-                            expandedPrompts = newExpandedPrompts;
-                            showingExpanded = true;
-                            isLoadingExpanded = false;
-                          });
-                        } catch (e) {
-                          setDialogState(() {
-                            isLoadingExpanded = false;
-                          });
-                          
-                          if (mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('Error loading more prompts: $e'),
-                                duration: const Duration(seconds: 2),
-                              ),
-                            );
-                          }
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('More prompts feature is not available in this version'),
+                              duration: Duration(seconds: 2),
+                            ),
+                          );
                         }
                       },
                       icon: const Icon(Icons.expand_more),
@@ -1150,7 +1081,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('LUMARA requires Firebase authentication. Please sign in to use LUMARA. The backend handles all API keys automatically.'),
+              content: Text('LUMARA needs a Gemini API key to work. Configure it in Settings.'),
               backgroundColor: Theme.of(context).colorScheme.error,
               action: SnackBarAction(
                 label: 'Settings',
@@ -1172,7 +1103,12 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
       }
 
       _analytics.logLumaraEvent('reflection_generated');
-      
+
+      // Show prominent "LUMARA is thinking" dialog (like in chat interface)
+      if (mounted) {
+        showLumaraThinkingDialog(context, message: 'LUMARA is thinking...');
+      }
+
       // CRITICAL: Sync _entryState.text with _textController.text to ensure we have the latest entry text
       // This prevents stale text from being used when building context
       // The text controller always has the most up-to-date text from the user's typing
@@ -1180,9 +1116,9 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
         _entryState.text = _textController.text;
       });
       print('LUMARA: Synced _entryState.text with _textController.text (length: ${_entryState.text.length})');
-      
+
       // Loading indicator is now shown inline in the reflection block
-      // No need for snackbar popup anymore
+      // PLUS the prominent popup dialog for better UX visibility
       
       // Get user ID from user profile
       Box<UserProfile> userBox;
@@ -1367,13 +1303,23 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
       
       // Auto-save the updated content
       _updateDraftContent(_textController.text);
-      
+
       _analytics.logLumaraEvent('inline_reflection_inserted', data: {'intent': 'reflect'});
-      
+
+      // Hide the "LUMARA is thinking" dialog
+      if (mounted) {
+        hideLumaraThinkingDialog(context);
+      }
+
       // Dismiss the Lumara box
       _dismissLumaraBox();
       
     } catch (e) {
+      // Hide the "LUMARA is thinking" dialog on error
+      if (mounted) {
+        hideLumaraThinkingDialog(context);
+      }
+
       // Remove placeholder block on error
       if (mounted && newBlockIndex != null && newBlockIndex < _entryState.blocks.length) {
         setState(() {
@@ -1382,9 +1328,9 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
           _lumaraLoadingMessages.remove(newBlockIndex);
         });
       }
-      
+
       // Snackbar removed - loading indicator is now inline
-      
+
       _analytics.log('lumara_error', {'error': e.toString()});
       
       // Check if it's an API key issue
@@ -1395,7 +1341,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('LUMARA requires Firebase authentication. Please sign in to use LUMARA. The backend handles all API keys automatically.'),
+              content: Text('LUMARA needs a Gemini API key to work. Configure it in Settings.'),
               backgroundColor: Theme.of(context).colorScheme.error,
               action: SnackBarAction(
                 label: 'Settings',

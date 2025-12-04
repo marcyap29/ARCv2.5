@@ -275,6 +275,22 @@ Media Capture → Keyword Analysis → Save to Timeline
 - **Message Editing:** In-place editing with state tracking
 - **Dynamic Visibility:** Context-aware input field display
 
+#### 🔄 Thinking Popup Interface
+**File:** `lib/shared/widgets/lumara_thinking_dialog.dart`
+
+**Visual Components:**
+- **Popup Dialog:** Immediate feedback when LUMARA processing begins
+- **Circular Progress Indicator:** Animated spinner with primary color
+- **Linear Progress Bar:** Continuous loading indication
+- **Status Text:** "LUMARA is thinking..." with italic styling
+- **Consistent Design:** Matches both journal and chat interface themes
+
+**User Experience:**
+- **Instant Feedback:** Dialog appears immediately upon button press
+- **Non-Dismissible:** Prevents accidental cancellation during processing
+- **Auto-Close:** Dismisses automatically when processing completes or errors
+- **Cross-Platform:** Used in both journal reflections and chat generation
+
 #### User Interactions
 ```
 Text Input → Send (Enter) | Voice Input → Transcript → Send
