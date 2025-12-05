@@ -7,6 +7,7 @@ import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/ui/home/home_view.dart';
 import 'package:my_app/mira/store/arcx/ui/arcx_import_progress_screen.dart';
 import 'package:my_app/arc/chat/ui/lumara_splash_screen.dart';
+import 'package:my_app/ui/auth/sign_in_screen.dart';
 
 // Global repo + cubit
 import 'package:my_app/arc/core/journal_repository.dart';
@@ -141,6 +142,8 @@ class _AppState extends State<App> {
           themeMode: ThemeMode.dark,
           home: const LumaraSplashScreen(),
           routes: {
+            '/home': (context) => HomeView(),
+            '/sign-in': (context) => const SignInScreen(),
           },
         ),
       ),

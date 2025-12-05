@@ -29,6 +29,7 @@ import 'package:my_app/arc/chat/chat/chat_models.dart';
 import 'package:my_app/arc/chat/chat/chat_category_models.dart';
 import 'package:my_app/arc/chat/data/models/lumara_favorite.dart';
 import 'package:my_app/services/firebase_service.dart';
+import 'package:my_app/services/firebase_auth_service.dart';
 
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
@@ -331,6 +332,16 @@ Future<void> bootstrap({
       try {
         final firebaseReady = await FirebaseService.instance.initialize();
         logger.d('Firebase initialized (ready: $firebaseReady)');
+
+        // Initialize Firebase Auth after Firebase is ready
+        if (firebaseReady) {
+          try {
+            await FirebaseAuthService.instance.initialize();
+            logger.d('Firebase Auth initialized successfully');
+          } catch (authError, authSt) {
+            logger.e('Failed to initialize Firebase Auth', authError, authSt);
+          }
+        }
       } catch (e, st) {
         logger.e('Failed to initialize Firebase', e, st);
       }

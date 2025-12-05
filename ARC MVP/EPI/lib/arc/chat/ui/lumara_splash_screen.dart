@@ -4,6 +4,8 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:my_app/shared/ui/home/home_view.dart';
+import 'package:my_app/services/firebase_auth_service.dart';
+import 'package:my_app/ui/auth/sign_in_screen.dart';
 
 /// Splash screen with ARC logo
 class LumaraSplashScreen extends StatefulWidget {
@@ -23,21 +25,35 @@ class _LumaraSplashScreenState extends State<LumaraSplashScreen> {
   }
 
   void _startTimer() {
-    // Navigate to main menu (HomeView) after 3 seconds
+    // Navigate after 3 seconds, checking auth state
     _timer = Timer(const Duration(seconds: 3), () {
       if (mounted) {
-        _navigateToMainMenu();
+        _checkAuthAndNavigate();
       }
     });
   }
 
-  void _navigateToMainMenu() {
+  void _checkAuthAndNavigate() {
     _timer?.cancel();
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(
-        builder: (context) => HomeView(),
-      ),
-    );
+
+    // Check if user is authenticated
+    final isSignedIn = FirebaseAuthService.instance.isSignedIn;
+
+    if (isSignedIn) {
+      // User is signed in, go to home
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (context) => HomeView(),
+        ),
+      );
+    } else {
+      // User is not signed in, go to sign-in screen
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (context) => const SignInScreen(),
+        ),
+      );
+    }
   }
 
   @override
