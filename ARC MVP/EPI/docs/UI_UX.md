@@ -1,6 +1,6 @@
 # EPI MVP - UI/UX Feature Documentation
 
-**Version:** 2.1.43
+**Version:** 2.1.44
 **Last Updated:** December 4, 2025
 **Status:** ✅ Comprehensive Feature Analysis Complete
 
@@ -285,19 +285,20 @@ Media Capture → Keyword Analysis → Save to Timeline
   - **Varied Response Endings:** 24+ therapeutic closings from existing system (grounded_containment, reflective_echo, etc.)
   - **Time-Based Rotation:** Dynamic selection prevents repetitive ending phrases
 
-#### 🔄 Thinking Popup Interface
-**File:** `lib/shared/widgets/lumara_thinking_dialog.dart`
+#### 🔄 Auto-Scroll Thinking Interface
+**Files:** `lib/ui/journal/journal_screen.dart`, `lib/arc/chat/chat/ui/session_view.dart`
 
 **Visual Components:**
-- **Popup Dialog:** Immediate feedback when LUMARA processing begins
-- **Circular Progress Indicator:** Animated spinner with primary color
-- **Linear Progress Bar:** Continuous loading indication
-- **Status Text:** "LUMARA is thinking..." with italic styling
-- **Consistent Design:** Matches both journal and chat interface themes
+- **Auto-Scroll Animation:** Smooth 300ms scroll to bottom when LUMARA activated
+- **Thinking Indicator:** "LUMARA is thinking..." appears in free space at bottom
+- **Unified Behavior:** Consistent experience across journal and chat interfaces
+- **Professional Animation:** easeOut curve for polished user experience
 
 **User Experience:**
-- **Instant Feedback:** Dialog appears immediately upon button press
-- **Non-Dismissible:** Prevents accidental cancellation during processing
+- **Immediate Visual Feedback:** Page scrolls to show exactly where response will appear
+- **Clear Context:** Users understand LUMARA is processing without confusion
+- **Consistent Interface:** Identical behavior whether in journal or chat mode
+- **Reduced Cognitive Load:** Eliminates guessing about response placement
 - **Auto-Close:** Dismisses automatically when processing completes or errors
 - **Cross-Platform:** Used in both journal reflections and chat generation
 

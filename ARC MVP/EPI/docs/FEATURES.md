@@ -1,6 +1,6 @@
 # EPI MVP - Comprehensive Features Guide
 
-**Version:** 2.1.43
+**Version:** 2.1.44
 **Last Updated:** December 4, 2025
 
 ---
@@ -108,6 +108,11 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 - Multimodal understanding
 - **Scrollable Text Input**: Text input scrolls when content exceeds 5 lines, send button always accessible
 - **Auto-Minimize**: Input area automatically minimizes when clicking outside (ChatGPT-like behavior)
+- **Auto-Scroll UX**: Unified scroll behavior across journal and chat interfaces
+  - **Immediate Feedback**: Page automatically scrolls to bottom when LUMARA activated
+  - **Thinking Indicator**: "LUMARA is thinking..." appears in free space at bottom
+  - **Smooth Animation**: Professional 300ms scroll with easeOut curve for polished feel
+  - **Consistent Experience**: Identical behavior in both journal and chat modes
 - **Reflective Queries**: Three EPI-standard anti-harm queries
   - "Show me three times I handled something hard" - Finds resilience examples with SAGE filtering
   - "What was I struggling with around this time last year?" - Temporal struggle analysis

@@ -1,7 +1,41 @@
 # EPI ARC MVP - Changelog
 
-**Version:** 2.1.43
+**Version:** 2.1.44
 **Last Updated:** December 4, 2025
+
+## [2.1.44] - December 4, 2025
+
+### **LUMARA Auto-Scroll UX Enhancement** - Complete
+
+#### Feature Overview
+- **Unified Auto-Scroll Behavior**: Both in-journal and in-chat LUMARA now automatically scroll to bottom when activated
+- **Immediate Visual Feedback**: Users instantly see where LUMARA's response will appear
+- **Consistent UX**: Identical scroll behavior across both journal and chat interfaces
+- **Smooth Animation**: Professional 300ms scroll animation with easeOut curve
+
+#### In-Journal Auto-Scroll Implementation
+- **Trigger**: When user presses LUMARA button in journal screen
+- **Behavior**: Page immediately scrolls to bottom showing "LUMARA is thinking..." in free space
+- **File**: `lib/ui/journal/journal_screen.dart` - Modified `_generateLumaraReflection()` method
+- **Animation**: 300ms duration with `Curves.easeOut` for smooth user experience
+
+#### In-Chat Auto-Scroll Implementation
+- **Trigger**: When user sends message in chat session
+- **Behavior**: Chat immediately scrolls to bottom showing thinking indicator
+- **File**: `lib/arc/chat/chat/ui/session_view.dart` - Modified `_sendMessage()` method
+- **Animation**: Same 300ms duration with `Curves.easeOut` for consistency
+
+#### Technical Implementation
+- **Safety Checks**: Both implementations include `_scrollController.hasClients` verification
+- **Proper Timing**: Uses `WidgetsBinding.addPostFrameCallback()` for UI update synchronization
+- **Consistent Parameters**: Both use identical scroll animation settings
+- **Existing Controllers**: Leverages existing `_scrollController` instances in both screens
+
+#### User Experience Impact
+- **Clear Feedback**: Users immediately understand LUMARA is processing their request
+- **Reduced Confusion**: Eliminates wondering where response will appear
+- **Professional Feel**: Smooth animations provide polished user experience
+- **Unified Interface**: Consistent behavior across journal and chat modes
 
 ## [2.1.43] - December 4, 2025
 
