@@ -1173,7 +1173,19 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
         setState(() {
           _entryState.blocks.add(placeholderBlock);
           _lumaraLoadingStates[blockIndex] = true;
-          _lumaraLoadingMessages[blockIndex] = 'Preparing context...';
+          _lumaraLoadingMessages[blockIndex] = 'LUMARA is thinking...';
+        });
+
+        // Auto-scroll to bottom to show the thinking indicator
+        // Use a small delay to ensure the UI has updated before scrolling
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (_scrollController.hasClients) {
+            _scrollController.animateTo(
+              _scrollController.position.maxScrollExtent,
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeOut,
+            );
+          }
         });
       }
       
