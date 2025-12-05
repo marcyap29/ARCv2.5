@@ -356,6 +356,17 @@ class _SessionViewState extends State<SessionView> {
       _isSending = true;
     });
 
+    // Auto-scroll to bottom immediately to show thinking indicator
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
+    });
+
     try {
       // If session is archived, restore it automatically when continuing conversation
       if (_session != null && _session!.isArchived) {
@@ -363,7 +374,7 @@ class _SessionViewState extends State<SessionView> {
         // Reload session to get updated state
         await _loadSession();
       }
-      
+
       // If editing, remove messages after the edited one
       if (_editingMessageId != null) {
         _resubmitMessage(_editingMessageId!, content);
@@ -371,18 +382,13 @@ class _SessionViewState extends State<SessionView> {
       } else {
         // Set the current chat session ID in LUMARA cubit
         _lumaraCubit!.currentChatSessionId = widget.sessionId;
-        
+
         // Send message through LUMARA assistant
         await _lumaraCubit!.sendMessage(content);
       }
-      
+
       _messageController.clear();
       await _loadSession();
-      
-      // Only scroll to bottom after sending a new message
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _scrollToBottom();
-      });
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
