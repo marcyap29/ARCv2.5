@@ -12,7 +12,6 @@ import {
 } from "../types";
 import {
   GEMINI_API_KEY,
-  ANTHROPIC_API_KEY,
 } from "../config";
 
 const db = admin.firestore();
@@ -49,7 +48,7 @@ const db = admin.firestore();
  */
 export const generateJournalReflection = onCall(
   {
-    secrets: [GEMINI_API_KEY, ANTHROPIC_API_KEY],
+    secrets: [GEMINI_API_KEY],
   },
   async (request) => {
     const {
@@ -206,16 +205,9 @@ Avoid bullet points.`;
       logger.info(`Generating reflection with prompt length: ${userPrompt.length}`);
 
       // Generate reflection using LLM
-      let reflection: string;
-      if (modelConfig.family === "GEMINI_FLASH" || modelConfig.family === "GEMINI_PRO") {
-        const geminiClient = client as any;
-        reflection = await geminiClient.generateContent(userPrompt, systemPrompt, []);
-      } else if (modelConfig.family === "CLAUDE_HAIKU" || modelConfig.family === "CLAUDE_SONNET") {
-        const claudeClient = client as any;
-        reflection = await claudeClient.generateMessage(userPrompt, systemPrompt, []);
-      } else {
-        throw new HttpsError("internal", "Unsupported model family");
-      }
+      // Gemini-only path
+      const geminiClient = client as any;
+      const reflection: string = await geminiClient.generateContent(userPrompt, systemPrompt, []);
 
       logger.info(`Generated reflection (length: ${reflection.length})`);
 

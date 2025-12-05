@@ -28,6 +28,7 @@ import 'package:my_app/arc/chat/llm/bridge.pigeon.dart' as pigeon;
 import 'package:my_app/arc/chat/chat/chat_models.dart';
 import 'package:my_app/arc/chat/chat/chat_category_models.dart';
 import 'package:my_app/arc/chat/data/models/lumara_favorite.dart';
+import 'package:my_app/services/firebase_service.dart';
 
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
@@ -35,13 +36,13 @@ import 'package:my_app/shared/text_style.dart';
 // ==========================================================
 // NOTES FOR AI AGENT
 // ==========================================================
-// Firebase initialization - tries to initialize using platform-specific config files
-// If firebase_options.dart exists, uncomment the import and use DefaultFirebaseOptions
-import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_functions/cloud_functions.dart';
-import 'package:my_app/services/firebase_service.dart';
+// NOTES FOR AI AGENT
+// ==========================================================
+// IMPORTANT: When Firebase is configured and firebase_options.dart exists:
+// 1. Uncomment the import below and the initialize block in bootstrap()
+// 2. Remove these comment lines once Firebase is connected and the line below is uncommented
 // import 'package:my_app/firebase_options.dart';
+// import 'package:firebase_core/firebase_core.dart';
 
 /// Logger instance for application-wide logging
 final logger = Logger(
@@ -325,6 +326,14 @@ Future<void> bootstrap({
       // === Sequential Initialization - Hive must be first ===
       // Hive must be initialized before anything that uses it
       final hiveInitialized = await _initializeHive();
+
+      // Initialize Firebase (uses platform config or dart-define fallback)
+      try {
+        final firebaseReady = await FirebaseService.instance.initialize();
+        logger.d('Firebase initialized (ready: $firebaseReady)');
+      } catch (e, st) {
+        logger.e('Failed to initialize Firebase', e, st);
+      }
       
       // === Parallel Initialization of Independent Services (after Hive) ===
       // Run independent services in parallel after Hive is ready
@@ -339,18 +348,19 @@ Future<void> bootstrap({
       logger.d('Initialization completed: Hive=$hiveInitialized, ${initializationResults.where((r) => r).length}/4 additional services successful');
 
       // ===========================================================
-      // Firebase Initialization
+      // NOTES FOR AI AGENT
       // ===========================================================
-      // Use the centralized Firebase service for reliable initialization
-      try {
-        logger.d('Initializing Firebase via FirebaseService...');
-        await FirebaseService.instance.initialize();
-        logger.d('Firebase initialization complete and verified');
-      } catch (e) {
-        // Firebase initialization failed - app will use fallback methods
-        logger.w('Failed to initialize Firebase (this is OK if Firebase is not configured): $e');
-        // Don't throw - allow app to continue without Firebase
-      }
+      // IMPORTANT: When Firebase is configured and firebase_options.dart exists:
+      // 1. Uncomment the ENTIRE block below, INCLUDING the options parameter
+      // 2. Remove these comment lines once Firebase is connected and the line below is uncommented
+      // try {
+      //   await Firebase.initializeApp(
+      //         options: DefaultFirebaseOptions.currentPlatform,
+      //       );
+      //   logger.d('Firebase initialized');
+      // } catch (e, st) {
+      //   logger.e('Failed to initialize Firebase', e, st);
+      // }
 
       // =========================================================
       // CRITICAL: SENTRY CONFIGURATION - DO NOT MODIFY OR REMOVE
@@ -414,23 +424,10 @@ Future<void> _openHiveBoxes() async {
     final boxType = entry.value;
     
     try {
-      // Check if box is already open with correct type
+      // Skip boxes already open (avoid double-open errors)
       if (Hive.isBoxOpen(boxName)) {
-        final existingBox = Hive.box(boxName);
-        logger.d('Box $boxName already open with type: ${existingBox.runtimeType}');
-        
-        // Check for type mismatch issues
-        if (boxName == Boxes.userProfile && boxType == UserProfile) {
-          try {
-            // Try to access as typed box to verify compatibility
-            Hive.box<UserProfile>(boxName);
-            logger.d('Successfully accessed typed box: $boxName');
-          } catch (typeError) {
-            logger.w('Type mismatch detected for $boxName, closing and reopening: $typeError');
-            await existingBox.close();
-            await _openTypedBox(boxName, boxType);
-          }
-        }
+        logger.d('Box $boxName already open, skipping re-open');
+        continue;
       } else {
         await _openTypedBox(boxName, boxType);
       }

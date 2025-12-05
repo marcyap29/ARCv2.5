@@ -6,6 +6,9 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 import 'package:my_app/telemetry/analytics.dart';
+import 'package:cloud_functions/cloud_functions.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:my_app/services/firebase_service.dart';
 import '../models/reflective_node.dart';
 import '../models/lumara_reflection_options.dart' as models;
 import 'reflective_node_storage.dart';
@@ -17,10 +20,7 @@ import '../llm/llm_provider.dart';
 import '../config/api_config.dart';
 import 'lumara_response_scoring.dart' as scoring;
 import '../../../services/gemini_send.dart';
-import 'package:cloud_functions/cloud_functions.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../../../services/firebase_service.dart';
 import 'lumara_reflection_settings_service.dart';
 import '../llm/prompts/lumara_master_prompt.dart';
 import 'lumara_control_state_builder.dart';
@@ -178,9 +178,64 @@ class EnhancedLumaraApi {
       if (!_initialized) {
         await initialize();
       }
-      
-      // Go directly to Gemini API like main chat - no rate limiting, no fallbacks
-      
+
+      // ===========================================================
+      // 1) Try Firebase backend first (Cloud Functions)
+      // ===========================================================
+      try {
+        final firebaseReady = await FirebaseService.instance.ensureReady();
+        if (firebaseReady) {
+          onProgress?.call('Calling secure backend...');
+          final functions = FirebaseService.instance.getFunctions();
+          final callable = functions.httpsCallable('generateJournalReflection');
+
+          final result = await callable.call({
+            'userText': request.userText,
+            'phaseHint': request.phaseHint?.name,
+            'mood': mood,
+            'chronoContext': chronoContext,
+            'chatContext': chatContext,
+            'mediaContext': mediaContext,
+            'options': {
+              'preferQuestionExpansion': request.options.preferQuestionExpansion,
+              'toneMode': request.options.toneMode.name,
+              'regenerate': request.options.regenerate,
+              'conversationMode': request.options.conversationMode?.name,
+            },
+          });
+
+          final data = result.data as Map<String, dynamic>?;
+          final reflection = data?['reflection']?.toString();
+          final List<dynamic>? traces = data?['attributionTraces'] as List<dynamic>?;
+
+          if (reflection != null && reflection.isNotEmpty) {
+            final attributionTraces = traces
+                    ?.map((t) => AttributionTrace.fromJson(Map<String, dynamic>.from(t as Map)))
+                    .toList() ??
+                <AttributionTrace>[];
+
+            _analytics.logLumaraEvent('reflection_generated_backend', data: {
+              'source': 'firebase_functions',
+              'has_traces': attributionTraces.isNotEmpty,
+            });
+
+            return ReflectionResult(
+              reflection: reflection,
+              attributionTraces: attributionTraces,
+            );
+          } else {
+            print('LUMARA Enhanced API: Backend returned empty reflection, falling back to direct API');
+          }
+        } else {
+          print('LUMARA Enhanced API: Firebase not ready, using direct API fallback');
+        }
+      } catch (e) {
+        print('LUMARA Enhanced API: Backend call failed ($e), using direct API fallback');
+      }
+
+      // ===========================================================
+      // 2) Fallback to direct API (Gemini/OpenAI/Anthropic via API card)
+      // ===========================================================
       final currentPhase = _convertFromV23PhaseHint(request.phaseHint);
       
       // 1. Get settings from service
@@ -314,8 +369,8 @@ class EnhancedLumaraApi {
             userPrompt = '$baseContext\n\nFollow the ECHO structure (Empathize → Clarify → Highlight → Open) and include 1-2 clarifying expansion questions that help deepen the reflection. Consider the mood, phase, circadian context, recent chats, and any media when crafting questions that feel personally relevant and timely. Be thoughtful and allow for meaningful engagement. $_standardReflectionLengthRule';
           }
           
-          // Use Firebase backend Cloud Function - all API calls go through backend
-          print('LUMARA Enhanced API v2.3: Using Firebase backend Cloud Function');
+          // Use Gemini API directly via geminiSend() - same as main LUMARA chat
+          print('LUMARA Enhanced API v2.3: Calling Gemini API directly (same as main chat)');
           
           // Build PRISM activity context from request and matches
           // Query repositories for actual data instead of using empty arrays
@@ -369,74 +424,48 @@ class EnhancedLumaraApi {
           print('LUMARA Enhanced API v2.3: System prompt length: ${systemPrompt.length}');
           print('LUMARA Enhanced API v2.3: User prompt length: ${userPrompt.length}');
           
-          onProgress?.call('Calling backend API...');
-          
-          // Call backend Cloud Function instead of direct Gemini API
+          onProgress?.call('Calling cloud API...');
+
+          // Call Gemini API directly - no fallbacks, no hard-coded responses
           String? geminiResponse;
           int retryCount = 0;
           const maxRetries = 2;
-          
+
           while (retryCount <= maxRetries && geminiResponse == null) {
             try {
-              // Use the centralized Firebase service for reliable access
-              if (!await FirebaseService.instance.ensureReady()) {
-                throw Exception('Firebase service not ready');
-              }
+              // Direct Gemini API call - same protocol as main LUMARA chat
+              geminiResponse = await geminiSend(
+                system: systemPrompt,
+                user: userPrompt,
+                jsonExpected: false,
+              );
 
-              // Call backend Cloud Function for journal reflection
-              final functions = FirebaseService.instance.getFunctions();
-              final callable = functions.httpsCallable('generateJournalReflection');
-              
-              final result = await callable.call({
-                'entryText': request.userText,
-                'phase': currentPhase?.name,
-                'mood': mood,
-                'chronoContext': chronoContext,
-                'chatContext': chatContext,
-                'mediaContext': mediaContext,
-                'options': {
-                  'preferQuestionExpansion': request.options.preferQuestionExpansion,
-                  'toneMode': request.options.toneMode.name,
-                  'regenerate': request.options.regenerate,
-                  'conversationMode': request.options.conversationMode?.name,
-                },
-              });
-              
-              geminiResponse = result.data['reflection'] as String?;
-              
-              if (geminiResponse == null || geminiResponse.isEmpty) {
-                throw Exception('Backend returned empty reflection');
-              }
-              
-              print('LUMARA: Backend API response received (length: ${geminiResponse.length})');
+              print('LUMARA: Gemini API response received (length: ${geminiResponse.length})');
               onProgress?.call('Processing response...');
               break; // Success, exit retry loop
             } catch (e) {
               retryCount++;
               if (retryCount > maxRetries) {
-                print('LUMARA: Backend API error after $maxRetries retries: $e');
-                // Re-throw the error
+                print('LUMARA: Gemini API error after $maxRetries retries: $e');
+                // Re-throw the error - no fallbacks, user needs to configure API key
                 rethrow;
               }
-              // Only retry on 503/overloaded errors or network errors
-              final errorStr = e.toString();
-              if (!errorStr.contains('503') && 
-                  !errorStr.contains('overloaded') && 
-                  !errorStr.contains('UNAVAILABLE') &&
-                  !errorStr.contains('network') &&
-                  !errorStr.contains('timeout')) {
-                print('LUMARA: Backend API error (non-retryable): $e');
-                // Re-throw immediately for non-retryable errors
+              // Only retry on 503/overloaded errors
+              if (!e.toString().contains('503') &&
+                  !e.toString().contains('overloaded') &&
+                  !e.toString().contains('UNAVAILABLE')) {
+                print('LUMARA: Gemini API error (non-retryable): $e');
+                // Re-throw immediately for non-retryable errors (like API key missing)
                 rethrow;
               }
               onProgress?.call('Retrying API... ($retryCount/$maxRetries)');
-              print('LUMARA: Backend API retry $retryCount/$maxRetries - waiting 2 seconds...');
+              print('LUMARA: Gemini API retry $retryCount/$maxRetries - waiting 2 seconds...');
               await Future.delayed(const Duration(seconds: 2));
             }
           }
-          
+
           if (geminiResponse == null) {
-            throw Exception('Failed to generate response from backend API');
+            throw Exception('Failed to generate response from Gemini API');
           }
           
           onProgress?.call('Finalizing insights...');
@@ -572,13 +601,10 @@ class EnhancedLumaraApi {
             attributionTraces: attributionTraces,
           );
       } catch (e) {
-        print('LUMARA Enhanced API: ✗ Error calling Firebase backend: $e');
-        // For security, only use secure Firebase backend - no local API key fallback
-        // The local fallback is kept for emergency use but disabled by default
-        print('LUMARA Enhanced API: Firebase backend required for security - no fallback');
-
-        // Provide helpful error message about Firebase requirements
-        throw Exception('LUMARA requires Firebase backend connection for security. Please check your internet connection and Firebase configuration.');
+        print('LUMARA Enhanced API: ✗ Error calling Gemini API: $e');
+        // No fallbacks - rethrow the error so user knows API call failed
+        // Same behavior as main LUMARA chat - no hard-coded responses
+        rethrow;
       }
     } catch (e) {
       print('LUMARA Enhanced API: ✗ Fatal error: $e');

@@ -33,11 +33,12 @@
 		97C146FC1CF9000F007C117D /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FA1CF9000F007C117D /* Main.storyboard */; };
 		97C146FE1CF9000F007C117D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FD1CF9000F007C117D /* Assets.xcassets */; };
 		97C147011CF9000F007C117D /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FF1CF9000F007C117D /* LaunchScreen.storyboard */; };
+		5C78ABCD2F0A000100000001 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 5C78ABCD2F0A000100000000 /* GoogleService-Info.plist */; };
 		D1754AEF759146E8920F2B30 /* MiraMemoryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4700A91B00044A52AA765055 /* MiraMemoryStore.swift */; };
+		F0F0F0F01A2B3C4D5E6F0001 /* HealthKitManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0F0F0F01A2B3C4D5E6F0002 /* HealthKitManager.swift */; };
 		PHOTOCHAN001 /* PhotoChannel.swift in Sources */ = {isa = PBXBuildFile; fileRef = PHOTOCHAN002 /* PhotoChannel.swift */; };
 		PHOTOLIB001 /* PhotoLibraryService.swift in Sources */ = {isa = PBXBuildFile; fileRef = PHOTOLIB002 /* PhotoLibraryService.swift */; };
-        VISIONIMPL001 /* VisionApiImpl.swift in Sources */ = {isa = PBXBuildFile; fileRef = VISIONIMPL002 /* VisionApiImpl.swift */; };
-        F0F0F0F01A2B3C4D5E6F0001 /* HealthKitManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0F0F0F01A2B3C4D5E6F0002 /* HealthKitManager.swift */; };
+		VISIONIMPL001 /* VisionApiImpl.swift in Sources */ = {isa = PBXBuildFile; fileRef = VISIONIMPL002 /* VisionApiImpl.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -115,14 +116,15 @@
 		97C146FD1CF9000F007C117D /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		97C147001CF9000F007C117D /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		97C147021CF9000F007C117D /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		5C78ABCD2F0A000100000000 /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = GoogleService-Info.plist; sourceTree = "<group>"; };
 		AB3677EB70444E1F82E0E2CC /* Bridge.pigeon.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Bridge.pigeon.swift; sourceTree = "<group>"; };
 		AD02F52095DB446494429964 /* LumaraPromptSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LumaraPromptSystem.swift; sourceTree = "<group>"; };
 		E56C863C9CF3885654685C08 /* Pods-RunnerTests.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-RunnerTests.release.xcconfig"; path = "Target Support Files/Pods-RunnerTests/Pods-RunnerTests.release.xcconfig"; sourceTree = "<group>"; };
+		F0F0F0F01A2B3C4D5E6F0002 /* HealthKitManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthKitManager.swift; sourceTree = "<group>"; };
 		FC0519422AE72D0E4EEBC538 /* Pods_RunnerTests.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_RunnerTests.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		PHOTOCHAN002 /* PhotoChannel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoChannel.swift; sourceTree = "<group>"; };
 		PHOTOLIB002 /* PhotoLibraryService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoLibraryService.swift; sourceTree = "<group>"; };
-        VISIONIMPL002 /* VisionApiImpl.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisionApiImpl.swift; sourceTree = "<group>"; };
-        F0F0F0F01A2B3C4D5E6F0002 /* HealthKitManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthKitManager.swift; sourceTree = "<group>"; };
+		VISIONIMPL002 /* VisionApiImpl.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisionApiImpl.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -230,10 +232,11 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
-        97C146F01CF9000F007C117D /* Runner */ = {
+		97C146F01CF9000F007C117D /* Runner */ = {
 			isa = PBXGroup;
 			children = (
-                F0F0F0F01A2B3C4D5E6F0002 /* HealthKitManager.swift */,
+				5C78ABCD2F0A000100000000 /* GoogleService-Info.plist */,
+				F0F0F0F01A2B3C4D5E6F0002 /* HealthKitManager.swift */,
 				97C146FA1CF9000F007C117D /* Main.storyboard */,
 				97C146FD1CF9000F007C117D /* Assets.xcassets */,
 				97C146FF1CF9000F007C117D /* LaunchScreen.storyboard */,
@@ -366,6 +369,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				5C78ABCD2F0A000100000001 /* GoogleService-Info.plist in Resources */,
 				97C147011CF9000F007C117D /* LaunchScreen.storyboard in Resources */,
 				3B3967161E833CAA004F5970 /* AppFrameworkInfo.plist in Resources */,
 				97C146FE1CF9000F007C117D /* Assets.xcassets in Resources */,
@@ -496,11 +500,11 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-        97C146EA1CF9000F007C117D /* Sources */ = {
+		97C146EA1CF9000F007C117D /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-                F0F0F0F01A2B3C4D5E6F0001 /* HealthKitManager.swift in Sources */,
+				F0F0F0F01A2B3C4D5E6F0001 /* HealthKitManager.swift in Sources */,
 				74858FAF1ED2DC5600515810 /* AppDelegate.swift in Sources */,
 				810596B1C0D24C098C431893 /* LLMBridge.swift in Sources */,
 				810596B1C0D24C098C431894 /* ModelDownloadService.swift in Sources */,
@@ -614,9 +618,10 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++17";
 				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_ENTITLEMENTS = Runner/Runner.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
+				CURRENT_PROJECT_VERSION = 5;
 				DEVELOPMENT_TEAM = 87W73WQSPF;
 				ENABLE_BITCODE = NO;
 				FRAMEWORK_SEARCH_PATHS = "$(inherited)";
@@ -631,7 +636,6 @@
 					"@loader_path/Frameworks",
 				);
 				LIBRARY_SEARCH_PATHS = "$(inherited)";
-				MARKETING_VERSION = .01;
 				OTHER_LDFLAGS = (
 					"-lc++",
 					"-ObjC",
@@ -640,7 +644,6 @@
 					"-lm",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.epi.arcmvp;
-				CODE_SIGN_ENTITLEMENTS = Runner/Runner.entitlements;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SUPPORTED_PLATFORMS = "iphonesimulator iphoneos";
@@ -824,9 +827,10 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++17";
 				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_ENTITLEMENTS = Runner/Runner.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
+				CURRENT_PROJECT_VERSION = 5;
 				DEVELOPMENT_TEAM = 87W73WQSPF;
 				ENABLE_BITCODE = NO;
 				FRAMEWORK_SEARCH_PATHS = "$(inherited)";
@@ -841,7 +845,6 @@
 					"@loader_path/Frameworks",
 				);
 				LIBRARY_SEARCH_PATHS = "$(inherited)";
-				MARKETING_VERSION = .01;
 				OTHER_LDFLAGS = (
 					"-lc++",
 					"-ObjC",
@@ -850,7 +853,6 @@
 					"-lm",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.epi.arcmvp;
-				CODE_SIGN_ENTITLEMENTS = Runner/Runner.entitlements;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SUPPORTED_PLATFORMS = "iphonesimulator iphoneos";
@@ -868,9 +870,10 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++17";
 				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_ENTITLEMENTS = Runner/Runner.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
+				CURRENT_PROJECT_VERSION = 5;
 				DEVELOPMENT_TEAM = 87W73WQSPF;
 				ENABLE_BITCODE = NO;
 				FRAMEWORK_SEARCH_PATHS = "$(inherited)";
@@ -885,7 +888,6 @@
 					"@loader_path/Frameworks",
 				);
 				LIBRARY_SEARCH_PATHS = "$(inherited)";
-				MARKETING_VERSION = .01;
 				OTHER_LDFLAGS = (
 					"-lc++",
 					"-ObjC",
@@ -894,7 +896,6 @@
 					"-lm",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.epi.arcmvp;
-				CODE_SIGN_ENTITLEMENTS = Runner/Runner.entitlements;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SUPPORTED_PLATFORMS = "iphonesimulator iphoneos";

@@ -318,19 +318,15 @@ export class LocalEISClient {
 /**
  * LLM Client Factory
  * Creates the appropriate client based on model family
- */
+  */
 export function createLLMClient(config: ModelConfig) {
   switch (config.family) {
     case "GEMINI_FLASH":
     case "GEMINI_PRO":
       return new GeminiClient(config);
-    case "CLAUDE_HAIKU":
-    case "CLAUDE_SONNET":
-      return new ClaudeClient(config);
     case "LOCAL_EIS":
       return new LocalEISClient(config);
     default:
       throw new Error(`Unknown model family: ${config.family}`);
   }
 }
-

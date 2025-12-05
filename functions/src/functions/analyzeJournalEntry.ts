@@ -12,10 +12,7 @@ import {
   AnalysisResponse,
   UserDocument,
 } from "../types";
-import {
-  GEMINI_API_KEY,
-  ANTHROPIC_API_KEY,
-} from "../config";
+import { GEMINI_API_KEY } from "../config";
 
 const db = admin.firestore();
 
@@ -39,7 +36,7 @@ const db = admin.firestore();
  */
 export const analyzeJournalEntry = onCall(
   {
-    secrets: [GEMINI_API_KEY, ANTHROPIC_API_KEY],
+    secrets: [GEMINI_API_KEY],
   },
   async (request) => {
     const { entryId, entryContent } = request.data;
@@ -213,4 +210,3 @@ function extractSuggestions(text: string): string[] {
   
   return suggestionLines.slice(0, 3); // Max 3 suggestions
 }
-

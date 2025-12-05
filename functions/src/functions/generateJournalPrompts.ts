@@ -10,10 +10,7 @@ import {
   SubscriptionTier,
   UserDocument,
 } from "../types";
-import {
-  GEMINI_API_KEY,
-  ANTHROPIC_API_KEY,
-} from "../config";
+import { GEMINI_API_KEY } from "../config";
 
 const db = admin.firestore();
 
@@ -36,7 +33,7 @@ const db = admin.firestore();
  */
 export const generateJournalPrompts = onCall(
   {
-    secrets: [GEMINI_API_KEY, ANTHROPIC_API_KEY],
+    secrets: [GEMINI_API_KEY],
   },
   async (request) => {
     const { expanded = false, context } = request.data || {};
@@ -175,25 +172,13 @@ ${contextString || "No specific context provided. Generate prompts that are mean
 
       // Generate prompts using LLM
       let promptsText = "";
-      if (modelConfig.family === "GEMINI_FLASH" || modelConfig.family === "GEMINI_PRO") {
-        // Use Gemini client - generateContent(userMessage, systemInstruction, conversationHistory)
-        const geminiClient = client as any;
-        promptsText = await geminiClient.generateContent(
-          userMessage,
-          systemPrompt,
-          []
-        );
-      } else if (modelConfig.family === "CLAUDE_HAIKU" || modelConfig.family === "CLAUDE_SONNET") {
-        // Use Claude client - generateMessage(userMessage, systemPrompt, conversationHistory)
-        const claudeClient = client as any;
-        promptsText = await claudeClient.generateMessage(
-          userMessage,
-          systemPrompt,
-          []
-        );
-      } else {
-        throw new HttpsError("internal", "Unsupported model family");
-      }
+      // Gemini-only path
+      const geminiClient = client as any;
+      promptsText = await geminiClient.generateContent(
+        userMessage,
+        systemPrompt,
+        []
+      );
 
       // Parse prompts from response
       const prompts: string[] = [];

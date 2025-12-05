@@ -294,7 +294,7 @@ flutter run --dart-define=GEMINI_API_KEY=$GEMINI_API_KEY --route=/llm-demo
 ## MCP Export/Import (Files app)
 - **Export**: Always uses high fidelity (maximum capability) - no quality selection needed
 - **Media Preservation**: Photos, videos, audio, and documents maintain original URIs including `ph://` references
-- **Import**: Automatically detects and reconstructs media items from exported MCP bundles
+- **Import**: Automatically detects and reconstructs media items from exporte∫d MCP bundles
 - **Compatibility**: Supports both new root-level media format and legacy metadata format
 - **Timestamped Files**: MCP exports include readable date/time in filename format: `mcp_YYYYMMDD_HHMMSS.zip`
 
@@ -377,3 +377,13 @@ The phase transfer issue has been resolved with the implementation of the new RI
 - Journal entry filtering by phase regime date ranges
 - Real keyword display from user's actual writing
 - Fallback system to recent entries if no phase regime found
+   firebase functions:secrets:list
+   firebase login --reauth
+   firebase functions:secrets:set GEMINI_API_KEY
+   firebase functions:secrets:set ANTHROPIC_API_KEY
+   firebase functions:secrets:set THROTTLE_UNLOCK_PASSWORD
+   firebase functions:secrets:access GEMINI_API_KEY
+   firebase functions:secrets:access THROTTLE_UNLOCK_PASSWORD
+   firebase deploy --only functions
+   firebase functions:secrets:destroy <SECRET_NAME>
+  

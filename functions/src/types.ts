@@ -12,8 +12,9 @@ export type SubscriptionStatus = "active" | "canceled" | "trial";
 /**
  * Model family identifiers
  * Future-proof: Adding LOCAL_EIS for future local model support
+ * Note: External providers trimmed to Gemini-only.
  */
-export type ModelFamily = "GEMINI_FLASH" | "GEMINI_PRO" | "CLAUDE_HAIKU" | "CLAUDE_SONNET" | "LOCAL_EIS";
+export type ModelFamily = "GEMINI_FLASH" | "GEMINI_PRO" | "LOCAL_EIS";
 
 /**
  * Operation types for routing decisions
@@ -150,4 +151,3 @@ export interface APIError {
   message: string;
   details?: any;
 }
-

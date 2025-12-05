@@ -33,7 +33,7 @@ Future<String> geminiSend({
 
   if (apiKey.isEmpty) {
     print('DEBUG GEMINI: No local API key found');
-    throw StateError('Local API keys are no longer supported. All API calls must go through the Firebase backend. Please ensure Firebase is properly configured and initialized.');
+    throw StateError('No Gemini API key configured. Please add your API key in Settings → LUMARA Settings.');
   }
 
   // PRISM: Scrub PII from user input and system prompt before sending to cloud API
@@ -165,7 +165,7 @@ Stream<String> geminiSendStream({
 
   if (apiKey.isEmpty) {
     print('DEBUG GEMINI STREAM: No API key found, throwing StateError');
-    throw StateError('Local API keys are no longer supported. All API calls must go through the Firebase backend. Please ensure Firebase is properly configured and initialized.');
+    throw StateError('No Gemini API key configured. Please add your API key in Settings → LUMARA Settings.');
   }
 
   // PRISM: Scrub PII from user input and system prompt before sending to cloud API

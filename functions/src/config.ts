@@ -8,7 +8,6 @@ import { ModelFamily, ModelConfig } from "./types";
  * These are set via Firebase Functions config or secrets
  */
 export const GEMINI_API_KEY = defineSecret("GEMINI_API_KEY");
-export const ANTHROPIC_API_KEY = defineSecret("ANTHROPIC_API_KEY");
 
 // Throttle unlock password (stored as secret for security)
 export const THROTTLE_UNLOCK_PASSWORD = defineSecret("THROTTLE_UNLOCK_PASSWORD");
@@ -22,16 +21,6 @@ export const GEMINI_FLASH_MODEL_ID = defineString("GEMINI_FLASH_MODEL_ID", {
 export const GEMINI_PRO_MODEL_ID = defineString("GEMINI_PRO_MODEL_ID", {
   default: "gemini-2.5", // Updated to Gemini 2.5 (1.5 is deprecated) - Same model as Flash, backend enforces free tier limits
   description: "Gemini 2.5 model ID (paid tier - unlimited access to same model)",
-});
-
-export const CLAUDE_HAIKU_MODEL_ID = defineString("CLAUDE_HAIKU_MODEL_ID", {
-  default: "claude-3-haiku-20240307",
-  description: "Claude Haiku model ID (paid tier, fast operations)",
-});
-
-export const CLAUDE_SONNET_MODEL_ID = defineString("CLAUDE_SONNET_MODEL_ID", {
-  default: "claude-3-5-sonnet-20241022",
-  description: "Claude Sonnet model ID (paid tier, deep reflection)",
 });
 
 // Rate limiting configuration
@@ -60,7 +49,6 @@ export const FREE_MAX_CHAT_TURNS_PER_THREAD = defineString("FREE_MAX_CHAT_TURNS_
  * API Base URLs
  */
 export const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
-export const ANTHROPIC_BASE_URL = "https://api.anthropic.com/v1";
 
 /**
  * Model configuration factory
@@ -85,24 +73,6 @@ export function getModelConfig(family: ModelFamily): ModelConfig {
         baseUrl: GEMINI_BASE_URL,
         maxTokens: 8192,
         temperature: 0.7,
-      };
-    case "CLAUDE_HAIKU":
-      return {
-        family: "CLAUDE_HAIKU",
-        modelId: CLAUDE_HAIKU_MODEL_ID.value(),
-        apiKey: ANTHROPIC_API_KEY.value(),
-        baseUrl: ANTHROPIC_BASE_URL,
-        maxTokens: 4096,
-        temperature: 0.7,
-      };
-    case "CLAUDE_SONNET":
-      return {
-        family: "CLAUDE_SONNET",
-        modelId: CLAUDE_SONNET_MODEL_ID.value(),
-        apiKey: ANTHROPIC_API_KEY.value(),
-        baseUrl: ANTHROPIC_BASE_URL,
-        maxTokens: 8192,
-        temperature: 0.8,
       };
     case "LOCAL_EIS":
       // Future: Local EIS-O1/EIS-E1 model
@@ -142,4 +112,3 @@ export function getModelConfig(family: ModelFamily): ModelConfig {
  * firebase functions:config:set gemini.flash_model_id="gemini-3.0-flash"
  * firebase functions:config:set gemini.pro_model_id="gemini-3.0"
  */
-

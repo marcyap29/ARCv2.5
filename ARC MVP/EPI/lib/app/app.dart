@@ -10,6 +10,9 @@ import 'package:my_app/arc/chat/ui/lumara_splash_screen.dart';
 
 // Global repo + cubit
 import 'package:my_app/arc/core/journal_repository.dart';
+import 'package:my_app/arc/chat/data/context_scope.dart' as arc_scope;
+import 'package:my_app/arc/chat/data/context_provider.dart' as arc_context;
+import 'package:my_app/arc/chat/bloc/lumara_assistant_cubit.dart' as arc_cubit;
 import 'package:my_app/arc/ui/timeline/timeline_cubit.dart';
 import 'package:my_app/arc/core/journal_capture_cubit.dart';
 import 'package:my_app/arc/core/keyword_extraction_cubit.dart';
@@ -108,9 +111,10 @@ class _AppState extends State<App> {
           // LUMARA Assistant cubit
           BlocProvider(
             create: (context) {
-              const scope = LumaraScope.defaultScope;
-              final contextProvider = ContextProvider(scope);
-              return LumaraAssistantCubit(
+              final scope = arc_scope.LumaraScope.defaultScope;
+              final contextProvider = arc_context.ContextProvider(scope);
+
+              return arc_cubit.LumaraAssistantCubit(
                 contextProvider: contextProvider,
               )..initialize();
             },

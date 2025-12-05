@@ -17,8 +17,6 @@ class SimpleLumaraSettingsScreen extends StatefulWidget {
 class _SimpleLumaraSettingsScreenState extends State<SimpleLumaraSettingsScreen> {
   final LumaraAPIConfig _apiConfig = LumaraAPIConfig.instance;
   final TextEditingController _geminiController = TextEditingController();
-  final TextEditingController _openaiController = TextEditingController();
-  final TextEditingController _anthropicController = TextEditingController();
   final LumaraNative _bridge = LumaraNative();
   final DownloadStateService _downloadStateService = DownloadStateService.instance;
   
@@ -34,8 +32,6 @@ class _SimpleLumaraSettingsScreenState extends State<SimpleLumaraSettingsScreen>
   @override
   void dispose() {
     _geminiController.dispose();
-    _openaiController.dispose();
-    _anthropicController.dispose();
     _downloadStateService.removeListener(_onDownloadStateChanged);
     super.dispose();
   }
@@ -51,8 +47,6 @@ class _SimpleLumaraSettingsScreenState extends State<SimpleLumaraSettingsScreen>
     
     setState(() {
       _geminiController.text = _apiConfig.getApiKey(LLMProvider.gemini) ?? '';
-      _openaiController.text = _apiConfig.getApiKey(LLMProvider.openai) ?? '';
-      _anthropicController.text = _apiConfig.getApiKey(LLMProvider.anthropic) ?? '';
     });
   }
 
@@ -289,7 +283,7 @@ class _SimpleLumaraSettingsScreenState extends State<SimpleLumaraSettingsScreen>
                     ),
                     const SizedBox(height: 16),
                     Text(
-                      'Add your API key for any of these providers:',
+                      'Add your Gemini API key:',
                       style: theme.textTheme.bodyMedium?.copyWith(
                         color: theme.colorScheme.onSurfaceVariant,
                       ),
@@ -302,26 +296,6 @@ class _SimpleLumaraSettingsScreenState extends State<SimpleLumaraSettingsScreen>
                       'Get your key from Google AI Studio',
                       _geminiController,
                       () => _saveApiKey(LLMProvider.gemini, _geminiController.text),
-                    ),
-                    
-                    const SizedBox(height: 16),
-                    
-                    // OpenAI API Key
-                    _buildApiKeyField(
-                      'OpenAI GPT',
-                      'Get your key from OpenAI Platform',
-                      _openaiController,
-                      () => _saveApiKey(LLMProvider.openai, _openaiController.text),
-                    ),
-                    
-                    const SizedBox(height: 16),
-                    
-                    // Anthropic API Key
-                    _buildApiKeyField(
-                      'Anthropic Claude',
-                      'Get your key from Anthropic Console',
-                      _anthropicController,
-                      () => _saveApiKey(LLMProvider.anthropic, _anthropicController.text),
                     ),
                   ],
                 ),
@@ -359,9 +333,7 @@ class _SimpleLumaraSettingsScreenState extends State<SimpleLumaraSettingsScreen>
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    '• Gemini: Visit Google AI Studio (aistudio.google.com)\n'
-                    '• OpenAI: Visit OpenAI Platform (platform.openai.com)\n'
-                    '• Anthropic: Visit Anthropic Console (console.anthropic.com)',
+                    '• Gemini: Visit Google AI Studio (aistudio.google.com)',
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: theme.colorScheme.onSurfaceVariant,
                     ),
