@@ -361,6 +361,7 @@ class _InlineReflectionBlockState extends State<InlineReflectionBlock> with Sing
   }
 
   /// Build paragraphs from content text with improved mobile readability
+  /// For in-journal: min 10 words/sentence, min 2 sentences/paragraph, max 4 sentences/paragraph
   List<Widget> _buildParagraphs(String content, ThemeData theme) {
     if (content.trim().isEmpty) {
       return [const SizedBox.shrink()];
@@ -368,40 +369,18 @@ class _InlineReflectionBlockState extends State<InlineReflectionBlock> with Sing
 
     // Split by double newlines first (explicit paragraphs)
     List<String> paragraphs = content.split('\n\n');
-    
+
     // Clean up paragraphs - remove single newlines within paragraphs
     paragraphs = paragraphs.map((p) => p.replaceAll('\n', ' ').trim()).toList();
-    
+
     // If no double newlines, try splitting by single newlines
     if (paragraphs.length == 1 && content.contains('\n')) {
       paragraphs = content.split('\n').map((p) => p.trim()).where((p) => p.isNotEmpty).toList();
     }
-    
-    // If still single paragraph, try splitting by sentence endings for better readability
+
+    // If still single paragraph, apply in-journal formatting rules
     if (paragraphs.length == 1) {
-      // Split by periods/exclamation/question marks followed by space and capital letter
-      final sentencePattern = RegExp(r'([.!?])\s+([A-Z])');
-      final matches = sentencePattern.allMatches(content);
-      
-      if (matches.length >= 2) {
-        paragraphs = [];
-        int lastIndex = 0;
-        for (final match in matches) {
-          if (match.start > lastIndex) {
-            final sentence = content.substring(lastIndex, match.start + 1).trim();
-            if (sentence.isNotEmpty) {
-              paragraphs.add(sentence);
-            }
-            lastIndex = match.start + 1;
-          }
-        }
-        if (lastIndex < content.length) {
-          final remaining = content.substring(lastIndex).trim();
-          if (remaining.isNotEmpty) {
-            paragraphs.add(remaining);
-          }
-        }
-      }
+      paragraphs = _formatInJournalParagraphs(content);
     }
 
     // Filter out empty paragraphs and build widgets with improved spacing
@@ -437,6 +416,157 @@ class _InlineReflectionBlockState extends State<InlineReflectionBlock> with Sing
         ),
       )
     ] : widgets;
+  }
+
+  /// Format content into paragraphs using in-journal rules:
+  /// - Sentences: min 10 words
+  /// - Paragraphs: min 2 sentences, max 4 sentences
+  /// - Fallback: use previous 2-sentence grouping for smaller paragraphs
+  List<String> _formatInJournalParagraphs(String content) {
+    final sentences = _extractValidSentences(content, minWords: 10);
+
+    if (sentences.length < 2) {
+      // If less than 2 valid sentences, fallback to previous behavior
+      return _fallbackToSimpleGrouping(content);
+    }
+
+    final paragraphs = <String>[];
+
+    // Group sentences into paragraphs (2-4 sentences each)
+    for (int i = 0; i < sentences.length;) {
+      final remainingSentences = sentences.length - i;
+      int sentencesToTake;
+
+      if (remainingSentences <= 4) {
+        // Take all remaining if 4 or fewer
+        sentencesToTake = remainingSentences;
+      } else if (remainingSentences == 5) {
+        // Split 5 sentences as 2+3 instead of 4+1
+        sentencesToTake = 2;
+      } else {
+        // Take 4 sentences for optimal readability
+        sentencesToTake = 4;
+      }
+
+      // Ensure minimum of 2 sentences per paragraph
+      if (sentencesToTake < 2) sentencesToTake = 2;
+
+      final paragraphSentences = sentences.sublist(i, i + sentencesToTake);
+      paragraphs.add(paragraphSentences.join(' '));
+
+      i += sentencesToTake;
+    }
+
+    return paragraphs;
+  }
+
+  /// Extract sentences that meet minimum word requirements
+  List<String> _extractValidSentences(String text, {required int minWords}) {
+    final allSentences = _extractSentences(text);
+    final validSentences = <String>[];
+
+    for (final sentence in allSentences) {
+      final wordCount = sentence.trim().split(RegExp(r'\s+')).length;
+      if (wordCount >= minWords) {
+        validSentences.add(sentence);
+      } else {
+        // If sentence is too short, try to combine with previous sentence
+        if (validSentences.isNotEmpty) {
+          final lastSentence = validSentences.removeLast();
+          final combined = '$lastSentence $sentence';
+          validSentences.add(combined);
+        } else {
+          // Keep short sentence as is if it's the first one
+          validSentences.add(sentence);
+        }
+      }
+    }
+
+    return validSentences;
+  }
+
+  /// Fallback to simple 2-sentence grouping for edge cases
+  List<String> _fallbackToSimpleGrouping(String content) {
+    final sentences = _extractSentences(content);
+
+    if (sentences.length >= 2) {
+      final paragraphs = <String>[];
+
+      // Group every 2 sentences together (previous behavior)
+      for (int i = 0; i < sentences.length; i += 2) {
+        String paragraphText = sentences[i];
+
+        // Add second sentence if available
+        if (i + 1 < sentences.length) {
+          paragraphText += ' ' + sentences[i + 1];
+        }
+
+        paragraphs.add(paragraphText.trim());
+      }
+
+      return paragraphs;
+    }
+
+    return [content];
+  }
+
+  /// Extract sentences from text using improved sentence boundary detection
+  List<String> _extractSentences(String text) {
+    if (text.trim().isEmpty) return [];
+
+    final sentences = <String>[];
+
+    // Enhanced sentence pattern that handles:
+    // - Standard endings: . ! ?
+    // - Quotes and parentheses: "Hello." or (end).
+    // - Abbreviations: handles common abbreviations like "Dr.", "etc.", "i.e."
+    final sentencePattern = RegExp(
+      r'(?<![A-Z][a-z]\.)\s*([^.!?]*[.!?]+(?:\s*["\)]*)?)\s*(?=[A-Z]|$)',
+      multiLine: true,
+    );
+
+    final matches = sentencePattern.allMatches(text);
+
+    if (matches.isEmpty) {
+      // Fallback: if no clear sentence boundaries, return the whole text
+      return [text.trim()];
+    }
+
+    for (final match in matches) {
+      final sentence = match.group(1)?.trim();
+      if (sentence != null && sentence.isNotEmpty) {
+        sentences.add(sentence);
+      }
+    }
+
+    // If we didn't capture everything, add remaining text
+    final totalCaptured = matches.fold<int>(0, (sum, match) => sum + (match.group(0)?.length ?? 0));
+    if (totalCaptured < text.length * 0.8) {
+      // Fallback to simpler splitting if complex regex missed too much
+      return _simpleSentenceSplit(text);
+    }
+
+    return sentences.where((s) => s.trim().isNotEmpty).toList();
+  }
+
+  /// Simple sentence splitting as fallback
+  List<String> _simpleSentenceSplit(String text) {
+    // Split by sentence endings followed by whitespace and capital letter
+    final parts = text.split(RegExp(r'([.!?])\s+(?=[A-Z])'));
+    final sentences = <String>[];
+
+    for (int i = 0; i < parts.length; i += 2) {
+      String sentence = parts[i];
+      if (i + 1 < parts.length) {
+        sentence += parts[i + 1]; // Add the punctuation back
+      }
+      sentence = sentence.trim();
+      if (sentence.isNotEmpty) {
+        sentences.add(sentence);
+      }
+    }
+
+    return sentences.isNotEmpty ? sentences : [text.trim()];
   }
 
   Future<void> _toggleFavorite(BuildContext context) async {

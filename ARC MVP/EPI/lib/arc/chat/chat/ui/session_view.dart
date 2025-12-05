@@ -891,13 +891,17 @@ class _SessionViewState extends State<SessionView> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    message.textContent,
-                    style: TextStyle(
-                      color: isUser ? Colors.white : Colors.black87,
-                      fontSize: 16,
+                  // Use paragraph formatting for LUMARA responses
+                  if (!isUser && !isSystem)
+                    ..._buildChatParagraphs(message.textContent)
+                  else
+                    Text(
+                      message.textContent,
+                      style: TextStyle(
+                        color: isUser ? Colors.white : Colors.black87,
+                        fontSize: 16,
+                      ),
                     ),
-                  ),
                   
                   // Action buttons for user messages (edit/copy)
                   if (isUser && !isSystem) ...[
@@ -1168,6 +1172,213 @@ class _SessionViewState extends State<SessionView> {
         );
       }).toList(),
     );
+  }
+
+  /// Build paragraphs for chat messages using in-chat formatting rules:
+  /// - Sentences: min 10 words
+  /// - Paragraphs: min 3 sentences, max 5 sentences
+  /// - Fallback: use simpler logic for smaller paragraphs
+  List<Widget> _buildChatParagraphs(String content) {
+    if (content.trim().isEmpty) {
+      return [const SizedBox.shrink()];
+    }
+
+    // Split by double newlines first (explicit paragraphs)
+    List<String> paragraphs = content.split('\n\n');
+
+    // Clean up paragraphs - remove single newlines within paragraphs
+    paragraphs = paragraphs.map((p) => p.replaceAll('\n', ' ').trim()).toList();
+
+    // If no double newlines, try splitting by single newlines
+    if (paragraphs.length == 1 && content.contains('\n')) {
+      paragraphs = content.split('\n').map((p) => p.trim()).where((p) => p.isNotEmpty).toList();
+    }
+
+    // If still single paragraph, apply in-chat formatting rules
+    if (paragraphs.length == 1) {
+      paragraphs = _formatInChatParagraphs(content);
+    }
+
+    // Filter out empty paragraphs and build widgets
+    final widgets = <Widget>[];
+    for (int i = 0; i < paragraphs.length; i++) {
+      final paragraph = paragraphs[i].trim();
+      if (paragraph.isNotEmpty) {
+        widgets.add(
+          Padding(
+            padding: EdgeInsets.only(bottom: i < paragraphs.length - 1 ? 12 : 0),
+            child: Text(
+              paragraph,
+              style: const TextStyle(
+                color: Colors.black87,
+                fontSize: 16,
+                height: 1.5,
+              ),
+            ),
+          ),
+        );
+      }
+    }
+
+    return widgets.isEmpty ? [
+      Text(
+        content,
+        style: const TextStyle(
+          color: Colors.black87,
+          fontSize: 16,
+          height: 1.5,
+        ),
+      )
+    ] : widgets;
+  }
+
+  /// Format content into paragraphs using in-chat rules:
+  /// - Sentences: min 10 words
+  /// - Paragraphs: min 3 sentences, max 5 sentences
+  /// - Fallback: use simpler logic for smaller paragraphs
+  List<String> _formatInChatParagraphs(String content) {
+    final sentences = _extractValidChatSentences(content, minWords: 10);
+
+    if (sentences.length < 3) {
+      // If less than 3 valid sentences, fallback to simpler logic
+      return _fallbackToChatGrouping(content);
+    }
+
+    final paragraphs = <String>[];
+
+    // Group sentences into paragraphs (3-5 sentences each)
+    for (int i = 0; i < sentences.length;) {
+      final remainingSentences = sentences.length - i;
+      int sentencesToTake;
+
+      if (remainingSentences <= 5) {
+        // Take all remaining if 5 or fewer
+        sentencesToTake = remainingSentences;
+      } else if (remainingSentences == 6) {
+        // Split 6 sentences as 3+3 instead of 5+1
+        sentencesToTake = 3;
+      } else if (remainingSentences == 7) {
+        // Split 7 sentences as 3+4 instead of 5+2
+        sentencesToTake = 3;
+      } else {
+        // Take 5 sentences for optimal readability
+        sentencesToTake = 5;
+      }
+
+      // Ensure minimum of 3 sentences per paragraph
+      if (sentencesToTake < 3) sentencesToTake = 3;
+
+      final paragraphSentences = sentences.sublist(i, i + sentencesToTake);
+      paragraphs.add(paragraphSentences.join(' '));
+
+      i += sentencesToTake;
+    }
+
+    return paragraphs;
+  }
+
+  /// Extract sentences that meet minimum word requirements for chat
+  List<String> _extractValidChatSentences(String text, {required int minWords}) {
+    final allSentences = _extractChatSentences(text);
+    final validSentences = <String>[];
+
+    for (final sentence in allSentences) {
+      final wordCount = sentence.trim().split(RegExp(r'\s+')).length;
+      if (wordCount >= minWords) {
+        validSentences.add(sentence);
+      } else {
+        // If sentence is too short, try to combine with previous sentence
+        if (validSentences.isNotEmpty) {
+          final lastSentence = validSentences.removeLast();
+          final combined = '$lastSentence $sentence';
+          validSentences.add(combined);
+        } else {
+          // Keep short sentence as is if it's the first one
+          validSentences.add(sentence);
+        }
+      }
+    }
+
+    return validSentences;
+  }
+
+  /// Fallback to simpler grouping for chat edge cases
+  List<String> _fallbackToChatGrouping(String content) {
+    final sentences = _extractChatSentences(content);
+
+    if (sentences.length >= 2) {
+      final paragraphs = <String>[];
+
+      // Group every 3 sentences together for chat (larger groups than journal)
+      for (int i = 0; i < sentences.length; i += 3) {
+        final endIndex = (i + 3 < sentences.length) ? i + 3 : sentences.length;
+        final paragraphSentences = sentences.sublist(i, endIndex);
+        paragraphs.add(paragraphSentences.join(' '));
+      }
+
+      return paragraphs;
+    }
+
+    return [content];
+  }
+
+  /// Extract sentences for chat formatting
+  List<String> _extractChatSentences(String text) {
+    if (text.trim().isEmpty) return [];
+
+    final sentences = <String>[];
+
+    // Enhanced sentence pattern that handles:
+    // - Standard endings: . ! ?
+    // - Quotes and parentheses: "Hello." or (end).
+    // - Abbreviations: handles common abbreviations like "Dr.", "etc.", "i.e."
+    final sentencePattern = RegExp(
+      r'(?<![A-Z][a-z]\.)\s*([^.!?]*[.!?]+(?:\s*["\)]*)?)\s*(?=[A-Z]|$)',
+      multiLine: true,
+    );
+
+    final matches = sentencePattern.allMatches(text);
+
+    if (matches.isEmpty) {
+      // Fallback: if no clear sentence boundaries, return the whole text
+      return [text.trim()];
+    }
+
+    for (final match in matches) {
+      final sentence = match.group(1)?.trim();
+      if (sentence != null && sentence.isNotEmpty) {
+        sentences.add(sentence);
+      }
+    }
+
+    // If we didn't capture everything, add remaining text
+    final totalCaptured = matches.fold<int>(0, (sum, match) => sum + (match.group(0)?.length ?? 0));
+    if (totalCaptured < text.length * 0.8) {
+      // Fallback to simpler splitting if complex regex missed too much
+      return _simpleChatSentenceSplit(text);
+    }
+
+    return sentences.where((s) => s.trim().isNotEmpty).toList();
+  }
+
+  /// Simple sentence splitting as fallback for chat
+  List<String> _simpleChatSentenceSplit(String text) {
+    // Split by sentence endings followed by whitespace and capital letter
+    final parts = text.split(RegExp(r'([.!?])\s+(?=[A-Z])'));
+    final sentences = <String>[];
+
+    for (int i = 0; i < parts.length; i += 2) {
+      String sentence = parts[i];
+      if (i + 1 < parts.length) {
+        sentence += parts[i + 1]; // Add the punctuation back
+      }
+      sentence = sentence.trim();
+      if (sentence.isNotEmpty) {
+        sentences.add(sentence);
+      }
+    }
+
+    return sentences.isNotEmpty ? sentences : [text.trim()];
   }
 
   // Handler methods for action buttons

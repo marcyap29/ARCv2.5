@@ -5,6 +5,40 @@
 
 ## [2.1.43] - December 4, 2025
 
+### **Enhanced LUMARA Response Paragraph Formatting** - Complete
+
+#### Feature Overview
+- **Professional Paragraph Formatting**: LUMARA responses now use structured paragraph formatting for optimal readability
+- **Context-Specific Rules**: Different formatting rules for in-journal vs in-chat responses
+- **Intelligent Sentence Processing**: Automatic sentence validation and combination
+
+#### In-Journal Formatting Rules
+- **Sentence Requirements**: Minimum 10 words per sentence
+- **Paragraph Structure**: 2-4 sentences per paragraph
+- **Smart Grouping**: Intelligent distribution (e.g., 5 sentences → 2+3, not 4+1)
+- **Fallback Logic**: Uses previous 2-sentence grouping when content doesn't meet requirements
+
+#### In-Chat Formatting Rules
+- **Sentence Requirements**: Minimum 10 words per sentence
+- **Paragraph Structure**: 3-5 sentences per paragraph
+- **Smart Grouping**: Optimal distribution (e.g., 6 sentences → 3+3, 7 sentences → 3+4)
+- **Fallback Logic**: Uses simpler 3-sentence grouping for edge cases
+
+#### Technical Implementation
+- **Journal Implementation**: Updated `InlineReflectionBlock._buildParagraphs()` with new formatting methods
+- **Chat Implementation**: Added `SessionView._buildChatParagraphs()` with chat-specific formatting
+- **Helper Methods**:
+  - `_extractValidSentences()` - validates and combines short sentences
+  - `_formatInJournalParagraphs()` / `_formatInChatParagraphs()` - context-specific formatting
+  - Enhanced sentence boundary detection with abbreviation handling
+- **Comprehensive Testing**: Added test suite covering all formatting rules and edge cases
+
+#### Impact
+- **Improved Readability**: Professional paragraph structure enhances text comprehension
+- **Context Awareness**: Different rules for different contexts (journal vs chat)
+- **Graceful Degradation**: Fallback logic ensures no content is lost or malformed
+- **Consistent Experience**: Uniform formatting across all LUMARA responses
+
 ### **Enhanced LUMARA Thinking Popup UI/UX** - Complete
 
 #### UI/UX Enhancement

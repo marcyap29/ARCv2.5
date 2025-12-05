@@ -1,7 +1,7 @@
 # EPI MVP - UI/UX Feature Documentation
 
-**Version:** 2.1.42
-**Last Updated:** December 1, 2025
+**Version:** 2.1.43
+**Last Updated:** December 4, 2025
 **Status:** ✅ Comprehensive Feature Analysis Complete
 
 ---
@@ -152,7 +152,10 @@ The EPI (Evolving Personal Intelligence) Flutter application provides a sophisti
 - **Keyword Analysis:** Automatic extraction with visualization
 - **Draft Auto-Save:** Session caching with recovery
 - **Location Integration:** Geocoding with privacy controls
-- **LUMARA Inline API:** Real-time writing assistance
+- **LUMARA Inline API:** Real-time writing assistance with enhanced formatting
+  - **Journal-Specific Rules:** 2-4 sentences per paragraph, minimum 10 words per sentence
+  - **Professional Layout:** Optimized paragraph structure for reflection blocks
+  - **Intelligent Text Processing:** Smart sentence combination and boundary detection
 
 #### User Interaction Flow
 ```
@@ -274,6 +277,10 @@ Media Capture → Keyword Analysis → Save to Timeline
 - **Audio Output:** Text-to-Speech for AI responses
 - **Message Editing:** In-place editing with state tracking
 - **Dynamic Visibility:** Context-aware input field display
+- **Enhanced Text Formatting:** Professional paragraph formatting for LUMARA responses
+  - **Chat-Specific Rules:** 3-5 sentences per paragraph, minimum 10 words per sentence
+  - **Smart Text Processing:** Automatic sentence validation and intelligent grouping
+  - **Readability Optimization:** Balanced paragraph distribution for mobile viewing
 
 #### 🔄 Thinking Popup Interface
 **File:** `lib/shared/widgets/lumara_thinking_dialog.dart`

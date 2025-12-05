@@ -1,7 +1,7 @@
 # EPI MVP - Comprehensive Features Guide
 
-**Version:** 2.1.42
-**Last Updated:** December 1, 2025
+**Version:** 2.1.43
+**Last Updated:** December 4, 2025
 
 ---
 
@@ -135,6 +135,13 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 - **Phase-Aware**: Adapts to user's current phase
 - **Multimodal**: Understands text, images, audio, video
 - **Reflective**: Provides thoughtful reflections and insights
+- **Enhanced Paragraph Formatting**: Professional text formatting for optimal readability
+  - **In-Journal Responses**: Minimum 10 words per sentence, 2-4 sentences per paragraph
+  - **In-Chat Responses**: Minimum 10 words per sentence, 3-5 sentences per paragraph
+  - **Smart Sentence Grouping**: Intelligent paragraph distribution (e.g., 5 sentences → 2+3, not 4+1)
+  - **Automatic Sentence Combination**: Short sentences automatically combined to meet minimum requirements
+  - **Fallback Logic**: Graceful degradation to previous formatting when content doesn't meet requirements
+  - **Enhanced Readability**: Proper sentence boundary detection with abbreviation handling
 - **Web Access** (Opt-In): Safe, scoped web search when information unavailable internally
   - Primary source priority: Always prioritizes user's personal data first
   - Safety filtering: Automatic filtering of violent, graphic, or harmful content
@@ -504,6 +511,6 @@ All core features are production-ready and fully operational:
 ---
 
 **Features Guide Status:** ✅ Complete
-**Last Updated:** November 27, 2025
-**Version:** 2.1.40
+**Last Updated:** December 4, 2025
+**Version:** 2.1.43
 
