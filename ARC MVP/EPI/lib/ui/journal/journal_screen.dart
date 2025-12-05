@@ -46,7 +46,6 @@ import 'widgets/lumara_suggestion_sheet.dart';
 import 'widgets/inline_reflection_block.dart';
 // import '../../features/timeline/widgets/entry_content_renderer.dart'; // TODO: EntryContentRenderer not yet implemented
 import 'widgets/full_screen_photo_viewer.dart' show FullScreenPhotoViewer, PhotoData;
-import '../../shared/widgets/lumara_thinking_dialog.dart';
 import '../../ui/widgets/location_picker_dialog.dart';
 import 'drafts_screen.dart';
 import 'package:my_app/models/journal_entry_model.dart';
@@ -720,8 +719,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
   Future<void> _generateJournalingPrompt() async {
     if (!mounted) return;
 
-    // Show prominent "LUMARA is thinking" dialog
-    showLumaraThinkingDialog(context, message: 'LUMARA is generating prompts...');
+    // Note: LUMARA is generating prompts (no dialog needed)
     
     // Declare variables outside try block for use in catch block
     ContextWindow? contextWindow;
@@ -764,8 +762,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
       // Use local prompt generation directly
       useBackendPrompts = false;
 
-      // Hide the "LUMARA is thinking" dialog
-      if (mounted) hideLumaraThinkingDialog(context);
+      // LUMARA prompt generation completed
 
       // Show prompt selection dialog
       if (mounted) {
@@ -783,8 +780,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
         }
       }
     } catch (e) {
-      // Hide the "LUMARA is thinking" dialog
-      if (mounted) hideLumaraThinkingDialog(context);
+      // LUMARA prompt generation error - fallback to local
 
       // Fallback to local prompt generation on any error
       try {
@@ -1104,10 +1100,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
 
       _analytics.logLumaraEvent('reflection_generated');
 
-      // Show prominent "LUMARA is thinking" dialog (like in chat interface)
-      if (mounted) {
-        showLumaraThinkingDialog(context, message: 'LUMARA is thinking...');
-      }
+      // LUMARA is generating reflection (will show inline indicator)
 
       // CRITICAL: Sync _entryState.text with _textController.text to ensure we have the latest entry text
       // This prevents stale text from being used when building context
@@ -1306,19 +1299,13 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
 
       _analytics.logLumaraEvent('inline_reflection_inserted', data: {'intent': 'reflect'});
 
-      // Hide the "LUMARA is thinking" dialog
-      if (mounted) {
-        hideLumaraThinkingDialog(context);
-      }
+      // LUMARA reflection generation completed
 
       // Dismiss the Lumara box
       _dismissLumaraBox();
       
     } catch (e) {
-      // Hide the "LUMARA is thinking" dialog on error
-      if (mounted) {
-        hideLumaraThinkingDialog(context);
-      }
+      // LUMARA reflection generation error
 
       // Remove placeholder block on error
       if (mounted && newBlockIndex != null && newBlockIndex < _entryState.blocks.length) {

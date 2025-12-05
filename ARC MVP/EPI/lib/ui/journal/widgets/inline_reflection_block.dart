@@ -419,42 +419,27 @@ class _InlineReflectionBlockState extends State<InlineReflectionBlock> with Sing
   }
 
   /// Format content into paragraphs using in-journal rules:
-  /// - Sentences: min 10 words
-  /// - Paragraphs: min 2 sentences, max 4 sentences
-  /// - Fallback: use previous 2-sentence grouping for smaller paragraphs
+  /// - Fixed: 2 sentences per paragraph
   List<String> _formatInJournalParagraphs(String content) {
-    final sentences = _extractValidSentences(content, minWords: 10);
+    final sentences = _extractSentences(content);
 
     if (sentences.length < 2) {
-      // If less than 2 valid sentences, fallback to previous behavior
-      return _fallbackToSimpleGrouping(content);
+      // If less than 2 sentences, return as single paragraph
+      return [content];
     }
 
     final paragraphs = <String>[];
 
-    // Group sentences into paragraphs (2-4 sentences each)
-    for (int i = 0; i < sentences.length;) {
-      final remainingSentences = sentences.length - i;
-      int sentencesToTake;
+    // Group every 2 sentences together
+    for (int i = 0; i < sentences.length; i += 2) {
+      String paragraphText = sentences[i];
 
-      if (remainingSentences <= 4) {
-        // Take all remaining if 4 or fewer
-        sentencesToTake = remainingSentences;
-      } else if (remainingSentences == 5) {
-        // Split 5 sentences as 2+3 instead of 4+1
-        sentencesToTake = 2;
-      } else {
-        // Take 4 sentences for optimal readability
-        sentencesToTake = 4;
+      // Add second sentence if available
+      if (i + 1 < sentences.length) {
+        paragraphText += ' ' + sentences[i + 1];
       }
 
-      // Ensure minimum of 2 sentences per paragraph
-      if (sentencesToTake < 2) sentencesToTake = 2;
-
-      final paragraphSentences = sentences.sublist(i, i + sentencesToTake);
-      paragraphs.add(paragraphSentences.join(' '));
-
-      i += sentencesToTake;
+      paragraphs.add(paragraphText.trim());
     }
 
     return paragraphs;

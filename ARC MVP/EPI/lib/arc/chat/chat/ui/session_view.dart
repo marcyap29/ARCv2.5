@@ -1233,45 +1233,22 @@ class _SessionViewState extends State<SessionView> {
   }
 
   /// Format content into paragraphs using in-chat rules:
-  /// - Sentences: min 10 words
-  /// - Paragraphs: min 3 sentences, max 5 sentences
-  /// - Fallback: use simpler logic for smaller paragraphs
+  /// - Fixed: 3 sentences per paragraph
   List<String> _formatInChatParagraphs(String content) {
-    final sentences = _extractValidChatSentences(content, minWords: 10);
+    final sentences = _extractChatSentences(content);
 
     if (sentences.length < 3) {
-      // If less than 3 valid sentences, fallback to simpler logic
-      return _fallbackToChatGrouping(content);
+      // If less than 3 sentences, return as single paragraph
+      return [content];
     }
 
     final paragraphs = <String>[];
 
-    // Group sentences into paragraphs (3-5 sentences each)
-    for (int i = 0; i < sentences.length;) {
-      final remainingSentences = sentences.length - i;
-      int sentencesToTake;
-
-      if (remainingSentences <= 5) {
-        // Take all remaining if 5 or fewer
-        sentencesToTake = remainingSentences;
-      } else if (remainingSentences == 6) {
-        // Split 6 sentences as 3+3 instead of 5+1
-        sentencesToTake = 3;
-      } else if (remainingSentences == 7) {
-        // Split 7 sentences as 3+4 instead of 5+2
-        sentencesToTake = 3;
-      } else {
-        // Take 5 sentences for optimal readability
-        sentencesToTake = 5;
-      }
-
-      // Ensure minimum of 3 sentences per paragraph
-      if (sentencesToTake < 3) sentencesToTake = 3;
-
-      final paragraphSentences = sentences.sublist(i, i + sentencesToTake);
+    // Group every 3 sentences together
+    for (int i = 0; i < sentences.length; i += 3) {
+      final endIndex = (i + 3 < sentences.length) ? i + 3 : sentences.length;
+      final paragraphSentences = sentences.sublist(i, endIndex);
       paragraphs.add(paragraphSentences.join(' '));
-
-      i += sentencesToTake;
     }
 
     return paragraphs;
