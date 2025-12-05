@@ -247,23 +247,25 @@ class EnhancedLumaraApi {
       // Therapeutic mode is now handled by control state builder
       // No need to determine depth level here - it's in the control state JSON
       
-      // 2. Retrieve all candidate nodes
+      // 2. Retrieve all candidate nodes for context matching
       onProgress?.call('Preparing context...');
+
       final allNodes = _storage.getAllNodes(
         userId: userId ?? 'default',
         maxYears: lookbackYears,
       );
-      
+
       // 3. Score and rank by similarity
       onProgress?.call('Analyzing your journal history...');
       final scored = <({double score, ReflectiveNode node})>[];
+
       for (final node in allNodes) {
         final score = _similarity.scoreNode(request.userText, node, currentPhase);
         if (score >= similarityThreshold) {  // Use threshold from settings
           scored.add((score: score, node: node));
         }
       }
-      
+
       scored.sort((a, b) => b.score.compareTo(a.score));
       final topNodes = scored.take(maxMatches).toList();
       
@@ -354,19 +356,23 @@ class EnhancedLumaraApi {
                 modeInstruction = 'Resume the exact reflection that was interrupted. Continue the final idea without restarting context or repeating earlier lines. Pick up mid-sentence if needed.';
                 break;
             }
-            userPrompt = '$baseContext\n\n$modeInstruction Follow the ECHO structure (Empathize → Clarify → Highlight → Open). $lengthInstruction';
+            userPrompt = '$baseContext\n\n**FOCUS ON CURRENT ENTRY**: $modeInstruction Your response must stay focused on the CURRENT ENTRY marked above, not historical entries. Follow the ECHO structure (Empathize → Clarify → Highlight → Open). $lengthInstruction';
           } else if (request.options.regenerate) {
-            // Regenerate: different rhetorical focus
-            userPrompt = '$baseContext\n\nRebuild reflection from same input with different rhetorical focus. Randomly vary Highlight and Open. Keep empathy level constant. Follow ECHO structure. $_standardReflectionLengthRule';
+            // Regenerate: different rhetorical focus - FOCUS ON CURRENT ENTRY
+            userPrompt = '$baseContext\n\n**FOCUS ON CURRENT ENTRY**: Rebuild reflection from the CURRENT ENTRY marked above with different rhetorical focus. Randomly vary Highlight and Open while staying relevant to what the user just wrote. Keep empathy level constant. Follow ECHO structure. $_standardReflectionLengthRule';
           } else if (request.options.toneMode == models.ToneMode.soft) {
-            // Soften tone
-            userPrompt = '$baseContext\n\nRewrite in gentler, slower rhythm. Reduce question count to 1. Add permission language ("It\'s okay if this takes time."). Apply tone-softening rule for Recovery/Consolidation even if phase is unknown. Follow ECHO structure. $_standardReflectionLengthRule';
+            // Soften tone - FOCUS ON CURRENT ENTRY
+            userPrompt = '$baseContext\n\n**FOCUS ON CURRENT ENTRY**: Rewrite in gentler, slower rhythm about the CURRENT ENTRY marked above. Reduce question count to 1. Add permission language ("It\'s okay if this takes time."). Apply tone-softening rule for Recovery/Consolidation even if phase is unknown. Follow ECHO structure. $_standardReflectionLengthRule';
           } else if (request.options.preferQuestionExpansion) {
-            // More depth
-            userPrompt = '$baseContext\n\nExpand Clarify and Highlight steps for richer introspection. Add 1 additional reflective link. Follow ECHO structure with deeper exploration. $_deepReflectionLengthRule';
+            // More depth - FOCUS ON CURRENT ENTRY
+            userPrompt = '$baseContext\n\n**FOCUS ON CURRENT ENTRY**: Expand Clarify and Highlight steps for richer introspection about the CURRENT ENTRY marked above. Add 1 additional reflective link that relates to what the user just wrote. Follow ECHO structure with deeper exploration. $_deepReflectionLengthRule';
           } else {
-            // Default: first activation with rich context
-            userPrompt = '$baseContext\n\nFollow the ECHO structure (Empathize → Clarify → Highlight → Open) and include 1-2 clarifying expansion questions that help deepen the reflection. Consider the mood, phase, circadian context, recent chats, and any media when crafting questions that feel personally relevant and timely. Be thoughtful and allow for meaningful engagement. $_standardReflectionLengthRule';
+            // Default: first activation with rich context - EMPHASIZE CURRENT ENTRY
+            userPrompt = '''$baseContext
+
+**IMPORTANT INSTRUCTION**: Focus your reflection PRIMARILY on the CURRENT ENTRY marked above. The historical context is provided only for background understanding of patterns and themes. Your reflection must be directly relevant to and address the specific subject, situation, and emotions expressed in the CURRENT ENTRY.
+
+Follow the ECHO structure (Empathize → Clarify → Highlight → Open) and include 1-2 clarifying expansion questions that help deepen the reflection about the CURRENT ENTRY. Consider the mood, phase, circadian context, recent chats, and any media when crafting questions that feel personally relevant and timely to what the user just wrote. Be thoughtful and allow for meaningful engagement. $_standardReflectionLengthRule''';
           }
           
           // Use Gemini API directly via geminiSend() - same as main LUMARA chat
@@ -379,10 +385,15 @@ class EnhancedLumaraApi {
           final recentChats = await _getRecentChats(limit: 10);
           final mediaFromEntries = await _extractMediaFromEntries(recentJournalEntries);
           
-          // Combine current entry with recent entries
+          // Prioritize current entry with special marking and weight multiple entries
           final allJournalEntries = [
-            request.userText,
-            ...recentJournalEntries.map((e) => e.content).take(19), // Current entry + up to 19 more
+            // Mark current entry as primary focus with special formatting
+            '**CURRENT ENTRY (PRIMARY FOCUS)**: ${request.userText}',
+            // Add blank line separator
+            '',
+            // Add recent entries as secondary context with reduced weight
+            '**HISTORICAL CONTEXT (REFERENCE ONLY)**:',
+            ...recentJournalEntries.map((e) => '- ${e.content}').take(15), // Reduce from 19 to 15 and mark as reference
           ];
           
           // Combine provided chat context with recent chats

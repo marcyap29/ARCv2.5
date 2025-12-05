@@ -2,6 +2,8 @@
 // LUMARA Response Scoring Heuristic
 // Evaluates responses for empathy:depth:agency balance and tone governance
 
+import '../prompts/archive/lumara_therapeutic_presence_data.dart';
+
 /// Phase hint for context-aware scoring
 enum PhaseHint {
   discovery,
@@ -272,10 +274,10 @@ class LumaraResponseScoring {
     final parts = _splitSentences(s).take(4).toList();
     s = parts.join(' ');
     
-    // Ensure exactly one invitational question at end
+    // Ensure exactly one invitational question at end using varied therapeutic closings
     if (!RegExp(r'\?\s*$').hasMatch(s)) {
       s = s.replaceAll(RegExp(r'\.\s*$'), '');
-      s += '. Would it help to name one small next step, or does pausing feel right?';
+      s += '. ${_getTherapeuticClosingPhrase()}';
     }
     
     // Remove parasocial "we"
@@ -313,6 +315,27 @@ class LumaraResponseScoring {
         .split(RegExp(r'(?<=[\.\?\!])\s+'))
         .where((s) => s.isNotEmpty)
         .toList();
+  }
+
+  /// Get varied closing phrase from existing therapeutic presence data
+  /// This uses the 75+ varied endings already defined in the system
+  static String _getTherapeuticClosingPhrase() {
+    final therapeuticData = LumaraTherapeuticPresenceData.responseMatrix['therapeutic_presence']['tone_modes'] as Map<String, dynamic>;
+
+    // Collect all closing phrases from all tone modes
+    final allClosings = <String>[];
+    for (final toneMode in therapeuticData.values) {
+      if (toneMode is Map<String, dynamic> && toneMode.containsKey('closings')) {
+        final closings = toneMode['closings'] as List<dynamic>;
+        allClosings.addAll(closings.cast<String>());
+      }
+    }
+
+    // Use time-based rotation to ensure variety without repetition patterns
+    final now = DateTime.now();
+    final index = (now.microsecond + now.second + now.minute) % allClosings.length;
+
+    return allClosings[index];
   }
 }
 
