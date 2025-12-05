@@ -135,13 +135,23 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 - **Phase-Aware**: Adapts to user's current phase
 - **Multimodal**: Understands text, images, audio, video
 - **Reflective**: Provides thoughtful reflections and insights
-- **Enhanced Paragraph Formatting**: Professional text formatting for optimal readability
-  - **In-Journal Responses**: Minimum 10 words per sentence, 2-4 sentences per paragraph
-  - **In-Chat Responses**: Minimum 10 words per sentence, 3-5 sentences per paragraph
-  - **Smart Sentence Grouping**: Intelligent paragraph distribution (e.g., 5 sentences → 2+3, not 4+1)
-  - **Automatic Sentence Combination**: Short sentences automatically combined to meet minimum requirements
-  - **Fallback Logic**: Graceful degradation to previous formatting when content doesn't meet requirements
-  - **Enhanced Readability**: Proper sentence boundary detection with abbreviation handling
+- **Enhanced Subject Focus & Contextual Relevance**: LUMARA maintains strict focus on current journal entry
+  - **Current Entry Priority**: Explicit `**CURRENT ENTRY (PRIMARY FOCUS)**` marking in context building
+  - **Historical Context Balance**: Background entries marked as "REFERENCE ONLY" to prevent subject drift
+  - **Context Weighting**: Current entry receives maximum attention in response generation
+  - **Topic Consistency**: Prevents LUMARA from shifting focus to unrelated historical content
+
+- **Diverse Response Endings**: Eliminated repetitive closing phrases with therapeutic variety
+  - **24+ Therapeutic Closings**: Integration with existing therapeutic presence data system
+  - **Contextual Appropriateness**: Endings match emotional tone and user needs (grounded_containment, reflective_echo, etc.)
+  - **Time-Based Rotation**: Dynamic selection prevents repetition patterns
+  - **Professional Quality**: Varied phrases like "What you've written already holds part of the answer"
+
+- **Simplified Paragraph Formatting**: Streamlined text formatting for consistent readability
+  - **In-Journal Responses**: Fixed 2 sentences per paragraph (simplified from variable 2-4)
+  - **In-Chat Responses**: Fixed 3 sentences per paragraph (simplified from variable 3-5)
+  - **Consistent Structure**: Predictable paragraph organization for better mobile reading
+  - **Performance Optimization**: Streamlined paragraph logic for improved response generation
 - **Web Access** (Opt-In): Safe, scoped web search when information unavailable internally
   - Primary source priority: Always prioritizes user's personal data first
   - Safety filtering: Automatic filtering of violent, graphic, or harmful content

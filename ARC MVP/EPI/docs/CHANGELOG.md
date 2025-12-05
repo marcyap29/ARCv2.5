@@ -5,6 +5,37 @@
 
 ## [2.1.43] - December 4, 2025
 
+### **LUMARA Subject Drift and Repetitive Endings Fixes** - Complete
+
+#### Problem Resolution
+- **Subject Drift Issue**: Fixed LUMARA focusing on unrelated historical entries instead of current journal entry
+- **Repetitive Endings Issue**: Fixed LUMARA always ending with the same "Would it help to name one small step" phrase
+
+#### Subject Drift Fixes
+- **Current Entry Priority**: Added explicit `**CURRENT ENTRY (PRIMARY FOCUS)**` marking in context building
+- **Historical Context Reduction**: Reduced historical entries from 19 to 15 and marked as "REFERENCE ONLY"
+- **Strong Focus Instructions**: Added clear directives for all conversation modes to focus on current entry
+- **Master Prompt Enhancement**: Updated core LUMARA system with current entry priority rules
+- **Context Structure**: Reorganized context to prevent dilution of current entry's subject
+
+#### Ending Phrase Variety Fixes
+- **Therapeutic Presence Integration**: Replaced hardcoded phrase with existing therapeutic presence data system
+- **24+ Varied Closings**: Now uses diverse endings from grounded_containment, reflective_echo, restorative_closure, etc.
+- **Time-Based Rotation**: Implemented dynamic selection to prevent repetition patterns
+- **Contextual Appropriateness**: Endings now match emotional tone and therapeutic needs
+
+#### Technical Implementation
+- **Context Weighting**: Modified `enhanced_lumara_api.dart` to prioritize current entry in all conversation modes
+- **Response Scoring**: Updated `lumara_response_scoring.dart` to use therapeutic presence data
+- **Master Prompt**: Enhanced `lumara_master_prompt.dart` with current entry focus rules
+- **Existing System Utilization**: Leveraged pre-built therapeutic closings instead of creating new code
+
+#### Impact
+- **Improved Relevance**: LUMARA now stays on topic with the user's current writing
+- **Enhanced Variety**: End-of-response phrases now vary meaningfully across sessions
+- **Better User Experience**: More contextually appropriate and therapeutically sound responses
+- **System Efficiency**: Used existing comprehensive closing phrase system
+
 ### **Enhanced LUMARA Response Paragraph Formatting** - Complete
 
 #### Feature Overview

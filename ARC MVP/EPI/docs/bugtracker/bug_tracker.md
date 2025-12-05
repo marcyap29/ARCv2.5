@@ -5,6 +5,26 @@
 
 ## Resolved Issues (v2.1.43)
 
+### LUMARA Subject Drift and Repetitive Endings
+- **Issue**: LUMARA would sometimes focus on unrelated historical journal entries instead of the current entry, and consistently ended responses with the same "Would it help to name one small step" phrase
+- **Root Cause**:
+  1. **Subject Drift**: Current journal entry had no priority marking and was mixed equally with 19 historical entries
+  2. **Repetitive Endings**: Hardcoded fallback phrase in `lumara_response_scoring.dart` auto-fix mechanism
+- **Resolution**:
+  1. **Current Entry Priority**: Added explicit `**CURRENT ENTRY (PRIMARY FOCUS)**` marking in context building
+  2. **Context Restructuring**: Reduced historical entries to 15 and marked as "REFERENCE ONLY"
+  3. **Focus Instructions**: Added clear directives across all conversation modes to focus on current entry
+  4. **Master Prompt Enhancement**: Updated core LUMARA system with current entry priority rules
+  5. **Therapeutic Closings**: Replaced hardcoded phrase with existing therapeutic presence data (24+ varied endings)
+  6. **Time-Based Rotation**: Implemented dynamic selection to prevent repetition patterns
+- **Impact**:
+  - LUMARA now maintains strict focus on the current journal entry's subject
+  - Eliminated repetitive ending phrases with therapeutically appropriate variety
+  - Improved response relevance and user experience
+  - Better contextual appropriateness of responses
+- **Files Modified**: `enhanced_lumara_api.dart`, `lumara_master_prompt.dart`, `lumara_response_scoring.dart`
+- **Status**: ✅ Fixed
+
 ### Build Error: Missing FirebaseAuth Import
 - **Issue**: iOS build failing with error: `The getter 'FirebaseAuth' isn't defined for the type '_JournalScreenState'` at line 611 in `journal_screen.dart`
 - **Root Cause**: Missing import statement for `firebase_auth` package in `journal_screen.dart`. The code was using `FirebaseAuth.instance` but the import was not present.

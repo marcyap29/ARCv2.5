@@ -152,10 +152,12 @@ The EPI (Evolving Personal Intelligence) Flutter application provides a sophisti
 - **Keyword Analysis:** Automatic extraction with visualization
 - **Draft Auto-Save:** Session caching with recovery
 - **Location Integration:** Geocoding with privacy controls
-- **LUMARA Inline API:** Real-time writing assistance with enhanced formatting
-  - **Journal-Specific Rules:** 2-4 sentences per paragraph, minimum 10 words per sentence
-  - **Professional Layout:** Optimized paragraph structure for reflection blocks
-  - **Intelligent Text Processing:** Smart sentence combination and boundary detection
+- **LUMARA Inline API:** Real-time writing assistance with enhanced context focus
+  - **Current Entry Priority:** Explicit focus on the entry being written (prevents subject drift)
+  - **Context Hierarchy:** Current entry marked as "PRIMARY FOCUS" with historical context as "REFERENCE ONLY"
+  - **Simplified Formatting:** Fixed 2 sentences per paragraph for consistent mobile readability
+  - **Varied Response Endings:** 24+ therapeutic closings prevent repetitive phrases
+  - **Contextual Appropriateness:** Endings match emotional tone and therapeutic needs
 
 #### User Interaction Flow
 ```
@@ -278,9 +280,10 @@ Media Capture → Keyword Analysis → Save to Timeline
 - **Message Editing:** In-place editing with state tracking
 - **Dynamic Visibility:** Context-aware input field display
 - **Enhanced Text Formatting:** Professional paragraph formatting for LUMARA responses
-  - **Chat-Specific Rules:** 3-5 sentences per paragraph, minimum 10 words per sentence
-  - **Smart Text Processing:** Automatic sentence validation and intelligent grouping
-  - **Readability Optimization:** Balanced paragraph distribution for mobile viewing
+  - **Chat-Specific Rules:** Fixed 3 sentences per paragraph for consistent readability
+  - **Simplified Processing:** Streamlined paragraph logic for improved performance
+  - **Varied Response Endings:** 24+ therapeutic closings from existing system (grounded_containment, reflective_echo, etc.)
+  - **Time-Based Rotation:** Dynamic selection prevents repetitive ending phrases
 
 #### 🔄 Thinking Popup Interface
 **File:** `lib/shared/widgets/lumara_thinking_dialog.dart`
