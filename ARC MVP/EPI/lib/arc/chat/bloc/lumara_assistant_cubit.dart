@@ -380,11 +380,11 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
           apiErrorMessage: 'RATE_LIMIT_EXCEEDED',
         ));
       } else {
-        // Emit error state with message for snackbar
-        emit(currentState.copyWith(
-          isProcessing: false,
+      // Emit error state with message for snackbar
+      emit(currentState.copyWith(
+        isProcessing: false,
           apiErrorMessage: 'LUMARA cannot answer at the moment. Please check your connection and try again.',
-        ));
+      ));
       }
       return;
     } catch (e) {
@@ -399,12 +399,12 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
           apiErrorMessage: 'RATE_LIMIT_EXCEEDED',
         ));
       } else {
-        // Emit error state with message for snackbar
-        emit(currentState.copyWith(
-          messages: updatedMessages,
-          isProcessing: false,
+      // Emit error state with message for snackbar
+      emit(currentState.copyWith(
+        messages: updatedMessages,
+        isProcessing: false,
           apiErrorMessage: 'LUMARA cannot answer at the moment. Please check your connection and try again.',
-        ));
+      ));
       }
     }
   }
@@ -1647,8 +1647,15 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
   /// Initialize the Enhanced MIRA memory system
   Future<void> _initializeMemorySystem() async {
     try {
-      // Get user ID (simplified - in real implementation, get from user service)
-      _userId = 'user_${DateTime.now().millisecondsSinceEpoch}';
+      // Get Firebase Auth user ID
+      try {
+        final firebaseUser = await FirebaseService.instance.getAuth().currentUser;
+        _userId = firebaseUser?.uid ?? 'user_${DateTime.now().millisecondsSinceEpoch}';
+        print('LUMARA Memory: Using Firebase Auth UID: $_userId');
+      } catch (e) {
+        _userId = 'user_${DateTime.now().millisecondsSinceEpoch}';
+        print('LUMARA Memory: Failed to get Firebase UID, using fallback: $_userId');
+      }
 
       // Get current phase from context (using default scope for initialization)
       final context = await _contextProvider.buildContext(scope: LumaraScope.defaultScope);

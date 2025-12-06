@@ -406,13 +406,13 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
                     if (state.apiErrorMessage == 'RATE_LIMIT_EXCEEDED') {
                       _showRateLimitDialog();
                     } else {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(state.apiErrorMessage!),
-                          duration: const Duration(seconds: 4),
-                          behavior: SnackBarBehavior.floating,
-                        ),
-                      );
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(state.apiErrorMessage!),
+                        duration: const Duration(seconds: 4),
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
                     }
                   }
                 }
