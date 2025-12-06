@@ -24,12 +24,15 @@ class FirebaseAuthService {
   /// Initialize Firebase Auth with proper Firebase app instance
   Future<void> initialize() async {
     try {
+      debugPrint('🔐 FirebaseAuthService: Starting initialization...');
+      
       // Ensure Firebase is ready first
       final firebaseService = FirebaseService.instance;
       await firebaseService.ensureReady();
 
       // Get Firebase Auth instance from the initialized app
       _auth = firebaseService.getAuth();
+      debugPrint('🔐 FirebaseAuthService: Auth instance obtained');
 
       // Initialize Google Sign-In
       _googleSignIn = GoogleSignIn(
@@ -40,22 +43,32 @@ class FirebaseAuthService {
         // Configure for web platform
         clientId: kIsWeb ? const String.fromEnvironment('GOOGLE_OAUTH_CLIENT_ID') : null,
       );
+      debugPrint('🔐 FirebaseAuthService: Google Sign-In configured');
+
+      // Check current auth state
+      final currentUser = _auth!.currentUser;
+      debugPrint('🔐 FirebaseAuthService: Current user before anon check: ${currentUser?.uid ?? "NULL"}');
 
       // Auto-sign in anonymously if no user is signed in (for MVP testing)
-      if (_auth!.currentUser == null) {
+      if (currentUser == null) {
         try {
-          debugPrint('FirebaseAuthService: No user signed in - signing in anonymously for MVP');
-          await _auth!.signInAnonymously();
-          debugPrint('FirebaseAuthService: Anonymous sign-in successful - uid: ${_auth!.currentUser?.uid}');
-        } catch (e) {
-          debugPrint('FirebaseAuthService: Anonymous sign-in failed: $e');
+          debugPrint('🔐 FirebaseAuthService: ⚠️ No user signed in - attempting anonymous sign-in for MVP...');
+          final userCredential = await _auth!.signInAnonymously();
+          debugPrint('🔐 FirebaseAuthService: ✅ Anonymous sign-in successful!');
+          debugPrint('🔐 FirebaseAuthService: Anonymous UID: ${userCredential.user?.uid}');
+        } catch (e, stackTrace) {
+          debugPrint('🔐 FirebaseAuthService: ❌ Anonymous sign-in FAILED: $e');
+          debugPrint('🔐 FirebaseAuthService: Stack trace: $stackTrace');
           // Continue anyway - function calls will fail gracefully
         }
+      } else {
+        debugPrint('🔐 FirebaseAuthService: Already signed in as: ${currentUser.uid}');
       }
 
-      debugPrint('FirebaseAuthService: Initialized successfully');
-    } catch (e) {
-      debugPrint('FirebaseAuthService: Failed to initialize: $e');
+      debugPrint('🔐 FirebaseAuthService: ✅ Initialized successfully');
+    } catch (e, stackTrace) {
+      debugPrint('🔐 FirebaseAuthService: ❌ Failed to initialize: $e');
+      debugPrint('🔐 FirebaseAuthService: Stack trace: $stackTrace');
       rethrow;
     }
   }
