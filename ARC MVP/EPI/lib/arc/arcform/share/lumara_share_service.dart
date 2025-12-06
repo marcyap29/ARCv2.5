@@ -12,7 +12,16 @@ import '../../../services/gemini_send.dart';
 class LumaraShareService {
   final ArcLLM _arcLLM;
 
-  LumaraShareService() : _arcLLM = provideArcLLM();
+  LumaraShareService() : _arcLLM = _deprecatedArcLLM();
+  
+  // PRIORITY 2: Lumara Share Service uses local API
+  // This is a secondary feature that needs Firebase Function migration
+  static ArcLLM _deprecatedArcLLM() {
+    throw UnimplementedError(
+      'Lumara Share Service not available in Firebase-only mode. '
+      'Needs migration to Firebase Functions.'
+    );
+  }
 
   /// Generate sharing metadata for an Arcform
   /// Returns an ArcformSharePayload with system-generated suggestions

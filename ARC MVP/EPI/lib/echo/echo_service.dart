@@ -27,7 +27,14 @@ class EchoService {
   })  : _phaseIntegration = AtlasPhaseIntegration(),
         _memoryGrounding = MiraMemoryGrounding(MiraService.instance),
         _contextProvider = contextProvider {
-    _arcLLM = provideArcLLM();
+    // PRIORITY 2: ECHO service uses local API
+    // This is a secondary feature that needs Firebase Function migration
+    // For now, throw error to prevent usage in Firebase-only mode
+    throw UnimplementedError(
+      'ECHO service not available in Firebase-only mode. '
+      'Needs migration to Firebase Functions.'
+    );
+    // _arcLLM = provideArcLLM(); // DEPRECATED
   }
 
   /// Generate a dignified, phase-aware response using the ECHO system

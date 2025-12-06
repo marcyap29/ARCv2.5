@@ -28,7 +28,8 @@ import '../../models/user_profile_model.dart';
 import 'package:hive/hive.dart';
 import 'package:my_app/arc/chat/config/api_config.dart';
 import '../../services/llm_bridge_adapter.dart';
-import '../../services/gemini_send.dart';
+// REMOVED: gemini_send - no longer used in Firebase-only mode
+// import '../../services/gemini_send.dart';
 // import '../../services/ocr/ocr_service.dart'; // TODO: OCR service not yet implemented
 import '../../services/journal_session_cache.dart';
 import '../../arc/core/keyword_extraction_cubit.dart';
@@ -157,10 +158,12 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
   @override
   void initState() {
     super.initState();
-    _lumaraApi = LumaraInlineApi(_analytics);
+    // REMOVED: _lumaraApi initialization - using _enhancedLumaraApi exclusively
+    // _lumaraApi = LumaraInlineApi(_analytics);
     _enhancedLumaraApi = EnhancedLumaraApi(_analytics);
     _memoryLoader = ProgressiveMemoryLoader(_journalRepository);
-    _arcLLM = provideArcLLM();
+    // PRIORITY 2: Removed local API - journal uses enhancedLumaraApi which calls Firebase Functions
+    // _arcLLM = provideArcLLM(); // DEPRECATED
     _initializeLumara();
     // _ocrService = StubOcrService(_analytics); // TODO: OCR service not yet implemented
     

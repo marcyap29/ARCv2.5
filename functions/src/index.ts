@@ -17,6 +17,8 @@ import { stripeWebhook } from "./functions/stripeWebhook";
 import { unlockThrottle, lockThrottle, checkThrottleStatus } from "./functions/unlockThrottle";
 import { generateJournalPrompts } from "./functions/generateJournalPrompts";
 import { generateJournalReflection } from "./functions/generateJournalReflection";
+import { getUserSubscription } from "./functions/getUserSubscription";
+import { createCheckoutSession } from "./functions/createCheckoutSession";
 
 // Export all Cloud Functions
 export { analyzeJournalEntry };
@@ -25,6 +27,8 @@ export { stripeWebhook };
 export { unlockThrottle, lockThrottle, checkThrottleStatus };
 export { generateJournalPrompts };
 export { generateJournalReflection };
+export { getUserSubscription };
+export { createCheckoutSession };
 
 /**
  * Architecture Overview:

@@ -4,10 +4,16 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'dart:math';
+// REMOVED unused imports for Firebase-only mode:
+// import 'dart:math';
+// import 'package:cloud_functions/cloud_functions.dart';
+// import 'package:firebase_core/firebase_core.dart';
+// import '../../../services/gemini_send.dart';
+// import 'lumara_reflection_settings_service.dart';
+// import '../llm/prompts/lumara_master_prompt.dart';
+// import 'lumara_control_state_builder.dart';
+// import '../../../mira/memory/sentence_extraction_util.dart';
 import 'package:my_app/telemetry/analytics.dart';
-import 'package:cloud_functions/cloud_functions.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:my_app/services/firebase_service.dart';
 import '../models/reflective_node.dart';
 import '../models/lumara_reflection_options.dart' as models;
@@ -19,14 +25,9 @@ import '../llm/llm_provider_factory.dart';
 import '../llm/llm_provider.dart';
 import '../config/api_config.dart';
 import 'lumara_response_scoring.dart' as scoring;
-import '../../../services/gemini_send.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'lumara_reflection_settings_service.dart';
-import '../llm/prompts/lumara_master_prompt.dart';
-import 'lumara_control_state_builder.dart';
 import '../../../mira/memory/attribution_service.dart';
 import '../../../mira/memory/enhanced_memory_schema.dart';
-import '../../../mira/memory/sentence_extraction_util.dart';
 import '../../../arc/core/journal_repository.dart';
 import '../../../models/journal_entry_model.dart';
 import '../../../arc/chat/chat/chat_repo.dart';
@@ -234,8 +235,18 @@ class EnhancedLumaraApi {
       }
 
       // ===========================================================
-      // 2) Fallback to direct API (Gemini/OpenAI/Anthropic via API card)
+      // PRIORITY 2: No local API fallback - Firebase Functions only
       // ===========================================================
+      print('LUMARA Enhanced API: Firebase Function failed, no local fallback available');
+      throw Exception('Firebase backend unavailable - cannot generate reflection without backend');
+      
+      // REMOVED: Local API fallback (Priority 2)
+      // All API calls must go through Firebase Functions for:
+      // - Centralized rate limiting
+      // - Backend-enforced subscription checking
+      // - Secure API key management
+      
+      /* DEPRECATED CODE - Kept for reference only
       final currentPhase = _convertFromV23PhaseHint(request.phaseHint);
       
       // 1. Get settings from service
@@ -617,6 +628,7 @@ Follow the ECHO structure (Empathize → Clarify → Highlight → Open) and inc
         // Same behavior as main LUMARA chat - no hard-coded responses
         rethrow;
       }
+      END OF DEPRECATED CODE */
     } catch (e) {
       print('LUMARA Enhanced API: ✗ Fatal error: $e');
       rethrow;

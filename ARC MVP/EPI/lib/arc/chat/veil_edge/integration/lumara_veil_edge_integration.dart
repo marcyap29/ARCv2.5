@@ -214,12 +214,22 @@ class LumaraVeilEdgeIntegration {
         circadianContext: circadianContext,
       );
       
-      // Call LLM with unified prompt system
+      // PRIORITY 2: VEIL-EDGE integration uses local API
+      // NOTE: This feature is NOT actively used in production LUMARA flows
+      // If needed in future, should be migrated to Firebase Functions
+      // For now, marked as deprecated - throws error to prevent usage
+      throw UnimplementedError(
+        'VEIL-EDGE integration not available in Firebase-only mode. '
+        'This feature needs migration to Firebase Functions.'
+      );
+      
+      /* DEPRECATED - Local API call
       final response = await geminiSend(
         system: systemPrompt,
         user: userPrompt,
         jsonExpected: false,
       );
+      */
       
       return response.trim();
       
