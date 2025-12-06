@@ -2,6 +2,8 @@
 
 # Git History - All of the key Git history commits, pushes, merges, and trims can be found here /Users/mymac/Software Development/ARCv.04/ARC MVP/EPI/docs/git.md review this to ensure you have a background of key featues and submitions and changes via Git
 
+# Beta Branch Workflow - For managing the dev branch and testing new features alongside stable main: /Users/mymac/Software Development/ARCv.04/ARC MVP/EPI/docs/BETA_BRANCH.md - Complete workflow for dual-app installation, branch management, and commit cleanup
+
 # Update documentation: When I ask to update documentation update any and all documents and folders listed in claude.md, versioning them as necessary, replacing them as necessary if context is no longer relevant, and archiving them as well. 
 
 # EPI MVP - Architecture Overview - adhere to the Architectures Found in /Users/mymac/Software Development/ARCv.04/ARC MVP/EPI/docs/ARCHITECTURE.md
