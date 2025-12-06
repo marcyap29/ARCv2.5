@@ -49,7 +49,7 @@ const db = admin.firestore();
 export const generateJournalReflection = onCall(
   {
     secrets: [GEMINI_API_KEY],
-    // No 'invoker' config = requires authentication (including anonymous)
+    invoker: "public", // Allow calls without auth enforcement at infrastructure level
   },
   async (request) => {
     const {

@@ -46,8 +46,7 @@ const db = admin.firestore();
 export const sendChatMessage = onCall(
   {
     secrets: [GEMINI_API_KEY],
-    // Requires Firebase Auth (including anonymous)
-    // IAM policy must allow allUsers to invoke for MVP
+    invoker: "public", // Allow calls without auth enforcement at infrastructure level
   },
   async (request) => {
     const { threadId, message } = request.data;
