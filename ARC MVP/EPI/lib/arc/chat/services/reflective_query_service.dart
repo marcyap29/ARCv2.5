@@ -8,6 +8,7 @@ import 'package:my_app/arc/core/sage_annotation_model.dart';
 import 'package:my_app/mira/memory/enhanced_mira_memory_service.dart';
 import 'package:my_app/mira/memory/enhanced_memory_schema.dart';
 import 'package:my_app/prism/atlas/phase/phase_history_repository.dart';
+import 'package:my_app/services/phase_history_access_control.dart';
 import 'package:my_app/prism/extractors/sentinel_risk_detector.dart';
 import 'package:my_app/arc/chat/models/reflective_query_models.dart';
 import 'package:my_app/core/models/reflective_entry_data.dart';
@@ -563,7 +564,7 @@ class ReflectiveQueryService {
     if (_phaseHistory == null) return null;
     
     try {
-      final allEntries = await PhaseHistoryRepository.getAllEntries();
+      final allEntries = await PhaseHistoryAccessControl.instance.getAllEntries();
       // Find entry closest to date
       PhaseHistoryEntry? closest;
       Duration? minDiff;

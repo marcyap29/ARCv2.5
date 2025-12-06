@@ -15,6 +15,7 @@ import 'package:my_app/ui/screens/mcp_management_screen.dart';
 import 'package:my_app/arc/core/journal_repository.dart';
 import 'package:my_app/arc/chat/services/favorites_service.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:my_app/ui/subscription/subscription_management_view.dart';
 
 class SettingsView extends StatefulWidget {
   const SettingsView({super.key});
@@ -154,6 +155,30 @@ class _SettingsViewState extends State<SettingsView> {
                         builder: (context) => McpManagementScreen(
                           journalRepository: context.read<JournalRepository>(),
                         ),
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 32),
+
+            // Subscription & Account Section
+            _buildSection(
+              context,
+              title: 'Subscription & Account',
+              children: [
+                _buildSettingsTile(
+                  context,
+                  title: 'Subscription Management',
+                  subtitle: 'Manage your subscription tier and billing',
+                  icon: Icons.workspace_premium,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const SubscriptionManagementView(),
                       ),
                     );
                   },

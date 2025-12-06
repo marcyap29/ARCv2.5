@@ -32,10 +32,9 @@ import '../data/models/lumara_favorite.dart';
 import 'package:my_app/shared/widgets/lumara_action_menu.dart';
 import 'package:my_app/shared/ui/settings/favorites_management_view.dart';
 import '../voice/audio_io.dart';
-import '../chat/chat_repo_impl.dart';
-import '../chat/enhanced_chat_repo_impl.dart';
 import '../chat/chat_models.dart';
 import 'widgets/chat_navigation_drawer.dart';
+import 'package:my_app/ui/subscription/lumara_subscription_status.dart';
 
 /// Main LUMARA Assistant screen
 class LumaraAssistantScreen extends StatefulWidget {
@@ -277,7 +276,14 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
     return Scaffold(
       key: _scaffoldKey,
       appBar: AppBar(
-        title: const Text('LUMARA'),
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('LUMARA'),
+            const SizedBox(width: 12),
+            const LumaraSubscriptionStatus(compact: true),
+          ],
+        ),
         automaticallyImplyLeading: false, // Remove back button since this is a tab
         leading: IconButton(
           icon: const Icon(Icons.menu),
@@ -396,13 +402,18 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
                   
                   // Show snackbar if there's an API error message
                   if (state.apiErrorMessage != null && state.apiErrorMessage!.isNotEmpty) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(state.apiErrorMessage!),
-                        duration: const Duration(seconds: 4),
-                        behavior: SnackBarBehavior.floating,
-                      ),
-                    );
+                    // Check if this is a rate limit error
+                    if (state.apiErrorMessage == 'RATE_LIMIT_EXCEEDED') {
+                      _showRateLimitDialog();
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(state.apiErrorMessage!),
+                          duration: const Duration(seconds: 4),
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                    }
                   }
                 }
 
@@ -1548,6 +1559,68 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
       print('LUMARA: Error getting most recent entry: $e');
     }
     return null;
+  }
+
+  void _showRateLimitDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: Colors.orange),
+            SizedBox(width: 12),
+            Text('Rate Limit Reached'),
+          ],
+        ),
+        content: const Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'You\'ve reached your free tier limit for LUMARA requests.',
+              style: TextStyle(fontSize: 16),
+            ),
+            SizedBox(height: 16),
+            Text(
+              'Free tier includes:',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            SizedBox(height: 8),
+            Text('• 20 requests per day'),
+            Text('• 3 requests per minute'),
+            Text('• 30 days of phase history'),
+            SizedBox(height: 16),
+            Text(
+              'Upgrade to Premium for:',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            SizedBox(height: 8),
+            Text('• Unlimited LUMARA requests'),
+            Text('• No rate limiting'),
+            Text('• Full phase history access'),
+            Text('• Priority support'),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Not Now'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              // Navigate to subscription management
+              Navigator.pushNamed(context, '/settings/subscription');
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.purple,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Upgrade to Premium'),
+          ),
+        ],
+      ),
+    );
   }
 
   void _startNewChat() async {

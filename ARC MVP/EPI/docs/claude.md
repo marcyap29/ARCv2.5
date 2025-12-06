@@ -16,3 +16,13 @@
 
 # Backend - a key backend set of features is found in the folder called functions located here: /Users/mymac/Software Development/ARCv.04/functions, /Users/mymac/Software Development/ARCv.04/.firebaserc, and /Users/mymac/Software Development/ARCv.04/firebase.json - utilize this so that ARC/EPI has a backend that utilizes firebase and has true privacy via Venice.ai. Key documentation for the backend can be found here: /Users/mymac/Software Development/ARCv.04/ARC MVP/EPI/docs/backend.md
 
+# Priority 1 & 1.5 (Authentication & Subscription) - Full implementation documentation for authentication and subscription management system:
+- OAuth Configuration Guide: /Users/mymac/Software Development/ARCv.04/ARC MVP/EPI/docs/OAUTH_SETUP.md - Step-by-step setup for Google OAuth and Stripe integration
+- Comprehensive Testing Guide: /Users/mymac/Software Development/ARCv.04/ARC MVP/EPI/docs/PRIORITY_1_1.5_TESTING.md - Complete test suite for authentication and subscription features
+- Completion Summary: /Users/mymac/Software Development/ARCv.04/ARC MVP/EPI/docs/PRIORITY_1.5_COMPLETION_SUMMARY.md - Overview of all completed Priority 1.5 features and next steps
+
+# Subscription Management - New subscription service infrastructure:
+- Service Implementation: /Users/mymac/Software Development/ARCv.04/ARC MVP/EPI/lib/services/subscription_service.dart - Core subscription tier management
+- UI Widget: /Users/mymac/Software Development/ARCv.04/ARC MVP/EPI/lib/ui/subscription/lumara_subscription_status.dart - Subscription status display widget
+- Phase Access Control: /Users/mymac/Software Development/ARCv.04/ARC MVP/EPI/lib/services/phase_history_access_control.dart - Tier-based phase history access control
+

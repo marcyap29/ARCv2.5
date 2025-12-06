@@ -56,6 +56,11 @@ class _LumaraSplashScreenState extends State<LumaraSplashScreen> {
     }
   }
 
+  void _navigateToMainMenu() {
+    // Allow user to tap anywhere to skip the splash screen timer
+    _checkAuthAndNavigate();
+  }
+
   @override
   void dispose() {
     _timer?.cancel();

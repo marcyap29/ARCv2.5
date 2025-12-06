@@ -27,6 +27,7 @@ import 'package:my_app/shared/ui/settings/voiceover_preference_service.dart';
 import '../voice/audio_io.dart';
 import '../llm/prompts/lumara_master_prompt.dart';
 import '../services/lumara_control_state_builder.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import '../services/reflective_query_service.dart';
 import '../services/reflective_query_formatter.dart';
 import 'package:my_app/prism/atlas/phase/phase_history_repository.dart';
@@ -352,6 +353,16 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
           lastError = e is Exception ? e : Exception(e.toString());
           print('LUMARA Debug: [Gemini] Attempt $attempt/$maxAttempts failed: $e');
           
+          // Check if this is a rate limit error
+          if (_isRateLimitError(e)) {
+            print('LUMARA Debug: Rate limit detected - showing upgrade prompt');
+            emit(currentState.copyWith(
+              isProcessing: false,
+              apiErrorMessage: 'RATE_LIMIT_EXCEEDED', // Special code for UI to show upgrade dialog
+            ));
+            return; // Don't retry on rate limit
+          }
+          
           // If this is not the last attempt, wait before retrying
           if (attempt < maxAttempts) {
             // Exponential backoff: 1s, 2s
@@ -366,11 +377,19 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
       print('LUMARA Debug: [Gemini] All $maxAttempts attempts failed. Last error: $lastError');
       print('LUMARA Debug: Cloud API only mode - no automated responses');
 
-      // Emit error state with message for snackbar
-      emit(currentState.copyWith(
-        isProcessing: false,
-        apiErrorMessage: 'LUMARA cannot answer at the moment. Please try again later.',
-      ));
+      // Check if final error is rate limit
+      if (lastError != null && _isRateLimitError(lastError)) {
+        emit(currentState.copyWith(
+          isProcessing: false,
+          apiErrorMessage: 'RATE_LIMIT_EXCEEDED',
+        ));
+      } else {
+        // Emit error state with message for snackbar
+        emit(currentState.copyWith(
+          isProcessing: false,
+          apiErrorMessage: 'LUMARA cannot answer at the moment. Please try again later.',
+        ));
+      }
       return;
     } catch (e) {
       print('LUMARA Debug: Cloud API failed: $e');
@@ -2436,5 +2455,24 @@ Available: ${yearsAgo} more year${yearsAgo > 1 ? 's' : ''} of history''';
         .trim();
     
     return cleaned;
+  }
+
+  /// Check if an error is a rate limit error
+  bool _isRateLimitError(dynamic error) {
+    // Check for FirebaseFunctionsException with resource-exhausted code
+    if (error is FirebaseFunctionsException) {
+      return error.code == 'resource-exhausted' || 
+             error.code == 'unavailable' ||
+             error.message?.contains('rate limit') == true ||
+             error.message?.contains('quota') == true;
+    }
+    
+    // Check error string for rate limit indicators
+    final errorString = error.toString().toLowerCase();
+    return errorString.contains('rate limit') ||
+           errorString.contains('too many requests') ||
+           errorString.contains('429') ||
+           errorString.contains('quota exceeded') ||
+           errorString.contains('resource-exhausted');
   }
 }

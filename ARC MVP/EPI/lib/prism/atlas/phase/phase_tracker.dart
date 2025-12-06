@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'package:my_app/prism/atlas/phase/phase_scoring.dart';
 import 'package:my_app/prism/atlas/phase/phase_history_repository.dart';
+import 'package:my_app/services/phase_history_access_control.dart';
 import 'package:my_app/models/user_profile_model.dart';
 
 /// Configuration constants for phase tracking
@@ -124,7 +125,7 @@ class PhaseTracker {
     await PhaseHistoryRepository.addEntry(historyEntry);
 
     // 2. Get recent entries for EMA calculation
-    final recentEntries = await PhaseHistoryRepository.getRecentEntries(PhaseTrackerConfig.windowEntries);
+    final recentEntries = await PhaseHistoryAccessControl.instance.getRecentEntries(PhaseTrackerConfig.windowEntries);
     
     // 3. Calculate EMA scores for all phases
     final smoothedScores = _calculateEMAScores(recentEntries);
@@ -254,7 +255,7 @@ class PhaseTracker {
 
   /// Get current phase tracking status
   Future<Map<String, dynamic>> getTrackingStatus() async {
-    final recentEntries = await PhaseHistoryRepository.getRecentEntries(PhaseTrackerConfig.windowEntries);
+    final recentEntries = await PhaseHistoryAccessControl.instance.getRecentEntries(PhaseTrackerConfig.windowEntries);
     final smoothedScores = _calculateEMAScores(recentEntries);
     final bestPhase = _findBestPhase(smoothedScores);
     final cooldownActive = _isCooldownActive();
@@ -292,7 +293,7 @@ class PhaseTracker {
 
   /// Get phase stability metrics
   Future<Map<String, dynamic>> getStabilityMetrics() async {
-    final recentEntries = await PhaseHistoryRepository.getRecentEntries(PhaseTrackerConfig.windowEntries);
+    final recentEntries = await PhaseHistoryAccessControl.instance.getRecentEntries(PhaseTrackerConfig.windowEntries);
     final smoothedScores = _calculateEMAScores(recentEntries);
     
     // Calculate variance in scores (lower = more stable)
@@ -319,7 +320,7 @@ class PhaseTracker {
 
   /// Force a phase change (for testing or manual override)
   Future<PhaseTrackingResult> forcePhaseChange(String newPhase) async {
-    final recentEntries = await PhaseHistoryRepository.getRecentEntries(PhaseTrackerConfig.windowEntries);
+    final recentEntries = await PhaseHistoryAccessControl.instance.getRecentEntries(PhaseTrackerConfig.windowEntries);
     final smoothedScores = _calculateEMAScores(recentEntries);
     
     return PhaseTrackingResult(

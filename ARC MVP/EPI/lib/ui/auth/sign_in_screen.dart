@@ -95,14 +95,15 @@ class _SignInScreenState extends State<SignInScreen> {
     return Scaffold(
       backgroundColor: kcBackgroundColor,
       body: SafeArea(
-        child: Padding(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.all(24.0),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              const SizedBox(height: 40),
               Text(
-                'Welcome to EPI',
+                'Welcome to ARC',
                 style: heading1Style(context),
                 textAlign: TextAlign.center,
               ),
@@ -114,20 +115,14 @@ class _SignInScreenState extends State<SignInScreen> {
               ),
               const SizedBox(height: 48),
 
-              // Google Sign-In Button
+              // Google Sign-In Button (Temporarily disabled - needs OAuth configuration)
               ElevatedButton.icon(
-                onPressed: _isLoading ? null : _signInWithGoogle,
-                icon: const Icon(Icons.account_circle, color: Colors.white),
-                label: _isLoading
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                    )
-                  : const Text('Sign in with Google'),
+                onPressed: null, // Disabled until OAuth is configured
+                icon: const Icon(Icons.account_circle, color: Colors.grey),
+                label: const Text('Google Sign-In (Configuration needed)', style: TextStyle(color: Colors.grey)),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: kcPrimaryColor,
-                  foregroundColor: Colors.white,
+                  backgroundColor: Colors.grey.shade300,
+                  foregroundColor: Colors.grey,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                 ),
@@ -215,6 +210,7 @@ class _SignInScreenState extends State<SignInScreen> {
                   style: TextStyle(color: kcSecondaryTextColor),
                 ),
               ),
+              const SizedBox(height: 40),
             ],
           ),
         ),

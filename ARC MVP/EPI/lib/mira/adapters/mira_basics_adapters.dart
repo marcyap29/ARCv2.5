@@ -6,6 +6,7 @@ import 'dart:async';
 import '../mira_basics.dart';
 import 'package:my_app/arc/core/journal_repository.dart' as arc;
 import 'package:my_app/prism/atlas/phase/phase_history_repository.dart' as atlas;
+import 'package:my_app/services/phase_history_access_control.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:my_app/models/journal_entry_model.dart';
 
@@ -80,7 +81,7 @@ class EPIMemoryRepository implements MemoryRepo {
   Future<String?> currentPhaseFromHistory() async {
     try {
       // Get the most recent phase from history entries
-      final recentEntries = await atlas.PhaseHistoryRepository.getRecentEntries(10);
+      final recentEntries = await PhaseHistoryAccessControl.instance.getRecentEntries(10);
       if (recentEntries.isEmpty) return null;
       
       // Find the phase with the highest score in the most recent entry

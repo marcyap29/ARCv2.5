@@ -274,8 +274,37 @@ Stream<String> geminiSendStream({
 }
 
 /// Convenience factory to obtain an ArcLLM instance backed by Gemini.
+/// PRIORITY 2: Firebase-only implementation
+/// This version ONLY uses Firebase Functions - no local API keys
 ArcLLM provideArcLLM() => ArcLLM(send: ({required system, required user, bool jsonExpected = false}) async {
-      return geminiSend(system: system, user: user, jsonExpected: jsonExpected);
+      // REMOVED: Local geminiSend() call
+      // Now using Firebase Functions exclusively for better security and rate limiting
+      
+      print('ArcLLM Provider: Redirecting to Firebase Functions (Priority 2)');
+      print('ArcLLM Provider: This path should NOT be called - use Firebase Functions directly');
+      
+      throw StateError(
+        'Local API calls disabled in Priority 2. '
+        'All LUMARA features must use Firebase Functions: '
+        'sendChatMessage, generateJournalReflection, etc.'
+      );
     });
+
+
+/// DEPRECATED: Local Gemini API calls
+/// This function is kept for reference but should NOT be called in production
+/// All API calls should go through Firebase Functions for:
+/// - Centralized rate limiting
+/// - Backend-enforced subscription checking  
+/// - Secure API key management
+/// - Better error handling
+@Deprecated('Use Firebase Functions instead: sendChatMessage, generateJournalReflection')
+Future<String> geminiSendDEPRECATED({
+  required String system,
+  required String user,
+  bool jsonExpected = false,
+}) async {
+  return geminiSend(system: system, user: user, jsonExpected: jsonExpected);
+}
 
 
