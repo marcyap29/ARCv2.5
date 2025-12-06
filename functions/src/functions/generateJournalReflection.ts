@@ -49,6 +49,7 @@ const db = admin.firestore();
 export const generateJournalReflection = onCall(
   {
     secrets: [GEMINI_API_KEY],
+    invoker: "public", // Allow public access for MVP testing
   },
   async (request) => {
     const {

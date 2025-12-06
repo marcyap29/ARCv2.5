@@ -46,6 +46,7 @@ const db = admin.firestore();
 export const sendChatMessage = onCall(
   {
     secrets: [GEMINI_API_KEY],
+    invoker: "public", // Allow public access for MVP testing
   },
   async (request) => {
     const { threadId, message } = request.data;
