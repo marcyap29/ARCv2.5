@@ -18,6 +18,7 @@
 
 # Priority 1, 1.5 & 2 (Authentication, Subscription & API Security) - Full implementation documentation:
 - ✅ Priority 2 Complete: /Users/mymac/Software Development/ARCv.04/ARC MVP/EPI/docs/PRIORITY_2_API_REFACTOR.md - Firebase-only mode, all local API calls removed (Dec 6, 2025)
+- ⚠️ Auth Workaround Active: /Users/mymac/Software Development/ARCv.04/ARC MVP/EPI/docs/PRIORITY_2_AUTH_TODO.md - Temporary auth bypass for MVP testing, restoration plan included
 - OAuth Configuration Guide: /Users/mymac/Software Development/ARCv.04/ARC MVP/EPI/docs/OAUTH_SETUP.md - Step-by-step setup for Google OAuth and Stripe integration
 - Comprehensive Testing Guide: /Users/mymac/Software Development/ARCv.04/ARC MVP/EPI/docs/PRIORITY_1_1.5_TESTING.md - Complete test suite for authentication and subscription features
 - Completion Summary: /Users/mymac/Software Development/ARCv.04/ARC MVP/EPI/docs/PRIORITY_1.5_COMPLETION_SUMMARY.md - Overview of all completed Priority 1.5 features and next steps
