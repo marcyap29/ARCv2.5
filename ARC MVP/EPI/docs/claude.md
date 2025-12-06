@@ -16,10 +16,12 @@
 
 # Backend - a key backend set of features is found in the folder called functions located here: /Users/mymac/Software Development/ARCv.04/functions, /Users/mymac/Software Development/ARCv.04/.firebaserc, and /Users/mymac/Software Development/ARCv.04/firebase.json - utilize this so that ARC/EPI has a backend that utilizes firebase and has true privacy via Venice.ai. Key documentation for the backend can be found here: /Users/mymac/Software Development/ARCv.04/ARC MVP/EPI/docs/backend.md
 
-# Priority 1 & 1.5 (Authentication & Subscription) - Full implementation documentation for authentication and subscription management system:
+# Priority 1, 1.5 & 2 (Authentication, Subscription & API Security) - Full implementation documentation:
+- ✅ Priority 2 Complete: /Users/mymac/Software Development/ARCv.04/ARC MVP/EPI/docs/PRIORITY_2_API_REFACTOR.md - Firebase-only mode, all local API calls removed (Dec 6, 2025)
 - OAuth Configuration Guide: /Users/mymac/Software Development/ARCv.04/ARC MVP/EPI/docs/OAUTH_SETUP.md - Step-by-step setup for Google OAuth and Stripe integration
 - Comprehensive Testing Guide: /Users/mymac/Software Development/ARCv.04/ARC MVP/EPI/docs/PRIORITY_1_1.5_TESTING.md - Complete test suite for authentication and subscription features
 - Completion Summary: /Users/mymac/Software Development/ARCv.04/ARC MVP/EPI/docs/PRIORITY_1.5_COMPLETION_SUMMARY.md - Overview of all completed Priority 1.5 features and next steps
+- UI Integration Complete: /Users/mymac/Software Development/ARCv.04/ARC MVP/EPI/docs/UI_INTEGRATION_COMPLETE.md - Priority 1.5 UI integration details
 
 # Subscription Management - New subscription service infrastructure:
 - Service Implementation: /Users/mymac/Software Development/ARCv.04/ARC MVP/EPI/lib/services/subscription_service.dart - Core subscription tier management
