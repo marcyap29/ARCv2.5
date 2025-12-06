@@ -288,8 +288,19 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
             throw Exception('No active chat session - cannot send message');
           }
           
+          // Ensure user is authenticated before calling function
+          final auth = FirebaseService.instance.getAuth();
+          final currentUser = auth.currentUser;
+          if (currentUser == null) {
+            throw Exception('User not authenticated - cannot call Firebase Function');
+          }
+          
+          // Force refresh the ID token to ensure it's valid
+          await currentUser.getIdToken(true);
+          print('LUMARA Debug: [Firebase] Auth token refreshed for user: ${currentUser.uid}');
+          
           // Call Firebase Function directly
-          final functions = await FirebaseService.instance.getFunctions();
+          final functions = FirebaseService.instance.getFunctions();
           final callable = functions.httpsCallable('sendChatMessage');
           
           final result = await callable.call({
