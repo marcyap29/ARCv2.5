@@ -41,6 +41,18 @@ class FirebaseAuthService {
         clientId: kIsWeb ? const String.fromEnvironment('GOOGLE_OAUTH_CLIENT_ID') : null,
       );
 
+      // Auto-sign in anonymously if no user is signed in (for MVP testing)
+      if (_auth!.currentUser == null) {
+        try {
+          debugPrint('FirebaseAuthService: No user signed in - signing in anonymously for MVP');
+          await _auth!.signInAnonymously();
+          debugPrint('FirebaseAuthService: Anonymous sign-in successful - uid: ${_auth!.currentUser?.uid}');
+        } catch (e) {
+          debugPrint('FirebaseAuthService: Anonymous sign-in failed: $e');
+          // Continue anyway - function calls will fail gracefully
+        }
+      }
+
       debugPrint('FirebaseAuthService: Initialized successfully');
     } catch (e) {
       debugPrint('FirebaseAuthService: Failed to initialize: $e');

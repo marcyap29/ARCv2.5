@@ -78,13 +78,26 @@ export const generateJournalReflection = onCall(
     logger.info(`Generating journal reflection for user ${userId}`);
 
     try {
-      // Load user document
-      const userDoc = await db.collection("users").doc(userId).get();
+      // Load or create user document
+      const userRef = db.collection("users").doc(userId);
+      const userDoc = await userRef.get();
+      
+      let user: UserDocument;
       if (!userDoc.exists) {
-        throw new HttpsError("not-found", "User not found");
+        // Auto-create user document for new users (including anonymous)
+        logger.info(`Creating new user document for ${userId}`);
+        user = {
+          userId: userId,
+          plan: "free",
+          subscriptionTier: "FREE",
+          createdAt: admin.firestore.FieldValue.serverTimestamp() as any,
+          updatedAt: admin.firestore.FieldValue.serverTimestamp() as any,
+        };
+        await userRef.set(user);
+      } else {
+        user = userDoc.data() as UserDocument;
       }
 
-      const user = userDoc.data() as UserDocument;
       // Support both 'plan' and 'subscriptionTier' fields
       const plan = user.plan || user.subscriptionTier?.toLowerCase() || "free";
       const tier: SubscriptionTier = (plan === "pro" ? "PAID" : "FREE") as SubscriptionTier;
