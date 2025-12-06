@@ -264,10 +264,17 @@ All are exported and ready in `functions/src/index.ts`:
 3. ✅ Verify rate limiting triggers upgrade dialog
 4. ✅ Confirm no local API calls being made
 
+### **After Priority 2 Testing is Complete:**
+1. **Delete VEIL-EDGE** - Remove `lib/arc/chat/veil_edge/` directory
+   - **Why:** Superseded by LUMARA Master Prompt + Control State Builder
+   - **Note:** Already disabled in Priority 2, safe to remove after testing
+   - **Command:** `rm -rf lib/arc/chat/veil_edge/`
+   - **Documentation:** VEIL-EDGE functionality is now handled by unified control state (ATLAS + VEIL + PRISM)
+
 ### **Optional (if secondary features needed):**
 1. Create `generateEchoResponse` Cloud Function for ECHO
 2. Create `generateShareMetadata` Cloud Function for Lumara Share
-3. Create `generateVeilEdgeResponse` Cloud Function for VEIL-EDGE
+3. ~~Create `generateVeilEdgeResponse` Cloud Function for VEIL-EDGE~~ (Not needed - use Master Prompt)
 
 ### **Deployment:**
 1. Merge `priority-2-api-refactor` → `priority-2`
