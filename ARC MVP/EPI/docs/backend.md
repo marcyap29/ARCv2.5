@@ -33,10 +33,11 @@ Gemini API (with secured API key)
 ### Key Benefits
 
 - ✅ **API keys hidden** in Firebase Functions
-- ✅ **LUMARA runs on-device** - maintains full journal access
+- ✅ **LUMARA runs on-device** - maintains full journal access (chat + in-journal reflections)
 - ✅ **No user configuration** - API key management is transparent
 - ✅ **Simple proxy pattern** - Firebase function just forwards requests with the API key
 - ✅ **Full data access** - LUMARA can still read local Hive database
+- ✅ **Both LUMARA modes working** - Chat assistant and in-journal reflections both use proxy
 
 ### Implementation
 

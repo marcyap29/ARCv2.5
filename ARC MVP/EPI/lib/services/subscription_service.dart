@@ -37,7 +37,7 @@ class SubscriptionFeatures {
   static const free = SubscriptionFeatures(
     lumaraThrottled: true,
     phaseHistoryRestricted: true,
-    dailyLumaraLimit: 20,
+    dailyLumaraLimit: 50,
     displayText: 'Free - Limited Access',
   );
 

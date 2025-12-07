@@ -9,10 +9,16 @@
 
 #### Objective Achieved
 - ✅ **API keys securely hidden** in Firebase Cloud Functions
-- ✅ **LUMARA runs on-device** - maintains full journal access
+- ✅ **LUMARA runs on-device** - maintains full journal access (chat + in-journal)
 - ✅ **Simple proxy pattern** - Firebase only handles API key management
 - ✅ **No user configuration** - API key management is transparent
 - ✅ **Full data access** - LUMARA retains access to local Hive database
+
+#### Latest Fix (Dec 7, 2025 - Evening)
+- **Fixed in-journal LUMARA reflections** - Restored on-device reflection logic
+- Removed Firebase-only enforcement that was blocking journal reflections
+- Both chat LUMARA and in-journal LUMARA now working with Firebase proxy
+- All LUMARA features fully functional with secured API key access
 
 #### Architecture Decision
 **Initial Approach (Abandoned):**

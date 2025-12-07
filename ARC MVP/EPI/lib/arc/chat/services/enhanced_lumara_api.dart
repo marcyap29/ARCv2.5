@@ -2,30 +2,22 @@
 // Enhanced LUMARA API with multimodal reflection
 
 import 'dart:async';
-import 'dart:convert';
-import 'dart:io';
-// REMOVED unused imports for Firebase-only mode:
-// import 'dart:math';
-// import 'package:cloud_functions/cloud_functions.dart';
-// import 'package:firebase_core/firebase_core.dart';
-// import '../../../services/gemini_send.dart';
-// import 'lumara_reflection_settings_service.dart';
-// import '../llm/prompts/lumara_master_prompt.dart';
-// import 'lumara_control_state_builder.dart';
-// import '../../../mira/memory/sentence_extraction_util.dart';
+import 'dart:math';
+import '../../../services/gemini_send.dart';
+import 'lumara_reflection_settings_service.dart';
+import '../llm/prompts/lumara_master_prompt.dart';
+import 'lumara_control_state_builder.dart';
+import '../../../mira/memory/sentence_extraction_util.dart';
 import 'package:my_app/telemetry/analytics.dart';
-import 'package:my_app/services/firebase_service.dart';
 import '../models/reflective_node.dart';
 import '../models/lumara_reflection_options.dart' as models;
 import 'reflective_node_storage.dart';
 import 'mcp_bundle_parser.dart';
 import 'semantic_similarity_service.dart';
-import 'reflective_prompt_generator.dart';
 import '../llm/llm_provider_factory.dart';
 import '../llm/llm_provider.dart';
 import '../config/api_config.dart';
 import 'lumara_response_scoring.dart' as scoring;
-import 'package:shared_preferences/shared_preferences.dart';
 import '../../../mira/memory/attribution_service.dart';
 import '../../../mira/memory/enhanced_memory_schema.dart';
 import '../../../arc/core/journal_repository.dart';
@@ -50,7 +42,6 @@ class EnhancedLumaraApi {
   final Analytics _analytics;
   final ReflectiveNodeStorage _storage = ReflectiveNodeStorage();
   final SemanticSimilarityService _similarity = SemanticSimilarityService();
-  final ReflectivePromptGenerator _promptGen = ReflectivePromptGenerator();
   final AttributionService _attributionService = AttributionService();
   final JournalRepository _journalRepo = JournalRepository();
   final ChatRepo _chatRepo = ChatRepoImpl.instance;
@@ -181,72 +172,8 @@ class EnhancedLumaraApi {
       }
 
       // ===========================================================
-      // 1) Try Firebase backend first (Cloud Functions)
+      // PRIORITY 2: Use on-device LUMARA with Firebase proxy for API key
       // ===========================================================
-      try {
-        final firebaseReady = await FirebaseService.instance.ensureReady();
-        if (firebaseReady) {
-          onProgress?.call('Calling secure backend...');
-          final functions = FirebaseService.instance.getFunctions();
-          final callable = functions.httpsCallable('generateJournalReflection');
-
-          final result = await callable.call({
-            'userText': request.userText,
-            'phaseHint': request.phaseHint?.name,
-            'mood': mood,
-            'chronoContext': chronoContext,
-            'chatContext': chatContext,
-            'mediaContext': mediaContext,
-            'options': {
-              'preferQuestionExpansion': request.options.preferQuestionExpansion,
-              'toneMode': request.options.toneMode.name,
-              'regenerate': request.options.regenerate,
-              'conversationMode': request.options.conversationMode?.name,
-            },
-          });
-
-          final data = result.data as Map<String, dynamic>?;
-          final reflection = data?['reflection']?.toString();
-          final List<dynamic>? traces = data?['attributionTraces'] as List<dynamic>?;
-
-          if (reflection != null && reflection.isNotEmpty) {
-            final attributionTraces = traces
-                    ?.map((t) => AttributionTrace.fromJson(Map<String, dynamic>.from(t as Map)))
-                    .toList() ??
-                <AttributionTrace>[];
-
-            _analytics.logLumaraEvent('reflection_generated_backend', data: {
-              'source': 'firebase_functions',
-              'has_traces': attributionTraces.isNotEmpty,
-            });
-
-            return ReflectionResult(
-              reflection: reflection,
-              attributionTraces: attributionTraces,
-            );
-          } else {
-            print('LUMARA Enhanced API: Backend returned empty reflection, falling back to direct API');
-          }
-        } else {
-          print('LUMARA Enhanced API: Firebase not ready, using direct API fallback');
-        }
-      } catch (e) {
-        print('LUMARA Enhanced API: Backend call failed ($e), using direct API fallback');
-      }
-
-      // ===========================================================
-      // PRIORITY 2: No local API fallback - Firebase Functions only
-      // ===========================================================
-      print('LUMARA Enhanced API: Firebase Function failed, no local fallback available');
-      throw Exception('Firebase backend unavailable - cannot generate reflection without backend');
-      
-      // REMOVED: Local API fallback (Priority 2)
-      // All API calls must go through Firebase Functions for:
-      // - Centralized rate limiting
-      // - Backend-enforced subscription checking
-      // - Secure API key management
-      
-      /* DEPRECATED CODE - Kept for reference only
       final currentPhase = _convertFromV23PhaseHint(request.phaseHint);
       
       // 1. Get settings from service
@@ -628,7 +555,6 @@ Follow the ECHO structure (Empathize → Clarify → Highlight → Open) and inc
         // Same behavior as main LUMARA chat - no hard-coded responses
         rethrow;
       }
-      END OF DEPRECATED CODE */
     } catch (e) {
       print('LUMARA Enhanced API: ✗ Fatal error: $e');
       rethrow;
@@ -659,15 +585,6 @@ Follow the ECHO structure (Empathize → Clarify → Highlight → Open) and inc
     return models.EntryType.values.firstWhere(
       (e) => e.name == intent.toLowerCase(),
       orElse: () => models.EntryType.journal,
-    );
-  }
-
-  PhaseHint? _parsePhaseHint(String? phase) {
-    if (phase == null) return null;
-    
-    return PhaseHint.values.firstWhere(
-      (e) => e.name == phase.toLowerCase(),
-      orElse: () => PhaseHint.discovery,
     );
   }
 
@@ -826,143 +743,4 @@ Follow the ECHO structure (Empathize → Clarify → Highlight → Open) and inc
   }
 
   /// Fallback method to call local Gemini API when Firebase backend fails
-  Future<ReflectionResult?> _callLocalGeminiAPI(
-    String userText,
-    PhaseHint? currentPhase,
-    String? mood,
-    Map<String, dynamic>? chronoContext,
-    String? chatContext,
-    String? mediaContext,
-    models.LumaraReflectionOptions options,
-    void Function(String)? onProgress,
-  ) async {
-    try {
-      // Get API key from SharedPreferences or dart-define
-      final prefs = await SharedPreferences.getInstance();
-      String? apiKey = prefs.getString('gemini_api_key');
-
-      // Check dart-define as fallback
-      if (apiKey == null || apiKey.isEmpty) {
-        const dartDefineKey = String.fromEnvironment('GEMINI_API_KEY');
-        if (dartDefineKey.isNotEmpty) {
-          apiKey = dartDefineKey;
-        }
-      }
-
-      if (apiKey == null || apiKey.isEmpty) {
-        print('LUMARA Local API: No API key available');
-        return null;
-      }
-
-      onProgress?.call('Using local Gemini API...');
-
-      // Build context for the prompt (simplified version)
-      final contextParts = <String>[];
-      if (chronoContext != null) {
-        final window = chronoContext['window'] ?? 'unknown';
-        final chronotype = chronoContext['chronotype'] ?? 'unknown';
-        contextParts.add('Time context: $window ($chronotype rhythm)');
-      }
-      if (chatContext != null && chatContext.isNotEmpty) {
-        contextParts.add('Chat history: $chatContext');
-      }
-      if (mediaContext != null && mediaContext.isNotEmpty) {
-        contextParts.add('Media context: $mediaContext');
-      }
-
-      // Create a simplified reflection prompt
-      final prompt = '''As LUMARA, an empathetic AI companion, provide a thoughtful reflection on the following journal entry.
-
-${contextParts.isNotEmpty ? 'Context:\n${contextParts.join('\n')}\n' : ''}
-Journal Entry: "$userText"
-
-Please provide a warm, empathetic response that:
-1. Acknowledges the emotions and experiences shared
-2. Offers gentle insights or observations
-3. Provides supportive perspective when appropriate
-4. Remains authentic and caring
-
-Response:''';
-
-      // Make simple HTTP call to Gemini API using the geminiSend function
-      // But we need to call it directly with our API key
-      final response = await _makeGeminiCall(prompt, apiKey);
-
-      if (response != null && response.isNotEmpty) {
-        print('LUMARA Local API: ✓ Received response (length: ${response.length})');
-
-        // Format response similar to backend
-        final formatted = '✨ Reflection\n\n$response';
-
-        return ReflectionResult(
-          reflection: formatted,
-          attributionTraces: [], // No attribution traces for local fallback
-        );
-      } else {
-        print('LUMARA Local API: ✗ Empty response');
-        return null;
-      }
-    } catch (e) {
-      print('LUMARA Local API: ✗ Error: $e');
-      return null;
-    }
-  }
-
-  /// Helper method to call Gemini API directly with custom API key
-  Future<String?> _makeGeminiCall(String prompt, String apiKey) async {
-    try {
-      // We need to make a direct HTTP call since geminiSend uses the config
-      const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
-
-      final client = HttpClient();
-      try {
-        final uri = Uri.parse('$url?key=$apiKey');
-        final request = await client.postUrl(uri);
-        request.headers.set(HttpHeaders.contentTypeHeader, 'application/json; charset=utf-8');
-
-        final body = {
-          'contents': [
-            {
-              'role': 'user',
-              'parts': [
-                {'text': prompt}
-              ]
-            }
-          ],
-        };
-
-        request.write(jsonEncode(body));
-        final response = await request.close();
-
-        if (response.statusCode != 200) {
-          final errorBody = await response.transform(utf8.decoder).join();
-          throw Exception('Gemini API error: ${response.statusCode}\n$errorBody');
-        }
-
-        final responseBody = await response.transform(utf8.decoder).join();
-        final json = jsonDecode(responseBody) as Map<String, dynamic>;
-        final candidates = json['candidates'] as List?;
-
-        if (candidates == null || candidates.isEmpty) {
-          return null;
-        }
-
-        final content = candidates.first['content'] as Map<String, dynamic>?;
-        final parts = content?['parts'] as List? ?? const [];
-        final buffer = StringBuffer();
-
-        for (final p in parts) {
-          final t = (p as Map)['text'];
-          if (t is String) buffer.write(t);
-        }
-
-        return buffer.toString();
-      } finally {
-        client.close(force: true);
-      }
-    } catch (e) {
-      print('LUMARA Local API: HTTP request error: $e');
-      throw e;
-    }
-  }
 }

@@ -75,9 +75,10 @@ Welcome to the EPI (Evolving Personal Intelligence) documentation. This director
 
 - 🎉 **Priority 2 Complete (v2.1.45)**: Firebase API Proxy Implementation
   - API keys now securely hidden in Firebase Functions
-  - LUMARA runs on-device with full journal access
+  - LUMARA runs on-device with full journal access (chat + in-journal reflections)
   - Simple `proxyGemini` function handles API key management
   - No user configuration needed for API access
+  - Both LUMARA modes fully functional: Chat assistant and in-journal reflections
   - See [Backend Architecture](backend.md) for details
 - 🆕 **Chat UI Improvements**: Scrollable text input, auto-minimize on outside click, send button always accessible
 - 🆕 **Chat History Import Fixes**: Enhanced logging, proper archived handling, message verification
