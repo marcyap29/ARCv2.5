@@ -1,6 +1,6 @@
 // config.ts - Environment configuration and model settings
 
-import { defineString, defineSecret } from "firebase-functions/params";
+import { defineSecret } from "firebase-functions/params";
 import { ModelFamily, ModelConfig } from "./types";
 
 /**
@@ -13,37 +13,32 @@ export const GEMINI_API_KEY = defineSecret("GEMINI_API_KEY");
 export const THROTTLE_UNLOCK_PASSWORD = defineSecret("THROTTLE_UNLOCK_PASSWORD");
 
 // Model IDs - easily swappable for Gemini 3.0 or newer models
-export const GEMINI_FLASH_MODEL_ID = defineString("GEMINI_FLASH_MODEL_ID", {
-  default: "gemini-2.5-flash", // Updated to Gemini 2.5 Flash (1.5 and 2.0 are deprecated) - Free tier with backend-enforced quotas
-  description: "Gemini Flash model ID (free tier - backend limits usage)",
-});
+// Hardcoded for MVP - TODO: Move to secrets after testing
+export const GEMINI_FLASH_MODEL_ID = {
+  value: () => "gemini-2.5-flash"
+};
 
-export const GEMINI_PRO_MODEL_ID = defineString("GEMINI_PRO_MODEL_ID", {
-  default: "gemini-2.5", // Updated to Gemini 2.5 (1.5 is deprecated) - Same model as Flash, backend enforces free tier limits
-  description: "Gemini 2.5 model ID (paid tier - unlimited access to same model)",
-});
+export const GEMINI_PRO_MODEL_ID = {
+  value: () => "gemini-2.5"
+};
 
-// Rate limiting configuration
-export const FREE_MAX_REQUESTS_PER_DAY = defineString("FREE_MAX_REQUESTS_PER_DAY", {
-  default: "20",
-  description: "Maximum requests per day for free tier",
-});
+// Rate limiting configuration - Hardcoded for MVP
+export const FREE_MAX_REQUESTS_PER_DAY = {
+  value: () => "50"
+};
 
-export const FREE_MAX_REQUESTS_PER_MINUTE = defineString("FREE_MAX_REQUESTS_PER_MINUTE", {
-  default: "3",
-  description: "Maximum requests per minute for free tier",
-});
+export const FREE_MAX_REQUESTS_PER_MINUTE = {
+  value: () => "10"
+};
 
 // Legacy quota limits (kept for backward compatibility, but rate limiting takes precedence)
-export const FREE_MAX_ANALYSES_PER_ENTRY = defineString("FREE_MAX_ANALYSES_PER_ENTRY", {
-  default: "4",
-  description: "Maximum deep analyses per journal entry for free tier (legacy)",
-});
+export const FREE_MAX_ANALYSES_PER_ENTRY = {
+  value: () => "4"
+};
 
-export const FREE_MAX_CHAT_TURNS_PER_THREAD = defineString("FREE_MAX_CHAT_TURNS_PER_THREAD", {
-  default: "200",
-  description: "Maximum chat turns per thread for free tier (legacy)",
-});
+export const FREE_MAX_CHAT_TURNS_PER_THREAD = {
+  value: () => "200"
+};
 
 /**
  * API Base URLs

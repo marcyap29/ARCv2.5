@@ -74,21 +74,25 @@ Future<String> geminiSend({
     print('DEBUG GEMINI: Got response from Firebase proxy');
     
     final data = (result.data as Map<Object?, Object?>).cast<String, dynamic>();
+
+    // Prefer the structured candidates response; fall back to a plain `response` string
+    String rawResult = '';
     final candidates = data['candidates'] as List?;
-    if (candidates == null || candidates.isEmpty) {
-      print('DEBUG GEMINI: No candidates in response');
+    if (candidates != null && candidates.isNotEmpty) {
+      final content = candidates.first['content'] as Map<String, dynamic>?;
+      final parts = content?['parts'] as List? ?? const [];
+      final buffer = StringBuffer();
+      for (final p in parts) {
+        final t = (p as Map)['text'];
+        if (t is String) buffer.write(t);
+      }
+      rawResult = buffer.toString();
+    } else if (data['response'] is String) {
+      rawResult = data['response'] as String;
+    } else {
+      print('DEBUG GEMINI: No candidates or response string in proxy result');
       return '';
     }
-
-    final content = candidates.first['content'] as Map<String, dynamic>?;
-    final parts = content?['parts'] as List? ?? const [];
-    final buffer = StringBuffer();
-    for (final p in parts) {
-      final t = (p as Map)['text'];
-      if (t is String) buffer.write(t);
-    }
-
-    final rawResult = buffer.toString();
     
     // PRISM: Restore original PII in the response
     final restoredResult = PiiScrubber.restore(rawResult, combinedReversibleMap);
@@ -233,21 +237,25 @@ Stream<String> geminiSendStream({
 }
 
 /// Convenience factory to obtain an ArcLLM instance backed by Gemini.
-/// PRIORITY 2: Firebase-only implementation
-/// This version ONLY uses Firebase Functions - no local API keys
-ArcLLM provideArcLLM() => ArcLLM(send: ({required system, required user, bool jsonExpected = false}) async {
-      // REMOVED: Local geminiSend() call
-      // Now using Firebase Functions exclusively for better security and rate limiting
-      
-      print('ArcLLM Provider: Redirecting to Firebase Functions (Priority 2)');
-      print('ArcLLM Provider: This path should NOT be called - use Firebase Functions directly');
-      
-      throw StateError(
-        'Local API calls disabled in Priority 2. '
-        'All LUMARA features must use Firebase Functions: '
-        'sendChatMessage, generateJournalReflection, etc.'
+/// PRIORITY 2: Using Firebase proxy for API key management
+ArcLLM provideArcLLM() {
+  print('ArcLLM Provider: Using Firebase proxy for Gemini API');
+  
+  return ArcLLM(
+    send: ({
+      required String system,
+      required String user,
+      List<String>? history,
+      bool jsonExpected = false,
+    }) async {
+      return await geminiSend(
+        system: system,
+        user: user,
+        jsonExpected: jsonExpected,
       );
-    });
+    },
+  );
+}
 
 
 /// DEPRECATED: Local Gemini API calls

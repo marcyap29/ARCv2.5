@@ -19,22 +19,24 @@ const db = admin_1.admin.firestore();
  */
 async function checkRateLimit(userId) {
     try {
-        // Load user document
-        const userDoc = await db.collection("users").doc(userId).get();
+        // Load or create user document
+        const userRef = db.collection("users").doc(userId);
+        const userDoc = await userRef.get();
+        let user;
         if (!userDoc.exists) {
-            return {
-                allowed: false,
-                error: {
-                    code: "USER_NOT_FOUND",
-                    message: "User not found",
-                    currentUsage: 0,
-                    limit: 0,
-                    upgradeRequired: false,
-                    tier: "FREE",
-                },
+            // Auto-create new user with free tier
+            user = {
+                userId: userId,
+                plan: "free",
+                subscriptionTier: "FREE",
+                createdAt: admin_1.admin.firestore.FieldValue.serverTimestamp(),
+                updatedAt: admin_1.admin.firestore.FieldValue.serverTimestamp(),
             };
+            await userRef.set(user);
         }
-        const user = userDoc.data();
+        else {
+            user = userDoc.data();
+        }
         // Support both 'plan' and 'subscriptionTier' fields
         const userPlan = user.plan;
         const userTier = user.subscriptionTier;

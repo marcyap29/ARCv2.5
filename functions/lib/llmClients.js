@@ -42,7 +42,7 @@ class GeminiClient {
             },
             // Enable Google Search Grounding for real-time web information
             tools: [{
-                    googleSearchRetrieval: {}
+                    googleSearch: {}
                 }],
         };
         if (systemInstruction) {
@@ -82,7 +82,7 @@ class GeminiClient {
             },
             // Enable Google Search Grounding for real-time web information
             tools: [{
-                    googleSearchRetrieval: {}
+                    googleSearch: {}
                 }],
         };
         if (systemInstruction) {

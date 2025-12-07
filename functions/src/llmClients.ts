@@ -52,7 +52,7 @@ export class GeminiClient {
       },
       // Enable Google Search Grounding for real-time web information
       tools: [{
-        googleSearchRetrieval: {}
+        googleSearch: {}
       }],
     };
 
@@ -101,7 +101,7 @@ export class GeminiClient {
       },
       // Enable Google Search Grounding for real-time web information
       tools: [{
-        googleSearchRetrieval: {}
+        googleSearch: {}
       }],
     };
 

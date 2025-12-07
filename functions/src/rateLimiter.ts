@@ -22,23 +22,24 @@ export async function checkRateLimit(
   userId: string
 ): Promise<QuotaCheckResult> {
   try {
-    // Load user document
-    const userDoc = await db.collection("users").doc(userId).get();
+    // Load or create user document
+    const userRef = db.collection("users").doc(userId);
+    const userDoc = await userRef.get();
+    
+    let user: UserDocument;
     if (!userDoc.exists) {
-      return {
-        allowed: false,
-        error: {
-          code: "USER_NOT_FOUND",
-          message: "User not found",
-          currentUsage: 0,
-          limit: 0,
-          upgradeRequired: false,
-          tier: "FREE",
-        },
+      // Auto-create new user with free tier
+      user = {
+        userId: userId,
+        plan: "free",
+        subscriptionTier: "FREE",
+        createdAt: admin.firestore.FieldValue.serverTimestamp() as any,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp() as any,
       };
+      await userRef.set(user);
+    } else {
+      user = userDoc.data() as UserDocument;
     }
-
-    const user = userDoc.data() as UserDocument;
     // Support both 'plan' and 'subscriptionTier' fields
     const userPlan = user.plan;
     const userTier = user.subscriptionTier;

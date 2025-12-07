@@ -1,12 +1,62 @@
 // functions/index.js
 
-const { onRequest } = require("firebase-functions/v2/https");
+const { onRequest, onCall, HttpsError } = require("firebase-functions/v2/https");
 const { logger } = require("firebase-functions");
 const { defineSecret } = require("firebase-functions/params");
 const cors = require("cors")({ origin: true });
+const { GoogleGenerativeAI } = require("@google/generative-ai");
 
-// Export new Gemini proxy function
-exports.proxyGemini = require("./lib/functions/proxyGemini").proxyGemini;
+// Define secrets
+const GEMINI_API_KEY = defineSecret("GEMINI_API_KEY");
+
+// Simple Gemini API proxy - hides API key from client
+exports.proxyGemini = onCall(
+  { secrets: [GEMINI_API_KEY], invoker: "public" },
+  async (request) => {
+    const { system, user, jsonExpected } = request.data;
+
+    if (!user) {
+      throw new HttpsError("invalid-argument", "user prompt is required");
+    }
+
+    const userId = request.auth?.uid || `mvp_test_${Date.now()}`;
+    logger.info(`Proxying Gemini request for user ${userId}`);
+
+    try {
+      const apiKey = GEMINI_API_KEY.value();
+      if (!apiKey) {
+        throw new HttpsError("internal", "Gemini API key not configured");
+      }
+
+      const genAI = new GoogleGenerativeAI(apiKey);
+      const model = genAI.getGenerativeModel({
+        model: "gemini-2.5-flash",
+        tools: [{ googleSearch: {} }],
+        generationConfig: jsonExpected
+          ? { responseMimeType: "application/json" }
+          : undefined,
+      });
+
+      const chat = model.startChat({
+        history: system
+          ? [
+              { role: "user", parts: [{ text: system }] },
+              { role: "model", parts: [{ text: "Ok." }] },
+            ]
+          : [],
+      });
+
+      const result = await chat.sendMessage(user);
+      const response = result.response.text();
+
+      logger.info(`Gemini proxy successful for user ${userId}`);
+      return { response };
+    } catch (error) {
+      logger.error(`Gemini proxy error:`, error);
+      throw new HttpsError("internal", `Gemini API error: ${error.message || "Unknown error"}`);
+    }
+  }
+);
 
 // Define the secret we created in the previous step
 const veniceApiKey = defineSecret("VENICE_API_KEY");

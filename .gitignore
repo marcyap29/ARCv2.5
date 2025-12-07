@@ -158,4 +158,4 @@ third_party/llama.cpp/
 ios-llm/
 
 # Large assets
-assets/models/
+assets/models/functions/.env.arc-epi

@@ -44,6 +44,7 @@ export const createCheckoutSession = onCall(async (request) => {
 
   const userId = request.auth.uid;
   const userEmail = request.auth.token.email;
+  // @ts-ignore - unused for now
   const data = request.data as CheckoutSessionRequest;
 
   try {
@@ -118,6 +119,7 @@ export const createCheckoutSession = onCall(async (request) => {
  * Helper function to get Stripe customer ID for a user
  * In production, this would query Firestore for existing customer ID
  */
+// @ts-ignore - unused for now
 async function getStripeCustomerId(userId: string): Promise<string | null> {
   try {
     const userDoc = await db.collection('users').doc(userId).get();

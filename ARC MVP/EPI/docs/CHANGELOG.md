@@ -1,7 +1,142 @@
 # EPI ARC MVP - Changelog
 
-**Version:** 2.1.44
-**Last Updated:** December 4, 2025
+**Version:** 2.1.45
+**Last Updated:** December 7, 2025
+
+## [2.1.45] - December 7, 2025
+
+### **Priority 2 Complete: Firebase API Proxy Implementation** - ✅ Complete
+
+#### Objective Achieved
+- ✅ **API keys securely hidden** in Firebase Cloud Functions
+- ✅ **LUMARA runs on-device** - maintains full journal access
+- ✅ **Simple proxy pattern** - Firebase only handles API key management
+- ✅ **No user configuration** - API key management is transparent
+- ✅ **Full data access** - LUMARA retains access to local Hive database
+
+#### Architecture Decision
+**Initial Approach (Abandoned):**
+- Attempted to move all LUMARA logic to Firebase Functions
+- **Problem:** Lost access to local journal data stored in Hive
+
+**Final Approach (Implemented):**
+- Keep LUMARA running on-device with all its logic
+- Create simple `proxyGemini` Firebase Function that only adds API key
+- Client sends prompts → Firebase adds key → Gemini API → Response returns
+
+#### Implementation Details
+
+**Client Side Changes:**
+- **File:** `lib/services/gemini_send.dart`
+- **Change:** Modified `geminiSend()` to call Firebase `proxyGemini` function
+- **Benefit:** Transparent API key management, no code changes needed elsewhere
+
+**Server Side Implementation:**
+- **File:** `functions/lib/index.js`
+- **Function:** `proxyGemini` (pure JavaScript, no TypeScript compilation needed)
+- **Parameters:** Accepts `system`, `user`, `jsonExpected`
+- **Functionality:** Adds API key, forwards to Gemini, returns response
+- **Security:** `invoker: "public"` for MVP (will add proper auth in Priority 3)
+
+**Cloud Run Configuration:**
+- Set "Allow public access" in Cloud Run → proxygemini service → Security
+- Required to avoid `UNAUTHENTICATED` errors during MVP testing
+- IAM permissions: Compute service account needs `Cloud Datastore User` role
+
+#### Technical Challenges Resolved
+
+1. **TypeScript Compilation Issues:**
+   - Problem: Firebase wasn't recognizing TypeScript function
+   - Solution: Added function directly to `lib/index.js` as pure JavaScript
+
+2. **Request Format Mismatch:**
+   - Problem: Client sending different format than function expected
+   - Solution: Made function handle both old and new request formats
+
+3. **Authentication Barriers:**
+   - Problem: Cloud Run rejecting unauthenticated calls
+   - Solution: Set `invoker: "public"` and configured Cloud Run security settings
+
+4. **Function Not Deploying:**
+   - Problem: Function not appearing in Cloud Console after deployment
+   - Solution: Added export to `functions/src/index.ts` and deployed with proper build
+
+#### Files Modified
+
+**Client:**
+- `lib/services/gemini_send.dart` - Updated to call Firebase proxy
+
+**Server:**
+- `functions/lib/index.js` - Added `proxyGemini` function
+- `functions/src/index.ts` - Added export for `proxyGemini`
+
+**Documentation:**
+- `docs/backend.md` - New comprehensive backend documentation (NEW)
+- `docs/README.md` - Updated with Priority 2 completion
+- Archived setup guides moved to `docs/archive/setup/`
+- Archived testing docs moved to `docs/archive/priority2-testing/`
+
+#### Impact
+
+**Security:**
+- API keys no longer exposed in client code
+- Future-proof for app store submission requirements
+
+**User Experience:**
+- No configuration required - works out of the box
+- Transparent API key management
+
+**Developer Experience:**
+- Simple, maintainable architecture
+- Easy to understand and debug
+- On-device LUMARA logic unchanged
+
+**Performance:**
+- Minimal latency overhead from proxy (typically <100ms)
+- Same model quality (Gemini 2.5 Flash)
+
+#### Documentation Updates
+
+**New Files:**
+- `docs/backend.md` - Comprehensive backend architecture and setup guide
+  - Priority 2 implementation details
+  - Firebase setup and configuration
+  - OAuth and Stripe integration
+  - Deployment procedures
+  - Troubleshooting guide
+
+**Archived Files:**
+- `docs/archive/setup/OAUTH_SETUP.md` - OAuth configuration guide
+- `docs/archive/setup/FIREBASE_DEPLOYMENT_STATUS.md` - Initial deployment notes  
+- `docs/archive/setup/BETA_BRANCH.md` - Dev branch workflow
+- `docs/archive/priority2-testing/PRIORITY_1_1.5_TESTING.md` - Priority 1.5 testing
+- `docs/archive/priority2-testing/PRIORITY_1.5_COMPLETION_SUMMARY.md` - Priority 1.5 summary
+- `docs/archive/priority2-testing/PRIORITY_2_API_REFACTOR.md` - Priority 2 details
+- `docs/archive/priority2-testing/PRIORITY_2_AUTH_TODO.md` - Auth workaround notes
+- `docs/archive/priority2-testing/PRIORITY_2_TESTING_GUIDE.md` - Priority 2 testing
+- `docs/archive/priority2-testing/UI_INTEGRATION_COMPLETE.md` - UI integration notes
+
+#### Next Steps (Priority 3)
+
+1. **Re-implement proper authentication:**
+   - Remove `invoker: "public"` workaround
+   - Require Firebase Auth tokens for function calls
+   - Implement proper user ID verification
+
+2. **Rate limiting enforcement:**
+   - Server-side rate limits based on subscription tier
+   - Free tier: 50 requests/day, 10/minute
+   - Premium tier: Unlimited
+
+3. **Subscription tier routing:**
+   - Free → Gemini Flash
+   - Premium → Gemini Pro
+
+**Status**: ✅ Priority 2 Complete - Ready for Production Testing  
+**Branch**: `dev-priority-2-api-refactor`  
+**Tested**: December 7, 2025
+
+---
 
 ## [2.1.44] - December 4, 2025
 

@@ -1,7 +1,7 @@
 # EPI Documentation
 
-**Last Updated:** December 4, 2025  
-**Version:** 2.1.43
+**Last Updated:** December 7, 2025  
+**Version:** 2.1.45
 
 ---
 
@@ -68,11 +68,17 @@ Welcome to the EPI (Evolving Personal Intelligence) documentation. This director
 
 ## Version Information
 
-**Current Version:** 2.1.43
-**Last Major Update:** December 4, 2025 (Build Fix: FirebaseAuth Import)
+**Current Version:** 2.1.45
+**Last Major Update:** December 7, 2025 (Priority 2 Complete: Firebase API Proxy)
 
 ### Recent Highlights
 
+- 🎉 **Priority 2 Complete (v2.1.45)**: Firebase API Proxy Implementation
+  - API keys now securely hidden in Firebase Functions
+  - LUMARA runs on-device with full journal access
+  - Simple `proxyGemini` function handles API key management
+  - No user configuration needed for API access
+  - See [Backend Architecture](backend.md) for details
 - 🆕 **Chat UI Improvements**: Scrollable text input, auto-minimize on outside click, send button always accessible
 - 🆕 **Chat History Import Fixes**: Enhanced logging, proper archived handling, message verification
 - 🆕 **Saved Chats Navigation**: Direct navigation from favorites, session restoration from saved chats
@@ -142,5 +148,5 @@ Welcome to the EPI (Evolving Personal Intelligence) documentation. This director
 ---
 
 **Status**: ✅ Production Ready
-**Last Updated**: December 4, 2025
-**Version**: 2.1.43
+**Last Updated**: December 7, 2025
+**Version**: 2.1.45

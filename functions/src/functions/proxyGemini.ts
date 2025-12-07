@@ -3,13 +3,13 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { logger } from "firebase-functions";
 import { GEMINI_API_KEY } from "../config";
-import * as https from "https";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
 /**
  * Simple proxy to hide Gemini API key from client
  * 
  * This function just:
- * 1. Accepts prompt + conversation history from client
+ * 1. Accepts system + user prompts from client
  * 2. Adds the secret API key
  * 3. Forwards to Gemini API
  * 4. Returns the response
@@ -22,63 +22,54 @@ export const proxyGemini = onCall(
     invoker: "public", // Allow calls for MVP testing
   },
   async (request) => {
-    const {
-      model = "gemini-2.5-flash",
-      systemInstruction,
-      contents,
-      generationConfig,
-      tools,
-    } = request.data;
+    const { system, user, jsonExpected } = request.data;
 
-    if (!contents || !Array.isArray(contents)) {
+    if (!user) {
       throw new HttpsError(
         "invalid-argument",
-        "contents array is required"
+        "user prompt is required"
       );
     }
 
     const userId = request.auth?.uid || `mvp_test_${Date.now()}`;
-    logger.info(`Proxying Gemini request for user ${userId}, model: ${model}`);
+    logger.info(`Proxying Gemini request for user ${userId}`);
 
     try {
       const apiKey = GEMINI_API_KEY.value();
       
-      // Build Gemini API request
-      const requestBody: any = {
-        contents,
-        generationConfig: generationConfig || {
-          temperature: 0.7,
-          maxOutputTokens: 8192,
-        },
-      };
-
-      if (systemInstruction) {
-        requestBody.systemInstruction = {
-          parts: [{ text: systemInstruction }],
-        };
+      if (!apiKey) {
+        throw new HttpsError("internal", "Gemini API key not configured");
       }
 
-      if (tools) {
-        requestBody.tools = tools;
-      }
+      const genAI = new GoogleGenerativeAI(apiKey);
+      const model = genAI.getGenerativeModel({
+        model: "gemini-2.5-flash",
+        tools: [{ googleSearch: {} }],
+        generationConfig: jsonExpected 
+          ? { responseMimeType: "application/json" } 
+          : undefined,
+      });
 
-      // Call Gemini API
-      const geminiResponse = await callGeminiAPI(
-        model,
-        apiKey,
-        requestBody
-      );
+      // Create chat with system prompt as initial exchange
+      const chat = model.startChat({
+        history: system
+          ? [
+              { role: "user", parts: [{ text: system }] },
+              { role: "model", parts: [{ text: "Ok." }] },
+            ]
+          : [],
+      });
+
+      const result = await chat.sendMessage(user);
+      const response = result.response.text();
 
       logger.info(`Gemini proxy successful for user ${userId}`);
 
-      return {
-        candidates: geminiResponse.candidates,
-        usageMetadata: geminiResponse.usageMetadata,
-      };
+      return { response };
     } catch (error: any) {
-      logger.error(`Gemini proxy error: ${error.message}`);
+      logger.error(`Gemini proxy error:`, error);
       
-      if (error.status === 429) {
+      if (error.message?.includes("429") || error.message?.includes("quota")) {
         throw new HttpsError(
           "resource-exhausted",
           "Rate limit exceeded. Please try again later."
@@ -87,63 +78,8 @@ export const proxyGemini = onCall(
       
       throw new HttpsError(
         "internal",
-        `Gemini API error: ${error.message}`
+        `Gemini API error: ${error.message || "Unknown error"}`
       );
     }
   }
 );
-
-/**
- * Call Gemini API directly
- */
-function callGeminiAPI(
-  model: string,
-  apiKey: string,
-  requestBody: any
-): Promise<any> {
-  return new Promise((resolve, reject) => {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-    const parsedUrl = new URL(url);
-
-    const options = {
-      hostname: parsedUrl.hostname,
-      path: parsedUrl.pathname + parsedUrl.search,
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-    };
-
-    const req = https.request(options, (res) => {
-      let data = "";
-
-      res.on("data", (chunk) => {
-        data += chunk;
-      });
-
-      res.on("end", () => {
-        if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
-          try {
-            const parsed = JSON.parse(data);
-            resolve(parsed);
-          } catch (e) {
-            reject(new Error(`Failed to parse Gemini response: ${e}`));
-          }
-        } else {
-          reject({
-            status: res.statusCode,
-            message: data,
-          });
-        }
-      });
-    });
-
-    req.on("error", (error) => {
-      reject(error);
-    });
-
-    req.write(JSON.stringify(requestBody));
-    req.end();
-  });
-}
-

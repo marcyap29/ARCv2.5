@@ -137,6 +137,29 @@ export const sendChatMessage = onCall(
         await threadRef.set(thread);
       }
 
+      // Fetch recent journal entries for context
+      let journalContext = "";
+      try {
+        const journalEntriesSnapshot = await db
+          .collection("users")
+          .doc(userId)
+          .collection("journal")
+          .orderBy("timestamp", "desc")
+          .limit(10)
+          .get();
+        
+        if (!journalEntriesSnapshot.empty) {
+          const entries = journalEntriesSnapshot.docs.map((doc) => {
+            const data = doc.data();
+            return `[${data.timestamp?.toDate?.()?.toISOString() || "Unknown date"}] ${data.text || data.content || ""}`;
+          });
+          journalContext = `\n\n## Recent Journal Entries:\n${entries.join("\n\n")}`;
+          logger.info(`Loaded ${entries.length} journal entries for context`);
+        }
+      } catch (error) {
+        logger.warn(`Failed to load journal entries: ${error}`);
+      }
+
       // Select model (internal only - Gemini by default)
       const modelFamily = await ModelRouter.selectModelWithFailover(tier, "chat_message");
       const modelConfig = ModelRouter.getConfig(modelFamily);
@@ -349,11 +372,16 @@ Be thoughtful, empathetic, and supportive while maintaining these protocols.`;
       // Generate response
       let assistantResponse: string;
 
+      // Append journal context to the user's message
+      const messageWithContext = journalContext 
+        ? `${message}${journalContext}` 
+        : message;
+
       if (modelConfig.family === "GEMINI_FLASH" || modelConfig.family === "GEMINI_PRO") {
         // Use Gemini client
         const geminiClient = client as any;
         assistantResponse = await geminiClient.generateContent(
-          message,
+          messageWithContext,
           systemPrompt,
           conversationHistory
         );
@@ -377,17 +405,18 @@ Be thoughtful, empathetic, and supportive while maintaining these protocols.`;
         undefined // Atlas phase not yet tracked in ChatThreadDocument
       );
 
-      // Create message objects
+      // Create message objects with actual timestamp (serverTimestamp can't be used in arrays)
+      const now = admin.firestore.Timestamp.now();
       const userMessage: ChatMessage = {
         role: "user",
         content: message,
-        timestamp: admin.firestore.FieldValue.serverTimestamp() as any,
+        timestamp: now as any,
       };
 
       const assistantMessage: ChatMessage = {
         role: "assistant",
         content: assistantResponse,
-        timestamp: admin.firestore.FieldValue.serverTimestamp() as any,
+        timestamp: now as any,
         // modelUsed removed - internal tracking only, not exposed to users
       };
 

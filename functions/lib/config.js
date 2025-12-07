@@ -12,32 +12,27 @@ exports.GEMINI_API_KEY = (0, params_1.defineSecret)("GEMINI_API_KEY");
 // Throttle unlock password (stored as secret for security)
 exports.THROTTLE_UNLOCK_PASSWORD = (0, params_1.defineSecret)("THROTTLE_UNLOCK_PASSWORD");
 // Model IDs - easily swappable for Gemini 3.0 or newer models
-exports.GEMINI_FLASH_MODEL_ID = (0, params_1.defineString)("GEMINI_FLASH_MODEL_ID", {
-    default: "gemini-2.5-flash", // Updated to Gemini 2.5 Flash (1.5 and 2.0 are deprecated) - Free tier with backend-enforced quotas
-    description: "Gemini Flash model ID (free tier - backend limits usage)",
-});
-exports.GEMINI_PRO_MODEL_ID = (0, params_1.defineString)("GEMINI_PRO_MODEL_ID", {
-    default: "gemini-2.5", // Updated to Gemini 2.5 (1.5 is deprecated) - Same model as Flash, backend enforces free tier limits
-    description: "Gemini 2.5 model ID (paid tier - unlimited access to same model)",
-});
-// Rate limiting configuration
-exports.FREE_MAX_REQUESTS_PER_DAY = (0, params_1.defineString)("FREE_MAX_REQUESTS_PER_DAY", {
-    default: "20",
-    description: "Maximum requests per day for free tier",
-});
-exports.FREE_MAX_REQUESTS_PER_MINUTE = (0, params_1.defineString)("FREE_MAX_REQUESTS_PER_MINUTE", {
-    default: "3",
-    description: "Maximum requests per minute for free tier",
-});
+// Hardcoded for MVP - TODO: Move to secrets after testing
+exports.GEMINI_FLASH_MODEL_ID = {
+    value: () => "gemini-2.5-flash"
+};
+exports.GEMINI_PRO_MODEL_ID = {
+    value: () => "gemini-2.5"
+};
+// Rate limiting configuration - Hardcoded for MVP
+exports.FREE_MAX_REQUESTS_PER_DAY = {
+    value: () => "50"
+};
+exports.FREE_MAX_REQUESTS_PER_MINUTE = {
+    value: () => "10"
+};
 // Legacy quota limits (kept for backward compatibility, but rate limiting takes precedence)
-exports.FREE_MAX_ANALYSES_PER_ENTRY = (0, params_1.defineString)("FREE_MAX_ANALYSES_PER_ENTRY", {
-    default: "4",
-    description: "Maximum deep analyses per journal entry for free tier (legacy)",
-});
-exports.FREE_MAX_CHAT_TURNS_PER_THREAD = (0, params_1.defineString)("FREE_MAX_CHAT_TURNS_PER_THREAD", {
-    default: "200",
-    description: "Maximum chat turns per thread for free tier (legacy)",
-});
+exports.FREE_MAX_ANALYSES_PER_ENTRY = {
+    value: () => "4"
+};
+exports.FREE_MAX_CHAT_TURNS_PER_THREAD = {
+    value: () => "200"
+};
 /**
  * API Base URLs
  */

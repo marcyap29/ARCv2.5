@@ -19,6 +19,7 @@ import { generateJournalPrompts } from "./functions/generateJournalPrompts";
 import { generateJournalReflection } from "./functions/generateJournalReflection";
 import { getUserSubscription } from "./functions/getUserSubscription";
 import { createCheckoutSession } from "./functions/createCheckoutSession";
+import { proxyGemini } from "./functions/proxyGemini";
 
 // Export all Cloud Functions
 export { analyzeJournalEntry };
@@ -29,6 +30,7 @@ export { generateJournalPrompts };
 export { generateJournalReflection };
 export { getUserSubscription };
 export { createCheckoutSession };
+export { proxyGemini };
 
 /**
  * Architecture Overview:
