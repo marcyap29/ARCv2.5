@@ -5,6 +5,9 @@ const { logger } = require("firebase-functions");
 const { defineSecret } = require("firebase-functions/params");
 const cors = require("cors")({ origin: true });
 
+// Export new Gemini proxy function
+exports.proxyGemini = require("./lib/functions/proxyGemini").proxyGemini;
+
 // Define the secret we created in the previous step
 const veniceApiKey = defineSecret("VENICE_API_KEY");
 

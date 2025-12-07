@@ -27,8 +27,6 @@ import 'package:my_app/shared/ui/settings/voiceover_preference_service.dart';
 import '../voice/audio_io.dart';
 import '../llm/prompts/lumara_master_prompt.dart';
 import '../services/lumara_control_state_builder.dart';
-import 'package:cloud_functions/cloud_functions.dart';
-import 'package:my_app/services/firebase_service.dart';
 import '../services/reflective_query_service.dart';
 import '../services/reflective_query_formatter.dart';
 import 'package:my_app/prism/atlas/phase/phase_history_repository.dart';
@@ -109,8 +107,7 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
   late final ReflectiveQueryFormatter _reflectiveFormatter;
   
   // Auto-save and compaction - Updated for 25-message summarization
-  // REMOVED: _maxMessagesBeforeCompaction - handled by backend
-  // static const int _maxMessagesBeforeCompaction = 25;
+  static const int _maxMessagesBeforeCompaction = 25;
   static const int _compactionThreshold = 150; // Summarize after 150 messages
   bool _isCompacting = false;
   
@@ -273,66 +270,61 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
       print('LUMARA Debug: Best provider: ${bestProvider?.name ?? 'none'}');
       print('LUMARA Debug: Is manual selection: $isManualSelection');
 
-      // PRIORITY 2: Use Firebase Functions exclusively
-      // All API calls go through backend for rate limiting and security
+      // Use Gemini with full journal context (ArcLLM chat) - Cloud API only
+      // Retry logic: 3 attempts total (initial + 2 retries)
       const maxAttempts = 3;
       Exception? lastError;
       
       for (int attempt = 1; attempt <= maxAttempts; attempt++) {
         try {
-          print('LUMARA Debug: [Firebase] Attempt $attempt/$maxAttempts - Calling sendChatMessage Cloud Function...');
+          print('LUMARA Debug: [Gemini] Attempt $attempt/$maxAttempts - Attempting Gemini with journal context...');
           
-          // Ensure we have a session ID (threadId for backend)
-          final threadId = currentState.currentSessionId;
-          if (threadId == null || threadId.isEmpty) {
-            throw Exception('No active chat session - cannot send message');
+          // Get context for Gemini (using current scope from state)
+          final context = await _contextProvider.buildContext(scope: currentState.scope);
+          final contextResult = await _buildEntryContext(
+            context, 
+            userQuery: text,
+            currentEntry: currentEntry,
+          );
+          final entryText = contextResult['context'] as String;
+          final contextAttributionTraces = contextResult['attributionTraces'] as List<AttributionTrace>;
+          final phaseHint = _buildPhaseHint(context);
+          final keywords = _buildKeywordsContext(context);
+          
+          // Use ArcLLM to call Gemini directly with all journal context
+          final response = await _arcLLM.chat(
+            userIntent: text,
+            entryText: entryText,
+            phaseHintJson: phaseHint,
+            lastKeywordsJson: keywords,
+          );
+          
+          print('LUMARA Debug: [Gemini] ✓ Response received on attempt $attempt, length: ${response.length}');
+          
+          // Use attribution traces from context building (the actual memory nodes used)
+          var attributionTraces = contextAttributionTraces;
+          print('LUMARA Debug: Using ${attributionTraces.length} attribution traces from context building');
+          
+          // Enrich attribution traces with actual journal entry content
+          if (attributionTraces.isNotEmpty) {
+            attributionTraces = await _enrichAttributionTraces(attributionTraces);
+            print('LUMARA Debug: Enriched ${attributionTraces.length} attribution traces with journal entry content');
           }
           
-          // Ensure user is authenticated before calling function
-          final auth = FirebaseService.instance.getAuth();
-          final currentUser = auth.currentUser;
-          if (currentUser == null) {
-            throw Exception('User not authenticated - cannot call Firebase Function');
-          }
-          
-          // Force refresh the ID token to ensure it's valid
-          await currentUser.getIdToken(true);
-          print('LUMARA Debug: [Firebase] Auth token refreshed for user: ${currentUser.uid}');
-          
-          // Call Firebase Function directly
-          final functions = FirebaseService.instance.getFunctions();
-          final callable = functions.httpsCallable('sendChatMessage');
-          
-          final result = await callable.call({
-            'threadId': threadId,
-            'message': text,
-          });
-          
-          final data = result.data as Map<String, dynamic>;
-          final responseMessage = data['message'] as Map<String, dynamic>?;
-          final response = responseMessage?['content']?.toString() ?? '';
-          
-          if (response.isEmpty) {
-            throw Exception('Empty response from Firebase Function');
-          }
-          
-          print('LUMARA Debug: [Firebase] ✓ Response received on attempt $attempt, length: ${response.length}');
-          
-          // Backend handles all context building, attribution, and response generation
-          // No local attribution traces needed - backend provides everything
-          final attributionTraces = <AttributionTrace>[];
+          // Append phase information from attribution traces to response
+          final enhancedResponse = _appendPhaseInfoFromAttributions(response, attributionTraces, context);
           
           // Record assistant response in MCP memory
-          await _recordAssistantMessage(response);
+          await _recordAssistantMessage(enhancedResponse);
           
           // Create assistant message first to get ID
           final assistantMessage = LumaraMessage.assistant(
-            content: response,
+            content: enhancedResponse,
             attributionTraces: attributionTraces,
           );
           
           // Add assistant response to chat session (preserve ID for favorites)
-          await _addToChatSession(response, 'assistant', messageId: assistantMessage.id, timestamp: assistantMessage.timestamp);
+          await _addToChatSession(enhancedResponse, 'assistant', messageId: assistantMessage.id, timestamp: assistantMessage.timestamp);
           
           // Check if we should suggest loading more history
           var finalMessages = [...updatedMessages, assistantMessage];
@@ -346,7 +338,7 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
           }
           
           // Speak response if voiceover is enabled
-          _speakResponseIfEnabled(response);
+          _speakResponseIfEnabled(enhancedResponse);
           
           emit(currentState.copyWith(
             messages: finalMessages,
@@ -354,21 +346,11 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
             apiErrorMessage: null, // Clear any previous error message
           ));
           
-          print('LUMARA Debug: [Firebase] Complete - response generated via Cloud Function');
-          return; // Exit early - Firebase succeeded
+          print('LUMARA Debug: [Gemini] Complete - personalized response generated');
+          return; // Exit early - Gemini succeeded
         } catch (e) {
           lastError = e is Exception ? e : Exception(e.toString());
           print('LUMARA Debug: [Gemini] Attempt $attempt/$maxAttempts failed: $e');
-          
-          // Check if this is a rate limit error
-          if (_isRateLimitError(e)) {
-            print('LUMARA Debug: Rate limit detected - showing upgrade prompt');
-            emit(currentState.copyWith(
-              isProcessing: false,
-              apiErrorMessage: 'RATE_LIMIT_EXCEEDED', // Special code for UI to show upgrade dialog
-            ));
-            return; // Don't retry on rate limit
-          }
           
           // If this is not the last attempt, wait before retrying
           if (attempt < maxAttempts) {
@@ -381,42 +363,25 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
       }
       
       // All retries failed - show graceful error message
-      print('LUMARA Debug: [Firebase] All $maxAttempts attempts failed. Last error: $lastError');
-      print('LUMARA Debug: Firebase-only mode - no local API fallbacks');
+      print('LUMARA Debug: [Gemini] All $maxAttempts attempts failed. Last error: $lastError');
+      print('LUMARA Debug: Cloud API only mode - no automated responses');
 
-      // Check if final error is rate limit
-      if (lastError != null && _isRateLimitError(lastError)) {
-        emit(currentState.copyWith(
-          isProcessing: false,
-          apiErrorMessage: 'RATE_LIMIT_EXCEEDED',
-        ));
-      } else {
       // Emit error state with message for snackbar
       emit(currentState.copyWith(
         isProcessing: false,
-          apiErrorMessage: 'LUMARA cannot answer at the moment. Please check your connection and try again.',
+        apiErrorMessage: 'LUMARA cannot answer at the moment. Please try again later.',
       ));
-      }
       return;
     } catch (e) {
-      print('LUMARA Debug: Firebase Functions failed: $e');
-      print('LUMARA Debug: Firebase-only mode - NO local API fallbacks');
+      print('LUMARA Debug: Cloud API failed: $e');
+      print('LUMARA Debug: Cloud API only mode - NO automated responses');
 
-      // Check if this is a rate limit error
-      if (_isRateLimitError(e)) {
-        emit(currentState.copyWith(
-          messages: updatedMessages,
-          isProcessing: false,
-          apiErrorMessage: 'RATE_LIMIT_EXCEEDED',
-        ));
-      } else {
       // Emit error state with message for snackbar
       emit(currentState.copyWith(
         messages: updatedMessages,
         isProcessing: false,
-          apiErrorMessage: 'LUMARA cannot answer at the moment. Please check your connection and try again.',
+        apiErrorMessage: 'LUMARA cannot answer at the moment. Please try again later.',
       ));
-      }
     }
   }
 
@@ -1658,15 +1623,8 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
   /// Initialize the Enhanced MIRA memory system
   Future<void> _initializeMemorySystem() async {
     try {
-      // Get Firebase Auth user ID
-      try {
-        final firebaseUser = await FirebaseService.instance.getAuth().currentUser;
-        _userId = firebaseUser?.uid ?? 'user_${DateTime.now().millisecondsSinceEpoch}';
-        print('LUMARA Memory: Using Firebase Auth UID: $_userId');
-      } catch (e) {
-        _userId = 'user_${DateTime.now().millisecondsSinceEpoch}';
-        print('LUMARA Memory: Failed to get Firebase UID, using fallback: $_userId');
-      }
+      // Get user ID (simplified - in real implementation, get from user service)
+      _userId = 'user_${DateTime.now().millisecondsSinceEpoch}';
 
       // Get current phase from context (using default scope for initialization)
       final context = await _contextProvider.buildContext(scope: LumaraScope.defaultScope);
@@ -2478,24 +2436,5 @@ Available: ${yearsAgo} more year${yearsAgo > 1 ? 's' : ''} of history''';
         .trim();
     
     return cleaned;
-  }
-
-  /// Check if an error is a rate limit error
-  bool _isRateLimitError(dynamic error) {
-    // Check for FirebaseFunctionsException with resource-exhausted code
-    if (error is FirebaseFunctionsException) {
-      return error.code == 'resource-exhausted' || 
-             error.code == 'unavailable' ||
-             error.message?.contains('rate limit') == true ||
-             error.message?.contains('quota') == true;
-    }
-    
-    // Check error string for rate limit indicators
-    final errorString = error.toString().toLowerCase();
-    return errorString.contains('rate limit') ||
-           errorString.contains('too many requests') ||
-           errorString.contains('429') ||
-           errorString.contains('quota exceeded') ||
-           errorString.contains('resource-exhausted');
   }
 }

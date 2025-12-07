@@ -1,6 +1,7 @@
 // lib/services/gemini_send.dart
 // Minimal Gemini send() adapter for ArcLLM.
 // PRISM scrubbing and restoration enabled
+// Now uses Firebase proxy to hide API key
 
 import 'dart:convert';
 import 'dart:io';
@@ -8,6 +9,8 @@ import 'dart:io';
 import 'package:my_app/services/llm_bridge_adapter.dart';
 import 'package:my_app/arc/chat/config/api_config.dart';
 import 'package:my_app/services/lumara/pii_scrub.dart';
+import 'package:my_app/services/firebase_service.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 
 /// Sends a single-turn request to Gemini with an optional system instruction.
 /// Returns the concatenated text from candidates[0].content.parts[].text.
@@ -17,24 +20,8 @@ Future<String> geminiSend({
   required String user,
   bool jsonExpected = false,
 }) async {
-  // Get API key from LumaraAPIConfig instead of environment variable
-  final apiConfig = LumaraAPIConfig.instance;
-  
-  // Ensure API config is initialized
-  await apiConfig.initialize();
-  
-  final geminiConfig = apiConfig.getConfig(LLMProvider.gemini);
-  final apiKey = geminiConfig?.apiKey ?? '';
-  
-  print('DEBUG GEMINI: API Key available: ${apiKey.isNotEmpty}');
-  print('DEBUG GEMINI: API Key length: ${apiKey.length}');
-  print('DEBUG GEMINI: API Key prefix: ${apiKey.isNotEmpty ? apiKey.substring(0, apiKey.length > 10 ? 10 : apiKey.length) : 'none'}');
-  print('DEBUG GEMINI: Gemini config available: ${geminiConfig?.isAvailable}');
-
-  if (apiKey.isEmpty) {
-    print('DEBUG GEMINI: No local API key found');
-    throw StateError('No Gemini API key configured. Please add your API key in Settings → LUMARA Settings.');
-  }
+  // No longer need local API key - using Firebase proxy
+  print('DEBUG GEMINI: Using Firebase proxy for API key');
 
   // PRISM: Scrub PII from user input and system prompt before sending to cloud API
   final userScrubResult = PiiScrubber.rivetScrubWithMapping(user);
@@ -58,20 +45,13 @@ Future<String> geminiSend({
     }
   }
 
-  final uri = Uri.parse(
-    'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=$apiKey',
-  );
+  print('DEBUG GEMINI: Using Firebase proxy');
 
-  print('DEBUG GEMINI: Using endpoint: ${uri.toString().replaceAll(apiKey, '[API_KEY]')}');
-
-  final body = {
+  // Build request body for Firebase proxy
+  final requestData = {
+    'model': 'gemini-2.5-flash',
     if (systemScrubResult.scrubbedText.trim().isNotEmpty)
-      'systemInstruction': {
-        'role': 'system',
-        'parts': [
-          {'text': systemScrubResult.scrubbedText}
-        ]
-      },
+      'systemInstruction': systemScrubResult.scrubbedText,
     'contents': [
       {
         'role': 'user',
@@ -83,31 +63,18 @@ Future<String> geminiSend({
     if (jsonExpected) 'generationConfig': {'responseMimeType': 'application/json'},
   };
 
-  final client = HttpClient();
   try {
-    print('DEBUG GEMINI: Making POST request to: ${uri.host}${uri.path}');
-    final req = await client.postUrl(uri);
-    req.headers.contentType = ContentType('application', 'json', charset: 'utf-8');
-
-    final bodyJson = jsonEncode(body);
-    print('DEBUG GEMINI: Request body length: ${bodyJson.length}');
-    req.write(bodyJson);
-
-    print('DEBUG GEMINI: Sending request...');
-    final res = await req.close();
-    print('DEBUG GEMINI: Response status: ${res.statusCode}');
-    print('DEBUG GEMINI: Response headers: ${res.headers}');
-
-    final text = await res.transform(utf8.decoder).join();
-    print('DEBUG GEMINI: Response body length: ${text.length}');
-    print('DEBUG GEMINI: Response preview: ${text.substring(0, text.length > 200 ? 200 : text.length)}...');
-
-    if (res.statusCode < 200 || res.statusCode >= 300) {
-      print('DEBUG GEMINI: HTTP Error - Status: ${res.statusCode}, Body: $text');
-      throw HttpException('Gemini error ${res.statusCode}: $text');
-    }
-    final json = jsonDecode(text) as Map<String, dynamic>;
-    final candidates = json['candidates'] as List?;
+    print('DEBUG GEMINI: Calling Firebase proxyGemini function...');
+    
+    // Call Firebase proxy function
+    final functions = FirebaseService.instance.getFunctions();
+    final callable = functions.httpsCallable('proxyGemini');
+    final result = await callable.call(requestData);
+    
+    print('DEBUG GEMINI: Got response from Firebase proxy');
+    
+    final data = (result.data as Map<Object?, Object?>).cast<String, dynamic>();
+    final candidates = data['candidates'] as List?;
     if (candidates == null || candidates.isEmpty) {
       print('DEBUG GEMINI: No candidates in response');
       return '';
@@ -134,15 +101,7 @@ Future<String> geminiSend({
     return restoredResult;
   } catch (e) {
     print('DEBUG GEMINI: Error in geminiSend: $e');
-    if (e is StateError) {
-      rethrow; // Re-throw StateError as-is (API key issues)
-    } else if (e is HttpException) {
-      rethrow; // Re-throw HttpException as-is (API errors)
-    } else {
-      throw Exception('Gemini API request failed: $e');
-    }
-  } finally {
-    client.close(force: true);
+    throw Exception('Gemini API request failed: $e');
   }
 }
 
