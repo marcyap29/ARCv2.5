@@ -2,7 +2,6 @@
 
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { logger } from "firebase-functions";
-import { admin } from "../admin";
 import { ModelRouter } from "../modelRouter";
 import { checkRateLimit } from "../rateLimiter";
 import { createLLMClient } from "../llmClients";
@@ -14,7 +13,7 @@ import {
   GEMINI_API_KEY,
 } from "../config";
 
-const db = admin.firestore();
+// Note: db removed as user document is now loaded via enforceAuth()
 
 /**
  * Generate a journal reflection (in-journal LUMARA)

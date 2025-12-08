@@ -4,12 +4,12 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.generateJournalReflection = void 0;
 const https_1 = require("firebase-functions/v2/https");
 const firebase_functions_1 = require("firebase-functions");
-const admin_1 = require("../admin");
 const modelRouter_1 = require("../modelRouter");
 const rateLimiter_1 = require("../rateLimiter");
 const llmClients_1 = require("../llmClients");
+const authGuard_1 = require("../authGuard");
 const config_1 = require("../config");
-const db = admin_1.admin.firestore();
+// Note: db removed as user document is now loaded via enforceAuth()
 /**
  * Generate a journal reflection (in-journal LUMARA)
  *
@@ -42,38 +42,18 @@ const db = admin_1.admin.firestore();
  */
 exports.generateJournalReflection = (0, https_1.onCall)({
     secrets: [config_1.GEMINI_API_KEY],
-    invoker: "public", // Allow calls without auth enforcement at infrastructure level
+    // Auth enforced via enforceAuth() - no invoker: "public"
 }, async (request) => {
     const { entryText, phase, mood, chronoContext, chatContext, mediaContext, options = {}, } = request.data;
     // Validate request
     if (!entryText) {
         throw new https_1.HttpsError("invalid-argument", "entryText is required");
     }
-    // TODO: Restore proper authentication after Priority 2 testing
-    // For MVP testing, accept requests with or without auth
-    const userId = request.auth?.uid || `mvp_test_${Date.now()}`;
-    const isAuthenticated = !!request.auth?.uid;
-    firebase_functions_1.logger.info(`Generating journal reflection for user ${userId} (auth: ${isAuthenticated})`);
+    // Enforce authentication (supports anonymous trial)
+    const authResult = await (0, authGuard_1.enforceAuth)(request);
+    const { userId, isAnonymous, trialRemaining, user } = authResult;
+    firebase_functions_1.logger.info(`Generating journal reflection for user ${userId} (anonymous: ${isAnonymous}, trial remaining: ${trialRemaining ?? 'N/A'})`);
     try {
-        // Load or create user document
-        const userRef = db.collection("users").doc(userId);
-        const userDoc = await userRef.get();
-        let user;
-        if (!userDoc.exists) {
-            // Auto-create user document for new users (including anonymous)
-            firebase_functions_1.logger.info(`Creating new user document for ${userId}`);
-            user = {
-                userId: userId,
-                plan: "free",
-                subscriptionTier: "FREE",
-                createdAt: admin_1.admin.firestore.FieldValue.serverTimestamp(),
-                updatedAt: admin_1.admin.firestore.FieldValue.serverTimestamp(),
-            };
-            await userRef.set(user);
-        }
-        else {
-            user = userDoc.data();
-        }
         // Support both 'plan' and 'subscriptionTier' fields
         const plan = user.plan || user.subscriptionTier?.toLowerCase() || "free";
         const tier = (plan === "pro" ? "PAID" : "FREE");

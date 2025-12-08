@@ -49,7 +49,7 @@ export const proxyGemini = onCall(
       const genAI = new GoogleGenerativeAI(apiKey);
       const model = genAI.getGenerativeModel({
         model: "gemini-2.5-flash",
-        tools: [{ googleSearch: {} }],
+        // Note: googleSearch tool removed due to SDK type issues
         generationConfig: jsonExpected 
           ? { responseMimeType: "application/json" } 
           : undefined,

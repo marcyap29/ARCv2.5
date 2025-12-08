@@ -30,88 +30,39 @@ const getUserSubscription_1 = require("./functions/getUserSubscription");
 Object.defineProperty(exports, "getUserSubscription", { enumerable: true, get: function () { return getUserSubscription_1.getUserSubscription; } });
 const createCheckoutSession_1 = require("./functions/createCheckoutSession");
 Object.defineProperty(exports, "createCheckoutSession", { enumerable: true, get: function () { return createCheckoutSession_1.createCheckoutSession; } });
-
-// proxyGemini - Pure JavaScript implementation (no TypeScript compilation needed)
-const { onCall, HttpsError } = require("firebase-functions/v2/https");
-const { logger } = require("firebase-functions");
-const { defineSecret } = require("firebase-functions/params");
-const { GoogleGenerativeAI } = require("@google/generative-ai");
-
-const GEMINI_API_KEY = defineSecret("GEMINI_API_KEY");
-
-exports.proxyGemini = onCall(
-  { secrets: [GEMINI_API_KEY], invoker: "public" },
-  async (request) => {
-    const { system, user, jsonExpected, systemInstruction, contents } = request.data || {};
-
-    // Accept both legacy shape (system/user) and new shape (systemInstruction/contents)
-    let userPrompt = user;
-    if (!userPrompt && Array.isArray(contents) && contents.length > 0) {
-      const parts = contents[0]?.parts;
-      if (Array.isArray(parts) && parts.length > 0) {
-        const text = parts[0]?.text;
-        if (typeof text === "string") userPrompt = text;
-      }
-    }
-
-    const systemPrompt = systemInstruction || system || "";
-
-    if (!userPrompt) {
-      throw new HttpsError("invalid-argument", "user prompt is required");
-    }
-
-    const userId = request.auth?.uid || `mvp_test_${Date.now()}`;
-    logger.info(`Proxying Gemini request for user ${userId}`);
-    try {
-      const apiKey = GEMINI_API_KEY.value();
-      if (!apiKey) {
-        throw new HttpsError("internal", "Gemini API key not configured");
-      }
-
-      const genAI = new GoogleGenerativeAI(apiKey);
-      const model = genAI.getGenerativeModel({
-        model: "gemini-2.5-flash",
-        tools: [{ googleSearch: {} }],
-        generationConfig: jsonExpected ? { responseMimeType: "application/json" } : undefined,
-      });
-
-      const history = systemPrompt
-        ? [{ role: "user", parts: [{ text: systemPrompt }] }, { role: "model", parts: [{ text: "Ok." }] }]
-        : [];
-
-      const chat = model.startChat({ history });
-      const result = await chat.sendMessage(userPrompt);
-
-      // Return a simple string to match client fallback parsing
-      const response = result.response.text();
-      logger.info(`Gemini proxy successful for user ${userId}`);
-      return { response };
-    } catch (error) {
-      logger.error(`Gemini proxy error:`, error);
-      throw new HttpsError("internal", `Gemini API error: ${error.message || "Unknown error"}`);
-    }
-  }
-);
-
+const proxyGemini_1 = require("./functions/proxyGemini");
+Object.defineProperty(exports, "proxyGemini", { enumerable: true, get: function () { return proxyGemini_1.proxyGemini; } });
 /**
- * Architecture Overview:
+ * Architecture Overview (Priority 3: Authentication & Security):
  *
  * Client (Flutter)
- *   ↓ HTTPS + Firebase Auth Token
+ *   ↓ HTTPS + Firebase Auth Token (REQUIRED)
  * Firebase Cloud Function (onCall)
- *   ↓ Verify Auth Token
+ *   ↓ enforceAuth() - Verify Token + Anonymous Trial Check
+ * Auth Guard
+ *   ↓ If anonymous: Check trial limit (5 requests)
+ *   ↓ If trial expired: Throw ANONYMOUS_TRIAL_EXPIRED
  * Load User from Firestore
  *   ↓ Check Subscription Tier
+ * Rate Limiter (checkRateLimit)
+ *   ↓ FREE: 20/day, 3/minute | PAID: Unlimited
  * Quota Guard (checkCanAnalyzeEntry / checkCanSendMessage)
  *   ↓ Enforce Limits
  * Model Router (selectModel)
- *   ↓ Choose Model (Gemini Flash/Pro or Claude)
- * LLM Client (GeminiClient / ClaudeClient)
+ *   ↓ Choose Model (Gemini Flash/Pro)
+ * LLM Client (GeminiClient)
  *   ↓ Call API
- * Gemini/Claude API
+ * Gemini API
  *   ↓ Response
  * Parse & Structure Response
  *   ↓ Update Firestore (increment counters)
  * Return to Client
+ *
+ * Security Features (Priority 3):
+ * - No more `invoker: "public"` - all functions require auth
+ * - Anonymous users get 5 free requests before sign-in required
+ * - Anonymous → Real account linking preserves user data
+ * - Per-user rate limiting tied to real identity
+ * - Firestore rules enforce data isolation
  */
 //# sourceMappingURL=index.js.map
