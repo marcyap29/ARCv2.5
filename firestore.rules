@@ -1,0 +1,130 @@
+rules_version = '2';
+
+/**
+ * Firestore Security Rules - Priority 3: Authentication & Security
+ * 
+ * Key principles:
+ * 1. All reads/writes require authentication
+ * 2. Users can only access their own data
+ * 3. Anonymous users have limited access (enforced by Cloud Functions)
+ * 4. Subscription data is read-only from client (managed by backend)
+ */
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper function: Check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Helper function: Check if user owns the document
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    // Helper function: Check if user is not anonymous (has email)
+    function isRealUser() {
+      return isAuthenticated() && request.auth.token.email != null;
+    }
+    
+    // ============================================
+    // USERS COLLECTION
+    // ============================================
+    match /users/{userId} {
+      // Users can read their own profile
+      allow read: if isOwner(userId);
+      
+      // Users can create their own profile (first time)
+      allow create: if isOwner(userId);
+      
+      // Users can update their own profile, but NOT subscription fields
+      // Subscription fields are managed by Cloud Functions only
+      allow update: if isOwner(userId) && 
+        // Prevent direct modification of subscription fields
+        !request.resource.data.diff(resource.data).affectedKeys()
+          .hasAny(['plan', 'subscriptionTier', 'subscriptionStatus', 
+                   'stripeCustomerId', 'stripeSubscriptionId', 
+                   'throttleUnlocked', 'throttleUnlockedAt']);
+      
+      // Users cannot delete their profile from client
+      allow delete: if false;
+      
+      // User's journal subcollection
+      match /journal/{entryId} {
+        allow read, write: if isOwner(userId);
+      }
+      
+      // User's chat threads subcollection (if stored under user)
+      match /chatThreads/{threadId} {
+        allow read, write: if isOwner(userId);
+      }
+    }
+    
+    // ============================================
+    // CHAT THREADS COLLECTION (top-level)
+    // ============================================
+    match /chatThreads/{threadId} {
+      // Users can only read/write threads they own
+      allow read: if isAuthenticated() && 
+        resource.data.userId == request.auth.uid;
+      
+      allow create: if isAuthenticated() && 
+        request.resource.data.userId == request.auth.uid;
+      
+      allow update: if isAuthenticated() && 
+        resource.data.userId == request.auth.uid;
+      
+      allow delete: if isAuthenticated() && 
+        resource.data.userId == request.auth.uid;
+    }
+    
+    // ============================================
+    // JOURNAL ENTRIES COLLECTION (top-level)
+    // ============================================
+    match /journalEntries/{entryId} {
+      allow read: if isAuthenticated() && 
+        resource.data.userId == request.auth.uid;
+      
+      allow create: if isAuthenticated() && 
+        request.resource.data.userId == request.auth.uid;
+      
+      allow update: if isAuthenticated() && 
+        resource.data.userId == request.auth.uid;
+      
+      allow delete: if isAuthenticated() && 
+        resource.data.userId == request.auth.uid;
+    }
+    
+    // ============================================
+    // RATE LIMITS COLLECTION
+    // ============================================
+    // Rate limits are managed by Cloud Functions only
+    match /rateLimits/{userId} {
+      // Users can read their own rate limit status
+      allow read: if isOwner(userId);
+      
+      // Only Cloud Functions can write rate limits
+      allow write: if false;
+    }
+    
+    // ============================================
+    // SUBSCRIPTIONS COLLECTION (if separate)
+    // ============================================
+    match /subscriptions/{userId} {
+      // Users can read their own subscription
+      allow read: if isOwner(userId);
+      
+      // Only Cloud Functions can write subscriptions
+      allow write: if false;
+    }
+    
+    // ============================================
+    // DEFAULT DENY
+    // ============================================
+    // Deny access to any other collections
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
+

@@ -103,6 +103,20 @@ Future<String> geminiSend({
     
     print('DEBUG GEMINI: Successfully parsed response, result length: ${restoredResult.length}');
     return restoredResult;
+  } on FirebaseFunctionsException catch (e) {
+    print('DEBUG GEMINI: Firebase Functions error: ${e.code} - ${e.message}');
+    
+    // Re-throw with the original error details for proper handling upstream
+    // This includes auth errors like ANONYMOUS_TRIAL_EXPIRED
+    if (e.code == 'permission-denied' || e.code == 'unauthenticated') {
+      throw FirebaseFunctionsException(
+        code: e.code,
+        message: e.message ?? 'Authentication required',
+        details: e.details,
+      );
+    }
+    
+    throw Exception('Gemini API request failed: ${e.message}');
   } catch (e) {
     print('DEBUG GEMINI: Error in geminiSend: $e');
     throw Exception('Gemini API request failed: $e');

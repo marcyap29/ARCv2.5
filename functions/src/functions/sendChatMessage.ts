@@ -7,11 +7,11 @@ import { ModelRouter } from "../modelRouter";
 import { checkCanSendMessage, incrementMessageCount } from "../quotaGuards";
 import { checkRateLimit } from "../rateLimiter";
 import { createLLMClient } from "../llmClients";
+import { enforceAuth } from "../authGuard";
 import {
   SubscriptionTier,
   ChatResponse,
   ChatMessage,
-  UserDocument,
   ChatThreadDocument,
 } from "../types";
 import { GEMINI_API_KEY } from "../config";
@@ -46,7 +46,7 @@ const db = admin.firestore();
 export const sendChatMessage = onCall(
   {
     secrets: [GEMINI_API_KEY],
-    invoker: "public", // Allow calls without auth enforcement at infrastructure level
+    // Auth enforced via enforceAuth() - no invoker: "public"
   },
   async (request) => {
     const { threadId, message } = request.data;
@@ -59,34 +59,13 @@ export const sendChatMessage = onCall(
       );
     }
 
-    // TODO: Restore proper authentication after Priority 2 testing
-    // For MVP testing, accept requests with or without auth
-    const userId = request.auth?.uid || `mvp_test_${Date.now()}`;
-    const isAuthenticated = !!request.auth?.uid;
+    // Enforce authentication (supports anonymous trial)
+    const authResult = await enforceAuth(request);
+    const { userId, isAnonymous, trialRemaining, user } = authResult;
     
-    logger.info(`Sending chat message in thread ${threadId} for user ${userId} (auth: ${isAuthenticated})`);
+    logger.info(`Sending chat message in thread ${threadId} for user ${userId} (anonymous: ${isAnonymous}, trial remaining: ${trialRemaining ?? 'N/A'})`);
 
     try {
-      // Load or create user document
-      const userRef = db.collection("users").doc(userId);
-      const userDoc = await userRef.get();
-      
-      let user: UserDocument;
-      if (!userDoc.exists) {
-        // Auto-create user document for new users (including anonymous)
-        logger.info(`Creating new user document for ${userId}`);
-        user = {
-          userId: userId,
-          plan: "free",
-          subscriptionTier: "FREE",
-          createdAt: admin.firestore.FieldValue.serverTimestamp() as any,
-          updatedAt: admin.firestore.FieldValue.serverTimestamp() as any,
-        };
-        await userRef.set(user);
-      } else {
-        user = userDoc.data() as UserDocument;
-      }
-
       // Support both 'plan' and 'subscriptionTier' fields
       const plan = user.plan || user.subscriptionTier?.toLowerCase() || "free";
       const tier: SubscriptionTier = (plan === "pro" ? "PAID" : "FREE") as SubscriptionTier;

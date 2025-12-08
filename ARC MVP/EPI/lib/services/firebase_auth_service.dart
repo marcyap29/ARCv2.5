@@ -1,8 +1,14 @@
-// Firebase Auth service with Google Sign-In integration
+// Firebase Auth service with Google Sign-In integration and account linking
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter/foundation.dart';
 import 'firebase_service.dart';
+
+/// Error codes from the backend auth guard
+class AuthErrorCodes {
+  static const String unauthenticated = 'UNAUTHENTICATED';
+  static const String anonymousTrialExpired = 'ANONYMOUS_TRIAL_EXPIRED';
+}
 
 class FirebaseAuthService {
   static final FirebaseAuthService _instance = FirebaseAuthService._internal();
@@ -20,6 +26,12 @@ class FirebaseAuthService {
     }
     return _auth!;
   }
+
+  /// Check if current user is anonymous
+  bool get isAnonymous => currentUser?.isAnonymous ?? false;
+
+  /// Check if user has a real (non-anonymous) account
+  bool get hasRealAccount => currentUser != null && !currentUser!.isAnonymous;
 
   /// Initialize Firebase Auth with proper Firebase app instance
   Future<void> initialize() async {
@@ -80,6 +92,7 @@ class FirebaseAuthService {
   Stream<User?> get authStateChanges => _auth?.authStateChanges() ?? const Stream.empty();
 
   /// Sign in with Google
+  /// If user is currently anonymous, this will link the accounts
   Future<UserCredential?> signInWithGoogle() async {
     try {
       if (_googleSignIn == null) {
@@ -111,7 +124,12 @@ class FirebaseAuthService {
         idToken: googleAuth.idToken,
       );
 
-      // Sign in to Firebase with the Google credential
+      // If currently anonymous, link the accounts to preserve data
+      if (isAnonymous) {
+        return await linkAnonymousWithCredential(credential);
+      }
+
+      // Otherwise, sign in normally
       final UserCredential userCredential = await auth.signInWithCredential(credential);
 
       debugPrint('FirebaseAuthService: Successfully signed in to Firebase: ${userCredential.user?.email}');
@@ -119,6 +137,72 @@ class FirebaseAuthService {
 
     } catch (e) {
       debugPrint('FirebaseAuthService: Google Sign-In failed: $e');
+      rethrow;
+    }
+  }
+
+  /// Link anonymous account with a credential (Google, Email, etc.)
+  /// This preserves all user data from the anonymous session
+  Future<UserCredential?> linkAnonymousWithCredential(AuthCredential credential) async {
+    try {
+      final user = currentUser;
+      if (user == null || !user.isAnonymous) {
+        debugPrint('FirebaseAuthService: Cannot link - no anonymous user');
+        return null;
+      }
+
+      debugPrint('FirebaseAuthService: Linking anonymous account ${user.uid} with credential...');
+
+      final UserCredential userCredential = await user.linkWithCredential(credential);
+
+      debugPrint('FirebaseAuthService: ✅ Successfully linked anonymous account to ${userCredential.user?.email}');
+      debugPrint('FirebaseAuthService: User UID preserved: ${userCredential.user?.uid}');
+
+      return userCredential;
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'credential-already-in-use') {
+        // The credential is already associated with a different account
+        // Sign in with the existing account instead
+        debugPrint('FirebaseAuthService: Credential already in use, signing in to existing account');
+        return await auth.signInWithCredential(credential);
+      }
+      debugPrint('FirebaseAuthService: Link failed: ${e.code} - ${e.message}');
+      rethrow;
+    } catch (e) {
+      debugPrint('FirebaseAuthService: Link failed: $e');
+      rethrow;
+    }
+  }
+
+  /// Upgrade anonymous user to email/password account
+  Future<UserCredential?> linkAnonymousWithEmailPassword({
+    required String email,
+    required String password,
+  }) async {
+    try {
+      final user = currentUser;
+      if (user == null || !user.isAnonymous) {
+        debugPrint('FirebaseAuthService: Cannot link - no anonymous user');
+        return null;
+      }
+
+      debugPrint('FirebaseAuthService: Linking anonymous account with email: $email');
+
+      final credential = EmailAuthProvider.credential(
+        email: email,
+        password: password,
+      );
+
+      final UserCredential userCredential = await user.linkWithCredential(credential);
+
+      debugPrint('FirebaseAuthService: ✅ Successfully linked anonymous account to email');
+      return userCredential;
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'email-already-in-use') {
+        debugPrint('FirebaseAuthService: Email already in use');
+        // User should sign in with existing account instead
+      }
+      debugPrint('FirebaseAuthService: Email link failed: ${e.code} - ${e.message}');
       rethrow;
     }
   }

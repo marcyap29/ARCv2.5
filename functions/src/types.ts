@@ -33,6 +33,12 @@ export interface UserDocument {
   stripeSubscriptionId?: string;
   throttleUnlocked?: boolean; // Password-protected throttle unlock (dev/admin feature)
   throttleUnlockedAt?: admin.firestore.Timestamp; // When throttle was unlocked
+  // Anonymous user tracking (Priority 3)
+  isAnonymous?: boolean; // True if user is using anonymous auth
+  anonymousRequestCount?: number; // Number of requests made during anonymous trial
+  linkedFromAnonymous?: string; // UID of the anonymous account this was linked from
+  linkedToAccount?: string; // UID of the real account this anonymous account was linked to
+  linkedAt?: admin.firestore.Timestamp; // When account was linked
   createdAt: admin.firestore.Timestamp;
   updatedAt: admin.firestore.Timestamp;
 }

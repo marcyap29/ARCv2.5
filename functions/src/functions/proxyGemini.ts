@@ -4,22 +4,24 @@ import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { logger } from "firebase-functions";
 import { GEMINI_API_KEY } from "../config";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { enforceAuth } from "../authGuard";
 
 /**
  * Simple proxy to hide Gemini API key from client
  * 
  * This function just:
- * 1. Accepts system + user prompts from client
- * 2. Adds the secret API key
- * 3. Forwards to Gemini API
- * 4. Returns the response
+ * 1. Enforces authentication (with anonymous trial support)
+ * 2. Accepts system + user prompts from client
+ * 3. Adds the secret API key
+ * 4. Forwards to Gemini API
+ * 5. Returns the response
  * 
  * All LUMARA logic runs on the client (has access to local journals)
  */
 export const proxyGemini = onCall(
   {
     secrets: [GEMINI_API_KEY],
-    invoker: "public", // Allow calls for MVP testing
+    // Auth enforced via enforceAuth() - no invoker: "public"
   },
   async (request) => {
     const { system, user, jsonExpected } = request.data;
@@ -31,8 +33,11 @@ export const proxyGemini = onCall(
       );
     }
 
-    const userId = request.auth?.uid || `mvp_test_${Date.now()}`;
-    logger.info(`Proxying Gemini request for user ${userId}`);
+    // Enforce authentication (supports anonymous trial)
+    const authResult = await enforceAuth(request);
+    const { userId, isAnonymous, trialRemaining } = authResult;
+    
+    logger.info(`Proxying Gemini request for user ${userId} (anonymous: ${isAnonymous}, trial remaining: ${trialRemaining ?? 'N/A'})`);
 
     try {
       const apiKey = GEMINI_API_KEY.value();

@@ -35,6 +35,7 @@ import '../voice/audio_io.dart';
 import '../chat/chat_models.dart';
 import 'widgets/chat_navigation_drawer.dart';
 import 'package:my_app/ui/subscription/lumara_subscription_status.dart';
+import 'package:my_app/services/firebase_auth_service.dart';
 
 /// Main LUMARA Assistant screen
 class LumaraAssistantScreen extends StatefulWidget {
@@ -405,6 +406,11 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
                     // Check if this is a rate limit error
                     if (state.apiErrorMessage == 'RATE_LIMIT_EXCEEDED') {
                       _showRateLimitDialog();
+                    } else if (state.apiErrorMessage!.contains('ANONYMOUS_TRIAL_EXPIRED') ||
+                               state.apiErrorMessage!.contains('free trial') ||
+                               state.apiErrorMessage!.contains('trial of 5 requests')) {
+                      // Handle trial expiry - show sign-in dialog
+                      _showTrialExpiredDialog();
                     } else {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
@@ -1617,6 +1623,94 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
               foregroundColor: Colors.white,
             ),
             child: const Text('Upgrade to Premium'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showTrialExpiredDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.stars, color: Colors.purple),
+            SizedBox(width: 12),
+            Text('Free Trial Complete'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'You\'ve used your 5 free trial requests. Sign in to continue using LUMARA with all features.',
+              style: TextStyle(fontSize: 16),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.purple.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.purple.withOpacity(0.3)),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.info_outline, color: Colors.purple, size: 20),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Your data will be preserved when you sign in.',
+                      style: TextStyle(fontSize: 14, color: Colors.purple),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              Navigator.pushNamed(context, '/sign-in');
+            },
+            child: const Text('Sign in with Email'),
+          ),
+          ElevatedButton.icon(
+            onPressed: () async {
+              Navigator.of(context).pop();
+              // Attempt Google sign-in with account linking
+              try {
+                final result = await FirebaseAuthService.instance.signInWithGoogle();
+                if (result != null && mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Successfully signed in! You can continue using LUMARA.'),
+                      duration: Duration(seconds: 3),
+                    ),
+                  );
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Sign-in failed: $e'),
+                      duration: const Duration(seconds: 3),
+                    ),
+                  );
+                }
+              }
+            },
+            icon: const Icon(Icons.account_circle, size: 20),
+            label: const Text('Continue with Google'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.purple,
+              foregroundColor: Colors.white,
+            ),
           ),
         ],
       ),

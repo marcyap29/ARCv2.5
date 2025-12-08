@@ -33,24 +33,36 @@ export { createCheckoutSession };
 export { proxyGemini };
 
 /**
- * Architecture Overview:
+ * Architecture Overview (Priority 3: Authentication & Security):
  * 
  * Client (Flutter)
- *   ↓ HTTPS + Firebase Auth Token
+ *   ↓ HTTPS + Firebase Auth Token (REQUIRED)
  * Firebase Cloud Function (onCall)
- *   ↓ Verify Auth Token
+ *   ↓ enforceAuth() - Verify Token + Anonymous Trial Check
+ * Auth Guard
+ *   ↓ If anonymous: Check trial limit (5 requests)
+ *   ↓ If trial expired: Throw ANONYMOUS_TRIAL_EXPIRED
  * Load User from Firestore
  *   ↓ Check Subscription Tier
+ * Rate Limiter (checkRateLimit)
+ *   ↓ FREE: 20/day, 3/minute | PAID: Unlimited
  * Quota Guard (checkCanAnalyzeEntry / checkCanSendMessage)
  *   ↓ Enforce Limits
  * Model Router (selectModel)
- *   ↓ Choose Model (Gemini Flash/Pro or Claude)
- * LLM Client (GeminiClient / ClaudeClient)
+ *   ↓ Choose Model (Gemini Flash/Pro)
+ * LLM Client (GeminiClient)
  *   ↓ Call API
- * Gemini/Claude API
+ * Gemini API
  *   ↓ Response
  * Parse & Structure Response
  *   ↓ Update Firestore (increment counters)
  * Return to Client
+ * 
+ * Security Features (Priority 3):
+ * - No more `invoker: "public"` - all functions require auth
+ * - Anonymous users get 5 free requests before sign-in required
+ * - Anonymous → Real account linking preserves user data
+ * - Per-user rate limiting tied to real identity
+ * - Firestore rules enforce data isolation
  */
 
