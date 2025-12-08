@@ -59,13 +59,15 @@ export async function enforceAuth(
   const userId = request.auth.uid;
   const firebaseUser = request.auth.token;
   
+  // Debug log the token structure to understand anonymous detection
+  logger.info(`Auth token structure: email=${firebaseUser.email}, firebase.sign_in_provider=${firebaseUser.firebase?.sign_in_provider}, provider_id=${(firebaseUser as any).provider_id}`);
+  
   // Check if user is anonymous (Firebase Auth provides this in the token)
-  // Anonymous users have no email and provider_id is "anonymous"
-  const isAnonymous = !firebaseUser.email && 
-    (firebaseUser.firebase?.sign_in_provider === "anonymous" || 
-     firebaseUser.provider_id === "anonymous");
+  // For onCall functions, the sign_in_provider is in firebase.sign_in_provider
+  const signInProvider = firebaseUser.firebase?.sign_in_provider;
+  const isAnonymous = signInProvider === "anonymous";
 
-  logger.info(`Auth enforced for user ${userId} (anonymous: ${isAnonymous})`);
+  logger.info(`Auth enforced for user ${userId} (anonymous: ${isAnonymous}, provider: ${signInProvider})`);
 
   // Step 2: Load or create user document
   const userRef = db.collection("users").doc(userId);

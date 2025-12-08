@@ -350,7 +350,22 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
           return; // Exit early - Gemini succeeded
         } catch (e) {
           lastError = e is Exception ? e : Exception(e.toString());
-          print('LUMARA Debug: [Gemini] Attempt $attempt/$maxAttempts failed: $e');
+          final errorString = e.toString();
+          print('LUMARA Debug: [Gemini] Attempt $attempt/$maxAttempts failed: $errorString');
+          
+          // Check if this is an auth/trial error - don't retry, show immediately
+          if (errorString.contains('ANONYMOUS_TRIAL_EXPIRED') ||
+              errorString.contains('free trial') ||
+              errorString.contains('permission-denied') ||
+              errorString.contains('unauthenticated')) {
+            print('LUMARA Debug: Auth/trial error detected - showing dialog');
+            emit(currentState.copyWith(
+              messages: updatedMessages,
+              isProcessing: false,
+              apiErrorMessage: errorString,
+            ));
+            return;
+          }
           
           // If this is not the last attempt, wait before retrying
           if (attempt < maxAttempts) {
@@ -366,21 +381,35 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
       print('LUMARA Debug: [Gemini] All $maxAttempts attempts failed. Last error: $lastError');
       print('LUMARA Debug: Cloud API only mode - no automated responses');
 
+      // Check if last error was auth-related
+      final lastErrorString = lastError?.toString() ?? '';
+      final isAuthError = lastErrorString.contains('ANONYMOUS_TRIAL_EXPIRED') ||
+          lastErrorString.contains('free trial') ||
+          lastErrorString.contains('permission-denied') ||
+          lastErrorString.contains('unauthenticated');
+
       // Emit error state with message for snackbar
       emit(currentState.copyWith(
         isProcessing: false,
-        apiErrorMessage: 'LUMARA cannot answer at the moment. Please try again later.',
+        apiErrorMessage: isAuthError ? lastErrorString : 'LUMARA cannot answer at the moment. Please try again later.',
       ));
       return;
     } catch (e) {
-      print('LUMARA Debug: Cloud API failed: $e');
+      final errorString = e.toString();
+      print('LUMARA Debug: Cloud API failed: $errorString');
       print('LUMARA Debug: Cloud API only mode - NO automated responses');
+
+      // Check if this is an auth/trial error
+      final isAuthError = errorString.contains('ANONYMOUS_TRIAL_EXPIRED') ||
+          errorString.contains('free trial') ||
+          errorString.contains('permission-denied') ||
+          errorString.contains('unauthenticated');
 
       // Emit error state with message for snackbar
       emit(currentState.copyWith(
         messages: updatedMessages,
         isProcessing: false,
-        apiErrorMessage: 'LUMARA cannot answer at the moment. Please try again later.',
+        apiErrorMessage: isAuthError ? errorString : 'LUMARA cannot answer at the moment. Please try again later.',
       ));
     }
   }
