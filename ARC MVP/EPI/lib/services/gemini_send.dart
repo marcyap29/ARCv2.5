@@ -48,19 +48,11 @@ Future<String> geminiSend({
   print('DEBUG GEMINI: Using Firebase proxy');
 
   // Build request body for Firebase proxy
+  // proxyGemini expects: { system, user, jsonExpected }
   final requestData = {
-    'model': 'gemini-2.5-flash',
-    if (systemScrubResult.scrubbedText.trim().isNotEmpty)
-      'systemInstruction': systemScrubResult.scrubbedText,
-    'contents': [
-      {
-        'role': 'user',
-        'parts': [
-          {'text': userScrubResult.scrubbedText}
-        ]
-      }
-    ],
-    if (jsonExpected) 'generationConfig': {'responseMimeType': 'application/json'},
+    'system': systemScrubResult.scrubbedText,
+    'user': userScrubResult.scrubbedText,
+    if (jsonExpected) 'jsonExpected': true,
   };
 
   try {
