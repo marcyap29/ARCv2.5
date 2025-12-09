@@ -44,15 +44,24 @@ exports.generateJournalReflection = (0, https_1.onCall)({
     secrets: [config_1.GEMINI_API_KEY],
     // Auth enforced via enforceAuth() - no invoker: "public"
 }, async (request) => {
-    const { entryText, phase, mood, chronoContext, chatContext, mediaContext, options = {}, } = request.data;
+    const { entryText, entryId, // For per-entry usage limit tracking
+    phase, mood, chronoContext, chatContext, mediaContext, options = {}, } = request.data;
     // Validate request
     if (!entryText) {
         throw new https_1.HttpsError("invalid-argument", "entryText is required");
     }
     // Enforce authentication (supports anonymous trial)
     const authResult = await (0, authGuard_1.enforceAuth)(request);
-    const { userId, isAnonymous, user } = authResult;
-    firebase_functions_1.logger.info(`Generating journal reflection for user ${userId} (anonymous: ${isAnonymous})`);
+    const { userId, isAnonymous, isPremium, user } = authResult;
+    firebase_functions_1.logger.info(`Generating journal reflection for user ${userId} (anonymous: ${isAnonymous}, premium: ${isPremium})`);
+    // Check per-entry limit for in-journal LUMARA (if entryId provided)
+    if (entryId) {
+        const limitResult = await (0, authGuard_1.checkJournalEntryLimit)(userId, entryId, isPremium);
+        firebase_functions_1.logger.info(`Journal entry limit check: ${limitResult.remaining} remaining for entry ${entryId}`);
+    }
+    else {
+        firebase_functions_1.logger.warn(`No entryId provided - skipping per-entry limit check`);
+    }
     try {
         // Support both 'plan' and 'subscriptionTier' fields
         const plan = user.plan || user.subscriptionTier?.toLowerCase() || "free";

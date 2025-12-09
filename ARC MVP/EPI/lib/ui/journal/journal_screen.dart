@@ -107,6 +107,10 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
   Timer? _autoSaveTimer;
   final ImagePicker _imagePicker = ImagePicker();
   
+  /// Get the current entry ID for per-entry usage limit tracking
+  /// Uses existing entry ID if editing, or draft ID for new entries
+  String? get _currentEntryId => widget.existingEntry?.id ?? _currentDraftId;
+  
   // Enhanced OCP/PRISM orchestrator
   late final IOSVisionOrchestrator _ocpOrchestrator;
   
@@ -1208,6 +1212,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
           chronoContext: richContext['chronoContext'],
           chatContext: richContext['chatContext'],
           mediaContext: richContext['mediaContext'],
+          entryId: _currentEntryId, // For per-entry usage limit tracking
           options: lumara_models.LumaraReflectionOptions(
             preferQuestionExpansion: true, // Use More Depth by default for first activation
             toneMode: lumara_models.ToneMode.normal,
@@ -1245,6 +1250,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
           chronoContext: richContext['chronoContext'],
           chatContext: richContext['chatContext'],
           mediaContext: richContext['mediaContext'],
+          entryId: _currentEntryId, // For per-entry usage limit tracking
           options: lumara_models.LumaraReflectionOptions(
             preferQuestionExpansion: true, // Use More Depth for all activations
             toneMode: lumara_models.ToneMode.normal,
@@ -4624,6 +4630,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
         chronoContext: richContext['chronoContext'],
         chatContext: richContext['chatContext'],
         mediaContext: richContext['mediaContext'],
+        entryId: _currentEntryId, // For per-entry usage limit tracking
         options: lumara_models.LumaraReflectionOptions(
           regenerate: true,
           toneMode: lumara_models.ToneMode.normal,
@@ -4712,6 +4719,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
         chronoContext: richContext['chronoContext'],
         chatContext: richContext['chatContext'],
         mediaContext: richContext['mediaContext'],
+        entryId: _currentEntryId, // For per-entry usage limit tracking
         options: lumara_models.LumaraReflectionOptions(
           toneMode: lumara_models.ToneMode.soft,
           regenerate: false,
@@ -4800,6 +4808,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
         chronoContext: richContext['chronoContext'],
         chatContext: richContext['chatContext'],
         mediaContext: richContext['mediaContext'],
+        entryId: _currentEntryId, // For per-entry usage limit tracking
         options: lumara_models.LumaraReflectionOptions(
           preferQuestionExpansion: true, // More depth
           toneMode: lumara_models.ToneMode.normal,
@@ -4995,6 +5004,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
         chronoContext: richContext['chronoContext'],
         chatContext: richContext['chatContext'],
         mediaContext: richContext['mediaContext'],
+        entryId: _currentEntryId, // For per-entry usage limit tracking
         options: lumara_models.LumaraReflectionOptions(
           conversationMode: conversationMode,
           toneMode: lumara_models.ToneMode.normal,

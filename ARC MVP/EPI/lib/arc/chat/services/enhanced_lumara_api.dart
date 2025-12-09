@@ -112,6 +112,8 @@ class EnhancedLumaraApi {
   /// Supports v2.3 options: toneMode, conversationMode, regenerate, preferQuestionExpansion
   /// [onProgress] callback is called with progress messages during API calls
   /// Returns both the reflection text and attribution traces
+  /// 
+  /// For in-journal LUMARA, pass [entryId] to enforce per-entry usage limits.
   Future<ReflectionResult> generatePromptedReflection({
     required String entryText,
     required String intent,
@@ -122,6 +124,7 @@ class EnhancedLumaraApi {
     Map<String, dynamic>? chronoContext,
     String? chatContext,
     String? mediaContext,
+    String? entryId, // For per-entry usage limit tracking
     // New v2.3 options
     models.LumaraReflectionOptions? options,
     void Function(String message)? onProgress,
@@ -149,6 +152,7 @@ class EnhancedLumaraApi {
       chronoContext: chronoContext,
       chatContext: chatContext,
       mediaContext: mediaContext,
+      entryId: entryId,
       onProgress: onProgress,
     );
     

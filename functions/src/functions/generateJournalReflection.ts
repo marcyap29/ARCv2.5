@@ -5,7 +5,7 @@ import { logger } from "firebase-functions";
 import { ModelRouter } from "../modelRouter";
 import { checkRateLimit } from "../rateLimiter";
 import { createLLMClient } from "../llmClients";
-import { enforceAuth } from "../authGuard";
+import { enforceAuth, checkJournalEntryLimit } from "../authGuard";
 import {
   SubscriptionTier,
 } from "../types";
@@ -53,6 +53,7 @@ export const generateJournalReflection = onCall(
   async (request) => {
     const {
       entryText,
+      entryId, // For per-entry usage limit tracking
       phase,
       mood,
       chronoContext,
@@ -71,9 +72,17 @@ export const generateJournalReflection = onCall(
 
     // Enforce authentication (supports anonymous trial)
     const authResult = await enforceAuth(request);
-    const { userId, isAnonymous, user } = authResult;
+    const { userId, isAnonymous, isPremium, user } = authResult;
 
-    logger.info(`Generating journal reflection for user ${userId} (anonymous: ${isAnonymous})`);
+    logger.info(`Generating journal reflection for user ${userId} (anonymous: ${isAnonymous}, premium: ${isPremium})`);
+
+    // Check per-entry limit for in-journal LUMARA (if entryId provided)
+    if (entryId) {
+      const limitResult = await checkJournalEntryLimit(userId, entryId, isPremium);
+      logger.info(`Journal entry limit check: ${limitResult.remaining} remaining for entry ${entryId}`);
+    } else {
+      logger.warn(`No entryId provided - skipping per-entry limit check`);
+    }
 
     try {
       // Support both 'plan' and 'subscriptionTier' fields
