@@ -16,6 +16,7 @@ import 'package:my_app/arc/core/journal_repository.dart';
 import 'package:my_app/arc/chat/services/favorites_service.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:my_app/ui/subscription/subscription_management_view.dart';
+import 'package:my_app/services/firebase_auth_service.dart';
 
 class SettingsView extends StatefulWidget {
   const SettingsView({super.key});
@@ -169,6 +170,7 @@ class _SettingsViewState extends State<SettingsView> {
               context,
               title: 'Subscription & Account',
               children: [
+                _buildAccountTile(context),
                 _buildSettingsTile(
                   context,
                   title: 'Subscription Management',
@@ -452,5 +454,138 @@ class _SettingsViewState extends State<SettingsView> {
         ),
       ),
     );
+  }
+
+  /// Build account tile showing sign in/out status
+  Widget _buildAccountTile(BuildContext context) {
+    final authService = FirebaseAuthService.instance;
+    final isSignedIn = authService.isSignedIn;
+    final isAnonymous = authService.isAnonymous;
+    final userEmail = authService.userEmail;
+    final displayName = authService.userDisplayName;
+
+    // Determine what to show
+    String title;
+    String subtitle;
+    IconData icon;
+    
+    if (!isSignedIn || isAnonymous) {
+      title = 'Sign In';
+      subtitle = 'Sign in to sync your data across devices';
+      icon = Icons.login;
+    } else {
+      title = displayName ?? userEmail ?? 'Signed In';
+      subtitle = userEmail ?? 'Manage your account';
+      icon = Icons.account_circle;
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.1),
+        ),
+      ),
+      child: ListTile(
+        leading: CircleAvatar(
+          backgroundColor: kcAccentColor.withValues(alpha: 0.2),
+          backgroundImage: authService.userPhotoURL != null 
+              ? NetworkImage(authService.userPhotoURL!) 
+              : null,
+          child: authService.userPhotoURL == null 
+              ? Icon(icon, color: kcAccentColor, size: 24)
+              : null,
+        ),
+        title: Text(
+          title,
+          style: heading3Style(context).copyWith(
+            color: kcPrimaryTextColor,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        subtitle: Text(
+          subtitle,
+          style: bodyStyle(context).copyWith(
+            color: kcSecondaryTextColor,
+          ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        trailing: (!isSignedIn || isAnonymous)
+            ? const Icon(
+                Icons.arrow_forward_ios,
+                color: kcSecondaryTextColor,
+                size: 16,
+              )
+            : IconButton(
+                icon: const Icon(Icons.logout, color: kcSecondaryTextColor),
+                onPressed: () => _showSignOutDialog(context),
+                tooltip: 'Sign Out',
+              ),
+        onTap: (!isSignedIn || isAnonymous)
+            ? () => Navigator.of(context).pushNamed('/sign-in')
+            : null,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 8,
+        ),
+      ),
+    );
+  }
+
+  /// Show sign out confirmation dialog
+  Future<void> _showSignOutDialog(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: kcBackgroundColor,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text('Sign Out', style: heading2Style(context)),
+        content: Text(
+          'Are you sure you want to sign out? Your local data will remain on this device.',
+          style: bodyStyle(context),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text('Cancel', style: TextStyle(color: kcSecondaryTextColor)),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: kcDangerColor,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Sign Out'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      try {
+        await FirebaseAuthService.instance.signOut();
+        if (mounted) {
+          setState(() {}); // Refresh the UI
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Signed out successfully'),
+              backgroundColor: kcSuccessColor,
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Sign out failed: $e'),
+              backgroundColor: kcDangerColor,
+            ),
+          );
+        }
+      }
+    }
   }
 }
