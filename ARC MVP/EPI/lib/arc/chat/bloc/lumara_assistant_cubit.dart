@@ -600,52 +600,53 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
     // Build system prompt
     final systemPrompt = await _buildSystemPrompt(entryText, phaseHint, keywords);
 
-    print('LUMARA Debug: Starting streaming response...');
-    print('LUMARA Debug: Using direct Gemini streaming with journal context');
+    print('LUMARA Debug: Starting API request...');
+    print('LUMARA Debug: Using Firebase proxy with rate limiting');
     print('LUMARA Debug: Attribution traces from context: ${contextAttributionTraces.length}');
+    print('LUMARA Debug: Chat session ID for rate limiting: $currentChatSessionId');
 
-    // Stream the response from Gemini with journal context
-    final fullResponse = StringBuffer();
+    // Use Firebase proxy with chatId for per-chat rate limiting
+    // (replaces streaming to enable backend rate limiting)
+    String responseText;
 
     try {
-      // Stream the response from Gemini
-      await for (final chunk in geminiSendStream(
+      // Call Firebase proxy with chatId for rate limiting
+      responseText = await geminiSend(
         system: systemPrompt,
         user: text,
-      )) {
-        fullResponse.write(chunk);
+        chatId: currentChatSessionId, // For per-chat usage limit tracking
+      );
 
-        // Update the UI with the streaming content
-        final currentMessages = state is LumaraAssistantLoaded
-            ? (state as LumaraAssistantLoaded).messages
-            : baseMessages;
+      // Update the UI with the full response
+      final currentMessages = state is LumaraAssistantLoaded
+          ? (state as LumaraAssistantLoaded).messages
+          : baseMessages;
 
-        if (currentMessages.isNotEmpty) {
-          final lastIndex = currentMessages.length - 1;
-          // Preserve attribution traces during streaming updates
-          final existingTraces = currentMessages[lastIndex].attributionTraces;
-          final updatedMessage = currentMessages[lastIndex].copyWith(
-            content: fullResponse.toString(),
-            attributionTraces: existingTraces, // Preserve existing traces
-          );
+      if (currentMessages.isNotEmpty) {
+        final lastIndex = currentMessages.length - 1;
+        // Preserve attribution traces during update
+        final existingTraces = currentMessages[lastIndex].attributionTraces;
+        final updatedMessage = currentMessages[lastIndex].copyWith(
+          content: responseText,
+          attributionTraces: existingTraces, // Preserve existing traces
+        );
 
-          final updatedMessages = [
-            ...currentMessages.sublist(0, lastIndex),
-            updatedMessage,
-          ];
+        final updatedMessages = [
+          ...currentMessages.sublist(0, lastIndex),
+          updatedMessage,
+        ];
 
-          if (state is LumaraAssistantLoaded) {
-            emit((state as LumaraAssistantLoaded).copyWith(
-              messages: updatedMessages,
-              isProcessing: true,
-            ));
-          }
+        if (state is LumaraAssistantLoaded) {
+          emit((state as LumaraAssistantLoaded).copyWith(
+            messages: updatedMessages,
+            isProcessing: true,
+          ));
         }
       }
 
-      print('LUMARA Debug: Streaming completed, total length: ${fullResponse.length}');
+      print('LUMARA Debug: API request completed, response length: ${responseText.length}');
 
-      final finalContent = fullResponse.toString();
+      final finalContent = responseText;
 
       // Use attribution traces from context building (the actual memory nodes used)
       var attributionTraces = contextAttributionTraces;

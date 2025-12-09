@@ -17,11 +17,13 @@ import 'package:cloud_functions/cloud_functions.dart';
 /// PRISM scrubbing is applied before sending, and responses are restored.
 /// 
 /// For in-journal LUMARA, pass [entryId] to enforce per-entry usage limits.
+/// For in-chat LUMARA, pass [chatId] to enforce per-chat usage limits.
 Future<String> geminiSend({
   required String system,
   required String user,
   bool jsonExpected = false,
-  String? entryId, // Optional: for per-entry limit tracking
+  String? entryId, // Optional: for per-entry limit tracking (journal)
+  String? chatId, // Optional: for per-chat limit tracking (chat)
 }) async {
   // No longer need local API key - using Firebase proxy
   print('DEBUG GEMINI: Using Firebase proxy for API key');
@@ -51,12 +53,13 @@ Future<String> geminiSend({
   print('DEBUG GEMINI: Using Firebase proxy');
 
   // Build request body for Firebase proxy
-  // proxyGemini expects: { system, user, jsonExpected, entryId? }
+  // proxyGemini expects: { system, user, jsonExpected, entryId?, chatId? }
   final requestData = {
     'system': systemScrubResult.scrubbedText,
     'user': userScrubResult.scrubbedText,
     if (jsonExpected) 'jsonExpected': true,
     if (entryId != null) 'entryId': entryId,
+    if (chatId != null) 'chatId': chatId,
   };
 
   try {

@@ -4,7 +4,7 @@ import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { logger } from "firebase-functions";
 import { GEMINI_API_KEY } from "../config";
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { enforceAuth, checkJournalEntryLimit } from "../authGuard";
+import { enforceAuth, checkJournalEntryLimit, checkChatLimit } from "../authGuard";
 
 /**
  * Simple proxy to hide Gemini API key from client
@@ -12,10 +12,11 @@ import { enforceAuth, checkJournalEntryLimit } from "../authGuard";
  * This function:
  * 1. Enforces authentication
  * 2. Checks per-entry usage limits for free users (if entryId provided)
- * 3. Accepts system + user prompts from client
- * 4. Adds the secret API key
- * 5. Forwards to Gemini API
- * 6. Returns the response
+ * 3. Checks per-chat usage limits for free users (if chatId provided)
+ * 4. Accepts system + user prompts from client
+ * 5. Adds the secret API key
+ * 6. Forwards to Gemini API
+ * 7. Returns the response
  * 
  * All LUMARA logic runs on the client (has access to local journals)
  */
@@ -25,7 +26,7 @@ export const proxyGemini = onCall(
     // Auth enforced via enforceAuth() - no invoker: "public"
   },
   async (request) => {
-    const { system, user, jsonExpected, entryId } = request.data;
+    const { system, user, jsonExpected, entryId, chatId } = request.data;
 
     if (!user) {
       throw new HttpsError(
@@ -44,6 +45,12 @@ export const proxyGemini = onCall(
     if (entryId) {
       const limitResult = await checkJournalEntryLimit(userId, entryId, isPremium);
       logger.info(`Journal entry limit check: ${limitResult.remaining} remaining for entry ${entryId}`);
+    }
+
+    // Check per-chat limit for in-chat LUMARA (if chatId provided)
+    if (chatId) {
+      const limitResult = await checkChatLimit(userId, chatId, isPremium);
+      logger.info(`Chat limit check: ${limitResult.remaining} remaining for chat ${chatId}`);
     }
 
     try {

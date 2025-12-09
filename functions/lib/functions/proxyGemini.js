@@ -13,10 +13,11 @@ const authGuard_1 = require("../authGuard");
  * This function:
  * 1. Enforces authentication
  * 2. Checks per-entry usage limits for free users (if entryId provided)
- * 3. Accepts system + user prompts from client
- * 4. Adds the secret API key
- * 5. Forwards to Gemini API
- * 6. Returns the response
+ * 3. Checks per-chat usage limits for free users (if chatId provided)
+ * 4. Accepts system + user prompts from client
+ * 5. Adds the secret API key
+ * 6. Forwards to Gemini API
+ * 7. Returns the response
  *
  * All LUMARA logic runs on the client (has access to local journals)
  */
@@ -24,7 +25,7 @@ exports.proxyGemini = (0, https_1.onCall)({
     secrets: [config_1.GEMINI_API_KEY],
     // Auth enforced via enforceAuth() - no invoker: "public"
 }, async (request) => {
-    const { system, user, jsonExpected, entryId } = request.data;
+    const { system, user, jsonExpected, entryId, chatId } = request.data;
     if (!user) {
         throw new https_1.HttpsError("invalid-argument", "user prompt is required");
     }
@@ -36,6 +37,11 @@ exports.proxyGemini = (0, https_1.onCall)({
     if (entryId) {
         const limitResult = await (0, authGuard_1.checkJournalEntryLimit)(userId, entryId, isPremium);
         firebase_functions_1.logger.info(`Journal entry limit check: ${limitResult.remaining} remaining for entry ${entryId}`);
+    }
+    // Check per-chat limit for in-chat LUMARA (if chatId provided)
+    if (chatId) {
+        const limitResult = await (0, authGuard_1.checkChatLimit)(userId, chatId, isPremium);
+        firebase_functions_1.logger.info(`Chat limit check: ${limitResult.remaining} remaining for chat ${chatId}`);
     }
     try {
         const apiKey = config_1.GEMINI_API_KEY.value();
