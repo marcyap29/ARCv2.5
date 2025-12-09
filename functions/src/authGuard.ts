@@ -8,6 +8,21 @@ import { UserDocument } from "./types";
 const db = admin.firestore();
 
 /**
+ * Admin emails with full privileges (unlimited access, bypasses all limits)
+ */
+export const ADMIN_EMAILS = [
+  "marcyap@orbitalai.net",
+];
+
+/**
+ * Check if an email has admin privileges
+ */
+export function isAdminEmail(email: string | undefined): boolean {
+  if (!email) return false;
+  return ADMIN_EMAILS.includes(email.toLowerCase());
+}
+
+/**
  * Usage limits for free tier (applies to ALL free users, anonymous or not)
  */
 export const FREE_TIER_LIMITS = {
@@ -63,12 +78,19 @@ export async function enforceAuth(
 
   const userId = request.auth.uid;
   const firebaseUser = request.auth.token;
+  const userEmail = firebaseUser.email;
   
   // Check if user is anonymous
   const signInProvider = firebaseUser.firebase?.sign_in_provider;
   const isAnonymous = signInProvider === "anonymous";
 
-  logger.info(`Auth enforced for user ${userId} (anonymous: ${isAnonymous}, provider: ${signInProvider})`);
+  // Check if user is an admin
+  const isAdmin = isAdminEmail(userEmail);
+  if (isAdmin) {
+    logger.info(`🔑 Admin user detected: ${userEmail}`);
+  }
+
+  logger.info(`Auth enforced for user ${userId} (anonymous: ${isAnonymous}, provider: ${signInProvider}, email: ${userEmail || 'none'})`);
 
   // Step 2: Load or create user document
   const userRef = db.collection("users").doc(userId);
@@ -78,11 +100,15 @@ export async function enforceAuth(
 
   if (!userDoc.exists) {
     // Create new user document
-    logger.info(`Creating new user document for ${userId}`);
+    // Admin users automatically get "pro" plan
+    const plan = isAdmin ? "pro" : "free";
+    const subscriptionTier = isAdmin ? "PAID" : "FREE";
+    
+    logger.info(`Creating new user document for ${userId} (plan: ${plan})`);
     user = {
       userId: userId,
-      plan: "free",
-      subscriptionTier: "FREE",
+      plan: plan,
+      subscriptionTier: subscriptionTier,
       isAnonymous: isAnonymous,
       createdAt: admin.firestore.FieldValue.serverTimestamp() as any,
       updatedAt: admin.firestore.FieldValue.serverTimestamp() as any,
@@ -90,6 +116,18 @@ export async function enforceAuth(
     await userRef.set(user);
   } else {
     user = userDoc.data() as UserDocument;
+    
+    // Auto-upgrade admin users to pro if they aren't already
+    if (isAdmin && user.plan !== "pro") {
+      logger.info(`🔑 Auto-upgrading admin user ${userEmail} to pro`);
+      await userRef.update({
+        plan: "pro",
+        subscriptionTier: "PAID",
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+      user.plan = "pro";
+      user.subscriptionTier = "PAID";
+    }
     
     // Update isAnonymous flag if user upgraded from anonymous to real account
     if (user.isAnonymous && !isAnonymous) {
@@ -102,8 +140,8 @@ export async function enforceAuth(
     }
   }
 
-  // Check if user is premium
-  const isPremium = user.plan === "pro" || user.subscriptionTier === "PAID";
+  // Check if user is premium (admin users are always premium)
+  const isPremium = isAdmin || user.plan === "pro" || user.subscriptionTier === "PAID";
 
   return {
     userId,

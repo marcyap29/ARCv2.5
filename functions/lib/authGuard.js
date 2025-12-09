@@ -1,7 +1,8 @@
 "use strict";
 // authGuard.ts - Authentication and usage limits for free users
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.AuthErrorCodes = exports.FREE_TIER_LIMITS = void 0;
+exports.AuthErrorCodes = exports.FREE_TIER_LIMITS = exports.ADMIN_EMAILS = void 0;
+exports.isAdminEmail = isAdminEmail;
 exports.enforceAuth = enforceAuth;
 exports.checkJournalEntryLimit = checkJournalEntryLimit;
 exports.checkChatLimit = checkChatLimit;
@@ -11,6 +12,20 @@ const https_1 = require("firebase-functions/v2/https");
 const firebase_functions_1 = require("firebase-functions");
 const admin_1 = require("./admin");
 const db = admin_1.admin.firestore();
+/**
+ * Admin emails with full privileges (unlimited access, bypasses all limits)
+ */
+exports.ADMIN_EMAILS = [
+    "marcyap@orbitalai.net",
+];
+/**
+ * Check if an email has admin privileges
+ */
+function isAdminEmail(email) {
+    if (!email)
+        return false;
+    return exports.ADMIN_EMAILS.includes(email.toLowerCase());
+}
 /**
  * Usage limits for free tier (applies to ALL free users, anonymous or not)
  */
@@ -43,21 +58,30 @@ async function enforceAuth(request) {
     }
     const userId = request.auth.uid;
     const firebaseUser = request.auth.token;
+    const userEmail = firebaseUser.email;
     // Check if user is anonymous
     const signInProvider = firebaseUser.firebase?.sign_in_provider;
     const isAnonymous = signInProvider === "anonymous";
-    firebase_functions_1.logger.info(`Auth enforced for user ${userId} (anonymous: ${isAnonymous}, provider: ${signInProvider})`);
+    // Check if user is an admin
+    const isAdmin = isAdminEmail(userEmail);
+    if (isAdmin) {
+        firebase_functions_1.logger.info(`🔑 Admin user detected: ${userEmail}`);
+    }
+    firebase_functions_1.logger.info(`Auth enforced for user ${userId} (anonymous: ${isAnonymous}, provider: ${signInProvider}, email: ${userEmail || 'none'})`);
     // Step 2: Load or create user document
     const userRef = db.collection("users").doc(userId);
     const userDoc = await userRef.get();
     let user;
     if (!userDoc.exists) {
         // Create new user document
-        firebase_functions_1.logger.info(`Creating new user document for ${userId}`);
+        // Admin users automatically get "pro" plan
+        const plan = isAdmin ? "pro" : "free";
+        const subscriptionTier = isAdmin ? "PAID" : "FREE";
+        firebase_functions_1.logger.info(`Creating new user document for ${userId} (plan: ${plan})`);
         user = {
             userId: userId,
-            plan: "free",
-            subscriptionTier: "FREE",
+            plan: plan,
+            subscriptionTier: subscriptionTier,
             isAnonymous: isAnonymous,
             createdAt: admin_1.admin.firestore.FieldValue.serverTimestamp(),
             updatedAt: admin_1.admin.firestore.FieldValue.serverTimestamp(),
@@ -66,6 +90,17 @@ async function enforceAuth(request) {
     }
     else {
         user = userDoc.data();
+        // Auto-upgrade admin users to pro if they aren't already
+        if (isAdmin && user.plan !== "pro") {
+            firebase_functions_1.logger.info(`🔑 Auto-upgrading admin user ${userEmail} to pro`);
+            await userRef.update({
+                plan: "pro",
+                subscriptionTier: "PAID",
+                updatedAt: admin_1.admin.firestore.FieldValue.serverTimestamp(),
+            });
+            user.plan = "pro";
+            user.subscriptionTier = "PAID";
+        }
         // Update isAnonymous flag if user upgraded from anonymous to real account
         if (user.isAnonymous && !isAnonymous) {
             firebase_functions_1.logger.info(`User ${userId} upgraded from anonymous to real account`);
@@ -76,8 +111,8 @@ async function enforceAuth(request) {
             user.isAnonymous = false;
         }
     }
-    // Check if user is premium
-    const isPremium = user.plan === "pro" || user.subscriptionTier === "PAID";
+    // Check if user is premium (admin users are always premium)
+    const isPremium = isAdmin || user.plan === "pro" || user.subscriptionTier === "PAID";
     return {
         userId,
         isAnonymous,
