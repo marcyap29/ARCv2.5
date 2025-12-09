@@ -1,7 +1,7 @@
 # EPI MVP - UI/UX Feature Documentation
 
-**Version:** 2.1.44
-**Last Updated:** December 4, 2025
+**Version:** 2.1.46
+**Last Updated:** December 9, 2025
 **Status:** ✅ Comprehensive Feature Analysis Complete
 
 ---
@@ -579,11 +579,12 @@ Long Press → Edit Mode | Scroll Up → Load History
 
 #### Settings Categories
 
-1. **👥 Favorites Management** - Saved content organization
-2. **🤖 LUMARA Settings** - AI model and behavior configuration
-3. **🔒 Privacy Settings** - Data protection and redaction controls
-4. **⚡ Throttle** - Developer throttle unlock (password-protected rate limit bypass)
-5. **🧠 Memory Mode** - Memory snapshots and lifecycle management
+1. **👤 Account** - Sign in/out and account management
+2. **👥 Favorites Management** - Saved content organization
+3. **🤖 LUMARA Settings** - AI model and behavior configuration
+4. **🔒 Privacy Settings** - Data protection and redaction controls
+5. **⚡ Throttle** - Developer throttle unlock (password-protected rate limit bypass)
+6. **🧠 Memory Mode** - Memory snapshots and lifecycle management
 6. **🎵 Music Control** - Audio experience settings
 7. **🔄 Sync Settings** - Cloud synchronization and device linking
 8. **⚖️ Conflict Management** - Resolution workflow settings
@@ -1169,5 +1170,55 @@ Long Press → Edit Mode | Scroll Up → Load History
 
 ---
 
-*This comprehensive UI/UX documentation reflects the current state of the EPI Flutter application as of December 1, 2025. The interface combines sophisticated AI integration with thoughtful human-centered design to create a meaningful personal journaling and life insight experience.*
+---
+
+## 16. Authentication UI
+
+### 🔐 Sign-In Screen
+**File:** `lib/ui/auth/sign_in_screen.dart`
+
+**Features:**
+- **Mode Toggle**: Switch between Sign In and Sign Up with one tap
+- **Google Sign-In**: One-tap authentication with account linking
+- **Email/Password Form**: 
+  - Email validation
+  - Password visibility toggle
+  - Confirm password for sign-up
+  - Minimum 6 character requirement
+- **Forgot Password**: Email-based password reset
+- **Error Handling**: Human-readable Firebase error messages
+- **Loading States**: Spinner during authentication
+
+**Visual Design:**
+- Gradient logo icon (80x80px with 20px border radius)
+- Modern form inputs with filled backgrounds
+- Accent-colored buttons with 12px border radius
+- Error container with danger color border
+
+### 📊 Trial Expired Dialog
+**File:** `lib/ui/auth/trial_expired_dialog.dart`
+
+**Trigger**: Shown when free user reaches per-entry or per-chat limit
+
+**Features:**
+- **Limit Display**: Shows trial limit that was reached
+- **Google Sign-In Button**: Quick one-tap upgrade
+- **Email Sign-In Link**: Navigate to full sign-in screen
+- **Data Preservation Notice**: Reassures users their data is safe
+
+### 👤 Account Management Tile
+**File:** `lib/shared/ui/settings/settings_view.dart`
+
+**States:**
+- **Signed Out/Anonymous**: Shows "Sign In" with arrow navigation
+- **Signed In**: Shows user profile photo, name, email with sign-out button
+
+**Features:**
+- **Profile Photo**: CircleAvatar with network image or fallback icon
+- **Sign Out Dialog**: Confirmation with data preservation notice
+- **Quick Navigation**: Direct link to sign-in screen
+
+---
+
+*This comprehensive UI/UX documentation reflects the current state of the EPI Flutter application as of December 9, 2025. The interface combines sophisticated AI integration with thoughtful human-centered design to create a meaningful personal journaling and life insight experience.*
 

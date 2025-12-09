@@ -1,9 +1,9 @@
 # Git History and Repository Documentation
 
 **Repository:** ARCv.04/ARC MVP/EPI
-**Last Updated:** December 1, 2025
-**Current Branch:** main
-**Status:** ✅ Active Development with Documentation Updates
+**Last Updated:** December 9, 2025
+**Current Branch:** dev
+**Status:** ✅ Active Development - Priority 3 Authentication Complete
 
 ---
 
@@ -25,7 +25,8 @@ The EPI (Evolving Personal Intelligence) project maintains a comprehensive git h
 ## Branch Structure
 
 ### Active Branches
-- **main** - Primary development branch (production-ready code) ⭐ *Current*
+- **main** - Primary production branch (stable releases)
+- **dev** - Active development branch ⭐ *Current*
 - **claude-md-context-update** - Documentation updates branch
 - **backup_2025_11_30** - Local backup branch from November 30, 2025
 
@@ -96,11 +97,31 @@ The EPI (Evolving Personal Intelligence) project maintains a comprehensive git h
 - **UI Stability**: Chat interface and data handling improvements
 - **Documentation Updates**: Comprehensive v2.1.42 documentation
 
+### 🔐 Phase 6: Authentication & Security (December 2025)
+- **Priority 3 Complete**: Full authentication system implementation
+- **Firebase Auth**: Anonymous, Google, Email/Password authentication
+- **Rate Limiting**: Per-entry (5) and per-chat (20) limits for free tier
+- **Sign-In UI**: Complete sign up/sign in flow with account management
+- **Admin System**: Email-based admin privileges with unlimited access
+- **Account Linking**: Anonymous session data preserved on upgrade
+
 ---
 
 ## Major Features by Version
 
-### 📌 v2.1.42 (Current - November 30, 2025)
+### 📌 v2.1.46 (Current - December 9, 2025)
+- ✅ **Priority 3 Auth**: Complete authentication and rate limiting system
+- ✅ **Firebase Auth**: Anonymous, Google, Email/Password sign-in
+- ✅ **Rate Limiting**: Per-entry (5) and per-chat (20) for free users
+- ✅ **Sign-In UI**: Full sign up/sign in with account management
+- ✅ **Admin System**: Email-based admin detection with unlimited access
+
+### 📌 v2.1.45 (December 7, 2025)
+- ✅ **Priority 2 Complete**: Firebase API Proxy implementation
+- ✅ **API Keys Hidden**: Secure key management in Cloud Functions
+- ✅ **On-Device LUMARA**: Full journal access maintained
+
+### 📌 v2.1.42 (November 30, 2025)
 - ✅ **LUMARA Persistence**: Fixed async/await issues for chat stability
 - ✅ **Data Protection**: Timeline entry protection and persistence
 - ✅ **Chat UI Fixes**: Improved interface stability and responsiveness
@@ -285,4 +306,4 @@ main (HEAD) ──── ✅ Production Ready
 
 ---
 
-*Last synchronized: December 1, 2025 | Repository: ARCv.04/ARC MVP/EPI*
+*Last synchronized: December 9, 2025 | Repository: ARCv.04/ARC MVP/EPI*

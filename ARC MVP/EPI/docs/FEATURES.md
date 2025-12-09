@@ -1,7 +1,7 @@
 # EPI MVP - Comprehensive Features Guide
 
-**Version:** 2.1.44
-**Last Updated:** December 4, 2025
+**Version:** 2.1.46
+**Last Updated:** December 9, 2025
 
 ---
 
@@ -418,7 +418,50 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 - Chat history control
 - Location privacy
 
-### Throttle Unlock (Developer/Admin Feature)
+### Authentication & Sign-In (Priority 3)
+
+**User Authentication System**
+- **Anonymous Auth**: Auto sign-in on first launch for immediate access
+- **Google Sign-In**: One-tap authentication with account linking
+- **Email/Password**: Traditional sign up and sign in with validation
+- **Forgot Password**: Email-based password reset functionality
+- **Account Linking**: Anonymous session data preserved when upgrading to real account
+
+**Sign-In UI Features**
+- **Modern UI**: Gradient logo, proper form validation, loading states
+- **Error Messages**: Human-readable Firebase error translations
+- **Toggle Mode**: Switch between sign-in and sign-up with one tap
+- **Password Visibility**: Toggle to show/hide password
+- **Confirm Password**: Required for sign-up with match validation
+
+**Account Management**
+- **Settings Integration**: Account tile in Subscription & Account section
+- **Profile Display**: User photo, name, and email when signed in
+- **Sign Out**: Confirmation dialog with data preservation notice
+- **Sign-In Prompt**: Navigate to sign-in when not authenticated
+
+### Per-Feature Rate Limiting
+
+**Usage Limits for Free Tier**
+- **In-Journal LUMARA**: 5 comments per journal entry
+- **In-Chat LUMARA**: 20 messages per chat session
+- **Premium/Admin**: Unlimited access to all features
+
+**Limit Tracking**
+- **Per-Entry Tracking**: Usage tracked per journal entry ID
+- **Per-Chat Tracking**: Usage tracked per chat session ID
+- **Firestore Storage**: Usage counts stored in `usageLimits` collection
+- **Real-Time Enforcement**: Limits checked before each API call
+
+### Admin Privileges
+
+**Email-Based Admin Detection**
+- **Admin Emails**: Configured in authGuard.ts
+- **Auto-Upgrade**: Admin users automatically set to "pro" plan
+- **Unlimited Access**: Bypass all rate limits
+- **Developer Feature**: Intended for app developers and administrators
+
+### Throttle Unlock (Legacy Developer Feature)
 
 **Password-Protected Rate Limit Bypass**
 - **Throttle Settings**: Hidden settings menu option in Privacy & Security section
@@ -526,6 +569,6 @@ All core features are production-ready and fully operational:
 ---
 
 **Features Guide Status:** ✅ Complete
-**Last Updated:** December 4, 2025
-**Version:** 2.1.43
+**Last Updated:** December 9, 2025
+**Version:** 2.1.46
 

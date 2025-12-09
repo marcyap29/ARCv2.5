@@ -1,7 +1,7 @@
 # EPI Documentation
 
-**Last Updated:** December 7, 2025  
-**Version:** 2.1.45
+**Last Updated:** December 9, 2025  
+**Version:** 2.1.46
 
 ---
 
@@ -68,11 +68,18 @@ Welcome to the EPI (Evolving Personal Intelligence) documentation. This director
 
 ## Version Information
 
-**Current Version:** 2.1.45
-**Last Major Update:** December 7, 2025 (Priority 2 Complete: Firebase API Proxy)
+**Current Version:** 2.1.46
+**Last Major Update:** December 9, 2025 (Priority 3 Complete: Authentication & Security)
 
 ### Recent Highlights
 
+- 🎉 **Priority 3 Complete (v2.1.46)**: Authentication & Security Implementation
+  - Firebase Auth: Anonymous, Google, Email/Password sign-in
+  - Per-entry rate limiting: 5 LUMARA comments per journal entry (free tier)
+  - Per-chat rate limiting: 20 LUMARA messages per chat (free tier)
+  - Complete sign-in UI with account management
+  - Admin privileges with unlimited access
+  - Account linking preserves anonymous session data
 - 🎉 **Priority 2 Complete (v2.1.45)**: Firebase API Proxy Implementation
   - API keys now securely hidden in Firebase Functions
   - LUMARA runs on-device with full journal access (chat + in-journal reflections)
@@ -148,6 +155,6 @@ Welcome to the EPI (Evolving Personal Intelligence) documentation. This director
 
 ---
 
-**Status**: ✅ Production Ready
-**Last Updated**: December 7, 2025
-**Version**: 2.1.45
+**Status**: ✅ Production Ready with Authentication
+**Last Updated**: December 9, 2025
+**Version**: 2.1.46

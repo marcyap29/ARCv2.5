@@ -1,7 +1,74 @@
 # EPI ARC MVP - Changelog
 
-**Version:** 2.1.45
-**Last Updated:** December 7, 2025
+**Version:** 2.1.46
+**Last Updated:** December 9, 2025
+
+## [2.1.46] - December 9, 2025
+
+### **Priority 3 Complete: Authentication & Security** - ✅ Complete
+
+#### Objective Achieved
+- ✅ **Firebase Authentication** - Anonymous, Google, and Email/Password sign-in
+- ✅ **Per-Entry Rate Limiting** - 5 LUMARA in-journal comments per entry (free tier)
+- ✅ **Per-Chat Rate Limiting** - 20 LUMARA messages per chat (free tier)
+- ✅ **Admin Privileges** - Email-based admin detection with unlimited access
+- ✅ **Account Linking** - Anonymous user data preserved when signing in
+- ✅ **Complete Sign-In UI** - Full sign up/sign in flow with password reset
+
+#### Authentication System
+
+**Backend Implementation:**
+- **authGuard.ts**: Centralized authentication enforcement
+  - `enforceAuth()` - Validates Firebase Auth tokens
+  - `checkJournalEntryLimit()` - Per-entry usage tracking
+  - `checkChatLimit()` - Per-chat usage tracking
+  - Admin email detection with automatic pro upgrade
+- **proxyGemini.ts**: Updated to check entry/chat limits
+- **generateJournalReflection.ts**: Auth integration with entry limit
+- **Firestore Rules**: Per-user data isolation
+
+**Frontend Implementation:**
+- **sign_in_screen.dart**: Complete sign up/sign in UI
+  - Google Sign-In with one-tap
+  - Email/Password with validation
+  - Forgot Password functionality
+  - Toggle between sign-in and sign-up modes
+  - Human-readable error messages
+- **trial_expired_dialog.dart**: Prompt when free limits reached
+- **settings_view.dart**: Account tile with sign-in/sign-out management
+- **firebase_auth_service.dart**: Account linking for anonymous users
+
+#### Rate Limiting
+
+| Feature | Free Tier | Premium/Admin |
+|---------|-----------|---------------|
+| In-Journal LUMARA | 5 per entry | Unlimited |
+| In-Chat LUMARA | 20 per chat | Unlimited |
+
+#### Files Modified
+
+**Backend:**
+- `functions/src/authGuard.ts` - Authentication and rate limiting
+- `functions/src/functions/proxyGemini.ts` - Limit enforcement
+- `functions/src/functions/generateJournalReflection.ts` - Auth + limits
+- `functions/src/functions/sendChatMessage.ts` - Auth integration
+- `functions/src/types.ts` - UserDocument with auth fields
+- `firestore.rules` - Security rules
+
+**Frontend:**
+- `lib/ui/auth/sign_in_screen.dart` - Sign up/sign in UI
+- `lib/ui/auth/trial_expired_dialog.dart` - Trial limit dialog
+- `lib/services/firebase_auth_service.dart` - Auth service
+- `lib/services/gemini_send.dart` - entryId/chatId params
+- `lib/shared/ui/settings/settings_view.dart` - Account management
+- `lib/arc/chat/bloc/lumara_assistant_cubit.dart` - Chat rate limiting
+- `lib/arc/chat/services/enhanced_lumara_api.dart` - Entry ID support
+- `lib/ui/journal/journal_screen.dart` - Entry ID tracking
+
+**Status**: ✅ Priority 3 Complete  
+**Branch**: `dev`
+
+---
 
 ## [2.1.45] - December 7, 2025
 

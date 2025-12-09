@@ -1,8 +1,8 @@
 # Backend Architecture & Setup
 
-**Version:** 2.1.45  
-**Last Updated:** December 7, 2025  
-**Status:** ✅ Production Ready
+**Version:** 2.1.46  
+**Last Updated:** December 9, 2025  
+**Status:** ✅ Production Ready with Authentication
 
 ---
 
@@ -332,6 +332,49 @@ firebase functions:log 2>&1 | grep Error
 
 ---
 
+## Priority 3: Authentication & Security (Completed Dec 9, 2025)
+
+### Objective
+
+Implement proper authentication and per-user rate limiting to replace the `invoker: "public"` workaround.
+
+### Architecture
+
+```
+Client (Flutter)
+  ↓
+Firebase Auth (Anonymous → Google/Email)
+  ↓
+Cloud Functions (enforceAuth + checkLimits)
+  ↓
+Firestore (User Document + Usage Tracking)
+```
+
+### Key Components
+
+#### 1. Authentication (`authGuard.ts`)
+
+- **enforceAuth()**: Validates Firebase Auth, creates/loads user documents
+- **checkJournalEntryLimit()**: Per-entry limit (5 for free users)
+- **checkChatLimit()**: Per-chat limit (20 for free users)
+- **Admin Detection**: Email-based admin privileges
+
+#### 2. Rate Limiting
+
+| Feature | Free Tier | Admin/Premium |
+|---------|-----------|---------------|
+| In-Journal LUMARA | 5 per entry | Unlimited |
+| In-Chat LUMARA | 20 per chat | Unlimited |
+
+#### 3. Sign-In UI (`sign_in_screen.dart`)
+
+- **Google Sign-In**: One-tap authentication
+- **Email/Password**: Sign up and sign in with validation
+- **Forgot Password**: Email-based password reset
+- **Account Linking**: Anonymous sessions preserved on sign-in
+
+---
+
 ## Migration History
 
 ### Priority 2 Evolution
@@ -372,6 +415,6 @@ const userId = request.auth?.uid || `mvp_test_${Date.now()}`;
 
 ---
 
-**Status**: ✅ Production Ready  
-**Last Updated**: December 7, 2025  
-**Version**: 2.1.45
+**Status**: ✅ Production Ready with Authentication  
+**Last Updated**: December 9, 2025  
+**Version**: 2.1.46

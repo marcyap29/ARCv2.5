@@ -1,8 +1,8 @@
 # EPI MVP - Architecture Overview
 
-**Version:** 2.1.44
-**Last Updated:** December 4, 2025
-**Status:** ✅ Production Ready - MVP Fully Operational
+**Version:** 2.1.46
+**Last Updated:** December 9, 2025
+**Status:** ✅ Production Ready - MVP Fully Operational with Authentication
 
 ---
 
@@ -18,6 +18,7 @@ EPI (Evolving Personal Intelligence) is a Flutter-based intelligent journaling a
 - ✅ **On-Device AI Integration**: Qwen models with llama.cpp and Metal acceleration
 - ✅ **MCP Export/Import System**: Standards-compliant data portability
 - ✅ **Production Ready**: All critical systems stable and tested
+- ✅ **Priority 3 Authentication**: Firebase Auth with per-entry/per-chat rate limiting
 
 ### Current Version
 
@@ -379,7 +380,39 @@ For detailed information on specific modules and features, see:
 
 ---
 
+---
+
+## Authentication & Security Architecture (Priority 3)
+
+### Authentication Flow
+
+```
+User Launch → Anonymous Auth (Auto) → 5 Free Requests → Sign-In Prompt
+                                                              ↓
+                                            Google/Email Sign-In → Account Linked
+                                                              ↓
+                                            Per-Entry/Per-Chat Rate Limiting
+```
+
+### Rate Limiting System
+
+| Tier | In-Journal LUMARA | In-Chat LUMARA |
+|------|-------------------|----------------|
+| **Free** | 5 per entry | 20 per chat |
+| **Admin** | Unlimited | Unlimited |
+| **Premium** | Unlimited | Unlimited |
+
+### Security Components
+
+- **Firebase Auth**: Anonymous, Google, Email/Password authentication
+- **Account Linking**: Anonymous sessions linked to real accounts on sign-in
+- **AuthGuard**: Centralized authentication enforcement in Cloud Functions
+- **Admin Privileges**: Email-based admin detection with automatic pro upgrade
+- **Firestore Rules**: Per-user data isolation and field-level protection
+
+---
+
 **Status**: ✅ Production Ready
-**Last Updated**: November 27, 2025
-**Version**: 2.1.40
+**Last Updated**: December 9, 2025
+**Version**: 2.1.46
 
