@@ -157,6 +157,8 @@ class EnhancedLumaraApi {
 
   /// Generate a prompted reflection using v2.3 unified request model
   /// Returns both the reflection text and attribution traces from the nodes used
+  /// 
+  /// For in-journal LUMARA, pass [entryId] to enforce per-entry usage limits.
   Future<ReflectionResult> generatePromptedReflectionV23({
     required models.LumaraReflectionRequest request,
     String? userId,
@@ -164,6 +166,7 @@ class EnhancedLumaraApi {
     Map<String, dynamic>? chronoContext,
     String? chatContext,
     String? mediaContext,
+    String? entryId, // For per-entry usage limit tracking
     void Function(String message)? onProgress,
   }) async {
     try {
@@ -383,10 +386,12 @@ Follow the ECHO structure (Empathize → Clarify → Highlight → Open) and inc
           while (retryCount <= maxRetries && geminiResponse == null) {
             try {
               // Direct Gemini API call - same protocol as main LUMARA chat
+              // Pass entryId for per-entry usage limit tracking (free tier: 5 per entry)
               geminiResponse = await geminiSend(
                 system: systemPrompt,
                 user: userPrompt,
                 jsonExpected: false,
+                entryId: entryId,
               );
 
               print('LUMARA: Gemini API response received (length: ${geminiResponse.length})');

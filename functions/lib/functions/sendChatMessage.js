@@ -44,8 +44,8 @@ exports.sendChatMessage = (0, https_1.onCall)({
     }
     // Enforce authentication (supports anonymous trial)
     const authResult = await (0, authGuard_1.enforceAuth)(request);
-    const { userId, isAnonymous, trialRemaining, user } = authResult;
-    firebase_functions_1.logger.info(`Sending chat message in thread ${threadId} for user ${userId} (anonymous: ${isAnonymous}, trial remaining: ${trialRemaining ?? 'N/A'})`);
+    const { userId, isAnonymous, user } = authResult;
+    firebase_functions_1.logger.info(`Sending chat message in thread ${threadId} for user ${userId} (anonymous: ${isAnonymous})`);
     try {
         // Support both 'plan' and 'subscriptionTier' fields
         const plan = user.plan || user.subscriptionTier?.toLowerCase() || "free";

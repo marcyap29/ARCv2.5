@@ -71,9 +71,9 @@ export const generateJournalReflection = onCall(
 
     // Enforce authentication (supports anonymous trial)
     const authResult = await enforceAuth(request);
-    const { userId, isAnonymous, trialRemaining, user } = authResult;
+    const { userId, isAnonymous, user } = authResult;
 
-    logger.info(`Generating journal reflection for user ${userId} (anonymous: ${isAnonymous}, trial remaining: ${trialRemaining ?? 'N/A'})`);
+    logger.info(`Generating journal reflection for user ${userId} (anonymous: ${isAnonymous})`);
 
     try {
       // Support both 'plan' and 'subscriptionTier' fields

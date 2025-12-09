@@ -1,8 +1,10 @@
 "use strict";
-// authGuard.ts - Authentication enforcement with anonymous trial support
+// authGuard.ts - Authentication and usage limits for free users
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.AuthErrorCodes = exports.ANONYMOUS_TRIAL_LIMIT = void 0;
+exports.AuthErrorCodes = exports.FREE_TIER_LIMITS = void 0;
 exports.enforceAuth = enforceAuth;
+exports.checkJournalEntryLimit = checkJournalEntryLimit;
+exports.checkChatLimit = checkChatLimit;
 exports.canLinkAccount = canLinkAccount;
 exports.linkAccountData = linkAccountData;
 const https_1 = require("firebase-functions/v2/https");
@@ -10,28 +12,28 @@ const firebase_functions_1 = require("firebase-functions");
 const admin_1 = require("./admin");
 const db = admin_1.admin.firestore();
 /**
- * Anonymous trial configuration
+ * Usage limits for free tier (applies to ALL free users, anonymous or not)
  */
-exports.ANONYMOUS_TRIAL_LIMIT = 5; // Max requests before requiring sign-in
+exports.FREE_TIER_LIMITS = {
+    JOURNAL_COMMENTS_PER_ENTRY: 5, // Max in-journal LUMARA comments per entry
+    CHAT_MESSAGES_PER_CHAT: 20, // Max in-chat LUMARA messages per chat
+};
 /**
  * Custom error codes for auth-related issues
  */
 exports.AuthErrorCodes = {
     UNAUTHENTICATED: "UNAUTHENTICATED",
-    ANONYMOUS_TRIAL_EXPIRED: "ANONYMOUS_TRIAL_EXPIRED",
+    JOURNAL_LIMIT_REACHED: "JOURNAL_LIMIT_REACHED",
+    CHAT_LIMIT_REACHED: "CHAT_LIMIT_REACHED",
 };
 /**
- * Enforce authentication with anonymous trial support
+ * Enforce authentication (no usage limit checking)
  *
  * This function:
  * 1. Requires Firebase Auth (rejects unauthenticated requests)
- * 2. Allows anonymous users a limited trial (5 requests)
- * 3. Returns user info and trial status
+ * 2. Returns user info and subscription status
  *
- * After trial expires, anonymous users must sign in with Google/Email
- * to continue using the app.
- *
- * @throws HttpsError if unauthenticated or trial expired
+ * @throws HttpsError if unauthenticated
  */
 async function enforceAuth(request) {
     // Step 1: Require authentication (no more public access)
@@ -41,10 +43,7 @@ async function enforceAuth(request) {
     }
     const userId = request.auth.uid;
     const firebaseUser = request.auth.token;
-    // Debug log the token structure to understand anonymous detection
-    firebase_functions_1.logger.info(`Auth token structure: email=${firebaseUser.email}, firebase.sign_in_provider=${firebaseUser.firebase?.sign_in_provider}, provider_id=${firebaseUser.provider_id}`);
-    // Check if user is anonymous (Firebase Auth provides this in the token)
-    // For onCall functions, the sign_in_provider is in firebase.sign_in_provider
+    // Check if user is anonymous
     const signInProvider = firebaseUser.firebase?.sign_in_provider;
     const isAnonymous = signInProvider === "anonymous";
     firebase_functions_1.logger.info(`Auth enforced for user ${userId} (anonymous: ${isAnonymous}, provider: ${signInProvider})`);
@@ -60,7 +59,6 @@ async function enforceAuth(request) {
             plan: "free",
             subscriptionTier: "FREE",
             isAnonymous: isAnonymous,
-            anonymousRequestCount: 0,
             createdAt: admin_1.admin.firestore.FieldValue.serverTimestamp(),
             updatedAt: admin_1.admin.firestore.FieldValue.serverTimestamp(),
         };
@@ -78,43 +76,101 @@ async function enforceAuth(request) {
             user.isAnonymous = false;
         }
     }
-    // Step 3: For anonymous users, check and enforce trial limit
-    if (isAnonymous) {
-        const currentCount = user.anonymousRequestCount || 0;
-        if (currentCount >= exports.ANONYMOUS_TRIAL_LIMIT) {
-            firebase_functions_1.logger.warn(`Anonymous trial expired for user ${userId} (${currentCount}/${exports.ANONYMOUS_TRIAL_LIMIT})`);
-            throw new https_1.HttpsError("permission-denied", `Your free trial of ${exports.ANONYMOUS_TRIAL_LIMIT} requests has ended. Please sign in with Google or Email to continue using the app.`, {
-                code: exports.AuthErrorCodes.ANONYMOUS_TRIAL_EXPIRED,
-                trialLimit: exports.ANONYMOUS_TRIAL_LIMIT,
-                requestCount: currentCount,
-            });
-        }
-        // Increment anonymous request count
-        await userRef.update({
-            anonymousRequestCount: admin_1.admin.firestore.FieldValue.increment(1),
-            updatedAt: admin_1.admin.firestore.FieldValue.serverTimestamp(),
-        });
-        const trialRemaining = exports.ANONYMOUS_TRIAL_LIMIT - currentCount - 1;
-        firebase_functions_1.logger.info(`Anonymous user ${userId} trial: ${trialRemaining} requests remaining`);
-        return {
-            userId,
-            isAnonymous: true,
-            trialRemaining,
-            user,
-        };
-    }
-    // Real (non-anonymous) user - full access
+    // Check if user is premium
+    const isPremium = user.plan === "pro" || user.subscriptionTier === "PAID";
     return {
         userId,
-        isAnonymous: false,
+        isAnonymous,
+        isPremium,
         user,
     };
 }
 /**
- * Check if a user can link their anonymous account to a real account
+ * Check and enforce per-entry limit for in-journal LUMARA comments
  *
- * This is called from the Flutter side when user decides to sign in
- * after using anonymous auth.
+ * @param userId - The user's ID
+ * @param entryId - The journal entry ID
+ * @param isPremium - Whether user has premium subscription
+ * @throws HttpsError if limit reached
+ */
+async function checkJournalEntryLimit(userId, entryId, isPremium) {
+    // Premium users have unlimited access
+    if (isPremium) {
+        firebase_functions_1.logger.info(`Premium user ${userId} - no journal entry limit`);
+        return { remaining: -1 }; // -1 indicates unlimited
+    }
+    // Get or create entry usage document
+    const usageRef = db.collection("usageLimits").doc(`${userId}_entry_${entryId}`);
+    const usageDoc = await usageRef.get();
+    let currentCount = 0;
+    if (usageDoc.exists) {
+        currentCount = usageDoc.data()?.count || 0;
+    }
+    const limit = exports.FREE_TIER_LIMITS.JOURNAL_COMMENTS_PER_ENTRY;
+    if (currentCount >= limit) {
+        firebase_functions_1.logger.warn(`Journal entry limit reached for user ${userId}, entry ${entryId} (${currentCount}/${limit})`);
+        throw new https_1.HttpsError("resource-exhausted", `The free version of Arc is limited to ${limit} LUMARA in-journal comments per entry.`, {
+            code: exports.AuthErrorCodes.JOURNAL_LIMIT_REACHED,
+            limit: limit,
+            currentCount: currentCount,
+            entryId: entryId,
+        });
+    }
+    // Increment usage counter
+    await usageRef.set({
+        userId,
+        entryId,
+        count: admin_1.admin.firestore.FieldValue.increment(1),
+        updatedAt: admin_1.admin.firestore.FieldValue.serverTimestamp(),
+    }, { merge: true });
+    const remaining = limit - currentCount - 1;
+    firebase_functions_1.logger.info(`Journal entry usage for user ${userId}, entry ${entryId}: ${currentCount + 1}/${limit} (${remaining} remaining)`);
+    return { remaining };
+}
+/**
+ * Check and enforce per-chat limit for in-chat LUMARA messages
+ *
+ * @param userId - The user's ID
+ * @param chatId - The chat/thread ID
+ * @param isPremium - Whether user has premium subscription
+ * @throws HttpsError if limit reached
+ */
+async function checkChatLimit(userId, chatId, isPremium) {
+    // Premium users have unlimited access
+    if (isPremium) {
+        firebase_functions_1.logger.info(`Premium user ${userId} - no chat limit`);
+        return { remaining: -1 }; // -1 indicates unlimited
+    }
+    // Get or create chat usage document
+    const usageRef = db.collection("usageLimits").doc(`${userId}_chat_${chatId}`);
+    const usageDoc = await usageRef.get();
+    let currentCount = 0;
+    if (usageDoc.exists) {
+        currentCount = usageDoc.data()?.count || 0;
+    }
+    const limit = exports.FREE_TIER_LIMITS.CHAT_MESSAGES_PER_CHAT;
+    if (currentCount >= limit) {
+        firebase_functions_1.logger.warn(`Chat limit reached for user ${userId}, chat ${chatId} (${currentCount}/${limit})`);
+        throw new https_1.HttpsError("resource-exhausted", `The free version of Arc is limited to ${limit} LUMARA messages per chat.`, {
+            code: exports.AuthErrorCodes.CHAT_LIMIT_REACHED,
+            limit: limit,
+            currentCount: currentCount,
+            chatId: chatId,
+        });
+    }
+    // Increment usage counter
+    await usageRef.set({
+        userId,
+        chatId,
+        count: admin_1.admin.firestore.FieldValue.increment(1),
+        updatedAt: admin_1.admin.firestore.FieldValue.serverTimestamp(),
+    }, { merge: true });
+    const remaining = limit - currentCount - 1;
+    firebase_functions_1.logger.info(`Chat usage for user ${userId}, chat ${chatId}: ${currentCount + 1}/${limit} (${remaining} remaining)`);
+    return { remaining };
+}
+/**
+ * Check if a user can link their anonymous account to a real account
  */
 async function canLinkAccount(userId) {
     const userDoc = await db.collection("users").doc(userId).get();
@@ -126,9 +182,6 @@ async function canLinkAccount(userId) {
 }
 /**
  * Link anonymous user data to a new real account
- *
- * Called after Firebase Auth linkWithCredential succeeds on client.
- * Transfers subscription data and clears anonymous flags.
  */
 async function linkAccountData(oldAnonymousUid, newRealUid) {
     const batch = db.batch();
@@ -143,12 +196,11 @@ async function linkAccountData(oldAnonymousUid, newRealUid) {
             ...oldUser,
             userId: newRealUid,
             isAnonymous: false,
-            anonymousRequestCount: 0, // Reset trial counter
             linkedFromAnonymous: oldAnonymousUid,
             linkedAt: admin_1.admin.firestore.FieldValue.serverTimestamp(),
             updatedAt: admin_1.admin.firestore.FieldValue.serverTimestamp(),
         }, { merge: true });
-        // Optionally: Delete or mark old anonymous user document
+        // Mark old anonymous user document as linked
         batch.update(oldUserRef, {
             linkedToAccount: newRealUid,
             updatedAt: admin_1.admin.firestore.FieldValue.serverTimestamp(),

@@ -10,12 +10,13 @@ const authGuard_1 = require("../authGuard");
 /**
  * Simple proxy to hide Gemini API key from client
  *
- * This function just:
- * 1. Enforces authentication (with anonymous trial support)
- * 2. Accepts system + user prompts from client
- * 3. Adds the secret API key
- * 4. Forwards to Gemini API
- * 5. Returns the response
+ * This function:
+ * 1. Enforces authentication
+ * 2. Checks per-entry usage limits for free users (if entryId provided)
+ * 3. Accepts system + user prompts from client
+ * 4. Adds the secret API key
+ * 5. Forwards to Gemini API
+ * 6. Returns the response
  *
  * All LUMARA logic runs on the client (has access to local journals)
  */
@@ -23,14 +24,19 @@ exports.proxyGemini = (0, https_1.onCall)({
     secrets: [config_1.GEMINI_API_KEY],
     // Auth enforced via enforceAuth() - no invoker: "public"
 }, async (request) => {
-    const { system, user, jsonExpected } = request.data;
+    const { system, user, jsonExpected, entryId } = request.data;
     if (!user) {
         throw new https_1.HttpsError("invalid-argument", "user prompt is required");
     }
-    // Enforce authentication (supports anonymous trial)
+    // Enforce authentication
     const authResult = await (0, authGuard_1.enforceAuth)(request);
-    const { userId, isAnonymous, trialRemaining } = authResult;
-    firebase_functions_1.logger.info(`Proxying Gemini request for user ${userId} (anonymous: ${isAnonymous}, trial remaining: ${trialRemaining ?? 'N/A'})`);
+    const { userId, isAnonymous, isPremium } = authResult;
+    firebase_functions_1.logger.info(`Proxying Gemini request for user ${userId} (anonymous: ${isAnonymous}, premium: ${isPremium})`);
+    // Check per-entry limit for in-journal LUMARA (if entryId provided)
+    if (entryId) {
+        const limitResult = await (0, authGuard_1.checkJournalEntryLimit)(userId, entryId, isPremium);
+        firebase_functions_1.logger.info(`Journal entry limit check: ${limitResult.remaining} remaining for entry ${entryId}`);
+    }
     try {
         const apiKey = config_1.GEMINI_API_KEY.value();
         if (!apiKey) {
@@ -39,7 +45,6 @@ exports.proxyGemini = (0, https_1.onCall)({
         const genAI = new generative_ai_1.GoogleGenerativeAI(apiKey);
         const model = genAI.getGenerativeModel({
             model: "gemini-2.5-flash",
-            // Note: googleSearch tool removed due to SDK type issues
             generationConfig: jsonExpected
                 ? { responseMimeType: "application/json" }
                 : undefined,
@@ -59,6 +64,10 @@ exports.proxyGemini = (0, https_1.onCall)({
         return { response };
     }
     catch (error) {
+        // Re-throw HttpsErrors (like limit exceeded) as-is
+        if (error instanceof https_1.HttpsError) {
+            throw error;
+        }
         firebase_functions_1.logger.error(`Gemini proxy error:`, error);
         if (error.message?.includes("429") || error.message?.includes("quota")) {
             throw new https_1.HttpsError("resource-exhausted", "Rate limit exceeded. Please try again later.");

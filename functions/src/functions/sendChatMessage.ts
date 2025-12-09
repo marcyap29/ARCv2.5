@@ -61,9 +61,9 @@ export const sendChatMessage = onCall(
 
     // Enforce authentication (supports anonymous trial)
     const authResult = await enforceAuth(request);
-    const { userId, isAnonymous, trialRemaining, user } = authResult;
+    const { userId, isAnonymous, user } = authResult;
     
-    logger.info(`Sending chat message in thread ${threadId} for user ${userId} (anonymous: ${isAnonymous}, trial remaining: ${trialRemaining ?? 'N/A'})`);
+    logger.info(`Sending chat message in thread ${threadId} for user ${userId} (anonymous: ${isAnonymous})`);
 
     try {
       // Support both 'plan' and 'subscriptionTier' fields

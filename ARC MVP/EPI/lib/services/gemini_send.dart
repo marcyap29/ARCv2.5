@@ -15,10 +15,13 @@ import 'package:cloud_functions/cloud_functions.dart';
 /// Sends a single-turn request to Gemini with an optional system instruction.
 /// Returns the concatenated text from candidates[0].content.parts[].text.
 /// PRISM scrubbing is applied before sending, and responses are restored.
+/// 
+/// For in-journal LUMARA, pass [entryId] to enforce per-entry usage limits.
 Future<String> geminiSend({
   required String system,
   required String user,
   bool jsonExpected = false,
+  String? entryId, // Optional: for per-entry limit tracking
 }) async {
   // No longer need local API key - using Firebase proxy
   print('DEBUG GEMINI: Using Firebase proxy for API key');
@@ -48,11 +51,12 @@ Future<String> geminiSend({
   print('DEBUG GEMINI: Using Firebase proxy');
 
   // Build request body for Firebase proxy
-  // proxyGemini expects: { system, user, jsonExpected }
+  // proxyGemini expects: { system, user, jsonExpected, entryId? }
   final requestData = {
     'system': systemScrubResult.scrubbedText,
     'user': userScrubResult.scrubbedText,
     if (jsonExpected) 'jsonExpected': true,
+    if (entryId != null) 'entryId': entryId,
   };
 
   try {
@@ -98,14 +102,10 @@ Future<String> geminiSend({
   } on FirebaseFunctionsException catch (e) {
     print('DEBUG GEMINI: Firebase Functions error: ${e.code} - ${e.message}');
     
-    // Re-throw with the original error details for proper handling upstream
-    // This includes auth errors like ANONYMOUS_TRIAL_EXPIRED
-    if (e.code == 'permission-denied' || e.code == 'unauthenticated') {
-      throw FirebaseFunctionsException(
-        code: e.code,
-        message: e.message ?? 'Authentication required',
-        details: e.details,
-      );
+    // Re-throw usage limit errors with clean message (no [firebase_functions/...] prefix)
+    if (e.code == 'resource-exhausted' || e.code == 'permission-denied' || e.code == 'unauthenticated') {
+      // Pass the clean message directly - the backend already provides user-friendly messages
+      throw Exception(e.message ?? 'Request limit reached');
     }
     
     throw Exception('Gemini API request failed: ${e.message}');
