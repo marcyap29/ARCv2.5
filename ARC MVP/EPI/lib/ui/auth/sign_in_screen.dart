@@ -51,22 +51,29 @@ class _SignInScreenState extends State<SignInScreen> {
 
       if (userCredential != null && mounted) {
         Navigator.of(context).pushReplacementNamed('/home');
+      } else if (mounted) {
+        // User cancelled - just reset loading state
+        setState(() {
+          _isLoading = false;
+        });
       }
     } on FirebaseAuthException catch (e) {
       if (mounted) {
         setState(() {
           _errorMessage = _getFirebaseErrorMessage(e.code);
+          _isLoading = false;
         });
       }
     } catch (e) {
       if (mounted) {
         setState(() {
-          _errorMessage = 'Sign-in failed. Please try again.';
-        });
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
+          // Show the actual error message from the auth service
+          final message = e.toString();
+          if (message.contains('Exception:')) {
+            _errorMessage = message.replaceAll('Exception:', '').trim();
+          } else {
+            _errorMessage = 'Google Sign-In is not available. Please use Email sign-in.';
+          }
           _isLoading = false;
         });
       }

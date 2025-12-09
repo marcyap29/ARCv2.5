@@ -91,18 +91,42 @@ class FirebaseAuthService {
   /// Auth state changes stream
   Stream<User?> get authStateChanges => _auth?.authStateChanges() ?? const Stream.empty();
 
+  /// Check if Google Sign-In is properly configured
+  bool get isGoogleSignInConfigured {
+    // Google Sign-In requires CLIENT_ID in GoogleService-Info.plist
+    // If not configured, _googleSignIn will fail
+    return _googleSignIn != null;
+  }
+
   /// Sign in with Google
   /// If user is currently anonymous, this will link the accounts
   Future<UserCredential?> signInWithGoogle() async {
     try {
       if (_googleSignIn == null) {
-        throw Exception('Google Sign-In not initialized');
+        throw Exception('Google Sign-In not initialized. Please configure OAuth in Firebase Console.');
       }
 
       debugPrint('FirebaseAuthService: Starting Google Sign-In...');
 
       // Trigger the authentication flow
-      final GoogleSignInAccount? googleUser = await _googleSignIn!.signIn();
+      GoogleSignInAccount? googleUser;
+      try {
+        googleUser = await _googleSignIn!.signIn();
+      } catch (e) {
+        debugPrint('FirebaseAuthService: Google Sign-In trigger failed: $e');
+        // Check for common configuration errors
+        final errorString = e.toString().toLowerCase();
+        if (errorString.contains('client id') || 
+            errorString.contains('clientid') ||
+            errorString.contains('configuration') ||
+            errorString.contains('missing')) {
+          throw Exception('Google Sign-In is not configured. Please use Email sign-in instead, or configure OAuth in Firebase Console.');
+        }
+        if (errorString.contains('canceled') || errorString.contains('cancelled')) {
+          return null; // User cancelled, not an error
+        }
+        throw Exception('Google Sign-In failed. Please try Email sign-in instead.');
+      }
 
       if (googleUser == null) {
         debugPrint('FirebaseAuthService: Google Sign-In cancelled by user');
@@ -115,7 +139,7 @@ class FirebaseAuthService {
       final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
 
       if (googleAuth.accessToken == null || googleAuth.idToken == null) {
-        throw Exception('Failed to get Google authentication tokens');
+        throw Exception('Failed to get Google authentication tokens. Please try Email sign-in instead.');
       }
 
       // Create a new credential
@@ -135,9 +159,11 @@ class FirebaseAuthService {
       debugPrint('FirebaseAuthService: Successfully signed in to Firebase: ${userCredential.user?.email}');
       return userCredential;
 
-    } catch (e) {
-      debugPrint('FirebaseAuthService: Google Sign-In failed: $e');
+    } on Exception {
       rethrow;
+    } catch (e) {
+      debugPrint('FirebaseAuthService: Google Sign-In failed unexpectedly: $e');
+      throw Exception('Google Sign-In is not available. Please use Email sign-in instead.');
     }
   }
 
