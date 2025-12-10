@@ -1,7 +1,21 @@
 # EPI ARC MVP - Changelog
 
-**Version:** 2.1.46
-**Last Updated:** December 9, 2025
+**Version:** 2.1.47
+**Last Updated:** December 10, 2025
+
+## [2.1.47] - December 10, 2025
+
+### **Google Sign-In Configuration (iOS)** - ✅ Complete
+
+#### Fixes & Updates
+- Added correct `CLIENT_ID` and `REVERSED_CLIENT_ID` to `GoogleService-Info.plist`
+- Added `CFBundleURLTypes` with Google URL scheme to `Info.plist` to prevent sign-in crashes
+- Confirmed Firebase Auth Google Sign-In flow working on iOS
+- Updated documentation across `docs/` to reflect the configuration
+
+#### Status
+- **Branch**: `dev`
+- **Impact**: Eliminates Google Sign-In crash; no user-facing behavior changes beyond successful sign-in
 
 ## [2.1.46] - December 9, 2025
 

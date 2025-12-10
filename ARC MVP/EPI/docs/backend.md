@@ -1,7 +1,7 @@
 # Backend Architecture & Setup
 
-**Version:** 2.1.46  
-**Last Updated:** December 9, 2025  
+**Version:** 2.1.47  
+**Last Updated:** December 10, 2025  
 **Status:** ✅ Production Ready with Authentication
 
 ---
@@ -138,6 +138,7 @@ exports.proxyGemini = onCall(
 2. Bundle ID: `com.epi.arcmvp`
 3. Download updated `GoogleService-Info.plist`
 4. Replace file in `ios/Runner/`
+5. Add `CFBundleURLTypes` entry with `REVERSED_CLIENT_ID` (Google Sign-In callback)
 
 **Android Configuration:**
 1. Create Android OAuth 2.0 Client ID
@@ -149,6 +150,8 @@ exports.proxyGemini = onCall(
 - `CLIENT_ID` / `client_id`
 - `REVERSED_CLIENT_ID` / `oauth_client`
 - API keys and project IDs
+
+**Hotfix (Dec 10, 2025):** iOS Google Sign-In crash resolved by updating `GoogleService-Info.plist` with the correct `CLIENT_ID`/`REVERSED_CLIENT_ID` and adding the URL scheme to `Info.plist`.
 
 For complete setup instructions, see archived documentation: `archive/setup/OAUTH_SETUP.md`
 

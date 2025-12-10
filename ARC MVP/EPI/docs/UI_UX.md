@@ -1,7 +1,7 @@
 # EPI MVP - UI/UX Feature Documentation
 
-**Version:** 2.1.46
-**Last Updated:** December 9, 2025
+**Version:** 2.1.47
+**Last Updated:** December 10, 2025
 **Status:** ✅ Comprehensive Feature Analysis Complete
 
 ---
@@ -580,6 +580,7 @@ Long Press → Edit Mode | Scroll Up → Load History
 #### Settings Categories
 
 1. **👤 Account** - Sign in/out and account management
+   - Google Sign-In (iOS) configured via OAuth client + URL scheme to prevent consent-screen crashes
 2. **👥 Favorites Management** - Saved content organization
 3. **🤖 LUMARA Settings** - AI model and behavior configuration
 4. **🔒 Privacy Settings** - Data protection and redaction controls

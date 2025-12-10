@@ -1,7 +1,7 @@
 # EPI Documentation
 
-**Last Updated:** December 9, 2025  
-**Version:** 2.1.46
+**Last Updated:** December 10, 2025  
+**Version:** 2.1.47
 
 ---
 
@@ -80,6 +80,7 @@ Welcome to the EPI (Evolving Personal Intelligence) documentation. This director
   - Complete sign-in UI with account management
   - Admin privileges with unlimited access
   - Account linking preserves anonymous session data
+- 🔐 **Google Sign-In Configured (Dec 10, 2025)**: Updated iOS OAuth client and URL scheme to prevent sign-in crashes
 - 🎉 **Priority 2 Complete (v2.1.45)**: Firebase API Proxy Implementation
   - API keys now securely hidden in Firebase Functions
   - LUMARA runs on-device with full journal access (chat + in-journal reflections)

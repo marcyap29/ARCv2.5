@@ -1,7 +1,7 @@
 # EPI MVP - Comprehensive Features Guide
 
-**Version:** 2.1.46
-**Last Updated:** December 9, 2025
+**Version:** 2.1.47
+**Last Updated:** December 10, 2025
 
 ---
 
@@ -422,7 +422,7 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 
 **User Authentication System**
 - **Anonymous Auth**: Auto sign-in on first launch for immediate access
-- **Google Sign-In**: One-tap authentication with account linking
+- **Google Sign-In**: One-tap authentication with account linking (iOS configured with OAuth client + URL scheme)
 - **Email/Password**: Traditional sign up and sign in with validation
 - **Forgot Password**: Email-based password reset functionality
 - **Account Linking**: Anonymous session data preserved when upgrading to real account
