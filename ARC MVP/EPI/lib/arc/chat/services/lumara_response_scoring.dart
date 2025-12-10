@@ -2,8 +2,6 @@
 // LUMARA Response Scoring Heuristic
 // Evaluates responses for empathy:depth:agency balance and tone governance
 
-import '../prompts/archive/lumara_therapeutic_presence_data.dart';
-
 /// Phase hint for context-aware scoring
 enum PhaseHint {
   discovery,
@@ -317,25 +315,27 @@ class LumaraResponseScoring {
         .toList();
   }
 
-  /// Get varied closing phrase from existing therapeutic presence data
-  /// This uses the 75+ varied endings already defined in the system
+  /// Get conservative, context-appropriate closing phrase
+  /// NOTE: This is a fallback only. The LLM should generate contextually aligned endings
+  /// based on the master prompt instructions. This function provides safe, generic endings
+  /// when the LLM response doesn't already end with a question.
+  /// 
+  /// Conservative endings that work across contexts without introducing unrelated topics:
   static String _getTherapeuticClosingPhrase() {
-    final therapeuticData = LumaraTherapeuticPresenceData.responseMatrix['therapeutic_presence']['tone_modes'] as Map<String, dynamic>;
-
-    // Collect all closing phrases from all tone modes
-    final allClosings = <String>[];
-    for (final toneMode in therapeuticData.values) {
-      if (toneMode is Map<String, dynamic> && toneMode.containsKey('closings')) {
-        final closings = toneMode['closings'] as List<dynamic>;
-        allClosings.addAll(closings.cast<String>());
-      }
-    }
-
-    // Use time-based rotation to ensure variety without repetition patterns
+    // Use a small set of conservative, context-neutral endings that don't shift focus
+    // These are safe fallbacks that acknowledge the reflection without introducing new topics
+    const conservativeEndings = [
+      'What feels most important to you about this?',
+      'Is there anything else you want to explore here?',
+      'What would be helpful to focus on next?',
+      'How does this sit with you?',
+    ];
+    
+    // Use a simple rotation based on time (but with smaller set for more predictable behavior)
     final now = DateTime.now();
-    final index = (now.microsecond + now.second + now.minute) % allClosings.length;
-
-    return allClosings[index];
+    final index = (now.second + now.minute) % conservativeEndings.length;
+    
+    return conservativeEndings[index];
   }
 }
 

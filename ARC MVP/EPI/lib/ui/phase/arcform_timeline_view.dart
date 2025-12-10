@@ -92,7 +92,7 @@ class _ArcformTimelineViewState extends State<ArcformTimelineView> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'ARCForm Timeline',
+                    'Phase Timeline',
                     style: theme.textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.bold,
                     ),
@@ -176,7 +176,7 @@ class _ArcformTimelineViewState extends State<ArcformTimelineView> {
               Padding(
                 padding: const EdgeInsets.all(16.0),
                 child: Text(
-                  'No phase regimes found. Run Phase Analysis to generate ARCForm timeline.',
+                  'No phase regimes found. Run Phase Analysis to generate Phase timeline.',
                   style: theme.textTheme.bodyMedium?.copyWith(
                     color: Colors.grey,
                   ),
@@ -297,7 +297,7 @@ class _ArcformTimelineViewState extends State<ArcformTimelineView> {
               if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text('ARCForm data not available for $phaseName phase'),
+                    content: Text('Phase data not available for $phaseName phase'),
                     duration: const Duration(seconds: 2),
                   ),
                 );

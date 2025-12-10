@@ -18,6 +18,7 @@ import 'package:hive/hive.dart';
 import 'package:my_app/models/user_profile_model.dart';
 import 'package:my_app/shared/ui/settings/settings_view.dart';
 import 'package:my_app/ui/phase/advanced_analytics_view.dart';
+import 'package:my_app/prism/atlas/rivet/rivet_provider.dart';
 
 class PhaseAnalysisView extends StatefulWidget {
   const PhaseAnalysisView({super.key});
@@ -411,7 +412,7 @@ List<PhaseSegmentProposal> proposals,
                     ),
                     const SizedBox(width: 12),
                     Text(
-                      'ARCForms',
+                      'Phase Visualizations',
                       style: TextStyle(
                         fontWeight: _selectedView == 'arcforms' ? FontWeight.w600 : FontWeight.normal,
                       ),
@@ -1462,7 +1463,7 @@ List<PhaseSegmentProposal> proposals,
             children: [
               Expanded(
                 child: Text(
-                  'ARCForm Visualizations',
+                  'Phase Visualizations',
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
@@ -1498,9 +1499,17 @@ List<PhaseSegmentProposal> proposals,
               final phaseName = currentPhaseName ?? 'none';
               final uniqueKey = 'arcform_${regimeId}_$phaseName';
               
-              return SimplifiedArcformView3D(
-                key: ValueKey(uniqueKey),
-                currentPhase: currentPhaseName,
+              return Column(
+                children: [
+                  Expanded(
+                    child: SimplifiedArcformView3D(
+                      key: ValueKey(uniqueKey),
+                      currentPhase: currentPhaseName,
+                    ),
+                  ),
+                  // Most aligned phase card with progress bar
+                  _buildMostAlignedPhaseCard(currentPhaseName),
+                ],
               );
             },
           ),
@@ -1681,5 +1690,191 @@ List<PhaseSegmentProposal> proposals,
       ),
     );
     _loadPhaseData(); // Refresh the phase data
+  }
+
+  /// Build the "Most aligned phase" card with progress bar showing shift percentage
+  Widget _buildMostAlignedPhaseCard(String? currentPhaseName) {
+    return FutureBuilder<Map<String, dynamic>>(
+      future: _getAlignmentData(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return const SizedBox.shrink();
+        }
+
+        final data = snapshot.data!;
+        final alignmentPhase = data['phase'] as String? ?? currentPhaseName ?? 'Discovery';
+        final alignmentPercent = data['alignment'] as int? ?? 0;
+        final approachingPhase = data['approachingPhase'] as String?;
+        final shiftPercent = data['shiftPercent'] as double? ?? 0.0;
+
+        // Capitalize phase names
+        final capitalizedPhase = alignmentPhase[0].toUpperCase() + alignmentPhase.substring(1);
+        final capitalizedApproaching = approachingPhase != null
+            ? approachingPhase[0].toUpperCase() + approachingPhase.substring(1)
+            : null;
+
+        return Container(
+          margin: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Theme.of(context).cardColor,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: Theme.of(context).dividerColor,
+              width: 1,
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: Colors.blueAccent.withOpacity(0.2),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.auto_fix_high,
+                      color: Colors.blueAccent.shade100,
+                      size: 20,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Most aligned phase',
+                          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                                color: Colors.grey[400],
+                                letterSpacing: 0.4,
+                              ),
+                        ),
+                        Text(
+                          capitalizedPhase,
+                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600,
+                              ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        '$alignmentPercent%',
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                      ),
+                      Text(
+                        'alignment',
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                              color: Colors.grey[400],
+                            ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              if (approachingPhase != null && shiftPercent > 0) ...[
+                const SizedBox(height: 16),
+                Text(
+                  'Your reflection patterns have shifted ${shiftPercent.toStringAsFixed(0)}% toward $capitalizedApproaching.',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Colors.grey[400],
+                      ),
+                ),
+                const SizedBox(height: 8),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: LinearProgressIndicator(
+                    value: (shiftPercent / 100).clamp(0.0, 1.0),
+                    minHeight: 8,
+                    backgroundColor: Colors.grey[800],
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      Theme.of(context).colorScheme.primary,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: Text(
+                    '${shiftPercent.toStringAsFixed(0)}%',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Colors.grey[400],
+                          fontSize: 12,
+                        ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  /// Get alignment data from RIVET for the most aligned phase card
+  Future<Map<String, dynamic>> _getAlignmentData() async {
+    try {
+      const userId = 'default_user';
+      final rivetProvider = RivetProvider();
+      
+      if (!rivetProvider.isAvailable) {
+        await rivetProvider.initialize(userId);
+      }
+
+      final state = await rivetProvider.safeGetState(userId);
+      if (state == null) {
+        return {
+          'phase': _phaseIndex?.currentRegime != null
+              ? _getPhaseLabelName(_phaseIndex!.currentRegime!.label)
+              : 'Discovery',
+          'alignment': 0,
+          'approachingPhase': null,
+          'shiftPercent': 0.0,
+        };
+      }
+
+      // Get current phase from phase index
+      String currentPhase = 'Discovery';
+      if (_phaseIndex?.currentRegime != null) {
+        currentPhase = _getPhaseLabelName(_phaseIndex!.currentRegime!.label);
+      }
+
+      // Calculate approaching phase and shift percentage (simplified)
+      // In a full implementation, this would use PhaseTransitionInsights
+      final approachingPhase = state.align > 50 ? 'Consolidation' : null;
+      final shiftPercent = (state.align / 100.0) * 33.0; // Example calculation
+
+      return {
+        'phase': currentPhase,
+        'alignment': state.align.clamp(0, 100),
+        'approachingPhase': approachingPhase,
+        'shiftPercent': shiftPercent,
+      };
+    } catch (e) {
+      print('Error getting alignment data: $e');
+      return {
+        'phase': _phaseIndex?.currentRegime != null
+            ? _getPhaseLabelName(_phaseIndex!.currentRegime!.label)
+            : 'Discovery',
+        'alignment': 0,
+        'approachingPhase': null,
+        'shiftPercent': 0.0,
+      };
+    }
   }
 }

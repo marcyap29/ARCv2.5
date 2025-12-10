@@ -385,7 +385,7 @@ class _SimplifiedArcformView3DState extends State<SimplifiedArcformView3D> {
                     icon: const Icon(Icons.share_outlined, size: 18),
                     color: kcSecondaryTextColor,
                     onPressed: () => _showShareSheetForSnapshot(context, snapshot, phaseHint, keywords, arcformData),
-                    tooltip: 'Share this Arcform',
+                    tooltip: 'Share this Phase',
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(),
                   ),
@@ -1277,7 +1277,7 @@ class _FullScreenArcformViewer extends StatelessWidget {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('ARCForm Info', style: heading2Style(context)),
+        title: Text('Phase Info', style: heading2Style(context)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1286,7 +1286,7 @@ class _FullScreenArcformViewer extends StatelessWidget {
             Text('Nodes: ${arcform.nodes.length}'),
             Text('Edges: ${arcform.edges.length}'),
             const SizedBox(height: 16),
-            const Text('About this ARCForm:'),
+            const Text('About this Phase:'),
             Text(arcform.content ?? '', style: const TextStyle(fontSize: 12, fontStyle: FontStyle.italic)),
           ],
         ),
