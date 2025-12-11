@@ -1,7 +1,7 @@
 # EPI Documentation
 
-**Last Updated:** December 10, 2025  
-**Version:** 2.1.47
+**Last Updated:** December 11, 2025  
+**Version:** 2.1.48
 
 ---
 
@@ -68,19 +68,25 @@ Welcome to the EPI (Evolving Personal Intelligence) documentation. This director
 
 ## Version Information
 
-**Current Version:** 2.1.46
-**Last Major Update:** December 9, 2025 (Priority 3 Complete: Authentication & Security)
+**Current Version:** 2.1.48
+**Last Major Update:** December 11, 2025 (Phase System Overhaul & UI/UX Improvements)
 
 ### Recent Highlights
 
+- 🎉 **Phase System Overhaul (v2.1.48)**: Comprehensive Phase improvements
+  - RIVET-based phase calculation for accurate trend detection
+  - 10-day rolling window for phase regimes
+  - "Chisel" effect: Entry overrides feed into RIVET
+  - Navigation redesign: 4-button layout (LUMARA | Phase | Journal | +)
+  - Phase Transition Readiness and Change Phase moved to Phase tab
+  - Interactive timeline with hyperlinked entries
+  - Disabled automatic phase hashtag injection
+- 🔐 **Google Sign-In Configured (Dec 10, 2025)**: Updated iOS OAuth client and URL scheme
 - 🎉 **Priority 3 Complete (v2.1.46)**: Authentication & Security Implementation
   - Firebase Auth: Anonymous, Google, Email/Password sign-in
   - Per-entry rate limiting: 5 LUMARA comments per journal entry (free tier)
   - Per-chat rate limiting: 20 LUMARA messages per chat (free tier)
   - Complete sign-in UI with account management
-  - Admin privileges with unlimited access
-  - Account linking preserves anonymous session data
-- 🔐 **Google Sign-In Configured (Dec 10, 2025)**: Updated iOS OAuth client and URL scheme to prevent sign-in crashes
 - 🎉 **Priority 2 Complete (v2.1.45)**: Firebase API Proxy Implementation
   - API keys now securely hidden in Firebase Functions
   - LUMARA runs on-device with full journal access (chat + in-journal reflections)

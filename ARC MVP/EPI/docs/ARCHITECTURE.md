@@ -1,8 +1,8 @@
 # EPI MVP - Architecture Overview
 
-**Version:** 2.1.47
-**Last Updated:** December 10, 2025
-**Status:** ✅ Production Ready - MVP Fully Operational with Authentication
+**Version:** 2.1.48
+**Last Updated:** December 11, 2025
+**Status:** ✅ Production Ready - MVP Fully Operational with Authentication & Phase System
 
 ---
 
@@ -20,6 +20,7 @@ EPI (Evolving Personal Intelligence) is a Flutter-based intelligent journaling a
 - ✅ **Production Ready**: All critical systems stable and tested
 - ✅ **Priority 3 Authentication**: Firebase Auth with per-entry/per-chat rate limiting
 - ✅ **Google Sign-In Configured (iOS)**: OAuth client + URL scheme in place to prevent crashes
+- ✅ **Phase System Overhaul (v2.1.48)**: RIVET-based calculations, 10-day rolling windows, chisel effect
 
 ### Current Version
 

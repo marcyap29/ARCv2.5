@@ -1,7 +1,7 @@
 # EPI MVP - Comprehensive Features Guide
 
-**Version:** 2.1.47
-**Last Updated:** December 10, 2025
+**Version:** 2.1.48
+**Last Updated:** December 11, 2025
 
 ---
 
@@ -39,9 +39,10 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 **Text Journaling**
 - Rich text entry with auto-capitalization
 - Real-time keyword analysis
-- **Automatic Phase Detection**: Phase automatically detected from content using versioned inference pipeline
+- **Automatic Phase Detection**: Phase automatically detected from content using RIVET-based inference
 - **Phase Display**: Phase shown in timeline and entry editor with Auto/Manual indicators
-- **User Overrides**: Manual phase selection available for existing entries via dropdown
+- **User Overrides**: Manual phase selection available for existing entries via dropdown ("chisel" effect)
+- **Clean Content**: No automatic phase hashtags injected into content (v2.1.48)
 - Draft management with auto-save
 
 **Multimodal Journaling**
@@ -255,17 +256,27 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 
 ### Phase Visualization
 
-**Phase Timeline**
-- Visual timeline with phase regimes
-- Phase change indicators
-- Confidence badges
-- Duration display
+**Phase Timeline (v2.1.48)**
+- **Interactive Timeline Bars**: Tappable segments showing phase details
+- **10-Day Rolling Window**: Phase regimes calculated in 10-day windows
+- **Visual Hints**: Tap/swipe icons for discoverability
+- **Scrollable**: Horizontal scroll for long timelines
+- **Entry Navigation**: Hyperlinked entries for direct navigation
+- **Phase Detail Popup**: Duration, entry count, date range on tap
+
+**Phase Tab (v2.1.48)**
+- **Phase Transition Readiness Card**: Always visible, uses RIVET calculation
+- **Change Phase Button**: Manual override for last 10 days' phase
+- **Past Phases Section**: Most recent past instance of each distinct phase
+- **Example Phases Section**: Demo phases for user exploration
+- **Scrollable Content**: Entire tab scrolls together
 
 **Phase Analysis**
-- **RIVET Sweep**: Automated phase detection
+- **RIVET Sweep**: Automated phase detection with sophisticated analysis
 - **SENTINEL Analysis**: Risk monitoring
-- **Phase Recommendations**: Change readiness
+- **Phase Recommendations**: Change readiness with RIVET-based trends
 - **Phase Statistics**: Phase distribution and trends
+- **Chisel Effect**: Manual entry overrides feed into RIVET calculations
 
 ---
 

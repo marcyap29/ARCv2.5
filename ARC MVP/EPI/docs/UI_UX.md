@@ -1,7 +1,7 @@
 # EPI MVP - UI/UX Feature Documentation
 
-**Version:** 2.1.47
-**Last Updated:** December 10, 2025
+**Version:** 2.1.48
+**Last Updated:** December 11, 2025
 **Status:** ✅ Comprehensive Feature Analysis Complete
 
 ---
@@ -29,6 +29,8 @@ The EPI (Evolving Personal Intelligence) Flutter application provides a sophisti
 13. [Animation & Motion Design](#13-animation--motion-design)
 14. [Reusable UI Components](#14-reusable-ui-components)
 15. [Form Handling & Input](#15-form-handling--input)
+16. [Authentication UI](#16-authentication-ui)
+17. [Phase Tab (v2.1.48)](#17-phase-tab-v2148)
 
 ---
 
@@ -40,32 +42,32 @@ The EPI (Evolving Personal Intelligence) Flutter application provides a sophisti
 **File:** `lib/shared/ui/home/home_view.dart`
 
 **Features:**
-- **3-Tab Bottom Navigation:** Journal | LUMARA | Insights
-- **Elevated Create Button:** Floating "+" positioned above tabs
-- **Status Indicators:** (Removed - unused features)
+- **4-Button Bottom Navigation:** LUMARA | Phase | Journal | + (as of v2.1.48)
+- **Inline Create Button:** "+" button integrated into tab row
 - **Sacred Atmosphere:** Ethereal music with fade-in/out effects
 - **Gradient Background:** Navy (#0C0F14) with subtle texture
 
 **User Interaction Flow:**
 1. Launch → Ethereal music fade-in (2s)
 2. Tab selection → Smooth transition (250ms)
-3. Create button → Journal entry creation
+3. Create button (+) → Journal entry creation
 4. Status toggles → Mode activation with visual feedback
 
-#### 🎯 Custom Tab Bar System
+#### 🎯 Custom Tab Bar System (v2.1.48)
 **File:** `lib/shared/tab_bar.dart`
 
 **Implementation Details:**
-- **Animated Container Tabs:** Gradient highlighting on selection
-- **Primary Gradient:** `#4F46E5 → #7C3AED` (Indigo to Violet)
-- **Dimensions:** 100px height, 24px rounded corners
-- **Center FAB:** 37.5x37.5px with pulse animation
+- **4-Button Layout:** All buttons in single row (removed floating FAB)
+- **Gray Background:** LUMARA, Phase, Journal buttons use `kcSurfaceAltColor`
+- **Purple "+" Button:** Primary accent, centered within slot
+- **No Active Highlight:** Removed purple gradient on selected tabs
 - **Smooth Transitions:** 250ms animation duration
 
 **Tab Configuration:**
-1. **Journal Tab** → `UnifiedJournalView` → `TimelineView`
-2. **LUMARA Tab** → `LumaraAssistantScreen` (AI companion)
-3. **Insights Tab** → `UnifiedInsightsView` → `PhaseAnalysisView`
+1. **LUMARA Tab** → `LumaraAssistantScreen` (AI companion with gold logo icon)
+2. **Phase Tab** → `PhaseAnalysisView` (Phase visualization and analysis)
+3. **Journal Tab** → `UnifiedJournalView` → `TimelineView`
+4. **+ Button** → Journal entry creation
 
 ### Navigation Patterns
 - **Hierarchical Navigation:** Back button preservation with app bar
@@ -1218,8 +1220,126 @@ Long Press → Edit Mode | Scroll Up → Load History
 - **Profile Photo**: CircleAvatar with network image or fallback icon
 - **Sign Out Dialog**: Confirmation with data preservation notice
 - **Quick Navigation**: Direct link to sign-in screen
+- **Back Navigation**: AppBar with back arrow when navigated from Settings (v2.1.48)
 
 ---
 
-*This comprehensive UI/UX documentation reflects the current state of the EPI Flutter application as of December 9, 2025. The interface combines sophisticated AI integration with thoughtful human-centered design to create a meaningful personal journaling and life insight experience.*
+## 17. Phase Tab (v2.1.48)
+
+### 📊 Phase Analysis View
+**File:** `lib/ui/phase/phase_analysis_view.dart`
+
+The Phase tab (formerly "Insights") provides comprehensive phase visualization and analysis.
+
+#### Header & Navigation
+- **AppBar Title**: "Phase" (simplified from "Phase Analysis")
+- **Tab Position**: Second tab in bottom navigation (LUMARA | **Phase** | Journal | +)
+
+#### Phase Transition Readiness Card
+**Location:** Top of Phase tab, above 3D visualization
+
+**Features:**
+- **Always Visible**: Shows even when no trend detected
+- **Stable State**: Gray color, flat trend icon, "Your reflection patterns are stable in [phase]"
+- **Trending State**: Phase-colored, upward trend icon, percentage and approaching phase
+- **Info Button**: Explains what drives phase transitions
+- **RIVET Calculation**: Uses sophisticated RIVET analysis for trend detection
+
+**Visual Design:**
+- Rounded card with 16px border radius
+- Gradient progress bar showing trend percentage
+- Phase-specific color coding
+
+#### 3D Phase Visualization
+**File:** `lib/ui/phase/simplified_arcform_view_3d.dart`
+
+**Features:**
+- **Current Phase Display**: 3D constellation visualization
+- **Scrollable Content**: 3D view and all cards scroll together via `footerWidgets`
+- **Phase Info Dialog**: "Phase Info" and "About this Phase" text (renamed from ARCForm)
+- **No Metadata Chips**: Removed Nodes/Edges/Created chips for cleaner UI
+
+#### Change Phase Button
+**Location:** Below 3D visualization, above Past Phases section
+
+**Features:**
+- **Purple Outlined Style**: Purple border with black fill
+- **Purpose**: Changes last 10 days' phase regime to user's selection
+- **Phase Selection**: Modal bottom sheet with all 6 phases
+- **Immediate Feedback**: Shows phase change in timeline
+
+#### Past Phases Section
+**Features:**
+- **Most Recent Instances**: Shows most recent past instance of each distinct phase
+- **Excludes Current**: Doesn't show current phase instance
+- **Tappable Cards**: Navigate to phase details
+- **Empty State**: Minimal space when no past phases
+
+#### Example Phases Section
+**Features:**
+- **Demo Phases**: Shows phases user hasn't experienced yet
+- **Educational**: Helps users understand different phase patterns
+- **Tappable Cards**: Preview 3D constellation shapes
+
+### 📈 Current Phase Card (Timeline)
+**Location:** Bottom of scrollable Phase content
+
+**Features:**
+- **Phase Timeline Bars**: Colored segments representing phase history
+- **Interactive Segments**: Tap to view phase details, entry count, date range
+- **Visual Hints**: Tap/swipe icon and hint text for discoverability
+- **Scrollable**: Horizontal scroll for long timelines (>5 phases or >180 days)
+- **Entry Navigation**: Hyperlinked entries for direct navigation to journal
+
+#### Phase Detail Popup
+**Trigger:** Tap on timeline segment
+
+**Content:**
+- Phase name with icon
+- Duration in days
+- Entry count
+- "View X Entries" button
+
+#### Entries Bottom Sheet
+**Trigger:** "View X Entries" button in detail popup
+
+**Features:**
+- **Entry List**: All entries within the phase period
+- **Tappable Entries**: Navigate directly to journal entry
+- **Entry Preview**: Date and content snippet
+
+---
+
+## 18. Journal Tab Updates (v2.1.48)
+
+### 📝 Journal Timeline View
+**File:** `lib/arc/ui/timeline/timeline_view.dart`
+
+**Changes:**
+- **Header Text**: Changed from "Timeline" to "Journal"
+- **Simplified Phase Preview**: Removed Nodes/Edges/Tap to expand text
+- **Expanded 3D Preview**: Preview image fills available space
+
+### 🎯 Phase Preview Card
+**File:** `lib/arc/ui/timeline/widgets/current_phase_arcform_preview.dart`
+
+**Changes:**
+- **Removed Cards**: Phase Transition Readiness and Change Phase moved to Phase tab
+- **Cleaner Card**: No metadata chips, expanded 3D visualization
+- **Tappable**: Opens `FullScreenPhaseViewer` (shared with Phase tab)
+
+### 📖 Full Screen Phase Viewer
+**File:** `lib/arc/ui/timeline/widgets/current_phase_arcform_preview.dart`
+
+**Shared Component:** Used by both Journal and Phase tabs
+
+**Features:**
+- **Phase Info Dialog**: Shows "Phase Info" and "About this Phase"
+- **Share Functionality**: "Share Phase" tooltip
+- **3D Controls**: Manual rotation and zoom
+- **Empty State**: "No Phase data available" message
+
+---
+
+*This comprehensive UI/UX documentation reflects the current state of the EPI Flutter application as of December 11, 2025. The interface combines sophisticated AI integration with thoughtful human-centered design to create a meaningful personal journaling and life insight experience.*
 

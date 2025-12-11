@@ -1,9 +1,9 @@
 # Git History and Repository Documentation
 
 **Repository:** ARCv.04/ARC MVP/EPI
-**Last Updated:** December 10, 2025
-**Current Branch:** dev
-**Status:** ✅ Active Development - Priority 3 Authentication Complete (Google Sign-In configured)
+**Last Updated:** December 11, 2025
+**Current Branch:** dev-uiux-improvements
+**Status:** ✅ Active Development - Phase System Overhaul Complete (v2.1.48)
 
 ---
 
@@ -26,7 +26,8 @@ The EPI (Evolving Personal Intelligence) project maintains a comprehensive git h
 
 ### Active Branches
 - **main** - Primary production branch (stable releases)
-- **dev** - Active development branch ⭐ *Current*
+- **dev-uiux-improvements** - Active development branch ⭐ *Current*
+- **dev** - Previous development branch (Auth complete)
 - **claude-md-context-update** - Documentation updates branch
 - **backup_2025_11_30** - Local backup branch from November 30, 2025
 
@@ -96,6 +97,15 @@ The EPI (Evolving Personal Intelligence) project maintains a comprehensive git h
 - **Data Persistence**: Timeline entry protection and async improvements
 - **UI Stability**: Chat interface and data handling improvements
 - **Documentation Updates**: Comprehensive v2.1.42 documentation
+
+### 📊 Phase 7: Phase System Overhaul (December 2025)
+- **RIVET-Based Calculation**: Replaced simple phase counting with sophisticated RIVET analysis
+- **10-Day Rolling Window**: Phase regimes now use 10-day windows for better granularity
+- **Chisel Effect**: Entry phase overrides feed into RIVET calculations
+- **Navigation Redesign**: 4-button layout (LUMARA | Phase | Journal | +)
+- **Phase Tab Restructuring**: Moved cards from Journal to Phase tab
+- **Content Cleanup**: Disabled automatic phase hashtag injection
+- **Interactive Timeline**: Tappable phase segments with entry navigation
 
 ### 🔐 Phase 6: Authentication & Security (December 2025)
 - **Priority 3 Complete**: Full authentication system implementation
