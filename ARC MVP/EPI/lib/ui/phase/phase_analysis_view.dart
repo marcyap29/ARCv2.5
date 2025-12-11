@@ -8,6 +8,8 @@ import '../../services/phase_regime_service.dart';
 import '../../services/rivet_sweep_service.dart';
 import '../../services/analytics_service.dart';
 import 'package:my_app/arc/core/journal_repository.dart';
+import 'package:my_app/models/journal_entry_model.dart';
+import 'package:my_app/ui/journal/journal_screen.dart';
 import 'rivet_sweep_wizard.dart';
 import 'phase_help_screen.dart';
 import 'phase_change_readiness_card.dart';
@@ -18,7 +20,6 @@ import 'package:hive/hive.dart';
 import 'package:my_app/models/user_profile_model.dart';
 import 'package:my_app/shared/ui/settings/settings_view.dart';
 import 'package:my_app/ui/phase/advanced_analytics_view.dart';
-import 'package:my_app/prism/atlas/rivet/rivet_provider.dart';
 
 class PhaseAnalysisView extends StatefulWidget {
   const PhaseAnalysisView({super.key});
@@ -34,6 +35,11 @@ class _PhaseAnalysisViewState extends State<PhaseAnalysisView> {
   String? _error;
   RivetSweepResult? _lastSweepResult;
   bool _hasUnapprovedAnalysis = false;
+  bool _isLoadingPhaseData = false; // Guard to prevent loop
+  
+  // Trend data - calculated during load, displayed in card
+  String? _approachingPhase;
+  int _trendPercent = 0;
 
   @override
   void initState() {
@@ -44,14 +50,18 @@ class _PhaseAnalysisViewState extends State<PhaseAnalysisView> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // Reload phase data when navigating to this view to show latest changes
-    if (ModalRoute.of(context)?.isCurrent == true) {
-      _loadPhaseData();
-    }
+    // Don't reload in didChangeDependencies - it causes loops
+    // Phase data is loaded in initState and can be refreshed manually if needed
   }
 
   Future<void> _loadPhaseData() async {
+    // Prevent multiple simultaneous loads
+    if (_isLoadingPhaseData) {
+      return;
+    }
+    
     try {
+      _isLoadingPhaseData = true;
       setState(() {
         _isLoading = true;
         _error = null;
@@ -82,20 +92,106 @@ class _PhaseAnalysisViewState extends State<PhaseAnalysisView> {
 
       // Check if there's a pending analysis result from ARCX import
       await _checkPendingAnalysis();
+      
+      // Calculate trend toward next phase (synchronous calculation from entries)
+      await _calculatePhaseTrend(journalRepo);
 
       setState(() {
         _isLoading = false;
       });
       
       // Refresh ARCForms to show updated phase
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _refreshArcforms();
-      });
+      // Removed post-frame callback to prevent rendering loops
+      // The ValueKey on SimplifiedArcformView3D will handle updates automatically
     } catch (e) {
       setState(() {
         _isLoading = false;
         _error = e.toString();
       });
+    } finally {
+      // Always reset loading flag to allow future loads
+      _isLoadingPhaseData = false;
+    }
+  }
+
+  /// Calculate phase trend from recent entries
+  /// This runs during load, not during build, to avoid loops
+  Future<void> _calculatePhaseTrend(JournalRepository journalRepo) async {
+    try {
+      final currentPhase = _phaseIndex?.currentRegime?.label;
+      if (currentPhase == null) {
+        _approachingPhase = null;
+        _trendPercent = 0;
+        return;
+      }
+
+      // Get recent entries (last 10 days - matches regime minimum)
+      final allEntries = journalRepo.getAllJournalEntriesSync();
+      final tenDaysAgo = DateTime.now().subtract(const Duration(days: 10));
+      final recentEntries = allEntries
+          .where((e) => e.createdAt.isAfter(tenDaysAgo))
+          .toList();
+
+      if (recentEntries.length < 3) {
+        _approachingPhase = null;
+        _trendPercent = 0;
+        return;
+      }
+
+      // Count phases in recent entries
+      final phaseCounts = <String, int>{};
+      for (final entry in recentEntries) {
+        final entryPhase = entry.computedPhase ?? entry.autoPhase ?? entry.phase;
+        if (entryPhase != null && entryPhase.isNotEmpty) {
+          final normalized = entryPhase.toLowerCase();
+          phaseCounts[normalized] = (phaseCounts[normalized] ?? 0) + 1;
+        }
+      }
+
+      if (phaseCounts.isEmpty) {
+        _approachingPhase = null;
+        _trendPercent = 0;
+        return;
+      }
+
+      // Current phase name normalized
+      final currentPhaseName = _getPhaseLabelName(currentPhase).toLowerCase();
+      
+      // Find the most common phase that's NOT the current phase
+      String? nextMostCommon;
+      int nextMostCount = 0;
+      
+      for (final entry in phaseCounts.entries) {
+        if (entry.key != currentPhaseName && entry.value > nextMostCount) {
+          nextMostCommon = entry.key;
+          nextMostCount = entry.value;
+        }
+      }
+
+      if (nextMostCommon == null || nextMostCount == 0) {
+        _approachingPhase = null;
+        _trendPercent = 0;
+        return;
+      }
+
+      // Calculate percentage: (entries with next phase) / (total recent entries) * 100
+      final totalRecentWithPhase = phaseCounts.values.fold(0, (sum, c) => sum + c);
+      final percent = ((nextMostCount / totalRecentWithPhase) * 100).round();
+
+      // Only show trend if it's meaningful (> 15%)
+      if (percent > 15) {
+        _approachingPhase = nextMostCommon[0].toUpperCase() + nextMostCommon.substring(1);
+        _trendPercent = percent;
+      } else {
+        _approachingPhase = null;
+        _trendPercent = 0;
+      }
+      
+      print('DEBUG: Phase trend - approaching: $_approachingPhase, percent: $_trendPercent%');
+    } catch (e) {
+      print('DEBUG: Error calculating phase trend: $e');
+      _approachingPhase = null;
+      _trendPercent = 0;
     }
   }
 
@@ -1474,59 +1570,931 @@ List<PhaseSegmentProposal> proposals,
         ),
         // Simplified view below
         Expanded(
-          child: Builder(
-            builder: (context) {
-              // Get current phase - prioritize currentRegime, fallback to most recent regime
-              String? currentPhaseName;
-              if (_phaseIndex?.currentRegime != null) {
-                currentPhaseName = _getPhaseLabelName(_phaseIndex!.currentRegime!.label);
-                print('DEBUG: phase_analysis_view - Using currentRegime: $currentPhaseName');
-              } else if (_phaseIndex?.allRegimes.isNotEmpty == true) {
-                // No current ongoing regime, use most recent one
-                final sortedRegimes = List.from(_phaseIndex!.allRegimes)..sort((a, b) => b.start.compareTo(a.start));
-                currentPhaseName = _getPhaseLabelName(sortedRegimes.first.label);
-                print('DEBUG: phase_analysis_view - No current regime, using most recent: $currentPhaseName');
-              } else {
-                print('DEBUG: phase_analysis_view - No regimes found, passing null');
-              }
-              
-              print('DEBUG: phase_analysis_view - Passing currentPhase to SimplifiedArcformView3D: $currentPhaseName');
-              print('DEBUG: phase_analysis_view - currentRegime ID: ${_phaseIndex?.currentRegime?.id}');
-              print('DEBUG: phase_analysis_view - Total regimes: ${_phaseIndex?.allRegimes.length ?? 0}');
-              
-              // Create a unique key that includes both the regime ID and phase name to force rebuild
-              final regimeId = _phaseIndex?.currentRegime?.id ?? 'none';
-              final phaseName = currentPhaseName ?? 'none';
-              final uniqueKey = 'arcform_${regimeId}_$phaseName';
-              
-              return Column(
-                children: [
-                  Expanded(
-                    child: SimplifiedArcformView3D(
-                      key: ValueKey(uniqueKey),
-                      currentPhase: currentPhaseName,
-                    ),
-                  ),
-                  // Most aligned phase card with progress bar
-                  _buildMostAlignedPhaseCard(currentPhaseName),
-                ],
-              );
-            },
-          ),
+          child: _buildArcformContent(),
         ),
       ],
     );
   }
 
 
+  /// Build arcform content widget
+  Widget _buildArcformContent() {
+    // Get current phase - prioritize currentRegime, fallback to most recent regime
+    String? currentPhaseName;
+    if (_phaseIndex?.currentRegime != null) {
+      currentPhaseName = _getPhaseLabelName(_phaseIndex!.currentRegime!.label);
+    } else if (_phaseIndex?.allRegimes.isNotEmpty == true) {
+      // No current ongoing regime, use most recent one
+      final sortedRegimes = List.from(_phaseIndex!.allRegimes)..sort((a, b) => b.start.compareTo(a.start));
+      currentPhaseName = _getPhaseLabelName(sortedRegimes.first.label);
+    }
+    
+    // Create a unique key that includes both the regime ID and phase name
+    final regimeId = _phaseIndex?.currentRegime?.id ?? 'none';
+    final phaseName = currentPhaseName ?? 'none';
+    final uniqueKey = 'arcform_${regimeId}_$phaseName';
+    
+    return Column(
+      children: [
+        Expanded(
+          child: SimplifiedArcformView3D(
+            key: ValueKey(uniqueKey),
+            currentPhase: currentPhaseName,
+          ),
+        ),
+        // Simpler Most Aligned Phase card - no async, no CustomPaint
+        _buildSimpleMostAlignedCard(currentPhaseName),
+      ],
+    );
+  }
+
+  /// Simple Most Aligned Phase card - uses only synchronous data from _phaseIndex
+  /// No FutureBuilder, no CustomPaint, no async calls during build
+  Widget _buildSimpleMostAlignedCard(String? currentPhaseName) {
+    final phase = currentPhaseName ?? 'Discovery';
+    final capitalizedPhase = phase[0].toUpperCase() + phase.substring(1);
+    final phaseColor = _getPhaseColor(phase);
+    
+    // Calculate days in current/most recent phase
+    int daysInPhase = 0;
+    bool isOngoing = false;
+    
+    if (_phaseIndex?.currentRegime != null) {
+      // Ongoing regime exists
+      daysInPhase = DateTime.now().difference(_phaseIndex!.currentRegime!.start).inDays;
+      isOngoing = true;
+    } else if (_phaseIndex?.allRegimes.isNotEmpty == true) {
+      // No ongoing regime - use most recent one
+      final sortedRegimes = List.from(_phaseIndex!.allRegimes)
+        ..sort((a, b) => b.start.compareTo(a.start));
+      final mostRecent = sortedRegimes.first;
+      final regimeEnd = mostRecent.end ?? DateTime.now();
+      daysInPhase = regimeEnd.difference(mostRecent.start).inDays;
+      isOngoing = false;
+    }
+    
+    return Container(
+      margin: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: Theme.of(context).dividerColor,
+          width: 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header row
+          Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: phaseColor.withOpacity(0.2),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.auto_fix_high,
+                  color: phaseColor,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Current Phase',
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                            color: Colors.grey[400],
+                            letterSpacing: 0.4,
+                          ),
+                    ),
+                    Text(
+                      capitalizedPhase,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
+                          ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        '$daysInPhase',
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                      ),
+                      if (isOngoing)
+                        Padding(
+                          padding: const EdgeInsets.only(left: 4),
+                          child: Container(
+                            width: 8,
+                            height: 8,
+                            decoration: BoxDecoration(
+                              color: Colors.green,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  Text(
+                    isOngoing 
+                        ? (daysInPhase == 1 ? 'day' : 'days')
+                        : (daysInPhase == 1 ? 'day duration' : 'days duration'),
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: isOngoing ? Colors.grey[400] : Colors.grey[500],
+                          fontSize: 10,
+                        ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          
+          // Simple timeline using Row of Containers (not CustomPaint)
+          if (_phaseIndex != null && _phaseIndex!.allRegimes.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            Text(
+              'Phase Timeline',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Colors.grey[400],
+                    fontWeight: FontWeight.w500,
+                  ),
+            ),
+            const SizedBox(height: 8),
+            _buildSimpleTimeline(),
+          ],
+          
+          // Trend toward next phase (calculated during load, not build)
+          if (_approachingPhase != null && _trendPercent > 0) ...[
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: _getPhaseColor(_approachingPhase!).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: _getPhaseColor(_approachingPhase!).withOpacity(0.3),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.trending_up,
+                    color: _getPhaseColor(_approachingPhase!),
+                    size: 18,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      '$_trendPercent% of recent entries suggest $_approachingPhase',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: Colors.grey[300],
+                          ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  /// Build an interactive timeline using Row of colored Containers
+  /// Tappable segments show details, with legend below
+  /// Scrollable horizontally when there are many phases
+  Widget _buildSimpleTimeline() {
+    if (_phaseIndex == null || _phaseIndex!.allRegimes.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    final regimes = List.from(_phaseIndex!.allRegimes)
+      ..sort((a, b) => a.start.compareTo(b.start));
+
+    // Calculate total time span
+    final earliestStart = regimes.first.start;
+    final latestEnd = regimes.last.end ?? DateTime.now();
+    final totalDuration = latestEnd.difference(earliestStart).inMilliseconds;
+    final totalDays = latestEnd.difference(earliestStart).inDays;
+    
+    if (totalDuration == 0) {
+      return const SizedBox.shrink();
+    }
+
+    // Determine if scrolling is needed (more than 5 phases or timeline > 180 days)
+    final needsScroll = regimes.length > 5 || totalDays > 180;
+    final minSegmentWidth = needsScroll ? 70.0 : 40.0; // Minimum width per segment
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Timeline bar with interaction hint
+        Stack(
+          children: [
+            Container(
+              height: 44,
+              decoration: BoxDecoration(
+                border: Border.all(color: Theme.of(context).dividerColor),
+                borderRadius: BorderRadius.circular(8),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(7),
+                child: needsScroll
+                    ? _buildScrollableTimeline(regimes, totalDuration, minSegmentWidth)
+                    : _buildFixedTimeline(regimes, totalDuration),
+              ),
+            ),
+            // Tap hint indicator (small touch icon)
+            Positioned(
+              right: 4,
+              top: 4,
+              child: Container(
+                padding: const EdgeInsets.all(2),
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.3),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Icon(
+                  needsScroll ? Icons.swipe : Icons.touch_app,
+                  size: 12,
+                  color: Colors.white.withOpacity(0.7),
+                ),
+              ),
+            ),
+          ],
+        ),
+        
+        // Hint text
+        Padding(
+          padding: const EdgeInsets.only(top: 4),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.info_outline,
+                size: 10,
+                color: Colors.grey[600],
+              ),
+              const SizedBox(width: 4),
+              Text(
+                needsScroll 
+                    ? 'Swipe to scroll • Tap any phase for details'
+                    : 'Tap any phase to see details',
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: Colors.grey[600],
+                      fontSize: 9,
+                      fontStyle: FontStyle.italic,
+                    ),
+              ),
+            ],
+          ),
+        ),
+        
+        const SizedBox(height: 8),
+        
+        // Date range and total duration
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              _formatShortDate(earliestStart),
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: Colors.grey[500],
+                    fontSize: 10,
+                  ),
+            ),
+            Text(
+              '$totalDays days total • ${regimes.length} phases',
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: Colors.grey[500],
+                    fontSize: 10,
+                  ),
+            ),
+            Text(
+              _formatShortDate(latestEnd),
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: Colors.grey[500],
+                    fontSize: 10,
+                  ),
+            ),
+          ],
+        ),
+        
+        const SizedBox(height: 12),
+        
+        // Legend (only show if more than one phase type)
+        _buildPhaseLegend(regimes),
+      ],
+    );
+  }
+
+  /// Build scrollable timeline for many phases
+  Widget _buildScrollableTimeline(List<dynamic> regimes, int totalDuration, double minWidth) {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      physics: const BouncingScrollPhysics(),
+      child: Row(
+        children: regimes.map((regime) {
+          final regimeStart = regime.start as DateTime;
+          final regimeEnd = (regime.end ?? DateTime.now()) as DateTime;
+          final regimeDuration = regimeEnd.difference(regimeStart).inMilliseconds;
+          final regimeDays = regimeEnd.difference(regimeStart).inDays;
+          
+          // Calculate width proportional to duration, with minimum
+          final proportionalWidth = (regimeDuration / totalDuration) * 300; // Base width of 300
+          final segmentWidth = proportionalWidth.clamp(minWidth, 150.0);
+          
+          final phaseName = _getPhaseLabelName(regime.label);
+          final phaseColor = _getPhaseColor(phaseName);
+          final capitalizedName = phaseName[0].toUpperCase() + phaseName.substring(1);
+          
+          return SizedBox(
+            width: segmentWidth,
+            height: 44,
+            child: Material(
+              color: phaseColor.withOpacity(0.85),
+              child: InkWell(
+                onTap: () => _showRegimeDetailPopup(regime, regimeDays),
+                splashColor: Colors.white.withOpacity(0.3),
+                highlightColor: Colors.white.withOpacity(0.1),
+                child: Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.white.withOpacity(0.1),
+                        Colors.transparent,
+                        Colors.black.withOpacity(0.1),
+                      ],
+                    ),
+                    border: Border(
+                      right: BorderSide(
+                        color: Colors.black.withOpacity(0.2),
+                        width: 1,
+                      ),
+                    ),
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        capitalizedName,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          shadows: [Shadow(color: Colors.black26, blurRadius: 2)],
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      Text(
+                        '${regimeDays}d',
+                        style: TextStyle(
+                          color: Colors.white.withOpacity(0.9),
+                          fontSize: 9,
+                          shadows: const [Shadow(color: Colors.black26, blurRadius: 2)],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  /// Build fixed (non-scrollable) timeline for fewer phases
+  Widget _buildFixedTimeline(List<dynamic> regimes, int totalDuration) {
+    return Row(
+      children: regimes.map((regime) {
+        final regimeStart = regime.start as DateTime;
+        final regimeEnd = (regime.end ?? DateTime.now()) as DateTime;
+        final regimeDuration = regimeEnd.difference(regimeStart).inMilliseconds;
+        final regimeDays = regimeEnd.difference(regimeStart).inDays;
+        
+        // Calculate flex weight (proportional to duration)
+        final flexWeight = (regimeDuration / totalDuration * 100).round().clamp(1, 100);
+        
+        final phaseName = _getPhaseLabelName(regime.label);
+        final phaseColor = _getPhaseColor(phaseName);
+        final capitalizedName = phaseName[0].toUpperCase() + phaseName.substring(1);
+        
+        return Expanded(
+          flex: flexWeight,
+          child: Material(
+            color: phaseColor.withOpacity(0.85),
+            child: InkWell(
+              onTap: () => _showRegimeDetailPopup(regime, regimeDays),
+              splashColor: Colors.white.withOpacity(0.3),
+              highlightColor: Colors.white.withOpacity(0.1),
+              child: Container(
+                height: 44,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.white.withOpacity(0.1),
+                      Colors.transparent,
+                      Colors.black.withOpacity(0.1),
+                    ],
+                  ),
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    if (flexWeight > 20)
+                      Text(
+                        capitalizedName,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          shadows: [Shadow(color: Colors.black26, blurRadius: 2)],
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      )
+                    else if (flexWeight > 8)
+                      Text(
+                        phaseName.substring(0, 1).toUpperCase(),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          shadows: [Shadow(color: Colors.black26, blurRadius: 2)],
+                        ),
+                      ),
+                    if (flexWeight > 15)
+                      Text(
+                        '${regimeDays}d',
+                        style: TextStyle(
+                          color: Colors.white.withOpacity(0.9),
+                          fontSize: 9,
+                          shadows: const [Shadow(color: Colors.black26, blurRadius: 2)],
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  /// Show popup with regime details when tapped
+  void _showRegimeDetailPopup(dynamic regime, int days) {
+    final phaseName = _getPhaseLabelName(regime.label);
+    final capitalizedName = phaseName[0].toUpperCase() + phaseName.substring(1);
+    final phaseColor = _getPhaseColor(phaseName);
+    final regimeStart = regime.start as DateTime;
+    final regimeEnd = (regime.end ?? DateTime.now()) as DateTime;
+    final isOngoing = regime.end == null;
+    
+    // Count entries in this phase
+    final journalRepo = JournalRepository();
+    final allEntries = journalRepo.getAllJournalEntriesSync();
+    final phaseEntries = allEntries.where((entry) {
+      return entry.createdAt.isAfter(regimeStart.subtract(const Duration(days: 1))) &&
+             entry.createdAt.isBefore(regimeEnd.add(const Duration(days: 1)));
+    }).toList()..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Theme.of(context).cardColor,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Container(
+              width: 12,
+              height: 12,
+              decoration: BoxDecoration(
+                color: phaseColor,
+                shape: BoxShape.circle,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                capitalizedName,
+                style: TextStyle(color: phaseColor, fontWeight: FontWeight.bold),
+              ),
+            ),
+            if (isOngoing)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.green.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: const Text(
+                  'Current',
+                  style: TextStyle(fontSize: 10, color: Colors.green),
+                ),
+              ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildDetailRow(Icons.calendar_today, 'Started', _formatFullDate(regimeStart)),
+            const SizedBox(height: 8),
+            _buildDetailRow(
+              Icons.event,
+              isOngoing ? 'Ongoing' : 'Ended',
+              isOngoing ? 'Present' : _formatFullDate(regimeEnd),
+            ),
+            const SizedBox(height: 8),
+            _buildDetailRow(Icons.timelapse, 'Duration', '$days days'),
+            const SizedBox(height: 8),
+            _buildDetailRow(Icons.article, 'Entries', '${phaseEntries.length}'),
+            const SizedBox(height: 16),
+            Text(
+              _getPhaseDescription(phaseName),
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Colors.grey[400],
+                    fontStyle: FontStyle.italic,
+                  ),
+            ),
+            
+            // View entries button
+            if (phaseEntries.isNotEmpty) ...[
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                    _showPhaseEntriesSheet(capitalizedName, phaseColor, phaseEntries, regimeStart, regimeEnd);
+                  },
+                  icon: const Icon(Icons.list_alt, size: 18),
+                  label: Text('View ${phaseEntries.length} Entries'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: phaseColor,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Show bottom sheet with entries from a specific phase
+  void _showPhaseEntriesSheet(
+    String phaseName,
+    Color phaseColor,
+    List<JournalEntry> entries,
+    DateTime startDate,
+    DateTime endDate,
+  ) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.7,
+        minChildSize: 0.4,
+        maxChildSize: 0.95,
+        builder: (context, scrollController) => Container(
+          decoration: BoxDecoration(
+            color: Theme.of(context).scaffoldBackgroundColor,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: Column(
+            children: [
+              // Handle bar
+              Container(
+                margin: const EdgeInsets.only(top: 12),
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey[600],
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              
+              // Header
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 8,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: phaseColor,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '$phaseName Phase',
+                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                          ),
+                          Text(
+                            '${_formatShortDate(startDate)} – ${_formatShortDate(endDate)} • ${entries.length} entries',
+                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                  color: Colors.grey[500],
+                                ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      icon: const Icon(Icons.close),
+                    ),
+                  ],
+                ),
+              ),
+              
+              const Divider(height: 1),
+              
+              // Entries list
+              Expanded(
+                child: ListView.builder(
+                  controller: scrollController,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  itemCount: entries.length,
+                  itemBuilder: (context, index) {
+                    final entry = entries[index];
+                    return _buildEntryCard(entry, phaseColor);
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Build a card for an entry in the phase entries list
+  Widget _buildEntryCard(JournalEntry entry, Color phaseColor) {
+    final preview = entry.content.length > 100 
+        ? '${entry.content.substring(0, 100)}...' 
+        : entry.content;
+    
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: InkWell(
+        onTap: () {
+          // Navigate to the entry
+          Navigator.of(context).pop(); // Close the bottom sheet
+          // Navigate to journal entry using MaterialPageRoute
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (context) => JournalScreen(
+                initialContent: entry.content,
+                selectedEmotion: entry.emotion,
+                selectedReason: entry.emotionReason,
+                existingEntry: entry,
+                isViewOnly: true, // Open in view mode first
+              ),
+            ),
+          );
+        },
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 4,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: phaseColor.withOpacity(0.6),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          entry.title.isNotEmpty ? entry.title : 'Untitled',
+                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                fontWeight: FontWeight.w600,
+                              ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          _formatFullDate(entry.createdAt),
+                          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                                color: Colors.grey[500],
+                              ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Icon(
+                    Icons.chevron_right,
+                    color: Colors.grey[600],
+                    size: 20,
+                  ),
+                ],
+              ),
+              if (preview.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Text(
+                  preview,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Colors.grey[400],
+                      ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+              if (entry.media.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Icon(Icons.photo, size: 14, color: Colors.grey[500]),
+                    const SizedBox(width: 4),
+                    Text(
+                      '${entry.media.length} media',
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                            color: Colors.grey[500],
+                          ),
+                    ),
+                  ],
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDetailRow(IconData icon, String label, String value) {
+    return Row(
+      children: [
+        Icon(icon, size: 16, color: Colors.grey[500]),
+        const SizedBox(width: 8),
+        Text(
+          '$label: ',
+          style: TextStyle(color: Colors.grey[500], fontSize: 12),
+        ),
+        Text(
+          value,
+          style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 12),
+        ),
+      ],
+    );
+  }
+
+  String _getPhaseDescription(String phase) {
+    switch (phase.toLowerCase()) {
+      case 'discovery':
+        return 'A time of exploration, curiosity, and learning new things about yourself.';
+      case 'expansion':
+        return 'A period of growth, taking on challenges, and expanding your horizons.';
+      case 'transition':
+        return 'A time of change, adapting to new circumstances, and finding balance.';
+      case 'consolidation':
+        return 'A period of integration, solidifying gains, and building on progress.';
+      case 'recovery':
+        return 'A time of rest, healing, and gentle self-care.';
+      case 'breakthrough':
+        return 'A moment of clarity, revelation, and transformative insight.';
+      default:
+        return 'A unique period in your journey.';
+    }
+  }
+
+  /// Build legend showing phase colors
+  Widget _buildPhaseLegend(List<dynamic> regimes) {
+    // Get unique phases from regimes
+    final uniquePhases = regimes.map((r) => _getPhaseLabelName(r.label)).toSet().toList();
+    
+    if (uniquePhases.length <= 1) {
+      return const SizedBox.shrink();
+    }
+
+    return Wrap(
+      spacing: 12,
+      runSpacing: 4,
+      children: uniquePhases.map((phase) {
+        final phaseColor = _getPhaseColor(phase);
+        final capitalizedName = phase[0].toUpperCase() + phase.substring(1);
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 10,
+              height: 10,
+              decoration: BoxDecoration(
+                color: phaseColor,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(width: 4),
+            Text(
+              capitalizedName,
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: Colors.grey[400],
+                    fontSize: 10,
+                  ),
+            ),
+          ],
+        );
+      }).toList(),
+    );
+  }
+
+  String _formatShortDate(DateTime date) {
+    return '${date.month}/${date.day}/${date.year.toString().substring(2)}';
+  }
+
+  String _formatFullDate(DateTime date) {
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return '${months[date.month - 1]} ${date.day}, ${date.year}';
+  }
+
+  /// Get color for phase name
+  Color _getPhaseColor(String phase) {
+    switch (phase.toLowerCase()) {
+      case 'discovery':
+        return Colors.blue;
+      case 'expansion':
+        return Colors.green;
+      case 'transition':
+        return Colors.orange;
+      case 'consolidation':
+        return Colors.purple;
+      case 'recovery':
+        return Colors.red;
+      case 'breakthrough':
+        return Colors.amber;
+      default:
+        return Colors.grey;
+    }
+  }
+
   /// Refresh ARCForms when phase changes occur
   void _refreshArcforms() {
-    // Force rebuild by updating state - the ValueKey will ensure widget rebuilds
-    if (mounted) {
-      setState(() {
-        // Trigger rebuild - the ValueKey on SimplifiedArcformView3D will force recreation
-      });
-    }
+    // Don't call setState here - it causes rendering loops
+    // The ValueKey on SimplifiedArcformView3D will handle updates when phase changes
   }
 
   /// Comprehensive refresh of all phase-related components after RIVET Sweep
@@ -1692,189 +2660,9 @@ List<PhaseSegmentProposal> proposals,
     _loadPhaseData(); // Refresh the phase data
   }
 
-  /// Build the "Most aligned phase" card with progress bar showing shift percentage
-  Widget _buildMostAlignedPhaseCard(String? currentPhaseName) {
-    return FutureBuilder<Map<String, dynamic>>(
-      future: _getAlignmentData(),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) {
-          return const SizedBox.shrink();
-        }
-
-        final data = snapshot.data!;
-        final alignmentPhase = data['phase'] as String? ?? currentPhaseName ?? 'Discovery';
-        final alignmentPercent = data['alignment'] as int? ?? 0;
-        final approachingPhase = data['approachingPhase'] as String?;
-        final shiftPercent = data['shiftPercent'] as double? ?? 0.0;
-
-        // Capitalize phase names
-        final capitalizedPhase = alignmentPhase[0].toUpperCase() + alignmentPhase.substring(1);
-        final capitalizedApproaching = approachingPhase != null
-            ? approachingPhase[0].toUpperCase() + approachingPhase.substring(1)
-            : null;
-
-        return Container(
-          margin: const EdgeInsets.all(16),
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Theme.of(context).cardColor,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: Theme.of(context).dividerColor,
-              width: 1,
-            ),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: Colors.blueAccent.withOpacity(0.2),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      Icons.auto_fix_high,
-                      color: Colors.blueAccent.shade100,
-                      size: 20,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Most aligned phase',
-                          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                                color: Colors.grey[400],
-                                letterSpacing: 0.4,
-                              ),
-                        ),
-                        Text(
-                          capitalizedPhase,
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w600,
-                              ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Text(
-                        '$alignmentPercent%',
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                            ),
-                      ),
-                      Text(
-                        'alignment',
-                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                              color: Colors.grey[400],
-                            ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-              if (approachingPhase != null && shiftPercent > 0) ...[
-                const SizedBox(height: 16),
-                Text(
-                  'Your reflection patterns have shifted ${shiftPercent.toStringAsFixed(0)}% toward $capitalizedApproaching.',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Colors.grey[400],
-                      ),
-                ),
-                const SizedBox(height: 8),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(4),
-                  child: LinearProgressIndicator(
-                    value: (shiftPercent / 100).clamp(0.0, 1.0),
-                    minHeight: 8,
-                    backgroundColor: Colors.grey[800],
-                    valueColor: AlwaysStoppedAnimation<Color>(
-                      Theme.of(context).colorScheme.primary,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: Text(
-                    '${shiftPercent.toStringAsFixed(0)}%',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Colors.grey[400],
-                          fontSize: 12,
-                        ),
-                  ),
-                ),
-              ],
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  /// Get alignment data from RIVET for the most aligned phase card
-  Future<Map<String, dynamic>> _getAlignmentData() async {
-    try {
-      const userId = 'default_user';
-      final rivetProvider = RivetProvider();
-      
-      if (!rivetProvider.isAvailable) {
-        await rivetProvider.initialize(userId);
-      }
-
-      final state = await rivetProvider.safeGetState(userId);
-      if (state == null) {
-        return {
-          'phase': _phaseIndex?.currentRegime != null
-              ? _getPhaseLabelName(_phaseIndex!.currentRegime!.label)
-              : 'Discovery',
-          'alignment': 0,
-          'approachingPhase': null,
-          'shiftPercent': 0.0,
-        };
-      }
-
-      // Get current phase from phase index
-      String currentPhase = 'Discovery';
-      if (_phaseIndex?.currentRegime != null) {
-        currentPhase = _getPhaseLabelName(_phaseIndex!.currentRegime!.label);
-      }
-
-      // Calculate approaching phase and shift percentage (simplified)
-      // In a full implementation, this would use PhaseTransitionInsights
-      final approachingPhase = state.align > 50 ? 'Consolidation' : null;
-      final shiftPercent = (state.align / 100.0) * 33.0; // Example calculation
-
-      return {
-        'phase': currentPhase,
-        'alignment': state.align.clamp(0, 100),
-        'approachingPhase': approachingPhase,
-        'shiftPercent': shiftPercent,
-      };
-    } catch (e) {
-      print('Error getting alignment data: $e');
-      return {
-        'phase': _phaseIndex?.currentRegime != null
-            ? _getPhaseLabelName(_phaseIndex!.currentRegime!.label)
-            : 'Discovery',
-        'alignment': 0,
-        'approachingPhase': null,
-        'shiftPercent': 0.0,
-      };
-    }
-  }
+  // Most Aligned Phase card temporarily disabled to fix rendering loop
+  // TODO: Re-implement with proper state isolation
 }
+
+// Most Aligned Phase card and Gantt timeline painter removed temporarily
+// to fix rendering loop issue. Will re-implement with proper state isolation.

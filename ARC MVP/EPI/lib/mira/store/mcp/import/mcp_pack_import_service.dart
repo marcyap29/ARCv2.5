@@ -10,6 +10,8 @@ import 'package:my_app/arc/core/journal_repository.dart';
 import 'package:my_app/core/utils/timestamp_parser.dart';
 import 'package:my_app/core/utils/title_generator.dart';
 import 'package:my_app/services/phase_regime_service.dart';
+import 'package:my_app/services/analytics_service.dart';
+import 'package:my_app/services/rivet_sweep_service.dart';
 import 'package:my_app/arc/chat/services/favorites_service.dart';
 import 'package:my_app/arc/chat/data/models/lumara_favorite.dart';
 import 'package:my_app/prism/atlas/rivet/rivet_storage.dart';
@@ -132,6 +134,22 @@ class McpPackImportService {
 
       // Clean up temporary directory (always extracted from ZIP)
       await mcpDir.parent.delete(recursive: true);
+
+      // Rebuild phase regimes using 10-day rolling windows for imported entries
+      if (entriesImported > 0 && _journalRepo != null) {
+        try {
+          print('🔄 Rebuilding phase regimes for imported entries...');
+          final allEntries = _journalRepo!.getAllJournalEntriesSync();
+          final analyticsService = AnalyticsService();
+          final rivetSweepService = RivetSweepService(analyticsService);
+          final phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
+          await phaseRegimeService.initialize();
+          await phaseRegimeService.rebuildRegimesFromEntries(allEntries, windowDays: 10);
+          print('✅ Phase regimes rebuilt using 10-day rolling windows');
+        } catch (e) {
+          print('⚠️ Failed to rebuild phase regimes: $e');
+        }
+      }
 
       return McpImportResult(
         success: true,
@@ -522,9 +540,15 @@ class McpPackImportService {
           // Create journal entry
           JournalEntry journalEntry;
           try {
+            // Use exported title if available, otherwise generate from content
+            final exportedTitle = entryJson['title'] as String?;
+            final title = (exportedTitle != null && exportedTitle.isNotEmpty)
+                ? exportedTitle
+                : TitleGenerator.forImportedEntry(entryJson['content'] as String? ?? '');
+            
             journalEntry = JournalEntry(
               id: entryId,
-            title: TitleGenerator.forImportedEntry(entryJson['content'] as String? ?? ''),
+            title: title,
             content: entryJson['content'] as String? ?? '',
             createdAt: () {
               final timestampResult = TimestampParser.parseEntryTimestamp(entryJson['timestamp'] as String);

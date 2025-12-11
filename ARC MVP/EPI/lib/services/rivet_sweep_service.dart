@@ -16,9 +16,9 @@ class RivetSweepService {
   // final AnalyticsService _analytics; // TODO: Use analytics
   
   // Configuration - Minimum regime durations ensure meaningful life periods
-  static const Duration _minRegimeDuration = Duration(days: 14); // Minimum 2 weeks per regime
-  static const Duration _preferredMinDuration = Duration(days: 21); // Preferred 3 weeks minimum
-  static const Duration _shortTermThreshold = Duration(days: 7); // Flag regimes shorter than 1 week
+  static const Duration _minRegimeDuration = Duration(days: 10); // Minimum 10 days per regime
+  static const Duration _preferredMinDuration = Duration(days: 14); // Preferred 2 weeks minimum
+  static const Duration _shortTermThreshold = Duration(days: 5); // Flag regimes shorter than 5 days
   static const double _minConfidence = 0.70;
   static const double _reviewConfidence = 0.50;
   static const double _hysteresisThreshold = 0.15;

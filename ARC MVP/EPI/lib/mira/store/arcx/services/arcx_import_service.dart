@@ -464,6 +464,23 @@ class ARCXImportService {
           print('ARCX Import: Dry run - no data merged');
         } else {
           print('ARCX Import: ✓ Data merged to repository');
+          
+          // Rebuild phase regimes using 10-day rolling windows for imported entries
+          if (entriesImported > 0 && _journalRepo != null) {
+            try {
+              print('ARCX Import: 🔄 Rebuilding phase regimes...');
+              final allEntries = _journalRepo!.getAllJournalEntriesSync();
+              final analyticsService = AnalyticsService();
+              final rivetSweepService = RivetSweepService(analyticsService);
+              final phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
+              await phaseRegimeService.initialize();
+              await phaseRegimeService.rebuildRegimesFromEntries(allEntries, windowDays: 10);
+              print('ARCX Import: ✅ Phase regimes rebuilt using 10-day rolling windows');
+            } catch (e) {
+              print('ARCX Import: ⚠️ Failed to rebuild phase regimes: $e');
+              warnings.add('Phase regime rebuild failed: $e');
+            }
+          }
         }
         
         return ARCXImportResult.success(
@@ -586,8 +603,11 @@ class ARCXImportService {
       // Extract metadata if present
       final metadata = nodeJson['metadata'] as Map<String, dynamic>?;
       
-      // Generate title from content (first line or first 50 chars)
-      final title = TitleGenerator.forImportedEntry(content);
+      // Use exported title if available, otherwise generate from content
+      final exportedTitle = nodeJson['title'] as String?;
+      final title = (exportedTitle != null && exportedTitle.isNotEmpty)
+          ? exportedTitle
+          : TitleGenerator.forImportedEntry(content);
       
       // Process media items with robust fallback detection
       // Media deduplication: _mediaCache prevents duplicate MediaItem objects when multiple entries

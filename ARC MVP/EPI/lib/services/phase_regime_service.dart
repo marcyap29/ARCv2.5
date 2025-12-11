@@ -63,100 +63,125 @@ class PhaseRegimeService {
     return _phaseIndex ?? PhaseIndex([]);
   }
 
-  /// Rebuild phase regimes from journal entries by aggregating per-day phases and enforcing a minimum regime duration.
-  /// This aligns Timeline with Rivet analysis while smoothing single-entry noise.
-  Future<void> rebuildRegimesFromEntries(List<JournalEntry> entries, {int minDays = 14}) async {
+  /// Rebuild phase regimes using a ROLLING 10-DAY WINDOW approach.
+  /// 
+  /// How it works:
+  /// 1. Sort all entries chronologically
+  /// 2. Group entries into 10-day windows
+  /// 3. For each window, count the autoPhase of each entry
+  /// 4. The dominant phase becomes that window's regime
+  /// 5. Adjacent windows with the same phase get merged
+  /// 
+  /// This preserves phase diversity (Discovery, Transition, Consolidation, etc.)
+  /// instead of merging everything into one dominant phase.
+  Future<void> rebuildRegimesFromEntries(List<JournalEntry> entries, {int windowDays = 10}) async {
     if (entries.isEmpty) {
       return;
     }
 
-    // Group entries by day and pick a dominant phase per day
-    final dailyPhases = <DateTime, PhaseLabel>{};
-    final dailyScores = <DateTime, Map<PhaseLabel, double>>{};
+    // Sort entries chronologically
+    final sortedEntries = List<JournalEntry>.from(entries)
+      ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
 
-    for (final entry in entries) {
-      final day = DateTime(entry.createdAt.year, entry.createdAt.month, entry.createdAt.day);
-      final phaseLabel = _normalizePhase(entry.computedPhase ?? entry.autoPhase ?? entry.phase);
-      if (phaseLabel == null) continue;
+    // Find the date range
+    final firstDate = DateTime(
+      sortedEntries.first.createdAt.year,
+      sortedEntries.first.createdAt.month,
+      sortedEntries.first.createdAt.day,
+    );
+    final lastDate = DateTime(
+      sortedEntries.last.createdAt.year,
+      sortedEntries.last.createdAt.month,
+      sortedEntries.last.createdAt.day,
+    );
 
-      final weight = entry.autoPhaseConfidence ?? 1.0;
-      dailyScores.putIfAbsent(day, () => {});
-      dailyScores[day]![phaseLabel] = (dailyScores[day]![phaseLabel] ?? 0) + weight;
+    print('DEBUG: rebuildRegimesFromEntries - Processing ${entries.length} entries from $firstDate to $lastDate');
+
+    // Create 10-day windows and calculate dominant phase for each
+    final windowRegimes = <_PhaseSegment>[];
+    DateTime windowStart = firstDate;
+
+    while (windowStart.isBefore(lastDate) || windowStart.isAtSameMomentAs(lastDate)) {
+      final windowEnd = windowStart.add(Duration(days: windowDays - 1));
+      
+      // Get entries in this window
+      final windowEntries = sortedEntries.where((entry) {
+        final entryDay = DateTime(entry.createdAt.year, entry.createdAt.month, entry.createdAt.day);
+        return entryDay.isAfter(windowStart.subtract(const Duration(days: 1))) &&
+               entryDay.isBefore(windowEnd.add(const Duration(days: 1)));
+      }).toList();
+
+      if (windowEntries.isNotEmpty) {
+        // Count phases in this window using each entry's autoPhase
+        final phaseCounts = <PhaseLabel, double>{};
+        
+        for (final entry in windowEntries) {
+          // Use autoPhase first (per-entry detection), then computedPhase, then phase
+          final phaseLabel = _normalizePhase(entry.autoPhase ?? entry.computedPhase ?? entry.phase);
+          if (phaseLabel != null) {
+            final weight = entry.autoPhaseConfidence ?? 1.0;
+            phaseCounts[phaseLabel] = (phaseCounts[phaseLabel] ?? 0) + weight;
+          }
+        }
+
+        if (phaseCounts.isNotEmpty) {
+          // Find dominant phase for this window
+          final dominantPhase = phaseCounts.entries
+              .reduce((a, b) => a.value >= b.value ? a : b)
+              .key;
+
+          // Calculate confidence as percentage of entries with dominant phase
+          final totalWeight = phaseCounts.values.fold(0.0, (sum, w) => sum + w);
+          final confidence = phaseCounts[dominantPhase]! / totalWeight;
+
+          print('DEBUG: Window ${windowStart.toString().substring(0, 10)} - ${windowEnd.toString().substring(0, 10)}: '
+                '${windowEntries.length} entries, dominant=${_getPhaseLabelName(dominantPhase)} '
+                '(${(confidence * 100).toStringAsFixed(0)}% confidence)');
+          
+          // Log all phases found in this window
+          for (final entry in phaseCounts.entries) {
+            print('DEBUG:   - ${_getPhaseLabelName(entry.key)}: ${entry.value.toStringAsFixed(1)} weight');
+          }
+
+          windowRegimes.add(_PhaseSegment(dominantPhase, windowStart, windowEnd));
+        }
+      }
+
+      // Move to next window
+      windowStart = windowStart.add(Duration(days: windowDays));
     }
 
-    for (final day in dailyScores.keys) {
-      final scores = dailyScores[day]!;
-      if (scores.isEmpty) continue;
-      final best = scores.entries.reduce((a, b) => a.value >= b.value ? a : b);
-      dailyPhases[day] = best.key;
-    }
-
-    if (dailyPhases.isEmpty) {
+    if (windowRegimes.isEmpty) {
+      print('DEBUG: No regimes created from windows');
       return;
     }
 
-    // Build contiguous runs
-    final sortedDays = dailyPhases.keys.toList()..sort();
-    final segments = <_PhaseSegment>[];
-    DateTime runStart = sortedDays.first;
-    PhaseLabel runPhase = dailyPhases[runStart]!;
-    for (var i = 1; i < sortedDays.length; i++) {
-      final day = sortedDays[i];
-      final phase = dailyPhases[day]!;
-      final prevDay = sortedDays[i - 1];
-      final isNextDay = day.difference(prevDay).inDays == 1;
-      if (phase == runPhase && isNextDay) {
-        continue;
+    // Merge adjacent windows with the same phase
+    final mergedRegimes = <_PhaseSegment>[];
+    _PhaseSegment? currentMerge;
+
+    for (final window in windowRegimes) {
+      if (currentMerge == null) {
+        currentMerge = window;
+      } else if (currentMerge.phase == window.phase) {
+        // Same phase - extend the current merge
+        currentMerge = _PhaseSegment(currentMerge.phase, currentMerge.start, window.end);
       } else {
-        final runEnd = prevDay;
-        segments.add(_PhaseSegment(runPhase, runStart, runEnd));
-        runPhase = phase;
-        runStart = day;
+        // Different phase - save current and start new
+        mergedRegimes.add(currentMerge);
+        currentMerge = window;
       }
     }
-    segments.add(_PhaseSegment(runPhase, runStart!, sortedDays.last));
-
-    // Merge segments shorter than minDays into neighbors
-    bool merged = true;
-    while (merged) {
-      merged = false;
-      for (var i = 0; i < segments.length; i++) {
-        final seg = segments[i];
-        if (seg.lengthInDays >= minDays) continue;
-        if (segments.length == 1) break;
-
-        // Choose neighbor with longer length (prefer previous if tie)
-        final prev = i > 0 ? segments[i - 1] : null;
-        final next = i < segments.length - 1 ? segments[i + 1] : null;
-        if (prev == null && next != null) {
-          next.mergeStart(seg.start);
-          merged = true;
-          segments.removeAt(i);
-          break;
-        } else if (next == null && prev != null) {
-          prev.mergeEnd(seg.end);
-          merged = true;
-          segments.removeAt(i);
-          break;
-        } else if (prev != null && next != null) {
-          if (prev.lengthInDays >= next.lengthInDays) {
-            prev.mergeEnd(seg.end);
-            merged = true;
-            segments.removeAt(i);
-            break;
-          } else {
-            next.mergeStart(seg.start);
-            merged = true;
-            segments.removeAt(i);
-            break;
-          }
-        }
-      }
+    if (currentMerge != null) {
+      mergedRegimes.add(currentMerge);
     }
 
-    // Persist regimes
+    print('DEBUG: Created ${windowRegimes.length} windows, merged into ${mergedRegimes.length} regimes');
+
+    // Clear existing and save new regimes
     await _regimesBox?.clear();
-    for (final seg in segments) {
+    
+    for (final seg in mergedRegimes) {
       final regime = PhaseRegime(
         id: 'regime_${seg.start.millisecondsSinceEpoch}',
         label: seg.phase,
@@ -170,6 +195,117 @@ class PhaseRegimeService {
         updatedAt: DateTime.now(),
       );
       await _regimesBox?.put(regime.id, regime);
+      print('DEBUG: Saved regime: ${_getPhaseLabelName(seg.phase)} from ${seg.start} to ${seg.end} (${seg.lengthInDays} days)');
+    }
+
+    _loadPhaseIndex();
+  }
+
+  /// Incrementally add regimes for NEW entries only (preserves existing regimes)
+  /// Call this when new entries are added to extend the timeline
+  Future<void> extendRegimesWithNewEntries(List<JournalEntry> entries, {int windowDays = 10}) async {
+    if (entries.isEmpty) return;
+
+    final existingRegimes = _regimesBox?.values.toList() ?? [];
+    if (existingRegimes.isEmpty) {
+      // No existing regimes - do full rebuild
+      await rebuildRegimesFromEntries(entries, windowDays: windowDays);
+      return;
+    }
+
+    // Find the latest regime end date
+    final sortedRegimes = List<PhaseRegime>.from(existingRegimes)
+      ..sort((a, b) => (b.end ?? DateTime.now()).compareTo(a.end ?? DateTime.now()));
+    final latestEnd = sortedRegimes.first.end ?? DateTime.now();
+
+    // Find entries after the latest regime
+    final newEntries = entries.where((e) => e.createdAt.isAfter(latestEnd)).toList();
+    
+    if (newEntries.isEmpty) {
+      print('DEBUG: No new entries after latest regime end ($latestEnd)');
+      return;
+    }
+
+    print('DEBUG: Found ${newEntries.length} new entries after $latestEnd');
+
+    // Group new entries into windows and create regimes
+    newEntries.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+    
+    DateTime windowStart = DateTime(
+      newEntries.first.createdAt.year,
+      newEntries.first.createdAt.month,
+      newEntries.first.createdAt.day,
+    );
+    final lastDate = DateTime(
+      newEntries.last.createdAt.year,
+      newEntries.last.createdAt.month,
+      newEntries.last.createdAt.day,
+    );
+
+    while (windowStart.isBefore(lastDate) || windowStart.isAtSameMomentAs(lastDate)) {
+      final windowEnd = windowStart.add(Duration(days: windowDays - 1));
+      
+      final windowEntries = newEntries.where((entry) {
+        final entryDay = DateTime(entry.createdAt.year, entry.createdAt.month, entry.createdAt.day);
+        return entryDay.isAfter(windowStart.subtract(const Duration(days: 1))) &&
+               entryDay.isBefore(windowEnd.add(const Duration(days: 1)));
+      }).toList();
+
+      if (windowEntries.isNotEmpty) {
+        final phaseCounts = <PhaseLabel, double>{};
+        
+        for (final entry in windowEntries) {
+          final phaseLabel = _normalizePhase(entry.autoPhase ?? entry.computedPhase ?? entry.phase);
+          if (phaseLabel != null) {
+            final weight = entry.autoPhaseConfidence ?? 1.0;
+            phaseCounts[phaseLabel] = (phaseCounts[phaseLabel] ?? 0) + weight;
+          }
+        }
+
+        if (phaseCounts.isNotEmpty) {
+          final dominantPhase = phaseCounts.entries
+              .reduce((a, b) => a.value >= b.value ? a : b)
+              .key;
+
+          // Check if this can extend the last regime (same phase)
+          if (sortedRegimes.first.label == dominantPhase && sortedRegimes.first.end != null) {
+            // Extend existing regime
+            final existing = sortedRegimes.first;
+            final updated = PhaseRegime(
+              id: existing.id,
+              label: existing.label,
+              start: existing.start,
+              end: windowEnd.add(const Duration(days: 1)),
+              source: existing.source,
+              confidence: existing.confidence,
+              inferredAt: DateTime.now(),
+              anchors: existing.anchors,
+              createdAt: existing.createdAt,
+              updatedAt: DateTime.now(),
+            );
+            await _regimesBox?.put(updated.id, updated);
+            print('DEBUG: Extended regime ${_getPhaseLabelName(dominantPhase)} to $windowEnd');
+          } else {
+            // Create new regime
+            final regime = PhaseRegime(
+              id: 'regime_${windowStart.millisecondsSinceEpoch}',
+              label: dominantPhase,
+              start: windowStart,
+              end: windowEnd.add(const Duration(days: 1)),
+              source: PhaseSource.rivet,
+              confidence: 1.0,
+              inferredAt: DateTime.now(),
+              anchors: const [],
+              createdAt: DateTime.now(),
+              updatedAt: DateTime.now(),
+            );
+            await _regimesBox?.put(regime.id, regime);
+            print('DEBUG: Added new regime: ${_getPhaseLabelName(dominantPhase)} from $windowStart to $windowEnd');
+          }
+        }
+      }
+
+      windowStart = windowStart.add(Duration(days: windowDays));
     }
 
     _loadPhaseIndex();
@@ -917,3 +1053,4 @@ class _PhaseSegment {
     end = newEnd.isAfter(end) ? newEnd : end;
   }
 }
+

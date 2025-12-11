@@ -338,6 +338,7 @@ class McpPackExportService {
     final processedEntry = {
       'id': entry.id,
       'timestamp': _formatTimestamp(entry.createdAt),
+      'title': entry.title,
       'content': entry.content,
       'media': processedMedia,
       'emotion': entry.emotion,

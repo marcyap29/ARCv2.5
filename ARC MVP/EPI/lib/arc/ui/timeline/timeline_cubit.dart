@@ -399,7 +399,7 @@ class TimelineCubit extends Cubit<TimelineState> {
         if (_phaseRegimeService != null) {
           await _phaseRegimeService!.rebuildRegimesFromEntries(
             allJournalEntries,
-            minDays: 14,
+            windowDays: 10,
           );
           _phaseIndex = _phaseRegimeService!.phaseIndex;
         }

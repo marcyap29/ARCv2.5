@@ -249,18 +249,8 @@ class _SimplifiedArcformView3DState extends State<SimplifiedArcformView3D> {
   @override
   void didUpdateWidget(SimplifiedArcformView3D oldWidget) {
     super.didUpdateWidget(oldWidget);
-    final oldPhase = oldWidget.currentPhase ?? '';
-    final newPhase = widget.currentPhase ?? '';
-    print('DEBUG: SimplifiedArcformView3D - didUpdateWidget called');
-    print('DEBUG: SimplifiedArcformView3D - oldPhase: $oldPhase, newPhase: $newPhase');
-    if (oldPhase != newPhase) {
-      print('DEBUG: SimplifiedArcformView3D - Phase changed from $oldPhase to $newPhase, reloading snapshots');
-      _loadSnapshots();
-    } else if (oldWidget.key != widget.key) {
-      // Key changed, force reload even if phase name is the same (might be a different regime)
-      print('DEBUG: SimplifiedArcformView3D - Key changed, forcing reload');
-      _loadSnapshots();
-    }
+    // Don't reload on widget updates - this causes rendering loops
+    // The widget will be recreated with a new key if phase changes
   }
 
   @override
