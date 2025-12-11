@@ -8,10 +8,28 @@ import Photos
   private let arcxChannelName = "arcx/import"
   private var arcxMethodChannel: FlutterMethodChannel?
   
+  // Use custom window for shake detection
+  override var window: UIWindow? {
+    get {
+      return super.window
+    }
+    set {
+      super.window = newValue
+    }
+  }
+  
   override func application(
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
+    // Replace window with shake-detecting window
+    if let existingWindow = self.window {
+      let shakeWindow = ShakeDetectingWindow(frame: existingWindow.frame)
+      shakeWindow.rootViewController = existingWindow.rootViewController
+      shakeWindow.makeKeyAndVisible()
+      self.window = shakeWindow
+    }
+    
     // Register native LLM bridge using Pigeon
     let controller = window?.rootViewController as! FlutterViewController
     let bridge = LLMBridge.shared
@@ -78,6 +96,10 @@ import Photos
     // Register PhotoChannel for content-addressed media
     PhotoChannel.register(with: self.registrar(forPlugin: "PhotoChannel")!)
     NSLog("[AppDelegate] PhotoChannel registered ✅")
+    
+    // Register ShakeDetectorPlugin for shake-to-report-bug feature
+    ShakeDetectorPlugin.register(with: self.registrar(forPlugin: "ShakeDetectorPlugin")!)
+    NSLog("[AppDelegate] ShakeDetectorPlugin registered ✅")
 
         // Register Photos method channel
         let photosChannel = FlutterMethodChannel(name: "com.epi.arcmvp/photos", binaryMessenger: controller.binaryMessenger)

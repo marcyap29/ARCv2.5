@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:my_app/shared/ui/home/home_cubit.dart';
@@ -19,6 +20,8 @@ import 'package:my_app/arc/chat/ui/lumara_assistant_screen.dart';
 import 'package:my_app/arc/chat/bloc/lumara_assistant_cubit.dart';
 import 'package:my_app/arc/chat/data/context_provider.dart';
 import 'package:my_app/arc/chat/data/context_scope.dart';
+import 'package:my_app/services/shake_detector_service.dart';
+import 'package:my_app/ui/feedback/bug_report_dialog.dart';
 
 // Debug flag for showing RIVET engineering labels
 const bool kShowRivetDebugLabels = false;
@@ -35,6 +38,9 @@ class HomeView extends StatefulWidget {
 class _HomeViewState extends State<HomeView> {
   late HomeCubit _homeCubit;
   // Insights moved under Health as Analytics
+  
+  // Shake to report bug
+  StreamSubscription? _shakeSubscription;
   
   // Navigation: 4 buttons (LUMARA + Phase + Journal + New)
   List<TabItem> get _tabs {
@@ -67,6 +73,25 @@ class _HomeViewState extends State<HomeView> {
     
     // Initialize ethereal music (P22)
     _initializeEtherealMusic();
+    
+    // Initialize shake-to-report-bug detection
+    _initializeShakeDetection();
+  }
+  
+  /// Initialize shake detection for bug reporting
+  void _initializeShakeDetection() {
+    try {
+      final shakeService = ShakeDetectorService();
+      shakeService.startListening();
+      _shakeSubscription = shakeService.onShake.listen((_) {
+        if (mounted) {
+          BugReportDialog.show(context);
+        }
+      });
+      print('DEBUG: Shake detection initialized');
+    } catch (e) {
+      print('DEBUG: Error initializing shake detection: $e');
+    }
   }
 
   /// Check photo permissions and refresh timeline if granted
@@ -258,6 +283,8 @@ class _HomeViewState extends State<HomeView> {
 
   @override
   void dispose() {
+    _shakeSubscription?.cancel();
+    ShakeDetectorService().stopListening();
     _homeCubit.close();
     super.dispose();
   }

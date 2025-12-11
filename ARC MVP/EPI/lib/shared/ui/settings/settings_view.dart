@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
 import 'package:my_app/shared/ui/settings/sync_settings_section.dart';
@@ -32,12 +33,15 @@ class _SettingsViewState extends State<SettingsView> {
   bool _favoritesCountLoaded = false;
   bool _voiceoverEnabled = false;
   bool _voiceoverLoading = true;
+  bool _shakeToReportEnabled = true;
+  bool _shakeToReportLoading = true;
 
   @override
   void initState() {
     super.initState();
     _loadFavoritesCount();
     _loadVoiceoverPreference();
+    _loadShakeToReportPreference();
   }
 
   Future<void> _loadFavoritesCount() async {
@@ -115,6 +119,57 @@ class _SettingsViewState extends State<SettingsView> {
     }
   }
 
+  Future<void> _loadShakeToReportPreference() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final enabled = prefs.getBool('shake_to_report_enabled') ?? true;
+      if (mounted) {
+        setState(() {
+          _shakeToReportEnabled = enabled;
+          _shakeToReportLoading = false;
+        });
+      }
+    } catch (e) {
+      print('Error loading shake-to-report preference: $e');
+      if (mounted) {
+        setState(() {
+          _shakeToReportLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _toggleShakeToReport(bool value) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('shake_to_report_enabled', value);
+      if (mounted) {
+        setState(() {
+          _shakeToReportEnabled = value;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              value
+                  ? 'Shake to report enabled - shake your device to report bugs'
+                  : 'Shake to report disabled',
+            ),
+            duration: const Duration(seconds: 2),
+            backgroundColor: value ? Colors.green : Colors.grey,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error toggling shake-to-report: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -262,6 +317,50 @@ class _SettingsViewState extends State<SettingsView> {
                           )
                         : Icon(
                             Icons.volume_up,
+                            color: kcAccentColor,
+                            size: 24,
+                          ),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                // Shake to Report Toggle
+                Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.1),
+                    ),
+                  ),
+                  child: SwitchListTile(
+                    title: Text(
+                      'Shake to Report Bug',
+                      style: heading3Style(context).copyWith(
+                        color: kcPrimaryTextColor,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    subtitle: Text(
+                      'Shake device to report issues',
+                      style: bodyStyle(context).copyWith(
+                        color: kcSecondaryTextColor,
+                      ),
+                    ),
+                    value: _shakeToReportEnabled,
+                    onChanged: _shakeToReportLoading
+                        ? null
+                        : (value) => _toggleShakeToReport(value),
+                    secondary: _shakeToReportLoading
+                        ? const SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : Icon(
+                            Icons.vibration,
                             color: kcAccentColor,
                             size: 24,
                           ),
