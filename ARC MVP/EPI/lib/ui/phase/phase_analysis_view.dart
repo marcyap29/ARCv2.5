@@ -20,6 +20,9 @@ import 'package:hive/hive.dart';
 import 'package:my_app/models/user_profile_model.dart';
 import 'package:my_app/shared/ui/settings/settings_view.dart';
 import 'package:my_app/ui/phase/advanced_analytics_view.dart';
+import 'package:my_app/prism/atlas/rivet/rivet_models.dart';
+import 'package:my_app/prism/atlas/rivet/rivet_service.dart';
+import 'package:my_app/arc/ui/arcforms/phase_recommender.dart';
 
 class PhaseAnalysisView extends StatefulWidget {
   const PhaseAnalysisView({super.key});
@@ -114,80 +117,126 @@ class _PhaseAnalysisViewState extends State<PhaseAnalysisView> {
     }
   }
 
-  /// Calculate phase trend from recent entries
-  /// This runs during load, not during build, to avoid loops
+  /// Calculate phase trend from recent entries using RIVET-based analysis
+  /// This uses the same methodology as PhaseChangeReadinessCard for consistency
   Future<void> _calculatePhaseTrend(JournalRepository journalRepo) async {
     try {
-      final currentPhase = _phaseIndex?.currentRegime?.label;
-      if (currentPhase == null) {
+      final currentRegime = _phaseIndex?.currentRegime;
+      String currentPhaseName;
+      
+      if (currentRegime != null) {
+        currentPhaseName = _getPhaseLabelName(currentRegime.label);
+      } else if (_phaseIndex?.allRegimes.isNotEmpty == true) {
+        final sortedRegimes = List.from(_phaseIndex!.allRegimes)
+          ..sort((a, b) => b.start.compareTo(a.start));
+        currentPhaseName = _getPhaseLabelName(sortedRegimes.first.label);
+      } else {
         _approachingPhase = null;
         _trendPercent = 0;
         return;
       }
 
-      // Get recent entries (last 10 days - matches regime minimum)
+      // Rebuild RIVET state from journal entries (same as PhaseChangeReadinessCard)
       final allEntries = journalRepo.getAllJournalEntriesSync();
-      final tenDaysAgo = DateTime.now().subtract(const Duration(days: 10));
-      final recentEntries = allEntries
-          .where((e) => e.createdAt.isAfter(tenDaysAgo))
-          .toList();
-
-      if (recentEntries.length < 3) {
+      if (allEntries.isEmpty) {
         _approachingPhase = null;
         _trendPercent = 0;
         return;
       }
 
-      // Count phases in recent entries
+      // Sort entries chronologically
+      final sortedEntries = List<JournalEntry>.from(allEntries)
+        ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+
+      // Build RIVET events from entries (same approach as PhaseChangeReadinessCard)
+      final rivetService = RivetService();
+      final events = <RivetEvent>[];
+      RivetEvent? lastEvent;
+
+      for (final entry in sortedEntries) {
+        // Use PhaseRecommender to predict phase from content (same as PhaseChangeReadinessCard)
+        final recommendedPhase = PhaseRecommender.recommend(
+          emotion: entry.emotion ?? '',
+          reason: entry.emotionReason ?? '',
+          text: entry.content,
+          selectedKeywords: entry.keywords,
+        );
+
+        // Use userPhaseOverride as refPhase if set (chisel), otherwise use regime baseline
+        final entryRefPhase = entry.userPhaseOverride ?? currentPhaseName;
+        
+        final event = RivetEvent(
+          eventId: entry.id,
+          date: entry.createdAt,
+          source: EvidenceSource.text,
+          keywords: entry.keywords.toSet(),
+          predPhase: recommendedPhase,
+          refPhase: entryRefPhase,  // User corrections feed into RIVET
+          tolerance: const {},
+        );
+
+        events.add(event);
+        rivetService.ingest(event, lastEvent: lastEvent);
+        lastEvent = event;
+      }
+
+      if (events.length < 3) {
+        _approachingPhase = null;
+        _trendPercent = 0;
+        return;
+      }
+
+      // Calculate transition insights (same algorithm as PhaseChangeReadinessCard)
+      final recentEvents = events.length > 10 
+          ? events.sublist(events.length - 10) 
+          : events;
+      
       final phaseCounts = <String, int>{};
-      for (final entry in recentEntries) {
-        final entryPhase = entry.computedPhase ?? entry.autoPhase ?? entry.phase;
-        if (entryPhase != null && entryPhase.isNotEmpty) {
-          final normalized = entryPhase.toLowerCase();
-          phaseCounts[normalized] = (phaseCounts[normalized] ?? 0) + 1;
-        }
+      for (final event in recentEvents) {
+        phaseCounts[event.predPhase] = (phaseCounts[event.predPhase] ?? 0) + 1;
       }
 
-      if (phaseCounts.isEmpty) {
-        _approachingPhase = null;
-        _trendPercent = 0;
-        return;
-      }
-
-      // Current phase name normalized
-      final currentPhaseName = _getPhaseLabelName(currentPhase).toLowerCase();
-      
-      // Find the most common phase that's NOT the current phase
-      String? nextMostCommon;
-      int nextMostCount = 0;
-      
+      String? approachingPhase;
+      double maxCount = 0;
       for (final entry in phaseCounts.entries) {
-        if (entry.key != currentPhaseName && entry.value > nextMostCount) {
-          nextMostCommon = entry.key;
-          nextMostCount = entry.value;
+        if (entry.key.toLowerCase() != currentPhaseName.toLowerCase() && entry.value > maxCount) {
+          maxCount = entry.value.toDouble();
+          approachingPhase = entry.key;
         }
       }
 
-      if (nextMostCommon == null || nextMostCount == 0) {
+      if (approachingPhase == null) {
         _approachingPhase = null;
         _trendPercent = 0;
+        print('DEBUG: Phase trend - stable in $currentPhaseName (no approaching phase)');
         return;
       }
 
-      // Calculate percentage: (entries with next phase) / (total recent entries) * 100
-      final totalRecentWithPhase = phaseCounts.values.fold(0, (sum, c) => sum + c);
-      final percent = ((nextMostCount / totalRecentWithPhase) * 100).round();
+      // Calculate shift percentage by comparing early vs recent predictions
+      final midPoint = recentEvents.length ~/ 2;
+      final earlyPhases = recentEvents.sublist(0, midPoint).map((e) => e.predPhase).toList();
+      final recentPhases = recentEvents.sublist(midPoint).map((e) => e.predPhase).toList();
+      
+      final earlyApproachCount = earlyPhases.where((p) => p.toLowerCase() == approachingPhase!.toLowerCase()).length;
+      final recentApproachCount = recentPhases.where((p) => p.toLowerCase() == approachingPhase!.toLowerCase()).length;
+      
+      final earlyPercent = earlyPhases.isEmpty ? 0.0 : (earlyApproachCount / earlyPhases.length) * 100;
+      final recentPercent = recentPhases.isEmpty ? 0.0 : (recentApproachCount / recentPhases.length) * 100;
+      
+      final shiftPercentage = (recentPercent - earlyPercent).abs();
+      final isToward = recentPercent > earlyPercent;
 
-      // Only show trend if it's meaningful (> 15%)
-      if (percent > 15) {
-        _approachingPhase = nextMostCommon[0].toUpperCase() + nextMostCommon.substring(1);
-        _trendPercent = percent;
+      // Only show trend if it's meaningful (> 5% shift and trending toward)
+      if (shiftPercentage > 5.0 && isToward) {
+        _approachingPhase = approachingPhase[0].toUpperCase() + approachingPhase.substring(1).toLowerCase();
+        _trendPercent = shiftPercentage.round();
       } else {
         _approachingPhase = null;
         _trendPercent = 0;
       }
       
-      print('DEBUG: Phase trend - approaching: $_approachingPhase, percent: $_trendPercent%');
+      print('DEBUG: Phase trend (RIVET-based) - approaching: $_approachingPhase, percent: $_trendPercent%, '
+            'early: ${earlyPercent.toStringAsFixed(1)}%, recent: ${recentPercent.toStringAsFixed(1)}%');
     } catch (e) {
       print('DEBUG: Error calculating phase trend: $e');
       _approachingPhase = null;
@@ -1578,17 +1627,166 @@ List<PhaseSegmentProposal> proposals,
     final phaseName = currentPhaseName ?? 'none';
     final uniqueKey = 'arcform_${regimeId}_$phaseName';
     
-    return Column(
-      children: [
-        Expanded(
-          child: SimplifiedArcformView3D(
-            key: ValueKey(uniqueKey),
-            currentPhase: currentPhaseName,
-          ),
-        ),
+    return SimplifiedArcformView3D(
+      key: ValueKey(uniqueKey),
+      currentPhase: currentPhaseName,
+      footerWidgets: [
+        // Phase Transition Readiness card
+        _buildPhaseTransitionReadinessCard(currentPhaseName),
         // Simpler Most Aligned Phase card - no async, no CustomPaint
         _buildSimpleMostAlignedCard(currentPhaseName),
       ],
+    );
+  }
+
+  /// Phase Transition Readiness card - shows trend toward next phase
+  Widget _buildPhaseTransitionReadinessCard(String? currentPhaseName) {
+    final hasTrend = _approachingPhase != null && _trendPercent > 0;
+    final phaseColor = hasTrend 
+        ? _getPhaseColor(_approachingPhase!) 
+        : Colors.grey;
+    
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: phaseColor.withOpacity(0.3),
+          width: 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header with title and info button
+          Row(
+            children: [
+              Icon(
+                hasTrend ? Icons.trending_up : Icons.trending_flat,
+                color: phaseColor,
+                size: 20,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Phase Transition Readiness',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+              GestureDetector(
+                onTap: () => _showTransitionReadinessInfo(),
+                child: Icon(
+                  Icons.info_outline,
+                  color: Colors.grey[400],
+                  size: 18,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          // Trend text
+          Text(
+            hasTrend
+                ? 'Your reflection patterns have shifted $_trendPercent% toward $_approachingPhase'
+                : 'Your reflection patterns are stable in ${currentPhaseName ?? "your current phase"}',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 13,
+            ),
+          ),
+          const SizedBox(height: 12),
+          // Progress bar
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: Stack(
+              children: [
+                // Background bar (100%)
+                Container(
+                  height: 8,
+                  width: double.infinity,
+                  color: phaseColor.withOpacity(0.2),
+                ),
+                // Filled bar (trend percent) - show 0% if no trend
+                if (_trendPercent > 0)
+                  FractionallySizedBox(
+                    widthFactor: _trendPercent / 100,
+                    child: Container(
+                      height: 8,
+                      decoration: BoxDecoration(
+                        color: phaseColor.withOpacity(0.8),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 4),
+          // Percentage label
+          Align(
+            alignment: Alignment.centerRight,
+            child: Text(
+              '$_trendPercent%',
+              style: TextStyle(
+                color: phaseColor,
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showTransitionReadinessInfo() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Theme.of(context).cardColor,
+        title: Row(
+          children: [
+            Icon(Icons.info_outline, color: Theme.of(context).primaryColor),
+            const SizedBox(width: 8),
+            Text(
+              'Phase Transition Readiness',
+              style: TextStyle(color: Colors.white),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'This indicator shows how your recent journal entries align with different phases.',
+              style: TextStyle(color: Colors.white),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Based on your last 10 days of entries, your reflection patterns suggest a trend toward a new phase.',
+              style: TextStyle(color: Colors.grey[400]),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'A higher percentage indicates stronger alignment with the approaching phase.',
+              style: TextStyle(color: Colors.grey[400], fontSize: 12),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: Text('Got it', style: TextStyle(color: Theme.of(context).primaryColor)),
+          ),
+        ],
+      ),
     );
   }
 

@@ -17,14 +17,17 @@ import 'package:my_app/arc/core/journal_repository.dart';
 import 'package:my_app/arc/arcform/share/arcform_share_models.dart';
 import 'package:my_app/arc/arcform/share/arcform_share_sheet.dart';
 import 'package:my_app/arc/ui/timeline/widgets/current_phase_arcform_preview.dart';
+import 'package:my_app/models/phase_models.dart';
 
 /// Simplified ARCForms view with 3D constellation renderer
 class SimplifiedArcformView3D extends StatefulWidget {
   final String? currentPhase;
+  final List<Widget>? footerWidgets;
   
   const SimplifiedArcformView3D({
     super.key,
     this.currentPhase,
+    this.footerWidgets,
   });
 
   @override
@@ -303,11 +306,20 @@ class _SimplifiedArcformView3DState extends State<SimplifiedArcformView3D> {
       return _buildEmptyState();
     }
 
+    final footerCount = widget.footerWidgets?.length ?? 0;
+    final totalItems = _snapshots.length + footerCount;
+    
     return ListView.builder(
       padding: const EdgeInsets.all(16),
-      itemCount: _snapshots.length,
+      itemCount: totalItems,
       itemBuilder: (context, index) {
-        return _buildSnapshotCard(_snapshots[index]);
+        if (index < _snapshots.length) {
+          return _buildSnapshotCard(_snapshots[index]);
+        } else {
+          // Render footer widgets
+          final footerIndex = index - _snapshots.length;
+          return widget.footerWidgets![footerIndex];
+        }
       },
     );
   }
@@ -350,7 +362,6 @@ class _SimplifiedArcformView3DState extends State<SimplifiedArcformView3D> {
   Widget _buildSnapshotCard(Map<String, dynamic> snapshot) {
     final keywords = List<String>.from(snapshot['keywords'] ?? []);
     final phaseHint = snapshot['phaseHint'] ?? 'Discovery';
-    final createdAt = DateTime.tryParse(snapshot['createdAt'] ?? '') ?? DateTime.now();
     
     // Generate 3D constellation data
     final arcformData = _generateArcformData(snapshot, phaseHint);
@@ -477,32 +488,14 @@ class _SimplifiedArcformView3DState extends State<SimplifiedArcformView3D> {
 
               const SizedBox(height: 16),
 
+              // Change Phase button
+              _buildChangePhaseButton(phaseHint),
+
               // PAST PHASES section (user's historical phases)
               _buildPastPhasesSection(phaseHint),
 
               // EXAMPLE PHASES section (demo phases for exploration)
               _buildExamplePhasesSection(phaseHint),
-
-              const SizedBox(height: 16),
-
-              // Metadata
-              Row(
-                children: [
-                  Icon(
-                    Icons.schedule,
-                    size: 16,
-                    color: kcSecondaryTextColor,
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    _formatDate(createdAt),
-                    style: TextStyle(
-                      color: kcSecondaryTextColor,
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
-              ),
             ],
           ),
         ),
@@ -989,21 +982,6 @@ class _SimplifiedArcformView3DState extends State<SimplifiedArcformView3D> {
     }
   }
 
-  String _formatDate(DateTime date) {
-    final now = DateTime.now();
-    final difference = now.difference(date);
-
-    if (difference.inDays == 0) {
-      return 'Today';
-    } else if (difference.inDays == 1) {
-      return 'Yesterday';
-    } else if (difference.inDays < 7) {
-      return '${difference.inDays} days ago';
-    } else {
-      return '${date.month}/${date.day}/${date.year}';
-    }
-  }
-
   /// Show full-screen 3D ARCForm viewer for a specific phase
   void _showFullScreenArcform(String phase) async {
     // Check if this is a phase the user has experienced (current OR past phases)
@@ -1030,6 +1008,139 @@ class _SimplifiedArcformView3DState extends State<SimplifiedArcformView3D> {
           builder: (context) => FullScreenPhaseViewer(arcform: arcform),
         ),
       );
+    }
+  }
+
+  /// Build the Change Phase button
+  Widget _buildChangePhaseButton(String currentPhase) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: OutlinedButton(
+        onPressed: () => _showChangePhaseDialog(currentPhase),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: kcPrimaryColor,
+          backgroundColor: Colors.black,
+          side: BorderSide(color: kcPrimaryColor, width: 1.5),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+        ),
+        child: const Text(
+          'Change Phase',
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Show dialog to change the current phase
+  void _showChangePhaseDialog(String currentPhase) {
+    final phases = [
+      'Discovery',
+      'Expansion',
+      'Transition',
+      'Consolidation',
+      'Recovery',
+      'Breakthrough',
+    ];
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: kcSurfaceColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 16),
+            Text(
+              'Change Phase',
+              style: heading2Style(ctx).copyWith(
+                color: kcPrimaryTextColor,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'This will update the last 10 days\' phase regime',
+              style: captionStyle(ctx).copyWith(
+                color: kcSecondaryTextColor,
+              ),
+            ),
+            const SizedBox(height: 16),
+            ...phases.map((phase) => ListTile(
+              leading: Icon(
+                _getPhaseIcon(phase),
+                color: _getPhaseColor(phase),
+              ),
+              title: Text(
+                phase,
+                style: TextStyle(
+                  color: kcPrimaryTextColor,
+                  fontWeight: currentPhase.toLowerCase() == phase.toLowerCase() 
+                      ? FontWeight.bold 
+                      : FontWeight.normal,
+                ),
+              ),
+              trailing: currentPhase.toLowerCase() == phase.toLowerCase()
+                  ? Icon(Icons.check, color: kcPrimaryColor)
+                  : null,
+              onTap: () async {
+                Navigator.of(ctx).pop();
+                await _changePhaseRegime(phase);
+              },
+            )),
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Change the phase regime for the last 10 days
+  Future<void> _changePhaseRegime(String phaseName) async {
+    try {
+      // Convert phase name to PhaseLabel
+      final phaseLabel = PhaseLabel.values.firstWhere(
+        (label) => label.name.toLowerCase() == phaseName.toLowerCase(),
+        orElse: () => PhaseLabel.consolidation,
+      );
+
+      // Initialize services
+      final analyticsService = AnalyticsService();
+      final rivetSweepService = RivetSweepService(analyticsService);
+      final phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
+      await phaseRegimeService.initialize();
+
+      // Change the current phase
+      await phaseRegimeService.changeCurrentPhase(phaseLabel, updateHashtags: true);
+
+      // Refresh the snapshots
+      _loadSnapshots();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Phase changed to $phaseName'),
+            backgroundColor: kcSuccessColor,
+          ),
+        );
+      }
+    } catch (e) {
+      print('Error changing phase: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to change phase: $e'),
+            backgroundColor: kcDangerColor,
+          ),
+        );
+      }
     }
   }
 

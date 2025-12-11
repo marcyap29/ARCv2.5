@@ -148,6 +148,9 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
   bool _hasBeenModified = false;
   String? _originalContent;
   
+  // Track updated entry for phase override changes (local state)
+  JournalEntry? _currentEntryOverride;
+  
   // Track if we're currently in edit mode (can switch from view-only to edit)
   bool _isEditMode = false;
   
@@ -360,8 +363,11 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
   /// Get the current entry for context (either existing entry or create from draft state)
   /// This allows LUMARA to use unsaved draft content as context
   JournalEntry? _getCurrentEntryForContext() {
+    // Use local override state if available, otherwise use widget.existingEntry
+    final baseEntry = _currentEntryOverride ?? widget.existingEntry;
+    
     // If we have an existing entry, use it (may have been modified)
-    if (widget.existingEntry != null) {
+    if (baseEntry != null) {
       // Create entry from current draft state (includes unsaved changes)
       final now = DateTime.now();
       final entryDate = _editableDate ?? now;
@@ -381,19 +387,22 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
       
       // Merge with existing entry media if any
       final allMedia = [
-        ...widget.existingEntry!.media,
+        ...baseEntry.media,
         ...mediaItems,
       ];
       
-      return widget.existingEntry!.copyWith(
-        content: _entryState.text.isNotEmpty ? _entryState.text : widget.existingEntry!.content,
+      return baseEntry.copyWith(
+        content: _entryState.text.isNotEmpty ? _entryState.text : baseEntry.content,
         title: _titleController.text.trim().isNotEmpty 
             ? _titleController.text.trim() 
-            : widget.existingEntry!.title,
+            : baseEntry.title,
         createdAt: combinedDateTime,
         updatedAt: DateTime.now(),
         media: allMedia,
-        location: _editableLocation ?? widget.existingEntry!.location,
+        location: _editableLocation ?? baseEntry.location,
+        // Preserve phase override from local state
+        userPhaseOverride: baseEntry.userPhaseOverride,
+        isPhaseLocked: baseEntry.isPhaseLocked,
       );
     }
     
@@ -2512,13 +2521,14 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
   
   /// Build phase override section for existing entries
   Widget _buildPhaseOverrideSection(ThemeData theme) {
-    final entry = widget.existingEntry;
+    // Use local override state if available, otherwise use widget.existingEntry
+    final entry = _currentEntryOverride ?? widget.existingEntry;
     if (entry == null) return const SizedBox.shrink();
     
     // Ensure legacyPhaseTag is populated for older entries (and save if needed)
     final entryWithLegacy = entry.ensureLegacyPhaseTag();
-    if (entryWithLegacy != entry) {
-      // Save the entry with legacyPhaseTag populated
+    if (entryWithLegacy != entry && _currentEntryOverride == null) {
+      // Save the entry with legacyPhaseTag populated (only if not already overridden)
       WidgetsBinding.instance.addPostFrameCallback((_) async {
         final journalRepository = JournalRepository();
         await journalRepository.updateJournalEntry(entryWithLegacy);
@@ -2642,6 +2652,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
       
       setState(() {
         _hasBeenModified = true;
+        _currentEntryOverride = updatedEntry;  // Update local state to reflect change
       });
       
       print('DEBUG: Updated entry ${entry.id} phase override to: $newPhase');
@@ -2663,6 +2674,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
       
       setState(() {
         _hasBeenModified = true;
+        _currentEntryOverride = updatedEntry;  // Update local state to reflect change
       });
       
       print('DEBUG: Reset entry ${entry.id} phase to auto-detected');

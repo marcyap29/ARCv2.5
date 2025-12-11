@@ -288,27 +288,14 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
           ? selectedKeywords! 
           : SimpleKeywordExtractor.extractKeywords(content);
       
-      // Ensure phase hashtag is in content (use provided phase)
-      final phaseHashtag = '#${phase.toLowerCase()}';
-      final phaseHashtagPattern = RegExp(
-        r'#(discovery|expansion|transition|consolidation|recovery|breakthrough)',
-        caseSensitive: false,
-      );
-      
-      String contentWithPhase = content;
-      if (!phaseHashtagPattern.hasMatch(content)) {
-        // No phase hashtag found - add the provided one
-        contentWithPhase = '$content $phaseHashtag'.trim();
-        print('DEBUG: Auto-added phase hashtag $phaseHashtag to entry (provided phase: $phase)');
-      } else {
-        print('DEBUG: Content already contains phase hashtag, keeping existing');
-      }
+      // Phase hashtag auto-addition DISABLED - using autoPhase/userPhaseOverride/regimes instead
+      // Keep content clean, phase is tracked via proper fields
       
       final now = entryDate;
       final entry = JournalEntry(
         id: const Uuid().v4(),
-        title: _generateTitle(contentWithPhase),
-        content: contentWithPhase, // Use content with phase hashtag
+        title: _generateTitle(content),
+        content: content, // Keep content clean - no hashtag injection
         createdAt: now,
         updatedAt: now,
         tags: const [],
@@ -732,25 +719,14 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
     try {
       final entryDate = DateTime.now();
       
-      // Ensure phase hashtag is in content (use provided phase)
-      final phaseHashtag = '#${phase.toLowerCase()}';
-      final phaseHashtagPattern = RegExp(
-        r'#(discovery|expansion|transition|consolidation|recovery|breakthrough)',
-        caseSensitive: false,
-      );
-      
-      String contentWithPhase = content;
-      if (!phaseHashtagPattern.hasMatch(content)) {
-        // No phase hashtag found - add the provided one
-        contentWithPhase = '$content $phaseHashtag'.trim();
-        print('DEBUG: Auto-added phase hashtag $phaseHashtag to entry (provided phase: $phase)');
-      }
+      // Phase hashtag auto-addition DISABLED - using autoPhase/userPhaseOverride/regimes instead
+      // Keep content clean, phase is tracked via proper fields
       
       final now = entryDate;
       final entry = JournalEntry(
         id: const Uuid().v4(),
-        title: _generateTitle(contentWithPhase),
-        content: contentWithPhase, // Use content with phase hashtag
+        title: _generateTitle(content),
+        content: content, // Keep content clean - no hashtag injection
         createdAt: now,
         updatedAt: now,
         tags: const [],
@@ -801,25 +777,14 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
     try {
       final entryDate = DateTime.now();
       
-      // Ensure phase hashtag is in content (use proposed phase)
-      final phaseHashtag = '#${proposedPhase.toLowerCase()}';
-      final phaseHashtagPattern = RegExp(
-        r'#(discovery|expansion|transition|consolidation|recovery|breakthrough)',
-        caseSensitive: false,
-      );
-      
-      String contentWithPhase = content;
-      if (!phaseHashtagPattern.hasMatch(content)) {
-        // No phase hashtag found - add the proposed one
-        contentWithPhase = '$content $phaseHashtag'.trim();
-        print('DEBUG: Auto-added phase hashtag $phaseHashtag to entry (proposed phase: $proposedPhase)');
-      }
+      // Phase hashtag auto-addition DISABLED - using autoPhase/userPhaseOverride/regimes instead
+      // Keep content clean, phase is tracked via proper fields
       
       final now = entryDate;
       final entry = JournalEntry(
         id: const Uuid().v4(),
-        title: _generateTitle(contentWithPhase),
-        content: contentWithPhase, // Use content with phase hashtag
+        title: _generateTitle(content),
+        content: content, // Keep content clean - no hashtag injection
         createdAt: now,
         updatedAt: now,
         tags: const [],
@@ -1009,6 +974,9 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
         lumaraBlocks: lumaraBlocks, // Use direct LUMARA blocks field
         metadata: finalMetadata, // Use cleaned metadata (no inlineBlocks)
         media: media ?? existingEntry.media, // Update media items or keep existing
+        // Preserve phase override (chisel) - these should carry over from existingEntry
+        userPhaseOverride: existingEntry.userPhaseOverride,
+        isPhaseLocked: existingEntry.isPhaseLocked,
       );
       
       print('DEBUG: Updated JournalEntry created with ${updatedEntry.media.length} media items');
@@ -1821,10 +1789,9 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
   }
 
 
-  /// Automatically add phase hashtag to content if missing
-  /// Uses Phase Regimes (date-based) to determine the appropriate phase for the entry date
-  /// This ensures consistency - entries get hashtags based on the phase regime they fall into,
-  /// not individual entry analysis (which would cause phase changes on every entry)
+  /// Previously auto-added phase hashtags to content - DISABLED
+  /// Phase is now tracked via autoPhase, userPhaseOverride, and phase regimes
+  /// No longer pollutes user content with hashtags
   Future<String> _ensurePhaseHashtagInContent({
     required String content,
     required DateTime entryDate,
@@ -1832,66 +1799,14 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
     String? emotionReason,
     List<String>? selectedKeywords,
   }) async {
-    // Check if content already has a phase hashtag
-    final phaseHashtagPattern = RegExp(
-      r'#(discovery|expansion|transition|consolidation|recovery|breakthrough)',
-      caseSensitive: false,
-    );
-    
-    if (phaseHashtagPattern.hasMatch(content)) {
-      // Phase hashtag already exists, return content as-is
-      print('DEBUG: Content already contains phase hashtag, skipping auto-addition');
-      return content;
-    }
-    
-    // No phase hashtag found - use Phase Regime system to determine phase based on entry date
-    try {
-      final analyticsService = AnalyticsService();
-      final rivetSweepService = RivetSweepService(analyticsService);
-      final phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
-      await phaseRegimeService.initialize();
-      
-      // Find the regime that contains the entry's date
-      final regime = phaseRegimeService.phaseIndex.regimeFor(entryDate);
-      
-      if (regime != null) {
-        // Entry date falls within a phase regime - use that phase
-        final phaseName = _getPhaseLabelName(regime.label).toLowerCase();
-        final phaseHashtag = '#$phaseName';
-        final updatedContent = '$content $phaseHashtag'.trim();
-        
-        print('DEBUG: Auto-added phase hashtag $phaseHashtag to entry (from regime: ${regime.label}, date: $entryDate)');
-        return updatedContent;
-      } else {
-        // Entry date doesn't fall within any regime - no hashtag added
-        print('DEBUG: Entry date $entryDate does not fall within any phase regime, skipping hashtag');
-        return content;
-      }
-    } catch (e) {
-      print('ERROR: Failed to determine phase from regime for entry date $entryDate: $e');
-      // Fallback: return content as-is if regime lookup fails
-      return content;
-    }
+    // Phase tracking is now handled by:
+    // - autoPhase: Automatically detected phase from content analysis
+    // - userPhaseOverride: Manual phase selection via dropdown (chisel)
+    // - Phase regimes: Date-based phase periods
+    // No need to add hashtags to content anymore
+    return content;
   }
   
-  /// Helper to convert PhaseLabel enum to string name
-  String _getPhaseLabelName(PhaseLabel label) {
-    switch (label) {
-      case PhaseLabel.discovery:
-        return 'discovery';
-      case PhaseLabel.expansion:
-        return 'expansion';
-      case PhaseLabel.transition:
-        return 'transition';
-      case PhaseLabel.consolidation:
-        return 'consolidation';
-      case PhaseLabel.recovery:
-        return 'recovery';
-      case PhaseLabel.breakthrough:
-        return 'breakthrough';
-    }
-  }
-
   String _generateTitle(String content) {
     // Simple title generation from first few words
     final words = content.split(' ');

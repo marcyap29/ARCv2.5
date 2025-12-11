@@ -230,6 +230,9 @@ class _PhaseChangeReadinessCardState extends State<PhaseChangeReadinessCard> {
           selectedKeywords: entry.keywords,
         );
 
+        // Use userPhaseOverride as refPhase if set (chisel), otherwise use regime baseline
+        final entryRefPhase = entry.userPhaseOverride ?? currentPhase;
+
         // Create RIVET event
         final rivetEvent = RivetEvent(
           eventId: const Uuid().v4(),
@@ -237,7 +240,7 @@ class _PhaseChangeReadinessCardState extends State<PhaseChangeReadinessCard> {
           source: EvidenceSource.text,
           keywords: entry.keywords.toSet(),
           predPhase: recommendedPhase,
-          refPhase: currentPhase,
+          refPhase: entryRefPhase,  // User corrections feed into RIVET
           tolerance: const {},
         );
 

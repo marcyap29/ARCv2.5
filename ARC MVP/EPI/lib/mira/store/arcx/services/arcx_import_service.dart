@@ -600,6 +600,13 @@ class ARCXImportService {
       final phase = nodeJson['phase'] as String?;
       final keywords = nodeJson['keywords'] as List<dynamic>?;
       
+      // Extract phase-related fields (for RIVET integration)
+      final autoPhase = nodeJson['autoPhase'] as String?;
+      final autoPhaseConfidence = (nodeJson['autoPhaseConfidence'] as num?)?.toDouble();
+      final userPhaseOverride = nodeJson['userPhaseOverride'] as String?;
+      final isPhaseLocked = nodeJson['isPhaseLocked'] as bool? ?? false;
+      final legacyPhaseTag = nodeJson['legacyPhaseTag'] as String?;
+      
       // Extract metadata if present
       final metadata = nodeJson['metadata'] as Map<String, dynamic>?;
       
@@ -730,6 +737,11 @@ class ARCXImportService {
         emotion: emotion,
         emotionReason: emotionReason,
         phase: phase,
+        autoPhase: autoPhase,
+        autoPhaseConfidence: autoPhaseConfidence,
+        userPhaseOverride: userPhaseOverride,
+        isPhaseLocked: isPhaseLocked,
+        legacyPhaseTag: legacyPhaseTag,
         metadata: {
           'imported_from_arcx': true,
           'original_node_id': nodeId,

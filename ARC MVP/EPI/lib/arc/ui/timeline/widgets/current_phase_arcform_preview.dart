@@ -13,7 +13,9 @@ import 'package:my_app/services/rivet_sweep_service.dart';
 import 'package:my_app/arc/core/journal_repository.dart';
 import 'package:my_app/arc/arcform/share/arcform_share_models.dart';
 import 'package:my_app/arc/arcform/share/arcform_share_sheet.dart';
-import 'package:my_app/models/phase_models.dart';
+import 'package:my_app/prism/atlas/rivet/rivet_models.dart';
+import 'package:my_app/prism/atlas/rivet/rivet_service.dart';
+import 'package:my_app/arc/ui/arcforms/phase_recommender.dart';
 
 /// Compact preview widget showing current phase Arcform visualization
 /// Uses the same architecture as Insights->Phase->Arcform visualizations
@@ -132,7 +134,8 @@ class _CompactArcformPreviewState extends State<_CompactArcformPreview> {
     }
   }
 
-  /// Calculate trend toward next phase (same logic as phase_analysis_view.dart)
+  /// Calculate trend toward next phase using RIVET-based analysis
+  /// Uses PhaseRecommender for content analysis and respects userPhaseOverride (chisel)
   Future<void> _calculatePhaseTrend() async {
     try {
       final journalRepo = JournalRepository();
@@ -141,74 +144,124 @@ class _CompactArcformPreviewState extends State<_CompactArcformPreview> {
       final phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
       await phaseRegimeService.initialize();
 
+      // Get current phase name
+      String currentPhaseName;
       final currentRegime = phaseRegimeService.phaseIndex.currentRegime;
-      if (currentRegime == null) {
+      if (currentRegime != null) {
+        currentPhaseName = currentRegime.label.toString().split('.').last;
+        currentPhaseName = currentPhaseName[0].toUpperCase() + currentPhaseName.substring(1);
+      } else if (phaseRegimeService.phaseIndex.allRegimes.isNotEmpty) {
+        final sortedRegimes = List.from(phaseRegimeService.phaseIndex.allRegimes)
+          ..sort((a, b) => b.start.compareTo(a.start));
+        currentPhaseName = sortedRegimes.first.label.toString().split('.').last;
+        currentPhaseName = currentPhaseName[0].toUpperCase() + currentPhaseName.substring(1);
+      } else {
         _approachingPhase = null;
         _trendPercent = 0;
         return;
       }
 
-      // Get recent entries (last 10 days - matches regime minimum)
+      // Get all entries and sort chronologically
       final allEntries = journalRepo.getAllJournalEntriesSync();
-      final tenDaysAgo = DateTime.now().subtract(const Duration(days: 10));
-      final recentEntries = allEntries
-          .where((entry) => entry.createdAt.isAfter(tenDaysAgo))
-          .toList();
-
-      if (recentEntries.length < 3) {
+      if (allEntries.isEmpty) {
         _approachingPhase = null;
         _trendPercent = 0;
         return;
       }
 
-      // Count phases in recent entries
+      final sortedEntries = allEntries.toList()
+        ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+
+      // Build RIVET events from entries using PhaseRecommender
+      final rivetService = RivetService();
+      final events = <RivetEvent>[];
+      RivetEvent? lastEvent;
+
+      for (final entry in sortedEntries) {
+        // Use PhaseRecommender to analyze content
+        final recommendedPhase = PhaseRecommender.recommend(
+          emotion: entry.emotion ?? '',
+          reason: entry.emotionReason ?? '',
+          text: entry.content,
+          selectedKeywords: entry.keywords,
+        );
+
+        // Use userPhaseOverride as refPhase if set (chisel), otherwise use regime baseline
+        final entryRefPhase = entry.userPhaseOverride ?? currentPhaseName;
+
+        final event = RivetEvent(
+          eventId: entry.id,
+          date: entry.createdAt,
+          source: EvidenceSource.text,
+          keywords: entry.keywords.toSet(),
+          predPhase: recommendedPhase,
+          refPhase: entryRefPhase,  // User corrections feed into RIVET
+          tolerance: const {},
+        );
+
+        events.add(event);
+        rivetService.ingest(event, lastEvent: lastEvent);
+        lastEvent = event;
+      }
+
+      if (events.length < 3) {
+        _approachingPhase = null;
+        _trendPercent = 0;
+        return;
+      }
+
+      // Calculate transition insights using last 10 events
+      final recentEvents = events.length > 10 
+          ? events.sublist(events.length - 10) 
+          : events;
+      
       final phaseCounts = <String, int>{};
-      for (final entry in recentEntries) {
-        final entryPhase = entry.computedPhase?.toLowerCase();
-        if (entryPhase != null && entryPhase.isNotEmpty) {
-          phaseCounts[entryPhase] = (phaseCounts[entryPhase] ?? 0) + 1;
-        }
+      for (final event in recentEvents) {
+        phaseCounts[event.predPhase] = (phaseCounts[event.predPhase] ?? 0) + 1;
       }
 
-      if (phaseCounts.isEmpty) {
-        _approachingPhase = null;
-        _trendPercent = 0;
-        return;
-      }
-
-      // Current phase name normalized
-      final currentPhaseName = currentRegime.label.toString().split('.').last.toLowerCase();
-
-      // Find the most common phase that's NOT the current phase
-      String? nextMostCommon;
-      int nextMostCount = 0;
+      // Find most common phase that's NOT the current phase
+      String? approachingPhase;
+      double maxCount = 0;
       for (final entry in phaseCounts.entries) {
-        if (entry.key != currentPhaseName && entry.value > nextMostCount) {
-          nextMostCount = entry.value;
-          nextMostCommon = entry.key;
+        if (entry.key.toLowerCase() != currentPhaseName.toLowerCase() && entry.value > maxCount) {
+          maxCount = entry.value.toDouble();
+          approachingPhase = entry.key;
         }
       }
 
-      if (nextMostCommon == null || nextMostCount == 0) {
+      if (approachingPhase == null) {
         _approachingPhase = null;
         _trendPercent = 0;
+        print('DEBUG: Phase trend (RIVET) - stable in $currentPhaseName');
         return;
       }
 
-      // Calculate percentage: (entries with next phase) / (total recent entries) * 100
-      final totalRecentWithPhase = phaseCounts.values.fold(0, (sum, c) => sum + c);
-      final percent = ((nextMostCount / totalRecentWithPhase) * 100).round();
+      // Calculate shift percentage by comparing early vs recent predictions
+      final midPoint = recentEvents.length ~/ 2;
+      final earlyPhases = recentEvents.sublist(0, midPoint).map((e) => e.predPhase).toList();
+      final recentPhases = recentEvents.sublist(midPoint).map((e) => e.predPhase).toList();
+      
+      final earlyApproachCount = earlyPhases.where((p) => p.toLowerCase() == approachingPhase!.toLowerCase()).length;
+      final recentApproachCount = recentPhases.where((p) => p.toLowerCase() == approachingPhase!.toLowerCase()).length;
+      
+      final earlyPercent = earlyPhases.isEmpty ? 0.0 : (earlyApproachCount / earlyPhases.length) * 100;
+      final recentPercent = recentPhases.isEmpty ? 0.0 : (recentApproachCount / recentPhases.length) * 100;
+      
+      final shiftPercentage = (recentPercent - earlyPercent).abs();
+      final isToward = recentPercent > earlyPercent;
 
-      // Only show trend if it's meaningful (> 15%)
-      if (percent > 15) {
-        _approachingPhase = nextMostCommon[0].toUpperCase() + nextMostCommon.substring(1);
-        _trendPercent = percent;
+      // Only show trend if shift > 5% and trending toward
+      if (shiftPercentage > 5.0 && isToward) {
+        _approachingPhase = approachingPhase[0].toUpperCase() + approachingPhase.substring(1).toLowerCase();
+        _trendPercent = shiftPercentage.round();
       } else {
         _approachingPhase = null;
         _trendPercent = 0;
       }
       
-      print('DEBUG: Phase trend - approaching: $_approachingPhase, percent: $_trendPercent%');
+      print('DEBUG: Phase trend (RIVET) - approaching: $_approachingPhase, percent: $_trendPercent%, '
+            'early: ${earlyPercent.toStringAsFixed(1)}%, recent: ${recentPercent.toStringAsFixed(1)}%');
     } catch (e) {
       print('DEBUG: Error calculating phase trend: $e');
       _approachingPhase = null;
@@ -676,307 +729,8 @@ class _CompactArcformPreviewState extends State<_CompactArcformPreview> {
         ),
       ),
     ),
-        // Change Phase button
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-          child: OutlinedButton(
-            onPressed: () => _showChangePhaseDialog(context),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: kcPrimaryColor,
-              backgroundColor: Colors.black,
-              side: BorderSide(color: kcPrimaryColor, width: 1.5),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-            ),
-            child: const Text(
-              'Change Phase',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ),
-        ),
-        // Phase Transition Readiness card (always shown)
-        _buildPhaseTransitionReadinessCard(),
       ],
     );
-  }
-
-  Widget _buildPhaseTransitionReadinessCard() {
-    final hasTrend = _approachingPhase != null && _trendPercent > 0;
-    final phaseColor = hasTrend 
-        ? _getPhaseColor(_approachingPhase!) 
-        : kcSecondaryTextColor;
-    
-    return Container(
-      margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: kcSurfaceColor,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: phaseColor.withOpacity(0.3),
-          width: 1,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header with title and info button
-          Row(
-            children: [
-              Icon(
-                hasTrend ? Icons.trending_up : Icons.trending_flat,
-                color: phaseColor,
-                size: 20,
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  'Phase Transition Readiness',
-                  style: TextStyle(
-                    color: kcPrimaryTextColor,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
-                  ),
-                ),
-              ),
-              GestureDetector(
-                onTap: () => _showTransitionReadinessInfo(context),
-                child: Icon(
-                  Icons.info_outline,
-                  color: kcSecondaryTextColor,
-                  size: 18,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          // Trend text
-          Text(
-            hasTrend
-                ? 'Your reflection patterns have shifted $_trendPercent% toward $_approachingPhase'
-                : 'Your reflection patterns are stable in ${_currentPhase ?? "your current phase"}',
-            style: TextStyle(
-              color: kcPrimaryTextColor,
-              fontSize: 13,
-            ),
-          ),
-          const SizedBox(height: 12),
-          // Progress bar
-          ClipRRect(
-            borderRadius: BorderRadius.circular(4),
-            child: Stack(
-              children: [
-                // Background bar (100%)
-                Container(
-                  height: 8,
-                  width: double.infinity,
-                  color: phaseColor.withOpacity(0.2),
-                ),
-                // Filled bar (trend percent) - show 0% if no trend
-                if (_trendPercent > 0)
-                  FractionallySizedBox(
-                    widthFactor: _trendPercent / 100,
-                    child: Container(
-                      height: 8,
-                      decoration: BoxDecoration(
-                        color: phaseColor.withOpacity(0.8),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 4),
-          // Percentage label
-          Align(
-            alignment: Alignment.centerRight,
-            child: Text(
-              '$_trendPercent%',
-              style: TextStyle(
-                color: phaseColor,
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showTransitionReadinessInfo(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: kcSurfaceColor,
-        title: Row(
-          children: [
-            Icon(Icons.info_outline, color: kcPrimaryColor),
-            const SizedBox(width: 8),
-            Text(
-              'Phase Transition Readiness',
-              style: heading3Style(ctx).copyWith(color: kcPrimaryTextColor),
-            ),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'This indicator shows how your recent journal entries align with different phases.',
-              style: bodyStyle(ctx).copyWith(color: kcPrimaryTextColor),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'Based on your last 10 days of entries, your reflection patterns suggest a trend toward a new phase.',
-              style: bodyStyle(ctx).copyWith(color: kcSecondaryTextColor),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'A higher percentage indicates stronger alignment with the approaching phase.',
-              style: captionStyle(ctx).copyWith(color: kcSecondaryTextColor),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: Text('Got it', style: TextStyle(color: kcPrimaryColor)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showChangePhaseDialog(BuildContext context) {
-    final phases = [
-      'Discovery',
-      'Expansion',
-      'Transition',
-      'Consolidation',
-      'Recovery',
-      'Breakthrough',
-    ];
-
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: kcSurfaceColor,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (context) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(height: 16),
-            Text(
-              'Change Phase',
-              style: heading2Style(context).copyWith(
-                color: kcPrimaryTextColor,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'This will update the last 10 days\' phase regime',
-              style: captionStyle(context).copyWith(
-                color: kcSecondaryTextColor,
-              ),
-            ),
-            const SizedBox(height: 16),
-            ...phases.map((phase) => ListTile(
-              leading: Icon(
-                Icons.auto_awesome,
-                color: _getPhaseColor(phase),
-              ),
-              title: Text(
-                phase,
-                style: TextStyle(
-                  color: kcPrimaryTextColor,
-                  fontWeight: _currentPhase?.toLowerCase() == phase.toLowerCase() 
-                      ? FontWeight.bold 
-                      : FontWeight.normal,
-                ),
-              ),
-              trailing: _currentPhase?.toLowerCase() == phase.toLowerCase()
-                  ? Icon(Icons.check, color: kcPrimaryColor)
-                  : null,
-              onTap: () async {
-                Navigator.of(context).pop();
-                await _changePhaseRegime(phase);
-              },
-            )),
-            const SizedBox(height: 16),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Future<void> _changePhaseRegime(String phaseName) async {
-    try {
-      // Convert phase name to PhaseLabel
-      final phaseLabel = PhaseLabel.values.firstWhere(
-        (label) => label.name.toLowerCase() == phaseName.toLowerCase(),
-        orElse: () => PhaseLabel.consolidation,
-      );
-
-      // Initialize services
-      final analyticsService = AnalyticsService();
-      final rivetSweepService = RivetSweepService(analyticsService);
-      final phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
-      await phaseRegimeService.initialize();
-
-      // Change the current phase
-      await phaseRegimeService.changeCurrentPhase(phaseLabel, updateHashtags: true);
-
-      // Refresh the snapshots
-      await _loadSnapshots();
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Phase changed to $phaseName'),
-            backgroundColor: kcSuccessColor,
-          ),
-        );
-      }
-    } catch (e) {
-      print('Error changing phase: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to change phase: $e'),
-            backgroundColor: kcDangerColor,
-          ),
-        );
-      }
-    }
-  }
-
-  Color _getPhaseColor(String phase) {
-    switch (phase.toLowerCase()) {
-      case 'discovery':
-        return const Color(0xFF7C3AED); // Purple
-      case 'expansion':
-        return const Color(0xFF059669); // Green
-      case 'transition':
-        return const Color(0xFFD97706); // Orange
-      case 'consolidation':
-        return const Color(0xFF2563EB); // Blue
-      case 'recovery':
-        return const Color(0xFFDC2626); // Red
-      case 'breakthrough':
-        return const Color(0xFFFBBF24); // Yellow
-      default:
-        return kcPrimaryColor;
-    }
   }
 }
 
