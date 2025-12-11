@@ -441,20 +441,6 @@ class _SimplifiedArcformView3DState extends State<SimplifiedArcformView3D> {
 
               const SizedBox(height: 16),
 
-              // Constellation Statistics
-              if (arcformData != null) ...[
-                Row(
-                  children: [
-                    _buildMetadataChip('Nodes', '${arcformData.nodes.length}', kcSecondaryColor),
-                    const SizedBox(width: 8),
-                    _buildMetadataChip('Edges', '${arcformData.edges.length}', kcAccentColor),
-                    const SizedBox(width: 8),
-                    _buildMetadataChip('Created', _formatDate(createdAt), kcSuccessColor),
-                  ],
-                ),
-                const SizedBox(height: 16),
-              ],
-
               // Keywords as constellation points
               if (keywords.isNotEmpty) ...[
                 Text(
@@ -1168,25 +1154,6 @@ class _SimplifiedArcformView3DState extends State<SimplifiedArcformView3D> {
     }
   }
 
-  Widget _buildMetadataChip(String label, String value, Color color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.2),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.5)),
-      ),
-      child: Text(
-        '$label: $value',
-        style: TextStyle(
-          color: color,
-          fontSize: 10,
-          fontWeight: FontWeight.w500,
-        ),
-      ),
-    );
-  }
-
   void _showShareSheetForSnapshot(
     BuildContext context,
     Map<String, dynamic> snapshot,
@@ -1273,8 +1240,6 @@ class _FullScreenArcformViewer extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('Phase: ${arcform.phase}'),
-            Text('Nodes: ${arcform.nodes.length}'),
-            Text('Edges: ${arcform.edges.length}'),
             const SizedBox(height: 16),
             const Text('About this Phase:'),
             Text(arcform.content ?? '', style: const TextStyle(fontSize: 12, fontStyle: FontStyle.italic)),
