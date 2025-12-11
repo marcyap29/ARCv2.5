@@ -5,9 +5,11 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:my_app/shared/ui/home/home_view.dart';
 import 'package:my_app/services/firebase_auth_service.dart';
+import 'package:my_app/services/user_phase_service.dart';
 import 'package:my_app/ui/auth/sign_in_screen.dart';
+import 'package:my_app/ui/splash/animated_phase_shape.dart';
 
-/// Splash screen with ARC logo
+/// Splash screen with ARC logo and animated phase shape
 class LumaraSplashScreen extends StatefulWidget {
   const LumaraSplashScreen({super.key});
 
@@ -15,18 +17,55 @@ class LumaraSplashScreen extends StatefulWidget {
   State<LumaraSplashScreen> createState() => _LumaraSplashScreenState();
 }
 
-class _LumaraSplashScreenState extends State<LumaraSplashScreen> {
+class _LumaraSplashScreenState extends State<LumaraSplashScreen> 
+    with SingleTickerProviderStateMixin {
   Timer? _timer;
+  String _currentPhase = 'Discovery'; // Default phase
+  bool _phaseLoaded = false;
+  late AnimationController _fadeController;
+  late Animation<double> _fadeAnimation;
 
   @override
   void initState() {
     super.initState();
+    
+    // Fade in animation
+    _fadeController = AnimationController(
+      duration: const Duration(milliseconds: 800),
+      vsync: this,
+    );
+    _fadeAnimation = CurvedAnimation(
+      parent: _fadeController,
+      curve: Curves.easeIn,
+    );
+    _fadeController.forward();
+    
+    _loadCurrentPhase();
     _startTimer();
   }
 
+  Future<void> _loadCurrentPhase() async {
+    try {
+      // Use UserPhaseService for simple phase string retrieval
+      final phase = await UserPhaseService.getCurrentPhase();
+      if (mounted) {
+        setState(() {
+          _currentPhase = phase;
+          _phaseLoaded = true;
+        });
+        print('DEBUG: Splash loaded phase: $_currentPhase');
+      }
+    } catch (e) {
+      print('DEBUG: Error loading phase for splash: $e');
+      if (mounted) {
+        setState(() => _phaseLoaded = true);
+      }
+    }
+  }
+
   void _startTimer() {
-    // Navigate after 3 seconds, checking auth state
-    _timer = Timer(const Duration(seconds: 3), () {
+    // Navigate after 4 seconds (increased to admire the animation)
+    _timer = Timer(const Duration(seconds: 4), () {
       if (mounted) {
         _checkAuthAndNavigate();
       }
@@ -64,6 +103,7 @@ class _LumaraSplashScreenState extends State<LumaraSplashScreen> {
   @override
   void dispose() {
     _timer?.cancel();
+    _fadeController.dispose();
     super.dispose();
   }
 
@@ -76,15 +116,49 @@ class _LumaraSplashScreenState extends State<LumaraSplashScreen> {
         child: SafeArea(
           child: LayoutBuilder(
             builder: (context, constraints) {
-              // Calculate logo size based on screen width (use 60% of screen width, min 200px, max 400px)
-              final logoSize = (constraints.maxWidth * 0.6).clamp(200.0, 400.0);
+              // Calculate logo size based on screen width (use 50% of screen width, min 150px, max 300px)
+              final logoSize = (constraints.maxWidth * 0.5).clamp(150.0, 300.0);
+              // Phase shape size (slightly smaller than logo)
+              final shapeSize = logoSize * 0.8;
               
-              return Center(
-                child: Image.asset(
-                  'assets/images/ARC-Logo-White.png',
-                  width: logoSize,
-                  height: logoSize,
-                  fit: BoxFit.contain,
+              return FadeTransition(
+                opacity: _fadeAnimation,
+                child: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      // ARC Logo
+                      Image.asset(
+                        'assets/images/ARC-Logo-White.png',
+                        width: logoSize,
+                        height: logoSize,
+                        fit: BoxFit.contain,
+                      ),
+                      
+                      const SizedBox(height: 24),
+                      
+                      // Animated Phase Shape
+                      AnimatedPhaseShape(
+                        phase: _currentPhase,
+                        size: shapeSize,
+                        rotationDuration: const Duration(seconds: 10),
+                      ),
+                      
+                      const SizedBox(height: 16),
+                      
+                      // Phase name label (subtle)
+                      if (_phaseLoaded)
+                        Text(
+                          _currentPhase,
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.5),
+                            fontSize: 14,
+                            fontWeight: FontWeight.w300,
+                            letterSpacing: 2,
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
               );
             },
