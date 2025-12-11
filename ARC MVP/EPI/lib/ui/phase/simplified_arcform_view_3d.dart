@@ -35,6 +35,7 @@ class _SimplifiedArcformView3DState extends State<SimplifiedArcformView3D> {
   List<Map<String, dynamic>> _snapshots = [];
   bool _isLoading = true;
   Set<String> _userExperiencedPhases = {}; // Track phases user has been in
+  Map<String, DateTime> _mostRecentPastPhases = {}; // Track most recent date for each past phase
 
   @override
   void initState() {
@@ -198,6 +199,7 @@ class _SimplifiedArcformView3DState extends State<SimplifiedArcformView3D> {
       final journalRepo = JournalRepository();
       final allEntries = journalRepo.getAllJournalEntriesSync();
       final phases = <String>{};
+      final pastPhaseData = <String, DateTime>{};
 
       // Extract unique phases from journal entries
       final entryPhases = allEntries
@@ -213,12 +215,43 @@ class _SimplifiedArcformView3DState extends State<SimplifiedArcformView3D> {
         final phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
         await phaseRegimeService.initialize();
         
-        final regimePhases = phaseRegimeService.phaseIndex.allRegimes
+        final allRegimes = phaseRegimeService.phaseIndex.allRegimes;
+        final regimePhases = allRegimes
             .map((regime) => regime.label.toString().split('.').last)
             .toSet();
         phases.addAll(regimePhases);
         
+        // Sort regimes by date (most recent first)
+        final sortedRegimes = List.from(allRegimes)
+          ..sort((a, b) => b.start.compareTo(a.start));
+        
+        // Build map of most recent PAST instance for each phase
+        // For the current phase type, we want the second-most-recent (previous) instance
+        // For other phase types, we want the most recent instance
+        final currentPhaseLower = widget.currentPhase?.toLowerCase() ?? '';
+        bool foundCurrentPhaseOnce = false;
+        
+        for (final regime in sortedRegimes) {
+          final phaseName = regime.label.toString().split('.').last.toLowerCase();
+          final regimeDate = regime.start;
+          
+          // Skip if we already have this phase recorded
+          if (pastPhaseData.containsKey(phaseName)) continue;
+          
+          // For the current phase type, skip the first (most recent/current) instance
+          if (phaseName == currentPhaseLower) {
+            if (!foundCurrentPhaseOnce) {
+              foundCurrentPhaseOnce = true;
+              continue; // Skip the current instance, wait for previous
+            }
+          }
+          
+          // Record this as the most recent past instance for this phase
+          pastPhaseData[phaseName] = regimeDate;
+        }
+        
         print('DEBUG: Found ${regimePhases.length} phases from phase regimes: $regimePhases');
+        print('DEBUG: Past phase data (most recent past instances): $pastPhaseData');
       } catch (e) {
         print('DEBUG: Could not access phase regimes: $e');
       }
@@ -229,11 +262,13 @@ class _SimplifiedArcformView3DState extends State<SimplifiedArcformView3D> {
       }
 
       _userExperiencedPhases = phases.map((p) => p.toLowerCase()).toSet();
+      _mostRecentPastPhases = pastPhaseData;
 
       print('DEBUG: User has experienced ${_userExperiencedPhases.length} phases: $_userExperiencedPhases');
     } catch (e) {
       print('ERROR: Failed to discover user phases: $e');
       _userExperiencedPhases = {};
+      _mostRecentPastPhases = {};
     }
   }
 
@@ -442,55 +477,11 @@ class _SimplifiedArcformView3DState extends State<SimplifiedArcformView3D> {
 
               const SizedBox(height: 16),
 
-              // Keywords as constellation points
-              if (keywords.isNotEmpty) ...[
-                Text(
-                  'Phase Elements:',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 12,
-                    color: kcSecondaryTextColor,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
-                  children: keywords.take(6).map((keyword) => Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: _getPhaseColor(phaseHint).withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: _getPhaseColor(phaseHint).withOpacity(0.3)),
-                    ),
-                    child: Text(
-                      keyword,
-                      style: TextStyle(
-                        color: _getPhaseColor(phaseHint),
-                        fontSize: 11,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  )).toList(),
-                ),
-                
-                if (keywords.length > 6) ...[
-                  const SizedBox(height: 8),
-                  Text(
-                    '+${keywords.length - 6} more points',
-                    style: TextStyle(
-                      color: kcSecondaryTextColor,
-                      fontSize: 10,
-                      fontStyle: FontStyle.italic,
-                    ),
-                  ),
-                ],
-              ],
+              // PAST PHASES section (user's historical phases)
+              _buildPastPhasesSection(phaseHint),
 
-              const SizedBox(height: 16),
-
-              // OTHER PHASE SHAPES PREVIEW
-              _buildOtherPhasesSection(phaseHint),
+              // EXAMPLE PHASES section (demo phases for exploration)
+              _buildExamplePhasesSection(phaseHint),
 
               const SizedBox(height: 16),
 
@@ -1042,9 +1033,54 @@ class _SimplifiedArcformView3DState extends State<SimplifiedArcformView3D> {
     }
   }
 
-  /// Build section showing other phase shapes as examples
-  Widget _buildOtherPhasesSection(String currentPhase) {
-    // Get list of other phases to show (exclude current phase)
+  /// Build section showing user's past phases
+  /// Shows only the most recent PAST instance of each distinct phase
+  /// (For current phase type, shows the previous occurrence, not the current one)
+  Widget _buildPastPhasesSection(String currentPhase) {
+    // Get all past phase instances, sorted by most recent date
+    // Note: _mostRecentPastPhases already excludes the current instance of the current phase
+    final pastPhasesWithDates = _mostRecentPastPhases.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value)); // Sort by date, most recent first
+    
+    final pastPhases = pastPhasesWithDates
+        .map((entry) => entry.key[0].toUpperCase() + entry.key.substring(1))
+        .toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Past Phases:',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 12,
+            color: kcSecondaryTextColor,
+          ),
+        ),
+        const SizedBox(height: 8),
+        if (pastPhases.isEmpty)
+          Text(
+            'Your phase history will appear here as you progress.',
+            style: TextStyle(
+              color: kcSecondaryTextColor.withOpacity(0.7),
+              fontSize: 11,
+              fontStyle: FontStyle.italic,
+            ),
+          )
+        else
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: pastPhases.map((phase) => _buildPhasePreviewChip(phase, isUserPhase: true)).toList(),
+          ),
+        const SizedBox(height: 16),
+      ],
+    );
+  }
+
+  /// Build section showing example phase shapes for exploration
+  Widget _buildExamplePhasesSection(String currentPhase) {
+    // Get list of phases the user hasn't experienced yet
     final allPhases = [
       'Discovery',
       'Expansion',
@@ -1054,17 +1090,18 @@ class _SimplifiedArcformView3DState extends State<SimplifiedArcformView3D> {
       'Breakthrough',
     ];
 
-    final otherPhases = allPhases
-        .where((phase) => phase.toLowerCase() != currentPhase.toLowerCase())
+    // Show phases the user hasn't experienced (excluding current and past phases)
+    final examplePhases = allPhases
+        .where((phase) => !_userExperiencedPhases.contains(phase.toLowerCase()))
         .toList();
 
-    if (otherPhases.isEmpty) return const SizedBox.shrink();
+    if (examplePhases.isEmpty) return const SizedBox.shrink();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Other Phase Shapes:',
+          'Example Phases:',
           style: TextStyle(
             fontWeight: FontWeight.bold,
             fontSize: 12,
@@ -1075,14 +1112,14 @@ class _SimplifiedArcformView3DState extends State<SimplifiedArcformView3D> {
         Wrap(
           spacing: 8,
           runSpacing: 8,
-          children: otherPhases.map((phase) => _buildPhasePreviewChip(phase)).toList(),
+          children: examplePhases.map((phase) => _buildPhasePreviewChip(phase, isUserPhase: false)).toList(),
         ),
       ],
     );
   }
 
   /// Build a small chip showing a phase preview
-  Widget _buildPhasePreviewChip(String phase) {
+  Widget _buildPhasePreviewChip(String phase, {bool isUserPhase = false}) {
     final phaseColor = _getPhaseColor(phase);
     return GestureDetector(
       onTap: () {
