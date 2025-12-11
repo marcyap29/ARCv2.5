@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:my_app/shared/app_colors.dart';
+import 'package:my_app/shared/widgets/lumara_icon.dart';
 
 class CustomTabBar extends StatefulWidget {
   final List<TabItem> tabs;
@@ -27,7 +28,7 @@ class _CustomTabBarState extends State<CustomTabBar> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: widget.height ?? 100, // Increased to 100 to accommodate the + button
+      height: widget.height ?? 80, // Standard height for 4 buttons in a row
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
       padding: const EdgeInsets.only(
         left: 8,
@@ -46,76 +47,32 @@ class _CustomTabBarState extends State<CustomTabBar> {
           ),
         ],
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
+      child: Row(
         children: [
-          // + button above tabs
-          Center(
-            child: Container(
-              width: 37.5, // Reduced by 1/4 from 50
-              height: 37.5, // Reduced by 1/4 from 50
-              margin: const EdgeInsets.only(bottom: 4),
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: kcPrimaryColor,
-                border: Border.all(
-                  color: kcPrimaryColor.withOpacity(0.3),
-                  width: 0.75, // Reduced by 1/4 from 1
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.15),
-                    blurRadius: 3, // Reduced by 1/4 from 4
-                    offset: const Offset(0, 1.5), // Reduced by 1/4 from 2
-                  ),
-                ],
-              ),
-              child: Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  onTap: widget.onNewJournalPressed,
-                  borderRadius: BorderRadius.circular(18.75), // Reduced by 1/4 from 25
-                  child: const Icon(
-                    Icons.add,
-                    color: Colors.white,
-                    size: 18, // Reduced by 1/4 from 24
-                  ),
-                ),
-              ),
-            ),
-          ),
-          // Tabs row
-          Expanded(
-            child: Row(
-              children: [
-          // First tab (Journal)
+          // First tab (LUMARA) - index 0
           Expanded(
             child: GestureDetector(
               onTap: () => widget.onTabSelected(0),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 250),
-                margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+              child: Container(
+                margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
                 decoration: BoxDecoration(
-                  gradient: widget.selectedIndex == 0 ? kcPrimaryGradient : null,
-                  color: widget.selectedIndex == 0 ? null : kcSurfaceAltColor,
+                  color: const Color(0xFF2D3748), // Gray background
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: Center(
-                  child: _buildTabContent(widget.tabs[0], widget.selectedIndex == 0),
+                  child: _buildTabContent(widget.tabs[0], widget.selectedIndex == 0, isLumara: true),
                 ),
               ),
             ),
           ),
-                // Second tab (LUMARA)
+          // Second tab (Phase) - index 1
           Expanded(
             child: GestureDetector(
               onTap: () => widget.onTabSelected(1),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 250),
-                margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+              child: Container(
+                margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
                 decoration: BoxDecoration(
-                  gradient: widget.selectedIndex == 1 ? kcPrimaryGradient : null,
-                  color: widget.selectedIndex == 1 ? null : kcSurfaceAltColor,
+                  color: const Color(0xFF2D3748), // Gray background
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: Center(
@@ -124,25 +81,47 @@ class _CustomTabBarState extends State<CustomTabBar> {
               ),
             ),
           ),
-          // Third tab (Insights)
+          // Third tab (Journal) - index 2
           Expanded(
             child: GestureDetector(
               onTap: () => widget.onTabSelected(2),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 250),
-                margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+              child: Container(
+                margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
                 decoration: BoxDecoration(
-                  gradient: widget.selectedIndex == 2 ? kcPrimaryGradient : null,
-                  color: widget.selectedIndex == 2 ? null : kcSurfaceAltColor,
+                  color: const Color(0xFF2D3748), // Gray background
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: Center(
                   child: _buildTabContent(widget.tabs[2], widget.selectedIndex == 2),
                 ),
               ),
+            ),
+          ),
+          // Fourth button (+) - New Journal
+          Expanded(
+            child: GestureDetector(
+              onTap: widget.onNewJournalPressed,
+              child: Container(
+                margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                decoration: BoxDecoration(
+                  color: kcPrimaryColor,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: kcPrimaryColor.withOpacity(0.3),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: const Center(
+                  child: Icon(
+                    Icons.add,
+                    size: 32,
+                    color: Colors.white,
                   ),
                 ),
-              ],
+              ),
             ),
           ),
         ],
@@ -151,23 +130,27 @@ class _CustomTabBarState extends State<CustomTabBar> {
   }
 
 
-  Widget _buildTabContent(TabItem tab, bool isSelected) {
-    final textColor = isSelected ? Colors.white : kcPrimaryTextColor;
+  Widget _buildTabContent(TabItem tab, bool isSelected, {bool isLumara = false}) {
+    const textColor = kcPrimaryTextColor; // Always white text, no active highlight
 
     if (tab.icon != null && tab.text != null) {
       return Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            tab.icon,
-            size: 31.25, // Increased by 1/4 from 25 to 31.25
-            color: textColor,
-          ),
-          const SizedBox(height: 2), // Increased spacing between icon and text
+          if (isLumara)
+            // Use custom LUMARA icon (same as chat bubbles)
+            const LumaraIcon(size: 28)
+          else
+            Icon(
+              tab.icon,
+              size: 28,
+              color: textColor,
+            ),
+          const SizedBox(height: 2),
           Text(
             tab.text!,
-            style: TextStyle(
-              fontSize: 14.0625, // Increased by 1/4 from 11.25 to 14.0625
+            style: const TextStyle(
+              fontSize: 12,
               fontWeight: FontWeight.w500,
               color: textColor,
             ),
@@ -177,16 +160,19 @@ class _CustomTabBarState extends State<CustomTabBar> {
         ],
       );
     } else if (tab.icon != null) {
+      if (isLumara) {
+        return const LumaraIcon(size: 28);
+      }
       return Icon(
         tab.icon,
-        size: 31.25, // Increased by 1/4 from 25 to 31.25
+        size: 28,
         color: textColor,
       );
     } else {
       return Text(
         tab.text!,
-        style: TextStyle(
-          fontSize: 18.75, // Increased by 1/4 from 15 to 18.75
+        style: const TextStyle(
+          fontSize: 16,
           fontWeight: FontWeight.w500,
           color: textColor,
         ),

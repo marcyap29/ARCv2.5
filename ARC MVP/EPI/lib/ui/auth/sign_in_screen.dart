@@ -203,8 +203,18 @@ class _SignInScreenState extends State<SignInScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final canPop = Navigator.of(context).canPop();
+    
     return Scaffold(
       backgroundColor: kcBackgroundColor,
+      appBar: canPop ? AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+      ) : null,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24.0),
@@ -214,7 +224,7 @@ class _SignInScreenState extends State<SignInScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const SizedBox(height: 40),
+                if (!canPop) const SizedBox(height: 40),
                 
                 // Logo/Icon
                 Container(
@@ -453,19 +463,6 @@ class _SignInScreenState extends State<SignInScreen> {
                     ),
                   ],
                 ),
-
-                const SizedBox(height: 16),
-
-                // Back button for users who came from trial expired dialog
-                if (Navigator.of(context).canPop())
-                  TextButton.icon(
-                    onPressed: () => Navigator.of(context).pop(),
-                    icon: Icon(Icons.arrow_back, size: 18, color: kcSecondaryTextColor),
-                    label: Text(
-                      'Go Back',
-                      style: TextStyle(color: kcSecondaryTextColor),
-                    ),
-                  ),
 
                 const SizedBox(height: 40),
               ],

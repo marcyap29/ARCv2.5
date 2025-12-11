@@ -36,17 +36,17 @@ class _HomeViewState extends State<HomeView> {
   late HomeCubit _homeCubit;
   // Insights moved under Health as Analytics
   
-  // Navigation: 3 main tabs (Journal + LUMARA + Insights)
+  // Navigation: 4 buttons (LUMARA + Phase + Journal + New)
   List<TabItem> get _tabs {
     return const [
+      TabItem(icon: Icons.psychology, text: 'LUMARA'),
+      TabItem(icon: Icons.insights, text: 'Phase'),
       TabItem(icon: Icons.book, text: 'Journal'),
-      TabItem(icon: Icons.psychology, text: 'LUMARA'), // Note: TabItem uses IconData, keeping Icons.psychology for now
-      TabItem(icon: Icons.insights, text: 'Insights'),
     ];
   }
 
   List<String> get _tabNames {
-    return const ['Journal', 'LUMARA', 'Insights'];
+    return const ['LUMARA', 'Phase', 'Journal'];
   }
 
   @override
@@ -57,7 +57,7 @@ class _HomeViewState extends State<HomeView> {
       if (widget.initialTab != 0) {
         _homeCubit.changeTab(widget.initialTab);
       } else {
-        _homeCubit.changeTab(0); // Set Journal tab as default
+        _homeCubit.changeTab(2); // Set Journal tab as default (index 2 in new order)
       }
 
     // Check photo permissions and refresh timeline if granted
@@ -137,8 +137,8 @@ class _HomeViewState extends State<HomeView> {
               context.read<TimelineCubit>().refreshEntries();
             }
             
-            // Refresh phase cache when switching to Insights tab (index 2)
-            if (state.selectedIndex == 2) {
+            // Refresh phase cache when switching to Phase tab (index 1)
+            if (state.selectedIndex == 1) {
               _refreshPhaseCache();
             }
           }
@@ -203,11 +203,10 @@ class _HomeViewState extends State<HomeView> {
   }
 
   /// Get the appropriate page widget for the given index
+  /// Order: LUMARA (0) | Phase (1) | Journal (2)
   Widget _getPageForIndex(int index, BuildContext context) {
     switch (index) {
       case 0:
-        return const UnifiedJournalView();
-      case 1:
         // LUMARA - use Builder to get context with provider access
         return Builder(
           builder: (builderContext) {
@@ -234,8 +233,10 @@ class _HomeViewState extends State<HomeView> {
             }
           },
         );
-      case 2:
+      case 1:
         return const UnifiedInsightsView();
+      case 2:
+        return const UnifiedJournalView();
       default:
         return const UnifiedJournalView();
     }

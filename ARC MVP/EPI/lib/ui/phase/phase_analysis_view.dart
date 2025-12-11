@@ -402,7 +402,7 @@ List<PhaseSegmentProposal> proposals,
     if (_isLoading) {
       return Scaffold(
         appBar: AppBar(
-          title: const Text('Phase Analysis'),
+          title: const Text('Phase'),
           centerTitle: true,
         ),
         body: const Center(
@@ -421,7 +421,7 @@ List<PhaseSegmentProposal> proposals,
     if (_error != null) {
       return Scaffold(
         appBar: AppBar(
-          title: const Text('Phase Analysis'),
+          title: const Text('Phase'),
           centerTitle: true,
         ),
         body: Center(
@@ -455,7 +455,7 @@ List<PhaseSegmentProposal> proposals,
             },
             tooltip: 'Phase Help',
           ),
-        title: const Text('Phase Analysis'),
+        title: const Text('Phase'),
         centerTitle: true,
         actions: [
           PopupMenuButton<String>(
@@ -1552,22 +1552,6 @@ List<PhaseSegmentProposal> proposals,
   Widget _buildArcformsTab() {
     return Column(
       children: [
-        // Header with refresh and 3D view buttons
-        Container(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              Expanded(
-                child: Text(
-                  'Phase Visualizations',
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
         // Simplified view below
         Expanded(
           child: _buildArcformContent(),
