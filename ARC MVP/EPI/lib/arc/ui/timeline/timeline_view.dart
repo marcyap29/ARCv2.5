@@ -634,7 +634,7 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
                   const Icon(Icons.timeline, size: 21),
                   const SizedBox(width: 4),
                   Text(
-                    _isSelectionMode ? 'Select Entries' : 'Timeline',
+                    _isSelectionMode ? 'Select Entries' : 'Journal',
                     style: heading1Style(context).copyWith(
                       fontSize: 20,
                       fontWeight: FontWeight.w600,

@@ -13,6 +13,7 @@ import 'package:my_app/services/rivet_sweep_service.dart';
 import 'package:my_app/arc/core/journal_repository.dart';
 import 'package:my_app/arc/arcform/share/arcform_share_models.dart';
 import 'package:my_app/arc/arcform/share/arcform_share_sheet.dart';
+import 'package:my_app/models/phase_models.dart';
 
 /// Compact preview widget showing current phase Arcform visualization
 /// Uses the same architecture as Insights->Phase->Arcform visualizations
@@ -54,7 +55,7 @@ class _CompactArcformPreviewState extends State<_CompactArcformPreview> {
   }
 
   // Copy the exact same loading logic from SimplifiedArcformView3D
-  void _loadSnapshots() async {
+  Future<void> _loadSnapshots() async {
     setState(() {
       _isLoading = true;
     });
@@ -473,13 +474,16 @@ class _CompactArcformPreviewState extends State<_CompactArcformPreview> {
         : phaseHintRaw[0].toUpperCase() + phaseHintRaw.substring(1).toLowerCase();
     final arcformData = _generateArcformData(snapshot, phaseHint);
 
-    return GestureDetector(
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        GestureDetector(
       onTap: () {
         // Navigate directly to full-screen 3D Arcform viewer (same as clicking in Arcform Visualizations)
         if (arcformData != null) {
           Navigator.of(context).push(
             MaterialPageRoute(
-              builder: (context) => _FullScreenArcformViewer(arcform: arcformData),
+              builder: (context) => FullScreenPhaseViewer(arcform: arcformData),
             ),
           );
         }
@@ -534,10 +538,10 @@ class _CompactArcformPreviewState extends State<_CompactArcformPreview> {
                 ],
               ),
             ),
-            // Arcform preview - same as SimplifiedArcformView3D's card preview
+            // Arcform preview - fills remaining space
             Expanded(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(8),
                   child: arcformData != null
@@ -577,59 +581,167 @@ class _CompactArcformPreviewState extends State<_CompactArcformPreview> {
                 ),
               ),
             ),
-            // Info chips - same as SimplifiedArcformView3D's card
-            if (arcformData != null)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
-                child: Row(
-                  children: [
-                    _buildMetadataChip('Nodes', '${arcformData.nodes.length}', kcSecondaryColor),
-                    const SizedBox(width: 8),
-                    _buildMetadataChip('Edges', '${arcformData.edges.length}', kcAccentColor),
-                    const Spacer(),
-                    Text(
-                      'Tap to expand',
-                      style: captionStyle(context).copyWith(
-                        color: kcSecondaryTextColor,
-                        fontSize: 11,
-                      ),
-                    ),
-                  ],
+          ],
+        ),
+      ),
+    ),
+        // Change Phase button
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+          child: OutlinedButton(
+            onPressed: () => _showChangePhaseDialog(context),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: kcPrimaryColor,
+              backgroundColor: Colors.black,
+              side: BorderSide(color: kcPrimaryColor, width: 1.5),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            ),
+            child: const Text(
+              'Change Phase',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _showChangePhaseDialog(BuildContext context) {
+    final phases = [
+      'Discovery',
+      'Expansion',
+      'Transition',
+      'Consolidation',
+      'Recovery',
+      'Breakthrough',
+    ];
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: kcSurfaceColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 16),
+            Text(
+              'Change Phase',
+              style: heading2Style(context).copyWith(
+                color: kcPrimaryTextColor,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'This will update the last 10 days\' phase regime',
+              style: captionStyle(context).copyWith(
+                color: kcSecondaryTextColor,
+              ),
+            ),
+            const SizedBox(height: 16),
+            ...phases.map((phase) => ListTile(
+              leading: Icon(
+                Icons.auto_awesome,
+                color: _getPhaseColor(phase),
+              ),
+              title: Text(
+                phase,
+                style: TextStyle(
+                  color: kcPrimaryTextColor,
+                  fontWeight: _currentPhase?.toLowerCase() == phase.toLowerCase() 
+                      ? FontWeight.bold 
+                      : FontWeight.normal,
                 ),
               ),
+              trailing: _currentPhase?.toLowerCase() == phase.toLowerCase()
+                  ? Icon(Icons.check, color: kcPrimaryColor)
+                  : null,
+              onTap: () async {
+                Navigator.of(context).pop();
+                await _changePhaseRegime(phase);
+              },
+            )),
+            const SizedBox(height: 16),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildMetadataChip(String label, String value, Color color) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(
-          label == 'Nodes' ? Icons.circle : Icons.link,
-          size: 14,
-          color: color,
-        ),
-        const SizedBox(width: 4),
-        Text(
-          '$label: $value',
-          style: captionStyle(context).copyWith(
-            color: kcPrimaryTextColor,
-            fontSize: 11,
+  Future<void> _changePhaseRegime(String phaseName) async {
+    try {
+      // Convert phase name to PhaseLabel
+      final phaseLabel = PhaseLabel.values.firstWhere(
+        (label) => label.name.toLowerCase() == phaseName.toLowerCase(),
+        orElse: () => PhaseLabel.consolidation,
+      );
+
+      // Initialize services
+      final analyticsService = AnalyticsService();
+      final rivetSweepService = RivetSweepService(analyticsService);
+      final phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
+      await phaseRegimeService.initialize();
+
+      // Change the current phase
+      await phaseRegimeService.changeCurrentPhase(phaseLabel, updateHashtags: true);
+
+      // Refresh the snapshots
+      await _loadSnapshots();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Phase changed to $phaseName'),
+            backgroundColor: kcSuccessColor,
           ),
-        ),
-      ],
-    );
+        );
+      }
+    } catch (e) {
+      print('Error changing phase: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to change phase: $e'),
+            backgroundColor: kcDangerColor,
+          ),
+        );
+      }
+    }
+  }
+
+  Color _getPhaseColor(String phase) {
+    switch (phase.toLowerCase()) {
+      case 'discovery':
+        return const Color(0xFF7C3AED); // Purple
+      case 'expansion':
+        return const Color(0xFF059669); // Green
+      case 'transition':
+        return const Color(0xFFD97706); // Orange
+      case 'consolidation':
+        return const Color(0xFF2563EB); // Blue
+      case 'recovery':
+        return const Color(0xFFDC2626); // Red
+      case 'breakthrough':
+        return const Color(0xFFFBBF24); // Yellow
+      default:
+        return kcPrimaryColor;
+    }
   }
 }
 
-/// Full-screen ARCForm viewer (same as SimplifiedArcformView3D)
-class _FullScreenArcformViewer extends StatelessWidget {
+/// Full-screen Phase viewer - shared across Journal and Phase screens
+class FullScreenPhaseViewer extends StatelessWidget {
   final Arcform3DData arcform;
 
-  const _FullScreenArcformViewer({required this.arcform});
+  const FullScreenPhaseViewer({super.key, required this.arcform});
 
   @override
   Widget build(BuildContext context) {
@@ -642,7 +754,7 @@ class _FullScreenArcformViewer extends StatelessWidget {
           IconButton(
             icon: const Icon(Icons.share_outlined),
             onPressed: () => _showShareSheet(context, arcform),
-            tooltip: 'Share Arcform',
+            tooltip: 'Share Phase',
           ),
           IconButton(
             icon: const Icon(Icons.info_outline),
@@ -665,16 +777,14 @@ class _FullScreenArcformViewer extends StatelessWidget {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('ARCForm Info', style: heading2Style(context)),
+        title: Text('Phase Info', style: heading2Style(context)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('Phase: ${arcform.phase}'),
-            Text('Nodes: ${arcform.nodes.length}'),
-            Text('Edges: ${arcform.edges.length}'),
             const SizedBox(height: 16),
-            const Text('About this ARCForm:'),
+            const Text('About this Phase:'),
             Text(arcform.content ?? '', style: const TextStyle(fontSize: 12, fontStyle: FontStyle.italic)),
           ],
         ),

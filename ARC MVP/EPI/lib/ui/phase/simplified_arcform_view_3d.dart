@@ -16,6 +16,7 @@ import '../../services/rivet_sweep_service.dart';
 import 'package:my_app/arc/core/journal_repository.dart';
 import 'package:my_app/arc/arcform/share/arcform_share_models.dart';
 import 'package:my_app/arc/arcform/share/arcform_share_sheet.dart';
+import 'package:my_app/arc/ui/timeline/widgets/current_phase_arcform_preview.dart';
 
 /// Simplified ARCForms view with 3D constellation renderer
 class SimplifiedArcformView3D extends StatefulWidget {
@@ -582,17 +583,22 @@ class _SimplifiedArcformView3DState extends State<SimplifiedArcformView3D> {
 
   Future<Arcform3DData?> _generatePhaseConstellation(String phase, {bool isUserPhase = false}) async {
     try {
+      // Capitalize the phase name for display
+      final capitalizedPhase = phase.isEmpty 
+          ? 'Discovery' 
+          : phase[0].toUpperCase() + phase.substring(1).toLowerCase();
+      
       // Create skin for this phase
-      final skin = ArcformSkin.forUser('user', 'phase_$phase');
+      final skin = ArcformSkin.forUser('user', 'phase_$capitalizedPhase');
 
       // Get keywords: actual from journal if this is user's phase, hardcoded if demo/example
       final List<String> keywords;
       if (isUserPhase) {
         // User's actual phase - use real keywords from journal entries
-        keywords = await _getActualPhaseKeywords(phase);
+        keywords = await _getActualPhaseKeywords(capitalizedPhase);
       } else {
         // Demo/example phase - use hardcoded keywords
-        keywords = _getHardcodedPhaseKeywords(phase);
+        keywords = _getHardcodedPhaseKeywords(capitalizedPhase);
       }
 
       // Filter out blank keywords for 3D layout (keep only non-empty keywords)
@@ -602,10 +608,10 @@ class _SimplifiedArcformView3DState extends State<SimplifiedArcformView3D> {
       // Don't override maxNodes - let layout3D use the phase-optimized count
       final nodes = layout3D(
         keywords: nonEmptyKeywords.isNotEmpty ? nonEmptyKeywords : ['Phase'], // Fallback to at least one node
-        phase: phase,
+        phase: capitalizedPhase,
         skin: skin,
         keywordWeights: {for (var kw in nonEmptyKeywords) kw: 0.6 + (kw.length / 30.0)},
-        keywordValences: {for (var kw in nonEmptyKeywords) kw: _getPhaseValence(kw, phase)},
+        keywordValences: {for (var kw in nonEmptyKeywords) kw: _getPhaseValence(kw, capitalizedPhase)},
       );
 
       // Generate edges
@@ -613,7 +619,7 @@ class _SimplifiedArcformView3DState extends State<SimplifiedArcformView3D> {
       final edges = generateEdges(
         nodes: nodes,
         rng: rng,
-        phase: phase,
+        phase: capitalizedPhase,
         maxEdgesPerNode: 4,
         maxDistance: 1.4,
       );
@@ -621,14 +627,14 @@ class _SimplifiedArcformView3DState extends State<SimplifiedArcformView3D> {
       return Arcform3DData(
         nodes: nodes,
         edges: edges,
-        phase: phase,
+        phase: capitalizedPhase,
         skin: skin,
-        title: '$phase Constellation',
+        title: '$capitalizedPhase Constellation',
         content: isUserPhase
-            ? 'Your personal 3D constellation for $phase phase'
-            : 'Example 3D constellation for $phase phase',
+            ? 'Your personal 3D constellation for $capitalizedPhase phase'
+            : 'Example 3D constellation for $capitalizedPhase phase',
         createdAt: DateTime.now(),
-        id: 'phase_${phase.toLowerCase()}_${DateTime.now().millisecondsSinceEpoch}',
+        id: 'phase_${capitalizedPhase.toLowerCase()}_${DateTime.now().millisecondsSinceEpoch}',
       );
     } catch (e) {
       print('Error generating phase constellation for $phase: $e');
@@ -1030,7 +1036,7 @@ class _SimplifiedArcformView3DState extends State<SimplifiedArcformView3D> {
     if (mounted) {
       Navigator.of(context).push(
         MaterialPageRoute(
-          builder: (context) => _FullScreenArcformViewer(arcform: arcform),
+          builder: (context) => FullScreenPhaseViewer(arcform: arcform),
         ),
       );
     }
@@ -1190,95 +1196,6 @@ class _SimplifiedArcformView3DState extends State<SimplifiedArcformView3D> {
       payload: payload,
       fromView: 'timeline_card',
       arcformPreview: preview,
-    );
-  }
-}
-
-/// Full-screen ARCForm viewer
-class _FullScreenArcformViewer extends StatelessWidget {
-  final Arcform3DData arcform;
-
-  const _FullScreenArcformViewer({required this.arcform});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: kcBackgroundColor,
-      appBar: AppBar(
-        backgroundColor: kcBackgroundColor,
-        title: Text(arcform.title, style: heading1Style(context)),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.share_outlined),
-            onPressed: () => _showShareSheet(context, arcform),
-            tooltip: 'Share Arcform',
-          ),
-          IconButton(
-            icon: const Icon(Icons.info_outline),
-            onPressed: () => _showInfo(context),
-          ),
-        ],
-      ),
-      body: Arcform3D(
-        nodes: arcform.nodes,
-        edges: arcform.edges,
-        phase: arcform.phase,
-        skin: arcform.skin,
-        showNebula: true,
-        enableLabels: true,
-      ),
-    );
-  }
-
-  void _showInfo(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Phase Info', style: heading2Style(context)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Phase: ${arcform.phase}'),
-            const SizedBox(height: 16),
-            const Text('About this Phase:'),
-            Text(arcform.content ?? '', style: const TextStyle(fontSize: 12, fontStyle: FontStyle.italic)),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Close'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showShareSheet(BuildContext context, Arcform3DData arcform) {
-    // Extract keywords from nodes
-    final keywords = arcform.nodes.map((node) => node.label).toList();
-    
-    // Create initial payload
-    final payload = ArcformSharePayload(
-      shareMode: ArcShareMode.social, // Default to social
-      arcformId: arcform.id,
-      phase: arcform.phase,
-      keywords: keywords,
-    );
-
-    showArcformShareSheet(
-      context: context,
-      payload: payload,
-      fromView: 'arcform_view',
-      arcformPreview: Arcform3D(
-        nodes: arcform.nodes,
-        edges: arcform.edges,
-        phase: arcform.phase,
-        skin: arcform.skin,
-        showNebula: true,
-        enableLabels: true,
-      ),
     );
   }
 }

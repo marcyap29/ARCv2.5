@@ -334,7 +334,7 @@ class LumaraResponseScoring {
     // Use a simple rotation based on time (but with smaller set for more predictable behavior)
     final now = DateTime.now();
     final index = (now.second + now.minute) % conservativeEndings.length;
-    
+
     return conservativeEndings[index];
   }
 }
