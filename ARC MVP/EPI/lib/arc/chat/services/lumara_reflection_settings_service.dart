@@ -3,6 +3,63 @@
 
 import 'package:shared_preferences/shared_preferences.dart';
 
+/// LUMARA Persona types
+enum LumaraPersona {
+  auto,       // Auto-adapts based on context
+  companion,  // Warm, supportive, adaptive
+  therapist,  // Deep therapeutic, ECHO+SAGE
+  strategist, // Operational, diagnostic, action-oriented
+  challenger, // Direct, pushes growth, high challenge
+}
+
+/// Extension to get display names and descriptions for personas
+extension LumaraPersonaExtension on LumaraPersona {
+  String get displayName {
+    switch (this) {
+      case LumaraPersona.auto:
+        return 'Auto';
+      case LumaraPersona.companion:
+        return 'The Companion';
+      case LumaraPersona.therapist:
+        return 'The Therapist';
+      case LumaraPersona.strategist:
+        return 'The Strategist';
+      case LumaraPersona.challenger:
+        return 'The Challenger';
+    }
+  }
+  
+  String get description {
+    switch (this) {
+      case LumaraPersona.auto:
+        return 'Adapts personality based on context and your needs';
+      case LumaraPersona.companion:
+        return 'Warm, supportive presence for daily reflection';
+      case LumaraPersona.therapist:
+        return 'Deep therapeutic support with gentle pacing';
+      case LumaraPersona.strategist:
+        return 'Sharp, analytical insights with concrete actions';
+      case LumaraPersona.challenger:
+        return 'Direct feedback that pushes your growth';
+    }
+  }
+  
+  String get icon {
+    switch (this) {
+      case LumaraPersona.auto:
+        return '🔄';
+      case LumaraPersona.companion:
+        return '🤝';
+      case LumaraPersona.therapist:
+        return '💜';
+      case LumaraPersona.strategist:
+        return '🎯';
+      case LumaraPersona.challenger:
+        return '⚡';
+    }
+  }
+}
+
 /// Service for managing LUMARA reflection settings persistence
 class LumaraReflectionSettingsService {
   static LumaraReflectionSettingsService? _instance;
@@ -24,6 +81,7 @@ class LumaraReflectionSettingsService {
   static const int _defaultTherapeuticDepthLevel = 2;
   static const bool _defaultTherapeuticAutomaticMode = false;
   static const bool _defaultWebAccessEnabled = false; // Opt-in by default
+  static const String _defaultLumaraPersona = 'auto'; // Auto-adapt by default
 
   // Keys for SharedPreferences
   static const String _keySimilarityThreshold = 'lumara_similarity_threshold';
@@ -34,6 +92,7 @@ class LumaraReflectionSettingsService {
   static const String _keyTherapeuticDepthLevel = 'lumara_therapeutic_depth_level';
   static const String _keyTherapeuticAutomaticMode = 'lumara_therapeutic_automatic_mode';
   static const String _keyWebAccessEnabled = 'lumara_web_access_enabled';
+  static const String _keyLumaraPersona = 'lumara_persona';
 
   /// Initialize the service
   Future<void> initialize() async {
@@ -138,6 +197,22 @@ class LumaraReflectionSettingsService {
     await _prefs!.setBool(_keyWebAccessEnabled, value);
   }
 
+  /// Get LUMARA Persona (default: auto)
+  Future<LumaraPersona> getLumaraPersona() async {
+    await initialize();
+    final personaString = _prefs!.getString(_keyLumaraPersona) ?? _defaultLumaraPersona;
+    return LumaraPersona.values.firstWhere(
+      (p) => p.name == personaString,
+      orElse: () => LumaraPersona.auto,
+    );
+  }
+
+  /// Set LUMARA Persona
+  Future<void> setLumaraPersona(LumaraPersona persona) async {
+    await initialize();
+    await _prefs!.setString(_keyLumaraPersona, persona.name);
+  }
+
   /// Get effective lookback years adjusted for therapeutic depth level
   /// Depth 1 (Light): Reduce by 40%
   /// Depth 2 (Moderate): Standard
@@ -196,6 +271,7 @@ class LumaraReflectionSettingsService {
       'therapeuticDepthLevel': await getTherapeuticDepthLevel(),
       'therapeuticAutomaticMode': await isTherapeuticAutomaticMode(),
       'webAccessEnabled': await isWebAccessEnabled(),
+      'lumaraPersona': await getLumaraPersona(),
     };
   }
 
@@ -209,6 +285,7 @@ class LumaraReflectionSettingsService {
     int? therapeuticDepthLevel,
     bool? therapeuticAutomaticMode,
     bool? webAccessEnabled,
+    LumaraPersona? lumaraPersona,
   }) async {
     await initialize();
     
@@ -235,6 +312,9 @@ class LumaraReflectionSettingsService {
     }
     if (webAccessEnabled != null) {
       await setWebAccessEnabled(webAccessEnabled);
+    }
+    if (lumaraPersona != null) {
+      await setLumaraPersona(lumaraPersona);
     }
   }
 }

@@ -282,9 +282,38 @@ class LumaraControlStateBuilder {
     state['therapy'] = therapy;
     
     // ============================================================
+    // F. LUMARA PERSONA
+    // ============================================================
+    final persona = <String, dynamic>{};
+    
+    try {
+      final settingsService = LumaraReflectionSettingsService.instance;
+      final selectedPersona = await settingsService.getLumaraPersona();
+      
+      String effectivePersona;
+      if (selectedPersona == LumaraPersona.auto) {
+        // Auto-detect persona based on context
+        effectivePersona = _autoDetectPersona(state, sentinelAlert);
+      } else {
+        effectivePersona = selectedPersona.name;
+      }
+      
+      persona['selected'] = selectedPersona.name;
+      persona['effective'] = effectivePersona;
+      persona['isAuto'] = selectedPersona == LumaraPersona.auto;
+    } catch (e) {
+      print('LUMARA Control State: Error getting persona: $e');
+      persona['selected'] = 'auto';
+      persona['effective'] = 'companion';
+      persona['isAuto'] = true;
+    }
+    
+    state['persona'] = persona;
+    
+    // ============================================================
     // Final computed behavioral parameters
     // ============================================================
-    // These are derived from the above signals
+    // These are derived from the above signals AND persona
     final behavior = <String, dynamic>{
       'toneMode': _computeToneMode(state),
       'warmth': _computeWarmth(state),
@@ -293,6 +322,9 @@ class LumaraControlStateBuilder {
       'verbosity': _computeVerbosity(state),
       'challengeLevel': _computeChallengeLevel(state),
     };
+    
+    // Apply persona-specific overrides
+    _applyPersonaOverrides(behavior, state);
     
     state['behavior'] = behavior;
     
@@ -467,6 +499,114 @@ class LumaraControlStateBuilder {
     }
     
     return challenge.clamp(0.0, 1.0);
+  }
+  
+  /// Auto-detect the best persona based on context signals
+  static String _autoDetectPersona(Map<String, dynamic> state, bool sentinelAlert) {
+    final atlas = state['atlas'] as Map<String, dynamic>? ?? {};
+    final veil = state['veil'] as Map<String, dynamic>? ?? {};
+    final therapy = state['therapy'] as Map<String, dynamic>? ?? {};
+    final prism = state['prism'] as Map<String, dynamic>? ?? {};
+    
+    final readinessScore = atlas['readinessScore'] as int? ?? 50;
+    final timeOfDay = veil['timeOfDay'] as String? ?? 'afternoon';
+    final health = veil['health'] as Map<String, dynamic>? ?? {};
+    final sleepQuality = health['sleepQuality'] as double? ?? 0.7;
+    final energyLevel = health['energyLevel'] as double? ?? 0.7;
+    final therapyMode = therapy['therapyMode'] as String? ?? 'off';
+    final prismActivity = prism['prism_activity'] as Map<String, dynamic>?;
+    final emotionalTone = prismActivity?['emotional_tone'] as String? ?? 'neutral';
+    
+    // Priority 1: Safety override - use therapist for sentinel alerts
+    if (sentinelAlert) {
+      return 'therapist';
+    }
+    
+    // Priority 2: Deep therapeutic mode - use therapist
+    if (therapyMode == 'deep_therapeutic') {
+      return 'therapist';
+    }
+    
+    // Priority 3: Emotional distress signals - use therapist
+    if (emotionalTone == 'distressed' || emotionalTone == 'anxious' || emotionalTone == 'sad') {
+      return 'therapist';
+    }
+    
+    // Priority 4: High readiness + high energy - consider strategist or challenger
+    if (readinessScore > 70 && energyLevel > 0.7) {
+      // Morning with high energy = good for challenger
+      if (timeOfDay == 'morning' && readinessScore > 80) {
+        return 'challenger';
+      }
+      // Afternoon with high readiness = good for strategist
+      if (timeOfDay == 'afternoon') {
+        return 'strategist';
+      }
+    }
+    
+    // Priority 5: Analytical context - use strategist
+    if (emotionalTone == 'analytical' || emotionalTone == 'curious') {
+      return 'strategist';
+    }
+    
+    // Priority 6: Evening/night or low energy - use companion
+    if (timeOfDay == 'night' || timeOfDay == 'evening') {
+      return 'companion';
+    }
+    
+    if (sleepQuality < 0.5 || energyLevel < 0.5) {
+      return 'companion';
+    }
+    
+    // Default: companion for warm, adaptive support
+    return 'companion';
+  }
+  
+  /// Apply persona-specific behavioral overrides
+  static void _applyPersonaOverrides(Map<String, dynamic> behavior, Map<String, dynamic> state) {
+    final persona = state['persona'] as Map<String, dynamic>? ?? {};
+    final effectivePersona = persona['effective'] as String? ?? 'companion';
+    
+    switch (effectivePersona) {
+      case 'companion':
+        // Warm, supportive, adaptive
+        behavior['warmth'] = ((behavior['warmth'] as double? ?? 0.6) * 0.7 + 0.8 * 0.3).clamp(0.0, 1.0);
+        behavior['rigor'] = ((behavior['rigor'] as double? ?? 0.5) * 0.7 + 0.4 * 0.3).clamp(0.0, 1.0);
+        behavior['challengeLevel'] = ((behavior['challengeLevel'] as double? ?? 0.5) * 0.7 + 0.2 * 0.3).clamp(0.0, 1.0);
+        behavior['outputStructure'] = 'conversational';
+        behavior['actionOriented'] = false;
+        break;
+        
+      case 'therapist':
+        // Deep therapeutic, ECHO+SAGE, gentle pacing
+        behavior['warmth'] = ((behavior['warmth'] as double? ?? 0.6) * 0.5 + 0.9 * 0.5).clamp(0.0, 1.0);
+        behavior['rigor'] = ((behavior['rigor'] as double? ?? 0.5) * 0.5 + 0.3 * 0.5).clamp(0.0, 1.0);
+        behavior['abstraction'] = ((behavior['abstraction'] as double? ?? 0.5) * 0.5 + 0.3 * 0.5).clamp(0.0, 1.0);
+        behavior['challengeLevel'] = ((behavior['challengeLevel'] as double? ?? 0.5) * 0.5 + 0.1 * 0.5).clamp(0.0, 1.0);
+        behavior['outputStructure'] = 'conversational';
+        behavior['actionOriented'] = false;
+        break;
+        
+      case 'strategist':
+        // Operational, diagnostic, action-oriented
+        behavior['warmth'] = ((behavior['warmth'] as double? ?? 0.6) * 0.5 + 0.3 * 0.5).clamp(0.0, 1.0);
+        behavior['rigor'] = ((behavior['rigor'] as double? ?? 0.5) * 0.5 + 0.9 * 0.5).clamp(0.0, 1.0);
+        behavior['abstraction'] = ((behavior['abstraction'] as double? ?? 0.5) * 0.5 + 0.7 * 0.5).clamp(0.0, 1.0);
+        behavior['challengeLevel'] = ((behavior['challengeLevel'] as double? ?? 0.5) * 0.5 + 0.7 * 0.5).clamp(0.0, 1.0);
+        behavior['outputStructure'] = 'structured'; // 5-section format
+        behavior['actionOriented'] = true;
+        break;
+        
+      case 'challenger':
+        // Direct, pushes growth, high challenge
+        behavior['warmth'] = ((behavior['warmth'] as double? ?? 0.6) * 0.5 + 0.5 * 0.5).clamp(0.0, 1.0);
+        behavior['rigor'] = ((behavior['rigor'] as double? ?? 0.5) * 0.5 + 0.8 * 0.5).clamp(0.0, 1.0);
+        behavior['abstraction'] = ((behavior['abstraction'] as double? ?? 0.5) * 0.5 + 0.6 * 0.5).clamp(0.0, 1.0);
+        behavior['challengeLevel'] = ((behavior['challengeLevel'] as double? ?? 0.5) * 0.3 + 0.9 * 0.7).clamp(0.0, 1.0);
+        behavior['outputStructure'] = 'conversational';
+        behavior['actionOriented'] = true;
+        break;
+    }
   }
 }
 

@@ -15,6 +15,7 @@ import 'package:my_app/shared/ui/settings/throttle_settings_view.dart';
 import 'package:my_app/ui/screens/mcp_management_screen.dart';
 import 'package:my_app/arc/core/journal_repository.dart';
 import 'package:my_app/arc/chat/services/favorites_service.dart';
+import 'package:my_app/arc/chat/services/lumara_reflection_settings_service.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:my_app/ui/subscription/subscription_management_view.dart';
 import 'package:my_app/services/firebase_auth_service.dart';
@@ -35,6 +36,10 @@ class _SettingsViewState extends State<SettingsView> {
   bool _voiceoverLoading = true;
   bool _shakeToReportEnabled = true;
   bool _shakeToReportLoading = true;
+  
+  // LUMARA Persona state
+  LumaraPersona _selectedPersona = LumaraPersona.auto;
+  bool _personaLoading = true;
 
   @override
   void initState() {
@@ -42,6 +47,51 @@ class _SettingsViewState extends State<SettingsView> {
     _loadFavoritesCount();
     _loadVoiceoverPreference();
     _loadShakeToReportPreference();
+    _loadPersonaPreference();
+  }
+  
+  Future<void> _loadPersonaPreference() async {
+    try {
+      final settingsService = LumaraReflectionSettingsService.instance;
+      await settingsService.initialize();
+      final persona = await settingsService.getLumaraPersona();
+      if (mounted) {
+        setState(() {
+          _selectedPersona = persona;
+          _personaLoading = false;
+        });
+      }
+    } catch (e) {
+      print('Error loading persona preference: $e');
+      if (mounted) {
+        setState(() {
+          _personaLoading = false;
+        });
+      }
+    }
+  }
+  
+  Future<void> _setPersona(LumaraPersona persona) async {
+    setState(() {
+      _personaLoading = true;
+    });
+    try {
+      final settingsService = LumaraReflectionSettingsService.instance;
+      await settingsService.setLumaraPersona(persona);
+      if (mounted) {
+        setState(() {
+          _selectedPersona = persona;
+          _personaLoading = false;
+        });
+      }
+    } catch (e) {
+      print('Error setting persona: $e');
+      if (mounted) {
+        setState(() {
+          _personaLoading = false;
+        });
+      }
+    }
   }
 
   Future<void> _loadFavoritesCount() async {
@@ -269,6 +319,65 @@ class _SettingsViewState extends State<SettingsView> {
                       _loadFavoritesCount();
                     }
                   },
+                ),
+                // LUMARA Persona Card
+                Container(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.05),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.1),
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.theater_comedy,
+                              color: kcAccentColor,
+                              size: 24,
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'LUMARA Persona',
+                                    style: heading3Style(context).copyWith(
+                                      color: kcPrimaryTextColor,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    'Choose how LUMARA responds to you',
+                                    style: bodyStyle(context).copyWith(
+                                      color: kcSecondaryTextColor,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            if (_personaLoading)
+                              const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              ),
+                          ],
+                        ),
+                      ),
+                      const Divider(height: 1, color: Colors.white12),
+                      ...LumaraPersona.values.map((persona) => _buildPersonaOption(persona)),
+                    ],
+                  ),
                 ),
                 _buildSettingsTile(
                   context,
@@ -501,6 +610,72 @@ class _SettingsViewState extends State<SettingsView> {
         const SizedBox(height: 12),
         ...children,
       ],
+    );
+  }
+  
+  /// Build a persona option radio tile
+  Widget _buildPersonaOption(LumaraPersona persona) {
+    final isSelected = _selectedPersona == persona;
+    return InkWell(
+      onTap: _personaLoading ? null : () => _setPersona(persona),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
+          children: [
+            Container(
+              width: 20,
+              height: 20,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: isSelected ? kcAccentColor : Colors.white38,
+                  width: 2,
+                ),
+              ),
+              child: isSelected
+                  ? Center(
+                      child: Container(
+                        width: 10,
+                        height: 10,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: kcAccentColor,
+                        ),
+                      ),
+                    )
+                  : null,
+            ),
+            const SizedBox(width: 12),
+            Text(
+              persona.icon,
+              style: const TextStyle(fontSize: 20),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    persona.displayName,
+                    style: heading3Style(context).copyWith(
+                      color: isSelected ? kcAccentColor : kcPrimaryTextColor,
+                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                      fontSize: 14,
+                    ),
+                  ),
+                  Text(
+                    persona.description,
+                    style: bodyStyle(context).copyWith(
+                      color: kcSecondaryTextColor,
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
