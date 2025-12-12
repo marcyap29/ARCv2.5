@@ -94,8 +94,8 @@ class _LumaraSplashScreenState extends State<LumaraSplashScreen>
   }
 
   void _startTimer() {
-    // Navigate after 6 seconds to admire the animated phase shape
-    _timer = Timer(const Duration(seconds: 6), () {
+    // Navigate after 8 seconds to admire the animated phase shape
+    _timer = Timer(const Duration(seconds: 8), () {
       if (mounted) {
         _checkAuthAndNavigate();
       }
