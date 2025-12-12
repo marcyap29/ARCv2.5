@@ -84,11 +84,15 @@ class _HomeViewState extends State<HomeView> {
       final shakeService = ShakeDetectorService();
       shakeService.startListening();
       _shakeSubscription = shakeService.onShake.listen((_) {
+        print('DEBUG: HomeView received shake event!');
         if (mounted) {
+          print('DEBUG: HomeView is mounted, showing bug report dialog');
           BugReportDialog.show(context);
+        } else {
+          print('DEBUG: HomeView is not mounted, cannot show dialog');
         }
       });
-      print('DEBUG: Shake detection initialized');
+      print('DEBUG: Shake detection initialized and listening');
     } catch (e) {
       print('DEBUG: Error initializing shake detection: $e');
     }

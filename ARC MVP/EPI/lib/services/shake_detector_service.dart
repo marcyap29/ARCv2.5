@@ -16,14 +16,6 @@ class ShakeDetectorService {
   bool _isEnabled = true;
   bool _isListening = false;
   
-  // Shake detection parameters
-  static const double shakeThreshold = 2.5; // G-force threshold
-  static const int shakeCountThreshold = 3; // Number of shakes needed
-  static const Duration shakeResetDuration = Duration(milliseconds: 500);
-  
-  int _shakeCount = 0;
-  DateTime? _lastShakeTime;
-  
   /// Stream of shake events
   Stream<void> get onShake => _shakeController.stream;
   
@@ -60,7 +52,15 @@ class ShakeDetectorService {
   
   void _onNativeShakeDetected(dynamic event) {
     if (!_isEnabled) return;
-    _triggerShake();
+    print('ShakeDetector: Native shake event received: $event');
+    
+    // Trigger immediately on native shake detection
+    // Native iOS already handles the shake gesture recognition
+    _shakeController.add(null);
+    print('ShakeDetector: Shake detected!');
+    
+    // Haptic feedback
+    HapticFeedback.mediumImpact();
   }
   
   void _startAccelerometerFallback() {
@@ -72,29 +72,9 @@ class ShakeDetectorService {
   
   /// Manually trigger a shake event (for testing or alternative triggers)
   void triggerShakeManually() {
-    _triggerShake();
-  }
-  
-  void _triggerShake() {
-    final now = DateTime.now();
-    
-    // Reset count if too much time has passed
-    if (_lastShakeTime != null && 
-        now.difference(_lastShakeTime!) > shakeResetDuration) {
-      _shakeCount = 0;
-    }
-    
-    _shakeCount++;
-    _lastShakeTime = now;
-    
-    if (_shakeCount >= shakeCountThreshold) {
-      _shakeCount = 0;
-      _shakeController.add(null);
-      print('ShakeDetector: Shake detected!');
-      
-      // Haptic feedback
-      HapticFeedback.mediumImpact();
-    }
+    _shakeController.add(null);
+    print('ShakeDetector: Manual shake triggered!');
+    HapticFeedback.mediumImpact();
   }
   
   /// Stop listening for shake gestures

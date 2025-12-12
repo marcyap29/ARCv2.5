@@ -10,19 +10,29 @@ class BugReportDialog extends StatefulWidget {
   const BugReportDialog({super.key});
   
   static Future<void> show(BuildContext context) async {
+    print('DEBUG: BugReportDialog.show() called');
+    
     // Check if shake-to-report is enabled
     final prefs = await SharedPreferences.getInstance();
     final isEnabled = prefs.getBool('shake_to_report_enabled') ?? true;
     
-    if (!isEnabled) return;
+    print('DEBUG: shake_to_report_enabled = $isEnabled');
+    
+    if (!isEnabled) {
+      print('DEBUG: Shake to report is disabled, not showing dialog');
+      return;
+    }
     
     if (context.mounted) {
+      print('DEBUG: Showing bug report dialog');
       showModalBottomSheet(
         context: context,
         isScrollControlled: true,
         backgroundColor: Colors.transparent,
         builder: (context) => const BugReportDialog(),
       );
+    } else {
+      print('DEBUG: Context not mounted, cannot show dialog');
     }
   }
 
