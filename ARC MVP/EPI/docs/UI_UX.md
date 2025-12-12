@@ -1,6 +1,6 @@
 # EPI MVP - UI/UX Feature Documentation
 
-**Version:** 2.1.50
+**Version:** 2.1.51
 **Last Updated:** December 12, 2025
 **Status:** ✅ Comprehensive Feature Analysis Complete
 
@@ -35,6 +35,7 @@ The EPI (Evolving Personal Intelligence) Flutter application provides a sophisti
 19. [Splash Screen (v2.1.49)](#19-splash-screen-v2149)
 20. [Bug Reporting (v2.1.49)](#20-bug-reporting-v2149)
 21. [Scroll Navigation (v2.1.50)](#21-scroll-navigation-v2150)
+22. [LUMARA Persona (v2.1.51)](#22-lumara-persona-v2151)
 
 ---
 
@@ -1483,6 +1484,83 @@ void _onScrollChanged() {
 | LUMARA Chat | Latest message | Oldest message |
 | Journal Timeline | Newest entries | Older entries |
 | Journal Entry Editor | Top of entry | Bottom of entry |
+
+---
+
+## 22. LUMARA Persona (v2.1.51)
+
+### 🎭 Personality Mode Selection
+**Location:** Settings → LUMARA → LUMARA Persona
+
+**Purpose:** Allow users to choose how LUMARA responds, from warm companion to sharp strategist.
+
+### Available Personas
+
+| Persona | Icon | Description |
+|---------|------|-------------|
+| **Auto** | 🔄 | Adapts personality based on context automatically |
+| **The Companion** | 🤝 | Warm, supportive presence for daily reflection |
+| **The Therapist** | 💜 | Deep therapeutic support with gentle pacing |
+| **The Strategist** | 🎯 | Sharp, analytical insights with concrete actions |
+| **The Challenger** | ⚡ | Direct feedback that pushes growth |
+
+### UI Design
+
+**Card Structure:**
+```
+┌─────────────────────────────────────────┐
+│ 🎭 LUMARA Persona                       │
+│    Choose how LUMARA responds to you    │
+├─────────────────────────────────────────┤
+│ ○ 🔄 Auto                               │
+│      Adapts based on context            │
+├─────────────────────────────────────────┤
+│ ● 🤝 The Companion                      │
+│      Warm, supportive presence          │
+├─────────────────────────────────────────┤
+│ ○ 💜 The Therapist                      │
+│      Deep therapeutic support           │
+├─────────────────────────────────────────┤
+│ ○ 🎯 The Strategist                     │
+│      Sharp, analytical insights         │
+├─────────────────────────────────────────┤
+│ ○ ⚡ The Challenger                     │
+│      Direct feedback for growth         │
+└─────────────────────────────────────────┘
+```
+
+### Auto-Detection Logic (When "Auto" Selected)
+1. **Safety Override**: Sentinel alerts → Therapist
+2. **Deep Therapeutic Mode**: If enabled → Therapist
+3. **Emotional Distress**: Distressed/anxious/sad → Therapist
+4. **High Readiness + Morning**: High energy → Challenger
+5. **High Readiness + Afternoon**: → Strategist
+6. **Analytical Context**: Curious/analytical tone → Strategist
+7. **Evening/Night or Low Energy**: → Companion
+8. **Default**: → Companion
+
+### Behavioral Differences
+
+| Parameter | Companion | Therapist | Strategist | Challenger |
+|-----------|-----------|-----------|------------|------------|
+| Warmth | High (0.8) | Very High (0.9) | Low (0.3) | Moderate (0.5) |
+| Rigor | Low (0.4) | Very Low (0.3) | Very High (0.9) | High (0.8) |
+| Challenge | Very Low (0.2) | Minimal (0.1) | High (0.7) | Very High (0.9) |
+| Output Style | Conversational | Conversational | Structured 5-Section | Conversational |
+
+### Strategist 5-Section Format
+When in Strategist mode, responses follow this operational structure:
+1. **Signal Separation** - Short-window vs long-horizon patterns
+2. **Phase Determination** - With confidence basis
+3. **Interpretation** - System terms (load, capacity, risk)
+4. **Phase-Appropriate Actions** - 2-4 concrete steps
+5. **Optional Reflection** - Only if reduces ambiguity
+
+### Implementation Files
+- `lumara_reflection_settings_service.dart` - Persona enum + persistence
+- `lumara_control_state_builder.dart` - Auto-detection + behavioral overrides
+- `lumara_master_prompt.dart` - Section 7: Persona behaviors
+- `settings_view.dart` - Persona picker UI
 
 ---
 

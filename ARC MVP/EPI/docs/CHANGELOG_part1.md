@@ -1,8 +1,53 @@
 # EPI ARC MVP - Changelog (Part 1: December 2025)
 
-**Version:** 2.1.50
+**Version:** 2.1.51
 **Last Updated:** December 12, 2025
 **Coverage:** December 2025 releases
+
+---
+
+## [2.1.51] - December 12, 2025
+
+### **LUMARA Persona System** - ✅ Complete
+
+#### 4 Distinct Personality Modes
+- **Auto** (🔄): Adapts personality based on context - sentinel alerts, emotional tone, readiness, time of day
+- **The Companion** (🤝): Warm, supportive presence for daily reflection
+- **The Therapist** (💜): Deep therapeutic support with gentle pacing, ECHO+SAGE
+- **The Strategist** (🎯): Sharp, analytical insights with 5-section structured output
+- **The Challenger** (⚡): Direct feedback that pushes growth
+
+#### Auto-Detection Logic
+- Sentinel alerts → Therapist (safety override)
+- Deep therapeutic mode → Therapist
+- Emotional distress (distressed/anxious/sad) → Therapist
+- High readiness + morning + high energy → Challenger
+- High readiness + afternoon → Strategist
+- Analytical/curious emotional tone → Strategist
+- Evening/night or low energy → Companion
+- Default → Companion
+
+#### Strategist 5-Section Format
+When in Strategist mode, LUMARA uses structured operational output:
+1. Signal Separation (short-window vs long-horizon patterns)
+2. Phase Determination (with confidence basis)
+3. Interpretation (system terms: load, capacity, risk)
+4. Phase-Appropriate Actions (2-4 concrete steps)
+5. Optional Reflection (only if reduces ambiguity)
+
+#### UI Integration
+- Settings → LUMARA → LUMARA Persona (above LUMARA Settings)
+- Radio button selection with icons and descriptions
+- Loading state indicator during persona changes
+
+#### Files Modified
+- `lib/arc/chat/services/lumara_reflection_settings_service.dart` - LumaraPersona enum + persistence
+- `lib/arc/chat/services/lumara_control_state_builder.dart` - Auto-detection + behavioral overrides
+- `lib/arc/chat/llm/prompts/lumara_master_prompt.dart` - Section 7: Persona behaviors
+- `lib/shared/ui/settings/settings_view.dart` - Persona picker UI
+
+**Status**: ✅ Complete  
+**Branch**: `dev-lumara-endprompt`
 
 ---
 

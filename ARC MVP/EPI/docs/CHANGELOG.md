@@ -1,6 +1,6 @@
 # EPI ARC MVP - Changelog
 
-**Version:** 2.1.50
+**Version:** 2.1.51
 **Last Updated:** December 12, 2025
 
 ---
@@ -11,9 +11,27 @@ This changelog has been split into parts for easier navigation:
 
 | Part | Coverage | Description |
 |------|----------|-------------|
-| **[CHANGELOG_part1.md](CHANGELOG_part1.md)** | Dec 2025 | v2.1.43 - v2.1.50 (Current) |
+| **[CHANGELOG_part1.md](CHANGELOG_part1.md)** | Dec 2025 | v2.1.43 - v2.1.51 (Current) |
 | **[CHANGELOG_part2.md](CHANGELOG_part2.md)** | Nov 2025 | v2.1.28 - v2.1.42 |
 | **[CHANGELOG_part3.md](CHANGELOG_part3.md)** | Jan-Oct 2025 | v2.0.0 - v2.1.27 & Earlier |
+
+---
+
+## [2.1.51] - December 12, 2025
+
+### **LUMARA Persona System** - ✅ Complete
+
+4 distinct personality modes for LUMARA:
+- **Auto** (🔄): Adapts based on context - sentinel alerts, emotional tone, readiness
+- **The Companion** (🤝): Warm, supportive presence for daily reflection
+- **The Therapist** (💜): Deep therapeutic support with gentle pacing
+- **The Strategist** (🎯): Sharp, analytical insights with 5-section structured output
+- **The Challenger** (⚡): Direct feedback that pushes growth
+
+**UI**: Settings → LUMARA → LUMARA Persona (radio selection)
+
+**Status**: ✅ Complete  
+**Branch**: `dev-lumara-endprompt`
 
 ---
 
@@ -107,6 +125,9 @@ Visible floating scroll buttons added across all scrollable screens.
 
 | Version | Date | Key Feature |
 |---------|------|-------------|
+| 2.1.51 | Dec 12, 2025 | LUMARA Persona System |
+| 2.1.50 | Dec 12, 2025 | Scroll Navigation UX |
+| 2.1.49 | Dec 12, 2025 | Splash Screen & Bug Reporting |
 | 2.1.48 | Dec 11, 2025 | Phase System Overhaul & UI/UX |
 | 2.1.47 | Dec 10, 2025 | Google Sign-In iOS Fix |
 | 2.1.46 | Dec 9, 2025 | Authentication & Security |

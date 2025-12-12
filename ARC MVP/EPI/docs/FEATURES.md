@@ -1,6 +1,6 @@
 # EPI MVP - Comprehensive Features Guide
 
-**Version:** 2.1.50
+**Version:** 2.1.51
 **Last Updated:** December 12, 2025
 
 ---
@@ -117,6 +117,15 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 - Context-aware responses
 - Phase-aware reflections
 - Multimodal understanding
+
+**LUMARA Persona (v2.1.51)**
+- **Auto Mode**: Adapts personality based on context automatically
+- **The Companion**: Warm, supportive presence for daily reflection
+- **The Therapist**: Deep therapeutic support with ECHO+SAGE
+- **The Strategist**: Operational sharpness with 5-section structured output
+- **The Challenger**: Direct feedback that pushes growth
+- Auto-detection based on sentinel alerts, emotional tone, readiness, time of day
+- Manual selection via Settings → LUMARA → LUMARA Persona
 - **Scrollable Text Input**: Text input scrolls when content exceeds 5 lines, send button always accessible
 - **Auto-Minimize**: Input area automatically minimizes when clicking outside (ChatGPT-like behavior)
 - **Auto-Scroll UX**: Unified scroll behavior across journal and chat interfaces

@@ -1,8 +1,8 @@
 # EPI Documentation Context Guide
 
-**Version:** 2.1.50
+**Version:** 2.1.51
 **Last Updated:** December 12, 2025
-**Current Branch:** `uiux-updates`
+**Current Branch:** `dev-lumara-endprompt`
 
 ---
 
@@ -53,7 +53,7 @@ Location: `/Users/mymac/Software Development/ARCv.04/ARC MVP/EPI/docs/git.md`
 ### 📜 Changelog
 Location: `/Users/mymac/Software Development/ARCv.04/ARC MVP/EPI/docs/CHANGELOG.md`
 - Split into parts for manageability:
-  - `CHANGELOG_part1.md` - December 2025 (v2.1.43 - v2.1.50)
+  - `CHANGELOG_part1.md` - December 2025 (v2.1.43 - v2.1.51)
   - `CHANGELOG_part2.md` - November 2025 (v2.1.28 - v2.1.42)
   - `CHANGELOG_part3.md` - Earlier versions
 
@@ -103,12 +103,17 @@ Location: `/Users/mymac/Software Development/ARCv.04/ARC MVP/EPI/docs/bugtracker
 
 ---
 
-## Recent Updates (v2.1.50)
+## Recent Updates (v2.1.51)
 
-### Scroll Navigation
+### LUMARA Persona System
+- **4 personality modes**: Auto, Companion, Therapist, Strategist, Challenger
+- Auto-detection based on sentinel alerts, emotional tone, readiness
+- Strategist mode uses structured 5-section output format
+- UI: Settings → LUMARA → LUMARA Persona
+
+### Previous Updates (v2.1.50)
 - **Visible scroll buttons** (up/down arrows) for all scrollable screens
 - Available in: LUMARA Chat, Journal Timeline, Journal Entry Editor
-- Stacked vertically on right side of screen
 
 ### Previous Updates (v2.1.49)
 - Animated splash screen with spinning 3D phase
@@ -136,6 +141,12 @@ When asked to update documentation:
 
 ## Key Services
 
+### LUMARA Persona System
+- Settings: `lib/arc/chat/services/lumara_reflection_settings_service.dart`
+- Control State: `lib/arc/chat/services/lumara_control_state_builder.dart`
+- Master Prompt: `lib/arc/chat/llm/prompts/lumara_master_prompt.dart`
+- UI: `lib/shared/ui/settings/settings_view.dart`
+
 ### Subscription Management
 - Service: `lib/services/subscription_service.dart`
 - UI Widget: `lib/ui/subscription/lumara_subscription_status.dart`
@@ -153,4 +164,4 @@ When asked to update documentation:
 
 ---
 
-*Last synchronized: December 12, 2025 | Version: 2.1.50*
+*Last synchronized: December 12, 2025 | Version: 2.1.51*
