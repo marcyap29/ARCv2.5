@@ -1,8 +1,42 @@
 # EPI ARC MVP - Changelog (Part 1: December 2025)
 
-**Version:** 2.1.48
-**Last Updated:** December 11, 2025
+**Version:** 2.1.49
+**Last Updated:** December 12, 2025
 **Coverage:** December 2025 releases
+
+---
+
+## [2.1.49] - December 12, 2025
+
+### **Splash Screen & Bug Reporting Enhancements** - ✅ Complete
+
+#### Animated Phase Shape on Splash
+- **Spinning 3D Phase Visualization**: App launch now displays animated phase shape
+  - Uses authentic `layout3D()` and `generateEdges()` from existing system
+  - Each phase shows its unique wireframe structure spinning horizontally
+  - Discovery: DNA helix, Expansion: petal rings, Transition: bridge/fork
+  - Consolidation: geodesic lattice, Recovery: pyramid, Breakthrough: supernova
+- **Accurate Phase Display**: Uses `PhaseRegimeService` for current phase
+  - Same source as Phase tab for consistency
+  - Falls back to most recent regime if no ongoing one
+- **8-Second Duration**: Extended splash to admire animation (tap to skip)
+- **Phase Label**: Subtle phase name displayed below animation
+
+#### Shake to Report Bug Feature
+- **Native iOS Shake Detection**: Shake device to open bug report dialog
+  - Custom `ShakeDetectingWindow` for motion detection
+  - `ShakeDetectorPlugin` with event channel to Flutter
+  - Haptic feedback on shake detection
+- **Bug Report Dialog**: Modal bottom sheet for feedback
+  - Text field for bug description
+  - Option to include device information
+  - Local storage with console logging
+- **Settings Toggle**: Enable/disable in Settings → LUMARA section
+
+#### Consolidation Phase Fix
+- **Fixed Missing Edges**: Consolidation lattice now shows connected wireframe
+  - Increased `maxDist` from 1.8 to 3.0 for larger node spread
+  - Increased `maxEdgesPerNode` from 4 to 5 for denser lattice
 
 ---
 

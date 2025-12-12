@@ -1,7 +1,7 @@
 # EPI MVP - UI/UX Feature Documentation
 
-**Version:** 2.1.48
-**Last Updated:** December 11, 2025
+**Version:** 2.1.49
+**Last Updated:** December 12, 2025
 **Status:** ✅ Comprehensive Feature Analysis Complete
 
 ---
@@ -1341,5 +1341,77 @@ The Phase tab (formerly "Insights") provides comprehensive phase visualization a
 
 ---
 
-*This comprehensive UI/UX documentation reflects the current state of the EPI Flutter application as of December 11, 2025. The interface combines sophisticated AI integration with thoughtful human-centered design to create a meaningful personal journaling and life insight experience.*
+## 19. Splash Screen (v2.1.49)
+
+### 🚀 Animated Splash Screen
+**File:** `lib/arc/chat/ui/lumara_splash_screen.dart`
+
+**Features:**
+- **ARC Logo**: White logo on black background, centered
+- **Animated Phase Shape**: Spinning 3D wireframe of user's current phase
+- **Phase Label**: Subtle phase name displayed below animation
+- **8-Second Duration**: Time to admire animation (tap anywhere to skip)
+- **Fade-In Animation**: Smooth 800ms fade-in on load
+
+### 🎨 Phase Shape Animation
+**File:** `lib/ui/splash/animated_phase_shape.dart`
+
+**Implementation:**
+- Uses authentic `layout3D()` from `layouts_3d.dart`
+- Uses authentic `generateEdges()` for phase-specific connections
+- Lightweight `CustomPainter` for fast performance
+- 10-second rotation duration
+
+**Phase Shapes:**
+| Phase | Shape | Node Count |
+|-------|-------|------------|
+| Discovery | DNA Helix (1.5 turns) | 10 |
+| Expansion | Petal Rings | 12 |
+| Transition | Bridge/Fork | 12 |
+| Consolidation | Geodesic Lattice | 20 |
+| Recovery | Pyramid | 8 |
+| Breakthrough | Supernova Star | 12 |
+
+**Rendering:**
+- Y-axis rotation (horizontal spin)
+- Depth-based opacity and sizing
+- Glow effects for visual appeal
+- Small node dots at vertices
+
+### 📡 Phase Source
+- Uses `PhaseRegimeService` for accurate current phase
+- Same source as Phase tab for consistency
+- Checks `currentRegime` first, falls back to most recent regime
+
+---
+
+## 20. Bug Reporting (v2.1.49)
+
+### 📱 Shake to Report Bug
+**Files:**
+- `lib/services/shake_detector_service.dart` (Flutter service)
+- `lib/ui/feedback/bug_report_dialog.dart` (Flutter UI)
+- `ios/Runner/ShakeDetectorPlugin.swift` (Native iOS plugin)
+
+**User Flow:**
+1. Enable "Shake to Report Bug" in Settings → LUMARA
+2. Shake device to trigger bug report dialog
+3. Enter bug description
+4. Optionally include device information
+5. Submit report
+
+**Native iOS Implementation:**
+- `ShakeDetectingWindow`: Custom UIWindow subclass for motion detection
+- `ShakeDetectorPlugin`: FlutterPlugin with event channel
+- Haptic feedback on shake detection
+- Method channel for start/stop listening
+
+**Settings Integration:**
+- Toggle in Settings → LUMARA section
+- Preference stored in SharedPreferences
+- Visual feedback with bug icon
+
+---
+
+*This comprehensive UI/UX documentation reflects the current state of the EPI Flutter application as of December 12, 2025. The interface combines sophisticated AI integration with thoughtful human-centered design to create a meaningful personal journaling and life insight experience.*
 
