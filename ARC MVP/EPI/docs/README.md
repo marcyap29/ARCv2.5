@@ -11,7 +11,7 @@ Welcome to the EPI (Evolving Personal Intelligence) documentation. This director
 
 ### Recent Highlights (v2.1.50)
 
-- **📜 Scroll Navigation**: Tap top to scroll up, floating button to scroll down (ChatGPT-style)
+- **📜 Scroll Navigation**: Visible up/down arrow buttons for quick scrolling
 - **🚀 Animated Splash Screen**: App launch shows spinning 3D phase shape
 - **📱 Shake to Report Bug**: Shake device to open bug report dialog
 - **🔧 Consolidation Fix**: Lattice edges now properly connected
@@ -80,9 +80,9 @@ Welcome to the EPI (Evolving Personal Intelligence) documentation. This director
 
 ### Recent Highlights
 
-- 📜 **Scroll Navigation (v2.1.50)**: ChatGPT-style scroll UX
-  - Tap status bar area to scroll to top
-  - Floating down-arrow button to scroll to bottom
+- 📜 **Scroll Navigation (v2.1.50)**: Visible floating scroll buttons
+  - Up-arrow button to scroll to top (appears when scrolled down)
+  - Down-arrow button to scroll to bottom (appears when not at bottom)
   - Available in Chat, Timeline, and Entry Editor
 - 🎉 **Phase System Overhaul (v2.1.48)**: Comprehensive Phase improvements
   - RIVET-based phase calculation for accurate trend detection

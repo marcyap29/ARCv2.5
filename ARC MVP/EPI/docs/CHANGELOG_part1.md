@@ -10,19 +10,21 @@
 
 ### **Scroll Navigation UX Enhancement** - ✅ Complete
 
-#### ChatGPT-Style Scroll Navigation
-- **Tap Status Bar to Scroll Up**: Tap near top of screen to scroll to top of content
-  - Available in: LUMARA Chat, Journal Timeline, Journal Entry Editor
-- **Floating Scroll-to-Bottom Button**: Down-arrow FAB appears when scrolled away from bottom
+#### Visible Floating Scroll Buttons
+- **Scroll-to-Top Button (⬆️)**: Up-arrow FAB appears when scrolled down
+  - Tapping scrolls to top of content
+  - Gray background with white icon
+- **Scroll-to-Bottom Button (⬇️)**: Down-arrow FAB appears when not at bottom
   - Tapping scrolls to bottom of content
-  - Auto-hides when near bottom
-  - Available in: LUMARA Chat, Journal Timeline, Journal Entry Editor
+  - Stacked below scroll-to-top button
+- **Available in**: LUMARA Chat, Journal Timeline, Journal Entry Editor
 
 #### Implementation Details
-- **Scroll Position Tracking**: `_showScrollToBottom` state variable
+- **Dual State Tracking**: `_showScrollToTop` and `_showScrollToBottom` state variables
 - **Scroll Listener**: `_onScrollChanged()` monitors position
-- **Threshold**: Button appears when >100px from bottom/top
+- **Threshold**: Buttons appear when >100px from respective ends
 - **Animation**: Smooth 300ms scroll with easeOut curve
+- **Positioning**: Buttons stack vertically on right side of screen
 
 #### Files Modified
 - `lib/arc/chat/ui/lumara_assistant_screen.dart` - Chat scroll navigation

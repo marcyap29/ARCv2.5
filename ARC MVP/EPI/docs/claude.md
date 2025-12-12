@@ -1,33 +1,156 @@
-# EPI Documentation - The main EPI documentation you need for overall context is located at /Users/mymac/Software Development/ARCv.04/ARC MVP/EPI/docs/README.md - read it to get an idea of what the software does.
+# EPI Documentation Context Guide
 
-# Git History - All of the key Git history commits, pushes, merges, and trims can be found here /Users/mymac/Software Development/ARCv.04/ARC MVP/EPI/docs/git.md review this to ensure you have a background of key featues and submitions and changes via Git
+**Version:** 2.1.50
+**Last Updated:** December 12, 2025
+**Current Branch:** `uiux-updates`
 
-# Beta Branch Workflow - For managing the dev branch and testing new features alongside stable main: /Users/mymac/Software Development/ARCv.04/ARC MVP/EPI/docs/BETA_BRANCH.md - Complete workflow for dual-app installation, branch management, and commit cleanup
+---
 
-# Update documentation: When I ask to update documentation update any and all documents and folders listed in claude.md, versioning them as necessary, replacing them as necessary if context is no longer relevant, and archiving them as well. 
+## Quick Reference
 
-# EPI MVP - Architecture Overview - adhere to the Architectures Found in /Users/mymac/Software Development/ARCv.04/ARC MVP/EPI/docs/ARCHITECTURE.md
+| Document | Purpose | Path |
+|----------|---------|------|
+| **README.md** | Project overview | `/docs/README.md` |
+| **ARCHITECTURE.md** | System architecture | `/docs/ARCHITECTURE.md` |
+| **FEATURES.md** | Comprehensive features | `/docs/FEATURES.md` |
+| **UI_UX.md** | UI/UX documentation | `/docs/UI_UX.md` |
+| **CHANGELOG.md** | Version history | `/docs/CHANGELOG.md` |
+| **git.md** | Git history & commits | `/docs/git.md` |
+| **backend.md** | Backend architecture | `/docs/backend.md` |
 
-# Any errors encountered can be referenced at the Bugtracker folder listing all bugs encountered and how they were fixed at: /Users/mymac/Software Development/ARCv.04/ARC MVP/EPI/docs/bugtracker
+---
 
-# Changlog is found in /Users/mymac/Software Development/ARCv.04/ARC MVP/EPI/docs/CHANGELOG.md
+## Core Documentation
 
-# EPI MVP - Comprehensive Features Guide is found at /Users/mymac/Software Development/ARCv.04/ARC MVP/EPI/docs/FEATURES.md - This lists the key features you need to know for context
+### 📖 EPI Documentation
+Main overview: `/Users/mymac/Software Development/ARCv.04/ARC MVP/EPI/docs/README.md`
+- Read to understand what the software does
 
-# UI/UX - All key UI/UX features are found in /Users/mymac/Software Development/ARCv.04/ARC MVP/EPI/docs/UI_UX.md - review that when performing any UI/UX changes to ensure that nothing key is being overwritten or that you are "Reinventing the wheel" with redundant features.
+### 🏗️ Architecture
+Adhere to: `/Users/mymac/Software Development/ARCv.04/ARC MVP/EPI/docs/ARCHITECTURE.md`
+- 5-module system (ARC, PRISM, MIRA, ECHO, AURORA)
+- Technical stack and data flow
 
-# Backend - a key backend set of features is found in the folder called functions located here: /Users/mymac/Software Development/ARCv.04/functions, /Users/mymac/Software Development/ARCv.04/.firebaserc, and /Users/mymac/Software Development/ARCv.04/firebase.json - utilize this so that ARC/EPI has a backend that utilizes firebase and has true privacy via Venice.ai. Key documentation for the backend can be found here: /Users/mymac/Software Development/ARCv.04/ARC MVP/EPI/docs/backend.md
+### 📋 Features Guide
+Reference: `/Users/mymac/Software Development/ARCv.04/ARC MVP/EPI/docs/FEATURES.md`
+- All key features for context
+- Core capabilities and integrations
 
-# Priority 1, 1.5 & 2 (Authentication, Subscription & API Security) - Full implementation documentation:
-- ✅ Priority 2 Complete: /Users/mymac/Software Development/ARCv.04/ARC MVP/EPI/docs/PRIORITY_2_API_REFACTOR.md - Firebase-only mode, all local API calls removed (Dec 6, 2025)
-- ⚠️ Auth Workaround Active: /Users/mymac/Software Development/ARCv.04/ARC MVP/EPI/docs/PRIORITY_2_AUTH_TODO.md - Temporary auth bypass for MVP testing, restoration plan included
-- OAuth Configuration Guide: /Users/mymac/Software Development/ARCv.04/ARC MVP/EPI/docs/OAUTH_SETUP.md - Step-by-step setup for Google OAuth and Stripe integration
-- Comprehensive Testing Guide: /Users/mymac/Software Development/ARCv.04/ARC MVP/EPI/docs/PRIORITY_1_1.5_TESTING.md - Complete test suite for authentication and subscription features
-- Completion Summary: /Users/mymac/Software Development/ARCv.04/ARC MVP/EPI/docs/PRIORITY_1.5_COMPLETION_SUMMARY.md - Overview of all completed Priority 1.5 features and next steps
-- UI Integration Complete: /Users/mymac/Software Development/ARCv.04/ARC MVP/EPI/docs/UI_INTEGRATION_COMPLETE.md - Priority 1.5 UI integration details
+### 🎨 UI/UX Documentation
+Review before changes: `/Users/mymac/Software Development/ARCv.04/ARC MVP/EPI/docs/UI_UX.md`
+- Prevents reinventing the wheel
+- Current UI patterns and components
 
-# Subscription Management - New subscription service infrastructure:
-- Service Implementation: /Users/mymac/Software Development/ARCv.04/ARC MVP/EPI/lib/services/subscription_service.dart - Core subscription tier management
-- UI Widget: /Users/mymac/Software Development/ARCv.04/ARC MVP/EPI/lib/ui/subscription/lumara_subscription_status.dart - Subscription status display widget
-- Phase Access Control: /Users/mymac/Software Development/ARCv.04/ARC MVP/EPI/lib/services/phase_history_access_control.dart - Tier-based phase history access control
+---
 
+## Version Control
+
+### 📝 Git History
+Location: `/Users/mymac/Software Development/ARCv.04/ARC MVP/EPI/docs/git.md`
+- Key commits, pushes, merges
+- Branch structure and backup strategy
+
+### 📜 Changelog
+Location: `/Users/mymac/Software Development/ARCv.04/ARC MVP/EPI/docs/CHANGELOG.md`
+- Split into parts for manageability:
+  - `CHANGELOG_part1.md` - December 2025 (v2.1.43 - v2.1.50)
+  - `CHANGELOG_part2.md` - November 2025 (v2.1.28 - v2.1.42)
+  - `CHANGELOG_part3.md` - Earlier versions
+
+---
+
+## Backend & Infrastructure
+
+### 🔧 Backend Documentation
+Location: `/Users/mymac/Software Development/ARCv.04/ARC MVP/EPI/docs/backend.md`
+
+### Firebase Functions
+- Functions: `/Users/mymac/Software Development/ARCv.04/functions`
+- Config: `/Users/mymac/Software Development/ARCv.04/.firebaserc`
+- Settings: `/Users/mymac/Software Development/ARCv.04/firebase.json`
+
+---
+
+## Bug Tracking
+
+### 🐛 Bugtracker
+Location: `/Users/mymac/Software Development/ARCv.04/ARC MVP/EPI/docs/bugtracker`
+- All bugs encountered and fixes
+- `bug_tracker.md` - Main tracker
+- `records/` - Individual bug records
+
+---
+
+## Priority Implementation Status
+
+### ✅ Priority 3 Complete (v2.1.46)
+- Firebase Authentication (Anonymous, Google, Email/Password)
+- Per-entry rate limiting (5 LUMARA comments per entry)
+- Per-chat rate limiting (20 LUMARA messages per chat)
+- Admin privileges system
+
+### ✅ Priority 2 Complete (v2.1.45)
+- Firebase API Proxy implementation
+- API keys secured in Cloud Functions
+- On-device LUMARA with full journal access
+
+### Archive (in `/docs/archive/priority2-testing/`)
+- `PRIORITY_2_API_REFACTOR.md`
+- `PRIORITY_2_AUTH_TODO.md`
+- `PRIORITY_1_1.5_TESTING.md`
+- `PRIORITY_1.5_COMPLETION_SUMMARY.md`
+- `UI_INTEGRATION_COMPLETE.md`
+
+---
+
+## Recent Updates (v2.1.50)
+
+### Scroll Navigation
+- **Visible scroll buttons** (up/down arrows) for all scrollable screens
+- Available in: LUMARA Chat, Journal Timeline, Journal Entry Editor
+- Stacked vertically on right side of screen
+
+### Previous Updates (v2.1.49)
+- Animated splash screen with spinning 3D phase
+- Shake to report bug feature
+- Consolidation lattice edge fix
+
+### Phase System (v2.1.48)
+- RIVET-based phase calculation
+- 10-day rolling window for phase regimes
+- 4-button navigation layout (LUMARA | Phase | Journal | +)
+- Interactive phase timeline with entry navigation
+
+---
+
+## Documentation Update Rules
+
+When asked to update documentation:
+1. Update all documents listed in this file
+2. Version documents as necessary
+3. Replace outdated context
+4. Archive deprecated content to `/docs/archive/`
+5. Keep changelog split into parts if too large
+
+---
+
+## Key Services
+
+### Subscription Management
+- Service: `lib/services/subscription_service.dart`
+- UI Widget: `lib/ui/subscription/lumara_subscription_status.dart`
+- Access Control: `lib/services/phase_history_access_control.dart`
+
+### Phase System
+- Phase Analysis: `lib/ui/phase/phase_analysis_view.dart`
+- Phase Regime: `lib/services/phase_regime_service.dart`
+- RIVET Service: `lib/services/rivet_sweep_service.dart`
+
+### Scroll Navigation
+- Chat: `lib/arc/chat/ui/lumara_assistant_screen.dart`
+- Timeline: `lib/arc/ui/timeline/timeline_view.dart`
+- Journal: `lib/ui/journal/journal_screen.dart`
+
+---
+
+*Last synchronized: December 12, 2025 | Version: 2.1.50*

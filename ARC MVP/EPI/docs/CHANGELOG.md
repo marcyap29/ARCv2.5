@@ -21,18 +21,21 @@ This changelog has been split into parts for easier navigation:
 
 ### **Scroll Navigation UX Enhancement** - ✅ Complete
 
-ChatGPT-style scroll navigation added across all scrollable screens.
+Visible floating scroll buttons added across all scrollable screens.
 
 #### Highlights
 
-**📜 Tap-to-Scroll-Top**
-- Tap status bar area to instantly scroll to top of content
-- Available in: LUMARA Chat, Journal Timeline, Journal Entry Editor
+**⬆️ Scroll-to-Top Button**
+- Up-arrow FAB appears when scrolled down from top
+- Gray background with white icon
+- Stacked above scroll-to-bottom button
 
-**⬇️ Floating Scroll-to-Bottom Button**
-- Down-arrow FAB appears when scrolled away from bottom
+**⬇️ Scroll-to-Bottom Button**
+- Down-arrow FAB appears when not at bottom
 - Smooth 300ms animation with easeOut curve
-- Auto-hides when near bottom
+- Both buttons on right side of screen
+
+**Available In**: LUMARA Chat, Journal Timeline, Journal Entry Editor
 
 #### Files Modified
 - `lib/arc/chat/ui/lumara_assistant_screen.dart`

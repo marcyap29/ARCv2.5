@@ -1419,7 +1419,7 @@ The Phase tab (formerly "Insights") provides comprehensive phase visualization a
 
 ## 21. Scroll Navigation (v2.1.50)
 
-### 📜 ChatGPT-Style Scroll Navigation
+### 📜 Visible Floating Scroll Buttons
 **Implemented In:**
 - LUMARA Chat (`lumara_assistant_screen.dart`)
 - Journal Timeline (`timeline_view.dart`)
@@ -1427,51 +1427,54 @@ The Phase tab (formerly "Insights") provides comprehensive phase visualization a
 
 **Features:**
 
-#### Tap-to-Scroll-Top
-- **Trigger Area**: Invisible 30px zone at top of content
-- **Behavior**: Tapping scrolls to top of list/content
-- **Use Case**: Quick navigation to most recent messages/entries
+#### Scroll-to-Top Button (⬆️)
+- **Appearance**: Small FAB with up-arrow icon
+- **Color**: `kcSurfaceAltColor` (gray) with white icon
+- **Position**: Bottom-right, stacked above scroll-to-bottom button
+- **Visibility**: Appears when scrolled >100px from top
+- **Behavior**: Taps scrolls to top with smooth 300ms animation
 
-#### Floating Scroll-to-Bottom Button
+#### Scroll-to-Bottom Button (⬇️)
 - **Appearance**: Small FAB with down-arrow icon
-- **Color**: `kcSurfaceAltColor` with white icon
+- **Color**: `kcSurfaceAltColor` (gray) with white icon
 - **Position**: Bottom-right corner (16px padding)
-- **Visibility**: Appears when scrolled >100px from bottom/top
+- **Visibility**: Appears when >100px from bottom AND content is scrollable
 - **Behavior**: Taps scrolls to bottom with smooth 300ms animation
 
 **Implementation Details:**
 ```dart
-// State tracking
+// Dual state tracking
+bool _showScrollToTop = false;
 bool _showScrollToBottom = false;
 
 // Scroll listener
 void _onScrollChanged() {
   if (!_scrollController.hasClients) return;
   final position = _scrollController.position;
+  final isNearTop = position.pixels <= 100;
   final isNearBottom = position.pixels >= position.maxScrollExtent - 100;
   
-  if (_showScrollToBottom == isNearBottom) {
+  final shouldShowTop = !isNearTop;
+  final shouldShowBottom = !isNearBottom && position.maxScrollExtent > 200;
+  
+  if (_showScrollToTop != shouldShowTop || _showScrollToBottom != shouldShowBottom) {
     setState(() {
-      _showScrollToBottom = !isNearBottom;
+      _showScrollToTop = shouldShowTop;
+      _showScrollToBottom = shouldShowBottom;
     });
   }
 }
+```
 
-// Scroll to top
-void _scrollToTop() {
-  _scrollController.animateTo(0, 
-    duration: Duration(milliseconds: 300),
-    curve: Curves.easeOut);
-}
-
-// Scroll to bottom
-void _scrollToBottom() {
-  _scrollController.animateTo(
-    _scrollController.position.maxScrollExtent,
-    duration: Duration(milliseconds: 300),
-    curve: Curves.easeOut);
-  setState(() => _showScrollToBottom = false);
-}
+**Button Layout:**
+```
+┌─────────────────────────────┐
+│                             │
+│         Content             │
+│                             │
+│                      ⬆️     │  ← Scroll-to-Top (when scrolled down)
+│                      ⬇️     │  ← Scroll-to-Bottom (when not at bottom)
+└─────────────────────────────┘
 ```
 
 **Screen-Specific Notes:**

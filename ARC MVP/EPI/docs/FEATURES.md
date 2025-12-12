@@ -98,10 +98,11 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 
 ### Scroll Navigation (v2.1.50)
 
-- **Tap-to-Scroll-Top**: Tap status bar area to instantly scroll to top of content (chat, timeline, entry editor)
-- **Floating Scroll-to-Bottom Button**: Down-arrow FAB appears when scrolled away from bottom
-  - Tapping scrolls to bottom/end of content
-  - Auto-hides when near bottom
+- **Visible Floating Scroll Buttons**: Two FABs for easy navigation
+  - **⬆️ Scroll-to-Top**: Up-arrow button appears when scrolled down
+  - **⬇️ Scroll-to-Bottom**: Down-arrow button appears when not at bottom
+  - Buttons stack vertically on right side of screen
+  - Gray background with white icons
   - Smooth 300ms animation with easeOut curve
 - **Available In**: LUMARA Chat, Journal Timeline, Journal Entry Editor
 
