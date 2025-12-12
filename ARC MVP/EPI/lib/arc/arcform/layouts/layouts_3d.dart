@@ -955,8 +955,8 @@ List<ArcEdge3D> _generatePetalRingsEdges(List<ArcNode3D> nodes) {
 /// Consolidation: Lattice - connect in geodesic pattern
 List<ArcEdge3D> _generateLatticeEdges(List<ArcNode3D> nodes) {
   final edges = <ArcEdge3D>[];
-  final maxDist = 1.8; // Larger distance for lattice connections
-  final maxEdgesPerNode = 4;
+  final maxDist = 3.0; // Increased to connect nodes in larger lattice (nodes spread up to ±2.0)
+  final maxEdgesPerNode = 5; // More connections for denser lattice look
   
   for (int i = 0; i < nodes.length; i++) {
     final distances = <({int idx, double dist})>[];
