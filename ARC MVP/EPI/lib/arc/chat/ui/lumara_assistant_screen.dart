@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:gap/gap.dart';
+import 'package:my_app/shared/app_colors.dart';
 import '../bloc/lumara_assistant_cubit.dart';
 import '../data/models/lumara_message.dart';
 import '../chat/ui/enhanced_chats_screen.dart';
@@ -60,6 +61,9 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
   bool _isDrawerOpen = false; // Track drawer state
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   
+  // Scroll position tracking for scroll-to-bottom button
+  bool _showScrollToBottom = false;
+  
   // Voice chat service
   VoiceChatService? _voiceChatService;
   String? _partialTranscript;
@@ -77,6 +81,7 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
     _currentEntry = widget.currentEntry;
     _checkAIConfigurationAndInitialize();
     _inputFocusNode.addListener(_onInputFocusChange);
+    _scrollController.addListener(_onScrollChanged);
     _initializeAudioIO();
     _initializeVoiceChat();
   }
@@ -223,6 +228,31 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
     }
   }
 
+  /// Track scroll position to show/hide scroll-to-bottom button
+  void _onScrollChanged() {
+    if (!_scrollController.hasClients) return;
+    
+    final position = _scrollController.position;
+    final isNearBottom = position.pixels >= position.maxScrollExtent - 100;
+    
+    if (_showScrollToBottom == isNearBottom) {
+      setState(() {
+        _showScrollToBottom = !isNearBottom;
+      });
+    }
+  }
+  
+  /// Scroll to top of chat
+  void _scrollToTop() {
+    if (_scrollController.hasClients) {
+      _scrollController.animateTo(
+        0,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+    }
+  }
+  
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollController.hasClients) {
@@ -231,6 +261,10 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
           duration: const Duration(milliseconds: 300),
           curve: Curves.easeOut,
         );
+        // Hide the button after scrolling
+        setState(() {
+          _showScrollToBottom = false;
+        });
       }
     });
   }
@@ -548,23 +582,53 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
                   }
                   
                   // Show messages with loading indicator at the bottom when processing
-                  return Column(
+                  return Stack(
                     children: [
-                      // Breadcrumb for forked chats
-                      if (isForked) _buildForkBreadcrumb(context, state.currentSessionId!),
-                      Expanded(
-                        child: ListView.builder(
-                          controller: _scrollController,
-                          padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-                          itemCount: state.messages.length,
-                          itemBuilder: (context, index) {
-                            final message = state.messages[index];
-                            return _buildMessageBubble(message);
-                          },
+                      Column(
+                        children: [
+                          // Breadcrumb for forked chats
+                          if (isForked) _buildForkBreadcrumb(context, state.currentSessionId!),
+                          Expanded(
+                            child: ListView.builder(
+                              controller: _scrollController,
+                              padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                              itemCount: state.messages.length,
+                              itemBuilder: (context, index) {
+                                final message = state.messages[index];
+                                return _buildMessageBubble(message);
+                              },
+                            ),
+                          ),
+                          // Show progress indicator at bottom when processing
+                          if (state.isProcessing) _buildLoadingIndicator(context),
+                        ],
+                      ),
+                      // Tap area at top to scroll to top (like tapping status bar)
+                      Positioned(
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        height: 30,
+                        child: GestureDetector(
+                          behavior: HitTestBehavior.translucent,
+                          onTap: _scrollToTop,
                         ),
                       ),
-                      // Show progress indicator at bottom when processing
-                      if (state.isProcessing) _buildLoadingIndicator(context),
+                      // Floating scroll-to-bottom button
+                      if (_showScrollToBottom)
+                        Positioned(
+                          bottom: 16,
+                          right: 16,
+                          child: FloatingActionButton.small(
+                            onPressed: _scrollToBottom,
+                            backgroundColor: kcSurfaceAltColor,
+                            elevation: 4,
+                            child: const Icon(
+                              Icons.keyboard_arrow_down,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
                     ],
                   );
                 }

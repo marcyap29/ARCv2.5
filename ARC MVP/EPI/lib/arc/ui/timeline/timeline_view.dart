@@ -47,6 +47,9 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
   bool _isProgrammaticScroll = false;
   DateTime? _lastVisibleEntryDate;
   DateTime? _pendingScrollDate;
+  
+  // Scroll-to-bottom button visibility
+  bool _showScrollToBottom = false;
 
   @override
   void initState() {
@@ -96,6 +99,29 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
     if (_scrollController.position.pixels >=
         _scrollController.position.maxScrollExtent - 200) {
       _timelineCubit.loadMoreEntries();
+    }
+    
+    // Track scroll position for scroll-to-bottom button
+    // Show button when scrolled up from bottom (timeline is newest-first, so "bottom" = older entries)
+    final isNearTop = _scrollController.position.pixels <= 100;
+    if (_showScrollToBottom == isNearTop) {
+      setState(() {
+        _showScrollToBottom = !isNearTop;
+      });
+    }
+  }
+  
+  /// Scroll to bottom (older entries)
+  void _scrollToBottom() {
+    if (_scrollController.hasClients) {
+      _scrollController.animateTo(
+        _scrollController.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+      setState(() {
+        _showScrollToBottom = false;
+      });
     }
   }
 
@@ -595,6 +621,21 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
                   onTap: _scrollToTop,
                 ),
               ),
+              // Floating scroll-to-bottom button (older entries)
+              if (_showScrollToBottom)
+                Positioned(
+                  bottom: 80, // Above the nav bar
+                  right: 16,
+                  child: FloatingActionButton.small(
+                    onPressed: _scrollToBottom,
+                    backgroundColor: kcSurfaceAltColor,
+                    elevation: 4,
+                    child: const Icon(
+                      Icons.keyboard_arrow_down,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
             ],
           );
         },
