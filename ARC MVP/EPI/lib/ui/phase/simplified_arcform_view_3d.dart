@@ -308,13 +308,13 @@ class _SimplifiedArcformView3DState extends State<SimplifiedArcformView3D> {
 
     final footerCount = widget.footerWidgets?.length ?? 0;
     final totalItems = _snapshots.length + footerCount;
-    
+
     return ListView.builder(
       padding: const EdgeInsets.all(16),
       itemCount: totalItems,
       itemBuilder: (context, index) {
         if (index < _snapshots.length) {
-          return _buildSnapshotCard(_snapshots[index]);
+        return _buildSnapshotCard(_snapshots[index]);
         } else {
           // Render footer widgets
           final footerIndex = index - _snapshots.length;

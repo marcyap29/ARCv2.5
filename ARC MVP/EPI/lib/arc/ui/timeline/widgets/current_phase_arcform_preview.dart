@@ -723,12 +723,12 @@ class _CompactArcformPreviewState extends State<_CompactArcformPreview> {
                           ),
                         ),
                 ),
+                ),
               ),
-            ),
           ],
         ),
-      ),
-    ),
+          ),
+        ),
       ],
     );
   }

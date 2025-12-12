@@ -1,7 +1,7 @@
 # EPI Documentation
 
 **Last Updated:** December 12, 2025  
-**Version:** 2.1.49
+**Version:** 2.1.50
 
 ---
 
@@ -9,10 +9,11 @@
 
 Welcome to the EPI (Evolving Personal Intelligence) documentation. This directory contains comprehensive documentation for the EPI MVP intelligent journaling application.
 
-### Recent Highlights (v2.1.49)
+### Recent Highlights (v2.1.50)
 
+- **📜 Scroll Navigation**: Tap top to scroll up, floating button to scroll down (ChatGPT-style)
 - **🚀 Animated Splash Screen**: App launch shows spinning 3D phase shape
-- **📱 Shake to Report Bug**: Shake device to open bug report dialog (ChatGPT-style)
+- **📱 Shake to Report Bug**: Shake device to open bug report dialog
 - **🔧 Consolidation Fix**: Lattice edges now properly connected
 
 ## Documentation Structure
@@ -74,11 +75,15 @@ Welcome to the EPI (Evolving Personal Intelligence) documentation. This director
 
 ## Version Information
 
-**Current Version:** 2.1.48
-**Last Major Update:** December 11, 2025 (Phase System Overhaul & UI/UX Improvements)
+**Current Version:** 2.1.50
+**Last Major Update:** December 12, 2025 (Scroll Navigation UX Enhancement)
 
 ### Recent Highlights
 
+- 📜 **Scroll Navigation (v2.1.50)**: ChatGPT-style scroll UX
+  - Tap status bar area to scroll to top
+  - Floating down-arrow button to scroll to bottom
+  - Available in Chat, Timeline, and Entry Editor
 - 🎉 **Phase System Overhaul (v2.1.48)**: Comprehensive Phase improvements
   - RIVET-based phase calculation for accurate trend detection
   - 10-day rolling window for phase regimes
@@ -169,5 +174,5 @@ Welcome to the EPI (Evolving Personal Intelligence) documentation. This director
 ---
 
 **Status**: ✅ Production Ready with Authentication
-**Last Updated**: December 9, 2025
-**Version**: 2.1.46
+**Last Updated**: December 12, 2025
+**Version**: 2.1.50

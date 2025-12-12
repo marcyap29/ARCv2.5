@@ -1,9 +1,9 @@
 # Git History and Repository Documentation
 
 **Repository:** ARCv.04/ARC MVP/EPI
-**Last Updated:** December 11, 2025
-**Current Branch:** dev-uiux-improvements
-**Status:** ✅ Active Development - Phase System Overhaul Complete (v2.1.48)
+**Last Updated:** December 12, 2025
+**Current Branch:** uiux-updates
+**Status:** ✅ Active Development - Scroll Navigation Complete (v2.1.50)
 
 ---
 
@@ -26,7 +26,7 @@ The EPI (Evolving Personal Intelligence) project maintains a comprehensive git h
 
 ### Active Branches
 - **main** - Primary production branch (stable releases)
-- **dev-uiux-improvements** - Active development branch ⭐ *Current*
+- **uiux-updates** - Active development branch ⭐ *Current*
 - **dev** - Previous development branch (Auth complete)
 - **claude-md-context-update** - Documentation updates branch
 - **backup_2025_11_30** - Local backup branch from November 30, 2025
@@ -98,6 +98,12 @@ The EPI (Evolving Personal Intelligence) project maintains a comprehensive git h
 - **UI Stability**: Chat interface and data handling improvements
 - **Documentation Updates**: Comprehensive v2.1.42 documentation
 
+### 📜 Phase 8: UX Enhancements (December 2025)
+- **Scroll Navigation**: ChatGPT-style scroll UX for all scrollable screens
+- **Animated Splash Screen**: 8-second spinning 3D phase visualization
+- **Shake to Report Bug**: Native iOS shake detection for feedback
+- **Consolidation Fix**: Lattice edges properly connected in animations
+
 ### 📊 Phase 7: Phase System Overhaul (December 2025)
 - **RIVET-Based Calculation**: Replaced simple phase counting with sophisticated RIVET analysis
 - **10-Day Rolling Window**: Phase regimes now use 10-day windows for better granularity
@@ -119,7 +125,26 @@ The EPI (Evolving Personal Intelligence) project maintains a comprehensive git h
 
 ## Major Features by Version
 
-### 📌 v2.1.46 (Current - December 9, 2025)
+### 📌 v2.1.50 (Current - December 12, 2025)
+- ✅ **Scroll Navigation**: ChatGPT-style scroll UX across all screens
+- ✅ **Tap-to-Top**: Tap status bar area to scroll to top
+- ✅ **Floating Scroll Button**: Down-arrow FAB for scroll-to-bottom
+- ✅ **Available In**: LUMARA Chat, Journal Timeline, Journal Entry Editor
+
+### 📌 v2.1.49 (December 12, 2025)
+- ✅ **Animated Splash Screen**: Spinning 3D phase shape on app launch
+- ✅ **Shake to Report Bug**: Native iOS shake detection for bug reporting
+- ✅ **Consolidation Fix**: Lattice edges properly connected
+
+### 📌 v2.1.48 (December 11, 2025)
+- ✅ **Phase System Overhaul**: RIVET-based calculation, 10-day windows
+- ✅ **Navigation Redesign**: 4-button layout (LUMARA | Phase | Journal | +)
+- ✅ **Phase Tab Restructuring**: Cards moved from Journal to Phase tab
+- ✅ **Interactive Timeline**: Tappable phase segments with entry navigation
+- ✅ **Chisel Effect**: Entry phase overrides feed into RIVET calculations
+- ✅ **Content Cleanup**: Disabled automatic phase hashtag injection
+
+### 📌 v2.1.46 (December 9, 2025)
 - ✅ **Priority 3 Auth**: Complete authentication and rate limiting system
 - ✅ **Firebase Auth**: Anonymous, Google, Email/Password sign-in
 - ✅ **Rate Limiting**: Per-entry (5) and per-chat (20) for free users
@@ -316,4 +341,4 @@ main (HEAD) ──── ✅ Production Ready
 
 ---
 
-*Last synchronized: December 9, 2025 | Repository: ARCv.04/ARC MVP/EPI*
+*Last synchronized: December 12, 2025 | Repository: ARCv.04/ARC MVP/EPI*

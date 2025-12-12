@@ -1,6 +1,6 @@
 # EPI MVP - Comprehensive Features Guide
 
-**Version:** 2.1.49
+**Version:** 2.1.50
 **Last Updated:** December 12, 2025
 
 ---
@@ -95,6 +95,15 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 - **Calendar Week Sync**: The calendar week view now highlights the week containing the journal entry currently visible in the timeline list, and tapping a day scrolls the list to that entry. **Enhanced in v2.1.27**: Synchronization logic is now precision-tuned to prevent visual jumps, ensuring the calendar always reflects the exact date being viewed.
 - **Tab Bar Action Center**: The + journal action now shares the bottom navigation bar surface, sitting centered above the Journal | LUMARA | Insights tabs so it stays visible without floating over content.
 - **Unified Action Buttons**: Both in-chat and in-journal LUMARA bubbles expose the identical toolbar (Regenerate, Soften tone, More depth, Continue thought, Explore conversation), simplifying UI patterns and making advanced conversation actions more discoverable.
+
+### Scroll Navigation (v2.1.50)
+
+- **Tap-to-Scroll-Top**: Tap status bar area to instantly scroll to top of content (chat, timeline, entry editor)
+- **Floating Scroll-to-Bottom Button**: Down-arrow FAB appears when scrolled away from bottom
+  - Tapping scrolls to bottom/end of content
+  - Auto-hides when near bottom
+  - Smooth 300ms animation with easeOut curve
+- **Available In**: LUMARA Chat, Journal Timeline, Journal Entry Editor
 
 ---
 

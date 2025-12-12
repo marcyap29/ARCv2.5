@@ -80,9 +80,9 @@ export const generateJournalReflection = onCall(
     if (entryId) {
       const limitResult = await checkJournalEntryLimit(userId, entryId, isPremium);
       logger.info(`Journal entry limit check: ${limitResult.remaining} remaining for entry ${entryId}`);
-    } else {
+      } else {
       logger.warn(`No entryId provided - skipping per-entry limit check`);
-    }
+      }
 
     try {
       // Support both 'plan' and 'subscriptionTier' fields

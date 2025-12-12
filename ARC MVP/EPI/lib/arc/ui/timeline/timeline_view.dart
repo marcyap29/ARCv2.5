@@ -48,7 +48,8 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
   DateTime? _lastVisibleEntryDate;
   DateTime? _pendingScrollDate;
   
-  // Scroll-to-bottom button visibility
+  // Scroll button visibility
+  bool _showScrollToTop = false;
   bool _showScrollToBottom = false;
 
   @override
@@ -101,12 +102,33 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
       _timelineCubit.loadMoreEntries();
     }
     
-    // Track scroll position for scroll-to-bottom button
-    // Show button when scrolled up from bottom (timeline is newest-first, so "bottom" = older entries)
-    final isNearTop = _scrollController.position.pixels <= 100;
-    if (_showScrollToBottom == isNearTop) {
+    // Track scroll position for scroll buttons
+    final position = _scrollController.position;
+    final isNearTop = position.pixels <= 100;
+    final isNearBottom = position.pixels >= position.maxScrollExtent - 100;
+    
+    // Show scroll-to-top when scrolled down, scroll-to-bottom when scrolled up
+    final shouldShowTop = !isNearTop;
+    final shouldShowBottom = !isNearBottom && position.maxScrollExtent > 200;
+    
+    if (_showScrollToTop != shouldShowTop || _showScrollToBottom != shouldShowBottom) {
       setState(() {
-        _showScrollToBottom = !isNearTop;
+        _showScrollToTop = shouldShowTop;
+        _showScrollToBottom = shouldShowBottom;
+      });
+    }
+  }
+  
+  /// Scroll to top (newest entries)
+  void _scrollToTopOfList() {
+    if (_scrollController.hasClients) {
+      _scrollController.animateTo(
+        0,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+      setState(() {
+        _showScrollToTop = false;
       });
     }
   }
@@ -610,23 +632,29 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
                   ),
                 ),
               ),
-              // Invisible tap area at the top to scroll to the latest entry
-              Positioned(
-                top: 0,
-                left: 0,
-                right: 0,
-                height: 30,
-                child: GestureDetector(
-                  behavior: HitTestBehavior.translucent,
-                  onTap: _scrollToTop,
+              // Floating scroll-to-top button (newest entries)
+              if (_showScrollToTop)
+                Positioned(
+                  bottom: 140, // Above scroll-to-bottom button
+                  right: 16,
+                  child: FloatingActionButton.small(
+                    heroTag: 'timelineScrollToTop',
+                    onPressed: _scrollToTopOfList,
+                    backgroundColor: kcSurfaceAltColor,
+                    elevation: 4,
+                    child: const Icon(
+                      Icons.keyboard_arrow_up,
+                      color: Colors.white,
+                    ),
+                  ),
                 ),
-              ),
               // Floating scroll-to-bottom button (older entries)
               if (_showScrollToBottom)
                 Positioned(
                   bottom: 80, // Above the nav bar
                   right: 16,
                   child: FloatingActionButton.small(
+                    heroTag: 'timelineScrollToBottom',
                     onPressed: _scrollToBottom,
                     backgroundColor: kcSurfaceAltColor,
                     elevation: 4,

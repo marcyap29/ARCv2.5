@@ -119,9 +119,9 @@ class PhaseRegimeService {
           // Use autoPhase first (per-entry detection), then computedPhase, then phase
           final phaseLabel = _normalizePhase(entry.autoPhase ?? entry.computedPhase ?? entry.phase);
           if (phaseLabel != null) {
-            final weight = entry.autoPhaseConfidence ?? 1.0;
+      final weight = entry.autoPhaseConfidence ?? 1.0;
             phaseCounts[phaseLabel] = (phaseCounts[phaseLabel] ?? 0) + weight;
-          }
+    }
         }
 
         if (phaseCounts.isNotEmpty) {
@@ -141,7 +141,7 @@ class PhaseRegimeService {
           // Log all phases found in this window
           for (final entry in phaseCounts.entries) {
             print('DEBUG:   - ${_getPhaseLabelName(entry.key)}: ${entry.value.toStringAsFixed(1)} weight');
-          }
+      }
 
           windowRegimes.add(_PhaseSegment(dominantPhase, windowStart, windowEnd));
         }
@@ -166,12 +166,12 @@ class PhaseRegimeService {
       } else if (currentMerge.phase == window.phase) {
         // Same phase - extend the current merge
         currentMerge = _PhaseSegment(currentMerge.phase, currentMerge.start, window.end);
-      } else {
+          } else {
         // Different phase - save current and start new
         mergedRegimes.add(currentMerge);
         currentMerge = window;
-      }
-    }
+          }
+        }
     if (currentMerge != null) {
       mergedRegimes.add(currentMerge);
     }

@@ -618,29 +618,29 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
       );
 
       // Update the UI with the full response
-      final currentMessages = state is LumaraAssistantLoaded
-          ? (state as LumaraAssistantLoaded).messages
-          : baseMessages;
+        final currentMessages = state is LumaraAssistantLoaded
+            ? (state as LumaraAssistantLoaded).messages
+            : baseMessages;
 
-      if (currentMessages.isNotEmpty) {
-        final lastIndex = currentMessages.length - 1;
+        if (currentMessages.isNotEmpty) {
+          final lastIndex = currentMessages.length - 1;
         // Preserve attribution traces during update
-        final existingTraces = currentMessages[lastIndex].attributionTraces;
-        final updatedMessage = currentMessages[lastIndex].copyWith(
+          final existingTraces = currentMessages[lastIndex].attributionTraces;
+          final updatedMessage = currentMessages[lastIndex].copyWith(
           content: responseText,
-          attributionTraces: existingTraces, // Preserve existing traces
-        );
+            attributionTraces: existingTraces, // Preserve existing traces
+          );
 
-        final updatedMessages = [
-          ...currentMessages.sublist(0, lastIndex),
-          updatedMessage,
-        ];
+          final updatedMessages = [
+            ...currentMessages.sublist(0, lastIndex),
+            updatedMessage,
+          ];
 
-        if (state is LumaraAssistantLoaded) {
-          emit((state as LumaraAssistantLoaded).copyWith(
-            messages: updatedMessages,
-            isProcessing: true,
-          ));
+          if (state is LumaraAssistantLoaded) {
+            emit((state as LumaraAssistantLoaded).copyWith(
+              messages: updatedMessages,
+              isProcessing: true,
+            ));
         }
       }
 

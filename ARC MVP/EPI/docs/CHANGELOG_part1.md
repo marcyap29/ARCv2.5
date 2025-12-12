@@ -1,8 +1,36 @@
 # EPI ARC MVP - Changelog (Part 1: December 2025)
 
-**Version:** 2.1.49
+**Version:** 2.1.50
 **Last Updated:** December 12, 2025
 **Coverage:** December 2025 releases
+
+---
+
+## [2.1.50] - December 12, 2025
+
+### **Scroll Navigation UX Enhancement** - ✅ Complete
+
+#### ChatGPT-Style Scroll Navigation
+- **Tap Status Bar to Scroll Up**: Tap near top of screen to scroll to top of content
+  - Available in: LUMARA Chat, Journal Timeline, Journal Entry Editor
+- **Floating Scroll-to-Bottom Button**: Down-arrow FAB appears when scrolled away from bottom
+  - Tapping scrolls to bottom of content
+  - Auto-hides when near bottom
+  - Available in: LUMARA Chat, Journal Timeline, Journal Entry Editor
+
+#### Implementation Details
+- **Scroll Position Tracking**: `_showScrollToBottom` state variable
+- **Scroll Listener**: `_onScrollChanged()` monitors position
+- **Threshold**: Button appears when >100px from bottom/top
+- **Animation**: Smooth 300ms scroll with easeOut curve
+
+#### Files Modified
+- `lib/arc/chat/ui/lumara_assistant_screen.dart` - Chat scroll navigation
+- `lib/arc/ui/timeline/timeline_view.dart` - Timeline scroll navigation
+- `lib/ui/journal/journal_screen.dart` - Entry editor scroll navigation
+
+**Status**: ✅ Complete  
+**Branch**: `uiux-updates`
 
 ---
 

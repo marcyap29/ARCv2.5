@@ -1,7 +1,7 @@
 # EPI ARC MVP - Changelog
 
-**Version:** 2.1.48
-**Last Updated:** December 11, 2025
+**Version:** 2.1.50
+**Last Updated:** December 12, 2025
 
 ---
 
@@ -11,9 +11,46 @@ This changelog has been split into parts for easier navigation:
 
 | Part | Coverage | Description |
 |------|----------|-------------|
-| **[CHANGELOG_part1.md](CHANGELOG_part1.md)** | Dec 2025 | v2.1.43 - v2.1.48 (Current) |
+| **[CHANGELOG_part1.md](CHANGELOG_part1.md)** | Dec 2025 | v2.1.43 - v2.1.50 (Current) |
 | **[CHANGELOG_part2.md](CHANGELOG_part2.md)** | Nov 2025 | v2.1.28 - v2.1.42 |
 | **[CHANGELOG_part3.md](CHANGELOG_part3.md)** | Jan-Oct 2025 | v2.0.0 - v2.1.27 & Earlier |
+
+---
+
+## [2.1.50] - December 12, 2025
+
+### **Scroll Navigation UX Enhancement** - ✅ Complete
+
+ChatGPT-style scroll navigation added across all scrollable screens.
+
+#### Highlights
+
+**📜 Tap-to-Scroll-Top**
+- Tap status bar area to instantly scroll to top of content
+- Available in: LUMARA Chat, Journal Timeline, Journal Entry Editor
+
+**⬇️ Floating Scroll-to-Bottom Button**
+- Down-arrow FAB appears when scrolled away from bottom
+- Smooth 300ms animation with easeOut curve
+- Auto-hides when near bottom
+
+#### Files Modified
+- `lib/arc/chat/ui/lumara_assistant_screen.dart`
+- `lib/arc/ui/timeline/timeline_view.dart`
+- `lib/ui/journal/journal_screen.dart`
+
+**Status**: ✅ Complete  
+**Branch**: `uiux-updates`
+
+---
+
+## [2.1.49] - December 12, 2025
+
+### **Splash Screen & Bug Reporting Enhancements** - ✅ Complete
+
+- **Animated Splash Screen**: 8-second spinning 3D phase visualization
+- **Shake to Report Bug**: Native iOS shake detection for feedback
+- **Consolidation Fix**: Lattice edges properly connected
 
 ---
 
@@ -21,50 +58,13 @@ This changelog has been split into parts for easier navigation:
 
 ### **Phase System Overhaul & UI/UX Improvements** - ✅ Complete
 
-This major release includes comprehensive improvements to the Phase system, navigation, and user experience.
-
-#### Highlights
-
-**🔬 RIVET-Based Phase Calculation**
-- Replaced simple phase counting with sophisticated RIVET analysis
-- Entry dropdown corrections ("chisel") now feed into RIVET calculations
-- Consistent trend detection across Phase tab and Analysis sections
-- 10-day rolling window for phase regimes
-
-**🔧 Phase Persistence Fixes**
-- Fixed phase dropdown changes not persisting after save/overwrite
-- ARCX import now properly restores all phase-related fields
-- Added `_currentEntryOverride` state management for local changes
-
-**🧹 Content Cleanup**
-- **Disabled** automatic `#consolidation`, `#discovery` hashtag injection
-- User content stays clean - phase tracked via proper fields instead
-
-**🎨 Navigation Bar Redesign**
-- 4-button layout: LUMARA | Phase | Journal | +
-- Removed active highlights, gray backgrounds
-- LUMARA uses gold logo icon
-
-**📱 Phase Tab Restructuring**
-- Moved "Phase Transition Readiness" card from Journal to Phase tab
-- Moved "Change Phase" button from Journal to Phase tab
-- Added "Past Phases" and "Example Phases" sections
-- Entire tab now scrollable
-
-**🔗 Interactive Timeline**
-- Phase timeline bars are now tappable
-- Shows phase details, entry count, date range
-- Entries hyperlinked for direct navigation
-
-**✅ Sign-In Enhancement**
-- Added back navigation AppBar to Sign-In screen
-
-**🔄 Code Consolidation**
-- Unified 3D viewer (`FullScreenPhaseViewer`) shared between Journal and Phase
-- Text standardization: "ARCForm" → "Phase" across UI
-
-#### Files Modified
-See [CHANGELOG_part1.md](CHANGELOG_part1.md) for complete file list.
+- **RIVET-Based Phase Calculation**: Sophisticated analysis with 10-day windows
+- **Phase Persistence Fixes**: Dropdown changes now persist properly
+- **Content Cleanup**: Disabled automatic hashtag injection
+- **Navigation Bar Redesign**: 4-button layout (LUMARA | Phase | Journal | +)
+- **Phase Tab Restructuring**: Cards moved from Journal to Phase tab
+- **Interactive Timeline**: Tappable phase segments with entry navigation
+- **Code Consolidation**: Unified 3D viewer across screens
 
 **Status**: ✅ Complete  
 **Branch**: `dev-uiux-improvements`

@@ -142,7 +142,8 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
   bool _showLumaraBox = false;
   bool _isLumaraConfigured = false;
   
-  // Scroll position tracking for scroll-to-bottom button
+  // Scroll position tracking for scroll buttons
+  bool _showScrollToTop = false;
   bool _showScrollToBottom = false;
   
   // Periodic discovery service
@@ -453,16 +454,23 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     return null;
   }
   
-  /// Track scroll position to show/hide scroll-to-bottom button
+  /// Track scroll position to show/hide scroll buttons
   void _onScrollChanged() {
     if (!_scrollController.hasClients) return;
     
     final position = _scrollController.position;
     final isNearTop = position.pixels <= 100;
+    final isNearBottom = position.pixels >= position.maxScrollExtent - 100;
     
-    if (_showScrollToBottom == isNearTop) {
+    // Show scroll-to-top when scrolled down (not near top)
+    // Show scroll-to-bottom when scrolled up (not near bottom)
+    final shouldShowTop = !isNearTop;
+    final shouldShowBottom = !isNearBottom && position.maxScrollExtent > 200;
+    
+    if (_showScrollToTop != shouldShowTop || _showScrollToBottom != shouldShowBottom) {
       setState(() {
-        _showScrollToBottom = !isNearTop;
+        _showScrollToTop = shouldShowTop;
+        _showScrollToBottom = shouldShowBottom;
       });
     }
   }
@@ -475,6 +483,9 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeOut,
       );
+      setState(() {
+        _showScrollToTop = false;
+      });
     }
   }
   
@@ -2218,23 +2229,29 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
             ],
           ),
           
-          // Tap area at top to scroll to top (like tapping status bar)
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            height: 30,
-            child: GestureDetector(
-              behavior: HitTestBehavior.translucent,
-              onTap: _scrollToTop,
+          // Floating scroll-to-top button (appears when scrolled down)
+          if (_showScrollToTop)
+            Positioned(
+              bottom: 200, // Above scroll-to-bottom button
+              right: 16,
+              child: FloatingActionButton.small(
+                heroTag: 'scrollToTop',
+                onPressed: _scrollToTop,
+                backgroundColor: kcSurfaceAltColor,
+                elevation: 4,
+                child: const Icon(
+                  Icons.keyboard_arrow_up,
+                  color: Colors.white,
+                ),
+              ),
             ),
-          ),
-          // Floating scroll-to-bottom button
+          // Floating scroll-to-bottom button (appears when not at bottom)
           if (_showScrollToBottom)
             Positioned(
               bottom: 140, // Above FAB and nav bar
               right: 16,
               child: FloatingActionButton.small(
+                heroTag: 'scrollToBottom',
                 onPressed: _scrollToBottom,
                 backgroundColor: kcSurfaceAltColor,
                 elevation: 4,

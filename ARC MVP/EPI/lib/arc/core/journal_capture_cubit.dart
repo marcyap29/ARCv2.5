@@ -1804,9 +1804,9 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
     // - userPhaseOverride: Manual phase selection via dropdown (chisel)
     // - Phase regimes: Date-based phase periods
     // No need to add hashtags to content anymore
-    return content;
+      return content;
   }
-  
+
   String _generateTitle(String content) {
     // Simple title generation from first few words
     final words = content.split(' ');

@@ -95,8 +95,8 @@ class _CustomTabBarState extends State<CustomTabBar> {
                   child: _buildTabContent(widget.tabs[2], widget.selectedIndex == 2),
                 ),
               ),
-            ),
-          ),
+                  ),
+                ),
           // Fourth button (+) - New Journal
           Expanded(
             child: GestureDetector(
@@ -141,11 +141,11 @@ class _CustomTabBarState extends State<CustomTabBar> {
             // Use custom LUMARA icon (same as chat bubbles)
             const LumaraIcon(size: 28)
           else
-            Icon(
-              tab.icon,
+          Icon(
+            tab.icon,
               size: 28,
-              color: textColor,
-            ),
+            color: textColor,
+          ),
           const SizedBox(height: 2),
           Text(
             tab.text!,

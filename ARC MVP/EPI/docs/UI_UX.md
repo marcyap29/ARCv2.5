@@ -1,6 +1,6 @@
 # EPI MVP - UI/UX Feature Documentation
 
-**Version:** 2.1.49
+**Version:** 2.1.50
 **Last Updated:** December 12, 2025
 **Status:** ✅ Comprehensive Feature Analysis Complete
 
@@ -31,6 +31,10 @@ The EPI (Evolving Personal Intelligence) Flutter application provides a sophisti
 15. [Form Handling & Input](#15-form-handling--input)
 16. [Authentication UI](#16-authentication-ui)
 17. [Phase Tab (v2.1.48)](#17-phase-tab-v2148)
+18. [Journal Updates (v2.1.48)](#18-journal-updates-v2148)
+19. [Splash Screen (v2.1.49)](#19-splash-screen-v2149)
+20. [Bug Reporting (v2.1.49)](#20-bug-reporting-v2149)
+21. [Scroll Navigation (v2.1.50)](#21-scroll-navigation-v2150)
 
 ---
 
@@ -1410,6 +1414,72 @@ The Phase tab (formerly "Insights") provides comprehensive phase visualization a
 - Toggle in Settings → LUMARA section
 - Preference stored in SharedPreferences
 - Visual feedback with bug icon
+
+---
+
+## 21. Scroll Navigation (v2.1.50)
+
+### 📜 ChatGPT-Style Scroll Navigation
+**Implemented In:**
+- LUMARA Chat (`lumara_assistant_screen.dart`)
+- Journal Timeline (`timeline_view.dart`)
+- Journal Entry Editor (`journal_screen.dart`)
+
+**Features:**
+
+#### Tap-to-Scroll-Top
+- **Trigger Area**: Invisible 30px zone at top of content
+- **Behavior**: Tapping scrolls to top of list/content
+- **Use Case**: Quick navigation to most recent messages/entries
+
+#### Floating Scroll-to-Bottom Button
+- **Appearance**: Small FAB with down-arrow icon
+- **Color**: `kcSurfaceAltColor` with white icon
+- **Position**: Bottom-right corner (16px padding)
+- **Visibility**: Appears when scrolled >100px from bottom/top
+- **Behavior**: Taps scrolls to bottom with smooth 300ms animation
+
+**Implementation Details:**
+```dart
+// State tracking
+bool _showScrollToBottom = false;
+
+// Scroll listener
+void _onScrollChanged() {
+  if (!_scrollController.hasClients) return;
+  final position = _scrollController.position;
+  final isNearBottom = position.pixels >= position.maxScrollExtent - 100;
+  
+  if (_showScrollToBottom == isNearBottom) {
+    setState(() {
+      _showScrollToBottom = !isNearBottom;
+    });
+  }
+}
+
+// Scroll to top
+void _scrollToTop() {
+  _scrollController.animateTo(0, 
+    duration: Duration(milliseconds: 300),
+    curve: Curves.easeOut);
+}
+
+// Scroll to bottom
+void _scrollToBottom() {
+  _scrollController.animateTo(
+    _scrollController.position.maxScrollExtent,
+    duration: Duration(milliseconds: 300),
+    curve: Curves.easeOut);
+  setState(() => _showScrollToBottom = false);
+}
+```
+
+**Screen-Specific Notes:**
+| Screen | Scroll-to-Top | Scroll-to-Bottom |
+|--------|---------------|------------------|
+| LUMARA Chat | Latest message | Oldest message |
+| Journal Timeline | Newest entries | Older entries |
+| Journal Entry Editor | Top of entry | Bottom of entry |
 
 ---
 

@@ -151,7 +151,7 @@ class _SignInScreenState extends State<SignInScreen> {
             content: Text('Password reset email sent to $email'),
             backgroundColor: kcSuccessColor,
           ),
-        );
+      );
       }
     } on FirebaseAuthException catch (e) {
       if (mounted) {
@@ -220,10 +220,10 @@ class _SignInScreenState extends State<SignInScreen> {
           padding: const EdgeInsets.all(24.0),
           child: Form(
             key: _formKey,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
                 if (!canPop) const SizedBox(height: 40),
                 
                 // Logo/Icon
@@ -242,19 +242,19 @@ class _SignInScreenState extends State<SignInScreen> {
                 ),
                 const SizedBox(height: 24),
                 
-                Text(
+              Text(
                   _isSignUp ? 'Create Account' : 'Welcome Back',
-                  style: heading1Style(context),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 8),
-                Text(
+                style: heading1Style(context),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              Text(
                   _isSignUp 
                       ? 'Sign up to start your journey with Arc'
                       : 'Sign in to continue your journey',
                   style: bodyStyle(context).copyWith(color: kcSecondaryTextColor),
-                  textAlign: TextAlign.center,
-                ),
+                textAlign: TextAlign.center,
+              ),
                 const SizedBox(height: 40),
 
                 // Google Sign-In Button
@@ -272,26 +272,26 @@ class _SignInScreenState extends State<SignInScreen> {
                     side: BorderSide(color: kcSecondaryTextColor.withOpacity(0.5)),
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
                 ),
+              ),
 
-                const SizedBox(height: 24),
+              const SizedBox(height: 24),
                 Row(
-                  children: [
+                children: [
                     Expanded(child: Divider(color: kcSecondaryTextColor.withOpacity(0.3))),
-                    Padding(
+                  Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Text('or', style: TextStyle(color: kcSecondaryTextColor)),
-                    ),
+                    child: Text('or', style: TextStyle(color: kcSecondaryTextColor)),
+                  ),
                     Expanded(child: Divider(color: kcSecondaryTextColor.withOpacity(0.3))),
-                  ],
-                ),
-                const SizedBox(height: 24),
+                ],
+              ),
+              const SizedBox(height: 24),
 
                 // Email Field
                 TextFormField(
-                  controller: _emailController,
-                  keyboardType: TextInputType.emailAddress,
+                controller: _emailController,
+                keyboardType: TextInputType.emailAddress,
                   textInputAction: TextInputAction.next,
                   validator: (value) {
                     if (value == null || value.trim().isEmpty) {
@@ -303,20 +303,20 @@ class _SignInScreenState extends State<SignInScreen> {
                     return null;
                   },
                   decoration: InputDecoration(
-                    labelText: 'Email',
+                  labelText: 'Email',
                     hintText: 'you@example.com',
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                     prefixIcon: const Icon(Icons.email_outlined),
                     filled: true,
                     fillColor: kcSurfaceColor,
-                  ),
-                  style: bodyStyle(context),
                 ),
-                const SizedBox(height: 16),
+                style: bodyStyle(context),
+              ),
+              const SizedBox(height: 16),
 
                 // Password Field
                 TextFormField(
-                  controller: _passwordController,
+                controller: _passwordController,
                   obscureText: _obscurePassword,
                   textInputAction: _isSignUp ? TextInputAction.next : TextInputAction.done,
                   onFieldSubmitted: _isSignUp ? null : (_) => _submitForm(),
@@ -330,7 +330,7 @@ class _SignInScreenState extends State<SignInScreen> {
                     return null;
                   },
                   decoration: InputDecoration(
-                    labelText: 'Password',
+                  labelText: 'Password',
                     hintText: _isSignUp ? 'At least 6 characters' : 'Enter your password',
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                     prefixIcon: const Icon(Icons.lock_outline),
@@ -372,9 +372,9 @@ class _SignInScreenState extends State<SignInScreen> {
                       ),
                       filled: true,
                       fillColor: kcSurfaceColor,
-                    ),
-                    style: bodyStyle(context),
-                  ),
+                ),
+                style: bodyStyle(context),
+              ),
                 ],
 
                 // Forgot Password (Sign In only)
@@ -392,56 +392,56 @@ class _SignInScreenState extends State<SignInScreen> {
                   ),
                 ],
 
-                const SizedBox(height: 24),
+              const SizedBox(height: 24),
 
                 // Submit Button
-                ElevatedButton(
+              ElevatedButton(
                   onPressed: _isLoading ? null : _submitForm,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: kcAccentColor,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: kcAccentColor,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     elevation: 0,
-                  ),
-                  child: _isLoading
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                      )
+                ),
+                child: _isLoading
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    )
                     : Text(
                         _isSignUp ? 'Create Account' : 'Sign In',
                         style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                       ),
-                ),
+              ),
 
                 // Error Message
-                if (_errorMessage != null) ...[
-                  const SizedBox(height: 16),
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: kcDangerColor.withOpacity(0.1),
+              if (_errorMessage != null) ...[
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: kcDangerColor.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: kcDangerColor.withOpacity(0.3)),
-                    ),
+                    border: Border.all(color: kcDangerColor.withOpacity(0.3)),
+                  ),
                     child: Row(
                       children: [
                         Icon(Icons.error_outline, color: kcDangerColor, size: 20),
                         const SizedBox(width: 8),
                         Expanded(
-                          child: Text(
-                            _errorMessage!,
-                            style: TextStyle(color: kcDangerColor),
+                  child: Text(
+                    _errorMessage!,
+                    style: TextStyle(color: kcDangerColor),
                           ),
                         ),
                       ],
-                    ),
                   ),
-                ],
+                ),
+              ],
 
-                const SizedBox(height: 24),
+              const SizedBox(height: 24),
 
                 // Toggle Sign In / Sign Up
                 Row(
@@ -451,21 +451,21 @@ class _SignInScreenState extends State<SignInScreen> {
                       _isSignUp ? 'Already have an account?' : "Don't have an account?",
                       style: TextStyle(color: kcSecondaryTextColor),
                     ),
-                    TextButton(
+              TextButton(
                       onPressed: _isLoading ? null : _toggleMode,
-                      child: Text(
+                child: Text(
                         _isSignUp ? 'Sign In' : 'Sign Up',
                         style: TextStyle(
                           color: kcAccentColor,
                           fontWeight: FontWeight.w600,
                         ),
-                      ),
-                    ),
+                ),
+              ),
                   ],
                 ),
 
-                const SizedBox(height: 40),
-              ],
+              const SizedBox(height: 40),
+            ],
             ),
           ),
         ),
