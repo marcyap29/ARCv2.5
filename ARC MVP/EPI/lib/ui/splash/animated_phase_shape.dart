@@ -1,18 +1,22 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:my_app/arc/arcform/layouts/layouts_3d.dart';
+import 'package:my_app/arc/arcform/models/arcform_models.dart';
+import 'package:my_app/arc/arcform/util/seeded.dart';
 
 /// Animated 3D phase shape widget for splash screen
-/// Shows a spinning wireframe representation of the user's current phase
+/// Uses authentic phase layouts from layouts_3d.dart
+/// Renders as a spinning wireframe without labels
 class AnimatedPhaseShape extends StatefulWidget {
   final String phase;
   final double size;
   final Duration rotationDuration;
-  
+
   const AnimatedPhaseShape({
     super.key,
     required this.phase,
     this.size = 150,
-    this.rotationDuration = const Duration(seconds: 8),
+    this.rotationDuration = const Duration(seconds: 10),
   });
 
   @override
@@ -22,6 +26,8 @@ class AnimatedPhaseShape extends StatefulWidget {
 class _AnimatedPhaseShapeState extends State<AnimatedPhaseShape>
     with SingleTickerProviderStateMixin {
   late AnimationController _rotationController;
+  List<ArcNode3D> _nodes = [];
+  List<ArcEdge3D> _edges = [];
 
   @override
   void initState() {
@@ -30,12 +36,67 @@ class _AnimatedPhaseShapeState extends State<AnimatedPhaseShape>
       duration: widget.rotationDuration,
       vsync: this,
     )..repeat();
+
+    _generateShapeData();
   }
 
   @override
-  void dispose() {
-    _rotationController.dispose();
-    super.dispose();
+  void didUpdateWidget(AnimatedPhaseShape oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.phase != widget.phase) {
+      _generateShapeData();
+    }
+  }
+
+  /// Generate authentic shape data using layouts_3d.dart
+  void _generateShapeData() {
+    // Generate dummy keywords - the layout functions use these for position calculations
+    // We use the optimal node count for each phase to get the intended shape
+    final optimalCount = _getOptimalNodeCount(widget.phase);
+    final dummyKeywords = List.generate(optimalCount, (i) => 'node_$i');
+
+    // Create a skin with consistent seed
+    const skin = ArcformSkin(seed: 42);
+
+    // Use the authentic layout function from layouts_3d.dart
+    _nodes = layout3D(
+      keywords: dummyKeywords,
+      phase: widget.phase,
+      skin: skin,
+    );
+
+    // Generate authentic edges using the phase-specific edge generator
+    final rng = Seeded('42:edges');
+    _edges = generateEdges(
+      nodes: _nodes,
+      rng: rng,
+      phase: widget.phase,
+      maxEdgesPerNode: 4,
+      maxDistance: 1.5,
+    );
+
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  int _getOptimalNodeCount(String phase) {
+    switch (phase.toLowerCase()) {
+      case 'discovery':
+        return 10; // Helix
+      case 'expansion':
+        return 12; // Petal rings
+      case 'transition':
+        return 12; // Bridge/fork
+      case 'consolidation':
+        return 20; // Geodesic lattice
+      case 'recovery':
+        return 8; // Ascending spiral/pyramid
+      case 'breakthrough':
+        return 12; // Supernova star
+      default:
+        return 10;
+    }
   }
 
   Color get _phaseColor {
@@ -58,14 +119,34 @@ class _AnimatedPhaseShapeState extends State<AnimatedPhaseShape>
   }
 
   @override
+  void dispose() {
+    _rotationController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    if (_nodes.isEmpty) {
+      return SizedBox(
+        width: widget.size,
+        height: widget.size,
+        child: Center(
+          child: CircularProgressIndicator(
+            color: _phaseColor.withOpacity(0.5),
+            strokeWidth: 2,
+          ),
+        ),
+      );
+    }
+
     return AnimatedBuilder(
       animation: _rotationController,
       builder: (context, child) {
         return CustomPaint(
           size: Size(widget.size, widget.size),
-          painter: _PhaseShapePainter(
-            phase: widget.phase,
+          painter: _AuthenticPhaseShapePainter(
+            nodes: _nodes,
+            edges: _edges,
             rotation: _rotationController.value * 2 * math.pi,
             color: _phaseColor,
           ),
@@ -75,13 +156,16 @@ class _AnimatedPhaseShapeState extends State<AnimatedPhaseShape>
   }
 }
 
-class _PhaseShapePainter extends CustomPainter {
-  final String phase;
+/// Painter that renders authentic phase shapes as spinning wireframes
+class _AuthenticPhaseShapePainter extends CustomPainter {
+  final List<ArcNode3D> nodes;
+  final List<ArcEdge3D> edges;
   final double rotation;
   final Color color;
 
-  _PhaseShapePainter({
-    required this.phase,
+  _AuthenticPhaseShapePainter({
+    required this.nodes,
+    required this.edges,
     required this.rotation,
     required this.color,
   });
@@ -89,345 +173,117 @@ class _PhaseShapePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final center = Offset(size.width / 2, size.height / 2);
-    final radius = size.width * 0.35;
+    final scale = size.width * 0.18; // Scale factor for node positions
 
-    // Create gradient for glow effect
+    // Build node ID to index mapping
+    final nodeIdToIndex = <String, int>{};
+    for (int i = 0; i < nodes.length; i++) {
+      nodeIdToIndex[nodes[i].id] = i;
+    }
+
+    // Glow paint for depth effect
     final glowPaint = Paint()
-      ..color = color.withOpacity(0.3)
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 15)
+      ..color = color.withOpacity(0.25)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 3;
 
+    // Line paint for edges
     final linePaint = Paint()
-      ..color = color
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.5
       ..strokeCap = StrokeCap.round;
 
-    final brightLinePaint = Paint()
-      ..color = color.withOpacity(0.9)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2
-      ..strokeCap = StrokeCap.round;
+    // Project 3D nodes to 2D with rotation
+    final projectedNodes = <int, Offset>{};
+    final nodeDepths = <int, double>{};
 
-    switch (phase.toLowerCase()) {
-      case 'discovery':
-        _drawDiscoveryHelix(canvas, center, radius, glowPaint, linePaint, brightLinePaint);
-        break;
-      case 'expansion':
-        _drawExpansionFlower(canvas, center, radius, glowPaint, linePaint, brightLinePaint);
-        break;
-      case 'transition':
-        _drawTransitionBridge(canvas, center, radius, glowPaint, linePaint, brightLinePaint);
-        break;
-      case 'consolidation':
-        _drawConsolidationLattice(canvas, center, radius, glowPaint, linePaint, brightLinePaint);
-        break;
-      case 'recovery':
-        _drawRecoveryCore(canvas, center, radius, glowPaint, linePaint, brightLinePaint);
-        break;
-      case 'breakthrough':
-        _drawBreakthroughSupernova(canvas, center, radius, glowPaint, linePaint, brightLinePaint);
-        break;
-      default:
-        _drawDiscoveryHelix(canvas, center, radius, glowPaint, linePaint, brightLinePaint);
-    }
-  }
+    for (int i = 0; i < nodes.length; i++) {
+      final node = nodes[i];
 
-  /// Discovery: Spinning helix/DNA shape
-  void _drawDiscoveryHelix(Canvas canvas, Offset center, double radius, 
-      Paint glowPaint, Paint linePaint, Paint brightLinePaint) {
-    final path = Path();
-    final path2 = Path();
-    
-    const turns = 2.0;
-    const segments = 40;
-    
-    for (int i = 0; i <= segments; i++) {
-      final t = i / segments;
-      final angle = t * turns * 2 * math.pi + rotation;
-      
-      // First helix strand
-      final x1 = center.dx + radius * 0.7 * math.cos(angle);
-      final y1 = center.dy + (t - 0.5) * radius * 2;
-      final z1 = math.sin(angle) * 0.3;
-      final projectedX1 = x1 + z1 * 20;
-      
-      // Second helix strand (opposite phase)
-      final x2 = center.dx + radius * 0.7 * math.cos(angle + math.pi);
-      final y2 = y1;
-      final z2 = math.sin(angle + math.pi) * 0.3;
-      final projectedX2 = x2 + z2 * 20;
-      
-      if (i == 0) {
-        path.moveTo(projectedX1, y1);
-        path2.moveTo(projectedX2, y2);
-      } else {
-        path.lineTo(projectedX1, y1);
-        path2.lineTo(projectedX2, y2);
-      }
-      
-      // Draw connecting rungs every few segments
-      if (i % 8 == 0 && i > 0 && i < segments) {
-        canvas.drawLine(
-          Offset(projectedX1, y1),
-          Offset(projectedX2, y2),
-          linePaint..color = color.withOpacity(0.4),
-        );
-      }
-    }
-    
-    canvas.drawPath(path, glowPaint);
-    canvas.drawPath(path, brightLinePaint);
-    canvas.drawPath(path2, glowPaint);
-    canvas.drawPath(path2, linePaint);
-  }
+      // Apply Y-axis rotation (horizontal spin)
+      final cosR = math.cos(rotation);
+      final sinR = math.sin(rotation);
 
-  /// Expansion: Rotating flower/petal shape
-  void _drawExpansionFlower(Canvas canvas, Offset center, double radius,
-      Paint glowPaint, Paint linePaint, Paint brightLinePaint) {
-    const petals = 6;
-    
-    for (int i = 0; i < petals; i++) {
-      final baseAngle = (i / petals) * 2 * math.pi + rotation;
-      
-      final path = Path();
-      path.moveTo(center.dx, center.dy);
-      
-      // Draw petal curve
-      for (int j = 0; j <= 20; j++) {
-        final t = j / 20;
-        final petalAngle = baseAngle + (t - 0.5) * 0.8;
-        final petalRadius = radius * (0.3 + 0.7 * math.sin(t * math.pi));
-        
-        // Add 3D depth
-        final depth = math.cos(baseAngle) * 0.2;
-        final x = center.dx + petalRadius * math.cos(petalAngle) * (1 + depth);
-        final y = center.dy + petalRadius * math.sin(petalAngle);
-        
-        if (j == 0) {
-          path.moveTo(x, y);
-        } else {
-          path.lineTo(x, y);
-        }
-      }
-      
-      // Draw with depth-based opacity
-      final depthFactor = (math.cos(baseAngle) + 1) / 2;
-      canvas.drawPath(path, glowPaint..color = color.withOpacity(0.2 + depthFactor * 0.2));
-      canvas.drawPath(path, linePaint..color = color.withOpacity(0.5 + depthFactor * 0.5));
-    }
-    
-    // Center point
-    canvas.drawCircle(center, 4, Paint()..color = color);
-  }
+      final rotatedX = node.x * cosR - node.z * sinR;
+      final rotatedZ = node.x * sinR + node.z * cosR;
+      final rotatedY = node.y;
 
-  /// Transition: Rotating bridge/fork structure
-  void _drawTransitionBridge(Canvas canvas, Offset center, double radius,
-      Paint glowPaint, Paint linePaint, Paint brightLinePaint) {
-    const branches = 3;
-    
-    // Draw main trunk
-    final trunkStart = Offset(center.dx - radius * 0.6, center.dy);
-    final trunkEnd = Offset(center.dx, center.dy);
-    
-    // Rotate trunk
-    final rotatedTrunkStart = _rotatePoint(trunkStart, center, rotation);
-    final rotatedTrunkEnd = _rotatePoint(trunkEnd, center, rotation);
-    
-    canvas.drawLine(rotatedTrunkStart, rotatedTrunkEnd, glowPaint);
-    canvas.drawLine(rotatedTrunkStart, rotatedTrunkEnd, brightLinePaint);
-    
-    // Draw branches
-    for (int i = 0; i < branches; i++) {
-      final branchAngle = (i - 1) * 0.5;
-      final branchEnd = Offset(
-        center.dx + radius * 0.8 * math.cos(branchAngle),
-        center.dy + radius * 0.6 * math.sin(branchAngle),
-      );
-      
-      final rotatedBranchEnd = _rotatePoint(branchEnd, center, rotation);
-      
-      canvas.drawLine(rotatedTrunkEnd, rotatedBranchEnd, glowPaint);
-      canvas.drawLine(rotatedTrunkEnd, rotatedBranchEnd, linePaint);
-      
-      // Sub-branches
-      for (int j = 0; j < 2; j++) {
-        final subAngle = branchAngle + (j - 0.5) * 0.4;
-        final subEnd = Offset(
-          branchEnd.dx + radius * 0.4 * math.cos(subAngle),
-          branchEnd.dy + radius * 0.3 * math.sin(subAngle),
-        );
-        final rotatedSubEnd = _rotatePoint(subEnd, center, rotation);
-        canvas.drawLine(rotatedBranchEnd, rotatedSubEnd, linePaint..color = color.withOpacity(0.6));
-      }
-    }
-  }
+      // Simple perspective projection
+      final perspectiveFactor = 1.0 + rotatedZ * 0.15;
+      final projectedX = center.dx + rotatedX * scale * perspectiveFactor;
+      final projectedY = center.dy - rotatedY * scale * perspectiveFactor;
 
-  /// Consolidation: Rotating geodesic lattice
-  void _drawConsolidationLattice(Canvas canvas, Offset center, double radius,
-      Paint glowPaint, Paint linePaint, Paint brightLinePaint) {
-    const rings = 4;
-    const pointsPerRing = 6;
-    
-    final points = <List<Offset>>[];
-    
-    // Generate points on rings
-    for (int ring = 0; ring < rings; ring++) {
-      final ringPoints = <Offset>[];
-      final ringRadius = radius * (0.3 + ring * 0.25);
-      final ringZ = (ring - rings / 2) * 0.3;
-      
-      for (int i = 0; i < pointsPerRing; i++) {
-        final angle = (i / pointsPerRing) * 2 * math.pi + rotation + ring * 0.2;
-        final x = center.dx + ringRadius * math.cos(angle);
-        final y = center.dy + ringRadius * math.sin(angle) * 0.6 + ringZ * 30;
-        ringPoints.add(Offset(x, y));
-      }
-      points.add(ringPoints);
+      projectedNodes[i] = Offset(projectedX, projectedY);
+      nodeDepths[i] = rotatedZ;
     }
-    
-    // Draw connections within rings
-    for (int ring = 0; ring < rings; ring++) {
-      for (int i = 0; i < pointsPerRing; i++) {
-        final next = (i + 1) % pointsPerRing;
-        canvas.drawLine(points[ring][i], points[ring][next], linePaint);
-      }
-    }
-    
-    // Draw connections between rings
-    for (int ring = 0; ring < rings - 1; ring++) {
-      for (int i = 0; i < pointsPerRing; i++) {
-        canvas.drawLine(points[ring][i], points[ring + 1][i], 
-            linePaint..color = color.withOpacity(0.5));
-        canvas.drawLine(points[ring][i], points[ring + 1][(i + 1) % pointsPerRing],
-            linePaint..color = color.withOpacity(0.3));
-      }
-    }
-  }
 
-  /// Recovery: Rotating core with shell
-  void _drawRecoveryCore(Canvas canvas, Offset center, double radius,
-      Paint glowPaint, Paint linePaint, Paint brightLinePaint) {
-    // Inner glowing core
-    for (int i = 3; i > 0; i--) {
-      final coreRadius = radius * 0.15 * i;
+    // Sort edges by average depth (draw back-to-front)
+    final sortedEdges = List<ArcEdge3D>.from(edges);
+    sortedEdges.sort((a, b) {
+      final idxA1 = nodeIdToIndex[a.sourceId] ?? 0;
+      final idxA2 = nodeIdToIndex[a.targetId] ?? 0;
+      final idxB1 = nodeIdToIndex[b.sourceId] ?? 0;
+      final idxB2 = nodeIdToIndex[b.targetId] ?? 0;
+      final depthA = (nodeDepths[idxA1] ?? 0) + (nodeDepths[idxA2] ?? 0);
+      final depthB = (nodeDepths[idxB1] ?? 0) + (nodeDepths[idxB2] ?? 0);
+      return depthA.compareTo(depthB);
+    });
+
+    // Draw edges as glowing lines
+    for (final edge in sortedEdges) {
+      final sourceIdx = nodeIdToIndex[edge.sourceId];
+      final targetIdx = nodeIdToIndex[edge.targetId];
+      
+      if (sourceIdx == null || targetIdx == null) continue;
+      
+      final startPos = projectedNodes[sourceIdx];
+      final endPos = projectedNodes[targetIdx];
+
+      if (startPos == null || endPos == null) continue;
+
+      // Calculate depth-based opacity
+      final avgDepth = ((nodeDepths[sourceIdx] ?? 0) + (nodeDepths[targetIdx] ?? 0)) / 2;
+      final depthFactor = (avgDepth + 2) / 4; // Normalize to 0-1 range
+      final opacity = 0.3 + depthFactor.clamp(0.0, 1.0) * 0.7;
+
+      // Draw glow
+      canvas.drawLine(startPos, endPos, glowPaint..color = color.withOpacity(opacity * 0.3));
+
+      // Draw line
+      canvas.drawLine(startPos, endPos, linePaint..color = color.withOpacity(opacity));
+    }
+
+    // Draw small dots at node positions (for visual interest)
+    final nodePaint = Paint()..style = PaintingStyle.fill;
+
+    for (int i = 0; i < nodes.length; i++) {
+      final pos = projectedNodes[i];
+      if (pos == null) continue;
+
+      final depth = nodeDepths[i] ?? 0;
+      final depthFactor = (depth + 2) / 4;
+      final opacity = 0.4 + depthFactor.clamp(0.0, 1.0) * 0.6;
+      final nodeSize = 2.0 + depthFactor.clamp(0.0, 1.0) * 2.0;
+
+      // Subtle glow
       canvas.drawCircle(
-        center,
-        coreRadius,
+        pos,
+        nodeSize + 2,
         Paint()
-          ..color = color.withOpacity(0.3 / i)
-          ..maskFilter = MaskFilter.blur(BlurStyle.normal, coreRadius * 0.5),
+          ..color = color.withOpacity(opacity * 0.3)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3),
       );
-    }
-    
-    // Core solid
-    canvas.drawCircle(center, radius * 0.12, Paint()..color = color);
-    
-    // Orbiting shell particles
-    const shellParticles = 8;
-    for (int i = 0; i < shellParticles; i++) {
-      final angle = (i / shellParticles) * 2 * math.pi + rotation;
-      final orbitRadius = radius * (0.5 + math.sin(rotation * 2 + i) * 0.15);
-      
-      // 3D wobble
-      final z = math.sin(angle + rotation) * 0.3;
-      final x = center.dx + orbitRadius * math.cos(angle);
-      final y = center.dy + orbitRadius * math.sin(angle) * 0.7 + z * 20;
-      
-      // Draw particle trail
-      final trailPaint = Paint()
-        ..color = color.withOpacity(0.3)
-        ..strokeWidth = 2
-        ..strokeCap = StrokeCap.round;
-      
-      for (int t = 1; t <= 3; t++) {
-        final trailAngle = angle - t * 0.1;
-        final tx = center.dx + orbitRadius * math.cos(trailAngle);
-        final ty = center.dy + orbitRadius * math.sin(trailAngle) * 0.7;
-        canvas.drawCircle(Offset(tx, ty), 2 - t * 0.5, trailPaint);
-      }
-      
-      // Particle
-      canvas.drawCircle(Offset(x, y), 4, Paint()..color = color);
-      
-      // Connection to core
-      canvas.drawLine(center, Offset(x, y), linePaint..color = color.withOpacity(0.2));
-    }
-  }
 
-  /// Breakthrough: Rotating supernova explosion
-  void _drawBreakthroughSupernova(Canvas canvas, Offset center, double radius,
-      Paint glowPaint, Paint linePaint, Paint brightLinePaint) {
-    // Central burst
-    canvas.drawCircle(
-      center,
-      radius * 0.15,
-      Paint()
-        ..color = color.withOpacity(0.5)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10),
-    );
-    canvas.drawCircle(center, radius * 0.08, Paint()..color = color);
-    
-    // Rays shooting outward
-    const rays = 12;
-    for (int i = 0; i < rays; i++) {
-      final angle = (i / rays) * 2 * math.pi + rotation;
-      final isMainRay = i % 2 == 0;
-      final rayLength = radius * (isMainRay ? 1.0 : 0.6);
-      
-      // Pulsing effect
-      final pulse = 1.0 + math.sin(rotation * 3 + i) * 0.1;
-      
-      final endX = center.dx + rayLength * pulse * math.cos(angle);
-      final endY = center.dy + rayLength * pulse * math.sin(angle);
-      
-      // Draw ray with gradient effect
-      final rayPath = Path();
-      rayPath.moveTo(center.dx, center.dy);
-      rayPath.lineTo(endX, endY);
-      
-      if (isMainRay) {
-        canvas.drawPath(rayPath, glowPaint);
-        canvas.drawPath(rayPath, brightLinePaint);
-        
-        // Sparkle at end
-        canvas.drawCircle(
-          Offset(endX, endY),
-          3,
-          Paint()..color = color,
-        );
-      } else {
-        canvas.drawPath(rayPath, linePaint..color = color.withOpacity(0.5));
-      }
+      // Node dot
+      canvas.drawCircle(pos, nodeSize, nodePaint..color = color.withOpacity(opacity));
     }
-    
-    // Expanding ring
-    final ringRadius = radius * 0.7 * (1 + math.sin(rotation * 2) * 0.1);
-    canvas.drawCircle(
-      center,
-      ringRadius,
-      Paint()
-        ..color = color.withOpacity(0.3)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 2,
-    );
-  }
-
-  Offset _rotatePoint(Offset point, Offset center, double angle) {
-    final dx = point.dx - center.dx;
-    final dy = point.dy - center.dy;
-    final cos = math.cos(angle);
-    final sin = math.sin(angle);
-    return Offset(
-      center.dx + dx * cos - dy * sin,
-      center.dy + dx * sin + dy * cos,
-    );
   }
 
   @override
-  bool shouldRepaint(_PhaseShapePainter oldDelegate) {
-    return oldDelegate.rotation != rotation || oldDelegate.phase != phase;
+  bool shouldRepaint(_AuthenticPhaseShapePainter oldDelegate) {
+    return oldDelegate.rotation != rotation ||
+        oldDelegate.nodes != nodes ||
+        oldDelegate.edges != edges;
   }
 }
-
