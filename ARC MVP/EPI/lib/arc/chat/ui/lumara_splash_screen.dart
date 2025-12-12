@@ -5,7 +5,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:my_app/shared/ui/home/home_view.dart';
 import 'package:my_app/services/firebase_auth_service.dart';
-import 'package:my_app/services/user_phase_service.dart';
+import 'package:my_app/services/phase_regime_service.dart';
+import 'package:my_app/services/analytics_service.dart';
+import 'package:my_app/services/rivet_sweep_service.dart';
 import 'package:my_app/ui/auth/sign_in_screen.dart';
 import 'package:my_app/ui/splash/animated_phase_shape.dart';
 
@@ -46,8 +48,36 @@ class _LumaraSplashScreenState extends State<LumaraSplashScreen>
 
   Future<void> _loadCurrentPhase() async {
     try {
-      // Use UserPhaseService for simple phase string retrieval
-      final phase = await UserPhaseService.getCurrentPhase();
+      // Use PhaseRegimeService - the authoritative source for current phase
+      final analyticsService = AnalyticsService();
+      final rivetSweepService = RivetSweepService(analyticsService);
+      final phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
+      await phaseRegimeService.initialize();
+
+      String phase = 'Discovery'; // Default
+      
+      // Check current regime first
+      final currentRegime = phaseRegimeService.phaseIndex.currentRegime;
+      if (currentRegime != null) {
+        phase = currentRegime.label.toString().split('.').last;
+        // Capitalize first letter
+        phase = phase[0].toUpperCase() + phase.substring(1);
+        print('DEBUG: Splash using current regime phase: $phase');
+      } else {
+        // Fall back to most recent regime
+        final allRegimes = phaseRegimeService.phaseIndex.allRegimes;
+        if (allRegimes.isNotEmpty) {
+          final sortedRegimes = List.from(allRegimes)
+            ..sort((a, b) => b.start.compareTo(a.start));
+          final mostRecent = sortedRegimes.first;
+          phase = mostRecent.label.toString().split('.').last;
+          phase = phase[0].toUpperCase() + phase.substring(1);
+          print('DEBUG: Splash using most recent regime phase: $phase');
+        } else {
+          print('DEBUG: Splash - no regimes found, using default Discovery');
+        }
+      }
+
       if (mounted) {
         setState(() {
           _currentPhase = phase;
