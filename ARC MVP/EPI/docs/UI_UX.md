@@ -1,7 +1,7 @@
 # EPI MVP - UI/UX Feature Documentation
 
-**Version:** 2.1.51
-**Last Updated:** December 12, 2025
+**Version:** 2.1.52
+**Last Updated:** December 13, 2025
 **Status:** ✅ Comprehensive Feature Analysis Complete
 
 ---
@@ -36,6 +36,7 @@ The EPI (Evolving Personal Intelligence) Flutter application provides a sophisti
 20. [Bug Reporting (v2.1.49)](#20-bug-reporting-v2149)
 21. [Scroll Navigation (v2.1.50)](#21-scroll-navigation-v2150)
 22. [LUMARA Persona (v2.1.51)](#22-lumara-persona-v2151)
+23. [Advanced Settings (v2.1.52)](#23-advanced-settings-v2152)
 
 ---
 

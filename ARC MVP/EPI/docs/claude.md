@@ -1,7 +1,7 @@
 # EPI Documentation Context Guide
 
-**Version:** 2.1.51
-**Last Updated:** December 12, 2025
+**Version:** 2.1.52
+**Last Updated:** December 13, 2025
 **Current Branch:** `dev-lumara-endprompt`
 
 ---
@@ -53,7 +53,7 @@ Location: `/Users/mymac/Software Development/ARCv.04/ARC MVP/EPI/docs/git.md`
 ### 📜 Changelog
 Location: `/Users/mymac/Software Development/ARCv.04/ARC MVP/EPI/docs/CHANGELOG.md`
 - Split into parts for manageability:
-  - `CHANGELOG_part1.md` - December 2025 (v2.1.43 - v2.1.51)
+  - `CHANGELOG_part1.md` - December 2025 (v2.1.43 - v2.1.52)
   - `CHANGELOG_part2.md` - November 2025 (v2.1.28 - v2.1.42)
   - `CHANGELOG_part3.md` - Earlier versions
 
@@ -103,13 +103,24 @@ Location: `/Users/mymac/Software Development/ARCv.04/ARC MVP/EPI/docs/bugtracker
 
 ---
 
-## Recent Updates (v2.1.51)
+## Recent Updates (v2.1.52)
 
-### LUMARA Persona System
-- **4 personality modes**: Auto, Companion, Therapist, Strategist, Challenger
-- Auto-detection based on sentinel alerts, emotional tone, readiness
-- Strategist mode uses structured 5-section output format
-- UI: Settings → LUMARA → LUMARA Persona
+### Settings Reorganization
+- **Advanced Settings** screen consolidates power-user features
+- **Combined Analysis** view merges Phase + Advanced Analytics (6 tabs)
+- Simplified LUMARA section with inline Therapeutic Depth & Web Search
+- Removed separate "LUMARA Settings" screen
+
+### Health→LUMARA Integration
+- Health signals (sleep quality, energy level) now affect LUMARA behavior
+- Low sleep/energy → Higher warmth, Companion persona
+- High energy + readiness → May trigger Strategist/Challenger
+
+### Removed Features
+- Background music player (Ethereal Music)
+
+### Previous Updates (v2.1.51)
+- LUMARA Persona system with 4 modes
 
 ### Previous Updates (v2.1.50)
 - **Visible scroll buttons** (up/down arrows) for all scrollable screens
@@ -141,6 +152,11 @@ When asked to update documentation:
 
 ## Key Services
 
+### Advanced Settings & Analysis
+- Advanced Settings: `lib/shared/ui/settings/advanced_settings_view.dart`
+- Combined Analysis: `lib/shared/ui/settings/combined_analysis_view.dart`
+- Health Data Service: `lib/services/health_data_service.dart`
+
 ### LUMARA Persona System
 - Settings: `lib/arc/chat/services/lumara_reflection_settings_service.dart`
 - Control State: `lib/arc/chat/services/lumara_control_state_builder.dart`
@@ -164,4 +180,4 @@ When asked to update documentation:
 
 ---
 
-*Last synchronized: December 12, 2025 | Version: 2.1.51*
+*Last synchronized: December 13, 2025 | Version: 2.1.52*

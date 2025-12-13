@@ -1,8 +1,52 @@
 # EPI ARC MVP - Changelog (Part 1: December 2025)
 
-**Version:** 2.1.51
-**Last Updated:** December 12, 2025
+**Version:** 2.1.52
+**Last Updated:** December 13, 2025
 **Coverage:** December 2025 releases
+
+---
+
+## [2.1.52] - December 13, 2025
+
+### **Settings Reorganization & Health Integration** - ✅ Complete
+
+#### Unified Settings Structure
+- **Advanced Settings** screen consolidates all power-user features
+- **Combined Analysis** view merges Phase Analysis + Advanced Analytics (6 tabs)
+- Simplified LUMARA section with inline Therapeutic Depth slider and Web Search toggle
+- Removed separate "LUMARA Settings" screen (functionality moved inline)
+
+#### Phase Tab Cleanup
+- Removed "Analysis" menu item (now in Settings → Advanced)
+- Removed "Advanced Analytics" menu item (merged into Analysis)
+- Menu simplified to: Arcforms | Timeline | Settings
+
+#### Music Feature Removal
+- Removed Ethereal Music background player
+- Removed Music Control Section from Settings
+- Removed AudioService and related code
+
+#### Health→LUMARA Integration
+- Created HealthDataService for persisting sleep/energy data
+- Connected Medical tab data to LUMARA control state
+- Health signals now influence LUMARA behavior:
+  - Low sleep quality → Higher warmth, lower challenge
+  - Low energy → Lower verbosity, Companion persona
+  - High energy + readiness → May trigger Strategist/Challenger
+
+#### Files Changed
+- NEW: `lib/shared/ui/settings/advanced_settings_view.dart`
+- NEW: `lib/shared/ui/settings/combined_analysis_view.dart`
+- NEW: `lib/services/health_data_service.dart`
+- MODIFIED: `lib/shared/ui/settings/settings_view.dart`
+- MODIFIED: `lib/ui/phase/phase_analysis_view.dart`
+- MODIFIED: `lib/arc/chat/services/lumara_control_state_builder.dart`
+- DELETED: `lib/shared/ui/settings/lumara_settings_view.dart`
+- DELETED: `lib/shared/ui/settings/music_control_section.dart`
+- DELETED: `lib/core/services/audio_service.dart`
+
+**Status**: ✅ Complete  
+**Branch**: `dev-lumara-endprompt`
 
 ---
 

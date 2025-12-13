@@ -13,6 +13,7 @@ import 'package:my_app/prism/atlas/rivet/rivet_storage.dart';
 import 'package:my_app/prism/atlas/rivet/rivet_models.dart';
 import 'package:my_app/arc/chat/services/favorites_service.dart';
 import 'package:my_app/arc/chat/services/lumara_reflection_settings_service.dart';
+import 'package:my_app/services/health_data_service.dart';
 
 class LumaraControlStateBuilder {
   /// Build the unified control state JSON
@@ -139,15 +140,23 @@ class LumaraControlStateBuilder {
     veil['timeOfDay'] = timeOfDay;
     veil['usagePattern'] = usagePattern;
     
-    // Get health signals (default to neutral if not available)
+    // Get health signals from HealthDataService
     final health = <String, dynamic>{
       'sleepQuality': 0.7, // 0-1, default to moderate
       'energyLevel': 0.7, // 0-1, default to moderate
       'medicationStatus': null, // Optional flag
     };
     
-    // TODO: Integrate with health tracking services when available
-    // For now, use defaults
+    // Integrate with health tracking service
+    try {
+      final healthService = HealthDataService.instance;
+      final healthData = await healthService.getEffectiveHealthData();
+      health['sleepQuality'] = healthData.sleepQuality;
+      health['energyLevel'] = healthData.energyLevel;
+      health['medicationStatus'] = healthData.medicationStatus;
+    } catch (e) {
+      print('LUMARA Control State: Error getting health data, using defaults: $e');
+    }
     
     veil['health'] = health;
     

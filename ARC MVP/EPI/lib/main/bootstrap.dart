@@ -22,7 +22,6 @@ import 'package:my_app/services/analytics_service.dart';
 import 'package:my_app/services/media_pack_tracking_service.dart';
 import 'package:my_app/data/hive/insight_snapshot.dart';
 import 'package:my_app/core/sync/sync_item_adapter.dart';
-import 'package:my_app/core/services/audio_service.dart';
 import 'package:my_app/arc/chat/llm/model_progress_service.dart';
 import 'package:my_app/arc/chat/llm/bridge.pigeon.dart' as pigeon;
 import 'package:my_app/arc/chat/chat/chat_models.dart';
@@ -351,12 +350,11 @@ Future<void> bootstrap({
       final initializationResults = await Future.wait([
         if (hiveInitialized) _initializeRivet() else Future.value(false),
         _initializeAnalytics(),
-        _initializeAudioService(),
         if (hiveInitialized) _initializeMediaPackTracking() else Future.value(false),
       ], eagerError: false);
 
       // Log results
-      logger.d('Initialization completed: Hive=$hiveInitialized, ${initializationResults.where((r) => r).length}/4 additional services successful');
+      logger.d('Initialization completed: Hive=$hiveInitialized, ${initializationResults.where((r) => r).length}/3 additional services successful');
 
       // ===========================================================
       // NOTES FOR AI AGENT
@@ -841,19 +839,6 @@ Future<bool> _initializeAnalytics() async {
   } catch (e, st) {
     logger.e('Failed to initialize analytics service', e, st);
     logger.w('Analytics tracking will be disabled due to initialization failure');
-    return false;
-  }
-}
-
-/// Initialize Audio service
-Future<bool> _initializeAudioService() async {
-  try {
-    await AudioService().initialize();
-    logger.d('Audio service initialized successfully');
-    return true;
-  } catch (e, st) {
-    logger.e('Failed to initialize audio service', e, st);
-    logger.w('Ethereal music will be disabled due to initialization failure');
     return false;
   }
 }

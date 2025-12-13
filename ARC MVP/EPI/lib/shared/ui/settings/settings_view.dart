@@ -3,7 +3,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
 import 'package:my_app/shared/ui/settings/sync_settings_section.dart';
-import 'package:my_app/shared/ui/settings/music_control_section.dart';
 import 'package:my_app/shared/ui/settings/privacy_settings_view.dart';
 import 'package:my_app/shared/ui/settings/memory_mode_settings_view.dart';
 import 'package:my_app/shared/ui/settings/memory_snapshot_management_view.dart';
@@ -647,11 +646,6 @@ class _SettingsViewState extends State<SettingsView> {
 
             const SizedBox(height: 32),
 
-            // Music Control Section
-            const MusicControlSection(),
-
-            const SizedBox(height: 32),
-            
             // About Section
             _buildSection(
               context,

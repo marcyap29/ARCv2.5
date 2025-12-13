@@ -8,7 +8,6 @@ import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/tab_bar.dart';
 import 'package:my_app/services/user_phase_service.dart';
 import 'package:my_app/services/analytics_service.dart';
-import 'package:my_app/core/services/audio_service.dart';
 import 'package:flutter/foundation.dart';
 import 'package:my_app/core/services/photo_library_service.dart';
 import 'dart:math' as math;
@@ -71,9 +70,6 @@ class _HomeViewState extends State<HomeView> {
       _checkPhotoPermissionsAndRefresh();
     });
     
-    // Initialize ethereal music (P22)
-    _initializeEtherealMusic();
-    
     // Initialize shake-to-report-bug detection
     _initializeShakeDetection();
   }
@@ -113,42 +109,6 @@ class _HomeViewState extends State<HomeView> {
     } catch (e) {
       print('ERROR: Failed to check photo permissions: $e');
     }
-  }
-
-  Future<void> _initializeEtherealMusic() async {
-    try {
-      final audioService = AudioService();
-      await audioService.initialize();
-      
-      // Start with ethereal track for sacred atmosphere
-      await audioService.switchToEtherealTrack();
-      
-      // Fade in gently after a short delay
-      Future.delayed(const Duration(seconds: 2), () {
-        audioService.fadeInEthereal(duration: const Duration(seconds: 4));
-        
-        // Play for 2 loops then fade out
-        _scheduleFadeOut(audioService);
-      });
-      
-      if (kDebugMode) {
-        print('Ethereal music initialized and fading in');
-      }
-    } catch (e) {
-      if (kDebugMode) {
-        print('Failed to initialize ethereal music: $e');
-      }
-    }
-  }
-
-  void _scheduleFadeOut(AudioService audioService) async {
-    // Wait for approximately 2 loops of the ethereal track
-    // Assuming track is about 2-3 minutes, wait for 4-6 minutes total
-    await Future.delayed(const Duration(minutes: 5));
-    
-    // Fade out over 10 seconds
-    await audioService.fadeOut(duration: const Duration(seconds: 10));
-    print('DEBUG: HomeView - Ethereal music faded out after 2 loops');
   }
 
   @override

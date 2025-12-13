@@ -1,7 +1,7 @@
 # EPI ARC MVP - Changelog
 
-**Version:** 2.1.51
-**Last Updated:** December 12, 2025
+**Version:** 2.1.52
+**Last Updated:** December 13, 2025
 
 ---
 
@@ -11,9 +11,23 @@ This changelog has been split into parts for easier navigation:
 
 | Part | Coverage | Description |
 |------|----------|-------------|
-| **[CHANGELOG_part1.md](CHANGELOG_part1.md)** | Dec 2025 | v2.1.43 - v2.1.51 (Current) |
+| **[CHANGELOG_part1.md](CHANGELOG_part1.md)** | Dec 2025 | v2.1.43 - v2.1.52 (Current) |
 | **[CHANGELOG_part2.md](CHANGELOG_part2.md)** | Nov 2025 | v2.1.28 - v2.1.42 |
 | **[CHANGELOG_part3.md](CHANGELOG_part3.md)** | Jan-Oct 2025 | v2.0.0 - v2.1.27 & Earlier |
+
+---
+
+## [2.1.52] - December 13, 2025
+
+### **Settings Reorganization & Health Integration** - ✅ Complete
+
+- Unified Advanced Settings screen with combined Analysis (6 tabs)
+- Simplified LUMARA section with inline controls
+- Health→LUMARA integration (sleep/energy affects behavior)
+- Removed background music feature
+
+**Status**: ✅ Complete  
+**Branch**: `dev-lumara-endprompt`
 
 ---
 
@@ -21,14 +35,7 @@ This changelog has been split into parts for easier navigation:
 
 ### **LUMARA Persona System** - ✅ Complete
 
-4 distinct personality modes for LUMARA:
-- **Auto** (🔄): Adapts based on context - sentinel alerts, emotional tone, readiness
-- **The Companion** (🤝): Warm, supportive presence for daily reflection
-- **The Therapist** (💜): Deep therapeutic support with gentle pacing
-- **The Strategist** (🎯): Sharp, analytical insights with 5-section structured output
-- **The Challenger** (⚡): Direct feedback that pushes growth
-
-**UI**: Settings → LUMARA → LUMARA Persona (radio selection)
+4 distinct personality modes for LUMARA with auto-detection.
 
 **Status**: ✅ Complete  
 **Branch**: `dev-lumara-endprompt`
@@ -125,6 +132,7 @@ Visible floating scroll buttons added across all scrollable screens.
 
 | Version | Date | Key Feature |
 |---------|------|-------------|
+| 2.1.52 | Dec 13, 2025 | Settings Reorganization & Health Integration |
 | 2.1.51 | Dec 12, 2025 | LUMARA Persona System |
 | 2.1.50 | Dec 12, 2025 | Scroll Navigation UX |
 | 2.1.49 | Dec 12, 2025 | Splash Screen & Bug Reporting |
