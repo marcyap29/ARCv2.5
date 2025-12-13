@@ -1,7 +1,7 @@
 # EPI MVP - Comprehensive Features Guide
 
-**Version:** 2.1.51
-**Last Updated:** December 12, 2025
+**Version:** 2.1.52
+**Last Updated:** December 13, 2025
 
 ---
 
@@ -126,6 +126,16 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 - **The Challenger**: Direct feedback that pushes growth
 - Auto-detection based on sentinel alerts, emotional tone, readiness, time of day
 - Manual selection via Settings → LUMARA → LUMARA Persona
+
+**Health→LUMARA Integration (v2.1.52)**
+- **Sleep Quality Signal**: 0-100% slider affects LUMARA's warmth and challenge level
+- **Energy Level Signal**: 0-100% slider affects verbosity and persona selection
+- **Settings Location**: Health Tab → Settings (⚙️) → LUMARA Health Signals
+- **Effect Preview**: Real-time feedback shows how health affects LUMARA's behavior
+- **Adaptive Behavior**:
+  - Low sleep/energy → LUMARA is more gentle and supportive
+  - Moderate levels → Balanced tone
+  - High sleep + energy → May offer more direct insights and challenges
 - **Scrollable Text Input**: Text input scrolls when content exceeds 5 lines, send button always accessible
 - **Auto-Minimize**: Input area automatically minimizes when clicking outside (ChatGPT-like behavior)
 - **Auto-Scroll UX**: Unified scroll behavior across journal and chat interfaces

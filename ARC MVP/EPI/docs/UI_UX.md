@@ -37,6 +37,7 @@ The EPI (Evolving Personal Intelligence) Flutter application provides a sophisti
 21. [Scroll Navigation (v2.1.50)](#21-scroll-navigation-v2150)
 22. [LUMARA Persona (v2.1.51)](#22-lumara-persona-v2151)
 23. [Advanced Settings (v2.1.52)](#23-advanced-settings-v2152)
+24. [Health→LUMARA Integration (v2.1.52)](#24-healthlumara-integration-v2152)
 
 ---
 
@@ -1565,5 +1566,104 @@ When in Strategist mode, responses follow this operational structure:
 
 ---
 
-*This comprehensive UI/UX documentation reflects the current state of the EPI Flutter application as of December 12, 2025. The interface combines sophisticated AI integration with thoughtful human-centered design to create a meaningful personal journaling and life insight experience.*
+## 23. Advanced Settings (v2.1.52)
+
+### Overview
+Unified settings screen consolidating power-user features and analytics.
+
+**Location:** Settings → LUMARA → Advanced Settings
+
+### Structure
+```
+┌─────────────────────────────────────────┐
+│ ← Advanced Settings                     │
+├─────────────────────────────────────────┤
+│ 📊 Analysis & Insights                  │
+│    Combined analysis view (6 tabs)      │
+│                                    →    │
+├─────────────────────────────────────────┤
+│ 🔧 LUMARA Engine                        │
+│    Memory lookback, matching precision  │
+├─────────────────────────────────────────┤
+│ Memory Lookback     [====|====] 5 yrs   │
+│ Matching Precision  [====|====] 0.55    │
+│ Max Similar Entries [====|====] 5       │
+│ ☑ Include Media     ☐ Auto-Adapt Depth  │
+└─────────────────────────────────────────┘
+```
+
+### Combined Analysis View (6 Tabs)
+1. **Phase Analysis** - RIVET sweep, phase statistics, current detection
+2. **Patterns** - Pattern recognition and theme analysis
+3. **AURORA** - Advanced insight generation
+4. **VEIL** - Safety and moderation settings
+5. **SENTINEL** - Alert configuration
+6. **Medical** - Health data with LUMARA integration
+
+### Implementation Files
+- `advanced_settings_view.dart` - Main advanced settings screen
+- `combined_analysis_view.dart` - 6-tab analysis interface
+
+---
+
+## 24. Health→LUMARA Integration (v2.1.52)
+
+### Overview
+Health signals influence LUMARA's behavior and response style.
+
+**Location:** Health Tab → Settings (⚙️) → LUMARA Health Signals
+
+### UI Design
+```
+┌─────────────────────────────────────────┐
+│ 🧠 LUMARA Health Signals               │
+│    These values influence how LUMARA    │
+│    responds to you.                     │
+├─────────────────────────────────────────┤
+│ 🛏️ Sleep Quality          [====|====] 70% │
+│     Poor ──────────────────────── Great │
+│                                         │
+│ ⚡ Energy Level           [====|====] 70% │
+│     Low ───────────────────────── High  │
+├─────────────────────────────────────────┤
+│  ┌──────────────────────────────────┐   │
+│  │ 💾 Save Health Status            │   │
+│  └──────────────────────────────────┘   │
+│                                         │
+│ ℹ️ LUMARA will adapt to your state.    │
+└─────────────────────────────────────────┘
+```
+
+### Health Effects on LUMARA
+
+| Sleep + Energy | LUMARA Behavior |
+|----------------|-----------------|
+| Both < 40% | Extra gentle and supportive (Companion) |
+| Either < 60% | Warm, balanced tone |
+| Both > 70% | May offer direct insights/challenges |
+
+### Color Coding
+- 🔴 **Red** (0-39%): Low/Poor
+- 🟠 **Orange** (40-59%): Moderate
+- 🟢 **Green** (60-100%): Good/High
+
+### Effect Preview
+Real-time text updates showing how current health status affects LUMARA:
+- "LUMARA will be extra gentle and supportive today."
+- "LUMARA will maintain a warm, balanced tone."
+- "LUMARA may offer more direct insights and challenges."
+
+### Data Persistence
+- Values saved to SharedPreferences via `HealthDataService`
+- Data older than 24 hours treated as stale (defaults used)
+- SnackBar confirmation on successful save
+
+### Implementation Files
+- `health_settings_dialog.dart` - Health signals UI
+- `health_data_service.dart` - Persistence service
+- `lumara_control_state_builder.dart` - Reads health data
+
+---
+
+*This comprehensive UI/UX documentation reflects the current state of the EPI Flutter application as of December 13, 2025. The interface combines sophisticated AI integration with thoughtful human-centered design to create a meaningful personal journaling and life insight experience.*
 

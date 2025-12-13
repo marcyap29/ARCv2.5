@@ -29,6 +29,9 @@
 #### Health→LUMARA Integration
 - Created HealthDataService for persisting sleep/energy data
 - Connected Medical tab data to LUMARA control state
+- **Health Settings UI**: Added sliders for sleep quality and energy level
+- **Save Button**: Persist health status with visual feedback
+- **Effect Preview**: Real-time text shows how health affects LUMARA
 - Health signals now influence LUMARA behavior:
   - Low sleep quality → Higher warmth, lower challenge
   - Low energy → Lower verbosity, Companion persona
@@ -41,6 +44,7 @@
 - MODIFIED: `lib/shared/ui/settings/settings_view.dart`
 - MODIFIED: `lib/ui/phase/phase_analysis_view.dart`
 - MODIFIED: `lib/arc/chat/services/lumara_control_state_builder.dart`
+- MODIFIED: `lib/arc/ui/health/health_settings_dialog.dart` (Health Signals UI)
 - DELETED: `lib/shared/ui/settings/lumara_settings_view.dart`
 - DELETED: `lib/shared/ui/settings/music_control_section.dart`
 - DELETED: `lib/core/services/audio_service.dart`

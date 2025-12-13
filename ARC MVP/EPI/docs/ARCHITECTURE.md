@@ -1,8 +1,8 @@
 # EPI MVP - Architecture Overview
 
-**Version:** 2.1.48
-**Last Updated:** December 11, 2025
-**Status:** ✅ Production Ready - MVP Fully Operational with Authentication & Phase System
+**Version:** 2.1.52
+**Last Updated:** December 13, 2025
+**Status:** ✅ Production Ready - MVP Fully Operational with Health Integration
 
 ---
 
@@ -21,6 +21,8 @@ EPI (Evolving Personal Intelligence) is a Flutter-based intelligent journaling a
 - ✅ **Priority 3 Authentication**: Firebase Auth with per-entry/per-chat rate limiting
 - ✅ **Google Sign-In Configured (iOS)**: OAuth client + URL scheme in place to prevent crashes
 - ✅ **Phase System Overhaul (v2.1.48)**: RIVET-based calculations, 10-day rolling windows, chisel effect
+- ✅ **LUMARA Persona System (v2.1.51)**: 4 personality modes with auto-detection
+- ✅ **Health→LUMARA Integration (v2.1.52)**: Sleep/energy signals influence LUMARA behavior
 
 ### Current Version
 
