@@ -9,6 +9,7 @@ import 'package:my_app/shared/ui/onboarding/phase_celebration_view.dart';
 import 'package:my_app/services/user_phase_service.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 class OnboardingView extends StatelessWidget {
   const OnboardingView({super.key});
@@ -151,7 +152,7 @@ class _OnboardingViewContentState extends State<OnboardingViewContent>
                     padding: const EdgeInsets.symmetric(vertical: 8.0),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
-                      children: List.generate(5, (index) {
+                      children: List.generate(6, (index) {
                         return Container(
                           margin: const EdgeInsets.symmetric(horizontal: 4.0),
                           width: 8.0,
@@ -182,6 +183,7 @@ class _OnboardingViewContentState extends State<OnboardingViewContent>
                         _OnboardingPage4(), // Core Word (moved up)
                         _OnboardingPage5(), // Rhythm
                         _OnboardingPage3(), // Phase Selection (moved to end)
+                        _OnboardingPermissionsPage(), // Permissions
                       ],
                     ),
                   ),
@@ -380,6 +382,220 @@ class _OnboardingPage5 extends StatelessWidget {
           const SizedBox(height: 40),
           const ATLASPhaseGrid(),
           const SizedBox(height: 40),
+        ],
+      ),
+    );
+  }
+}
+
+class _OnboardingPermissionsPage extends StatefulWidget {
+  const _OnboardingPermissionsPage();
+
+  @override
+  State<_OnboardingPermissionsPage> createState() => _OnboardingPermissionsPageState();
+}
+
+class _OnboardingPermissionsPageState extends State<_OnboardingPermissionsPage> {
+  bool _isRequesting = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(24.0),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(
+            Icons.shield_outlined,
+            size: 80,
+            color: Colors.white,
+          ),
+          const SizedBox(height: 32),
+          Text(
+            'Let\'s set up ARC',
+            style: heading1Style(context).copyWith(
+              color: Colors.white,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'ARC needs a few permissions to provide you with the best experience.',
+            style: bodyStyle(context).copyWith(
+              color: Colors.white.withOpacity(0.8),
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 40),
+          _PermissionItem(
+            icon: Icons.mic,
+            title: 'Microphone',
+            description: 'For voice journaling and audio notes',
+          ),
+          const SizedBox(height: 16),
+          _PermissionItem(
+            icon: Icons.photo_library,
+            title: 'Photos',
+            description: 'To attach photos to your journal entries',
+          ),
+          const SizedBox(height: 16),
+          _PermissionItem(
+            icon: Icons.camera_alt,
+            title: 'Camera',
+            description: 'To capture moments directly in the app',
+          ),
+          const SizedBox(height: 16),
+          _PermissionItem(
+            icon: Icons.location_on,
+            title: 'Location',
+            description: 'To automatically tag your entries with location',
+          ),
+          const SizedBox(height: 40),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: _isRequesting ? null : () => _requestPermissions(context),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor: kcPrimaryGradient.colors.first,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 32.0,
+                  vertical: 16.0,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12.0),
+                ),
+                elevation: 4,
+              ),
+              child: _isRequesting
+                  ? const SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(kcPrimaryColor),
+                      ),
+                    )
+                  : Text(
+                      'Get Started',
+                      style: buttonStyle(context).copyWith(
+                        color: kcPrimaryGradient.colors.first,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          TextButton(
+            onPressed: _isRequesting
+                ? null
+                : () {
+                    context.read<OnboardingCubit>().completeOnboarding();
+                  },
+            child: Text(
+              'Skip for now',
+              style: bodyStyle(context).copyWith(
+                color: Colors.white.withOpacity(0.7),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _requestPermissions(BuildContext context) async {
+    setState(() {
+      _isRequesting = true;
+    });
+
+    try {
+      // Request all permissions
+      await Future.wait([
+        Permission.microphone.request(),
+        Permission.photos.request(),
+        Permission.camera.request(),
+        Permission.location.request(),
+      ]);
+
+      if (mounted) {
+        context.read<OnboardingCubit>().completeOnboarding();
+      }
+    } catch (e) {
+      // Even if permissions fail, still complete onboarding
+      if (mounted) {
+        context.read<OnboardingCubit>().completeOnboarding();
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isRequesting = false;
+        });
+      }
+    }
+  }
+}
+
+class _PermissionItem extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String description;
+
+  const _PermissionItem({
+    required this.icon,
+    required this.title,
+    required this.description,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16.0),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12.0),
+        border: Border.all(
+          color: Colors.white.withOpacity(0.2),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12.0),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(8.0),
+            ),
+            child: Icon(
+              icon,
+              color: Colors.white,
+              size: 24,
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: buttonStyle(context).copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  description,
+                  style: bodyStyle(context).copyWith(
+                    color: Colors.white.withOpacity(0.7),
+                    fontSize: 14,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );

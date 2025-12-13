@@ -8,6 +8,7 @@ class CustomTabBar extends StatefulWidget {
   final ValueChanged<int> onTabSelected;
   final double? height;
   final VoidCallback? onNewJournalPressed;
+  final VoidCallback? onVoiceJournalPressed; // Long-press callback for voice journal
   final bool showCenterButton;
 
   const CustomTabBar({
@@ -17,6 +18,7 @@ class CustomTabBar extends StatefulWidget {
     required this.onTabSelected,
     this.height,
     this.onNewJournalPressed,
+    this.onVoiceJournalPressed, // ADD THIS
     this.showCenterButton = false,
   });
 
@@ -101,6 +103,7 @@ class _CustomTabBarState extends State<CustomTabBar> {
           Expanded(
             child: GestureDetector(
               onTap: widget.onNewJournalPressed,
+              onLongPress: widget.onVoiceJournalPressed, // Long-press for voice journal
               child: Container(
                 margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
                 decoration: BoxDecoration(

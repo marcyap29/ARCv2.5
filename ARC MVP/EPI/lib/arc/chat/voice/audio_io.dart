@@ -56,12 +56,12 @@ class AudioIO {
         }
       },
       listenFor: const Duration(seconds: 30),
-      pauseFor: const Duration(seconds: 2),
+      pauseFor: const Duration(seconds: 10), // Increased from 2s to allow natural pauses
       partialResults: true,
       localeId: "en_US",
       onSoundLevelChange: null,
       cancelOnError: true,
-      listenMode: stt.ListenMode.confirmation,
+      listenMode: stt.ListenMode.dictation, // Changed from confirmation to dictation for longer speech
     );
   }
 

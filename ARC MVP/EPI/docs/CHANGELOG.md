@@ -19,6 +19,20 @@ This changelog has been split into parts for easier navigation:
 
 ## [2.1.53] - December 13, 2025
 
+### **Onboarding Permissions Page** - ✅ Complete
+
+- Added dedicated permissions page to onboarding flow as the final step
+- Requests all necessary permissions upfront (Microphone, Photos, Camera, Location)
+- Beautiful UI with icons and explanations for each permission
+- "Get Started" button requests all permissions at once
+- Ensures ARC appears in all relevant iOS Settings immediately after onboarding
+- Optional "Skip for now" option to complete onboarding without granting permissions
+
+**Status**: ✅ Complete  
+**Files Modified**:
+- `lib/shared/ui/onboarding/onboarding_view.dart` - Added `_OnboardingPermissionsPage` widget
+- `lib/shared/ui/onboarding/onboarding_cubit.dart` - Made `completeOnboarding()` public, updated page navigation logic
+
 ### **Jarvis-Style Voice Chat UI** - ✅ Complete
 
 - Glowing voice indicator with ChatGPT-style pulsing animation

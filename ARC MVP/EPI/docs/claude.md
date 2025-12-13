@@ -186,6 +186,22 @@ When asked to update documentation:
 - Timeline: `lib/arc/ui/timeline/timeline_view.dart`
 - Journal: `lib/ui/journal/journal_screen.dart`
 
+### Onboarding & Permissions
+- Onboarding View: `lib/shared/ui/onboarding/onboarding_view.dart`
+- Onboarding Cubit: `lib/shared/ui/onboarding/onboarding_cubit.dart`
+- **New**: Permissions page added as final onboarding step
+  - Requests: Microphone, Photos, Camera, Location
+  - Ensures app appears in iOS Settings immediately
+  - Optional skip functionality
+
+### Voice Mode
+- **User Guide**: `docs/VOICE_MODE_USER_GUIDE.md` - Complete user-facing documentation
+- **Technical Docs**: `lib/arc/chat/voice/VOICE_MODE_PUSH_TO_TALK.md`
+- Voice Service: `lib/arc/chat/voice/voice_chat_service.dart`
+- Intent Router: `lib/arc/chat/voice/intent_router.dart` - Routes to Journal vs Chat
+- Voice Orchestrator: `lib/arc/chat/voice/voice_orchestrator.dart` - Handles routing logic
+- **Auto-routing**: Detects keywords to route voice input to Journal or Chat automatically
+
 ---
 
 *Last synchronized: December 13, 2025 | Version: 2.1.53*

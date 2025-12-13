@@ -58,10 +58,11 @@ class _VoiceChatPanelState extends State<VoiceChatPanel> {
       ),
       child: SafeArea(
         top: false,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
             // Drag handle
             Center(
               child: Container(
@@ -198,21 +199,64 @@ class _VoiceChatPanelState extends State<VoiceChatPanel> {
                   ),
                 ],
               )
-            else
+            else ...[
               Text(
-                'Tap the glowing mic to start',
+                currentState == VCState.idle && widget.partialTranscript != null && widget.partialTranscript!.isNotEmpty
+                    ? 'Session ended - transcript saved'
+                    : 'Tap the glowing mic to start',
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: theme.colorScheme.onSurface.withOpacity(0.6),
                 ),
                 textAlign: TextAlign.center,
               ),
+              // Show final transcript when session is idle
+              if (currentState == VCState.idle && widget.partialTranscript != null && widget.partialTranscript!.isNotEmpty)
+                Container(
+                  margin: const EdgeInsets.only(top: 16),
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: theme.colorScheme.outline.withOpacity(0.2),
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.check_circle,
+                            size: 16,
+                            color: Colors.green,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Final Transcript',
+                            style: theme.textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        widget.partialTranscript!,
+                        style: theme.textTheme.bodyMedium,
+                      ),
+                    ],
+                  ),
+                ),
+            ],
             
             const SizedBox(height: 12),
             
             // Diagnostics overlay (debug mode)
             if (widget.diagnostics != null && currentState != VCState.idle)
               _buildDiagnosticsOverlay(),
-          ],
+            ],
+          ),
         ),
       ),
     );

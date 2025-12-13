@@ -40,12 +40,14 @@ import 'package:my_app/models/phase_models.dart';
 import 'package:my_app/prism/atlas/phase/phase_inference_service.dart';
 import 'package:my_app/prism/atlas/phase/phase_regime_tracker.dart';
 import 'package:my_app/prism/atlas/phase/phase_scoring.dart';
+import 'package:my_app/arc/chat/services/enhanced_lumara_api.dart';
 
 class JournalCaptureCubit extends Cubit<JournalCaptureState> {
   final JournalRepository _journalRepository;
   final SyncService _syncService = SyncService();
   final DraftCacheService _draftCache = DraftCacheService.instance;
   final JournalVersionService _versionService = JournalVersionService.instance;
+  EnhancedLumaraApi? _lumaraApi; // LUMARA API for summary generation
   String _draftContent = '';
   String? _currentDraftId;
   List<MediaItem> _draftMediaItems = [];
@@ -59,6 +61,45 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
   Timer? _recordingTimer;
   Duration _recordingDuration = Duration.zero;
   String? _transcription;
+  
+  /// Set LUMARA API for summary generation
+  void setLumaraApi(EnhancedLumaraApi api) {
+    _lumaraApi = api;
+  }
+  
+  /// Generate summary of journal entry content
+  Future<String> _generateSummary(String content) async {
+    if (_lumaraApi == null || content.trim().isEmpty) {
+      return '';
+    }
+    
+    // Only generate summary if content is substantial (more than 50 words)
+    final wordCount = content.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).length;
+    if (wordCount < 50) {
+      return ''; // Skip summary for very short entries
+    }
+    
+    // Check if summary already exists
+    if (content.startsWith('## Summary\n\n')) {
+      return ''; // Already has a summary
+    }
+    
+    try {
+      final result = await _lumaraApi!.generatePromptedReflection(
+        entryText: content,
+        intent: 'summary',
+        phase: null,
+        userId: null,
+        chatContext: 'Generate a brief 2-3 sentence summary of this journal entry that captures the key points, main topics discussed, and any important insights. Focus on what the user learned or reflected on.',
+        onProgress: (msg) => print('Summary generation: $msg'),
+      );
+      
+      return result.reflection;
+    } catch (e) {
+      print('Error generating summary: $e');
+      return '';
+    }
+  }
 
   JournalCaptureCubit(this._journalRepository) : super(JournalCaptureInitial()) {
     _initializeDraftCache();
@@ -540,10 +581,19 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
         print('DEBUG: Adjusted entry date to match latest photo: $entryDate (offset: ${dateOffset.inHours} hours ${dateOffset.inMinutes.remainder(60)} minutes)');
       }
       
+      // Generate summary before adding phase hashtag
+      String contentWithSummary = content;
+      final summary = await _generateSummary(content);
+      
+      if (summary.isNotEmpty) {
+        // Prepend summary to content
+        contentWithSummary = '## Summary\n\n$summary\n\n---\n\n$content';
+      }
+      
       // Automatically add phase hashtag to content if missing
       // Uses Phase Regime system (date-based) to determine phase
       final contentWithPhase = await _ensurePhaseHashtagInContent(
-        content: content,
+        content: contentWithSummary, // Use content with summary
         entryDate: entryDate, // Use the entry date (may be adjusted from photos)
         emotion: emotion,
         emotionReason: emotionReason,
