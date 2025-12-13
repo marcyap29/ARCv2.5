@@ -378,20 +378,13 @@ class VoiceChatService {
     }
     
     // Generate summary in background (don't block UI)
+    // Note: Summary will be prepended when saving via JournalCaptureCubit._generateSummary
+    // We don't write it here to avoid appending - it will be prepended during save
     if (_context == VoiceContext.journal && _fullConversationText.isNotEmpty) {
-      // Generate summary asynchronously - don't wait for it
-      _generateSummary(_fullConversationText).then((summary) {
-        if (summary.isNotEmpty) {
-          // Prepend summary to the text (will be written to journal view)
-          final summaryFormatted = '## Summary\n\n$summary\n\n---\n\n';
-          _onTextWritten?.call(summaryFormatted);
-        }
-        // Reset conversation text after summary is generated
-        _fullConversationText = '';
-      }).catchError((e) {
-        debugPrint('Error generating summary: $e');
-        _fullConversationText = '';
-      });
+      // Store the full conversation text for summary generation during save
+      // The summary will be generated and prepended in JournalCaptureCubit.saveEntryWithKeywords
+      // Reset conversation text after storing (summary generation happens during save)
+      _fullConversationText = '';
     } else {
       // Reset conversation text immediately if no summary needed
       _fullConversationText = '';

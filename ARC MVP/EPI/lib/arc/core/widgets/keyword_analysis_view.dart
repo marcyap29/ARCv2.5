@@ -92,7 +92,12 @@ class _KeywordAnalysisViewState extends State<KeywordAnalysisView>
     ));
 
     // Start keyword extraction and animation
-    context.read<KeywordExtractionCubit>().extractKeywords(widget.content);
+    // Pass emotion and reason if available for proper keyword ranking by intensity
+    context.read<KeywordExtractionCubit>().extractKeywords(
+      widget.content,
+      emotion: widget.initialEmotion,
+      reason: widget.initialReason,
+    );
     _progressController.forward();
   }
 

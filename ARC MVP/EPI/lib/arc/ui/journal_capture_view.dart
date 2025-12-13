@@ -65,6 +65,9 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
   // final OCRService _ocrService = OCRService(); // TODO: Implement OCR service
   final ImagePicker _imagePicker = ImagePicker();
   
+  // Manual keywords (matches regular journal mode architecture)
+  List<String> _manualKeywords = [];
+  
   // Voice chat service for journal context
   VoiceChatService? _voiceChatService;
   String? _partialTranscript;
@@ -384,9 +387,10 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
       return;
     }
 
-    // Remove LUMARA markdown text from content (it will be saved as InlineBlocks instead)
+    // Remove LUMARA markdown text from content and extract blocks with position tracking
     // This prevents duplicate LUMARA responses (markdown text + InlineBlock)
-    final cleanedContent = _removeLumaraMarkdownFromContent(_textController.text);
+    // Blocks maintain their insertion positions for proper inline placement
+    final result = _removeLumaraMarkdownAndExtractBlocks(_textController.text);
 
     // Navigate directly to keyword analysis screen (skip emotion selection)
     // This uses the same save mechanic as regular journal entries
@@ -402,13 +406,14 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
             ),
           ],
           child: KeywordAnalysisView(
-            content: cleanedContent, // Use cleaned content without LUMARA markdown
+            content: result.cleanedContent, // Use cleaned content without LUMARA markdown
             mood: '', // Empty mood since we're skipping emotion selection
             initialEmotion: widget.initialEmotion,
             initialReason: widget.initialReason,
+            manualKeywords: _manualKeywords, // Pass manual keywords (matches regular journal mode)
             mediaItems: _mediaItems.isEmpty ? null : _mediaItems,
-            // Extract LUMARA blocks from original text if present
-            lumaraBlocks: _extractLumaraBlocks(_textController.text),
+            // Extract LUMARA blocks with position tracking for inline placement
+            lumaraBlocks: result.blocks.isEmpty ? null : result.blocks,
           ),
         ),
       ),
@@ -423,29 +428,34 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
     });
   }
   
-  /// Remove LUMARA markdown text from content (it will be saved as InlineBlocks)
-  /// This prevents duplicate LUMARA responses in the saved entry
-  String _removeLumaraMarkdownFromContent(String content) {
-    // Remove **LUMARA:** sections - they'll be saved as InlineBlocks instead
-    final lumaraPattern = RegExp(r'\*\*LUMARA:\*\*\s*.+?(?=\n\n\*\*You:\*\*|\*\*You:\*\*|$)', dotAll: true);
-    return content.replaceAll(lumaraPattern, '').trim();
-  }
-  
-  /// Extract LUMARA blocks from text content
-  /// Looks for **LUMARA:** patterns and creates inline blocks
-  /// Format matches regular journal entries for proper purple box rendering
-  /// Includes attribution traces for memory attribution display
-  List<Map<String, dynamic>>? _extractLumaraBlocks(String content) {
+  /// Remove LUMARA markdown text from content and extract blocks with position tracking
+  /// Returns cleaned content and blocks with timestamps to maintain conversation order
+  ({String cleanedContent, List<Map<String, dynamic>> blocks}) _removeLumaraMarkdownAndExtractBlocks(String content) {
     final blocks = <Map<String, dynamic>>[];
-    // Match **LUMARA:** followed by content until next **You:** or end
+    String cleanedContent = content;
+    
+    // Find all LUMARA blocks and track their positions in conversation order
+    // Pattern matches: **LUMARA:** followed by content until next **You:** or end
     final lumaraPattern = RegExp(r'\*\*LUMARA:\*\*\s*(.+?)(?=\n\n\*\*You:\*\*|\*\*You:\*\*|$)', dotAll: true);
-    final matches = lumaraPattern.allMatches(content);
+    final matches = lumaraPattern.allMatches(content).toList();
+    
+    // Process matches in forward order to maintain conversation sequence
+    // Each LUMARA block appears after a user turn, so we track the sequence
+    // Use a base timestamp and decrement for each earlier block to maintain order
+    final baseTimestamp = DateTime.now().millisecondsSinceEpoch;
+    int blockIndex = 0;
     
     for (final match in matches) {
       if (match.group(1) != null) {
         final lumaraContent = match.group(1)!.trim();
-        // Remove "Reflection" prefix if present (from sparkle icon formatting)
+        // Remove "Reflection" prefix if present
         final cleanContent = lumaraContent.replaceFirst(RegExp(r'^✨\s*Reflection\s*\n?\n?', caseSensitive: false), '').trim();
+        
+        // Calculate timestamp based on position in conversation
+        // Earlier blocks (earlier in conversation) get earlier timestamps
+        // This ensures blocks are sorted correctly when displayed
+        // Each block gets a timestamp that's 1 second earlier than the next one
+        final blockTimestamp = baseTimestamp - ((matches.length - blockIndex - 1) * 1000);
         
         // Get attribution traces for this LUMARA response
         List<Map<String, dynamic>>? attributionTracesJson;
@@ -460,7 +470,7 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
           'type': 'inline_reflection', // Correct type for InlineBlock
           'intent': 'chat',
           'content': cleanContent,
-          'timestamp': DateTime.now().millisecondsSinceEpoch, // Required timestamp
+          'timestamp': blockTimestamp, // Timestamp maintains conversation order (earlier = smaller timestamp)
         };
         
         // Add attribution traces if available
@@ -468,11 +478,27 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
           block['attributionTraces'] = attributionTracesJson;
         }
         
-        blocks.add(block);
+        blocks.add(block); // Add in order to maintain sequence
+        blockIndex++;
       }
     }
     
-    return blocks.isEmpty ? null : blocks;
+    // Remove all LUMARA blocks from content in reverse order to maintain positions
+    for (int i = matches.length - 1; i >= 0; i--) {
+      final match = matches[i];
+      cleanedContent = cleanedContent.substring(0, match.start) + 
+                       cleanedContent.substring(match.end);
+    }
+    
+    return (cleanedContent: cleanedContent.trim(), blocks: blocks);
+  }
+  
+  /// Extract LUMARA blocks from text content (legacy method - kept for compatibility)
+  /// Format matches regular journal entries for proper purple box rendering
+  /// Includes attribution traces for memory attribution display
+  List<Map<String, dynamic>>? _extractLumaraBlocks(String content) {
+    final result = _removeLumaraMarkdownAndExtractBlocks(content);
+    return result.blocks.isEmpty ? null : result.blocks;
   }
 
   @override

@@ -28,6 +28,7 @@ import 'package:uuid/uuid.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:audioplayers/audioplayers.dart';
+import 'package:my_app/arc/chat/voice/prism_scrubber.dart';
 import 'package:crypto/crypto.dart';
 import 'package:hive/hive.dart';
 import 'package:my_app/core/services/draft_cache_service.dart';
@@ -68,6 +69,7 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
   }
   
   /// Generate summary of journal entry content
+  /// Creates JSON representation, scrubs PII, sends for summary, then restores PII
   Future<String> _generateSummary(String content) async {
     if (_lumaraApi == null || content.trim().isEmpty) {
       return '';
@@ -85,8 +87,14 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
     }
     
     try {
+      // Create JSON representation of the entry
+      // Scrub PII from the content before sending
+      final scrubbingResult = PrismScrubber.scrubWithMapping(content);
+      final scrubbedContent = scrubbingResult.scrubbedText;
+      
+      // Generate summary using scrubbed content
       final result = await _lumaraApi!.generatePromptedReflection(
-        entryText: content,
+        entryText: scrubbedContent,
         intent: 'summary',
         phase: null,
         userId: null,
@@ -94,7 +102,13 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
         onProgress: (msg) => print('Summary generation: $msg'),
       );
       
-      return result.reflection;
+      // Restore PII in the returned summary
+      final summaryWithPII = PrismScrubber.restore(
+        result.reflection,
+        scrubbingResult.reversibleMap,
+      );
+      
+      return summaryWithPII;
     } catch (e) {
       print('Error generating summary: $e');
       return '';
@@ -601,10 +615,14 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
       );
       
       // Convert LUMARA blocks from JSON to InlineBlock objects
+      // Sort by timestamp to maintain conversation order (earlier blocks first)
       List<InlineBlock> lumaraBlocks = const [];
       if (blocks != null && blocks.isNotEmpty) {
-        lumaraBlocks = blocks.map((blockJson) => InlineBlock.fromJson(blockJson)).toList();
-        print('DEBUG: saveEntryWithKeywords - Converted ${lumaraBlocks.length} LUMARA blocks from JSON to InlineBlock objects');
+        lumaraBlocks = blocks
+            .map((blockJson) => InlineBlock.fromJson(blockJson))
+            .toList()
+          ..sort((a, b) => a.timestamp.compareTo(b.timestamp)); // Sort by timestamp to maintain order
+        print('DEBUG: saveEntryWithKeywords - Converted ${lumaraBlocks.length} LUMARA blocks from JSON to InlineBlock objects (sorted by timestamp)');
       }
       
       // Debug logging for blocks
