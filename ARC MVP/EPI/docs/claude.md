@@ -1,8 +1,8 @@
 # EPI Documentation Context Guide
 
-**Version:** 2.1.52
+**Version:** 2.1.53
 **Last Updated:** December 13, 2025
-**Current Branch:** `dev-lumara-endprompt`
+**Current Branch:** `dev-voice-updates`
 
 ---
 
@@ -173,6 +173,14 @@ When asked to update documentation:
 - Phase Regime: `lib/services/phase_regime_service.dart`
 - RIVET Service: `lib/services/rivet_sweep_service.dart`
 
+### Voice Chat System (Jarvis Mode)
+- Glowing Indicator: `lib/shared/widgets/glowing_voice_indicator.dart`
+- Voice Panel: `lib/arc/chat/ui/voice_chat_panel.dart`
+- Chat Integration: `lib/arc/chat/ui/lumara_assistant_screen.dart`
+- Voice Service: `lib/arc/chat/voice/voice_chat_service.dart`
+- Push-to-Talk: `lib/arc/chat/voice/push_to_talk_controller.dart`
+- Audio I/O: `lib/arc/chat/voice/audio_io.dart`
+
 ### Scroll Navigation
 - Chat: `lib/arc/chat/ui/lumara_assistant_screen.dart`
 - Timeline: `lib/arc/ui/timeline/timeline_view.dart`
@@ -180,4 +188,4 @@ When asked to update documentation:
 
 ---
 
-*Last synchronized: December 13, 2025 | Version: 2.1.52*
+*Last synchronized: December 13, 2025 | Version: 2.1.53*

@@ -1,6 +1,6 @@
 # EPI MVP - Comprehensive Features Guide
 
-**Version:** 2.1.52
+**Version:** 2.1.53
 **Last Updated:** December 13, 2025
 
 ---
@@ -117,6 +117,28 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 - Context-aware responses
 - Phase-aware reflections
 - Multimodal understanding
+
+**Voice Chat - Jarvis Mode (v2.1.53)**
+- **Glowing Voice Indicator**: ChatGPT-style pulsing animation with multi-layer glow
+- **State-Based Colors**: 
+  - Red (Listening) - Recording your voice
+  - Orange (Thinking) - Processing with LUMARA
+  - Green (Speaking) - LUMARA is responding
+  - Gray (Idle) - Ready to listen
+- **Microphone Button**: Tap 🎤 in LUMARA chat AppBar to activate
+- **Speech-to-Text**: On-device transcription (no audio sent to cloud)
+- **Text-to-Speech**: Natural voice responses from LUMARA
+- **Intent Routing**: Automatically handles journal creation, chat queries, and file operations
+- **PII Protection**: Mode A scrubbing pipeline (on-device)
+- **Auto-Resume Loop**: LUMARA speaks → automatically listens for your response
+- **Context Memory**: Maintains conversation state across voice turns
+- **How to Use**:
+  1. Tap 🎤 mic button in LUMARA chat
+  2. Grant microphone permission (first time)
+  3. Tap the glowing orb to start talking
+  4. Say: "Create a new journal" / "How am I feeling?" / "Summarize my week"
+  5. Tap orb again to stop and process
+  6. LUMARA responds with voice + text
 
 **LUMARA Persona (v2.1.51)**
 - **Auto Mode**: Adapts personality based on context automatically

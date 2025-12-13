@@ -1,6 +1,6 @@
 # EPI ARC MVP - Changelog
 
-**Version:** 2.1.52
+**Version:** 2.1.53
 **Last Updated:** December 13, 2025
 
 ---
@@ -11,9 +11,23 @@ This changelog has been split into parts for easier navigation:
 
 | Part | Coverage | Description |
 |------|----------|-------------|
-| **[CHANGELOG_part1.md](CHANGELOG_part1.md)** | Dec 2025 | v2.1.43 - v2.1.52 (Current) |
+| **[CHANGELOG_part1.md](CHANGELOG_part1.md)** | Dec 2025 | v2.1.43 - v2.1.53 (Current) |
 | **[CHANGELOG_part2.md](CHANGELOG_part2.md)** | Nov 2025 | v2.1.28 - v2.1.42 |
 | **[CHANGELOG_part3.md](CHANGELOG_part3.md)** | Jan-Oct 2025 | v2.0.0 - v2.1.27 & Earlier |
+
+---
+
+## [2.1.53] - December 13, 2025
+
+### **Jarvis-Style Voice Chat UI** - ✅ Complete
+
+- Glowing voice indicator with ChatGPT-style pulsing animation
+- Microphone button added to LUMARA chat AppBar
+- State-aware colors (Red→Orange→Green)
+- Voice system fully functional (STT, TTS, intent routing, PII scrubbing)
+
+**Status**: ✅ Complete  
+**Branch**: `dev-voice-updates`
 
 ---
 
@@ -27,7 +41,7 @@ This changelog has been split into parts for easier navigation:
 - Removed background music feature
 
 **Status**: ✅ Complete  
-**Branch**: `dev-lumara-endprompt`
+**Branch**: `dev-voice-updates` (merged to main)
 
 ---
 
@@ -132,6 +146,7 @@ Visible floating scroll buttons added across all scrollable screens.
 
 | Version | Date | Key Feature |
 |---------|------|-------------|
+| 2.1.53 | Dec 13, 2025 | Jarvis-Style Voice Chat UI |
 | 2.1.52 | Dec 13, 2025 | Settings Reorganization & Health Integration |
 | 2.1.51 | Dec 12, 2025 | LUMARA Persona System |
 | 2.1.50 | Dec 12, 2025 | Scroll Navigation UX |

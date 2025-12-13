@@ -2,8 +2,8 @@
 
 **Repository:** ARCv.04/ARC MVP/EPI
 **Last Updated:** December 13, 2025
-**Current Branch:** dev-lumara-endprompt
-**Status:** ✅ Active Development - Health Integration Complete (v2.1.52)
+**Current Branch:** dev-voice-updates
+**Status:** ✅ Active Development - Voice Chat UI Complete (v2.1.53)
 
 ---
 
@@ -26,8 +26,8 @@ The EPI (Evolving Personal Intelligence) project maintains a comprehensive git h
 
 ### Active Branches
 - **main** - Primary production branch (stable releases)
-- **dev-lumara-endprompt** - Active development branch ⭐ *Current* (Health Integration)
-- **dev** - Previous development branch (Auth complete)
+- **dev-voice-updates** - Active development branch ⭐ *Current* (Voice Chat UI)
+- **dev** - Previous development branch (merged to main)
 - **claude-md-context-update** - Documentation updates branch
 - **backup_2025_11_30** - Local backup branch from November 30, 2025
 
@@ -98,6 +98,21 @@ The EPI (Evolving Personal Intelligence) project maintains a comprehensive git h
 - **UI Stability**: Chat interface and data handling improvements
 - **Documentation Updates**: Comprehensive v2.1.42 documentation
 
+### 🎤 Phase 10: Voice Chat UI (December 2025)
+- **Jarvis-Style Voice Indicator**: Glowing, pulsing orb with ChatGPT-style animation
+- **Mic Button in AppBar**: Easy access to voice chat from LUMARA
+- **State-Based Colors**: Red (listening), Orange (thinking), Green (speaking)
+- **Voice System Exposed**: STT, TTS, intent routing, PII scrubbing all wired up
+- **Auto-Resume Loop**: Natural conversation flow with automatic re-listening
+
+### 🎭 Phase 9: LUMARA Persona & Settings Refactor (December 2025)
+- **LUMARA Persona System**: Choose Companion, Therapist, Strategist, or Challenger
+- **Auto-Detection**: AI selects persona based on context (sleep, sentiment, time)
+- **Settings Reorganization**: Unified Advanced Settings with Combined Analysis (6 tabs)
+- **Health→LUMARA Integration**: Sleep quality and energy level influence behavior
+- **Medical Tab**: LUMARA Health Signals UI (sliders for sleep/energy)
+- **Music Removal**: Cleaned up background music feature
+
 ### 📜 Phase 8: UX Enhancements (December 2025)
 - **Scroll Navigation**: ChatGPT-style scroll UX for all scrollable screens
 - **Animated Splash Screen**: 8-second spinning 3D phase visualization
@@ -125,7 +140,24 @@ The EPI (Evolving Personal Intelligence) project maintains a comprehensive git h
 
 ## Major Features by Version
 
-### 📌 v2.1.50 (Current - December 12, 2025)
+### 📌 v2.1.53 (Current - December 13, 2025)
+- ✅ **Voice Chat UI**: Jarvis-style glowing voice indicator
+- ✅ **Mic Button**: Added to LUMARA chat AppBar
+- ✅ **State Colors**: Red→Orange→Green for listening→thinking→speaking
+- ✅ **Voice System**: STT, TTS, intent routing, PII scrubbing fully functional
+
+### 📌 v2.1.52 (December 13, 2025)
+- ✅ **Settings Reorganization**: Unified Advanced Settings with Combined Analysis (6 tabs)
+- ✅ **Health→LUMARA**: Sleep quality and energy level influence LUMARA behavior
+- ✅ **Medical Tab**: LUMARA Health Signals UI with save functionality
+- ✅ **Music Removal**: Background music feature removed
+
+### 📌 v2.1.51 (December 13, 2025)
+- ✅ **LUMARA Persona**: Choose Companion, Therapist, Strategist, or Challenger
+- ✅ **Auto-Detection**: AI selects persona based on context automatically
+- ✅ **Settings UI**: Persona picker in Settings → LUMARA
+
+### 📌 v2.1.50 (December 12, 2025)
 - ✅ **Scroll Navigation**: ChatGPT-style scroll UX across all screens
 - ✅ **Tap-to-Top**: Tap status bar area to scroll to top
 - ✅ **Floating Scroll Button**: Down-arrow FAB for scroll-to-bottom
