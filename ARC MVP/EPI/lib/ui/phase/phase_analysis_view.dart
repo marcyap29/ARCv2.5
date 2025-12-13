@@ -19,7 +19,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:hive/hive.dart';
 import 'package:my_app/models/user_profile_model.dart';
 import 'package:my_app/shared/ui/settings/settings_view.dart';
-import 'package:my_app/ui/phase/advanced_analytics_view.dart';
 import 'package:my_app/prism/atlas/rivet/rivet_models.dart';
 import 'package:my_app/prism/atlas/rivet/rivet_service.dart';
 import 'package:my_app/arc/ui/arcforms/phase_recommender.dart';
@@ -522,19 +521,6 @@ List<PhaseSegmentProposal> proposals,
                     _selectedView = 'timeline';
                   });
                   break;
-                case 'analysis':
-                  setState(() {
-                    _selectedView = 'analysis';
-                  });
-                  break;
-                case 'advanced_analytics':
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const AdvancedAnalyticsView(),
-                    ),
-                  );
-                  break;
                 case 'settings':
                   Navigator.push(
                     context,
@@ -585,35 +571,6 @@ List<PhaseSegmentProposal> proposals,
       ),
               ),
               PopupMenuItem<String>(
-                value: 'analysis',
-        child: Row(
-          children: [
-                    Icon(
-                      Icons.analytics,
-                      size: 20,
-                      color: _selectedView == 'analysis' ? Colors.purple : null,
-                    ),
-                    const SizedBox(width: 12),
-            Text(
-                      'Analysis',
-              style: TextStyle(
-                        fontWeight: _selectedView == 'analysis' ? FontWeight.w600 : FontWeight.normal,
-              ),
-            ),
-          ],
-        ),
-              ),
-              PopupMenuItem<String>(
-                value: 'advanced_analytics',
-                child: Row(
-                  children: [
-                    const Icon(Icons.analytics, size: 20),
-                    const SizedBox(width: 12),
-                    const Text('Advanced Analytics'),
-                  ],
-                ),
-              ),
-              PopupMenuItem<String>(
                 value: 'settings',
                 child: Row(
                   children: [
@@ -645,8 +602,6 @@ List<PhaseSegmentProposal> proposals,
         return _buildArcformsTab();
       case 'timeline':
         return _buildTimelineContent();
-      case 'analysis':
-        return _buildAnalysisTab();
       default:
         return _buildArcformsTab();
     }

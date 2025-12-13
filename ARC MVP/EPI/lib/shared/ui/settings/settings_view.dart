@@ -8,8 +8,8 @@ import 'package:my_app/shared/ui/settings/privacy_settings_view.dart';
 import 'package:my_app/shared/ui/settings/memory_mode_settings_view.dart';
 import 'package:my_app/shared/ui/settings/memory_snapshot_management_view.dart';
 import 'package:my_app/shared/ui/settings/conflict_management_view.dart';
-import 'package:my_app/shared/ui/settings/lumara_settings_view.dart';
 import 'package:my_app/shared/ui/settings/favorites_management_view.dart';
+import 'package:my_app/shared/ui/settings/advanced_settings_view.dart';
 import 'package:my_app/shared/ui/settings/voiceover_preference_service.dart';
 import 'package:my_app/shared/ui/settings/throttle_settings_view.dart';
 import 'package:my_app/ui/screens/mcp_management_screen.dart';
@@ -40,6 +40,11 @@ class _SettingsViewState extends State<SettingsView> {
   // LUMARA Persona state
   LumaraPersona _selectedPersona = LumaraPersona.auto;
   bool _personaLoading = true;
+  
+  // Therapeutic depth state
+  int _therapeuticDepthLevel = 2;
+  bool _webAccessEnabled = false;
+  bool _lumaraSettingsLoading = true;
 
   @override
   void initState() {
@@ -48,6 +53,45 @@ class _SettingsViewState extends State<SettingsView> {
     _loadVoiceoverPreference();
     _loadShakeToReportPreference();
     _loadPersonaPreference();
+    _loadLumaraSettings();
+  }
+  
+  Future<void> _loadLumaraSettings() async {
+    try {
+      final settingsService = LumaraReflectionSettingsService.instance;
+      await settingsService.initialize();
+      final settings = await settingsService.loadAllSettings();
+      if (mounted) {
+        setState(() {
+          _therapeuticDepthLevel = settings['therapeuticDepthLevel'] as int;
+          _webAccessEnabled = settings['webAccessEnabled'] as bool;
+          _lumaraSettingsLoading = false;
+        });
+      }
+    } catch (e) {
+      print('Error loading LUMARA settings: $e');
+      if (mounted) {
+        setState(() {
+          _lumaraSettingsLoading = false;
+        });
+      }
+    }
+  }
+  
+  Future<void> _setTherapeuticDepthLevel(int level) async {
+    setState(() {
+      _therapeuticDepthLevel = level;
+    });
+    final settingsService = LumaraReflectionSettingsService.instance;
+    await settingsService.setTherapeuticDepthLevel(level);
+  }
+  
+  Future<void> _setWebAccessEnabled(bool enabled) async {
+    setState(() {
+      _webAccessEnabled = enabled;
+    });
+    final settingsService = LumaraReflectionSettingsService.instance;
+    await settingsService.setWebAccessEnabled(enabled);
   }
   
   Future<void> _loadPersonaPreference() async {
@@ -379,18 +423,9 @@ class _SettingsViewState extends State<SettingsView> {
                     ],
                   ),
                 ),
-                _buildSettingsTile(
-                  context,
-                  title: 'LUMARA Settings',
-                  subtitle: 'Configure your AI reflection partner',
-                  icon: Icons.auto_awesome,
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const LumaraSettingsView()),
-                    );
-                  },
-                ),
+                // Therapeutic Depth Slider
+                _buildTherapeuticDepthCard(),
+                // Web Search Toggle
                 Container(
                   margin: const EdgeInsets.only(bottom: 8),
                   decoration: BoxDecoration(
@@ -402,14 +437,53 @@ class _SettingsViewState extends State<SettingsView> {
                   ),
                   child: SwitchListTile(
                     title: Text(
-                      'Voiceover Mode',
+                      'Web Search',
                       style: heading3Style(context).copyWith(
                         color: kcPrimaryTextColor,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
                     subtitle: Text(
-                      'Speak AI responses aloud',
+                      'Allow web lookups for external info',
+                      style: bodyStyle(context).copyWith(
+                        color: kcSecondaryTextColor,
+                      ),
+                    ),
+                    value: _webAccessEnabled,
+                    onChanged: _lumaraSettingsLoading
+                        ? null
+                        : (value) => _setWebAccessEnabled(value),
+                    secondary: Icon(
+                      Icons.language,
+                      color: kcAccentColor,
+                      size: 24,
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
+                  ),
+                ),
+                // Voice Responses Toggle
+                Container(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.05),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.1),
+                    ),
+                  ),
+                  child: SwitchListTile(
+                    title: Text(
+                      'Voice Responses',
+                      style: heading3Style(context).copyWith(
+                        color: kcPrimaryTextColor,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    subtitle: Text(
+                      'Speak LUMARA\'s responses aloud',
                       style: bodyStyle(context).copyWith(
                         color: kcSecondaryTextColor,
                       ),
@@ -435,10 +509,11 @@ class _SettingsViewState extends State<SettingsView> {
                     ),
                   ),
                 ),
-                const SizedBox(height: 8),
                 // Shake to Report Toggle
                 Container(
+                  margin: const EdgeInsets.only(bottom: 8),
                   decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.05),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
                       color: Colors.white.withValues(alpha: 0.1),
@@ -446,14 +521,14 @@ class _SettingsViewState extends State<SettingsView> {
                   ),
                   child: SwitchListTile(
                     title: Text(
-                      'Shake to Report Bug',
+                      'Shake to Report',
                       style: heading3Style(context).copyWith(
                         color: kcPrimaryTextColor,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
                     subtitle: Text(
-                      'Shake device to report issues',
+                      'Shake device to report bugs',
                       style: bodyStyle(context).copyWith(
                         color: kcSecondaryTextColor,
                       ),
@@ -478,6 +553,19 @@ class _SettingsViewState extends State<SettingsView> {
                       vertical: 8,
                     ),
                   ),
+                ),
+                // Advanced Settings
+                _buildSettingsTile(
+                  context,
+                  title: 'Advanced Settings',
+                  subtitle: 'Analysis, memory lookback, matching precision',
+                  icon: Icons.settings_applications,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const AdvancedSettingsView()),
+                    );
+                  },
                 ),
               ],
             ),
@@ -613,6 +701,112 @@ class _SettingsViewState extends State<SettingsView> {
     );
   }
   
+  /// Build therapeutic depth card with slider
+  Widget _buildTherapeuticDepthCard() {
+    final depthLabels = ['Light', 'Moderate', 'Deep'];
+    final depthDescriptions = [
+      'Supportive and encouraging',
+      'Reflective and insight-oriented',
+      'Exploratory and emotionally resonant',
+    ];
+    
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.1),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.psychology,
+                color: kcAccentColor,
+                size: 24,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Therapeutic Depth',
+                      style: heading3Style(context).copyWith(
+                        color: kcPrimaryTextColor,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    Text(
+                      depthDescriptions[_therapeuticDepthLevel - 1],
+                      style: bodyStyle(context).copyWith(
+                        color: kcSecondaryTextColor,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: kcAccentColor.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  depthLabels[_therapeuticDepthLevel - 1],
+                  style: bodyStyle(context).copyWith(
+                    color: kcAccentColor,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Slider(
+            value: _therapeuticDepthLevel.toDouble(),
+            min: 1,
+            max: 3,
+            divisions: 2,
+            activeColor: kcAccentColor,
+            inactiveColor: Colors.grey.withValues(alpha: 0.3),
+            onChanged: _lumaraSettingsLoading
+                ? null
+                : (value) => _setTherapeuticDepthLevel(value.round()),
+          ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: depthLabels.asMap().entries.map((entry) {
+              final index = entry.key;
+              final label = entry.value;
+              final isSelected = _therapeuticDepthLevel == index + 1;
+              return GestureDetector(
+                onTap: _lumaraSettingsLoading
+                    ? null
+                    : () => _setTherapeuticDepthLevel(index + 1),
+                child: Text(
+                  label,
+                  style: bodyStyle(context).copyWith(
+                    color: isSelected ? kcAccentColor : kcSecondaryTextColor,
+                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                    fontSize: 11,
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+
   /// Build a persona option radio tile
   Widget _buildPersonaOption(LumaraPersona persona) {
     final isSelected = _selectedPersona == persona;
