@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../voice/push_to_talk_controller.dart';
 import '../voice/voice_diagnostics.dart';
-import 'widgets/mic_button.dart';
+import 'package:my_app/shared/widgets/glowing_voice_indicator.dart';
 
 class VoiceChatPanel extends StatefulWidget {
   final PushToTalkController controller;
@@ -49,7 +49,6 @@ class _VoiceChatPanelState extends State<VoiceChatPanel> {
     final isListening = currentState == VCState.listening;
     final isSpeaking = currentState == VCState.speaking;
     final isThinking = currentState == VCState.thinking;
-    final isError = currentState == VCState.error;
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -84,10 +83,32 @@ class _VoiceChatPanelState extends State<VoiceChatPanel> {
               ),
               textAlign: TextAlign.center,
             ),
+            const SizedBox(height: 24),
+            
+            // Glowing voice indicator
+            Center(
+              child: GlowingVoiceIndicator(
+                icon: Icons.mic,
+                primaryColor: _getStateColor(currentState),
+                glowColor: _getGlowColor(currentState),
+                size: 80,
+                isActive: isListening || isSpeaking,
+                onTap: widget.controller.onMicTap,
+              ),
+            ),
+            
             const SizedBox(height: 16),
             
-            // State indicator
-            _buildStateIndicator(theme, isListening, isSpeaking, isThinking, isError),
+            // State text
+            Text(
+              _getStateText(currentState),
+              style: theme.textTheme.titleMedium?.copyWith(
+                color: _getStateColor(currentState),
+                fontWeight: FontWeight.w600,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            
             const SizedBox(height: 16),
             
             // Partial transcript display
@@ -155,27 +176,38 @@ class _VoiceChatPanelState extends State<VoiceChatPanel> {
                 ),
               ),
             
-            // Mic button
-            MicButton(
-              listening: isListening,
-              speaking: isSpeaking,
-              onTap: () => widget.controller.onMicTap(),
-              onEnd: () => widget.controller.endSession(),
-            ),
-            const SizedBox(height: 12),
-            
-            // Help text
-            Text(
-              isListening
-                  ? 'Tap the mic again to stop and process'
-                  : isSpeaking
-                      ? 'Listening will resume automatically'
-                      : 'Tap the mic to start voice chat',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurface.withOpacity(0.6),
+            // Control buttons
+            if (isListening || isSpeaking || isThinking)
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: widget.controller.endSession,
+                    icon: const Icon(Icons.stop, size: 20),
+                    label: const Text('End Session'),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 20),
+                      side: BorderSide(
+                        color: theme.colorScheme.outline,
+                        width: 1.5,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                ],
+              )
+            else
+              Text(
+                'Tap the glowing mic to start',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurface.withOpacity(0.6),
+                ),
+                textAlign: TextAlign.center,
               ),
-              textAlign: TextAlign.center,
-            ),
+            
+            const SizedBox(height: 12),
             
             // Diagnostics overlay (debug mode)
             if (widget.diagnostics != null && currentState != VCState.idle)
@@ -186,64 +218,49 @@ class _VoiceChatPanelState extends State<VoiceChatPanel> {
     );
   }
 
-  Widget _buildStateIndicator(
-    ThemeData theme,
-    bool isListening,
-    bool isSpeaking,
-    bool isThinking,
-    bool isError,
-  ) {
-    IconData icon;
-    String label;
-    Color color;
-
-    if (isError) {
-      icon = Icons.error_outline;
-      label = 'Error';
-      color = theme.colorScheme.error;
-    } else if (isSpeaking) {
-      icon = Icons.volume_up;
-      label = 'Speaking';
-      color = theme.colorScheme.primary;
-    } else if (isThinking) {
-      icon = Icons.psychology;
-      label = 'Thinking';
-      color = theme.colorScheme.secondary;
-    } else if (isListening) {
-      icon = Icons.mic;
-      label = 'Listening';
-      color = Colors.red;
-    } else {
-      icon = Icons.mic_none;
-      label = 'Ready';
-      color = theme.colorScheme.onSurface.withOpacity(0.5);
+  Color _getStateColor(VCState state) {
+    switch (state) {
+      case VCState.listening:
+        return Colors.red;
+      case VCState.thinking:
+        return Colors.orange;
+      case VCState.speaking:
+        return Colors.green;
+      case VCState.error:
+        return Colors.redAccent;
+      default:
+        return Colors.grey;
     }
+  }
 
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: color.withOpacity(0.3),
-          width: 1.5,
-        ),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(icon, color: color, size: 20),
-          const SizedBox(width: 8),
-          Text(
-            label,
-            style: theme.textTheme.titleMedium?.copyWith(
-              color: color,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
-      ),
-    );
+  Color _getGlowColor(VCState state) {
+    switch (state) {
+      case VCState.listening:
+        return Colors.redAccent;
+      case VCState.thinking:
+        return Colors.orangeAccent;
+      case VCState.speaking:
+        return Colors.greenAccent;
+      case VCState.error:
+        return Colors.red;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  String _getStateText(VCState state) {
+    switch (state) {
+      case VCState.listening:
+        return 'Listening...';
+      case VCState.thinking:
+        return 'Processing...';
+      case VCState.speaking:
+        return 'LUMARA is speaking';
+      case VCState.error:
+        return 'Error - Try again';
+      default:
+        return 'Ready to listen';
+    }
   }
 
   Widget _buildDiagnosticsOverlay() {
