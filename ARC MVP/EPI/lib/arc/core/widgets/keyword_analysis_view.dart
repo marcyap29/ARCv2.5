@@ -153,10 +153,18 @@ class _KeywordAnalysisViewState extends State<KeywordAnalysisView>
   }
 
   void _onSaveEntry() async {
-    // Use discovered keywords instead of old extraction method
+    // Collect keywords from all sources
     final allKeywords = <String>[];
     
-    // Add discovered keywords (pre-selected from real-time analysis)
+    // Add discovered keywords from KeywordExtractionCubit state (most important - this is what gets extracted)
+    final keywordCubit = context.read<KeywordExtractionCubit>();
+    if (keywordCubit.state is KeywordExtractionLoaded) {
+      final loadedState = keywordCubit.state as KeywordExtractionLoaded;
+      allKeywords.addAll(loadedState.selectedKeywords);
+      debugPrint('🔍 - Keywords from cubit state: ${loadedState.selectedKeywords.length}');
+    }
+    
+    // Add discovered keywords (pre-selected from real-time analysis) - fallback
     if (widget.selectedKeywords != null) {
       allKeywords.addAll(widget.selectedKeywords!);
     }
@@ -171,7 +179,8 @@ class _KeywordAnalysisViewState extends State<KeywordAnalysisView>
     
     // DEBUG: Log keyword saving for confirmation
     debugPrint('🔍 KeywordAnalysisView: Saving entry with ${uniqueKeywords.length} total keywords');
-    debugPrint('🔍 - Discovered keywords: ${widget.selectedKeywords?.length ?? 0}');
+    debugPrint('🔍 - Keywords from cubit: ${(keywordCubit.state is KeywordExtractionLoaded) ? (keywordCubit.state as KeywordExtractionLoaded).selectedKeywords.length : 0}');
+    debugPrint('🔍 - Discovered keywords (widget): ${widget.selectedKeywords?.length ?? 0}');
     debugPrint('🔍 - Manual keywords: ${widget.manualKeywords?.length ?? 0}');
     debugPrint('🔍 - Final unique keywords: $uniqueKeywords');
     

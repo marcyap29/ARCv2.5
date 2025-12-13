@@ -15,6 +15,7 @@ import '../../core/journal_capture_cubit.dart';
 import '../bloc/lumara_assistant_cubit.dart';
 import '../data/context_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../../mira/memory/enhanced_memory_schema.dart';
 
 class VoiceChatService {
   final AudioIO _audioIO = AudioIO();
@@ -124,6 +125,14 @@ class VoiceChatService {
           // Write to journal view
           _onTextWritten?.call(text);
         },
+        onSpeakingStart: () {
+          // Notify controller that TTS is starting
+          _controller?.onSpeakingStart();
+        },
+        onSpeakingDone: () async {
+          // Notify controller that TTS is done and auto-resume listening
+          await _controller?.onSpeakingDone();
+        },
       );
       _orchestrator = orchestrator;
 
@@ -149,8 +158,8 @@ class VoiceChatService {
   /// Start listening
   Future<void> _startListening({bool isResume = false}) async {
     if (!isResume) {
-      _diagnostics.record('t_mic_start');
-      _partialTranscript = '';
+    _diagnostics.record('t_mic_start');
+    _partialTranscript = '';
       _finalTranscript = null; // Clear final transcript when starting new session
       _accumulatedTranscript = ''; // Reset accumulated transcript on new session
       _fullConversationText = ''; // Reset conversation text on new session
@@ -244,8 +253,8 @@ class VoiceChatService {
         _accumulatedTranscript = '';
         _partialTranscript = '';
         
-        // Auto-resume listening for next turn
-        await _controller?.onSpeakingDone();
+        // onSpeakingDone is called by orchestrator's callback
+        // No need to call it here - it will set state to idle (ready)
       } else {
         // Fallback: Mode A pipeline directly
         if (_useModeA && _pipeline is ModeAPipeline) {
@@ -271,7 +280,7 @@ class VoiceChatService {
           _accumulatedTranscript = '';
           _partialTranscript = '';
           
-          // Auto-resume listening for next turn
+          // Set to idle (ready) - user must press mic again
           await _controller?.onSpeakingDone();
         } else {
           // Mode B: Audio → LLM → TTS (not fully implemented)
@@ -285,6 +294,7 @@ class VoiceChatService {
   }
 
   /// Generate summary of full conversation
+  /// Creates JSON representation, scrubs PII, sends for summary, then restores PII
   Future<String> _generateSummary(String fullText) async {
     if (_lumaraApi == null || fullText.trim().isEmpty) {
       return '';
@@ -302,8 +312,21 @@ class VoiceChatService {
     }
     
     try {
+      // Create JSON representation of the entry
+      // Scrub PII from the content before sending
+      final scrubbingResult = PrismScrubber.scrubWithMapping(fullText);
+      final scrubbedContent = scrubbingResult.scrubbedText;
+      
+      // Create scrubbed JSON representation
+      final scrubbedEntryJson = {
+        'content': scrubbedContent,
+        'type': 'journal_entry',
+        'timestamp': DateTime.now().toIso8601String(),
+      };
+      
+      // Generate summary using scrubbed content
       final result = await _lumaraApi!.generatePromptedReflection(
-        entryText: fullText,
+        entryText: scrubbedContent,
         intent: 'summary',
         phase: null,
         userId: null,
@@ -311,7 +334,13 @@ class VoiceChatService {
         onProgress: (msg) => debugPrint('Summary generation: $msg'),
       );
       
-      return result.reflection;
+      // Restore PII in the returned summary
+      final summaryWithPII = PrismScrubber.restore(
+        result.reflection,
+        scrubbingResult.reversibleMap,
+      );
+      
+      return summaryWithPII;
     } catch (e) {
       debugPrint('Error generating summary: $e');
       return '';
@@ -430,6 +459,11 @@ class VoiceChatService {
 
   /// Get current partial transcript (or final transcript if session ended)
   String? get partialTranscript => _finalTranscript ?? _partialTranscript;
+  
+  /// Get attribution traces for a LUMARA response
+  List<AttributionTrace>? getAttributionTraces(String responseText) {
+    return _orchestrator?.getAttributionTraces(responseText);
+  }
 
   /// Check if Mode A is enabled
   bool get useModeA => _useModeA;

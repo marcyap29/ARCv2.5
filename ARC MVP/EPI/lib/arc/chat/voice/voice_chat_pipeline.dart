@@ -1,6 +1,8 @@
+import 'package:flutter/foundation.dart';
 import 'audio_io.dart';
 import 'prism_scrubber.dart';
 import '../services/enhanced_lumara_api.dart';
+import '../../../mira/memory/enhanced_memory_schema.dart';
 
 abstract class VoiceChatPipeline {
   Future<String> transcribe(String audioPath);        // Mode A
@@ -56,7 +58,44 @@ class ModeAPipeline implements VoiceChatPipeline {
 
   @override
   Future<void> speak(String text) async {
-    await _audioIO.speak(text);
+    if (text.trim().isEmpty) {
+      debugPrint('TTS: Skipping empty text');
+      return;
+    }
+    
+    try {
+      await _audioIO.speak(
+        text,
+        onStart: () => debugPrint('TTS: Started speaking'),
+        onComplete: () => debugPrint('TTS: Completed speaking'),
+        onError: (error) => debugPrint('TTS Error: $error'),
+      );
+    } catch (e) {
+      debugPrint('TTS Exception: $e');
+      rethrow;
+    }
+  }
+  
+  /// Get reflection with attribution traces (for journal mode)
+  Future<ReflectionResult> getReflectionWithAttribution(String text, {Map<String, dynamic>? ctx}) async {
+    try {
+      final result = await _lumaraApi.generatePromptedReflection(
+        entryText: text,
+        intent: 'chat',
+        phase: ctx?['phase'] as String?,
+        userId: ctx?['userId'] as String?,
+        chatContext: ctx?['chatContext'] as String?,
+        onProgress: (msg) => print('LLM Progress: $msg'),
+      );
+      return result;
+    } catch (e) {
+      print('LLM Error: $e');
+      // Fallback to simple response without attribution
+      return ReflectionResult(
+        reflection: "I'm sorry, I couldn't process that request right now. Please try again.",
+        attributionTraces: [],
+      );
+    }
   }
 }
 

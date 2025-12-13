@@ -38,7 +38,14 @@ class PushToTalkController extends ChangeNotifier {
   /// Handle microphone tap
   /// First tap: Start conversation and begin listening
   /// Subsequent taps: Process accumulated text and get LUMARA response
+  /// Prevents taps during processing/speaking states
   Future<void> onMicTap() async {
+    // Prevent taps during processing or speaking - user must wait
+    if (_state == VCState.thinking || _state == VCState.speaking) {
+      debugPrint('Microphone tap ignored - currently processing or speaking');
+      return;
+    }
+    
     if (_state == VCState.idle || _isFirstTap) {
       // First tap: Start conversation
       _isFirstTap = false;
@@ -48,6 +55,7 @@ class PushToTalkController extends ChangeNotifier {
     }
     if (_state == VCState.listening) {
       // Subsequent taps: Process accumulated text and get LUMARA response
+      // Set thinking state IMMEDIATELY to show processing icon
       _setState(VCState.thinking);
       final text = await stopAndGetFinal();
       if (text == null || text.trim().isEmpty) {
@@ -65,11 +73,12 @@ class PushToTalkController extends ChangeNotifier {
   }
 
   /// Called after LUMARA finishes speaking
-  /// Auto-resumes listening for the next turn in the conversation
+  /// Sets state to idle (ready) - user must press mic again to continue
+  /// This ensures user waits for transcription to complete before next input
   Future<void> onSpeakingDone() async {
-    // Auto-resume listening for next turn
-    _setState(VCState.listening);
-    await startListening();
+    // Set to idle (green/ready state) - user must press mic again
+    // This ensures user waits until transcription and TTS are complete
+    _setState(VCState.idle);
   }
 
   /// End session: Stop listening and save transcript, but do NOT trigger LUMARA response
@@ -93,6 +102,6 @@ class PushToTalkController extends ChangeNotifier {
       onEndSession!().catchError((e) {
         debugPrint('Error in endSession callback: $e');
       });
-    }
   }
+}
 }

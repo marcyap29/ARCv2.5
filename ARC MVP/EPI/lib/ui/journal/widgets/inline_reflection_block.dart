@@ -396,7 +396,7 @@ class _InlineReflectionBlockState extends State<InlineReflectionBlock> with Sing
               style: theme.textTheme.bodyMedium?.copyWith(
                 height: 1.6,
                 fontSize: 16, // Rosebud style: clear, readable text
-                color: theme.colorScheme.primary, // Blue text for AI
+                color: const Color(0xFF7C3AED), // Purple text for LUMARA (same as regular journal mode)
                 fontWeight: FontWeight.w400,
               ),
             ),
@@ -411,7 +411,7 @@ class _InlineReflectionBlockState extends State<InlineReflectionBlock> with Sing
         style: theme.textTheme.bodyMedium?.copyWith(
           height: 1.6,
           fontSize: 16,
-          color: theme.colorScheme.primary, // Blue text for AI
+          color: const Color(0xFF7C3AED), // Purple text for LUMARA (same as regular journal mode)
           fontWeight: FontWeight.w400,
         ),
       )
