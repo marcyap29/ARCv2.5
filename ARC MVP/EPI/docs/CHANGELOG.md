@@ -19,6 +19,35 @@ This changelog has been split into parts for easier navigation:
 
 ## [2.1.53] - December 13, 2025
 
+### **Voice Journal Mode Enhancements** - ✅ Complete
+
+- **Fixed duplicate LUMARA responses**: Removed markdown text from content when saving (saved as InlineBlocks instead)
+- **Fixed keyword saving**: Now reads keywords from KeywordExtractionCubit state (same mechanism as regular journal mode)
+- **Fixed summary generation**: Implements JSON creation, PII scrubbing before summary, and PII restoration after
+- **Fixed TTS consistency**: Writes LUMARA response to UI first, then TTS the content with proper error handling
+- **Microphone state indicators**:
+  * Green icon: Ready to transcribe (idle state)
+  * Red icon: Listening (active)
+  * Yellow/amber icon: Processing (thinking state)
+  * Grayed-out icon: Speaking (TTS active, disabled)
+- **Disabled microphone during processing/speaking**: Prevents user from pressing mic until transcription and TTS complete
+- **Changed flow**: User must wait for transcription/TTS to complete before next input (no auto-resume)
+- **LUMARA text color**: Updated to purple in InlineReflectionBlock (matches regular journal mode)
+- **Memory attribution support**: Captures and stores attribution traces for LUMARA responses in voice journal mode
+
+**Status**: ✅ Complete  
+**Branch**: `dev-voice-updates`  
+**Files Modified**:
+- `lib/arc/chat/ui/voice_chat_panel.dart` - Added state-based microphone button styling
+- `lib/arc/chat/voice/push_to_talk_controller.dart` - Added guards to prevent taps during processing
+- `lib/arc/chat/voice/voice_orchestrator.dart` - Added speaking state callbacks, fixed TTS flow
+- `lib/arc/chat/voice/voice_chat_service.dart` - Fixed summary generation with PII scrubbing
+- `lib/arc/chat/voice/voice_chat_pipeline.dart` - Added TTS error handling
+- `lib/arc/chat/voice/prism_scrubber.dart` - Added scrubWithMapping and restore methods
+- `lib/arc/core/widgets/keyword_analysis_view.dart` - Fixed keyword saving to read from cubit state
+- `lib/arc/ui/journal_capture_view.dart` - Fixed duplicate LUMARA responses, removed markdown
+- `lib/ui/journal/widgets/inline_reflection_block.dart` - Updated LUMARA text color to purple
+
 ### **Onboarding Permissions Page** - ✅ Complete
 
 - Added dedicated permissions page to onboarding flow as the final step

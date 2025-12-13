@@ -7,6 +7,7 @@ import 'voice_chat_pipeline.dart';
 import 'voice_orchestrator.dart'; // VoiceContext is defined here
 import 'context_memory.dart';
 import 'voice_diagnostics.dart';
+import 'prism_scrubber.dart';
 import '../../journal/journal_manager.dart';
 import '../main_chat_manager.dart';
 import '../../files/file_manager.dart';
@@ -316,13 +317,6 @@ class VoiceChatService {
       // Scrub PII from the content before sending
       final scrubbingResult = PrismScrubber.scrubWithMapping(fullText);
       final scrubbedContent = scrubbingResult.scrubbedText;
-      
-      // Create scrubbed JSON representation
-      final scrubbedEntryJson = {
-        'content': scrubbedContent,
-        'type': 'journal_entry',
-        'timestamp': DateTime.now().toIso8601String(),
-      };
       
       // Generate summary using scrubbed content
       final result = await _lumaraApi!.generatePromptedReflection(

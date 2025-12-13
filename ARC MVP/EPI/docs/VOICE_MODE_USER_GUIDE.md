@@ -68,33 +68,50 @@ ARC automatically detects your intent and routes your voice input to the appropr
 
 ---
 
+## 🎨 Microphone State Indicators
+
+The microphone button shows different colors and states to indicate what's happening:
+
+- **🟢 Green Icon**: Ready to transcribe (idle state) - You can tap to start
+- **🔴 Red Icon**: Listening (active) - Recording your speech
+- **🟡 Yellow/Amber Icon**: Processing (thinking state) - ARC is processing your input
+- **⚫ Grayed-Out Icon**: Speaking (TTS active) - LUMARA is speaking, microphone is disabled
+
+**Important**: The microphone button is **disabled** (grayed out) during processing and speaking. You must wait for transcription and TTS to complete before pressing the microphone again.
+
+---
+
 ## 🔄 Complete Flow Example
 
 ### Example: Multi-Turn Conversation
 
 **Turn 1:**
-1. **Tap mic (1st time)** → State: **Listening** 🎤
+1. **Tap mic (1st time)** → State: **Listening** 🔴 (Red icon)
 2. **Speak**: *"What should I focus on today?"* (can pause to think - auto-resumes)
-3. **Tap mic (2nd time)** → State: **Thinking** ⚙️
-4. **ARC processes** and responds: *"Based on your recent entries, I'd suggest focusing on..."* 🔊
-5. **Auto-resumes** → State: **Listening** (ready for next turn)
+3. **Tap mic (2nd time)** → State: **Processing** 🟡 (Yellow icon, button disabled)
+4. **ARC processes** and responds: *"Based on your recent entries, I'd suggest focusing on..."* 
+5. **State changes to Speaking** ⚫ (Gray icon, button disabled)
+6. **TTS completes** → State: **Ready** 🟢 (Green icon, ready for next turn)
 
 **Turn 2:**
-6. **Speak**: *"That's helpful. Can you help me plan my day?"* (can pause/think)
-7. **Tap mic (3rd time)** → State: **Thinking** ⚙️
-8. **ARC processes** and responds: *"Sure! Let's break down your day into..."* 🔊
-9. **Auto-resumes** → State: **Listening** (ready for next turn)
+7. **Tap mic (3rd time)** → State: **Listening** 🔴
+8. **Speak**: *"That's helpful. Can you help me plan my day?"* (can pause/think)
+9. **Tap mic (4th time)** → State: **Processing** 🟡 (Yellow icon, button disabled)
+10. **ARC processes** and responds: *"Sure! Let's break down your day into..."* 
+11. **State changes to Speaking** ⚫ (Gray icon, button disabled)
+12. **TTS completes** → State: **Ready** 🟢 (Green icon, ready for next turn)
 
 **Turn 3:**
-10. **Speak**: *"Thanks, that's perfect."*
-11. **Tap "End Session"** → Processes final turn, saves everything, ends conversation
+13. **Tap mic (5th time)** → State: **Listening** 🔴
+14. **Speak**: *"Thanks, that's perfect."*
+15. **Tap "End Session"** → Processes final turn, saves everything, ends conversation
 
 ### Key Points
 
-- **First tap** = Start conversation
-- **Subsequent taps** = Process turn and get LUMARA response
-- **Auto-resume** = Automatically starts listening after each response
-- **End Session** = Processes final turn and saves everything
+- **First tap** = Start conversation (green → red)
+- **Subsequent taps** = Process turn and get LUMARA response (red → yellow → gray → green)
+- **Wait for green** = You must wait until the microphone shows green (ready) before tapping again
+- **End Session** = Processes final turn and saves everything (no LUMARA response triggered)
 
 ---
 
@@ -126,26 +143,29 @@ All voice transcripts are **automatically scrubbed** of personally identifiable 
 
 Voice mode has 5 states that you'll see in the UI:
 
-1. **Idle** 🟢 - Ready to start a new conversation
-2. **Listening** 🔴 - Recording your voice (red/orange/green indicator)
-3. **Thinking** ⚙️ - Processing your message and getting LUMARA's response
-4. **Speaking** 🔊 - LUMARA is responding via TTS
+1. **Idle** 🟢 - Ready to start a new conversation (Green microphone icon)
+2. **Listening** 🔴 - Recording your voice (Red microphone icon, pulsing)
+3. **Thinking** 🟡 - Processing your message and getting LUMARA's response (Yellow/amber icon, button disabled)
+4. **Speaking** ⚫ - LUMARA is responding via TTS (Grayed-out microphone icon, button disabled)
 5. **Error** ⚠️ - Something went wrong
 
 ### State Transitions
 
 ```
-Idle → [Tap Mic (1st)] → Listening
-Listening → [Tap Mic (2nd+)] → Thinking → Speaking → Listening (auto-resume)
-Listening → [Tap End Session] → Thinking → Idle (saves everything)
-Any State → [Error] → Error → Idle
+Idle (🟢) → [Tap Mic (1st)] → Listening (🔴)
+Listening (🔴) → [Tap Mic (2nd+)] → Thinking (🟡) → Speaking (⚫) → Idle (🟢)
+Listening (🔴) → [Tap End Session] → Idle (🟢) (saves everything, no LUMARA response)
+Any State → [Error] → Error → Idle (🟢)
 ```
+
+**Important**: The microphone button is **disabled** during Thinking and Speaking states. You must wait until the state returns to Idle (green) before tapping the microphone again.
 
 ### Conversation Loop
 
-The conversation continues in a loop until you tap "End Session":
+The conversation continues until you tap "End Session":
 - Each mic tap (after the first) processes that turn and gets a response
-- After each response, it automatically resumes listening
+- After each response completes (TTS finishes), state returns to Idle (green/ready)
+- **You must tap the microphone again** to continue the conversation (no auto-resume)
 - You can have as many turns as you want
 - All turns are saved automatically during the conversation
 
@@ -155,13 +175,22 @@ The conversation continues in a loop until you tap "End Session":
 
 ### Mode A (Current Implementation)
 
-**Flow:** Speech → STT → PII Scrub → LLM → TTS
+**Flow:** Speech → STT → PII Scrub → LLM → Write to UI → TTS
 
 1. **Speech-to-Text**: On-device transcription using iOS speech recognition
 2. **PII Scrubbing**: Removes sensitive information using PRISM scrubber
 3. **LLM Processing**: Sends scrubbed text to EnhancedLumaraApi
-4. **Text-to-Speech**: Converts response to speech using flutter_tts
-5. **Auto-resume**: Automatically starts listening again after TTS completes
+4. **Write to UI**: LUMARA response is written to journal view first (creates inline box)
+5. **Text-to-Speech**: Converts response to speech using flutter_tts
+6. **State Management**: Returns to Idle (ready) state after TTS completes - user must tap mic again
+
+### Voice Journal Mode Features
+
+- **LUMARA Responses**: Displayed as purple InlineBlocks (same as regular journal mode)
+- **Memory Attribution**: Shows links to past entries, drafts, images, responses (e.g., "1 memories, 100% confidence")
+- **Summary Generation**: Automatically generates summaries with PII scrubbing/restoration
+- **Keyword Extraction**: Uses same keyword saving mechanism as regular journal entries
+- **No Duplicate Responses**: LUMARA responses saved as InlineBlocks only (no duplicate markdown text)
 
 ### Mode B (Future)
 
