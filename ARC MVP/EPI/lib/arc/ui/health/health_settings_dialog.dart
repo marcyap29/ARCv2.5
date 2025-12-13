@@ -76,20 +76,25 @@ class _HealthSettingsDialogState extends State<HealthSettingsDialog> {
   }
 
   Future<void> _importHealth({required int daysBack}) async {
+    if (!mounted) return;
+    
     setState(() {
       _importing = true;
       _importStatus = 'Importing $daysBack days of health data...';
     });
 
     try {
+      debugPrint('🔍 Health Import Debug - Starting process...');
+      
+      // Check platform first
+      if (!Platform.isIOS) {
+        throw Exception('Health data import is only available on iOS');
+      }
+      
+      debugPrint('🔍 Health Import Debug - Creating Health instance...');
       final health = Health();
 
-      // Check if HealthKit is available on this platform
-      debugPrint('🔍 Health Import Debug - Checking HealthKit availability...');
-      // Note: HealthKit is always available on iOS, unlike Android Health Connect
-      final isIOS = Platform.isIOS;
-      debugPrint('🔍 Health Import Debug - Platform is iOS: $isIOS');
-
+      debugPrint('🔍 Health Import Debug - Requesting authorization...');
       final granted = await health.requestAuthorization([
         HealthDataType.STEPS,
         HealthDataType.ACTIVE_ENERGY_BURNED,
@@ -102,9 +107,18 @@ class _HealthSettingsDialogState extends State<HealthSettingsDialog> {
         HealthDataType.SLEEP_IN_BED,
         HealthDataType.WEIGHT,
         HealthDataType.WORKOUT,
-      ]);
+      ]).timeout(
+        const Duration(seconds: 30),
+        onTimeout: () {
+          debugPrint('❌ Health Import Debug - Authorization timeout');
+          return false;
+        },
+      );
+
+      debugPrint('🔍 Health Import Debug - Authorization result: $granted');
 
       if (!granted) {
+        if (!mounted) return;
         setState(() {
           _importStatus = 'HealthKit permission denied';
           _importing = false;
@@ -117,41 +131,52 @@ class _HealthSettingsDialogState extends State<HealthSettingsDialog> {
         return;
       }
 
+      debugPrint('🔍 Health Import Debug - Creating HealthIngest...');
       final ingest = HealthIngest(health);
       final uid = 'user_${DateTime.now().millisecondsSinceEpoch}';
 
-      // Debug: Log import attempt details
       debugPrint('🔍 Health Import Debug - Starting import for $daysBack days');
       debugPrint('🔍 Health Import Debug - UID: $uid');
-      debugPrint('🔍 Health Import Debug - Platform: ${Platform.operatingSystem}');
-      debugPrint('🔍 Health Import Debug - Environment: ${Platform.environment}');
 
-      final lines = await ingest.importDays(daysBack: daysBack, uid: uid);
+      final lines = await ingest.importDays(daysBack: daysBack, uid: uid).timeout(
+        const Duration(seconds: 60),
+        onTimeout: () {
+          debugPrint('❌ Health Import Debug - Import timeout');
+          return <Map<String, dynamic>>[];
+        },
+      );
 
-      // Debug: Log import results
       debugPrint('🔍 Health Import Debug - Import completed. Lines returned: ${lines.length}');
+      
       if (lines.isEmpty) {
-        debugPrint('❌ Health Import Debug - NO DATA RETURNED from HealthIngest.importDays()');
-        debugPrint('❌ This means either:');
-        debugPrint('❌ 1. HealthKit returned 0 data points');
+        debugPrint('❌ Health Import Debug - NO DATA RETURNED');
+        debugPrint('❌ Possible reasons:');
+        debugPrint('❌ 1. No health data in Apple Health for this date range');
         debugPrint('❌ 2. Running on iOS Simulator (HealthKit not supported)');
-        debugPrint('❌ 3. Apple Health app has no data for requested types');
-        debugPrint('❌ 4. Date range has no data');
+        debugPrint('❌ 3. Health data types not available');
       }
 
       if (lines.isNotEmpty) {
-        final first = (lines.first['timeslice'] as Map)['start'] as String;
-        final monthKey = first.substring(0, 7);
-        final file = await McpFs.healthMonth(monthKey);
-        debugPrint('Writing health data to: ${file.path}');
-        final sink = file.openWrite(mode: FileMode.append);
-        for (final m in lines) {
-          sink.writeln(jsonEncode(m));
+        debugPrint('🔍 Health Import Debug - Writing ${lines.length} entries to file...');
+        try {
+          final first = (lines.first['timeslice'] as Map)['start'] as String;
+          final monthKey = first.substring(0, 7);
+          final file = await McpFs.healthMonth(monthKey);
+          debugPrint('🔍 Health Import Debug - File path: ${file.path}');
+          
+          final sink = file.openWrite(mode: FileMode.append);
+          for (final m in lines) {
+            sink.writeln(jsonEncode(m));
+          }
+          await sink.close();
+          debugPrint('✅ Health Import Debug - Successfully wrote ${lines.length} entries');
+        } catch (fileError) {
+          debugPrint('❌ Health Import Debug - File write error: $fileError');
+          throw Exception('Failed to save health data: $fileError');
         }
-        await sink.close();
-        debugPrint('Wrote ${lines.length} health data lines to ${file.path}');
       }
 
+      if (!mounted) return;
       setState(() {
         if (lines.isEmpty) {
           _importStatus = 'Import completed - No health data found';
@@ -165,24 +190,58 @@ class _HealthSettingsDialogState extends State<HealthSettingsDialog> {
         if (lines.isEmpty) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Import completed - No health data found. Check debug logs for details.'),
+              content: Text('Import completed - No health data found in Apple Health'),
               backgroundColor: Colors.orange,
+              duration: Duration(seconds: 5),
             ),
           );
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Successfully imported ${lines.length} days of health data')),
+            SnackBar(
+              content: Text('Successfully imported ${lines.length} days of health data'),
+              backgroundColor: Colors.green,
+            ),
           );
         }
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
+      debugPrint('❌ Health Import Debug - CRASH: $e');
+      debugPrint('❌ Stack trace: $stackTrace');
+      
+      if (!mounted) return;
       setState(() {
-        _importStatus = 'Error: $e';
+        _importStatus = 'Error: ${e.toString().split('\n').first}';
         _importing = false;
       });
+      
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Import failed: $e')),
+          SnackBar(
+            content: Text('Import failed: ${e.toString().split('\n').first}'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
+            action: SnackBarAction(
+              label: 'Details',
+              textColor: Colors.white,
+              onPressed: () {
+                showDialog(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: const Text('Import Error Details'),
+                    content: SingleChildScrollView(
+                      child: Text('$e\n\nStack trace:\n$stackTrace'),
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        child: const Text('Close'),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
         );
       }
     }
@@ -330,9 +389,80 @@ class _HealthSettingsDialogState extends State<HealthSettingsDialog> {
         ),
         const SizedBox(height: 8),
         Text(
-          'These values influence how LUMARA responds to you. Low sleep or energy will make LUMARA more supportive and gentle.',
+          'Tell LUMARA how you\'re feeling right now. This helps LUMARA adapt its tone and depth to match your current state.',
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
             color: Colors.grey,
+          ),
+        ),
+        const SizedBox(height: 12),
+        // Explanatory cards
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.blue.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.blue.withOpacity(0.3)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.bedtime, size: 16, color: Colors.blue),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Sleep Quality',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.blue,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'How rested do you feel? Low = tired/groggy, High = refreshed/alert',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Colors.grey.shade700,
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.orange.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.orange.withOpacity(0.3)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.bolt, size: 16, color: Colors.orange),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Energy Level',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.orange,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'How much mental/physical energy do you have? Low = drained/overwhelmed, High = energized/focused',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Colors.grey.shade700,
+                  fontSize: 12,
+                ),
+              ),
+            ],
           ),
         ),
         const SizedBox(height: 16),
