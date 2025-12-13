@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:my_app/prism/services/health_service.dart';
 import 'package:my_app/mira/store/mcp/mcp_fs.dart';
+import 'package:my_app/services/health_data_service.dart';
 import 'package:health/health.dart';
 
 class HealthSettingsDialog extends StatefulWidget {
@@ -15,6 +16,64 @@ class HealthSettingsDialog extends StatefulWidget {
 class _HealthSettingsDialogState extends State<HealthSettingsDialog> {
   bool _importing = false;
   String? _importStatus;
+  
+  // LUMARA health signals
+  double _sleepQuality = 0.7;
+  double _energyLevel = 0.7;
+  bool _loadingHealthData = true;
+  bool _savingHealthData = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadHealthData();
+  }
+
+  Future<void> _loadHealthData() async {
+    try {
+      final healthData = await HealthDataService.instance.getHealthData();
+      if (mounted) {
+        setState(() {
+          _sleepQuality = healthData.sleepQuality;
+          _energyLevel = healthData.energyLevel;
+          _loadingHealthData = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading health data: $e');
+      if (mounted) {
+        setState(() => _loadingHealthData = false);
+      }
+    }
+  }
+
+  Future<void> _saveHealthData() async {
+    setState(() => _savingHealthData = true);
+    try {
+      await HealthDataService.instance.updateHealthData(
+        sleepQuality: _sleepQuality,
+        energyLevel: _energyLevel,
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Health data saved - LUMARA will adapt to your current state'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error saving health data: $e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _savingHealthData = false);
+      }
+    }
+  }
 
   Future<void> _importHealth({required int daysBack}) async {
     setState(() {
@@ -134,30 +193,39 @@ class _HealthSettingsDialogState extends State<HealthSettingsDialog> {
     return Dialog(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       child: Container(
-        constraints: const BoxConstraints(maxWidth: 400, maxHeight: 600),
+        constraints: const BoxConstraints(maxWidth: 400, maxHeight: 700),
         padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Health Settings',
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
-                IconButton(
-                  icon: const Icon(Icons.close),
-                  onPressed: () => Navigator.of(context).pop(),
-                ),
-              ],
-            ),
-            const SizedBox(height: 24),
-            Text(
-              'Import Health Data',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Health Settings',
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+              
+              // LUMARA Health Signals Section
+              _buildLumaraHealthSection(context),
+              
+              const SizedBox(height: 24),
+              const Divider(),
+              const SizedBox(height: 16),
+              
+              Text(
+                'Import Health Data',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
             const SizedBox(height: 8),
             Text(
               'Import and aggregate health metrics from Apple Health for analysis. Select how many days of data to import.',
@@ -238,8 +306,186 @@ class _HealthSettingsDialogState extends State<HealthSettingsDialog> {
             ],
           ],
         ),
+        ),
       ),
     );
+  }
+
+  /// Build LUMARA Health Signals section
+  Widget _buildLumaraHealthSection(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Icon(Icons.psychology, color: Colors.purple, size: 20),
+            const SizedBox(width: 8),
+            Text(
+              'LUMARA Health Signals',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                color: Colors.purple,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'These values influence how LUMARA responds to you. Low sleep or energy will make LUMARA more supportive and gentle.',
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+            color: Colors.grey,
+          ),
+        ),
+        const SizedBox(height: 16),
+        
+        if (_loadingHealthData)
+          const Center(child: CircularProgressIndicator())
+        else ...[
+          // Sleep Quality Slider
+          _buildHealthSlider(
+            context: context,
+            label: 'Sleep Quality',
+            icon: Icons.bedtime,
+            value: _sleepQuality,
+            onChanged: (v) => setState(() => _sleepQuality = v),
+            lowLabel: 'Poor',
+            highLabel: 'Great',
+          ),
+          
+          const SizedBox(height: 16),
+          
+          // Energy Level Slider
+          _buildHealthSlider(
+            context: context,
+            label: 'Energy Level',
+            icon: Icons.bolt,
+            value: _energyLevel,
+            onChanged: (v) => setState(() => _energyLevel = v),
+            lowLabel: 'Low',
+            highLabel: 'High',
+          ),
+          
+          const SizedBox(height: 20),
+          
+          // Save Button
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: _savingHealthData ? null : _saveHealthData,
+              icon: _savingHealthData 
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.save),
+              label: Text(_savingHealthData ? 'Saving...' : 'Save Health Status'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.purple,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+              ),
+            ),
+          ),
+          
+          const SizedBox(height: 8),
+          
+          // Effect preview
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.purple.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.purple.withOpacity(0.3)),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.info_outline, size: 16, color: Colors.purple),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    _getHealthEffectDescription(),
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Colors.purple,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildHealthSlider({
+    required BuildContext context,
+    required String label,
+    required IconData icon,
+    required double value,
+    required ValueChanged<double> onChanged,
+    required String lowLabel,
+    required String highLabel,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(icon, size: 18, color: Colors.grey),
+            const SizedBox(width: 8),
+            Text(label, style: Theme.of(context).textTheme.bodyMedium),
+            const Spacer(),
+            Text(
+              '${(value * 100).toInt()}%',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: _getValueColor(value),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        SliderTheme(
+          data: SliderTheme.of(context).copyWith(
+            activeTrackColor: _getValueColor(value),
+            inactiveTrackColor: Colors.grey.withOpacity(0.3),
+            thumbColor: _getValueColor(value),
+            overlayColor: _getValueColor(value).withOpacity(0.2),
+          ),
+          child: Slider(
+            value: value,
+            min: 0.0,
+            max: 1.0,
+            divisions: 10,
+            onChanged: onChanged,
+          ),
+        ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(lowLabel, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.grey)),
+            Text(highLabel, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.grey)),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Color _getValueColor(double value) {
+    if (value < 0.4) return Colors.red;
+    if (value < 0.6) return Colors.orange;
+    return Colors.green;
+  }
+
+  String _getHealthEffectDescription() {
+    if (_sleepQuality < 0.4 || _energyLevel < 0.4) {
+      return 'LUMARA will be extra gentle and supportive today.';
+    } else if (_sleepQuality < 0.6 || _energyLevel < 0.6) {
+      return 'LUMARA will maintain a warm, balanced tone.';
+    } else if (_sleepQuality > 0.7 && _energyLevel > 0.7) {
+      return 'LUMARA may offer more direct insights and challenges.';
+    }
+    return 'LUMARA will adapt to your current state.';
   }
 }
 
