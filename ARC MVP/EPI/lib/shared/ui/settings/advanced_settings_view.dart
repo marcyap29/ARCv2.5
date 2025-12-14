@@ -6,6 +6,9 @@ import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
 import 'package:my_app/arc/chat/services/lumara_reflection_settings_service.dart';
 import 'package:my_app/shared/ui/settings/combined_analysis_view.dart';
+import 'package:my_app/arc/chat/voice/transcription/transcription_provider.dart';
+import 'package:my_app/services/assemblyai_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class AdvancedSettingsView extends StatefulWidget {
   const AdvancedSettingsView({super.key});
@@ -22,6 +25,10 @@ class _AdvancedSettingsViewState extends State<AdvancedSettingsView> {
   bool _crossModalEnabled = true;
   bool _therapeuticAutomaticMode = false;
   bool _isLoading = true;
+  
+  // Voice & Transcription settings
+  SttMode _sttMode = SttMode.auto;
+  SttTier _userTier = SttTier.free;
 
   @override
   void initState() {
@@ -34,6 +41,17 @@ class _AdvancedSettingsViewState extends State<AdvancedSettingsView> {
       final settingsService = LumaraReflectionSettingsService.instance;
       final settings = await settingsService.loadAllSettings();
       
+      // Load transcription settings
+      final prefs = await SharedPreferences.getInstance();
+      final savedMode = prefs.getString('stt_mode');
+      final sttMode = savedMode != null
+          ? SttMode.values.firstWhere((m) => m.name == savedMode, orElse: () => SttMode.auto)
+          : SttMode.auto;
+      
+      // Get user tier
+      final assemblyAIService = AssemblyAIService();
+      final userTier = await assemblyAIService.getUserTier();
+      
       if (mounted) {
         setState(() {
           _similarityThreshold = settings['similarityThreshold'] as double;
@@ -41,6 +59,8 @@ class _AdvancedSettingsViewState extends State<AdvancedSettingsView> {
           _maxMatches = settings['maxMatches'] as int;
           _crossModalEnabled = settings['crossModalEnabled'] as bool;
           _therapeuticAutomaticMode = settings['therapeuticAutomaticMode'] as bool;
+          _sttMode = sttMode;
+          _userTier = userTier;
           _isLoading = false;
         });
       }
@@ -185,6 +205,16 @@ class _AdvancedSettingsViewState extends State<AdvancedSettingsView> {
                           _saveSettings();
                         },
                       ),
+                    ],
+                  ),
+                  
+                  const SizedBox(height: 32),
+                  
+                  // Voice & Transcription Section
+                  _buildSection(
+                    title: 'Voice & Transcription',
+                    children: [
+                      _buildTranscriptionModeTile(),
                     ],
                   ),
                   
@@ -367,6 +397,198 @@ class _AdvancedSettingsViewState extends State<AdvancedSettingsView> {
         onChanged: onChanged,
         activeColor: kcAccentColor,
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      ),
+    );
+  }
+
+  Widget _buildTranscriptionModeTile() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white.withOpacity(0.1)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.mic, color: kcAccentColor, size: 24),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Transcription Mode',
+                      style: heading3Style(context).copyWith(
+                        color: kcPrimaryTextColor,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    Text(
+                      'Choose how voice is transcribed to text',
+                      style: bodyStyle(context).copyWith(
+                        color: kcSecondaryTextColor,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          _buildTranscriptionModeOption(
+            mode: SttMode.auto,
+            title: 'Auto (Recommended)',
+            description: 'Uses cloud when available, falls back to on-device automatically',
+            icon: Icons.auto_awesome,
+          ),
+          const SizedBox(height: 8),
+          _buildTranscriptionModeOption(
+            mode: SttMode.cloud,
+            title: 'Cloud (AssemblyAI)',
+            description: 'Higher accuracy, requires internet',
+            icon: Icons.cloud,
+            requiresPro: _userTier == SttTier.free,
+          ),
+          const SizedBox(height: 8),
+          _buildTranscriptionModeOption(
+            mode: SttMode.local,
+            title: 'Local (On-Device)',
+            description: 'Works offline, good for privacy',
+            icon: Icons.smartphone,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTranscriptionModeOption({
+    required SttMode mode,
+    required String title,
+    required String description,
+    required IconData icon,
+    bool requiresPro = false,
+  }) {
+    final isSelected = _sttMode == mode;
+    final isDisabled = requiresPro;
+    
+    return GestureDetector(
+      onTap: isDisabled
+          ? () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Cloud transcription requires BETA or PRO subscription'),
+                  duration: Duration(seconds: 3),
+                ),
+              );
+            }
+          : () async {
+              setState(() {
+                _sttMode = mode;
+              });
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.setString('stt_mode', mode.name);
+            },
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? kcAccentColor.withOpacity(0.15)
+              : Colors.white.withOpacity(0.03),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: isSelected
+                ? kcAccentColor
+                : Colors.white.withOpacity(0.1),
+            width: isSelected ? 2 : 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 20,
+              height: 20,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: isDisabled
+                      ? Colors.grey
+                      : isSelected
+                          ? kcAccentColor
+                          : kcSecondaryTextColor,
+                  width: 2,
+                ),
+                color: isSelected ? kcAccentColor : Colors.transparent,
+              ),
+              child: isSelected
+                  ? const Icon(Icons.check, size: 12, color: Colors.white)
+                  : null,
+            ),
+            const SizedBox(width: 12),
+            Icon(
+              icon,
+              size: 20,
+              color: isDisabled
+                  ? Colors.grey
+                  : isSelected
+                      ? kcAccentColor
+                      : kcSecondaryTextColor,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        title,
+                        style: bodyStyle(context).copyWith(
+                          color: isDisabled
+                              ? Colors.grey
+                              : kcPrimaryTextColor,
+                          fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                        ),
+                      ),
+                      if (requiresPro) ...[
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.amber.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            'PRO',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.amber[700],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                  Text(
+                    description,
+                    style: bodyStyle(context).copyWith(
+                      color: isDisabled
+                          ? Colors.grey.withOpacity(0.7)
+                          : kcSecondaryTextColor,
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

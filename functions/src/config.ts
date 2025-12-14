@@ -9,6 +9,9 @@ import { ModelFamily, ModelConfig } from "./types";
  */
 export const GEMINI_API_KEY = defineSecret("GEMINI_API_KEY");
 
+// AssemblyAI API key for cloud transcription
+export const ASSEMBLYAI_API_KEY = defineSecret("ASSEMBLYAI_API_KEY");
+
 // Throttle unlock password (stored as secret for security)
 export const THROTTLE_UNLOCK_PASSWORD = defineSecret("THROTTLE_UNLOCK_PASSWORD");
 

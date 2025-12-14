@@ -39,6 +39,9 @@ export interface UserDocument {
   linkedFromAnonymous?: string; // UID of the anonymous account this was linked from
   linkedToAccount?: string; // UID of the real account this anonymous account was linked to
   linkedAt?: admin.firestore.Timestamp; // When account was linked
+  // Beta access flags (for cloud features like AssemblyAI STT)
+  isBetaUser?: boolean; // True if user has beta access
+  betaAccess?: boolean; // Alternative beta flag
   createdAt: admin.firestore.Timestamp;
   updatedAt: admin.firestore.Timestamp;
 }
