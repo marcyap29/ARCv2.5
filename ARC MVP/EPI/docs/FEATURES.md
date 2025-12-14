@@ -1,6 +1,6 @@
 # EPI MVP - Comprehensive Features Guide
 
-**Version:** 2.1.53
+**Version:** 2.1.54
 **Last Updated:** December 13, 2025
 
 ---
@@ -543,16 +543,21 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 
 **Export Features**
 - **Format Support**: Standard ZIP (.zip) format for compatibility
+- **Standardized File Structure (v2.1.54)**:
+  - Journal entries: `Entries/{YYYY}/{MM}/{DD}/{slug}.json`
+  - Chat sessions: `Chats/{YYYY}/{MM}/{DD}/{session-id}.json` (with nested messages)
+  - Extended data: `extensions/` directory
 - **Complete Content Export**: Both formats export all data types:
-  - Journal entries with full metadata
-  - Media (photos, videos, audio, files)
-  - Chat sessions and messages
-  - Health data streams
+  - Journal entries with full metadata (including links, date_bucket, slug)
+  - Media (photos, videos, audio, files) with embedded metadata
+  - Chat sessions with nested messages, content_parts, and metadata
+  - Health data streams and health associations
   - Phase Regimes
   - RIVET state
   - Sentinel state
   - ArcForm timeline snapshots
   - LUMARA Favorites (all categories: answers, chats, journal entries)
+  - Edges (relationship tracking via edges.jsonl)
 - **Media Pack Organization**: Media files organized into packs for efficient storage:
   - Configurable pack size (50-500 MB, default 200 MB)
   - Media organized into `/Media/packs/pack-XXX/` directories
@@ -562,12 +567,16 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
   - Available for both ARCX and ZIP export formats
 - **Date Range Filtering**: Export entries, chats, and media within custom date ranges
 - **Robust State Management**: Proper state reset ensures "Export All Entries" works correctly after filtered exports
-- **Extended Data**: All extended data exported to `extensions/` directory in ZIP format
+- **Extended Data**: All extended data exported to `extensions/` directory
 - **Privacy Protection**: PII detection and flagging
 - **Deterministic Exports**: Same input = same output
 
 **Import Features**
 - **Format Support**: MCP v1 compliant ZIP files and ARCX encrypted archives
+- **Backward Compatibility (v2.1.54)**:
+  - Supports new date-bucketed structure (`Entries/`, `Chats/`, `extensions/`)
+  - Supports legacy flat structure (`nodes/journal/`, `nodes/chat/`, `PhaseRegimes/`)
+  - Automatic detection of format version for seamless migration
 - **Extended Data Import**: Full support for importing Phase Regimes, RIVET state, Sentinel state, ArcForm timeline, and LUMARA Favorites
 - **Category Preservation**: Favorite categories (answers, chats, journal entries) are preserved during import
 - **Capacity Management**: Import respects category-specific limits (25 answers, 25 chats, 25 journal entries)
@@ -631,6 +640,6 @@ All core features are production-ready and fully operational:
 ---
 
 **Features Guide Status:** ✅ Complete
-**Last Updated:** December 9, 2025
-**Version:** 2.1.46
+**Last Updated:** December 13, 2025
+**Version:** 2.1.54
 

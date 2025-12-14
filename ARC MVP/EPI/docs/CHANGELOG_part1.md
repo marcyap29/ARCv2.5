@@ -1,8 +1,57 @@
 # EPI ARC MVP - Changelog (Part 1: December 2025)
 
-**Version:** 2.1.53
+**Version:** 2.1.54
 **Last Updated:** December 13, 2025
 **Coverage:** December 2025 releases
+
+---
+
+## [2.1.54] - December 13, 2025
+
+### **Export Format Standardization** - ✅ Complete
+
+Unified ZIP (.zip/.mcpkg) and ARCX (.arcx) export formats with identical date-bucketed file structures and backward-compatible import services.
+
+#### Standardized File Structure
+- **Journal Entries**: `Entries/{YYYY}/{MM}/{DD}/{slug}.json`
+- **Chat Sessions**: `Chats/{YYYY}/{MM}/{DD}/{session-id}.json` (with nested messages)
+- **Extended Data**: `extensions/` directory (unified from `PhaseRegimes/`)
+
+#### Added to MCP/ZIP Format
+- `links` field: Relationship mapping (media_ids, chat_thread_ids) for navigation
+- `date_bucket` field: Date organization metadata (YYYY/MM/DD format)
+- `slug` field: URL-friendly identifier for entries
+- `content_parts` and `metadata`: Added to chat messages (aligned with ARCX format)
+- Slug generation with collision handling for duplicate titles
+
+#### Added to ARCX Format
+- `health_association`: Health data association in journal entries (aligned with MCP format)
+- `timestamp`: Additional timestamp field for compatibility
+- `media`: Embedded media metadata array for self-containment (aligned with MCP format)
+- `edges.jsonl`: Relationship edges file (aligned with MCP format)
+- Health stream export: Exports filtered health streams to `streams/health/` directory
+
+#### Import Backward Compatibility
+- **MCP Import**: Supports both new `Entries/` bucketed structure and legacy `nodes/journal/` flat structure
+- **MCP Import**: Supports both new `Chats/` bucketed structure with nested messages and legacy `nodes/chat/` structure
+- **ARCX Import**: Supports both new `extensions/` directory and legacy `PhaseRegimes/` directory
+
+#### Both Formats Now Include
+- All journal entry fields (emotion, keywords, phase, lumaraBlocks, etc.)
+- Chats with content_parts and metadata (nested in session files)
+- Media with full metadata
+- Phase regimes, RIVET state, Sentinel state, ArcForm timeline, LUMARA favorites
+- Health associations and health streams (filtered by journal entry dates)
+- Links for relationship mapping
+- Date buckets for organization
+- Edges for relationship tracking
+
+**Status**: ✅ Complete  
+**Files Modified**:
+- `lib/mira/store/arcx/services/arcx_export_service_v2.dart` - Added health_association, embedded media, health streams, edges.jsonl, extensions/ directory
+- `lib/mira/store/arcx/services/arcx_import_service_v2.dart` - Backward compatibility for extensions/ and PhaseRegimes/
+- `lib/mira/store/mcp/export/mcp_pack_export_service.dart` - Added links, date_bucket, slug, date-bucketed structure, nested chat messages
+- `lib/mira/store/mcp/import/mcp_pack_import_service.dart` - Backward compatibility for bucketed and legacy structures
 
 ---
 

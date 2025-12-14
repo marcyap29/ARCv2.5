@@ -3,7 +3,7 @@
 **Repository:** ARCv.04/ARC MVP/EPI
 **Last Updated:** December 13, 2025
 **Current Branch:** dev-voice-updates
-**Status:** ✅ Active Development - Voice Chat UI Complete (v2.1.53)
+**Status:** ✅ Active Development - Export Format Standardization Complete (v2.1.54)
 
 ---
 
@@ -98,6 +98,13 @@ The EPI (Evolving Personal Intelligence) project maintains a comprehensive git h
 - **UI Stability**: Chat interface and data handling improvements
 - **Documentation Updates**: Comprehensive v2.1.42 documentation
 
+### 📦 Phase 11: Export Format Standardization (December 2025)
+- **Unified File Structure**: Date-bucketed paths (`Entries/{YYYY}/{MM}/{DD}/`, `Chats/{YYYY}/{MM}/{DD}/`)
+- **Extended Data Consolidation**: All formats now use `extensions/` directory
+- **Import Backward Compatibility**: Supports legacy `nodes/` and `PhaseRegimes/` structures
+- **New Fields**: links, date_bucket, slug, edges.jsonl for both formats
+- **Health Integration**: Health associations and health streams in both formats
+
 ### 🎤 Phase 10: Voice Chat UI (December 2025)
 - **Jarvis-Style Voice Indicator**: Glowing, pulsing orb with ChatGPT-style animation
 - **Mic Button in AppBar**: Easy access to voice chat from LUMARA
@@ -140,7 +147,13 @@ The EPI (Evolving Personal Intelligence) project maintains a comprehensive git h
 
 ## Major Features by Version
 
-### 📌 v2.1.53 (Current - December 13, 2025)
+### 📌 v2.1.54 (Current - December 13, 2025)
+- ✅ **Export Format Standardization**: Unified ZIP and ARCX with date-bucketed file structure
+- ✅ **File Structure**: `Entries/{YYYY}/{MM}/{DD}/`, `Chats/{YYYY}/{MM}/{DD}/`, `extensions/`
+- ✅ **Import Backward Compatibility**: Supports both new bucketed and legacy flat structures
+- ✅ **New Fields**: links, date_bucket, slug, edges.jsonl, health_association, embedded media
+
+### 📌 v2.1.53 (December 13, 2025)
 - ✅ **Voice Chat UI**: Jarvis-style glowing voice indicator
 - ✅ **Mic Button**: Added to LUMARA chat AppBar
 - ✅ **State Colors**: Red→Orange→Green for listening→thinking→speaking

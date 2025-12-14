@@ -1,6 +1,6 @@
 # EPI Documentation Context Guide
 
-**Version:** 2.1.53
+**Version:** 2.1.54
 **Last Updated:** December 13, 2025
 **Current Branch:** `dev-voice-updates`
 
@@ -59,7 +59,7 @@ Location: `/Users/mymac/Software Development/ARCv.04/ARC MVP/EPI/docs/git.md`
 ### 📜 Changelog
 Location: `/Users/mymac/Software Development/ARCv.04/ARC MVP/EPI/docs/CHANGELOG.md`
 - Split into parts for manageability:
-  - `CHANGELOG_part1.md` - December 2025 (v2.1.43 - v2.1.52)
+  - `CHANGELOG_part1.md` - December 2025 (v2.1.43 - v2.1.54)
   - `CHANGELOG_part2.md` - November 2025 (v2.1.28 - v2.1.42)
   - `CHANGELOG_part3.md` - Earlier versions
 

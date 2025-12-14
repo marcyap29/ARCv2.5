@@ -1,6 +1,6 @@
 # EPI ARC MVP - Changelog
 
-**Version:** 2.1.53
+**Version:** 2.1.54
 **Last Updated:** December 13, 2025
 
 ---
@@ -17,7 +17,7 @@ This changelog has been split into parts for easier navigation:
 
 ---
 
-## [2.1.53] - December 13, 2025
+## [2.1.54] - December 13, 2025
 
 ### **Export Format Alignment & Standardization** - ✅ Complete
 
@@ -231,6 +231,7 @@ Visible floating scroll buttons added across all scrollable screens.
 
 | Version | Date | Key Feature |
 |---------|------|-------------|
+| 2.1.54 | Dec 13, 2025 | Export Format Standardization |
 | 2.1.53 | Dec 13, 2025 | Jarvis-Style Voice Chat UI |
 | 2.1.52 | Dec 13, 2025 | Settings Reorganization & Health Integration |
 | 2.1.51 | Dec 12, 2025 | LUMARA Persona System |
