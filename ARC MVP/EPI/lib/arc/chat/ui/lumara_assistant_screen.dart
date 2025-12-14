@@ -188,6 +188,7 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
           controller: _voiceChatService!.controller!,
           diagnostics: _voiceChatService!.diagnostics,
           partialTranscript: _partialTranscript,
+          audioLevelStream: _voiceChatService!.audioLevelStream,
         ),
       ),
     );

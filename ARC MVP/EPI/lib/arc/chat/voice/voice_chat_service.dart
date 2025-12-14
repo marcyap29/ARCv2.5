@@ -32,6 +32,11 @@ class VoiceChatService {
   String _accumulatedTranscript = ''; // Accumulates text across pauses
   final StreamController<String> _partialTranscriptController = StreamController<String>.broadcast();
   
+  // Audio level tracking for visualization
+  double _currentAudioLevel = 0.0;
+  final StreamController<double> _audioLevelController = StreamController<double>.broadcast();
+  Stream<double> get audioLevelStream => _audioLevelController.stream;
+  
   bool _useModeA = true; // Default to Mode A (STT → PRISM → LLM → TTS)
   VoiceContext _context = VoiceContext.chat; // Default to chat context
   
@@ -167,6 +172,13 @@ class VoiceChatService {
     }
 
     await _audioIO.startListening(
+      onSoundLevelChange: (level) {
+        // Normalize audio level (speech_to_text provides -160 to 0 dB, convert to 0.0-1.0)
+        // Typical speaking range is -40 to -10 dB, so we'll map that to 0.0-1.0
+        final normalizedLevel = ((level + 40) / 30).clamp(0.0, 1.0);
+        _currentAudioLevel = normalizedLevel;
+        _audioLevelController.add(normalizedLevel);
+      },
       onPartialResult: (partial) {
         // Only update transcript if we're still listening (not idle/ended)
         final currentState = _controller?.state;
@@ -459,5 +471,6 @@ class VoiceChatService {
   void dispose() {
     _audioIO.cleanupTempAudio();
     _partialTranscriptController.close();
+    _audioLevelController.close();
   }
 }

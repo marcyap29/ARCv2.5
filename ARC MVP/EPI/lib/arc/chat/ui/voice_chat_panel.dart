@@ -1,18 +1,21 @@
 import 'package:flutter/material.dart';
 import '../voice/push_to_talk_controller.dart';
 import '../voice/voice_diagnostics.dart';
-import 'package:my_app/shared/widgets/glowing_voice_indicator.dart';
+import 'animated_voice_orb.dart';
+import 'dart:async';
 
 class VoiceChatPanel extends StatefulWidget {
   final PushToTalkController controller;
   final VoiceDiagnostics? diagnostics;
   final String? partialTranscript;
+  final Stream<double>? audioLevelStream; // Audio level stream for visualization
 
   const VoiceChatPanel({
     super.key,
     required this.controller,
     this.diagnostics,
     this.partialTranscript,
+    this.audioLevelStream,
   });
 
   @override
@@ -20,16 +23,31 @@ class VoiceChatPanel extends StatefulWidget {
 }
 
 class _VoiceChatPanelState extends State<VoiceChatPanel> {
+  double _currentAudioLevel = 0.0;
+  StreamSubscription<double>? _audioLevelSubscription;
+
   @override
   void initState() {
     super.initState();
     // Listen to controller state changes
     widget.controller.addListener(_onControllerStateChanged);
+    
+    // Listen to audio level stream if provided
+    if (widget.audioLevelStream != null) {
+      _audioLevelSubscription = widget.audioLevelStream!.listen((level) {
+        if (mounted) {
+          setState(() {
+            _currentAudioLevel = level;
+          });
+        }
+      });
+    }
   }
 
   @override
   void dispose() {
     widget.controller.removeListener(_onControllerStateChanged);
+    _audioLevelSubscription?.cancel();
     super.dispose();
   }
 
@@ -86,9 +104,16 @@ class _VoiceChatPanelState extends State<VoiceChatPanel> {
             ),
             const SizedBox(height: 24),
             
-            // Glowing voice indicator with state-based styling
+            // Animated voice orb with state-based styling
             Center(
-              child: _buildMicrophoneButton(currentState, isListening, isSpeaking, isThinking),
+              child: AnimatedVoiceOrb(
+                state: currentState,
+                audioLevel: currentState == VCState.listening ? _currentAudioLevel : null,
+                onTap: (currentState == VCState.idle || currentState == VCState.listening) 
+                    ? widget.controller.onMicTap 
+                    : null,
+                isEnabled: currentState == VCState.idle || currentState == VCState.listening,
+              ),
             ),
             
             const SizedBox(height: 16),
@@ -255,62 +280,6 @@ class _VoiceChatPanelState extends State<VoiceChatPanel> {
     );
   }
 
-  /// Build microphone button with state-based styling
-  Widget _buildMicrophoneButton(VCState state, bool isListening, bool isSpeaking, bool isThinking) {
-    final isEnabled = state == VCState.idle || state == VCState.listening;
-    final isProcessing = isThinking || isSpeaking;
-    
-    // Determine colors and icon based on state
-    Color primaryColor;
-    Color glowColor;
-    IconData icon;
-    bool isActive;
-    
-    if (state == VCState.idle) {
-      // Green when ready to transcribe
-      primaryColor = Colors.green;
-      glowColor = Colors.greenAccent;
-      icon = Icons.mic;
-      isActive = false; // No animation when idle/ready
-    } else if (state == VCState.thinking) {
-      // Yellow when processing
-      primaryColor = Colors.amber;
-      glowColor = Colors.orangeAccent;
-      icon = Icons.hourglass_empty;
-      isActive = true; // Animate when processing
-    } else if (state == VCState.speaking) {
-      // Grayed out when speaking (TTS active)
-      primaryColor = Colors.grey;
-      glowColor = Colors.grey;
-      icon = Icons.mic;
-      isActive = false; // No animation when speaking
-    } else if (state == VCState.listening) {
-      // Red when listening
-      primaryColor = Colors.red;
-      glowColor = Colors.redAccent;
-      icon = Icons.mic;
-      isActive = true; // Animate when listening
-    } else {
-      // Error or other states
-      primaryColor = Colors.grey;
-      glowColor = Colors.grey;
-      icon = Icons.mic;
-      isActive = false;
-    }
-    
-    return Opacity(
-      opacity: isEnabled ? 1.0 : 0.5, // Grayed out when disabled
-      child: GlowingVoiceIndicator(
-        icon: icon,
-        primaryColor: primaryColor,
-        glowColor: glowColor,
-        size: 80,
-        isActive: isActive,
-        onTap: isEnabled ? widget.controller.onMicTap : null, // Disable tap when processing/speaking
-      ),
-    );
-  }
-
   Color _getStateColor(VCState state) {
     switch (state) {
       case VCState.listening:
@@ -323,25 +292,6 @@ class _VoiceChatPanelState extends State<VoiceChatPanel> {
         return Colors.redAccent;
       case VCState.idle:
         return Colors.green; // Green when ready
-      default:
-        return Colors.grey;
-    }
-  }
-
-  Color _getGlowColor(VCState state) {
-    switch (state) {
-      case VCState.listening:
-        return Colors.redAccent;
-      case VCState.thinking:
-        return Colors.orangeAccent; // Yellow glow for processing
-      case VCState.speaking:
-        return Colors.grey; // No glow when speaking
-      case VCState.error:
-        return Colors.red;
-      case VCState.idle:
-        return Colors.greenAccent; // Green glow when ready
-      default:
-        return Colors.grey;
     }
   }
 
@@ -356,8 +306,6 @@ class _VoiceChatPanelState extends State<VoiceChatPanel> {
       case VCState.error:
         return 'Error - Try again';
       case VCState.idle:
-        return 'Ready to transcribe';
-      default:
         return 'Ready to transcribe';
     }
   }

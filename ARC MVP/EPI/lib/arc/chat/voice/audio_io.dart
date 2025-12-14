@@ -36,6 +36,7 @@ class AudioIO {
     required Function(String partial) onPartialResult,
     required Function(String finalResult) onFinalResult,
     Function(String error)? onError,
+    Function(double level)? onSoundLevelChange, // Audio level callback (0.0-1.0)
   }) async {
     if (!_sttInitialized) {
       final initialized = await initializeSTT();
@@ -59,7 +60,13 @@ class AudioIO {
       pauseFor: const Duration(seconds: 10), // Increased from 2s to allow natural pauses
       partialResults: true,
       localeId: "en_US",
-      onSoundLevelChange: null,
+      onSoundLevelChange: onSoundLevelChange != null
+          ? (level) {
+              // speech_to_text provides level in dB (typically -160 to 0)
+              // Pass it through to the callback for normalization
+              onSoundLevelChange(level);
+            }
+          : null,
       cancelOnError: true,
       listenMode: stt.ListenMode.dictation, // Changed from confirmation to dictation for longer speech
     );

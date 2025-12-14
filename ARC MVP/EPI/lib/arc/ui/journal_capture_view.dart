@@ -813,6 +813,7 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
                                           controller: _voiceChatService!.controller!,
                                           diagnostics: _voiceChatService!.diagnostics,
                                           partialTranscript: _partialTranscript,
+                                          audioLevelStream: _voiceChatService!.audioLevelStream,
                                         ),
                                       ] else ...[
                                         // Show message if initialization failed (e.g., permissions not granted)
