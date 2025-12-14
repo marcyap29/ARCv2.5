@@ -19,6 +19,32 @@ This changelog has been split into parts for easier navigation:
 
 ## [2.1.53] - December 13, 2025
 
+### **Export Format Alignment** - ✅ Complete
+
+- **Aligned ZIP (.zip/.mcpkg) and ARCX (.arcx) export formats**: Both formats now export identical data elements
+- **Added to MCP/ZIP format**:
+  * `links` field: Relationship mapping (media_ids, chat_thread_ids) for navigation between entries, chats, and media
+  * `date_bucket` field: Date organization metadata (YYYY/MM/DD format)
+  * `content_parts` and `metadata`: Added to chat messages (aligned with ARCX format)
+- **Added to ARCX format**:
+  * `health_association`: Health data association in journal entries (aligned with MCP format)
+  * `timestamp`: Additional timestamp field for compatibility
+  * `media`: Embedded media metadata array for self-containment (aligned with MCP format)
+  * Health stream export: Exports filtered health streams to `streams/health/` directory
+- **Both formats now include**:
+  * All journal entry fields (emotion, keywords, phase, lumaraBlocks, etc.)
+  * Chats with content_parts and metadata
+  * Media with full metadata
+  * Phase regimes, RIVET state, Sentinel state, ArcForm timeline, LUMARA favorites
+  * Health associations and health streams (filtered by journal entry dates)
+  * Links for relationship mapping
+  * Date buckets for organization
+
+**Status**: ✅ Complete  
+**Files Modified**:
+- `lib/mira/store/arcx/services/arcx_export_service_v2.dart` - Added health_association, embedded media, health stream export
+- `lib/mira/store/mcp/export/mcp_pack_export_service.dart` - Added links, date_bucket, content_parts/metadata to chats
+
 ### **Voice Journal Mode Enhancements** - ✅ Complete
 
 - **Fixed duplicate LUMARA responses**: Removed markdown text from content when saving (saved as InlineBlocks instead)
@@ -38,6 +64,8 @@ This changelog has been split into parts for easier navigation:
 **Status**: ✅ Complete  
 **Branch**: `dev-voice-updates`  
 **Files Modified**:
+- `lib/arc/chat/voice/audio_io.dart` - Enhanced sentence capitalization after periods
+- `lib/arc/ui/journal_capture_view.dart` - Added textCapitalization.sentences, keyboard dismissal in voice mode
 - `lib/arc/chat/ui/voice_chat_panel.dart` - Added state-based microphone button styling
 - `lib/arc/chat/voice/push_to_talk_controller.dart` - Added guards to prevent taps during processing
 - `lib/arc/chat/voice/voice_orchestrator.dart` - Added speaking state callbacks, fixed TTS flow

@@ -112,6 +112,9 @@ class McpPackExportService {
         await _copyFilteredHealthStreams(sourceHealthDir, Directory(path.join(mcpDir.path, 'streams', 'health')), journalDates);
       }
       
+      // Build links map for entries (aligned with ARCX format)
+      final links = _buildLinksMap(entries);
+      
       // Process each entry (collect media metadata but don't write files yet if using packs)
       final processedEntries = <Map<String, dynamic>>[];
       final allMediaItems = <MediaItem>[]; // Collect all media items for pack organization
@@ -125,6 +128,7 @@ class McpPackExportService {
           mcpDir, 
           includePhotos, 
           reducePhotoSize,
+          links: links,
           usePacks: includePhotos && mediaPackTargetSizeMB > 0,
         );
         processedEntries.add(processedEntry);
@@ -277,6 +281,7 @@ class McpPackExportService {
     Directory mcpDir,
     bool includePhotos,
     bool reducePhotoSize, {
+    Map<String, Map<String, List<String>>>? links,
     bool usePacks = false, // If true, only create metadata, don't write files
   }) async {
     final processedMedia = <Map<String, dynamic>>[];
@@ -334,6 +339,15 @@ class McpPackExportService {
       'association_created_at': DateTime.now().toUtc().toIso8601String(),
     };
 
+    // Create date bucket (aligned with ARCX format)
+    final dateBucket = '${entry.createdAt.year.toString().padLeft(4, '0')}/${entry.createdAt.month.toString().padLeft(2, '0')}/${entry.createdAt.day.toString().padLeft(2, '0')}';
+    
+    // Get entry links (aligned with ARCX format)
+    final entryLinks = links?['entry-${entry.id}'] ?? {
+      'media_ids': entry.media.map((m) => m.id).toList(),
+      'chat_thread_ids': [], // TODO: Extract from entry metadata if available
+    };
+
     // Create processed entry with properly formatted timestamp and health association
     final processedEntry = {
       'id': entry.id,
@@ -341,6 +355,11 @@ class McpPackExportService {
       'title': entry.title,
       'content': entry.content,
       'media': processedMedia,
+      'date_bucket': dateBucket, // Aligned with ARCX format
+      'links': { // Aligned with ARCX format
+        'media_ids': entryLinks['media_ids'] ?? [],
+        'chat_thread_ids': entryLinks['chat_thread_ids'] ?? [],
+      },
       'emotion': entry.emotion,
       'emotionReason': entry.emotionReason,
       'phase': entry.phase, // Legacy field for backward compatibility
@@ -589,6 +608,22 @@ class McpPackExportService {
   }
 
 
+  /// Build links map for entries (aligned with ARCX format)
+  Map<String, Map<String, List<String>>> _buildLinksMap(List<JournalEntry> entries) {
+    final links = <String, Map<String, List<String>>>{};
+    
+    // Build entry links
+    for (final entry in entries) {
+      final entryLinks = <String, List<String>>{
+        'media_ids': entry.media.map((m) => m.id).toList(),
+        'chat_thread_ids': [], // TODO: Extract from entry metadata if available
+      };
+      links['entry-${entry.id}'] = entryLinks;
+    }
+    
+    return links;
+  }
+
   /// Extract unique dates from journal entries
   Set<String> _extractJournalEntryDates(List<JournalEntry> entries) {
     final dates = <String>{};
@@ -754,6 +789,9 @@ class McpPackExportService {
             'role': message.role,
             'text': message.content,
             'createdAt': _formatTimestamp(message.createdAt),
+            // Aligned with ARCX format
+            if (message.contentParts != null) 'content_parts': message.contentParts!.map((p) => p.toJson()).toList(),
+            if (message.metadata != null) 'metadata': message.metadata,
           };
           final messageFile = File(path.join(mcpDir.path, 'nodes', 'chat', 'message', '${message.id}.json'));
           await messageFile.writeAsString(jsonEncode(messageNode));

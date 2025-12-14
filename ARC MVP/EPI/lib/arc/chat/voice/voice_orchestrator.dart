@@ -126,7 +126,7 @@ class VoiceOrchestrator {
       }
       
       // Note: Don't save yet - text is written to view, user can save manually
-      return;
+        return;
     } else {
       // Chat context: Always go to chat
         memory.chatSessionId ??= await chat.ensureSession();

@@ -755,102 +755,108 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
 
                     // Voice recording section (if enabled)
                     if (_showVoiceRecorder) ...[
-                      Card(
-                        color: kcSurfaceAltColor,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsets.all(16.0),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // Header with collapse button - always visible
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    'Voice Journal',
-                                    style: heading1Style(context).copyWith(fontSize: 18),
-                                  ),
-                                  IconButton(
-                                    icon: const Icon(
-                                      Icons.expand_less,
-                                      color: kcPrimaryColor,
+                      GestureDetector(
+                        onTap: () {
+                          // Dismiss keyboard when tapping outside (like regular journal mode)
+                          FocusScope.of(context).unfocus();
+                        },
+                        child: Card(
+                          color: kcSurfaceAltColor,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.all(16.0),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // Header with collapse button - always visible
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      'Voice Journal',
+                                      style: heading1Style(context).copyWith(fontSize: 18),
                                     ),
-                                    tooltip: 'Collapse voice journal',
-                                    onPressed: () {
-                                      // Dismiss keyboard first
-                                      FocusScope.of(context).unfocus();
-                                      setState(() {
-                                        _showVoiceRecorder = false;
-                                      });
-                                    },
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 16),
-                              // Voice chat panel for journal context - make it constrained and scrollable
-                              ConstrainedBox(
-                                constraints: const BoxConstraints(
-                                  maxHeight: 400, // Limit height to prevent clipping
+                                    IconButton(
+                                      icon: const Icon(
+                                        Icons.expand_less,
+                                        color: kcPrimaryColor,
+                                      ),
+                                      tooltip: 'Collapse voice journal',
+                                      onPressed: () {
+                                        // Dismiss keyboard first
+                                        FocusScope.of(context).unfocus();
+                                        setState(() {
+                                          _showVoiceRecorder = false;
+                                        });
+                                      },
+                                    ),
+                                  ],
                                 ),
-                                child: SingleChildScrollView(
-                                  child: Column(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      if (!_voiceServiceInitialized) ...[
-                                        // Show loading while initializing
-                                        const Center(
-                                          child: Padding(
-                                            padding: EdgeInsets.all(24.0),
-                                            child: CircularProgressIndicator(),
-                                          ),
-                                        ),
-                                      ] else if (_voiceChatService != null && _voiceChatService!.controller != null) ...[
-                                        VoiceChatPanel(
-                                          controller: _voiceChatService!.controller!,
-                                          diagnostics: _voiceChatService!.diagnostics,
-                                          partialTranscript: _partialTranscript,
-                                          audioLevelStream: _voiceChatService!.audioLevelStream,
-                                        ),
-                                      ] else ...[
-                                        // Show message if initialization failed (e.g., permissions not granted)
-                                        Center(
-                                          child: Padding(
-                                            padding: const EdgeInsets.all(24.0),
-                                            child: Column(
-                                              children: [
-                                                const Icon(
-                                                  Icons.mic_off,
-                                                  size: 48,
-                                                  color: Colors.grey,
-                                                ),
-                                                const SizedBox(height: 16),
-                                                Text(
-                                                  'Microphone permission required',
-                                                  style: Theme.of(context).textTheme.titleMedium,
-                                                  textAlign: TextAlign.center,
-                                                ),
-                                                const SizedBox(height: 8),
-                                                Text(
-                                                  'Please grant microphone permission in Settings to use voice journaling.',
-                                                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                                    color: Colors.grey,
-                                                  ),
-                                                  textAlign: TextAlign.center,
-                                                ),
-                                              ],
+                                const SizedBox(height: 16),
+                                // Voice chat panel for journal context - make it constrained and scrollable
+                                ConstrainedBox(
+                                  constraints: const BoxConstraints(
+                                    maxHeight: 400, // Limit height to prevent clipping
+                                  ),
+                                  child: SingleChildScrollView(
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        if (!_voiceServiceInitialized) ...[
+                                          // Show loading while initializing
+                                          const Center(
+                                            child: Padding(
+                                              padding: EdgeInsets.all(24.0),
+                                              child: CircularProgressIndicator(),
                                             ),
                                           ),
-                                        ),
+                                        ] else if (_voiceChatService != null && _voiceChatService!.controller != null) ...[
+                                          VoiceChatPanel(
+                                            controller: _voiceChatService!.controller!,
+                                            diagnostics: _voiceChatService!.diagnostics,
+                                            partialTranscript: _partialTranscript,
+                                            audioLevelStream: _voiceChatService!.audioLevelStream,
+                                          ),
+                                        ] else ...[
+                                          // Show message if initialization failed (e.g., permissions not granted)
+                                          Center(
+                                            child: Padding(
+                                              padding: const EdgeInsets.all(24.0),
+                                              child: Column(
+                                                children: [
+                                                  const Icon(
+                                                    Icons.mic_off,
+                                                    size: 48,
+                                                    color: Colors.grey,
+                                                  ),
+                                                  const SizedBox(height: 16),
+                                                  Text(
+                                                    'Microphone permission required',
+                                                    style: Theme.of(context).textTheme.titleMedium,
+                                                    textAlign: TextAlign.center,
+                                                  ),
+                                                  const SizedBox(height: 8),
+                                                  Text(
+                                                    'Please grant microphone permission in Settings to use voice journaling.',
+                                                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                                      color: Colors.grey,
+                                                    ),
+                                                    textAlign: TextAlign.center,
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                        ],
                                       ],
-                                    ],
+                                    ),
                                   ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
                         ),
                       ),
@@ -886,6 +892,7 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
                         maxLines: null,
                         expands: true,
                         textInputAction: TextInputAction.newline,
+                        textCapitalization: TextCapitalization.sentences, // Auto-capitalize after periods
                         cursorColor: kcPrimaryColor,
                         cursorWidth: 2,
                         cursorRadius: const Radius.circular(2),
@@ -1184,6 +1191,7 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
           TextField(
             maxLines: 3,
             style: bodyStyle(context),
+            textCapitalization: TextCapitalization.sentences, // Auto-capitalize after periods
             decoration: InputDecoration(
               hintText: 'Edit your transcription...',
               hintStyle: bodyStyle(context).copyWith(

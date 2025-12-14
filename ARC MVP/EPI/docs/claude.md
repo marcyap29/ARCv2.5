@@ -4,6 +4,10 @@
 **Last Updated:** December 13, 2025
 **Current Branch:** `dev-voice-updates`
 
+### Recent Updates
+- **Export Format Alignment**: ZIP and ARCX formats now export identical data elements (links, date_bucket, health_association, embedded media, health streams)
+- **Voice Mode Enhancements**: Auto-capitalization after periods, keyboard dismissal, text capitalization in regular typing
+
 ---
 
 ## Quick Reference

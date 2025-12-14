@@ -89,8 +89,8 @@ class PushToTalkController extends ChangeNotifier {
     if (_state == VCState.listening || _state == VCState.speaking || _state == VCState.thinking) {
       // Stop listening to get final transcript (but don't process it)
       await stopAndGetFinal();
-    }
-    
+  }
+
     // Immediately set state to idle - this stops all transcript updates and shows final transcript
     _isFirstTap = true;
     _setState(VCState.idle);

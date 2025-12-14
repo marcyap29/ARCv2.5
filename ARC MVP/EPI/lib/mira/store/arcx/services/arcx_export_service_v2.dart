@@ -283,6 +283,12 @@ class ARCXExportServiceV2 {
       await _exportArcFormTimeline(payloadDir);
       lumaraFavoritesExported = await _exportLumaraFavorites(payloadDir);
       
+      // Export health streams (aligned with MCP format)
+      if (entries.isNotEmpty) {
+        onProgress?.call('Exporting health streams...');
+        await _exportHealthStreams(entries, payloadDir);
+      }
+      
       // Generate checksums
       if (options.includeChecksums) {
         onProgress?.call('Generating checksums...');
@@ -928,16 +934,52 @@ class ARCXExportServiceV2 {
         usedSlugs[slugKey] = 0;
       }
       
+      // Create health association for this entry's date (aligned with MCP format)
+      final entryDate = '${entry.createdAt.year.toString().padLeft(4, '0')}-'
+                     '${entry.createdAt.month.toString().padLeft(2, '0')}-'
+                     '${entry.createdAt.day.toString().padLeft(2, '0')}';
+      
+      final healthAssociation = {
+        'date': entryDate,
+        'health_data_available': true,
+        'stream_reference': 'streams/health/${entryDate.substring(0, 7)}.jsonl',
+        'metrics_included': [
+          'steps', 'active_energy', 'resting_energy', 'sleep_total_minutes',
+          'resting_hr', 'avg_hr', 'hrv_sdnn'
+        ],
+        'association_created_at': DateTime.now().toUtc().toIso8601String(),
+      };
+      
       // Create entry JSON with links
       final entryLinks = links['entry-${entry.id}'] ?? {'media_ids': [], 'chat_thread_ids': []};
+      
+      // Create embedded media metadata (aligned with MCP format)
+      // This provides self-containment even though links are also available
+      final embeddedMedia = entry.media.map((m) => <String, dynamic>{
+        'id': m.id,
+        'kind': m.type.name, // 'image', 'video', 'audio', 'file'
+        'type': m.type.name,
+        'uri': m.uri,
+        'createdAt': m.createdAt.toUtc().toIso8601String(),
+        if (m.duration != null) 'duration': m.duration!.inSeconds,
+        if (m.sizeBytes != null) 'sizeBytes': m.sizeBytes,
+        if (m.altText != null) 'altText': m.altText,
+        if (m.ocrText != null) 'ocrText': m.ocrText,
+        if (m.transcript != null) 'transcript': m.transcript,
+        if (m.analysisData != null) 'analysisData': m.analysisData,
+        if (m.sha256 != null && m.sha256!.isNotEmpty) 'sha256': m.sha256,
+      }).toList();
+      
       final entryJson = {
         'id': entry.id,
         'type': 'entry',
         'created_at': entry.createdAt.toUtc().toIso8601String(),
+        'timestamp': entry.createdAt.toUtc().toIso8601String(), // Aligned with MCP format
         'date_bucket': dateBucket,
         'title': entry.title,
         'slug': slug,
         'content': entry.content,
+        'media': embeddedMedia, // Aligned with MCP format - embedded media metadata
         'links': {
           'media_ids': entryLinks['media_ids'] ?? [],
           'chat_thread_ids': entryLinks['chat_thread_ids'] ?? [],
@@ -956,6 +998,7 @@ class ARCXExportServiceV2 {
         'phaseInferenceVersion': entry.phaseInferenceVersion,
         'phaseMigrationStatus': entry.phaseMigrationStatus,
         'metadata': entry.metadata ?? {},
+        'health_association': healthAssociation, // Aligned with MCP format
         // LUMARA blocks in new format (migrated from legacy inlineBlocks)
         'lumaraBlocks': entry.lumaraBlocks.map((block) => block.toJson()).toList(),
       };
@@ -1537,6 +1580,101 @@ class ARCXExportServiceV2 {
         'chats': 0,
         'entries': 0,
       };
+    }
+  }
+  
+  /// Export health streams (aligned with MCP format)
+  Future<void> _exportHealthStreams(List<JournalEntry> entries, Directory payloadDir) async {
+    try {
+      // Extract journal entry dates for health filtering
+      final journalDates = <String>{};
+      for (final entry in entries) {
+        final dateKey = '${entry.createdAt.year.toString().padLeft(4, '0')}-'
+                       '${entry.createdAt.month.toString().padLeft(2, '0')}-'
+                       '${entry.createdAt.day.toString().padLeft(2, '0')}';
+        journalDates.add(dateKey);
+      }
+      
+      if (journalDates.isEmpty) {
+        print('ARCX Export V2: No journal entry dates to filter health streams');
+        return;
+      }
+      
+      // Create streams/health directory
+      final streamsDir = Directory(path.join(payloadDir.path, 'streams', 'health'));
+      await streamsDir.create(recursive: true);
+      
+      // Copy health streams from app documents if they exist - filtered by journal entry dates
+      final appDocDir = await getApplicationDocumentsDirectory();
+      final sourceHealthDir = Directory(path.join(appDocDir.path, 'mcp', 'streams', 'health'));
+      
+      if (!await sourceHealthDir.exists()) {
+        print('ARCX Export V2: No health streams directory found');
+        return;
+      }
+      
+      print('ARCX Export V2: Copying filtered health streams for ${journalDates.length} journal entry dates...');
+      
+      int fileCount = 0;
+      int totalLines = 0;
+      int filteredLines = 0;
+      
+      await for (final entity in sourceHealthDir.list()) {
+        if (entity is File && entity.path.endsWith('.jsonl')) {
+          final filename = path.basename(entity.path);
+          final destFile = File(path.join(streamsDir.path, filename));
+          
+          // Read source file and filter lines by journal entry dates
+          final sourceLines = await entity.readAsLines();
+          final filteredHealthData = <String>[];
+          
+          for (final line in sourceLines) {
+            if (line.trim().isEmpty) continue;
+            totalLines++;
+            
+            try {
+              final json = jsonDecode(line) as Map<String, dynamic>;
+              final timeslice = json['timeslice'] as Map<String, dynamic>?;
+              final startStr = timeslice?['start'] as String?;
+              
+              if (startStr != null) {
+                // Extract date from timeslice start (format: YYYY-MM-DDTHH:MM:SSZ)
+                final date = startStr.substring(0, 10); // Extract YYYY-MM-DD part
+                
+                if (journalDates.contains(date)) {
+                  // Add health pointer/association to the health data
+                  final enhancedJson = Map<String, dynamic>.from(json);
+                  enhancedJson['journal_association'] = {
+                    'date': date,
+                    'has_journal_entry': true,
+                    'exported_at': DateTime.now().toUtc().toIso8601String(),
+                  };
+                  
+                  filteredHealthData.add(jsonEncode(enhancedJson));
+                  filteredLines++;
+                }
+              }
+            } catch (e) {
+              print('ARCX Export V2: Warning - Could not parse health data line: $e');
+            }
+          }
+          
+          // Write filtered data if any lines matched
+          if (filteredHealthData.isNotEmpty) {
+            await destFile.writeAsString(filteredHealthData.join('\n') + '\n');
+            fileCount++;
+            print('ARCX Export V2: Filtered health stream: $filename (${filteredHealthData.length} lines)');
+          }
+        }
+      }
+      
+      if (fileCount > 0) {
+        print('ARCX Export V2: ✓ Copied $fileCount filtered health file(s) ($filteredLines/$totalLines lines)');
+      } else {
+        print('ARCX Export V2: ✓ No health data matched journal entry dates');
+      }
+    } catch (e) {
+      print('ARCX Export V2: Error exporting health streams: $e');
     }
   }
   
