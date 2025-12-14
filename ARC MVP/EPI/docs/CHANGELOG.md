@@ -1,6 +1,6 @@
 # EPI ARC MVP - Changelog
 
-**Version:** 2.1.53
+**Version:** 2.1.54
 **Last Updated:** December 13, 2025
 
 ---
@@ -17,33 +17,47 @@ This changelog has been split into parts for easier navigation:
 
 ---
 
-## [2.1.53] - December 13, 2025
+## [2.1.54] - December 13, 2025
 
-### **Export Format Alignment** - ✅ Complete
+### **Export Format Alignment & Standardization** - ✅ Complete
 
 - **Aligned ZIP (.zip/.mcpkg) and ARCX (.arcx) export formats**: Both formats now export identical data elements
+- **Standardized file structure to date-bucketed format**:
+  * Journal entries: `Entries/{YYYY}/{MM}/{DD}/{slug}.json`
+  * Chat sessions: `Chats/{YYYY}/{MM}/{DD}/{session-id}.json` (with nested messages)
+  * Extended data: `extensions/` directory (unified from `PhaseRegimes/`)
 - **Added to MCP/ZIP format**:
-  * `links` field: Relationship mapping (media_ids, chat_thread_ids) for navigation between entries, chats, and media
+  * `links` field: Relationship mapping (media_ids, chat_thread_ids) for navigation
   * `date_bucket` field: Date organization metadata (YYYY/MM/DD format)
+  * `slug` field: URL-friendly identifier for entries
   * `content_parts` and `metadata`: Added to chat messages (aligned with ARCX format)
+  * Slug generation with collision handling for duplicate titles
 - **Added to ARCX format**:
   * `health_association`: Health data association in journal entries (aligned with MCP format)
   * `timestamp`: Additional timestamp field for compatibility
   * `media`: Embedded media metadata array for self-containment (aligned with MCP format)
+  * `edges.jsonl`: Relationship edges file (aligned with MCP format)
   * Health stream export: Exports filtered health streams to `streams/health/` directory
+- **Import services updated for backward compatibility**:
+  * MCP import: Supports both new `Entries/` bucketed structure and legacy `nodes/journal/` flat structure
+  * MCP import: Supports both new `Chats/` bucketed structure with nested messages and legacy `nodes/chat/` structure
+  * ARCX import: Supports both new `extensions/` directory and legacy `PhaseRegimes/` directory
 - **Both formats now include**:
   * All journal entry fields (emotion, keywords, phase, lumaraBlocks, etc.)
-  * Chats with content_parts and metadata
+  * Chats with content_parts and metadata (nested in session files)
   * Media with full metadata
   * Phase regimes, RIVET state, Sentinel state, ArcForm timeline, LUMARA favorites
   * Health associations and health streams (filtered by journal entry dates)
   * Links for relationship mapping
   * Date buckets for organization
+  * Edges for relationship tracking
 
 **Status**: ✅ Complete  
 **Files Modified**:
-- `lib/mira/store/arcx/services/arcx_export_service_v2.dart` - Added health_association, embedded media, health stream export
-- `lib/mira/store/mcp/export/mcp_pack_export_service.dart` - Added links, date_bucket, content_parts/metadata to chats
+- `lib/mira/store/arcx/services/arcx_export_service_v2.dart` - Added health_association, embedded media, health streams, edges.jsonl, extensions/ directory
+- `lib/mira/store/arcx/services/arcx_import_service_v2.dart` - Backward compatibility for extensions/ and PhaseRegimes/
+- `lib/mira/store/mcp/export/mcp_pack_export_service.dart` - Added links, date_bucket, slug, date-bucketed structure, nested chat messages
+- `lib/mira/store/mcp/import/mcp_pack_import_service.dart` - Backward compatibility for bucketed and legacy structures
 
 ### **Voice Journal Mode Enhancements** - ✅ Complete
 
@@ -217,6 +231,7 @@ Visible floating scroll buttons added across all scrollable screens.
 
 | Version | Date | Key Feature |
 |---------|------|-------------|
+| 2.1.54 | Dec 13, 2025 | Export Format Standardization |
 | 2.1.53 | Dec 13, 2025 | Jarvis-Style Voice Chat UI |
 | 2.1.52 | Dec 13, 2025 | Settings Reorganization & Health Integration |
 | 2.1.51 | Dec 12, 2025 | LUMARA Persona System |

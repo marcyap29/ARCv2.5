@@ -1,7 +1,7 @@
 # EPI Documentation
 
 **Last Updated:** December 13, 2025  
-**Version:** 2.1.53
+**Version:** 2.1.54
 
 ---
 
@@ -9,13 +9,14 @@
 
 Welcome to the EPI (Evolving Personal Intelligence) documentation. This directory contains comprehensive documentation for the EPI MVP intelligent journaling application.
 
-### Recent Highlights (v2.1.53)
+### Recent Highlights (v2.1.54)
 
+- **📦 Export Format Standardization**: Unified ZIP and ARCX with date-bucketed file structure
+- **🔄 Import Backward Compatibility**: Supports both new bucketed and legacy flat structures
 - **🎤 Jarvis-Style Voice Chat**: Talk to LUMARA with glowing, throbbing voice indicator
 - **💊 Health→LUMARA Integration**: Sleep quality and energy level influence LUMARA's tone
 - **⚙️ Settings Reorganization**: Unified Advanced Settings with Combined Analysis view
 - **🎭 LUMARA Persona**: Choose response style - Companion, Therapist, Strategist, or Challenger
-- **📜 Scroll Navigation**: Visible up/down arrow buttons for quick scrolling
 
 ## Documentation Structure
 
@@ -76,8 +77,8 @@ Welcome to the EPI (Evolving Personal Intelligence) documentation. This director
 
 ## Version Information
 
-**Current Version:** 2.1.50
-**Last Major Update:** December 12, 2025 (Scroll Navigation UX Enhancement)
+**Current Version:** 2.1.54
+**Last Major Update:** December 13, 2025 (Export Format Standardization)
 
 ### Recent Highlights
 
@@ -175,5 +176,5 @@ Welcome to the EPI (Evolving Personal Intelligence) documentation. This director
 ---
 
 **Status**: ✅ Production Ready with Authentication
-**Last Updated**: December 12, 2025
-**Version**: 2.1.50
+**Last Updated**: December 13, 2025
+**Version**: 2.1.54
