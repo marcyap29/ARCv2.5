@@ -247,12 +247,17 @@ class ARCXExportServiceV2 {
       int chatsExported = 0;
       if (chats.isNotEmpty) {
         onProgress?.call('Exporting ${chats.length} chats...');
-        chatsExported = await _exportChats(
+        final chatExportResult = await _exportChats(
           chats: chats,
           links: links,
           payloadDir: payloadDir,
           onProgress: onProgress,
         );
+        chatsExported = chatExportResult['count'] as int;
+        // Export edges.jsonl (aligned with MCP format)
+        if (chatExportResult['edges'] != null) {
+          await _exportEdges(chatExportResult['edges'] as List<Map<String, dynamic>>, payloadDir);
+        }
       }
       
       // Export media with packs
@@ -472,12 +477,17 @@ class ARCXExportServiceV2 {
         
         // Export chats
         if (chats.isNotEmpty) {
-          chatsExported = await _exportChats(
-            chats: chats,
-            links: links,
-            payloadDir: payloadDir,
-            onProgress: onProgress,
-          );
+        final chatExportResult = await _exportChats(
+          chats: chats,
+          links: links,
+          payloadDir: payloadDir,
+          onProgress: onProgress,
+        );
+        chatsExported = chatExportResult['count'] as int;
+        // Export edges.jsonl (aligned with MCP format)
+        if (chatExportResult['edges'] != null) {
+          await _exportEdges(chatExportResult['edges'] as List<Map<String, dynamic>>, payloadDir);
+        }
         }
         
         // Export phase regimes, RIVET state, Sentinel state, ArcForm timeline, and LUMARA favorites (included with entries+chats archive)
@@ -628,12 +638,17 @@ class ARCXExportServiceV2 {
           onProgress: onProgress,
         );
       } else if (groupType == 'Chats' && chats.isNotEmpty) {
-        chatsExported = await _exportChats(
+        final chatExportResult = await _exportChats(
           chats: chats,
           links: links,
           payloadDir: payloadDir,
           onProgress: onProgress,
         );
+        chatsExported = chatExportResult['count'] as int;
+        // Export edges.jsonl (aligned with MCP format)
+        if (chatExportResult['edges'] != null) {
+          await _exportEdges(chatExportResult['edges'] as List<Map<String, dynamic>>, payloadDir);
+        }
       } else if (groupType == 'Media' && media.isNotEmpty) {
         mediaExported = await _exportMediaWithPacks(
           media: media,
@@ -1016,7 +1031,8 @@ class ARCXExportServiceV2 {
   }
   
   /// Export chats to /Chats/{yyyy}/{mm}/{dd}/chat-{threadId}.arcx.json
-  Future<int> _exportChats({
+  /// Returns map with 'count' and 'edges' for edges.jsonl export
+  Future<Map<String, dynamic>> _exportChats({
     required List<ChatSession> chats,
     required Map<String, Map<String, List<String>>> links,
     required Directory payloadDir,
@@ -1024,13 +1040,14 @@ class ARCXExportServiceV2 {
   }) async {
     if (_chatRepo == null) {
       print('ARCX Export V2: No ChatRepo available, skipping chat export');
-      return 0;
+      return {'count': 0, 'edges': <Map<String, dynamic>>[]};
     }
     
     final chatsDir = Directory(path.join(payloadDir.path, 'Chats'));
     await chatsDir.create(recursive: true);
     
     int exported = 0;
+    final edges = <Map<String, dynamic>>[];
     
     for (int i = 0; i < chats.length; i++) {
       final chat = chats[i];
@@ -1054,13 +1071,25 @@ class ARCXExportServiceV2 {
         'date_bucket': dateBucket,
         'thread_id': chat.id,
         'subject': chat.subject,
-        'messages': messages.map((msg) => {
-          'id': msg.id,
-          'role': msg.role,
-          'content': msg.textContent,
-          'created_at': msg.createdAt.toUtc().toIso8601String(),
-          if (msg.contentParts != null) 'content_parts': msg.contentParts!.map((p) => p.toJson()).toList(),
-          if (msg.metadata != null) 'metadata': msg.metadata,
+        'messages': messages.asMap().entries.map((entry) {
+          final msg = entry.value;
+          final index = entry.key;
+          // Create edge for each message (aligned with MCP format)
+          edges.add({
+            'source': 'chat:${chat.id}',
+            'target': 'message:${msg.id}',
+            'relation': 'contains',
+            'timestamp': msg.createdAt.toUtc().toIso8601String(),
+            'order': index,
+          });
+          return {
+            'id': msg.id,
+            'role': msg.role,
+            'content': msg.textContent,
+            'created_at': msg.createdAt.toUtc().toIso8601String(),
+            if (msg.contentParts != null) 'content_parts': msg.contentParts!.map((p) => p.toJson()).toList(),
+            if (msg.metadata != null) 'metadata': msg.metadata,
+          };
         }).toList(),
         'links': {
           'entry_ids': chatLinks['entry_ids'] ?? [],
@@ -1081,7 +1110,21 @@ class ARCXExportServiceV2 {
     }
     
     print('ARCX Export V2: Exported $exported chats');
-    return exported;
+    return {'count': exported, 'edges': edges};
+  }
+  
+  /// Export edges.jsonl file (aligned with MCP format)
+  Future<void> _exportEdges(List<Map<String, dynamic>> edges, Directory payloadDir) async {
+    if (edges.isEmpty) return;
+    
+    try {
+      final edgesFile = File(path.join(payloadDir.path, 'edges.jsonl'));
+      final edgesLines = edges.map((e) => jsonEncode(e)).toList();
+      await edgesFile.writeAsString(edgesLines.join('\n') + '\n');
+      print('ARCX Export V2: Exported ${edges.length} edges to edges.jsonl');
+    } catch (e) {
+      print('ARCX Export V2: Error exporting edges: $e');
+    }
   }
   
   /// Export media with packs to /Media/packs/pack-XXX/ and /Media/media_index.json
@@ -1345,7 +1388,7 @@ class ARCXExportServiceV2 {
     }
   }
   
-  /// Export phase regimes to PhaseRegimes/phase_regimes.json
+  /// Export phase regimes to extensions/phase_regimes.json
   Future<int> _exportPhaseRegimes(Directory payloadDir) async {
     try {
       if (_phaseRegimeService == null) {
@@ -1360,8 +1403,8 @@ class ARCXExportServiceV2 {
         return 0;
       }
       
-      // Create PhaseRegimes directory
-      final phaseRegimesDir = Directory(path.join(payloadDir.path, 'PhaseRegimes'));
+      // Create extensions directory (aligned with MCP format)
+      final phaseRegimesDir = Directory(path.join(payloadDir.path, 'extensions'));
       await phaseRegimesDir.create(recursive: true);
       
       // Export phase regimes using the service's export method
@@ -1381,11 +1424,11 @@ class ARCXExportServiceV2 {
     }
   }
 
-  /// Export RIVET state to PhaseRegimes/rivet_state.json
+  /// Export RIVET state to extensions/rivet_state.json
   Future<void> _exportRivetState(Directory payloadDir) async {
     try {
-      // Ensure PhaseRegimes directory exists
-      final phaseRegimesDir = Directory(path.join(payloadDir.path, 'PhaseRegimes'));
+      // Ensure extensions directory exists (aligned with MCP format)
+      final phaseRegimesDir = Directory(path.join(payloadDir.path, 'extensions'));
       await phaseRegimesDir.create(recursive: true);
 
       if (!Hive.isBoxOpen(RivetBox.boxName)) {
@@ -1452,8 +1495,8 @@ class ARCXExportServiceV2 {
   /// Export Sentinel state to PhaseRegimes/sentinel_state.json
   Future<void> _exportSentinelState(Directory payloadDir) async {
     try {
-      // Ensure PhaseRegimes directory exists
-      final phaseRegimesDir = Directory(path.join(payloadDir.path, 'PhaseRegimes'));
+      // Ensure extensions directory exists (aligned with MCP format)
+      final phaseRegimesDir = Directory(path.join(payloadDir.path, 'extensions'));
       await phaseRegimesDir.create(recursive: true);
 
       // Sentinel state is computed dynamically, so we export a placeholder
@@ -1476,11 +1519,11 @@ class ARCXExportServiceV2 {
     }
   }
 
-  /// Export ArcForm timeline history to PhaseRegimes/arcform_timeline.json
+  /// Export ArcForm timeline history to extensions/arcform_timeline.json
   Future<void> _exportArcFormTimeline(Directory payloadDir) async {
     try {
-      // Ensure PhaseRegimes directory exists
-      final phaseRegimesDir = Directory(path.join(payloadDir.path, 'PhaseRegimes'));
+      // Ensure extensions directory exists (aligned with MCP format)
+      final phaseRegimesDir = Directory(path.join(payloadDir.path, 'extensions'));
       await phaseRegimesDir.create(recursive: true);
 
       if (!Hive.isBoxOpen('arcform_snapshots')) {
@@ -1506,12 +1549,12 @@ class ARCXExportServiceV2 {
     }
   }
 
-  /// Export LUMARA favorites to PhaseRegimes/lumara_favorites.json
+  /// Export LUMARA favorites to extensions/lumara_favorites.json
   /// Returns map with total count and per-category counts
   Future<Map<String, int>> _exportLumaraFavorites(Directory payloadDir) async {
     try {
-      // Ensure PhaseRegimes directory exists
-      final phaseRegimesDir = Directory(path.join(payloadDir.path, 'PhaseRegimes'));
+      // Ensure extensions directory exists (aligned with MCP format)
+      final phaseRegimesDir = Directory(path.join(payloadDir.path, 'extensions'));
       await phaseRegimesDir.create(recursive: true);
 
       final favoritesService = FavoritesService.instance;

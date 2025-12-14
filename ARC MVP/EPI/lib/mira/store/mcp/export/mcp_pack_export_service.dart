@@ -83,11 +83,9 @@ class McpPackExportService {
       final mcpDir = Directory(path.join(tempDir.path, 'mcp'));
       await mcpDir.create(recursive: true);
       
-      // Create MCP directory structure
-      await Directory(path.join(mcpDir.path, 'nodes', 'journal')).create(recursive: true);
-      await Directory(path.join(mcpDir.path, 'nodes', 'media', 'photo')).create(recursive: true);
-      await Directory(path.join(mcpDir.path, 'nodes', 'chat', 'session')).create(recursive: true);
-      await Directory(path.join(mcpDir.path, 'nodes', 'chat', 'message')).create(recursive: true);
+      // Create MCP directory structure (using date-bucketed structure like ARCX)
+      await Directory(path.join(mcpDir.path, 'Entries')).create(recursive: true);
+      await Directory(path.join(mcpDir.path, 'Chats')).create(recursive: true);
       // Create media packs directory structure if using packs
       if (includePhotos && mediaPackTargetSizeMB > 0) {
         await Directory(path.join(mcpDir.path, 'Media', 'packs')).create(recursive: true);
@@ -119,6 +117,7 @@ class McpPackExportService {
       final processedEntries = <Map<String, dynamic>>[];
       final allMediaItems = <MediaItem>[]; // Collect all media items for pack organization
       int totalPhotos = 0;
+      final usedSlugs = <String, int>{}; // Track slug collisions (aligned with ARCX format)
       
       for (int i = 0; i < entries.length; i++) {
         final entry = entries[i];
@@ -129,6 +128,7 @@ class McpPackExportService {
           includePhotos, 
           reducePhotoSize,
           links: links,
+          usedSlugs: usedSlugs,
           usePacks: includePhotos && mediaPackTargetSizeMB > 0,
         );
         processedEntries.add(processedEntry);
@@ -282,6 +282,7 @@ class McpPackExportService {
     bool includePhotos,
     bool reducePhotoSize, {
     Map<String, Map<String, List<String>>>? links,
+    Map<String, int>? usedSlugs, // Track slug collisions
     bool usePacks = false, // If true, only create metadata, don't write files
   }) async {
     final processedMedia = <Map<String, dynamic>>[];
@@ -379,8 +380,25 @@ class McpPackExportService {
       'lumaraBlocks': entry.lumaraBlocks.map((block) => block.toJson()).toList(),
     };
 
+    // Create date bucket directory (aligned with ARCX format)
+    final dateDir = Directory(path.join(mcpDir.path, 'Entries', dateBucket));
+    await dateDir.create(recursive: true);
+    
+    // Generate slug and handle collisions (aligned with ARCX format)
+    var slug = _generateSlug(entry.title);
+    final slugKey = '$dateBucket/$slug';
+    if (usedSlugs != null) {
+      if (usedSlugs.containsKey(slugKey)) {
+        usedSlugs[slugKey] = (usedSlugs[slugKey] ?? 0) + 1;
+        slug = '${slug}-${usedSlugs[slugKey]}';
+      } else {
+        usedSlugs[slugKey] = 0;
+      }
+    }
+    final entryFileName = 'entry-${entry.id}-$slug.json';
+    
     // Write entry JSON
-    final entryFile = File(path.join(mcpDir.path, 'nodes', 'journal', 'entry_$index.json'));
+    final entryFile = File(path.join(dateDir.path, entryFileName));
     await entryFile.writeAsString(jsonEncode(processedEntry));
 
     return processedEntry;
@@ -608,6 +626,28 @@ class McpPackExportService {
   }
 
 
+  /// Generate slug from title (aligned with ARCX format)
+  String _generateSlug(String title) {
+    if (title.isEmpty) return 'untitled';
+    
+    // Convert to lowercase, replace spaces and special chars with hyphens
+    var slug = title.toLowerCase()
+        .replaceAll(RegExp(r'[^\w\s-]'), '')
+        .replaceAll(RegExp(r'\s+'), '-')
+        .replaceAll(RegExp(r'-+'), '-')
+        .trim();
+    
+    // Limit length
+    if (slug.length > 50) {
+      slug = slug.substring(0, 50);
+    }
+    
+    // Remove leading/trailing hyphens
+    slug = slug.replaceAll(RegExp(r'^-+|-+$'), '');
+    
+    return slug.isEmpty ? 'untitled' : slug;
+  }
+
   /// Build links map for entries (aligned with ARCX format)
   Map<String, Map<String, List<String>>> _buildLinksMap(List<JournalEntry> entries) {
     final links = <String, Map<String, List<String>>>{};
@@ -764,48 +804,56 @@ class McpPackExportService {
           continue; // Skip session if no messages match date filter
         }
 
-        // Create session node
-        final sessionNode = {
-          'id': 'session:${session.id}',
-          'type': 'ChatSession',
-          'title': session.subject,
-          'createdAt': _formatTimestamp(session.createdAt),
+        // Create date bucket directory (aligned with ARCX format)
+        final date = session.createdAt;
+        final dateBucket = '${date.year.toString().padLeft(4, '0')}/${date.month.toString().padLeft(2, '0')}/${date.day.toString().padLeft(2, '0')}';
+        final dateDir = Directory(path.join(mcpDir.path, 'Chats', dateBucket));
+        await dateDir.create(recursive: true);
+
+        // Create chat JSON with nested messages (aligned with ARCX format)
+        final chatJson = {
+          'id': session.id,
+          'type': 'chat',
+          'created_at': session.createdAt.toUtc().toIso8601String(),
+          'timestamp': _formatTimestamp(session.createdAt),
+          'date_bucket': dateBucket,
+          'thread_id': session.id,
+          'subject': session.subject,
+          'messages': filteredMessages.asMap().entries.map((entry) {
+            final message = entry.value;
+            final index = entry.key;
+            // Create contains edge
+            edges.add({
+              'source': 'chat:${session.id}',
+              'target': 'message:${message.id}',
+              'relation': 'contains',
+              'timestamp': message.createdAt.toUtc().toIso8601String(),
+              'order': index,
+            });
+            return {
+              'id': message.id,
+              'role': message.role,
+              'content': message.content,
+              'text': message.content, // Legacy field
+              'created_at': message.createdAt.toUtc().toIso8601String(),
+              'createdAt': _formatTimestamp(message.createdAt), // Legacy field
+              // Aligned with ARCX format
+              if (message.contentParts != null) 'content_parts': message.contentParts!.map((p) => p.toJson()).toList(),
+              if (message.metadata != null) 'metadata': message.metadata,
+            };
+          }).toList(),
+          'is_archived': session.isArchived,
+          'is_pinned': session.isPinned,
           'tags': session.tags,
-          'isArchived': session.isArchived,
-          'isPinned': session.isPinned,
-          if (session.metadata != null && session.metadata!.isNotEmpty)
-            'metadata': session.metadata, // Include metadata (fork info, etc.)
+          if (session.metadata != null && session.metadata!.isNotEmpty) 'metadata': session.metadata,
         };
-        final sessionFile = File(path.join(mcpDir.path, 'nodes', 'chat', 'session', '${session.id}.json'));
-        await sessionFile.writeAsString(jsonEncode(sessionNode));
+        
+        // Write chat file
+        final chatFileName = 'chat-${session.id}.json';
+        final chatFile = File(path.join(dateDir.path, chatFileName));
+        await chatFile.writeAsString(jsonEncode(chatJson));
         sessionCount++;
-
-        // Create message nodes and edges
-        for (int i = 0; i < filteredMessages.length; i++) {
-          final message = filteredMessages[i];
-          final messageNode = {
-            'id': 'message:${message.id}',
-            'type': 'ChatMessage',
-            'role': message.role,
-            'text': message.content,
-            'createdAt': _formatTimestamp(message.createdAt),
-            // Aligned with ARCX format
-            if (message.contentParts != null) 'content_parts': message.contentParts!.map((p) => p.toJson()).toList(),
-            if (message.metadata != null) 'metadata': message.metadata,
-          };
-          final messageFile = File(path.join(mcpDir.path, 'nodes', 'chat', 'message', '${message.id}.json'));
-          await messageFile.writeAsString(jsonEncode(messageNode));
-          messageCount++;
-
-          // Create contains edge
-          edges.add({
-            'source': 'session:${session.id}',
-            'target': 'message:${message.id}',
-            'relation': 'contains',
-            'timestamp': _formatTimestamp(message.createdAt),
-            'order': i,
-          });
-        }
+        messageCount += filteredMessages.length;
       }
 
       // Write edges file if any edges exist (append if file already exists)

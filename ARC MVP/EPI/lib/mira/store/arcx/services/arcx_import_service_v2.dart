@@ -600,10 +600,14 @@ class ARCXImportServiceV2 {
       return 0;
     }
     
-    final phaseRegimesDir = Directory(path.join(payloadDir.path, 'PhaseRegimes'));
+    // Try extensions/ first (new standard), fallback to PhaseRegimes/ for backward compatibility
+    Directory phaseRegimesDir = Directory(path.join(payloadDir.path, 'extensions'));
     if (!await phaseRegimesDir.exists()) {
-      print('ARCX Import V2: ⚠️ PhaseRegimes directory not found');
-      return 0;
+      phaseRegimesDir = Directory(path.join(payloadDir.path, 'PhaseRegimes'));
+      if (!await phaseRegimesDir.exists()) {
+        print('ARCX Import V2: ⚠️ extensions or PhaseRegimes directory not found');
+        return 0;
+      }
     }
     
     final phaseRegimesFile = File(path.join(phaseRegimesDir.path, 'phase_regimes.json'));
@@ -628,17 +632,21 @@ class ARCXImportServiceV2 {
     }
   }
 
-  /// Import RIVET state from PhaseRegimes/rivet_state.json
+  /// Import RIVET state from extensions/rivet_state.json
   /// Returns the number of user states imported
   Future<int> _importRivetState(
     Directory payloadDir, {
     Function(String)? onProgress,
   }) async {
     try {
-      final phaseRegimesDir = Directory(path.join(payloadDir.path, 'PhaseRegimes'));
+      // Try extensions/ first (new standard), fallback to PhaseRegimes/ for backward compatibility
+      Directory phaseRegimesDir = Directory(path.join(payloadDir.path, 'extensions'));
       if (!await phaseRegimesDir.exists()) {
-        print('ARCX Import V2: ⚠️ PhaseRegimes directory not found, skipping RIVET state');
-        return 0;
+        phaseRegimesDir = Directory(path.join(payloadDir.path, 'PhaseRegimes'));
+        if (!await phaseRegimesDir.exists()) {
+          print('ARCX Import V2: ⚠️ extensions or PhaseRegimes directory not found, skipping RIVET state');
+          return 0;
+        }
       }
 
       final rivetStateFile = File(path.join(phaseRegimesDir.path, 'rivet_state.json'));
@@ -694,17 +702,21 @@ class ARCXImportServiceV2 {
     }
   }
 
-  /// Import Sentinel state from PhaseRegimes/sentinel_state.json
+  /// Import Sentinel state from extensions/sentinel_state.json
   /// Returns 1 if imported successfully, 0 otherwise
   Future<int> _importSentinelState(
     Directory payloadDir, {
     Function(String)? onProgress,
   }) async {
     try {
-      final phaseRegimesDir = Directory(path.join(payloadDir.path, 'PhaseRegimes'));
+      // Try extensions/ first (new standard), fallback to PhaseRegimes/ for backward compatibility
+      Directory phaseRegimesDir = Directory(path.join(payloadDir.path, 'extensions'));
       if (!await phaseRegimesDir.exists()) {
-        print('ARCX Import V2: ⚠️ PhaseRegimes directory not found, skipping Sentinel state');
-        return 0;
+        phaseRegimesDir = Directory(path.join(payloadDir.path, 'PhaseRegimes'));
+        if (!await phaseRegimesDir.exists()) {
+          print('ARCX Import V2: ⚠️ extensions or PhaseRegimes directory not found, skipping Sentinel state');
+          return 0;
+        }
       }
 
       final sentinelStateFile = File(path.join(phaseRegimesDir.path, 'sentinel_state.json'));
@@ -786,7 +798,7 @@ class ARCXImportServiceV2 {
     }
   }
 
-  /// Import LUMARA favorites from PhaseRegimes/lumara_favorites.json
+  /// Import LUMARA favorites from extensions/lumara_favorites.json
   /// Returns map with counts per category: {'answers': X, 'chats': Y, 'entries': Z}
   /// Only imports if destination category list is empty (repopulates empty lists)
   Future<Map<String, int>> _importLumaraFavorites(

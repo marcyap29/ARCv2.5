@@ -5,7 +5,9 @@
 **Current Branch:** `dev-voice-updates`
 
 ### Recent Updates
-- **Export Format Alignment**: ZIP and ARCX formats now export identical data elements (links, date_bucket, health_association, embedded media, health streams)
+- **Export Format Standardization**: ZIP and ARCX formats now use identical date-bucketed file structure (`Entries/{YYYY}/{MM}/{DD}/`, `Chats/{YYYY}/{MM}/{DD}/`, `extensions/`)
+- **Export Format Alignment**: Both formats export identical data elements (links, date_bucket, slug, health_association, embedded media, health streams, edges.jsonl)
+- **Import Backward Compatibility**: Import services support both new bucketed structures and legacy flat structures
 - **Voice Mode Enhancements**: Auto-capitalization after periods, keyboard dismissal, text capitalization in regular typing
 
 ---
