@@ -38,8 +38,8 @@
 		F0F0F0F01A2B3C4D5E6F0001 /* HealthKitManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0F0F0F01A2B3C4D5E6F0002 /* HealthKitManager.swift */; };
 		PHOTOCHAN001 /* PhotoChannel.swift in Sources */ = {isa = PBXBuildFile; fileRef = PHOTOCHAN002 /* PhotoChannel.swift */; };
 		PHOTOLIB001 /* PhotoLibraryService.swift in Sources */ = {isa = PBXBuildFile; fileRef = PHOTOLIB002 /* PhotoLibraryService.swift */; };
-		VISIONIMPL001 /* VisionApiImpl.swift in Sources */ = {isa = PBXBuildFile; fileRef = VISIONIMPL002 /* VisionApiImpl.swift */; };
 		SHAKEDET001 /* ShakeDetectorPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = SHAKEDET002 /* ShakeDetectorPlugin.swift */; };
+		VISIONIMPL001 /* VisionApiImpl.swift in Sources */ = {isa = PBXBuildFile; fileRef = VISIONIMPL002 /* VisionApiImpl.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -125,8 +125,8 @@
 		FC0519422AE72D0E4EEBC538 /* Pods_RunnerTests.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_RunnerTests.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		PHOTOCHAN002 /* PhotoChannel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoChannel.swift; sourceTree = "<group>"; };
 		PHOTOLIB002 /* PhotoLibraryService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoLibraryService.swift; sourceTree = "<group>"; };
-		VISIONIMPL002 /* VisionApiImpl.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisionApiImpl.swift; sourceTree = "<group>"; };
 		SHAKEDET002 /* ShakeDetectorPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShakeDetectorPlugin.swift; sourceTree = "<group>"; };
+		VISIONIMPL002 /* VisionApiImpl.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisionApiImpl.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */

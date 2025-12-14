@@ -1,7 +1,7 @@
 # EPI Documentation
 
 **Last Updated:** December 13, 2025  
-**Version:** 2.1.52
+**Version:** 2.1.53
 
 ---
 
@@ -9,12 +9,12 @@
 
 Welcome to the EPI (Evolving Personal Intelligence) documentation. This directory contains comprehensive documentation for the EPI MVP intelligent journaling application.
 
-### Recent Highlights (v2.1.52)
+### Recent Highlights (v2.1.53)
 
-- **💊 Health→LUMARA Integration**: Sleep quality and energy level now influence LUMARA's tone
+- **🎤 Jarvis-Style Voice Chat**: Talk to LUMARA with glowing, throbbing voice indicator
+- **💊 Health→LUMARA Integration**: Sleep quality and energy level influence LUMARA's tone
 - **⚙️ Settings Reorganization**: Unified Advanced Settings with Combined Analysis view
 - **🎭 LUMARA Persona**: Choose response style - Companion, Therapist, Strategist, or Challenger
-- **🔇 Music Removed**: Background music feature removed for cleaner experience
 - **📜 Scroll Navigation**: Visible up/down arrow buttons for quick scrolling
 
 ## Documentation Structure

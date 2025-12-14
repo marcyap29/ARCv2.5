@@ -34,10 +34,7 @@ class OnboardingCubit extends Cubit<OnboardingState> {
   void selectCurrentSeason(String season) {
     _logger.d('Selecting current season: $season');
     emit(state.copyWith(currentSeason: season));
-    _completeOnboarding();
-    
-    // Add validation to ensure phase selection is properly saved
-    _validatePhaseSelection(season);
+    _nextPage();
   }
   
   /// Validate that the phase selection was properly saved
@@ -72,7 +69,7 @@ class OnboardingCubit extends Cubit<OnboardingState> {
   }
 
   void _nextPage() {
-    if (state.currentPage < 4) {
+    if (state.currentPage < 5) {
       pageController.animateToPage(
         state.currentPage + 1,
         duration: const Duration(milliseconds: 300),
@@ -81,7 +78,7 @@ class OnboardingCubit extends Cubit<OnboardingState> {
     }
   }
 
-  void _completeOnboarding() async {
+  void completeOnboarding() async {
     _logger.d('Completing onboarding process');
     try {
       // Use safe box access pattern
@@ -141,6 +138,11 @@ class OnboardingCubit extends Cubit<OnboardingState> {
         }
       } catch (e, stackTrace) {
         _logger.e('Error creating starter Arcform: $e\nStackTrace: $stackTrace');
+      }
+
+      // Validate phase selection after onboarding completion
+      if (state.currentSeason != null) {
+        _validatePhaseSelection(state.currentSeason!);
       }
 
       // Navigation will be handled by BlocListener in the UI

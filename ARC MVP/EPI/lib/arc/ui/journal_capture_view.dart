@@ -4,7 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:my_app/arc/core/journal_capture_cubit.dart';
 import 'package:my_app/arc/core/journal_capture_state.dart';
 import 'package:my_app/arc/core/keyword_extraction_cubit.dart';
-import 'package:my_app/arc/core/widgets/emotion_selection_view.dart';
+import 'package:my_app/arc/core/widgets/keyword_analysis_view.dart';
 import 'package:my_app/arc/core/journal_repository.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
@@ -18,19 +18,40 @@ import 'package:my_app/core/services/media_store.dart';
 import 'package:my_app/mira/store/mcp/orchestrator/ios_vision_orchestrator.dart';
 import 'package:my_app/core/services/photo_library_service.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:my_app/arc/chat/voice/voice_chat_service.dart';
+import 'package:my_app/arc/chat/voice/voice_orchestrator.dart';
+import 'package:my_app/arc/chat/ui/voice_chat_panel.dart';
+import 'package:my_app/arc/chat/voice/voice_permissions.dart';
+import 'package:my_app/arc/chat/services/enhanced_lumara_api.dart';
+import 'package:my_app/arc/chat/bloc/lumara_assistant_cubit.dart';
+import 'package:my_app/arc/chat/data/context_provider.dart';
+import 'package:my_app/telemetry/analytics.dart';
+import 'package:my_app/mira/memory/enhanced_memory_schema.dart';
 
 class JournalCaptureView extends StatefulWidget {
   final String? initialEmotion;
   final String? initialReason;
+  final bool startWithVoice; // If true, opens with voice mode activated
   
   const JournalCaptureView({
     super.key,
     this.initialEmotion,
     this.initialReason,
+    this.startWithVoice = false,
   });
 
   @override
   State<JournalCaptureView> createState() => _JournalCaptureViewState();
+}
+
+/// Wrapper widget that opens journal capture with voice mode activated
+class JournalCaptureViewWithVoice extends StatelessWidget {
+  const JournalCaptureViewWithVoice({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return JournalCaptureView(startWithVoice: true);
+  }
 }
 
 class _JournalCaptureViewState extends State<JournalCaptureView> {
@@ -43,6 +64,14 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
   final MediaStore _mediaStore = MediaStore();
   // final OCRService _ocrService = OCRService(); // TODO: Implement OCR service
   final ImagePicker _imagePicker = ImagePicker();
+  
+  // Manual keywords (matches regular journal mode architecture)
+  List<String> _manualKeywords = [];
+  
+  // Voice chat service for journal context
+  VoiceChatService? _voiceChatService;
+  String? _partialTranscript;
+  bool _voiceServiceInitialized = false; // Track initialization status
 
   @override
   void initState() {
@@ -52,6 +81,20 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
 
     // Add listener for auto-save
     _textController.addListener(_onTextChanged);
+    
+    // Initialize voice chat service for journal context
+    _initializeVoiceChat();
+    
+    // If startWithVoice is true, activate voice mode after initialization
+    if (widget.startWithVoice) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          setState(() {
+            _showVoiceRecorder = true;
+          });
+        }
+      });
+    }
   }
 
   @override
@@ -59,7 +102,80 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
     _textController.removeListener(_onTextChanged);
     _textController.dispose();
     _focusNode.dispose();
+    _voiceChatService?.dispose();
     super.dispose();
+  }
+  
+  /// Initialize voice chat service with journal context
+  Future<void> _initializeVoiceChat() async {
+    try {
+      final journalCubit = context.read<JournalCaptureCubit>();
+      
+      // Get EnhancedLumaraApi
+      final enhancedApi = EnhancedLumaraApi(Analytics());
+      await enhancedApi.initialize();
+      
+      // Set LUMARA API on cubit for summary generation
+      journalCubit.setLumaraApi(enhancedApi);
+      
+      // Try to get LumaraAssistantCubit from context (may not always be available)
+      LumaraAssistantCubit? chatCubit;
+      ContextProvider? contextProvider;
+      try {
+        chatCubit = context.read<LumaraAssistantCubit>();
+        contextProvider = context.read<ContextProvider>();
+      } catch (e) {
+        debugPrint('LumaraAssistantCubit or ContextProvider not available in context: $e');
+        // Continue without them - MainChatManager can work without cubit for basic functionality
+      }
+      
+      _voiceChatService = VoiceChatService(
+        lumaraApi: enhancedApi,
+        journalCubit: journalCubit,
+        chatCubit: chatCubit, // Provide cubit if available
+        contextProvider: contextProvider, // Provide context provider if available
+        context: VoiceContext.journal, // Set to journal context
+        onTextWritten: (text) {
+          // Append text to the text controller
+          final currentText = _textController.text;
+          _textController.text = currentText + text;
+          // Move cursor to end
+          _textController.selection = TextSelection.fromPosition(
+            TextPosition(offset: _textController.text.length),
+          );
+        },
+      );
+      
+      final initialized = await _voiceChatService!.initialize();
+      if (mounted) {
+        setState(() {
+          _voiceServiceInitialized = true;
+        });
+      }
+      
+      if (!initialized && mounted) {
+        // Permission not granted, but service is created
+        debugPrint('Voice chat service not initialized - permissions may be needed');
+      }
+      
+      // Listen to partial transcript stream
+      if (mounted && _voiceChatService != null) {
+        _voiceChatService!.partialTranscriptStream.listen((transcript) {
+          if (mounted) {
+            setState(() {
+              _partialTranscript = transcript;
+            });
+          }
+        });
+      }
+    } catch (e) {
+      debugPrint('Error initializing voice chat for journal: $e');
+      if (mounted) {
+        setState(() {
+          _voiceServiceInitialized = true; // Mark as initialized even on error to stop spinner
+        });
+      }
+    }
   }
 
   void _onTextChanged() {
@@ -218,22 +334,44 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
   }
 
   Future<void> _handleMicrophone() async {
-    // Request microphone permission
+    // Activate voice journal mode
+    setState(() {
+      _showVoiceRecorder = true;
+    });
+    
+    // Request microphone permission if not already granted
     final status = await Permission.microphone.request();
     if (status != PermissionStatus.granted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Microphone permission is required for voice recording'),
+          content: Text('Microphone permission is required for voice journaling'),
           backgroundColor: kcDangerColor,
         ),
       );
       return;
     }
-
-    // Toggle voice recorder
-    setState(() {
-      _showVoiceRecorder = !_showVoiceRecorder;
-    });
+    
+    // If voice service isn't initialized yet, initialize it
+    if (_voiceChatService == null || !_voiceServiceInitialized) {
+      await _initializeVoiceChat();
+    }
+    
+    // Re-initialize if permission was just granted
+    if (status == PermissionStatus.granted && _voiceChatService != null) {
+      await _voiceChatService!.initialize();
+      if (mounted) {
+        setState(() {
+          _voiceServiceInitialized = true;
+        });
+      }
+    }
+    
+    // Ensure voice recorder stays visible after initialization
+    if (mounted && !_showVoiceRecorder) {
+      setState(() {
+        _showVoiceRecorder = true;
+      });
+    }
   }
 
 
@@ -249,8 +387,14 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
       return;
     }
 
-    // Navigate to emotion selection screen
-    Navigator.of(context).push(
+    // Remove LUMARA markdown text from content and extract blocks with position tracking
+    // This prevents duplicate LUMARA responses (markdown text + InlineBlock)
+    // Blocks maintain their insertion positions for proper inline placement
+    final result = _removeLumaraMarkdownAndExtractBlocks(_textController.text);
+
+    // Navigate directly to keyword analysis screen (skip emotion selection)
+    // This uses the same save mechanic as regular journal entries
+    Navigator.of(context).push<Map<String, dynamic>>(
       MaterialPageRoute(
         builder: (context) => MultiBlocProvider(
           providers: [
@@ -261,10 +405,15 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
               create: (context) => KeywordExtractionCubit()..initialize(),
             ),
           ],
-          child: EmotionSelectionView(
-            content: _textController.text,
+          child: KeywordAnalysisView(
+            content: result.cleanedContent, // Use cleaned content without LUMARA markdown
+            mood: '', // Empty mood since we're skipping emotion selection
             initialEmotion: widget.initialEmotion,
             initialReason: widget.initialReason,
+            manualKeywords: _manualKeywords, // Pass manual keywords (matches regular journal mode)
+            mediaItems: _mediaItems.isEmpty ? null : _mediaItems,
+            // Extract LUMARA blocks with position tracking for inline placement
+            lumaraBlocks: result.blocks.isEmpty ? null : result.blocks,
           ),
         ),
       ),
@@ -272,9 +421,84 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
       // If entry was saved successfully, clear the text and navigate back
       if (result != null && result['save'] == true) {
         _textController.clear();
-        // The emotion selection view should have already handled navigation to home
+        _mediaItems.clear();
+        // Navigate back to home
+        Navigator.of(context).pop();
       }
     });
+  }
+  
+  /// Remove LUMARA markdown text from content and extract blocks with position tracking
+  /// Returns cleaned content and blocks with timestamps to maintain conversation order
+  ({String cleanedContent, List<Map<String, dynamic>> blocks}) _removeLumaraMarkdownAndExtractBlocks(String content) {
+    final blocks = <Map<String, dynamic>>[];
+    String cleanedContent = content;
+    
+    // Find all LUMARA blocks and track their positions in conversation order
+    // Pattern matches: **LUMARA:** followed by content until next **You:** or end
+    final lumaraPattern = RegExp(r'\*\*LUMARA:\*\*\s*(.+?)(?=\n\n\*\*You:\*\*|\*\*You:\*\*|$)', dotAll: true);
+    final matches = lumaraPattern.allMatches(content).toList();
+    
+    // Process matches in forward order to maintain conversation sequence
+    // Each LUMARA block appears after a user turn, so we track the sequence
+    // Use a base timestamp and decrement for each earlier block to maintain order
+    final baseTimestamp = DateTime.now().millisecondsSinceEpoch;
+    int blockIndex = 0;
+    
+    for (final match in matches) {
+      if (match.group(1) != null) {
+        final lumaraContent = match.group(1)!.trim();
+        // Remove "Reflection" prefix if present
+        final cleanContent = lumaraContent.replaceFirst(RegExp(r'^✨\s*Reflection\s*\n?\n?', caseSensitive: false), '').trim();
+        
+        // Calculate timestamp based on position in conversation
+        // Earlier blocks (earlier in conversation) get earlier timestamps
+        // This ensures blocks are sorted correctly when displayed
+        // Each block gets a timestamp that's 1 second earlier than the next one
+        final blockTimestamp = baseTimestamp - ((matches.length - blockIndex - 1) * 1000);
+        
+        // Get attribution traces for this LUMARA response
+        List<Map<String, dynamic>>? attributionTracesJson;
+        if (_voiceChatService != null && cleanContent.isNotEmpty) {
+          final traces = _voiceChatService!.getAttributionTraces(cleanContent);
+          if (traces != null && traces.isNotEmpty) {
+            attributionTracesJson = traces.map((trace) => trace.toJson()).toList();
+          }
+        }
+        
+        final block = {
+          'type': 'inline_reflection', // Correct type for InlineBlock
+          'intent': 'chat',
+          'content': cleanContent,
+          'timestamp': blockTimestamp, // Timestamp maintains conversation order (earlier = smaller timestamp)
+        };
+        
+        // Add attribution traces if available
+        if (attributionTracesJson != null && attributionTracesJson.isNotEmpty) {
+          block['attributionTraces'] = attributionTracesJson;
+        }
+        
+        blocks.add(block); // Add in order to maintain sequence
+        blockIndex++;
+      }
+    }
+    
+    // Remove all LUMARA blocks from content in reverse order to maintain positions
+    for (int i = matches.length - 1; i >= 0; i--) {
+      final match = matches[i];
+      cleanedContent = cleanedContent.substring(0, match.start) + 
+                       cleanedContent.substring(match.end);
+    }
+    
+    return (cleanedContent: cleanedContent.trim(), blocks: blocks);
+  }
+  
+  /// Extract LUMARA blocks from text content (legacy method - kept for compatibility)
+  /// Format matches regular journal entries for proper purple box rendering
+  /// Includes attribution traces for memory attribution display
+  List<Map<String, dynamic>>? _extractLumaraBlocks(String content) {
+    final result = _removeLumaraMarkdownAndExtractBlocks(content);
+    return result.blocks.isEmpty ? null : result.blocks;
   }
 
   @override
@@ -518,9 +742,9 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                               children: [
-                                _buildStatusIndicator('Photo Gallery', true, 'Multi-select support'),
-                                _buildStatusIndicator('Camera', true, 'Single photo capture'),
                                 _buildStatusIndicator('Microphone', true, 'Voice recording ready'),
+                                _buildStatusIndicator('Camera', true, 'Single photo capture'),
+                                _buildStatusIndicator('Photo Gallery', true, 'Multi-select support'),
                               ],
                             ),
                           ],
@@ -531,57 +755,108 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
 
                     // Voice recording section (if enabled)
                     if (_showVoiceRecorder) ...[
-                      Card(
-                        color: kcSurfaceAltColor,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsets.all(16.0),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    'Voice Journal',
-                                    style: heading1Style(context).copyWith(fontSize: 18),
-                                  ),
-                                  IconButton(
-                                    icon: const Icon(
-                                      Icons.keyboard_arrow_up,
-                                      color: kcPrimaryColor,
+                      GestureDetector(
+                        onTap: () {
+                          // Dismiss keyboard when tapping outside (like regular journal mode)
+                          FocusScope.of(context).unfocus();
+                        },
+                        child: Card(
+                          color: kcSurfaceAltColor,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.all(16.0),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // Header with collapse button - always visible
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      'Voice Journal',
+                                      style: heading1Style(context).copyWith(fontSize: 18),
                                     ),
-                                    onPressed: () {
-                                      setState(() {
-                                        _showVoiceRecorder = false;
-                                      });
-                                    },
+                                    IconButton(
+                                      icon: const Icon(
+                                        Icons.expand_less,
+                                        color: kcPrimaryColor,
+                                      ),
+                                      tooltip: 'Collapse voice journal',
+                                      onPressed: () {
+                                        // Dismiss keyboard first
+                                        FocusScope.of(context).unfocus();
+                                        setState(() {
+                                          _showVoiceRecorder = false;
+                                        });
+                                      },
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 16),
+                                // Voice chat panel for journal context - make it constrained and scrollable
+                                ConstrainedBox(
+                                  constraints: const BoxConstraints(
+                                    maxHeight: 400, // Limit height to prevent clipping
                                   ),
-                                ],
-                              ),
-                              const SizedBox(height: 16),
-                              BlocBuilder<JournalCaptureCubit, JournalCaptureState>(
-                                builder: (context, state) {
-                                  return Column(
-                                    children: [
-                                      if (state is JournalCaptureInitial ||
-                                          state is JournalCapturePermissionDenied)
-                                        _buildPermissionSection(state),
-                                      if (state is JournalCapturePermissionGranted ||
-                                          state is JournalCaptureRecording ||
-                                          state is JournalCaptureRecordingPaused ||
-                                          state is JournalCaptureRecordingStopped)
-                                        _buildRecordingSection(state),
-                                      if (state is JournalCaptureTranscribing ||
-                                          state is JournalCaptureTranscribed)
-                                        _buildTranscriptionSection(state),
-                                    ],
-                                  );
-                                },
-                              ),
-                            ],
+                                  child: SingleChildScrollView(
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        if (!_voiceServiceInitialized) ...[
+                                          // Show loading while initializing
+                                          const Center(
+                                            child: Padding(
+                                              padding: EdgeInsets.all(24.0),
+                                              child: CircularProgressIndicator(),
+                                            ),
+                                          ),
+                                        ] else if (_voiceChatService != null && _voiceChatService!.controller != null) ...[
+                                          VoiceChatPanel(
+                                            controller: _voiceChatService!.controller!,
+                                            diagnostics: _voiceChatService!.diagnostics,
+                                            partialTranscript: _partialTranscript,
+                                            audioLevelStream: _voiceChatService!.audioLevelStream,
+                                          ),
+                                        ] else ...[
+                                          // Show message if initialization failed (e.g., permissions not granted)
+                                          Center(
+                                            child: Padding(
+                                              padding: const EdgeInsets.all(24.0),
+                                              child: Column(
+                                                children: [
+                                                  const Icon(
+                                                    Icons.mic_off,
+                                                    size: 48,
+                                                    color: Colors.grey,
+                                                  ),
+                                                  const SizedBox(height: 16),
+                                                  Text(
+                                                    'Microphone permission required',
+                                                    style: Theme.of(context).textTheme.titleMedium,
+                                                    textAlign: TextAlign.center,
+                                                  ),
+                                                  const SizedBox(height: 8),
+                                                  Text(
+                                                    'Please grant microphone permission in Settings to use voice journaling.',
+                                                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                                      color: Colors.grey,
+                                                    ),
+                                                    textAlign: TextAlign.center,
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
@@ -617,9 +892,17 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
                         maxLines: null,
                         expands: true,
                         textInputAction: TextInputAction.newline,
+                        textCapitalization: TextCapitalization.sentences, // Auto-capitalize after periods
                         cursorColor: kcPrimaryColor,
                         cursorWidth: 2,
                         cursorRadius: const Radius.circular(2),
+                        // Prevent keyboard from hiding voice recorder
+                        onTap: () {
+                          // Keep voice recorder visible when keyboard appears
+                          if (_showVoiceRecorder) {
+                            // Optionally scroll to keep voice recorder in view
+                          }
+                        },
                       ),
                     ),
                   ],
@@ -908,6 +1191,7 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
           TextField(
             maxLines: 3,
             style: bodyStyle(context),
+            textCapitalization: TextCapitalization.sentences, // Auto-capitalize after periods
             decoration: InputDecoration(
               hintText: 'Edit your transcription...',
               hintStyle: bodyStyle(context).copyWith(

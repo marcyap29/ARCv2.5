@@ -188,6 +188,7 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
           controller: _voiceChatService!.controller!,
           diagnostics: _voiceChatService!.diagnostics,
           partialTranscript: _partialTranscript,
+          audioLevelStream: _voiceChatService!.audioLevelStream,
         ),
       ),
     );
@@ -337,6 +338,12 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
           },
         ),
         actions: [
+          // Voice chat button
+          IconButton(
+            icon: const Icon(Icons.mic_none),
+            tooltip: 'Voice Chat',
+            onPressed: _showVoiceChatPanel,
+          ),
           PopupMenuButton<String>(
             icon: const Icon(Icons.more_vert),
             onSelected: (value) {

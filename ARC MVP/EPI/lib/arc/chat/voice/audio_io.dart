@@ -36,6 +36,7 @@ class AudioIO {
     required Function(String partial) onPartialResult,
     required Function(String finalResult) onFinalResult,
     Function(String error)? onError,
+    Function(double level)? onSoundLevelChange, // Audio level callback (0.0-1.0)
   }) async {
     if (!_sttInitialized) {
       final initialized = await initializeSTT();
@@ -56,12 +57,18 @@ class AudioIO {
         }
       },
       listenFor: const Duration(seconds: 30),
-      pauseFor: const Duration(seconds: 2),
+      pauseFor: const Duration(seconds: 10), // Increased from 2s to allow natural pauses
       partialResults: true,
       localeId: "en_US",
-      onSoundLevelChange: null,
+      onSoundLevelChange: onSoundLevelChange != null
+          ? (level) {
+              // speech_to_text provides level in dB (typically -160 to 0)
+              // Pass it through to the callback for normalization
+              onSoundLevelChange(level);
+            }
+          : null,
       cancelOnError: true,
-      listenMode: stt.ListenMode.confirmation,
+      listenMode: stt.ListenMode.dictation, // Changed from confirmation to dictation for longer speech
     );
   }
 
@@ -141,11 +148,51 @@ class AudioIO {
   /// Check if currently speaking
   bool get isSpeaking => _isSpeaking;
 
-  /// Capitalize the first letter of text (for speech-to-text auto-capitalization)
+  /// Capitalize text with sentence capitalization (first letter and after periods)
+  /// For speech-to-text auto-capitalization
   String _capitalizeText(String text) {
     if (text.isEmpty) return text;
-    // Capitalize first letter and keep the rest as-is
-    return text[0].toUpperCase() + (text.length > 1 ? text.substring(1) : '');
+    
+    // Split text into sentences using period, exclamation, or question mark followed by space
+    // This regex matches: period/exclamation/question mark, optional space, then start of next sentence
+    final sentencePattern = RegExp(r'([.!?]\s*)');
+    final parts = text.split(sentencePattern);
+    
+    final buffer = StringBuffer();
+    bool capitalizeNext = true; // Always capitalize first character
+    
+    for (int i = 0; i < parts.length; i++) {
+      final part = parts[i];
+      
+      if (part.isEmpty) continue;
+      
+      // Check if this part is punctuation (period, exclamation, question mark)
+      if (sentencePattern.hasMatch(part)) {
+        // This is punctuation - add it and mark next part for capitalization
+        buffer.write(part);
+        capitalizeNext = true;
+      } else {
+        // This is text content
+        if (capitalizeNext && part.isNotEmpty) {
+          // Capitalize first letter of sentence
+          final firstChar = part[0].toUpperCase();
+          final rest = part.length > 1 ? part.substring(1) : '';
+          buffer.write(firstChar + rest);
+          capitalizeNext = false;
+        } else {
+          // Keep as-is (middle of sentence)
+          buffer.write(part);
+        }
+      }
+    }
+    
+    final result = buffer.toString();
+    // Ensure first character is capitalized if result is not empty
+    if (result.isNotEmpty && result[0] != result[0].toUpperCase()) {
+      return result[0].toUpperCase() + (result.length > 1 ? result.substring(1) : '');
+    }
+    
+    return result.isNotEmpty ? result : text;
   }
 }
 

@@ -28,6 +28,7 @@ import 'package:uuid/uuid.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:audioplayers/audioplayers.dart';
+import 'package:my_app/arc/chat/voice/prism_scrubber.dart';
 import 'package:crypto/crypto.dart';
 import 'package:hive/hive.dart';
 import 'package:my_app/core/services/draft_cache_service.dart';
@@ -40,12 +41,14 @@ import 'package:my_app/models/phase_models.dart';
 import 'package:my_app/prism/atlas/phase/phase_inference_service.dart';
 import 'package:my_app/prism/atlas/phase/phase_regime_tracker.dart';
 import 'package:my_app/prism/atlas/phase/phase_scoring.dart';
+import 'package:my_app/arc/chat/services/enhanced_lumara_api.dart';
 
 class JournalCaptureCubit extends Cubit<JournalCaptureState> {
   final JournalRepository _journalRepository;
   final SyncService _syncService = SyncService();
   final DraftCacheService _draftCache = DraftCacheService.instance;
   final JournalVersionService _versionService = JournalVersionService.instance;
+  EnhancedLumaraApi? _lumaraApi; // LUMARA API for summary generation
   String _draftContent = '';
   String? _currentDraftId;
   List<MediaItem> _draftMediaItems = [];
@@ -59,6 +62,58 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
   Timer? _recordingTimer;
   Duration _recordingDuration = Duration.zero;
   String? _transcription;
+  
+  /// Set LUMARA API for summary generation
+  void setLumaraApi(EnhancedLumaraApi api) {
+    _lumaraApi = api;
+  }
+  
+  /// Generate summary of journal entry content
+  /// Creates JSON representation, scrubs PII, sends for summary, then restores PII
+  Future<String> _generateSummary(String content) async {
+    if (_lumaraApi == null || content.trim().isEmpty) {
+      return '';
+    }
+    
+    // Only generate summary if content is substantial (more than 50 words)
+    final wordCount = content.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).length;
+    if (wordCount < 50) {
+      return ''; // Skip summary for very short entries
+    }
+    
+    // Check if summary already exists
+    if (content.startsWith('## Summary\n\n')) {
+      return ''; // Already has a summary
+    }
+    
+    try {
+      // Create JSON representation of the entry
+      // Scrub PII from the content before sending
+      final scrubbingResult = PrismScrubber.scrubWithMapping(content);
+      final scrubbedContent = scrubbingResult.scrubbedText;
+      
+      // Generate summary using scrubbed content
+      final result = await _lumaraApi!.generatePromptedReflection(
+        entryText: scrubbedContent,
+        intent: 'summary',
+        phase: null,
+        userId: null,
+        chatContext: 'Generate a brief 2-3 sentence summary of this journal entry that captures the key points, main topics discussed, and any important insights. Focus on what the user learned or reflected on.',
+        onProgress: (msg) => print('Summary generation: $msg'),
+      );
+      
+      // Restore PII in the returned summary
+      final summaryWithPII = PrismScrubber.restore(
+        result.reflection,
+        scrubbingResult.reversibleMap,
+      );
+      
+      return summaryWithPII;
+    } catch (e) {
+      print('Error generating summary: $e');
+      return '';
+    }
+  }
 
   JournalCaptureCubit(this._journalRepository) : super(JournalCaptureInitial()) {
     _initializeDraftCache();
@@ -540,10 +595,19 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
         print('DEBUG: Adjusted entry date to match latest photo: $entryDate (offset: ${dateOffset.inHours} hours ${dateOffset.inMinutes.remainder(60)} minutes)');
       }
       
+      // Generate summary before adding phase hashtag
+      String contentWithSummary = content;
+      final summary = await _generateSummary(content);
+      
+      if (summary.isNotEmpty) {
+        // Prepend summary to content
+        contentWithSummary = '## Summary\n\n$summary\n\n---\n\n$content';
+      }
+      
       // Automatically add phase hashtag to content if missing
       // Uses Phase Regime system (date-based) to determine phase
       final contentWithPhase = await _ensurePhaseHashtagInContent(
-        content: content,
+        content: contentWithSummary, // Use content with summary
         entryDate: entryDate, // Use the entry date (may be adjusted from photos)
         emotion: emotion,
         emotionReason: emotionReason,
@@ -551,10 +615,14 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
       );
       
       // Convert LUMARA blocks from JSON to InlineBlock objects
+      // Sort by timestamp to maintain conversation order (earlier blocks first)
       List<InlineBlock> lumaraBlocks = const [];
       if (blocks != null && blocks.isNotEmpty) {
-        lumaraBlocks = blocks.map((blockJson) => InlineBlock.fromJson(blockJson)).toList();
-        print('DEBUG: saveEntryWithKeywords - Converted ${lumaraBlocks.length} LUMARA blocks from JSON to InlineBlock objects');
+        lumaraBlocks = blocks
+            .map((blockJson) => InlineBlock.fromJson(blockJson))
+            .toList()
+          ..sort((a, b) => a.timestamp.compareTo(b.timestamp)); // Sort by timestamp to maintain order
+        print('DEBUG: saveEntryWithKeywords - Converted ${lumaraBlocks.length} LUMARA blocks from JSON to InlineBlock objects (sorted by timestamp)');
       }
       
       // Debug logging for blocks

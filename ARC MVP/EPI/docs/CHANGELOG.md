@@ -1,6 +1,6 @@
 # EPI ARC MVP - Changelog
 
-**Version:** 2.1.52
+**Version:** 2.1.53
 **Last Updated:** December 13, 2025
 
 ---
@@ -11,9 +11,94 @@ This changelog has been split into parts for easier navigation:
 
 | Part | Coverage | Description |
 |------|----------|-------------|
-| **[CHANGELOG_part1.md](CHANGELOG_part1.md)** | Dec 2025 | v2.1.43 - v2.1.52 (Current) |
+| **[CHANGELOG_part1.md](CHANGELOG_part1.md)** | Dec 2025 | v2.1.43 - v2.1.53 (Current) |
 | **[CHANGELOG_part2.md](CHANGELOG_part2.md)** | Nov 2025 | v2.1.28 - v2.1.42 |
 | **[CHANGELOG_part3.md](CHANGELOG_part3.md)** | Jan-Oct 2025 | v2.0.0 - v2.1.27 & Earlier |
+
+---
+
+## [2.1.53] - December 13, 2025
+
+### **Export Format Alignment** - ✅ Complete
+
+- **Aligned ZIP (.zip/.mcpkg) and ARCX (.arcx) export formats**: Both formats now export identical data elements
+- **Added to MCP/ZIP format**:
+  * `links` field: Relationship mapping (media_ids, chat_thread_ids) for navigation between entries, chats, and media
+  * `date_bucket` field: Date organization metadata (YYYY/MM/DD format)
+  * `content_parts` and `metadata`: Added to chat messages (aligned with ARCX format)
+- **Added to ARCX format**:
+  * `health_association`: Health data association in journal entries (aligned with MCP format)
+  * `timestamp`: Additional timestamp field for compatibility
+  * `media`: Embedded media metadata array for self-containment (aligned with MCP format)
+  * Health stream export: Exports filtered health streams to `streams/health/` directory
+- **Both formats now include**:
+  * All journal entry fields (emotion, keywords, phase, lumaraBlocks, etc.)
+  * Chats with content_parts and metadata
+  * Media with full metadata
+  * Phase regimes, RIVET state, Sentinel state, ArcForm timeline, LUMARA favorites
+  * Health associations and health streams (filtered by journal entry dates)
+  * Links for relationship mapping
+  * Date buckets for organization
+
+**Status**: ✅ Complete  
+**Files Modified**:
+- `lib/mira/store/arcx/services/arcx_export_service_v2.dart` - Added health_association, embedded media, health stream export
+- `lib/mira/store/mcp/export/mcp_pack_export_service.dart` - Added links, date_bucket, content_parts/metadata to chats
+
+### **Voice Journal Mode Enhancements** - ✅ Complete
+
+- **Fixed duplicate LUMARA responses**: Removed markdown text from content when saving (saved as InlineBlocks instead)
+- **Fixed keyword saving**: Now reads keywords from KeywordExtractionCubit state (same mechanism as regular journal mode)
+- **Fixed summary generation**: Implements JSON creation, PII scrubbing before summary, and PII restoration after
+- **Fixed TTS consistency**: Writes LUMARA response to UI first, then TTS the content with proper error handling
+- **Microphone state indicators**:
+  * Green icon: Ready to transcribe (idle state)
+  * Red icon: Listening (active)
+  * Yellow/amber icon: Processing (thinking state)
+  * Grayed-out icon: Speaking (TTS active, disabled)
+- **Disabled microphone during processing/speaking**: Prevents user from pressing mic until transcription and TTS complete
+- **Changed flow**: User must wait for transcription/TTS to complete before next input (no auto-resume)
+- **LUMARA text color**: Updated to purple in InlineReflectionBlock (matches regular journal mode)
+- **Memory attribution support**: Captures and stores attribution traces for LUMARA responses in voice journal mode
+
+**Status**: ✅ Complete  
+**Branch**: `dev-voice-updates`  
+**Files Modified**:
+- `lib/arc/chat/voice/audio_io.dart` - Enhanced sentence capitalization after periods
+- `lib/arc/ui/journal_capture_view.dart` - Added textCapitalization.sentences, keyboard dismissal in voice mode
+- `lib/arc/chat/ui/voice_chat_panel.dart` - Added state-based microphone button styling
+- `lib/arc/chat/voice/push_to_talk_controller.dart` - Added guards to prevent taps during processing
+- `lib/arc/chat/voice/voice_orchestrator.dart` - Added speaking state callbacks, fixed TTS flow
+- `lib/arc/chat/voice/voice_chat_service.dart` - Fixed summary generation with PII scrubbing
+- `lib/arc/chat/voice/voice_chat_pipeline.dart` - Added TTS error handling
+- `lib/arc/chat/voice/prism_scrubber.dart` - Added scrubWithMapping and restore methods
+- `lib/arc/core/widgets/keyword_analysis_view.dart` - Fixed keyword saving to read from cubit state
+- `lib/arc/ui/journal_capture_view.dart` - Fixed duplicate LUMARA responses, removed markdown
+- `lib/ui/journal/widgets/inline_reflection_block.dart` - Updated LUMARA text color to purple
+
+### **Onboarding Permissions Page** - ✅ Complete
+
+- Added dedicated permissions page to onboarding flow as the final step
+- Requests all necessary permissions upfront (Microphone, Photos, Camera, Location)
+- Beautiful UI with icons and explanations for each permission
+- "Get Started" button requests all permissions at once
+- Ensures ARC appears in all relevant iOS Settings immediately after onboarding
+- Optional "Skip for now" option to complete onboarding without granting permissions
+
+**Status**: ✅ Complete  
+**Files Modified**:
+- `lib/shared/ui/onboarding/onboarding_view.dart` - Added `_OnboardingPermissionsPage` widget
+- `lib/shared/ui/onboarding/onboarding_cubit.dart` - Made `completeOnboarding()` public, updated page navigation logic
+
+### **Jarvis-Style Voice Chat UI** - ✅ Complete
+
+- Glowing voice indicator with ChatGPT-style pulsing animation
+- Microphone button added to LUMARA chat AppBar
+- State-aware colors (Red→Orange→Green)
+- Voice system fully functional (STT, TTS, intent routing, PII scrubbing)
+
+**Status**: ✅ Complete  
+**Branch**: `dev-voice-updates`
 
 ---
 
@@ -27,7 +112,7 @@ This changelog has been split into parts for easier navigation:
 - Removed background music feature
 
 **Status**: ✅ Complete  
-**Branch**: `dev-lumara-endprompt`
+**Branch**: `dev-voice-updates` (merged to main)
 
 ---
 
@@ -132,6 +217,7 @@ Visible floating scroll buttons added across all scrollable screens.
 
 | Version | Date | Key Feature |
 |---------|------|-------------|
+| 2.1.53 | Dec 13, 2025 | Jarvis-Style Voice Chat UI |
 | 2.1.52 | Dec 13, 2025 | Settings Reorganization & Health Integration |
 | 2.1.51 | Dec 12, 2025 | LUMARA Persona System |
 | 2.1.50 | Dec 12, 2025 | Scroll Navigation UX |

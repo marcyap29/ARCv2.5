@@ -1,6 +1,6 @@
 # EPI MVP - UI/UX Feature Documentation
 
-**Version:** 2.1.52
+**Version:** 2.1.53
 **Last Updated:** December 13, 2025
 **Status:** ✅ Comprehensive Feature Analysis Complete
 
@@ -38,6 +38,7 @@ The EPI (Evolving Personal Intelligence) Flutter application provides a sophisti
 22. [LUMARA Persona (v2.1.51)](#22-lumara-persona-v2151)
 23. [Advanced Settings (v2.1.52)](#23-advanced-settings-v2152)
 24. [Health→LUMARA Integration (v2.1.52)](#24-healthlumara-integration-v2152)
+25. [Voice Chat - Jarvis Mode (v2.1.53)](#25-voice-chat---jarvis-mode-v2153)
 
 ---
 
@@ -1662,6 +1663,169 @@ Real-time text updates showing how current health status affects LUMARA:
 - `health_settings_dialog.dart` - Health signals UI
 - `health_data_service.dart` - Persistence service
 - `lumara_control_state_builder.dart` - Reads health data
+
+---
+
+## 25. Voice Chat - Jarvis Mode (v2.1.53)
+
+### Overview
+ChatGPT-style voice interface for hands-free LUMARA conversations. Features glowing, pulsing voice indicator with state-based colors.
+
+**Location:** LUMARA Chat → 🎤 Mic Button (AppBar, top-right)
+
+### UI Design - Voice Chat Panel (Bottom Sheet)
+```
+┌─────────────────────────────────────────┐
+│        Voice Chat                       │
+│                                         │
+│            ╔═══════╗                    │
+│           ║         ║                   │
+│          ║    ●     ║  ← Glowing orb   │
+│           ║         ║     (pulsing)    │
+│            ╚═══════╝                    │
+│                                         │
+│        Listening...                     │
+│                                         │
+├─────────────────────────────────────────┤
+│ 📝 "Create a new journal about..."     │  ← Partial transcript
+├─────────────────────────────────────────┤
+│  ┌──────────────────────────────────┐   │
+│  │ 🛑 End Session                   │   │
+│  └──────────────────────────────────┘   │
+└─────────────────────────────────────────┘
+```
+
+### State Colors & Animations
+
+| State | Orb Color | Glow | Animation | User Sees |
+|-------|-----------|------|-----------|-----------|
+| **Idle** | Gray | Gray | Static | "Ready to listen" |
+| **Listening** | 🔴 Red | Red Accent | Fast pulse | "Listening..." |
+| **Thinking** | 🟠 Orange | Orange Accent | Medium pulse | "Processing..." |
+| **Speaking** | 🟢 Green | Green Accent | Slow pulse | "LUMARA is speaking" |
+| **Error** | Red Accent | Red | Slow pulse | "Error - Try again" |
+
+### Animation Details
+- **Multi-layer glow**: 3 concentric rings with fading opacity
+- **Pulse timing**: 1.5s cycle (customizable)
+- **Scale range**: 0.95 → 1.05 (subtle throb)
+- **Smooth curves**: easeInOut for natural feel
+
+### Interaction Flow
+1. **Tap 🎤 in AppBar** → Bottom sheet appears (gray orb)
+2. **Tap orb** → Starts listening (red glow, fast pulse)
+3. **Speak your message** → Partial transcript shows in real-time
+4. **Tap orb again** → Stops and processes (orange glow)
+5. **LUMARA responds** → Text + voice (green glow)
+6. **Auto-resume** → Orb turns red again, ready for follow-up
+7. **Tap "End Session"** → Closes voice chat
+
+### Voice Pipeline (On-Device Security)
+```
+┌─────────────────────────────────────────┐
+│ 1. Speech-to-Text (On-Device)          │
+│    ↓ No audio sent to cloud            │
+├─────────────────────────────────────────┤
+│ 2. PII Scrubbing (Mode A)              │
+│    ↓ Names/Places masked               │
+├─────────────────────────────────────────┤
+│ 3. Intent Classification               │
+│    • Journal (create/append/query)      │
+│    • Chat (questions/reflections)       │
+│    • Files (export/share)               │
+│    ↓                                    │
+├─────────────────────────────────────────┤
+│ 4. LUMARA Processing                   │
+│    ↓ Phase-aware, persona-adapted      │
+├─────────────────────────────────────────┤
+│ 5. PII Restoration                     │
+│    ↓ Original names/places returned    │
+├─────────────────────────────────────────┤
+│ 6. Text-to-Speech (On-Device)          │
+│    → Natural voice output               │
+└─────────────────────────────────────────┘
+```
+
+### Example Voice Commands
+**Journal Creation:**
+- "Create a new journal about my day"
+- "Start a journal entry about my meeting"
+- "Write about how I'm feeling"
+
+**Reflective Queries:**
+- "How am I feeling lately?"
+- "What patterns do you see in my entries?"
+- "Summarize my week"
+- "Show me resilience examples"
+
+**Journal Queries:**
+- "What did I write about last Tuesday?"
+- "Find entries about work stress"
+- "Read my journal from yesterday"
+
+**File Operations:**
+- "Export my data"
+- "Share my journal as PDF"
+
+### AppBar Mic Button
+```
+┌─────────────────────────────────────────┐
+│ ≡ LUMARA [Premium]         🎤  ⋮        │ ← Mic button added
+└─────────────────────────────────────────┘
+```
+
+### Permissions Handling
+**First Time:**
+```
+┌─────────────────────────────────────────┐
+│ 🎤 Microphone Permission                │
+│                                         │
+│ ARC needs microphone access for         │
+│ voice chat with LUMARA.                 │
+│                                         │
+│ ┌──────────┐  ┌──────────────────────┐ │
+│ │ Cancel   │  │ Open Settings        │ │
+│ └──────────┘  └──────────────────────┘ │
+└─────────────────────────────────────────┘
+```
+
+### Technical Implementation
+
+**Widget:** `GlowingVoiceIndicator`
+```dart
+GlowingVoiceIndicator(
+  icon: Icons.mic,
+  primaryColor: Colors.red,      // State-based
+  glowColor: Colors.redAccent,   // State-based
+  size: 80,
+  isActive: true,                // Controls animation
+  onTap: () => startListening(),
+)
+```
+
+**Alternative Widget:** `SoundWaveIndicator`
+- ChatGPT-style animated bars (5 bars)
+- Staggered animations for natural feel
+- Currently not used (orb is primary)
+
+### Files & Components
+- **NEW**: `lib/shared/widgets/glowing_voice_indicator.dart` - Animated voice widget
+- **MODIFIED**: `lib/arc/chat/ui/voice_chat_panel.dart` - Voice UI panel
+- **MODIFIED**: `lib/arc/chat/ui/lumara_assistant_screen.dart` - Mic button integration
+- **Backend**: Voice system (already existed, now exposed in UI)
+  - `voice_chat_service.dart` - Speech recognition
+  - `push_to_talk_controller.dart` - State management
+  - `voice_permissions.dart` - Permission handling
+  - `audio_io.dart` - Audio I/O
+  - `PiiScrubber` - On-device PII masking
+
+### Design Philosophy
+- **Familiar**: ChatGPT-inspired orb for instant recognition
+- **Reassuring**: State colors provide clear feedback
+- **Smooth**: Professional animations (1.5s cycles, easeInOut curves)
+- **Private**: On-device transcription, PII scrubbing
+- **Hands-free**: Auto-resume loop for natural conversation
+- **Accessible**: Large touch target (80px orb)
 
 ---
 

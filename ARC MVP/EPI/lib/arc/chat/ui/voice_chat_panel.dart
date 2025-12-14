@@ -1,18 +1,21 @@
 import 'package:flutter/material.dart';
 import '../voice/push_to_talk_controller.dart';
 import '../voice/voice_diagnostics.dart';
-import 'widgets/mic_button.dart';
+import 'animated_voice_orb.dart';
+import 'dart:async';
 
 class VoiceChatPanel extends StatefulWidget {
   final PushToTalkController controller;
   final VoiceDiagnostics? diagnostics;
   final String? partialTranscript;
+  final Stream<double>? audioLevelStream; // Audio level stream for visualization
 
   const VoiceChatPanel({
     super.key,
     required this.controller,
     this.diagnostics,
     this.partialTranscript,
+    this.audioLevelStream,
   });
 
   @override
@@ -20,16 +23,31 @@ class VoiceChatPanel extends StatefulWidget {
 }
 
 class _VoiceChatPanelState extends State<VoiceChatPanel> {
+  double _currentAudioLevel = 0.0;
+  StreamSubscription<double>? _audioLevelSubscription;
+
   @override
   void initState() {
     super.initState();
     // Listen to controller state changes
     widget.controller.addListener(_onControllerStateChanged);
+    
+    // Listen to audio level stream if provided
+    if (widget.audioLevelStream != null) {
+      _audioLevelSubscription = widget.audioLevelStream!.listen((level) {
+        if (mounted) {
+          setState(() {
+            _currentAudioLevel = level;
+          });
+        }
+      });
+    }
   }
 
   @override
   void dispose() {
     widget.controller.removeListener(_onControllerStateChanged);
+    _audioLevelSubscription?.cancel();
     super.dispose();
   }
 
@@ -49,7 +67,6 @@ class _VoiceChatPanelState extends State<VoiceChatPanel> {
     final isListening = currentState == VCState.listening;
     final isSpeaking = currentState == VCState.speaking;
     final isThinking = currentState == VCState.thinking;
-    final isError = currentState == VCState.error;
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -59,6 +76,7 @@ class _VoiceChatPanelState extends State<VoiceChatPanel> {
       ),
       child: SafeArea(
         top: false,
+        child: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -84,10 +102,32 @@ class _VoiceChatPanelState extends State<VoiceChatPanel> {
               ),
               textAlign: TextAlign.center,
             ),
+            const SizedBox(height: 24),
+            
+            // Animated voice orb with state-based styling
+            Center(
+              child: AnimatedVoiceOrb(
+                state: currentState,
+                audioLevel: currentState == VCState.listening ? _currentAudioLevel : null,
+                onTap: (currentState == VCState.idle || currentState == VCState.listening) 
+                    ? widget.controller.onMicTap 
+                    : null,
+                isEnabled: currentState == VCState.idle || currentState == VCState.listening,
+              ),
+            ),
+            
             const SizedBox(height: 16),
             
-            // State indicator
-            _buildStateIndicator(theme, isListening, isSpeaking, isThinking, isError),
+            // State text
+            Text(
+              _getStateText(currentState),
+              style: theme.textTheme.titleMedium?.copyWith(
+                color: _getStateColor(currentState),
+                fontWeight: FontWeight.w600,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            
             const SizedBox(height: 16),
             
             // Partial transcript display
@@ -155,95 +195,119 @@ class _VoiceChatPanelState extends State<VoiceChatPanel> {
                 ),
               ),
             
-            // Mic button
-            MicButton(
-              listening: isListening,
-              speaking: isSpeaking,
-              onTap: () => widget.controller.onMicTap(),
-              onEnd: () => widget.controller.endSession(),
-            ),
-            const SizedBox(height: 12),
-            
-            // Help text
-            Text(
-              isListening
-                  ? 'Tap the mic again to stop and process'
-                  : isSpeaking
-                      ? 'Listening will resume automatically'
-                      : 'Tap the mic to start voice chat',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurface.withOpacity(0.6),
+            // Control buttons
+            if (isListening || isSpeaking || isThinking)
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: widget.controller.endSession,
+                    icon: const Icon(Icons.stop, size: 20),
+                    label: const Text('End Session'),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 20),
+                      side: BorderSide(
+                        color: theme.colorScheme.outline,
+                        width: 1.5,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                ],
+              )
+            else ...[
+              Text(
+                currentState == VCState.idle && widget.partialTranscript != null && widget.partialTranscript!.isNotEmpty
+                    ? 'Session ended - transcript saved'
+                    : 'Tap the glowing mic to start',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurface.withOpacity(0.6),
+                ),
+                textAlign: TextAlign.center,
               ),
-              textAlign: TextAlign.center,
-            ),
+              // Show final transcript when session is idle
+              if (currentState == VCState.idle && widget.partialTranscript != null && widget.partialTranscript!.isNotEmpty)
+                Container(
+                  margin: const EdgeInsets.only(top: 16),
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: theme.colorScheme.outline.withOpacity(0.2),
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.check_circle,
+                            size: 16,
+                            color: Colors.green,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Final Transcript',
+                            style: theme.textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        widget.partialTranscript!,
+                        style: theme.textTheme.bodyMedium,
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+            
+            const SizedBox(height: 12),
             
             // Diagnostics overlay (debug mode)
             if (widget.diagnostics != null && currentState != VCState.idle)
               _buildDiagnosticsOverlay(),
           ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildStateIndicator(
-    ThemeData theme,
-    bool isListening,
-    bool isSpeaking,
-    bool isThinking,
-    bool isError,
-  ) {
-    IconData icon;
-    String label;
-    Color color;
-
-    if (isError) {
-      icon = Icons.error_outline;
-      label = 'Error';
-      color = theme.colorScheme.error;
-    } else if (isSpeaking) {
-      icon = Icons.volume_up;
-      label = 'Speaking';
-      color = theme.colorScheme.primary;
-    } else if (isThinking) {
-      icon = Icons.psychology;
-      label = 'Thinking';
-      color = theme.colorScheme.secondary;
-    } else if (isListening) {
-      icon = Icons.mic;
-      label = 'Listening';
-      color = Colors.red;
-    } else {
-      icon = Icons.mic_none;
-      label = 'Ready';
-      color = theme.colorScheme.onSurface.withOpacity(0.5);
+  Color _getStateColor(VCState state) {
+    switch (state) {
+      case VCState.listening:
+        return Colors.red;
+      case VCState.thinking:
+        return Colors.amber; // Yellow/amber for processing
+      case VCState.speaking:
+        return Colors.grey; // Grayed out when speaking
+      case VCState.error:
+        return Colors.redAccent;
+      case VCState.idle:
+        return Colors.green; // Green when ready
     }
+  }
 
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: color.withOpacity(0.3),
-          width: 1.5,
-        ),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(icon, color: color, size: 20),
-          const SizedBox(width: 8),
-          Text(
-            label,
-            style: theme.textTheme.titleMedium?.copyWith(
-              color: color,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
-      ),
-    );
+  String _getStateText(VCState state) {
+    switch (state) {
+      case VCState.listening:
+        return 'Listening...';
+      case VCState.thinking:
+        return 'Processing...';
+      case VCState.speaking:
+        return 'LUMARA is speaking - Please wait';
+      case VCState.error:
+        return 'Error - Try again';
+      case VCState.idle:
+        return 'Ready to transcribe';
+    }
   }
 
   Widget _buildDiagnosticsOverlay() {

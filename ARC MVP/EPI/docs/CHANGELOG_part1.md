@@ -1,8 +1,54 @@
 # EPI ARC MVP - Changelog (Part 1: December 2025)
 
-**Version:** 2.1.52
+**Version:** 2.1.53
 **Last Updated:** December 13, 2025
 **Coverage:** December 2025 releases
+
+---
+
+## [2.1.53] - December 13, 2025
+
+### **Jarvis-Style Voice Chat UI (Phase 1)** - ✅ Complete
+
+#### Glowing Voice Indicator Widget
+- **NEW**: `lib/shared/widgets/glowing_voice_indicator.dart`
+- ChatGPT-style multi-layer pulsing glow animation
+- State-based colors: Red (listening), Orange (thinking), Green (speaking), Gray (idle)
+- Customizable: size, speed, intensity, glow radius
+- Supports custom icons or images
+- **Bonus**: `SoundWaveIndicator` variant with animated bars
+
+#### Voice Chat UI Integration
+- Added microphone button to LUMARA chat AppBar (top-right)
+- Replaced basic MicButton with `GlowingVoiceIndicator` in `VoiceChatPanel`
+- Simplified bottom sheet with centered glowing orb
+- Enhanced state visualization with color-coded feedback
+- Improved control flow (tap orb to start/stop, End Session button)
+
+#### Voice System (Already Existed, Now Exposed)
+- ✅ Speech-to-Text (on-device via `speech_to_text` plugin)
+- ✅ Text-to-Speech (via `flutter_tts`)
+- ✅ Intent routing: Journal (create/append/query), Chat, Files
+- ✅ PII scrubbing (Mode A pipeline)
+- ✅ Context memory across conversation turns
+- ✅ Auto-resume loop (LUMARA speaks → automatically listens for response)
+
+#### How to Use
+1. Open LUMARA chat
+2. Tap 🎤 mic button in AppBar
+3. Grant microphone permission (first time)
+4. Tap the glowing orb to start talking
+5. Say: "Create a new journal" / "How am I feeling?" / "Summarize my week"
+6. Tap orb again to stop and process
+7. LUMARA responds with voice + text
+
+#### Files Changed
+- NEW: `lib/shared/widgets/glowing_voice_indicator.dart`
+- MODIFIED: `lib/arc/chat/ui/lumara_assistant_screen.dart` (mic button in AppBar)
+- MODIFIED: `lib/arc/chat/ui/voice_chat_panel.dart` (glowing indicator integration)
+
+**Status**: ✅ Complete  
+**Branch**: `dev-voice-updates`
 
 ---
 
