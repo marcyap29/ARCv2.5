@@ -361,7 +361,7 @@ class McpPackImportService {
       entriesDir = Directory(path.join(mcpDir.path, 'nodes', 'journal'));
       if (!await entriesDir.exists()) {
         print('⚠️ No Entries or nodes/journal directory found');
-        return {'imported': entriesImported, 'total': 0};
+      return {'imported': entriesImported, 'total': 0};
       }
     }
 
@@ -1111,9 +1111,9 @@ class McpPackImportService {
       if (!useBuckets) {
         sessionDir = Directory(path.join(mcpDir.path, 'nodes', 'chat', 'session'));
         messageDir = Directory(path.join(mcpDir.path, 'nodes', 'chat', 'message'));
-        if (!await sessionDir.exists() || !await messageDir.exists()) {
+      if (!await sessionDir.exists() || !await messageDir.exists()) {
           print('📱 MCP Import: No chat data found (Chats or nodes/chat directories missing)');
-          return {'sessionCount': 0, 'messageCount': 0};
+        return {'sessionCount': 0, 'messageCount': 0};
         }
       }
       
@@ -1196,33 +1196,33 @@ class McpPackImportService {
         }
       } else {
         // Legacy structure: nodes/chat/session and nodes/chat/message
-        // Step 1: Import all sessions
+      // Step 1: Import all sessions
         await for (final sessionFile in sessionDir!.list()) {
-          if (sessionFile is File && sessionFile.path.endsWith('.json')) {
-            try {
-              final sessionJson = jsonDecode(await sessionFile.readAsString()) as Map<String, dynamic>;
-              
-              // Extract session ID from JSON (format: "session:{sessionId}" or just "{sessionId}")
-              // Also use filename as fallback (filename is {sessionId}.json)
-              final mcpSessionIdFromJson = sessionJson['id'] as String?;
-              final filenameSessionId = path.basenameWithoutExtension(sessionFile.path);
-              
-              // Determine the MCP session ID (prefer JSON, fallback to filename)
-              String mcpSessionId;
-              if (mcpSessionIdFromJson != null) {
-                mcpSessionId = mcpSessionIdFromJson.startsWith('session:') 
-                    ? mcpSessionIdFromJson 
-                    : 'session:$mcpSessionIdFromJson';
-              } else {
-                mcpSessionId = 'session:$filenameSessionId';
-              }
-              
-              // Extract session data
-              final title = sessionJson['title'] as String? ?? 'Imported Chat';
-              final tags = (sessionJson['tags'] as List<dynamic>?)?.cast<String>() ?? [];
-              final isArchived = sessionJson['isArchived'] as bool? ?? false;
-              final isPinned = sessionJson['isPinned'] as bool? ?? false;
-              final metadata = sessionJson['metadata'] as Map<String, dynamic>?;
+        if (sessionFile is File && sessionFile.path.endsWith('.json')) {
+          try {
+            final sessionJson = jsonDecode(await sessionFile.readAsString()) as Map<String, dynamic>;
+            
+            // Extract session ID from JSON (format: "session:{sessionId}" or just "{sessionId}")
+            // Also use filename as fallback (filename is {sessionId}.json)
+            final mcpSessionIdFromJson = sessionJson['id'] as String?;
+            final filenameSessionId = path.basenameWithoutExtension(sessionFile.path);
+            
+            // Determine the MCP session ID (prefer JSON, fallback to filename)
+            String mcpSessionId;
+            if (mcpSessionIdFromJson != null) {
+              mcpSessionId = mcpSessionIdFromJson.startsWith('session:') 
+                  ? mcpSessionIdFromJson 
+                  : 'session:$mcpSessionIdFromJson';
+            } else {
+              mcpSessionId = 'session:$filenameSessionId';
+            }
+            
+            // Extract session data
+            final title = sessionJson['title'] as String? ?? 'Imported Chat';
+            final tags = (sessionJson['tags'] as List<dynamic>?)?.cast<String>() ?? [];
+            final isArchived = sessionJson['isArchived'] as bool? ?? false;
+            final isPinned = sessionJson['isPinned'] as bool? ?? false;
+            final metadata = sessionJson['metadata'] as Map<String, dynamic>?;
             
             // Create session
             final newSessionId = await _chatRepo!.createSession(
@@ -1272,46 +1272,46 @@ class McpPackImportService {
             
             sessionCount++;
             print('📱 MCP Import: ✓ Imported chat session: $title (MCP ID: $mcpSessionId -> New ID: $newSessionId)');
-            } catch (e) {
-              print('⚠️ MCP Import: Failed to import chat session from ${sessionFile.path}: $e');
-            }
+          } catch (e) {
+            print('⚠️ MCP Import: Failed to import chat session from ${sessionFile.path}: $e');
           }
         }
+      }
 
         // Step 2: Read edges to map messages to sessions (legacy structure only)
-        final messageToSessionMap = <String, String>{};
-        if (await edgesFile.exists()) {
-          try {
-            final edgesLines = await edgesFile.readAsLines();
-            for (final line in edgesLines) {
-              if (line.trim().isEmpty) continue;
-              try {
-                final edge = jsonDecode(line) as Map<String, dynamic>;
-                final relation = edge['relation'] as String?;
-                if (relation == 'contains') {
-                  final source = edge['source'] as String?; // "session:{sessionId}"
-                  final target = edge['target'] as String?; // "message:{messageId}"
-                  if (source != null && target != null) {
-                    // Map message ID to session ID
-                    messageToSessionMap[target] = source;
-                  }
+      final messageToSessionMap = <String, String>{};
+      if (await edgesFile.exists()) {
+        try {
+          final edgesLines = await edgesFile.readAsLines();
+          for (final line in edgesLines) {
+            if (line.trim().isEmpty) continue;
+            try {
+              final edge = jsonDecode(line) as Map<String, dynamic>;
+              final relation = edge['relation'] as String?;
+              if (relation == 'contains') {
+                final source = edge['source'] as String?; // "session:{sessionId}"
+                final target = edge['target'] as String?; // "message:{messageId}"
+                if (source != null && target != null) {
+                  // Map message ID to session ID
+                  messageToSessionMap[target] = source;
                 }
-              } catch (e) {
-                print('⚠️ MCP Import: Failed to parse edge: $e');
               }
+            } catch (e) {
+              print('⚠️ MCP Import: Failed to parse edge: $e');
             }
-          } catch (e) {
-            print('⚠️ MCP Import: Failed to read edges.jsonl: $e');
           }
+        } catch (e) {
+          print('⚠️ MCP Import: Failed to read edges.jsonl: $e');
         }
+      }
 
         // Step 3: Import all messages (legacy structure only)
-        final messagesBySession = <String, List<Map<String, dynamic>>>{};
-        
+      final messagesBySession = <String, List<Map<String, dynamic>>>{};
+      
         await for (final messageFile in messageDir!.list()) {
-          if (messageFile is File && messageFile.path.endsWith('.json')) {
-            try {
-              final messageJson = jsonDecode(await messageFile.readAsString()) as Map<String, dynamic>;
+        if (messageFile is File && messageFile.path.endsWith('.json')) {
+          try {
+            final messageJson = jsonDecode(await messageFile.readAsString()) as Map<String, dynamic>;
             
             // Extract message ID from JSON (format: "message:{messageId}" or just "{messageId}")
             // Also use filename as fallback (filename is {messageId}.json)
@@ -1375,40 +1375,40 @@ class McpPackImportService {
               'messageId': actualMessageId,
               'order': messageJson['order'] as int?,
             });
-            } catch (e) {
-              print('⚠️ MCP Import: Failed to import chat message from ${messageFile.path}: $e');
-            }
+          } catch (e) {
+            print('⚠️ MCP Import: Failed to import chat message from ${messageFile.path}: $e');
           }
         }
+      }
 
         // Step 4: Add messages to sessions in order (legacy structure only)
-        for (final entry in messagesBySession.entries) {
-          final sessionId = entry.key;
-          final messages = entry.value;
+      for (final entry in messagesBySession.entries) {
+        final sessionId = entry.key;
+        final messages = entry.value;
         
-          // Sort messages by order field or timestamp
-          messages.sort((a, b) {
-            final orderA = a['order'] as int?;
-            final orderB = b['order'] as int?;
-            if (orderA != null && orderB != null) {
-              return orderA.compareTo(orderB);
-            }
-            final timeA = a['createdAt'] as DateTime;
-            final timeB = b['createdAt'] as DateTime;
-            return timeA.compareTo(timeB);
-          });
-          
-          // Add messages to session
-          for (final msg in messages) {
-            try {
-              await _chatRepo!.addMessage(
-                sessionId: sessionId,
-                role: msg['role'] as String,
-                content: msg['text'] as String,
-              );
-              messageCount++;
-            } catch (e) {
-              print('⚠️ MCP Import: Failed to add message to session $sessionId: $e');
+        // Sort messages by order field or timestamp
+        messages.sort((a, b) {
+          final orderA = a['order'] as int?;
+          final orderB = b['order'] as int?;
+          if (orderA != null && orderB != null) {
+            return orderA.compareTo(orderB);
+          }
+          final timeA = a['createdAt'] as DateTime;
+          final timeB = b['createdAt'] as DateTime;
+          return timeA.compareTo(timeB);
+        });
+        
+        // Add messages to session
+        for (final msg in messages) {
+          try {
+            await _chatRepo!.addMessage(
+              sessionId: sessionId,
+              role: msg['role'] as String,
+              content: msg['text'] as String,
+            );
+            messageCount++;
+          } catch (e) {
+            print('⚠️ MCP Import: Failed to add message to session $sessionId: $e');
             }
           }
         }

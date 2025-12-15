@@ -606,7 +606,7 @@ class ARCXImportServiceV2 {
       phaseRegimesDir = Directory(path.join(payloadDir.path, 'PhaseRegimes'));
       if (!await phaseRegimesDir.exists()) {
         print('ARCX Import V2: ⚠️ extensions or PhaseRegimes directory not found');
-        return 0;
+      return 0;
       }
     }
     
@@ -645,7 +645,7 @@ class ARCXImportServiceV2 {
         phaseRegimesDir = Directory(path.join(payloadDir.path, 'PhaseRegimes'));
         if (!await phaseRegimesDir.exists()) {
           print('ARCX Import V2: ⚠️ extensions or PhaseRegimes directory not found, skipping RIVET state');
-          return 0;
+        return 0;
         }
       }
 
@@ -715,7 +715,7 @@ class ARCXImportServiceV2 {
         phaseRegimesDir = Directory(path.join(payloadDir.path, 'PhaseRegimes'));
         if (!await phaseRegimesDir.exists()) {
           print('ARCX Import V2: ⚠️ extensions or PhaseRegimes directory not found, skipping Sentinel state');
-          return 0;
+        return 0;
         }
       }
 

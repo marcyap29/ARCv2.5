@@ -396,7 +396,7 @@ class McpPackExportService {
       }
     }
     final entryFileName = 'entry-${entry.id}-$slug.json';
-    
+
     // Write entry JSON
     final entryFile = File(path.join(dateDir.path, entryFileName));
     await entryFile.writeAsString(jsonEncode(processedEntry));
@@ -822,11 +822,11 @@ class McpPackExportService {
           'messages': filteredMessages.asMap().entries.map((entry) {
             final message = entry.value;
             final index = entry.key;
-            // Create contains edge
-            edges.add({
+          // Create contains edge
+          edges.add({
               'source': 'chat:${session.id}',
-              'target': 'message:${message.id}',
-              'relation': 'contains',
+            'target': 'message:${message.id}',
+            'relation': 'contains',
               'timestamp': message.createdAt.toUtc().toIso8601String(),
               'order': index,
             });

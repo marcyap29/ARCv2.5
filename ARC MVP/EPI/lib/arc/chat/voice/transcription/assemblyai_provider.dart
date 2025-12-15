@@ -9,6 +9,7 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'transcription_provider.dart';
+import 'audio_stream_capture.dart';
 
 /// AssemblyAI WebSocket message types
 class _AssemblyAIMessage {
@@ -24,17 +25,18 @@ class AssemblyAIProvider implements TranscriptionProvider {
   
   WebSocket? _webSocket;
   StreamSubscription? _socketSubscription;
+  StreamSubscription<Uint8List>? _audioSubscription;
   ProviderStatus _status = ProviderStatus.idle;
   bool _isListening = false;
+  
+  // Audio capture
+  final AudioStreamCapture _audioCapture = AudioStreamCapture();
   
   // Callbacks
   Function(TranscriptSegment segment)? _onPartialResult;
   Function(TranscriptSegment segment)? _onFinalResult;
   Function(String error)? _onError;
   Function(double level)? _onSoundLevel;
-  
-  // Audio recording (platform-specific implementation needed)
-  // For now, this is a placeholder - actual audio capture needs platform channels
   
   static const String _wsUrl = 'wss://api.assemblyai.com/v2/realtime/ws';
   
@@ -58,6 +60,14 @@ class AssemblyAIProvider implements TranscriptionProvider {
       _status = ProviderStatus.unavailable;
       return false;
     }
+    
+    // Check if audio capture has permission
+    if (!await _audioCapture.hasPermission()) {
+      debugPrint('AssemblyAI: No microphone permission');
+      _status = ProviderStatus.unavailable;
+      return false;
+    }
+    
     _status = ProviderStatus.idle;
     return true;
   }
@@ -85,6 +95,8 @@ class AssemblyAIProvider implements TranscriptionProvider {
         },
       );
       
+      debugPrint('AssemblyAI: Connecting to WebSocket...');
+      
       // Connect to AssemblyAI WebSocket
       _webSocket = await WebSocket.connect(
         wsUrlWithParams.toString(),
@@ -93,6 +105,8 @@ class AssemblyAIProvider implements TranscriptionProvider {
         },
       );
       
+      debugPrint('AssemblyAI: WebSocket connected');
+      
       _isListening = true;
       _status = ProviderStatus.listening;
       
@@ -100,25 +114,21 @@ class AssemblyAIProvider implements TranscriptionProvider {
       _socketSubscription = _webSocket!.listen(
         _handleMessage,
         onError: (error) {
-          print('AssemblyAI WebSocket error: $error');
+          debugPrint('AssemblyAI WebSocket error: $error');
           _handleError('Connection error: $error');
         },
         onDone: () {
-          print('AssemblyAI WebSocket closed');
+          debugPrint('AssemblyAI WebSocket closed');
           _isListening = false;
           _status = ProviderStatus.idle;
         },
       );
       
       // Start audio capture and streaming
-      // NOTE: This requires platform-specific implementation
-      // For iOS: AVAudioEngine or similar
-      // For Android: AudioRecord
-      // This is a placeholder - actual implementation needs native code
-      _startAudioCapture();
+      await _startAudioCapture();
       
     } catch (e) {
-      print('AssemblyAI connection error: $e');
+      debugPrint('AssemblyAI connection error: $e');
       _handleError('Failed to connect: $e');
       _status = ProviderStatus.error;
     }
@@ -131,7 +141,7 @@ class AssemblyAIProvider implements TranscriptionProvider {
       
       switch (messageType) {
         case _AssemblyAIMessage.sessionBegins:
-          print('AssemblyAI session started: ${data['session_id']}');
+          debugPrint('AssemblyAI session started: ${data['session_id']}');
           break;
           
         case _AssemblyAIMessage.partialTranscript:
@@ -163,7 +173,7 @@ class AssemblyAIProvider implements TranscriptionProvider {
           break;
           
         case _AssemblyAIMessage.sessionTerminated:
-          print('AssemblyAI session terminated');
+          debugPrint('AssemblyAI session terminated');
           _isListening = false;
           _status = ProviderStatus.idle;
           break;
@@ -174,7 +184,7 @@ class AssemblyAIProvider implements TranscriptionProvider {
           break;
       }
     } catch (e) {
-      print('Error parsing AssemblyAI message: $e');
+      debugPrint('Error parsing AssemblyAI message: $e');
     }
   }
 
@@ -183,34 +193,42 @@ class AssemblyAIProvider implements TranscriptionProvider {
     _onError?.call(error);
   }
 
-  /// Start capturing audio from microphone
-  /// NOTE: This is a placeholder - needs platform-specific implementation
-  void _startAudioCapture() {
-    // TODO: Implement platform-specific audio capture
-    // 
-    // For Flutter, options include:
-    // 1. flutter_sound package for recording
-    // 2. Custom platform channels to AVAudioEngine (iOS) / AudioRecord (Android)
-    // 3. record package
-    //
-    // Audio must be:
-    // - PCM 16-bit signed little-endian
-    // - 16000 Hz sample rate
-    // - Mono channel
-    //
-    // Send audio chunks to WebSocket:
-    // _webSocket?.add(audioBytes);
-    //
-    // Call _onSoundLevel with normalized audio level (0.0-1.0) for visualization
-    // Example: _onSoundLevel?.call(normalizedLevel);
+  /// Start capturing audio from microphone and stream to AssemblyAI
+  Future<void> _startAudioCapture() async {
+    debugPrint('AssemblyAI: Starting audio capture...');
     
-    print('AssemblyAI: Audio capture placeholder - needs platform implementation');
-    // Placeholder: notify that sound level callback is available
-    _onSoundLevel?.call(0.0);
+    // Start the audio stream
+    final audioStream = await _audioCapture.startCapture(
+      onLevel: (level) {
+        // Forward audio level to callback
+        _onSoundLevel?.call(level);
+      },
+    );
+    
+    if (audioStream == null) {
+      _handleError('Failed to start audio capture');
+      return;
+    }
+    
+    debugPrint('AssemblyAI: Audio capture started, streaming to WebSocket');
+    
+    // Listen to audio stream and send to AssemblyAI
+    _audioSubscription = audioStream.listen(
+      (audioData) {
+        _sendAudioToWebSocket(audioData);
+      },
+      onError: (error) {
+        debugPrint('AssemblyAI: Audio stream error: $error');
+        _handleError('Audio capture error: $error');
+      },
+      onDone: () {
+        debugPrint('AssemblyAI: Audio stream ended');
+      },
+    );
   }
 
-  /// Send audio data to AssemblyAI
-  void sendAudio(Uint8List audioData) {
+  /// Send audio data to AssemblyAI WebSocket
+  void _sendAudioToWebSocket(Uint8List audioData) {
     if (_webSocket != null && _isListening) {
       // AssemblyAI expects base64-encoded audio
       final base64Audio = base64Encode(audioData);
@@ -218,14 +236,29 @@ class AssemblyAIProvider implements TranscriptionProvider {
     }
   }
 
+  /// Public method to send audio data (for external audio sources)
+  void sendAudio(Uint8List audioData) {
+    _sendAudioToWebSocket(audioData);
+  }
+
   @override
   Future<void> stopListening() async {
     _status = ProviderStatus.processing;
     
-    // Send terminate message
+    // Stop audio capture first
+    await _audioSubscription?.cancel();
+    _audioSubscription = null;
+    await _audioCapture.stopCapture();
+    
+    // Send terminate message to AssemblyAI
     if (_webSocket != null) {
-      _webSocket!.add(jsonEncode({'terminate_session': true}));
-      await Future.delayed(const Duration(milliseconds: 500));
+      try {
+        _webSocket!.add(jsonEncode({'terminate_session': true}));
+        // Give AssemblyAI time to process final audio
+        await Future.delayed(const Duration(milliseconds: 500));
+      } catch (e) {
+        debugPrint('AssemblyAI: Error sending terminate: $e');
+      }
     }
     
     await _cleanup();
@@ -234,15 +267,26 @@ class AssemblyAIProvider implements TranscriptionProvider {
 
   @override
   Future<void> cancelListening() async {
+    // Stop audio capture
+    await _audioSubscription?.cancel();
+    _audioSubscription = null;
+    await _audioCapture.stopCapture();
+    
     await _cleanup();
     _status = ProviderStatus.idle;
   }
 
   Future<void> _cleanup() async {
     _isListening = false;
+    
     await _socketSubscription?.cancel();
     _socketSubscription = null;
-    await _webSocket?.close();
+    
+    try {
+      await _webSocket?.close();
+    } catch (e) {
+      debugPrint('AssemblyAI: Error closing WebSocket: $e');
+    }
     _webSocket = null;
   }
 
@@ -262,6 +306,8 @@ class AssemblyAIProvider implements TranscriptionProvider {
 
   @override
   Future<void> dispose() async {
+    await _audioSubscription?.cancel();
+    await _audioCapture.dispose();
     await _cleanup();
   }
 
