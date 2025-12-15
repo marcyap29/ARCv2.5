@@ -46,12 +46,12 @@ class FirebaseAuthService {
       _auth = firebaseService.getAuth();
       debugPrint('🔐 FirebaseAuthService: Auth instance obtained');
 
-      // Initialize Google Sign-In
-      _googleSignIn = GoogleSignIn(
-        scopes: [
-          'email',
-          'profile',
-        ],
+      // Initialize Google Sign-In (7.x API - singleton pattern)
+      _googleSignIn = GoogleSignIn.instance;
+      
+      // Initialize with configuration (required in 7.x)
+      // Note: scopes are passed to authenticate(), not initialize()
+      await _googleSignIn!.initialize(
         // Configure for web platform
         clientId: kIsWeb ? const String.fromEnvironment('GOOGLE_OAUTH_CLIENT_ID') : null,
       );
@@ -108,10 +108,12 @@ class FirebaseAuthService {
 
       debugPrint('FirebaseAuthService: Starting Google Sign-In...');
 
-      // Trigger the authentication flow
+      // Trigger the authentication flow (7.x API uses authenticate() with scopeHint)
       GoogleSignInAccount? googleUser;
       try {
-        googleUser = await _googleSignIn!.signIn();
+        googleUser = await _googleSignIn!.authenticate(
+          scopeHint: ['email', 'profile'],
+        );
       } catch (e) {
         debugPrint('FirebaseAuthService: Google Sign-In trigger failed: $e');
         // Check for common configuration errors
@@ -128,23 +130,50 @@ class FirebaseAuthService {
         throw Exception('Google Sign-In failed. Please try Email sign-in instead.');
       }
 
-      if (googleUser == null) {
-        debugPrint('FirebaseAuthService: Google Sign-In cancelled by user');
-        return null;
-      }
+      // In 7.x, authenticate() throws on cancellation, doesn't return null
+      // If we get here, authentication succeeded
 
       debugPrint('FirebaseAuthService: Google user signed in: ${googleUser.email}');
 
       // Obtain the auth details from the request
-      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      final GoogleSignInAuthentication googleAuth = googleUser.authentication;
 
-      if (googleAuth.accessToken == null || googleAuth.idToken == null) {
+      if (googleAuth.idToken == null) {
         throw Exception('Failed to get Google authentication tokens. Please try Email sign-in instead.');
+      }
+
+      // Get access token via authorization client (7.x API)
+      String? accessToken;
+      try {
+        final authorization = await googleUser.authorizationClient.authorizationForScopes(
+          ['email', 'profile'],
+        );
+        if (authorization != null) {
+          accessToken = authorization.accessToken;
+        }
+      } catch (e) {
+        debugPrint('FirebaseAuthService: Could not get access token: $e');
+      }
+      
+      // If authorizationForScopes returned null, try authorizeScopes (requires user interaction)
+      if (accessToken == null) {
+        try {
+          final authorization = await googleUser.authorizationClient.authorizeScopes(
+            ['email', 'profile'],
+          );
+          accessToken = authorization.accessToken;
+        } catch (e2) {
+          debugPrint('FirebaseAuthService: Could not get access token via authorizeScopes: $e2');
+        }
+      }
+
+      if (accessToken == null) {
+        throw Exception('Failed to get Google access token. Please try Email sign-in instead.');
       }
 
       // Create a new credential
       final credential = GoogleAuthProvider.credential(
-        accessToken: googleAuth.accessToken,
+        accessToken: accessToken,
         idToken: googleAuth.idToken,
       );
 

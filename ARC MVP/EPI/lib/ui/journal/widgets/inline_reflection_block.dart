@@ -7,6 +7,7 @@ import 'package:my_app/arc/chat/data/models/lumara_favorite.dart';
 import 'package:my_app/shared/widgets/lumara_action_menu.dart';
 import 'package:my_app/shared/ui/settings/favorites_management_view.dart';
 import 'package:my_app/arc/chat/voice/audio_io.dart';
+import 'package:my_app/shared/ui/settings/voiceover_preference_service.dart';
 
 /// Inline reflection block that appears within journal entries
 class InlineReflectionBlock extends StatefulWidget {
@@ -59,6 +60,12 @@ class _InlineReflectionBlockState extends State<InlineReflectionBlock> with Sing
     try {
       _audioIO = AudioIO();
       await _audioIO!.initializeTTS();
+
+      // Auto-speak content if Voice Responses is enabled - delay to ensure widget is ready
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        await Future.delayed(const Duration(milliseconds: 500));
+        await _speakContentIfEnabled();
+      });
     } catch (e) {
       debugPrint('Error initializing AudioIO: $e');
     }
@@ -95,6 +102,32 @@ class _InlineReflectionBlockState extends State<InlineReflectionBlock> with Sing
       }
     } catch (e) {
       debugPrint('Error speaking content: $e');
+    }
+  }
+
+  /// Speak content if Voice Responses setting is enabled
+  Future<void> _speakContentIfEnabled() async {
+    try {
+      debugPrint('InlineReflectionBlock: Checking voice responses setting...');
+      final voiceoverEnabled = await VoiceoverPreferenceService.instance.isVoiceoverEnabled();
+      debugPrint('InlineReflectionBlock: Voice responses enabled: $voiceoverEnabled');
+      debugPrint('InlineReflectionBlock: AudioIO available: ${_audioIO != null}');
+      debugPrint('InlineReflectionBlock: Content available: ${widget.content.isNotEmpty}');
+
+      if (voiceoverEnabled && _audioIO != null && widget.content.isNotEmpty) {
+        // Clean text for speech (remove markdown, etc.)
+        final cleanText = _cleanTextForSpeech(widget.content);
+        debugPrint('InlineReflectionBlock: Clean text length: ${cleanText.length}');
+        if (cleanText.isNotEmpty) {
+          debugPrint('InlineReflectionBlock: Starting to speak LUMARA reflection...');
+          await _audioIO!.speak(cleanText);
+          debugPrint('InlineReflectionBlock: Speech completed');
+        }
+      } else {
+        debugPrint('InlineReflectionBlock: Not speaking - voiceoverEnabled: $voiceoverEnabled, audioIO: ${_audioIO != null}, content: ${widget.content.isNotEmpty}');
+      }
+    } catch (e) {
+      debugPrint('Error speaking content automatically: $e');
     }
   }
 

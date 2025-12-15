@@ -199,6 +199,10 @@ class VoiceJournalStore {
       
       if (_captureCubit != null) {
         // Use cubit to save (includes timeline refresh, etc.)
+        debugPrint('VoiceJournalStore: About to save with content length: ${content.length}');
+        debugPrint('VoiceJournalStore: Title: $title');
+        debugPrint('VoiceJournalStore: Content preview: ${content.length > 100 ? content.substring(0, 100) : content}...');
+
         _captureCubit!.saveEntryWithKeywords(
           content: content,
           mood: 'reflective',  // Default mood for voice journal
@@ -206,10 +210,13 @@ class VoiceJournalStore {
           title: title,
           // Don't send to chat - this is journal only
         );
-        
-        debugPrint('VoiceJournalStore: Saved via cubit');
+
+        debugPrint('VoiceJournalStore: Successfully saved via cubit');
       } else {
         // Direct repository save
+        debugPrint('VoiceJournalStore: Using direct repository save (no cubit available)');
+        debugPrint('VoiceJournalStore: Content length: ${content.length}');
+
         final entry = JournalEntry(
           id: entryId,
           title: title,
@@ -221,9 +228,9 @@ class VoiceJournalStore {
           keywords: _extractKeywords(record),
           // Note: audioUri could be set if we save audio
         );
-        
+
         await _repository.createJournalEntry(entry);
-        debugPrint('VoiceJournalStore: Saved directly to repository');
+        debugPrint('VoiceJournalStore: Successfully saved directly to repository');
       }
       
       // Also save detailed record to local JSON (for debugging/analysis)

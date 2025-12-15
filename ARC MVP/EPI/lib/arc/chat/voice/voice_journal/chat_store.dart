@@ -121,8 +121,8 @@ class VoiceChatStore {
     final state = _chatCubit!.state;
     if (state is LumaraAssistantLoaded) {
       return state.messages.map((m) => {
-        'role': m.role,
-        'content': m.content,
+        'role': m.role as String,
+        'content': m.content as String,
       }).toList();
     }
     
