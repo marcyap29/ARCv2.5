@@ -28,7 +28,7 @@ import 'package:uuid/uuid.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:audioplayers/audioplayers.dart';
-import 'package:my_app/arc/chat/voice/prism_scrubber.dart';
+import 'package:my_app/arc/chat/voice/voice_journal/prism_adapter.dart';
 import 'package:crypto/crypto.dart';
 import 'package:hive/hive.dart';
 import 'package:my_app/core/services/draft_cache_service.dart';
@@ -89,7 +89,7 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
     try {
       // Create JSON representation of the entry
       // Scrub PII from the content before sending
-      final scrubbingResult = PrismScrubber.scrubWithMapping(content);
+      final scrubbingResult = PrismAdapter().scrub(content);
       final scrubbedContent = scrubbingResult.scrubbedText;
       
       // Generate summary using scrubbed content
@@ -103,7 +103,7 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
       );
       
       // Restore PII in the returned summary
-      final summaryWithPII = PrismScrubber.restore(
+      final summaryWithPII = PrismAdapter().restore(
         result.reflection,
         scrubbingResult.reversibleMap,
       );

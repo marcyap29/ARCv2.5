@@ -9,7 +9,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import '../transcription/transcription_provider.dart';
 import '../transcription/assemblyai_provider.dart';
-import '../transcription/ondevice_provider.dart';
+import '../transcription/ondevice_provider.dart' show OnDeviceTranscriptionProvider;
 import '../../../../services/assemblyai_service.dart';
 import 'voice_journal_state.dart';
 
@@ -50,7 +50,7 @@ class AssemblyAISttService {
   final VoiceLatencyMetrics _metrics;
   
   AssemblyAIProvider? _cloudProvider;
-  OnDeviceProvider? _localProvider;
+  OnDeviceTranscriptionProvider? _localProvider;
   TranscriptionProvider? _activeProvider;
   
   // Transcript accumulation
@@ -105,7 +105,7 @@ class AssemblyAISttService {
       
       // Fall back to on-device
       debugPrint('AssemblyAI STT: Falling back to on-device provider');
-      _localProvider = OnDeviceProvider();
+      _localProvider = OnDeviceTranscriptionProvider();
       if (await _localProvider!.initialize()) {
         _activeProvider = _localProvider;
         _isInitialized = true;

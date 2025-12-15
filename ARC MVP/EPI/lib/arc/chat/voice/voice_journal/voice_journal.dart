@@ -66,8 +66,8 @@ export 'journal_store.dart';
 export 'chat_store.dart';
 
 // Services
-export 'voice_journal_pipeline.dart';
 export 'unified_voice_service.dart';
+// Note: voice_journal_pipeline.dart is kept for reference but not exported to avoid type conflicts
 
 // UI
 export 'voice_journal_panel.dart';

@@ -8,14 +8,12 @@
 /// - Scrubbed transcript is safe for sync/backup
 /// - PRISM reversible map is never persisted remotely
 
-import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 import '../../../core/journal_capture_cubit.dart';
 import '../../../core/journal_repository.dart';
 import '../../../../models/journal_entry_model.dart';
 import 'voice_journal_state.dart';
-import 'prism_adapter.dart';
 
 /// Voice journal entry for storage
 class VoiceJournalRecord {
@@ -189,15 +187,15 @@ class VoiceJournalStore {
       // Use display content for the entry (PII restored for user)
       final content = record.displayContent;
       
-      // Build metadata
-      final metadata = <String, dynamic>{
-        'source': 'voice_journal',
-        'session_id': record.sessionId,
-        'turn_count': record.turns.length,
-        'word_count': record.wordCount,
-        'total_redactions': record.totalRedactions,
-        'latency_metrics': record.metrics?.toLatencyReport(),
-      };
+      // Metadata is stored in detailed record (for future use)
+      // final metadata = <String, dynamic>{
+      //   'source': 'voice_journal',
+      //   'session_id': record.sessionId,
+      //   'turn_count': record.turns.length,
+      //   'word_count': record.wordCount,
+      //   'total_redactions': record.totalRedactions,
+      //   'latency_metrics': record.metrics?.toLatencyReport(),
+      // };
       
       if (_captureCubit != null) {
         // Use cubit to save (includes timeline refresh, etc.)
@@ -326,7 +324,7 @@ class VoiceJournalStore {
     return allEntries.where((entry) {
       return entry.createdAt.isAfter(startOfDay) && 
              entry.createdAt.isBefore(endOfDay) &&
-             entry.keywords?.contains('Voice Journal') == true;
+             entry.keywords.contains('Voice Journal');
     }).toList();
   }
 }

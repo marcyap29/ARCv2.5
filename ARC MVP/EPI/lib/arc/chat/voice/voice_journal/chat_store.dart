@@ -9,7 +9,6 @@ import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 import '../../bloc/lumara_assistant_cubit.dart';
 import 'voice_journal_state.dart';
-import 'prism_adapter.dart';
 
 /// Voice chat session record
 class VoiceChatRecord {

@@ -25,7 +25,7 @@ dependencies:
   just_audio: ^0.10.5
   speech_to_text: ^7.0.0
   flutter_tts: ^4.0.2
-  record: ^5.1.2  # Raw audio capture for AssemblyAI streaming
+  record: ^5.2.1  # Raw audio capture for AssemblyAI streaming
   uuid: ^4.5.1
   flutter_cube: ^0.1.1
   vector_math: ^2.1.4
