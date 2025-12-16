@@ -175,9 +175,13 @@ The conversation continues until you tap "End Session":
 
 ### Mode A (Current Implementation)
 
-**Flow:** Speech → STT → PII Scrub → LLM → Write to UI → TTS
+**Flow:** Speech → STT (AssemblyAI v3) → PII Scrub → LLM → Write to UI → TTS
 
-1. **Speech-to-Text**: On-device transcription using iOS speech recognition
+1. **Speech-to-Text**: Real-time transcription using AssemblyAI Universal Streaming v3 (premium users)
+   - WebSocket connection to `wss://streaming.assemblyai.com/v3/ws`
+   - Raw binary audio streaming (16kHz, 16-bit, mono PCM)
+   - Receives "Turn" messages with partial and final transcripts
+   - Low-latency real-time transcription with word-level timing
 2. **PII Scrubbing**: Removes sensitive information using PRISM scrubber
 3. **LLM Processing**: Sends scrubbed text to EnhancedLumaraApi
 4. **Write to UI**: LUMARA response is written to journal view first (creates inline box)
@@ -281,4 +285,4 @@ The microphone button shows different colors based on state:
 
 ---
 
-*Last updated: December 13, 2025*
+*Last updated: December 13, 2025 (AssemblyAI v3 migration)*

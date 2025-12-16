@@ -1,6 +1,6 @@
 # EPI ARC MVP - Changelog
 
-**Version:** 2.1.54
+**Version:** 2.1.55
 **Last Updated:** December 13, 2025
 
 ---
@@ -14,6 +14,27 @@ This changelog has been split into parts for easier navigation:
 | **[CHANGELOG_part1.md](CHANGELOG_part1.md)** | Dec 2025 | v2.1.43 - v2.1.53 (Current) |
 | **[CHANGELOG_part2.md](CHANGELOG_part2.md)** | Nov 2025 | v2.1.28 - v2.1.42 |
 | **[CHANGELOG_part3.md](CHANGELOG_part3.md)** | Jan-Oct 2025 | v2.0.0 - v2.1.27 & Earlier |
+
+---
+
+## [2.1.55] - December 13, 2025
+
+### **AssemblyAI Universal Streaming v3 Migration** - ✅ Complete
+
+- **Migrated from v2 Realtime API to Universal Streaming v3**: Complete migration to AssemblyAI's latest streaming API
+- **WebSocket endpoint updated**: Changed from `wss://api.assemblyai.com/v2/realtime/ws` to `wss://streaming.assemblyai.com/v3/ws`
+- **Authentication method updated**: API key now passed as query parameter (`?token=...`) instead of Authorization header
+- **Audio format fixed**: Changed from base64-encoded JSON to raw binary audio data (v3 requirement)
+- **Message handling updated**: Added support for v3 "Turn" message type (replaces PartialTranscript/FinalTranscript)
+- **Session management**: Added `_sessionReady` flag to ensure audio is only sent after receiving "Begin" message
+- **Inactivity timeout**: Added `inactivity_timeout=30` parameter to prevent premature WebSocket closure
+- **Firebase Functions integration**: `getAssemblyAIToken` now returns raw API key for v3 (no token generation needed)
+- **Real-time transcription working**: Full bidirectional streaming with partial and final transcripts
+
+**Status**: ✅ Complete  
+**Files Modified**:
+- `lib/arc/chat/voice/transcription/assemblyai_provider.dart` - Complete v3 migration, Turn message handling, raw binary audio
+- `functions/index.js` - Updated `getAssemblyAIToken` to return API key directly for v3
 
 ---
 
@@ -231,6 +252,7 @@ Visible floating scroll buttons added across all scrollable screens.
 
 | Version | Date | Key Feature |
 |---------|------|-------------|
+| 2.1.55 | Dec 13, 2025 | AssemblyAI Universal Streaming v3 Migration |
 | 2.1.54 | Dec 13, 2025 | Export Format Standardization |
 | 2.1.53 | Dec 13, 2025 | Jarvis-Style Voice Chat UI |
 | 2.1.52 | Dec 13, 2025 | Settings Reorganization & Health Integration |

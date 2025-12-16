@@ -11,11 +11,14 @@ import 'package:flutter/foundation.dart';
 import 'transcription_provider.dart';
 import 'audio_stream_capture.dart';
 
-/// AssemblyAI WebSocket message types
+/// AssemblyAI WebSocket message types (Universal Streaming v3)
 class _AssemblyAIMessage {
+  static const String begin = 'Begin';
+  static const String turn = 'Turn'; // v3 uses Turn messages
+  static const String partialTranscript = 'PartialTranscript'; // v2
+  static const String finalTranscript = 'FinalTranscript'; // v2
+  // Legacy v2 message types (for backward compatibility)
   static const String sessionBegins = 'SessionBegins';
-  static const String partialTranscript = 'PartialTranscript';
-  static const String finalTranscript = 'FinalTranscript';
   static const String sessionTerminated = 'SessionTerminated';
   static const String error = 'Error';
 }
@@ -28,6 +31,7 @@ class AssemblyAIProvider implements TranscriptionProvider {
   StreamSubscription<Uint8List>? _audioSubscription;
   ProviderStatus _status = ProviderStatus.idle;
   bool _isListening = false;
+  bool _sessionReady = false; // v3: wait for Begin message before sending audio
   
   // Audio capture
   final AudioStreamCapture _audioCapture = AudioStreamCapture();
@@ -89,10 +93,12 @@ class AssemblyAIProvider implements TranscriptionProvider {
     try {
       // Build WebSocket URL with token and configuration
       // Universal Streaming v3 uses token as query parameter, not Authorization header
+      // Add inactivity_timeout to prevent connection from closing if audio is delayed
       final wsUrlWithParams = Uri.parse(_wsUrl).replace(
         queryParameters: {
           'sample_rate': '16000',
           'token': _token,
+          'inactivity_timeout': '30', // 30 seconds timeout to allow audio capture to start
         },
       );
       
@@ -115,16 +121,21 @@ class AssemblyAIProvider implements TranscriptionProvider {
         _handleMessage,
         onError: (error) {
           debugPrint('AssemblyAI WebSocket error: $error');
+          debugPrint('AssemblyAI: Error occurred - Session ready: $_sessionReady, Listening: $_isListening');
           _handleError('Connection error: $error');
         },
         onDone: () {
           debugPrint('AssemblyAI WebSocket closed (onDone callback)');
+          debugPrint('AssemblyAI: Session was ready: $_sessionReady, was listening: $_isListening');
           _isListening = false;
+          _sessionReady = false;
           _status = ProviderStatus.idle;
         },
       );
       
       // Start audio capture and streaming
+      // Note: For v3, we should start sending audio as soon as Begin message is received
+      // But we'll start capture now and it will begin sending once Begin is confirmed
       await _startAudioCapture();
       
     } catch (e, stackTrace) {
@@ -138,41 +149,203 @@ class AssemblyAIProvider implements TranscriptionProvider {
   void _handleMessage(dynamic message) {
     try {
       final messageStr = message as String;
-      debugPrint('AssemblyAI: Received message: ${messageStr.substring(0, messageStr.length > 200 ? 200 : messageStr.length)}');
+      // Always log full message for debugging (v3 messages can be important)
+      if (messageStr.length > 500) {
+        debugPrint('AssemblyAI: Received message (${messageStr.length} chars): ${messageStr.substring(0, 500)}...');
+      } else {
+        debugPrint('AssemblyAI: Received message: $messageStr');
+      }
       
       final data = jsonDecode(messageStr) as Map<String, dynamic>;
-      final messageType = data['message_type'] as String?;
+      // Universal Streaming v3 uses 'type', v2 uses 'message_type'
+      final messageType = data['type'] as String? ?? data['message_type'] as String?;
+      debugPrint('AssemblyAI: Message type: $messageType');
       
       switch (messageType) {
+        case _AssemblyAIMessage.begin:
+          // v3 Begin message - session started
+          final sessionId = data['id'] as String?;
+          final expiresAt = data['expires_at'] as int?;
+          debugPrint('AssemblyAI v3 session started: id=$sessionId, expires_at=$expiresAt');
+          // Session is ready, can now send audio
+          _sessionReady = true;
+          _isListening = true;
+          _status = ProviderStatus.listening;
+          _audioChunksSent = 0; // Reset counter
+          debugPrint('AssemblyAI: Session ready, audio can now be sent (chunks sent so far: $_audioChunksSent)');
+          break;
+          
         case _AssemblyAIMessage.sessionBegins:
-          debugPrint('AssemblyAI session started: ${data['session_id']}');
+          // Legacy v2 message
+          debugPrint('AssemblyAI v2 session started: ${data['session_id']}');
+          break;
+          
+        case _AssemblyAIMessage.turn:
+          // v3 Turn message - handles both partial and final transcripts
+          debugPrint('AssemblyAI: Received Turn message');
+          final transcript = data['transcript'] as String? ?? '';
+          final endOfTurn = data['end_of_turn'] as bool? ?? false;
+          final words = data['words'] as List<dynamic>?;
+          
+          debugPrint('AssemblyAI: Turn - transcript: "$transcript", end_of_turn: $endOfTurn, words: ${words?.length ?? 0}');
+          
+          if (transcript.isNotEmpty || (words != null && words.isNotEmpty)) {
+            // Extract timing from words if available
+            int? startMs;
+            int? endMs;
+            double? confidence;
+            
+            if (words != null && words.isNotEmpty) {
+              final firstWord = words.first as Map<String, dynamic>?;
+              final lastWord = words.last as Map<String, dynamic>?;
+              startMs = ((firstWord?['start'] as num?)?.toDouble() ?? 0.0 * 1000).round();
+              endMs = ((lastWord?['end'] as num?)?.toDouble() ?? 0.0 * 1000).round();
+              // Use average confidence from words
+              final confidences = words
+                  .map((w) => (w as Map<String, dynamic>?)?['confidence'] as num?)
+                  .whereType<num>()
+                  .toList();
+              if (confidences.isNotEmpty) {
+                confidence = (confidences.reduce((a, b) => a + b) / confidences.length).toDouble();
+              }
+            }
+            
+            // Use transcript if available, otherwise build from words
+            String text = transcript;
+            if (text.isEmpty && words != null) {
+              // Build transcript from final words
+              final finalWords = words
+                  .where((w) => (w as Map<String, dynamic>?)?['word_is_final'] == true)
+                  .map((w) => (w as Map<String, dynamic>?)?['text'] as String?)
+                  .whereType<String>()
+                  .toList();
+              text = finalWords.join(' ');
+            }
+            
+            if (text.isNotEmpty) {
+              debugPrint('AssemblyAI: Processing Turn transcript: "$text" (end_of_turn: $endOfTurn)');
+              final segment = TranscriptSegment(
+                text: _capitalizeText(text),
+                isFinal: endOfTurn,
+                startMs: startMs,
+                endMs: endMs,
+                confidence: confidence,
+              );
+              
+              if (endOfTurn) {
+                debugPrint('AssemblyAI: Calling onFinalResult with: "$text"');
+                _onFinalResult?.call(segment);
+              } else {
+                debugPrint('AssemblyAI: Calling onPartialResult with: "$text"');
+                _onPartialResult?.call(segment);
+              }
+            } else {
+              debugPrint('AssemblyAI: Turn message has empty transcript, skipping');
+            }
+          }
           break;
           
         case _AssemblyAIMessage.partialTranscript:
-          final text = data['text'] as String? ?? '';
+          debugPrint('AssemblyAI: Received PartialTranscript message');
+          // Handle both v3 and v2 formats
+          String text;
+          int? startMs;
+          int? endMs;
+          double? confidence;
+          
+          if (data.containsKey('transcript')) {
+            // v3 format
+            text = data['transcript'] as String? ?? '';
+            debugPrint('AssemblyAI: v3 PartialTranscript - transcript: "$text"');
+            final words = data['words'] as List<dynamic>?;
+            debugPrint('AssemblyAI: v3 PartialTranscript - words count: ${words?.length ?? 0}');
+            if (words != null && words.isNotEmpty) {
+              final firstWord = words.first as Map<String, dynamic>?;
+              final lastWord = words.last as Map<String, dynamic>?;
+              startMs = ((firstWord?['start'] as num?)?.toDouble() ?? 0.0 * 1000).round();
+              endMs = ((lastWord?['end'] as num?)?.toDouble() ?? 0.0 * 1000).round();
+              // Use average confidence from words
+              final confidences = words
+                  .map((w) => (w as Map<String, dynamic>?)?['confidence'] as num?)
+                  .whereType<num>()
+                  .toList();
+              if (confidences.isNotEmpty) {
+                confidence = (confidences.reduce((a, b) => a + b) / confidences.length).toDouble();
+              }
+            }
+          } else {
+            // v2 format
+            text = data['text'] as String? ?? '';
+            debugPrint('AssemblyAI: v2 PartialTranscript - text: "$text"');
+            startMs = data['audio_start'] as int?;
+            endMs = data['audio_end'] as int?;
+            confidence = (data['confidence'] as num?)?.toDouble();
+          }
+          
           if (text.isNotEmpty) {
+            debugPrint('AssemblyAI: Calling onPartialResult with text: "$text"');
             final segment = TranscriptSegment(
               text: _capitalizeText(text),
               isFinal: false,
-              startMs: data['audio_start'] as int?,
-              endMs: data['audio_end'] as int?,
-              confidence: (data['confidence'] as num?)?.toDouble(),
+              startMs: startMs,
+              endMs: endMs,
+              confidence: confidence,
             );
             _onPartialResult?.call(segment);
+          } else {
+            debugPrint('AssemblyAI: PartialTranscript text is empty, skipping');
           }
           break;
           
         case _AssemblyAIMessage.finalTranscript:
-          final text = data['text'] as String? ?? '';
+          debugPrint('AssemblyAI: Received FinalTranscript message');
+          // Handle both v3 and v2 formats
+          String text;
+          int? startMs;
+          int? endMs;
+          double? confidence;
+          
+          if (data.containsKey('transcript')) {
+            // v3 format
+            text = data['transcript'] as String? ?? '';
+            debugPrint('AssemblyAI: v3 FinalTranscript - transcript: "$text"');
+            final words = data['words'] as List<dynamic>?;
+            debugPrint('AssemblyAI: v3 FinalTranscript - words count: ${words?.length ?? 0}');
+            if (words != null && words.isNotEmpty) {
+              final firstWord = words.first as Map<String, dynamic>?;
+              final lastWord = words.last as Map<String, dynamic>?;
+              startMs = ((firstWord?['start'] as num?)?.toDouble() ?? 0.0 * 1000).round();
+              endMs = ((lastWord?['end'] as num?)?.toDouble() ?? 0.0 * 1000).round();
+              // Use average confidence from words
+              final confidences = words
+                  .map((w) => (w as Map<String, dynamic>?)?['confidence'] as num?)
+                  .whereType<num>()
+                  .toList();
+              if (confidences.isNotEmpty) {
+                confidence = (confidences.reduce((a, b) => a + b) / confidences.length).toDouble();
+              }
+            }
+          } else {
+            // v2 format
+            text = data['text'] as String? ?? '';
+            debugPrint('AssemblyAI: v2 FinalTranscript - text: "$text"');
+            startMs = data['audio_start'] as int?;
+            endMs = data['audio_end'] as int?;
+            confidence = (data['confidence'] as num?)?.toDouble();
+          }
+          
           if (text.isNotEmpty) {
+            debugPrint('AssemblyAI: Calling onFinalResult with text: "$text"');
             final segment = TranscriptSegment(
               text: _capitalizeText(text),
               isFinal: true,
-              startMs: data['audio_start'] as int?,
-              endMs: data['audio_end'] as int?,
-              confidence: (data['confidence'] as num?)?.toDouble(),
+              startMs: startMs,
+              endMs: endMs,
+              confidence: confidence,
             );
             _onFinalResult?.call(segment);
+          } else {
+            debugPrint('AssemblyAI: FinalTranscript text is empty, skipping');
           }
           break;
           
@@ -188,9 +361,15 @@ class AssemblyAIProvider implements TranscriptionProvider {
           debugPrint('AssemblyAI: Full error data: $data');
           _handleError(errorMsg);
           break;
+          
+        default:
+          debugPrint('AssemblyAI: Unknown message type: $messageType');
+          debugPrint('AssemblyAI: Full message data: $data');
+          break;
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
       debugPrint('Error parsing AssemblyAI message: $e');
+      debugPrint('Stack trace: $stackTrace');
     }
   }
 
@@ -221,7 +400,9 @@ class AssemblyAIProvider implements TranscriptionProvider {
     // Listen to audio stream and send to AssemblyAI
     _audioSubscription = audioStream.listen(
       (audioData) {
-        _sendAudioToWebSocket(audioData);
+        if (audioData.isNotEmpty) {
+          _sendAudioToWebSocket(audioData);
+        }
       },
       onError: (error) {
         debugPrint('AssemblyAI: Audio stream error: $error');
@@ -233,12 +414,34 @@ class AssemblyAIProvider implements TranscriptionProvider {
     );
   }
 
+  int _audioChunksSent = 0;
+  
   /// Send audio data to AssemblyAI WebSocket
   void _sendAudioToWebSocket(Uint8List audioData) {
-    if (_webSocket != null && _isListening) {
-      // AssemblyAI expects base64-encoded audio
-      final base64Audio = base64Encode(audioData);
-      _webSocket!.add(jsonEncode({'audio_data': base64Audio}));
+    if (_webSocket != null && _isListening && _sessionReady) {
+      try {
+        // Universal Streaming v3 expects raw binary audio data (NOT base64 JSON)
+        // Audio chunks should be 50-1000ms (100-450ms optimal)
+        // At 16000Hz, 16-bit mono: 100ms = 3200 bytes, 450ms = 14400 bytes
+        final chunkDurationMs = (audioData.length / (16000 * 2 / 1000)).round();
+        // Send raw binary audio directly (v3 format)
+        _webSocket!.add(audioData);
+        _audioChunksSent++;
+        if (_audioChunksSent <= 5 || _audioChunksSent % 10 == 0) {
+          debugPrint('AssemblyAI: Sent chunk $_audioChunksSent (${audioData.length} bytes, ~${chunkDurationMs}ms)');
+        }
+      } catch (e) {
+        debugPrint('AssemblyAI: Error sending audio data: $e');
+        _handleError('Failed to send audio: $e');
+      }
+    } else if (!_sessionReady && _webSocket != null) {
+      // Wait for Begin message - drop audio silently until session is ready
+      // This is expected behavior for v3
+      if (_audioChunksSent == 0) {
+        debugPrint('AssemblyAI: Dropping audio chunks until Begin message received (session not ready yet)');
+      }
+    } else if (_webSocket == null) {
+      debugPrint('AssemblyAI: Cannot send audio - WebSocket is null');
     }
   }
 
@@ -284,6 +487,9 @@ class AssemblyAIProvider implements TranscriptionProvider {
 
   Future<void> _cleanup() async {
     _isListening = false;
+    _sessionReady = false;
+    debugPrint('AssemblyAI: Cleanup - total audio chunks sent: $_audioChunksSent');
+    _audioChunksSent = 0;
     
     await _socketSubscription?.cancel();
     _socketSubscription = null;
