@@ -18,9 +18,10 @@ import 'package:my_app/mira/memory/enhanced_attribution_schema.dart';
 import 'package:my_app/mira/memory/enhanced_attribution_service.dart';
 import 'package:my_app/mira/memory/lumara_attribution_explainer.dart';
 import '../config/api_config.dart';
-import '../voice/voice_chat_service.dart';
-import 'voice_chat_panel.dart';
+import '../voice/voice_service.dart';
+import '../voice/voice_journal/unified_voice_panel.dart';
 import '../voice/voice_permissions.dart';
+import 'package:my_app/services/assemblyai_service.dart';
 import '../data/context_provider.dart';
 import '../data/context_scope.dart';
 import '../services/enhanced_lumara_api.dart';
@@ -65,8 +66,8 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
   bool _showScrollToTop = false;
   bool _showScrollToBottom = false;
   
-  // Voice chat service
-  VoiceChatService? _voiceChatService;
+  // Voice service (unified - chat mode)
+  UnifiedVoiceService? _voiceService;
   String? _partialTranscript;
 
   // AudioIO for voiceover
@@ -124,49 +125,52 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
     _scrollController.dispose();
     _inputFocusNode.removeListener(_onInputFocusChange);
     _inputFocusNode.dispose();
-    _voiceChatService?.dispose();
+    _voiceService?.dispose();
     super.dispose();
   }
 
-  /// Initialize voice chat service
+  /// Initialize voice service (unified - chat mode)
   Future<void> _initializeVoiceChat() async {
     try {
       final cubit = context.read<LumaraAssistantCubit>();
-      final contextProvider = ContextProvider(LumaraScope.defaultScope);
       
-      // Get EnhancedLumaraApi from cubit (access via private field workaround)
-      // For now, create a new instance
+      // Get EnhancedLumaraApi
       final enhancedApi = EnhancedLumaraApi(Analytics());
       await enhancedApi.initialize();
       
-      _voiceChatService = VoiceChatService(
+      // Get AssemblyAI service for cloud STT
+      final assemblyAIService = AssemblyAIService();
+      
+      // Create unified voice service in CHAT mode
+      _voiceService = UnifiedVoiceService(
+        assemblyAIService: assemblyAIService,
         lumaraApi: enhancedApi,
-        journalCubit: null, // Not needed for chat screen
+        journalCubit: null, // Not needed for chat mode
         chatCubit: cubit,
-        contextProvider: contextProvider,
+        initialMode: VoiceMode.chat, // Chat mode - saves to chat only
       );
       
-      final initialized = await _voiceChatService!.initialize();
-      if (!initialized && mounted) {
-        debugPrint('Voice chat initialization failed - permissions may be denied');
-      }
-      
-      // Listen to partial transcript stream
-      _voiceChatService!.partialTranscriptStream.listen((transcript) {
+      // Set up callbacks
+      _voiceService!.onTranscriptUpdate = (transcript) {
         if (mounted) {
           setState(() {
             _partialTranscript = transcript;
           });
         }
-      });
+      };
+      
+      final initialized = await _voiceService!.initialize();
+      if (!initialized && mounted) {
+        debugPrint('Voice service initialization failed - permissions may be denied');
+      }
     } catch (e) {
-      debugPrint('Error initializing voice chat: $e');
+      debugPrint('Error initializing voice service: $e');
     }
   }
 
   /// Show voice chat panel
   void _showVoiceChatPanel() {
-    if (_voiceChatService == null || _voiceChatService!.controller == null) {
+    if (_voiceService == null || !_voiceService!.isInitialized) {
       // Request permissions first
       _requestVoicePermissions();
       return;
@@ -184,11 +188,14 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
         padding: EdgeInsets.only(
           bottom: MediaQuery.of(context).viewInsets.bottom,
         ),
-        child: VoiceChatPanel(
-          controller: _voiceChatService!.controller!,
-          diagnostics: _voiceChatService!.diagnostics,
-          partialTranscript: _partialTranscript,
-          audioLevelStream: _voiceChatService!.audioLevelStream,
+        child: UnifiedVoicePanel(
+          service: _voiceService!,
+          onSessionSaved: () {
+            Navigator.pop(context);
+          },
+          onSessionEnded: () {
+            Navigator.pop(context);
+          },
         ),
       ),
     );
@@ -199,7 +206,7 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
     final permState = await VoicePermissions.request();
     if (permState == VoicePermState.allGranted) {
       await _initializeVoiceChat();
-      if (_voiceChatService != null && _voiceChatService!.controller != null) {
+      if (_voiceService != null && _voiceService!.isInitialized) {
         _showVoiceChatPanel();
       }
     } else if (permState == VoicePermState.permanentlyDenied) {

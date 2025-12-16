@@ -9,8 +9,17 @@ import 'package:my_app/shared/app_colors.dart';
 class BugReportDialog extends StatefulWidget {
   const BugReportDialog({super.key});
   
+  // Static flag to prevent multiple dialogs
+  static bool _isDialogOpen = false;
+  
   static Future<void> show(BuildContext context) async {
     print('DEBUG: BugReportDialog.show() called');
+    
+    // Prevent multiple dialogs from opening
+    if (_isDialogOpen) {
+      print('DEBUG: Bug report dialog already open, ignoring shake');
+      return;
+    }
     
     // Check if shake-to-report is enabled
     final prefs = await SharedPreferences.getInstance();
@@ -25,12 +34,17 @@ class BugReportDialog extends StatefulWidget {
     
     if (context.mounted) {
       print('DEBUG: Showing bug report dialog');
-      showModalBottomSheet(
+      _isDialogOpen = true;
+      await showModalBottomSheet(
         context: context,
         isScrollControlled: true,
         backgroundColor: Colors.transparent,
         builder: (context) => const BugReportDialog(),
-      );
+      ).whenComplete(() {
+        // Reset flag when dialog is closed
+        _isDialogOpen = false;
+        print('DEBUG: Bug report dialog closed, flag reset');
+      });
     } else {
       print('DEBUG: Context not mounted, cannot show dialog');
     }

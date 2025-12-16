@@ -20,6 +20,7 @@ import { generateJournalReflection } from "./functions/generateJournalReflection
 import { getUserSubscription } from "./functions/getUserSubscription";
 import { createCheckoutSession } from "./functions/createCheckoutSession";
 import { proxyGemini } from "./functions/proxyGemini";
+import { getAssemblyAIToken } from "./functions/getAssemblyAIToken";
 
 // Export all Cloud Functions
 export { analyzeJournalEntry };
@@ -31,6 +32,7 @@ export { generateJournalReflection };
 export { getUserSubscription };
 export { createCheckoutSession };
 export { proxyGemini };
+export { getAssemblyAIToken };
 
 /**
  * Architecture Overview (Priority 3: Authentication & Security):

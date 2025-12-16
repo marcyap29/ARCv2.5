@@ -1903,7 +1903,12 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
           return MultiBlocProvider(
             providers: [
               BlocProvider(
-                create: (context) => JournalCaptureCubit(context.read<JournalRepository>()),
+                create: (context) {
+                  final cubit = JournalCaptureCubit(context.read<JournalRepository>());
+                  // Set LUMARA API for summary generation
+                  cubit.setLumaraApi(_enhancedLumaraApi);
+                  return cubit;
+                },
               ),
               BlocProvider(
                 create: (context) => KeywordExtractionCubit()..initialize(),

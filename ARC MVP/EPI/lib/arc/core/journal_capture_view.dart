@@ -230,7 +230,28 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
               );
               Navigator.pop(context);
             } else if (state is JournalCaptureTranscribed) {
-              _textController.text = state.transcription;
+              // Automatically add transcription to main text field
+              final currentText = _textController.text;
+              final transcription = state.transcription;
+
+              // Add transcription to the main text field
+              if (currentText.isEmpty) {
+                _textController.text = transcription;
+              } else {
+                _textController.text = currentText + '\n\n' + transcription;
+              }
+
+              // Move cursor to end and focus the main text field
+              _textController.selection = TextSelection.fromPosition(
+                TextPosition(offset: _textController.text.length),
+              );
+              _focusNode.requestFocus();
+
+              // Hide the voice recorder section since transcription is now in main field
+              setState(() {
+                _showVoiceRecorder = false;
+              });
+            }
           },
           child: Scaffold(
             backgroundColor: kcBackgroundColor,
@@ -738,34 +759,38 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
     if (state is JournalCaptureTranscribed) {
       return Column(
         children: [
-          Text('Transcription:', style: heading1Style(context)),
-          const SizedBox(height: 8),
-          TextField(
-            maxLines: 3,
-            style: bodyStyle(context),
-            decoration: InputDecoration(
-              hintText: 'Edit your transcription...',
-              hintStyle: bodyStyle(context).copyWith(
-                color: kcSecondaryTextColor,
-              ),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: const BorderSide(color: kcSecondaryColor),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: const BorderSide(color: kcPrimaryColor),
-              ),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: kcSuccessColor.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: kcSuccessColor.withOpacity(0.3)),
             ),
-            controller: TextEditingController(text: state.transcription),
-            onChanged: (text) {
-              context.read<JournalCaptureCubit>().updateTranscription(text);
-            },
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'You can edit the transcription above before saving.',
-            style: captionStyle(context),
+            child: Row(
+              children: [
+                Icon(Icons.check_circle, color: kcSuccessColor, size: 24),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Voice transcribed successfully!',
+                        style: bodyStyle(context).copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: kcSuccessColor,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Your speech has been added to the journal entry below.',
+                        style: captionStyle(context),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       );

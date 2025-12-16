@@ -1,7 +1,7 @@
 // functions/unlockThrottle.ts - Throttle unlock with password verification
 
 import { onCall, HttpsError } from "firebase-functions/v2/https";
-import { logger } from "firebase-functions";
+import { logger } from "firebase-functions/v2";
 import { admin } from "../admin";
 import { THROTTLE_UNLOCK_PASSWORD } from "../config";
 import * as crypto from "crypto";

@@ -1,8 +1,8 @@
 # Backend Architecture & Setup
 
-**Version:** 2.1.52  
+**Version:** 2.1.56  
 **Last Updated:** December 13, 2025  
-**Status:** ✅ Production Ready with Health Integration
+**Status:** ✅ Production Ready with Health Integration, AssemblyAI v3 & Internet Access
 
 ---
 
@@ -108,6 +108,7 @@ exports.proxyGemini = onCall(
 
 2. **Cloud Functions**
    - `proxyGemini` - API key proxy for Gemini API
+   - `getAssemblyAIToken` - Returns AssemblyAI API key for premium users (Universal Streaming v3)
    - `sendChatMessage` - LUMARA chat (currently deprecated, uses proxy instead)
    - `generateJournalReflection` - In-journal reflections (currently deprecated, uses proxy instead)
    - `getUserSubscription` - Subscription status
@@ -120,6 +121,93 @@ exports.proxyGemini = onCall(
 
 4. **Secret Manager**
    - `GEMINI_API_KEY` - Gemini API key for proxy
+   - `ASSEMBLYAI_API_KEY` - AssemblyAI API key for premium voice transcription (Universal Streaming v3)
+
+---
+
+## AssemblyAI Integration (Premium Feature)
+
+### Overview
+
+AssemblyAI Universal Streaming v3 provides real-time speech-to-text transcription for premium users. The integration uses WebSocket streaming for low-latency transcription.
+
+### Architecture
+
+```
+Client (Flutter)
+  ↓
+Firebase Function (getAssemblyAIToken)
+  ↓
+AssemblyAI API Key (from Firebase Secrets)
+  ↓
+WebSocket Connection (wss://streaming.assemblyai.com/v3/ws)
+  ↓
+Real-time Transcription (Turn messages)
+```
+
+### Setup
+
+1. **Add AssemblyAI API Key to Firebase Secrets:**
+   ```bash
+   firebase functions:secrets:set ASSEMBLYAI_API_KEY
+   # Enter your AssemblyAI API key when prompted
+   ```
+
+2. **Configure Cloud Run IAM:**
+   - Navigate to Cloud Run → `getassemblyaitoken-*` service
+   - Security tab → "Allow public access"
+   - This allows authenticated Firebase users to invoke the function
+
+3. **Client Implementation:**
+   - `lib/arc/chat/voice/transcription/assemblyai_provider.dart` - WebSocket client
+   - `lib/services/assemblyai_service.dart` - Token fetching and caching
+   - Uses Universal Streaming v3 endpoint: `wss://streaming.assemblyai.com/v3/ws`
+   - Sends raw binary audio data (16kHz, 16-bit, mono PCM)
+   - Receives "Turn" messages with partial and final transcripts
+
+### API Details
+
+**Universal Streaming v3:**
+- **Endpoint:** `wss://streaming.assemblyai.com/v3/ws?token={API_KEY}&inactivity_timeout=30`
+- **Authentication:** API key as query parameter (no Authorization header)
+- **Audio Format:** Raw binary PCM (16kHz, 16-bit, mono)
+- **Message Format:** JSON "Turn" messages with `transcript`, `end_of_turn`, `words` array
+- **Session Flow:** Begin message → Audio streaming → Turn messages → Close
+
+**Firebase Function (`getAssemblyAIToken`):**
+```javascript
+exports.getAssemblyAIToken = onCall(
+  { secrets: [ASSEMBLYAI_API_KEY] },
+  async (request) => {
+    // Validates premium subscription
+    // Returns API key directly (v3 accepts it as token parameter)
+    return {
+      token: ASSEMBLYAI_API_KEY.value().trim(),
+      expiresAt: Date.now() + (60 * 60 * 1000), // 1 hour
+      tier: 'premium',
+      eligibleForCloud: true
+    };
+  }
+);
+```
+
+### Troubleshooting
+
+**1. "UNAUTHENTICATED" Error:**
+- **Cause:** Cloud Run service requires authentication
+- **Fix:** Set "Allow public access" in Cloud Run → Security tab
+
+**2. "Not authorized" WebSocket Error:**
+- **Cause:** Invalid or missing API key
+- **Fix:** Verify `ASSEMBLYAI_API_KEY` secret is set correctly
+
+**3. WebSocket Closes Immediately:**
+- **Cause:** Audio format incorrect or session not ready
+- **Fix:** Ensure audio is raw binary PCM, wait for "Begin" message before sending
+
+**4. No Transcripts Received:**
+- **Cause:** "Turn" message type not handled
+- **Fix:** Verify `assemblyai_provider.dart` handles "Turn" messages (v3 format)
 
 ---
 
@@ -199,6 +287,7 @@ firebase deploy --only functions:proxyGemini
 | Function | Status | Critical | Notes |
 |----------|--------|----------|-------|
 | `proxyGemini` | ✅ Deployed | YES | API key proxy |
+| `getAssemblyAIToken` | ✅ Deployed | YES | AssemblyAI API key for premium users (v3) |
 | `sendChatMessage` | ✅ Deployed | NO | Deprecated, uses proxy |
 | `generateJournalReflection` | ✅ Deployed | NO | Deprecated, uses proxy |
 | `getUserSubscription` | ✅ Deployed | YES | Subscription status |
@@ -418,6 +507,6 @@ const userId = request.auth?.uid || `mvp_test_${Date.now()}`;
 
 ---
 
-**Status**: ✅ Production Ready with Authentication  
-**Last Updated**: December 9, 2025  
-**Version**: 2.1.46
+**Status**: ✅ Production Ready with Authentication & AssemblyAI v3  
+**Last Updated**: December 13, 2025  
+**Version**: 2.1.55

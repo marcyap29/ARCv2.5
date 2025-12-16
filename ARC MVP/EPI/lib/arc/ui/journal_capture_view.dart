@@ -18,15 +18,15 @@ import 'package:my_app/core/services/media_store.dart';
 import 'package:my_app/mira/store/mcp/orchestrator/ios_vision_orchestrator.dart';
 import 'package:my_app/core/services/photo_library_service.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:my_app/arc/chat/voice/voice_chat_service.dart';
-import 'package:my_app/arc/chat/voice/voice_orchestrator.dart';
-import 'package:my_app/arc/chat/ui/voice_chat_panel.dart';
+import 'package:my_app/arc/chat/voice/voice_service.dart';
+import 'package:my_app/arc/chat/voice/voice_journal/unified_voice_panel.dart';
 import 'package:my_app/arc/chat/voice/voice_permissions.dart';
 import 'package:my_app/arc/chat/services/enhanced_lumara_api.dart';
 import 'package:my_app/arc/chat/bloc/lumara_assistant_cubit.dart';
 import 'package:my_app/arc/chat/data/context_provider.dart';
 import 'package:my_app/telemetry/analytics.dart';
 import 'package:my_app/mira/memory/enhanced_memory_schema.dart';
+import 'package:my_app/services/assemblyai_service.dart';
 
 class JournalCaptureView extends StatefulWidget {
   final String? initialEmotion;
@@ -68,8 +68,8 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
   // Manual keywords (matches regular journal mode architecture)
   List<String> _manualKeywords = [];
   
-  // Voice chat service for journal context
-  VoiceChatService? _voiceChatService;
+  // Voice service for journal context (uses new unified service)
+  UnifiedVoiceService? _voiceService;
   String? _partialTranscript;
   bool _voiceServiceInitialized = false; // Track initialization status
 
@@ -102,11 +102,11 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
     _textController.removeListener(_onTextChanged);
     _textController.dispose();
     _focusNode.dispose();
-    _voiceChatService?.dispose();
+    _voiceService?.dispose();
     super.dispose();
   }
   
-  /// Initialize voice chat service with journal context
+  /// Initialize voice service with journal context (uses new unified service)
   Future<void> _initializeVoiceChat() async {
     try {
       final journalCubit = context.read<JournalCaptureCubit>();
@@ -118,35 +118,40 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
       // Set LUMARA API on cubit for summary generation
       journalCubit.setLumaraApi(enhancedApi);
       
-      // Try to get LumaraAssistantCubit from context (may not always be available)
-      LumaraAssistantCubit? chatCubit;
-      ContextProvider? contextProvider;
-      try {
-        chatCubit = context.read<LumaraAssistantCubit>();
-        contextProvider = context.read<ContextProvider>();
-      } catch (e) {
-        debugPrint('LumaraAssistantCubit or ContextProvider not available in context: $e');
-        // Continue without them - MainChatManager can work without cubit for basic functionality
-      }
+      // Get AssemblyAI service for cloud STT
+      final assemblyAIService = AssemblyAIService();
       
-      _voiceChatService = VoiceChatService(
+      // Create unified voice service in JOURNAL mode
+      _voiceService = UnifiedVoiceService(
+        assemblyAIService: assemblyAIService,
         lumaraApi: enhancedApi,
         journalCubit: journalCubit,
-        chatCubit: chatCubit, // Provide cubit if available
-        contextProvider: contextProvider, // Provide context provider if available
-        context: VoiceContext.journal, // Set to journal context
-        onTextWritten: (text) {
-          // Append text to the text controller
+        chatCubit: null, // Not needed for journal mode
+        initialMode: VoiceMode.journal, // Journal mode - saves to journal only
+      );
+      
+      // Set up callbacks
+      _voiceService!.onTranscriptUpdate = (transcript) {
+        if (mounted) {
+          setState(() {
+            _partialTranscript = transcript;
+          });
+        }
+      };
+      
+      _voiceService!.onLumaraResponse = (response) {
+        // Append LUMARA's response to the text controller
+        if (mounted) {
           final currentText = _textController.text;
-          _textController.text = currentText + text;
-          // Move cursor to end
+          final lumaraText = '\n**LUMARA:** $response\n';
+          _textController.text = currentText + lumaraText;
           _textController.selection = TextSelection.fromPosition(
             TextPosition(offset: _textController.text.length),
           );
-        },
-      );
+        }
+      };
       
-      final initialized = await _voiceChatService!.initialize();
+      final initialized = await _voiceService!.initialize();
       if (mounted) {
         setState(() {
           _voiceServiceInitialized = true;
@@ -154,25 +159,13 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
       }
       
       if (!initialized && mounted) {
-        // Permission not granted, but service is created
-        debugPrint('Voice chat service not initialized - permissions may be needed');
-      }
-      
-      // Listen to partial transcript stream
-      if (mounted && _voiceChatService != null) {
-        _voiceChatService!.partialTranscriptStream.listen((transcript) {
-          if (mounted) {
-            setState(() {
-              _partialTranscript = transcript;
-            });
-          }
-        });
+        debugPrint('Voice service not initialized - permissions may be needed');
       }
     } catch (e) {
-      debugPrint('Error initializing voice chat for journal: $e');
+      debugPrint('Error initializing voice service for journal: $e');
       if (mounted) {
         setState(() {
-          _voiceServiceInitialized = true; // Mark as initialized even on error to stop spinner
+          _voiceServiceInitialized = true; // Mark as initialized even on error
         });
       }
     }
@@ -352,13 +345,13 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
     }
     
     // If voice service isn't initialized yet, initialize it
-    if (_voiceChatService == null || !_voiceServiceInitialized) {
+    if (_voiceService == null || !_voiceServiceInitialized) {
       await _initializeVoiceChat();
     }
     
     // Re-initialize if permission was just granted
-    if (status == PermissionStatus.granted && _voiceChatService != null) {
-      await _voiceChatService!.initialize();
+    if (status == PermissionStatus.granted && _voiceService != null) {
+      await _voiceService!.initialize();
       if (mounted) {
         setState(() {
           _voiceServiceInitialized = true;
@@ -458,13 +451,8 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
         final blockTimestamp = baseTimestamp - ((matches.length - blockIndex - 1) * 1000);
         
         // Get attribution traces for this LUMARA response
+        // Note: Attribution traces are not yet implemented in the new unified service
         List<Map<String, dynamic>>? attributionTracesJson;
-        if (_voiceChatService != null && cleanContent.isNotEmpty) {
-          final traces = _voiceChatService!.getAttributionTraces(cleanContent);
-          if (traces != null && traces.isNotEmpty) {
-            attributionTracesJson = traces.map((trace) => trace.toJson()).toList();
-          }
-        }
         
         final block = {
           'type': 'inline_reflection', // Correct type for InlineBlock
@@ -813,12 +801,41 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
                                               child: CircularProgressIndicator(),
                                             ),
                                           ),
-                                        ] else if (_voiceChatService != null && _voiceChatService!.controller != null) ...[
-                                          VoiceChatPanel(
-                                            controller: _voiceChatService!.controller!,
-                                            diagnostics: _voiceChatService!.diagnostics,
-                                            partialTranscript: _partialTranscript,
-                                            audioLevelStream: _voiceChatService!.audioLevelStream,
+                                        ] else if (_voiceService != null && _voiceService!.isInitialized) ...[
+                                          UnifiedVoicePanel(
+                                            service: _voiceService!,
+                                            onSessionSaved: () {
+                                              // Refresh after saving
+                                              setState(() {
+                                                _showVoiceRecorder = false;
+                                              });
+                                            },
+                                            onSessionEnded: () {
+                                              setState(() {
+                                                _showVoiceRecorder = false;
+                                              });
+                                            },
+                                            onTranscriptsCollected: (transcriptText) {
+                                              // Populate text controller with transcribed text
+                                              if (transcriptText.isNotEmpty) {
+                                                _textController.text = transcriptText;
+                                                // Set cursor to end of text
+                                                _textController.selection = TextSelection.fromPosition(
+                                                  TextPosition(offset: transcriptText.length),
+                                                );
+                                                // Close voice recorder
+                                                setState(() {
+                                                  _showVoiceRecorder = false;
+                                                });
+                                                // Show confirmation
+                                                ScaffoldMessenger.of(context).showSnackBar(
+                                                  const SnackBar(
+                                                    content: Text('Transcript added to journal entry'),
+                                                    duration: Duration(seconds: 2),
+                                                  ),
+                                                );
+                                              }
+                                            },
                                           ),
                                         ] else ...[
                                           // Show message if initialization failed (e.g., permissions not granted)

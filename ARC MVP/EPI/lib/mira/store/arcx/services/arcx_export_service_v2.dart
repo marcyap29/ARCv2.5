@@ -478,11 +478,11 @@ class ARCXExportServiceV2 {
         // Export chats
         if (chats.isNotEmpty) {
         final chatExportResult = await _exportChats(
-          chats: chats,
-          links: links,
-          payloadDir: payloadDir,
-          onProgress: onProgress,
-        );
+            chats: chats,
+            links: links,
+            payloadDir: payloadDir,
+            onProgress: onProgress,
+          );
         chatsExported = chatExportResult['count'] as int;
         // Export edges.jsonl (aligned with MCP format)
         if (chatExportResult['edges'] != null) {
@@ -1083,12 +1083,12 @@ class ARCXExportServiceV2 {
             'order': index,
           });
           return {
-            'id': msg.id,
-            'role': msg.role,
-            'content': msg.textContent,
-            'created_at': msg.createdAt.toUtc().toIso8601String(),
-            if (msg.contentParts != null) 'content_parts': msg.contentParts!.map((p) => p.toJson()).toList(),
-            if (msg.metadata != null) 'metadata': msg.metadata,
+          'id': msg.id,
+          'role': msg.role,
+          'content': msg.textContent,
+          'created_at': msg.createdAt.toUtc().toIso8601String(),
+          if (msg.contentParts != null) 'content_parts': msg.contentParts!.map((p) => p.toJson()).toList(),
+          if (msg.metadata != null) 'metadata': msg.metadata,
           };
         }).toList(),
         'links': {
