@@ -201,6 +201,12 @@ class UnifiedVoiceService {
         return false;
       }
       
+      // Ensure LUMARA API is set on journal cubit for summary generation
+      if (_journalCubit != null) {
+        _journalCubit!.setLumaraApi(_lumaraApi);
+        _log('Set LUMARA API on journal cubit for summary generation');
+      }
+      
       // Initialize stores
       _journalStore = VoiceJournalStore(captureCubit: _journalCubit);
       _chatStore = VoiceChatStore(chatCubit: _chatCubit);

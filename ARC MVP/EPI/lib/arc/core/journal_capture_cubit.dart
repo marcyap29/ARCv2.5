@@ -75,26 +75,38 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
   /// Generate summary of journal entry content
   /// Creates JSON representation, scrubs PII, sends for summary, then restores PII
   Future<String> _generateSummary(String content) async {
-    if (_lumaraApi == null || content.trim().isEmpty) {
+    if (_lumaraApi == null) {
+      print('Summary generation: LUMARA API not set, skipping summary');
+      return '';
+    }
+    
+    if (content.trim().isEmpty) {
+      print('Summary generation: Content is empty, skipping summary');
       return '';
     }
     
     // Only generate summary if content is substantial (more than 50 words)
     final wordCount = content.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).length;
     if (wordCount < 50) {
+      print('Summary generation: Content too short ($wordCount words < 50), skipping summary');
       return ''; // Skip summary for very short entries
     }
     
     // Check if summary already exists
     if (content.startsWith('## Summary\n\n')) {
+      print('Summary generation: Content already has a summary, skipping');
       return ''; // Already has a summary
     }
     
     try {
+      print('Summary generation: Starting summary generation for ${wordCount} words');
+      
       // Create JSON representation of the entry
       // Scrub PII from the content before sending
       final scrubbingResult = PrismAdapter().scrub(content);
       final scrubbedContent = scrubbingResult.scrubbedText;
+      
+      print('Summary generation: PII scrubbed (${scrubbingResult.redactionCount} redactions)');
       
       // Generate summary using scrubbed content
       final result = await _lumaraApi!.generatePromptedReflection(
@@ -106,15 +118,20 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
         onProgress: (msg) => print('Summary generation: $msg'),
       );
       
+      print('Summary generation: Received summary from LUMARA (${result.reflection.length} chars)');
+      
       // Restore PII in the returned summary
       final summaryWithPII = PrismAdapter().restore(
         result.reflection,
         scrubbingResult.reversibleMap,
       );
       
+      print('Summary generation: PII restored, final summary length: ${summaryWithPII.length} chars');
+      
       return summaryWithPII;
-    } catch (e) {
-      print('Error generating summary: $e');
+    } catch (e, stackTrace) {
+      print('Summary generation: Error generating summary: $e');
+      print('Summary generation: Stack trace: $stackTrace');
       return '';
     }
   }
