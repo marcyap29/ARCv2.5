@@ -154,10 +154,23 @@ exports.proxyGemini = onCall(
       const genAI = new GoogleGenerativeAI(apiKey);
       const model = genAI.getGenerativeModel({
         model: "gemini-2.0-flash-exp",
+        tools: [{ googleSearch: {} }], // Enable Google Search for internet access
+        generationConfig: jsonExpected
+          ? { responseMimeType: "application/json" }
+          : undefined,
       });
 
-      const prompt = `${system}\n\n${user}`;
-      const result = await model.generateContent(prompt);
+      // Use startChat for proper tool support (googleSearch)
+      const chat = model.startChat({
+        history: system
+          ? [
+              { role: "user", parts: [{ text: system }] },
+              { role: "model", parts: [{ text: "Ok." }] },
+            ]
+          : [],
+      });
+
+      const result = await chat.sendMessage(user);
       const response = result.response;
       const text = response.text();
 
