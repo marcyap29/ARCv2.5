@@ -172,7 +172,7 @@ class VoiceJournalStateNotifier extends ChangeNotifier {
   static const Map<VoiceJournalState, Set<VoiceJournalState>> _validTransitions = {
     VoiceJournalState.idle: {VoiceJournalState.listening, VoiceJournalState.error},
     VoiceJournalState.listening: {VoiceJournalState.transcribing, VoiceJournalState.idle, VoiceJournalState.error},
-    VoiceJournalState.transcribing: {VoiceJournalState.scrubbing, VoiceJournalState.error},
+    VoiceJournalState.transcribing: {VoiceJournalState.scrubbing, VoiceJournalState.idle, VoiceJournalState.error}, // Allow idle for empty transcripts
     VoiceJournalState.scrubbing: {VoiceJournalState.thinking, VoiceJournalState.error},
     VoiceJournalState.thinking: {VoiceJournalState.speaking, VoiceJournalState.error},
     VoiceJournalState.speaking: {VoiceJournalState.listening, VoiceJournalState.saved, VoiceJournalState.error},
@@ -231,6 +231,14 @@ class VoiceJournalStateNotifier extends ChangeNotifier {
   /// Append to LUMARA reply (for streaming)
   void appendToLumaraReply(String chunk) {
     _lumaraReply += chunk;
+    notifyListeners();
+  }
+
+  /// Clear current transcript (after turn is added to conversation history)
+  void clearCurrentTranscript() {
+    _partialTranscript = '';
+    _finalTranscript = '';
+    _lumaraReply = '';
     notifyListeners();
   }
 

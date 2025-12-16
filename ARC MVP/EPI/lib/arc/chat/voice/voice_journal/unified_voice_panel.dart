@@ -15,6 +15,7 @@ class UnifiedVoicePanel extends StatefulWidget {
   final UnifiedVoiceService service;
   final VoidCallback? onSessionSaved;
   final VoidCallback? onSessionEnded;
+  final Function(String)? onTranscriptsCollected;
   final bool showModeSwitch;
 
   const UnifiedVoicePanel({
@@ -22,6 +23,7 @@ class UnifiedVoicePanel extends StatefulWidget {
     required this.service,
     this.onSessionSaved,
     this.onSessionEnded,
+    this.onTranscriptsCollected,
     this.showModeSwitch = false,
   });
 
@@ -33,9 +35,14 @@ class _UnifiedVoicePanelState extends State<UnifiedVoicePanel>
     with TickerProviderStateMixin {
   late AnimationController _pulseController;
   late AnimationController _glowController;
+  late AnimationController _processingPulseController;
   
   StreamSubscription<double>? _audioLevelSubscription;
   double _currentAudioLevel = 0.0;
+  
+  // Timeout tracking for processing states
+  DateTime? _processingStartTime;
+  bool _showTimeoutWarning = false;
   
   // Conversation history
   final List<_ConversationTurn> _conversationHistory = [];
@@ -55,6 +62,11 @@ class _UnifiedVoicePanelState extends State<UnifiedVoicePanel>
       vsync: this,
     )..repeat(reverse: true);
     
+    _processingPulseController = AnimationController(
+      duration: const Duration(milliseconds: 1000),
+      vsync: this,
+    )..repeat(reverse: true);
+    
     _audioLevelSubscription = widget.service.audioLevelStream.listen((level) {
       if (mounted) setState(() => _currentAudioLevel = level);
     });
@@ -67,12 +79,16 @@ class _UnifiedVoicePanelState extends State<UnifiedVoicePanel>
     widget.service.onSessionComplete = (_) {
       widget.onSessionSaved?.call();
     };
+    widget.service.onTranscriptsCollected = (transcriptText) {
+      widget.onTranscriptsCollected?.call(transcriptText);
+    };
   }
 
   @override
   void dispose() {
     _pulseController.dispose();
     _glowController.dispose();
+    _processingPulseController.dispose();
     _audioLevelSubscription?.cancel();
     widget.service.stateNotifier.removeListener(_onStateChange);
     _scrollController.dispose();
@@ -80,7 +96,26 @@ class _UnifiedVoicePanelState extends State<UnifiedVoicePanel>
   }
 
   void _onStateChange() {
-    if (mounted) setState(() {});
+    if (mounted) {
+      final isProcessing = widget.service.stateNotifier.isProcessing;
+      
+      // Track processing start time
+      if (isProcessing && _processingStartTime == null) {
+        _processingStartTime = DateTime.now();
+        _showTimeoutWarning = false;
+      } else if (!isProcessing) {
+        _processingStartTime = null;
+        _showTimeoutWarning = false;
+      } else if (_processingStartTime != null) {
+        // Check for timeout (10 seconds)
+        final duration = DateTime.now().difference(_processingStartTime!);
+        if (duration.inSeconds >= 10 && !_showTimeoutWarning) {
+          _showTimeoutWarning = true;
+        }
+      }
+      
+      setState(() {});
+    }
   }
 
   void _onTranscriptUpdate(String transcript) {
@@ -131,9 +166,10 @@ class _UnifiedVoicePanelState extends State<UnifiedVoicePanel>
       ),
       child: SafeArea(
         top: false,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
             _buildDragHandle(theme),
             _buildHeader(theme, mode),
             const SizedBox(height: 16),
@@ -167,7 +203,8 @@ class _UnifiedVoicePanelState extends State<UnifiedVoicePanel>
             
             // Action buttons
             _buildActionButtons(theme, state, mode),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -296,6 +333,20 @@ class _UnifiedVoicePanelState extends State<UnifiedVoicePanel>
     ThemeData theme,
     VoiceJournalStateNotifier stateNotifier,
   ) {
+    // Only show current transcript when actively recording/processing
+    // Once a turn is complete and in conversation history, hide this to avoid duplicates
+    final state = widget.service.state;
+    final isActive = state == VoiceJournalState.listening || 
+                     state == VoiceJournalState.transcribing ||
+                     state == VoiceJournalState.scrubbing ||
+                     state == VoiceJournalState.thinking ||
+                     state == VoiceJournalState.speaking;
+    
+    // If we have conversation history, don't show current transcript (it's already in history)
+    if (_conversationHistory.isNotEmpty && !isActive) {
+      return const SizedBox.shrink();
+    }
+    
     final transcript = stateNotifier.partialTranscript.isNotEmpty
         ? stateNotifier.partialTranscript
         : stateNotifier.finalTranscript;
@@ -402,32 +453,78 @@ class _UnifiedVoicePanelState extends State<UnifiedVoicePanel>
         return const SizedBox.shrink();
     }
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      margin: const EdgeInsets.only(bottom: 16),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          SizedBox(
-            width: 20,
-            height: 20,
-            child: CircularProgressIndicator(
-              strokeWidth: 2,
-              valueColor: AlwaysStoppedAnimation<Color>(color),
+    return Center(
+      child: AnimatedBuilder(
+        animation: _processingPulseController,
+        builder: (context, child) {
+          final pulseOpacity = 0.2 + (_processingPulseController.value * 0.3);
+          return Container(
+            constraints: const BoxConstraints(maxWidth: double.infinity),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            margin: const EdgeInsets.only(bottom: 16),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: color.withOpacity(pulseOpacity),
+                width: 2,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: color.withOpacity(pulseOpacity * 0.5),
+                  blurRadius: 12,
+                  spreadRadius: 2,
+                ),
+              ],
             ),
-          ),
-          const SizedBox(width: 12),
-          Icon(icon, size: 20, color: color),
-          const SizedBox(width: 8),
-          Text(
-            message,
-            style: theme.textTheme.bodyMedium?.copyWith(color: color),
-          ),
-        ],
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 3,
+                        valueColor: AlwaysStoppedAnimation<Color>(color),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Icon(icon, size: 24, color: color),
+                    const SizedBox(width: 12),
+                    Flexible(
+                      child: Text(
+                        message,
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          color: color,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        textAlign: TextAlign.center,
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 2,
+                      ),
+                    ),
+                  ],
+                ),
+                if (_showTimeoutWarning) ...[
+                  const SizedBox(height: 12),
+                  Text(
+                    'This is taking longer than usual...',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: color.withOpacity(0.8),
+                      fontStyle: FontStyle.italic,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ],
+            ),
+          );
+        },
       ),
     );
   }
@@ -438,15 +535,23 @@ class _UnifiedVoicePanelState extends State<UnifiedVoicePanel>
     final canTap = !isProcessing;
 
     return AnimatedBuilder(
-      animation: Listenable.merge([_pulseController, _glowController]),
+      animation: Listenable.merge([
+        _pulseController, 
+        _glowController,
+        if (isProcessing) _processingPulseController,
+      ]),
       builder: (context, child) {
         final pulseScale = isListening
             ? 1.0 + (_pulseController.value * 0.1) + (_currentAudioLevel * 0.2)
-            : 1.0;
+            : isProcessing
+                ? 1.0 + (_processingPulseController.value * 0.08)
+                : 1.0;
         
         final glowOpacity = isListening
             ? 0.3 + (_glowController.value * 0.3)
-            : 0.0;
+            : isProcessing
+                ? 0.4 + (_processingPulseController.value * 0.3)
+                : 0.0;
 
         return GestureDetector(
           onTap: canTap ? _onMicTap : null,
@@ -466,15 +571,23 @@ class _UnifiedVoicePanelState extends State<UnifiedVoicePanel>
                           spreadRadius: 5,
                         ),
                       ]
-                    : canTap
+                    : isProcessing
                         ? [
                             BoxShadow(
-                              color: _getModeColor(mode).withOpacity(0.3),
-                              blurRadius: 10,
-                              spreadRadius: 2,
+                              color: Colors.amber.withOpacity(glowOpacity),
+                              blurRadius: 20,
+                              spreadRadius: 4,
                             ),
                           ]
-                        : null,
+                        : canTap
+                            ? [
+                                BoxShadow(
+                                  color: _getModeColor(mode).withOpacity(0.3),
+                                  blurRadius: 10,
+                                  spreadRadius: 2,
+                                ),
+                              ]
+                            : null,
               ),
               child: isListening
                   ? _buildAudioVisualization(80, Colors.white)
@@ -571,6 +684,8 @@ class _UnifiedVoicePanelState extends State<UnifiedVoicePanel>
               await widget.service.saveAndEndSession();
               _conversationHistory.clear();
               setState(() {});
+              // Note: onTranscriptsCollected callback is handled by the service
+              // and will be called automatically for journal mode
             },
             icon: Icon(
               mode == VoiceMode.journal ? Icons.save : Icons.check,

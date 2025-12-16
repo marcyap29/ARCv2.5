@@ -38,7 +38,7 @@ class AssemblyAIProvider implements TranscriptionProvider {
   Function(String error)? _onError;
   Function(double level)? _onSoundLevel;
   
-  static const String _wsUrl = 'wss://api.assemblyai.com/v2/realtime/ws';
+  static const String _wsUrl = 'wss://streaming.assemblyai.com/v3/ws';
   
   AssemblyAIProvider({required String token}) : _token = token;
   
@@ -88,21 +88,21 @@ class AssemblyAIProvider implements TranscriptionProvider {
     
     try {
       // Build WebSocket URL with token and configuration
+      // Universal Streaming v3 uses token as query parameter, not Authorization header
       final wsUrlWithParams = Uri.parse(_wsUrl).replace(
         queryParameters: {
           'sample_rate': '16000',
-          'encoding': 'pcm_s16le',
+          'token': _token,
         },
       );
       
       debugPrint('AssemblyAI: Connecting to WebSocket...');
+      debugPrint('AssemblyAI: Token length: ${_token.length}, starts with: ${_token.substring(0, _token.length > 10 ? 10 : _token.length)}...');
       
       // Connect to AssemblyAI WebSocket
+      // Universal Streaming v3 uses token in query parameter, no headers needed
       _webSocket = await WebSocket.connect(
         wsUrlWithParams.toString(),
-        headers: {
-          'Authorization': _token,
-        },
       );
       
       debugPrint('AssemblyAI: WebSocket connected');
@@ -118,7 +118,7 @@ class AssemblyAIProvider implements TranscriptionProvider {
           _handleError('Connection error: $error');
         },
         onDone: () {
-          debugPrint('AssemblyAI WebSocket closed');
+          debugPrint('AssemblyAI WebSocket closed (onDone callback)');
           _isListening = false;
           _status = ProviderStatus.idle;
         },
@@ -127,8 +127,9 @@ class AssemblyAIProvider implements TranscriptionProvider {
       // Start audio capture and streaming
       await _startAudioCapture();
       
-    } catch (e) {
+    } catch (e, stackTrace) {
       debugPrint('AssemblyAI connection error: $e');
+      debugPrint('AssemblyAI connection stack trace: $stackTrace');
       _handleError('Failed to connect: $e');
       _status = ProviderStatus.error;
     }
@@ -136,7 +137,10 @@ class AssemblyAIProvider implements TranscriptionProvider {
 
   void _handleMessage(dynamic message) {
     try {
-      final data = jsonDecode(message as String) as Map<String, dynamic>;
+      final messageStr = message as String;
+      debugPrint('AssemblyAI: Received message: ${messageStr.substring(0, messageStr.length > 200 ? 200 : messageStr.length)}');
+      
+      final data = jsonDecode(messageStr) as Map<String, dynamic>;
       final messageType = data['message_type'] as String?;
       
       switch (messageType) {
@@ -180,6 +184,8 @@ class AssemblyAIProvider implements TranscriptionProvider {
           
         case _AssemblyAIMessage.error:
           final errorMsg = data['error'] as String? ?? 'Unknown error';
+          debugPrint('AssemblyAI: Error message received: $errorMsg');
+          debugPrint('AssemblyAI: Full error data: $data');
           _handleError(errorMsg);
           break;
       }

@@ -3,6 +3,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter/foundation.dart';
 import 'firebase_service.dart';
+import 'subscription_service.dart';
+import 'assemblyai_service.dart';
 
 /// Error codes from the backend auth guard
 class AuthErrorCodes {
@@ -57,27 +59,40 @@ class FirebaseAuthService {
       );
       debugPrint('🔐 FirebaseAuthService: Google Sign-In configured');
 
-      // Check current auth state
+      // Check current auth state with detailed debugging
       final currentUser = _auth!.currentUser;
-      debugPrint('🔐 FirebaseAuthService: Current user before anon check: ${currentUser?.uid ?? "NULL"}');
+      debugPrint('🔐 FirebaseAuthService: Current user before check: ${currentUser?.uid ?? "NULL"}');
 
-      // Auto-sign in anonymously if no user is signed in (for MVP testing)
-      if (currentUser == null) {
-        try {
-          debugPrint('🔐 FirebaseAuthService: ⚠️ No user signed in - attempting anonymous sign-in for MVP...');
-          final userCredential = await _auth!.signInAnonymously();
-          debugPrint('🔐 FirebaseAuthService: ✅ Anonymous sign-in successful!');
-          debugPrint('🔐 FirebaseAuthService: Anonymous UID: ${userCredential.user?.uid}');
-        } catch (e, stackTrace) {
-          debugPrint('🔐 FirebaseAuthService: ❌ Anonymous sign-in FAILED: $e');
-          debugPrint('🔐 FirebaseAuthService: Stack trace: $stackTrace');
-          // Continue anyway - function calls will fail gracefully
+      if (currentUser != null) {
+        debugPrint('🔐 FirebaseAuthService: 📊 USER AUTH STATE:');
+        debugPrint('  UID: ${currentUser.uid}');
+        debugPrint('  Email: ${currentUser.email ?? "No email"}');
+        debugPrint('  isAnonymous: ${currentUser.isAnonymous}');
+        debugPrint('  emailVerified: ${currentUser.emailVerified}');
+        debugPrint('  providerData: ${currentUser.providerData.map((p) => p.providerId).toList()}');
+
+        // If user is anonymous but we want real authentication for premium features
+        if (currentUser.isAnonymous) {
+          debugPrint('🔐 FirebaseAuthService: ⚠️ USER IS ANONYMOUS - Premium features unavailable');
+          debugPrint('🔐 FirebaseAuthService: 💡 Use Google Sign-In for full access');
+        } else {
+          debugPrint('🔐 FirebaseAuthService: ✅ Real authenticated user detected');
+          // Force refresh auth state for auto-restored sessions
+          await _refreshAuthState(currentUser);
         }
       } else {
-        debugPrint('🔐 FirebaseAuthService: Already signed in as: ${currentUser.uid}');
+        debugPrint('🔐 FirebaseAuthService: ⚠️ No user signed in');
+        debugPrint('🔐 FirebaseAuthService: 💡 Anonymous sign-in disabled - use Google Sign-In for premium features');
+        debugPrint('🔐 FirebaseAuthService: 💡 Some features may be limited without authentication');
+
+        // REMOVED: Automatic anonymous sign-in for better premium account handling
+        // Users should explicitly sign in with Google for premium features
       }
 
       debugPrint('🔐 FirebaseAuthService: ✅ Initialized successfully');
+
+      // Show detailed auth state after initialization
+      debugAuthState();
     } catch (e, stackTrace) {
       debugPrint('🔐 FirebaseAuthService: ❌ Failed to initialize: $e');
       debugPrint('🔐 FirebaseAuthService: Stack trace: $stackTrace');
@@ -186,6 +201,10 @@ class FirebaseAuthService {
       final UserCredential userCredential = await auth.signInWithCredential(credential);
 
       debugPrint('FirebaseAuthService: Successfully signed in to Firebase: ${userCredential.user?.email}');
+
+      // Force refresh the auth token to ensure all services have the new user
+      await _refreshAuthState(userCredential.user);
+
       return userCredential;
 
     } on Exception {
@@ -303,19 +322,24 @@ class FirebaseAuthService {
   /// Sign out
   Future<void> signOut() async {
     try {
-      debugPrint('FirebaseAuthService: Signing out...');
+      final user = currentUser;
+      debugPrint('FirebaseAuthService: 🚪 Signing out...');
+      debugPrint('  Current user: ${user?.email ?? user?.uid ?? "NULL"}');
+      debugPrint('  Was anonymous: ${user?.isAnonymous ?? false}');
 
       // Sign out from Google if signed in
       if (_googleSignIn != null) {
+        debugPrint('FirebaseAuthService: 🔄 Signing out from Google...');
         await _googleSignIn!.signOut();
       }
 
       // Sign out from Firebase
+      debugPrint('FirebaseAuthService: 🔄 Signing out from Firebase...');
       await auth.signOut();
 
-      debugPrint('FirebaseAuthService: Sign out successful');
+      debugPrint('FirebaseAuthService: ✅ Sign out successful - use Google Sign-In for premium features');
     } catch (e) {
-      debugPrint('FirebaseAuthService: Sign out failed: $e');
+      debugPrint('FirebaseAuthService: ❌ Sign out failed: $e');
       rethrow;
     }
   }
@@ -342,6 +366,90 @@ class FirebaseAuthService {
   /// Get user email
   String? get userEmail => currentUser?.email;
 
+  /// Refresh auth state after sign-in to ensure all services have updated user info
+  Future<void> _refreshAuthState(User? user) async {
+    if (user == null) return;
+
+    try {
+      debugPrint('🔄 FirebaseAuthService: Refreshing auth state for user: ${user.email}');
+
+      // Force refresh the ID token
+      await user.getIdToken(true);
+      debugPrint('✅ FirebaseAuthService: Auth token refreshed successfully');
+
+      // Clear any cached subscription data so it re-fetches with new auth
+      try {
+        // Import is done at top of file, safely call the method
+        final subscriptionService = SubscriptionService.instance;
+        subscriptionService.clearCache();
+        debugPrint('🗑️ FirebaseAuthService: Cleared subscription cache');
+      } catch (e) {
+        debugPrint('⚠️ FirebaseAuthService: Could not clear subscription cache: $e');
+      }
+
+      // Clear AssemblyAI cache to remove old user tokens
+      try {
+        AssemblyAIService().clearCache();
+        debugPrint('🗑️ FirebaseAuthService: Cleared AssemblyAI cache');
+      } catch (e) {
+        debugPrint('⚠️ FirebaseAuthService: Could not clear AssemblyAI cache: $e');
+      }
+
+    } catch (e) {
+      debugPrint('❌ FirebaseAuthService: Failed to refresh auth state: $e');
+    }
+  }
+
   /// Get user photo URL
   String? get userPhotoURL => currentUser?.photoURL;
+
+  /// Force check current authentication state and print detailed debug info
+  void debugAuthState() {
+    final user = currentUser;
+    debugPrint('🔍 FIREBASE AUTH DEBUG STATE:');
+    debugPrint('================================');
+    if (user != null) {
+      debugPrint('✅ User is signed in');
+      debugPrint('  UID: ${user.uid}');
+      debugPrint('  Email: ${user.email ?? "No email"}');
+      debugPrint('  Display Name: ${user.displayName ?? "No display name"}');
+      debugPrint('  isAnonymous: ${user.isAnonymous}');
+      debugPrint('  emailVerified: ${user.emailVerified}');
+      debugPrint('  Provider Data: ${user.providerData.map((p) => '${p.providerId}:${p.email}').toList()}');
+      debugPrint('  isSignedIn: $isSignedIn');
+      debugPrint('  hasRealAccount: $hasRealAccount');
+
+      if (user.isAnonymous) {
+        debugPrint('⚠️ PROBLEM: User is anonymous - premium features unavailable');
+        debugPrint('💡 SOLUTION: Use Google Sign-In for premium access');
+      } else {
+        debugPrint('✅ Real authenticated user - premium features should work');
+      }
+    } else {
+      debugPrint('❌ No user signed in');
+      debugPrint('💡 SOLUTION: Sign in with Google for premium features');
+    }
+    debugPrint('================================');
+  }
+
+  /// Force sign out completely and clear all cached data
+  Future<void> forceSignOutAndClear() async {
+    try {
+      debugPrint('🧹 FORCE SIGN OUT: Starting complete cleanup...');
+
+      await signOut();
+
+      // Clear subscription cache
+      SubscriptionService.instance.clearCache();
+
+      // Clear AssemblyAI cache
+      AssemblyAIService().clearCache();
+
+      debugPrint('🧹 FORCE SIGN OUT: Complete cleanup finished');
+      debugPrint('💡 Now sign in with Google for premium access');
+
+    } catch (e) {
+      debugPrint('❌ FORCE SIGN OUT failed: $e');
+    }
+  }
 }

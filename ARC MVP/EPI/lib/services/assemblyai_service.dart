@@ -8,13 +8,31 @@
 import 'dart:async';
 import 'package:cloud_functions/cloud_functions.dart';
 import '../arc/chat/voice/transcription/transcription_provider.dart';
+import 'firebase_service.dart';
+import 'firebase_auth_service.dart';
 
 class AssemblyAIService {
   static final AssemblyAIService _instance = AssemblyAIService._internal();
   factory AssemblyAIService() => _instance;
   AssemblyAIService._internal();
 
-  final FirebaseFunctions _functions = FirebaseFunctions.instance;
+  FirebaseFunctions? _functions;
+  
+  /// Get Firebase Functions instance (lazy initialization)
+  /// Uses FirebaseService to get the correct instance with region support
+  FirebaseFunctions get _functionsInstance {
+    if (_functions == null) {
+      try {
+        // Use FirebaseService to get the properly configured instance
+        _functions = FirebaseService.instance.getFunctions();
+      } catch (e) {
+        // Fallback to default instance if FirebaseService not ready
+        print('AssemblyAIService: Using default Firebase Functions instance (FirebaseService not ready)');
+        _functions = FirebaseFunctions.instance;
+      }
+    }
+    return _functions!;
+  }
   
   // Cached token
   String? _cachedToken;
@@ -69,9 +87,35 @@ class AssemblyAIService {
   /// Fetch a new token from Firebase
   Future<String?> _fetchToken() async {
     try {
-      print('AssemblyAIService: Fetching token from Firebase...');
+      // Ensure Firebase is ready
+      await FirebaseService.instance.ensureReady();
       
-      final callable = _functions.httpsCallable('getAssemblyAIToken');
+      // Check if user is authenticated
+      final authService = FirebaseAuthService.instance;
+      if (!authService.isSignedIn) {
+        print('AssemblyAIService: User not authenticated, cannot fetch token');
+        return null;
+      }
+      
+      // Force refresh auth token to ensure it's valid
+      final currentUser = authService.currentUser;
+      if (currentUser == null) {
+        print('AssemblyAIService: No current user, cannot fetch token');
+        return null;
+      }
+      
+      // Refresh ID token to ensure it's valid for the function call
+      try {
+        await currentUser.getIdToken(true); // Force refresh
+        print('AssemblyAIService: Auth token refreshed');
+      } catch (e) {
+        print('AssemblyAIService: Failed to refresh auth token: $e');
+        return null;
+      }
+      
+      print('AssemblyAIService: Fetching token from Firebase (user: ${currentUser.uid})...');
+      
+      final callable = _functionsInstance.httpsCallable('getAssemblyAIToken');
       final result = await callable.call<Map<String, dynamic>>();
       
       final data = result.data;
@@ -104,6 +148,15 @@ class AssemblyAIService {
       
     } on FirebaseFunctionsException catch (e) {
       print('AssemblyAIService: Firebase error: ${e.code} - ${e.message}');
+      if (e.code == 'not-found') {
+        print('AssemblyAIService: Function "getAssemblyAIToken" not found. '
+            'This may mean the Firebase function is not deployed. '
+            'Falling back to on-device transcription.');
+      } else if (e.code == 'unauthenticated') {
+        print('AssemblyAIService: User not authenticated. '
+            'Please sign in to use cloud transcription. '
+            'Falling back to on-device transcription.');
+      }
       _cachedToken = null;
       _tokenExpiry = null;
       return null;

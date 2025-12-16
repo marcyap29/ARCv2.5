@@ -28,6 +28,8 @@ class SttConfig {
     this.silenceThresholdMs = 1500,  // 1.5 seconds of silence = end of turn
     this.minTranscriptLength = 10,   // At least 10 chars before ending
     this.autoEndTurn = false,        // Disable auto-end by default (user controls)
+    // Note: Auto-response is intentionally disabled for user control.
+    // Users must manually tap the mic button to stop recording and process.
   });
 }
 

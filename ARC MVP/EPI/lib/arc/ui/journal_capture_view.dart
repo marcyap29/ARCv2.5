@@ -815,6 +815,27 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
                                                 _showVoiceRecorder = false;
                                               });
                                             },
+                                            onTranscriptsCollected: (transcriptText) {
+                                              // Populate text controller with transcribed text
+                                              if (transcriptText.isNotEmpty) {
+                                                _textController.text = transcriptText;
+                                                // Set cursor to end of text
+                                                _textController.selection = TextSelection.fromPosition(
+                                                  TextPosition(offset: transcriptText.length),
+                                                );
+                                                // Close voice recorder
+                                                setState(() {
+                                                  _showVoiceRecorder = false;
+                                                });
+                                                // Show confirmation
+                                                ScaffoldMessenger.of(context).showSnackBar(
+                                                  const SnackBar(
+                                                    content: Text('Transcript added to journal entry'),
+                                                    duration: Duration(seconds: 2),
+                                                  ),
+                                                );
+                                              }
+                                            },
                                           ),
                                         ] else ...[
                                           // Show message if initialization failed (e.g., permissions not granted)

@@ -52,6 +52,7 @@ typedef OnTranscriptUpdate = void Function(String transcript);
 typedef OnLumaraResponse = void Function(String response);
 typedef OnSessionComplete = void Function(String? entryId);
 typedef OnVoiceError = void Function(String error);
+typedef OnTranscriptsCollected = void Function(String transcriptText);
 
 /// Unified Voice Service
 /// 
@@ -94,6 +95,7 @@ class UnifiedVoiceService {
   OnLumaraResponse? onLumaraResponse;
   OnSessionComplete? onSessionComplete;
   OnVoiceError? onError;
+  OnTranscriptsCollected? onTranscriptsCollected;
   
   // Audio level stream
   final StreamController<double> _audioLevelController = 
@@ -127,6 +129,23 @@ class UnifiedVoiceService {
       ? _stateNotifier.partialTranscript 
       : _stateNotifier.finalTranscript;
   String get lastLumaraResponse => _stateNotifier.lumaraReply;
+  
+  /// Get all transcripts formatted as text for journal entry
+  /// Formats all journal turns into a single text string with user and LUMARA responses
+  String getAllTranscriptsText() {
+    if (_journalTurns.isEmpty) {
+      return '';
+    }
+    
+    final buffer = StringBuffer();
+    for (final turn in _journalTurns) {
+      buffer.writeln('**You:** ${turn.displayUserText}\n');
+      if (turn.displayLumaraResponse.isNotEmpty) {
+        buffer.writeln('**LUMARA:** ${turn.displayLumaraResponse}\n');
+      }
+    }
+    return buffer.toString().trim();
+  }
   
   /// Get metrics
   VoiceLatencyMetrics get metrics => _metrics;
@@ -372,9 +391,19 @@ class UnifiedVoiceService {
       onStart: () => _log('TTS started'),
       onComplete: () {
         _log('TTS complete');
+        // Clear current transcript since it's now in conversation history
+        _stateNotifier.clearCurrentTranscript();
+        
         if (_config.autoStartNextTurn) {
-          _stateNotifier.transitionTo(VoiceJournalState.listening);
-          startListening();
+          // Transition to idle first, then start listening
+          if (_stateNotifier.transitionTo(VoiceJournalState.idle)) {
+            // Small delay to ensure state transition completes
+            Future.delayed(const Duration(milliseconds: 100), () {
+              if (_stateNotifier.state == VoiceJournalState.idle) {
+                startListening();
+              }
+            });
+          }
         } else {
           _stateNotifier.transitionTo(VoiceJournalState.idle);
         }
@@ -445,18 +474,18 @@ class UnifiedVoiceService {
     try {
       if (_mode == VoiceMode.journal) {
         if (_journalTurns.isEmpty) {
-          _log('No journal turns to save');
+          _log('No journal turns to collect');
         } else {
-          // Save to journal
-          final record = VoiceJournalRecord(
-            sessionId: _currentSessionId!,
-            timestamp: _sessionStart ?? DateTime.now(),
-            turns: _journalTurns,
-            metrics: _config.enableLatencyTracking ? _metrics : null,
-          );
+          // Collect transcripts instead of saving directly
+          // User will edit and save through normal journal entry screen
+          final transcriptText = getAllTranscriptsText();
+          _log('Collected ${_journalTurns.length} journal turns for editing');
           
-          entryId = await _journalStore.saveSession(record);
-          _log('Journal session saved: $entryId');
+          // Call callback with formatted transcript text
+          onTranscriptsCollected?.call(transcriptText);
+          
+          // Don't save directly - return null to indicate no entry was created
+          entryId = null;
         }
       } else {
         // Chat is saved incrementally, just finalize

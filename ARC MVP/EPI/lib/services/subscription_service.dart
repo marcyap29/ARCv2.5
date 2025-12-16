@@ -60,20 +60,48 @@ class SubscriptionService {
   DateTime? _cacheExpiry;
   static const Duration _cacheTimeout = Duration(minutes: 5);
 
+  /// Clear cached subscription data (call after authentication changes)
+  void clearCache() {
+    debugPrint('SubscriptionService: 🗑️ Clearing subscription cache');
+    _cachedTier = null;
+    _cacheExpiry = null;
+  }
+
   /// Get current user's subscription tier
-  Future<SubscriptionTier> getSubscriptionTier() async {
-    // Check cache first
-    if (_cachedTier != null && _cacheExpiry != null && DateTime.now().isBefore(_cacheExpiry!)) {
+  Future<SubscriptionTier> getSubscriptionTier({bool forceRefresh = false}) async {
+    // Check cache first (unless forcing refresh)
+    if (!forceRefresh && _cachedTier != null && _cacheExpiry != null && DateTime.now().isBefore(_cacheExpiry!)) {
+      debugPrint('SubscriptionService: Using cached tier: $_cachedTier');
       return _cachedTier!;
     }
 
+    if (forceRefresh) {
+      debugPrint('SubscriptionService: Force refresh requested - clearing cache');
+      _cachedTier = null;
+      _cacheExpiry = null;
+    }
+
     try {
-      // Check if user is signed in
+      // Check if user is signed in with detailed debugging
       final authService = FirebaseAuthService.instance;
+      debugPrint('SubscriptionService: 📊 AUTH STATE CHECK:');
+      debugPrint('  isSignedIn: ${authService.isSignedIn}');
+      debugPrint('  hasRealAccount: ${authService.hasRealAccount}');
+      debugPrint('  isAnonymous: ${authService.isAnonymous}');
+      debugPrint('  currentUser: ${authService.currentUser?.email ?? authService.currentUser?.uid ?? "NULL"}');
+
       if (!authService.isSignedIn) {
-        debugPrint('SubscriptionService: User not signed in, defaulting to free tier');
+        debugPrint('SubscriptionService: ❌ User not signed in, defaulting to free tier');
         return SubscriptionTier.free;
       }
+
+      if (authService.isAnonymous) {
+        debugPrint('SubscriptionService: ⚠️ User is anonymous, cannot access premium features');
+        debugPrint('SubscriptionService: 💡 Sign in with Google for premium subscription access');
+        return SubscriptionTier.free;
+      }
+
+      debugPrint('SubscriptionService: ✅ Real user authenticated, fetching subscription from Firebase...');
 
       // Try to get from Firebase Functions first
       final tier = await _fetchFromFirebase();
@@ -105,22 +133,48 @@ class SubscriptionService {
   /// Fetch subscription tier from Firebase Functions
   Future<SubscriptionTier> _fetchFromFirebase() async {
     try {
+      // Force refresh ID token before calling Functions
+      final authService = FirebaseAuthService.instance;
+      final currentUser = authService.currentUser;
+      if (currentUser != null) {
+        try {
+          await currentUser.getIdToken(true); // Force refresh
+          debugPrint('SubscriptionService: 🔄 ID token refreshed before Function call');
+        } catch (e) {
+          debugPrint('SubscriptionService: ⚠️ Failed to refresh ID token: $e');
+        }
+      }
+
       final functions = FirebaseFunctions.instance;
       final callable = functions.httpsCallable('getUserSubscription');
+
+      debugPrint('SubscriptionService: 🔗 Calling Firebase Function: getUserSubscription');
 
       final result = await callable.call();
       final data = result.data as Map<String, dynamic>;
 
+      debugPrint('SubscriptionService: 📦 Firebase Function response: $data');
+
       final tierString = data['tier'] as String?;
+      debugPrint('SubscriptionService: 🎯 Tier from Firebase: $tierString');
+
       switch (tierString?.toLowerCase()) {
         case 'premium':
+          debugPrint('SubscriptionService: ✅ Premium tier confirmed!');
           return SubscriptionTier.premium;
         case 'free':
+          debugPrint('SubscriptionService: ℹ️ Free tier confirmed');
+          return SubscriptionTier.free;
         default:
+          debugPrint('SubscriptionService: ⚠️ Unknown tier "$tierString", defaulting to free');
           return SubscriptionTier.free;
       }
     } catch (e) {
-      debugPrint('SubscriptionService: Firebase Functions call failed: $e');
+      debugPrint('SubscriptionService: ❌ Firebase Functions call failed: $e');
+      debugPrint('SubscriptionService: 🔍 Error type: ${e.runtimeType}');
+      if (e.toString().contains('UNAUTHENTICATED')) {
+        debugPrint('SubscriptionService: 🚫 Authentication error - user may need to sign in again');
+      }
       rethrow;
     }
   }
@@ -180,11 +234,6 @@ class SubscriptionService {
     return tier == SubscriptionTier.premium;
   }
 
-  /// Clear cache (useful for testing or after subscription changes)
-  void clearCache() {
-    _cachedTier = null;
-    _cacheExpiry = null;
-  }
 
   /// Initialize Stripe checkout for premium subscription
   Future<String?> createStripeCheckoutSession() async {
