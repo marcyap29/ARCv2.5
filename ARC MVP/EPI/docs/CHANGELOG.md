@@ -1,6 +1,6 @@
 # EPI ARC MVP - Changelog
 
-**Version:** 2.1.56
+**Version:** 2.1.57
 **Last Updated:** December 13, 2025
 
 ---
@@ -14,6 +14,31 @@ This changelog has been split into parts for easier navigation:
 | **[CHANGELOG_part1.md](CHANGELOG_part1.md)** | Dec 2025 | v2.1.43 - v2.1.53 (Current) |
 | **[CHANGELOG_part2.md](CHANGELOG_part2.md)** | Nov 2025 | v2.1.28 - v2.1.42 |
 | **[CHANGELOG_part3.md](CHANGELOG_part3.md)** | Jan-Oct 2025 | v2.0.0 - v2.1.27 & Earlier |
+
+---
+
+## [2.1.57] - December 13, 2025
+
+### **LUMARA Web Access Safety Layer Enhancement** - ✅ Complete
+
+- **Restored comprehensive web access safety layer**: Restored all 10 original safety rules for LUMARA's web search capability
+- **Safety rules implemented**:
+  1. Primary Source Priority - Prioritize user's personal context first
+  2. Explicit Need Check - Internal reasoning before searching
+  3. Opt-In by User Intent - Interpret user requests as permission when appropriate
+  4. Content Safety Boundaries - Avoid violent, graphic, extremist content
+  5. Research Mode Filter - Prioritize peer-reviewed sources for research
+  6. Containment Framing for Sensitive Topics - High-level summaries for mental health/trauma topics
+  7. No Passive Browsing - Web access must be tied to user requests
+  8. Transparent Sourcing - Summarize findings, state external info was used
+  9. Contextual Integration - Relate web info back to user's ARC themes and patterns
+  10. Fail-Safe Rule - Refuse unsafe content and offer alternatives
+- **Combined with explicit capability statements**: Clear instructions that LUMARA has Google Search available when `webAccess.enabled` is true, with matter-of-fact usage approach
+- **Explicit prohibition**: Never tell users "I can only work with journal/chat" when web access is enabled
+
+**Status**: ✅ Complete  
+**Files Modified**:
+- `lib/arc/chat/llm/prompts/lumara_master_prompt.dart` - Restored comprehensive safety layer rules with explicit web access instructions
 
 ---
 
@@ -277,6 +302,7 @@ Visible floating scroll buttons added across all scrollable screens.
 
 | Version | Date | Key Feature |
 |---------|------|-------------|
+| 2.1.57 | Dec 13, 2025 | LUMARA Web Access Safety Layer Enhancement |
 | 2.1.56 | Dec 13, 2025 | LUMARA Internet Access & Bug Fixes |
 | 2.1.55 | Dec 13, 2025 | AssemblyAI Universal Streaming v3 Migration |
 | 2.1.54 | Dec 13, 2025 | Export Format Standardization |
