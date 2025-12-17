@@ -1,6 +1,6 @@
 # EPI MVP - Comprehensive Features Guide
 
-**Version:** 2.1.54
+**Version:** 2.1.57
 **Last Updated:** December 13, 2025
 
 ---
@@ -210,13 +210,21 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
   - **Consistent Structure**: Predictable paragraph organization for better mobile reading
   - **Performance Optimization**: Streamlined paragraph logic for improved response generation
 - **Web Access** (Opt-In): Safe, scoped web search when information unavailable internally
-  - Primary source priority: Always prioritizes user's personal data first
-  - Safety filtering: Automatic filtering of violent, graphic, or harmful content
-  - Research mode: Prioritizes peer-reviewed sources for research queries
-  - Sensitive topic handling: Safe containment framing for mental health/trauma topics
-  - Transparent sourcing: Clear indicators when external information is used
-  - Visual indicators: "External Information Used" badge in chat and journal
-  - Settings control: Opt-in toggle in LUMARA Settings (default: disabled)
+  - **10-Rule Safety Layer**: Comprehensive safety framework governing all web searches
+    1. Primary Source Priority: Always prioritizes user's personal context (journal, chats, patterns) before web search
+    2. Explicit Need Check: Internal reasoning to verify web search is necessary
+    3. Opt-In by User Intent: Interprets user requests (e.g., "look up", "find information") as permission to search
+    4. Content Safety Boundaries: Avoids violent, graphic, extremist, or illegal content
+    5. Research Mode Filter: Prioritizes peer-reviewed sources and reliable data for research queries
+    6. Containment Framing: Provides high-level summaries for sensitive topics (mental health, trauma) without graphic details
+    7. No Passive Browsing: Web access must always be tied to explicit user requests
+    8. Transparent Sourcing: Summarizes findings and states when external information was used
+    9. Contextual Integration: Relates web-sourced information back to user's ARC themes, ATLAS phase, and personal patterns
+    10. Fail-Safe Rule: Refuses unsafe or unverifiable content and offers safe alternatives
+  - **Google Search Integration**: Enabled via `tools: [{ googleSearch: {} }]` in Gemini model configuration
+  - **Control State Integration**: `webAccess.enabled` flag in control state determines availability
+  - **Matter-of-Fact Usage**: Direct, honest approach without defensive explanations
+  - **Settings control**: Opt-in toggle in LUMARA Settings (default: disabled)
 
 **In-Journal LUMARA Priority & Context Rules**
 - **Question-First Detection**: Detects questions first and prioritizes direct answers
