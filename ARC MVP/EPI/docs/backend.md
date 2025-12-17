@@ -1,6 +1,6 @@
 # Backend Architecture & Setup
 
-**Version:** 2.1.56  
+**Version:** 2.1.57  
 **Last Updated:** December 13, 2025  
 **Status:** ✅ Production Ready with Health Integration, AssemblyAI v3 & Internet Access
 
@@ -88,6 +88,23 @@ exports.proxyGemini = onCall(
   }
 );
 ```
+
+### Web Access Safety Layer
+
+LUMARA's web access is governed by a comprehensive 10-rule safety layer that ensures responsible use of Google Search:
+
+1. **Primary Source Priority** - Always prioritize user's personal context (journal entries, chat history) before web search
+2. **Explicit Need Check** - Perform internal reasoning to verify web search is necessary
+3. **Opt-In by User Intent** - Interpret user requests (e.g., "look up", "find information") as permission to search
+4. **Content Safety Boundaries** - Avoid violent, graphic, extremist, or illegal content
+5. **Research Mode Filter** - Prioritize peer-reviewed sources and reliable data for research queries
+6. **Containment Framing** - Provide high-level summaries for sensitive topics (mental health, trauma) without graphic details
+7. **No Passive Browsing** - Web access must always be tied to explicit user requests
+8. **Transparent Sourcing** - Summarize findings and state when external information was used
+9. **Contextual Integration** - Relate web-sourced information back to user's ARC themes, ATLAS phase, and personal patterns
+10. **Fail-Safe Rule** - Refuse unsafe or unverifiable content and offer safe alternatives
+
+**Implementation**: Safety rules are defined in `lib/arc/chat/llm/prompts/lumara_master_prompt.dart` and enforced through LUMARA's system prompt. The `webAccess.enabled` flag in the control state determines when web search is available.
 
 ---
 
@@ -507,6 +524,6 @@ const userId = request.auth?.uid || `mvp_test_${Date.now()}`;
 
 ---
 
-**Status**: ✅ Production Ready with Authentication & AssemblyAI v3  
+**Status**: ✅ Production Ready with Authentication & AssemblyAI v3 & Web Access Safety  
 **Last Updated**: December 13, 2025  
-**Version**: 2.1.55
+**Version**: 2.1.57

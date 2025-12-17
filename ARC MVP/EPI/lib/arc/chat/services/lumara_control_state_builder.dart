@@ -320,6 +320,22 @@ class LumaraControlStateBuilder {
     state['persona'] = persona;
     
     // ============================================================
+    // G. WEB ACCESS CAPABILITY
+    // ============================================================
+    final webAccess = <String, dynamic>{};
+    
+    try {
+      final settingsService = LumaraReflectionSettingsService.instance;
+      final webAccessEnabled = await settingsService.isWebAccessEnabled();
+      webAccess['enabled'] = webAccessEnabled;
+    } catch (e) {
+      print('LUMARA Control State: Error getting web access setting: $e');
+      webAccess['enabled'] = false; // Default to disabled
+    }
+    
+    state['webAccess'] = webAccess;
+    
+    // ============================================================
     // Final computed behavioral parameters
     // ============================================================
     // These are derived from the above signals AND persona
