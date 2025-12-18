@@ -4465,25 +4465,41 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     String baseEntryText = await _buildJournalContext(loadedEntries, query: _textController.text);
     
     // Include user comments from previous LUMARA blocks if currentBlockIndex is provided
-    // Also include ALL blocks (even without user comments) to show full conversation history
+    // Implement sliding weight system: weight increases as more blocks accumulate
     if (currentBlockIndex != null && _entryState.blocks.isNotEmpty) {
       final userCommentsBuffer = StringBuffer();
-      userCommentsBuffer.writeln('\n\n=== Previous LUMARA Conversation in This Entry ===');
+      
+      // Calculate sliding weight based on number of blocks
+      // More blocks = higher weight for user responses
+      final totalBlocks = _entryState.blocks.length;
+      final blocksWithUserComments = _entryState.blocks.where((b) => 
+        b.userComment != null && b.userComment!.trim().isNotEmpty
+      ).length;
+      
+      // Weight increases from 0.5 (1 block) to 1.0 (5+ blocks)
+      final conversationWeight = (0.5 + (totalBlocks * 0.1)).clamp(0.5, 1.0);
+      final userResponseWeight = (0.6 + (blocksWithUserComments * 0.08)).clamp(0.6, 1.0);
+      
+      userCommentsBuffer.writeln('\n\n=== CURRENT ENTRY CONVERSATION (HIGH PRIORITY - WEIGHT: ${conversationWeight.toStringAsFixed(2)}) ===');
+      userCommentsBuffer.writeln('This entry contains $totalBlocks LUMARA responses and $blocksWithUserComments user responses.');
+      userCommentsBuffer.writeln('User responses have increased weight (${userResponseWeight.toStringAsFixed(2)}) as conversation deepens.');
+      userCommentsBuffer.writeln('');
       
       // Include all previous blocks to show full conversation context
       for (int i = 0; i < currentBlockIndex && i < _entryState.blocks.length; i++) {
         final block = _entryState.blocks[i];
         
-        // Always include LUMARA's response
+        // Always include LUMARA's response (high weight)
         if (block.content.isNotEmpty) {
-          userCommentsBuffer.writeln('\nLUMARA:');
+          userCommentsBuffer.writeln('\n[LUMARA Response ${i + 1}]:');
           userCommentsBuffer.writeln(block.content);
         }
         
-        // Include user comment/question if it exists
+        // Include user comment/question with emphasis based on weight
         if (block.userComment != null && block.userComment!.trim().isNotEmpty) {
-          userCommentsBuffer.writeln('\nUser question/comment:');
+          userCommentsBuffer.writeln('\n[USER Response ${i + 1} - HIGH PRIORITY (Weight: ${userResponseWeight.toStringAsFixed(2)})]:');
           userCommentsBuffer.writeln(block.userComment);
+          userCommentsBuffer.writeln('(This user response is important - reference it in your answer)');
         }
         
         userCommentsBuffer.writeln('---');
@@ -4493,16 +4509,27 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
       if (currentBlockIndex < _entryState.blocks.length) {
         final currentBlock = _entryState.blocks[currentBlockIndex];
         if (currentBlock.userComment != null && currentBlock.userComment!.trim().isNotEmpty) {
-          userCommentsBuffer.writeln('\nCurrent user question/comment (most recent):');
+          userCommentsBuffer.writeln('\n[CURRENT USER QUESTION/COMMENT - HIGHEST PRIORITY]:');
           userCommentsBuffer.writeln(currentBlock.userComment);
+          userCommentsBuffer.writeln('(This is the most recent user input - address it directly)');
           userCommentsBuffer.writeln('---');
         }
       }
       
-      // Prepend conversation history to baseEntryText so it's prioritized
-      // This ensures LUMARA sees the most recent conversation first
-      baseEntryText = '${userCommentsBuffer.toString()}\n\n=== Original Journal Entry ===\n$baseEntryText';
-      print('Journal: Included ${currentBlockIndex} previous LUMARA blocks in context');
+      // Prepend conversation history to baseEntryText with high priority marking
+      // This ensures LUMARA sees the most recent conversation first and weights it heavily
+      baseEntryText = '''${userCommentsBuffer.toString()}
+
+=== ORIGINAL JOURNAL ENTRY TEXT (Reference - Lower Priority) ===
+$baseEntryText
+
+=== INSTRUCTIONS ===
+1. PRIORITIZE the conversation history above (CURRENT ENTRY CONVERSATION) - it has HIGH WEIGHT
+2. User responses in the conversation have INCREASED WEIGHT as more responses accumulate
+3. Reference past entries (below) with LOWER WEIGHT - they are for context only
+4. Focus on the user's most recent questions/comments in the conversation history''';
+      
+      print('Journal: Included ${currentBlockIndex} previous LUMARA blocks with sliding weights (conversation: ${conversationWeight.toStringAsFixed(2)}, user responses: ${userResponseWeight.toStringAsFixed(2)})');
     }
     
     context['entryText'] = baseEntryText;
@@ -4740,7 +4767,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
         options: lumara_models.LumaraReflectionOptions(
           regenerate: true,
           toneMode: lumara_models.ToneMode.normal,
-          preferQuestionExpansion: false,
+          preferQuestionExpansion: true, // More Depth is now default
         ),
         onProgress: (message) {
           if (mounted) {
@@ -4829,7 +4856,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
         options: lumara_models.LumaraReflectionOptions(
           toneMode: lumara_models.ToneMode.soft,
           regenerate: false,
-          preferQuestionExpansion: false,
+          preferQuestionExpansion: true, // More Depth is now default
         ),
         onProgress: (message) {
           if (mounted) {
