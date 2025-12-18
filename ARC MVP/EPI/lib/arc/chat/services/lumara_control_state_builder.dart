@@ -24,6 +24,7 @@ class LumaraControlStateBuilder {
     String? userId,
     Map<String, dynamic>? prismActivity,
     Map<String, dynamic>? chronoContext,
+    String? userMessage, // NEW: User message for question intent detection
   }) async {
     final state = <String, dynamic>{};
     
@@ -301,8 +302,8 @@ class LumaraControlStateBuilder {
       
       String effectivePersona;
       if (selectedPersona == LumaraPersona.auto) {
-        // Auto-detect persona based on context
-        effectivePersona = _autoDetectPersona(state, sentinelAlert);
+        // Auto-detect persona based on question intent first, then context
+        effectivePersona = _autoDetectPersona(state, sentinelAlert, userMessage);
       } else {
         effectivePersona = selectedPersona.name;
       }
@@ -334,6 +335,24 @@ class LumaraControlStateBuilder {
     }
     
     state['webAccess'] = webAccess;
+    
+    // ============================================================
+    // H. RESPONSE MODE (Phase-Centric vs Historical vs LUMARA's Thoughts)
+    // ============================================================
+    final responseMode = <String, dynamic>{};
+    
+    try {
+      // Detect response mode from user message if provided
+      final detectedMode = _detectResponseMode(userMessage);
+      responseMode['mode'] = detectedMode;
+      responseMode['isAuto'] = true; // Always auto-detected for now
+    } catch (e) {
+      print('LUMARA Control State: Error detecting response mode: $e');
+      responseMode['mode'] = 'phase_centric'; // Default
+      responseMode['isAuto'] = true;
+    }
+    
+    state['responseMode'] = responseMode;
     
     // ============================================================
     // Final computed behavioral parameters
@@ -526,8 +545,16 @@ class LumaraControlStateBuilder {
     return challenge.clamp(0.0, 1.0);
   }
   
-  /// Auto-detect the best persona based on context signals
-  static String _autoDetectPersona(Map<String, dynamic> state, bool sentinelAlert) {
+  /// Auto-detect the best persona based on question intent first, then context signals
+  static String _autoDetectPersona(Map<String, dynamic> state, bool sentinelAlert, [String? questionText]) {
+    // First check question intent if provided (takes priority)
+    if (questionText != null && questionText.trim().isNotEmpty) {
+      final questionIntent = _detectPersonaFromQuestion(questionText);
+      if (questionIntent != null) {
+        print('LUMARA Control State: Detected persona from question: $questionIntent');
+        return questionIntent; // Override context-based detection
+      }
+    }
     final atlas = state['atlas'] as Map<String, dynamic>? ?? {};
     final veil = state['veil'] as Map<String, dynamic>? ?? {};
     final therapy = state['therapy'] as Map<String, dynamic>? ?? {};
@@ -585,6 +612,97 @@ class LumaraControlStateBuilder {
     
     // Default: companion for warm, adaptive support
     return 'companion';
+  }
+  
+  /// Detect persona from question text using pattern matching
+  static String? _detectPersonaFromQuestion(String question) {
+    if (question.isEmpty) return null;
+    
+    final lower = question.toLowerCase();
+    
+    // Strategic/Analytical questions → strategist
+    final strategistPatterns = [
+      'how should', 'what strategy', 'analyze', 'plan',
+      'optimize', 'approach', 'method', 'tactic', 'strategy',
+      'what steps', 'how to', 'best way', 'recommend',
+    ];
+    if (strategistPatterns.any((pattern) => lower.contains(pattern))) {
+      return 'strategist';
+    }
+    
+    // Challenging questions → challenger
+    final challengerPatterns = [
+      'challenge', 'what am i avoiding', 'honest',
+      'push me', 'what am i missing', 'blind spot',
+      'what am i not seeing', 'hard truth', 'direct',
+      'what am i wrong', 'call me out',
+    ];
+    if (challengerPatterns.any((pattern) => lower.contains(pattern))) {
+      return 'challenger';
+    }
+    
+    // Therapeutic questions → therapist
+    final therapistPatterns = [
+      'why do i', 'help me understand', 'process',
+      'feel', 'emotion', 'support', 'why am i',
+      'what does this mean', 'help me', 'struggling',
+      'difficult', 'hard time', 'coping',
+    ];
+    if (therapistPatterns.any((pattern) => lower.contains(pattern))) {
+      return 'therapist';
+    }
+    
+    // Reflective/Exploratory questions → companion (default for questions)
+    final companionPatterns = [
+      'what do you think', 'your thoughts', 'explore',
+      'reflect', 'consider', 'perspective', 'opinion',
+      'what are your', 'tell me', 'share',
+    ];
+    if (companionPatterns.any((pattern) => lower.contains(pattern))) {
+      return 'companion';
+    }
+    
+    // No clear intent detected
+    return null;
+  }
+  
+  /// Detect response mode from user message
+  static String _detectResponseMode(String? userMessage) {
+    if (userMessage == null || userMessage.trim().isEmpty) {
+      return 'phase_centric'; // Default
+    }
+    
+    final lower = userMessage.toLowerCase();
+    
+    // Historical patterns mode
+    final historicalPatterns = [
+      'what patterns', 'patterns do you see', 'past entries',
+      'historical', 'over time', 'across time', 'longitudinal',
+      'how does this relate to my past', 'previous entries',
+      'earlier entries', 'past journal', 'past experiences',
+    ];
+    if (historicalPatterns.any((pattern) => lower.contains(pattern))) {
+      return 'historical_patterns';
+    }
+    
+    // LUMARA's thoughts mode
+    final lumaraThoughtsPatterns = [
+      'what\'s your take', 'your thoughts', 'your opinion',
+      'what do you think', 'your perspective', 'your view',
+      'your analysis', 'your interpretation', 'your insight',
+      'lumara\'s thoughts', 'your own', 'not tied to phase',
+    ];
+    if (lumaraThoughtsPatterns.any((pattern) => lower.contains(pattern))) {
+      return 'lumara_thoughts';
+    }
+    
+    // Hybrid mode (explicit request for multiple approaches)
+    if (lower.contains('both') && (lower.contains('pattern') || lower.contains('phase'))) {
+      return 'hybrid';
+    }
+    
+    // Default: phase-centric
+    return 'phase_centric';
   }
   
   /// Apply persona-specific behavioral overrides
