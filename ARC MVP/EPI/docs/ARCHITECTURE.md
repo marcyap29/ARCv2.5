@@ -1,7 +1,7 @@
 # EPI MVP - Architecture Overview
 
-**Version:** 2.1.57
-**Last Updated:** December 13, 2025
+**Version:** 2.1.58
+**Last Updated:** December 18, 2025
 **Status:** ✅ Production Ready - MVP Fully Operational with Health Integration, AssemblyAI v3 & Web Access Safety
 
 ---
@@ -24,6 +24,7 @@ EPI (Evolving Personal Intelligence) is a Flutter-based intelligent journaling a
 - ✅ **LUMARA Persona System (v2.1.51)**: 4 personality modes with auto-detection
 - ✅ **Health→LUMARA Integration (v2.1.52)**: Sleep/energy signals influence LUMARA behavior
 - ✅ **LUMARA Web Access Safety Layer (v2.1.57)**: Comprehensive 10-rule safety framework for Google Search integration
+- ✅ **LUMARA Journal Context Order Fix (v2.1.58)**: Chronological context ordering - LUMARA only sees content above its position
 
 ### Current Version
 

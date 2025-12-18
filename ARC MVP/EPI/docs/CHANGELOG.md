@@ -1,7 +1,7 @@
 # EPI ARC MVP - Changelog
 
-**Version:** 2.1.57
-**Last Updated:** December 13, 2025
+**Version:** 2.1.58
+**Last Updated:** December 18, 2025
 
 ---
 
@@ -14,6 +14,29 @@ This changelog has been split into parts for easier navigation:
 | **[CHANGELOG_part1.md](CHANGELOG_part1.md)** | Dec 2025 | v2.1.43 - v2.1.53 (Current) |
 | **[CHANGELOG_part2.md](CHANGELOG_part2.md)** | Nov 2025 | v2.1.28 - v2.1.42 |
 | **[CHANGELOG_part3.md](CHANGELOG_part3.md)** | Jan-Oct 2025 | v2.0.0 - v2.1.27 & Earlier |
+
+---
+
+## [2.1.58] - December 18, 2025
+
+### **LUMARA Journal Context Order Fix** - ✅ Complete
+
+- **Fixed reverse reading flow issue**: LUMARA was focusing on text below its position instead of above, causing users to read from bottom-up to understand the flow
+- **Chronological context ordering**: LUMARA now only sees and references content that appears ABOVE its position in the entry
+- **Original text tracking**: Added `_originalEntryTextBeforeBlocks` to track entry text before any blocks are added
+- **Context building improvements**:
+  - When `currentBlockIndex > 0`, uses original entry text instead of current text (which may contain text written after blocks)
+  - Only includes LUMARA responses and user comments from blocks with index < currentBlockIndex
+  - Explicit instructions that content BELOW the current block position is NOT included
+- **Enhanced context labeling**: 
+  - Context section labeled as "CONTENT ABOVE THIS LUMARA RESPONSE (CHRONOLOGICAL ORDER)"
+  - Clear warnings that content below is not visible
+  - Position-aware instructions (e.g., "You are responding at position X - you can ONLY see content from positions 1-X-1")
+- **Previous LUMARA responses included**: All previous LUMARA responses above the current position are now included in context, ensuring conversation continuity
+
+**Status**: ✅ Complete  
+**Files Modified**:
+- `lib/ui/journal/journal_screen.dart` - Added original text tracking, modified context building to use chronological order, updated instructions
 
 ---
 
