@@ -23,10 +23,10 @@ exports.getUserSubscription = onCall(
     cors: true,
   },
   async (request) => {
-    // Verify authentication
-    if (!request.auth) {
-      throw new HttpsError("unauthenticated", "The function must be called while authenticated.");
-    }
+  // Verify authentication
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "The function must be called while authenticated.");
+  }
 
   const uid = request.auth.uid;
   const email = request.auth.token.email;
@@ -68,10 +68,10 @@ exports.getAssemblyAIToken = onCall(
     secrets: [ASSEMBLYAI_API_KEY],
   },
   async (request) => {
-    // Verify authentication
-    if (!request.auth) {
-      throw new HttpsError("unauthenticated", "The function must be called while authenticated.");
-    }
+  // Verify authentication
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "The function must be called while authenticated.");
+  }
 
   const uid = request.auth.uid;
   const email = request.auth.token.email;
@@ -108,9 +108,9 @@ exports.getAssemblyAIToken = onCall(
   }
   
   const expiresAt = Date.now() + (60 * 60 * 1000); // 1 hour from now
-  
+
   console.log(`Returning AssemblyAI API key for premium user: ${email} (key length: ${apiKey.length})`);
-  
+
   return {
     token: apiKey,
     expiresAt: expiresAt,

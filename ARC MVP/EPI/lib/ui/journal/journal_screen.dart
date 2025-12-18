@@ -153,6 +153,10 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
   bool _hasBeenModified = false;
   String? _originalContent;
   
+  // Track original entry text before any LUMARA blocks were added
+  // This ensures we only use text that appears ABOVE each block position
+  String? _originalEntryTextBeforeBlocks;
+  
   // Track updated entry for phase override changes (local state)
   JournalEntry? _currentEntryOverride;
   
@@ -1217,6 +1221,12 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
       
       // Check if this is the first LUMARA activation (no existing blocks)
       final isFirstActivation = _entryState.blocks.isEmpty;
+      
+      // Capture original entry text when first block is created
+      // This ensures we only use text that appears ABOVE subsequent blocks
+      if (isFirstActivation) {
+        _originalEntryTextBeforeBlocks = _textController.text.trim();
+      }
       
       // The new block index will be the current length (0 for first activation)
       newBlockIndex = _entryState.blocks.length;
@@ -4301,14 +4311,15 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
   }
 
   /// Build journal context from loaded entries for reflection
-  Future<String> _buildJournalContext(List<JournalEntry> loadedEntries, {String? query}) async {
+  Future<String> _buildJournalContext(List<JournalEntry> loadedEntries, {String? query, String? originalEntryText}) async {
     final buffer = StringBuffer();
     final Set<String> addedEntryIds = {}; // Track added entries to avoid duplicates
     
     // Add current entry text with date information
-    // This is the LATEST/MOST RECENT entry - the user is actively editing this one
-    // Use _textController.text as the source of truth (most up-to-date text from user's typing)
-    final currentEntryText = _textController.text;
+    // CRITICAL: When originalEntryText is provided, use it instead of current text
+    // This ensures we only include text that appears ABOVE the current block position
+    // (not text written after blocks, which would be chronologically incorrect)
+    final currentEntryText = originalEntryText ?? _textController.text;
     buffer.writeln('=== CURRENT ENTRY (LATEST - YOU ARE EDITING THIS NOW) ===');
     // Include date if available (from existing entry or editable date)
     if (widget.existingEntry != null) {
@@ -4461,29 +4472,61 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     final context = <String, dynamic>{};
     
     // Build entry text from loaded journal entries
-    // Use _textController.text as query for semantic search (most up-to-date text)
-    String baseEntryText = await _buildJournalContext(loadedEntries, query: _textController.text);
+    // CRITICAL: When currentBlockIndex is provided, use original entry text (before any blocks)
+    // This ensures we only include text that appears ABOVE the current block position
+    // Text written after blocks should NOT be included (chronologically incorrect)
+    final entryTextForContext = (currentBlockIndex != null && currentBlockIndex > 0 && _originalEntryTextBeforeBlocks != null)
+        ? _originalEntryTextBeforeBlocks!
+        : _textController.text;
     
-    // Include user comments from previous LUMARA blocks if currentBlockIndex is provided
-    // Also include ALL blocks (even without user comments) to show full conversation history
-    if (currentBlockIndex != null && _entryState.blocks.isNotEmpty) {
+    String baseEntryText = await _buildJournalContext(
+      loadedEntries, 
+      query: entryTextForContext,
+      originalEntryText: (currentBlockIndex != null && currentBlockIndex > 0 && _originalEntryTextBeforeBlocks != null)
+          ? _originalEntryTextBeforeBlocks!
+          : null,
+    );
+    
+    // Include LUMARA responses and user comments from previous blocks if currentBlockIndex is provided
+    // CRITICAL: Only include blocks that appear ABOVE the current block (index < currentBlockIndex)
+    // This ensures chronological order - LUMARA only sees what came before it
+    if (currentBlockIndex != null && currentBlockIndex > 0 && _entryState.blocks.isNotEmpty) {
       final userCommentsBuffer = StringBuffer();
-      userCommentsBuffer.writeln('\n\n=== Previous LUMARA Conversation in This Entry ===');
       
-      // Include all previous blocks to show full conversation context
+      // Calculate sliding weight based on number of blocks
+      // More blocks = higher weight for user responses
+      final totalBlocks = _entryState.blocks.length;
+      final blocksWithUserComments = _entryState.blocks.where((b) => 
+        b.userComment != null && b.userComment!.trim().isNotEmpty
+      ).length;
+      
+      // Weight increases from 0.5 (1 block) to 1.0 (5+ blocks)
+      final conversationWeight = (0.5 + (totalBlocks * 0.1)).clamp(0.5, 1.0);
+      final userResponseWeight = (0.6 + (blocksWithUserComments * 0.08)).clamp(0.6, 1.0);
+      
+      userCommentsBuffer.writeln('\n\n=== CONTENT ABOVE THIS LUMARA RESPONSE (CHRONOLOGICAL ORDER - HIGH PRIORITY) ===');
+      userCommentsBuffer.writeln('This LUMARA response is at position ${currentBlockIndex + 1} in the entry.');
+      userCommentsBuffer.writeln('Below is ONLY the content that appears ABOVE this position (text and previous LUMARA responses).');
+      userCommentsBuffer.writeln('Content written BELOW this position is NOT included (chronologically comes after).');
+      userCommentsBuffer.writeln('Weight: ${conversationWeight.toStringAsFixed(2)}, User response weight: ${userResponseWeight.toStringAsFixed(2)}');
+      userCommentsBuffer.writeln('');
+      
+      // CRITICAL: Only include blocks that appear ABOVE the current block (chronologically before)
+      // Blocks with index < currentBlockIndex are above, blocks with index >= currentBlockIndex are below
       for (int i = 0; i < currentBlockIndex && i < _entryState.blocks.length; i++) {
         final block = _entryState.blocks[i];
         
-        // Always include LUMARA's response
+        // Always include LUMARA's response from above (high weight)
         if (block.content.isNotEmpty) {
-          userCommentsBuffer.writeln('\nLUMARA:');
+          userCommentsBuffer.writeln('\n[LUMARA Response ${i + 1} - ABOVE THIS POSITION]:');
           userCommentsBuffer.writeln(block.content);
         }
         
-        // Include user comment/question if it exists
+        // Include user comment/question from above with emphasis based on weight
         if (block.userComment != null && block.userComment!.trim().isNotEmpty) {
-          userCommentsBuffer.writeln('\nUser question/comment:');
+          userCommentsBuffer.writeln('\n[USER Response ${i + 1} - ABOVE THIS POSITION - HIGH PRIORITY (Weight: ${userResponseWeight.toStringAsFixed(2)})]:');
           userCommentsBuffer.writeln(block.userComment);
+          userCommentsBuffer.writeln('(This user response is important - reference it in your answer)');
         }
         
         userCommentsBuffer.writeln('---');
@@ -4493,16 +4536,32 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
       if (currentBlockIndex < _entryState.blocks.length) {
         final currentBlock = _entryState.blocks[currentBlockIndex];
         if (currentBlock.userComment != null && currentBlock.userComment!.trim().isNotEmpty) {
-          userCommentsBuffer.writeln('\nCurrent user question/comment (most recent):');
+          userCommentsBuffer.writeln('\n[CURRENT USER QUESTION/COMMENT - HIGHEST PRIORITY]:');
           userCommentsBuffer.writeln(currentBlock.userComment);
+          userCommentsBuffer.writeln('(This is the most recent user input - address it directly)');
           userCommentsBuffer.writeln('---');
         }
       }
       
-      // Prepend conversation history to baseEntryText so it's prioritized
-      // This ensures LUMARA sees the most recent conversation first
-      baseEntryText = '${userCommentsBuffer.toString()}\n\n=== Original Journal Entry ===\n$baseEntryText';
-      print('Journal: Included ${currentBlockIndex} previous LUMARA blocks in context');
+      // Prepend conversation history to baseEntryText with high priority marking
+      // CRITICAL: The original entry text below is ONLY the text that appears ABOVE this block position
+      // Text written after this block position is NOT included (chronologically incorrect)
+      baseEntryText = '''${userCommentsBuffer.toString()}
+
+=== ORIGINAL JOURNAL ENTRY TEXT (ABOVE THIS POSITION ONLY - Reference - Lower Priority) ===
+$baseEntryText
+
+=== CRITICAL INSTRUCTIONS - CHRONOLOGICAL ORDER ===
+1. PRIORITIZE the conversation history above (CONTENT ABOVE THIS POSITION) - it has HIGH WEIGHT
+2. The original journal entry text shown is ONLY text that appears ABOVE your response position
+3. You are responding at position ${currentBlockIndex + 1} - you can ONLY see content from positions 1-${currentBlockIndex}
+4. Content written BELOW your position (after you) is NOT visible to you - do not reference it
+5. User responses in the conversation have INCREASED WEIGHT as more responses accumulate
+6. Reference past entries (below) with LOWER WEIGHT - they are for context only
+7. Focus on the user's most recent questions/comments in the conversation history ABOVE you
+8. Build on the LUMARA responses that appear ABOVE you - reference and continue the conversation thread''';
+      
+      print('Journal: Included ${currentBlockIndex} previous LUMARA blocks with sliding weights (conversation: ${conversationWeight.toStringAsFixed(2)}, user responses: ${userResponseWeight.toStringAsFixed(2)})');
     }
     
     context['entryText'] = baseEntryText;
@@ -4740,7 +4799,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
         options: lumara_models.LumaraReflectionOptions(
           regenerate: true,
           toneMode: lumara_models.ToneMode.normal,
-          preferQuestionExpansion: false,
+          preferQuestionExpansion: true, // More Depth is now default
         ),
         onProgress: (message) {
           if (mounted) {
@@ -4829,7 +4888,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
         options: lumara_models.LumaraReflectionOptions(
           toneMode: lumara_models.ToneMode.soft,
           regenerate: false,
-          preferQuestionExpansion: false,
+          preferQuestionExpansion: true, // More Depth is now default
         ),
         onProgress: (message) {
           if (mounted) {

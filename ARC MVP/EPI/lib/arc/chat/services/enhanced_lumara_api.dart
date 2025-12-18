@@ -47,9 +47,9 @@ class EnhancedLumaraApi {
   final ChatRepo _chatRepo = ChatRepoImpl.instance;
 
   static const String _standardReflectionLengthRule =
-      'Return the full reflection as 2–3 complete sentences so it stays concise inside the journal entry. Avoid bullet points.';
+      'Return the full reflection as 4–6 complete sentences to provide substantial depth and thoughtful engagement. Avoid bullet points.';
   static const String _deepReflectionLengthRule =
-      'Return the full reflection as 3–5 complete sentences to provide noticeably more depth while still avoiding bullet points.';
+      'Return the full reflection as 6–8 complete sentences to provide rich, in-depth exploration while still avoiding bullet points.';
   
   // LLM Provider tracking (for logging only - we use geminiSend directly)
   LLMProviderBase? _llmProvider;
@@ -365,11 +365,12 @@ Follow the ECHO structure (Empathize → Clarify → Highlight → Open) and inc
             'cognitive_load': 'moderate', // Could be enhanced with analysis
           };
           
-          // Build unified control state JSON
+          // Build unified control state JSON (pass user text for dynamic persona/response mode detection)
           final controlStateJson = await LumaraControlStateBuilder.buildControlState(
             userId: userId,
             prismActivity: prismActivity,
             chronoContext: chronoContext,
+            userMessage: request.userText, // Pass user message for question intent detection
           );
           
           // Get master prompt with control state

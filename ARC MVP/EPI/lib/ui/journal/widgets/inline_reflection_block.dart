@@ -348,36 +348,12 @@ class _InlineReflectionBlockState extends State<InlineReflectionBlock> with Sing
                           child: SingleChildScrollView(
                             scrollDirection: Axis.horizontal,
                             child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 LumaraActionButton(
                                   label: 'Regenerate',
                                   icon: Icons.refresh,
                                   onPressed: widget.isLoading ? () {} : widget.onRegenerate,
-                                ),
-                                const SizedBox(width: 8),
-                                LumaraActionButton(
-                                  label: 'Soften tone',
-                                  icon: Icons.favorite_outline,
-                                  onPressed: widget.isLoading ? () {} : widget.onSoften,
-                                ),
-                                const SizedBox(width: 8),
-                                LumaraActionButton(
-                                  label: 'More depth',
-                                  icon: Icons.insights,
-                                  onPressed: widget.isLoading ? () {} : widget.onMoreDepth,
-                                ),
-                                const SizedBox(width: 8),
-                                LumaraActionButton(
-                                  label: 'Continue thought',
-                                  icon: Icons.play_arrow,
-                                  onPressed: widget.isLoading ? () {} : widget.onContinueThought,
-                                ),
-                                const SizedBox(width: 8),
-                                LumaraActionButton(
-                                  label: 'Explore LUMARA conversation options',
-                                  icon: Icons.chat,
-                                  onPressed: widget.isLoading ? () {} : widget.onContinueWithLumara,
-                                  isPrimary: true,
                                 ),
                               ],
                             ),

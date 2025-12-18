@@ -96,7 +96,7 @@ class LumaraReflectionOptions {
   final ConversationMode? conversationMode;
 
   LumaraReflectionOptions({
-    this.preferQuestionExpansion = false,
+    this.preferQuestionExpansion = true, // Default to More Depth enabled
     this.toneMode = ToneMode.normal,
     this.regenerate = false,
     this.conversationMode,
@@ -110,7 +110,7 @@ class LumaraReflectionOptions {
   };
 
   factory LumaraReflectionOptions.fromJson(Map<String, dynamic> json) => LumaraReflectionOptions(
-    preferQuestionExpansion: json['preferQuestionExpansion'] as bool? ?? false,
+    preferQuestionExpansion: json['preferQuestionExpansion'] as bool? ?? true, // Default to More Depth enabled
     toneMode: json['toneMode'] != null 
         ? ToneMode.values.firstWhere(
             (e) => e.name == json['toneMode'],

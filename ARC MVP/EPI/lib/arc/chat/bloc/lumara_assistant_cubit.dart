@@ -597,8 +597,8 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
     final phaseHint = _buildPhaseHint(context);
     final keywords = _buildKeywordsContext(context);
 
-    // Build system prompt
-    final systemPrompt = await _buildSystemPrompt(entryText, phaseHint, keywords);
+    // Build system prompt (pass user message for dynamic persona detection)
+    final systemPrompt = await _buildSystemPrompt(entryText, phaseHint, keywords, userMessage: text);
 
     print('LUMARA Debug: Starting API request...');
     print('LUMARA Debug: Using Firebase proxy with rate limiting');
@@ -746,7 +746,7 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
   }
 
   /// Build system prompt using unified master prompt with control state
-  Future<String> _buildSystemPrompt(String? entryText, String? phaseHint, String? keywords) async {
+  Future<String> _buildSystemPrompt(String? entryText, String? phaseHint, String? keywords, {String? userMessage}) async {
     // Build PRISM activity context from entry text and keywords
     final prismActivity = <String, dynamic>{
       'journal_entries': entryText != null && entryText.isNotEmpty ? [entryText] : [],
@@ -779,11 +779,12 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
       'isFragmented': false,
     };
     
-    // Build unified control state JSON
+    // Build unified control state JSON (pass user message for dynamic persona/response mode detection)
     final controlStateJson = await LumaraControlStateBuilder.buildControlState(
       userId: _userId,
       prismActivity: prismActivity,
       chronoContext: chronoContext,
+      userMessage: userMessage, // Pass user message for question intent detection
     );
     
     // Get master prompt with control state
