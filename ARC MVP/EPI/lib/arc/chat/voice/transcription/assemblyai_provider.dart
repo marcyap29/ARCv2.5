@@ -401,7 +401,7 @@ class AssemblyAIProvider implements TranscriptionProvider {
     _audioSubscription = audioStream.listen(
       (audioData) {
         if (audioData.isNotEmpty) {
-          _sendAudioToWebSocket(audioData);
+        _sendAudioToWebSocket(audioData);
         }
       },
       onError: (error) {
@@ -415,7 +415,7 @@ class AssemblyAIProvider implements TranscriptionProvider {
   }
 
   int _audioChunksSent = 0;
-  
+
   /// Send audio data to AssemblyAI WebSocket
   void _sendAudioToWebSocket(Uint8List audioData) {
     if (_webSocket != null && _isListening && _sessionReady) {
