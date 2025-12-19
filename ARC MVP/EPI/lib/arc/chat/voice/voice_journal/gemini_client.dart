@@ -10,6 +10,7 @@ import 'package:flutter/foundation.dart';
 import '../../services/enhanced_lumara_api.dart';
 import 'prism_adapter.dart';
 import 'voice_journal_state.dart';
+import 'correlation_resistant_transformer.dart';
 
 /// Configuration for Gemini client
 class GeminiConfig {
@@ -62,16 +63,111 @@ class GeminiJournalClient {
 
   /// Generate LUMARA response for journal entry
   /// 
-  /// SECURITY: Input text MUST be scrubbed by PRISM before calling this method.
-  /// A SecurityException will be thrown if unscrubbed PII is detected.
+  /// SECURITY: Input MUST be a correlation-resistant CloudPayloadBlock.
+  /// This ensures no raw PII, no verbatim text, and rotating aliases.
   /// 
   /// Parameters:
-  /// - scrubbedText: PII-scrubbed transcript (safe to send to Gemini)
+  /// - cloudPayload: Correlation-resistant structured payload (Block B)
+  /// - localAuditBlock: Local-only audit block (Block A) - for logging only
   /// - conversationHistory: Optional previous turns for context
   /// - onChunk: Callback for streaming response chunks (if supported)
   /// - onComplete: Callback when full response is ready
   /// - onError: Callback for errors
   Future<String> generateResponse({
+    required CloudPayloadBlock cloudPayload,
+    LocalAuditBlock? localAuditBlock,
+    List<String>? conversationHistory,
+    OnGeminiChunk? onChunk,
+    OnGeminiComplete? onComplete,
+    OnGeminiError? onError,
+  }) async {
+    // SECURITY: Validate payload structure
+    if (cloudPayload.ppVersion != 'PRISM+ROTATE-1.0') {
+      onError?.call('Invalid payload version');
+      return '';
+    }
+    
+    if (_isProcessing) {
+      onError?.call('Already processing a request');
+      return '';
+    }
+    
+    _isProcessing = true;
+    _metrics.geminiRequestStart = DateTime.now();
+    
+    try {
+      // Log local audit block (NEVER SEND TO SERVER)
+      if (localAuditBlock != null) {
+        debugPrint('LOCAL AUDIT: PRISM scrub passed: ${localAuditBlock.prismScrubPassed}');
+        debugPrint('LOCAL AUDIT: isSafeToSend passed: ${localAuditBlock.isSafeToSendPassed}');
+        debugPrint('LOCAL AUDIT: Token classes: ${localAuditBlock.tokenClassCounts}');
+        debugPrint('LOCAL AUDIT: Window ID: ${localAuditBlock.windowId}');
+        // NOTE: aliasDictionary is intentionally NOT logged
+      }
+      
+      // Build context from conversation history
+      String chatContext = _config.systemPrompt;
+      if (conversationHistory != null && conversationHistory.isNotEmpty) {
+        chatContext += '\n\nPrevious conversation:\n${conversationHistory.join("\n")}';
+      }
+      
+      // Convert cloud payload to JSON string for transmission
+      final payloadJson = cloudPayload.toJsonString();
+      debugPrint('Gemini: Sending correlation-resistant payload (${payloadJson.length} chars)');
+      debugPrint('Gemini: Payload version: ${cloudPayload.ppVersion}, Window: ${cloudPayload.windowId}');
+      
+      // Use EnhancedLumaraApi for the request
+      // Send the structured JSON payload instead of verbatim text
+      final result = await _api.generatePromptedReflection(
+        entryText: payloadJson,  // Send structured JSON, not verbatim text
+        intent: cloudPayload.intent,
+        phase: null,
+        userId: null,
+        chatContext: chatContext + '\n\nNote: Input is a structured privacy-preserving payload. '
+            'Respond naturally to the semantic summary and themes provided.',
+        onProgress: (msg) {
+          debugPrint('Gemini progress: $msg');
+        },
+      );
+      
+      final response = result.reflection;
+      
+      // Track first token timing (approximation since we don't have streaming)
+      if (_metrics.firstGeminiToken == null) {
+        _metrics.firstGeminiToken = DateTime.now();
+      }
+      
+      // Simulate streaming by chunking the response
+      if (onChunk != null) {
+        await _simulateStreaming(response, onChunk);
+      }
+      
+      onComplete?.call(response);
+      
+      _isProcessing = false;
+      return response;
+      
+    } catch (e) {
+      debugPrint('Gemini error: $e');
+      _isProcessing = false;
+      
+      final errorMsg = 'Failed to get LUMARA response: $e';
+      onError?.call(errorMsg);
+      
+      // Return a fallback response
+      return "I'm here to listen. Could you tell me more about what's on your mind?";
+    }
+  }
+
+  /// Generate LUMARA response (legacy method for backward compatibility)
+  /// 
+  /// DEPRECATED: Use generateResponse with CloudPayloadBlock instead.
+  /// This method is kept for backward compatibility but should be phased out.
+  /// 
+  /// SECURITY: Input text MUST be scrubbed by PRISM before calling this method.
+  /// A SecurityException will be thrown if unscrubbed PII is detected.
+  @Deprecated('Use generateResponse with CloudPayloadBlock instead')
+  Future<String> generateResponseLegacy({
     required String scrubbedText,
     List<String>? conversationHistory,
     OnGeminiChunk? onChunk,
@@ -96,7 +192,7 @@ class GeminiJournalClient {
         chatContext += '\n\nPrevious conversation:\n${conversationHistory.join("\n")}';
       }
       
-      debugPrint('Gemini: Sending scrubbed text (${scrubbedText.length} chars)');
+      debugPrint('Gemini: Sending scrubbed text (${scrubbedText.length} chars) [LEGACY MODE]');
       
       // Use EnhancedLumaraApi for the request
       final result = await _api.generatePromptedReflection(
@@ -214,27 +310,48 @@ class VoiceJournalConversation {
   /// Process a user turn and get LUMARA response
   /// 
   /// Handles:
-  /// 1. Scrubbing PII from user input
-  /// 2. Sending scrubbed input to Gemini
-  /// 3. Restoring PII in the response for display
+  /// 1. Scrubbing PII from user input (PRISM)
+  /// 2. Transforming to correlation-resistant payload
+  /// 3. Sending structured payload to Gemini
+  /// 4. Restoring PII in the response for display
   Future<VoiceJournalTurnResult> processTurn({
     required String rawUserText,
+    String intent = 'voice_journal',
     OnGeminiChunk? onChunk,
     OnGeminiComplete? onComplete,
     OnGeminiError? onError,
   }) async {
-    // Step 1: Scrub PII from user input
+    // Step 1: Scrub PII from user input (PRISM)
     final scrubResult = _prism.scrub(rawUserText);
     
-    // Store PII map for this turn
+    // SECURITY: Validate scrubbing passed
+    if (!_prism.isSafeToSend(scrubResult.scrubbedText)) {
+      throw SecurityException(
+        'SECURITY: PRISM scrubbing failed - PII still detected in text'
+      );
+    }
+    
+    // Step 2: Transform to correlation-resistant payload
+    final transformationResult = await _prism.transformToCorrelationResistant(
+      prismScrubbedText: scrubResult.scrubbedText,
+      intent: intent,
+      prismResult: scrubResult,
+      rotationWindow: RotationWindow.session,  // Default: session rotation
+    );
+    
+    // Store PII map for this turn (LOCAL ONLY)
     _piiMaps[_turnIndex] = scrubResult.reversibleMap;
     
-    // Add scrubbed user text to history
-    _scrubbedHistory.add('User: ${scrubResult.scrubbedText}');
+    // Store local audit block (NEVER TRANSMIT)
+    final localAudit = transformationResult.localAuditBlock;
     
-    // Step 2: Get response from Gemini
+    // Add abstracted summary to history (not verbatim text)
+    _scrubbedHistory.add('User: ${transformationResult.cloudPayloadBlock.semanticSummary}');
+    
+    // Step 3: Get response from Gemini using structured payload
     final scrubbedResponse = await _client.generateResponse(
-      scrubbedText: scrubResult.scrubbedText,
+      cloudPayload: transformationResult.cloudPayloadBlock,
+      localAuditBlock: localAudit,  // For local logging only
       conversationHistory: _scrubbedHistory.length > 1 
           ? _scrubbedHistory.sublist(0, _scrubbedHistory.length - 1)
           : null,
@@ -246,7 +363,7 @@ class VoiceJournalConversation {
     // Add scrubbed response to history
     _scrubbedHistory.add('LUMARA: $scrubbedResponse');
     
-    // Step 3: Restore PII in response for display
+    // Step 4: Restore PII in response for display
     // Note: Response may contain PII tokens that need restoration
     final displayResponse = _prism.restore(
       scrubbedResponse,
@@ -261,6 +378,7 @@ class VoiceJournalConversation {
       scrubbedResponse: scrubbedResponse,
       displayResponse: displayResponse,
       prismResult: scrubResult,
+      transformationResult: transformationResult,
     );
   }
 
@@ -288,6 +406,9 @@ class VoiceJournalTurnResult {
   
   /// PRISM scrubbing result
   final PrismResult prismResult;
+  
+  /// Correlation-resistant transformation result (LOCAL ONLY)
+  final TransformationResult? transformationResult;
 
   const VoiceJournalTurnResult({
     required this.rawUserText,
@@ -295,6 +416,7 @@ class VoiceJournalTurnResult {
     required this.scrubbedResponse,
     required this.displayResponse,
     required this.prismResult,
+    this.transformationResult,
   });
 }
 

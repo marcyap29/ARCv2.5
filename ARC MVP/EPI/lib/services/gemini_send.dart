@@ -1,6 +1,6 @@
 // lib/services/gemini_send.dart
 // Minimal Gemini send() adapter for ArcLLM.
-// PRISM scrubbing and restoration enabled
+// PRISM scrubbing and correlation-resistant transformation enabled
 // Now uses Firebase proxy to hide API key
 
 import 'dart:convert';
@@ -11,10 +11,13 @@ import 'package:my_app/arc/chat/config/api_config.dart';
 import 'package:my_app/services/lumara/pii_scrub.dart';
 import 'package:my_app/services/firebase_service.dart';
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:my_app/arc/chat/voice/voice_journal/prism_adapter.dart';
+import 'package:my_app/arc/chat/voice/voice_journal/correlation_resistant_transformer.dart';
 
 /// Sends a single-turn request to Gemini with an optional system instruction.
 /// Returns the concatenated text from candidates[0].content.parts[].text.
-/// PRISM scrubbing is applied before sending, and responses are restored.
+/// PRISM scrubbing and correlation-resistant transformation applied before sending.
+/// Responses are restored with original PII for local display.
 /// 
 /// For in-journal LUMARA, pass [entryId] to enforce per-entry usage limits.
 /// For in-chat LUMARA, pass [chatId] to enforce per-chat usage limits.
@@ -24,39 +27,77 @@ Future<String> geminiSend({
   bool jsonExpected = false,
   String? entryId, // Optional: for per-entry limit tracking (journal)
   String? chatId, // Optional: for per-chat limit tracking (chat)
+  String intent = 'chat', // Optional: intent for correlation-resistant transformation
 }) async {
   // No longer need local API key - using Firebase proxy
   print('DEBUG GEMINI: Using Firebase proxy for API key');
 
-  // PRISM: Scrub PII from user input and system prompt before sending to cloud API
-  final userScrubResult = PiiScrubber.rivetScrubWithMapping(user);
-  final systemScrubResult = system.trim().isNotEmpty 
-      ? PiiScrubber.rivetScrubWithMapping(system) 
-      : ScrubbingResult(scrubbedText: system, reversibleMap: {}, findings: []);
+  // Step 1: PRISM - Scrub PII from user input and system prompt
+  final prismAdapter = PrismAdapter();
+  final userPrismResult = prismAdapter.scrub(user);
+  final systemPrismResult = system.trim().isNotEmpty 
+      ? prismAdapter.scrub(system) 
+      : PrismResult(scrubbedText: system, reversibleMap: {}, findings: []);
   
-  // Combine reversible maps (user + system)
+  // Combine reversible maps (user + system) for restoration
   final combinedReversibleMap = <String, String>{
-    ...userScrubResult.reversibleMap,
-    ...systemScrubResult.reversibleMap,
+    ...userPrismResult.reversibleMap,
+    ...systemPrismResult.reversibleMap,
   };
   
-  if (userScrubResult.findings.isNotEmpty || systemScrubResult.findings.isNotEmpty) {
+  if (userPrismResult.hadPII || systemPrismResult.hadPII) {
     print('PRISM: Scrubbed PII before cloud API call');
-    if (userScrubResult.findings.isNotEmpty) {
-      print('PRISM: User text - Found ${userScrubResult.findings.length} PII items: ${userScrubResult.findings.join(", ")}');
+    if (userPrismResult.hadPII) {
+      print('PRISM: User text - Found ${userPrismResult.redactionCount} PII items');
     }
-    if (systemScrubResult.findings.isNotEmpty) {
-      print('PRISM: System prompt - Found ${systemScrubResult.findings.length} PII items: ${systemScrubResult.findings.join(", ")}');
+    if (systemPrismResult.hadPII) {
+      print('PRISM: System prompt - Found ${systemPrismResult.redactionCount} PII items');
     }
   }
 
-  print('DEBUG GEMINI: Using Firebase proxy');
+  // SECURITY: Validate scrubbing passed
+  if (!prismAdapter.isSafeToSend(userPrismResult.scrubbedText) ||
+      (system.trim().isNotEmpty && !prismAdapter.isSafeToSend(systemPrismResult.scrubbedText))) {
+    throw SecurityException('SECURITY: PII still detected after PRISM scrubbing');
+  }
+
+  // Step 2: Correlation-Resistant Transformation
+  // Transform user text to structured payload
+  final userTransformation = await prismAdapter.transformToCorrelationResistant(
+    prismScrubbedText: userPrismResult.scrubbedText,
+    intent: intent,
+    prismResult: userPrismResult,
+    rotationWindow: RotationWindow.session,
+  );
+
+  // Transform system prompt if it had PII, otherwise use as-is
+  // System prompts typically don't contain user PII, so we can use the scrubbed version directly
+  // Only transform if it actually contains PRISM tokens
+  String transformedSystem = systemPrismResult.scrubbedText;
+  final hasSystemPrismTokens = RegExp(r'\[(EMAIL|PHONE|NAME|ADDRESS|SSN|CARD|ORG|HANDLE|DATE|COORD|ID|API_KEY)_\d+\]')
+      .hasMatch(systemPrismResult.scrubbedText);
+  
+  if (hasSystemPrismTokens && systemPrismResult.hadPII && system.trim().isNotEmpty) {
+    final systemTransformation = await prismAdapter.transformToCorrelationResistant(
+      prismScrubbedText: systemPrismResult.scrubbedText,
+      intent: 'system_prompt',
+      prismResult: systemPrismResult,
+      rotationWindow: RotationWindow.session,
+    );
+    transformedSystem = systemTransformation.cloudPayloadBlock.toJsonString();
+  }
+
+  // Log local audit blocks (NEVER SEND TO SERVER)
+  print('LOCAL AUDIT: User - Window ID: ${userTransformation.localAuditBlock.windowId}');
+  print('LOCAL AUDIT: User - Token classes: ${userTransformation.localAuditBlock.tokenClassCounts}');
+
+  print('DEBUG GEMINI: Using Firebase proxy with correlation-resistant payload');
 
   // Build request body for Firebase proxy
-  // proxyGemini expects: { system, user, jsonExpected, entryId?, chatId? }
+  // Send structured JSON payload instead of verbatim text
   final requestData = {
-    'system': systemScrubResult.scrubbedText,
-    'user': userScrubResult.scrubbedText,
+    'system': transformedSystem,
+    'user': userTransformation.cloudPayloadBlock.toJsonString(), // Structured payload, not verbatim
     if (jsonExpected) 'jsonExpected': true,
     if (entryId != null) 'entryId': entryId,
     if (chatId != null) 'chatId': chatId,
@@ -140,26 +181,54 @@ Stream<String> geminiSendStream({
     throw StateError('No Gemini API key configured. Please add your API key in Settings → LUMARA Settings.');
   }
 
-  // PRISM: Scrub PII from user input and system prompt before sending to cloud API
-  final userScrubResult = PiiScrubber.rivetScrubWithMapping(user);
-  final systemScrubResult = system.trim().isNotEmpty 
-      ? PiiScrubber.rivetScrubWithMapping(system) 
-      : ScrubbingResult(scrubbedText: system, reversibleMap: {}, findings: []);
+  // Step 1: PRISM - Scrub PII from user input and system prompt
+  final prismAdapter = PrismAdapter();
+  final userPrismResult = prismAdapter.scrub(user);
+  final systemPrismResult = system.trim().isNotEmpty 
+      ? prismAdapter.scrub(system) 
+      : PrismResult(scrubbedText: system, reversibleMap: {}, findings: []);
   
-  // Combine reversible maps (user + system)
+  // Combine reversible maps (user + system) for restoration
   final combinedReversibleMap = <String, String>{
-    ...userScrubResult.reversibleMap,
-    ...systemScrubResult.reversibleMap,
+    ...userPrismResult.reversibleMap,
+    ...systemPrismResult.reversibleMap,
   };
   
-  if (userScrubResult.findings.isNotEmpty || systemScrubResult.findings.isNotEmpty) {
+  if (userPrismResult.hadPII || systemPrismResult.hadPII) {
     print('PRISM: Scrubbed PII before cloud API stream call');
-    if (userScrubResult.findings.isNotEmpty) {
-      print('PRISM: User text - Found ${userScrubResult.findings.length} PII items: ${userScrubResult.findings.join(", ")}');
+    if (userPrismResult.hadPII) {
+      print('PRISM: User text - Found ${userPrismResult.redactionCount} PII items');
     }
-    if (systemScrubResult.findings.isNotEmpty) {
-      print('PRISM: System prompt - Found ${systemScrubResult.findings.length} PII items: ${systemScrubResult.findings.join(", ")}');
+    if (systemPrismResult.hadPII) {
+      print('PRISM: System prompt - Found ${systemPrismResult.redactionCount} PII items');
     }
+  }
+
+  // SECURITY: Validate scrubbing passed
+  if (!prismAdapter.isSafeToSend(userPrismResult.scrubbedText) ||
+      (system.trim().isNotEmpty && !prismAdapter.isSafeToSend(systemPrismResult.scrubbedText))) {
+    throw SecurityException('SECURITY: PII still detected after PRISM scrubbing');
+  }
+
+  // Step 2: Correlation-Resistant Transformation
+  // Transform user text to structured payload
+  final userTransformation = await prismAdapter.transformToCorrelationResistant(
+    prismScrubbedText: userPrismResult.scrubbedText,
+    intent: 'chat_stream',
+    prismResult: userPrismResult,
+    rotationWindow: RotationWindow.session,
+  );
+
+  // Transform system prompt if it had PII, otherwise use as-is
+  String transformedSystem = systemPrismResult.scrubbedText;
+  if (systemPrismResult.hadPII && system.trim().isNotEmpty) {
+    final systemTransformation = await prismAdapter.transformToCorrelationResistant(
+      prismScrubbedText: systemPrismResult.scrubbedText,
+      intent: 'system_prompt',
+      prismResult: systemPrismResult,
+      rotationWindow: RotationWindow.session,
+    );
+    transformedSystem = systemTransformation.cloudPayloadBlock.toJsonString();
   }
 
   final uri = Uri.parse(
@@ -169,18 +238,18 @@ Stream<String> geminiSendStream({
   print('DEBUG GEMINI STREAM: Using streaming endpoint');
 
   final body = {
-    if (systemScrubResult.scrubbedText.trim().isNotEmpty)
+    if (transformedSystem.trim().isNotEmpty)
       'systemInstruction': {
         'role': 'system',
         'parts': [
-          {'text': systemScrubResult.scrubbedText}
+          {'text': transformedSystem}
         ]
       },
     'contents': [
       {
         'role': 'user',
         'parts': [
-          {'text': userScrubResult.scrubbedText}
+          {'text': userTransformation.cloudPayloadBlock.toJsonString()} // Structured payload
         ]
       }
     ],

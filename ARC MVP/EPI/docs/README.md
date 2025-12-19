@@ -144,7 +144,7 @@ Welcome to the EPI (Evolving Personal Intelligence) documentation. This director
 - **AI Assistant (LUMARA)**: Context-aware responses with persistent chat memory
 - **Pattern Recognition**: Keyword extraction, phase detection, and emotional mapping
 - **3D Visualization**: ARCForm constellations showing journal themes
-- **Privacy-First**: On-device processing, PII detection, and encryption
+- **Privacy-First**: On-device processing, PRISM scrubbing, correlation-resistant PII protection, and encryption
 - **Data Portability**: MCP export/import for AI ecosystem interoperability
 
 ### Export/Import

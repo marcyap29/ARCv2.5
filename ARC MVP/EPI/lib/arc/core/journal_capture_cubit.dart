@@ -28,6 +28,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:my_app/arc/chat/voice/voice_journal/prism_adapter.dart';
+import 'package:my_app/arc/chat/voice/voice_journal/correlation_resistant_transformer.dart';
 import 'package:crypto/crypto.dart';
 import 'package:hive/hive.dart';
 import 'package:my_app/core/services/draft_cache_service.dart';
@@ -101,27 +102,53 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
     try {
       print('Summary generation: Starting summary generation for ${wordCount} words');
       
-      // Create JSON representation of the entry
-      // Scrub PII from the content before sending
-      final scrubbingResult = PrismAdapter().scrub(content);
+      // Step 1: Scrub PII from the content (PRISM)
+      final prismAdapter = PrismAdapter();
+      final scrubbingResult = prismAdapter.scrub(content);
       final scrubbedContent = scrubbingResult.scrubbedText;
       
       print('Summary generation: PII scrubbed (${scrubbingResult.redactionCount} redactions)');
       
-      // Generate summary using scrubbed content
+      // SECURITY: Validate scrubbing passed
+      if (!prismAdapter.isSafeToSend(scrubbedContent)) {
+        print('Summary generation: SECURITY WARNING - PII still detected after scrubbing');
+        return ''; // Fail safely
+      }
+      
+      // Step 2: Transform to correlation-resistant payload
+      final transformationResult = await prismAdapter.transformToCorrelationResistant(
+        prismScrubbedText: scrubbedContent,
+        intent: 'summary',
+        prismResult: scrubbingResult,
+        rotationWindow: RotationWindow.session,
+      );
+      
+      // Log local audit block (NEVER SEND TO SERVER)
+      final localAudit = transformationResult.localAuditBlock;
+      print('Summary generation: LOCAL AUDIT - Window ID: ${localAudit.windowId}');
+      print('Summary generation: LOCAL AUDIT - Token classes: ${localAudit.tokenClassCounts}');
+      
+      // Step 3: Generate summary using structured payload
+      // Send the JSON payload instead of verbatim text
+      final payloadJson = transformationResult.cloudPayloadBlock.toJsonString();
+      print('Summary generation: Sending correlation-resistant payload (${payloadJson.length} chars)');
+      
       final result = await _lumaraApi!.generatePromptedReflection(
-        entryText: scrubbedContent,
+        entryText: payloadJson,  // Send structured JSON, not verbatim text
         intent: 'summary',
         phase: null,
         userId: null,
-        chatContext: 'Generate a brief 2-3 sentence summary of this journal entry that captures the key points, main topics discussed, and any important insights. Focus on what the user learned or reflected on.',
+        chatContext: 'Generate a brief 2-3 sentence summary based on the structured privacy-preserving payload. '
+            'Focus on the semantic summary, themes, and entities provided. '
+            'Capture the key points, main topics discussed, and any important insights. '
+            'Focus on what the user learned or reflected on.',
         onProgress: (msg) => print('Summary generation: $msg'),
       );
       
       print('Summary generation: Received summary from LUMARA (${result.reflection.length} chars)');
       
-      // Restore PII in the returned summary
-      final summaryWithPII = PrismAdapter().restore(
+      // Step 4: Restore PII in the returned summary (for local display)
+      final summaryWithPII = prismAdapter.restore(
         result.reflection,
         scrubbingResult.reversibleMap,
       );

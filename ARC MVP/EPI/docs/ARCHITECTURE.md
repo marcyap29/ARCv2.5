@@ -304,6 +304,11 @@ MIRA Store → MCP Export Service → ZIP/ARCX Archive
 ### Privacy Features
 - **On-Device Processing**: Primary AI processing on-device
 - **PII Detection**: Automatic detection and flagging
+- **PRISM Scrubbing**: Two-layer PII protection system
+  - Layer 1: PRISM scrubbing (tokens like `[EMAIL_1]`, `[NAME_1]`)
+  - Layer 2: Correlation-resistant transformation (rotating aliases like `PERSON(H:7c91f2, S:⟡K3)`)
+- **Structured Payloads**: JSON abstractions instead of verbatim text
+- **Session Rotation**: Identifiers rotate per session to prevent linkage
 - **Encryption**: AES-256-GCM for ARCX archives
 - **Digital Signatures**: Ed25519 for archive verification
 - **No Cloud Storage**: User data never stored in cloud
@@ -312,6 +317,7 @@ MIRA Store → MCP Export Service → ZIP/ARCX Archive
 - **Encrypted Archives**: Optional encryption for exports
 - **Secure Key Storage**: Platform keychain/keyring
 - **Privacy Guards**: ECHO module filters sensitive data
+- **Correlation Resistance**: Rotating aliases prevent re-identification
 - **Access Control**: Platform-level permissions
 
 ---
