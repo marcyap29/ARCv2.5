@@ -287,6 +287,33 @@ final response = await geminiSend(
 
 The `ArcLLM.chat()` method used by `LumaraAssistantCubit` automatically benefits from correlation-resistant transformation.
 
+### Journal Entry Integration
+
+Journal entries use a special flow to preserve natural language instructions:
+
+```dart
+// 1. Abstract entry text first (in enhanced_lumara_api.dart)
+final entryTransformation = await prismAdapter.transformToCorrelationResistant(
+  prismScrubbedText: entryPrismResult.scrubbedText,
+  intent: 'journal_reflection',
+  prismResult: entryPrismResult,
+);
+final entryDescription = entryTransformation.cloudPayloadBlock.semanticSummary;
+
+// 2. Build prompt with abstract description (natural language)
+final userPrompt = 'Current entry: $entryDescription\n\n[instructions...]';
+
+// 3. Skip transformation to preserve natural language
+final response = await geminiSend(
+  system: systemPrompt,
+  user: userPrompt,
+  skipTransformation: true, // Preserve natural language instructions
+  entryId: entryId,
+);
+```
+
+This ensures LUMARA receives natural language prompts with abstracted entry descriptions, not JSON payloads.
+
 ## Testing
 
 ### Security Validation

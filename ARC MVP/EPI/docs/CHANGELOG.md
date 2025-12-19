@@ -1,7 +1,7 @@
 # EPI ARC MVP - Changelog
 
-**Version:** 2.1.59
-**Last Updated:** December 18, 2025
+**Version:** 2.1.60
+**Last Updated:** December 19, 2025
 
 ---
 
@@ -14,6 +14,29 @@ This changelog has been split into parts for easier navigation:
 | **[CHANGELOG_part1.md](CHANGELOG_part1.md)** | Dec 2025 | v2.1.43 - v2.1.53 (Current) |
 | **[CHANGELOG_part2.md](CHANGELOG_part2.md)** | Nov 2025 | v2.1.28 - v2.1.42 |
 | **[CHANGELOG_part3.md](CHANGELOG_part3.md)** | Jan-Oct 2025 | v2.0.0 - v2.1.27 & Earlier |
+
+---
+
+## [2.1.60] - December 19, 2025
+
+### **Fixed LUMARA Greeting Issue in Journal Mode** - ✅ Complete
+
+- **Fixed greeting responses**: LUMARA was responding with "Hello, I'm LUMARA..." instead of journal reflections
+- **Root cause**: Entire user prompt (including instructions) was being transformed to JSON, causing LUMARA to receive JSON instead of natural language
+- **Solution**: Abstract entry text BEFORE building prompt, then skip transformation to preserve natural language instructions
+- **Implementation**:
+  - `enhanced_lumara_api.dart`: Abstracts entry text first, uses semantic summary in prompt
+  - `gemini_send.dart`: Added `skipTransformation` flag for journal entries
+  - Journal entries now use abstract descriptions while preserving natural language instructions
+- **Flow**: Entry text → PRISM scrub → Transform → Get semantic summary → Build natural language prompt → Skip transformation → LUMARA receives natural language
+
+**Status**: ✅ Complete  
+**Files Modified**:
+- `lib/arc/chat/services/enhanced_lumara_api.dart` - Abstract entry text before building prompt
+- `lib/services/gemini_send.dart` - Added skipTransformation parameter
+- `lib/arc/chat/voice/voice_journal/correlation_resistant_transformer.dart` - Improved semantic summary generation
+
+**Bug Fix**: Resolves issue where correlation-resistant PII protection caused LUMARA to default to greeting messages instead of providing journal reflections.
 
 ---
 

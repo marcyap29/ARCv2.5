@@ -1,9 +1,9 @@
 # Git History and Repository Documentation
 
 **Repository:** ARCv.04/ARC MVP/EPI
-**Last Updated:** December 18, 2025
-**Current Branch:** dev-pii
-**Status:** ✅ Active Development - Correlation-Resistant PII Protection Complete (v2.1.59)
+**Last Updated:** December 19, 2025
+**Current Branch:** dev
+**Status:** ✅ Active Development - LUMARA Journal Mode Fix Complete (v2.1.60)
 
 ---
 
@@ -26,9 +26,9 @@ The EPI (Evolving Personal Intelligence) project maintains a comprehensive git h
 
 ### Active Branches
 - **main** - Primary production branch (stable releases)
-- **dev-pii** - Active development branch ⭐ *Current* (Correlation-Resistant PII Protection)
+- **dev** - Active development branch ⭐ *Current* (Correlation-Resistant PII Protection)
 - **dev-voice-updates** - Previous development branch (Voice Chat UI)
-- **dev** - Previous development branch (merged to main)
+- **dev-pii** - Previous development branch (renamed to dev)
 - **claude-md-context-update** - Documentation updates branch
 - **backup_2025_11_30** - Local backup branch from November 30, 2025
 - **backup_2025_12_18** - Backup branch from December 18, 2025

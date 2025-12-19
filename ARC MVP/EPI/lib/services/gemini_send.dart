@@ -21,6 +21,9 @@ import 'package:my_app/arc/chat/voice/voice_journal/correlation_resistant_transf
 /// 
 /// For in-journal LUMARA, pass [entryId] to enforce per-entry usage limits.
 /// For in-chat LUMARA, pass [chatId] to enforce per-chat usage limits.
+/// 
+/// [skipTransformation]: If true, skips correlation-resistant transformation.
+/// Use this when the entry text has already been abstracted (e.g., journal entries).
 Future<String> geminiSend({
   required String system,
   required String user,
@@ -28,6 +31,7 @@ Future<String> geminiSend({
   String? entryId, // Optional: for per-entry limit tracking (journal)
   String? chatId, // Optional: for per-chat limit tracking (chat)
   String intent = 'chat', // Optional: intent for correlation-resistant transformation
+  bool skipTransformation = false, // Skip transformation if entry already abstracted
 }) async {
   // No longer need local API key - using Firebase proxy
   print('DEBUG GEMINI: Using Firebase proxy for API key');
@@ -62,13 +66,26 @@ Future<String> geminiSend({
   }
 
   // Step 2: Correlation-Resistant Transformation
-  // Transform user text to structured payload
-  final userTransformation = await prismAdapter.transformToCorrelationResistant(
-    prismScrubbedText: userPrismResult.scrubbedText,
-    intent: intent,
-    prismResult: userPrismResult,
-    rotationWindow: RotationWindow.session,
-  );
+  // Skip transformation if entry text already abstracted (e.g., journal entries)
+  String transformedUserText;
+  if (skipTransformation) {
+    // Entry text already abstracted, use scrubbed version directly
+    transformedUserText = userPrismResult.scrubbedText;
+    print('DEBUG GEMINI: Skipping transformation - entry already abstracted');
+  } else {
+    // Transform user text to structured payload
+    final userTransformation = await prismAdapter.transformToCorrelationResistant(
+      prismScrubbedText: userPrismResult.scrubbedText,
+      intent: intent,
+      prismResult: userPrismResult,
+      rotationWindow: RotationWindow.session,
+    );
+    transformedUserText = userTransformation.cloudPayloadBlock.toJsonString();
+    
+    // Log local audit blocks (NEVER SEND TO SERVER)
+    print('LOCAL AUDIT: User - Window ID: ${userTransformation.localAuditBlock.windowId}');
+    print('LOCAL AUDIT: User - Token classes: ${userTransformation.localAuditBlock.tokenClassCounts}');
+  }
 
   // Transform system prompt if it had PII, otherwise use as-is
   // System prompts typically don't contain user PII, so we can use the scrubbed version directly
@@ -86,18 +103,26 @@ Future<String> geminiSend({
     );
     transformedSystem = systemTransformation.cloudPayloadBlock.toJsonString();
   }
+  
+  // Add instruction to system prompt about handling structured payloads
+  // This prevents LUMARA from re-quoting the entry text
+  // Only add this when we're actually sending structured JSON (not when skipping transformation)
+  if (!skipTransformation && transformedSystem == systemPrismResult.scrubbedText) {
+    // Only add if system prompt wasn't transformed (to avoid double instructions)
+    transformedSystem += '\n\n**IMPORTANT**: The user input you receive is a structured privacy-preserving payload (JSON format). '
+        'The "semantic_summary" field contains an abstract description of the user\'s entry, NOT verbatim text. '
+        'NEVER quote or repeat the semantic_summary verbatim. Instead, use it to understand the themes and meaning, '
+        'then craft your response naturally without repeating the user\'s words. Focus on reflection, insight, and questions, '
+        'not on restating what the user wrote.';
+  }
 
-  // Log local audit blocks (NEVER SEND TO SERVER)
-  print('LOCAL AUDIT: User - Window ID: ${userTransformation.localAuditBlock.windowId}');
-  print('LOCAL AUDIT: User - Token classes: ${userTransformation.localAuditBlock.tokenClassCounts}');
-
-  print('DEBUG GEMINI: Using Firebase proxy with correlation-resistant payload');
+  print('DEBUG GEMINI: Using Firebase proxy with ${skipTransformation ? 'abstracted' : 'correlation-resistant'} payload');
 
   // Build request body for Firebase proxy
-  // Send structured JSON payload instead of verbatim text
+  // Send structured JSON payload (if transformed) or abstracted text (if skipped)
   final requestData = {
     'system': transformedSystem,
-    'user': userTransformation.cloudPayloadBlock.toJsonString(), // Structured payload, not verbatim
+    'user': transformedUserText, // Either structured JSON or abstracted text
     if (jsonExpected) 'jsonExpected': true,
     if (entryId != null) 'entryId': entryId,
     if (chatId != null) 'chatId': chatId,
