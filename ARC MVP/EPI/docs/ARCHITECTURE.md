@@ -1,8 +1,8 @@
 # EPI MVP - Architecture Overview
 
-**Version:** 2.1.58
-**Last Updated:** December 18, 2025
-**Status:** ✅ Production Ready - MVP Fully Operational with Health Integration, AssemblyAI v3 & Web Access Safety
+**Version:** 2.1.60
+**Last Updated:** December 19, 2025
+**Status:** ✅ Production Ready - MVP Fully Operational with Health Integration, AssemblyAI v3, Web Access Safety & Correlation-Resistant PII Protection
 
 ---
 
@@ -118,21 +118,34 @@ The EPI system is organized into 5 core modules:
 
 **Purpose:** Core journaling app & main user experience
 
+**Architecture:** ARC internally mirrors the 5-module architecture:
+- **PRISM (Internal)**: Analysis of text and media
+- **MIRA (Internal)**: Memory and security of files
+- **AURORA (Internal)**: Handles time when user is active
+- **ECHO (Internal)**: Provides PII and security
+
 **Submodules:**
 - `chat/` - LUMARA conversational AI
   - `services/reflective_query_service.dart` - EPI-standard reflective queries
   - `services/reflective_query_formatter.dart` - Response formatting
   - `services/lumara_notification_service.dart` - Time Echo and Active Window reminders
-  - `services/active_window_detector.dart` - User reflection pattern detection
-  - `services/sleep_protection_service.dart` - Sleep/abstinence window management
-  - `services/theme_analysis_service.dart` - Longitudinal theme tracking
+  - `services/active_window_detector.dart` - User reflection pattern detection (AURORA Internal)
+  - `services/sleep_protection_service.dart` - Sleep/abstinence window management (AURORA Internal)
+  - `services/theme_analysis_service.dart` - Longitudinal theme tracking (PRISM Internal)
+  - `services/progressive_memory_loader.dart` - Memory loading (MIRA Internal)
+  - `services/reflective_node_storage.dart` - Memory storage (MIRA Internal)
+  - `services/semantic_similarity_service.dart` - Memory matching (MIRA Internal)
   - `models/reflective_query_models.dart` - Query result models
   - `models/notification_models.dart` - Notification data models
+  - `voice/voice_journal/prism_adapter.dart` - PII protection (ECHO Internal)
+  - `voice/voice_journal/correlation_resistant_transformer.dart` - Privacy transformation (ECHO Internal)
 - `arcform/` - 3D visualization and analysis forms
 - `core/` - Journal entry processing and state management
+  - `keyword_extraction_cubit.dart` - Keyword analysis (PRISM Internal)
 - `ui/` - Journaling interface components
-- `privacy/` - Real-time PII protection
-- `repository/` - Journal data access layer
+  - `media/ocr_text_insert_dialog.dart` - Media analysis (PRISM Internal)
+- `privacy/` - Real-time PII protection (ECHO Internal)
+- `repository/` - Journal data access layer (MIRA Internal)
 - `services/` - ARC-specific services
 
 **Key Features:**
