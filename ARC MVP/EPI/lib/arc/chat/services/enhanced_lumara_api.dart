@@ -25,6 +25,8 @@ import '../../../models/journal_entry_model.dart';
 import '../../../arc/chat/chat/chat_repo.dart';
 import '../../../arc/chat/chat/chat_repo_impl.dart';
 import '../../../arc/chat/chat/chat_models.dart';
+import '../../../arc/chat/voice/voice_journal/prism_adapter.dart';
+import '../../../arc/chat/voice/voice_journal/correlation_resistant_transformer.dart';
 
 /// Result of generating a reflection with attribution traces
 class ReflectionResult {
@@ -232,11 +234,36 @@ class EnhancedLumaraApi {
       
       // Always call Gemini API - same as main LUMARA chat
       try {
+          // Step 1: Transform entry text for privacy protection (LOCAL ONLY)
+          // This creates an abstract description instead of sending verbatim text
+          final prismAdapter = PrismAdapter();
+          final entryPrismResult = prismAdapter.scrub(request.userText);
+          
+          String entryDescription;
+          if (entryPrismResult.hadPII) {
+            // Transform to correlation-resistant payload to get semantic summary
+            final entryTransformation = await prismAdapter.transformToCorrelationResistant(
+              prismScrubbedText: entryPrismResult.scrubbedText,
+              intent: 'journal_reflection',
+              prismResult: entryPrismResult,
+              rotationWindow: RotationWindow.session,
+            );
+            // Use semantic summary instead of verbatim text
+            entryDescription = entryTransformation.cloudPayloadBlock.semanticSummary;
+            print('LUMARA: Using abstract entry description (${entryDescription.length} chars) instead of verbatim text');
+          } else {
+            // No PII found, use original text (but still abstract it slightly for consistency)
+            entryDescription = request.userText.length > 200 
+                ? '${request.userText.substring(0, 200)}...' 
+                : request.userText;
+          }
+          
           String userPrompt;
           
           // Build context based on options
+          // Use abstract description instead of verbatim entry text
           final contextParts = <String>[];
-          contextParts.add('Current entry: "${request.userText}"');
+          contextParts.add('Current entry: $entryDescription');
           
           // Add mood/emotion context
           if (mood != null && mood.isNotEmpty) {
@@ -392,11 +419,15 @@ Follow the ECHO structure (Empathize → Clarify → Highlight → Open) and inc
             try {
               // Direct Gemini API call - same protocol as main LUMARA chat
               // Pass entryId for per-entry usage limit tracking (free tier: 5 per entry)
+              // NOTE: userPrompt already contains abstracted entry description, not verbatim text
+              // Skip transformation since we've already abstracted the entry text in the prompt
               geminiResponse = await geminiSend(
                 system: systemPrompt,
                 user: userPrompt,
                 jsonExpected: false,
                 entryId: entryId,
+                intent: 'journal_reflection', // Specify intent for journal entries
+                skipTransformation: true, // Skip transformation - entry already abstracted
               );
 
               print('LUMARA: Gemini API response received (length: ${geminiResponse.length})');
