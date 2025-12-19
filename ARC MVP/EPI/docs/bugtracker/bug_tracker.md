@@ -1,7 +1,32 @@
 # EPI MVP - Bug Tracker
 
-**Version:** 2.1.43  
-**Last Updated:** December 4, 2025
+**Version:** 2.1.60  
+**Last Updated:** December 19, 2025
+
+## Resolved Issues (v2.1.60)
+
+### LUMARA Greeting Issue in Journal Mode
+- **Issue**: LUMARA was responding with "Hello! I'm LUMARA, your personal assistant..." greeting messages instead of providing journal reflections when using correlation-resistant PII protection system
+- **Root Cause**: 
+  1. Entire user prompt (including natural language instructions) was being transformed into structured JSON payload
+  2. LUMARA received JSON instead of natural language instructions
+  3. LUMARA couldn't parse JSON as a journal reflection request and defaulted to greeting
+- **Resolution**:
+  1. **Pre-abstract entry text**: Transform entry text BEFORE building the prompt in `enhanced_lumara_api.dart`
+  2. **Use semantic summary**: Replace verbatim entry text with abstract description (e.g., "brief entry about emotional reflection")
+  3. **Preserve natural language**: Keep all instructions in natural language format
+  4. **Skip transformation**: Added `skipTransformation` flag to `geminiSend()` for journal entries
+  5. **Improved semantic summary**: Enhanced abstraction to create true theme-based descriptions instead of truncated text
+- **Impact**:
+  - LUMARA now receives natural language prompts with abstracted entry descriptions
+  - Journal reflections work correctly with correlation-resistant PII protection
+  - No more greeting messages in journal mode
+  - Privacy protection maintained while preserving functionality
+- **Files Modified**: 
+  - `lib/arc/chat/services/enhanced_lumara_api.dart` - Abstract entry text before building prompt
+  - `lib/services/gemini_send.dart` - Added skipTransformation parameter
+  - `lib/arc/chat/voice/voice_journal/correlation_resistant_transformer.dart` - Improved semantic summary generation
+- **Status**: ✅ Fixed
 
 ## Resolved Issues (v2.1.43)
 

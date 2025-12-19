@@ -48,27 +48,35 @@ Future<String> geminiSend({
   required String user,
   bool jsonExpected = false,
   String intent = 'chat',
+  bool skipTransformation = false, // Skip if entry already abstracted
 }) async {
   // Step 1: PRISM scrubbing - local PII detection and masking
   final prismAdapter = PrismAdapter();
   final userPrismResult = prismAdapter.scrub(user);
   final systemPrismResult = prismAdapter.scrub(system);
   
-  // Step 2: Correlation-resistant transformation
-  // Converts PRISM tokens to rotating aliases and structured JSON
-  final userTransformation = await prismAdapter.transformToCorrelationResistant(
-    prismScrubbedText: userPrismResult.scrubbedText,
-    intent: intent,
-    prismResult: userPrismResult,
-  );
+  // Step 2: Correlation-resistant transformation (if not skipped)
+  String transformedUserText;
+  if (skipTransformation) {
+    // Entry already abstracted, use scrubbed version directly
+    transformedUserText = userPrismResult.scrubbedText;
+  } else {
+    // Transform to structured JSON payload
+    final userTransformation = await prismAdapter.transformToCorrelationResistant(
+      prismScrubbedText: userPrismResult.scrubbedText,
+      intent: intent,
+      prismResult: userPrismResult,
+    );
+    transformedUserText = userTransformation.cloudPayloadBlock.toJsonString();
+  }
   
-  // Call Firebase proxy function with structured payload
+  // Call Firebase proxy function
   final functions = FirebaseService.instance.getFunctions();
   final callable = functions.httpsCallable('proxyGemini');
   
   final result = await callable.call({
     'system': transformedSystem,
-    'user': userTransformation.cloudPayloadBlock.toJsonString(), // Structured JSON
+    'user': transformedUserText, // Either structured JSON or abstracted text
     'jsonExpected': jsonExpected,
   });
   
@@ -80,6 +88,27 @@ Future<String> geminiSend({
   
   return restoredResponse;
 }
+```
+
+**Journal Entry Flow (`lib/arc/chat/services/enhanced_lumara_api.dart`):**
+```dart
+// Abstract entry text BEFORE building prompt
+final entryTransformation = await prismAdapter.transformToCorrelationResistant(
+  prismScrubbedText: entryPrismResult.scrubbedText,
+  intent: 'journal_reflection',
+  prismResult: entryPrismResult,
+);
+final entryDescription = entryTransformation.cloudPayloadBlock.semanticSummary;
+
+// Build natural language prompt with abstract description
+final userPrompt = 'Current entry: $entryDescription\n\n[instructions...]';
+
+// Skip transformation to preserve natural language
+await geminiSend(
+  system: systemPrompt,
+  user: userPrompt,
+  skipTransformation: true, // Preserve natural language
+);
 ```
 
 **Privacy Protection:**
