@@ -471,6 +471,9 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 **Data Protection**
 - **PII Detection**: Automatic detection of sensitive data
 - **PII Masking**: Real-time masking in UI
+- **PRISM Scrubbing**: Local PII scrubbing with reversible mapping (device-only)
+- **Correlation-Resistant Transformation**: Rotating aliases and structured JSON payloads
+- **Session-Based Rotation**: Identifiers rotate per session to prevent cross-call linkage
 - **Encryption**: AES-256-GCM for sensitive data
 - **Data Integrity**: Ed25519 signing
 

@@ -5,8 +5,10 @@
 /// - Only scrubbed text should ever be sent to external services (Gemini)
 /// - Raw transcript stays LOCAL ONLY
 /// - This module performs local PII detection and masking
+/// - Now includes correlation-resistant transformation layer
 
 import '../../../../services/lumara/pii_scrub.dart';
+import 'correlation_resistant_transformer.dart';
 
 /// Result of PRISM scrubbing with metadata
 class PrismResult {
@@ -98,22 +100,67 @@ class PrismAdapter {
   bool isSafeToSend(String text) {
     return !PiiScrubber.containsPii(text);
   }
+
+  /// Transform PRISM-scrubbed text to correlation-resistant payload
+  /// 
+  /// This adds an additional layer of protection by:
+  /// - Replacing PRISM tokens with rotating aliases
+  /// - Creating structured JSON abstraction instead of verbatim text
+  /// - Implementing session-based rotation to prevent cross-call linkage
+  /// 
+  /// Returns both local audit block and cloud payload
+  Future<TransformationResult> transformToCorrelationResistant({
+    required String prismScrubbedText,
+    required String intent,
+    required PrismResult prismResult,
+    RotationWindow rotationWindow = RotationWindow.session,
+  }) async {
+    final transformer = CorrelationResistantTransformer(
+      rotationWindow: rotationWindow,
+      prism: this,
+    );
+    
+    return await transformer.transform(
+      prismScrubbedText: prismScrubbedText,
+      intent: intent,
+      prismResult: prismResult,
+    );
+  }
 }
 
 /// Security guardrails for voice journal pipeline
 class VoiceJournalSecurityGuard {
   static final PrismAdapter _adapter = PrismAdapter();
+  static CorrelationResistantTransformer? _transformer;
 
   /// GUARDRAIL: Validate text before sending to Gemini
   /// 
   /// Throws [SecurityException] if text appears to contain unscrubbed PII
+  /// 
+  /// Enhanced validation: checks both raw PII and PRISM token format
   static void validateBeforeGemini(String text) {
+    // Check 1: No raw PII
     if (_adapter.containsPII(text)) {
       throw SecurityException(
         'SECURITY VIOLATION: Attempted to send unscrubbed PII to Gemini. '
         'Text must be processed through PRISM before sending.'
       );
     }
+    
+    // Check 2: If using transformer, validate alias format
+    if (_transformer != null) {
+      if (!_transformer!.isSafeToSendEnhanced(text)) {
+        throw SecurityException(
+          'SECURITY VIOLATION: Text contains PRISM tokens that should have been '
+          'transformed to rotating aliases. Use transformToCorrelationResistant() first.'
+        );
+      }
+    }
+  }
+
+  /// Set transformer for enhanced validation
+  static void setTransformer(CorrelationResistantTransformer transformer) {
+    _transformer = transformer;
   }
 
   /// GUARDRAIL: Ensure raw transcript is never logged

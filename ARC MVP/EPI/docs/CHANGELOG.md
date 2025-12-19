@@ -1,6 +1,6 @@
 # EPI ARC MVP - Changelog
 
-**Version:** 2.1.58
+**Version:** 2.1.59
 **Last Updated:** December 18, 2025
 
 ---
@@ -14,6 +14,42 @@ This changelog has been split into parts for easier navigation:
 | **[CHANGELOG_part1.md](CHANGELOG_part1.md)** | Dec 2025 | v2.1.43 - v2.1.53 (Current) |
 | **[CHANGELOG_part2.md](CHANGELOG_part2.md)** | Nov 2025 | v2.1.28 - v2.1.42 |
 | **[CHANGELOG_part3.md](CHANGELOG_part3.md)** | Jan-Oct 2025 | v2.0.0 - v2.1.27 & Earlier |
+
+---
+
+## [2.1.59] - December 18, 2025
+
+### **Correlation-Resistant PII Protection System** - ✅ Complete
+
+- **Enhanced privacy protection**: Added correlation-resistant transformation layer on top of PRISM scrubbing
+- **Rotating aliases**: PRISM tokens (e.g., `[EMAIL_1]`) now transformed to rotating aliases (e.g., `PERSON(H:7c91f2, S:⟡K3)`)
+- **Structured JSON payloads**: Replaced verbatim text transmission with structured JSON abstractions
+- **Session-based rotation**: Identifiers rotate per session to prevent cross-call linkage
+- **Universal protection**: Applied to voice journal, regular journal, chat, and summary generation
+- **Two-block output system**:
+  - Block A: LOCAL-ONLY audit blocks (never transmitted)
+  - Block B: CLOUD-PAYLOAD structured JSON (safe to transmit)
+- **Enhanced security validation**: `isSafeToSend()` now validates both PRISM tokens and alias format
+- **Implementation details**:
+  - Voice journal: `VoiceJournalConversation.processTurn()` uses transformer
+  - Chat system: `geminiSend()` updated to use transformer
+  - Journal summaries: `JournalCaptureCubit._generateSummary()` uses transformer
+  - Regular journal: `EnhancedLumaraApi` automatically benefits via `geminiSend()`
+
+**Status**: ✅ Complete  
+**Files Modified**:
+- `lib/arc/chat/voice/voice_journal/correlation_resistant_transformer.dart` - New transformer module
+- `lib/arc/chat/voice/voice_journal/prism_adapter.dart` - Added `transformToCorrelationResistant()` method
+- `lib/arc/chat/voice/voice_journal/gemini_client.dart` - Updated to accept `CloudPayloadBlock`
+- `lib/services/gemini_send.dart` - Integrated correlation-resistant transformation
+- `lib/arc/core/journal_capture_cubit.dart` - Updated summary generation to use transformer
+- `docs/CORRELATION_RESISTANT_PII.md` - Comprehensive documentation
+
+**Security Improvements**:
+- Prevents re-identification through rotating identifiers
+- Prevents cross-call linkage via session-based rotation
+- Eliminates verbatim text transmission (uses abstractions)
+- Maintains capability while maximizing privacy
 
 ---
 

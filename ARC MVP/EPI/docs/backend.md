@@ -1,8 +1,8 @@
 # Backend Architecture & Setup
 
-**Version:** 2.1.58  
+**Version:** 2.1.59  
 **Last Updated:** December 18, 2025  
-**Status:** ✅ Production Ready with Health Integration, AssemblyAI v3 & Internet Access
+**Status:** ✅ Production Ready with Health Integration, AssemblyAI v3, Internet Access & Correlation-Resistant PII Protection
 
 ---
 
@@ -47,20 +47,47 @@ Future<String> geminiSend({
   required String system,
   required String user,
   bool jsonExpected = false,
+  String intent = 'chat',
 }) async {
-  // Call Firebase proxy function
+  // Step 1: PRISM scrubbing - local PII detection and masking
+  final prismAdapter = PrismAdapter();
+  final userPrismResult = prismAdapter.scrub(user);
+  final systemPrismResult = prismAdapter.scrub(system);
+  
+  // Step 2: Correlation-resistant transformation
+  // Converts PRISM tokens to rotating aliases and structured JSON
+  final userTransformation = await prismAdapter.transformToCorrelationResistant(
+    prismScrubbedText: userPrismResult.scrubbedText,
+    intent: intent,
+    prismResult: userPrismResult,
+  );
+  
+  // Call Firebase proxy function with structured payload
   final functions = FirebaseService.instance.getFunctions();
   final callable = functions.httpsCallable('proxyGemini');
   
   final result = await callable.call({
-    'system': system,
-    'user': user,
+    'system': transformedSystem,
+    'user': userTransformation.cloudPayloadBlock.toJsonString(), // Structured JSON
     'jsonExpected': jsonExpected,
   });
   
-  return result.data['response'];
+  // Restore PII in response for local display
+  final restoredResponse = prismAdapter.restore(
+    result.data['response'],
+    userPrismResult.reversibleMap,
+  );
+  
+  return restoredResponse;
 }
 ```
+
+**Privacy Protection:**
+- ✅ PRISM scrubbing: Local PII detection and masking
+- ✅ Correlation-resistant transformation: Rotating aliases prevent re-identification
+- ✅ Structured JSON payloads: No verbatim text transmission
+- ✅ Session-based rotation: Identifiers rotate per session
+- ✅ Reversible mapping: Stored locally only, never transmitted
 
 **Server Side (`functions/lib/index.js`):**
 ```javascript
