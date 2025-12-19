@@ -165,6 +165,7 @@ class CloudPayloadBlock {
       'time': time,
       'constraints': constraints,
       'semantic_summary': semanticSummary,
+      'semantic_summary_note': 'This is an abstract description of themes and meaning, NOT verbatim text. Do not quote or repeat this summary.',
       'themes': themes,
       'requested_outputs': requestedOutputs,
       'safety_notes': safetyNotes,
@@ -390,6 +391,9 @@ class CorrelationResistantTransformer {
   }
 
   /// Generate semantic summary (non-verbatim paraphrase)
+  /// 
+  /// CRITICAL: Must NOT include verbatim quotes from the original text.
+  /// Creates an abstract description of the content's meaning and themes.
   String _generateSemanticSummary(String aliasedText) {
     // Remove aliases for summary generation
     final cleanText = aliasedText.replaceAll(
@@ -397,21 +401,81 @@ class CorrelationResistantTransformer {
       '[entity]',
     );
     
-    // Simple abstraction: extract key concepts without verbatim quotes
-    // In production, this could use a local LLM or more sophisticated NLP
-    final sentences = cleanText.split(RegExp(r'[.!?]+')).where((s) => s.trim().isNotEmpty).toList();
-    
-    if (sentences.isEmpty) {
+    if (cleanText.trim().isEmpty) {
       return 'User provided input requiring processing.';
     }
     
-    // Create abstract summary (avoid verbatim text)
-    final summary = sentences.take(3).map((s) {
-      // Remove specific details, keep structure
-      return s.trim().substring(0, s.trim().length > 50 ? 50 : s.trim().length) + '...';
-    }).join(' ');
+    // Count words to determine abstraction level
+    final wordCount = cleanText.split(RegExp(r'\s+')).length;
     
-    return summary.isEmpty ? 'User input received.' : summary;
+    // Create abstract description based on content characteristics
+    // NEVER include verbatim quotes or direct excerpts
+    final abstractParts = <String>[];
+    
+    // Detect content type and themes
+    final lowerText = cleanText.toLowerCase();
+    
+    // Emotional indicators
+    if (RegExp(r'\b(feel|feeling|felt|emotion|emotional|mood|sad|happy|angry|anxious|worried|excited|grateful|frustrated)\b').hasMatch(lowerText)) {
+      abstractParts.add('emotional reflection');
+    }
+    
+    // Planning/decision indicators
+    if (RegExp(r'\b(plan|planning|decide|decision|choose|option|goal|want|need|should|will)\b').hasMatch(lowerText)) {
+      abstractParts.add('planning or decision-making');
+    }
+    
+    // Problem-solving indicators
+    if (RegExp(r'\b(problem|issue|challenge|difficult|struggle|solve|solution|help|stuck)\b').hasMatch(lowerText)) {
+      abstractParts.add('problem-solving or seeking guidance');
+    }
+    
+    // Relationship indicators
+    if (RegExp(r'\b(friend|family|partner|relationship|talk|conversation|meet|together)\b').hasMatch(lowerText)) {
+      abstractParts.add('interpersonal dynamics');
+    }
+    
+    // Work/career indicators
+    if (RegExp(r'\b(work|job|career|project|task|meeting|colleague|boss|office)\b').hasMatch(lowerText)) {
+      abstractParts.add('work or professional matters');
+    }
+    
+    // Health/wellness indicators
+    if (RegExp(r'\b(health|exercise|sleep|eat|diet|pain|tired|energy|wellness|medical)\b').hasMatch(lowerText)) {
+      abstractParts.add('health or wellness');
+    }
+    
+    // Learning/growth indicators
+    if (RegExp(r'\b(learn|learned|understand|realize|insight|growth|change|improve|better)\b').hasMatch(lowerText)) {
+      abstractParts.add('learning or personal growth');
+    }
+    
+    // Build abstract summary
+    if (abstractParts.isEmpty) {
+      // Fallback: generic description based on length
+      if (wordCount < 50) {
+        return 'Brief personal reflection or note.';
+      } else if (wordCount < 200) {
+        return 'Personal journal entry with multiple themes and reflections.';
+      } else {
+        return 'Extended personal journal entry exploring various topics and experiences.';
+      }
+    }
+    
+    // Combine detected themes into abstract description
+    final themeDescription = abstractParts.take(3).join(', ');
+    
+    // Add length context
+    String lengthContext;
+    if (wordCount < 50) {
+      lengthContext = 'brief';
+    } else if (wordCount < 200) {
+      lengthContext = 'moderate';
+    } else {
+      lengthContext = 'extended';
+    }
+    
+    return '$lengthContext entry about $themeDescription';
   }
 
   /// Extract themes (5-10 max)
@@ -539,6 +603,7 @@ class CorrelationResistantTransformer {
         'No raw PII sent',
         'Rotating aliases applied',
         'Non-verbatim abstraction used',
+        'CRITICAL: semantic_summary is an abstract description, NOT verbatim text - do not quote it',
       ],
     );
     

@@ -86,6 +86,17 @@ Future<String> geminiSend({
     );
     transformedSystem = systemTransformation.cloudPayloadBlock.toJsonString();
   }
+  
+  // Add instruction to system prompt about handling structured payloads
+  // This prevents LUMARA from re-quoting the entry text
+  if (transformedSystem == systemPrismResult.scrubbedText) {
+    // Only add if system prompt wasn't transformed (to avoid double instructions)
+    transformedSystem += '\n\n**IMPORTANT**: The user input you receive is a structured privacy-preserving payload (JSON format). '
+        'The "semantic_summary" field contains an abstract description of the user\'s entry, NOT verbatim text. '
+        'NEVER quote or repeat the semantic_summary verbatim. Instead, use it to understand the themes and meaning, '
+        'then craft your response naturally without repeating the user\'s words. Focus on reflection, insight, and questions, '
+        'not on restating what the user wrote.';
+  }
 
   // Log local audit blocks (NEVER SEND TO SERVER)
   print('LOCAL AUDIT: User - Window ID: ${userTransformation.localAuditBlock.windowId}');
