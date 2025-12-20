@@ -159,7 +159,7 @@ class _LumaraSplashScreenState extends State<LumaraSplashScreen>
                     children: [
                       // ARC Logo
                       Image.asset(
-                        'assets/images/ARC-Logo-White.png',
+                        'assets/images/ARC-Logo.png',
                         width: logoSize,
                         height: logoSize,
                         fit: BoxFit.contain,

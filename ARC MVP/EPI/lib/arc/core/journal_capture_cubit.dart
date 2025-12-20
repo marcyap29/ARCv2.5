@@ -740,6 +740,9 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
         print('❌ DEBUG: CRITICAL - Entry ${entry.id} NOT FOUND after save!');
       }
       
+      // Run phase inference after saving
+      await _inferAndSetPhaseForEntry(entry);
+      
       // Run deduplication after saving (silently in background)
       try {
         await _journalRepository.removeDuplicateEntries();

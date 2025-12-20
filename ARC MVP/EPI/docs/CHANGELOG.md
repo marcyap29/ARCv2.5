@@ -17,6 +17,27 @@ This changelog has been split into parts for easier navigation:
 
 ---
 
+## [2.1.62] - December 20, 2025
+
+### **Phase Assignment Fix & Logo Fix** - ✅ Complete
+
+- **Fixed missing phase assignment**: `saveEntryWithKeywords` now calls `_inferAndSetPhaseForEntry()` to assign `autoPhase` when entries are saved
+- **Root cause**: `saveEntryWithKeywords` was missing the phase inference call that `saveEntry` had, causing entries to not get `autoPhase` assigned
+- **Impact**: Phase Analysis now correctly uses `autoPhase` values from entries (checks `entry.autoPhase` first before falling back to `PhaseRecommender.recommend()`)
+- **Logo fix**: Fixed ARC logo reference from `ARC-Logo-White.png` to `ARC-Logo.png` in splash screen
+- **Implementation**:
+  - `lib/arc/core/journal_capture_cubit.dart`: Added `await _inferAndSetPhaseForEntry(entry);` call in `saveEntryWithKeywords()` after entry save
+  - `lib/arc/chat/ui/lumara_splash_screen.dart`: Updated logo asset path to use existing `ARC-Logo.png` file
+
+**Status**: ✅ Complete  
+**Files Modified**:
+- `lib/arc/core/journal_capture_cubit.dart` - Added phase inference call to `saveEntryWithKeywords`
+- `lib/arc/chat/ui/lumara_splash_screen.dart` - Fixed logo asset reference
+
+**Bug Fix**: Ensures all entries get `autoPhase` assigned when saved, enabling Phase Analysis to work correctly with recommended phases.
+
+---
+
 ## [2.1.61] - December 19, 2025
 
 ### **ARC Code Consolidation - Internal Architecture Organization** - ✅ Complete
