@@ -63,6 +63,9 @@ import 'package:my_app/arc/chat/data/context_provider.dart';
 import 'package:my_app/arc/chat/data/context_scope.dart';
 import 'package:my_app/services/user_phase_service.dart';
 import 'package:my_app/shared/widgets/lumara_icon.dart';
+import 'package:my_app/arc/ui/widgets/attachment_menu_button.dart';
+import 'package:my_app/arc/ui/widgets/private_notes_panel.dart';
+import 'package:my_app/arc/core/private_notes_storage.dart';
 
 /// Main journal screen with integrated LUMARA companion and OCR scanning
 class JournalScreen extends StatefulWidget {
@@ -141,6 +144,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
   bool _showKeywordsDiscovered = false;
   bool _showLumaraBox = false;
   bool _isLumaraConfigured = false;
+  bool _showPrivateNotes = false;
   
   // Scroll position tracking for scroll buttons
   bool _showScrollToTop = false;
@@ -2058,11 +2062,12 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
               Expanded(
                 child: GestureDetector(
                   onTap: () {
-                    // Dismiss both boxes when clicking on the journal page
-                    if (_showKeywordsDiscovered || _showLumaraBox) {
+                    // Dismiss boxes when clicking on the journal page
+                    if (_showKeywordsDiscovered || _showLumaraBox || _showPrivateNotes) {
                       setState(() {
                         _showKeywordsDiscovered = false;
                         _showLumaraBox = false;
+                        _showPrivateNotes = false;
                       });
                     }
                   },
@@ -2129,6 +2134,16 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
                           onAddKeywords: _showKeywordDialog,
                         ),
 
+                      // Private Notes section (conditional visibility)
+                      if (_showPrivateNotes)
+                        PrivateNotesPanel(
+                          entryId: _currentEntryId ?? 'draft_${_currentDraftId ?? DateTime.now().millisecondsSinceEpoch}',
+                          onClose: () {
+                            setState(() {
+                              _showPrivateNotes = false;
+                            });
+                          },
+                        ),
 
                       // Scan attachments (OCR text) - shown separately
                       ..._entryState.attachments.where((a) => a is ScanAttachment).map((attachment) {
@@ -2158,32 +2173,33 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                             children: [
-                              // Add photo button
-                              IconButton(
-                                onPressed: _handlePhotoGallery,
-                                icon: const Icon(Icons.add_photo_alternate, size: 18),
-                                tooltip: 'Add Photo',
-                                padding: const EdgeInsets.all(4),
-                                constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                              // Consolidated attachment menu (replaces separate photo/camera/video icons)
+                              AttachmentMenuButton(
+                                onPhotoGallery: _handlePhotoGallery,
+                                onCamera: _handleCamera,
+                                onVideoGallery: _handleVideoGallery,
                               ),
                               
-                              // Add camera button
+                              // Private Notes button
                               IconButton(
-                                onPressed: _handleCamera,
-                                icon: const Icon(Icons.camera_alt, size: 18),
-                                tooltip: 'Take Photo',
+                                onPressed: () {
+                                  setState(() {
+                                    _showPrivateNotes = !_showPrivateNotes;
+                                  });
+                                },
+                                icon: Icon(
+                                  _showPrivateNotes ? Icons.lock : Icons.lock_outline,
+                                  size: 18,
+                                ),
+                                tooltip: 'Private Notes',
                                 padding: const EdgeInsets.all(4),
                                 constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                                style: IconButton.styleFrom(
+                                  backgroundColor: _showPrivateNotes 
+                                    ? theme.colorScheme.primary.withOpacity(0.2)
+                                    : null,
+                                ),
                               ),
-                        
-                        // Add video button
-                        IconButton(
-                          onPressed: _handleVideoGallery,
-                          icon: const Icon(Icons.videocam, size: 18),
-                          tooltip: 'Add Video',
-                          padding: const EdgeInsets.all(4),
-                          constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
-                        ),
                               
                               // Keyword toggle button
                               IconButton(

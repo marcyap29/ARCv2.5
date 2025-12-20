@@ -29,6 +29,7 @@ import '../llm/prompts/lumara_master_prompt.dart';
 import '../services/lumara_control_state_builder.dart';
 import '../services/reflective_query_service.dart';
 import '../services/reflective_query_formatter.dart';
+import '../services/bible_retrieval_helper.dart';
 import 'package:my_app/prism/atlas/phase/phase_history_repository.dart';
 import 'package:my_app/aurora/services/circadian_profile_service.dart';
 
@@ -214,6 +215,17 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
       await _handleMemoryCommand(text);
       return;
     }
+    
+    // Check for Bible verse requests and fetch verses to include in context
+    String? bibleVerses;
+    try {
+      bibleVerses = await BibleRetrievalHelper.fetchVersesForRequest(text);
+      if (bibleVerses != null) {
+        print('LUMARA: Fetched Bible verses for request: ${bibleVerses.substring(0, bibleVerses.length > 100 ? 100 : bibleVerses.length)}...');
+      }
+    } catch (e) {
+      print('LUMARA: Error fetching Bible verses: $e');
+    }
 
 
     // Add user message to UI immediately and set isProcessing to show loading indicator
@@ -291,9 +303,16 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
           final phaseHint = _buildPhaseHint(context);
           final keywords = _buildKeywordsContext(context);
           
+          // Include Bible verses in user intent if fetched
+          String userIntent = text;
+          if (bibleVerses != null && bibleVerses.isNotEmpty) {
+            userIntent = '$text\n\n[BIBLE_VERSE_CONTEXT]\n$bibleVerses\n[/BIBLE_VERSE_CONTEXT]';
+            print('LUMARA: Including Bible verses in ArcLLM context');
+          }
+          
           // Use ArcLLM to call Gemini directly with all journal context
           final response = await _arcLLM.chat(
-            userIntent: text,
+            userIntent: userIntent,
             entryText: entryText,
             phaseHintJson: phaseHint,
             lastKeywordsJson: keywords,
@@ -605,15 +624,33 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
     print('LUMARA Debug: Attribution traces from context: ${contextAttributionTraces.length}');
     print('LUMARA Debug: Chat session ID for rate limiting: $currentChatSessionId');
 
+    // Check for Bible verse requests and fetch verses to include in context (for streaming path)
+    String? bibleVerses;
+    try {
+      bibleVerses = await BibleRetrievalHelper.fetchVersesForRequest(text);
+      if (bibleVerses != null) {
+        print('LUMARA: Fetched Bible verses for streaming request');
+      }
+    } catch (e) {
+      print('LUMARA: Error fetching Bible verses for streaming: $e');
+    }
+
     // Use Firebase proxy with chatId for per-chat rate limiting
     // (replaces streaming to enable backend rate limiting)
     String responseText;
 
     try {
+      // Include Bible verses in user message if fetched (for streaming path)
+      String userMessage = text;
+      if (bibleVerses != null && bibleVerses.isNotEmpty) {
+        userMessage = '$text\n\n[BIBLE_VERSE_CONTEXT]\n$bibleVerses\n[/BIBLE_VERSE_CONTEXT]';
+        print('LUMARA: Including Bible verses in streaming context');
+      }
+      
       // Call Firebase proxy with chatId for rate limiting
       responseText = await geminiSend(
         system: systemPrompt,
-        user: text,
+        user: userMessage,
         chatId: currentChatSessionId, // For per-chat usage limit tracking
       );
 
