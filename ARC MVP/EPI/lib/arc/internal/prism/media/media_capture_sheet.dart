@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -26,7 +27,7 @@ class MediaCaptureSheet extends StatefulWidget {
 class _MediaCaptureSheetState extends State<MediaCaptureSheet> {
   final MediaStore _mediaStore = MediaStore();
   final MediaSanitizer _mediaSanitizer = MediaSanitizer();
-  // final OCRService _ocrService = OCRService(); // TODO: Implement OCR service
+  final IOSVisionOrchestrator _visionOrchestrator = IOSVisionOrchestrator();
   final ImagePicker _imagePicker = ImagePicker();
   
   bool _isProcessing = false;
@@ -332,9 +333,27 @@ class _MediaCaptureSheetState extends State<MediaCaptureSheet> {
         _processingMessage = 'Extracting text from image...';
       });
       
-      // final ocrText = await _ocrService.extractTextWithPreprocessing(sanitizedData);
-      // TODO: Implement OCR when service is available
-      final ocrText = null;
+      // Create temporary file for iOS Vision processing
+      final tempDir = await Directory.systemTemp.createTemp('arc_ocr_');
+      final tempFile = File('${tempDir.path}/temp_image.jpg');
+      await tempFile.writeAsBytes(sanitizedData);
+      
+      String? ocrText;
+      try {
+        final results = await _visionOrchestrator.processPhoto(imagePath: tempFile.path);
+        final formattedText = _visionOrchestrator.getFormattedText(results);
+        
+        if (formattedText.isNotEmpty) {
+          // Extract just the OCR text part (remove the "📝 Text (iOS Vision):" prefix)
+          final lines = formattedText.split('\n');
+          final textLines = lines.skip(1).where((line) => line.trim().isNotEmpty);
+          ocrText = textLines.join('\n');
+        }
+      } finally {
+        // Clean up temporary file
+        await tempFile.delete();
+        await tempDir.delete();
+      }
       
       // Store image
       final mediaItem = await _mediaStore.storeImage(
@@ -393,9 +412,27 @@ class _MediaCaptureSheetState extends State<MediaCaptureSheet> {
         _processingMessage = 'Extracting text from image...';
       });
       
-      // final ocrText = await _ocrService.extractTextWithPreprocessing(sanitizedData);
-      // TODO: Implement OCR when service is available
-      final ocrText = null;
+      // Create temporary file for iOS Vision processing
+      final tempDir = await Directory.systemTemp.createTemp('arc_ocr_');
+      final tempFile = File('${tempDir.path}/temp_image.jpg');
+      await tempFile.writeAsBytes(sanitizedData);
+      
+      String? ocrText;
+      try {
+        final results = await _visionOrchestrator.processPhoto(imagePath: tempFile.path);
+        final formattedText = _visionOrchestrator.getFormattedText(results);
+        
+        if (formattedText.isNotEmpty) {
+          // Extract just the OCR text part (remove the "📝 Text (iOS Vision):" prefix)
+          final lines = formattedText.split('\n');
+          final textLines = lines.skip(1).where((line) => line.trim().isNotEmpty);
+          ocrText = textLines.join('\n');
+        }
+      } finally {
+        // Clean up temporary file
+        await tempFile.delete();
+        await tempDir.delete();
+      }
       
       // Store image
       final mediaItem = await _mediaStore.storeImage(

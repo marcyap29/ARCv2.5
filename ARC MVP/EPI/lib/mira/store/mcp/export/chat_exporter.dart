@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:crypto/crypto.dart';
 import 'package:my_app/arc/chat/chat/chat_repo.dart';
 import 'package:my_app/arc/chat/chat/chat_models.dart';
-import 'package:my_app/arc/chat/chat/privacy_redactor.dart';
+import 'package:my_app/arc/internal/echo/privacy_redactor.dart';
 import 'package:my_app/arc/chat/chat/provenance_tracker.dart';
 import 'package:my_app/mira/ingest/chat_ingest.dart';
 import 'package:my_app/mira/graph/chat_graph_builder.dart';

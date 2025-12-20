@@ -23,7 +23,7 @@ import 'package:my_app/services/lumara/lumara_inline_api.dart';
 import 'package:my_app/arc/chat/services/enhanced_lumara_api.dart';
 import 'package:my_app/services/firebase_service.dart';
 import 'package:my_app/arc/chat/models/lumara_reflection_options.dart' as lumara_models;
-import 'package:my_app/arc/chat/services/progressive_memory_loader.dart';
+import 'package:my_app/arc/internal/mira/memory_loader.dart';
 import 'package:my_app/arc/chat/ui/lumara_settings_screen.dart';
 import '../../models/user_profile_model.dart';
 import 'package:hive/hive.dart';

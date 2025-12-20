@@ -1,6 +1,6 @@
 # EPI ARC MVP - Changelog
 
-**Version:** 2.1.60
+**Version:** 2.1.61
 **Last Updated:** December 19, 2025
 
 ---
@@ -14,6 +14,34 @@ This changelog has been split into parts for easier navigation:
 | **[CHANGELOG_part1.md](CHANGELOG_part1.md)** | Dec 2025 | v2.1.43 - v2.1.53 (Current) |
 | **[CHANGELOG_part2.md](CHANGELOG_part2.md)** | Nov 2025 | v2.1.28 - v2.1.42 |
 | **[CHANGELOG_part3.md](CHANGELOG_part3.md)** | Jan-Oct 2025 | v2.0.0 - v2.1.27 & Earlier |
+
+---
+
+## [2.1.61] - December 19, 2025
+
+### **ARC Code Consolidation - Internal Architecture Organization** - ✅ Complete
+
+- **Code cleanup and reorganization**: Consolidated ARC codebase to reflect internal 5-module architecture
+- **New internal module structure**: Created `lib/arc/internal/` directory with PRISM, MIRA, AURORA, and ECHO submodules
+- **Removed duplicates**: Eliminated duplicate files (media capture, keyword extraction, etc.)
+- **Barrel exports**: Created module-level exports for cleaner imports (`prism_internal.dart`, `mira_internal.dart`, etc.)
+- **Backward compatibility**: Maintained via re-exports from old paths to new locations
+- **Implementation**:
+  - **PRISM Internal** (`internal/prism/`): Theme analysis, keyword extraction, media processing
+  - **MIRA Internal** (`internal/mira/`): Memory loading, storage, semantic matching, journal repository
+  - **AURORA Internal** (`internal/aurora/`): Active window detection, sleep protection, notifications
+  - **ECHO Internal** (`internal/echo/`): PII scrubbing, correlation-resistant transformation, privacy redaction
+- **Documentation**: Updated ARCHITECTURE.md and ARC_INTERNAL_ARCHITECTURE.md to reflect new structure
+
+**Status**: ✅ Complete  
+**Files Modified**:
+- Created `lib/arc/internal/` directory structure with 4 submodules
+- Moved 20+ files to appropriate internal module locations
+- Deleted 8 duplicate files
+- Updated imports across 30+ files
+- Created barrel export files for each internal module
+
+**Architecture Improvement**: Better reflects EPI's 5-module architecture internally, making code organization clearer and more maintainable.
 
 ---
 

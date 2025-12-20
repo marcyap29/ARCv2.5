@@ -1,7 +1,7 @@
 # EPI Documentation
 
-**Last Updated:** December 13, 2025  
-**Version:** 2.1.54
+**Last Updated:** December 19, 2025  
+**Version:** 2.1.61
 
 ---
 
@@ -9,7 +9,13 @@
 
 Welcome to the EPI (Evolving Personal Intelligence) documentation. This directory contains comprehensive documentation for the EPI MVP intelligent journaling application.
 
-### Recent Highlights (v2.1.54)
+### Recent Highlights (v2.1.61)
+
+- **🏗️ Code Consolidation**: ARC internal architecture reorganized to mirror EPI's 5-module structure
+- **📦 Internal Modules**: New `lib/arc/internal/` structure with PRISM, MIRA, AURORA, and ECHO submodules
+- **🧹 Code Cleanup**: Removed duplicates, consolidated services, improved organization
+
+### Previous Highlights (v2.1.54)
 
 - **📦 Export Format Standardization**: Unified ZIP and ARCX with date-bucketed file structure
 - **🔄 Import Backward Compatibility**: Supports both new bucketed and legacy flat structures
@@ -77,8 +83,8 @@ Welcome to the EPI (Evolving Personal Intelligence) documentation. This director
 
 ## Version Information
 
-**Current Version:** 2.1.54
-**Last Major Update:** December 13, 2025 (Export Format Standardization)
+**Current Version:** 2.1.61
+**Last Major Update:** December 19, 2025 (ARC Code Consolidation - Internal Architecture Organization)
 
 ### Recent Highlights
 

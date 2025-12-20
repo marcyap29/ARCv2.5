@@ -1,6 +1,6 @@
 # ARC Internal Architecture
 
-**Version:** 2.1.60  
+**Version:** 2.1.61  
 **Last Updated:** December 19, 2025
 
 ---
@@ -27,16 +27,17 @@ ARC (Program)
 
 ## 1. PRISM (Internal) - Text & Media Analysis
 
-**Location**: `lib/arc/chat/services/`, `lib/arc/core/`, `lib/arc/ui/media/`
+**Location**: `lib/arc/internal/prism/`
 
 **Purpose**: Analysis of text and media within ARC
 
 **Components**:
 - `theme_analysis_service.dart` - Longitudinal theme tracking and analysis
-- `keyword_extraction_cubit.dart` - Keyword extraction from journal entries
-- `ui/media/ocr_text_insert_dialog.dart` - OCR text extraction from images
-- `ui/media/media_capture_sheet.dart` - Media processing and analysis
-- `chat/services/enhanced_lumara_api.dart` - Text analysis and context building
+- `keyword_extraction_service.dart` - Keyword extraction from journal entries (copied from core)
+- `media/media_capture_sheet.dart` - Media processing and analysis
+- `media/media_preview_dialog.dart` - Media preview functionality
+- `media/media_strip.dart` - Media strip display
+- `media/ocr_service.dart` - OCR text extraction from images
 
 **Responsibilities**:
 - Analyze journal entry text for themes, keywords, and patterns
@@ -54,17 +55,21 @@ ARC (Program)
 
 ## 2. MIRA (Internal) - Memory & File Security
 
-**Location**: `lib/arc/chat/services/`, `lib/arc/core/`
+**Location**: `lib/arc/internal/mira/`
 
 **Purpose**: Memory management and file security within ARC
 
 **Components**:
-- `chat/services/progressive_memory_loader.dart` - Progressive memory loading for LUMARA
-- `chat/services/reflective_node_storage.dart` - Storage of reflective nodes
-- `chat/services/semantic_similarity_service.dart` - Semantic memory matching
-- `chat/memory/` - Memory-related services
-- `core/journal_repository.dart` - Secure journal entry storage
-- `core/journal_version_service.dart` - Version management for entries
+- `memory_loader.dart` - Progressive memory loading for LUMARA (moved from `chat/services/progressive_memory_loader.dart`)
+- `reflective_storage.dart` - Storage of reflective nodes (moved from `chat/services/reflective_node_storage.dart`)
+- `semantic_matching.dart` - Semantic memory matching (moved from `chat/services/semantic_similarity_service.dart`)
+- `journal_repository.dart` - Secure journal entry storage (moved from `core/journal_repository.dart`)
+- `version_service.dart` - Version management for entries (moved from `core/services/journal_version_service.dart`)
+- `memory/` - Memory-related services (moved from `chat/memory/`)
+  - `mcp_memory_service.dart` - MCP memory service
+  - `memory_index_service.dart` - Memory indexing
+  - `pii_redaction_service.dart` - PII redaction for memory
+  - `summary_service.dart` - Memory summarization
 
 **Responsibilities**:
 - Manage LUMARA's conversational memory across sessions
@@ -83,14 +88,15 @@ ARC (Program)
 
 ## 3. AURORA (Internal) - Time & User Activity
 
-**Location**: `lib/arc/chat/services/`
+**Location**: `lib/arc/internal/aurora/`
 
 **Purpose**: Handles time-based user activity patterns
 
 **Components**:
-- `chat/services/active_window_detector.dart` - Detects user's active reflection windows
-- `chat/services/sleep_protection_service.dart` - Manages sleep/abstinence windows
-- `chat/services/lumara_notification_service.dart` - Time Echo and Active Window reminders
+- `active_window_detector.dart` - Detects user's active reflection windows (moved from `chat/services/`)
+- `sleep_protection_service.dart` - Manages sleep/abstinence windows (moved from `chat/services/`)
+- `notification_service.dart` - Time Echo and Active Window reminders (moved from `chat/services/lumara_notification_service.dart`)
+- `memory_notification_service.dart` - Memory-based notifications (moved from `chat/services/memory_notification_service.dart`)
 
 **Responsibilities**:
 - Detect when user is most active (active window detection)
@@ -108,16 +114,15 @@ ARC (Program)
 
 ## 4. ECHO (Internal) - PII & Security
 
-**Location**: `lib/arc/privacy/`, `lib/arc/chat/voice/voice_journal/`
+**Location**: `lib/arc/internal/echo/`
 
 **Purpose**: Provides PII protection and security within ARC
 
 **Components**:
-- `privacy/privacy_demo_screen.dart` - Privacy demonstration
-- `chat/voice/voice_journal/prism_adapter.dart` - PRISM adapter for voice journal
-- `chat/voice/voice_journal/correlation_resistant_transformer.dart` - Correlation-resistant PII protection
-- `chat/voice/voice_journal/voice_journal_pipeline.dart` - Secure voice processing pipeline
-- `chat/chat/privacy_redactor.dart` - Privacy redaction for chat
+- `prism_adapter.dart` - PRISM adapter for voice journal (moved from `chat/voice/voice_journal/`)
+- `correlation_resistant_transformer.dart` - Correlation-resistant PII protection (moved from `chat/voice/voice_journal/`)
+- `voice_pipeline.dart` - Secure voice processing pipeline (moved from `chat/voice/voice_journal/voice_journal_pipeline.dart`)
+- `privacy_redactor.dart` - Privacy redaction for chat (moved from `chat/chat/privacy_redactor.dart`)
 
 **Responsibilities**:
 - Real-time PII detection and masking in journal entries
@@ -177,7 +182,10 @@ ARC's internal architecture mirrors the external EPI modules but provides ARC-sp
 
 ## Implementation Notes
 
-- Internal modules are located within `lib/arc/` directory structure
+- Internal modules are located within `lib/arc/internal/` directory structure
 - They provide ARC-specific services while leveraging external module capabilities
 - The architecture allows ARC to be self-contained while benefiting from shared EPI infrastructure
 - Internal modules can evolve independently while maintaining compatibility with external modules
+- **Backward Compatibility**: Re-exports in old locations ensure existing imports continue to work
+- **Barrel Exports**: Each module has a barrel export file (`*_internal.dart`) for convenient importing
+- **Gradual Migration**: Files can be updated to use new paths incrementally without breaking existing code

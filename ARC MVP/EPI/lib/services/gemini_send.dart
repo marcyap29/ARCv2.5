@@ -11,8 +11,8 @@ import 'package:my_app/arc/chat/config/api_config.dart';
 import 'package:my_app/services/lumara/pii_scrub.dart';
 import 'package:my_app/services/firebase_service.dart';
 import 'package:cloud_functions/cloud_functions.dart';
-import 'package:my_app/arc/chat/voice/voice_journal/prism_adapter.dart';
-import 'package:my_app/arc/chat/voice/voice_journal/correlation_resistant_transformer.dart';
+import 'package:my_app/arc/internal/echo/prism_adapter.dart';
+import 'package:my_app/arc/internal/echo/correlation_resistant_transformer.dart';
 
 /// Sends a single-turn request to Gemini with an optional system instruction.
 /// Returns the concatenated text from candidates[0].content.parts[].text.
@@ -85,7 +85,7 @@ Future<String> geminiSend({
     // Log local audit blocks (NEVER SEND TO SERVER)
     print('LOCAL AUDIT: User - Window ID: ${userTransformation.localAuditBlock.windowId}');
     print('LOCAL AUDIT: User - Token classes: ${userTransformation.localAuditBlock.tokenClassCounts}');
-  }
+    }
 
   // Transform system prompt if it had PII, otherwise use as-is
   // System prompts typically don't contain user PII, so we can use the scrubbed version directly

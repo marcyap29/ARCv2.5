@@ -21,7 +21,7 @@ import 'package:my_app/arc/chat/data/context_provider.dart';
 import 'package:my_app/arc/chat/data/context_scope.dart';
 import 'package:my_app/services/shake_detector_service.dart';
 import 'package:my_app/ui/feedback/bug_report_dialog.dart';
-import 'package:my_app/arc/ui/journal_capture_view.dart';
+import 'package:my_app/arc/core/journal_capture_view.dart';
 
 // Debug flag for showing RIVET engineering labels
 const bool kShowRivetDebugLabels = false;

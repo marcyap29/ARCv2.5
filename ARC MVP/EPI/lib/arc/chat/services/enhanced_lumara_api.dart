@@ -25,8 +25,8 @@ import '../../../models/journal_entry_model.dart';
 import '../../../arc/chat/chat/chat_repo.dart';
 import '../../../arc/chat/chat/chat_repo_impl.dart';
 import '../../../arc/chat/chat/chat_models.dart';
-import '../../../arc/chat/voice/voice_journal/prism_adapter.dart';
-import '../../../arc/chat/voice/voice_journal/correlation_resistant_transformer.dart';
+import 'package:my_app/arc/internal/echo/prism_adapter.dart';
+import 'package:my_app/arc/internal/echo/correlation_resistant_transformer.dart';
 
 /// Result of generating a reflection with attribution traces
 class ReflectionResult {
