@@ -1,8 +1,8 @@
 # EPI MVP - Architecture Overview
 
-**Version:** 2.1.61
-**Last Updated:** December 19, 2025
-**Status:** ✅ Production Ready - MVP Fully Operational with Health Integration, AssemblyAI v3, Web Access Safety & Correlation-Resistant PII Protection
+**Version:** 2.1.63
+**Last Updated:** January 8, 2025
+**Status:** ✅ Production Ready - MVP Fully Operational with Health Integration, AssemblyAI v3, Web Access Safety, Correlation-Resistant PII Protection & Bible Reference Retrieval
 
 ---
 
@@ -25,6 +25,7 @@ EPI (Evolving Personal Intelligence) is a Flutter-based intelligent journaling a
 - ✅ **Health→LUMARA Integration (v2.1.52)**: Sleep/energy signals influence LUMARA behavior
 - ✅ **LUMARA Web Access Safety Layer (v2.1.57)**: Comprehensive 10-rule safety framework for Google Search integration
 - ✅ **LUMARA Journal Context Order Fix (v2.1.58)**: Chronological context ordering - LUMARA only sees content above its position
+- ✅ **LUMARA Bible Reference Retrieval (v2.1.63)**: Automatic Bible verse and chapter retrieval using HelloAO Bible API with intelligent detection and privacy protection
 
 ### Current Version
 
@@ -150,6 +151,9 @@ The EPI system is organized into 5 core modules:
 - `chat/` - LUMARA conversational AI
   - `services/reflective_query_service.dart` - EPI-standard reflective queries
   - `services/reflective_query_formatter.dart` - Response formatting
+  - `services/bible_api_service.dart` - HelloAO Bible API integration
+  - `services/bible_retrieval_helper.dart` - Bible query detection and verse fetching
+  - `services/bible_terminology_library.dart` - Comprehensive Bible terminology database
   - `models/reflective_query_models.dart` - Query result models
   - `models/notification_models.dart` - Notification data models
 - `arcform/` - 3D visualization and analysis forms
@@ -283,6 +287,11 @@ The EPI system is organized into 5 core modules:
 - **On-Device**: llama.cpp with Qwen models
 - **Embeddings**: Qwen3-Embedding-0.6B
 - **Vision**: Qwen2.5-VL-3B
+- **Bible API**: HelloAO Bible API (`bible.helloao.org`) for accurate Bible verse retrieval
+  - Automatic detection of Bible-related queries using comprehensive terminology library
+  - Character-to-book resolution for prophets and biblical figures
+  - Privacy-protected (Bible names whitelisted in PRISM)
+  - Context-preserving (skips correlation-resistant transformation for Bible questions)
 
 ### Platform-Specific
 - **iOS**: Swift, Metal acceleration

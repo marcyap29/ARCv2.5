@@ -1,7 +1,7 @@
 # EPI ARC MVP - Changelog
 
-**Version:** 2.1.61
-**Last Updated:** December 19, 2025
+**Version:** 2.1.63
+**Last Updated:** January 8, 2025
 
 ---
 
@@ -14,6 +14,50 @@ This changelog has been split into parts for easier navigation:
 | **[CHANGELOG_part1.md](CHANGELOG_part1.md)** | Dec 2025 | v2.1.43 - v2.1.53 (Current) |
 | **[CHANGELOG_part2.md](CHANGELOG_part2.md)** | Nov 2025 | v2.1.28 - v2.1.42 |
 | **[CHANGELOG_part3.md](CHANGELOG_part3.md)** | Jan-Oct 2025 | v2.0.0 - v2.1.27 & Earlier |
+
+---
+
+## [2.1.63] - January 8, 2025
+
+### **LUMARA Bible Reference Retrieval** - ✅ Complete
+
+- **Bible API Integration**: LUMARA now automatically retrieves Bible verses, chapters, and commentary using the HelloAO Bible API (`bible.helloao.org`)
+- **Intelligent Detection**: Comprehensive Bible terminology library detects Bible-related queries (books, characters, prophets, concepts, events)
+- **Automatic Verse Fetching**: When users ask about Bible topics, LUMARA automatically fetches relevant verses and includes them in context
+- **Character-to-Book Resolution**: Automatically resolves prophet/character names (e.g., "Habakkuk") to their corresponding Bible books and fetches chapter 1
+- **Privacy Protection**: Bible names whitelisted in PRISM to prevent false PII scrubbing
+- **Transformation Bypass**: Bible questions automatically skip correlation-resistant transformation to preserve verse context and instructions
+- **Implementation**:
+  - `lib/arc/chat/services/bible_api_service.dart`: HTTP client for HelloAO Bible API
+  - `lib/arc/chat/services/bible_retrieval_helper.dart`: Detection and fetching logic
+  - `lib/arc/chat/services/bible_terminology_library.dart`: Comprehensive terminology database (66 books, characters, prophets, events, concepts)
+  - `lib/arc/chat/llm/prompts/lumara_master_prompt.dart`: Bible retrieval instructions for LUMARA
+  - `lib/core/prompts_arc.dart`: Enhanced system prompts with Bible handling
+  - `lib/services/llm_bridge_adapter.dart`: Critical pre-prompt injection for Bible questions
+  - `lib/services/gemini_send.dart`: Auto-skip transformation for Bible context
+  - `lib/echo/privacy_core/pii_detection_service.dart`: Bible names whitelist
+- **Features**:
+  - Supports all 66 Bible books (Old and New Testament)
+  - Handles book abbreviations (e.g., "Jn" → "John")
+  - Detects prophets, apostles, biblical characters, events, concepts
+  - Fetches specific verses (e.g., "John 3:16"), chapters, or entire books
+  - Provides context about biblical topics when specific references aren't given
+  - Multiple translation support (default: BSB)
+  - Error handling with fallback to general context
+
+**Status**: ✅ Complete  
+**Files Modified**:
+- `lib/arc/chat/services/bible_api_service.dart` - New file
+- `lib/arc/chat/services/bible_retrieval_helper.dart` - New file
+- `lib/arc/chat/services/bible_terminology_library.dart` - New file
+- `lib/arc/chat/llm/prompts/lumara_master_prompt.dart` - Added Bible retrieval section
+- `lib/core/prompts_arc.dart` - Enhanced Bible instructions
+- `lib/services/llm_bridge_adapter.dart` - Critical pre-prompt injection
+- `lib/services/gemini_send.dart` - Auto-skip transformation
+- `lib/arc/chat/bloc/lumara_assistant_cubit.dart` - Bible context integration
+- `lib/echo/privacy_core/pii_detection_service.dart` - Bible names whitelist
+
+**Feature Enhancement**: Enables LUMARA to provide accurate, API-sourced Bible content instead of generic responses, with automatic detection and retrieval of relevant verses.
 
 ---
 

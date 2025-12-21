@@ -36,6 +36,15 @@ Future<String> geminiSend({
   // No longer need local API key - using Firebase proxy
   print('DEBUG GEMINI: Using Firebase proxy for API key');
 
+  // Check if this is a Bible question - if so, we need to preserve Bible names and skip transformation
+  final isBibleQuestion = user.contains('[BIBLE_CONTEXT]') || user.contains('[BIBLE_VERSE_CONTEXT]');
+  
+  // Auto-skip transformation for Bible questions to preserve context instructions
+  if (isBibleQuestion && !skipTransformation) {
+    print('DEBUG GEMINI: ⚠️ Bible question detected - auto-enabling skipTransformation');
+    skipTransformation = true;
+  }
+  
   // Step 1: PRISM - Scrub PII from user input and system prompt
   final prismAdapter = PrismAdapter();
   final userPrismResult = prismAdapter.scrub(user);
@@ -53,6 +62,14 @@ Future<String> geminiSend({
     print('PRISM: Scrubbed PII before cloud API call');
     if (userPrismResult.hadPII) {
       print('PRISM: User text - Found ${userPrismResult.redactionCount} PII items');
+      if (isBibleQuestion) {
+        print('PRISM: ⚠️ Bible question detected - checking if Bible names were scrubbed');
+        // Check if Bible names were scrubbed
+        final scrubbedText = userPrismResult.scrubbedText.toLowerCase();
+        if (scrubbedText.contains('[name_') && (scrubbedText.contains('habakkuk') || scrubbedText.contains('prophet'))) {
+          print('PRISM: ⚠️ WARNING: Bible name may have been scrubbed!');
+        }
+      }
     }
     if (systemPrismResult.hadPII) {
       print('PRISM: System prompt - Found ${systemPrismResult.redactionCount} PII items');
@@ -68,10 +85,11 @@ Future<String> geminiSend({
   // Step 2: Correlation-Resistant Transformation
   // Skip transformation if entry text already abstracted (e.g., journal entries)
   String transformedUserText;
+  print('DEBUG GEMINI: skipTransformation flag: $skipTransformation');
   if (skipTransformation) {
     // Entry text already abstracted, use scrubbed version directly
     transformedUserText = userPrismResult.scrubbedText;
-    print('DEBUG GEMINI: Skipping transformation - entry already abstracted');
+    print('DEBUG GEMINI: ✅ Skipping transformation - using scrubbed text directly (length: ${transformedUserText.length})');
   } else {
     // Transform user text to structured payload
     final userTransformation = await prismAdapter.transformToCorrelationResistant(
@@ -116,7 +134,10 @@ Future<String> geminiSend({
         'not on restating what the user wrote.';
   }
 
-  print('DEBUG GEMINI: Using Firebase proxy with ${skipTransformation ? 'abstracted' : 'correlation-resistant'} payload');
+  print('DEBUG GEMINI: Using Firebase proxy with ${skipTransformation ? 'abstracted (NO TRANSFORMATION)' : 'correlation-resistant'} payload');
+  if (skipTransformation) {
+    print('DEBUG GEMINI: ✅ Transformation skipped - user text preserved as-is');
+  }
 
   // Build request body for Firebase proxy
   // Send structured JSON payload (if transformed) or abstracted text (if skipped)

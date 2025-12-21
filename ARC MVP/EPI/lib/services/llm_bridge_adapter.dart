@@ -5,7 +5,6 @@
 
 import 'dart:convert';
 import 'package:my_app/core/prompts_arc.dart';
-import 'package:my_app/arc/chat/llm/prompt_templates.dart';
 import 'package:my_app/mira/mira_service.dart';
 
 typedef LLMInvocation = Future<String> Function({
@@ -38,14 +37,35 @@ class ArcLLM {
     try {
       print('ArcLLM Bridge: Building user prompt...');
       
-      // Check if this is an in-journal reflection (userIntent is "reflect")
-      final isInJournalReflection = userIntent.toLowerCase() == 'reflect';
+      // Check if this is a Bible question and prioritize it
+      final isBibleQuestion = userIntent.contains('[BIBLE_CONTEXT]') || userIntent.contains('[BIBLE_VERSE_CONTEXT]');
       
       var userPrompt = ArcPrompts.chat
           .replaceAll('{{user_intent}}', userIntent)
           .replaceAll('{{entry_text}}', entryText)
           .replaceAll('{{phase_hint?}}', phaseHintJson ?? 'null')
           .replaceAll('{{keywords?}}', lastKeywordsJson ?? 'null');
+      
+      // If Bible question, add explicit instruction at the top
+      if (isBibleQuestion) {
+        userPrompt = '''⚠️ CRITICAL BIBLE QUESTION DETECTED ⚠️
+
+This is a Bible-related question. You MUST respond directly to the Bible topic mentioned in the [BIBLE_CONTEXT] block below.
+
+DO NOT:
+- Give a generic introduction like "I'm ready to assist you" or "I'm LUMARA"
+- Ignore the Bible question
+- Restate your role or purpose
+
+DO:
+- Read the [BIBLE_CONTEXT] block carefully
+- Respond directly about the Bible topic mentioned (e.g., if it says "User is asking about Habakkuk", respond about Habakkuk)
+- Use Google Search if needed to find information about the Bible topic
+- Provide specific information about the Bible topic
+
+$userPrompt''';
+        print('ArcLLM Bridge: ⚠️ Bible question detected - adding critical instructions');
+      }
       if (isContinuation && previousAssistantReply != null && previousAssistantReply.trim().isNotEmpty) {
         userPrompt += '''
 
@@ -69,8 +89,9 @@ Only write the missing continuation (2–3 sentences). No recap, no new bullet l
       // }
       
       print('ArcLLM Bridge: Calling send() function...');
+      // Use ArcPrompts.system which includes Bible retrieval instructions
       final result = send(
-        system: PromptTemplates.systemPrompt,
+        system: ArcPrompts.system,
         user: userPrompt,
         jsonExpected: false,
       );

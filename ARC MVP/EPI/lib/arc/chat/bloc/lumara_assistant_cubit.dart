@@ -219,12 +219,18 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
     // Check for Bible verse requests and fetch verses to include in context
     String? bibleVerses;
     try {
+      print('LUMARA: Checking for Bible request in message: "${text.substring(0, text.length > 50 ? 50 : text.length)}..."');
       bibleVerses = await BibleRetrievalHelper.fetchVersesForRequest(text);
       if (bibleVerses != null) {
-        print('LUMARA: Fetched Bible verses for request: ${bibleVerses.substring(0, bibleVerses.length > 100 ? 100 : bibleVerses.length)}...');
+        print('LUMARA: ✅ Fetched Bible context for request');
+        print('LUMARA: Bible context length: ${bibleVerses.length}');
+        print('LUMARA: Bible context preview: ${bibleVerses.substring(0, bibleVerses.length > 200 ? 200 : bibleVerses.length)}...');
+      } else {
+        print('LUMARA: ⚠️ No Bible context returned (not detected as Bible request)');
       }
-    } catch (e) {
-      print('LUMARA: Error fetching Bible verses: $e');
+    } catch (e, stackTrace) {
+      print('LUMARA: ❌ Error fetching Bible verses: $e');
+      print('LUMARA: Stack trace: $stackTrace');
     }
 
 
@@ -627,12 +633,17 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
     // Check for Bible verse requests and fetch verses to include in context (for streaming path)
     String? bibleVerses;
     try {
+      print('LUMARA: Checking for Bible request in streaming path: "${text.substring(0, text.length > 50 ? 50 : text.length)}..."');
       bibleVerses = await BibleRetrievalHelper.fetchVersesForRequest(text);
-      if (bibleVerses != null) {
-        print('LUMARA: Fetched Bible verses for streaming request');
+      if (bibleVerses != null && bibleVerses.isNotEmpty) {
+        print('LUMARA: ✅ Fetched Bible verses for streaming request (length: ${bibleVerses.length})');
+        print('LUMARA: Bible verses preview: ${bibleVerses.substring(0, bibleVerses.length > 300 ? 300 : bibleVerses.length)}...');
+      } else {
+        print('LUMARA: ⚠️ No Bible verses returned (null or empty)');
       }
-    } catch (e) {
-      print('LUMARA: Error fetching Bible verses for streaming: $e');
+    } catch (e, stackTrace) {
+      print('LUMARA: ❌ Error fetching Bible verses for streaming: $e');
+      print('LUMARA: Stack trace: $stackTrace');
     }
 
     // Use Firebase proxy with chatId for per-chat rate limiting
@@ -647,11 +658,16 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
         print('LUMARA: Including Bible verses in streaming context');
       }
       
+      // Skip transformation for Bible questions to preserve [BIBLE_CONTEXT] instructions
+      final isBibleQuestion = userMessage.contains('[BIBLE_CONTEXT]') || userMessage.contains('[BIBLE_VERSE_CONTEXT]');
+      
       // Call Firebase proxy with chatId for rate limiting
       responseText = await geminiSend(
         system: systemPrompt,
         user: userMessage,
         chatId: currentChatSessionId, // For per-chat usage limit tracking
+        skipTransformation: isBibleQuestion, // Skip transformation to preserve Bible context instructions
+        intent: isBibleQuestion ? 'bible_query' : 'chat',
       );
 
       // Update the UI with the full response

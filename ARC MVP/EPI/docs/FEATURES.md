@@ -1,7 +1,7 @@
 # EPI MVP - Comprehensive Features Guide
 
-**Version:** 2.1.58
-**Last Updated:** December 18, 2025
+**Version:** 2.1.63
+**Last Updated:** January 8, 2025
 
 ---
 
@@ -209,6 +209,21 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
   - **In-Chat Responses**: Fixed 3 sentences per paragraph (simplified from variable 3-5)
   - **Consistent Structure**: Predictable paragraph organization for better mobile reading
   - **Performance Optimization**: Streamlined paragraph logic for improved response generation
+- **Bible Reference Retrieval** (v2.1.63): Automatic Bible verse and chapter retrieval using HelloAO Bible API
+  - **Intelligent Detection**: Comprehensive terminology library detects Bible-related queries (66 books, prophets, characters, events, concepts)
+  - **Automatic Verse Fetching**: When users ask about Bible topics, LUMARA automatically fetches relevant verses from HelloAO API
+  - **Character-to-Book Resolution**: Automatically resolves prophet/character names (e.g., "Habakkuk the prophet") to their corresponding Bible books
+  - **Multiple Formats Supported**: Handles specific verses ("John 3:16"), chapters ("Genesis 1"), books, or general topics
+  - **Translation Support**: Multiple Bible translations available (default: BSB - Berean Study Bible)
+  - **Privacy Protection**: Bible names whitelisted in PRISM to prevent false PII scrubbing
+  - **Context Preservation**: Bible questions automatically skip correlation-resistant transformation to preserve verse context
+  - **Usage Examples**:
+    - "Tell me about Habakkuk the prophet" → Fetches Habakkuk chapter 1
+    - "What does John 3:16 say?" → Fetches specific verse
+    - "What is the book of Romans about?" → Fetches Romans chapter 1
+    - "Tell me about the prophet Isaiah" → Fetches Isaiah chapter 1
+  - **API Integration**: Uses `bible.helloao.org` API for accurate, authoritative Bible content
+  - **Error Handling**: Graceful fallback to general context if API unavailable
 - **Web Access** (Opt-In): Safe, scoped web search when information unavailable internally
   - **10-Rule Safety Layer**: Comprehensive safety framework governing all web searches
     1. Primary Source Priority: Always prioritizes user's personal context (journal, chats, patterns) before web search
