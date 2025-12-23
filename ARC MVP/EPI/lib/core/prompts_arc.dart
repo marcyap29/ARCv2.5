@@ -43,7 +43,8 @@ Context:
 
 Instructions:
 - Answer directly with concise, well-structured sentences.
-- For in-journal reflections (`user_intent == reflect`), return 2–3 sentences unless the surface explicitly requests "More depth," in which case provide 3–5 sentences. Avoid bullet lists inside the journal surface.
+- There is NO LIMIT on response length. Provide thorough, complete answers that fully address the user's question or request. Use as many sentences as needed.
+- Avoid bullet lists inside the journal surface.
 - Tie suggestions back to the user's current themes when helpful.
 - Do not invent facts. If unknown, say so.
 
@@ -57,7 +58,7 @@ Instructions:
 - Use Google Search if needed to find information about the Bible topic.
 - Example: If [BIBLE_CONTEXT] says "User is asking about Habakkuk", respond about Habakkuk the prophet, not with a generic intro.
 
-Output: plain text (2–3 sentences for standard in-journal actions, 3–5 sentences for "More depth," 3–6 sentences for main chat).
+Output: plain text with NO LIMIT on length. Provide complete, thorough answers regardless of context (in-journal or chat).
 ''';
 
   static const sageEcho = r'''

@@ -1,6 +1,6 @@
 # EPI MVP - Comprehensive Features Guide
 
-**Version:** 2.1.63
+**Version:** 2.1.64
 **Last Updated:** January 8, 2025
 
 ---
@@ -662,6 +662,36 @@ All core features are production-ready and fully operational:
 - **Journal + ARCForm**: See your patterns visualized
 - **Phase + Insights**: Understand your life phases
 - **Export + Import**: Backup and restore your data
+
+### Google Drive Backup (v2.1.64)
+
+**Automatic Cloud Backups**
+- Connect your Google account to automatically backup journal data to Google Drive
+- Secure OAuth authentication with limited scope (only files created by app)
+- Choose a specific Google Drive folder for backups
+- Automatic token refresh on authentication failures
+
+**Backup Options**
+- **Format Selection**: Choose between ARCX (encrypted) or MCP/ZIP format
+- **Scheduled Backups**: Configure automatic backups at daily/weekly/monthly intervals
+- **Time Selection**: Set specific time for scheduled backups (HH:mm format)
+- **Manual Backup**: One-tap manual backup trigger from settings
+- **Export Integration**: Automatic upload after manual exports (if enabled and format matches)
+
+**Backup Management**
+- **Connection Status**: View connected Google account email
+- **Folder Selection**: Browse and select backup folder from Google Drive
+- **Last Backup Display**: See timestamp of last successful backup
+- **Progress Tracking**: Real-time progress updates during backup creation and upload
+- **Error Handling**: Automatic retry with exponential backoff on upload failures
+- **Notifications**: Success and error notifications for backup operations
+
+**Privacy & Security**
+- Limited OAuth scope (`drive.file` - only files created by app)
+- Backup files remain encrypted (ARCX format)
+- No data sent to Google beyond backup files
+- User can disconnect at any time
+- All settings stored locally
 
 ---
 

@@ -56,6 +56,7 @@ class BugReportDialog extends StatefulWidget {
 
 class _BugReportDialogState extends State<BugReportDialog> {
   final _descriptionController = TextEditingController();
+  final _focusNode = FocusNode();
   bool _shakeToReportEnabled = true;
   bool _isSubmitting = false;
   bool _includeDeviceInfo = true;
@@ -156,38 +157,72 @@ class _BugReportDialogState extends State<BugReportDialog> {
   @override
   void dispose() {
     _descriptionController.dispose();
+    _focusNode.dispose();
     super.dispose();
+  }
+  
+  void _dismissKeyboard() {
+    _focusNode.unfocus();
+  }
+  
+  void _closeDialog() {
+    _dismissKeyboard();
+    Navigator.of(context).pop();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        color: kcSurfaceColor,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      padding: EdgeInsets.only(
-        bottom: MediaQuery.of(context).viewInsets.bottom,
-      ),
-      child: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Handle bar
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[600],
-                    borderRadius: BorderRadius.circular(2),
-                  ),
+    return GestureDetector(
+      onTap: _dismissKeyboard,
+      behavior: HitTestBehavior.translucent,
+      child: Container(
+        decoration: const BoxDecoration(
+          color: kcSurfaceColor,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).viewInsets.bottom,
+        ),
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Back arrow and handle bar row
+                Row(
+                  children: [
+                    // Back arrow button
+                    IconButton(
+                      onPressed: _closeDialog,
+                      icon: const Icon(
+                        Icons.arrow_back,
+                        color: Colors.white,
+                        size: 24,
+                      ),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(
+                        minWidth: 40,
+                        minHeight: 40,
+                      ),
+                    ),
+                    const Spacer(),
+                    // Handle bar (centered)
+                    Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.grey[600],
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                    const Spacer(),
+                    // Spacer to balance the back button
+                    const SizedBox(width: 40),
+                  ],
                 ),
-              ),
-              const SizedBox(height: 24),
+                const SizedBox(height: 8),
               
               // Title
               const Text(
@@ -214,6 +249,7 @@ class _BugReportDialogState extends State<BugReportDialog> {
               // Description input
               TextField(
                 controller: _descriptionController,
+                focusNode: _focusNode,
                 maxLines: 4,
                 style: const TextStyle(color: Colors.white),
                 decoration: InputDecoration(
@@ -339,6 +375,7 @@ class _BugReportDialogState extends State<BugReportDialog> {
             ],
           ),
         ),
+      ),
       ),
     );
   }

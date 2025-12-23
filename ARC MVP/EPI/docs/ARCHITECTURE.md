@@ -1,8 +1,8 @@
 # EPI MVP - Architecture Overview
 
-**Version:** 2.1.63
+**Version:** 2.1.64
 **Last Updated:** January 8, 2025
-**Status:** ✅ Production Ready - MVP Fully Operational with Health Integration, AssemblyAI v3, Web Access Safety, Correlation-Resistant PII Protection & Bible Reference Retrieval
+**Status:** ✅ Production Ready - MVP Fully Operational with Health Integration, AssemblyAI v3, Web Access Safety, Correlation-Resistant PII Protection, Bible Reference Retrieval & Google Drive Backup
 
 ---
 
@@ -26,6 +26,7 @@ EPI (Evolving Personal Intelligence) is a Flutter-based intelligent journaling a
 - ✅ **LUMARA Web Access Safety Layer (v2.1.57)**: Comprehensive 10-rule safety framework for Google Search integration
 - ✅ **LUMARA Journal Context Order Fix (v2.1.58)**: Chronological context ordering - LUMARA only sees content above its position
 - ✅ **LUMARA Bible Reference Retrieval (v2.1.63)**: Automatic Bible verse and chapter retrieval using HelloAO Bible API with intelligent detection and privacy protection
+- ✅ **Google Drive Backup Integration (v2.1.64)**: Automatic cloud backups to Google Drive with OAuth authentication, scheduled backups, and export integration
 
 ### Current Version
 
@@ -57,6 +58,7 @@ EPI provides users with an intelligent journaling companion that:
 5. **Memory System**: Semantic memory graph with MCP-compliant storage
 6. **Privacy Protection**: On-device processing, PII detection, and encryption
 7. **Data Portability**: MCP export/import for AI ecosystem interoperability
+8. **Cloud Backup**: Google Drive integration for automatic and manual backups
 
 ---
 
@@ -152,6 +154,10 @@ The EPI system is organized into 5 core modules:
   - `services/reflective_query_service.dart` - EPI-standard reflective queries
   - `services/reflective_query_formatter.dart` - Response formatting
   - `services/bible_api_service.dart` - HelloAO Bible API integration
+  - `services/google_drive_service.dart` - Google Drive API integration with OAuth
+  - `services/backup_upload_service.dart` - Backup creation and upload orchestration
+  - `services/scheduled_backup_service.dart` - Periodic backup scheduling
+  - `services/google_drive_backup_settings_service.dart` - Persistent settings storage
   - `services/bible_retrieval_helper.dart` - Bible query detection and verse fetching
   - `services/bible_terminology_library.dart` - Comprehensive Bible terminology database
   - `models/reflective_query_models.dart` - Query result models
@@ -227,6 +233,7 @@ The EPI system is organized into 5 core modules:
 - Semantic graph construction
 - Export/import with extended data support
 - Secure key management
+- Google Drive cloud backup integration
 
 ---
 

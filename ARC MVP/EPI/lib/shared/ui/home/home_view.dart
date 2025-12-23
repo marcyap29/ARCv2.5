@@ -187,11 +187,11 @@ class _HomeViewState extends State<HomeView> {
                         // Clear any existing session cache
                         await JournalSessionCache.clearSession();
                         
-                        // Open journal capture view with voice mode activated
+                        // Open journal capture view
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => const JournalCaptureView(startWithVoice: true),
+                            builder: (context) => const JournalCaptureView(),
                           ),
                         );
                       },

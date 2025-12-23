@@ -64,7 +64,7 @@ class GeminiProvider extends LLMProviderBase {
       ],
       'generationConfig': {
         'temperature': 0.7,
-        'maxOutputTokens': 2048,  // Increased to 2048 to prevent MAX_TOKENS error with long responses
+        'maxOutputTokens': 8192,  // Maximum allowed by Gemini API - no length limit
         'topP': 0.8,
         'topK': 40,
       },

@@ -16,6 +16,8 @@ import 'package:my_app/arc/chat/services/favorites_service.dart';
 import 'package:my_app/services/phase_regime_service.dart';
 import 'package:my_app/services/rivet_sweep_service.dart';
 import 'package:my_app/services/analytics_service.dart';
+import 'package:my_app/services/google_drive_backup_settings_service.dart';
+import 'package:my_app/services/backup_upload_service.dart';
 import 'package:intl/intl.dart';
 
 /// MCP Export Screen - Create MCP Package (.mcpkg)
@@ -334,6 +336,10 @@ class _McpExportScreenState extends State<McpExportScreen> {
           if (result.arcxPath != null) {
             // File size update removed
           }
+          
+          // Check if Google Drive backup is enabled and trigger upload
+          _triggerGoogleDriveUploadIfEnabled(format: 'arcx');
+          
           _showArcSuccessDialogV2(result);
         } else {
           _showErrorDialog(result.error ?? 'ARCX export failed');
@@ -458,6 +464,9 @@ class _McpExportScreenState extends State<McpExportScreen> {
         if (result.success) {
           // Close progress dialog first
           Navigator.of(context).pop();
+          
+          // Check if Google Drive backup is enabled and trigger upload
+          _triggerGoogleDriveUploadIfEnabled(format: 'mcp');
           
           // Show success dialog with result
           // Use similar dialog style but customized for ZIP
@@ -785,6 +794,84 @@ class _McpExportScreenState extends State<McpExportScreen> {
         ],
       ),
     );
+  }
+
+  /// Trigger Google Drive upload if enabled
+  Future<void> _triggerGoogleDriveUploadIfEnabled({required String format}) async {
+    try {
+      final settingsService = GoogleDriveBackupSettingsService.instance;
+      await settingsService.initialize();
+
+      final isEnabled = await settingsService.isEnabled();
+      if (!isEnabled) {
+        return; // Google Drive backup not enabled
+      }
+
+      final folderId = await settingsService.getFolderId();
+      if (folderId == null) {
+        return; // No folder selected
+      }
+
+      // Check if format matches user's preference
+      final userFormat = await settingsService.getBackupFormat();
+      if (format != userFormat) {
+        return; // Format doesn't match user preference
+      }
+
+      // Trigger background upload
+      print('Google Drive Backup: Triggering upload after export');
+      final uploadService = BackupUploadService.instance;
+      
+      final analyticsService = AnalyticsService();
+      final rivetSweepService = RivetSweepService(analyticsService);
+      final phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
+      await phaseRegimeService.initialize();
+
+      final chatRepo = ChatRepoImpl.instance;
+      await chatRepo.initialize();
+
+      final journalRepo = context.read<JournalRepository>();
+
+      // Start upload in background (don't await - let it run async)
+      uploadService.createAndUploadBackup(
+        format: format,
+        journalRepo: journalRepo,
+        chatRepo: chatRepo,
+        phaseRegimeService: phaseRegimeService,
+      ).then((result) {
+        if (mounted && result.success) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Backup uploaded to Google Drive'),
+              backgroundColor: Colors.green,
+              duration: Duration(seconds: 3),
+            ),
+          );
+        } else if (mounted && result.error != null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Google Drive upload failed: ${result.error}'),
+              backgroundColor: Colors.orange,
+              duration: const Duration(seconds: 5),
+            ),
+          );
+        }
+      }).catchError((error) {
+        print('Google Drive Backup: Upload error: $error');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Google Drive upload error: $error'),
+              backgroundColor: Colors.orange,
+              duration: const Duration(seconds: 5),
+            ),
+          );
+        }
+      });
+    } catch (e) {
+      print('Google Drive Backup: Error checking upload settings: $e');
+      // Silently fail - don't interrupt export flow
+    }
   }
 
   @override

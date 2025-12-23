@@ -77,7 +77,7 @@ Previous assistant text:
 $previousAssistantReply
 """
 
-Only write the missing continuation (2–3 sentences). No recap, no new bullet list.
+Continue the response naturally with no limit on length. Complete the thought fully. No recap, no new bullet list.
 ''';
       }
 

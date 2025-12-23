@@ -18,6 +18,7 @@ import 'package:my_app/arc/chat/services/lumara_reflection_settings_service.dart
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:my_app/ui/subscription/subscription_management_view.dart';
 import 'package:my_app/services/firebase_auth_service.dart';
+import 'package:my_app/shared/ui/settings/google_drive_backup_settings_view.dart';
 
 class SettingsView extends StatefulWidget {
   const SettingsView({super.key});
@@ -303,6 +304,22 @@ class _SettingsViewState extends State<SettingsView> {
                       MaterialPageRoute(
                         builder: (context) => McpManagementScreen(
                           journalRepository: context.read<JournalRepository>(),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                _buildSettingsTile(
+                  context,
+                  title: 'Google Drive Backup',
+                  subtitle: 'Automatically backup to Google Drive',
+                  icon: Icons.cloud_upload,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => GoogleDriveBackupSettingsView(
+                          journalRepo: context.read<JournalRepository>(),
                         ),
                       ),
                     );

@@ -168,13 +168,8 @@ class LumaraResponseScoring {
       structurePenalty += 0.25;
       diagnostics.add("Too short (<2 sentences).");
     }
-    // Adjust length tolerance - allow longer responses for thorough answers
-    // Increased limits to match in-journal LUMARA: 4-8 sentences for thorough answers
-    final maxSentences = isAbstract ? 8 : 8; // Allow up to 8 sentences for thorough responses
-    if (nSent > maxSentences) {
-      structurePenalty += 0.1; // Reduced penalty - only penalize if extremely long (>8 sentences)
-      diagnostics.add("Very long (>$maxSentences sentences) - consider if all content is necessary.");
-    }
+    // NO LIMIT on response length - remove all length penalties
+    // Responses can be as long as needed to fully address the user's question
     
     final qCount = '?'.allMatches(input.candidate).length;
     // Calculate expected questions based on phase, entry type, and abstract register

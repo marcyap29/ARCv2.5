@@ -1,6 +1,6 @@
 # EPI ARC MVP - Changelog
 
-**Version:** 2.1.63
+**Version:** 2.1.64
 **Last Updated:** January 8, 2025
 
 ---
@@ -14,6 +14,48 @@ This changelog has been split into parts for easier navigation:
 | **[CHANGELOG_part1.md](CHANGELOG_part1.md)** | Dec 2025 | v2.1.43 - v2.1.53 (Current) |
 | **[CHANGELOG_part2.md](CHANGELOG_part2.md)** | Nov 2025 | v2.1.28 - v2.1.42 |
 | **[CHANGELOG_part3.md](CHANGELOG_part3.md)** | Jan-Oct 2025 | v2.0.0 - v2.1.27 & Earlier |
+
+---
+
+## [2.1.64] - January 8, 2025
+
+### **Google Drive Backup Integration** - ✅ Complete
+
+- **Automatic Cloud Backups**: Users can now automatically backup their journal data to Google Drive
+- **OAuth Authentication**: Secure Google account connection with limited scope (`drive.file` - only files created by app)
+- **Folder Selection**: Users can choose a specific Google Drive folder for backups
+- **Backup Format Options**: Choose between ARCX (encrypted) or MCP/ZIP format
+- **Scheduled Backups**: Configure automatic backups (daily/weekly/monthly) at a specific time
+- **Manual Backup Trigger**: One-tap manual backup from settings
+- **Background Uploads**: Backups upload in the background with progress tracking
+- **Retry Logic**: Automatic retry with exponential backoff on upload failures
+- **Export Integration**: Automatic upload trigger after manual exports (if enabled and format matches)
+- **Implementation**:
+  - `lib/services/google_drive_service.dart`: Google Drive API integration with OAuth
+  - `lib/services/backup_upload_service.dart`: Backup creation and upload orchestration
+  - `lib/services/scheduled_backup_service.dart`: Periodic backup scheduling
+  - `lib/services/google_drive_backup_settings_service.dart`: Persistent settings storage
+  - `lib/shared/ui/settings/google_drive_backup_settings_view.dart`: Settings UI
+  - `lib/main/bootstrap.dart`: Scheduled backup initialization on app startup
+  - `lib/ui/export_import/mcp_export_screen.dart`: Export completion upload trigger
+  - `lib/shared/ui/settings/settings_view.dart`: Settings integration
+- **Features**:
+  - Connect/disconnect Google account
+  - Select backup folder from Google Drive
+  - Choose backup format (ARCX or MCP/ZIP)
+  - Enable/disable scheduled backups
+  - Set backup frequency (daily/weekly/monthly)
+  - Set backup time (HH:mm format)
+  - Manual backup trigger
+  - Last backup timestamp display
+  - Progress tracking during upload
+  - Error notifications
+  - Automatic token refresh on authentication failures
+
+**Status**: ✅ Complete  
+**Dependencies Added**:
+- `googleapis: ^13.0.0`
+- `googleapis_auth: ^1.6.0`
 
 ---
 
