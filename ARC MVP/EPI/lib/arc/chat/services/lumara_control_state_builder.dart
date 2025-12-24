@@ -584,7 +584,109 @@ class LumaraControlStateBuilder {
       return 'therapist';
     }
     
-    // Priority 4: High readiness + high energy - consider strategist or challenger
+    // Priority 4: Support requests - balance between companion/therapist, companion/strategist, and challenger
+    if (questionText != null && questionText.trim().isNotEmpty) {
+      final lower = questionText.toLowerCase();
+      
+      final supportPatterns = [
+        'i need support', 'i need help', 'support me',
+        'i\'m struggling', 'i\'m having trouble', 'i can\'t',
+        'feeling overwhelmed', 'feeling lost', 'feeling stuck',
+        'don\'t know what to do', 'need guidance', 'need someone',
+      ];
+      
+      // Emotional support patterns → therapist or companion
+      final emotionalSupportPatterns = [
+        'feel', 'emotion', 'feeling', 'hurt', 'pain', 'sad',
+        'anxious', 'worried', 'scared', 'afraid', 'lonely',
+        'depressed', 'overwhelmed', 'exhausted', 'tired',
+        'can\'t cope', 'can\'t handle', 'too much',
+      ];
+      
+      // Practical support patterns → strategist or companion
+      final practicalSupportPatterns = [
+        'how do i', 'what should i do', 'what steps',
+        'need to', 'have to', 'must', 'should i',
+        'decision', 'choose', 'pick', 'option',
+        'figure out', 'solve', 'fix', 'handle',
+        'get started', 'begin', 'start',
+      ];
+      
+      // Accountability/growth-pushing support → challenger
+      final challengerSupportPatterns = [
+        'push me', 'hold me accountable', 'keep me accountable',
+        'challenge me', 'call me out', 'be direct',
+        'tell me what i\'m avoiding', 'what am i avoiding',
+        'i need to be pushed', 'i need accountability',
+        'i\'m making excuses', 'i\'m procrastinating',
+        'call me on', 'be honest with me', 'don\'t let me',
+      ];
+      
+      // Check for support requests
+      if (supportPatterns.any((pattern) => lower.contains(pattern))) {
+        // If accountability/growth-pushing language → challenger
+        if (challengerSupportPatterns.any((pattern) => lower.contains(pattern))) {
+          print('LUMARA Control State: Accountability support request → Challenger');
+          return 'challenger';
+        }
+        // If emotional language present → therapist or companion
+        if (emotionalSupportPatterns.any((pattern) => lower.contains(pattern))) {
+          // High distress → therapist, moderate → companion
+          if (lower.contains('can\'t cope') || lower.contains('too much') || 
+              lower.contains('overwhelmed') || lower.contains('exhausted')) {
+            print('LUMARA Control State: Emotional support request (high distress) → Therapist');
+            return 'therapist';
+          }
+          print('LUMARA Control State: Emotional support request → Companion');
+          return 'companion';
+        }
+        // If practical language present → strategist or companion
+        if (practicalSupportPatterns.any((pattern) => lower.contains(pattern))) {
+          // Clear action needed → strategist, general guidance → companion
+          if (lower.contains('what steps') || lower.contains('how do i') ||
+              lower.contains('figure out') || lower.contains('solve')) {
+            print('LUMARA Control State: Practical support request (action needed) → Strategist');
+            return 'strategist';
+          }
+          print('LUMARA Control State: Practical support request → Companion');
+          return 'companion';
+        }
+        // General support request → companion (balanced, adaptive)
+        print('LUMARA Control State: General support request → Companion');
+        return 'companion';
+      }
+    }
+    
+    // Priority 5: Explicit advice requests (even if not caught by question detection)
+    // Check question text for explicit advice patterns if available
+    if (questionText != null && questionText.trim().isNotEmpty) {
+      final lower = questionText.toLowerCase();
+      final explicitAdvicePatterns = [
+        'tell me your thoughts', 'what do you think', 'what are your thoughts',
+        'give me the hard truth', 'be honest', 'tell me straight',
+        'what\'s your opinion', 'what\'s your take', 'what\'s your view',
+        'am i missing anything', 'what am i missing', 'what\'s missing',
+        'give me recommendations', 'what would you recommend', 'what do you recommend',
+        'review this', 'analyze this', 'critique this',
+        'is this reasonable', 'does this sound right', 'what\'s wrong with this',
+        'give me advice', 'what should i do', 'help me decide',
+      ];
+      
+      if (explicitAdvicePatterns.any((pattern) => lower.contains(pattern))) {
+        // If asking for "hard truth" or direct feedback → challenger
+        if (lower.contains('hard truth') || lower.contains('be honest') || 
+            lower.contains('tell me straight') || lower.contains('direct') ||
+            lower.contains('what\'s wrong') || lower.contains('critique')) {
+          print('LUMARA Control State: Explicit advice request detected → Challenger');
+          return 'challenger';
+        }
+        // Otherwise → strategist for analytical/process-oriented advice
+        print('LUMARA Control State: Explicit advice request detected → Strategist');
+        return 'strategist';
+      }
+    }
+    
+    // Priority 6: High readiness + high energy - consider strategist or challenger
     if (readinessScore > 70 && energyLevel > 0.7) {
       // Morning with high energy = good for challenger
       if (timeOfDay == 'morning' && readinessScore > 80) {
@@ -596,12 +698,12 @@ class LumaraControlStateBuilder {
       }
     }
     
-    // Priority 5: Analytical context - use strategist
+    // Priority 7: Analytical context - use strategist
     if (emotionalTone == 'analytical' || emotionalTone == 'curious') {
       return 'strategist';
     }
     
-    // Priority 6: Evening/night or low energy - use companion
+    // Priority 8: Evening/night or low energy - use companion
     if (timeOfDay == 'night' || timeOfDay == 'evening') {
       return 'companion';
     }
@@ -620,6 +722,30 @@ class LumaraControlStateBuilder {
     
     final lower = question.toLowerCase();
     
+    // Explicit advice/opinion requests → prioritize strategist or challenger
+    final explicitAdvicePatterns = [
+      'tell me your thoughts', 'what do you think', 'what are your thoughts',
+      'give me the hard truth', 'be honest', 'tell me straight',
+      'what\'s your opinion', 'what\'s your take', 'what\'s your view',
+      'am i missing anything', 'what am i missing', 'what\'s missing',
+      'give me recommendations', 'what would you recommend', 'what do you recommend',
+      'review this', 'analyze this', 'critique this',
+      'is this reasonable', 'does this sound right', 'what\'s wrong with this',
+      'give me advice', 'what should i do', 'help me decide',
+    ];
+    
+    // Check for explicit advice requests first (high priority)
+    if (explicitAdvicePatterns.any((pattern) => lower.contains(pattern))) {
+      // If asking for "hard truth" or direct feedback → challenger
+      if (lower.contains('hard truth') || lower.contains('be honest') || 
+          lower.contains('tell me straight') || lower.contains('direct') ||
+          lower.contains('what\'s wrong') || lower.contains('critique')) {
+        return 'challenger';
+      }
+      // Otherwise → strategist for analytical/process-oriented advice
+      return 'strategist';
+    }
+    
     // Strategic/Analytical questions → strategist
     final strategistPatterns = [
       'how should', 'what strategy', 'analyze', 'plan',
@@ -636,10 +762,77 @@ class LumaraControlStateBuilder {
       'push me', 'what am i missing', 'blind spot',
       'what am i not seeing', 'hard truth', 'direct',
       'what am i wrong', 'call me out',
+      'hold me accountable', 'keep me accountable',
+      'i need accountability', 'i need to be pushed',
+      'i\'m making excuses', 'i\'m procrastinating',
+      'call me on', 'be honest with me', 'don\'t let me',
     ];
     if (challengerPatterns.any((pattern) => lower.contains(pattern))) {
       return 'challenger';
     }
+    
+    // Support requests - need to distinguish emotional vs practical
+    final supportPatterns = [
+      'i need support', 'i need help', 'support me',
+      'i\'m struggling', 'i\'m having trouble', 'i can\'t',
+      'feeling overwhelmed', 'feeling lost', 'feeling stuck',
+      'don\'t know what to do', 'need guidance', 'need someone',
+    ];
+    
+    // Emotional support patterns → therapist or companion
+    final emotionalSupportPatterns = [
+      'feel', 'emotion', 'feeling', 'hurt', 'pain', 'sad',
+      'anxious', 'worried', 'scared', 'afraid', 'lonely',
+      'depressed', 'overwhelmed', 'exhausted', 'tired',
+      'can\'t cope', 'can\'t handle', 'too much',
+    ];
+    
+      // Practical support patterns → strategist or companion
+      final practicalSupportPatterns = [
+        'how do i', 'what should i do', 'what steps',
+        'need to', 'have to', 'must', 'should i',
+        'decision', 'choose', 'pick', 'option',
+        'figure out', 'solve', 'fix', 'handle',
+        'get started', 'begin', 'start',
+      ];
+      
+      // Accountability/growth-pushing support → challenger
+      final challengerSupportPatterns = [
+        'push me', 'hold me accountable', 'keep me accountable',
+        'challenge me', 'call me out', 'be direct',
+        'tell me what i\'m avoiding', 'what am i avoiding',
+        'i need to be pushed', 'i need accountability',
+        'i\'m making excuses', 'i\'m procrastinating',
+        'call me on', 'be honest with me', 'don\'t let me',
+      ];
+      
+      // Check for support requests
+      if (supportPatterns.any((pattern) => lower.contains(pattern))) {
+        // If accountability/growth-pushing language → challenger
+        if (challengerSupportPatterns.any((pattern) => lower.contains(pattern))) {
+          return 'challenger';
+        }
+        // If emotional language present → therapist or companion
+        if (emotionalSupportPatterns.any((pattern) => lower.contains(pattern))) {
+          // High distress → therapist, moderate → companion
+          if (lower.contains('can\'t cope') || lower.contains('too much') || 
+              lower.contains('overwhelmed') || lower.contains('exhausted')) {
+            return 'therapist';
+          }
+          return 'companion';
+        }
+        // If practical language present → strategist or companion
+        if (practicalSupportPatterns.any((pattern) => lower.contains(pattern))) {
+          // Clear action needed → strategist, general guidance → companion
+          if (lower.contains('what steps') || lower.contains('how do i') ||
+              lower.contains('figure out') || lower.contains('solve')) {
+            return 'strategist';
+          }
+          return 'companion';
+        }
+        // General support request → companion (balanced, adaptive)
+        return 'companion';
+      }
     
     // Therapeutic questions → therapist
     final therapistPatterns = [

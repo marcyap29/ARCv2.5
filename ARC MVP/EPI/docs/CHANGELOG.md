@@ -1,6 +1,6 @@
 # EPI ARC MVP - Changelog
 
-**Version:** 2.1.65
+**Version:** 2.1.66
 **Last Updated:** January 8, 2025
 
 ---
@@ -14,6 +14,38 @@ This changelog has been split into parts for easier navigation:
 | **[CHANGELOG_part1.md](CHANGELOG_part1.md)** | Dec 2025 | v2.1.43 - v2.1.53 (Current) |
 | **[CHANGELOG_part2.md](CHANGELOG_part2.md)** | Nov 2025 | v2.1.28 - v2.1.42 |
 | **[CHANGELOG_part3.md](CHANGELOG_part3.md)** | Jan-Oct 2025 | v2.0.0 - v2.1.27 & Earlier |
+
+---
+
+## [2.1.66] - January 8, 2025
+
+### **LUMARA Explicit Request & Support Detection** - ✅ Complete
+
+- **Explicit Request Mode**: LUMARA now detects when users explicitly ask for opinions, recommendations, or critical analysis and responds directly with substantive feedback instead of defaulting to reflection-only
+- **Enhanced Persona Selection for Advice Requests**: When explicit advice is requested, the system automatically selects Strategist or Challenger persona to provide more direct, actionable feedback
+- **Support Request Detection**: New intelligent detection system that routes users to appropriate personas based on support type:
+  - **Emotional Support** (feeling overwhelmed, anxious, sad) → Therapist (high distress) or Companion (moderate)
+  - **Practical Support** (how to do something, what steps) → Strategist (action needed) or Companion (general guidance)
+  - **Accountability Support** (need to be pushed, held accountable) → Challenger
+- **Process & Task-Friendly**: LUMARA now focuses on helping users accomplish their goals when explicitly asked, providing direct opinions, critical analysis, and concrete recommendations
+- **Improved Context Relevance**: When providing explicit advice, LUMARA focuses on the current request rather than pulling in irrelevant historical journal entries
+- **Implementation**:
+  - `lib/arc/chat/services/lumara_control_state_builder.dart`: Enhanced persona auto-detection with explicit request and support pattern recognition
+  - `lib/arc/chat/llm/prompts/lumara_master_prompt.dart`: Added "Explicit Request Mode" section (Section 5) with comprehensive detection patterns and response guidelines
+  - `functions/src/functions/sendChatMessage.ts`: Added explicit request handling instructions to system prompt
+- **Features**:
+  - Detects explicit advice requests: "Tell me your thoughts", "Give me the hard truth", "What's your opinion", "Am I missing anything", "Give me recommendations", etc.
+  - Routes "hard truth" requests to Challenger persona
+  - Routes other explicit advice to Strategist persona
+  - Detects support requests and routes to appropriate persona (Therapist/Companion/Strategist/Challenger)
+  - Provides direct opinions, critical analysis, and concrete recommendations when explicitly requested
+  - Focuses on current request context, not irrelevant historical entries
+
+**Status**: ✅ Complete  
+**Files Modified**:
+- `lib/arc/chat/services/lumara_control_state_builder.dart` - Enhanced persona detection
+- `lib/arc/chat/llm/prompts/lumara_master_prompt.dart` - Added explicit request mode
+- `functions/src/functions/sendChatMessage.ts` - Added explicit request handling
 
 ---
 
