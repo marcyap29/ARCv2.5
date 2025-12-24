@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
-import 'package:my_app/shared/ui/settings/sync_settings_section.dart';
 import 'package:my_app/shared/ui/settings/privacy_settings_view.dart';
 import 'package:my_app/shared/ui/settings/memory_mode_settings_view.dart';
 import 'package:my_app/shared/ui/settings/memory_snapshot_management_view.dart';
@@ -18,7 +17,7 @@ import 'package:my_app/arc/chat/services/lumara_reflection_settings_service.dart
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:my_app/ui/subscription/subscription_management_view.dart';
 import 'package:my_app/services/firebase_auth_service.dart';
-import 'package:my_app/shared/ui/settings/google_drive_backup_settings_view.dart';
+import 'package:my_app/shared/ui/settings/local_backup_settings_view.dart';
 
 class SettingsView extends StatefulWidget {
   const SettingsView({super.key});
@@ -311,14 +310,14 @@ class _SettingsViewState extends State<SettingsView> {
                 ),
                 _buildSettingsTile(
                   context,
-                  title: 'Google Drive Backup',
-                  subtitle: 'Automatically backup to Google Drive',
-                  icon: Icons.cloud_upload,
+                  title: 'Local Backup',
+                  subtitle: 'Backup to local folder on device',
+                  icon: Icons.folder,
                   onTap: () {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => GoogleDriveBackupSettingsView(
+                        builder: (context) => LocalBackupSettingsView(
                           journalRepo: context.read<JournalRepository>(),
                         ),
                       ),
@@ -655,11 +654,6 @@ class _SettingsViewState extends State<SettingsView> {
                 ),
               ],
             ),
-
-            const SizedBox(height: 32),
-
-            // Sync Settings Section
-            const SyncSettingsSection(),
 
             const SizedBox(height: 32),
 

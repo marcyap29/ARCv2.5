@@ -176,20 +176,20 @@ class _BugReportDialogState extends State<BugReportDialog> {
       onTap: _dismissKeyboard,
       behavior: HitTestBehavior.translucent,
       child: Container(
-        decoration: const BoxDecoration(
-          color: kcSurfaceColor,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.of(context).viewInsets.bottom,
-        ),
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
+      decoration: const BoxDecoration(
+        color: kcSurfaceColor,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
+      child: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
                 // Back arrow and handle bar row
                 Row(
                   children: [
@@ -210,18 +210,18 @@ class _BugReportDialogState extends State<BugReportDialog> {
                     const Spacer(),
                     // Handle bar (centered)
                     Container(
-                      width: 40,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: Colors.grey[600],
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[600],
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
                     const Spacer(),
                     // Spacer to balance the back button
                     const SizedBox(width: 40),
                   ],
-                ),
+              ),
                 const SizedBox(height: 8),
               
               // Title
@@ -374,8 +374,8 @@ class _BugReportDialogState extends State<BugReportDialog> {
               const SizedBox(height: 16),
             ],
           ),
+          ),
         ),
-      ),
       ),
     );
   }

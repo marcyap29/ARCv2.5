@@ -2192,14 +2192,14 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
                                   size: 18,
                                 ),
                                 tooltip: 'Private Notes',
-                                padding: const EdgeInsets.all(4),
-                                constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                          padding: const EdgeInsets.all(4),
+                          constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
                                 style: IconButton.styleFrom(
                                   backgroundColor: _showPrivateNotes 
                                     ? theme.colorScheme.primary.withOpacity(0.2)
                                     : null,
                                 ),
-                              ),
+                        ),
                               
                               // Keyword toggle button
                               IconButton(

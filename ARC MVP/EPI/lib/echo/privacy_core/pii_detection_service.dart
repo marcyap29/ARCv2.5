@@ -69,7 +69,7 @@ class PIIDetectionService {
     'davis', 'rodriguez', 'martinez', 'hernandez', 'lopez', 'gonzalez',
     'wilson', 'anderson', 'thomas', 'taylor', 'moore', 'jackson', 'martin'
   ];
-  
+
   // Bible names whitelist - these should NEVER be scrubbed as PII
   static const List<String> _bibleNamesWhitelist = [
     // Old Testament characters

@@ -49,9 +49,9 @@ class EnhancedLumaraApi {
   final ChatRepo _chatRepo = ChatRepoImpl.instance;
 
   static const String _standardReflectionLengthRule =
-      'Provide a thorough, complete response that fully addresses the user\'s question or request. There is no limit on response length - use as many sentences as needed to provide comprehensive, thoughtful engagement. Avoid bullet points.';
+      'Provide a comprehensive, detailed response of 5-6 paragraphs (approximately 15-25 sentences). Draw connections to past journal entries when relevant. Use historical context to show patterns, evolution, and continuity in the user\'s experience. There is no limit on response length - be thorough and detailed. Avoid bullet points. **REFLECTION DISCIPLINE**: Default to reflection-first, but feel free to offer gentle guidance, suggestions, goals, or habits when they naturally emerge from the reflection and feel helpful. You may use language like "This might be a good time to..." or "You might consider..." when patterns suggest helpful directions. You may end with questions like "Does this resonate?" or "What do you want to do next?" when they feel natural.';
   static const String _deepReflectionLengthRule =
-      'Provide a rich, in-depth exploration with no limit on response length. Use as many sentences as needed to fully explore the topic and provide comprehensive reflection. Avoid bullet points.';
+      'Provide an extensive, in-depth exploration of 6-8 paragraphs (approximately 20-30 sentences). Actively reference and analyze past journal entries to show longitudinal patterns, thematic evolution, and meaningful connections. Use historical context extensively to provide rich, contextualized reflection. There is no limit on response length - be comprehensive and detailed. Avoid bullet points. **REFLECTION DISCIPLINE**: Default to reflection-first, but feel free to offer gentle guidance, suggestions, goals, or habits when they naturally emerge from the reflection and feel helpful. You may use language like "This might be a good time to..." or "You might consider..." when patterns suggest helpful directions. You may end with questions like "Does this resonate?" or "What do you want to do next?" when they feel natural.';
   
   // LLM Provider tracking (for logging only - we use geminiSend directly)
   LLMProviderBase? _llmProvider;
@@ -284,9 +284,9 @@ class EnhancedLumaraApi {
             contextParts.add('Circadian context: Time window: $window, Chronotype: $chronotype, Rhythm coherence: ${(rhythmScore * 100).toStringAsFixed(0)}%${isFragmented ? ' (fragmented)' : ''}');
           }
           
-          // Add earlier entries context
+          // Add earlier entries context - emphasize active use
           if (matches.isNotEmpty) {
-            contextParts.add('Historical context from earlier entries: ${matches.map((m) => 'From ${m.approxDate?.year}: ${m.excerpt}').join('\n')}');
+            contextParts.add('**HISTORICAL CONTEXT FROM EARLIER ENTRIES (USE ACTIVELY TO SHOW PATTERNS AND CONNECTIONS)**:\n${matches.map((m) => 'From ${m.approxDate?.year}: ${m.excerpt}').join('\n\n')}\n\n**IMPORTANT**: Actively reference these past entries in your reflection to show patterns, evolution, and meaningful connections to the current entry.');
           }
           
           // Add chat context
@@ -328,23 +328,39 @@ class EnhancedLumaraApi {
                 modeInstruction = 'Resume the exact reflection that was interrupted. Continue the final idea without restarting context or repeating earlier lines. Pick up mid-sentence if needed.';
                 break;
             }
-            userPrompt = '$baseContext\n\n**FOCUS ON CURRENT ENTRY**: $modeInstruction Your response must stay focused on the CURRENT ENTRY marked above, not historical entries. Follow the ECHO structure (Empathize → Clarify → Highlight → Open). $lengthInstruction';
+            userPrompt = '$baseContext\n\n**COMPREHENSIVE REFLECTION**: $modeInstruction Provide 5-6 paragraphs that address the CURRENT ENTRY while actively drawing connections to past journal entries from the historical context. Use historical entries to show patterns, evolution, and meaningful connections. Follow the ECHO structure (Empathize → Clarify → Highlight → Open) with expanded detail. **REFLECTION DISCIPLINE**: Default to reflection-first, but feel free to offer gentle guidance, suggestions, goals, or habits when they naturally emerge from the reflection and feel helpful. You may end with questions when they feel natural. $lengthInstruction';
           } else if (request.options.regenerate) {
             // Regenerate: different rhetorical focus - FOCUS ON CURRENT ENTRY
-            userPrompt = '$baseContext\n\n**FOCUS ON CURRENT ENTRY**: Rebuild reflection from the CURRENT ENTRY marked above with different rhetorical focus. Randomly vary Highlight and Open while staying relevant to what the user just wrote. Keep empathy level constant. Follow ECHO structure. $_standardReflectionLengthRule';
+            userPrompt = '$baseContext\n\n**COMPREHENSIVE REFLECTION**: Rebuild reflection from the CURRENT ENTRY marked above with different rhetorical focus. Provide 5-6 paragraphs that actively reference past journal entries to show patterns and connections. Randomly vary Highlight and Open while staying relevant to what the user just wrote. Keep empathy level constant. Follow ECHO structure with expanded detail. **REFLECTION DISCIPLINE**: Default to reflection-first, but feel free to offer gentle guidance, suggestions, goals, or habits when they naturally emerge from the reflection and feel helpful. You may end with questions when they feel natural. $_standardReflectionLengthRule';
           } else if (request.options.toneMode == models.ToneMode.soft) {
             // Soften tone - FOCUS ON CURRENT ENTRY
-            userPrompt = '$baseContext\n\n**FOCUS ON CURRENT ENTRY**: Rewrite in gentler, slower rhythm about the CURRENT ENTRY marked above. Reduce question count to 1. Add permission language ("It\'s okay if this takes time."). Apply tone-softening rule for Recovery/Consolidation even if phase is unknown. Follow ECHO structure. $_standardReflectionLengthRule';
+            userPrompt = '$baseContext\n\n**COMPREHENSIVE REFLECTION**: Rewrite in gentler, slower rhythm about the CURRENT ENTRY marked above. Provide 5-6 paragraphs that draw connections to past journal entries for context and continuity. Add permission language ("It\'s okay if this takes time."). Apply tone-softening rule for Recovery/Consolidation even if phase is unknown. Follow ECHO structure with expanded detail. **REFLECTION DISCIPLINE**: Default to reflection-first, but feel free to offer gentle guidance, suggestions, goals, or habits when they naturally emerge from the reflection and feel helpful. You may end with questions when they feel natural. $_standardReflectionLengthRule';
           } else if (request.options.preferQuestionExpansion) {
             // More depth - FOCUS ON CURRENT ENTRY
-            userPrompt = '$baseContext\n\n**FOCUS ON CURRENT ENTRY**: Expand Clarify and Highlight steps for richer introspection about the CURRENT ENTRY marked above. Add 1 additional reflective link that relates to what the user just wrote. Follow ECHO structure with deeper exploration. $_deepReflectionLengthRule';
+            userPrompt = '$baseContext\n\n**COMPREHENSIVE REFLECTION**: Expand Clarify and Highlight steps for richer introspection about the CURRENT ENTRY marked above. Provide 6-8 paragraphs that extensively reference past journal entries to show patterns, evolution, and meaningful connections. Add multiple reflective links that connect the current entry to historical patterns and themes. Follow ECHO structure with deep, detailed exploration. **REFLECTION DISCIPLINE**: Default to reflection-first, but feel free to offer gentle guidance, suggestions, goals, or habits when they naturally emerge from the reflection and feel helpful. You may end with questions when they feel natural. $_deepReflectionLengthRule';
           } else {
             // Default: first activation with rich context - EMPHASIZE CURRENT ENTRY
             userPrompt = '''$baseContext
 
-**IMPORTANT INSTRUCTION**: Focus your reflection PRIMARILY on the CURRENT ENTRY marked above. The historical context is provided only for background understanding of patterns and themes. Your reflection must be directly relevant to and address the specific subject, situation, and emotions expressed in the CURRENT ENTRY.
+**IMPORTANT INSTRUCTION**: Provide a comprehensive reflection of 5-6 paragraphs that:
+1. Addresses the CURRENT ENTRY as the primary focus
+2. ACTIVELY references and draws connections to past journal entries from the historical context
+3. Shows patterns, themes, and evolution across the user's journal history
+4. Uses historical entries to provide deeper context and meaning to the current entry
 
-Follow the ECHO structure (Empathize → Clarify → Highlight → Open) and include 1-2 clarifying expansion questions that help deepen the reflection about the CURRENT ENTRY. Consider the mood, phase, circadian context, recent chats, and any media when crafting questions that feel personally relevant and timely to what the user just wrote. Be thoughtful and allow for meaningful engagement. $_standardReflectionLengthRule''';
+The historical context is not just background - it is essential material for understanding patterns, showing continuity, and providing rich, contextualized reflection. Draw explicit connections between the current entry and past entries when relevant.
+
+**REFLECTION DISCIPLINE**:
+- Your primary role is sense-making through reflection. Reflect lived experience accurately. Surface patterns. Situate moments within a larger arc.
+- You are encouraged to offer gentle guidance, suggestions, goals, or habits when they naturally emerge from the reflection and feel helpful.
+- You may use language like "This might be a good time to...", "You might consider...", or "It could be helpful to..." when patterns suggest helpful directions.
+- Reference past entries for continuity and to suggest helpful directions when patterns emerge (e.g., "You previously set goals to..." or "This might be a good time to return to..." when relevant).
+- Use SAGE internally to structure understanding, but do NOT label sections or turn it into an improvement framework.
+- Growth may be framed as emerging awareness or as natural next steps when patterns suggest them.
+- You may end with questions like "Does this resonate?" or "What do you want to do next?" when they feel natural and helpful.
+- If guidance is not explicitly requested, do not provide it. When uncertain, reflect and stop.
+
+Follow the ECHO structure (Empathize → Clarify → Highlight → Open) but expand each section with detail. Include connections to past entries in your Highlight section. Consider the mood, phase, circadian context, recent chats, and any media when crafting your reflection. Be thorough, detailed, and comprehensive. $_standardReflectionLengthRule''';
           }
           
           // Use Gemini API directly via geminiSend() - same as main LUMARA chat
@@ -363,9 +379,9 @@ Follow the ECHO structure (Empathize → Clarify → Highlight → Open) and inc
             '**CURRENT ENTRY (PRIMARY FOCUS)**: ${request.userText}',
             // Add blank line separator
             '',
-            // Add recent entries as secondary context with reduced weight
-            '**HISTORICAL CONTEXT (REFERENCE ONLY)**:',
-            ...recentJournalEntries.map((e) => '- ${e.content}').take(15), // Reduce from 19 to 15 and mark as reference
+            // Add recent entries as important context for pattern recognition
+            '**HISTORICAL CONTEXT (USE ACTIVELY FOR PATTERNS AND CONNECTIONS)**:',
+            ...recentJournalEntries.map((e) => '- ${e.content}').take(20), // Increase to 20 entries for richer context
           ];
           
           // Combine provided chat context with recent chats

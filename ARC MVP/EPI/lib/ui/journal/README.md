@@ -9,7 +9,7 @@ This directory contains the new journaling experience that keeps users in the jo
 - Bottom sheet with 5 reflection options (ideas, think, perspective, next, analyze)
 - Inline reflection blocks that appear within the journal entry
 - Phase-aware responses (Recovery, Discovery, Breakthrough, Consolidation)
-- Action buttons: Regenerate, Soften tone, More depth, Continue with LUMARA
+- Action buttons: Regenerate, Soften tone, More depth, Continue thought, Explore conversation options (all re-integrated in expandable menu)
 
 ### **Page Scanning (Bring Your Own Journal)**
 - Scan physical journal pages with OCR

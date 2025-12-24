@@ -1,6 +1,6 @@
 # EPI ARC MVP - Changelog
 
-**Version:** 2.1.64
+**Version:** 2.1.65
 **Last Updated:** January 8, 2025
 
 ---
@@ -14,6 +14,52 @@ This changelog has been split into parts for easier navigation:
 | **[CHANGELOG_part1.md](CHANGELOG_part1.md)** | Dec 2025 | v2.1.43 - v2.1.53 (Current) |
 | **[CHANGELOG_part2.md](CHANGELOG_part2.md)** | Nov 2025 | v2.1.28 - v2.1.42 |
 | **[CHANGELOG_part3.md](CHANGELOG_part3.md)** | Jan-Oct 2025 | v2.0.0 - v2.1.27 & Earlier |
+
+---
+
+## [2.1.65] - January 8, 2025
+
+### **LUMARA Reflection Enhancements** - ✅ Complete
+
+- **Expanded Response Length**: LUMARA now provides comprehensive, detailed reflections of 5-6 paragraphs (15-25 sentences) for standard reflections, and 6-8 paragraphs (20-30 sentences) for deep reflections
+- **Enhanced Historical Context**: LUMARA actively references and draws connections to past journal entries, showing patterns, themes, and evolution across journal history
+- **Re-integrated Prompt Variants**: All reflection action buttons are now available in the expandable menu:
+  - Regenerate: Rebuild reflection with different rhetorical focus
+  - Soften tone: Gentler, slower rhythm with permission language
+  - More depth: Extensive 6-8 paragraph exploration with deeper introspection
+  - Continue thought: Resume interrupted reflections
+  - Explore conversation options: Access to all conversation modes (ideas, think, perspective, next steps, reflect deeply)
+- **Reflection Discipline Framework**: New comprehensive framework that preserves narrative dignity while allowing personas to express their natural guidance styles:
+  - Reflection-first approach: Guidance emerges naturally from reflection
+  - Persona integration: Each persona (Companion, Therapist, Strategist, Challenger) expresses guidance in their characteristic style
+  - Proactive guidance: LUMARA can offer goal/habit suggestions when patterns suggest helpful directions
+  - Temporal memory: Reference past entries for continuity and to suggest helpful directions
+  - Question discipline: Natural ending questions are encouraged when they feel helpful
+- **Persona-Guidance Integration**: Personas work WITH reflection discipline, not against it:
+  - **Companion**: Gentle, warm guidance ("This might be a good time to...")
+  - **Therapist**: Very gentle, permission-based guidance ("If it feels right, you might...")
+  - **Strategist**: Direct, concrete actions (2-4 steps based on pattern analysis)
+  - **Challenger**: Direct feedback, accountability, growth-pushing questions
+- **Implementation**:
+  - `lib/arc/chat/llm/prompts/lumara_master_prompt.dart`: Added Section 9 "Reflection Discipline" with persona integration
+  - `lib/arc/chat/services/enhanced_lumara_api.dart`: Updated all prompt variants with reflection discipline and expanded length requirements
+  - `lib/ui/journal/widgets/inline_reflection_block.dart`: Re-integrated all action buttons in expandable menu
+  - `functions/src/functions/generateJournalReflection.ts`: Updated Firebase function with reflection discipline rules
+- **Features**:
+  - Comprehensive 5-6 paragraph reflections (standard) or 6-8 paragraphs (deep)
+  - Active use of historical journal entries for pattern recognition
+  - All prompt variants accessible from journal reflection UI
+  - Guidance that emerges naturally from reflection
+  - Persona-specific guidance styles maintained
+  - Natural ending questions when appropriate
+  - Silence as valid ending when reflection feels complete
+
+**Status**: ✅ Complete  
+**Files Modified**:
+- `lib/arc/chat/llm/prompts/lumara_master_prompt.dart` - Added reflection discipline section
+- `lib/arc/chat/services/enhanced_lumara_api.dart` - Updated all prompt variants
+- `lib/ui/journal/widgets/inline_reflection_block.dart` - Re-integrated action buttons
+- `functions/src/functions/generateJournalReflection.ts` - Updated reflection prompts
 
 ---
 

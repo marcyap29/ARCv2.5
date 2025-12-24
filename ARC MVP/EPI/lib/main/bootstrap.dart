@@ -27,8 +27,8 @@ import 'package:my_app/arc/chat/chat/chat_category_models.dart';
 import 'package:my_app/arc/chat/data/models/lumara_favorite.dart';
 import 'package:my_app/services/firebase_service.dart';
 import 'package:my_app/services/firebase_auth_service.dart';
-import 'package:my_app/services/scheduled_backup_service.dart';
-import 'package:my_app/services/google_drive_backup_settings_service.dart';
+import 'package:my_app/services/scheduled_local_backup_service.dart';
+import 'package:my_app/services/local_backup_settings_service.dart';
 import 'package:my_app/arc/core/journal_repository.dart';
 import 'package:my_app/arc/chat/chat/chat_repo_impl.dart';
 import 'package:my_app/services/phase_regime_service.dart';
@@ -361,7 +361,7 @@ Future<void> bootstrap({
       // Log results
       logger.d('Initialization completed: Hive=$hiveInitialized, ${initializationResults.where((r) => r).length}/3 additional services successful');
 
-      // Initialize Google Drive scheduled backups (if enabled)
+      // Initialize local scheduled backups (if enabled)
       if (hiveInitialized) {
         try {
           await _initializeScheduledBackups();
@@ -860,7 +860,7 @@ Future<bool> _initializeAnalytics() async {
 /// Initialize Scheduled Backup service
 Future<void> _initializeScheduledBackups() async {
   try {
-    final settingsService = GoogleDriveBackupSettingsService.instance;
+    final settingsService = LocalBackupSettingsService.instance;
     await settingsService.initialize();
 
     final isEnabled = await settingsService.isEnabled();
@@ -881,7 +881,7 @@ Future<void> _initializeScheduledBackups() async {
       await phaseRegimeService.initialize();
 
       // Start scheduled backup service
-      await ScheduledBackupService.instance.start(
+      await ScheduledLocalBackupService.instance.start(
         journalRepo: journalRepo,
         chatRepo: chatRepo,
         phaseRegimeService: phaseRegimeService,

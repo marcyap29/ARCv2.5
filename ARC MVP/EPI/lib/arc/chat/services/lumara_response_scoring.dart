@@ -322,7 +322,6 @@ class LumaraResponseScoring {
     const conservativeEndings = [
       'What feels most important to you about this?',
       'Is there anything else you want to explore here?',
-      'What would be helpful to focus on next?',
       'How does this sit with you?',
     ];
     
