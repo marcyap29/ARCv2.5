@@ -1,6 +1,6 @@
 # EPI ARC MVP - Changelog
 
-**Version:** 2.1.66
+**Version:** 2.1.67
 **Last Updated:** January 8, 2025
 
 ---
@@ -14,6 +14,48 @@ This changelog has been split into parts for easier navigation:
 | **[CHANGELOG_part1.md](CHANGELOG_part1.md)** | Dec 2025 | v2.1.43 - v2.1.53 (Current) |
 | **[CHANGELOG_part2.md](CHANGELOG_part2.md)** | Nov 2025 | v2.1.28 - v2.1.42 |
 | **[CHANGELOG_part3.md](CHANGELOG_part3.md)** | Jan-Oct 2025 | v2.0.0 - v2.1.27 & Earlier |
+
+---
+
+## [2.1.67] - January 8, 2025
+
+### **LUMARA Response Length & Conversation Context Improvements** - ✅ Complete
+
+- **Removed Response Length Limits**: LUMARA responses now have no length restrictions - responses flow naturally to completion without artificial paragraph limits
+- **Removed Generic Extension Questions**: LUMARA no longer ends responses with generic extension questions like "Is there anything else you want to explore here?" - personas now ask questions only when genuinely relevant, not as a default ending
+- **Weighted Conversation Context for In-Journal Conversations**: New intelligent context weighting system that creates natural back-and-forth conversations:
+  - **Decreasing Weight by Recency**: Most recent exchange gets highest weight (1.0), with exponential decrease for older exchanges (0.8, 0.6, 0.4, etc.)
+  - **Recent Exchanges in Full Detail**: Last 3 exchanges included in full detail, older exchanges summarized (100-char preview)
+  - **Original Entry Text Weight Reduction**: Original entry text weight decreases as conversation grows (0.7 → 0.5 → 0.3) and is truncated to 500 chars for long conversations
+  - **Natural Back-and-Forth**: LUMARA now responds to the most recent 1-2 exchanges instead of re-summarizing the entire conversation from beginning to end
+  - **Context-Aware Instructions**: Clear weight indicators and instructions guide LUMARA to focus on recent exchanges while using older context only when relevant
+- **Document Analysis Guidance**: Added comprehensive document/technical analysis handling for explicit requests:
+  - Focus exclusively on provided content (not unrelated journal entries)
+  - Provide detailed, substantive analysis with no length limits
+  - Identify specific strengths, weaknesses, gaps, and risks
+  - Offer concrete recommendations
+  - No generic extension questions
+- **Implementation**:
+  - `lib/ui/journal/journal_screen.dart`: Implemented weighted context system in `_buildRichContext` with decreasing weights and summarization
+  - `lib/arc/chat/llm/prompts/lumara_master_prompt.dart`: Added "In-Journal Conversation Context (Weighted by Recency)" section, removed length limits, removed extension question guidance
+  - `lib/arc/chat/services/enhanced_lumara_api.dart`: Removed all length restrictions and extension hints from prompt constructions
+  - `functions/src/functions/sendChatMessage.ts`: Removed length limits, added document analysis guidance, removed extension questions
+  - `functions/src/functions/generateJournalReflection.ts`: Removed all length restrictions and extension hints
+- **Features**:
+  - No artificial response length limits - responses flow naturally
+  - Natural conversation flow with 1-2 turns of context
+  - Weighted context system prevents awkward re-summarization
+  - Personas ask questions only when genuinely relevant
+  - Document analysis provides comprehensive, detailed feedback
+  - Original entry text appropriately weighted based on conversation length
+
+**Status**: ✅ Complete  
+**Files Modified**:
+- `lib/ui/journal/journal_screen.dart` - Weighted context system
+- `lib/arc/chat/llm/prompts/lumara_master_prompt.dart` - Removed limits, added weighted context instructions
+- `lib/arc/chat/services/enhanced_lumara_api.dart` - Removed length restrictions
+- `functions/src/functions/sendChatMessage.ts` - Removed limits, added document analysis
+- `functions/src/functions/generateJournalReflection.ts` - Removed length restrictions
 
 ---
 

@@ -4509,75 +4509,105 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     if (currentBlockIndex != null && currentBlockIndex > 0 && _entryState.blocks.isNotEmpty) {
       final userCommentsBuffer = StringBuffer();
       
-      // Calculate sliding weight based on number of blocks
-      // More blocks = higher weight for user responses
-      final totalBlocks = _entryState.blocks.length;
-      final blocksWithUserComments = _entryState.blocks.where((b) => 
-        b.userComment != null && b.userComment!.trim().isNotEmpty
-      ).length;
+      // Calculate decreasing weight for older exchanges
+      // Most recent 1-2 exchanges get highest weight, older ones trail off
+      final totalBlocks = currentBlockIndex;
       
-      // Weight increases from 0.5 (1 block) to 1.0 (5+ blocks)
-      final conversationWeight = (0.5 + (totalBlocks * 0.1)).clamp(0.5, 1.0);
-      final userResponseWeight = (0.6 + (blocksWithUserComments * 0.08)).clamp(0.6, 1.0);
-      
-      userCommentsBuffer.writeln('\n\n=== CONTENT ABOVE THIS LUMARA RESPONSE (CHRONOLOGICAL ORDER - HIGH PRIORITY) ===');
+      userCommentsBuffer.writeln('\n\n=== RECENT CONVERSATION CONTEXT (DECREASING WEIGHT BY RECENCY) ===');
       userCommentsBuffer.writeln('This LUMARA response is at position ${currentBlockIndex + 1} in the entry.');
-      userCommentsBuffer.writeln('Below is ONLY the content that appears ABOVE this position (text and previous LUMARA responses).');
-      userCommentsBuffer.writeln('Content written BELOW this position is NOT included (chronologically comes after).');
-      userCommentsBuffer.writeln('Weight: ${conversationWeight.toStringAsFixed(2)}, User response weight: ${userResponseWeight.toStringAsFixed(2)}');
+      userCommentsBuffer.writeln('Focus on the MOST RECENT user comments (1-2 exchanges back) with HIGHEST WEIGHT.');
+      userCommentsBuffer.writeln('Older exchanges have DECREASING WEIGHT - use them for context only, not as primary focus.');
+      userCommentsBuffer.writeln('Do NOT re-summarize the entire conversation - respond to the most recent exchange.');
       userCommentsBuffer.writeln('');
       
-      // CRITICAL: Only include blocks that appear ABOVE the current block (chronologically before)
-      // Blocks with index < currentBlockIndex are above, blocks with index >= currentBlockIndex are below
+      // Calculate how many recent exchanges to include with full detail
+      // Include last 2-3 exchanges in full, summarize older ones
+      final recentExchangesToInclude = 3; // Include last 3 exchanges in full detail
+      final startIndex = totalBlocks > recentExchangesToInclude 
+          ? totalBlocks - recentExchangesToInclude 
+          : 0;
+      
+      // Process blocks with decreasing weight
       for (int i = 0; i < currentBlockIndex && i < _entryState.blocks.length; i++) {
         final block = _entryState.blocks[i];
+        final distanceFromCurrent = currentBlockIndex - i; // 1 = most recent, higher = older
+        final isRecent = distanceFromCurrent <= recentExchangesToInclude;
         
-        // Always include LUMARA's response from above (high weight)
-        if (block.content.isNotEmpty) {
-          userCommentsBuffer.writeln('\n[LUMARA Response ${i + 1} - ABOVE THIS POSITION]:');
-          userCommentsBuffer.writeln(block.content);
+        // Calculate weight: most recent = 1.0, decreases exponentially
+        // Weight formula: 1.0 for most recent, then 0.8, 0.6, 0.4, 0.2, etc.
+        final weight = distanceFromCurrent == 1 
+            ? 1.0 
+            : (1.0 - ((distanceFromCurrent - 1) * 0.2)).clamp(0.1, 1.0);
+        
+        if (isRecent) {
+          // Include recent exchanges in full detail with high weight
+          if (block.content.isNotEmpty) {
+            userCommentsBuffer.writeln('\n[LUMARA Response ${i + 1} - ${distanceFromCurrent} exchange(s) ago - Weight: ${weight.toStringAsFixed(2)}]:');
+            userCommentsBuffer.writeln(block.content);
+          }
+          
+          if (block.userComment != null && block.userComment!.trim().isNotEmpty) {
+            userCommentsBuffer.writeln('\n[USER Comment ${i + 1} - ${distanceFromCurrent} exchange(s) ago - Weight: ${weight.toStringAsFixed(2)}]:');
+            userCommentsBuffer.writeln(block.userComment);
+            if (distanceFromCurrent == 1) {
+              userCommentsBuffer.writeln('(HIGHEST PRIORITY - This is the most recent user input - address it directly)');
+            }
+          }
+          userCommentsBuffer.writeln('---');
+        } else {
+          // For older exchanges, include only brief summary or key points
+          if (block.userComment != null && block.userComment!.trim().isNotEmpty) {
+            // Include user comments even if old, but summarized
+            final commentPreview = block.userComment!.length > 100 
+                ? '${block.userComment!.substring(0, 100)}...' 
+                : block.userComment!;
+            userCommentsBuffer.writeln('\n[Earlier User Comment ${i + 1} - ${distanceFromCurrent} exchange(s) ago - Low Weight: ${weight.toStringAsFixed(2)} - Summary Only]:');
+            userCommentsBuffer.writeln(commentPreview);
+            userCommentsBuffer.writeln('(Context only - do not focus on this)');
+          }
         }
-        
-        // Include user comment/question from above with emphasis based on weight
-        if (block.userComment != null && block.userComment!.trim().isNotEmpty) {
-          userCommentsBuffer.writeln('\n[USER Response ${i + 1} - ABOVE THIS POSITION - HIGH PRIORITY (Weight: ${userResponseWeight.toStringAsFixed(2)})]:');
-          userCommentsBuffer.writeln(block.userComment);
-          userCommentsBuffer.writeln('(This user response is important - reference it in your answer)');
-        }
-        
-        userCommentsBuffer.writeln('---');
       }
       
       // Also include the current block's user comment if it exists (user just typed it)
       if (currentBlockIndex < _entryState.blocks.length) {
         final currentBlock = _entryState.blocks[currentBlockIndex];
         if (currentBlock.userComment != null && currentBlock.userComment!.trim().isNotEmpty) {
-          userCommentsBuffer.writeln('\n[CURRENT USER QUESTION/COMMENT - HIGHEST PRIORITY]:');
+          userCommentsBuffer.writeln('\n[CURRENT USER QUESTION/COMMENT - HIGHEST PRIORITY - Weight: 1.0]:');
           userCommentsBuffer.writeln(currentBlock.userComment);
-          userCommentsBuffer.writeln('(This is the most recent user input - address it directly)');
+          userCommentsBuffer.writeln('(This is the most recent user input - address it directly and focus your response here)');
           userCommentsBuffer.writeln('---');
         }
       }
       
-      // Prepend conversation history to baseEntryText with high priority marking
-      // CRITICAL: The original entry text below is ONLY the text that appears ABOVE this block position
-      // Text written after this block position is NOT included (chronologically incorrect)
+      // Adjust original entry text weight based on conversation length
+      // Longer conversations = lower weight on original entry text
+      final originalEntryWeight = totalBlocks > 3 
+          ? 0.3  // Low weight if conversation is long
+          : (totalBlocks > 1 ? 0.5 : 0.7); // Medium weight if some conversation, higher if just starting
+      
+      // Truncate original entry text if conversation is long
+      final originalEntryTextToInclude = totalBlocks > 3 && baseEntryText.length > 500
+          ? '${baseEntryText.substring(0, 500)}... (truncated - focus on recent conversation above)'
+          : baseEntryText;
+      
+      // Prepend conversation history to baseEntryText with weighted priority
       baseEntryText = '''${userCommentsBuffer.toString()}
 
-=== ORIGINAL JOURNAL ENTRY TEXT (ABOVE THIS POSITION ONLY - Reference - Lower Priority) ===
-$baseEntryText
+=== ORIGINAL JOURNAL ENTRY TEXT (Reference Only - Weight: ${originalEntryWeight.toStringAsFixed(2)}) ===
+$originalEntryTextToInclude
 
-=== CRITICAL INSTRUCTIONS - CHRONOLOGICAL ORDER ===
-1. PRIORITIZE the conversation history above (CONTENT ABOVE THIS POSITION) - it has HIGH WEIGHT
-2. The original journal entry text shown is ONLY text that appears ABOVE your response position
-3. You are responding at position ${currentBlockIndex + 1} - you can ONLY see content from positions 1-${currentBlockIndex}
-4. Content written BELOW your position (after you) is NOT visible to you - do not reference it
-5. User responses in the conversation have INCREASED WEIGHT as more responses accumulate
-6. Reference past entries (below) with LOWER WEIGHT - they are for context only
-7. Focus on the user's most recent questions/comments in the conversation history ABOVE you
-8. Build on the LUMARA responses that appear ABOVE you - reference and continue the conversation thread''';
+=== CRITICAL INSTRUCTIONS - WEIGHTED CONTEXT ===
+1. **HIGHEST PRIORITY**: Focus on the MOST RECENT user comment/question (1 exchange back) - Weight: 1.0
+2. **HIGH PRIORITY**: Reference the 2nd most recent exchange if relevant - Weight: 0.8
+3. **MEDIUM PRIORITY**: Use 3rd most recent exchange for context - Weight: 0.6
+4. **LOW PRIORITY**: Older exchanges (4+) are for background context only - Weight: 0.4 or less
+5. **ORIGINAL ENTRY**: The original journal entry text has Weight: ${originalEntryWeight.toStringAsFixed(2)} - use it for initial context only
+6. **DO NOT re-summarize** the entire conversation from beginning to end
+7. **DO create a natural back-and-forth** by responding to the most recent 1-2 exchanges
+8. **DO reference earlier context** only when directly relevant to the current exchange
+9. Build on the conversation thread naturally, like a real conversation with 1-2 turns of context''';
       
-      print('Journal: Included ${currentBlockIndex} previous LUMARA blocks with sliding weights (conversation: ${conversationWeight.toStringAsFixed(2)}, user responses: ${userResponseWeight.toStringAsFixed(2)})');
+      print('Journal: Included ${currentBlockIndex} previous blocks with decreasing weights (most recent: 1.0, original entry: ${originalEntryWeight.toStringAsFixed(2)})');
     }
     
     context['entryText'] = baseEntryText;
