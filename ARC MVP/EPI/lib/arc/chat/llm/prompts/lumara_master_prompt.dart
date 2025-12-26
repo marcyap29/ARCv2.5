@@ -6,7 +6,7 @@
 /// The control state combines signals from:
 /// - ATLAS (Readiness + Safety Sentinel)
 /// - VEIL (Tone Regulator + Rhythm Intelligence)
-/// - FAVORITES (Top 25 Reinforced Signature)
+/// - FAVORITES (Top 40 Reinforced Signature)
 /// - PRISM (Multimodal Cognitive Context)
 /// - THERAPY MODE (ECHO + SAGE)
 
@@ -190,7 +190,7 @@ VEIL determines HOW LUMARA shows up based on **rhythm, rest, capacity, and timin
 
 ------------------------------------------------------------
 
-C. FAVORITES (Top 25 Reinforced Signature)
+C. FAVORITES (Top 40 Reinforced Signature)
 
 ------------------------------------------------------------
 

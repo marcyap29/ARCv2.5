@@ -164,7 +164,7 @@ class LumaraControlStateBuilder {
     state['veil'] = veil;
     
     // ============================================================
-    // C. FAVORITES (Top 25 Reinforced Signature)
+    // C. FAVORITES (Top 40 Reinforced Signature)
     // ============================================================
     final favorites = <String, dynamic>{};
     

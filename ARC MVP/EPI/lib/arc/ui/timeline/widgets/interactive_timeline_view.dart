@@ -3602,7 +3602,7 @@ class _FavoriteBookmarkButtonState extends State<_FavoriteBookmarkButton> {
         // Favorite
         final isAtCapacity = await _favoritesService.isCategoryAtCapacity('journal_entry');
         if (isAtCapacity) {
-          _showCapacityPopup();
+          _showCapacityPopup(context);
           return;
         }
 
@@ -3641,10 +3641,11 @@ class _FavoriteBookmarkButtonState extends State<_FavoriteBookmarkButton> {
             ),
           );
         } else if (mounted) {
+          final limit = await _favoritesService.getCategoryLimit('journal_entry');
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Cannot favorite entry - at capacity (20/20)'),
-              duration: Duration(seconds: 2),
+            SnackBar(
+              content: Text('Cannot favorite entry - at capacity ($limit/$limit)'),
+              duration: const Duration(seconds: 2),
               backgroundColor: Colors.orange,
             ),
           );
@@ -3663,13 +3664,15 @@ class _FavoriteBookmarkButtonState extends State<_FavoriteBookmarkButton> {
     }
   }
 
-  void _showCapacityPopup() {
+  Future<void> _showCapacityPopup(BuildContext context) async {
+    final limit = await _favoritesService.getCategoryLimit('journal_entry');
+    if (!mounted) return;
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Favorite Entries Full'),
-        content: const Text(
-          'You have reached the maximum of 20 favorite journal entries. Please remove some favorites before adding new ones.',
+        content: Text(
+          'You have reached the maximum of $limit favorite journal entries. Please remove some favorites before adding new ones.',
         ),
         actions: [
           TextButton(

@@ -30,6 +30,9 @@ class _SettingsViewState extends State<SettingsView> {
   int _favoritesCount = 0;
   int _savedChatsCount = 0;
   int _favoriteEntriesCount = 0;
+  int _answersLimit = 25;
+  int _chatsLimit = 25;
+  int _entriesLimit = 25;
   bool _favoritesCountLoaded = false;
   bool _voiceoverEnabled = false;
   bool _voiceoverLoading = true;
@@ -140,11 +143,20 @@ class _SettingsViewState extends State<SettingsView> {
   Future<void> _loadFavoritesCount() async {
     try {
       await FavoritesService.instance.initialize();
+      
+      // Load subscription-based limits
+      final answersLimit = await FavoritesService.instance.getCategoryLimit('answer');
+      final chatsLimit = await FavoritesService.instance.getCategoryLimit('chat');
+      final entriesLimit = await FavoritesService.instance.getCategoryLimit('journal_entry');
+      
       final answersCount = await FavoritesService.instance.getCountByCategory('answer');
       final chatsCount = await FavoritesService.instance.getCountByCategory('chat');
       final entriesCount = await FavoritesService.instance.getCountByCategory('journal_entry');
       if (mounted) {
         setState(() {
+          _answersLimit = answersLimit;
+          _chatsLimit = chatsLimit;
+          _entriesLimit = entriesLimit;
           _favoritesCount = answersCount;
           _savedChatsCount = chatsCount;
           _favoriteEntriesCount = entriesCount;
@@ -363,7 +375,7 @@ class _SettingsViewState extends State<SettingsView> {
                   context,
                   title: 'LUMARA Favorites',
                   subtitle: _favoritesCountLoaded
-                      ? 'Answers ($_favoritesCount/25), Chats ($_savedChatsCount/20), Entries ($_favoriteEntriesCount/20)'
+                      ? 'Answers ($_favoritesCount/$_answersLimit), Chats ($_savedChatsCount/$_chatsLimit), Entries ($_favoriteEntriesCount/$_entriesLimit)'
                       : 'Manage your favorites',
                   icon: Icons.star,
                   onTap: () async {

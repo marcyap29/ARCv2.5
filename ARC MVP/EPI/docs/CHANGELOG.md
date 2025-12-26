@@ -1,6 +1,6 @@
 # EPI ARC MVP - Changelog
 
-**Version:** 2.1.67
+**Version:** 2.1.68
 **Last Updated:** January 8, 2025
 
 ---
@@ -14,6 +14,51 @@ This changelog has been split into parts for easier navigation:
 | **[CHANGELOG_part1.md](CHANGELOG_part1.md)** | Dec 2025 | v2.1.43 - v2.1.53 (Current) |
 | **[CHANGELOG_part2.md](CHANGELOG_part2.md)** | Nov 2025 | v2.1.28 - v2.1.42 |
 | **[CHANGELOG_part3.md](CHANGELOG_part3.md)** | Jan-Oct 2025 | v2.0.0 - v2.1.27 & Earlier |
+
+---
+
+## [2.1.68] - January 8, 2025
+
+### **Subscription-Based Favorites Limits & Attachment Menu Fix** - ✅ Complete
+
+- **Subscription-Based Favorites Limits**: Favorites system now enforces different limits based on subscription tier:
+  - **Premium/Paying Users**: 40 favorites per category (answers, chats, journal entries)
+  - **Free Users**: 25 favorites per category (answers, chats, journal entries)
+  - **Dynamic Limit Display**: All UI components now dynamically fetch and display the correct limit based on user's subscription tier
+  - **Async Limit Checking**: `FavoritesService.getCategoryLimit()` is now async and checks subscription tier in real-time
+- **Attachment Menu Button Fix**: Fixed issue where menu options were not clickable due to journal entry's GestureDetector intercepting taps:
+  - **Overlay-Based Menu**: Switched from Stack-based positioning to `OverlayEntry` to render menu in a separate layer above all content
+  - **Backdrop Dismissal**: Added transparent backdrop that dismisses menu when tapping outside
+  - **Proper Gesture Handling**: Menu items now use `GestureDetector` with `HitTestBehavior.opaque` to ensure taps are captured correctly
+  - **Prevents Gesture Interception**: Menu is now rendered above the journal entry's GestureDetector, preventing tap interception
+- **Implementation**:
+  - `lib/arc/chat/services/favorites_service.dart`: Added subscription-based limit constants and async `getCategoryLimit()` method
+  - `lib/arc/ui/widgets/attachment_menu_button.dart`: Replaced Stack-based menu with OverlayEntry implementation
+  - `lib/shared/ui/settings/favorites_management_view.dart`: Updated to fetch and display dynamic limits
+  - `lib/shared/ui/settings/settings_view.dart`: Updated to display dynamic limits in subtitle
+  - `lib/ui/journal/widgets/inline_reflection_block.dart`: Updated error messages to use dynamic limits
+  - `lib/arc/chat/chat/ui/session_view.dart`: Updated error messages to use dynamic limits
+  - `lib/arc/chat/ui/lumara_assistant_screen.dart`: Updated error messages to use dynamic limits
+  - `lib/arc/ui/timeline/widgets/interactive_timeline_view.dart`: Updated error messages to use dynamic limits
+  - `lib/mira/store/mcp/import/mcp_pack_import_service.dart`: Updated to await async `getCategoryLimit()`
+- **Features**:
+  - Premium users get 40 favorites per category (60% increase from 25)
+  - Free users maintain 25 favorites per category
+  - All UI components show correct limits based on subscription
+  - Attachment menu is now fully functional and clickable
+  - Menu dismisses when tapping outside for better UX
+
+**Status**: ✅ Complete  
+**Files Modified**:
+- `lib/arc/chat/services/favorites_service.dart` - Subscription-based limits
+- `lib/arc/ui/widgets/attachment_menu_button.dart` - Overlay-based menu
+- `lib/shared/ui/settings/favorites_management_view.dart` - Dynamic limits
+- `lib/shared/ui/settings/settings_view.dart` - Dynamic limits
+- `lib/ui/journal/widgets/inline_reflection_block.dart` - Dynamic error messages
+- `lib/arc/chat/chat/ui/session_view.dart` - Dynamic error messages
+- `lib/arc/chat/ui/lumara_assistant_screen.dart` - Dynamic error messages
+- `lib/arc/ui/timeline/widgets/interactive_timeline_view.dart` - Dynamic error messages
+- `lib/mira/store/mcp/import/mcp_pack_import_service.dart` - Async limit checking
 
 ---
 

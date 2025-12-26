@@ -1,13 +1,21 @@
 import 'package:hive/hive.dart';
 import '../data/models/lumara_favorite.dart';
+import 'package:my_app/services/subscription_service.dart';
 
 /// Service for managing LUMARA favorites
-/// Enforces category-specific limits: 25 for answers, 25 for chats, 25 for journal entries
+/// Enforces category-specific limits based on subscription tier:
+/// - Premium/Paying users: 40 for answers, 40 for chats, 40 for journal entries
+/// - Free users: 25 for answers, 25 for chats, 25 for journal entries
 class FavoritesService {
-  static const int _maxAnswers = 25;
-  static const int _maxChats = 25;
-  static const int _maxJournalEntries = 25;
-  static const int _maxFavorites = 25; // Legacy limit for backward compatibility
+  static const int _maxAnswersPremium = 40;
+  static const int _maxChatsPremium = 40;
+  static const int _maxJournalEntriesPremium = 40;
+  static const int _maxFavoritesPremium = 40;
+  
+  static const int _maxAnswersFree = 25;
+  static const int _maxChatsFree = 25;
+  static const int _maxJournalEntriesFree = 25;
+  static const int _maxFavoritesFree = 25; // Legacy limit for backward compatibility
   static const String _boxName = 'lumara_favorites';
   static const String _firstTimeKey = 'favorites_first_time_shown';
 
@@ -87,17 +95,21 @@ class FavoritesService {
     return getFavoritesByCategory('answer');
   }
 
-  /// Get category-specific limit
-  int getCategoryLimit(String category) {
+  /// Get category-specific limit based on subscription tier
+  Future<int> getCategoryLimit(String category) async {
+    final subscriptionService = SubscriptionService.instance;
+    final tier = await subscriptionService.getSubscriptionTier();
+    final isPremium = tier == SubscriptionTier.premium;
+    
     switch (category) {
       case 'answer':
-        return _maxAnswers;
+        return isPremium ? _maxAnswersPremium : _maxAnswersFree;
       case 'chat':
-        return _maxChats;
+        return isPremium ? _maxChatsPremium : _maxChatsFree;
       case 'journal_entry':
-        return _maxJournalEntries;
+        return isPremium ? _maxJournalEntriesPremium : _maxJournalEntriesFree;
       default:
-        return _maxFavorites; // Legacy default
+        return isPremium ? _maxFavoritesPremium : _maxFavoritesFree; // Legacy default
     }
   }
 
@@ -110,7 +122,7 @@ class FavoritesService {
   /// Check if a category is at capacity
   Future<bool> isCategoryAtCapacity(String category) async {
     final count = await getCountByCategory(category);
-    final limit = getCategoryLimit(category);
+    final limit = await getCategoryLimit(category);
     return count >= limit;
   }
 
@@ -162,7 +174,7 @@ class FavoritesService {
     // Check category-specific capacity
     final category = favorite.category;
     if (await isCategoryAtCapacity(category)) {
-      final limit = getCategoryLimit(category);
+      final limit = await getCategoryLimit(category);
       print('⚠️ Favorites at capacity for category $category: $limit');
       return false;
     }
@@ -214,9 +226,11 @@ class FavoritesService {
   }
 
   /// Check if at capacity (legacy method - checks total count)
+  /// Uses 'answer' category limit as default
   Future<bool> isAtCapacity() async {
     final count = await getCount();
-    return count >= _maxFavorites;
+    final limit = await getCategoryLimit('answer');
+    return count >= limit;
   }
 
   /// Check if a specific chat session is saved

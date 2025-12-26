@@ -1023,7 +1023,7 @@ class McpPackImportService {
             if (shouldImport) {
               final category = favorite.category;
               if (await favoritesService.isCategoryAtCapacity(category)) {
-                final limit = favoritesService.getCategoryLimit(category);
+                final limit = await favoritesService.getCategoryLimit(category);
                 print('⚠️ MCP Import: Category $category at capacity ($limit), skipping favorite');
                 shouldImport = false;
               }

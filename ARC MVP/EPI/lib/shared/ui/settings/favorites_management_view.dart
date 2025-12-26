@@ -8,6 +8,7 @@ import 'package:my_app/arc/chat/chat/ui/session_view.dart';
 import 'package:my_app/arc/chat/chat/chat_repo_impl.dart';
 import 'package:my_app/arc/chat/chat/chat_models.dart';
 import 'package:my_app/arc/chat/chat/enhanced_chat_repo_impl.dart';
+import 'package:my_app/services/subscription_service.dart';
 
 /// Screen for managing LUMARA favorites
 class FavoritesManagementView extends StatefulWidget {
@@ -25,6 +26,9 @@ class _FavoritesManagementViewState extends State<FavoritesManagementView> with 
   List<ChatSession> _chatSessions = [];
   bool _isLoading = true;
   late TabController _tabController;
+  int _answersLimit = 25;
+  int _chatsLimit = 25;
+  int _entriesLimit = 25;
 
   @override
   void initState() {
@@ -43,6 +47,12 @@ class _FavoritesManagementViewState extends State<FavoritesManagementView> with 
     setState(() => _isLoading = true);
     try {
       await _favoritesService.initialize();
+      
+      // Load subscription-based limits
+      _answersLimit = await _favoritesService.getCategoryLimit('answer');
+      _chatsLimit = await _favoritesService.getCategoryLimit('chat');
+      _entriesLimit = await _favoritesService.getCategoryLimit('journal_entry');
+      
       final answers = await _favoritesService.getLumaraAnswers();
       final chats = await _favoritesService.getSavedChats();
       final entries = await _favoritesService.getFavoriteJournalEntries();
@@ -181,15 +191,15 @@ class _FavoritesManagementViewState extends State<FavoritesManagementView> with 
           tabs: [
             Tab(
               icon: const Icon(Icons.star, color: Color(0xFFFFB300)),
-              text: 'Answers ($answersCount/25)',
+              text: 'Answers ($answersCount/$_answersLimit)',
             ),
             Tab(
               icon: const Icon(Icons.bookmark, color: Color(0xFF2196F3)),
-              text: 'Chats ($chatsCount/20)',
+              text: 'Chats ($chatsCount/$_chatsLimit)',
             ),
             Tab(
               icon: const Icon(Icons.bookmark, color: Color(0xFF2196F3)),
-              text: 'Entries ($entriesCount/20)',
+              text: 'Entries ($entriesCount/$_entriesLimit)',
             ),
         ],
         ),
@@ -233,13 +243,13 @@ class _FavoritesManagementViewState extends State<FavoritesManagementView> with 
                           const SizedBox(width: 12),
                           Expanded(
                             child: Text(
-                  '$count of 25 favorites',
+                  '$count of $_answersLimit favorites',
                               style: heading3Style(context).copyWith(
                                 color: kcPrimaryTextColor,
                               ),
                             ),
                           ),
-              if (count >= 25)
+              if (count >= _answersLimit)
                             Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                               decoration: BoxDecoration(
@@ -255,7 +265,7 @@ class _FavoritesManagementViewState extends State<FavoritesManagementView> with 
                                 ),
                               ),
                             ),
-              if (count < 25) ...[
+              if (count < _answersLimit) ...[
                             const SizedBox(width: 8),
                             IconButton(
                               icon: const Icon(Icons.add_circle_outline),
@@ -308,13 +318,13 @@ class _FavoritesManagementViewState extends State<FavoritesManagementView> with 
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
-                  '$count of 20 saved chats',
+                  '$count of $_chatsLimit saved chats',
                   style: heading3Style(context).copyWith(
                     color: kcPrimaryTextColor,
                   ),
                 ),
               ),
-              if (count >= 20)
+              if (count >= _chatsLimit)
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
@@ -794,7 +804,7 @@ class _FavoritesManagementViewState extends State<FavoritesManagementView> with 
         } else {
           if (mounted) {
             final isAtCapacity = await _favoritesService.isCategoryAtCapacity('answer');
-            final limit = _favoritesService.getCategoryLimit('answer');
+            final limit = await _favoritesService.getCategoryLimit('answer');
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text('Cannot add favorite - at capacity ($limit/$limit)'),

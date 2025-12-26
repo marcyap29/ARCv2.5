@@ -16,7 +16,7 @@ The master prompt is the single source of truth for LUMARA's personality and beh
 
 - **ATLAS**: Readiness + Safety Sentinel (phase, readinessScore, sentinelAlert)
 - **VEIL**: Tone Regulator + Rhythm Intelligence (sophisticationLevel, timeOfDay, usagePattern, health)
-- **FAVORITES**: Top 25 Reinforced Signature (favoritesProfile)
+- **FAVORITES**: Top 40 Reinforced Signature (favoritesProfile)
 - **PRISM**: Multimodal Cognitive Context (prism_activity)
 - **THERAPY MODE**: ECHO + SAGE (therapyMode)
 

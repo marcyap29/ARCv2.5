@@ -489,7 +489,7 @@ class _SessionViewState extends State<SessionView> {
         // Add to favorites
         final atCapacity = await FavoritesService.instance.isCategoryAtCapacity('answer');
         if (atCapacity) {
-          _showCapacityPopup();
+          _showCapacityPopup(context);
           return;
         }
 
@@ -524,13 +524,15 @@ class _SessionViewState extends State<SessionView> {
     }
   }
 
-  void _showCapacityPopup() {
+  Future<void> _showCapacityPopup(BuildContext context) async {
+    final limit = await FavoritesService.instance.getCategoryLimit('answer');
+    if (!mounted) return;
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Favorites Full'),
-        content: const Text(
-          'You have reached the maximum of 25 favorites. Please remove some favorites before adding new ones.',
+        content: Text(
+          'You have reached the maximum of $limit favorites. Please remove some favorites before adding new ones.',
         ),
         actions: [
           TextButton(

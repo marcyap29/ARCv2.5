@@ -650,13 +650,15 @@ class _InlineReflectionBlockState extends State<InlineReflectionBlock> with Sing
   }
 
 
-  void _showCapacityPopup(BuildContext context) {
+  Future<void> _showCapacityPopup(BuildContext context) async {
+    final limit = await FavoritesService.instance.getCategoryLimit('answer');
+    if (!context.mounted) return;
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Favorites Full'),
-        content: const Text(
-          'You have reached the maximum of 25 favorites. Please remove some favorites before adding new ones.',
+        content: Text(
+          'You have reached the maximum of $limit favorites. Please remove some favorites before adding new ones.',
         ),
         actions: [
           TextButton(
