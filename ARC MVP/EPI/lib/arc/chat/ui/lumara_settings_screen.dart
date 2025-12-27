@@ -12,6 +12,7 @@ import '../llm/bridge.pigeon.dart';
 import '../bloc/lumara_assistant_cubit.dart';
 import '../data/context_scope.dart';
 import '../services/lumara_reflection_settings_service.dart';
+import 'package:my_app/services/subscription_service.dart';
 
 /// LUMARA settings screen for API key management and provider selection
 class LumaraSettingsScreen extends StatefulWidget {
@@ -56,6 +57,9 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
   
   // Web Access settings
   bool _webAccessEnabled = false; // Opt-in by default
+  
+  // Subscription status
+  SubscriptionTier _subscriptionTier = SubscriptionTier.free;
   
   /// Safe progress calculation to prevent NaN and infinite values
   double _safeProgress(double progress) {
@@ -247,6 +251,7 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
   void initState() {
     super.initState();
     _initializeControllers();
+    _loadSubscriptionTier();
     _loadCurrentSettings();
     _loadReflectionSettings();
     _downloadStateService.addListener(_onDownloadStateChanged);
@@ -259,6 +264,16 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
         _refreshApiConfig();
       }
     });
+  }
+  
+  /// Load subscription tier
+  Future<void> _loadSubscriptionTier() async {
+    final tier = await SubscriptionService.instance.getSubscriptionTier();
+    if (mounted) {
+      setState(() {
+        _subscriptionTier = tier;
+      });
+    }
   }
 
   @override
@@ -476,28 +491,34 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
             _buildWebAccessCard(theme),
             const SizedBox(height: 24),
 
-            // Provider Selection (includes download button)
-            _buildProviderSelection(theme),
-            const SizedBox(height: 24),
+            // Provider Selection (includes download button) - Only for Pro/Paying users
+            if (_subscriptionTier == SubscriptionTier.premium) ...[
+              _buildProviderSelection(theme),
+              const SizedBox(height: 24),
+            ],
 
-            // API Keys Card
-            _buildApiKeysCard(theme),
-            const SizedBox(height: 24),
+            // API Keys Card - Only for Pro/Paying users
+            if (_subscriptionTier == SubscriptionTier.premium) ...[
+              _buildApiKeysCard(theme),
+              const SizedBox(height: 24),
+            ],
 
-            // Clear All API Keys button
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: _clearAllApiKeys,
-                icon: const Icon(Icons.delete_outline, size: 18),
-                label: const Text('Clear All API Keys'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: theme.colorScheme.error,
-                  side: BorderSide(color: theme.colorScheme.error),
+            // Clear All API Keys button - Only for Pro/Paying users
+            if (_subscriptionTier == SubscriptionTier.premium) ...[
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: _clearAllApiKeys,
+                  icon: const Icon(Icons.delete_outline, size: 18),
+                  label: const Text('Clear All API Keys'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: theme.colorScheme.error,
+                    side: BorderSide(color: theme.colorScheme.error),
+                  ),
                 ),
               ),
-            ),
+            ],
           ],
         ),
       ),
@@ -783,9 +804,13 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
 
   Widget _buildProviderSelection(ThemeData theme) {
     final allProviders = _apiConfig.getAllProviders();
-    // Only Gemini as external provider
+    // For paying users: Gemini, Anthropic, OpenAI (ChatGPT), Venice AI, and OpenRouter
     final externalProviders = allProviders
-        .where((p) => p.provider == LLMProvider.gemini)
+        .where((p) => p.provider == LLMProvider.gemini || 
+                     p.provider == LLMProvider.anthropic || 
+                     p.provider == LLMProvider.openai ||
+                     p.provider == LLMProvider.venice ||
+                     p.provider == LLMProvider.openrouter)
         .toList();
     
     return Card(
@@ -807,11 +832,6 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
               ],
             ),
             const SizedBox(height: 16),
-            
-            // Automatic Selection Toggle
-            _buildAutomaticSelectionToggle(theme),
-            
-            const SizedBox(height: 24),
             
             // Cloud API Section
             _buildProviderCategory(
@@ -1113,86 +1133,6 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
     );
   }
 
-  Widget _buildAutomaticSelectionToggle(ThemeData theme) {
-    final isAutomatic = _selectedProvider == null;
-    
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceVariant.withOpacity(0.3),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: theme.colorScheme.outline.withOpacity(0.2),
-        ),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            Icons.auto_awesome,
-            color: isAutomatic ? theme.colorScheme.primary : theme.colorScheme.onSurfaceVariant,
-            size: 20,
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Automatic Selection',
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: theme.colorScheme.onSurface,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  'Let LUMARA choose the best available provider',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Switch(
-            value: isAutomatic,
-            onChanged: (value) async {
-              if (value) {
-                // Enable automatic selection
-                await _apiConfig.setManualProvider(null);
-                await _lumaraApi.initialize();
-                setState(() {
-                  _selectedProvider = null;
-                });
-                
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Switched to automatic provider selection'),
-                      backgroundColor: Colors.blue,
-                      duration: const Duration(seconds: 2),
-                    ),
-                  );
-                }
-              } else {
-                // Disable automatic selection - user needs to select a specific provider
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Select a specific provider below to disable automatic selection'),
-                      backgroundColor: Colors.orange,
-                      duration: const Duration(seconds: 3),
-                    ),
-                  );
-                }
-              }
-            },
-            activeColor: theme.colorScheme.primary,
-          ),
-        ],
-      ),
-    );
-  }
 
   Widget _buildProviderOption(ThemeData theme, LLMProviderConfig config, bool isInternal) {
     final isAvailable = config.isAvailable;
@@ -1503,6 +1443,25 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
     final controller = _apiKeyControllers[provider]!;
     final config = _apiConfig.getConfig(provider);
     final isConfigured = config?.apiKey?.isNotEmpty == true;
+    
+    // Custom display names for API key fields
+    String displayName;
+    switch (provider) {
+      case LLMProvider.openai:
+        displayName = 'ChatGPT';
+        break;
+      case LLMProvider.anthropic:
+        displayName = 'Anthropic';
+        break;
+      case LLMProvider.venice:
+        displayName = 'Venice AI';
+        break;
+      case LLMProvider.openrouter:
+        displayName = 'OpenRouter';
+        break;
+      default:
+        displayName = config?.name ?? provider.name;
+    }
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 20),
@@ -1512,7 +1471,7 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
           Row(
             children: [
               Text(
-                provider.name,
+                displayName,
                 style: theme.textTheme.titleSmall?.copyWith(
                   fontWeight: FontWeight.w600,
                 ),
@@ -1550,7 +1509,7 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
                 child: TextField(
                   controller: controller,
                   decoration: InputDecoration(
-                    hintText: 'Enter ${provider.name} API key',
+                    hintText: 'Enter $displayName API key',
                     suffixIcon: isConfigured
                         ? Icon(Icons.check_circle, color: Colors.green, size: 20)
                         : Icon(Icons.key, color: theme.colorScheme.onSurfaceVariant.withOpacity(0.5), size: 20),
@@ -1607,6 +1566,26 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
       // Reinitialize LUMARA API to pick up the new key
       await _lumaraApi.initialize();
 
+      // Get display name for success message
+      final config = _apiConfig.getConfig(provider);
+      String displayName;
+      switch (provider) {
+        case LLMProvider.openai:
+          displayName = 'ChatGPT';
+          break;
+        case LLMProvider.anthropic:
+          displayName = 'Anthropic';
+          break;
+        case LLMProvider.venice:
+          displayName = 'Venice AI';
+          break;
+        case LLMProvider.openrouter:
+          displayName = 'OpenRouter';
+          break;
+        default:
+          displayName = config?.name ?? provider.name;
+      }
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -1615,7 +1594,7 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
                 Icon(Icons.check_circle, color: Colors.white),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: Text('${provider.name} API key saved and activated!'),
+                  child: Text('$displayName API key saved and activated!'),
                 ),
               ],
             ),
@@ -1658,8 +1637,15 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
 
 
   Widget _buildApiKeysCard(ThemeData theme) {
-    // Only Gemini API key input
-    final externalProviders = [LLMProvider.gemini];
+    // For paying users: Gemini, Anthropic, OpenAI (ChatGPT), Venice AI, and OpenRouter
+    // Free users don't see this card at all (handled in build method)
+    final externalProviders = [
+      LLMProvider.gemini,
+      LLMProvider.anthropic,
+      LLMProvider.openai,
+      LLMProvider.venice,
+      LLMProvider.openrouter,
+    ];
     
     return Card(
       elevation: 2,

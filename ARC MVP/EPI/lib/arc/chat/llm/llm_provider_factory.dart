@@ -68,6 +68,8 @@ class LLMProviderFactory {
       LLMProvider.gemini => LLMProviderType.gemini,
       LLMProvider.openai => LLMProviderType.openai,
       LLMProvider.anthropic => LLMProviderType.anthropic,
+      LLMProvider.venice => LLMProviderType.openai, // Venice AI uses OpenAI-compatible API
+      LLMProvider.openrouter => LLMProviderType.openai, // OpenRouter uses OpenAI-compatible API
       LLMProvider.qwen4b => LLMProviderType.qwen4b,
       LLMProvider.llama3b => LLMProviderType.llama3b,
     };

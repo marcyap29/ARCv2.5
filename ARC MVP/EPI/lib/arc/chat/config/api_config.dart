@@ -11,6 +11,8 @@ enum LLMProvider {
   gemini,
   openai,
   anthropic,
+  venice,     // Venice AI
+  openrouter, // OpenRouter
   qwen4b,     // Internal Qwen3 4B Q4_K_S model
   llama3b,    // Internal Llama 3.2 3B model
 }
@@ -169,6 +171,22 @@ class LumaraAPIConfig {
       name: 'Anthropic Claude',
       apiKey: const String.fromEnvironment('ANTHROPIC_API_KEY'),
       baseUrl: 'https://api.anthropic.com/v1',
+      isInternal: false,
+    );
+
+    _configs[LLMProvider.venice] = LLMProviderConfig(
+      provider: LLMProvider.venice,
+      name: 'Venice AI',
+      apiKey: const String.fromEnvironment('VENICE_API_KEY'),
+      baseUrl: 'https://api.venice.ai/v1',
+      isInternal: false,
+    );
+
+    _configs[LLMProvider.openrouter] = LLMProviderConfig(
+      provider: LLMProvider.openrouter,
+      name: 'OpenRouter',
+      apiKey: const String.fromEnvironment('OPENROUTER_API_KEY'),
+      baseUrl: 'https://openrouter.ai/api/v1',
       isInternal: false,
     );
 
@@ -503,7 +521,7 @@ class LumaraAPIConfig {
 
     // Save empty strings for all external providers to override environment variables
     final clearedConfigs = <String, dynamic>{};
-    for (final provider in [LLMProvider.gemini, LLMProvider.openai, LLMProvider.anthropic]) {
+    for (final provider in [LLMProvider.gemini, LLMProvider.openai, LLMProvider.anthropic, LLMProvider.venice, LLMProvider.openrouter]) {
       clearedConfigs[provider.name] = {'apiKey': ''}; // Empty string overrides environment
     }
 

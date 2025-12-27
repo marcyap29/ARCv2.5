@@ -1,6 +1,6 @@
 # EPI ARC MVP - Changelog
 
-**Version:** 2.1.69
+**Version:** 2.1.70
 **Last Updated:** January 8, 2025
 
 ---
@@ -14,6 +14,41 @@ This changelog has been split into parts for easier navigation:
 | **[CHANGELOG_part1.md](CHANGELOG_part1.md)** | Dec 2025 | v2.1.43 - v2.1.53 (Current) |
 | **[CHANGELOG_part2.md](CHANGELOG_part2.md)** | Nov 2025 | v2.1.28 - v2.1.42 |
 | **[CHANGELOG_part3.md](CHANGELOG_part3.md)** | Jan-Oct 2025 | v2.0.0 - v2.1.27 & Earlier |
+
+---
+
+## [2.1.70] - January 8, 2025
+
+### **Subscription-Based LUMARA Settings & Additional API Providers** - ✅ Complete
+
+- **Subscription-Based Settings Visibility**: LUMARA settings now adapt based on subscription tier:
+  - **Free Users**: Only see basic settings (Context Scope, Reflection Settings, Therapeutic Presence, Web Access)
+  - **Pro/Paying Users**: See all settings including AI Provider Selection and API Keys cards
+  - **Automatic Selection Removed**: Removed "Automatic Selection" toggle for all users - free users use Gemini only, paying users choose their provider
+- **Expanded API Provider Support**: Added support for additional API providers:
+  - **Venice AI**: Added as new API provider option for paying users
+  - **OpenRouter**: Added as new API provider option for paying users
+  - **Provider Selection**: Paying users can now choose from 5 providers: Gemini, Anthropic, ChatGPT (OpenAI), Venice AI, and OpenRouter
+- **API Keys Card Updates**: 
+  - Free users no longer see API Keys card (backend handles API keys automatically)
+  - Paying users see all 5 API key fields with individual Save buttons
+  - Display names updated: "ChatGPT" for OpenAI, "Anthropic" for Anthropic, "Venice AI" and "OpenRouter" for new providers
+- **Implementation**:
+  - `lib/arc/chat/ui/lumara_settings_screen.dart`: Added subscription tier checking, conditional card visibility, removed automatic selection toggle, added Venice AI and OpenRouter to provider lists
+  - `lib/arc/chat/config/api_config.dart`: Added `venice` and `openrouter` to LLMProvider enum, added API configurations with base URLs
+  - `lib/arc/chat/llm/llm_provider_factory.dart`: Mapped Venice AI and OpenRouter to OpenAI-compatible API handling
+- **Features**:
+  - Simplified experience for free users (no API key management needed)
+  - Full provider control for paying users
+  - Support for 5 different API providers
+  - Clear subscription-based feature differentiation
+  - Better organization of settings based on user tier
+
+**Status**: ✅ Complete  
+**Files Modified**:
+- `lib/arc/chat/ui/lumara_settings_screen.dart` - Subscription-based visibility, removed automatic selection, added Venice AI and OpenRouter
+- `lib/arc/chat/config/api_config.dart` - Added Venice AI and OpenRouter providers
+- `lib/arc/chat/llm/llm_provider_factory.dart` - Added provider mappings for Venice AI and OpenRouter
 
 ---
 
