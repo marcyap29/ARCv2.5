@@ -263,18 +263,16 @@ class LumaraResponseScoring {
     // Remove exclamations
     var s = text.replaceAll(RegExp(r'!+'), '.');
     
-    // Ensure <=4 sentences
-    final parts = _splitSentences(s).take(4).toList();
-    s = parts.join(' ');
-    
-    // Ensure exactly one invitational question at end using varied therapeutic closings
-    if (!RegExp(r'\?\s*$').hasMatch(s)) {
-      s = s.replaceAll(RegExp(r'\.\s*$'), '');
-      s += '. ${_getTherapeuticClosingPhrase()}';
-    }
+    // NO LIMIT on response length - do not truncate responses
+    // The prompt explicitly states "there is no limit on response length"
+    // Only apply minimal fixes, don't cut off content
     
     // Remove parasocial "we"
     s = s.replaceAll(RegExp(r'\bwe ', caseSensitive: false), 'you ');
+    
+    // DO NOT force ending questions - let responses end naturally
+    // The master prompt explicitly prohibits generic ending questions
+    // Only natural, contextual questions should appear
     
     return s.trim();
   }
@@ -310,27 +308,6 @@ class LumaraResponseScoring {
         .toList();
   }
 
-  /// Get conservative, context-appropriate closing phrase
-  /// NOTE: This is a fallback only. The LLM should generate contextually aligned endings
-  /// based on the master prompt instructions. This function provides safe, generic endings
-  /// when the LLM response doesn't already end with a question.
-  /// 
-  /// Conservative endings that work across contexts without introducing unrelated topics:
-  static String _getTherapeuticClosingPhrase() {
-    // Use a small set of conservative, context-neutral endings that don't shift focus
-    // These are safe fallbacks that acknowledge the reflection without introducing new topics
-    const conservativeEndings = [
-      'What feels most important to you about this?',
-      'Is there anything else you want to explore here?',
-      'How does this sit with you?',
-    ];
-    
-    // Use a simple rotation based on time (but with smaller set for more predictable behavior)
-    final now = DateTime.now();
-    final index = (now.second + now.minute) % conservativeEndings.length;
-
-    return conservativeEndings[index];
-  }
 }
 
 /// Minimum resonance threshold
