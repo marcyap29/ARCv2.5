@@ -1,6 +1,6 @@
 # EPI ARC MVP - Changelog
 
-**Version:** 2.1.68
+**Version:** 2.1.69
 **Last Updated:** January 8, 2025
 
 ---
@@ -14,6 +14,50 @@ This changelog has been split into parts for easier navigation:
 | **[CHANGELOG_part1.md](CHANGELOG_part1.md)** | Dec 2025 | v2.1.43 - v2.1.53 (Current) |
 | **[CHANGELOG_part2.md](CHANGELOG_part2.md)** | Nov 2025 | v2.1.28 - v2.1.42 |
 | **[CHANGELOG_part3.md](CHANGELOG_part3.md)** | Jan-Oct 2025 | v2.0.0 - v2.1.27 & Earlier |
+
+---
+
+## [2.1.69] - January 8, 2025
+
+### **LUMARA Natural Openings and Endings** - ✅ Complete
+
+- **Natural Opening Paragraphs**: LUMARA now avoids formulaic restatements of user questions:
+  - Starts with insight, observation, or direct answer rather than paraphrasing
+  - Jumps into the substance when the question is clear
+  - Uses acknowledgment phrases only when they add context or show deeper understanding
+  - Prohibits patterns like "It sounds like you're actively seeking my perspective on..."
+- **Natural Response Endings**: Strengthened prohibition on generic ending questions:
+  - Explicitly prohibits "Does this resonate with you?" and similar formulaic phrases
+  - Responses end naturally when the thought is complete
+  - Silence is a valid and often preferred ending
+  - Ending questions only used when they genuinely deepen reflection and connect to specific insights
+- **Removed Response Truncation**: Fixed `autoTightenToEcho` function:
+  - Removed 4-sentence limit that was cutting off responses
+  - Removed forced ending question logic
+  - Now only applies minimal fixes (removes exclamations, fixes "we" → "you") without truncating
+- **Firebase Functions Prompt Update**: Added Section 9 "Natural Response Endings" to cloud-based chat prompt:
+  - Aligns Firebase Functions prompt with master prompt guidelines
+  - Prohibits generic ending questions
+  - Encourages natural completion
+- **Implementation**:
+  - `lib/arc/chat/llm/prompts/lumara_master_prompt.dart`: Added "NATURAL OPENING PARAGRAPHS" section, strengthened "Question Discipline" section with explicit prohibitions
+  - `lib/arc/chat/services/lumara_response_scoring.dart`: Removed 4-sentence limit and forced ending question logic from `autoTightenToEcho`, removed unused `_getTherapeuticClosingPhrase` function
+  - `lib/arc/chat/services/enhanced_lumara_api.dart`: Updated to remove "Does this resonate?" from allowed endings
+  - `functions/src/functions/sendChatMessage.ts`: Added Section 9 "Natural Response Endings" with comprehensive guidelines
+- **Features**:
+  - More natural, conversational opening paragraphs
+  - Responses end naturally without forced questions
+  - No artificial truncation of responses
+  - Consistent behavior across all prompt systems (master prompt and Firebase Functions)
+  - Better user experience with more authentic, less robotic responses
+
+**Status**: ✅ Complete  
+**Files Modified**:
+- `lib/arc/chat/llm/prompts/lumara_master_prompt.dart` - Natural openings and endings guidelines
+- `lib/arc/chat/services/lumara_response_scoring.dart` - Removed truncation and forced endings
+- `lib/arc/chat/services/enhanced_lumara_api.dart` - Updated ending question guidance
+- `functions/src/functions/sendChatMessage.ts` - Added Section 9 on natural endings
+- `lib/arc/chat/prompts/README_MASTER_PROMPT.md` - Updated documentation
 
 ---
 

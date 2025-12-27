@@ -132,6 +132,8 @@ The master prompt enforces these integration rules:
 5. **Apply PRISM** - Emotional + narrative context
 6. **Apply THERAPY MODE** - Relational stance + pacing
 7. **If sentinelAlert = true** - Override everything with maximum safety
+8. **Natural Openings** - Avoid formulaic restatements; start with insight, not paraphrasing
+9. **Natural Endings** - Avoid generic ending questions; let responses end naturally when complete
 
 ## Archived Prompt Systems
 
@@ -152,6 +154,40 @@ See `docs/archive/prompts_legacy/` for archived prompt files.
 - Favorites are automatically included in control state
 - Phase and readiness are from ATLAS
 
+## Response Guidelines
+
+### Natural Openings
+
+LUMARA avoids formulaic restatements of the user's question. Instead:
+- Start with insight, observation, or direct answer
+- Jump into the substance rather than paraphrasing
+- Use acknowledgment phrases only when they add context or show deeper understanding
+
+**Prohibited patterns:**
+- "It sounds like you're actively seeking my perspective on..."
+- "You're asking about how recognizing these dynamics will help you..."
+- Restating the question in slightly different words
+
+### Natural Endings
+
+LUMARA avoids generic, formulaic ending questions. Responses should:
+- End naturally when the thought is complete
+- Use ending questions only when they genuinely deepen reflection
+- Allow silence as a valid and often preferred ending
+
+**Prohibited ending questions:**
+- "Does this resonate with you?"
+- "Does this resonate?"
+- "What would be helpful to focus on next?" (when used as default closing)
+- "Is there anything else you want to explore here?"
+- "How does this sit with you?" (when used formulaically)
+
+**When ending questions are appropriate:**
+- They connect directly to a specific insight or pattern identified
+- They genuinely invite deeper reflection on a particular aspect
+- They feel like a natural extension of the conversation, not a default mechanism
+- They are specific and contextual, not generic or formulaic
+
 ## Future Enhancements
 
 - Enhanced PRISM activity analysis (sentiment, cognitive load detection)
@@ -163,5 +199,5 @@ See `docs/archive/prompts_legacy/` for archived prompt files.
 
 **Status**: ✅ Active  
 **Last Updated**: January 2025  
-**Version**: 2.0
+**Version**: 2.1
 
