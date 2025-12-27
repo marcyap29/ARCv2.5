@@ -1,6 +1,6 @@
 # EPI ARC MVP - Changelog
 
-**Version:** 2.1.70
+**Version:** 2.1.71
 **Last Updated:** January 8, 2025
 
 ---
@@ -14,6 +14,22 @@ This changelog has been split into parts for easier navigation:
 | **[CHANGELOG_part1.md](CHANGELOG_part1.md)** | Dec 2025 | v2.1.43 - v2.1.53 (Current) |
 | **[CHANGELOG_part2.md](CHANGELOG_part2.md)** | Nov 2025 | v2.1.28 - v2.1.42 |
 | **[CHANGELOG_part3.md](CHANGELOG_part3.md)** | Jan-Oct 2025 | v2.0.0 - v2.1.27 & Earlier |
+
+---
+
+## [2.1.71] - January 8, 2025
+
+### **Removed "Remove Duplicate Entries" Setting** - ✅ Complete
+
+- **Removed Menu Item**: Removed "Remove Duplicate Entries" option from Timeline view's Settings popup menu
+- **Code Cleanup**: Removed unused `_removeDuplicateEntries()` method and related handler code
+- **Implementation**:
+  - `lib/arc/ui/timeline/timeline_view.dart`: Removed "Remove Duplicate Entries" menu item, removed case handler for `'remove_duplicates'`, removed unused `_removeDuplicateEntries()` method, removed unused `JournalRepository` import
+- **Rationale**: This feature is no longer needed as duplicate entry management is handled automatically by the system
+
+**Status**: ✅ Complete  
+**Files Modified**:
+- `lib/arc/ui/timeline/timeline_view.dart` - Removed "Remove Duplicate Entries" setting and related code
 
 ---
 

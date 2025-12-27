@@ -10,7 +10,6 @@ import 'package:my_app/arc/ui/timeline/timeline_entry_model.dart';
 import 'package:my_app/models/phase_models.dart';
 import 'package:my_app/arc/ui/timeline/favorite_journal_entries_view.dart';
 import 'package:my_app/shared/ui/settings/settings_view.dart';
-import 'package:my_app/arc/core/journal_repository.dart';
 import 'package:scroll_to_index/scroll_to_index.dart';
 
 class TimelineView extends StatelessWidget {
@@ -422,97 +421,6 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
     }
   }
 
-  Future<void> _removeDuplicateEntries() async {
-    // Show confirmation dialog
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: kcSurfaceColor,
-        title: Text(
-          'Remove Duplicate Entries',
-          style: heading1Style(context),
-        ),
-        content: Text(
-          'This will scan all journal entries and remove duplicates, keeping the most recent version of each. This action cannot be undone.',
-          style: bodyStyle(context),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: Text(
-              'Cancel',
-              style: buttonStyle(context).copyWith(color: kcSecondaryTextColor),
-            ),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.orange,
-            ),
-            child: Text(
-              'Remove Duplicates',
-              style: buttonStyle(context),
-            ),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed != true) return;
-
-    // Show loading dialog
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        backgroundColor: kcSurfaceColor,
-        content: Row(
-          children: [
-            const CircularProgressIndicator(),
-            const SizedBox(width: 20),
-            Text(
-              'Scanning for duplicates...',
-              style: bodyStyle(context),
-            ),
-          ],
-        ),
-      ),
-    );
-
-    try {
-      final journalRepository = JournalRepository();
-      final deletedCount = await journalRepository.removeDuplicateEntries();
-
-      if (!mounted) return;
-      Navigator.of(context).pop(); // Close loading dialog
-
-      // Refresh timeline
-      _timelineCubit.refreshEntries();
-
-      // Show result
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            deletedCount > 0
-                ? 'Removed $deletedCount duplicate ${deletedCount == 1 ? 'entry' : 'entries'}'
-                : 'No duplicate entries found',
-          ),
-          backgroundColor: deletedCount > 0 ? kcSuccessColor : kcSecondaryTextColor,
-          duration: const Duration(seconds: 3),
-        ),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      Navigator.of(context).pop(); // Close loading dialog
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to remove duplicates: $e'),
-          backgroundColor: kcDangerColor,
-        ),
-      );
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return BlocListener<TimelineCubit, TimelineState>(
@@ -783,9 +691,6 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
                 _isSelectionMode = true;
               });
                       break;
-                    case 'remove_duplicates':
-                      _removeDuplicateEntries();
-                      break;
                     case 'settings':
                       Navigator.push(
                         context,
@@ -837,16 +742,6 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
                         const Icon(Icons.checklist, size: 20),
                         const SizedBox(width: 12),
                         const Text('Select Mode'),
-                      ],
-                    ),
-                  ),
-                  PopupMenuItem<String>(
-                    value: 'remove_duplicates',
-                    child: Row(
-                      children: [
-                        const Icon(Icons.cleaning_services, color: Colors.orange, size: 20),
-                        const SizedBox(width: 12),
-                        const Text('Remove Duplicate Entries'),
                       ],
                     ),
                   ),
