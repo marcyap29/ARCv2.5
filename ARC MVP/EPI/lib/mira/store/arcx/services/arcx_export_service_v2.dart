@@ -22,12 +22,14 @@ import 'package:my_app/arc/chat/chat/chat_repo.dart';
 import 'package:my_app/arc/chat/chat/chat_models.dart';
 import 'package:my_app/arc/core/journal_repository.dart';
 import 'package:my_app/services/phase_regime_service.dart';
+import 'package:my_app/models/phase_models.dart';
 import '../models/arcx_manifest.dart';
 import 'arcx_crypto_service.dart';
 import 'package:my_app/prism/atlas/rivet/rivet_storage.dart';
 import 'package:my_app/prism/atlas/rivet/rivet_models.dart' as rivet_models;
 import 'package:my_app/models/arcform_snapshot_model.dart';
 import 'package:my_app/arc/chat/services/favorites_service.dart';
+import 'package:my_app/arc/chat/data/models/lumara_favorite.dart';
 import 'package:hive/hive.dart';
 
 const _uuid = Uuid();
@@ -281,11 +283,14 @@ class ARCXExportServiceV2 {
         phaseRegimesExported = await _exportPhaseRegimes(payloadDir);
       }
       
-      // Export RIVET state, Sentinel state, ArcForm timeline, and LUMARA favorites alongside phase regimes
+      // Export RIVET state, Sentinel state, ArcForm timeline
       onProgress?.call('Exporting RIVET and system states...');
       await _exportRivetState(payloadDir);
       await _exportSentinelState(payloadDir);
       await _exportArcFormTimeline(payloadDir);
+      
+      // Export LUMARA favorites (always export, independent of phase regimes)
+      onProgress?.call('Exporting LUMARA favorites...');
       lumaraFavoritesExported = await _exportLumaraFavorites(payloadDir);
       
       // Export health streams (aligned with MCP format)
@@ -498,11 +503,14 @@ class ARCXExportServiceV2 {
           phaseRegimesExported = await _exportPhaseRegimes(payloadDir);
         }
         
-        // Export RIVET state, Sentinel state, ArcForm timeline, and LUMARA favorites alongside phase regimes
+        // Export RIVET state, Sentinel state, ArcForm timeline
         onProgress?.call('Exporting RIVET and system states...');
         await _exportRivetState(payloadDir);
         await _exportSentinelState(payloadDir);
         await _exportArcFormTimeline(payloadDir);
+        
+        // Export LUMARA favorites (always export, independent of phase regimes)
+        onProgress?.call('Exporting LUMARA favorites...');
         lumaraFavoritesExported = await _exportLumaraFavorites(payloadDir);
         
         // Generate checksums
@@ -659,21 +667,24 @@ class ARCXExportServiceV2 {
         );
       }
       
-      // Export phase regimes, RIVET state, Sentinel state, and ArcForm timeline if requested (typically with Entries group)
+      // Export phase regimes if requested (typically with Entries group)
       if (includePhaseRegimes && _phaseRegimeService != null) {
         onProgress?.call('Exporting phase regimes...');
         phaseRegimesExported = await _exportPhaseRegimes(payloadDir);
       }
       
-      // Export RIVET state, Sentinel state, ArcForm timeline, and LUMARA favorites alongside phase regimes
-      Map<String, int> lumaraFavoritesExported = {'total': 0, 'answers': 0, 'chats': 0, 'entries': 0};
+      // Export RIVET state, Sentinel state, ArcForm timeline (if phase regimes included)
       if (includePhaseRegimes) {
         onProgress?.call('Exporting RIVET and system states...');
         await _exportRivetState(payloadDir);
         await _exportSentinelState(payloadDir);
         await _exportArcFormTimeline(payloadDir);
-        lumaraFavoritesExported = await _exportLumaraFavorites(payloadDir);
       }
+      
+      // Export LUMARA favorites (always export, independent of phase regimes)
+      Map<String, int> lumaraFavoritesExported = {'total': 0, 'answers': 0, 'chats': 0, 'entries': 0};
+      onProgress?.call('Exporting LUMARA favorites...');
+      lumaraFavoritesExported = await _exportLumaraFavorites(payloadDir);
       
       // Generate checksums
       if (options.includeChecksums) {
@@ -1551,11 +1562,13 @@ class ARCXExportServiceV2 {
 
   /// Export LUMARA favorites to extensions/lumara_favorites.json
   /// Returns map with total count and per-category counts
+  /// Note: Favorites are separate from phase regimes - they're user-saved content (answers, chats, entries)
+  /// Phase regimes are system-generated phase tracking data exported separately to phase_regimes.json
   Future<Map<String, int>> _exportLumaraFavorites(Directory payloadDir) async {
     try {
       // Ensure extensions directory exists (aligned with MCP format)
-      final phaseRegimesDir = Directory(path.join(payloadDir.path, 'extensions'));
-      await phaseRegimesDir.create(recursive: true);
+      final extensionsDir = Directory(path.join(payloadDir.path, 'extensions'));
+      await extensionsDir.create(recursive: true);
 
       final favoritesService = FavoritesService.instance;
       await favoritesService.initialize();
@@ -1576,30 +1589,17 @@ class ARCXExportServiceV2 {
       final chats = allFavorites.where((f) => f.category == 'chat').toList();
       final entries = allFavorites.where((f) => f.category == 'journal_entry').toList();
 
-      final favoritesFile = File(path.join(phaseRegimesDir.path, 'lumara_favorites.json'));
+      // Enrich favorites with phase information for temporal context
+      // This allows references like "You felt this way when you wrote this" or 
+      // "You were in the same phase when you encountered something similar"
+      final enrichedFavorites = await _enrichFavoritesWithPhaseInfo(allFavorites);
+
+      final favoritesFile = File(path.join(extensionsDir.path, 'lumara_favorites.json'));
       await favoritesFile.writeAsString(
         JsonEncoder.withIndent('  ').convert({
-          'lumara_favorites': allFavorites.map((f) {
-            final map = <String, dynamic>{
-            'id': f.id,
-            'content': f.content,
-            'timestamp': f.timestamp.toIso8601String(),
-            'source_id': f.sourceId,
-            'source_type': f.sourceType,
-            'metadata': f.metadata,
-              'category': f.category, // New field
-            };
-            // Add category-specific fields
-            if (f.sessionId != null) {
-              map['session_id'] = f.sessionId;
-            }
-            if (f.entryId != null) {
-              map['entry_id'] = f.entryId;
-            }
-            return map;
-          }).toList(),
+          'lumara_favorites': enrichedFavorites, // Already enriched with phase info
           'exported_at': DateTime.now().toIso8601String(),
-          'version': '1.1', // Updated version to support categories
+          'version': '1.2', // Updated to include phase information
           'counts': {
             'answers': answers.length,
             'chats': chats.length,
@@ -1623,6 +1623,88 @@ class ARCXExportServiceV2 {
         'chats': 0,
         'entries': 0,
       };
+    }
+  }
+
+  /// Enrich favorites with phase information from phase regimes
+  /// This adds temporal context so favorites can reference phase like:
+  /// "You felt this way when you wrote this" or "You were in the same phase when you encountered something similar"
+  /// Returns list of favorite maps with phase data added
+  Future<List<Map<String, dynamic>>> _enrichFavoritesWithPhaseInfo(List<LumaraFavorite> favorites) async {
+    final enriched = <Map<String, dynamic>>[];
+    
+    for (final favorite in favorites) {
+      final map = <String, dynamic>{
+        'id': favorite.id,
+        'content': favorite.content,
+        'timestamp': favorite.timestamp.toIso8601String(),
+        'source_id': favorite.sourceId,
+        'source_type': favorite.sourceType,
+        'metadata': favorite.metadata,
+        'category': favorite.category,
+      };
+
+      // Add category-specific fields
+      if (favorite.sessionId != null) {
+        map['session_id'] = favorite.sessionId;
+      }
+      if (favorite.entryId != null) {
+        map['entry_id'] = favorite.entryId;
+      }
+
+      // Try to get phase from metadata first (if already stored)
+      String? phase;
+      String? phaseRegimeId;
+      
+      if (favorite.metadata.containsKey('phase')) {
+        phase = favorite.metadata['phase']?.toString();
+      }
+      if (favorite.metadata.containsKey('phase_regime_id')) {
+        phaseRegimeId = favorite.metadata['phase_regime_id']?.toString();
+      }
+
+      // If no phase in metadata, look up from phase regime service using timestamp
+      if ((phase == null || phase.isEmpty) && _phaseRegimeService != null) {
+        try {
+          final regime = _phaseRegimeService!.phaseIndex.regimeFor(favorite.timestamp);
+          if (regime != null) {
+            phase = _getPhaseLabelName(regime.label);
+            phaseRegimeId = regime.id;
+          }
+        } catch (e) {
+          print('ARCX Export V2: Error looking up phase for favorite ${favorite.id}: $e');
+        }
+      }
+
+      // Add phase information if available
+      if (phase != null && phase.isNotEmpty) {
+        map['phase'] = phase;
+      }
+      if (phaseRegimeId != null && phaseRegimeId.isNotEmpty) {
+        map['phase_regime_id'] = phaseRegimeId;
+      }
+
+      enriched.add(map);
+    }
+
+    return enriched;
+  }
+
+  /// Get phase label name from PhaseLabel enum
+  String _getPhaseLabelName(PhaseLabel label) {
+    switch (label) {
+      case PhaseLabel.discovery:
+        return 'discovery';
+      case PhaseLabel.expansion:
+        return 'expansion';
+      case PhaseLabel.transition:
+        return 'transition';
+      case PhaseLabel.consolidation:
+        return 'consolidation';
+      case PhaseLabel.recovery:
+        return 'recovery';
+      case PhaseLabel.breakthrough:
+        return 'breakthrough';
     }
   }
   

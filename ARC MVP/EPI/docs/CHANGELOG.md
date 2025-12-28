@@ -1,7 +1,7 @@
 # EPI ARC MVP - Changelog
 
-**Version:** 2.1.71
-**Last Updated:** January 8, 2025
+**Version:** 2.1.72
+**Last Updated:** January 28, 2025
 
 ---
 
@@ -14,6 +14,36 @@ This changelog has been split into parts for easier navigation:
 | **[CHANGELOG_part1.md](CHANGELOG_part1.md)** | Dec 2025 | v2.1.43 - v2.1.53 (Current) |
 | **[CHANGELOG_part2.md](CHANGELOG_part2.md)** | Nov 2025 | v2.1.28 - v2.1.42 |
 | **[CHANGELOG_part3.md](CHANGELOG_part3.md)** | Jan-Oct 2025 | v2.0.0 - v2.1.27 & Earlier |
+
+---
+
+## [2.1.72] - January 28, 2025
+
+### **LUMARA Favorites Export with Phase Information** - ✅ Complete
+
+- **Phase Enrichment**: LUMARA favorites are now enriched with phase information during ARCX exports, enabling temporal context references
+- **Export Format Update**: 
+  - `lumara_favorites.json` version updated to `1.2` to indicate phase information inclusion
+  - Each favorite now includes optional `phase` and `phase_regime_id` fields when available
+- **Phase Lookup Logic**:
+  - First checks favorite metadata for existing phase info
+  - If missing, looks up phase from phase regime service using the favorite's timestamp
+  - Adds phase name (e.g., "discovery", "expansion", "transition") and phase regime ID
+- **Use Cases**: Enables LUMARA to reference temporal context like:
+  - "You felt this way when you wrote this"
+  - "You were in the same phase when you encountered something similar"
+- **Export Coverage**: LUMARA favorites with phase information are exported in all ARCX export paths:
+  - `_exportTogether()` - All groups together
+  - `_exportEntriesChatsTogetherMediaSeparate()` - Entries+Chats together, Media separate
+  - `_exportGroup()` - Individual group exports
+- **Implementation**:
+  - `lib/mira/store/arcx/services/arcx_export_service_v2.dart`: Added `_enrichFavoritesWithPhaseInfo()` method to enrich favorites with phase data before export, updated `_exportLumaraFavorites()` to always export favorites (independent of phase regimes), added `_getPhaseLabelName()` helper method
+  - Favorites are always exported regardless of whether phase regimes are included
+  - Phase information is included in `extensions/lumara_favorites.json` within ARCX archives
+
+**Status**: ✅ Complete  
+**Files Modified**:
+- `lib/mira/store/arcx/services/arcx_export_service_v2.dart` - Added phase enrichment for LUMARA favorites export
 
 ---
 
