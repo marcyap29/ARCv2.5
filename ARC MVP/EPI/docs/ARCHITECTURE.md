@@ -1,7 +1,7 @@
 # EPI MVP - Architecture Overview
 
-**Version:** 2.1.64
-**Last Updated:** January 8, 2025
+**Version:** 2.1.73
+**Last Updated:** December 29, 2025
 **Status:** ✅ Production Ready - MVP Fully Operational with Health Integration, AssemblyAI v3, Web Access Safety, Correlation-Resistant PII Protection, Bible Reference Retrieval & Google Drive Backup
 
 ---
@@ -260,15 +260,20 @@ The EPI system is organized into 5 core modules:
 **Purpose:** Circadian orchestration
 
 **Submodules:**
-- `jobs/` - Scheduled background jobs
-- `veil/` - Privacy edge computing
-- `schedule/` - Task scheduling
+- `regimens/veil/` - VEIL restorative jobs and privacy edge computing
+  - `veil_module.dart` - VEIL module placeholder for future implementation
+- `services/` - Circadian and scheduling services
+  - `circadian_profile_service.dart` - Circadian rhythm awareness
+- `models/` - AURORA data models
+  - `circadian_context.dart` - Circadian context models
 
 **Key Features:**
-- Background job scheduling
-- Privacy-preserving edge computing
-- Task orchestration
 - Circadian rhythm awareness
+- VEIL restorative job cycles (future implementation)
+- Background task management
+- Time-based job scheduling
+
+**Note:** VEIL is part of AURORA and accessed via `aurora/regimens/veil/`. Additional VEIL-related components exist in `mira/veil/` (VEIL jobs) and `ui/veil/` (VEIL policy UI).
 
 ---
 
@@ -463,6 +468,6 @@ User Launch → Anonymous Auth (Auto) → 5 Free Requests → Sign-In Prompt
 ---
 
 **Status**: ✅ Production Ready
-**Last Updated**: December 9, 2025
-**Version**: 2.1.46
+**Last Updated**: December 29, 2025
+**Version**: 2.1.73
 

@@ -771,7 +771,7 @@ class FullScreenPhaseViewer extends StatelessWidget {
           skin: arcform.skin,
           showNebula: true,
           enableLabels: true,
-          initialZoom: 1.6, // Previous setting that was just right (was 3.5 default, too close)
+          initialZoom: 0.8, // Zoomed out by double from 1.6
         ),
       ),
     );

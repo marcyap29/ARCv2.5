@@ -1,7 +1,7 @@
 # EPI ARC MVP - Changelog
 
-**Version:** 2.1.73
-**Last Updated:** January 28, 2025
+**Version:** 2.1.74
+**Last Updated:** December 29, 2025
 
 ---
 
@@ -14,6 +14,33 @@ This changelog has been split into parts for easier navigation:
 | **[CHANGELOG_part1.md](CHANGELOG_part1.md)** | Dec 2025 | v2.1.43 - v2.1.53 (Current) |
 | **[CHANGELOG_part2.md](CHANGELOG_part2.md)** | Nov 2025 | v2.1.28 - v2.1.42 |
 | **[CHANGELOG_part3.md](CHANGELOG_part3.md)** | Jan-Oct 2025 | v2.0.0 - v2.1.27 & Earlier |
+
+---
+
+## [2.1.74] - December 29, 2025
+
+### **Phase Sharing Layout Refinements** - ✅ Complete
+
+- **Phase Preview Zoom Adjustment**:
+  - Zoomed out Phase Preview window by double (from 1.6 to 0.8) for wider view of phase visualization
+  
+- **Instagram Image Generation Improvements**:
+  - Removed bottom border by reducing watermark padding
+  - Reduced bottom canvas length by 2/3 for both Instagram Story and Feed formats
+  - Caption and metrics positioned closer to bottom edge for more compact layout
+  - Phase visualization now uses more of the available vertical space
+  
+- **LinkedIn Image Generation Improvements**:
+  - Reduced left and right canvas margins by 2/3 (effective width now 86.67% of canvas)
+  - Reduced bottom canvas by 1/2 (caption moved from 80% to 90% of height)
+  - All content elements (Arcform, timeline, caption) use narrower effective width
+  - More compact layout with less wasted space on sides and bottom
+
+**Status**: ✅ Complete  
+**Files Modified**:
+- `lib/arc/ui/timeline/widgets/current_phase_arcform_preview.dart` - Phase Preview zoom adjustment
+- `lib/arc/arcform/share/arcform_share_image_generator.dart` - Instagram and LinkedIn layout refinements
+- `docs/ARCHITECTURE.md` - Updated VEIL submodule documentation and version
 
 ---
 

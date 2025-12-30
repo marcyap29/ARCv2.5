@@ -152,21 +152,23 @@ class ArcformShareImageGenerator {
       );
     }
     
-    // Caption at bottom (if not quiet mode)
+    // Caption at bottom (if not quiet mode) - moved up, reduced bottom border
     if (payload.shareMode != ArcShareMode.quiet && payload.userCaption != null) {
-      final captionY = size.height - 200;
+      // Cut bottom by 2/3: was 200px from bottom, now 200/3 = ~67px from bottom
+      final captionY = size.height - 67;
       _drawCaption(
         canvas,
         payload.userCaption!,
         Offset(padding, captionY),
-        Size(size.width - padding * 2, 150),
+        Size(size.width - padding * 2, 50), // Reduced height from 150 to 50
         paint,
       );
     }
     
-    // Optional metrics (duration, phase count)
+    // Optional metrics (duration, phase count) - moved up, reduced bottom border
     if (payload.includeDuration || payload.includePhaseCount) {
-      final metricsY = size.height - 80;
+      // Cut bottom by 2/3: was 80px from bottom, now 80/3 = ~27px from bottom
+      final metricsY = size.height - 27;
       _drawMetrics(
         canvas,
         payload,
@@ -213,14 +215,15 @@ class ArcformShareImageGenerator {
       );
     }
     
-    // Caption at bottom (if not quiet mode)
+    // Caption at bottom (if not quiet mode) - moved up, reduced bottom border
     if (payload.shareMode != ArcShareMode.quiet && payload.userCaption != null) {
-      final captionY = size.height - 120;
+      // Cut bottom by 2/3: was 120px from bottom, now 120/3 = 40px from bottom
+      final captionY = size.height - 40;
       _drawCaption(
         canvas,
         payload.userCaption!,
         Offset(padding, captionY),
-        Size(size.width - padding * 2, 80),
+        Size(size.width - padding * 2, 27), // Reduced height from 80 to 27 (80/3)
         paint,
       );
     }
@@ -235,17 +238,19 @@ class ArcformShareImageGenerator {
     Paint paint,
   ) async {
     // Centered layout: Phase name at top, Arcform in center, content below
+    // Reduce left/right canvas by 2/3: reduce side margins by 2/3
+    // Original side margins were ~20% each (40% total), reduce by 2/3 = ~6.67% each (13.33% total)
+    // So effective width = 100% - 13.33% = 86.67% of canvas width
+    final effectiveWidth = size.width * 0.8667; // Use 86.67% of width (reduced margins by 2/3)
     final centerX = size.width / 2;
     
     // Phase name at top (centered) - moved higher for greater separation
     final phaseName = _formatPhaseName(payload.phase);
     _drawPhaseName(canvas, phaseName, Offset(centerX, 40), paint);
     
-    // Arcform visualization - cropped sides 2x (narrower) and bottom by 1/2 (shorter)
-    // Crop sides 2x: reduce width by half (from 55% to 27.5%)
-    // Crop bottom by 1/2: reduce height by half (from 55% to 27.5%)
-    final arcformWidth = size.width * 0.275; // Cropped sides 2x: 55% / 2 = 27.5%
-    final arcformHeight = size.width * 0.275; // Cropped bottom by 1/2: same as width for square
+    // Arcform visualization - use narrower width due to reduced canvas
+    final arcformWidth = effectiveWidth * 0.32; // 32% of effective width (was 27.5% of full width)
+    final arcformHeight = effectiveWidth * 0.32; // Square aspect
     final arcformRect = Rect.fromCenter(
       center: Offset(centerX, size.height * 0.4), // Moved up slightly since we're cropping bottom
       width: arcformWidth,
@@ -253,10 +258,10 @@ class ArcformShareImageGenerator {
     );
     _drawArcformImage(canvas, arcformImage, arcformRect, paint);
     
-    // Timeline below Arcform (centered, horizontal) - moved down for greater separation
+    // Timeline below Arcform (centered, horizontal) - use effective width
     if (payload.includeDateRange && payload.timelineData != null) {
       final timelineY = size.height * 0.7; // Moved down from 0.55 to 0.7
-      final timelineWidth = size.width * 0.6; // 60% of width
+      final timelineWidth = effectiveWidth * 0.7; // 70% of effective width
       _drawTimeline(
         canvas,
         payload.timelineData!,
@@ -267,22 +272,27 @@ class ArcformShareImageGenerator {
       );
     }
     
-    // Caption below timeline (if not quiet mode) - moved down for greater separation
+    // Caption below timeline (if not quiet mode) - use effective width, reduce bottom by 1/2
     if (payload.shareMode != ArcShareMode.quiet && payload.userCaption != null) {
-      final captionY = size.height * 0.8; // Moved down from 0.7 to 0.8
-      final captionWidth = size.width * 0.7; // 70% of width
+      // Reduce bottom by 1/2: was 0.8 (80% from top), now calculate from reduced bottom
+      // Original bottom margin was size.height - (size.height * 0.8) = size.height * 0.2
+      // Reduce by 1/2: new bottom margin = size.height * 0.1
+      // So captionY = size.height - (size.height * 0.1) = size.height * 0.9
+      final captionY = size.height * 0.9; // Moved up from 0.8 to 0.9 (reduced bottom by 1/2)
+      final captionWidth = effectiveWidth * 0.8; // 80% of effective width
       _drawCaption(
         canvas,
         payload.userCaption!,
         Offset(centerX - captionWidth / 2, captionY),
-        Size(captionWidth, 80),
+        Size(captionWidth, 40), // Reduced height from 80 to 40 (reduced by 1/2)
         paint,
       );
     }
     
-    // Metrics at bottom (centered)
+    // Metrics at bottom (centered) - reduce bottom by 1/2
     if (payload.includeDuration || payload.includePhaseCount) {
-      final metricsY = size.height - 30; // Moved up slightly from 40 to 30
+      // Original was 30px from bottom, reduce by 1/2 = 15px from bottom
+      final metricsY = size.height - 15; // Reduced from 30 to 15 (reduced by 1/2)
       _drawMetrics(
         canvas,
         payload,
@@ -508,10 +518,10 @@ class ArcformShareImageGenerator {
     );
     textPainter.layout();
     
-    // Bottom right corner
+    // Bottom right corner - reduced bottom padding (was 20, now 10 for Instagram)
     final position = Offset(
       size.width - textPainter.width - 20,
-      size.height - textPainter.height - 20,
+      size.height - textPainter.height - 10, // Reduced from 20 to 10 to remove bottom border
     );
     textPainter.paint(canvas, position);
   }
