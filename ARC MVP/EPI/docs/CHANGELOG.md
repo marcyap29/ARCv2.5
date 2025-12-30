@@ -1,6 +1,6 @@
 # EPI ARC MVP - Changelog
 
-**Version:** 2.1.72
+**Version:** 2.1.73
 **Last Updated:** January 28, 2025
 
 ---
@@ -14,6 +14,47 @@ This changelog has been split into parts for easier navigation:
 | **[CHANGELOG_part1.md](CHANGELOG_part1.md)** | Dec 2025 | v2.1.43 - v2.1.53 (Current) |
 | **[CHANGELOG_part2.md](CHANGELOG_part2.md)** | Nov 2025 | v2.1.28 - v2.1.42 |
 | **[CHANGELOG_part3.md](CHANGELOG_part3.md)** | Jan-Oct 2025 | v2.0.0 - v2.1.27 & Earlier |
+
+---
+
+## [2.1.73] - January 28, 2025
+
+### **Phase Sharing Improvements & Privacy Enhancements** - ✅ Complete
+
+- **Image Generation Fixes**:
+  - Fixed aspect ratio preservation for Instagram Story and Feed formats to prevent image squishing
+  - Increased magnification for LinkedIn layout (zoom level 1.6 for optimal detail)
+  - Cropped LinkedIn layout sides 2x and bottom by 1/2 for tighter composition
+  - Increased separation between text and phase visualization in LinkedIn layout
+  - Trimmed borders on all platforms to make phase visualization appear larger
+  
+- **Visual Design Updates**:
+  - Changed background from white to black for all share formats
+  - Updated all text colors to white/light colors for black background
+  - Centered composition for LinkedIn Feed layout
+  - Adjusted zoom levels: Preview uses 1.6 (was too close at 3.5), capture uses same 1.6 for consistency
+  
+- **Privacy & Label Controls**:
+  - Labels hidden by default for privacy on public networks (Instagram, LinkedIn)
+  - Added "Show Labels" toggle in Optional Information section
+  - Users can opt-in to show keyword labels if desired
+  - Re-capture functionality respects label toggle setting when generating images
+  
+- **Share Error Fixes**:
+  - Fixed `sharePositionOrigin` error by adding proper coordinate calculation
+  - Improved capture reliability with proper widget rendering delays
+  
+- **LUMARA Favorites Import Fix**:
+  - Updated import service to check `extensions/` directory first (with fallback to `PhaseRegimes/`)
+  - Removed restrictive "only if empty" import policy - now imports with deduplication regardless of existing favorites
+
+**Status**: ✅ Complete  
+**Files Modified**:
+- `lib/arc/arcform/share/arcform_share_image_generator.dart` - Black background, aspect ratio fixes, layout improvements
+- `lib/arc/arcform/share/arcform_share_composition_screen.dart` - Label toggle, re-capture with settings, share error fix
+- `lib/arc/ui/timeline/widgets/current_phase_arcform_preview.dart` - Zoom fixes, label privacy, arcform data passing
+- `lib/ui/phase/simplified_arcform_view_3d.dart` - Zoom fixes, label privacy, arcform data passing
+- `lib/mira/store/arcx/services/arcx_import_service_v2.dart` - Import path fix and policy update
 
 ---
 

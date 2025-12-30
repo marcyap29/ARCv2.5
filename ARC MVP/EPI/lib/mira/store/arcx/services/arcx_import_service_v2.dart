@@ -800,21 +800,25 @@ class ARCXImportServiceV2 {
 
   /// Import LUMARA favorites from extensions/lumara_favorites.json
   /// Returns map with counts per category: {'answers': X, 'chats': Y, 'entries': Z}
-  /// Only imports if destination category list is empty (repopulates empty lists)
+  /// Imports with deduplication - checks for existing favorites by sourceId, sessionId, or entryId
   Future<Map<String, int>> _importLumaraFavorites(
     Directory payloadDir, {
     Function(String)? onProgress,
   }) async {
     try {
-      final phaseRegimesDir = Directory(path.join(payloadDir.path, 'PhaseRegimes'));
-      if (!await phaseRegimesDir.exists()) {
-        print('ARCX Import V2: ⚠️ PhaseRegimes directory not found, skipping LUMARA favorites');
-        return {'answers': 0, 'chats': 0, 'entries': 0};
+      // Try extensions/ first (new standard), fallback to PhaseRegimes/ for backward compatibility
+      Directory extensionsDir = Directory(path.join(payloadDir.path, 'extensions'));
+      if (!await extensionsDir.exists()) {
+        extensionsDir = Directory(path.join(payloadDir.path, 'PhaseRegimes'));
+        if (!await extensionsDir.exists()) {
+          print('ARCX Import V2: ⚠️ extensions or PhaseRegimes directory not found, skipping LUMARA favorites');
+          return {'answers': 0, 'chats': 0, 'entries': 0};
+        }
       }
 
-      final favoritesFile = File(path.join(phaseRegimesDir.path, 'lumara_favorites.json'));
+      final favoritesFile = File(path.join(extensionsDir.path, 'lumara_favorites.json'));
       if (!await favoritesFile.exists()) {
-        print('ARCX Import V2: ⚠️ lumara_favorites.json not found, skipping LUMARA favorites');
+        print('ARCX Import V2: ⚠️ lumara_favorites.json not found in ${extensionsDir.path}, skipping LUMARA favorites');
         return {'answers': 0, 'chats': 0, 'entries': 0};
       }
 
@@ -841,20 +845,7 @@ class ARCXImportServiceV2 {
         return {'answers': 0, 'chats': 0, 'entries': 0}; // Don't fail the entire import if favorites service fails
       }
       
-      // Check if destination category lists are empty (only import if empty)
-      final existingAnswers = await favoritesService.getLumaraAnswers();
-      final existingChats = await favoritesService.getSavedChats();
-      final existingEntries = await favoritesService.getFavoriteJournalEntries();
-      
-      final shouldImportAnswers = existingAnswers.isEmpty;
-      final shouldImportChats = existingChats.isEmpty;
-      final shouldImportEntries = existingEntries.isEmpty;
-      
-      if (!shouldImportAnswers && !shouldImportChats && !shouldImportEntries) {
-        print('ARCX Import V2: ⚠️ All favorite category lists are non-empty, skipping import (repopulate empty lists only)');
-        return {'answers': 0, 'chats': 0, 'entries': 0};
-      }
-      
+      // Import with deduplication - check for existing favorites to avoid duplicates
       int importedAnswers = 0;
       int importedChats = 0;
       int importedEntries = 0;
@@ -866,20 +857,6 @@ class ARCXImportServiceV2 {
           
           // Get category (default to 'answer' for backward compatibility)
           final category = favoriteMap['category'] as String? ?? 'answer';
-          
-          // Skip if this category should not be imported
-          if (category == 'answer' && !shouldImportAnswers) {
-            skippedCount++;
-            continue;
-          }
-          if (category == 'chat' && !shouldImportChats) {
-            skippedCount++;
-            continue;
-          }
-          if (category == 'journal_entry' && !shouldImportEntries) {
-            skippedCount++;
-            continue;
-          }
           
           final favorite = LumaraFavorite(
             id: favoriteMap['id'] as String,

@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'dart:ui' as ui;
+import 'dart:typed_data';
+import 'package:flutter/rendering.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
 import 'package:my_app/arc/arcform/models/arcform_models.dart';
@@ -11,8 +14,7 @@ import 'package:my_app/services/phase_regime_service.dart';
 import 'package:my_app/services/analytics_service.dart';
 import 'package:my_app/services/rivet_sweep_service.dart';
 import 'package:my_app/arc/core/journal_repository.dart';
-import 'package:my_app/arc/arcform/share/arcform_share_models.dart';
-import 'package:my_app/arc/arcform/share/arcform_share_sheet.dart';
+import 'package:my_app/arc/arcform/share/arcform_share_composition_screen.dart';
 import 'package:my_app/prism/atlas/rivet/rivet_models.dart';
 import 'package:my_app/prism/atlas/rivet/rivet_service.dart';
 import 'package:my_app/arc/ui/arcforms/phase_recommender.dart';
@@ -737,8 +739,9 @@ class _CompactArcformPreviewState extends State<_CompactArcformPreview> {
 /// Full-screen Phase viewer - shared across Journal and Phase screens
 class FullScreenPhaseViewer extends StatelessWidget {
   final Arcform3DData arcform;
+  final GlobalKey _arcformRepaintBoundaryKey = GlobalKey();
 
-  const FullScreenPhaseViewer({super.key, required this.arcform});
+  FullScreenPhaseViewer({super.key, required this.arcform});
 
   @override
   Widget build(BuildContext context) {
@@ -759,13 +762,17 @@ class FullScreenPhaseViewer extends StatelessWidget {
           ),
         ],
       ),
-      body: Arcform3D(
-        nodes: arcform.nodes,
-        edges: arcform.edges,
-        phase: arcform.phase,
-        skin: arcform.skin,
-        showNebula: true,
-        enableLabels: true,
+      body: RepaintBoundary(
+        key: _arcformRepaintBoundaryKey,
+        child: Arcform3D(
+          nodes: arcform.nodes,
+          edges: arcform.edges,
+          phase: arcform.phase,
+          skin: arcform.skin,
+          showNebula: true,
+          enableLabels: true,
+          initialZoom: 1.6, // Previous setting that was just right (was 3.5 default, too close)
+        ),
       ),
     );
   }
@@ -795,28 +802,92 @@ class FullScreenPhaseViewer extends StatelessWidget {
     );
   }
 
-  void _showShareSheet(BuildContext context, Arcform3DData arcform) {
+  void _showShareSheet(BuildContext context, Arcform3DData arcform) async {
     final keywords = arcform.nodes.map((node) => node.label).toList();
     
-    final payload = ArcformSharePayload(
-      shareMode: ArcShareMode.social,
-      arcformId: arcform.id,
-      phase: arcform.phase,
-      keywords: keywords,
-    );
-
-    showArcformShareSheet(
-      context: context,
-      payload: payload,
-      fromView: 'arcform_view',
-      arcformPreview: Arcform3D(
+    // Capture from a separate hidden widget with zoom settings for image generation
+    // Use 1.6 (same as preview) - this was the previous setting that was just right
+    // Labels disabled by default for privacy on public networks (can be enabled via toggle)
+    final captureKey = GlobalKey();
+    final captureWidget = RepaintBoundary(
+      key: captureKey,
+      child: Arcform3D(
         nodes: arcform.nodes,
         edges: arcform.edges,
         phase: arcform.phase,
         skin: arcform.skin,
         showNebula: true,
-        enableLabels: true,
+        enableLabels: false, // Hide labels by default for privacy
+        initialZoom: 1.6, // Same as preview - previous setting that was just right
       ),
     );
+    
+    // Build the capture widget offscreen
+    final captureContext = context;
+    final overlay = Overlay.of(captureContext);
+    final overlayEntry = OverlayEntry(
+      builder: (context) => Positioned(
+        left: -10000, // Position offscreen
+        top: -10000,
+        child: SizedBox(
+          width: 400,
+          height: 400,
+          child: captureWidget,
+        ),
+      ),
+    );
+    overlay.insert(overlayEntry);
+    
+    // Wait for widget to render
+    await Future.delayed(const Duration(milliseconds: 200));
+    
+    // Capture the Phase image from the hidden widget
+    Uint8List? arcformImageBytes;
+    try {
+      final captureContext = captureKey.currentContext;
+      if (captureContext != null) {
+        final RenderRepaintBoundary? boundary = 
+            captureContext.findRenderObject() as RenderRepaintBoundary?;
+        
+        if (boundary != null) {
+          final ui.Image image = await boundary.toImage(pixelRatio: 2.0);
+          final ByteData? byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+          image.dispose();
+          arcformImageBytes = byteData?.buffer.asUint8List();
+        }
+      }
+    } catch (e) {
+      debugPrint('Error capturing Phase before share: $e');
+    } finally {
+      // Remove the overlay entry
+      overlayEntry.remove();
+    }
+    
+    if (arcformImageBytes == null) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to capture Phase image. Please try again.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return;
+    }
+    
+    // Use ArcformShareCompositionScreen with pre-captured image
+    if (context.mounted) {
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => ArcformShareCompositionScreen(
+            phase: arcform.phase,
+            keywords: keywords,
+            arcformId: arcform.id,
+            preCapturedImage: arcformImageBytes,
+            arcformData: arcform, // Pass arcform data for re-capturing with label settings
+          ),
+        ),
+      );
+    }
   }
 }

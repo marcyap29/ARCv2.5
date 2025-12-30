@@ -14,8 +14,10 @@ import '../../services/phase_regime_service.dart';
 import '../../services/analytics_service.dart';
 import '../../services/rivet_sweep_service.dart';
 import 'package:my_app/arc/core/journal_repository.dart';
-import 'package:my_app/arc/arcform/share/arcform_share_models.dart';
-import 'package:my_app/arc/arcform/share/arcform_share_sheet.dart';
+import 'dart:ui' as ui;
+import 'dart:typed_data';
+import 'package:flutter/rendering.dart';
+import 'package:my_app/arc/arcform/share/arcform_share_composition_screen.dart';
 import 'package:my_app/arc/ui/timeline/widgets/current_phase_arcform_preview.dart';
 import 'package:my_app/models/phase_models.dart';
 
@@ -39,6 +41,7 @@ class _SimplifiedArcformView3DState extends State<SimplifiedArcformView3D> {
   bool _isLoading = true;
   Set<String> _userExperiencedPhases = {}; // Track phases user has been in
   Map<String, DateTime> _mostRecentPastPhases = {}; // Track most recent date for each past phase
+  final Map<String, GlobalKey> _arcformRepaintBoundaryKeys = {}; // Keys for capturing Arcform images
 
   @override
   void initState() {
@@ -443,16 +446,19 @@ class _SimplifiedArcformView3DState extends State<SimplifiedArcformView3D> {
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(8),
                   child: arcformData != null
-                      ? IgnorePointer(
-                          ignoring: true, // Explicitly disable all pointer events
-                          child: Arcform3D(
-                            nodes: arcformData.nodes,
-                            edges: arcformData.edges,
-                            phase: arcformData.phase,
-                            skin: arcformData.skin,
-                            showNebula: true,
-                            enableLabels: true, // Enable keyword labels
-                            initialZoom: 1.5, // Zoom out further for card preview to show full ARCform
+                      ? RepaintBoundary(
+                          key: _arcformRepaintBoundaryKeys[snapshot['id'] ?? snapshot['arcformId'] ?? 'current'] ??= GlobalKey(),
+                          child: IgnorePointer(
+                            ignoring: true, // Explicitly disable all pointer events
+                            child: Arcform3D(
+                              nodes: arcformData.nodes,
+                              edges: arcformData.edges,
+                              phase: arcformData.phase,
+                              skin: arcformData.skin,
+                              showNebula: true,
+                              enableLabels: true, // Enable keyword labels
+                              // No initialZoom - use phase-specific defaults for preview
+                            ),
                           ),
                         )
                       : Center(
@@ -1314,36 +1320,104 @@ class _SimplifiedArcformView3DState extends State<SimplifiedArcformView3D> {
     String phase,
     List<String> keywords,
     Arcform3DData? arcformData,
-  ) {
+  ) async {
     // Get arcform ID from snapshot
     final arcformId = snapshot['id'] as String? ?? snapshot['arcformId'] as String? ?? 'current';
     
-    // Create initial payload
-    final payload = ArcformSharePayload(
-      shareMode: ArcShareMode.social, // Default to social
-      arcformId: arcformId,
-      phase: phase,
-      keywords: keywords,
-    );
-
-    // Create preview widget if arcform data is available
-    Widget? preview;
-    if (arcformData != null) {
-      preview = Arcform3D(
+    // Capture from a separate hidden widget with zoom settings for image generation
+    // Use 1.6 (same as preview) - this was the previous setting that was just right
+    // Labels disabled by default for privacy on public networks (can be enabled via toggle)
+    if (arcformData == null) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No Arcform data available for sharing'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return;
+    }
+    
+    final captureKey = GlobalKey();
+    final captureWidget = RepaintBoundary(
+      key: captureKey,
+      child: Arcform3D(
         nodes: arcformData.nodes,
         edges: arcformData.edges,
         phase: arcformData.phase,
         skin: arcformData.skin,
         showNebula: true,
-        enableLabels: true,
+        enableLabels: false, // Hide labels by default for privacy
+        initialZoom: 1.6, // Same as preview - previous setting that was just right
+      ),
+    );
+    
+    // Build the capture widget offscreen
+    final overlay = Overlay.of(context);
+    final overlayEntry = OverlayEntry(
+      builder: (context) => Positioned(
+        left: -10000, // Position offscreen
+        top: -10000,
+        child: SizedBox(
+          width: 400,
+          height: 400,
+          child: captureWidget,
+        ),
+      ),
+    );
+    overlay.insert(overlayEntry);
+    
+    // Wait for widget to render
+    await Future.delayed(const Duration(milliseconds: 200));
+    
+    // Capture the Phase image from the hidden widget
+    Uint8List? arcformImageBytes;
+    try {
+      final captureContext = captureKey.currentContext;
+      if (captureContext != null) {
+        final RenderRepaintBoundary? boundary = 
+            captureContext.findRenderObject() as RenderRepaintBoundary?;
+        
+        if (boundary != null) {
+          final ui.Image image = await boundary.toImage(pixelRatio: 2.0);
+          final ByteData? byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+          image.dispose();
+          arcformImageBytes = byteData?.buffer.asUint8List();
+        }
+      }
+    } catch (e) {
+      debugPrint('Error capturing Phase before share: $e');
+    } finally {
+      // Remove the overlay entry
+      overlayEntry.remove();
+    }
+    
+    if (arcformImageBytes == null) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to capture Phase image. Please try again.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return;
+    }
+    
+    // Use ArcformShareCompositionScreen with pre-captured image
+    if (context.mounted) {
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => ArcformShareCompositionScreen(
+            phase: phase,
+            keywords: keywords,
+            arcformId: arcformId,
+            preCapturedImage: arcformImageBytes,
+            arcformData: arcformData, // Pass arcform data for re-capturing with label settings
+          ),
+        ),
       );
     }
-
-    showArcformShareSheet(
-      context: context,
-      payload: payload,
-      fromView: 'timeline_card',
-      arcformPreview: preview,
-    );
   }
 }

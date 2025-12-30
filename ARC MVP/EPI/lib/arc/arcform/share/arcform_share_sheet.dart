@@ -31,16 +31,14 @@ class _ArcformShareSheetState extends State<ArcformShareSheet> {
   final LumaraShareService _shareService = LumaraShareService();
   bool _isLoadingMetadata = false;
   bool _isSharing = false;
-  String? _selectedCaptionType; // "short", "reflective", "technical"
-  final TextEditingController _directMessageController = TextEditingController();
-  final TextEditingController _socialCaptionController = TextEditingController();
+  final TextEditingController _captionController = TextEditingController();
+  String? _selectedCaptionType;
 
   @override
   void initState() {
     super.initState();
     _payload = widget.initialPayload;
-    _directMessageController.text = _payload.userMessage ?? '';
-    _socialCaptionController.text = _payload.userCaption ?? '';
+    _captionController.text = _payload.userCaption ?? '';
 
     // Load LUMARA metadata if not already present
     if (_needsMetadata()) {
@@ -50,19 +48,17 @@ class _ArcformShareSheetState extends State<ArcformShareSheet> {
 
   @override
   void dispose() {
-    _directMessageController.dispose();
-    _socialCaptionController.dispose();
+    _captionController.dispose();
     super.dispose();
   }
 
   bool _needsMetadata() {
-    if (_payload.shareMode == ArcShareMode.direct) {
-      return _payload.systemMessage == null;
-    } else {
-      return _payload.systemCaptionShort == null &&
-          _payload.systemCaptionReflective == null &&
-          _payload.systemCaptionTechnical == null;
+    // For quiet mode, no metadata needed
+    if (_payload.shareMode == ArcShareMode.quiet) {
+      return false;
     }
+    // For reflective/signal modes, check if template exists
+    return _payload.systemCaptionTemplate == null;
   }
 
   Future<void> _loadMetadata() async {
@@ -141,57 +137,15 @@ class _ArcformShareSheetState extends State<ArcformShareSheet> {
               ),
             ),
 
-            // Mode selection (if not already set)
-            if (_payload.shareMode == ArcShareMode.direct && _payload.systemMessage == null)
-              _buildModeSelection()
-            else
-              _buildContent(),
+            // Content (legacy component - consider using ArcformShareCompositionScreen instead)
+            _buildContent(),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildModeSelection() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _buildModeOption(
-            icon: Icons.person_outline,
-            title: 'Share with another ARC user',
-            subtitle: 'Send directly to another ARC user',
-            onTap: () {
-              setState(() {
-                _payload = _payload.copyWith(shareMode: ArcShareMode.direct);
-              });
-              _loadMetadata();
-            },
-          ),
-          const SizedBox(height: 12),
-          _buildModeOption(
-            icon: Icons.share,
-            title: 'Share to social',
-            subtitle: 'Post to Instagram, X, TikTok, or LinkedIn',
-            onTap: () {
-              setState(() {
-                _payload = _payload.copyWith(shareMode: ArcShareMode.social);
-              });
-              _loadMetadata();
-            },
-          ),
-          const SizedBox(height: 12),
-          _buildModeOption(
-            icon: Icons.download,
-            title: 'Export image',
-            subtitle: 'Save as PNG or PDF',
-            onTap: () => _exportImage(),
-          ),
-        ],
-      ),
-    );
-  }
+  // Legacy mode selection removed - use ArcformShareCompositionScreen instead
 
   Widget _buildModeOption({
     required IconData icon,
@@ -238,117 +192,43 @@ class _ArcformShareSheetState extends State<ArcformShareSheet> {
       );
     }
 
-    if (_payload.shareMode == ArcShareMode.direct) {
-      return _buildDirectShareContent();
+    // For quiet mode, show minimal UI
+    if (_payload.shareMode == ArcShareMode.quiet) {
+      return _buildQuietShareContent();
     } else {
+      // For reflective/signal modes, show caption editor
       return _buildSocialShareContent();
     }
   }
 
-  Widget _buildDirectShareContent() {
+  Widget _buildQuietShareContent() {
     return Flexible(
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // User message input
             Text(
-              'Add a message',
+              'Quiet Share',
               style: sectionHeaderStyle(context),
             ),
             const SizedBox(height: 8),
-            TextField(
-              controller: _directMessageController,
-              maxLines: 4,
-              style: bodyStyle(context),
-              decoration: InputDecoration(
-                hintText: 'Write your message...',
-                hintStyle: supportingTextStyle(context),
-                filled: true,
-                fillColor: kcSurfaceAltColor,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: kcBorderColor),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: kcBorderColor),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: kcPrimaryColor),
-                ),
-              ),
-              onChanged: (value) {
-                setState(() {
-                  _payload = _payload.copyWith(userMessage: value.isEmpty ? null : value);
-                });
-              },
+            Text(
+              'Share the Arcform image without any caption.',
+              style: supportingTextStyle(context),
             ),
-
-            // System suggestion
-            if (_payload.systemMessage != null) ...[
-              const SizedBox(height: 20),
-              Text(
-                'Suggested message',
-                style: sectionHeaderStyle(context),
-              ),
-              const SizedBox(height: 8),
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: kcSurfaceAltColor,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: kcBorderColor),
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        _payload.systemMessage!,
-                        style: bodyStyle(context),
-                      ),
-                    ),
-                    TextButton(
-                      onPressed: () {
-                        _directMessageController.text = _payload.systemMessage!;
-                        setState(() {
-                          _payload = _payload.copyWith(userMessage: _payload.systemMessage);
-                        });
-                      },
-                      child: Text('Use', style: linkStyle(context)),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-
-            // Share button
-            const SizedBox(height: 24),
+            const SizedBox(height: 20),
             ElevatedButton(
-              onPressed: _isSharing ? null : () => _handleDirectShare(),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: kcPrimaryColor,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              child: _isSharing
-                  ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                    )
-                  : Text('Share', style: buttonStyle(context)),
+              onPressed: _handleSocialShare,
+              child: const Text('Share'),
             ),
           ],
         ),
       ),
     );
   }
+
+  // Legacy direct share removed - use ArcformShareCompositionScreen instead
 
   Widget _buildSocialShareContent() {
     return Flexible(
@@ -390,14 +270,13 @@ class _ArcformShareSheetState extends State<ArcformShareSheet> {
               spacing: 8,
               runSpacing: 8,
               children: [
-                'instagram',
-                'x',
-                'tiktok',
-                'linkedin',
+                SocialPlatform.instagramStory,
+                SocialPlatform.instagramFeed,
+                SocialPlatform.linkedinFeed,
               ].map((platform) {
                 final isSelected = _payload.platform == platform;
                 return ChoiceChip(
-                  label: Text(platform.toUpperCase()),
+                  label: Text(_getPlatformName(platform)),
                   selected: isSelected,
                   onSelected: (selected) {
                     if (selected) {
@@ -423,7 +302,7 @@ class _ArcformShareSheetState extends State<ArcformShareSheet> {
             ),
             const SizedBox(height: 8),
             TextField(
-              controller: _socialCaptionController,
+              controller: _captionController,
               maxLines: 4,
               style: bodyStyle(context),
               decoration: InputDecoration(
@@ -459,15 +338,8 @@ class _ArcformShareSheetState extends State<ArcformShareSheet> {
                 style: sectionHeaderStyle(context),
               ),
               const SizedBox(height: 8),
-              if (_payload.systemCaptionShort != null)
-                _buildCaptionOption('Short', _payload.systemCaptionShort!),
-              if (_payload.systemCaptionReflective != null) ...[
-                const SizedBox(height: 8),
-                _buildCaptionOption('Reflective', _payload.systemCaptionReflective!),
-              ],
-              if (_payload.systemCaptionTechnical != null) ...[
-                const SizedBox(height: 8),
-                _buildCaptionOption('Technical', _payload.systemCaptionTechnical!),
+              if (_payload.systemCaptionTemplate != null) ...[
+                _buildCaptionOption('Template', _payload.systemCaptionTemplate!),
               ],
             ],
 
@@ -525,7 +397,7 @@ class _ArcformShareSheetState extends State<ArcformShareSheet> {
       onTap: () {
         setState(() {
           _selectedCaptionType = type.toLowerCase();
-          _socialCaptionController.text = caption;
+          _captionController.text = caption;
           _payload = _payload.copyWith(userCaption: caption);
         });
       },
@@ -569,12 +441,13 @@ class _ArcformShareSheetState extends State<ArcformShareSheet> {
   }
 
   bool _hasSystemCaptions() {
-    return _payload.systemCaptionShort != null ||
-        _payload.systemCaptionReflective != null ||
-        _payload.systemCaptionTechnical != null;
+    return _payload.systemCaptionTemplate != null;
   }
 
+  // Legacy direct share removed - use ArcformShareCompositionScreen instead
   Future<void> _handleDirectShare() async {
+    // This method is deprecated - use ArcformShareCompositionScreen
+    _handleSocialShare();
     // Validate privacy rules
     if (!_shareService.validatePrivacyRules(_payload)) {
       if (mounted) {
@@ -766,6 +639,19 @@ class _ArcformShareSheetState extends State<ArcformShareSheet> {
     } catch (e) {
       print('ArcformShareSheet: Error capturing image: $e');
       return null;
+    }
+  }
+
+  String _getPlatformName(SocialPlatform platform) {
+    switch (platform) {
+      case SocialPlatform.instagramStory:
+        return 'Instagram Story';
+      case SocialPlatform.instagramFeed:
+        return 'Instagram Feed';
+      case SocialPlatform.linkedinFeed:
+        return 'LinkedIn';
+      case SocialPlatform.linkedinCarousel:
+        return 'LinkedIn Carousel';
     }
   }
 }

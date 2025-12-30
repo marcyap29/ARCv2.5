@@ -18,6 +18,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:my_app/ui/subscription/subscription_management_view.dart';
 import 'package:my_app/services/firebase_auth_service.dart';
 import 'package:my_app/shared/ui/settings/local_backup_settings_view.dart';
+import 'package:my_app/arc/phase/share/phase_share_service.dart';
 
 class SettingsView extends StatefulWidget {
   const SettingsView({super.key});
@@ -47,6 +48,10 @@ class _SettingsViewState extends State<SettingsView> {
   int _therapeuticDepthLevel = 2;
   bool _webAccessEnabled = false;
   bool _lumaraSettingsLoading = true;
+  
+  // Phase share settings
+  bool _phaseSharePromptsEnabled = true;
+  bool _phaseShareSettingsLoading = true;
 
   @override
   void initState() {
@@ -56,6 +61,108 @@ class _SettingsViewState extends State<SettingsView> {
     _loadShakeToReportPreference();
     _loadPersonaPreference();
     _loadLumaraSettings();
+    _loadPhaseShareSettings();
+  }
+  
+  Future<void> _loadPhaseShareSettings() async {
+    try {
+      final shareService = PhaseShareService.instance;
+      final enabled = await shareService.areSharePromptsEnabled();
+      if (mounted) {
+        setState(() {
+          _phaseSharePromptsEnabled = enabled;
+          _phaseShareSettingsLoading = false;
+        });
+      }
+    } catch (e) {
+      print('Error loading phase share settings: $e');
+      if (mounted) {
+        setState(() {
+          _phaseShareSettingsLoading = false;
+        });
+      }
+    }
+  }
+  
+  Future<void> _togglePhaseSharePrompts(bool value) async {
+    try {
+      final shareService = PhaseShareService.instance;
+      await shareService.setSharePromptsEnabled(value);
+      if (mounted) {
+        setState(() {
+          _phaseSharePromptsEnabled = value;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              value
+                  ? 'Phase share prompts enabled'
+                  : 'Phase share prompts disabled',
+            ),
+            duration: const Duration(seconds: 2),
+            backgroundColor: value ? Colors.green : Colors.grey,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error updating setting: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  /// Build phase share toggle
+  Widget _buildPhaseShareToggle() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.1),
+        ),
+      ),
+      child: SwitchListTile(
+        title: Text(
+          'Phase Share Prompts',
+          style: heading3Style(context).copyWith(
+            color: kcPrimaryTextColor,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        subtitle: Text(
+          'Show prompts to share phase transitions',
+          style: bodyStyle(context).copyWith(
+            color: kcSecondaryTextColor,
+            fontSize: 12,
+          ),
+        ),
+        value: _phaseSharePromptsEnabled,
+        onChanged: _phaseShareSettingsLoading
+            ? null
+            : (value) => _togglePhaseSharePrompts(value),
+        secondary: _phaseShareSettingsLoading
+            ? const SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : Icon(
+                Icons.share,
+                color: kcAccentColor,
+                size: 24,
+              ),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 8,
+        ),
+      ),
+    );
   }
   
   Future<void> _loadLumaraSettings() async {
@@ -594,6 +701,8 @@ class _SettingsViewState extends State<SettingsView> {
                     );
                   },
                 ),
+                // Phase Share Settings
+                _buildPhaseShareToggle(),
               ],
             ),
 

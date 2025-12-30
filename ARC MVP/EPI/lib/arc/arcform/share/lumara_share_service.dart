@@ -30,7 +30,7 @@ class LumaraShareService {
     required String arcformId,
     required String phase,
     required List<String> keywords,
-    String? platform,
+    SocialPlatform? platform,
   }) async {
     try {
       // Build keywords JSON
@@ -42,24 +42,28 @@ class LumaraShareService {
         'arcformId': arcformId,
       });
 
-      if (shareMode == ArcShareMode.direct) {
-        return await _generateDirectShareMetadata(
+      // For quiet mode, no caption needed
+      if (shareMode == ArcShareMode.quiet) {
+        return ArcformSharePayload(
+          shareMode: shareMode,
           arcformId: arcformId,
           phase: phase,
           keywords: keywords,
-          phaseHintJson: phaseHintJson,
-          keywordsJson: keywordsJson,
-        );
-      } else {
-        return await _generateSocialShareMetadata(
-          arcformId: arcformId,
-          phase: phase,
-          keywords: keywords,
-          platform: platform ?? 'instagram',
-          phaseHintJson: phaseHintJson,
-          keywordsJson: keywordsJson,
+          platform: platform,
+          altText: _generateDefaultAltText(phase, keywords),
         );
       }
+
+      // For reflective or signal modes, generate caption template
+      return await _generateCaptionTemplate(
+        arcformId: arcformId,
+        phase: phase,
+        keywords: keywords,
+        shareMode: shareMode,
+        platform: platform ?? SocialPlatform.instagramStory,
+        phaseHintJson: phaseHintJson,
+        keywordsJson: keywordsJson,
+      );
     } catch (e) {
       print('LumaraShareService: Error generating metadata: $e');
       // Return payload with minimal metadata on error
@@ -74,22 +78,32 @@ class LumaraShareService {
     }
   }
 
-  /// Generate metadata for direct (in-app) sharing
-  Future<ArcformSharePayload> _generateDirectShareMetadata({
+  /// Generate caption template for reflective or signal modes
+  Future<ArcformSharePayload> _generateCaptionTemplate({
     required String arcformId,
     required String phase,
     required List<String> keywords,
+    required ArcShareMode shareMode,
+    required SocialPlatform platform,
     required String phaseHintJson,
     required String keywordsJson,
   }) async {
+    final platformName = _getPlatformName(platform);
+    final modeDescription = shareMode == ArcShareMode.reflective
+        ? 'reflective and personal'
+        : 'professional and growth-oriented';
+
     final userIntent = '''
-Generate a short, warm message explaining this Arcform for sharing with another ARC user.
-The message should:
-- Briefly describe the phase and growth themes
-- Use only the keywords and phase information provided
-- Be encouraging and supportive
-- Be 1-2 sentences maximum
+Generate a caption template for sharing this Arcform on $platformName.
+The caption should be $modeDescription and:
+- Use only the phase and keywords provided
+- Be positive and growth-oriented
 - Never include personal details, journal content, or inferred attributes
+- Maintain narrative dignity (no self-punishing language)
+- Be 10-200 characters
+- Be appropriate for $platformName
+
+Return only the caption text, no explanation.
 ''';
 
     try {
@@ -101,120 +115,49 @@ The message should:
       );
 
       // Clean and validate response
-      final systemMessage = _sanitizeMessage(response);
+      final captionTemplate = _sanitizeMessage(response);
 
       return ArcformSharePayload(
-        shareMode: ArcShareMode.direct,
-        arcformId: arcformId,
-        phase: phase,
-        keywords: keywords,
-        systemMessage: systemMessage,
-        altText: _generateDefaultAltText(phase, keywords),
-      );
-    } catch (e) {
-      print('LumaraShareService: Error in direct share: $e');
-      return ArcformSharePayload(
-        shareMode: ArcShareMode.direct,
-        arcformId: arcformId,
-        phase: phase,
-        keywords: keywords,
-        systemMessage: 'Sharing my $phase phase Arcform with you.',
-        altText: _generateDefaultAltText(phase, keywords),
-      );
-    }
-  }
-
-  /// Generate metadata for social sharing
-  Future<ArcformSharePayload> _generateSocialShareMetadata({
-    required String arcformId,
-    required String phase,
-    required List<String> keywords,
-    required String platform,
-    required String phaseHintJson,
-    required String keywordsJson,
-  }) async {
-
-    final userIntent = '''
-Generate three caption options for sharing this Arcform on $platform:
-1. Short: 1-2 sentences, engaging
-2. Reflective: 2-3 sentences, thoughtful about growth
-3. Technical: More detailed, suitable for professional platforms
-
-All captions must:
-- Use only the phase and keywords provided
-- Be positive and growth-oriented
-- Never include personal details, journal content, or inferred attributes
-- Maintain narrative dignity (no self-punishing language)
-- Be appropriate for $platform
-
-Return as JSON: {"short": "...", "reflective": "...", "technical": "..."}
-''';
-
-    try {
-      final response = await _arcLLM.chat(
-        userIntent: userIntent,
-        entryText: '', // No journal content
-        phaseHintJson: phaseHintJson,
-        lastKeywordsJson: keywordsJson,
-      );
-
-      // Parse JSON response
-      final captions = _parseCaptions(response);
-
-      return ArcformSharePayload(
-        shareMode: ArcShareMode.social,
+        shareMode: shareMode,
         arcformId: arcformId,
         phase: phase,
         keywords: keywords,
         platform: platform,
-        systemCaptionShort: captions['short'] ?? '',
-        systemCaptionReflective: captions['reflective'] ?? '',
-        systemCaptionTechnical: captions['technical'] ?? '',
+        systemCaptionTemplate: captionTemplate,
         altText: _generateDefaultAltText(phase, keywords),
-        footerOptIn: true,
       );
     } catch (e) {
-      print('LumaraShareService: Error in social share: $e');
+      print('LumaraShareService: Error generating caption: $e');
+      // Fallback template
+      final fallback = shareMode == ArcShareMode.reflective
+          ? 'Entered $phase phase'
+          : 'Tracking cognitive states over time revealed patterns I couldn\'t see day-to-day';
+      
       return ArcformSharePayload(
-        shareMode: ArcShareMode.social,
+        shareMode: shareMode,
         arcformId: arcformId,
         phase: phase,
         keywords: keywords,
         platform: platform,
-        systemCaptionShort: 'Exploring my $phase phase journey.',
+        systemCaptionTemplate: fallback,
         altText: _generateDefaultAltText(phase, keywords),
-        footerOptIn: true,
       );
     }
   }
 
-  /// Parse captions from LUMARA response
-  Map<String, String?> _parseCaptions(String response) {
-    try {
-      // Try to extract JSON from response
-      final jsonMatch = RegExp(r'\{[^}]+\}').firstMatch(response);
-      if (jsonMatch != null) {
-        final jsonStr = jsonMatch.group(0);
-        if (jsonStr != null) {
-          final decoded = jsonDecode(jsonStr) as Map<String, dynamic>;
-          return {
-            'short': decoded['short'] as String?,
-            'reflective': decoded['reflective'] as String?,
-            'technical': decoded['technical'] as String?,
-          };
-        }
-      }
-    } catch (e) {
-      print('LumaraShareService: Error parsing captions: $e');
+  String _getPlatformName(SocialPlatform platform) {
+    switch (platform) {
+      case SocialPlatform.instagramStory:
+        return 'Instagram Story';
+      case SocialPlatform.instagramFeed:
+        return 'Instagram Feed';
+      case SocialPlatform.linkedinFeed:
+        return 'LinkedIn';
+      case SocialPlatform.linkedinCarousel:
+        return 'LinkedIn Carousel';
     }
-
-    // Fallback: use response as short caption
-    return {
-      'short': _sanitizeMessage(response),
-      'reflective': null,
-      'technical': null,
-    };
   }
+
 
   /// Sanitize message to enforce privacy rules
   String _sanitizeMessage(String message) {
