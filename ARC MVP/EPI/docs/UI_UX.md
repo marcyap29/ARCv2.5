@@ -1,7 +1,7 @@
 # EPI MVP - UI/UX Feature Documentation
 
-**Version:** 2.1.59
-**Last Updated:** December 18, 2025
+**Version:** 2.1.75
+**Last Updated:** December 29, 2025
 **Status:** ✅ Comprehensive Feature Analysis Complete
 
 ---
@@ -39,6 +39,7 @@ The EPI (Evolving Personal Intelligence) Flutter application provides a sophisti
 23. [Advanced Settings (v2.1.52)](#23-advanced-settings-v2152)
 24. [Health→LUMARA Integration (v2.1.52)](#24-healthlumara-integration-v2152)
 25. [Voice Chat - Jarvis Mode (v2.1.53)](#25-voice-chat---jarvis-mode-v2153)
+26. [Engagement Discipline (v2.1.75)](#engagement-discipline-ui-v2175)
 
 ---
 
@@ -1590,8 +1591,62 @@ Unified settings screen consolidating power-user features and analytics.
 │ Matching Precision  [====|====] 0.55    │
 │ Max Similar Entries [====|====] 5       │
 │ ☑ Include Media     ☐ Auto-Adapt Depth  │
+├─────────────────────────────────────────┤
+│ 🎛️ Engagement Discipline (v2.1.75)     │
+│    User-controlled engagement modes     │
+├─────────────────────────────────────────┤
+│ Engagement Mode                         │
+│ ⚪ Reflect  ⚪ Explore  ⚪ Integrate     │
+│                                         │
+│ Cross-Domain Synthesis                  │
+│ ☐ Faith & Work  ☑ Relationships & Work │
+│ ☑ Health & Emotions  ☐ Creative & Intel │
+│                                         │
+│ Response Boundaries                     │
+│ Max Temporal Connections [====|====] 2  │
+│ Max Questions          [====|====] 1    │
+│ ☐ Allow Therapeutic Language            │
+│ ☐ Allow Prescriptive Guidance           │
 └─────────────────────────────────────────┘
 ```
+
+### Engagement Discipline UI (v2.1.75)
+
+**Location:** Settings → LUMARA → Advanced Settings → Engagement Discipline
+
+**Visual Design:**
+- **Card-based Layout**: Each setting category in its own card
+- **Black Background**: `Colors.white.withOpacity(0.05)` for dark theme consistency
+- **White Text**: Primary text uses `kcPrimaryTextColor`
+- **Purple Accents**: Icons and toggles use `kcAccentColor` (purple)
+- **Subtle Borders**: `Colors.white.withOpacity(0.1)` for card borders
+- **No Blue Outlines**: Removed blue box outlines from engagement mode mini cards
+
+**Components:**
+
+1. **Engagement Mode Selector Card**
+   - Radio button selection for Reflect, Explore, or Integrate
+   - Each mode shows display name and description
+   - Selected mode highlighted with purple accent
+   - Purple radio button for selected state
+
+2. **Cross-Domain Synthesis Card**
+   - Toggle switches for each synthesis option
+   - Purple toggle switches (`kcAccentColor`)
+   - Only applies in Integrate mode
+   - Options: Faith & Work, Relationships & Work, Health & Emotions, Creative & Intellectual
+
+3. **Response Boundaries Card**
+   - Sliders for numeric settings (Max Temporal Connections, Max Questions)
+   - Toggle switches for language permissions
+   - Purple accent color for active states
+   - Clear descriptions for each setting
+
+**User Interaction:**
+- Tap radio button to select engagement mode
+- Toggle switches for synthesis and language permissions
+- Drag sliders to adjust numeric values
+- Settings persist automatically via SharedPreferences
 
 ### Combined Analysis View (6 Tabs)
 1. **Phase Analysis** - RIVET sweep, phase statistics, current detection

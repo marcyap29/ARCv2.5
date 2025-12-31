@@ -1,0 +1,445 @@
+/// Engagement Discipline System for LUMARA
+///
+/// Integrates with LUMARA's MASTERPROMPT control state system to provide
+/// user-controlled engagement boundaries while preserving temporal intelligence.
+
+enum EngagementMode {
+  reflect,   // Surface patterns and stop - minimal follow-up
+  explore,   // Surface patterns and invite deeper examination
+  integrate  // Synthesize across domains and time horizons
+}
+
+extension EngagementModeExtension on EngagementMode {
+  String get displayName {
+    switch (this) {
+      case EngagementMode.reflect:
+        return 'Reflect';
+      case EngagementMode.explore:
+        return 'Explore';
+      case EngagementMode.integrate:
+        return 'Integrate';
+    }
+  }
+
+  String get description {
+    switch (this) {
+      case EngagementMode.reflect:
+        return 'Surface patterns and stop. Best for journaling without exploration.';
+      case EngagementMode.explore:
+        return 'Surface patterns and invite deeper examination. Best for active sense-making.';
+      case EngagementMode.integrate:
+        return 'Synthesize across domains and time horizons. Best for holistic understanding.';
+    }
+  }
+
+  /// Convert to string for JSON serialization
+  String toJson() => toString();
+
+  /// Create from string for JSON deserialization
+  static EngagementMode fromJson(String value) {
+    return EngagementMode.values.firstWhere(
+      (mode) => mode.toString() == value,
+      orElse: () => EngagementMode.reflect,
+    );
+  }
+}
+
+/// Domain synthesis preferences for INTEGRATE mode
+class SynthesisPreferences {
+  final bool allowFaithWorkSynthesis;
+  final bool allowRelationshipWorkSynthesis;
+  final bool allowHealthEmotionalSynthesis;
+  final bool allowCreativeIntellectualSynthesis;
+  final List<String> protectedDomains;
+  final SynthesisDepth synthesisDepth;
+
+  const SynthesisPreferences({
+    this.allowFaithWorkSynthesis = false,
+    this.allowRelationshipWorkSynthesis = true,
+    this.allowHealthEmotionalSynthesis = true,
+    this.allowCreativeIntellectualSynthesis = true,
+    this.protectedDomains = const [],
+    this.synthesisDepth = SynthesisDepth.moderate,
+  });
+
+  Map<String, dynamic> toJson() => {
+    'allowFaithWorkSynthesis': allowFaithWorkSynthesis,
+    'allowRelationshipWorkSynthesis': allowRelationshipWorkSynthesis,
+    'allowHealthEmotionalSynthesis': allowHealthEmotionalSynthesis,
+    'allowCreativeIntellectualSynthesis': allowCreativeIntellectualSynthesis,
+    'protectedDomains': protectedDomains,
+    'synthesisDepth': synthesisDepth.toString(),
+  };
+
+  factory SynthesisPreferences.fromJson(Map<String, dynamic> json) {
+    return SynthesisPreferences(
+      allowFaithWorkSynthesis: json['allowFaithWorkSynthesis'] ?? false,
+      allowRelationshipWorkSynthesis: json['allowRelationshipWorkSynthesis'] ?? true,
+      allowHealthEmotionalSynthesis: json['allowHealthEmotionalSynthesis'] ?? true,
+      allowCreativeIntellectualSynthesis: json['allowCreativeIntellectualSynthesis'] ?? true,
+      protectedDomains: List<String>.from(json['protectedDomains'] ?? []),
+      synthesisDepth: SynthesisDepth.values.firstWhere(
+        (e) => e.toString() == json['synthesisDepth'],
+        orElse: () => SynthesisDepth.moderate,
+      ),
+    );
+  }
+
+  SynthesisPreferences copyWith({
+    bool? allowFaithWorkSynthesis,
+    bool? allowRelationshipWorkSynthesis,
+    bool? allowHealthEmotionalSynthesis,
+    bool? allowCreativeIntellectualSynthesis,
+    List<String>? protectedDomains,
+    SynthesisDepth? synthesisDepth,
+  }) {
+    return SynthesisPreferences(
+      allowFaithWorkSynthesis: allowFaithWorkSynthesis ?? this.allowFaithWorkSynthesis,
+      allowRelationshipWorkSynthesis: allowRelationshipWorkSynthesis ?? this.allowRelationshipWorkSynthesis,
+      allowHealthEmotionalSynthesis: allowHealthEmotionalSynthesis ?? this.allowHealthEmotionalSynthesis,
+      allowCreativeIntellectualSynthesis: allowCreativeIntellectualSynthesis ?? this.allowCreativeIntellectualSynthesis,
+      protectedDomains: protectedDomains ?? this.protectedDomains,
+      synthesisDepth: synthesisDepth ?? this.synthesisDepth,
+    );
+  }
+}
+
+enum SynthesisDepth {
+  surface,   // Connect 1-2 domains, simple connections
+  moderate,  // Connect 2-3 domains, moderate complexity
+  deep       // Connect 3+ domains, complex relationships
+}
+
+/// Response discipline preferences
+class ResponseDiscipline {
+  final int maxTemporalConnections;
+  final int maxExplorativeQuestions;
+  final bool allowTherapeuticLanguage;
+  final bool allowPrescriptiveGuidance;
+  final ResponseLength preferredLength;
+
+  const ResponseDiscipline({
+    this.maxTemporalConnections = 2,
+    this.maxExplorativeQuestions = 1,
+    this.allowTherapeuticLanguage = false,
+    this.allowPrescriptiveGuidance = false,
+    this.preferredLength = ResponseLength.moderate,
+  });
+
+  Map<String, dynamic> toJson() => {
+    'maxTemporalConnections': maxTemporalConnections,
+    'maxExplorativeQuestions': maxExplorativeQuestions,
+    'allowTherapeuticLanguage': allowTherapeuticLanguage,
+    'allowPrescriptiveGuidance': allowPrescriptiveGuidance,
+    'preferredLength': preferredLength.toString(),
+  };
+
+  factory ResponseDiscipline.fromJson(Map<String, dynamic> json) {
+    return ResponseDiscipline(
+      maxTemporalConnections: json['maxTemporalConnections'] ?? 2,
+      maxExplorativeQuestions: json['maxExplorativeQuestions'] ?? 1,
+      allowTherapeuticLanguage: json['allowTherapeuticLanguage'] ?? false,
+      allowPrescriptiveGuidance: json['allowPrescriptiveGuidance'] ?? false,
+      preferredLength: ResponseLength.values.firstWhere(
+        (e) => e.toString() == json['preferredLength'],
+        orElse: () => ResponseLength.moderate,
+      ),
+    );
+  }
+
+  ResponseDiscipline copyWith({
+    int? maxTemporalConnections,
+    int? maxExplorativeQuestions,
+    bool? allowTherapeuticLanguage,
+    bool? allowPrescriptiveGuidance,
+    ResponseLength? preferredLength,
+  }) {
+    return ResponseDiscipline(
+      maxTemporalConnections: maxTemporalConnections ?? this.maxTemporalConnections,
+      maxExplorativeQuestions: maxExplorativeQuestions ?? this.maxExplorativeQuestions,
+      allowTherapeuticLanguage: allowTherapeuticLanguage ?? this.allowTherapeuticLanguage,
+      allowPrescriptiveGuidance: allowPrescriptiveGuidance ?? this.allowPrescriptiveGuidance,
+      preferredLength: preferredLength ?? this.preferredLength,
+    );
+  }
+}
+
+enum ResponseLength {
+  concise,    // 1-2 paragraphs
+  moderate,   // 2-4 paragraphs
+  detailed    // 4+ paragraphs
+}
+
+/// Main engagement settings that integrate with LUMARA Control State
+class EngagementSettings {
+  final EngagementMode defaultMode;
+  final EngagementMode? conversationOverride; // Override for current conversation
+  final SynthesisPreferences synthesisPreferences;
+  final ResponseDiscipline responseDiscipline;
+  final bool adaptToVeilState; // Whether to let VEIL override engagement mode
+  final bool adaptToAtlasPhase; // Whether to let ATLAS phase influence engagement
+
+  const EngagementSettings({
+    this.defaultMode = EngagementMode.reflect,
+    this.conversationOverride,
+    this.synthesisPreferences = const SynthesisPreferences(),
+    this.responseDiscipline = const ResponseDiscipline(),
+    this.adaptToVeilState = true,
+    this.adaptToAtlasPhase = true,
+  });
+
+  /// Get the active engagement mode considering overrides
+  EngagementMode get activeMode => conversationOverride ?? defaultMode;
+
+  Map<String, dynamic> toJson() => {
+    'defaultMode': defaultMode.toString(),
+    'conversationOverride': conversationOverride?.toString(),
+    'synthesisPreferences': synthesisPreferences.toJson(),
+    'responseDiscipline': responseDiscipline.toJson(),
+    'adaptToVeilState': adaptToVeilState,
+    'adaptToAtlasPhase': adaptToAtlasPhase,
+  };
+
+  factory EngagementSettings.fromJson(Map<String, dynamic> json) {
+    return EngagementSettings(
+      defaultMode: EngagementMode.values.firstWhere(
+        (e) => e.toString() == json['defaultMode'],
+        orElse: () => EngagementMode.reflect,
+      ),
+      conversationOverride: json['conversationOverride'] != null
+          ? EngagementMode.values.firstWhere(
+              (e) => e.toString() == json['conversationOverride'],
+            )
+          : null,
+      synthesisPreferences: SynthesisPreferences.fromJson(
+        json['synthesisPreferences'] ?? {},
+      ),
+      responseDiscipline: ResponseDiscipline.fromJson(
+        json['responseDiscipline'] ?? {},
+      ),
+      adaptToVeilState: json['adaptToVeilState'] ?? true,
+      adaptToAtlasPhase: json['adaptToAtlasPhase'] ?? true,
+    );
+  }
+
+  EngagementSettings copyWith({
+    EngagementMode? defaultMode,
+    EngagementMode? conversationOverride,
+    SynthesisPreferences? synthesisPreferences,
+    ResponseDiscipline? responseDiscipline,
+    bool? adaptToVeilState,
+    bool? adaptToAtlasPhase,
+  }) {
+    return EngagementSettings(
+      defaultMode: defaultMode ?? this.defaultMode,
+      conversationOverride: conversationOverride ?? this.conversationOverride,
+      synthesisPreferences: synthesisPreferences ?? this.synthesisPreferences,
+      responseDiscipline: responseDiscipline ?? this.responseDiscipline,
+      adaptToVeilState: adaptToVeilState ?? this.adaptToVeilState,
+      adaptToAtlasPhase: adaptToAtlasPhase ?? this.adaptToAtlasPhase,
+    );
+  }
+
+  /// Clear conversation override to return to default mode
+  EngagementSettings clearConversationOverride() {
+    return copyWith(conversationOverride: null);
+  }
+}
+
+/// Engagement context for LUMARA Control State integration
+class EngagementContext {
+  final EngagementSettings settings;
+  final EngagementMode effectiveMode;
+  final Map<String, dynamic> computedBehaviorParams;
+
+  const EngagementContext({
+    required this.settings,
+    required this.effectiveMode,
+    required this.computedBehaviorParams,
+  });
+
+  /// Convert to JSON for LUMARA Control State
+  Map<String, dynamic> toControlStateJson() => {
+    'engagement': {
+      'mode': effectiveMode.toString(),
+      'synthesis_allowed': _getSynthesisAllowed(),
+      'max_temporal_connections': settings.responseDiscipline.maxTemporalConnections,
+      'max_explorative_questions': settings.responseDiscipline.maxExplorativeQuestions,
+      'allow_therapeutic_language': settings.responseDiscipline.allowTherapeuticLanguage,
+      'allow_prescriptive_guidance': settings.responseDiscipline.allowPrescriptiveGuidance,
+      'response_length': settings.responseDiscipline.preferredLength.toString(),
+      'synthesis_depth': settings.synthesisPreferences.synthesisDepth.toString(),
+      'protected_domains': settings.synthesisPreferences.protectedDomains,
+      'behavioral_params': computedBehaviorParams,
+    },
+  };
+
+  Map<String, bool> _getSynthesisAllowed() => {
+    'faith_work': settings.synthesisPreferences.allowFaithWorkSynthesis,
+    'relationship_work': settings.synthesisPreferences.allowRelationshipWorkSynthesis,
+    'health_emotional': settings.synthesisPreferences.allowHealthEmotionalSynthesis,
+    'creative_intellectual': settings.synthesisPreferences.allowCreativeIntellectualSynthesis,
+  };
+}
+
+/// Engagement behavior computer - integrates with LUMARA's existing behavior computation
+class EngagementBehaviorComputer {
+
+  /// Compute engagement-adjusted behavioral parameters
+  /// Integrates with VEIL, ATLAS, and FAVORITES to modify base behavior
+  static Map<String, dynamic> computeEngagementBehavior({
+    required EngagementSettings engagementSettings,
+    required String atlasPhase,
+    required int readinessScore,
+    required Map<String, dynamic> veilState,
+    required Map<String, dynamic> favoritesProfile,
+    bool sentinelAlert = false,
+  }) {
+    final mode = engagementSettings.activeMode;
+
+    // Base behavioral parameters from mode
+    Map<String, double> baseParams = _getBaseBehaviorForMode(mode);
+
+    // Adapt based on ATLAS phase if enabled
+    if (engagementSettings.adaptToAtlasPhase) {
+      baseParams = _adaptToAtlasPhase(baseParams, atlasPhase, readinessScore);
+    }
+
+    // Adapt based on VEIL state if enabled
+    if (engagementSettings.adaptToVeilState) {
+      baseParams = _adaptToVeilState(baseParams, veilState);
+    }
+
+    // Apply FAVORITES profile influence
+    baseParams = _applyFavoritesInfluence(baseParams, favoritesProfile);
+
+    // Apply sentinel alert override (safety first)
+    if (sentinelAlert) {
+      baseParams = _applySentinelOverride(baseParams);
+    }
+
+    return Map<String, dynamic>.from(baseParams);
+  }
+
+  static Map<String, double> _getBaseBehaviorForMode(EngagementMode mode) {
+    switch (mode) {
+      case EngagementMode.reflect:
+        return {
+          'engagement_intensity': 0.3,  // Low engagement
+          'explorative_tendency': 0.2,  // Minimal exploration
+          'synthesis_tendency': 0.1,    // No synthesis
+          'stopping_threshold': 0.7,    // Stop early
+          'question_propensity': 0.1,   // Few questions
+        };
+
+      case EngagementMode.explore:
+        return {
+          'engagement_intensity': 0.6,  // Moderate engagement
+          'explorative_tendency': 0.7,  // High exploration
+          'synthesis_tendency': 0.4,    // Limited synthesis
+          'stopping_threshold': 0.5,    // Moderate stopping
+          'question_propensity': 0.5,   // Some questions
+        };
+
+      case EngagementMode.integrate:
+        return {
+          'engagement_intensity': 0.8,  // High engagement
+          'explorative_tendency': 0.8,  // High exploration
+          'synthesis_tendency': 0.9,    // Full synthesis
+          'stopping_threshold': 0.3,    // Continue deeper
+          'question_propensity': 0.6,   // More questions
+        };
+    }
+  }
+
+  static Map<String, double> _adaptToAtlasPhase(
+    Map<String, double> params,
+    String phase,
+    int readinessScore,
+  ) {
+    // Adjust engagement based on phase and readiness
+    double phaseMultiplier = 1.0;
+    double readinessMultiplier = readinessScore / 100.0;
+
+    switch (phase.toLowerCase()) {
+      case 'discovery':
+        phaseMultiplier = 1.2; // Higher engagement during discovery
+        break;
+      case 'recovery':
+        phaseMultiplier = 0.8; // Lower engagement during recovery
+        params['stopping_threshold'] = params['stopping_threshold']! + 0.2;
+        break;
+      case 'breakthrough':
+        phaseMultiplier = 1.1; // Moderate boost during breakthrough
+        break;
+      case 'consolidation':
+        params['synthesis_tendency'] = params['synthesis_tendency']! + 0.2;
+        break;
+    }
+
+    // Apply multipliers
+    params['engagement_intensity'] =
+        (params['engagement_intensity']! * phaseMultiplier * readinessMultiplier).clamp(0.0, 1.0);
+
+    return params;
+  }
+
+  static Map<String, double> _adaptToVeilState(
+    Map<String, double> params,
+    Map<String, dynamic> veilState,
+  ) {
+    // Reduce engagement intensity based on low energy/sleep
+    final health = veilState['health'] as Map<String, dynamic>? ?? {};
+    final sleepQuality = health['sleepQuality'] as double? ?? 1.0;
+    final energyLevel = health['energyLevel'] as double? ?? 1.0;
+
+    final healthMultiplier = (sleepQuality + energyLevel) / 2.0;
+
+    // Reduce engagement if user is tired
+    if (healthMultiplier < 0.5) {
+      params['engagement_intensity'] = params['engagement_intensity']! * 0.7;
+      params['stopping_threshold'] = params['stopping_threshold']! + 0.2;
+    }
+
+    // Adapt to time of day
+    final timeOfDay = veilState['timeOfDay'] as String? ?? 'day';
+    if (timeOfDay == 'night' || timeOfDay == 'late_night') {
+      params['engagement_intensity'] = params['engagement_intensity']! * 0.8;
+      params['question_propensity'] = params['question_propensity']! * 0.7;
+    }
+
+    return params;
+  }
+
+  static Map<String, double> _applyFavoritesInfluence(
+    Map<String, double> params,
+    Map<String, dynamic> favoritesProfile,
+  ) {
+    // Let user's favorites profile influence engagement behavior
+    final directness = favoritesProfile['directness'] as double? ?? 0.5;
+    final rigor = favoritesProfile['rigor'] as double? ?? 0.5;
+    final warmth = favoritesProfile['warmth'] as double? ?? 0.5;
+
+    // High directness reduces question propensity
+    params['question_propensity'] = params['question_propensity']! * (1.0 - directness * 0.5);
+
+    // High rigor increases synthesis tendency
+    params['synthesis_tendency'] = params['synthesis_tendency']! + rigor * 0.2;
+
+    // High warmth slightly increases engagement
+    params['engagement_intensity'] = params['engagement_intensity']! + warmth * 0.1;
+
+    return params;
+  }
+
+  static Map<String, double> _applySentinelOverride(Map<String, double> params) {
+    // Safety override - reduce all engagement when sentinel alert is active
+    return {
+      'engagement_intensity': 0.4,
+      'explorative_tendency': 0.2,
+      'synthesis_tendency': 0.1,
+      'stopping_threshold': 0.8,
+      'question_propensity': 0.1,
+    };
+  }
+}

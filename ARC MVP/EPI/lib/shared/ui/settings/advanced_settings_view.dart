@@ -9,6 +9,7 @@ import 'package:my_app/shared/ui/settings/combined_analysis_view.dart';
 import 'package:my_app/arc/chat/voice/transcription/transcription_provider.dart';
 import 'package:my_app/services/assemblyai_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../../models/engagement_discipline.dart';
 
 class AdvancedSettingsView extends StatefulWidget {
   const AdvancedSettingsView({super.key});
@@ -25,7 +26,10 @@ class _AdvancedSettingsViewState extends State<AdvancedSettingsView> {
   bool _crossModalEnabled = true;
   bool _therapeuticAutomaticMode = false;
   bool _isLoading = true;
-  
+
+  // Engagement Discipline settings
+  EngagementSettings _engagementSettings = const EngagementSettings();
+
   // Voice & Transcription settings
   SttMode _sttMode = SttMode.auto;
   SttTier _userTier = SttTier.free;
@@ -40,6 +44,7 @@ class _AdvancedSettingsViewState extends State<AdvancedSettingsView> {
     try {
       final settingsService = LumaraReflectionSettingsService.instance;
       final settings = await settingsService.loadAllSettings();
+      final engagementSettings = await settingsService.getEngagementSettings();
       
       // Load transcription settings
       final prefs = await SharedPreferences.getInstance();
@@ -59,6 +64,7 @@ class _AdvancedSettingsViewState extends State<AdvancedSettingsView> {
           _maxMatches = settings['maxMatches'] as int;
           _crossModalEnabled = settings['crossModalEnabled'] as bool;
           _therapeuticAutomaticMode = settings['therapeuticAutomaticMode'] as bool;
+          _engagementSettings = engagementSettings;
           _sttMode = sttMode;
           _userTier = userTier;
           _isLoading = false;
@@ -76,12 +82,13 @@ class _AdvancedSettingsViewState extends State<AdvancedSettingsView> {
 
   Future<void> _saveSettings() async {
     final settingsService = LumaraReflectionSettingsService.instance;
-    await settingsService.saveAllSettings(
+    await settingsService.saveAllSettingsWithEngagement(
       similarityThreshold: _similarityThreshold,
       lookbackYears: _lookbackYears,
       maxMatches: _maxMatches,
       crossModalEnabled: _crossModalEnabled,
       therapeuticAutomaticMode: _therapeuticAutomaticMode,
+      engagementSettings: _engagementSettings,
     );
   }
 
@@ -207,9 +214,14 @@ class _AdvancedSettingsViewState extends State<AdvancedSettingsView> {
                       ),
                     ],
                   ),
-                  
+
                   const SizedBox(height: 32),
-                  
+
+                  // Engagement Discipline Section
+                  _buildEngagementDisciplineSection(),
+
+                  const SizedBox(height: 32),
+
                   // Voice & Transcription Section
                   _buildSection(
                     title: 'Voice & Transcription',
@@ -589,6 +601,330 @@ class _AdvancedSettingsViewState extends State<AdvancedSettingsView> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildEngagementDisciplineSection() {
+    return _buildSection(
+      title: 'Engagement Discipline',
+      children: [
+        _buildEngagementModeSelector(),
+        const SizedBox(height: 16),
+        _buildSynthesisPreferencesCard(),
+        const SizedBox(height: 16),
+        _buildResponseDisciplineCard(),
+      ],
+    );
+  }
+
+  Widget _buildEngagementModeSelector() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white.withOpacity(0.1)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.tune, size: 20, color: kcAccentColor),
+              const SizedBox(width: 8),
+              Text(
+                'Engagement Mode',
+                style: heading3Style(context).copyWith(
+                  color: kcPrimaryTextColor,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Controls how deeply LUMARA engages with your reflections',
+            style: bodyStyle(context).copyWith(
+              color: kcSecondaryTextColor,
+              fontSize: 12,
+            ),
+          ),
+          const SizedBox(height: 16),
+          ...EngagementMode.values.map((mode) => _buildEngagementModeOption(mode)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEngagementModeOption(EngagementMode mode) {
+    final isSelected = _engagementSettings.defaultMode == mode;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: InkWell(
+        onTap: () {
+          setState(() {
+            _engagementSettings = _engagementSettings.copyWith(defaultMode: mode);
+          });
+          _saveSettings();
+        },
+        borderRadius: BorderRadius.circular(8),
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: isSelected ? kcAccentColor.withOpacity(0.1) : Colors.transparent,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: isSelected ? kcAccentColor.withOpacity(0.3) : Colors.white.withOpacity(0.1),
+              width: 1.5,
+            ),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                isSelected ? Icons.radio_button_checked : Icons.radio_button_unchecked,
+                color: isSelected ? kcAccentColor : Colors.white.withOpacity(0.4),
+                size: 20,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      mode.displayName,
+                      style: bodyStyle(context).copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: isSelected ? kcAccentColor : kcPrimaryTextColor,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      mode.description,
+                      style: bodyStyle(context).copyWith(
+                        fontSize: 11,
+                        color: kcSecondaryTextColor,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSynthesisPreferencesCard() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white.withOpacity(0.1)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.hub, size: 20, color: kcAccentColor),
+              const SizedBox(width: 8),
+              Text(
+                'Cross-Domain Synthesis',
+                style: heading3Style(context).copyWith(
+                  color: kcPrimaryTextColor,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Choose which life domains LUMARA can connect together (only applies in Integrate mode)',
+            style: bodyStyle(context).copyWith(
+              color: kcSecondaryTextColor,
+              fontSize: 12,
+            ),
+          ),
+          const SizedBox(height: 16),
+          _buildSwitchTile(
+            title: 'Faith & Work',
+            subtitle: 'Connect spiritual themes with professional decisions',
+            icon: Icons.work_history,
+            value: _engagementSettings.synthesisPreferences.allowFaithWorkSynthesis,
+            onChanged: (value) {
+              setState(() {
+                _engagementSettings = _engagementSettings.copyWith(
+                  synthesisPreferences: _engagementSettings.synthesisPreferences.copyWith(
+                    allowFaithWorkSynthesis: value,
+                  ),
+                );
+              });
+              _saveSettings();
+            },
+          ),
+          _buildSwitchTile(
+            title: 'Relationships & Work',
+            subtitle: 'Connect personal relationships to work context',
+            icon: Icons.people_alt,
+            value: _engagementSettings.synthesisPreferences.allowRelationshipWorkSynthesis,
+            onChanged: (value) {
+              setState(() {
+                _engagementSettings = _engagementSettings.copyWith(
+                  synthesisPreferences: _engagementSettings.synthesisPreferences.copyWith(
+                    allowRelationshipWorkSynthesis: value,
+                  ),
+                );
+              });
+              _saveSettings();
+            },
+          ),
+          _buildSwitchTile(
+            title: 'Health & Emotions',
+            subtitle: 'Connect physical health to emotional patterns',
+            icon: Icons.favorite,
+            value: _engagementSettings.synthesisPreferences.allowHealthEmotionalSynthesis,
+            onChanged: (value) {
+              setState(() {
+                _engagementSettings = _engagementSettings.copyWith(
+                  synthesisPreferences: _engagementSettings.synthesisPreferences.copyWith(
+                    allowHealthEmotionalSynthesis: value,
+                  ),
+                );
+              });
+              _saveSettings();
+            },
+          ),
+          _buildSwitchTile(
+            title: 'Creative & Intellectual',
+            subtitle: 'Connect creative pursuits to intellectual work',
+            icon: Icons.palette,
+            value: _engagementSettings.synthesisPreferences.allowCreativeIntellectualSynthesis,
+            onChanged: (value) {
+              setState(() {
+                _engagementSettings = _engagementSettings.copyWith(
+                  synthesisPreferences: _engagementSettings.synthesisPreferences.copyWith(
+                    allowCreativeIntellectualSynthesis: value,
+                  ),
+                );
+              });
+              _saveSettings();
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildResponseDisciplineCard() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white.withOpacity(0.1)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.psychology, size: 20, color: kcAccentColor),
+              const SizedBox(width: 8),
+              Text(
+                'Response Boundaries',
+                style: heading3Style(context).copyWith(
+                  color: kcPrimaryTextColor,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Fine-tune how LUMARA responds and what language it uses',
+            style: bodyStyle(context).copyWith(
+              color: kcSecondaryTextColor,
+              fontSize: 12,
+            ),
+          ),
+          const SizedBox(height: 16),
+          _buildSliderTile(
+            title: 'Max Temporal Connections',
+            subtitle: 'Maximum connections to past entries per response',
+            value: _engagementSettings.responseDiscipline.maxTemporalConnections.toDouble(),
+            min: 1,
+            max: 5,
+            divisions: 4,
+            displayValue: '${_engagementSettings.responseDiscipline.maxTemporalConnections} connections',
+            icon: Icons.timeline,
+            onChanged: (value) {
+              setState(() {
+                _engagementSettings = _engagementSettings.copyWith(
+                  responseDiscipline: _engagementSettings.responseDiscipline.copyWith(
+                    maxTemporalConnections: value.round(),
+                  ),
+                );
+              });
+              _saveSettings();
+            },
+          ),
+          _buildSliderTile(
+            title: 'Max Questions',
+            subtitle: 'Maximum exploratory questions per response',
+            value: _engagementSettings.responseDiscipline.maxExplorativeQuestions.toDouble(),
+            min: 0,
+            max: 3,
+            divisions: 3,
+            displayValue: '${_engagementSettings.responseDiscipline.maxExplorativeQuestions} questions',
+            icon: Icons.help_outline,
+            onChanged: (value) {
+              setState(() {
+                _engagementSettings = _engagementSettings.copyWith(
+                  responseDiscipline: _engagementSettings.responseDiscipline.copyWith(
+                    maxExplorativeQuestions: value.round(),
+                  ),
+                );
+              });
+              _saveSettings();
+            },
+          ),
+          _buildSwitchTile(
+            title: 'Allow Therapeutic Language',
+            subtitle: 'Permit therapy-style phrasing ("How does this make you feel?")',
+            icon: Icons.healing,
+            value: _engagementSettings.responseDiscipline.allowTherapeuticLanguage,
+            onChanged: (value) {
+              setState(() {
+                _engagementSettings = _engagementSettings.copyWith(
+                  responseDiscipline: _engagementSettings.responseDiscipline.copyWith(
+                    allowTherapeuticLanguage: value,
+                  ),
+                );
+              });
+              _saveSettings();
+            },
+          ),
+          _buildSwitchTile(
+            title: 'Allow Prescriptive Guidance',
+            subtitle: 'Permit direct advice ("You should...", "It\'s important to...")',
+            icon: Icons.assignment_ind,
+            value: _engagementSettings.responseDiscipline.allowPrescriptiveGuidance,
+            onChanged: (value) {
+              setState(() {
+                _engagementSettings = _engagementSettings.copyWith(
+                  responseDiscipline: _engagementSettings.responseDiscipline.copyWith(
+                    allowPrescriptiveGuidance: value,
+                  ),
+                );
+              });
+              _saveSettings();
+            },
+          ),
+        ],
       ),
     );
   }

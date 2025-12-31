@@ -1,7 +1,7 @@
 # EPI MVP - Comprehensive Features Guide
 
-**Version:** 2.1.64
-**Last Updated:** January 8, 2025
+**Version:** 2.1.75
+**Last Updated:** December 29, 2025
 
 ---
 
@@ -186,6 +186,21 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 - **Abstinence Windows**: User-configurable quiet periods
 - **Circadian Awareness**: AURORA integration for timing-aware notifications
 - **Note**: Requires notification plugin integration for full functionality
+
+**Engagement Discipline System (v2.1.75)**
+- **User-Controlled Engagement Modes**:
+  - **Reflect Mode** (Default): Surface patterns and stop - minimal follow-up, best for journaling without exploration
+  - **Explore Mode**: Surface patterns and invite deeper examination - may ask one connecting question per response
+  - **Integrate Mode**: Synthesize across domains and time horizons - most active engagement posture
+- **Cross-Domain Synthesis Controls**: Toggle synthesis between Faith & Work, Relationships & Work, Health & Emotions, Creative & Intellectual
+- **Response Discipline Settings**:
+  - Max Temporal Connections (1-5) - controls historical references per response
+  - Max Questions (0-2) - limits exploratory questions (EXPLORE/INTEGRATE only)
+  - Allow Therapeutic Language toggle - permits therapy-style phrasing (default: false)
+  - Allow Prescriptive Guidance toggle - permits direct advice (default: false)
+  - Response Length preference (Concise/Moderate/Detailed)
+- **Settings Location**: Settings → Advanced Settings → Engagement Discipline
+- **Automatic Pattern Filtering**: Prohibits therapeutic questions, dependency-forming language, and prescriptive guidance by default
 
 **Response Features**
 - **Context-Aware**: Uses journal entries and chat history

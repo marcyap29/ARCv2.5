@@ -1,6 +1,6 @@
 # EPI ARC MVP - Changelog
 
-**Version:** 2.1.74
+**Version:** 2.1.75
 **Last Updated:** December 29, 2025
 
 ---
@@ -14,6 +14,58 @@ This changelog has been split into parts for easier navigation:
 | **[CHANGELOG_part1.md](CHANGELOG_part1.md)** | Dec 2025 | v2.1.43 - v2.1.53 (Current) |
 | **[CHANGELOG_part2.md](CHANGELOG_part2.md)** | Nov 2025 | v2.1.28 - v2.1.42 |
 | **[CHANGELOG_part3.md](CHANGELOG_part3.md)** | Jan-Oct 2025 | v2.0.0 - v2.1.27 & Earlier |
+
+---
+
+## [2.1.75] - December 29, 2025
+
+### **Engagement Discipline System** - ✅ Complete
+
+- **User-Controlled Engagement Modes**:
+  - **Reflect Mode** (Default): Surface patterns and stop - minimal follow-up, best for journaling without exploration
+  - **Explore Mode**: Surface patterns and invite deeper examination - may ask one connecting question per response
+  - **Integrate Mode**: Synthesize across domains and time horizons - most active engagement posture
+  
+- **Cross-Domain Synthesis Controls**:
+  - Faith & Work synthesis toggle
+  - Relationships & Work synthesis toggle
+  - Health & Emotions synthesis toggle
+  - Creative & Intellectual synthesis toggle
+  - Protected domains feature to prevent unwanted synthesis
+  
+- **Response Discipline Settings**:
+  - Max Temporal Connections (1-5, default: 2) - controls historical references per response
+  - Max Questions (0-2, default: 1) - limits exploratory questions (EXPLORE/INTEGRATE only)
+  - Allow Therapeutic Language toggle (default: false) - permits therapy-style phrasing
+  - Allow Prescriptive Guidance toggle (default: false) - permits direct advice
+  - Response Length preference (Concise/Moderate/Detailed, default: Moderate)
+  
+- **Integration with LUMARA Control State**:
+  - Engagement settings integrated into LUMARA's Control State JSON system
+  - Mode-specific instructions in system prompt
+  - Automatic filtering of prohibited patterns (therapeutic questions, dependency-forming language)
+  
+- **Advanced Settings UI**:
+  - Engagement Discipline section in Advanced Settings menu
+  - Black background with white text and purple icons/toggles (consistent with other Advanced Settings cards)
+  - Radio button selection for engagement modes
+  - Toggle switches for synthesis preferences and language permissions
+  - Sliders for numeric settings
+  
+- **Settings Persistence**:
+  - Engagement settings saved via SharedPreferences
+  - Integrated with existing LUMARA reflection settings service
+  - Default mode: Reflect (minimal engagement)
+
+**Status**: ✅ Complete  
+**Files Created**:
+- `lib/models/engagement_discipline.dart` - Engagement mode models and settings
+- `docs/Engagement_Discipline.md` - Comprehensive documentation
+
+**Files Modified**:
+- `lib/shared/ui/settings/advanced_settings_view.dart` - Engagement Discipline UI with updated styling
+- `lib/arc/chat/services/lumara_control_state_builder.dart` - Integration with Control State
+- `lib/arc/chat/services/lumara_reflection_settings_service.dart` - Settings persistence
 
 ---
 

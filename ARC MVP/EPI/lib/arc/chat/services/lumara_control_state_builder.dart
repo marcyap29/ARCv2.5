@@ -14,6 +14,7 @@ import 'package:my_app/prism/atlas/rivet/rivet_models.dart';
 import 'package:my_app/arc/chat/services/favorites_service.dart';
 import 'package:my_app/arc/chat/services/lumara_reflection_settings_service.dart';
 import 'package:my_app/services/health_data_service.dart';
+import '../../../models/engagement_discipline.dart';
 
 class LumaraControlStateBuilder {
   /// Build the unified control state JSON
@@ -353,7 +354,57 @@ class LumaraControlStateBuilder {
     }
     
     state['responseMode'] = responseMode;
-    
+
+    // ============================================================
+    // I. ENGAGEMENT DISCIPLINE (Response Boundaries)
+    // ============================================================
+    final engagement = <String, dynamic>{};
+
+    try {
+      final settingsService = LumaraReflectionSettingsService.instance;
+
+      // Build engagement context with all necessary signals
+      final engagementContext = await settingsService.buildEngagementContext(
+        atlasPhase: atlas['phase'] as String? ?? 'Discovery',
+        readinessScore: atlas['readinessScore'] as int? ?? 50,
+        veilState: veil,
+        favoritesProfile: (favorites['favoritesProfile'] as Map<String, dynamic>?) ?? {},
+        sentinelAlert: sentinelAlert,
+      );
+
+      // Add engagement data to state
+      engagement.addAll(engagementContext.toControlStateJson()['engagement'] as Map<String, dynamic>);
+
+    } catch (e) {
+      print('LUMARA Control State: Error building engagement context: $e');
+      // Provide fallback engagement settings
+      engagement.addAll({
+        'mode': 'reflect',
+        'synthesis_allowed': {
+          'faith_work': false,
+          'relationship_work': true,
+          'health_emotional': true,
+          'creative_intellectual': true,
+        },
+        'max_temporal_connections': 2,
+        'max_explorative_questions': 1,
+        'allow_therapeutic_language': false,
+        'allow_prescriptive_guidance': false,
+        'response_length': 'moderate',
+        'synthesis_depth': 'moderate',
+        'protected_domains': <String>[],
+        'behavioral_params': {
+          'engagement_intensity': 0.3,
+          'explorative_tendency': 0.2,
+          'synthesis_tendency': 0.1,
+          'stopping_threshold': 0.7,
+          'question_propensity': 0.1,
+        },
+      });
+    }
+
+    state['engagement'] = engagement;
+
     // ============================================================
     // Final computed behavioral parameters
     // ============================================================
@@ -369,7 +420,10 @@ class LumaraControlStateBuilder {
     
     // Apply persona-specific overrides
     _applyPersonaOverrides(behavior, state);
-    
+
+    // Apply engagement discipline behavioral modifications
+    _applyEngagementOverrides(behavior, state);
+
     state['behavior'] = behavior;
     
     // Convert to JSON string with pretty formatting
@@ -942,6 +996,54 @@ class LumaraControlStateBuilder {
         behavior['outputStructure'] = 'conversational';
         behavior['actionOriented'] = true;
         break;
+    }
+  }
+
+  /// Apply engagement discipline overrides to behavioral parameters
+  static void _applyEngagementOverrides(Map<String, dynamic> behavior, Map<String, dynamic> state) {
+    final engagement = state['engagement'] as Map<String, dynamic>? ?? {};
+    final behaviorParams = engagement['behavioral_params'] as Map<String, dynamic>? ?? {};
+
+    if (behaviorParams.isNotEmpty) {
+      // Apply engagement intensity to overall warmth and challenge
+      final engagementIntensity = behaviorParams['engagement_intensity'] as double? ?? 0.6;
+      final stoppingThreshold = behaviorParams['stopping_threshold'] as double? ?? 0.5;
+      final questionPropensity = behaviorParams['question_propensity'] as double? ?? 0.3;
+
+      // Modulate existing behavioral parameters based on engagement settings
+
+      // Engagement intensity affects warmth (higher engagement = more warmth)
+      if (behavior['warmth'] is double) {
+        final currentWarmth = behavior['warmth'] as double;
+        behavior['warmth'] = (currentWarmth * 0.8 + engagementIntensity * 0.2).clamp(0.0, 1.0);
+      }
+
+      // Stopping threshold affects verbosity (higher threshold = lower verbosity)
+      if (behavior['verbosity'] is double) {
+        final currentVerbosity = behavior['verbosity'] as double;
+        final verbosityAdjustment = 1.0 - (stoppingThreshold * 0.3);
+        behavior['verbosity'] = (currentVerbosity * verbosityAdjustment).clamp(0.0, 1.0);
+      }
+
+      // Question propensity affects challenge level and rigor
+      if (behavior['challengeLevel'] is double) {
+        final currentChallenge = behavior['challengeLevel'] as double;
+        behavior['challengeLevel'] = (currentChallenge * 0.8 + questionPropensity * 0.2).clamp(0.0, 1.0);
+      }
+
+      if (behavior['rigor'] is double) {
+        final currentRigor = behavior['rigor'] as double;
+        final explorativeTendency = behaviorParams['explorative_tendency'] as double? ?? 0.5;
+        behavior['rigor'] = (currentRigor * 0.8 + explorativeTendency * 0.2).clamp(0.0, 1.0);
+      }
+
+      // Add engagement-specific behavioral hints
+      final engagementMode = engagement['mode'] as String? ?? 'reflect';
+      behavior['engagementMode'] = engagementMode;
+      behavior['maxTemporalConnections'] = engagement['max_temporal_connections'] as int? ?? 2;
+      behavior['maxExplorativeQuestions'] = engagement['max_explorative_questions'] as int? ?? 1;
+      behavior['allowTherapeuticLanguage'] = engagement['allow_therapeutic_language'] as bool? ?? false;
+      behavior['allowPrescriptiveGuidance'] = engagement['allow_prescriptive_guidance'] as bool? ?? false;
     }
   }
 }

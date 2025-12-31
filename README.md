@@ -12,10 +12,18 @@ A Flutter-based AI companion app that provides life-aware assistance through jou
 - **Architecture Version**: 2.2 (Consolidated 5-Module Architecture)
 - **Flutter SDK**: >=3.22.3
 - **Dart SDK**: >=3.0.3 <4.0.0
-- **Last Updated**: January 2025
+- **Last Updated**: December 29, 2025
 - **Status**: ✅ Production Ready
 
-### **Latest Major Achievement: Complete MVP Implementation** ✅ **COMPLETE**
+### **Latest Major Achievement: Engagement Discipline System** ✅ **COMPLETE** (v2.1.75)
+
+- **User-Controlled Engagement Modes**: Reflect (minimal), Explore (moderate), Integrate (deep synthesis)
+- **Cross-Domain Synthesis Controls**: Toggle synthesis between life domains (Faith & Work, Relationships & Work, etc.)
+- **Response Discipline Settings**: Control temporal connections, question limits, and language boundaries
+- **Integration with LUMARA Control State**: Seamless integration with existing LUMARA system
+- **Advanced Settings UI**: Black background, white text, purple accents - consistent with other Advanced Settings
+
+### **Previous Major Achievement: Complete MVP Implementation** ✅ **COMPLETE**
 
 - **5-Module Architecture**: Consolidated from 8+ modules for maintainability
 - **LUMARA MCP Memory System**: Persistent conversational memory across sessions
@@ -30,13 +38,13 @@ A Flutter-based AI companion app that provides life-aware assistance through jou
 
 All documentation is version-controlled and located in `ARC MVP/EPI/docs/`:
 
-- **Architecture**: `docs/architecture/EPI_MVP_Architecture.md` - Comprehensive architecture documentation
-- **Status**: `docs/status/status.md` - Current system status and health
+- **Architecture**: `docs/ARCHITECTURE.md` - Comprehensive architecture documentation
+- **Features**: `docs/FEATURES.md` - Complete feature documentation
+- **UI/UX**: `docs/UI_UX.md` - UI/UX design documentation
+- **Backend**: `docs/backend.md` - Backend architecture and setup
+- **Engagement Discipline**: `docs/Engagement_Discipline.md` - Engagement Discipline system documentation
+- **Changelog**: `docs/CHANGELOG.md` - Version history and changes
 - **Bug Tracker**: `docs/bugtracker/bug_tracker.md` - Comprehensive bug tracking
-- **Features**: `docs/features/` - Feature documentation
-- **Guides**: `docs/guides/` - User and developer guides
-- **Reports**: `docs/reports/` - Project reports and analysis
-- **Updates**: `docs/updates/` - Update logs and changelogs
 
 ### Archive
 

@@ -252,6 +252,7 @@ The EPI system is organized into 5 core modules:
 - Privacy filtering
 - Context management
 - Prompt engineering
+- **Engagement Discipline System** (v2.1.75): User-controlled engagement modes (Reflect/Explore/Integrate) with synthesis boundaries and response discipline settings
 
 ---
 

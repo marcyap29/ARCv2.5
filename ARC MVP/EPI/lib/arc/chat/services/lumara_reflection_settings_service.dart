@@ -2,6 +2,8 @@
 // Service to persist and retrieve LUMARA reflection settings
 
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
+import '../../../models/engagement_discipline.dart';
 
 /// LUMARA Persona types
 enum LumaraPersona {
@@ -83,6 +85,11 @@ class LumaraReflectionSettingsService {
   static const bool _defaultWebAccessEnabled = false; // Opt-in by default
   static const String _defaultLumaraPersona = 'auto'; // Auto-adapt by default
 
+  // Engagement discipline defaults
+  static const EngagementMode _defaultEngagementMode = EngagementMode.reflect;
+  static const bool _defaultAdaptToVeilState = true;
+  static const bool _defaultAdaptToAtlasPhase = true;
+
   // Keys for SharedPreferences
   static const String _keySimilarityThreshold = 'lumara_similarity_threshold';
   static const String _keyLookbackYears = 'lumara_lookback_years';
@@ -93,6 +100,10 @@ class LumaraReflectionSettingsService {
   static const String _keyTherapeuticAutomaticMode = 'lumara_therapeutic_automatic_mode';
   static const String _keyWebAccessEnabled = 'lumara_web_access_enabled';
   static const String _keyLumaraPersona = 'lumara_persona';
+
+  // Engagement discipline keys
+  static const String _keyEngagementSettings = 'lumara_engagement_settings';
+  static const String _keyConversationEngagementOverride = 'lumara_conversation_engagement_override';
 
   /// Initialize the service
   Future<void> initialize() async {
@@ -315,6 +326,173 @@ class LumaraReflectionSettingsService {
     }
     if (lumaraPersona != null) {
       await setLumaraPersona(lumaraPersona);
+    }
+  }
+
+  // === ENGAGEMENT DISCIPLINE METHODS ===
+
+  /// Get engagement settings
+  Future<EngagementSettings> getEngagementSettings() async {
+    await initialize();
+    final settingsJson = _prefs!.getString(_keyEngagementSettings);
+
+    if (settingsJson == null) {
+      return const EngagementSettings(); // Return default settings
+    }
+
+    try {
+      return EngagementSettings.fromJson(jsonDecode(settingsJson));
+    } catch (e) {
+      // If JSON is corrupted, return default settings
+      return const EngagementSettings();
+    }
+  }
+
+  /// Save engagement settings
+  Future<void> setEngagementSettings(EngagementSettings settings) async {
+    await initialize();
+    await _prefs!.setString(_keyEngagementSettings, jsonEncode(settings.toJson()));
+  }
+
+  /// Get conversation-specific engagement mode override
+  Future<EngagementMode?> getConversationEngagementOverride() async {
+    await initialize();
+    final overrideString = _prefs!.getString(_keyConversationEngagementOverride);
+
+    if (overrideString == null) {
+      return null;
+    }
+
+    try {
+      return EngagementModeExtension.fromJson(overrideString);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /// Set conversation-specific engagement mode override
+  Future<void> setConversationEngagementOverride(EngagementMode? mode) async {
+    await initialize();
+
+    if (mode == null) {
+      await _prefs!.remove(_keyConversationEngagementOverride);
+    } else {
+      await _prefs!.setString(_keyConversationEngagementOverride, mode.toJson());
+    }
+  }
+
+  /// Clear conversation override to return to default mode
+  Future<void> clearConversationEngagementOverride() async {
+    await setConversationEngagementOverride(null);
+  }
+
+  /// Get effective engagement settings with conversation override applied
+  Future<EngagementSettings> getEffectiveEngagementSettings() async {
+    final settings = await getEngagementSettings();
+    final conversationOverride = await getConversationEngagementOverride();
+
+    if (conversationOverride != null) {
+      return settings.copyWith(conversationOverride: conversationOverride);
+    }
+
+    return settings;
+  }
+
+  /// Update engagement mode (affects default, not conversation override)
+  Future<void> updateEngagementMode(EngagementMode mode) async {
+    final currentSettings = await getEngagementSettings();
+    final updatedSettings = currentSettings.copyWith(defaultMode: mode);
+    await setEngagementSettings(updatedSettings);
+  }
+
+  /// Update synthesis preferences
+  Future<void> updateSynthesisPreferences(SynthesisPreferences preferences) async {
+    final currentSettings = await getEngagementSettings();
+    final updatedSettings = currentSettings.copyWith(synthesisPreferences: preferences);
+    await setEngagementSettings(updatedSettings);
+  }
+
+  /// Update response discipline
+  Future<void> updateResponseDiscipline(ResponseDiscipline discipline) async {
+    final currentSettings = await getEngagementSettings();
+    final updatedSettings = currentSettings.copyWith(responseDiscipline: discipline);
+    await setEngagementSettings(updatedSettings);
+  }
+
+  /// Build engagement context for LUMARA Control State integration
+  Future<EngagementContext> buildEngagementContext({
+    required String atlasPhase,
+    required int readinessScore,
+    required Map<String, dynamic> veilState,
+    required Map<String, dynamic> favoritesProfile,
+    bool sentinelAlert = false,
+  }) async {
+    final settings = await getEffectiveEngagementSettings();
+
+    // Compute behavioral parameters
+    final behaviorParams = EngagementBehaviorComputer.computeEngagementBehavior(
+      engagementSettings: settings,
+      atlasPhase: atlasPhase,
+      readinessScore: readinessScore,
+      veilState: veilState,
+      favoritesProfile: favoritesProfile,
+      sentinelAlert: sentinelAlert,
+    );
+
+    return EngagementContext(
+      settings: settings,
+      effectiveMode: settings.activeMode,
+      computedBehaviorParams: behaviorParams,
+    );
+  }
+
+  /// Load all settings including engagement (for UI initialization)
+  Future<Map<String, dynamic>> loadAllSettingsWithEngagement() async {
+    final baseSettings = await loadAllSettings();
+    final engagementSettings = await getEngagementSettings();
+    final conversationOverride = await getConversationEngagementOverride();
+
+    return {
+      ...baseSettings,
+      'engagementSettings': engagementSettings.toJson(),
+      'conversationEngagementOverride': conversationOverride?.toJson(),
+    };
+  }
+
+  /// Save all settings including engagement (for UI persistence)
+  Future<void> saveAllSettingsWithEngagement({
+    double? similarityThreshold,
+    int? lookbackYears,
+    int? maxMatches,
+    bool? crossModalEnabled,
+    bool? therapeuticPresenceEnabled,
+    int? therapeuticDepthLevel,
+    bool? therapeuticAutomaticMode,
+    bool? webAccessEnabled,
+    LumaraPersona? lumaraPersona,
+    EngagementSettings? engagementSettings,
+    EngagementMode? conversationEngagementOverride,
+  }) async {
+    // Save base settings
+    await saveAllSettings(
+      similarityThreshold: similarityThreshold,
+      lookbackYears: lookbackYears,
+      maxMatches: maxMatches,
+      crossModalEnabled: crossModalEnabled,
+      therapeuticPresenceEnabled: therapeuticPresenceEnabled,
+      therapeuticDepthLevel: therapeuticDepthLevel,
+      therapeuticAutomaticMode: therapeuticAutomaticMode,
+      webAccessEnabled: webAccessEnabled,
+      lumaraPersona: lumaraPersona,
+    );
+
+    // Save engagement settings
+    if (engagementSettings != null) {
+      await setEngagementSettings(engagementSettings);
+    }
+
+    if (conversationEngagementOverride != null) {
+      await setConversationEngagementOverride(conversationEngagementOverride);
     }
   }
 }
