@@ -12,32 +12,67 @@ class BibleRetrievalHelper {
   static final BibleApiService _apiService = BibleApiService();
   
   /// Check if a user message is requesting a Bible verse
+  /// 
+  /// This function uses STRICT detection to avoid false positives.
+  /// It only triggers when there's explicit Bible-related context.
   static bool isBibleRequest(String message) {
-    final lower = message.toLowerCase();
+    final lower = message.toLowerCase().trim();
     
-    // First, check comprehensive Bible terminology library
-    if (BibleTerminologyLibrary.containsBibleTerminology(message)) {
+    // STRICT PATTERNS: These are explicit Bible requests
+    final strictPatterns = [
+      // Explicit Bible verse/chapter references with numbers
+      RegExp(r'\b(john|matthew|mark|luke|acts|romans|corinthians|galatians|ephesians|philippians|colossians|thessalonians|timothy|titus|philemon|hebrews|james|peter|jude|revelation|genesis|exodus|leviticus|numbers|deuteronomy|joshua|judges|ruth|samuel|kings|chronicles|ezra|nehemiah|esther|job|psalm|psalms|proverbs|ecclesiastes|song|isaiah|jeremiah|lamentations|ezekiel|daniel|hosea|joel|amos|obadiah|jonah|micah|nahum|habakkuk|zephaniah|haggai|zechariah|malachi)\s+\d+', caseSensitive: false),
+      RegExp(r'\b(1|2|3)?\s*(john|cor|thes|tim|pet|sam|kgs|chr)\s+\d+', caseSensitive: false),
+      // Explicit Bible/scripture references
+      RegExp(r'\b(verse|chapter|book|bible|scripture|scriptures)\s+.*\d+', caseSensitive: false),
+      // Explicit Bible question patterns
+      RegExp(r'what does the bible say (about|regarding)', caseSensitive: false),
+      RegExp(r'what does.*bible.*say (about|regarding)', caseSensitive: false),
+      RegExp(r'what does scripture say (about|regarding)', caseSensitive: false),
+      RegExp(r'what does the scripture say (about|regarding)', caseSensitive: false),
+      // Explicit Bible verse requests
+      RegExp(r'\b(bible|scripture|biblical)\s+verse', caseSensitive: false),
+      RegExp(r'verse.*bible|verse.*scripture', caseSensitive: false),
+      RegExp(r'look up.*bible|find.*bible|search.*bible', caseSensitive: false),
+      // Questions about Bible books/prophets with explicit context
+      RegExp(r'\b(tell me about|what is|who is|explain).*\b(prophet|book of|bible book|biblical book)\s+[a-z]+', caseSensitive: false),
+      RegExp(r'\b(tell me about|what is|who is|explain).*\b(isaiah|jeremiah|ezekiel|daniel|hosea|joel|amos|obadiah|jonah|micah|nahum|habakkuk|zephaniah|haggai|zechariah|malachi|elijah|elisha)\s+(prophet|the prophet)', caseSensitive: false),
+      // Bible book names with explicit Bible context
+      RegExp(r'\b(book of|bible book|biblical book)\s+(genesis|exodus|leviticus|numbers|deuteronomy|joshua|judges|ruth|samuel|kings|chronicles|ezra|nehemiah|esther|job|psalm|psalms|proverbs|ecclesiastes|song|isaiah|jeremiah|lamentations|ezekiel|daniel|hosea|joel|amos|obadiah|jonah|micah|nahum|habakkuk|zephaniah|haggai|zechariah|malachi|matthew|mark|luke|john|acts|romans|corinthians|galatians|ephesians|philippians|colossians|thessalonians|timothy|titus|philemon|hebrews|james|peter|jude|revelation)', caseSensitive: false),
+    ];
+    
+    // Check strict patterns first (most reliable)
+    if (strictPatterns.any((pattern) => pattern.hasMatch(lower))) {
+      print('Bible Retrieval Helper: ✅ Strict pattern matched');
       return true;
     }
     
-    // Patterns that indicate Bible verse requests
-    final patterns = [
-      // Specific verse/chapter references
-      RegExp(r'\b(john|matthew|mark|luke|acts|romans|corinthians|galatians|ephesians|philippians|colossians|thessalonians|timothy|titus|philemon|hebrews|james|peter|jude|revelation|genesis|exodus|leviticus|numbers|deuteronomy|joshua|judges|ruth|samuel|kings|chronicles|ezra|nehemiah|esther|job|psalm|psalms|proverbs|ecclesiastes|song|isaiah|jeremiah|lamentations|ezekiel|daniel|hosea|joel|amos|obadiah|jonah|micah|nahum|habakkuk|zephaniah|haggai|zechariah|malachi)\s+\d+', caseSensitive: false),
-      RegExp(r'\b(1|2|3)?\s*(john|cor|thes|tim|pet|sam|kgs|chr)\s+\d+', caseSensitive: false),
-      RegExp(r'\b(verse|chapter|book|bible|scripture|scriptures)\s+.*\d+', caseSensitive: false),
-      // Topic questions
-      RegExp(r'what does the bible say about', caseSensitive: false),
-      RegExp(r'what does.*bible.*say', caseSensitive: false),
-      RegExp(r'bible.*about', caseSensitive: false),
-      // Explicit Bible references
-      RegExp(r'bible verse', caseSensitive: false),
-      RegExp(r'look up.*bible', caseSensitive: false),
-      // Questions about Bible books/prophets (even without chapter/verse)
-      RegExp(r'\b(about|tell me about|who is|what is).*\b(prophet|book of|book)', caseSensitive: false),
-    ];
+    // SECONDARY CHECK: Only check Bible terminology library if message contains
+    // explicit Bible-related phrases (not just common words)
+    final hasExplicitBibleContext = [
+      'bible', 'scripture', 'scriptures', 'biblical', 'biblically',
+      'old testament', 'new testament', 'gospel', 'gospels',
+      'bible verse', 'bible verses', 'bible chapter', 'bible book',
+      'what does the bible', 'what does scripture',
+      'according to the bible', 'in the bible',
+    ].any((phrase) => lower.contains(phrase));
     
-    return patterns.any((pattern) => pattern.hasMatch(lower));
+    if (!hasExplicitBibleContext) {
+      // No explicit Bible context - don't check terminology library
+      // (avoids false positives from common words like "love", "hope", "faith", etc.)
+      print('Bible Retrieval Helper: ❌ No explicit Bible context found');
+      return false;
+    }
+    
+    // Only if explicit Bible context exists, check terminology library
+    // This prevents false positives from common words
+    if (BibleTerminologyLibrary.containsBibleTerminology(message)) {
+      print('Bible Retrieval Helper: ✅ Bible terminology found with explicit context');
+      return true;
+    }
+    
+    print('Bible Retrieval Helper: ❌ Not detected as Bible request');
+    return false;
   }
   
   /// Extract Bible reference from user message

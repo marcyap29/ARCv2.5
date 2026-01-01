@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
 import 'package:my_app/main/bootstrap.dart';
 import 'draft_cache_service.dart';
+import '../../services/firebase_auth_service.dart';
 
 /// Manages app-level lifecycle events and recovery mechanisms
 class AppLifecycleManager with WidgetsBindingObserver {
@@ -60,6 +61,9 @@ class AppLifecycleManager with WidgetsBindingObserver {
   void _handleAppResumed() {
     _lastResumeTime = DateTime.now();
     
+    // Refresh authentication token on app resume to ensure it's fresh
+    _refreshAuthToken();
+    
     // Check if this is a cold start after force quit
     if (_lastPauseTime != null) {
       final pauseDuration = _lastResumeTime!.difference(_lastPauseTime!);
@@ -73,6 +77,19 @@ class AppLifecycleManager with WidgetsBindingObserver {
       logger.d('App resumed - first launch or cold start detected');
       _handleColdStart();
     }
+  }
+
+  /// Refresh authentication token on app resume
+  void _refreshAuthToken() {
+    Future.microtask(() async {
+      try {
+        await FirebaseAuthService.instance.refreshTokenIfNeeded();
+        logger.d('Auth token refreshed on app resume');
+      } catch (e) {
+        logger.w('Failed to refresh auth token on resume: $e');
+        // Don't block app resume - continue anyway
+      }
+    });
   }
 
   void _handleAppPaused() {

@@ -1,9 +1,9 @@
 // Subscription service for managing user subscription tiers and access control
-import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'firebase_auth_service.dart';
+import 'firebase_service.dart';
 
 // Enum for billing interval
 enum BillingInterval {
@@ -158,19 +158,21 @@ class SubscriptionService {
   /// Fetch subscription tier from Firebase Functions
   Future<SubscriptionTier> _fetchFromFirebase() async {
     try {
-      // Force refresh ID token before calling Functions
+      // Ensure token is fresh (Firebase will auto-refresh if expired)
       final authService = FirebaseAuthService.instance;
       final currentUser = authService.currentUser;
       if (currentUser != null) {
         try {
-          await currentUser.getIdToken(true); // Force refresh
-          debugPrint('SubscriptionService: 🔄 ID token refreshed before Function call');
+          // Don't force refresh - Firebase automatically refreshes expired tokens
+          await currentUser.getIdToken(false);
+          debugPrint('SubscriptionService: ✅ Token ready for Function call');
         } catch (e) {
-          debugPrint('SubscriptionService: ⚠️ Failed to refresh ID token: $e');
+          debugPrint('SubscriptionService: ⚠️ Token check failed: $e');
+          // Continue anyway - Firebase Functions will handle auth errors
         }
       }
 
-      final functions = FirebaseFunctions.instance;
+      final functions = FirebaseService.instance.getFunctions();
       final callable = functions.httpsCallable('getUserSubscription');
 
       debugPrint('SubscriptionService: 🔗 Calling Firebase Function: getUserSubscription');
@@ -282,19 +284,28 @@ class SubscriptionService {
         throw Exception('Please sign in with Google to subscribe to premium');
       }
 
-      // Force refresh ID token before calling Functions (same as _fetchFromFirebase)
+      // Ensure token is fresh (Firebase will auto-refresh if expired)
       final currentUser = authService.currentUser;
       if (currentUser != null) {
         try {
-          await currentUser.getIdToken(true); // Force refresh
-          debugPrint('SubscriptionService: 🔄 ID token refreshed before checkout Function call');
+          // Don't force refresh - Firebase automatically refreshes expired tokens
+          // This is more efficient and handles token lifecycle properly
+          await currentUser.getIdToken(false);
+          debugPrint('SubscriptionService: ✅ Token ready for checkout Function call');
         } catch (e) {
-          debugPrint('SubscriptionService: ⚠️ Failed to refresh ID token: $e');
-          throw Exception('Authentication failed. Please try signing in again.');
+          debugPrint('SubscriptionService: ⚠️ Token check failed, trying force refresh: $e');
+          // If automatic refresh failed, try forcing it
+          try {
+            await currentUser.getIdToken(true);
+            debugPrint('SubscriptionService: ✅ Token force-refreshed successfully');
+          } catch (forceError) {
+            debugPrint('SubscriptionService: ❌ Force refresh also failed: $forceError');
+            throw Exception('Authentication failed. Please try signing in again.');
+          }
         }
       }
 
-      final functions = FirebaseFunctions.instance;
+      final functions = FirebaseService.instance.getFunctions();
       final callable = functions.httpsCallable('createCheckoutSession');
 
       debugPrint('SubscriptionService: 💳 Creating Stripe checkout session (${interval.apiValue})');
@@ -340,7 +351,7 @@ class SubscriptionService {
   /// Open Stripe Customer Portal for subscription management
   Future<bool> openCustomerPortal() async {
     try {
-      final functions = FirebaseFunctions.instance;
+      final functions = FirebaseService.instance.getFunctions();
       final callable = functions.httpsCallable('createPortalSession');
 
       debugPrint('SubscriptionService: 🏢 Creating customer portal session');
@@ -387,7 +398,7 @@ class SubscriptionService {
   /// Get subscription status details
   Future<Map<String, dynamic>?> getSubscriptionDetails() async {
     try {
-      final functions = FirebaseFunctions.instance;
+      final functions = FirebaseService.instance.getFunctions();
       final callable = functions.httpsCallable('getSubscriptionDetails');
 
       final result = await callable.call();

@@ -193,7 +193,6 @@ exports.getUserSubscription = onCall(
 exports.createCheckoutSession = onCall(
   {
     cors: true,
-    invoker: "public",
     secrets: [STRIPE_SECRET_KEY, STRIPE_PRICE_ID_MONTHLY, STRIPE_PRICE_ID_ANNUAL],
   },
   async (request) => {
@@ -337,7 +336,6 @@ exports.createCheckoutSession = onCall(
 exports.createPortalSession = onCall(
   {
     cors: true,
-    invoker: "public",
     secrets: [STRIPE_SECRET_KEY],
   },
   async (request) => {

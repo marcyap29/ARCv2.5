@@ -14,7 +14,6 @@ import 'package:my_app/prism/atlas/rivet/rivet_models.dart';
 import 'package:my_app/arc/chat/services/favorites_service.dart';
 import 'package:my_app/arc/chat/services/lumara_reflection_settings_service.dart';
 import 'package:my_app/services/health_data_service.dart';
-import '../../../models/engagement_discipline.dart';
 
 class LumaraControlStateBuilder {
   /// Build the unified control state JSON
@@ -406,6 +405,48 @@ class LumaraControlStateBuilder {
     state['engagement'] = engagement;
 
     // ============================================================
+    // J. MEMORY RETRIEVAL PARAMETERS
+    // ============================================================
+    final memory = <String, dynamic>{};
+    
+    try {
+      final settingsService = LumaraReflectionSettingsService.instance;
+      
+      // Memory search parameters
+      memory['similarityThreshold'] = await settingsService.getSimilarityThreshold();
+      memory['lookbackYears'] = await settingsService.getEffectiveLookbackYears();
+      memory['maxMatches'] = await settingsService.getEffectiveMaxMatches();
+      memory['crossModalEnabled'] = await settingsService.isCrossModalEnabled();
+      
+      // Therapeutic depth (affects memory retrieval scope)
+      final therapeuticEnabled = await settingsService.isTherapeuticPresenceEnabled();
+      if (therapeuticEnabled) {
+        memory['therapeuticDepth'] = await settingsService.getTherapeuticDepthLevel();
+        memory['therapeuticAutoAdapt'] = await settingsService.isTherapeuticAutomaticMode();
+      } else {
+        memory['therapeuticDepth'] = null;
+        memory['therapeuticAutoAdapt'] = false;
+      }
+      
+      // Include media in context (default: true, can be controlled by user preference)
+      // For now, default to true - can be enhanced with user setting
+      memory['includeMedia'] = true;
+      
+    } catch (e) {
+      print('LUMARA Control State: Error getting memory parameters: $e');
+      // Fallback defaults
+      memory['similarityThreshold'] = 0.55;
+      memory['lookbackYears'] = 5;
+      memory['maxMatches'] = 5;
+      memory['crossModalEnabled'] = true;
+      memory['therapeuticDepth'] = null;
+      memory['therapeuticAutoAdapt'] = false;
+      memory['includeMedia'] = true;
+    }
+    
+    state['memory'] = memory;
+
+    // ============================================================
     // Final computed behavioral parameters
     // ============================================================
     // These are derived from the above signals AND persona
@@ -549,15 +590,29 @@ class LumaraControlStateBuilder {
   }
   
   /// Compute verbosity level (0-1)
+  /// 
+  /// For regular chat, default to higher verbosity (0.7-0.8) for comprehensive responses.
+  /// Only reduce verbosity if user has low energy or explicitly prefers concise responses.
   static double _computeVerbosity(Map<String, dynamic> state) {
     final veil = state['veil'] as Map<String, dynamic>? ?? {};
     final health = veil['health'] as Map<String, dynamic>? ?? {};
+    final engagement = state['engagement'] as Map<String, dynamic>? ?? {};
     final energyLevel = health['energyLevel'] as double? ?? 0.7;
+    final responseLength = engagement['response_length'] as String?;
     
-    double verbosity = 0.6; // Base verbosity
+    // Check if user has explicit response length preference
+    if (responseLength == 'concise') {
+      return 0.3; // Low verbosity for concise preference
+    } else if (responseLength == 'detailed') {
+      return 0.9; // High verbosity for detailed preference
+    }
+    
+    // Default to moderate-high verbosity (0.7) for comprehensive chat responses
+    // Only reduce if user has low energy
+    double verbosity = 0.7; // Base verbosity - comprehensive responses by default
     
     if (energyLevel < 0.5) {
-      verbosity = 0.4; // Lower verbosity for low energy
+      verbosity = 0.5; // Slightly lower verbosity for low energy, but still moderate
     }
     
     return verbosity.clamp(0.0, 1.0);

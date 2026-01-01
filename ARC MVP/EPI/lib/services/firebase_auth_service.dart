@@ -1,4 +1,5 @@
 // Firebase Auth service with Google Sign-In integration and account linking
+import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter/foundation.dart';
@@ -21,6 +22,7 @@ class FirebaseAuthService {
 
   FirebaseAuth? _auth;
   GoogleSignIn? _googleSignIn;
+  StreamSubscription<User?>? _idTokenSubscription;
 
   FirebaseAuth get auth {
     if (_auth == null) {
@@ -88,6 +90,9 @@ class FirebaseAuthService {
         // REMOVED: Automatic anonymous sign-in for better premium account handling
         // Users should explicitly sign in with Google for premium features
       }
+
+      // Set up automatic token refresh listener
+      _setupTokenRefreshListener();
 
       debugPrint('🔐 FirebaseAuthService: ✅ Initialized successfully');
 
@@ -458,5 +463,62 @@ class FirebaseAuthService {
     } catch (e) {
       debugPrint('❌ FORCE SIGN OUT failed: $e');
     }
+  }
+
+  /// Set up automatic token refresh listener
+  /// This ensures tokens are automatically refreshed when they expire
+  void _setupTokenRefreshListener() {
+    if (_auth == null) return;
+
+    // Cancel existing subscription if any
+    _idTokenSubscription?.cancel();
+
+    // Listen to ID token changes (fires when token is refreshed)
+    _idTokenSubscription = _auth!.idTokenChanges().listen(
+      (User? user) {
+        if (user != null && !user.isAnonymous) {
+          debugPrint('🔄 FirebaseAuthService: ID token changed - auto-refreshing for user: ${user.email}');
+          // Token was automatically refreshed by Firebase
+          // No need to force refresh - Firebase handles this automatically
+        }
+      },
+      onError: (error) {
+        debugPrint('⚠️ FirebaseAuthService: Token refresh listener error: $error');
+      },
+    );
+
+    debugPrint('✅ FirebaseAuthService: Automatic token refresh listener set up');
+  }
+
+  /// Refresh authentication token (called on app resume or when needed)
+  /// This ensures tokens are fresh for Firebase Functions calls
+  Future<void> refreshTokenIfNeeded() async {
+    try {
+      final user = currentUser;
+      if (user == null || user.isAnonymous) return;
+
+      // Get token without forcing refresh - Firebase will auto-refresh if expired
+      // This is more efficient than forcing refresh every time
+      await user.getIdToken(false);
+      debugPrint('✅ FirebaseAuthService: Token refreshed (if needed)');
+    } catch (e) {
+      debugPrint('⚠️ FirebaseAuthService: Token refresh failed: $e');
+      // If token refresh fails, try forcing a refresh
+      try {
+        final user = currentUser;
+        if (user != null && !user.isAnonymous) {
+          await user.getIdToken(true);
+          debugPrint('✅ FirebaseAuthService: Token force-refreshed successfully');
+        }
+      } catch (forceError) {
+        debugPrint('❌ FirebaseAuthService: Force token refresh also failed: $forceError');
+      }
+    }
+  }
+
+  /// Dispose of resources
+  void dispose() {
+    _idTokenSubscription?.cancel();
+    _idTokenSubscription = null;
   }
 }
