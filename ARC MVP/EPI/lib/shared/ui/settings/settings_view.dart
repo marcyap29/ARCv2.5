@@ -19,6 +19,17 @@ import 'package:my_app/ui/subscription/subscription_management_view.dart';
 import 'package:my_app/services/firebase_auth_service.dart';
 import 'package:my_app/shared/ui/settings/local_backup_settings_view.dart';
 import 'package:my_app/arc/phase/share/phase_share_service.dart';
+import 'package:file_picker/file_picker.dart';
+import 'dart:io';
+import 'package:my_app/mira/store/mcp/import/mcp_pack_import_service.dart';
+import 'package:my_app/mira/store/arcx/ui/arcx_import_progress_screen.dart';
+import 'package:my_app/services/phase_regime_service.dart';
+import 'package:my_app/services/rivet_sweep_service.dart';
+import 'package:my_app/services/analytics_service.dart';
+import 'package:my_app/utils/file_utils.dart';
+import 'package:my_app/arc/ui/timeline/timeline_cubit.dart';
+import 'package:my_app/shared/ui/home/home_view.dart';
+import 'package:my_app/arc/chat/chat/chat_repo_impl.dart';
 
 class SettingsView extends StatefulWidget {
   const SettingsView({super.key});
@@ -413,24 +424,8 @@ class _SettingsViewState extends State<SettingsView> {
               children: [
                 _buildSettingsTile(
                   context,
-                  title: 'Import/Export Data',
-                  subtitle: 'Export, import, and organize your journal data',
-                  icon: Icons.dashboard,
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => McpManagementScreen(
-                          journalRepository: context.read<JournalRepository>(),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-                _buildSettingsTile(
-                  context,
                   title: 'Local Backup',
-                  subtitle: 'Backup to local folder on device',
+                  subtitle: 'Regular backups with incremental tracking and scheduling',
                   icon: Icons.folder,
                   onTap: () {
                     Navigator.push(
@@ -438,6 +433,31 @@ class _SettingsViewState extends State<SettingsView> {
                       MaterialPageRoute(
                         builder: (context) => LocalBackupSettingsView(
                           journalRepo: context.read<JournalRepository>(),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                _buildSettingsTile(
+                  context,
+                  title: 'Import Data',
+                  subtitle: 'Restore from .zip, .mcpkg, or .arcx backup files',
+                  icon: Icons.cloud_download,
+                  onTap: () {
+                    _restoreDataFromSettings(context);
+                  },
+                ),
+                _buildSettingsTile(
+                  context,
+                  title: 'Advanced Export',
+                  subtitle: 'Custom exports with date filtering, multi-select, and sharing',
+                  icon: Icons.tune,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => McpManagementScreen(
+                          journalRepository: context.read<JournalRepository>(),
                         ),
                       ),
                     );
@@ -1191,5 +1211,215 @@ class _SettingsViewState extends State<SettingsView> {
         }
       }
     }
+  }
+  
+  /// Restore data - directly open file picker and import
+  Future<void> _restoreDataFromSettings(BuildContext context) async {
+    try {
+      // Open file picker directly
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['zip', 'mcpkg', 'arcx'],
+        allowMultiple: true, // Allow multiple files for separated packages
+      );
+
+      if (result == null || result.files.isEmpty) {
+        return; // User cancelled
+      }
+
+      final files = result.files.where((f) => f.path != null).map((f) => f.path!).toList();
+      
+      if (files.isEmpty) {
+        return;
+      }
+
+      // Check file type and import accordingly
+      final hasArcx = files.any((p) => p.endsWith('.arcx'));
+      final hasZip = files.any((p) => p.endsWith('.zip') || p.endsWith('.mcpkg') || FileUtils.isMcpPackage(p));
+
+      if (hasArcx) {
+        // ARCX file(s) - navigate to ARCX import progress screen
+        if (files.length == 1) {
+          // Single ARCX file
+          final arcxFile = File(files.first);
+          if (!await arcxFile.exists()) {
+            _showImportError(context, 'File not found');
+            return;
+          }
+
+          // Find manifest file (sibling to .arcx)
+          final manifestPath = files.first.replaceAll('.arcx', '.manifest.json');
+          final manifestFile = File(manifestPath);
+          String? actualManifestPath;
+          
+          if (await manifestFile.exists()) {
+            actualManifestPath = manifestPath;
+          }
+
+          // Navigate to ARCX import progress screen
+          if (!context.mounted) return;
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => ARCXImportProgressScreen(
+                arcxPath: files.first,
+                manifestPath: actualManifestPath,
+                parentContext: context,
+              ),
+            ),
+          ).then((result) {
+            // Refresh timeline after ARCX import completes
+            if (context.mounted && result != null) {
+              try {
+                context.read<TimelineCubit>().reloadAllEntries();
+                print('✅ Timeline refreshed after ARCX import');
+                
+                // Navigate to timeline (Journal tab in HomeView)
+                Future.delayed(const Duration(milliseconds: 300), () {
+                  if (context.mounted) {
+                    Navigator.of(context).pushAndRemoveUntil(
+                      MaterialPageRoute(
+                        builder: (context) => const HomeView(initialTab: 0), // Journal tab
+                      ),
+                      (route) => false, // Remove all previous routes
+                    );
+                  }
+                });
+              } catch (e) {
+                print('⚠️ Could not refresh timeline: $e');
+              }
+            }
+          });
+        } else {
+          // Multiple ARCX files - show error for now (separated packages need more complex handling)
+          _showImportError(context, 'Multiple ARCX files selected. Please select one file at a time.');
+        }
+      } else if (hasZip) {
+        // ZIP file(s) - use MCP pack import service
+        if (files.length == 1) {
+          // Single ZIP file
+          final zipFile = File(files.first);
+          if (!await zipFile.exists()) {
+            _showImportError(context, 'File not found');
+            return;
+          }
+
+          // Show loading indicator
+          showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (context) => const Center(
+              child: CircularProgressIndicator(),
+            ),
+          );
+
+          try {
+            // Initialize PhaseRegimeService for extended data import
+            PhaseRegimeService? phaseRegimeService;
+            try {
+              final analyticsService = AnalyticsService();
+              final rivetSweepService = RivetSweepService(analyticsService);
+              phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
+              await phaseRegimeService.initialize();
+            } catch (e) {
+              print('Warning: Could not initialize PhaseRegimeService: $e');
+            }
+
+            // Initialize ChatRepo for chat import
+            final chatRepo = ChatRepoImpl.instance;
+            await chatRepo.initialize();
+            
+            final journalRepo = context.read<JournalRepository>();
+            final importService = McpPackImportService(
+              journalRepo: journalRepo,
+              phaseRegimeService: phaseRegimeService,
+              chatRepo: chatRepo,
+            );
+
+            final importResult = await importService.importFromPath(files.first);
+
+            if (!context.mounted) return;
+            Navigator.pop(context); // Close loading dialog
+
+            if (importResult.success) {
+              // Refresh timeline before showing success dialog
+              try {
+                context.read<TimelineCubit>().reloadAllEntries();
+                print('✅ Timeline refreshed after import');
+              } catch (e) {
+                print('⚠️ Could not refresh timeline: $e');
+              }
+              
+              // Show success dialog briefly, then navigate to timeline
+              _showImportSuccess(
+                context,
+                'Import Complete',
+                'Imported ${importResult.totalEntries} entries and ${importResult.totalPhotos} media items.',
+              );
+              
+              // Navigate to timeline after a short delay (allows dialog to show)
+              Future.delayed(const Duration(milliseconds: 500), () {
+                if (context.mounted) {
+                  Navigator.of(context).pushAndRemoveUntil(
+                    MaterialPageRoute(
+                      builder: (context) => const HomeView(initialTab: 0), // Journal tab
+                    ),
+                    (route) => false, // Remove all previous routes
+                  );
+                }
+              });
+            } else {
+              _showImportError(context, importResult.error ?? 'Import failed');
+            }
+          } catch (e) {
+            if (!context.mounted) return;
+            Navigator.pop(context); // Close loading dialog
+            _showImportError(context, 'Import failed: $e');
+          }
+        } else {
+          _showImportError(context, 'Multiple ZIP files selected. Please select one file at a time.');
+        }
+      } else {
+        _showImportError(context, 'Unsupported file format');
+      }
+    } catch (e) {
+      _showImportError(context, 'Failed to select file: $e');
+    }
+  }
+  
+  /// Show import error dialog
+  void _showImportError(BuildContext context, String message) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: kcBackgroundColor,
+        title: const Text('Error', style: TextStyle(color: Colors.white)),
+        content: Text(message, style: const TextStyle(color: Colors.white70)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  /// Show import success dialog
+  void _showImportSuccess(BuildContext context, String title, String message) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: kcBackgroundColor,
+        title: Text(title, style: const TextStyle(color: Colors.white)),
+        content: Text(message, style: const TextStyle(color: Colors.white70)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
   }
 }

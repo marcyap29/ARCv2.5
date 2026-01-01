@@ -31,6 +31,8 @@ import 'package:my_app/models/arcform_snapshot_model.dart';
 import 'package:my_app/arc/chat/services/favorites_service.dart';
 import 'package:my_app/arc/chat/data/models/lumara_favorite.dart';
 import 'package:hive/hive.dart';
+import 'package:my_app/services/export_history_service.dart';
+import 'package:flutter/foundation.dart';
 
 const _uuid = Uuid();
 
@@ -52,6 +54,11 @@ class ARCXExportOptions {
   final DateTime? startDate; // Optional date range filter
   final DateTime? endDate; // Optional date range filter
   
+  // NEW: Incremental backup options
+  final bool incrementalMode;        // If true, only export new/changed entries
+  final bool skipExportedMedia;      // If true, skip media already in export history
+  final bool trackExportHistory;     // If true, record this export in history
+  
   ARCXExportOptions({
     this.strategy = ARCXExportStrategy.together,
     this.mediaPackTargetSizeMB = 200,
@@ -61,7 +68,35 @@ class ARCXExportOptions {
     this.includeChecksums = true,
     this.startDate,
     this.endDate,
+    // NEW defaults
+    this.incrementalMode = false,
+    this.skipExportedMedia = false,
+    this.trackExportHistory = true,
   });
+  
+  // Convenience constructor for incremental backup
+  factory ARCXExportOptions.incremental({
+    ARCXExportStrategy strategy = ARCXExportStrategy.together,
+    bool encrypt = true,
+  }) => ARCXExportOptions(
+    strategy: strategy,
+    encrypt: encrypt,
+    incrementalMode: true,
+    skipExportedMedia: true,
+    trackExportHistory: true,
+  );
+  
+  // Convenience constructor for full backup
+  factory ARCXExportOptions.fullBackup({
+    ARCXExportStrategy strategy = ARCXExportStrategy.together,
+    bool encrypt = true,
+  }) => ARCXExportOptions(
+    strategy: strategy,
+    encrypt: encrypt,
+    incrementalMode: false,
+    skipExportedMedia: false,
+    trackExportHistory: true,
+  );
   
   // Backward compatibility: separateGroups getter
   bool get separateGroups => strategy == ARCXExportStrategy.separateGroups;
@@ -1938,9 +1973,34 @@ class ARCXExportServiceV2 {
     
     // Create final .arcx ZIP
     onProgress?.call('Writing archive...');
+    
+    // Ensure output directory exists and is writable
+    if (!await outputDir.exists()) {
+      try {
+        await outputDir.create(recursive: true);
+        print('ARCX Export V2: Created output directory: ${outputDir.path}');
+      } catch (e) {
+        throw Exception('Cannot create output directory: ${outputDir.path}. Error: $e');
+      }
+    }
+    
+    // Verify directory is writable
+    try {
+      final testFile = File(path.join(outputDir.path, '.test_write'));
+      await testFile.writeAsString('test');
+      await testFile.delete();
+    } catch (e) {
+      throw Exception('Output directory is not writable: ${outputDir.path}. Error: $e. Please check folder permissions.');
+    }
+    
     final timestamp = DateTime.now().toIso8601String().replaceAll(':', '-').split('.')[0];
     final arcxFileName = 'export_$timestamp.arcx';
-    final arcxPath = path.join(outputDir.path, arcxFileName);
+    
+    // Clean path: remove trailing spaces and normalize
+    final cleanOutputPath = outputDir.path.trim();
+    final arcxPath = path.join(cleanOutputPath, arcxFileName);
+    
+    print('ARCX Export V2: Writing to: $arcxPath');
     
     final finalArchive = Archive();
     finalArchive.addFile(ArchiveFile(
@@ -1959,9 +2019,15 @@ class ARCXExportServiceV2 {
       throw Exception('Failed to create final ZIP archive');
     }
     
-    await File(arcxPath).writeAsBytes(finalZipBytes);
+    // Write file with error handling
+    try {
+      final outputFile = File(arcxPath);
+      await outputFile.writeAsBytes(finalZipBytes);
+      print('ARCX Export V2: ✓ Created ARCX archive: $arcxPath (${finalZipBytes.length} bytes)');
+    } catch (e) {
+      throw Exception('Failed to write ARCX file to $arcxPath. Error: $e. Please ensure the folder has write permissions.');
+    }
     
-    print('ARCX Export V2: ✓ Created ARCX archive: $arcxPath');
     return arcxPath;
   }
   
@@ -1990,6 +2056,257 @@ class ARCXExportServiceV2 {
         archive.addFile(archiveFile);
       }
     }
+  }
+  
+  /// Export incrementally - only new/changed entries since last export
+  Future<ARCXExportResultV2> exportIncremental({
+    required Directory outputDir,
+    String? password,
+    Function(String)? onProgress,
+    ARCXExportStrategy strategy = ARCXExportStrategy.together,
+  }) async {
+    try {
+      onProgress?.call('Analyzing changes since last backup...');
+      
+      final historyService = ExportHistoryService.instance;
+      final lastExportDate = await historyService.getLastExportDate();
+      
+      // Get all current entries and chats
+      final allEntries = await _journalRepo?.getAllJournalEntries() ?? [];
+      final allChats = await _chatRepo?.listAll(includeArchived: true) ?? [];
+      
+      // Filter to only new/modified since last export
+      List<JournalEntry> entriesToExport;
+      List<ChatSession> chatsToExport;
+      
+      if (lastExportDate != null) {
+        entriesToExport = allEntries.where((e) => 
+          e.createdAt.isAfter(lastExportDate) || 
+          e.updatedAt.isAfter(lastExportDate)
+        ).toList();
+        
+        chatsToExport = allChats.where((c) => 
+          c.createdAt.isAfter(lastExportDate) ||
+          c.updatedAt.isAfter(lastExportDate)
+        ).toList();
+      } else {
+        // No previous export - export everything
+        entriesToExport = allEntries;
+        chatsToExport = allChats;
+      }
+      
+      // Collect media from entries to export
+      final mediaToExport = <MediaItem>[];
+      final history = await historyService.getHistory();
+      
+      for (final entry in entriesToExport) {
+        for (final media in entry.media) {
+          // Skip if already exported (by hash)
+          if (media.sha256 != null && 
+              history.allExportedMediaHashes.contains(media.sha256)) {
+            continue;
+          }
+          mediaToExport.add(media);
+        }
+      }
+      
+      // Show preview
+      onProgress?.call(
+        'Found ${entriesToExport.length} new entries, '
+        '${chatsToExport.length} new chats, '
+        '${mediaToExport.length} new media items'
+      );
+      
+      if (entriesToExport.isEmpty && chatsToExport.isEmpty) {
+        onProgress?.call('No new data to export since last backup');
+        return ARCXExportResultV2.success(
+          arcxPath: '',
+          entriesExported: 0,
+          chatsExported: 0,
+          mediaExported: 0,
+        );
+      }
+      
+      // Create selection with filtered data
+      final selection = ARCXExportSelection(
+        entryIds: entriesToExport.map((e) => e.id).toList(),
+        chatThreadIds: chatsToExport.map((c) => c.id).toList(),
+        mediaIds: mediaToExport.map((m) => m.id).toList(),
+      );
+      
+      final options = ARCXExportOptions(
+        strategy: strategy,
+        incrementalMode: true,
+        skipExportedMedia: true,
+        trackExportHistory: true,
+      );
+      
+      // Perform export
+      final result = await export(
+        selection: selection,
+        options: options,
+        outputDir: outputDir,
+        password: password,
+        onProgress: onProgress,
+      );
+      
+      // Record export in history
+      if (result.success && options.trackExportHistory) {
+        final mediaHashes = mediaToExport
+            .where((m) => m.sha256 != null)
+            .map((m) => m.sha256!)
+            .toSet();
+        
+        await historyService.recordExport(ExportRecord(
+          exportId: 'arcx-inc-${DateTime.now().millisecondsSinceEpoch}',
+          exportedAt: DateTime.now(),
+          exportPath: result.arcxPath,
+          entryIds: entriesToExport.map((e) => e.id).toSet(),
+          chatIds: chatsToExport.map((c) => c.id).toSet(),
+          mediaHashes: mediaHashes,
+          entriesCount: result.entriesExported,
+          chatsCount: result.chatsExported,
+          mediaCount: result.mediaExported,
+          archiveSizeBytes: await _getFileSize(result.arcxPath ?? ''),
+          isFullBackup: false,
+        ));
+      }
+      
+      return result;
+    } catch (e, stackTrace) {
+      debugPrint('ARCX Incremental Export: Failed: $e');
+      debugPrint('Stack trace: $stackTrace');
+      return ARCXExportResultV2.failure(e.toString());
+    }
+  }
+  
+  /// Export full backup and record in history
+  Future<ARCXExportResultV2> exportFullBackup({
+    required Directory outputDir,
+    String? password,
+    Function(String)? onProgress,
+    ARCXExportStrategy strategy = ARCXExportStrategy.together,
+  }) async {
+    onProgress?.call('Creating full backup...');
+    
+    // Get all data
+    final allEntries = await _journalRepo?.getAllJournalEntries() ?? [];
+    final allChats = await _chatRepo?.listAll(includeArchived: true) ?? [];
+    
+    final selection = ARCXExportSelection(
+      entryIds: allEntries.map((e) => e.id).toList(),
+      chatThreadIds: allChats.map((c) => c.id).toList(),
+    );
+    
+    final options = ARCXExportOptions.fullBackup(strategy: strategy);
+    
+    final result = await export(
+      selection: selection,
+      options: options,
+      outputDir: outputDir,
+      password: password,
+      onProgress: onProgress,
+    );
+    
+    // Record full backup in history
+    if (result.success) {
+      final historyService = ExportHistoryService.instance;
+      
+      // Collect all media hashes
+      final mediaHashes = <String>{};
+      for (final entry in allEntries) {
+        for (final media in entry.media) {
+          if (media.sha256 != null) {
+            mediaHashes.add(media.sha256!);
+          }
+        }
+      }
+      
+      await historyService.recordExport(ExportRecord(
+        exportId: 'arcx-full-${DateTime.now().millisecondsSinceEpoch}',
+        exportedAt: DateTime.now(),
+        exportPath: result.arcxPath,
+        entryIds: allEntries.map((e) => e.id).toSet(),
+        chatIds: allChats.map((c) => c.id).toSet(),
+        mediaHashes: mediaHashes,
+        entriesCount: result.entriesExported,
+        chatsCount: result.chatsExported,
+        mediaCount: result.mediaExported,
+        archiveSizeBytes: await _getFileSize(result.arcxPath ?? ''),
+        isFullBackup: true,
+      ));
+    }
+    
+    return result;
+  }
+  
+  /// Get file size helper
+  Future<int> _getFileSize(String path) async {
+    if (path.isEmpty) return 0;
+    try {
+      final file = File(path);
+      if (await file.exists()) {
+        return await file.length();
+      }
+    } catch (_) {}
+    return 0;
+  }
+  
+  /// Get incremental export preview (for UI)
+  Future<Map<String, dynamic>> getIncrementalExportPreview() async {
+    final historyService = ExportHistoryService.instance;
+    final lastExportDate = await historyService.getLastExportDate();
+    
+    final allEntries = await _journalRepo?.getAllJournalEntries() ?? [];
+    final allChats = await _chatRepo?.listAll(includeArchived: true) ?? [];
+    
+    int newEntries = 0;
+    int modifiedEntries = 0;
+    int newChats = 0;
+    int newMedia = 0;
+    
+    if (lastExportDate != null) {
+      final history = await historyService.getHistory();
+      
+      for (final entry in allEntries) {
+        if (entry.createdAt.isAfter(lastExportDate)) {
+          newEntries++;
+          // Count new media
+          for (final media in entry.media) {
+            if (media.sha256 == null || 
+                !history.allExportedMediaHashes.contains(media.sha256)) {
+              newMedia++;
+            }
+          }
+        } else if (entry.updatedAt.isAfter(lastExportDate)) {
+          modifiedEntries++;
+        }
+      }
+      
+      for (final chat in allChats) {
+        if (chat.createdAt.isAfter(lastExportDate)) {
+          newChats++;
+        }
+      }
+    } else {
+      // No previous export
+      newEntries = allEntries.length;
+      newChats = allChats.length;
+      for (final entry in allEntries) {
+        newMedia += entry.media.length;
+      }
+    }
+    
+    return {
+      'lastExportDate': lastExportDate,
+      'newEntries': newEntries,
+      'modifiedEntries': modifiedEntries,
+      'newChats': newChats,
+      'newMedia': newMedia,
+      'totalEntries': allEntries.length,
+      'totalChats': allChats.length,
+      'hasChanges': newEntries > 0 || modifiedEntries > 0 || newChats > 0,
+    };
   }
 }
 
