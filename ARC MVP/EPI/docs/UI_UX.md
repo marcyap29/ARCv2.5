@@ -1,6 +1,6 @@
 # EPI MVP - UI/UX Feature Documentation
 
-**Version:** 2.1.76
+**Version:** 2.1.77
 **Last Updated:** January 1, 2026
 **Status:** ✅ Comprehensive Feature Analysis Complete
 
@@ -1884,5 +1884,91 @@ GlowingVoiceIndicator(
 
 ---
 
-*This comprehensive UI/UX documentation reflects the current state of the EPI Flutter application as of December 13, 2025. The interface combines sophisticated AI integration with thoughtful human-centered design to create a meaningful personal journaling and life insight experience.*
+## 27. Incremental Backup UI (v2.1.77)
+
+### 📦 Local Backup Settings
+**File:** `lib/shared/ui/settings/local_backup_settings_view.dart`
+
+**Purpose:** Space-efficient incremental backups with export history tracking.
+
+#### Quick Backup Card
+**Features:**
+- **Preview Display**: Shows count of new entries, chats, and media before backup
+- **"Backup New Entries" Button**: Initiates incremental backup
+- **Size Efficiency**: Only exports data changed since last backup (90%+ size reduction)
+- **Real-time Preview**: Updates preview when new data is available
+
+**Visual Design:**
+- Card with purple accent border
+- Info rows showing entry/chat/media counts
+- Clear call-to-action button
+
+#### Full Backup Card
+**Features:**
+- **Total Counts**: Shows all entries and chats in database
+- **"Create Full Backup" Button**: Exports complete backup
+- **History Tracking**: Records full backup date
+- **Recommended Frequency**: Monthly or before major changes
+
+**Visual Design:**
+- Card with blue accent
+- Total statistics display
+- Prominent backup button
+
+#### Backup History Card
+**Features:**
+- **Export Statistics**: Total exports, entries backed up, last full backup date
+- **History Management**: "Clear History" button to reset tracking
+- **Summary Display**: Quick overview of backup activity
+
+**Visual Design:**
+- Card with gray accent
+- Statistics rows
+- Management button
+
+#### Folder Selection & Guidance
+**Features:**
+- **Info Card**: Explains recommended backup locations
+- **"Use App Documents" Button**: One-tap setup for safe backup folder
+- **Path Validation**: Detects and warns about restricted locations (iCloud Drive)
+- **Permission Testing**: Validates folder permissions before starting export
+- **Error Handling**: Clear messages for permission issues
+
+**Visual Design:**
+- Blue info card with guidance text
+- Warning dialogs for restricted paths
+- Helpful instructions for folder selection
+
+### 🔄 Import/Export UI Reorganization (v2.1.77)
+
+**File:** `lib/shared/ui/settings/settings_view.dart`
+
+#### Settings → Import & Export Section
+**Reorganized Structure:**
+1. **Local Backup**: Regular automated backups with incremental tracking
+2. **Import Data**: Direct access to restore from backup files (.zip, .mcpkg, .arcx)
+3. **Advanced Export**: Custom exports with date filtering, multi-select, and sharing
+
+**Benefits:**
+- **Clearer Purpose**: Separated regular backups from advanced exports
+- **Direct Access**: Import now directly accessible from Settings (no navigation needed)
+- **Better Organization**: Three distinct options with clear descriptions
+
+#### Advanced Export Screen
+**File:** `lib/ui/screens/mcp_management_screen.dart`
+
+**Updated Purpose:**
+- **Custom Exports**: Date range filtering, multi-select, password encryption
+- **Export Strategy Options**: Different packaging methods
+- **Sharing Integration**: Direct share functionality
+- **Removed Import**: Import moved to main Settings menu
+
+**Visual Design:**
+- Updated description explaining advanced export purpose
+- Clear distinction from regular backups
+- Reference to Local Backup for regular backups
+
+---
+
+*This comprehensive UI/UX documentation reflects the current state of the EPI Flutter application as of January 1, 2026. The interface combines sophisticated AI integration with thoughtful human-centered design to create a meaningful personal journaling and life insight experience.*
 

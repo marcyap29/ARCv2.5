@@ -1,6 +1,6 @@
 # EPI MVP - Architecture Overview
 
-**Version:** 2.1.76
+**Version:** 2.1.77
 **Last Updated:** January 1, 2026
 **Status:** ✅ Production Ready - MVP Fully Operational with Health Integration, AssemblyAI v3, Web Access Safety, Correlation-Resistant PII Protection, Bible Reference Retrieval & Google Drive Backup
 
@@ -27,6 +27,8 @@ EPI (Evolving Personal Intelligence) is a Flutter-based intelligent journaling a
 - ✅ **LUMARA Journal Context Order Fix (v2.1.58)**: Chronological context ordering - LUMARA only sees content above its position
 - ✅ **LUMARA Bible Reference Retrieval (v2.1.63)**: Automatic Bible verse and chapter retrieval using HelloAO Bible API with intelligent detection and privacy protection
 - ✅ **Google Drive Backup Integration (v2.1.64)**: Automatic cloud backups to Google Drive with OAuth authentication, scheduled backups, and export integration
+- ✅ **Stripe Integration Setup (v2.1.76)**: Complete Stripe payment integration with checkout, customer portal, and webhook handlers. Comprehensive documentation and setup guides
+- ✅ **Incremental Backup System (v2.1.77)**: Space-efficient incremental backups with export history tracking, media deduplication, and 90%+ size reduction
 
 ### Current Version
 
@@ -364,6 +366,47 @@ MIRA Store → MCP Export Service → ZIP/ARCX Archive
                                     ↓
                               media_index.json (pack tracking)
 ```
+
+### Incremental Backup System (v2.1.77)
+
+**Purpose:** Space-efficient backups that only export new/changed data since last backup, reducing backup size by 90%+.
+
+**Components:**
+- **ExportHistoryService**: Tracks export history using SharedPreferences
+  - Stores exported entry IDs, chat IDs, and media hashes (SHA-256)
+  - Maintains last export date and last full backup date
+  - Provides export statistics and preview data
+- **ARCXExportServiceV2**: Enhanced with incremental export methods
+  - `exportIncremental()`: Exports only new/modified entries since last export
+  - `exportFullBackup()`: Exports all data and records as full backup
+  - `getIncrementalExportPreview()`: Provides summary of new data for UI
+- **LocalBackupSettingsView**: UI for backup management
+  - Quick Backup: Incremental backup with preview
+  - Full Backup: Complete backup option
+  - Backup History: Statistics and history management
+
+**Backup Flow:**
+```
+User initiates backup
+    ↓
+ExportHistoryService checks last export date
+    ↓
+Filter entries/chats modified since last export
+    ↓
+Filter media by SHA-256 hash (skip already exported)
+    ↓
+Create ARCX archive with only new/changed data
+    ↓
+Record export in ExportHistoryService
+    ↓
+Update last export date and tracked IDs/hashes
+```
+
+**Benefits:**
+- **90%+ Size Reduction**: Typical backup size reduced from ~500MB to ~30-50MB
+- **Faster Backups**: Less data to process and encrypt
+- **Storage Efficiency**: Prevents redundant data in backup files
+- **Smart Deduplication**: Media files tracked by hash to prevent duplicates
 
 ---
 

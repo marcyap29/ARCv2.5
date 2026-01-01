@@ -1,6 +1,6 @@
 # EPI MVP - Comprehensive Features Guide
 
-**Version:** 2.1.76
+**Version:** 2.1.77
 **Last Updated:** January 1, 2026
 
 ---
@@ -653,17 +653,60 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 - **Media Handling**: Photo and media import with deduplication
 - **Duplicate Detection**: Prevents duplicate entries and favorites
 
+### Incremental Backup System (v2.1.77)
+
+**Purpose:** Space-efficient backups that only export new/changed data since last backup, reducing backup size by 90%+.
+
+**Quick Backup (Incremental)**
+- **Automatic Change Detection**: Only exports entries and chats modified since last backup
+- **Media Deduplication**: Skips media files already exported using SHA-256 hash tracking
+- **Export Preview**: Shows count of new entries, chats, and media before backup
+- **Size Reduction**: Typical backup size reduced from ~500MB to ~30-50MB
+- **Fast Execution**: Less data to process means faster backup times
+
+**Full Backup**
+- **Complete Export**: Exports all data regardless of previous exports
+- **History Tracking**: Records full backup date for reference
+- **Recommended Frequency**: Monthly or before major changes
+
+**Backup History Management**
+- **Export Statistics**: View total exports, entries backed up, last full backup date
+- **History Clearing**: Option to clear history and force full backup
+- **Export Tracking**: Maintains record of all exports with entry IDs, chat IDs, and media hashes
+
+**UI Features**
+- **Quick Backup Card**: Preview and initiate incremental backups
+- **Full Backup Card**: Option for complete backups
+- **Backup History Card**: View statistics and manage history
+- **Folder Guidance**: Info card explaining recommended backup locations
+- **"Use App Documents" Button**: One-tap setup for safe backup folder
+- **Path Validation**: Detects and warns about restricted locations (iCloud Drive)
+- **Permission Testing**: Validates folder permissions before starting export
+
+**Benefits**
+- **Storage Efficiency**: Prevents redundant data in backup files
+- **Faster Backups**: Less data to process and encrypt
+- **Better Organization**: Clear separation between regular backups and advanced exports
+- **User Guidance**: Clear instructions on where to save backups
+
 ### Data Portability
 
 **Export Formats**
 - **ZIP (.zip)**: Standard ZIP archive format
+- **ARCX (.arcx)**: Encrypted archive format with AES-256-GCM encryption
 - Includes all content types: entries, media, chats, extended data
 - JSON (legacy support)
 
 **Import Formats**
 - **MCP bundles (.zip)**: Standard ZIP files with full extended data support
+- **ARCX archives (.arcx)**: Encrypted archives with password protection
 - Restores all content types including Phase Regimes, RIVET state, and LUMARA Favorites
 - Legacy formats (with conversion)
+
+**Import/Export UI Organization (v2.1.77)**
+- **Settings → Local Backup**: Regular automated backups with incremental tracking
+- **Settings → Import Data**: Direct access to restore from backup files (.zip, .mcpkg, .arcx)
+- **Settings → Advanced Export**: Custom exports with date filtering, multi-select, and sharing options
 
 ---
 

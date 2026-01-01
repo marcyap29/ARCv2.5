@@ -1,6 +1,6 @@
 # EPI ARC MVP - Changelog
 
-**Version:** 2.1.76
+**Version:** 2.1.77
 **Last Updated:** January 1, 2026
 
 ---
@@ -14,6 +14,60 @@ This changelog has been split into parts for easier navigation:
 | **[CHANGELOG_part1.md](CHANGELOG_part1.md)** | Dec 2025 | v2.1.43 - v2.1.53 (Current) |
 | **[CHANGELOG_part2.md](CHANGELOG_part2.md)** | Nov 2025 | v2.1.28 - v2.1.42 |
 | **[CHANGELOG_part3.md](CHANGELOG_part3.md)** | Jan-Oct 2025 | v2.0.0 - v2.1.27 & Earlier |
+
+---
+
+## [2.1.77] - January 1, 2026
+
+### **Incremental Backup System & UI Reorganization** - ✅ Complete
+
+- **Incremental Backup System**:
+  - **ExportHistoryService**: New service to track export history using SharedPreferences
+  - **Incremental Export**: Only exports new/changed entries since last backup (90%+ size reduction)
+  - **Media Deduplication**: Skips media files already exported using SHA-256 hash tracking
+  - **Export History Tracking**: Maintains record of all exports with entry IDs, chat IDs, and media hashes
+  - **Full Backup Option**: Still available for complete backups
+  - **Backup History Management**: View statistics, clear history to force full backup
+  
+- **Local Backup UI Improvements**:
+  - **Quick Backup Card**: Shows preview of new entries, chats, and media before backup
+  - **Full Backup Card**: Option to create complete backups
+  - **Backup History Card**: Displays export statistics and last full backup date
+  - **Folder Selection Guidance**: Info card explaining where to save backups (recommended locations)
+  - **"Use App Documents" Button**: One-tap setup for safe backup folder
+  - **Path Validation**: Detects and warns about restricted locations (iCloud Drive)
+  - **Write Permission Testing**: Validates folder permissions before starting export
+  
+- **Import/Export UI Reorganization**:
+  - **Moved Import Data**: Now directly accessible from Settings → Import & Export (no need to navigate to Advanced Export)
+  - **Renamed Sections**: "Import/Export Data" → "Advanced Export" for clarity
+  - **Clearer Purpose**: Local Backup for regular backups, Advanced Export for custom exports
+  - **Streamlined Navigation**: Three clear options in Settings:
+    - Local Backup: Regular automated backups with incremental tracking
+    - Import Data: Direct access to restore from backup files
+    - Advanced Export: Custom exports with date filtering, multi-select, sharing
+  
+- **Export Service Enhancements**:
+  - **Directory Validation**: Ensures output directory exists and is writable before export
+  - **Path Cleaning**: Trims trailing spaces and normalizes paths
+  - **Better Error Messages**: Clear feedback for permission issues and folder problems
+  - **Incremental Export Methods**: `exportIncremental()` and `exportFullBackup()` methods
+  - **Export Preview**: `getIncrementalExportPreview()` for UI display
+
+**Status**: ✅ Complete  
+**Files Created**:
+- `lib/services/export_history_service.dart` - Export history tracking service
+
+**Files Modified**:
+- `lib/mira/store/arcx/services/arcx_export_service_v2.dart` - Added incremental export methods and options
+- `lib/shared/ui/settings/local_backup_settings_view.dart` - Added incremental backup UI and folder guidance
+- `lib/shared/ui/settings/settings_view.dart` - Reorganized Import/Export section, added direct import access
+- `lib/ui/screens/mcp_management_screen.dart` - Removed import section, clarified export purpose
+
+**Expected Results**:
+- Backup size reduction: ~477MB → ~30-50MB per incremental backup (90%+ reduction)
+- Improved user experience: Clear guidance on where to save backups
+- Better organization: Separated regular backups from advanced exports
 
 ---
 
