@@ -1,7 +1,7 @@
 # EPI MVP - Comprehensive Features Guide
 
-**Version:** 2.1.75
-**Last Updated:** December 29, 2025
+**Version:** 2.1.76
+**Last Updated:** January 1, 2026
 
 ---
 
@@ -542,6 +542,34 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 - **Profile Display**: User photo, name, and email when signed in
 - **Sign Out**: Confirmation dialog with data preservation notice
 - **Sign-In Prompt**: Navigate to sign-in when not authenticated
+
+### Subscription & Payment System (v2.1.76)
+
+**Subscription Tiers:**
+- **Free Tier**: 50 LUMARA requests/day, 3 requests/minute rate limit, limited phase history
+- **Premium Tier**: Unlimited LUMARA requests, no rate limits, full phase history, $30/month or $200/year
+
+**Stripe Integration:**
+- Secure payment processing via Stripe Checkout
+- Monthly and annual subscription options
+- Customer Portal for subscription management
+- Automatic subscription status updates via webhooks
+- Secrets stored securely in Firebase Secret Manager
+- Webhook signature verification for security
+- Authentication required for all payment functions
+
+**Subscription Management UI:**
+- Subscription status display with tier badges
+- Upgrade prompts for free users
+- "Manage Subscription" button for premium users (opens Stripe Customer Portal)
+- Clear pricing display (Monthly vs Annual)
+- Cache management for subscription status
+
+**Setup Documentation:**
+- Complete setup guide: `docs/stripe/STRIPE_SECRETS_SETUP.md`
+- Webhook configuration: `docs/stripe/STRIPE_WEBHOOK_SETUP_VISUAL.md`
+- Test vs Live mode: `docs/stripe/STRIPE_TEST_VS_LIVE.md`
+- See `docs/stripe/README.md` for full documentation index
 
 ### Per-Feature Rate Limiting
 

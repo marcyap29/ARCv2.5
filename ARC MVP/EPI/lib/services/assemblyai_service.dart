@@ -16,6 +16,8 @@ class AssemblyAIService {
   factory AssemblyAIService() => _instance;
   AssemblyAIService._internal();
 
+  static AssemblyAIService get instance => _instance;
+
   FirebaseFunctions? _functions;
   
   /// Get Firebase Functions instance (lazy initialization)

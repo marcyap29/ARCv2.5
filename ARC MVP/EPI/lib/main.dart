@@ -27,7 +27,7 @@ void _setupGlobalErrorHandling() {
       FlutterError.presentError(details);
     }
     
-    // In production, log to our logger
+    // In production, log to our logger (imported via bootstrap.dart)
     logger.e(
       'Flutter Error: ${details.exception}',
       details.exception,

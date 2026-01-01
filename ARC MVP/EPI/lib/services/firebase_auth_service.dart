@@ -337,6 +337,13 @@ class FirebaseAuthService {
       debugPrint('FirebaseAuthService: 🔄 Signing out from Firebase...');
       await auth.signOut();
 
+      // Clear subscription cache to ensure fresh data on next login
+      debugPrint('FirebaseAuthService: 🧹 Clearing subscription cache...');
+      SubscriptionService.instance.clearCache();
+
+      // Clear AssemblyAI cache
+      AssemblyAIService.instance.clearCache();
+
       debugPrint('FirebaseAuthService: ✅ Sign out successful - use Google Sign-In for premium features');
     } catch (e) {
       debugPrint('FirebaseAuthService: ❌ Sign out failed: $e');

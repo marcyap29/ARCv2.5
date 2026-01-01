@@ -2,7 +2,32 @@
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'firebase_auth_service.dart';
+
+// Enum for billing interval
+enum BillingInterval {
+  monthly,
+  annual;
+
+  String get displayName {
+    switch (this) {
+      case BillingInterval.monthly:
+        return 'Monthly';
+      case BillingInterval.annual:
+        return 'Annual';
+    }
+  }
+
+  String get apiValue {
+    switch (this) {
+      case BillingInterval.monthly:
+        return 'monthly';
+      case BillingInterval.annual:
+        return 'annual';
+    }
+  }
+}
 
 enum SubscriptionTier {
   free,
@@ -235,42 +260,128 @@ class SubscriptionService {
   }
 
 
-  /// Initialize Stripe checkout for premium subscription
-  Future<String?> createStripeCheckoutSession() async {
+  /// Initialize Stripe checkout for premium subscription with URL launcher
+  Future<bool> createStripeCheckoutSession({
+    BillingInterval interval = BillingInterval.monthly,
+  }) async {
     try {
+      // Check authentication first
+      final authService = FirebaseAuthService.instance;
+      debugPrint('SubscriptionService: 🔐 AUTH CHECK for checkout:');
+      debugPrint('  isSignedIn: ${authService.isSignedIn}');
+      debugPrint('  hasRealAccount: ${authService.hasRealAccount}');
+      debugPrint('  isAnonymous: ${authService.isAnonymous}');
+
+      if (!authService.isSignedIn) {
+        debugPrint('SubscriptionService: ❌ User not signed in, cannot create checkout session');
+        throw Exception('Please sign in to subscribe to premium');
+      }
+
+      if (authService.isAnonymous) {
+        debugPrint('SubscriptionService: ❌ Anonymous user cannot subscribe');
+        throw Exception('Please sign in with Google to subscribe to premium');
+      }
+
+      // Force refresh ID token before calling Functions (same as _fetchFromFirebase)
+      final currentUser = authService.currentUser;
+      if (currentUser != null) {
+        try {
+          await currentUser.getIdToken(true); // Force refresh
+          debugPrint('SubscriptionService: 🔄 ID token refreshed before checkout Function call');
+        } catch (e) {
+          debugPrint('SubscriptionService: ⚠️ Failed to refresh ID token: $e');
+          throw Exception('Authentication failed. Please try signing in again.');
+        }
+      }
+
       final functions = FirebaseFunctions.instance;
       final callable = functions.httpsCallable('createCheckoutSession');
 
+      debugPrint('SubscriptionService: 💳 Creating Stripe checkout session (${interval.apiValue})');
+
       final result = await callable.call({
-        'priceId': 'price_premium_monthly', // This will be configured in Stripe
-        'successUrl': 'https://your-app-url.com/success',
-        'cancelUrl': 'https://your-app-url.com/cancel',
+        'billingInterval': interval.apiValue,
+        'successUrl': 'arc://subscription/success',
+        'cancelUrl': 'arc://subscription/cancel',
       });
 
       final data = result.data as Map<String, dynamic>;
-      return data['checkoutUrl'] as String?;
+      final checkoutUrl = data['url'] as String?;
+
+      if (checkoutUrl != null && checkoutUrl.isNotEmpty) {
+        debugPrint('SubscriptionService: 🚀 Launching checkout URL: $checkoutUrl');
+
+        final uri = Uri.parse(checkoutUrl);
+
+        if (await canLaunchUrl(uri)) {
+          await launchUrl(
+            uri,
+            mode: LaunchMode.externalApplication, // Opens in browser
+          );
+
+          // Clear cache to force refresh after potential subscription change
+          clearCache();
+
+          return true;
+        } else {
+          debugPrint('SubscriptionService: ❌ Could not launch checkout URL');
+          throw Exception('Could not launch checkout URL');
+        }
+      }
+
+      debugPrint('SubscriptionService: ❌ No checkout URL received');
+      return false;
     } catch (e) {
-      debugPrint('SubscriptionService: Failed to create checkout session: $e');
-      return null;
+      debugPrint('SubscriptionService: ❌ Failed to create checkout session: $e');
+      rethrow;
     }
   }
 
-  /// Cancel subscription
-  Future<bool> cancelSubscription() async {
+  /// Open Stripe Customer Portal for subscription management
+  Future<bool> openCustomerPortal() async {
     try {
       final functions = FirebaseFunctions.instance;
-      final callable = functions.httpsCallable('cancelSubscription');
+      final callable = functions.httpsCallable('createPortalSession');
 
-      await callable.call();
+      debugPrint('SubscriptionService: 🏢 Creating customer portal session');
 
-      // Clear cache to force refresh
-      clearCache();
+      final result = await callable.call({
+        'returnUrl': 'arc://settings',
+      });
 
-      return true;
+      final data = result.data as Map<String, dynamic>;
+      final portalUrl = data['url'] as String?;
+
+      if (portalUrl != null && portalUrl.isNotEmpty) {
+        debugPrint('SubscriptionService: 🚀 Launching portal URL: $portalUrl');
+
+        final uri = Uri.parse(portalUrl);
+
+        if (await canLaunchUrl(uri)) {
+          await launchUrl(uri, mode: LaunchMode.externalApplication);
+
+          // Clear cache to force refresh after potential subscription changes
+          clearCache();
+
+          return true;
+        } else {
+          debugPrint('SubscriptionService: ❌ Could not launch portal URL');
+        }
+      }
+
+      debugPrint('SubscriptionService: ❌ No portal URL received');
+      return false;
     } catch (e) {
-      debugPrint('SubscriptionService: Failed to cancel subscription: $e');
+      debugPrint('SubscriptionService: ❌ Failed to create portal session: $e');
       return false;
     }
+  }
+
+  /// Cancel subscription (deprecated - use Customer Portal instead)
+  @deprecated
+  Future<bool> cancelSubscription() async {
+    debugPrint('SubscriptionService: ⚠️ cancelSubscription is deprecated, use openCustomerPortal() instead');
+    return await openCustomerPortal();
   }
 
   /// Get subscription status details

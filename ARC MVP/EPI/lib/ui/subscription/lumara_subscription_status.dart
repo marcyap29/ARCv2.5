@@ -222,51 +222,92 @@ class _LumaraSubscriptionStatusState extends State<LumaraSubscriptionStatus> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Upgrade to Premium'),
-        content: const Text(
-          'Get unlimited LUMARA requests, full phase history access, and priority support for \$30/month.',
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'Get unlimited LUMARA requests, full phase history access, and priority support.',
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    children: [
+                      const Text('Monthly', style: TextStyle(fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 4),
+                      const Text('\$30/month'),
+                      ElevatedButton(
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                          _initiateUpgrade(BillingInterval.monthly);
+                        },
+                        child: const Text('Choose'),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    children: [
+                      const Text('Annual', style: TextStyle(fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 4),
+                      const Text('\$200/year'),
+                      const Text('Save \$160!', style: TextStyle(color: Colors.green, fontSize: 12)),
+                      ElevatedButton(
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                          _initiateUpgrade(BillingInterval.annual);
+                        },
+                        style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+                        child: const Text('Best Value'),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
             child: const Text('Not Now'),
           ),
-          ElevatedButton(
-            onPressed: () async {
-              Navigator.of(context).pop();
-              await _initiateUpgrade();
-            },
-            child: const Text('Upgrade Now'),
-          ),
         ],
       ),
     );
   }
 
-  Future<void> _initiateUpgrade() async {
+  Future<void> _initiateUpgrade(BillingInterval interval) async {
     try {
-      final checkoutUrl = await SubscriptionService.instance.createStripeCheckoutSession();
+      final success = await SubscriptionService.instance.createStripeCheckoutSession(
+        interval: interval,
+      );
 
-      if (checkoutUrl != null && mounted) {
-        // In a real app, you would open the checkout URL in a webview or browser
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Opening checkout: $checkoutUrl'),
-            duration: const Duration(seconds: 3),
-          ),
-        );
-      } else if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Unable to initiate upgrade. Please try again.'),
-          ),
-        );
+      if (mounted) {
+        if (success) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Opening checkout for ${interval.displayName} subscription...'),
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Unable to initiate upgrade. Please try again.'),
+            ),
+          );
+        }
       }
     } catch (e) {
       debugPrint('LumaraSubscriptionStatus: Error initiating upgrade: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Error starting upgrade process.'),
+          SnackBar(
+            content: Text('Error starting upgrade: ${e.toString()}'),
           ),
         );
       }

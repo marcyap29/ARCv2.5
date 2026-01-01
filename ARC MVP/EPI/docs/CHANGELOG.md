@@ -1,7 +1,7 @@
 # EPI ARC MVP - Changelog
 
-**Version:** 2.1.75
-**Last Updated:** December 29, 2025
+**Version:** 2.1.76
+**Last Updated:** January 1, 2026
 
 ---
 
@@ -14,6 +14,57 @@ This changelog has been split into parts for easier navigation:
 | **[CHANGELOG_part1.md](CHANGELOG_part1.md)** | Dec 2025 | v2.1.43 - v2.1.53 (Current) |
 | **[CHANGELOG_part2.md](CHANGELOG_part2.md)** | Nov 2025 | v2.1.28 - v2.1.42 |
 | **[CHANGELOG_part3.md](CHANGELOG_part3.md)** | Jan-Oct 2025 | v2.0.0 - v2.1.27 & Earlier |
+
+---
+
+## [2.1.76] - January 1, 2026
+
+### **Stripe Integration Setup & Documentation** - ✅ Complete
+
+- **Stripe Secrets Configuration**:
+  - Fixed UNAUTHENTICATED errors in Stripe checkout by adding proper authentication checks
+  - Added comprehensive error handling for missing Stripe secrets
+  - Implemented token refresh before Stripe function calls
+  - Added clear error messages for users when Stripe is not configured
+  
+- **Firebase Functions Updates**:
+  - Updated `createCheckoutSession` with proper secret validation
+  - Added graceful error handling for missing secrets
+  - Improved logging for Stripe initialization
+  - Set API version to `2023-10-16` (basil) for stability
+  
+- **Documentation Organization**:
+  - Created `docs/stripe/` directory for all Stripe-related documentation
+  - Moved all Stripe setup guides to centralized location
+  - Created comprehensive README for Stripe documentation
+  - Added visual guides for webhook setup and secret retrieval
+  
+- **Setup Guides Created**:
+  - `STRIPE_SECRETS_SETUP.md` - Complete step-by-step setup guide
+  - `STRIPE_WEBHOOK_SETUP_VISUAL.md` - Visual webhook configuration guide
+  - `STRIPE_TEST_VS_LIVE.md` - Test vs Live mode explanation
+  - `FIND_TEST_MODE.md` - How to find Test Mode toggle
+  - `GET_WEBHOOK_SECRET.md` - Webhook secret retrieval guide
+  - `STRIPE_DIRECT_TEST_MODE.md` - Direct URL method for Test Mode
+
+**Status**: ✅ Complete  
+**Files Created**:
+- `docs/stripe/README.md` - Stripe documentation index
+- `docs/stripe/STRIPE_SECRETS_SETUP.md` - Main setup guide
+- `docs/stripe/STRIPE_WEBHOOK_SETUP_VISUAL.md` - Webhook visual guide
+- `docs/stripe/STRIPE_TEST_VS_LIVE.md` - Mode comparison guide
+- `docs/stripe/FIND_TEST_MODE.md` - Test Mode location guide
+- `docs/stripe/GET_WEBHOOK_SECRET.md` - Secret retrieval guide
+- `docs/stripe/STRIPE_DIRECT_TEST_MODE.md` - Direct URL guide
+
+**Files Modified**:
+- `functions/index.js` - Improved Stripe initialization and error handling
+- `lib/services/subscription_service.dart` - Added authentication checks and token refresh
+- `lib/services/firebase_auth_service.dart` - Added subscription cache clearing on sign out
+- `lib/shared/ui/settings/settings_view.dart` - Fixed sign-out navigation to login screen
+
+**Files Moved**:
+- All Stripe documentation moved to `docs/stripe/` directory
 
 ---
 

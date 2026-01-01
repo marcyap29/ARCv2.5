@@ -25,8 +25,26 @@ exports.getUserSubscription = (0, https_1.onCall)(async (request) => {
         throw new https_1.HttpsError('unauthenticated', 'User must be authenticated');
     }
     const userId = request.auth.uid;
+    const userEmail = request.auth.token?.email;
+
     try {
-        firebase_functions_1.logger.info(`getUserSubscription: Checking subscription for user ${userId}`);
+        firebase_functions_1.logger.info(`getUserSubscription: Checking subscription for user ${userId} (${userEmail})`);
+
+        // Premium users - check email first
+        const premiumEmails = [
+            'marcyap@orbitalai.net',
+            // Add more premium emails here as needed
+        ];
+
+        if (userEmail && premiumEmails.includes(userEmail)) {
+            firebase_functions_1.logger.info(`getUserSubscription: User ${userEmail} is premium via email list`);
+            return {
+                tier: 'premium',
+                status: 'active',
+                source: 'email_list'
+            };
+        }
+
         // Get user document from Firestore
         const userDoc = await db.collection('users').doc(userId).get();
         if (!userDoc.exists) {

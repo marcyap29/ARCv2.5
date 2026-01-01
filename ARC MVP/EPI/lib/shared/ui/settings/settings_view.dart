@@ -1162,13 +1162,23 @@ class _SettingsViewState extends State<SettingsView> {
       try {
         await FirebaseAuthService.instance.signOut();
         if (mounted) {
-          setState(() {}); // Refresh the UI
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Signed out successfully'),
-              backgroundColor: kcSuccessColor,
-            ),
+          // Navigate to sign-in screen and clear all navigation stack
+          Navigator.of(context).pushNamedAndRemoveUntil(
+            '/sign-in',
+            (route) => false, // Remove all previous routes
           );
+
+          // Show success message on the sign-in screen
+          Future.delayed(const Duration(milliseconds: 500), () {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Signed out successfully'),
+                  backgroundColor: kcSuccessColor,
+                ),
+              );
+            }
+          });
         }
       } catch (e) {
         if (mounted) {

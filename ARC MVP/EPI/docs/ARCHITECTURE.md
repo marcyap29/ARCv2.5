@@ -1,7 +1,7 @@
 # EPI MVP - Architecture Overview
 
-**Version:** 2.1.73
-**Last Updated:** December 29, 2025
+**Version:** 2.1.76
+**Last Updated:** January 1, 2026
 **Status:** ✅ Production Ready - MVP Fully Operational with Health Integration, AssemblyAI v3, Web Access Safety, Correlation-Resistant PII Protection, Bible Reference Retrieval & Google Drive Backup
 
 ---
@@ -254,6 +254,30 @@ The EPI system is organized into 5 core modules:
 - Prompt engineering
 - **Engagement Discipline System** (v2.1.75): User-controlled engagement modes (Reflect/Explore/Integrate) with synthesis boundaries and response discipline settings
 
+### 5. Subscription & Payment Module (v2.1.76)
+
+**Purpose:** Premium subscription management via Stripe
+
+**Components:**
+- `lib/services/subscription_service.dart` - Subscription management with caching
+- `lib/ui/subscription/subscription_management_view.dart` - Subscription UI
+- `lib/ui/subscription/lumara_subscription_status.dart` - Status display widget
+- `functions/index.js` - Stripe Cloud Functions (checkout, portal, webhooks)
+
+**Key Features:**
+- Stripe Checkout integration for secure payments
+- Monthly ($30) and Annual ($200) subscription options
+- Customer Portal for subscription management
+- Webhook-based subscription status updates
+- Firebase Secret Manager for secure key storage
+- Authentication and token refresh for Stripe functions
+- Subscription status caching (5-minute TTL)
+
+**Documentation:**
+- Setup guides: `docs/stripe/README.md`
+- Complete setup: `docs/stripe/STRIPE_SECRETS_SETUP.md`
+- Webhook setup: `docs/stripe/STRIPE_WEBHOOK_SETUP_VISUAL.md`
+
 ---
 
 ### 5. AURORA Module (`lib/aurora/`)
@@ -469,6 +493,6 @@ User Launch → Anonymous Auth (Auto) → 5 Free Requests → Sign-In Prompt
 ---
 
 **Status**: ✅ Production Ready
-**Last Updated**: December 29, 2025
-**Version**: 2.1.73
+**Last Updated**: January 1, 2026
+**Version**: 2.1.76
 
