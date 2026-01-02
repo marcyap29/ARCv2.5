@@ -405,7 +405,32 @@ class LumaraControlStateBuilder {
     state['engagement'] = engagement;
 
     // ============================================================
-    // J. MEMORY RETRIEVAL PARAMETERS
+    // J. RESPONSE LENGTH CONTROLS
+    // ============================================================
+    final responseLength = <String, dynamic>{};
+    
+    try {
+      final settingsService = LumaraReflectionSettingsService.instance;
+      await settingsService.initialize();
+      
+      final isAuto = await settingsService.isResponseLengthAuto();
+      final maxSentences = await settingsService.getMaxSentences();
+      final sentencesPerParagraph = await settingsService.getSentencesPerParagraph();
+      
+      responseLength['auto'] = isAuto;
+      if (!isAuto) {
+        responseLength['max_sentences'] = maxSentences; // -1 means infinity
+        responseLength['sentences_per_paragraph'] = sentencesPerParagraph;
+      }
+    } catch (e) {
+      // Default to auto if error
+      responseLength['auto'] = true;
+    }
+    
+    state['responseLength'] = responseLength;
+
+    // ============================================================
+    // K. MEMORY RETRIEVAL PARAMETERS
     // ============================================================
     final memory = <String, dynamic>{};
     

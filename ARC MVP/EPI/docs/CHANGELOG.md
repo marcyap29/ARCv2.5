@@ -1,6 +1,6 @@
 # EPI ARC MVP - Changelog
 
-**Version:** 2.1.78
+**Version:** 2.1.79
 **Last Updated:** January 2, 2026
 
 ---
@@ -14,6 +14,36 @@ This changelog has been split into parts for easier navigation:
 | **[CHANGELOG_part1.md](CHANGELOG_part1.md)** | Dec 2025 | v2.1.43 - v2.1.53 (Current) |
 | **[CHANGELOG_part2.md](CHANGELOG_part2.md)** | Nov 2025 | v2.1.28 - v2.1.42 |
 | **[CHANGELOG_part3.md](CHANGELOG_part3.md)** | Jan-Oct 2025 | v2.0.0 - v2.1.27 & Earlier |
+
+---
+
+## [2.1.79] - January 2, 2026
+
+### **LUMARA Response Length Controls** - ✅ Complete
+
+- **New Response Length Settings Card**:
+  - Added "LUMARA Length of Response" card in Settings → LUMARA → LUMARA Persona
+  - Positioned between LUMARA Persona and Therapeutic Depth cards
+  - Toggle between "Auto" (default) and "Off" modes
+  - When "Auto": LUMARA chooses appropriate length based on question complexity
+  - When "Off": Manual controls become active
+
+- **Manual Response Length Controls** (when Auto is Off):
+  - **Sentence Number Slider**: Set total number of sentences (3, 5, 10, 15, or ∞ infinity)
+  - **Sentences per Paragraph Slider**: Set paragraph structure (3, 4, or 5 sentences per paragraph)
+  - LUMARA reformats responses to fit limits without cutting off mid-thought
+  - Sentence length itself is not limited - only total count and paragraph structure
+
+- **Technical Implementation**:
+  - New settings in `LumaraReflectionSettingsService`: `isResponseLengthAuto()`, `getMaxSentences()`, `getSentencesPerParagraph()`
+  - Control state integration: Added `responseLength` section to LUMARA Control State JSON
+  - Master prompt updated: New "RESPONSE LENGTH AND DETAIL" section with priority rules
+  - UI card with toggle and sliders, grayed out when Auto mode is active
+
+- **User Experience**:
+  - Default behavior unchanged (Auto mode) - LUMARA adapts naturally
+  - Manual mode provides precise control for users who want specific response lengths
+  - Responses are reformatted, not truncated, ensuring completeness
 
 ---
 

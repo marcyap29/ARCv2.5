@@ -15,7 +15,15 @@ A Flutter-based AI companion app that provides life-aware assistance through jou
 - **Last Updated**: January 1, 2026
 - **Status**: ✅ Production Ready
 
-### **Latest Major Achievement: Stripe Integration Setup** ✅ **COMPLETE** (v2.1.76)
+### **Latest Major Achievement: LUMARA Response Length Controls** ✅ **COMPLETE** (v2.1.79)
+
+- **Response Length Settings Card**: New UI card in Settings → LUMARA with Auto/Manual toggle
+- **Manual Controls**: Precise sentence count (3, 5, 10, 15, ∞) and paragraph structure (3-5 sentences per paragraph)
+- **Smart Reformatting**: LUMARA reformats responses to fit limits without cutting off mid-thought
+- **Control State Integration**: New `responseLength` section in LUMARA Control State JSON
+- **Master Prompt Updates**: Enhanced response length interpretation with priority rules
+
+### **Previous Major Achievement: Stripe Integration Setup** ✅ **COMPLETE** (v2.1.76)
 
 - **Stripe Payment Integration**: Complete Stripe checkout and subscription management
 - **Firebase Secret Manager**: Secure storage of Stripe API keys and webhook secrets

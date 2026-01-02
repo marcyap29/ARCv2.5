@@ -125,8 +125,25 @@ Fine-tune how LUMARA responds and what language it uses:
 
 ### Response Length
 
-- **Preferred Length**: Concise (1-2 paragraphs), Moderate (2-4 paragraphs), or Detailed (4+ paragraphs)
-- Default: Moderate
+**Two Control Systems:**
+
+1. **Engagement Discipline Response Length** (via `engagement.response_length`):
+   - **Preferred Length**: Concise (1-2 paragraphs), Moderate (2-4 paragraphs), or Detailed (4+ paragraphs)
+   - Default: Moderate
+   - Used when Response Length Auto mode is enabled
+
+2. **Manual Response Length Controls** (via `responseLength` section):
+   - **Auto Mode** (default): LUMARA chooses appropriate length based on question complexity
+   - **Manual Mode**: User sets precise limits:
+     - **Sentence Number**: 3, 5, 10, 15, or ∞ (infinity) - total sentences in response
+     - **Sentences per Paragraph**: 3, 4, or 5 - paragraph structure
+   - When manual mode is active, sentence count takes priority over engagement discipline length
+   - LUMARA reformats responses to fit limits without cutting off mid-thought
+   - Individual sentence length is not limited - only total count and paragraph structure
+
+**Priority Order:**
+1. If `responseLength.auto` is `false`: Use manual controls (`max_sentences`, `sentences_per_paragraph`)
+2. If `responseLength.auto` is `true`: Use `engagement.response_length` and `behavior.verbosity`
 
 ---
 

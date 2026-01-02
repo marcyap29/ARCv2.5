@@ -60,6 +60,12 @@ class _SettingsViewState extends State<SettingsView> {
   bool _webAccessEnabled = false;
   bool _lumaraSettingsLoading = true;
   
+  // Response length state
+  bool _responseLengthAuto = true;
+  int _maxSentences = -1; // -1 means infinity
+  int _sentencesPerParagraph = 4;
+  bool _responseLengthLoading = true;
+  
   // Phase share settings
   bool _phaseSharePromptsEnabled = true;
   bool _phaseShareSettingsLoading = true;
@@ -72,6 +78,7 @@ class _SettingsViewState extends State<SettingsView> {
     _loadShakeToReportPreference();
     _loadPersonaPreference();
     _loadLumaraSettings();
+    _loadResponseLengthSettings();
     _loadPhaseShareSettings();
   }
   
@@ -196,6 +203,55 @@ class _SettingsViewState extends State<SettingsView> {
         });
       }
     }
+  }
+  
+  Future<void> _loadResponseLengthSettings() async {
+    try {
+      final settingsService = LumaraReflectionSettingsService.instance;
+      await settingsService.initialize();
+      final auto = await settingsService.isResponseLengthAuto();
+      final maxSent = await settingsService.getMaxSentences();
+      final sentPerPara = await settingsService.getSentencesPerParagraph();
+      if (mounted) {
+        setState(() {
+          _responseLengthAuto = auto;
+          _maxSentences = maxSent;
+          _sentencesPerParagraph = sentPerPara;
+          _responseLengthLoading = false;
+        });
+      }
+    } catch (e) {
+      print('Error loading response length settings: $e');
+      if (mounted) {
+        setState(() {
+          _responseLengthLoading = false;
+        });
+      }
+    }
+  }
+  
+  Future<void> _setResponseLengthAuto(bool value) async {
+    setState(() {
+      _responseLengthAuto = value;
+    });
+    final settingsService = LumaraReflectionSettingsService.instance;
+    await settingsService.setResponseLengthAuto(value);
+  }
+  
+  Future<void> _setMaxSentences(int value) async {
+    setState(() {
+      _maxSentences = value;
+    });
+    final settingsService = LumaraReflectionSettingsService.instance;
+    await settingsService.setMaxSentences(value);
+  }
+  
+  Future<void> _setSentencesPerParagraph(int value) async {
+    setState(() {
+      _sentencesPerParagraph = value;
+    });
+    final settingsService = LumaraReflectionSettingsService.instance;
+    await settingsService.setSentencesPerParagraph(value);
   }
   
   Future<void> _setTherapeuticDepthLevel(int level) async {
@@ -577,6 +633,8 @@ class _SettingsViewState extends State<SettingsView> {
                     ],
                   ),
                 ),
+                // Response Length Card
+                _buildResponseLengthCard(),
                 // Therapeutic Depth Slider
                 _buildTherapeuticDepthCard(),
                 // Web Search Toggle
@@ -844,6 +902,312 @@ class _SettingsViewState extends State<SettingsView> {
         const SizedBox(height: 12),
         ...children,
       ],
+    );
+  }
+  
+  /// Build response length card with toggle and sliders
+  Widget _buildResponseLengthCard() {
+    final sentenceOptions = [3, 5, 10, 15, -1]; // -1 means infinity
+    final sentenceLabels = ['3', '5', '10', '15', '∞'];
+    final paragraphOptions = [3, 4, 5];
+    
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.1),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.text_fields,
+                color: kcAccentColor,
+                size: 24,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'LUMARA Length of Response',
+                      style: heading3Style(context).copyWith(
+                        color: kcPrimaryTextColor,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    Text(
+                      _responseLengthAuto 
+                          ? 'Auto: LUMARA chooses appropriate length'
+                          : 'Manual: Set sentence and paragraph limits',
+                      style: bodyStyle(context).copyWith(
+                        color: kcSecondaryTextColor,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (_responseLengthLoading)
+                const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          // Toggle: Auto / Off
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Mode',
+                style: bodyStyle(context).copyWith(
+                  color: kcPrimaryTextColor,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              Row(
+                children: [
+                  GestureDetector(
+                    onTap: _responseLengthLoading ? null : () => _setResponseLengthAuto(true),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: _responseLengthAuto 
+                            ? kcAccentColor.withValues(alpha: 0.3)
+                            : Colors.transparent,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: _responseLengthAuto 
+                              ? kcAccentColor
+                              : Colors.white.withValues(alpha: 0.3),
+                        ),
+                      ),
+                      child: Text(
+                        'Auto',
+                        style: bodyStyle(context).copyWith(
+                          color: _responseLengthAuto 
+                              ? kcAccentColor
+                              : kcSecondaryTextColor,
+                          fontWeight: _responseLengthAuto ? FontWeight.w600 : FontWeight.normal,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  GestureDetector(
+                    onTap: _responseLengthLoading ? null : () => _setResponseLengthAuto(false),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: !_responseLengthAuto 
+                            ? kcAccentColor.withValues(alpha: 0.3)
+                            : Colors.transparent,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: !_responseLengthAuto 
+                              ? kcAccentColor
+                              : Colors.white.withValues(alpha: 0.3),
+                        ),
+                      ),
+                      child: Text(
+                        'Off',
+                        style: bodyStyle(context).copyWith(
+                          color: !_responseLengthAuto 
+                              ? kcAccentColor
+                              : kcSecondaryTextColor,
+                          fontWeight: !_responseLengthAuto ? FontWeight.w600 : FontWeight.normal,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          if (!_responseLengthAuto) ...[
+            const SizedBox(height: 20),
+            // Sentence Number Slider
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Sentence Number',
+                      style: bodyStyle(context).copyWith(
+                        color: kcPrimaryTextColor,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: kcAccentColor.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        _maxSentences == -1 ? '∞' : '$_maxSentences',
+                        style: bodyStyle(context).copyWith(
+                          color: kcAccentColor,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: sentenceOptions.asMap().entries.map((entry) {
+                    final index = entry.key;
+                    final value = entry.value;
+                    final isSelected = _maxSentences == value;
+                    return Expanded(
+                      child: GestureDetector(
+                        onTap: _responseLengthLoading ? null : () => _setMaxSentences(value),
+                        child: Container(
+                          margin: EdgeInsets.only(right: index < sentenceOptions.length - 1 ? 4 : 0),
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          decoration: BoxDecoration(
+                            color: isSelected 
+                                ? kcAccentColor.withValues(alpha: 0.3)
+                                : Colors.transparent,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: isSelected 
+                                  ? kcAccentColor
+                                  : Colors.white.withValues(alpha: 0.2),
+                            ),
+                          ),
+                          child: Text(
+                            sentenceLabels[index],
+                            textAlign: TextAlign.center,
+                            style: bodyStyle(context).copyWith(
+                              color: isSelected 
+                                  ? kcAccentColor
+                                  : kcSecondaryTextColor,
+                              fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            // Sentences per Paragraph Slider
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Sentences per Paragraph',
+                      style: bodyStyle(context).copyWith(
+                        color: kcPrimaryTextColor,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: kcAccentColor.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        '$_sentencesPerParagraph',
+                        style: bodyStyle(context).copyWith(
+                          color: kcAccentColor,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: paragraphOptions.map((value) {
+                    final isSelected = _sentencesPerParagraph == value;
+                    return Expanded(
+                      child: GestureDetector(
+                        onTap: _responseLengthLoading ? null : () => _setSentencesPerParagraph(value),
+                        child: Container(
+                          margin: EdgeInsets.only(right: value < paragraphOptions.last ? 4 : 0),
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          decoration: BoxDecoration(
+                            color: isSelected 
+                                ? kcAccentColor.withValues(alpha: 0.3)
+                                : Colors.transparent,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: isSelected 
+                                  ? kcAccentColor
+                                  : Colors.white.withValues(alpha: 0.2),
+                            ),
+                          ),
+                          child: Text(
+                            '$value',
+                            textAlign: TextAlign.center,
+                            style: bodyStyle(context).copyWith(
+                              color: isSelected 
+                                  ? kcAccentColor
+                                  : kcSecondaryTextColor,
+                              fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ],
+            ),
+          ] else ...[
+            // Grayed out placeholder when Auto is selected
+            Opacity(
+              opacity: 0.5,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 12),
+                  Text(
+                    'Sentence Number: Auto',
+                    style: bodyStyle(context).copyWith(
+                      color: kcSecondaryTextColor,
+                      fontSize: 12,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Sentences per Paragraph: Auto',
+                    style: bodyStyle(context).copyWith(
+                      color: kcSecondaryTextColor,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
     );
   }
   

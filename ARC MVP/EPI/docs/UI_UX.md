@@ -40,6 +40,7 @@ The EPI (Evolving Personal Intelligence) Flutter application provides a sophisti
 24. [Health→LUMARA Integration (v2.1.52)](#24-healthlumara-integration-v2152)
 25. [Voice Chat - Jarvis Mode (v2.1.53)](#25-voice-chat---jarvis-mode-v2153)
 26. [Engagement Discipline (v2.1.75)](#engagement-discipline-ui-v2175)
+27. [LUMARA Response Length Controls (v2.1.79)](#27-lumara-response-length-controls-v2179)
 
 ---
 
@@ -1565,6 +1566,77 @@ When in Strategist mode, responses follow this operational structure:
 - `lumara_control_state_builder.dart` - Auto-detection + behavioral overrides
 - `lumara_master_prompt.dart` - Section 7: Persona behaviors
 - `settings_view.dart` - Persona picker UI
+
+---
+
+## 22.5. LUMARA Response Length Controls (v2.1.79)
+
+### 📏 Response Length Settings
+**Location:** Settings → LUMARA → LUMARA Length of Response
+
+**Purpose:** Control the length and structure of LUMARA's responses with precise sentence and paragraph limits.
+
+### UI Design
+
+**Card Structure:**
+```
+┌─────────────────────────────────────────┐
+│ 📏 LUMARA Length of Response            │
+│    Auto: LUMARA chooses appropriate     │
+│    length                                │
+├─────────────────────────────────────────┤
+│ Mode:  [Auto] [Off]                     │
+├─────────────────────────────────────────┤
+│ (When Auto is selected - grayed out)    │
+│ Sentence Number: Auto                   │
+│ Sentences per Paragraph: Auto           │
+└─────────────────────────────────────────┘
+
+┌─────────────────────────────────────────┐
+│ 📏 LUMARA Length of Response            │
+│    Manual: Set sentence and paragraph   │
+│    limits                                │
+├─────────────────────────────────────────┤
+│ Mode:  [Auto] [Off]                     │
+├─────────────────────────────────────────┤
+│ Sentence Number:            [15]        │
+│ [3] [5] [10] [15] [∞]                   │
+├─────────────────────────────────────────┤
+│ Sentences per Paragraph:    [4]        │
+│ [3] [4] [5]                              │
+└─────────────────────────────────────────┘
+```
+
+### Control Options
+
+**Toggle: Auto / Off**
+- **Auto** (default): LUMARA automatically chooses appropriate response length based on question complexity
+- **Off**: Manual controls become active
+
+**Sentence Number** (when Off):
+- Options: 3, 5, 10, 15, or ∞ (infinity)
+- Sets the total number of sentences in LUMARA's response
+- LUMARA reformats responses to fit within the limit without cutting off mid-thought
+- Takes priority over engagement discipline response length when manual mode is active
+
+**Sentences per Paragraph** (when Off):
+- Options: 3, 4, or 5
+- Sets how many sentences per paragraph
+- Structures the response into paragraphs with the specified sentence count
+- Example: 9 sentences with 3 per paragraph = 3 paragraphs
+
+### Behavior
+
+- **Auto Mode**: LUMARA uses `behavior.verbosity` and `engagement.response_length` to determine appropriate length
+- **Manual Mode**: `max_sentences` takes priority, with `sentences_per_paragraph` structuring the response
+- **Reformatting**: LUMARA condenses ideas and combines related points to fit limits while maintaining completeness
+- **No Truncation**: Responses are never cut off mid-thought - they are reformatted to fit within limits
+
+### Implementation Files
+- `lumara_reflection_settings_service.dart` - Response length settings persistence
+- `lumara_control_state_builder.dart` - Control state integration (`responseLength` section)
+- `lumara_master_prompt.dart` - Section 10: Response Length and Detail interpretation
+- `settings_view.dart` - Response length card UI (`_buildResponseLengthCard()`)
 
 ---
 

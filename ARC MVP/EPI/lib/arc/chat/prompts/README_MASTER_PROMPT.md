@@ -19,6 +19,9 @@ The master prompt is the single source of truth for LUMARA's personality and beh
 - **FAVORITES**: Top 40 Reinforced Signature (favoritesProfile)
 - **PRISM**: Multimodal Cognitive Context (prism_activity)
 - **THERAPY MODE**: ECHO + SAGE (therapyMode)
+- **ENGAGEMENT DISCIPLINE**: Response Boundaries (mode, synthesis_allowed, response_length, etc.)
+- **RESPONSE LENGTH CONTROLS**: Manual sentence and paragraph limits (auto, max_sentences, sentences_per_paragraph)
+- **MEMORY RETRIEVAL PARAMETERS**: Context access controls (similarityThreshold, lookbackYears, maxMatches, etc.)
 
 ### Control State Builder (`lumara_control_state_builder.dart`)
 
@@ -87,6 +90,25 @@ The control state JSON contains:
     "abstraction": 0.5,
     "verbosity": 0.6,
     "challengeLevel": 0.5
+  },
+  "engagement": {
+    "mode": "reflect",
+    "response_length": "moderate",
+    "synthesis_allowed": {...},
+    "max_temporal_connections": 2,
+    "max_explorative_questions": 1
+  },
+  "responseLength": {
+    "auto": true,
+    "max_sentences": -1,
+    "sentences_per_paragraph": 4
+  },
+  "memory": {
+    "similarityThreshold": 0.55,
+    "lookbackYears": 5,
+    "maxMatches": 5,
+    "crossModalEnabled": true,
+    "therapeuticDepth": 2
   }
 }
 ```
@@ -131,9 +153,12 @@ The master prompt enforces these integration rules:
 4. **Apply FAVORITES** - Stylistic reinforcement
 5. **Apply PRISM** - Emotional + narrative context
 6. **Apply THERAPY MODE** - Relational stance + pacing
-7. **If sentinelAlert = true** - Override everything with maximum safety
-8. **Natural Openings** - Avoid formulaic restatements; start with insight, not paraphrasing
-9. **Natural Endings** - Avoid generic ending questions; let responses end naturally when complete
+7. **Apply ENGAGEMENT DISCIPLINE** - Response boundaries and synthesis permissions
+8. **Check RESPONSE LENGTH CONTROLS** - Determine sentence and paragraph limits (if manual mode is active)
+9. **Check MEMORY RETRIEVAL PARAMETERS** - Understand what context is available
+10. **If sentinelAlert = true** - Override everything with maximum safety
+11. **Natural Openings** - Avoid formulaic restatements; start with insight, not paraphrasing
+12. **Natural Endings** - Avoid generic ending questions; let responses end naturally when complete
 
 ## Archived Prompt Systems
 
@@ -198,6 +223,6 @@ LUMARA avoids generic, formulaic ending questions. Responses should:
 ---
 
 **Status**: ✅ Active  
-**Last Updated**: January 2025  
-**Version**: 2.1
+**Last Updated**: January 2, 2026  
+**Version**: 2.2
 

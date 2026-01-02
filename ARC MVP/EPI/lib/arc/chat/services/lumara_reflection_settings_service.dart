@@ -84,6 +84,11 @@ class LumaraReflectionSettingsService {
   static const bool _defaultTherapeuticAutomaticMode = false;
   static const bool _defaultWebAccessEnabled = false; // Opt-in by default
   static const String _defaultLumaraPersona = 'auto'; // Auto-adapt by default
+  
+  // Response length defaults
+  static const bool _defaultResponseLengthAuto = true; // Auto by default
+  static const int _defaultMaxSentences = -1; // -1 means infinity (no limit)
+  static const int _defaultSentencesPerParagraph = 4; // Default: 4 sentences per paragraph
 
   // Engagement discipline defaults
   static const EngagementMode _defaultEngagementMode = EngagementMode.reflect;
@@ -100,6 +105,11 @@ class LumaraReflectionSettingsService {
   static const String _keyTherapeuticAutomaticMode = 'lumara_therapeutic_automatic_mode';
   static const String _keyWebAccessEnabled = 'lumara_web_access_enabled';
   static const String _keyLumaraPersona = 'lumara_persona';
+  
+  // Response length keys
+  static const String _keyResponseLengthAuto = 'lumara_response_length_auto';
+  static const String _keyMaxSentences = 'lumara_max_sentences';
+  static const String _keySentencesPerParagraph = 'lumara_sentences_per_paragraph';
 
   // Engagement discipline keys
   static const String _keyEngagementSettings = 'lumara_engagement_settings';
@@ -222,6 +232,49 @@ class LumaraReflectionSettingsService {
   Future<void> setLumaraPersona(LumaraPersona persona) async {
     await initialize();
     await _prefs!.setString(_keyLumaraPersona, persona.name);
+  }
+
+  /// Check if response length is set to auto (default: true)
+  Future<bool> isResponseLengthAuto() async {
+    await initialize();
+    return _prefs!.getBool(_keyResponseLengthAuto) ?? _defaultResponseLengthAuto;
+  }
+
+  /// Set response length auto mode
+  Future<void> setResponseLengthAuto(bool value) async {
+    await initialize();
+    await _prefs!.setBool(_keyResponseLengthAuto, value);
+  }
+
+  /// Get max sentences (-1 means infinity/no limit, default: -1)
+  Future<int> getMaxSentences() async {
+    await initialize();
+    return _prefs!.getInt(_keyMaxSentences) ?? _defaultMaxSentences;
+  }
+
+  /// Set max sentences (-1 for infinity/no limit)
+  Future<void> setMaxSentences(int value) async {
+    await initialize();
+    // Allow -1 for infinity, or valid sentence counts: 3, 5, 10, 15
+    if (value == -1 || value == 3 || value == 5 || value == 10 || value == 15) {
+      await _prefs!.setInt(_keyMaxSentences, value);
+    }
+  }
+
+  /// Get sentences per paragraph (default: 4, valid: 3, 4, 5)
+  Future<int> getSentencesPerParagraph() async {
+    await initialize();
+    final value = _prefs!.getInt(_keySentencesPerParagraph) ?? _defaultSentencesPerParagraph;
+    // Clamp to valid range
+    return value.clamp(3, 5);
+  }
+
+  /// Set sentences per paragraph (valid: 3, 4, 5)
+  Future<void> setSentencesPerParagraph(int value) async {
+    await initialize();
+    // Clamp to valid range
+    final clampedValue = value.clamp(3, 5);
+    await _prefs!.setInt(_keySentencesPerParagraph, clampedValue);
   }
 
   /// Get effective lookback years adjusted for therapeutic depth level
