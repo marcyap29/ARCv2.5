@@ -1,7 +1,7 @@
 # EPI ARC MVP - Changelog
 
-**Version:** 2.1.77
-**Last Updated:** January 1, 2026
+**Version:** 2.1.78
+**Last Updated:** January 2, 2026
 
 ---
 
@@ -14,6 +14,30 @@ This changelog has been split into parts for easier navigation:
 | **[CHANGELOG_part1.md](CHANGELOG_part1.md)** | Dec 2025 | v2.1.43 - v2.1.53 (Current) |
 | **[CHANGELOG_part2.md](CHANGELOG_part2.md)** | Nov 2025 | v2.1.28 - v2.1.42 |
 | **[CHANGELOG_part3.md](CHANGELOG_part3.md)** | Jan-Oct 2025 | v2.0.0 - v2.1.27 & Earlier |
+
+---
+
+## [2.1.78] - January 2, 2026
+
+### **Subscription Authentication Fix & Automatic Token Refresh** - ✅ Complete
+
+- **Fixed Subscription Authentication Error**:
+  - Removed `invoker: "public"` from `createCheckoutSession` and `createPortalSession` Firebase Functions
+  - Functions now properly require authentication, allowing auth tokens to be passed correctly
+  - Fixed UNAUTHENTICATED error when subscribing to premium from non-premium accounts
+  - Updated subscription service to use `FirebaseService.getFunctions()` for proper region configuration
+
+- **Automatic Token Refresh System**:
+  - Implemented `idTokenChanges()` listener in `FirebaseAuthService` for automatic token refresh
+  - Added `refreshTokenIfNeeded()` method that uses Firebase's automatic token lifecycle
+  - Token refresh on app resume via `AppLifecycleManager` to ensure fresh tokens
+  - Improved token handling efficiency by letting Firebase handle token lifecycle automatically
+  - Users now stay authenticated seamlessly without manual re-authentication
+
+- **Backend Updates**:
+  - Updated `firebase-functions` from 7.0.0 to 7.0.2 (latest version)
+  - Fixed 4 high severity security vulnerabilities in functions dependencies via `npm audit fix`
+  - All security vulnerabilities resolved (0 found)
 
 ---
 
