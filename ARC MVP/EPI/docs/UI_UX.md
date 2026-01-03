@@ -1794,166 +1794,219 @@ Real-time text updates showing how current health status affects LUMARA:
 
 ---
 
-## 25. Voice Chat - Jarvis Mode (v2.1.53)
+## 25. Unified Voice Mode - Journal & Chat (v2.1.82)
 
 ### Overview
-ChatGPT-style voice interface for hands-free LUMARA conversations. Features glowing, pulsing voice indicator with state-based colors.
+Unified voice interface for both Voice Journal and Voice Chat modes. Features dynamic prompt system integrated with LUMARA Master Unified Prompt, conversation history, and mode switching capability.
 
-**Location:** LUMARA Chat → 🎤 Mic Button (AppBar, top-right)
+**Location:** 
+- **Journal Mode**: Journal Screen → Voice Journal button
+- **Chat Mode**: LUMARA Chat → 🎤 Mic Button (AppBar, top-right)
 
-### UI Design - Voice Chat Panel (Bottom Sheet)
+### UI Design - Unified Voice Panel (Bottom Sheet)
 ```
 ┌─────────────────────────────────────────┐
-│        Voice Chat                       │
+│ ─────────────────                       │  ← Drag handle
 │                                         │
-│            ╔═══════╗                    │
-│           ║         ║                   │
-│          ║    ●     ║  ← Glowing orb   │
-│           ║         ║     (pulsing)    │
-│            ╚═══════╝                    │
-│                                         │
-│        Listening...                     │
+│  ✨ Voice Journal  [↔ Switch]         │  ← Mode header with switch
 │                                         │
 ├─────────────────────────────────────────┤
-│ 📝 "Create a new journal about..."     │  ← Partial transcript
+│ Conversation History (if any)          │
+│ ┌───────────────────────────────────┐  │
+│ │ You                               │  │
+│ │ "I've been feeling anxious..."    │  │
+│ └───────────────────────────────────┘  │
+│ ┌───────────────────────────────────┐  │
+│ │ LUMARA                             │  │
+│ │ "I hear that anxiety..."           │  │
+│ └───────────────────────────────────┘  │
 ├─────────────────────────────────────────┤
-│  ┌──────────────────────────────────┐   │
-│  │ 🛑 End Session                   │   │
-│  └──────────────────────────────────┘   │
+│ Current Turn (if active)               │
+│ ┌───────────────────────────────────┐  │
+│ │ 🎤 You                            │  │
+│ │ "Today I realized..."              │  │
+│ └───────────────────────────────────┘  │
+├─────────────────────────────────────────┤
+│ 🔵 Processing speech...                │  ← Processing indicator
+│    (with animated pulse)               │
+├─────────────────────────────────────────┤
+│                                         │
+│         ╔═══════╗                      │
+│        ║    🎤   ║  ← Mic button       │
+│         ╚═══════╝     (state-based)    │
+│                                         │
+│      Ready to listen                    │  ← Status text
+│                                         │
+├─────────────────────────────────────────┤
+│ [💾 Save] [🛑 End] [↔ Switch]         │  ← Action buttons
 └─────────────────────────────────────────┘
 ```
 
-### State Colors & Animations
+### Two Modes
 
-| State | Orb Color | Glow | Animation | User Sees |
-|-------|-----------|------|-----------|-----------|
-| **Idle** | Gray | Gray | Static | "Ready to listen" |
-| **Listening** | 🔴 Red | Red Accent | Fast pulse | "Listening..." |
-| **Thinking** | 🟠 Orange | Orange Accent | Medium pulse | "Processing..." |
-| **Speaking** | 🟢 Green | Green Accent | Slow pulse | "LUMARA is speaking" |
-| **Error** | Red Accent | Red | Slow pulse | "Error - Try again" |
+#### Voice Journal Mode
+- **Purpose**: Create journal entries through voice
+- **Icon**: ✨ (auto_awesome)
+- **Color**: Purple accent
+- **Behavior**: Saves to journal only, never to chat
+- **Session Summary**: Not generated (entry is saved directly)
 
-### Animation Details
-- **Multi-layer glow**: 3 concentric rings with fading opacity
-- **Pulse timing**: 1.5s cycle (customizable)
-- **Scale range**: 0.95 → 1.05 (subtle throb)
-- **Smooth curves**: easeInOut for natural feel
+#### Voice Chat Mode
+- **Purpose**: Conversational chat with LUMARA
+- **Icon**: 💬 (chat)
+- **Color**: Blue accent
+- **Behavior**: Saves to chat history only, never to journal
+- **Session Summary**: Generated at session end (3-5 sentences)
+
+### State Colors & Processing Indicators
+
+| State | Indicator | Color | Message | User Sees |
+|-------|-----------|-------|---------|-----------|
+| **Idle** | Mic button | Gray | "Ready to listen" | Static mic icon |
+| **Listening** | Mic button | 🔴 Red | "Listening..." | Pulsing red glow |
+| **Transcribing** | Processing card | 🔵 Blue | "Processing speech..." | Animated pulse |
+| **Scrubbing** | Processing card | 🟢 Green | "Securing your privacy..." | Animated pulse |
+| **Thinking** | Processing card | 🟣 Purple | "LUMARA is thinking..." | Animated pulse |
+| **Speaking** | Processing card | 🟠 Orange | "LUMARA is speaking..." | Animated pulse |
+| **Error** | Mic button | Red | "Error - Try again" | Red glow |
+
+### Conversation History
+
+- **Display**: Scrollable list of conversation turns
+- **Format**: User message bubble (primary color) + LUMARA response bubble (secondary color)
+- **Visibility**: Only shown when conversation history exists
+- **Auto-scroll**: Scrolls to bottom when new messages arrive
+
+### Processing Indicator Card
+
+- **Appearance**: Colored card with icon, spinner, and message
+- **Animation**: Pulsing border and glow effect
+- **States**: Transcribing (blue), Scrubbing (green), Thinking (purple), Speaking (orange)
+- **Timeout Warning**: Shows if processing takes too long
 
 ### Interaction Flow
-1. **Tap 🎤 in AppBar** → Bottom sheet appears (gray orb)
-2. **Tap orb** → Starts listening (red glow, fast pulse)
-3. **Speak your message** → Partial transcript shows in real-time
-4. **Tap orb again** → Stops and processes (orange glow)
-5. **LUMARA responds** → Text + voice (green glow)
-6. **Auto-resume** → Orb turns red again, ready for follow-up
-7. **Tap "End Session"** → Closes voice chat
 
-### Voice Pipeline (On-Device Security)
+1. **Open Voice Panel** → Bottom sheet appears with mode header
+2. **Tap mic button** → Starts listening (red glow, fast pulse)
+3. **Speak your message** → Partial transcript shows in real-time
+4. **Release/Tap again** → Stops and processes
+5. **Processing stages**:
+   - Transcribing (blue) → Processing speech
+   - Scrubbing (green) → Securing privacy (PII removal)
+   - Thinking (purple) → LUMARA processing with dynamic context
+   - Speaking (orange) → LUMARA responding
+6. **Response appears** → Added to conversation history
+7. **Auto-resume** → Mic button ready for next turn
+8. **End session** → 
+   - **Journal Mode**: Saves entry to journal
+   - **Chat Mode**: Generates session summary, saves to chat
+
+### Mode Switching
+
+- **Availability**: Only when idle (no active session)
+- **UI**: Switch button (↔) in header when `showModeSwitch=true`
+- **Behavior**: 
+  - Clears current conversation
+  - Updates system prompt for new mode
+  - Reinitializes service with new mode context
+
+### Voice Pipeline (Enhanced with Dynamic Context)
+
 ```
 ┌─────────────────────────────────────────┐
-│ 1. Speech-to-Text (On-Device)          │
-│    ↓ No audio sent to cloud            │
+│ 1. AssemblyAI STT (Streaming)           │
+│    ↓ On-device transcription            │
 ├─────────────────────────────────────────┤
-│ 2. PII Scrubbing (Mode A)              │
-│    ↓ Names/Places masked               │
+│ 2. PRISM PII Scrubbing                  │
+│    ↓ Correlation-resistant payload      │
+│    ↓ Reversible map stays local         │
 ├─────────────────────────────────────────┤
-│ 3. Intent Classification               │
-│    • Journal (create/append/query)      │
-│    • Chat (questions/reflections)       │
-│    • Files (export/share)               │
-│    ↓                                    │
+│ 3. VoicePromptBuilder                   │
+│    ↓ Integrates LUMARA Master Prompt    │
+│    ↓ Adds dynamic context:               │
+│      • Current phase (ATLAS)            │
+│      • Days in phase                     │
+│      • Memory context (retrieved)        │
+│      • Active threads                    │
+│      • Engagement mode                    │
+│      • Persona setting                   │
+│      • Response length controls          │
+│      • PRISM activity log                │
+│      • Conversation history              │
 ├─────────────────────────────────────────┤
-│ 4. LUMARA Processing                   │
-│    ↓ Phase-aware, persona-adapted      │
+│ 4. Gemini LLM Processing                │
+│    ↓ Phase-aware, persona-adapted       │
+│    ↓ Respects response length limits    │
+│    ↓ Uses memory context naturally       │
 ├─────────────────────────────────────────┤
-│ 5. PII Restoration                     │
-│    ↓ Original names/places returned    │
+│ 5. PII Restoration (if needed)          │
+│    ↓ Original names/places returned     │
 ├─────────────────────────────────────────┤
-│ 6. Text-to-Speech (On-Device)          │
+│ 6. Text-to-Speech                       │
 │    → Natural voice output               │
 └─────────────────────────────────────────┘
 ```
 
-### Example Voice Commands
-**Journal Creation:**
-- "Create a new journal about my day"
-- "Start a journal entry about my meeting"
-- "Write about how I'm feeling"
+### Dynamic Prompt System
 
-**Reflective Queries:**
-- "How am I feeling lately?"
-- "What patterns do you see in my entries?"
-- "Summarize my week"
-- "Show me resilience examples"
+The voice mode uses `VoicePromptBuilder` which:
+- **Integrates LUMARA Master Unified Prompt**: Full behavioral system
+- **Voice-Specific Adaptations**: Push-to-talk protocol, conversational tone, shorter responses
+- **Unified Control State**: Respects all LUMARA settings (phase, persona, engagement mode, response length)
+- **Memory Integration**: Retrieves relevant past entries based on current session themes
+- **Thread Connections**: Surfaces active psychological threads when relevant
+- **Privacy Architecture**: Never references payload structure or scrubbing to user
 
-**Journal Queries:**
-- "What did I write about last Tuesday?"
-- "Find entries about work stress"
-- "Read my journal from yesterday"
+### Session Summaries (Chat Mode Only)
 
-**File Operations:**
-- "Export my data"
-- "Share my journal as PDF"
+- **Generation**: Automatic at session end for substantive sessions
+- **Format**: 3-5 sentence narrative paragraph
+- **Content**: Themes, emotional tenor, phase observations, thread connections
+- **Storage**: Prepended to stored transcript for future retrieval
 
-### AppBar Mic Button
-```
-┌─────────────────────────────────────────┐
-│ ≡ LUMARA [Premium]         🎤  ⋮        │ ← Mic button added
-└─────────────────────────────────────────┘
-```
+### Action Buttons
 
-### Permissions Handling
-**First Time:**
-```
-┌─────────────────────────────────────────┐
-│ 🎤 Microphone Permission                │
-│                                         │
-│ ARC needs microphone access for         │
-│ voice chat with LUMARA.                 │
-│                                         │
-│ ┌──────────┐  ┌──────────────────────┐ │
-│ │ Cancel   │  │ Open Settings        │ │
-│ └──────────┘  └──────────────────────┘ │
-└─────────────────────────────────────────┘
-```
+- **💾 Save**: Saves current session (Journal: saves entry, Chat: saves with summary)
+- **🛑 End**: Ends session and closes panel
+- **↔ Switch**: Switches between Journal and Chat modes (only when idle)
 
 ### Technical Implementation
 
-**Widget:** `GlowingVoiceIndicator`
+**Widget:** `UnifiedVoicePanel`
 ```dart
-GlowingVoiceIndicator(
-  icon: Icons.mic,
-  primaryColor: Colors.red,      // State-based
-  glowColor: Colors.redAccent,   // State-based
-  size: 80,
-  isActive: true,                // Controls animation
-  onTap: () => startListening(),
+UnifiedVoicePanel(
+  service: unifiedVoiceService,
+  showModeSwitch: true,  // Enable mode switching
+  onSessionSaved: () => handleSave(),
+  onSessionEnded: () => handleEnd(),
 )
 ```
 
-**Alternative Widget:** `SoundWaveIndicator`
-- ChatGPT-style animated bars (5 bars)
-- Staggered animations for natural feel
-- Currently not used (orb is primary)
+**Service:** `UnifiedVoiceService`
+- Manages both Journal and Chat modes
+- Handles state transitions
+- Integrates with VoicePromptBuilder for dynamic prompts
+- Generates session summaries for chat mode
 
 ### Files & Components
-- **NEW**: `lib/shared/widgets/glowing_voice_indicator.dart` - Animated voice widget
-- **MODIFIED**: `lib/arc/chat/ui/voice_chat_panel.dart` - Voice UI panel
-- **MODIFIED**: `lib/arc/chat/ui/lumara_assistant_screen.dart` - Mic button integration
-- **Backend**: Voice system (already existed, now exposed in UI)
-  - `voice_chat_service.dart` - Speech recognition
-  - `push_to_talk_controller.dart` - State management
-  - `voice_permissions.dart` - Permission handling
-  - `audio_io.dart` - Audio I/O
-  - `PiiScrubber` - On-device PII masking
+- **NEW**: `lib/arc/chat/voice/voice_journal/unified_voice_panel.dart` - Unified UI component
+- **NEW**: `lib/arc/chat/voice/voice_journal/unified_voice_service.dart` - Service orchestration
+- **NEW**: `lib/arc/chat/voice/voice_journal/voice_prompt_builder.dart` - Dynamic prompt generation
+- **MODIFIED**: `lib/arc/chat/voice/voice_journal/gemini_client.dart` - Uses VoicePromptContext
+- **MODIFIED**: `lib/arc/chat/ui/lumara_assistant_screen.dart` - Integrated unified panel
+- **Backend**: 
+  - `voice_journal_conversation.dart` - Conversation management
+  - `journal_store.dart` / `chat_store.dart` - Mode-specific storage
+  - `prism_adapter.dart` - PII scrubbing
+  - `assemblyai_provider.dart` - STT integration
 
 ### Design Philosophy
-- **Familiar**: ChatGPT-inspired orb for instant recognition
-- **Reassuring**: State colors provide clear feedback
-- **Smooth**: Professional animations (1.5s cycles, easeInOut curves)
-- **Private**: On-device transcription, PII scrubbing
-- **Hands-free**: Auto-resume loop for natural conversation
-- **Accessible**: Large touch target (80px orb)
+- **Unified**: Single component for both modes, reducing code duplication
+- **Context-Aware**: Dynamic prompts that adapt to user's developmental phase and history
+- **Private**: On-device transcription, correlation-resistant payloads, PII scrubbing
+- **Natural**: Push-to-talk protocol, conversational flow, auto-resume
+- **Transparent**: Clear processing states, conversation history, mode indicators
+- **Flexible**: Mode switching, session summaries, memory integration
 
 ---
 
