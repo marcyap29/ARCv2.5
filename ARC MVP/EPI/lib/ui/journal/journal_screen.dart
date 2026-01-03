@@ -2135,6 +2135,14 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
                           const SizedBox(height: 16),
                         ],
 
+                        // Overview section (if entry has LUMARA blocks)
+                        if (widget.existingEntry != null && 
+                            widget.existingEntry!.overview != null && 
+                            widget.existingEntry!.overview!.isNotEmpty) ...[
+                          _buildOverviewSection(theme),
+                          const SizedBox(height: 16),
+                        ],
+
                         // Photo gallery + selection (displayed near top, before main text)
                         _buildPhotoGallerySection(theme),
                         if (_entryState.attachments.whereType<PhotoAttachment>().isNotEmpty)
@@ -4292,6 +4300,52 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     });
   }
 
+  /// Build overview section widget
+  Widget _buildOverviewSection(ThemeData theme) {
+    final overview = widget.existingEntry!.overview!;
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.1),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.summarize,
+                size: 20,
+                color: theme.colorScheme.primary,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Overview',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: theme.colorScheme.primary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          SelectableText(
+            overview,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: Colors.white.withValues(alpha: 0.9),
+              fontSize: 15,
+              height: 1.6,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   /// Build content view with inline thumbnails for view-only mode
   Widget _buildContentView(ThemeData theme) {
     // In view-only mode, just show the text content
@@ -5503,9 +5557,22 @@ $originalEntryTextToInclude
       // Get current blocks from entry state
       final lumaraBlocks = List<InlineBlock>.from(_entryState.blocks);
       
-      // Create updated entry with current blocks
+      // Generate overview if there are LUMARA blocks
+      String? overview;
+      if (lumaraBlocks.isNotEmpty) {
+        try {
+          overview = await _generateEntryOverview();
+          debugPrint('✅ JournalScreen: Generated overview (${overview.length} chars)');
+        } catch (e) {
+          debugPrint('⚠️ JournalScreen: Error generating overview: $e');
+          // Continue without overview if generation fails
+        }
+      }
+      
+      // Create updated entry with current blocks and overview
       final updatedEntry = widget.existingEntry!.copyWith(
         lumaraBlocks: lumaraBlocks,
+        overview: overview,
         updatedAt: DateTime.now(),
       );
       
@@ -5524,6 +5591,82 @@ $originalEntryTextToInclude
     } catch (e, stackTrace) {
       debugPrint('❌ JournalScreen: ERROR persisting LUMARA blocks: $e');
       debugPrint('Stack: $stackTrace');
+    }
+  }
+
+  /// Generate a 3-5 sentence overview of the entire journal entry (user content + LUMARA comments)
+  Future<String> _generateEntryOverview() async {
+    try {
+      // Build full content: user entry + all LUMARA comments
+      final fullContent = StringBuffer();
+      fullContent.writeln(_entryState.text);
+      
+      for (final block in _entryState.blocks) {
+        fullContent.writeln('\n\n[LUMARA Reflection]: ${block.content}');
+        if (block.userComment != null && block.userComment!.isNotEmpty) {
+          fullContent.writeln('[User Comment]: ${block.userComment}');
+        }
+      }
+      
+      final fullText = fullContent.toString();
+      
+      // Get user profile for userId
+      UserProfile? userProfile;
+      try {
+        if (Hive.isBoxOpen('user_profile')) {
+          final userBox = Hive.box<UserProfile>('user_profile');
+          userProfile = userBox.get('profile');
+        }
+      } catch (e) {
+        debugPrint('⚠️ JournalScreen: Could not get user profile: $e');
+      }
+      
+      // Generate overview using EnhancedLumaraApi
+      final result = await _enhancedLumaraApi.generatePromptedReflection(
+        entryText: fullText,
+        intent: 'journal',
+        phase: _entryState.phase,
+        userId: userProfile?.id,
+        includeExpansionQuestions: false,
+        mood: null,
+        chronoContext: null,
+        chatContext: 'Generate a concise 3-5 sentence overview of this entire journal entry, including both the user\'s original content and LUMARA\'s reflections. The overview should capture the main themes, key insights, and important points discussed. Write it as a clear, coherent summary that helps the user quickly understand what this entry is about when they return to it later.',
+        mediaContext: null,
+        entryId: _currentEntryId,
+        options: lumara_models.LumaraReflectionOptions(
+          preferQuestionExpansion: false,
+          toneMode: lumara_models.ToneMode.normal,
+          regenerate: false,
+        ),
+        onProgress: (message) {
+          // Silent progress - overview generation happens in background
+        },
+      );
+      
+      // Extract overview text (remove any prefixes like "✨ Reflection")
+      String overviewText = result.reflection.trim();
+      if (overviewText.startsWith('✨ Reflection\n\n')) {
+        overviewText = overviewText.substring('✨ Reflection\n\n'.length);
+      }
+      if (overviewText.startsWith('✨')) {
+        overviewText = overviewText.substring(overviewText.indexOf('\n') + 1).trim();
+      }
+      
+      // Ensure it's 3-5 sentences (count sentences)
+      final sentences = overviewText.split(RegExp(r'[.!?]+')).where((s) => s.trim().isNotEmpty).toList();
+      if (sentences.length < 3) {
+        // If too short, return as-is (LUMARA might have condensed it)
+        return overviewText;
+      } else if (sentences.length > 5) {
+        // If too long, take first 5 sentences
+        final firstFive = sentences.take(5).join('. ') + '.';
+        return firstFive;
+      }
+      
+      return overviewText;
+    } catch (e) {
+      debugPrint('❌ JournalScreen: Error generating overview: $e');
+      rethrow;
     }
   }
 

@@ -90,6 +90,9 @@ class JournalEntry extends Equatable {
   @HiveField(27)
   final List<InlineBlock> lumaraBlocks; // LUMARA inline reflection blocks
 
+  @HiveField(28)
+  final String? overview; // 3-5 sentence overview of the entire entry (user content + LUMARA comments)
+
   const JournalEntry({
     required this.id,
     required this.title,
@@ -118,6 +121,7 @@ class JournalEntry extends Equatable {
     this.phaseInferenceVersion,
     this.phaseMigrationStatus,
     this.lumaraBlocks = const [], // LUMARA inline reflection blocks
+    this.overview, // 3-5 sentence overview of the entire entry
   });
 
   JournalEntry copyWith({
@@ -148,6 +152,7 @@ class JournalEntry extends Equatable {
     int? phaseInferenceVersion,
     String? phaseMigrationStatus,
     List<InlineBlock>? lumaraBlocks,
+    String? overview,
   }) {
     return JournalEntry(
       id: id ?? this.id,
@@ -177,6 +182,7 @@ class JournalEntry extends Equatable {
       phaseInferenceVersion: phaseInferenceVersion ?? this.phaseInferenceVersion,
       phaseMigrationStatus: phaseMigrationStatus ?? this.phaseMigrationStatus,
       lumaraBlocks: lumaraBlocks ?? this.lumaraBlocks,
+      overview: overview ?? this.overview,
     );
   }
 
@@ -209,6 +215,7 @@ class JournalEntry extends Equatable {
         phaseInferenceVersion,
         phaseMigrationStatus,
         lumaraBlocks,
+        overview,
       ];
 
   Map<String, dynamic> toJson() {
