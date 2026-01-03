@@ -18,46 +18,24 @@ import 'package:my_app/core/services/media_store.dart';
 import 'package:my_app/mira/store/mcp/orchestrator/ios_vision_orchestrator.dart';
 import 'package:my_app/core/services/photo_library_service.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:my_app/arc/chat/voice/voice_chat_service.dart';
-import 'package:my_app/arc/chat/voice/voice_orchestrator.dart';
-import 'package:my_app/arc/chat/ui/voice_chat_panel.dart';
-import 'package:my_app/arc/chat/voice/voice_permissions.dart';
-import 'package:my_app/arc/chat/services/enhanced_lumara_api.dart';
-import 'package:my_app/arc/chat/bloc/lumara_assistant_cubit.dart';
-import 'package:my_app/arc/chat/data/context_provider.dart';
-import 'package:my_app/telemetry/analytics.dart';
-import 'package:my_app/mira/memory/enhanced_memory_schema.dart';
 
 class JournalCaptureView extends StatefulWidget {
   final String? initialEmotion;
   final String? initialReason;
-  final bool startWithVoice; // If true, opens with voice mode activated
   
   const JournalCaptureView({
     super.key,
     this.initialEmotion,
     this.initialReason,
-    this.startWithVoice = false,
   });
 
   @override
   State<JournalCaptureView> createState() => _JournalCaptureViewState();
 }
 
-/// Wrapper widget that opens journal capture with voice mode activated
-class JournalCaptureViewWithVoice extends StatelessWidget {
-  const JournalCaptureViewWithVoice({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return JournalCaptureView(startWithVoice: true);
-  }
-}
-
 class _JournalCaptureViewState extends State<JournalCaptureView> {
   late final TextEditingController _textController;
   late final FocusNode _focusNode;
-  bool _showVoiceRecorder = false;
   
   // Media management
   final List<MediaItem> _mediaItems = [];
@@ -67,11 +45,6 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
   
   // Manual keywords (matches regular journal mode architecture)
   List<String> _manualKeywords = [];
-  
-  // Voice chat service for journal context
-  VoiceChatService? _voiceChatService;
-  String? _partialTranscript;
-  bool _voiceServiceInitialized = false; // Track initialization status
 
   @override
   void initState() {
@@ -81,20 +54,6 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
 
     // Add listener for auto-save
     _textController.addListener(_onTextChanged);
-    
-    // Initialize voice chat service for journal context
-    _initializeVoiceChat();
-    
-    // If startWithVoice is true, activate voice mode after initialization
-    if (widget.startWithVoice) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          setState(() {
-            _showVoiceRecorder = true;
-          });
-        }
-      });
-    }
   }
 
   @override
@@ -102,80 +61,7 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
     _textController.removeListener(_onTextChanged);
     _textController.dispose();
     _focusNode.dispose();
-    _voiceChatService?.dispose();
     super.dispose();
-  }
-  
-  /// Initialize voice chat service with journal context
-  Future<void> _initializeVoiceChat() async {
-    try {
-      final journalCubit = context.read<JournalCaptureCubit>();
-      
-      // Get EnhancedLumaraApi
-      final enhancedApi = EnhancedLumaraApi(Analytics());
-      await enhancedApi.initialize();
-      
-      // Set LUMARA API on cubit for summary generation
-      journalCubit.setLumaraApi(enhancedApi);
-      
-      // Try to get LumaraAssistantCubit from context (may not always be available)
-      LumaraAssistantCubit? chatCubit;
-      ContextProvider? contextProvider;
-      try {
-        chatCubit = context.read<LumaraAssistantCubit>();
-        contextProvider = context.read<ContextProvider>();
-      } catch (e) {
-        debugPrint('LumaraAssistantCubit or ContextProvider not available in context: $e');
-        // Continue without them - MainChatManager can work without cubit for basic functionality
-      }
-      
-      _voiceChatService = VoiceChatService(
-        lumaraApi: enhancedApi,
-        journalCubit: journalCubit,
-        chatCubit: chatCubit, // Provide cubit if available
-        contextProvider: contextProvider, // Provide context provider if available
-        context: VoiceContext.journal, // Set to journal context
-        onTextWritten: (text) {
-          // Append text to the text controller
-          final currentText = _textController.text;
-          _textController.text = currentText + text;
-          // Move cursor to end
-          _textController.selection = TextSelection.fromPosition(
-            TextPosition(offset: _textController.text.length),
-          );
-        },
-      );
-      
-      final initialized = await _voiceChatService!.initialize();
-      if (mounted) {
-        setState(() {
-          _voiceServiceInitialized = true;
-        });
-      }
-      
-      if (!initialized && mounted) {
-        // Permission not granted, but service is created
-        debugPrint('Voice chat service not initialized - permissions may be needed');
-      }
-      
-      // Listen to partial transcript stream
-      if (mounted && _voiceChatService != null) {
-        _voiceChatService!.partialTranscriptStream.listen((transcript) {
-          if (mounted) {
-            setState(() {
-              _partialTranscript = transcript;
-            });
-          }
-        });
-      }
-    } catch (e) {
-      debugPrint('Error initializing voice chat for journal: $e');
-      if (mounted) {
-        setState(() {
-          _voiceServiceInitialized = true; // Mark as initialized even on error to stop spinner
-        });
-      }
-    }
   }
 
   void _onTextChanged() {
@@ -333,46 +219,6 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
     }
   }
 
-  Future<void> _handleMicrophone() async {
-    // Activate voice journal mode
-    setState(() {
-      _showVoiceRecorder = true;
-    });
-    
-    // Request microphone permission if not already granted
-    final status = await Permission.microphone.request();
-    if (status != PermissionStatus.granted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Microphone permission is required for voice journaling'),
-          backgroundColor: kcDangerColor,
-        ),
-      );
-      return;
-    }
-    
-    // If voice service isn't initialized yet, initialize it
-    if (_voiceChatService == null || !_voiceServiceInitialized) {
-      await _initializeVoiceChat();
-    }
-    
-    // Re-initialize if permission was just granted
-    if (status == PermissionStatus.granted && _voiceChatService != null) {
-      await _voiceChatService!.initialize();
-      if (mounted) {
-        setState(() {
-          _voiceServiceInitialized = true;
-        });
-      }
-    }
-    
-    // Ensure voice recorder stays visible after initialization
-    if (mounted && !_showVoiceRecorder) {
-      setState(() {
-        _showVoiceRecorder = true;
-      });
-    }
-  }
 
 
   void _onNextPressed() async {
@@ -459,12 +305,6 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
         
         // Get attribution traces for this LUMARA response
         List<Map<String, dynamic>>? attributionTracesJson;
-        if (_voiceChatService != null && cleanContent.isNotEmpty) {
-          final traces = _voiceChatService!.getAttributionTraces(cleanContent);
-          if (traces != null && traces.isNotEmpty) {
-            attributionTracesJson = traces.map((trace) => trace.toJson()).toList();
-          }
-        }
         
         final block = {
           'type': 'inline_reflection', // Correct type for InlineBlock
@@ -510,7 +350,6 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
             if (state is JournalCaptureSaved) {
               _textController.clear();
               setState(() {
-                _showVoiceRecorder = false;
                 _mediaItems.clear();
               });
               ScaffoldMessenger.of(context).showSnackBar(
@@ -699,18 +538,6 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                               children: [
-                                // Microphone button
-                                ConstrainedBox(
-                                  constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
-                                  child: Semantics(
-                                    label: 'Record voice note',
-                                    button: true,
-                                    child: IconButton(
-                                      icon: const Icon(Icons.mic, color: kcPrimaryColor),
-                                      onPressed: _handleMicrophone,
-                                    ),
-                                  ),
-                                ),
                                 // Camera button
                                 ConstrainedBox(
                                   constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
@@ -742,7 +569,6 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                               children: [
-                                _buildStatusIndicator('Microphone', true, 'Voice recording ready'),
                                 _buildStatusIndicator('Camera', true, 'Single photo capture'),
                                 _buildStatusIndicator('Photo Gallery', true, 'Multi-select support'),
                               ],
@@ -752,110 +578,6 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
                       ),
                     ),
                     const SizedBox(height: 16),
-
-                    // Voice recording section (if enabled)
-                    if (_showVoiceRecorder) ...[
-                      Card(
-                        color: kcSurfaceAltColor,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsets.all(16.0),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // Header with collapse button - always visible
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    'Voice Journal',
-                                    style: heading1Style(context).copyWith(fontSize: 18),
-                                  ),
-                                  IconButton(
-                                    icon: const Icon(
-                                      Icons.expand_less,
-                                      color: kcPrimaryColor,
-                                    ),
-                                    tooltip: 'Collapse voice journal',
-                                    onPressed: () {
-                                      // Dismiss keyboard first
-                                      FocusScope.of(context).unfocus();
-                                      setState(() {
-                                        _showVoiceRecorder = false;
-                                      });
-                                    },
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 16),
-                              // Voice chat panel for journal context - make it constrained and scrollable
-                              ConstrainedBox(
-                                constraints: const BoxConstraints(
-                                  maxHeight: 400, // Limit height to prevent clipping
-                                ),
-                                child: SingleChildScrollView(
-                                  child: Column(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      if (!_voiceServiceInitialized) ...[
-                                        // Show loading while initializing
-                                        const Center(
-                                          child: Padding(
-                                            padding: EdgeInsets.all(24.0),
-                                            child: CircularProgressIndicator(),
-                                          ),
-                                        ),
-                                      ] else if (_voiceChatService != null && _voiceChatService!.controller != null) ...[
-                                        VoiceChatPanel(
-                                          controller: _voiceChatService!.controller!,
-                                          diagnostics: _voiceChatService!.diagnostics,
-                                          partialTranscript: _partialTranscript,
-                                          audioLevelStream: _voiceChatService!.audioLevelStream,
-                                        ),
-                                      ] else ...[
-                                        // Show message if initialization failed (e.g., permissions not granted)
-                                        Center(
-                                          child: Padding(
-                                            padding: const EdgeInsets.all(24.0),
-                                            child: Column(
-                                              children: [
-                                                const Icon(
-                                                  Icons.mic_off,
-                                                  size: 48,
-                                                  color: Colors.grey,
-                                                ),
-                                                const SizedBox(height: 16),
-                                                Text(
-                                                  'Microphone permission required',
-                                                  style: Theme.of(context).textTheme.titleMedium,
-                                                  textAlign: TextAlign.center,
-                                                ),
-                                                const SizedBox(height: 8),
-                                                Text(
-                                                  'Please grant microphone permission in Settings to use voice journaling.',
-                                                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                                    color: Colors.grey,
-                                                  ),
-                                                  textAlign: TextAlign.center,
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                    ],
 
                     // Media Strip
                     if (_mediaItems.isNotEmpty) ...[
@@ -889,13 +611,6 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
                         cursorColor: kcPrimaryColor,
                         cursorWidth: 2,
                         cursorRadius: const Radius.circular(2),
-                        // Prevent keyboard from hiding voice recorder
-                        onTap: () {
-                          // Keep voice recorder visible when keyboard appears
-                          if (_showVoiceRecorder) {
-                            // Optionally scroll to keep voice recorder in view
-                          }
-                        },
                       ),
                     ),
                   ],
@@ -947,296 +662,4 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
     );
   }
 
-  Widget _buildPermissionSection(JournalCaptureState state) {
-    return Column(
-      children: [
-        Text(
-          'Record your thoughts with your voice',
-          style: bodyStyle(context),
-        ),
-        const SizedBox(height: 16),
-        ConstrainedBox(
-          constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
-          child: Semantics(
-            label: 'Enable voice journaling and request microphone permission',
-            button: true,
-            child: ElevatedButton.icon(
-              onPressed: () {
-                context.read<JournalCaptureCubit>().requestMicrophonePermission();
-              },
-              icon: const Icon(Icons.mic, color: Colors.white),
-              label: Text('Enable Voice Journaling', style: buttonStyle(context)),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: kcPrimaryColor,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8.0),
-                ),
-              ),
-            ),
-          ),
-        ),
-        if (state is JournalCapturePermissionDenied) ...[
-          const SizedBox(height: 16),
-          Text(
-            state.message,
-            style: bodyStyle(context).copyWith(color: kcDangerColor),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 8),
-          TextButton(
-            onPressed: () {
-              openAppSettings();
-            },
-            child: Text(
-              'Open Settings to Grant Permission',
-              style: linkStyle(context),
-            ),
-          ),
-        ],
-      ],
-    );
-  }
-
-  Widget _buildRecordingSection(JournalCaptureState state) {
-    Duration recordingDuration = Duration.zero;
-    bool isRecording = false;
-    bool isPaused = false;
-
-    if (state is JournalCaptureRecording) {
-      recordingDuration = state.recordingDuration;
-      isRecording = true;
-    } else if (state is JournalCaptureRecordingPaused) {
-      recordingDuration = state.recordingDuration;
-      isPaused = true;
-    } else if (state is JournalCaptureRecordingStopped) {
-      recordingDuration = state.recordingDuration;
-    }
-
-    return Column(
-      children: [
-        // Visualizer
-        Container(
-          height: 100,
-          decoration: BoxDecoration(
-            gradient: kcPrimaryGradient,
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Center(
-            child: isRecording
-                ? _buildVisualizer()
-                : const Icon(
-                    Icons.mic,
-                    size: 40,
-                    color: Colors.white,
-                  ),
-          ),
-        ),
-        const SizedBox(height: 16),
-        // Timer
-        Text(
-          _formatDuration(recordingDuration),
-          style: bodyStyle(context).copyWith(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(height: 16),
-        // Controls
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: [
-            if (isRecording) ...[
-              ConstrainedBox(
-                constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
-                child: Semantics(
-                  label: 'Pause recording',
-                  button: true,
-                  child: IconButton(
-                    icon: const Icon(Icons.pause, color: kcSecondaryColor),
-                    onPressed: () {
-                      context.read<JournalCaptureCubit>().pauseRecording();
-                    },
-                  ),
-                ),
-              ),
-              ConstrainedBox(
-                constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
-                child: Semantics(
-                  label: 'Stop recording',
-                  button: true,
-                  child: IconButton(
-                    icon: const Icon(Icons.stop, color: kcDangerColor),
-                    onPressed: () {
-                      context.read<JournalCaptureCubit>().stopRecording();
-                    },
-                  ),
-                ),
-              ),
-            ] else if (isPaused) ...[
-              ConstrainedBox(
-                constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
-                child: Semantics(
-                  label: 'Resume recording',
-                  button: true,
-                  child: IconButton(
-                    icon: const Icon(Icons.play_arrow, color: kcPrimaryColor),
-                    onPressed: () {
-                      context.read<JournalCaptureCubit>().startRecording();
-                    },
-                  ),
-                ),
-              ),
-              ConstrainedBox(
-                constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
-                child: Semantics(
-                  label: 'Stop recording',
-                  button: true,
-                  child: IconButton(
-                    icon: const Icon(Icons.stop, color: kcDangerColor),
-                    onPressed: () {
-                      context.read<JournalCaptureCubit>().stopRecording();
-                    },
-                  ),
-                ),
-              ),
-            ] else if (state is JournalCaptureRecordingStopped) ...[
-              ConstrainedBox(
-                constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
-                child: Semantics(
-                  label: 'Play recording',
-                  button: true,
-                  child: IconButton(
-                    icon: const Icon(Icons.play_arrow, color: kcPrimaryColor),
-                    onPressed: () {
-                      context.read<JournalCaptureCubit>().playRecording();
-                    },
-                  ),
-                ),
-              ),
-              ConstrainedBox(
-                constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
-                child: Semantics(
-                  label: 'Start new recording',
-                  button: true,
-                  child: IconButton(
-                    icon: const Icon(Icons.restart_alt, color: kcSecondaryColor),
-                    onPressed: () {
-                      context.read<JournalCaptureCubit>().startRecording();
-                    },
-                  ),
-                ),
-              ),
-              ConstrainedBox(
-                constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
-                child: Semantics(
-                  label: 'Transcribe audio to text',
-                  button: true,
-                  child: ElevatedButton.icon(
-                    onPressed: () {
-                      context.read<JournalCaptureCubit>().transcribeAudio();
-                    },
-                    icon: const Icon(Icons.translate, color: Colors.white),
-                    label: Text('Transcribe', style: buttonStyle(context)),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: kcPrimaryColor,
-                    ),
-                  ),
-                ),
-              ),
-            ] else ...[
-              ConstrainedBox(
-                constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
-                child: Semantics(
-                  label: 'Start recording voice',
-                  button: true,
-                  child: IconButton(
-                    icon: const Icon(Icons.fiber_manual_record,
-                        color: kcPrimaryColor),
-                    onPressed: () {
-                      context.read<JournalCaptureCubit>().startRecording();
-                    },
-                  ),
-                ),
-              ),
-            ],
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildTranscriptionSection(JournalCaptureState state) {
-    if (state is JournalCaptureTranscribing) {
-      return Column(
-        children: [
-          const CircularProgressIndicator(),
-          const SizedBox(height: 16),
-          Text('Transcribing your voice...', style: bodyStyle(context)),
-        ],
-      );
-    }
-
-    if (state is JournalCaptureTranscribed) {
-      return Column(
-        children: [
-          Text('Transcription:', style: heading1Style(context)),
-          const SizedBox(height: 8),
-          TextField(
-            maxLines: 3,
-            style: bodyStyle(context),
-            decoration: InputDecoration(
-              hintText: 'Edit your transcription...',
-              hintStyle: bodyStyle(context).copyWith(
-                color: kcSecondaryTextColor,
-              ),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: const BorderSide(color: kcSecondaryColor),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: const BorderSide(color: kcPrimaryColor),
-              ),
-            ),
-            controller: TextEditingController(text: state.transcription),
-            onChanged: (text) {
-              context.read<JournalCaptureCubit>().updateTranscription(text);
-            },
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'You can edit the transcription above before saving.',
-            style: captionStyle(context),
-          ),
-        ],
-      );
-    }
-
-    return const SizedBox.shrink();
-  }
-
-  Widget _buildVisualizer() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: List.generate(15, (index) {
-        final height = 20 + (index % 5) * 10.0;
-        return Container(
-          margin: const EdgeInsets.symmetric(horizontal: 2),
-          width: 4,
-          height: height,
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.7),
-            borderRadius: BorderRadius.circular(2),
-          ),
-        );
-      }),
-    );
-  }
-
-  String _formatDuration(Duration duration) {
-    String twoDigits(int n) => n.toString().padLeft(2, '0');
-    final minutes = twoDigits(duration.inMinutes.remainder(60));
-    final seconds = twoDigits(duration.inSeconds.remainder(60));
-    return "$minutes:$seconds";
-  }
 }

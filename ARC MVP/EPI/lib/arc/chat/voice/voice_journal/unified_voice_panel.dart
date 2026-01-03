@@ -39,6 +39,7 @@ class _UnifiedVoicePanelState extends State<UnifiedVoicePanel>
   
   StreamSubscription<double>? _audioLevelSubscription;
   double _currentAudioLevel = 0.0;
+  Timer? _equalizerAnimationTimer;
   
   // Timeout tracking for processing states
   DateTime? _processingStartTime;
@@ -71,6 +72,16 @@ class _UnifiedVoicePanelState extends State<UnifiedVoicePanel>
       if (mounted) setState(() => _currentAudioLevel = level);
     });
     
+    // Start equalizer animation timer for smooth animation
+    _equalizerAnimationTimer = Timer.periodic(
+      const Duration(milliseconds: 50), // 20 FPS for smooth animation
+      (_) {
+        if (mounted && widget.service.state == VoiceJournalState.listening) {
+          setState(() {}); // Trigger repaint for equalizer animation
+        }
+      },
+    );
+    
     widget.service.stateNotifier.addListener(_onStateChange);
     
     // Set up callbacks
@@ -90,6 +101,7 @@ class _UnifiedVoicePanelState extends State<UnifiedVoicePanel>
     _glowController.dispose();
     _processingPulseController.dispose();
     _audioLevelSubscription?.cancel();
+    _equalizerAnimationTimer?.cancel();
     widget.service.stateNotifier.removeListener(_onStateChange);
     _scrollController.dispose();
     super.dispose();
@@ -216,14 +228,17 @@ class _UnifiedVoicePanelState extends State<UnifiedVoicePanel>
   }
 
   Widget _buildDragHandle(ThemeData theme) {
-    return Center(
-      child: Container(
-        width: 40,
-        height: 4,
-        margin: const EdgeInsets.only(bottom: 16),
-        decoration: BoxDecoration(
-          color: theme.colorScheme.onSurface.withOpacity(0.3),
-          borderRadius: BorderRadius.circular(2),
+    // Drag handle is visual only - not interactive to avoid interfering with mic button
+    return IgnorePointer(
+      child: Center(
+        child: Container(
+          width: 40,
+          height: 4,
+          margin: const EdgeInsets.only(bottom: 16),
+          decoration: BoxDecoration(
+            color: theme.colorScheme.onSurface.withOpacity(0.3),
+            borderRadius: BorderRadius.circular(2),
+          ),
         ),
       ),
     );
@@ -558,49 +573,62 @@ class _UnifiedVoicePanelState extends State<UnifiedVoicePanel>
                 ? 0.4 + (_processingPulseController.value * 0.3)
                 : 0.0;
 
-        return GestureDetector(
-          onTap: canTap ? _onMicTap : null,
-          child: Transform.scale(
-            scale: pulseScale,
-            child: Container(
-              width: 80,
-              height: 80,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: _getMicButtonColor(state, mode),
-                boxShadow: isListening
-                    ? [
-                        BoxShadow(
-                          color: Colors.red.withOpacity(glowOpacity),
-                          blurRadius: 20,
-                          spreadRadius: 5,
-                        ),
-                      ]
-                    : isProcessing
-                        ? [
-                            BoxShadow(
-                              color: Colors.amber.withOpacity(glowOpacity),
-                              blurRadius: 20,
-                              spreadRadius: 4,
-                            ),
-                          ]
-                        : canTap
-                            ? [
-                                BoxShadow(
-                                  color: _getModeColor(mode).withOpacity(0.3),
-                                  blurRadius: 10,
-                                  spreadRadius: 2,
-                                ),
-                              ]
-                            : null,
+        return Listener(
+          behavior: HitTestBehavior.opaque,
+          onPointerDown: canTap && (state == VoiceJournalState.idle || state == VoiceJournalState.saved)
+              ? (_) => _onMicPressDown()
+              : null,
+          onPointerUp: state == VoiceJournalState.listening
+              ? (_) => _onMicPressUp()
+              : null,
+          onPointerCancel: state == VoiceJournalState.listening
+              ? (_) => _onMicPressUp()
+              : null,
+          child: GestureDetector(
+            // Keep tap as fallback for accessibility
+            onTap: canTap ? _onMicTap : null,
+            child: Transform.scale(
+              scale: pulseScale,
+              child: Container(
+                width: 80,
+                height: 80,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: _getMicButtonColor(state, mode),
+                  boxShadow: isListening
+                      ? [
+                          BoxShadow(
+                            color: Colors.red.withOpacity(glowOpacity),
+                            blurRadius: 20,
+                            spreadRadius: 5,
+                          ),
+                        ]
+                      : isProcessing
+                          ? [
+                              BoxShadow(
+                                color: Colors.amber.withOpacity(glowOpacity),
+                                blurRadius: 20,
+                                spreadRadius: 4,
+                              ),
+                            ]
+                          : canTap
+                              ? [
+                                  BoxShadow(
+                                    color: _getModeColor(mode).withOpacity(0.3),
+                                    blurRadius: 10,
+                                    spreadRadius: 2,
+                                  ),
+                                ]
+                              : null,
+                ),
+                child: isListening
+                    ? _buildAudioVisualization(80, Colors.white)
+                    : Icon(
+                        _getMicButtonIcon(state),
+                        color: Colors.white,
+                        size: 36,
+                      ),
               ),
-              child: isListening
-                  ? _buildAudioVisualization(80, Colors.white)
-                  : Icon(
-                      _getMicButtonIcon(state),
-                      color: Colors.white,
-                      size: 36,
-                    ),
             ),
           ),
         );
@@ -608,18 +636,13 @@ class _UnifiedVoicePanelState extends State<UnifiedVoicePanel>
     );
   }
 
-  /// Build audio visualization (oscilloscope-like waveform)
+  /// Build audio visualization (equalizer-style bars)
   Widget _buildAudioVisualization(double size, Color color) {
-    final barCount = 8;
-    final barWidth = size / (barCount * 2);
-    
     return CustomPaint(
       size: Size(size, size),
-      painter: _AudioVisualizationPainter(
+      painter: _EqualizerPainter(
         audioLevel: _currentAudioLevel,
-        color: color.withOpacity(0.9),
-        barCount: barCount,
-        barWidth: barWidth,
+        color: color,
       ),
     );
   }
@@ -662,6 +685,26 @@ class _UnifiedVoicePanelState extends State<UnifiedVoicePanel>
     }
   }
 
+  /// Handle mic button press down (push-to-talk start)
+  Future<void> _onMicPressDown() async {
+    final state = widget.service.state;
+    
+    if (state == VoiceJournalState.idle || state == VoiceJournalState.saved) {
+      await widget.service.startSession();
+      await widget.service.startListening();
+    }
+  }
+
+  /// Handle mic button release (push-to-talk end)
+  Future<void> _onMicPressUp() async {
+    final state = widget.service.state;
+    
+    if (state == VoiceJournalState.listening) {
+      await widget.service.endTurnAndProcess();
+    }
+  }
+
+  /// Handle mic button tap (fallback for accessibility)
   Future<void> _onMicTap() async {
     final state = widget.service.state;
     
@@ -737,18 +780,17 @@ class _ConversationTurn {
   const _ConversationTurn({required this.userText, required this.lumaraText});
 }
 
-/// Custom painter for audio visualization (oscilloscope effect)
-class _AudioVisualizationPainter extends CustomPainter {
+/// Custom painter for equalizer-style audio visualization
+class _EqualizerPainter extends CustomPainter {
   final double audioLevel;
   final Color color;
-  final int barCount;
-  final double barWidth;
+  static const int barCount = 5;
+  static const double barWidth = 4.0;
+  static const double barSpacing = 3.0;
 
-  _AudioVisualizationPainter({
+  _EqualizerPainter({
     required this.audioLevel,
     required this.color,
-    required this.barCount,
-    required this.barWidth,
   });
 
   @override
@@ -757,22 +799,41 @@ class _AudioVisualizationPainter extends CustomPainter {
       ..color = color
       ..style = PaintingStyle.fill;
     
+    final centerX = size.width / 2;
     final centerY = size.height / 2;
-    final spacing = size.width / (barCount + 1);
+    final totalBarWidth = (barCount * barWidth) + ((barCount - 1) * barSpacing);
+    final startX = centerX - (totalBarWidth / 2);
     
-    // Create bars with varying heights based on audio level
+    // Create equalizer bars with independent animations
     for (int i = 0; i < barCount; i++) {
-      // Simulate oscilloscope effect with sine wave pattern
-      final phase = (i / barCount) * 2 * 3.14159; // 2 * pi
-      final heightFactor = (math.sin(phase + audioLevel * 10) + 1) / 2;
-      final barHeight = (size.height * 0.3) * (0.3 + heightFactor * audioLevel);
+      // Each bar has a different phase offset for independent movement
+      final phaseOffset = (i / barCount) * 2 * math.pi;
+      final time = DateTime.now().millisecondsSinceEpoch / 1000.0;
       
-      final x = spacing * (i + 1) - barWidth / 2;
-      final y = centerY - barHeight / 2;
+      // Create wave pattern that responds to audio level
+      // Each bar oscillates at different frequencies for realistic equalizer effect
+      final frequency = 2.0 + (i * 0.5); // Different frequency per bar
+      final wave = math.sin(time * frequency + phaseOffset);
       
+      // Combine audio level with wave pattern
+      // Audio level provides base height, wave adds variation
+      final normalizedLevel = audioLevel.clamp(0.0, 1.0);
+      final baseHeight = size.height * 0.15 * normalizedLevel;
+      final waveVariation = size.height * 0.25 * (wave + 1) / 2;
+      final barHeight = baseHeight + waveVariation;
+      
+      // Ensure minimum height when recording (even if audio is quiet)
+      final minHeight = normalizedLevel > 0.01 ? size.height * 0.1 : 0.0;
+      final finalHeight = math.max(barHeight, minHeight);
+      
+      // Calculate bar position
+      final x = startX + (i * (barWidth + barSpacing));
+      final y = centerY - (finalHeight / 2);
+      
+      // Draw rounded rectangle bar
       canvas.drawRRect(
         RRect.fromRectAndRadius(
-          Rect.fromLTWH(x, y, barWidth, barHeight),
+          Rect.fromLTWH(x, y, barWidth, finalHeight),
           const Radius.circular(2),
         ),
         paint,
@@ -781,8 +842,10 @@ class _AudioVisualizationPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_AudioVisualizationPainter oldDelegate) {
-    return oldDelegate.audioLevel != audioLevel;
+  bool shouldRepaint(_EqualizerPainter oldDelegate) {
+    // Always repaint for smooth animation (time-based animation needs continuous updates)
+    // Audio level changes trigger repaints, and timer ensures smooth animation
+    return true;
   }
 }
 
