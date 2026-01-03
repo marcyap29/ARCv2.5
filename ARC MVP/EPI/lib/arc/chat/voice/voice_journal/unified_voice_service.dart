@@ -28,6 +28,7 @@ import 'gemini_client.dart';
 import 'tts_client.dart';
 import 'journal_store.dart';
 import 'chat_store.dart';
+import 'voice_prompt_builder.dart';
 
 /// Configuration for unified voice service
 class UnifiedVoiceConfig {
@@ -189,6 +190,8 @@ class UnifiedVoiceService {
       _conversation = VoiceJournalConversation(
         client: _gemini,
         prism: _prism,
+        mode: _mode,
+        userId: _getUserId(),
       );
       
       // Initialize TTS
@@ -244,6 +247,8 @@ class UnifiedVoiceService {
     _conversation = VoiceJournalConversation(
       client: _gemini,
       prism: _prism,
+      mode: _mode,
+      userId: _getUserId(),
     );
     
     _log('Switched to ${_mode.displayName}');
@@ -368,8 +373,12 @@ class UnifiedVoiceService {
     
     _log('Sending to Gemini...');
     
+    // Build voice context for unified prompt
+    final voiceContext = await _buildVoiceContext();
+    
     final turnResult = await _conversation!.processTurn(
       rawUserText: rawTranscript,
+      voiceContext: voiceContext,
       onChunk: (chunk) {
         _stateNotifier.appendToLumaraReply(chunk);
       },
@@ -551,6 +560,89 @@ class UnifiedVoiceService {
     if (_config.enableDebugLogs) {
       debugPrint('UnifiedVoice[${_mode.name}]: $message');
     }
+  }
+
+  /// Get user ID from available sources
+  String? _getUserId() {
+    // Try to get from journal cubit
+    if (_journalCubit != null) {
+      // Check if journal cubit has userId accessor
+      // This may need to be adjusted based on actual implementation
+      return null; // TODO: Implement based on actual cubit structure
+    }
+    
+    // Try to get from chat cubit
+    if (_chatCubit != null) {
+      // Check if chat cubit has userId accessor
+      // This may need to be adjusted based on actual implementation
+      return null; // TODO: Implement based on actual cubit structure
+    }
+    
+    return null;
+  }
+
+  /// Build voice context for unified prompt
+  Future<VoicePromptContext> _buildVoiceContext() async {
+    // Build PRISM activity from current session
+    final prismActivity = <String, dynamic>{
+      'journal_entries': _mode == VoiceMode.journal ? _journalTurns.map((t) => t.rawUserText).toList() : [],
+      'chats': _mode == VoiceMode.chat ? _chatTurns.map((t) => t.displayUserText).toList() : [],
+      'drafts': [],
+      'media': [],
+      'patterns': [],
+      'emotional_tone': 'neutral',
+      'cognitive_load': 'moderate',
+    };
+
+    // Build chrono context (time of day)
+    final now = DateTime.now();
+    final hour = now.hour;
+    String timeWindow = 'afternoon';
+    if (hour >= 5 && hour < 12) {
+      timeWindow = 'morning';
+    } else if (hour >= 12 && hour < 17) {
+      timeWindow = 'afternoon';
+    } else if (hour >= 17 && hour < 22) {
+      timeWindow = 'evening';
+    } else {
+      timeWindow = 'night';
+    }
+
+    final chronoContext = <String, dynamic>{
+      'window': timeWindow,
+      'chronotype': 'sporadic',
+      'rhythmScore': 0.7,
+      'isFragmented': false,
+    };
+
+    // Get conversation history from conversation manager
+    final conversationHistory = _conversation?.scrubbedHistory;
+
+    // TODO: Retrieve memory context from memory system
+    // This would involve querying past journal entries and chat history
+    // For now, leave as null - can be enhanced later
+    final memoryContext = null;
+
+    // TODO: Retrieve active psychological threads
+    // This would involve querying RIVET or other systems
+    // For now, leave as null - can be enhanced later
+    final activeThreads = null;
+
+    // TODO: Get days in phase from ATLAS
+    // This would involve querying phase service
+    // For now, leave as null - can be enhanced later
+    final daysInPhase = null;
+
+    return VoicePromptContext(
+      userId: _getUserId(),
+      mode: _mode,
+      prismActivity: prismActivity,
+      chronoContext: chronoContext,
+      conversationHistory: conversationHistory,
+      memoryContext: memoryContext,
+      activeThreads: activeThreads,
+      daysInPhase: daysInPhase,
+    );
   }
 
   /// Dispose resources

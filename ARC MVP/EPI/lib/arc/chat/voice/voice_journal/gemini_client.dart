@@ -11,6 +11,8 @@ import '../../services/enhanced_lumara_api.dart';
 import 'prism_adapter.dart';
 import 'voice_journal_state.dart';
 import 'correlation_resistant_transformer.dart';
+import 'voice_prompt_builder.dart';
+import 'voice_mode.dart';
 
 /// Configuration for Gemini client
 class GeminiConfig {
@@ -70,6 +72,7 @@ class GeminiJournalClient {
   /// - cloudPayload: Correlation-resistant structured payload (Block B)
   /// - localAuditBlock: Local-only audit block (Block A) - for logging only
   /// - conversationHistory: Optional previous turns for context
+  /// - voiceContext: Voice prompt context for building unified prompt
   /// - onChunk: Callback for streaming response chunks (if supported)
   /// - onComplete: Callback when full response is ready
   /// - onError: Callback for errors
@@ -77,6 +80,7 @@ class GeminiJournalClient {
     required CloudPayloadBlock cloudPayload,
     LocalAuditBlock? localAuditBlock,
     List<String>? conversationHistory,
+    VoicePromptContext? voiceContext,
     OnGeminiChunk? onChunk,
     OnGeminiComplete? onComplete,
     OnGeminiError? onError,
@@ -105,10 +109,19 @@ class GeminiJournalClient {
         // NOTE: aliasDictionary is intentionally NOT logged
       }
       
-      // Build context from conversation history
-      String chatContext = _config.systemPrompt;
-      if (conversationHistory != null && conversationHistory.isNotEmpty) {
-        chatContext += '\n\nPrevious conversation:\n${conversationHistory.join("\n")}';
+      // Build system prompt using unified voice prompt builder if context provided
+      String chatContext;
+      if (voiceContext != null) {
+        // Use unified voice prompt builder
+        chatContext = await VoicePromptBuilder.buildVoicePrompt(voiceContext);
+        debugPrint('Gemini: Using unified voice prompt with control state');
+      } else {
+        // Fallback to legacy prompt
+        chatContext = _config.systemPrompt;
+        if (conversationHistory != null && conversationHistory.isNotEmpty) {
+          chatContext += '\n\nPrevious conversation:\n${conversationHistory.join("\n")}';
+        }
+        debugPrint('Gemini: Using legacy prompt (no voice context provided)');
       }
       
       // Convert cloud payload to JSON string for transmission
@@ -121,10 +134,12 @@ class GeminiJournalClient {
       final result = await _api.generatePromptedReflection(
         entryText: payloadJson,  // Send structured JSON, not verbatim text
         intent: cloudPayload.intent,
-        phase: null,
-        userId: null,
-        chatContext: chatContext + '\n\nNote: Input is a structured privacy-preserving payload. '
-            'Respond naturally to the semantic summary and themes provided.',
+        phase: null, // Phase is now in control state
+        userId: voiceContext?.userId,
+        chatContext: chatContext + (voiceContext == null 
+            ? '\n\nNote: Input is a structured privacy-preserving payload. '
+                'Respond naturally to the semantic summary and themes provided.'
+            : ''),
         onProgress: (msg) {
           debugPrint('Gemini progress: $msg');
         },
@@ -289,6 +304,7 @@ class GeminiJournalClient {
 class VoiceJournalConversation {
   final GeminiJournalClient _client;
   final PrismAdapter _prism;
+  final String? _userId;
   
   // Conversation history (scrubbed versions for context)
   final List<String> _scrubbedHistory = [];
@@ -297,15 +313,26 @@ class VoiceJournalConversation {
   final Map<int, Map<String, String>> _piiMaps = {};
   
   int _turnIndex = 0;
+  
+  // Voice context for prompt building
+  VoicePromptContext? _voiceContext;
 
   VoiceJournalConversation({
     required GeminiJournalClient client,
     PrismAdapter? prism,
+    required VoiceMode mode, // Mode is passed but stored in voice context
+    String? userId,
   })  : _client = client,
-        _prism = prism ?? PrismAdapter();
+        _prism = prism ?? PrismAdapter(),
+        _userId = userId;
 
   int get turnCount => _turnIndex;
   List<String> get scrubbedHistory => List.unmodifiable(_scrubbedHistory);
+  
+  /// Update voice context for prompt building
+  void updateVoiceContext(VoicePromptContext context) {
+    _voiceContext = context;
+  }
 
   /// Process a user turn and get LUMARA response
   /// 
@@ -317,6 +344,7 @@ class VoiceJournalConversation {
   Future<VoiceJournalTurnResult> processTurn({
     required String rawUserText,
     String intent = 'voice_journal',
+    VoicePromptContext? voiceContext,
     OnGeminiChunk? onChunk,
     OnGeminiComplete? onComplete,
     OnGeminiError? onError,
@@ -349,12 +377,32 @@ class VoiceJournalConversation {
     _scrubbedHistory.add('User: ${transformationResult.cloudPayloadBlock.semanticSummary}');
     
     // Step 3: Get response from Gemini using structured payload
+    // Use provided voice context or fall back to stored context
+    final effectiveContext = voiceContext ?? _voiceContext;
+    
+    // Update conversation history in context if provided
+    final contextWithHistory = effectiveContext != null
+        ? VoicePromptContext(
+            userId: effectiveContext.userId ?? _userId,
+            mode: effectiveContext.mode,
+            prismActivity: effectiveContext.prismActivity,
+            chronoContext: effectiveContext.chronoContext,
+            conversationHistory: _scrubbedHistory.length > 1 
+                ? _scrubbedHistory.sublist(0, _scrubbedHistory.length - 1)
+                : effectiveContext.conversationHistory,
+            memoryContext: effectiveContext.memoryContext,
+            activeThreads: effectiveContext.activeThreads,
+            daysInPhase: effectiveContext.daysInPhase,
+          )
+        : null;
+    
     final scrubbedResponse = await _client.generateResponse(
       cloudPayload: transformationResult.cloudPayloadBlock,
       localAuditBlock: localAudit,  // For local logging only
       conversationHistory: _scrubbedHistory.length > 1 
           ? _scrubbedHistory.sublist(0, _scrubbedHistory.length - 1)
           : null,
+      voiceContext: contextWithHistory,
       onChunk: onChunk,
       onComplete: onComplete,
       onError: onError,
