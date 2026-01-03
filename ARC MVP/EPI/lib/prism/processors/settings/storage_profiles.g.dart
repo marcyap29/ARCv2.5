@@ -64,6 +64,4 @@ Map<String, dynamic> _$StorageSettingsToJson(StorageSettings instance) =>
 
 const _$AppModeEnumMap = {
   AppMode.personal: 'personal',
-  AppMode.firstResponder: 'firstResponder',
-  AppMode.coach: 'coach',
 };
