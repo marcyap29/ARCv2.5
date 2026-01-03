@@ -1,6 +1,6 @@
 # EPI ARC MVP - Changelog
 
-**Version:** 2.1.79
+**Version:** 2.1.80
 **Last Updated:** January 2, 2026
 
 ---
@@ -14,6 +14,36 @@ This changelog has been split into parts for easier navigation:
 | **[CHANGELOG_part1.md](CHANGELOG_part1.md)** | Dec 2025 | v2.1.43 - v2.1.53 (Current) |
 | **[CHANGELOG_part2.md](CHANGELOG_part2.md)** | Nov 2025 | v2.1.28 - v2.1.42 |
 | **[CHANGELOG_part3.md](CHANGELOG_part3.md)** | Jan-Oct 2025 | v2.0.0 - v2.1.27 & Earlier |
+
+---
+
+## [2.1.80] - January 2, 2026
+
+### **Journal Entry Overview Feature** - ✅ Complete
+
+- **Automatic Overview Generation**:
+  - Every journal entry with LUMARA comments now gets a 3-5 sentence overview
+  - Overview summarizes the entire entry: user content + all LUMARA reflections
+  - Generated automatically in the background when LUMARA blocks are saved
+  - Uses EnhancedLumaraApi with specialized prompt for concise summaries
+
+- **Overview Display**:
+  - Overview appears at the top of journal entries (after metadata, before photo gallery)
+  - Styled card with "Overview" label and summarize icon
+  - Selectable text for easy copying
+  - Only displays when entry has LUMARA blocks and overview exists
+
+- **Technical Implementation**:
+  - New `overview` field in `JournalEntry` model (HiveField 28)
+  - Overview generation integrated into `_persistLumaraBlocksToEntry()` flow
+  - Overview generation function ensures 3-5 sentence length
+  - Graceful error handling - entry saves even if overview generation fails
+
+- **User Experience**:
+  - Quick reference when returning to entries
+  - Helps users understand entry content at a glance
+  - Overview is generated automatically - no user action required
+  - Seamlessly integrated into existing journal entry UI
 
 ---
 

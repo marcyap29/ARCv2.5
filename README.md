@@ -12,10 +12,18 @@ A Flutter-based AI companion app that provides life-aware assistance through jou
 - **Architecture Version**: 2.2 (Consolidated 5-Module Architecture)
 - **Flutter SDK**: >=3.22.3
 - **Dart SDK**: >=3.0.3 <4.0.0
-- **Last Updated**: January 1, 2026
+- **Last Updated**: January 2, 2026
 - **Status**: ✅ Production Ready
 
-### **Latest Major Achievement: LUMARA Response Length Controls** ✅ **COMPLETE** (v2.1.79)
+### **Latest Major Achievement: Journal Entry Overview** ✅ **COMPLETE** (v2.1.80)
+
+- **Automatic Overview Generation**: Every journal entry with LUMARA comments gets a 3-5 sentence overview
+- **Quick Reference**: Overview appears at top of entries to help users quickly understand content
+- **Smart Summarization**: Summarizes entire entry (user content + all LUMARA reflections)
+- **Seamless Integration**: Automatically generated in background, no user action required
+- **Enhanced UX**: Helps users identify and understand entries at a glance
+
+### **Previous Major Achievement: LUMARA Response Length Controls** ✅ **COMPLETE** (v2.1.79)
 
 - **Response Length Settings Card**: New UI card in Settings → LUMARA with Auto/Manual toggle
 - **Manual Controls**: Precise sentence count (3, 5, 10, 15, ∞) and paragraph structure (3-5 sentences per paragraph)

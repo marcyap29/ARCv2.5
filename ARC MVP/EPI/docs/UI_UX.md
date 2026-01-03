@@ -1,7 +1,7 @@
 # EPI MVP - UI/UX Feature Documentation
 
-**Version:** 2.1.77
-**Last Updated:** January 1, 2026
+**Version:** 2.1.80
+**Last Updated:** January 2, 2026
 **Status:** ✅ Comprehensive Feature Analysis Complete
 
 ---
@@ -41,6 +41,7 @@ The EPI (Evolving Personal Intelligence) Flutter application provides a sophisti
 25. [Voice Chat - Jarvis Mode (v2.1.53)](#25-voice-chat---jarvis-mode-v2153)
 26. [Engagement Discipline (v2.1.75)](#engagement-discipline-ui-v2175)
 27. [LUMARA Response Length Controls (v2.1.79)](#27-lumara-response-length-controls-v2179)
+28. [Journal Entry Overview (v2.1.80)](#28-journal-entry-overview-v2180)
 
 ---
 
