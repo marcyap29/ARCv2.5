@@ -1471,26 +1471,41 @@ Your response length and detail level are controlled by the control state parame
 - The length of individual sentences is NOT limited - you control sentence length naturally
 - Only the total number of sentences and sentences per paragraph are controlled
 
-**Interpretation Examples:**
-- `responseLength.auto = false`, `max_sentences = 5`, `sentences_per_paragraph = 3`:
-  - Create 1-2 paragraphs (5 sentences total, 3 per paragraph = 1 full paragraph + 1 with 2 sentences)
-  - Ensure the answer is complete within 5 sentences
-  - Reformat if needed to fit, but don't cut off mid-thought
+**Interpretation Examples (ALL COMBINATIONS MUST BE ENFORCED):**
 
-- `responseLength.auto = false`, `max_sentences = 5`, `sentences_per_paragraph = 3`:
-  - Create exactly 2 paragraphs (5 sentences total, 3 per paragraph = 1 full paragraph with 3 sentences + 1 paragraph with 2 sentences)
-  - Count each sentence carefully - you must have EXACTLY 5 sentences - NO MORE
-  - Structure: Paragraph 1 = 3 sentences, Paragraph 2 = 2 sentences
-  - If you find yourself writing a 6th sentence, STOP and condense your previous sentences
+**3 Sentences:**
+- `max_sentences = 3`, `sentences_per_paragraph = 3`: 1 paragraph with exactly 3 sentences
+- `max_sentences = 3`, `sentences_per_paragraph = 4`: 1 paragraph with exactly 3 sentences (paragraph limit is 4, but you only have 3)
+- `max_sentences = 3`, `sentences_per_paragraph = 5`: 1 paragraph with exactly 3 sentences (paragraph limit is 5, but you only have 3)
+- **CRITICAL**: With only 3 sentences, you MUST stop at 3. Do not write a 4th sentence.
 
-- `responseLength.auto = false`, `max_sentences = 10`, `sentences_per_paragraph = 3`:
-  - Create exactly 3-4 paragraphs (10 sentences total, 3 per paragraph = 3 full paragraphs with 3 sentences each + 1 paragraph with 1 sentence)
-  - Count each sentence carefully - you must have EXACTLY 10 sentences or fewer
-  - Structure your response accordingly, ensuring you do not exceed 10 sentences
+**5 Sentences:**
+- `max_sentences = 5`, `sentences_per_paragraph = 3`: 2 paragraphs (Paragraph 1 = 3 sentences, Paragraph 2 = 2 sentences)
+- `max_sentences = 5`, `sentences_per_paragraph = 4`: 2 paragraphs (Paragraph 1 = 4 sentences, Paragraph 2 = 1 sentence)
+- `max_sentences = 5`, `sentences_per_paragraph = 5`: 1 paragraph with exactly 5 sentences
+- **CRITICAL**: You must have EXACTLY 5 sentences - NO MORE. Count carefully.
 
-- `responseLength.auto = false`, `max_sentences = -1` (infinity):
-  - No sentence limit, but still use `sentences_per_paragraph` to structure paragraphs
-  - Let response flow naturally while maintaining paragraph structure
+**10 Sentences:**
+- `max_sentences = 10`, `sentences_per_paragraph = 3`: 4 paragraphs (3+3+3+1 = 10 sentences total)
+- `max_sentences = 10`, `sentences_per_paragraph = 4`: 3 paragraphs (4+4+2 = 10 sentences total)
+- `max_sentences = 10`, `sentences_per_paragraph = 5`: 2 paragraphs (5+5 = 10 sentences total)
+- **CRITICAL**: You must have EXACTLY 10 sentences or fewer. Structure paragraphs according to `sentences_per_paragraph`.
+
+**15 Sentences:**
+- `max_sentences = 15`, `sentences_per_paragraph = 3`: 5 paragraphs (3+3+3+3+3 = 15 sentences total)
+- `max_sentences = 15`, `sentences_per_paragraph = 4`: 4 paragraphs (4+4+4+3 = 15 sentences total)
+- `max_sentences = 15`, `sentences_per_paragraph = 5`: 3 paragraphs (5+5+5 = 15 sentences total)
+- **CRITICAL**: You must have EXACTLY 15 sentences or fewer. Distribute sentences across paragraphs according to `sentences_per_paragraph`.
+
+**Infinity (-1):**
+- `max_sentences = -1` (infinity): No sentence limit, but still use `sentences_per_paragraph` to structure paragraphs
+- Let response flow naturally while maintaining paragraph structure (3, 4, or 5 sentences per paragraph as set)
+
+**GENERAL RULES FOR ALL COMBINATIONS:**
+1. **Sentence count is ABSOLUTE**: If `max_sentences = 3`, you MUST have exactly 3 sentences. If `max_sentences = 5`, you MUST have exactly 5 sentences. If `max_sentences = 10`, you MUST have exactly 10 sentences. If `max_sentences = 15`, you MUST have exactly 15 sentences. There are NO exceptions.
+2. **Paragraph structure**: Distribute sentences across paragraphs according to `sentences_per_paragraph`. The last paragraph may have fewer sentences if needed to match the total.
+3. **Count before sending**: Always count your sentences before finalizing your response. If you exceed the limit, condense immediately.
+4. **No mid-thought cutting**: If you're approaching the limit, condense earlier sentences or combine ideas, but do not cut off mid-thought.
 
 - `responseLength.auto = true`:
   - Use verbosity and engagement.response_length as guides
@@ -1537,22 +1552,48 @@ Only use ending questions when they:
 
 **FINAL CHECK BEFORE RESPONDING**: If `responseLength.auto` is `false` and `responseLength.max_sentences` is set (not -1):
 1. **BEFORE YOU START WRITING**: Calculate your target structure:
-   - Total sentences allowed: `max_sentences`
-   - Sentences per paragraph: `sentences_per_paragraph`
-   - Number of paragraphs: `(max_sentences / sentences_per_paragraph).ceil()`
-   - Example: 5 sentences ÷ 3 per paragraph = 2 paragraphs (3 sentences + 2 sentences)
+   - Total sentences allowed: `max_sentences` (must be EXACTLY this number: 3, 5, 10, or 15)
+   - Sentences per paragraph: `sentences_per_paragraph` (must be 3, 4, or 5)
+   - Number of paragraphs: Calculate based on division
+     * If `max_sentences = 3`: Always 1 paragraph (regardless of `sentences_per_paragraph`)
+     * If `max_sentences = 5` and `sentences_per_paragraph = 3`: 2 paragraphs (3+2)
+     * If `max_sentences = 5` and `sentences_per_paragraph = 4`: 2 paragraphs (4+1)
+     * If `max_sentences = 5` and `sentences_per_paragraph = 5`: 1 paragraph (5)
+     * If `max_sentences = 10` and `sentences_per_paragraph = 3`: 4 paragraphs (3+3+3+1)
+     * If `max_sentences = 10` and `sentences_per_paragraph = 4`: 3 paragraphs (4+4+2)
+     * If `max_sentences = 10` and `sentences_per_paragraph = 5`: 2 paragraphs (5+5)
+     * If `max_sentences = 15` and `sentences_per_paragraph = 3`: 5 paragraphs (3+3+3+3+3)
+     * If `max_sentences = 15` and `sentences_per_paragraph = 4`: 4 paragraphs (4+4+4+3)
+     * If `max_sentences = 15` and `sentences_per_paragraph = 5`: 3 paragraphs (5+5+5)
 
-2. **AS YOU WRITE**: Count sentences in real-time. Stop when you reach `max_sentences`.
+2. **AS YOU WRITE**: Count sentences in real-time. Stop IMMEDIATELY when you reach `max_sentences`:
+   - If `max_sentences = 3`: Stop at sentence 3. Do NOT write sentence 4.
+   - If `max_sentences = 5`: Stop at sentence 5. Do NOT write sentence 6.
+   - If `max_sentences = 10`: Stop at sentence 10. Do NOT write sentence 11.
+   - If `max_sentences = 15`: Stop at sentence 15. Do NOT write sentence 16.
 
 3. **BEFORE SENDING**: 
    - Count every sentence that ends with `.`, `!`, or `?`
-   - If count > `max_sentences`: Condense immediately - combine sentences, remove redundancy
-   - Verify paragraph structure matches `sentences_per_paragraph`
-   - If you have 6 sentences but limit is 5, you MUST remove or combine one sentence
+   - Verify exact count matches `max_sentences`:
+     * 3 sentences = EXACTLY 3 sentences
+     * 5 sentences = EXACTLY 5 sentences
+     * 10 sentences = EXACTLY 10 sentences
+     * 15 sentences = EXACTLY 15 sentences
+   - If count does NOT match: Condense immediately - combine sentences, remove redundancy, shorten sentences
+   - Verify paragraph structure: Each paragraph (except possibly the last) should have `sentences_per_paragraph` sentences
+   - If you have 6 sentences but limit is 5: You MUST remove or combine one sentence to get to exactly 5
+   - If you have 4 sentences but limit is 3: You MUST remove or combine one sentence to get to exactly 3
+   - If you have 11 sentences but limit is 10: You MUST remove or combine one sentence to get to exactly 10
+   - If you have 16 sentences but limit is 15: You MUST remove or combine one sentence to get to exactly 15
 
-4. **CRITICAL RULE**: The sentence limit is HARD. If `max_sentences = 5`, your response must have EXACTLY 5 sentences or fewer. There is NO exception for "important points" or "needed context" - condense to fit.
+4. **CRITICAL RULE**: The sentence limit is HARD and ABSOLUTE. There are NO exceptions:
+   - `max_sentences = 3` means EXACTLY 3 sentences - NO MORE, NO LESS (unless you can't complete the thought, then use fewer)
+   - `max_sentences = 5` means EXACTLY 5 sentences - NO MORE, NO LESS (unless you can't complete the thought, then use fewer)
+   - `max_sentences = 10` means EXACTLY 10 sentences - NO MORE, NO LESS (unless you can't complete the thought, then use fewer)
+   - `max_sentences = 15` means EXACTLY 15 sentences - NO MORE, NO LESS (unless you can't complete the thought, then use fewer)
+   - There is NO exception for "important points" or "needed context" - condense to fit within the limit
 
-**REMEMBER**: Sentence count is the PRIMARY constraint. All other considerations (completeness, detail, context) must be achieved WITHIN the sentence limit through better writing, not by exceeding it.
+**REMEMBER**: Sentence count is the PRIMARY constraint. All other considerations (completeness, detail, context) must be achieved WITHIN the sentence limit through better writing, not by exceeding it. The limits 3, 5, 10, and 15 are HARD limits that MUST be respected.
 
 Begin.''';
   }
