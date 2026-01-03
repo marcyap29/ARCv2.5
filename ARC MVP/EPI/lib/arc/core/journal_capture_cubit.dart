@@ -10,6 +10,7 @@ import 'package:my_app/arc/core/sage_annotation_model.dart';
 import 'package:my_app/models/arcform_snapshot_model.dart';
 import 'package:my_app/arc/ui/arcforms/arcform_mvp_implementation.dart';
 import 'package:my_app/arc/ui/arcforms/phase_recommender.dart';
+import 'package:my_app/prism/extractors/enhanced_keyword_extractor.dart';
 import 'package:my_app/services/analytics_service.dart';
 import 'package:my_app/services/user_phase_service.dart';
 import 'package:my_app/prism/atlas/rivet/rivet_provider.dart';
@@ -307,10 +308,10 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
     List<MediaItem>? media,
   }) async {
     try {
-      // Use selected keywords if provided, otherwise extract from content
+      // Use selected keywords if provided, otherwise extract from content using curated library
       final keywords = selectedKeywords?.isNotEmpty == true 
           ? selectedKeywords! 
-          : SimpleKeywordExtractor.extractKeywords(content);
+          : await _extractKeywordsFromLibrary(content, mood);
       
       final now = DateTime.now();
       final entry = JournalEntry(
@@ -386,10 +387,10 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
     try {
       final entryDate = DateTime.now();
       
-      // Use selected keywords if provided, otherwise extract from content
+      // Use selected keywords if provided, otherwise extract from content using curated library
       final keywords = selectedKeywords?.isNotEmpty == true 
           ? selectedKeywords! 
-          : SimpleKeywordExtractor.extractKeywords(content);
+          : await _extractKeywordsFromLibrary(content, mood);
       
       // Phase hashtag auto-addition DISABLED - using autoPhase/userPhaseOverride/regimes instead
       // Keep content clean, phase is tracked via proper fields
@@ -2141,6 +2142,35 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
   }
 
   String? get transcription => _transcription;
+
+  /// Extract keywords using the curated keyword library with intensities
+  /// Falls back to empty list if extraction fails
+  Future<List<String>> _extractKeywordsFromLibrary(String content, String mood) async {
+    try {
+      // Determine current phase for context
+      final currentPhase = PhaseRecommender.recommend(
+        emotion: mood,
+        reason: '',
+        text: content,
+      );
+
+      // Use enhanced keyword extractor with curated library
+      final response = EnhancedKeywordExtractor.extractKeywords(
+        entryText: content,
+        currentPhase: currentPhase,
+      );
+
+      // Return preselected keywords (chips) which are the most relevant
+      // These come from the curated library with intensities
+      return response.chips.isNotEmpty 
+          ? response.chips 
+          : response.candidates.take(10).map((c) => c.keyword).toList();
+    } catch (e) {
+      print('Error extracting keywords from library: $e');
+      // Fallback to empty list - better than generic keywords
+      return [];
+    }
+  }
 
   @override
   Future<void> close() {
