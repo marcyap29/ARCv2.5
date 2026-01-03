@@ -1,6 +1,6 @@
 # EPI ARC MVP - Changelog
 
-**Version:** 2.1.82
+**Version:** 2.1.83
 **Last Updated:** January 2, 2026
 
 ---
@@ -14,6 +14,56 @@ This changelog has been split into parts for easier navigation:
 | **[CHANGELOG_part1.md](CHANGELOG_part1.md)** | Dec 2025 | v2.1.43 - v2.1.53 (Current) |
 | **[CHANGELOG_part2.md](CHANGELOG_part2.md)** | Nov 2025 | v2.1.28 - v2.1.42 |
 | **[CHANGELOG_part3.md](CHANGELOG_part3.md)** | Jan-Oct 2025 | v2.0.0 - v2.1.27 & Earlier |
+
+---
+
+## [2.1.83] - January 2, 2026
+
+### **Temporal Notifications System** - ✅ Complete
+
+- **Multi-Cadence Notification System**:
+  - **Daily Resonance Prompts**: Surface relevant themes, callbacks, and patterns
+  - **Monthly Thread Review**: Synthesize emotional threads and phase status
+  - **6-Month Arc View**: Show developmental trajectory with phase visualization
+  - **Yearly Becoming Summary**: Full narrative of transformation
+
+- **Notification Settings UI**:
+  - Created `TemporalNotificationSettingsView` with comprehensive controls
+  - Toggle switches for each notification cadence
+  - Time picker for daily notification time
+  - Day selector for monthly notification day
+  - Quiet hours configuration (start/end time)
+  - Temporal callbacks toggle
+  - Auto-saves preferences and reschedules notifications
+  - Accessible from Settings → Preferences → Temporal Notifications
+
+- **App Initialization Integration**:
+  - Service initializes automatically on app startup (after Firebase Auth)
+  - Schedules notifications for authenticated users
+  - Non-blocking initialization (errors don't crash app)
+  - Integrated into `bootstrap.dart` initialization flow
+
+- **Deep Linking for Notification Taps**:
+  - Global navigator key added to `MaterialApp` for navigation from anywhere
+  - Notification tap handler routes to appropriate screens:
+    - Daily resonance → Opens JournalScreen with prompt text
+    - Monthly review → Navigates to Phase tab
+    - 6-Month arc view → Navigates to Phase tab
+    - Yearly summary → Navigates to Phase tab
+  - Handles notification payload parsing and routing
+
+- **Technical Implementation**:
+  - Models: `ResonancePrompt`, `ThreadReview`, `ArcView`, `BecomingSummary`, `NotificationPreferences`
+  - Services: `TemporalNotificationService`, `NotificationContentGenerator`
+  - Uses `flutter_local_notifications` and `timezone` packages
+  - Leverages existing ARC systems: SENTINEL, ATLAS, RIVET, LUMARA
+  - Privacy-first: All processing happens locally
+
+- **User Experience**:
+  - Developmentally-aware notifications that reflect user's phase and history
+  - Not vanity metrics - always developmental insights
+  - Natural language notifications that feel like a thoughtful friend
+  - Graceful degradation for users with few entries
 
 ---
 

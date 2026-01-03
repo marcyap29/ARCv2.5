@@ -1,8 +1,8 @@
 # EPI MVP - Architecture Overview
 
-**Version:** 2.1.82
+**Version:** 2.1.83
 **Last Updated:** January 2, 2026
-**Status:** ✅ Production Ready - MVP Fully Operational with Health Integration, AssemblyAI v3, Web Access Safety, Correlation-Resistant PII Protection, Bible Reference Retrieval & Google Drive Backup
+**Status:** ✅ Production Ready - MVP Fully Operational with Health Integration, AssemblyAI v3, Web Access Safety, Correlation-Resistant PII Protection, Bible Reference Retrieval, Google Drive Backup & Temporal Notifications
 
 ---
 
@@ -29,6 +29,7 @@ EPI (Evolving Personal Intelligence) is a Flutter-based intelligent journaling a
 - ✅ **Google Drive Backup Integration (v2.1.64)**: Automatic cloud backups to Google Drive with OAuth authentication, scheduled backups, and export integration
 - ✅ **Stripe Integration Setup (v2.1.76)**: Complete Stripe payment integration with checkout, customer portal, and webhook handlers. Comprehensive documentation and setup guides
 - ✅ **Incremental Backup System (v2.1.77)**: Space-efficient incremental backups with export history tracking, media deduplication, and 90%+ size reduction
+- ✅ **Temporal Notifications System (v2.1.83)**: Multi-cadence notification system (daily, monthly, 6-month, yearly) with phase-aware insights, deep linking, and comprehensive settings UI
 
 ### Current Version
 
@@ -156,6 +157,8 @@ The EPI system is organized into 5 core modules:
   - `services/reflective_query_service.dart` - EPI-standard reflective queries
   - `services/reflective_query_formatter.dart` - Response formatting
   - `services/bible_api_service.dart` - HelloAO Bible API integration
+  - `services/temporal_notification_service.dart` - Multi-cadence notification scheduling
+  - `services/notification_content_generator.dart` - Notification content generation
   - `services/google_drive_service.dart` - Google Drive API integration with OAuth
   - `services/backup_upload_service.dart` - Backup creation and upload orchestration
   - `services/scheduled_backup_service.dart` - Periodic backup scheduling

@@ -9,8 +9,13 @@
 
 Welcome to the EPI (Evolving Personal Intelligence) documentation. This directory contains comprehensive documentation for the EPI MVP intelligent journaling application.
 
-### Recent Highlights (v2.1.82)
+### Recent Highlights (v2.1.83)
 
+- **🔔 Temporal Notifications System**: Multi-cadence notification system with phase-aware insights
+  - Daily resonance prompts, monthly thread reviews, 6-month arc views, yearly becoming summaries
+  - Comprehensive settings UI for configuring all notification preferences
+  - Deep linking routes notification taps to appropriate screens
+  - Privacy-first: All processing happens locally
 - **🔑 Enhanced Keyword Extraction**: Removed SimpleKeywordExtractor, unified on EnhancedKeywordExtractor with curated library
   - All keywords now come from curated library with intensity values
   - Phase-aware keyword selection based on current developmental phase
@@ -92,8 +97,8 @@ Welcome to the EPI (Evolving Personal Intelligence) documentation. This director
 
 ## Version Information
 
-**Current Version:** 2.1.82
-**Last Major Update:** January 2, 2026 (Enhanced Keyword Extraction - Unified on Curated Library)
+**Current Version:** 2.1.83
+**Last Major Update:** January 2, 2026 (Temporal Notifications System - Multi-Cadence Phase-Aware Notifications)
 
 ### Recent Highlights
 
