@@ -8,14 +8,12 @@ import 'package:my_app/arc/core/widgets/keyword_analysis_view.dart';
 import 'package:my_app/arc/core/journal_repository.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'package:my_app/core/perf/frame_budget.dart';
 import 'package:my_app/data/models/media_item.dart';
-import 'package:my_app/arc/core/media/media_strip.dart';
-import 'package:my_app/arc/core/media/media_preview_dialog.dart';
-import 'package:my_app/arc/core/media/ocr_text_insert_dialog.dart';
+import 'package:my_app/arc/ui/media/media_strip.dart';
+import 'package:my_app/arc/ui/media/media_preview_dialog.dart';
+import 'package:my_app/arc/internal/prism/media/ocr_text_insert_dialog.dart';
 import 'package:my_app/core/services/media_store.dart';
-import 'package:my_app/mira/store/mcp/orchestrator/ios_vision_orchestrator.dart';
 import 'package:my_app/core/services/photo_library_service.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -333,13 +331,6 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
     return (cleanedContent: cleanedContent.trim(), blocks: blocks);
   }
   
-  /// Extract LUMARA blocks from text content (legacy method - kept for compatibility)
-  /// Format matches regular journal entries for proper purple box rendering
-  /// Includes attribution traces for memory attribution display
-  List<Map<String, dynamic>>? _extractLumaraBlocks(String content) {
-    final result = _removeLumaraMarkdownAndExtractBlocks(content);
-    return result.blocks.isEmpty ? null : result.blocks;
-  }
 
   @override
   Widget build(BuildContext context) {
