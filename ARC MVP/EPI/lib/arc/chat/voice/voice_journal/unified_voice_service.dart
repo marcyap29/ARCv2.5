@@ -14,11 +14,19 @@
 /// - CHAT: Saves to chat history only
 
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 import '../../../../services/assemblyai_service.dart';
+import '../../../../services/firebase_auth_service.dart';
+import '../../../../services/analytics_service.dart';
+import '../../../../services/rivet_sweep_service.dart';
+import '../../../../services/phase_regime_service.dart';
 import '../../services/enhanced_lumara_api.dart';
+import '../../services/lumara_reflection_settings_service.dart';
+import '../../services/lumara_control_state_builder.dart';
 import '../../../core/journal_capture_cubit.dart';
+import '../../../core/journal_repository.dart';
 import '../../bloc/lumara_assistant_cubit.dart';
 import 'voice_journal_state.dart';
 import 'voice_mode.dart';
@@ -515,6 +523,12 @@ class UnifiedVoiceService {
         _log('Chat session finalized');
       }
       
+      // Generate session summary for memory system
+      if ((_mode == VoiceMode.journal && _journalTurns.isNotEmpty) || 
+          (_mode == VoiceMode.chat && _chatTurns.isNotEmpty)) {
+        await _generateSessionSummary();
+      }
+      
       _stateNotifier.transitionTo(VoiceJournalState.saved);
       _log(_metrics.toString());
       
@@ -564,21 +578,216 @@ class UnifiedVoiceService {
 
   /// Get user ID from available sources
   String? _getUserId() {
-    // Try to get from journal cubit
-    if (_journalCubit != null) {
-      // Check if journal cubit has userId accessor
-      // This may need to be adjusted based on actual implementation
-      return null; // TODO: Implement based on actual cubit structure
+    try {
+      final auth = FirebaseAuthService.instance.auth;
+      return auth.currentUser?.uid;
+    } catch (e) {
+      _log('Error getting user ID: $e');
+      return null;
     }
+  }
+
+  /// Retrieve memory context from past journal entries
+  Future<String?> _retrieveMemoryContext(String? userId) async {
+    if (userId == null) return null;
     
-    // Try to get from chat cubit
-    if (_chatCubit != null) {
-      // Check if chat cubit has userId accessor
-      // This may need to be adjusted based on actual implementation
-      return null; // TODO: Implement based on actual cubit structure
+    try {
+      final settingsService = LumaraReflectionSettingsService.instance;
+      await settingsService.initialize();
+      
+      // Get user settings for memory retrieval
+      final lookbackYears = await settingsService.getLookbackYears();
+      final maxMatches = await settingsService.getMaxMatches();
+      
+      // Get current session text for context
+      final currentText = _mode == VoiceMode.journal
+          ? _journalTurns.map((t) => t.rawUserText).join(' ')
+          : _chatTurns.map((t) => t.displayUserText).join(' ');
+      
+      if (currentText.isEmpty) return null;
+      
+      // Get journal entries from repository
+      final journalRepository = JournalRepository();
+      final allEntries = await journalRepository.getAllJournalEntries();
+      
+      // Filter by lookback period
+      final cutoffDate = DateTime.now().subtract(Duration(days: (lookbackYears * 365).round()));
+      final recentEntries = allEntries
+          .where((e) => e.createdAt.isAfter(cutoffDate))
+          .toList()
+        ..sort((a, b) => b.createdAt.compareTo(a.createdAt)); // Newest first
+      
+      if (recentEntries.isEmpty) return null;
+      
+      // Take top entries (limit to maxMatches, but use top 5 for context)
+      final topEntries = recentEntries.take(maxMatches.clamp(1, 10)).toList();
+      
+      // Format matches as memory context
+      final buffer = StringBuffer();
+      buffer.writeln('Relevant past entries:');
+      for (final entry in topEntries.take(5)) {
+        final excerpt = entry.content.length > 200 
+            ? '${entry.content.substring(0, 200)}...' 
+            : entry.content;
+        buffer.writeln('- ${entry.createdAt.year}: $excerpt');
+      }
+      
+      return buffer.toString();
+    } catch (e) {
+      _log('Error retrieving memory context: $e');
+      return null;
     }
+  }
+
+  /// Retrieve active psychological threads from RIVET/ATLAS
+  Future<List<String>?> _retrieveActiveThreads(String? userId) async {
+    if (userId == null) return null;
     
-    return null;
+    try {
+      // Get recent RIVET events to identify active threads
+      // This is a simplified implementation - can be enhanced with full RIVET integration
+      final journalRepository = JournalRepository();
+      final allEntries = await journalRepository.getAllJournalEntries();
+      
+      // Get entries from last 30 days to identify recent patterns
+      final recentCutoff = DateTime.now().subtract(const Duration(days: 30));
+      final recentEntries = allEntries
+          .where((e) => e.createdAt.isAfter(recentCutoff))
+          .toList();
+      
+      if (recentEntries.isEmpty) return null;
+      
+      // Extract keywords/phrases that appear frequently (simple pattern detection)
+      // This is a placeholder - full implementation would use RIVET keyword tracking
+      final threads = <String>[];
+      
+      // Look for common themes in recent entries (simplified)
+      final commonWords = <String, int>{};
+      for (final entry in recentEntries.take(10)) {
+        final words = entry.content.toLowerCase().split(RegExp(r'\s+'));
+        for (final word in words) {
+          if (word.length > 4) { // Only consider words longer than 4 chars
+            commonWords[word] = (commonWords[word] ?? 0) + 1;
+          }
+        }
+      }
+      
+      // Get top 3 most common themes (simplified thread detection)
+      final sortedWords = commonWords.entries.toList()
+        ..sort((a, b) => b.value.compareTo(a.value));
+      
+      for (final entry in sortedWords.take(3)) {
+        if (entry.value >= 2) { // Appears at least twice
+          threads.add('Theme: ${entry.key} (appears ${entry.value} times in recent entries)');
+        }
+      }
+      
+      return threads.isEmpty ? null : threads;
+    } catch (e) {
+      _log('Error retrieving active threads: $e');
+      return null;
+    }
+  }
+
+  /// Get days in current phase from PhaseRegimeService
+  Future<int?> _getDaysInPhase() async {
+    try {
+      // Import and use PhaseRegimeService to get current phase regime
+      // This requires importing the service
+      final analyticsService = AnalyticsService();
+      final rivetSweepService = RivetSweepService(analyticsService);
+      final phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
+      await phaseRegimeService.initialize();
+      
+      final phaseIndex = phaseRegimeService.phaseIndex;
+      final currentRegime = phaseIndex.currentRegime;
+      
+      if (currentRegime != null) {
+        final daysInPhase = DateTime.now().difference(currentRegime.start).inDays;
+        return daysInPhase;
+      }
+      
+      return null;
+    } catch (e) {
+      _log('Error getting days in phase: $e');
+      return null;
+    }
+  }
+
+  /// Generate session summary for memory system
+  Future<void> _generateSessionSummary() async {
+    try {
+      // Get scrubbed transcript
+      final scrubbedTranscript = _mode == VoiceMode.journal
+          ? _journalTurns.map((t) => 'User: ${t.scrubbedUserText}\nLUMARA: ${t.scrubbedLumaraResponse}').join('\n\n')
+          : _chatTurns.map((t) => 'User: ${t.scrubbedUserText}\nLUMARA: ${t.lumaraResponse}').join('\n\n');
+      
+      if (scrubbedTranscript.isEmpty) return;
+      
+      // Get current phase and context
+      final analyticsService = AnalyticsService();
+      final rivetSweepService = RivetSweepService(analyticsService);
+      final phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
+      await phaseRegimeService.initialize();
+      
+      final phaseIndex = phaseRegimeService.phaseIndex;
+      final currentRegime = phaseIndex.currentRegime;
+      final phase = currentRegime?.label.toString().split('.').last ?? 'Discovery';
+      final phaseCapitalized = phase[0].toUpperCase() + phase.substring(1);
+      final daysInPhase = currentRegime != null 
+          ? DateTime.now().difference(currentRegime.start).inDays 
+          : null;
+      
+      // Get control state to extract engagement mode and persona
+      final userId = _getUserId();
+      final voiceContext = await _buildVoiceContext();
+      final controlStateJson = await LumaraControlStateBuilder.buildControlState(
+        userId: userId,
+        prismActivity: voiceContext.prismActivity,
+        chronoContext: voiceContext.chronoContext,
+      );
+      final controlState = jsonDecode(controlStateJson) as Map<String, dynamic>;
+      final engagement = controlState['engagement'] as Map<String, dynamic>? ?? {};
+      final persona = controlState['persona'] as Map<String, dynamic>? ?? {};
+      final sentinel = controlState['sentinel'] as Map<String, dynamic>? ?? {};
+      
+      final engagementMode = engagement['mode'] as String? ?? 'REFLECT';
+      final selectedPersona = persona['selected'] as String? ?? 'companion';
+      final emotionalDensity = sentinel['emotional_density'] as double?;
+      
+      // Build summary prompt
+      final summaryPrompt = await VoicePromptBuilder.buildSummaryPrompt(
+        scrubbedTranscript: scrubbedTranscript,
+        phase: phaseCapitalized,
+        daysInPhase: daysInPhase,
+        emotionalDensity: emotionalDensity,
+        engagementMode: engagementMode,
+        persona: selectedPersona,
+        memoryContext: voiceContext.memoryContext,
+      );
+      
+      // Generate summary using LUMARA API
+      final summaryResult = await _lumaraApi.generatePromptedReflection(
+        entryText: scrubbedTranscript,
+        intent: _mode == VoiceMode.journal ? 'voice_journal' : 'voice_chat',
+        phase: null,
+        userId: userId,
+        chatContext: summaryPrompt,
+        onProgress: (msg) {
+          _log('Summary generation: $msg');
+        },
+      );
+      
+      final summary = summaryResult.reflection;
+      _log('Generated session summary: ${summary.length} chars');
+      
+      // Store summary (can be added to journal entry metadata or stored separately)
+      // For now, just log it - can be enhanced to store in entry metadata
+      
+    } catch (e) {
+      _log('Error generating session summary: $e');
+      // Don't fail the session save if summary generation fails
+    }
   }
 
   /// Build voice context for unified prompt
@@ -618,20 +827,14 @@ class UnifiedVoiceService {
     // Get conversation history from conversation manager
     final conversationHistory = _conversation?.scrubbedHistory;
 
-    // TODO: Retrieve memory context from memory system
-    // This would involve querying past journal entries and chat history
-    // For now, leave as null - can be enhanced later
-    final memoryContext = null;
+    // Retrieve memory context from memory system
+    final memoryContext = await _retrieveMemoryContext(_getUserId());
 
-    // TODO: Retrieve active psychological threads
-    // This would involve querying RIVET or other systems
-    // For now, leave as null - can be enhanced later
-    final activeThreads = null;
+    // Retrieve active psychological threads
+    final activeThreads = await _retrieveActiveThreads(_getUserId());
 
-    // TODO: Get days in phase from ATLAS
-    // This would involve querying phase service
-    // For now, leave as null - can be enhanced later
-    final daysInPhase = null;
+    // Get days in phase from ATLAS
+    final daysInPhase = await _getDaysInPhase();
 
     return VoicePromptContext(
       userId: _getUserId(),

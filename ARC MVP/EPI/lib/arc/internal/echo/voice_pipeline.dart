@@ -21,6 +21,7 @@ import 'package:my_app/services/assemblyai_service.dart';
 import 'package:my_app/arc/chat/services/enhanced_lumara_api.dart';
 import 'package:my_app/arc/core/journal_capture_cubit.dart';
 import 'package:my_app/arc/chat/voice/voice_journal/voice_journal_state.dart';
+import 'package:my_app/arc/chat/voice/voice_journal/voice_mode.dart';
 import 'package:my_app/arc/chat/voice/voice_journal/assemblyai_stt.dart';
 import 'prism_adapter.dart';
 import 'package:my_app/arc/chat/voice/voice_journal/gemini_client.dart';
@@ -170,6 +171,8 @@ class VoiceJournalPipeline {
       _conversation = VoiceJournalConversation(
         client: _gemini,
         prism: _prism,
+        mode: VoiceMode.journal, // This is a journal pipeline
+        userId: null, // Can be enhanced to get from auth service if needed
       );
       
       // Initialize TTS
