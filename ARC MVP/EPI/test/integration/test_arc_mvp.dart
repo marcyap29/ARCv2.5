@@ -1,4 +1,6 @@
 import 'package:my_app/arc/ui/arcforms/arcform_mvp_implementation.dart';
+import 'package:my_app/prism/extractors/enhanced_keyword_extractor.dart';
+import 'package:my_app/arc/ui/arcforms/phase_recommender.dart';
 
 /// Test file to demonstrate ARC MVP functionality
 /// Run this to see how the system works
@@ -15,7 +17,19 @@ void main() {
     build resilience and discover new strengths within myself.
   ''';
   
-  final keywords = SimpleKeywordExtractor.extractKeywords(sampleText);
+  // Use EnhancedKeywordExtractor with curated keyword library
+  final currentPhase = PhaseRecommender.recommend(
+    emotion: '',
+    reason: '',
+    text: sampleText,
+  );
+  final keywordResponse = EnhancedKeywordExtractor.extractKeywords(
+    entryText: sampleText,
+    currentPhase: currentPhase,
+  );
+  final keywords = keywordResponse.chips.isNotEmpty 
+      ? keywordResponse.chips 
+      : keywordResponse.candidates.take(10).map((c) => c.keyword).toList();
   print('   Sample text: "${sampleText.trim().substring(0, 50)}..."');
   print('   Extracted keywords: $keywords');
   print('   Keyword count: ${keywords.length}\n');
