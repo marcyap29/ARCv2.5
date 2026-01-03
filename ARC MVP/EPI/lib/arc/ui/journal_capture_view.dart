@@ -301,9 +301,6 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
         // Each block gets a timestamp that's 1 second earlier than the next one
         final blockTimestamp = baseTimestamp - ((matches.length - blockIndex - 1) * 1000);
         
-        // Get attribution traces for this LUMARA response
-        List<Map<String, dynamic>>? attributionTracesJson;
-        
         final block = {
           'type': 'inline_reflection', // Correct type for InlineBlock
           'intent': 'chat',
@@ -311,10 +308,7 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
           'timestamp': blockTimestamp, // Timestamp maintains conversation order (earlier = smaller timestamp)
         };
         
-        // Add attribution traces if available
-        if (attributionTracesJson != null && attributionTracesJson.isNotEmpty) {
-          block['attributionTraces'] = attributionTracesJson;
-        }
+        // Attribution traces can be added here if needed in the future
         
         blocks.add(block); // Add in order to maintain sequence
         blockIndex++;
