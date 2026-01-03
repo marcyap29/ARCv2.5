@@ -12,6 +12,9 @@ import '../models/temporal_notifications/becoming_summary.dart';
 import '../models/temporal_notifications/notification_preferences.dart';
 import 'notification_content_generator.dart';
 import 'package:flutter/material.dart';
+import '../app/app.dart' show navigatorKey;
+import '../ui/journal/journal_screen.dart';
+import '../shared/ui/home/home_view.dart';
 
 /// Service for scheduling and managing temporal notifications
 class TemporalNotificationService {
@@ -259,7 +262,7 @@ class TemporalNotificationService {
     // For now, we'll need to pass it in
   }
 
-  /// Handle notification tap
+  /// Handle notification tap with deep linking
   void _handleNotificationTap(NotificationResponse response) {
     if (response.payload == null) return;
     
@@ -267,10 +270,57 @@ class TemporalNotificationService {
       final data = jsonDecode(response.payload!) as Map<String, dynamic>;
       final type = data['type'] as String;
       
-      // Navigate to appropriate screen based on type
-      // This will be handled by the app's navigation system
-      // For now, just print
-      print('Notification tapped: $type');
+      final navigator = navigatorKey.currentState;
+      if (navigator == null) {
+        print('Navigator not available for notification tap');
+        return;
+      }
+      
+      // Navigate to appropriate screen based on notification type
+      switch (type) {
+        case 'daily_resonance':
+          // Navigate to journal screen, optionally with prompt
+          final promptText = data['prompt'] as String?;
+          navigator.push(
+            MaterialPageRoute(
+              builder: (context) => JournalScreen(
+                initialContent: promptText,
+              ),
+            ),
+          );
+          break;
+          
+        case 'monthly_review':
+          // Navigate to Phase tab (index 1) in HomeView
+          // Since we can't directly control tabs, navigate to home and show a message
+          navigator.pushAndRemoveUntil(
+            MaterialPageRoute(builder: (context) => const HomeView(initialTab: 1)),
+            (route) => false,
+          );
+          // TODO: Show monthly review dialog or bottom sheet when review screens are created
+          break;
+          
+        case 'six_month_arc':
+          // Navigate to Phase tab (index 1) in HomeView
+          navigator.pushAndRemoveUntil(
+            MaterialPageRoute(builder: (context) => const HomeView(initialTab: 1)),
+            (route) => false,
+          );
+          // TODO: Show 6-month arc view when review screens are created
+          break;
+          
+        case 'yearly_summary':
+          // Navigate to Phase tab (index 1) in HomeView
+          navigator.pushAndRemoveUntil(
+            MaterialPageRoute(builder: (context) => const HomeView(initialTab: 1)),
+            (route) => false,
+          );
+          // TODO: Show yearly summary when review screens are created
+          break;
+          
+        default:
+          print('Unknown notification type: $type');
+      }
     } catch (e) {
       print('Error handling notification tap: $e');
     }

@@ -34,6 +34,7 @@ import 'package:my_app/arc/chat/chat/chat_repo_impl.dart';
 import 'package:my_app/services/phase_regime_service.dart';
 import 'package:my_app/services/rivet_sweep_service.dart';
 import 'package:my_app/services/analytics_service.dart';
+import 'package:my_app/services/temporal_notification_service.dart';
 
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
@@ -368,6 +369,13 @@ Future<void> bootstrap({
         } catch (e, st) {
           logger.e('Failed to initialize scheduled backups', e, st);
         }
+      }
+
+      // Initialize temporal notifications (after Firebase Auth)
+      try {
+        await _initializeTemporalNotifications();
+      } catch (e, st) {
+        logger.e('Failed to initialize temporal notifications', e, st);
       }
 
       // ===========================================================
@@ -854,6 +862,27 @@ Future<bool> _initializeAnalytics() async {
     logger.e('Failed to initialize analytics service', e, st);
     logger.w('Analytics tracking will be disabled due to initialization failure');
     return false;
+  }
+}
+
+/// Initialize Temporal Notifications service
+Future<void> _initializeTemporalNotifications() async {
+  try {
+    // Initialize the notification service
+    await TemporalNotificationService().initialize();
+    logger.d('Temporal notification service initialized');
+
+    // Schedule notifications for current user (if authenticated)
+    final userId = FirebaseAuthService().currentUser?.uid;
+    if (userId != null) {
+      await TemporalNotificationService().scheduleNotifications(userId);
+      logger.d('Temporal notifications scheduled for user: $userId');
+    } else {
+      logger.d('No authenticated user, skipping notification scheduling');
+    }
+  } catch (e, st) {
+    logger.e('Failed to initialize temporal notifications', e, st);
+    // Don't throw - notifications are non-critical
   }
 }
 

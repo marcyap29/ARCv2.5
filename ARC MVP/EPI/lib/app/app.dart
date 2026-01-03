@@ -24,6 +24,9 @@ import 'package:my_app/echo/echo_module.dart';
 import 'package:my_app/shared/ui/settings/settings_cubit.dart';
 import 'package:hive/hive.dart';
 
+// Global navigator key for deep linking from notifications
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
 class App extends StatefulWidget {
   const App({super.key});
 
@@ -122,6 +125,7 @@ class _AppState extends State<App> {
           ),
         ],
         child: MaterialApp(
+          navigatorKey: navigatorKey,
           title: 'EPI',
           theme: ThemeData(
             colorScheme: ColorScheme.fromSeed(
