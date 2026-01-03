@@ -43,6 +43,7 @@ import 'package:my_app/prism/atlas/phase/phase_inference_service.dart';
 import 'package:my_app/prism/atlas/phase/phase_regime_tracker.dart';
 import 'package:my_app/prism/atlas/phase/phase_scoring.dart';
 import 'package:my_app/arc/chat/services/enhanced_lumara_api.dart';
+import 'package:my_app/arc/chat/models/lumara_reflection_options.dart' as lumara_models;
 import 'package:my_app/services/assemblyai_service.dart';
 import 'package:my_app/arc/chat/voice/transcription/assemblyai_provider.dart';
 import 'package:my_app/arc/chat/voice/transcription/transcription_provider.dart';
@@ -72,6 +73,95 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
   /// Set LUMARA API for summary generation
   void setLumaraApi(EnhancedLumaraApi api) {
     _lumaraApi = api;
+  }
+  
+  /// Generate a 1-3 sentence overview of a journal entry
+  /// This overview is prepended to all new entries for quick reference
+  Future<String?> _generateEntryOverview(String content) async {
+    if (_lumaraApi == null) {
+      print('Overview generation: LUMARA API not set, skipping overview');
+      return null;
+    }
+    
+    if (content.trim().isEmpty) {
+      print('Overview generation: Content is empty, skipping overview');
+      return null;
+    }
+    
+    // Skip overview for very short entries (less than 20 words)
+    final wordCount = content.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).length;
+    if (wordCount < 20) {
+      print('Overview generation: Content too short ($wordCount words < 20), skipping overview');
+      return null;
+    }
+    
+    try {
+      // Get user profile for userId
+      UserProfile? userProfile;
+      try {
+        if (Hive.isBoxOpen('user_profile')) {
+          final userBox = Hive.box<UserProfile>('user_profile');
+          userProfile = userBox.get('profile');
+        }
+      } catch (e) {
+        print('⚠️ JournalCaptureCubit: Could not get user profile: $e');
+      }
+      
+      // Get current phase
+      String? currentPhase;
+      try {
+        currentPhase = await UserPhaseService.getCurrentPhase();
+      } catch (e) {
+        print('⚠️ JournalCaptureCubit: Could not get current phase: $e');
+      }
+      
+      // Generate overview using EnhancedLumaraApi
+      final result = await _lumaraApi!.generatePromptedReflection(
+        entryText: content,
+        intent: 'journal',
+        phase: currentPhase,
+        userId: userProfile?.id,
+        includeExpansionQuestions: false,
+        mood: null,
+        chronoContext: null,
+        chatContext: 'Generate a concise 1-3 sentence overview of this journal entry. The overview should capture the main themes, key insights, and important points. Write it as a clear, coherent summary that helps the user quickly understand what this entry is about when they return to it later. Keep it brief - exactly 1 to 3 sentences.',
+        mediaContext: null,
+        entryId: null,
+        options: lumara_models.LumaraReflectionOptions(
+          preferQuestionExpansion: false,
+          toneMode: lumara_models.ToneMode.normal,
+          regenerate: false,
+        ),
+        onProgress: (message) {
+          // Silent progress - overview generation happens in background
+        },
+      );
+      
+      // Extract overview text (remove any prefixes like "✨ Reflection")
+      String overviewText = result.reflection.trim();
+      if (overviewText.startsWith('✨ Reflection\n\n')) {
+        overviewText = overviewText.substring('✨ Reflection\n\n'.length);
+      }
+      if (overviewText.startsWith('✨')) {
+        overviewText = overviewText.substring(overviewText.indexOf('\n') + 1).trim();
+      }
+      
+      // Ensure it's 1-3 sentences (count sentences)
+      final sentences = overviewText.split(RegExp(r'[.!?]+')).where((s) => s.trim().isNotEmpty).toList();
+      if (sentences.isEmpty) {
+        return null;
+      } else if (sentences.length > 3) {
+        // If too long, take first 3 sentences
+        final firstThree = sentences.take(3).join('. ') + '.';
+        return firstThree;
+      }
+      
+      return overviewText;
+    } catch (e) {
+      print('❌ JournalCaptureCubit: Error generating overview: $e');
+      // Return null on error - don't block entry creation
+      return null;
+    }
   }
   
   /// Generate summary of journal entry content
@@ -313,6 +403,18 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
           ? selectedKeywords! 
           : await _extractKeywordsFromLibrary(content, mood);
       
+      // Generate overview for the entry
+      String? overview;
+      try {
+        overview = await _generateEntryOverview(content);
+        if (overview != null) {
+          print('✅ JournalCaptureCubit: Generated overview (${overview.length} chars)');
+        }
+      } catch (e) {
+        print('⚠️ JournalCaptureCubit: Error generating overview: $e');
+        // Continue without overview if generation fails
+      }
+      
       final now = DateTime.now();
       final entry = JournalEntry(
         id: const Uuid().v4(),
@@ -327,6 +429,7 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
         media: media ?? [], // Include media items
         importSource: 'NATIVE',
         phaseMigrationStatus: 'DONE',
+        overview: overview, // 1-3 sentence overview
       );
 
       // Save the entry first
@@ -663,6 +766,18 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
         selectedKeywords: selectedKeywords,
       );
       
+      // Generate overview for the entry (use original content, not content with summary/hashtag)
+      String? overview;
+      try {
+        overview = await _generateEntryOverview(content);
+        if (overview != null) {
+          print('✅ JournalCaptureCubit: Generated overview (${overview.length} chars)');
+        }
+      } catch (e) {
+        print('⚠️ JournalCaptureCubit: Error generating overview: $e');
+        // Continue without overview if generation fails
+      }
+      
       // Convert LUMARA blocks from JSON to InlineBlock objects
       // Sort by timestamp to maintain conversation order (earlier blocks first)
       List<InlineBlock> lumaraBlocks = const [];
@@ -699,6 +814,7 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
         emotionReason: emotionReason,
         media: processedMedia, // Use processed media with permanent paths
         lumaraBlocks: lumaraBlocks, // Include LUMARA blocks directly
+        overview: overview, // 1-3 sentence overview
       );
 
       print('DEBUG: JournalEntry created with ${entry.media.length} media items');
@@ -839,6 +955,18 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
     try {
       final entryDate = DateTime.now();
       
+      // Generate overview for the entry
+      String? overview;
+      try {
+        overview = await _generateEntryOverview(content);
+        if (overview != null) {
+          print('✅ JournalCaptureCubit: Generated overview (${overview.length} chars)');
+        }
+      } catch (e) {
+        print('⚠️ JournalCaptureCubit: Error generating overview: $e');
+        // Continue without overview if generation fails
+      }
+      
       // Phase hashtag auto-addition DISABLED - using autoPhase/userPhaseOverride/regimes instead
       // Keep content clean, phase is tracked via proper fields
       
@@ -856,6 +984,7 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
         emotion: emotion,
         emotionReason: emotionReason,
         media: media ?? [], // Include media items
+        overview: overview, // 1-3 sentence overview
       );
 
       // Save the entry first
@@ -897,6 +1026,18 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
     try {
       final entryDate = DateTime.now();
       
+      // Generate overview for the entry
+      String? overview;
+      try {
+        overview = await _generateEntryOverview(content);
+        if (overview != null) {
+          print('✅ JournalCaptureCubit: Generated overview (${overview.length} chars)');
+        }
+      } catch (e) {
+        print('⚠️ JournalCaptureCubit: Error generating overview: $e');
+        // Continue without overview if generation fails
+      }
+      
       // Phase hashtag auto-addition DISABLED - using autoPhase/userPhaseOverride/regimes instead
       // Keep content clean, phase is tracked via proper fields
       
@@ -914,6 +1055,7 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
         emotion: emotion,
         emotionReason: emotionReason,
         media: media ?? [], // Include media items
+        overview: overview, // 1-3 sentence overview
       );
 
       // Save the entry first
