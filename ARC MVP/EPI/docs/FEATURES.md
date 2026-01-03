@@ -1,7 +1,7 @@
 # EPI MVP - Comprehensive Features Guide
 
-**Version:** 2.1.77
-**Last Updated:** January 1, 2026
+**Version:** 2.1.83
+**Last Updated:** January 2, 2026
 
 ---
 
@@ -179,13 +179,20 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 - **Rolling Summaries**: Map-reduce summarization every 10 messages
 - **Memory Commands**: /memory show, forget, export
 
-**Notification System** (Backend Ready)
-- **Time Echo Reminders**: Periodic reflective reminders at 1 month, 3 months, 6 months, 1 year, 2 years, 5 years, 10 years
-- **Active Window Detection**: Automatically learns user's natural reflection times from journal patterns
-- **Sleep Protection**: Detects and respects sleep windows (default 22:00-07:00)
-- **Abstinence Windows**: User-configurable quiet periods
-- **Circadian Awareness**: AURORA integration for timing-aware notifications
-- **Note**: Requires notification plugin integration for full functionality
+**Temporal Notifications System** (v2.1.83)
+- **Daily Resonance Prompts**: Surface relevant themes, callbacks, and patterns from recent entries
+- **Monthly Thread Review**: Synthesize emotional threads and phase status over the past month
+- **6-Month Arc View**: Show developmental trajectory with phase visualization
+- **Yearly Becoming Summary**: Full narrative of transformation over the year
+- **Notification Settings**: Comprehensive UI for configuring all notification preferences
+  - Toggle each cadence on/off
+  - Set preferred times (daily notification time, quiet hours)
+  - Select monthly notification day
+  - Enable/disable temporal callbacks
+- **Deep Linking**: Notification taps route to appropriate screens (Journal, Phase tab)
+- **Privacy-First**: All processing happens locally, no notification content leaves device
+- **Phase-Aware**: Notifications reflect current developmental phase
+- **Natural Language**: Notifications feel like a thoughtful friend, not a robot
 
 **Engagement Discipline System (v2.1.75)**
 - **User-Controlled Engagement Modes**:

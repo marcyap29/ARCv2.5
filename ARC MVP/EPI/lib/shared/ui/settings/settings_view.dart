@@ -18,6 +18,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:my_app/ui/subscription/subscription_management_view.dart';
 import 'package:my_app/services/firebase_auth_service.dart';
 import 'package:my_app/shared/ui/settings/local_backup_settings_view.dart';
+import 'package:my_app/shared/ui/settings/temporal_notification_settings_view.dart';
 import 'package:my_app/arc/phase/share/phase_share_service.dart';
 import 'package:file_picker/file_picker.dart';
 import 'dart:io';
@@ -781,6 +782,21 @@ class _SettingsViewState extends State<SettingsView> {
                 ),
                 // Phase Share Settings
                 _buildPhaseShareToggle(),
+                // Temporal Notifications
+                _buildSettingsTile(
+                  context,
+                  title: 'Temporal Notifications',
+                  subtitle: 'Daily prompts, monthly reviews, arc views, and summaries',
+                  icon: Icons.notifications_active,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const TemporalNotificationSettingsView(),
+                      ),
+                    );
+                  },
+                ),
               ],
             ),
 

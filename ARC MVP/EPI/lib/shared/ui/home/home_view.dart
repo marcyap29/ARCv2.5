@@ -176,6 +176,7 @@ class _HomeViewState extends State<HomeView> {
                         // Clear any existing session cache to ensure fresh start
                         await JournalSessionCache.clearSession();
                         
+                        // Open JournalScreen for text entry
                         Navigator.push(
                           context,
                           MaterialPageRoute(

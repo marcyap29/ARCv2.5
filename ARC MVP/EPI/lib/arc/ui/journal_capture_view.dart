@@ -540,28 +540,7 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
             appBar: AppBar(
               backgroundColor: kcBackgroundColor,
               title: Text('New Entry', style: heading1Style(context)),
-              actions: [
-                Padding(
-                  padding: const EdgeInsets.only(right: 16.0),
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
-                    child: Semantics(
-                      label: 'Continue to next step',
-                      button: true,
-                      child: ElevatedButton(
-                        onPressed: _onNextPressed,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: kcPrimaryColor,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8.0),
-                          ),
-                        ),
-                        child: Text('Next', style: buttonStyle(context)),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
+              // Next button removed - voice transcription handles keyword extraction automatically
             ),
             body: SafeArea(
               child: Padding(
@@ -569,76 +548,7 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Context from start entry flow
-                    if (widget.initialEmotion != null || widget.initialReason != null) ...[
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(16.0),
-                        decoration: BoxDecoration(
-                          gradient: kcPrimaryGradient,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Your reflection context:',
-                              style: captionStyle(context).copyWith(
-                                color: Colors.white.withValues(alpha: 0.8),
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Wrap(
-                              spacing: 8,
-                              runSpacing: 8,
-                              children: [
-                                if (widget.initialEmotion != null)
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 12,
-                                      vertical: 6,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: Colors.white.withValues(alpha: 0.2),
-                                      borderRadius: BorderRadius.circular(16),
-                                    ),
-                                    child: Text(
-                                      widget.initialEmotion!,
-                                      style: captionStyle(context).copyWith(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                      overflow: TextOverflow.ellipsis,
-                                      maxLines: 1,
-                                    ),
-                                  ),
-                                if (widget.initialReason != null)
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 12,
-                                      vertical: 6,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: Colors.white.withValues(alpha: 0.2),
-                                      borderRadius: BorderRadius.circular(16),
-                                    ),
-                                    child: Text(
-                                      widget.initialReason!,
-                                      style: captionStyle(context).copyWith(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                      overflow: TextOverflow.ellipsis,
-                                      maxLines: 1,
-                                    ),
-                                  ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                    ],
+                    // Emotion/reason selection UI removed - voice transcription handles keyword extraction automatically
 
                     // Media Capture Toolbar
                     Card(
@@ -896,13 +806,7 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
                         controller: _textController,
                         focusNode: _focusNode,
                         style: bodyStyle(context),
-                        decoration: InputDecoration(
-                          hintText: widget.initialEmotion != null 
-                              ? 'Write what is true about feeling ${widget.initialEmotion!.toLowerCase()}...'
-                              : 'Write what is true right now.',
-                          hintStyle: bodyStyle(context).copyWith(
-                            color: kcSecondaryTextColor,
-                          ),
+                        decoration: const InputDecoration(
                           border: InputBorder.none,
                           focusedBorder: InputBorder.none,
                         ),
