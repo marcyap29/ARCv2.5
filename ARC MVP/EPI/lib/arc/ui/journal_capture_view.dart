@@ -806,11 +806,7 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
                         controller: _textController,
                         focusNode: _focusNode,
                         style: bodyStyle(context),
-                        decoration: InputDecoration(
-                          hintText: 'Write what is true right now.',
-                          hintStyle: bodyStyle(context).copyWith(
-                            color: kcSecondaryTextColor,
-                          ),
+                        decoration: const InputDecoration(
                           border: InputBorder.none,
                           focusedBorder: InputBorder.none,
                         ),
