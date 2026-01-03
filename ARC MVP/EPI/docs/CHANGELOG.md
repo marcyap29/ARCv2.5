@@ -1,6 +1,6 @@
 # EPI ARC MVP - Changelog
 
-**Version:** 2.1.80
+**Version:** 2.1.81
 **Last Updated:** January 2, 2026
 
 ---
@@ -14,6 +14,39 @@ This changelog has been split into parts for easier navigation:
 | **[CHANGELOG_part1.md](CHANGELOG_part1.md)** | Dec 2025 | v2.1.43 - v2.1.53 (Current) |
 | **[CHANGELOG_part2.md](CHANGELOG_part2.md)** | Nov 2025 | v2.1.28 - v2.1.42 |
 | **[CHANGELOG_part3.md](CHANGELOG_part3.md)** | Jan-Oct 2025 | v2.0.0 - v2.1.27 & Earlier |
+
+---
+
+## [2.1.81] - January 2, 2026
+
+### **Simplified LUMARA Action Buttons** - ✅ Complete
+
+- **Removed "More Depth" Button**:
+  - Removed from in-journal LUMARA reflection action buttons
+  - Simplified UI/UX by removing redundant functionality
+  - Users can still request more depth through conversation or by adjusting response length settings
+
+- **Removed "Soften Tone" Button**:
+  - Removed from in-journal LUMARA reflection action buttons
+  - Simplified UI/UX by removing redundant functionality
+  - Tone adjustments can be made through LUMARA Persona settings if needed
+
+- **Updated Action Button Set**:
+  - **Regenerate**: Regenerate the current reflection
+  - **Continue thought**: Continue the current reflection thread
+  - **Explore options**: Open LUMARA conversation options
+  - Cleaner, more focused interface with essential actions only
+
+- **Technical Changes**:
+  - Removed `onMoreDepth` and `onSoften` callbacks from `InlineReflectionBlock` widget
+  - Removed `_onMoreDepthReflection()` and `_onSoftenReflection()` methods from `JournalScreen`
+  - Simplified action button row in journal reflection blocks
+
+- **User Experience**:
+  - Cleaner, less cluttered action button interface
+  - Focus on essential actions: Regenerate, Continue, Explore
+  - Reduced cognitive load and decision fatigue
+  - All functionality still accessible through other means (settings, conversation)
 
 ---
 
