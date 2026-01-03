@@ -1,6 +1,6 @@
 # EPI ARC MVP - Changelog
 
-**Version:** 2.1.81
+**Version:** 2.1.82
 **Last Updated:** January 2, 2026
 
 ---
@@ -14,6 +14,38 @@ This changelog has been split into parts for easier navigation:
 | **[CHANGELOG_part1.md](CHANGELOG_part1.md)** | Dec 2025 | v2.1.43 - v2.1.53 (Current) |
 | **[CHANGELOG_part2.md](CHANGELOG_part2.md)** | Nov 2025 | v2.1.28 - v2.1.42 |
 | **[CHANGELOG_part3.md](CHANGELOG_part3.md)** | Jan-Oct 2025 | v2.0.0 - v2.1.27 & Earlier |
+
+---
+
+## [2.1.82] - January 2, 2026
+
+### **Removed SimpleKeywordExtractor - Unified on EnhancedKeywordExtractor** - ✅ Complete
+
+- **Removed SimpleKeywordExtractor Class**:
+  - Completely removed `SimpleKeywordExtractor` from codebase
+  - All keyword extraction now uses `EnhancedKeywordExtractor` exclusively
+  - Eliminated duplicate keyword extraction logic
+
+- **Enhanced Keyword Extraction**:
+  - All journal entries now use curated keyword library with intensities
+  - Keywords come from `EnhancedKeywordExtractor` which includes:
+    - **Curated keywords** with semantic categories (100+ keywords)
+    - **Emotion amplitude map** with intensity values (0.0-1.0)
+    - **Phase-specific keyword lists** (Recovery, Transition, Breakthrough, Discovery, Expansion, Consolidation)
+    - **RIVET gating** for quality control
+  - No more generic word extraction - only library-based keywords
+
+- **Technical Changes**:
+  - Removed `SimpleKeywordExtractor` class from `arcform_mvp_implementation.dart`
+  - Updated `journal_capture_cubit.dart` to use `EnhancedKeywordExtractor` via `_extractKeywordsFromLibrary()` helper
+  - Updated test file to use `EnhancedKeywordExtractor`
+  - Updated usage examples in code comments
+
+- **User Experience**:
+  - More semantically meaningful keywords for better analysis
+  - Keywords include intensity values for emotional analysis
+  - Phase-aware keyword selection based on current developmental phase
+  - Quality-controlled keywords through RIVET gating
 
 ---
 

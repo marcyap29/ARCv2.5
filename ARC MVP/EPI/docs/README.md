@@ -1,7 +1,7 @@
 # EPI Documentation
 
-**Last Updated:** December 19, 2025  
-**Version:** 2.1.61
+**Last Updated:** January 2, 2026  
+**Version:** 2.1.82
 
 ---
 
@@ -9,7 +9,16 @@
 
 Welcome to the EPI (Evolving Personal Intelligence) documentation. This directory contains comprehensive documentation for the EPI MVP intelligent journaling application.
 
-### Recent Highlights (v2.1.61)
+### Recent Highlights (v2.1.82)
+
+- **🔑 Enhanced Keyword Extraction**: Removed SimpleKeywordExtractor, unified on EnhancedKeywordExtractor with curated library
+  - All keywords now come from curated library with intensity values
+  - Phase-aware keyword selection based on current developmental phase
+  - RIVET gating for quality control
+- **🎯 Simplified LUMARA Actions**: Removed "More Depth" and "Soften Tone" buttons for cleaner UI
+  - Focus on essential actions: Regenerate, Continue thought, Explore options
+
+### Previous Highlights (v2.1.61)
 
 - **🏗️ Code Consolidation**: ARC internal architecture reorganized to mirror EPI's 5-module structure
 - **📦 Internal Modules**: New `lib/arc/internal/` structure with PRISM, MIRA, AURORA, and ECHO submodules
@@ -83,8 +92,8 @@ Welcome to the EPI (Evolving Personal Intelligence) documentation. This director
 
 ## Version Information
 
-**Current Version:** 2.1.61
-**Last Major Update:** December 19, 2025 (ARC Code Consolidation - Internal Architecture Organization)
+**Current Version:** 2.1.82
+**Last Major Update:** January 2, 2026 (Enhanced Keyword Extraction - Unified on Curated Library)
 
 ### Recent Highlights
 

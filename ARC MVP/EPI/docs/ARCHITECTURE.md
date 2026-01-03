@@ -1,7 +1,7 @@
 # EPI MVP - Architecture Overview
 
-**Version:** 2.1.77
-**Last Updated:** January 1, 2026
+**Version:** 2.1.82
+**Last Updated:** January 2, 2026
 **Status:** ✅ Production Ready - MVP Fully Operational with Health Integration, AssemblyAI v3, Web Access Safety, Correlation-Resistant PII Protection, Bible Reference Retrieval & Google Drive Backup
 
 ---
@@ -200,6 +200,7 @@ The EPI system is organized into 5 core modules:
   - `rivet/` - Risk-Validation Evidence Tracker
   - `sentinel/` - Severity evaluation and negative trend identification
 - `extractors/` - Keyword, emotion, context, metadata extraction
+  - `enhanced_keyword_extractor.dart` - Curated keyword library with intensities and RIVET gating
 - `processors/` - Text, image, audio, video processing
 - `privacy/` - Multi-modal PII detection and masking
 - `vital/` - Health data integration

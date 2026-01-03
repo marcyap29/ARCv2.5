@@ -404,8 +404,11 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 ### Pattern Recognition
 
 **Keyword Extraction**
+- **Curated Keyword Library**: Uses EnhancedKeywordExtractor with 100+ curated keywords
+- **Emotion Amplitude Map**: Keywords include intensity values (0.0-1.0) for emotional analysis
+- **Phase-Aware Selection**: Phase-specific keyword lists (Recovery, Transition, Breakthrough, Discovery, Expansion, Consolidation)
+- **RIVET Gating**: Quality-controlled keyword selection with evidence-based filtering
 - **Real-Time Analysis**: As user types
-- **6 Categories**: Places, Emotions, Feelings, States of Being, Adjectives, Slang
 - **Visual Categorization**: Color-coded with icons
 - **Manual Addition**: User can add custom keywords
 
