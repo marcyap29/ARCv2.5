@@ -186,16 +186,21 @@ class _UnifiedVoicePanelState extends State<UnifiedVoicePanel>
             
             const SizedBox(height: 24),
             
-            // Mic button
-            _buildMicButton(theme, state, mode),
+            // Mic button - ALWAYS VISIBLE
+            Center(
+              child: _buildMicButton(theme, state, mode),
+            ),
             
             const SizedBox(height: 8),
             
-            // Status text
-            Text(
-              stateNotifier.stateDisplayText,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurface.withOpacity(0.7),
+            // Status text - ALWAYS VISIBLE
+            Center(
+              child: Text(
+                stateNotifier.stateDisplayText,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurface.withOpacity(0.7),
+                ),
+                textAlign: TextAlign.center,
               ),
             ),
             
@@ -669,8 +674,20 @@ class _UnifiedVoicePanelState extends State<UnifiedVoicePanel>
   }
 
   Widget _buildActionButtons(ThemeData theme, VoiceJournalState state, VoiceMode mode) {
+    // Always show action buttons, but only show Save/Cancel when there's activity
+    // When idle with no history, show a "Start" hint or just leave empty
     if (state == VoiceJournalState.idle && _conversationHistory.isEmpty) {
-      return const SizedBox.shrink();
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8.0),
+        child: Text(
+          'Tap the mic button to start',
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurface.withOpacity(0.5),
+            fontStyle: FontStyle.italic,
+          ),
+          textAlign: TextAlign.center,
+        ),
+      );
     }
 
     final saveLabel = mode == VoiceMode.journal ? 'Save Entry' : 'End Chat';
