@@ -1358,11 +1358,37 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
       }
 
       // Update the placeholder block with actual content, attributions, and clear loading state
+      // Extract current phase from attribution traces (which now use the current phase from control state)
+      String? currentPhaseFromAttribution;
+      if (attributionTraces.isNotEmpty) {
+        // The first trace is usually the current entry, which has the correct current phase
+        // Look for the primary_source trace or use the first one
+        AttributionTrace? primaryTrace;
+        try {
+          primaryTrace = attributionTraces.firstWhere(
+            (trace) => trace.relation == 'primary_source',
+          );
+        } catch (e) {
+          // No primary_source trace found, use the first one
+          primaryTrace = attributionTraces.first;
+        }
+        
+        if (primaryTrace != null && 
+            primaryTrace.phaseContext != null && 
+            primaryTrace.phaseContext!.isNotEmpty) {
+          // Capitalize first letter to match expected format (Discovery, Consolidation, etc.)
+          currentPhaseFromAttribution = primaryTrace.phaseContext![0].toUpperCase() + 
+              primaryTrace.phaseContext!.substring(1);
+          print('Journal: Using current phase from attribution trace: $currentPhaseFromAttribution');
+        }
+      }
+      
       if (mounted) {
         setState(() {
           _entryState.blocks[blockIndex] = _entryState.blocks[blockIndex].copyWith(
             content: reflection,
             attributionTraces: attributionTraces,
+            phase: currentPhaseFromAttribution ?? _entryState.blocks[blockIndex].phase, // Use current phase from attribution, or keep existing
           );
           _lumaraLoadingStates.remove(blockIndex);
           _lumaraLoadingMessages.remove(blockIndex);

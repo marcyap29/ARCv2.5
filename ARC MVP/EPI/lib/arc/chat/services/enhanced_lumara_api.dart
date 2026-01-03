@@ -2,6 +2,7 @@
 // Enhanced LUMARA API with multimodal reflection
 
 import 'dart:async';
+import 'dart:convert';
 import 'dart:math';
 import '../../../services/gemini_send.dart';
 import 'lumara_reflection_settings_service.dart';
@@ -573,6 +574,24 @@ Follow the ECHO structure (Empathize → Clarify → Highlight → Open) but exp
               maxSentences: 3,
             );
             
+            // Get current phase from control state (not from entry's stored phase)
+            // The control state has the actual current phase from PhaseRegimeService
+            String? currentPhaseFromControlState;
+            try {
+              // Parse the control state JSON we already built
+              final controlState = jsonDecode(controlStateJson) as Map<String, dynamic>;
+              final atlas = controlState['atlas'] as Map<String, dynamic>?;
+              currentPhaseFromControlState = atlas?['phase'] as String?;
+              if (currentPhaseFromControlState != null) {
+                currentPhaseFromControlState = currentPhaseFromControlState.toLowerCase();
+                print('LUMARA Enhanced API v2.3: Using current phase from control state: $currentPhaseFromControlState (entry phase was: ${request.phaseHint?.name})');
+              }
+            } catch (e) {
+              print('LUMARA Enhanced API v2.3: Error parsing phase from control state: $e');
+              // Fallback to phaseHint if control state parsing fails
+              currentPhaseFromControlState = request.phaseHint?.name;
+            }
+            
             // Try to extract entry ID from request if available, otherwise use a generated ID
             String entryId = 'current_entry';
             // Check if userText contains an entry ID pattern or if we can infer it
@@ -582,11 +601,11 @@ Follow the ECHO structure (Empathize → Clarify → Highlight → Open) but exp
               relation: 'primary_source',
               confidence: 1.0,
               reasoning: 'Current journal entry - primary source for reflection',
-              phaseContext: request.phaseHint?.name,
+              phaseContext: currentPhaseFromControlState, // Use current phase from control state, not entry's stored phase
               excerpt: currentEntryExcerpt,
             );
             attributionTraces.add(currentEntryTrace);
-            print('LUMARA Enhanced API v2.3: Created attribution trace for current entry');
+            print('LUMARA Enhanced API v2.3: Created attribution trace for current entry with phase: $currentPhaseFromControlState');
           }
           
           print('LUMARA Enhanced API v2.3: Created ${attributionTraces.length} attribution traces (${matches.length} from matches + 1 for current entry)');

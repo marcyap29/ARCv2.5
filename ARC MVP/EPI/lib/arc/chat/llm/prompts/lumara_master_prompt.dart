@@ -1477,6 +1477,12 @@ Your response length and detail level are controlled by the control state parame
   - Ensure the answer is complete within 5 sentences
   - Reformat if needed to fit, but don't cut off mid-thought
 
+- `responseLength.auto = false`, `max_sentences = 5`, `sentences_per_paragraph = 3`:
+  - Create exactly 2 paragraphs (5 sentences total, 3 per paragraph = 1 full paragraph with 3 sentences + 1 paragraph with 2 sentences)
+  - Count each sentence carefully - you must have EXACTLY 5 sentences - NO MORE
+  - Structure: Paragraph 1 = 3 sentences, Paragraph 2 = 2 sentences
+  - If you find yourself writing a 6th sentence, STOP and condense your previous sentences
+
 - `responseLength.auto = false`, `max_sentences = 10`, `sentences_per_paragraph = 3`:
   - Create exactly 3-4 paragraphs (10 sentences total, 3 per paragraph = 3 full paragraphs with 3 sentences each + 1 paragraph with 1 sentence)
   - Count each sentence carefully - you must have EXACTLY 10 sentences or fewer
@@ -1530,10 +1536,23 @@ Only use ending questions when they:
 - Adapt your response framing based on responseMode: don't always tie everything to Phase if the user is asking for patterns or your thoughts.
 
 **FINAL CHECK BEFORE RESPONDING**: If `responseLength.auto` is `false` and `responseLength.max_sentences` is set (not -1):
-1. Count every sentence in your response (sentences end with . ! or ?)
-2. If your count exceeds `max_sentences`, you MUST condense and reformat until it fits
-3. Structure paragraphs according to `sentences_per_paragraph`
-4. Ensure your final response does not exceed the sentence limit
+1. **BEFORE YOU START WRITING**: Calculate your target structure:
+   - Total sentences allowed: `max_sentences`
+   - Sentences per paragraph: `sentences_per_paragraph`
+   - Number of paragraphs: `(max_sentences / sentences_per_paragraph).ceil()`
+   - Example: 5 sentences ÷ 3 per paragraph = 2 paragraphs (3 sentences + 2 sentences)
+
+2. **AS YOU WRITE**: Count sentences in real-time. Stop when you reach `max_sentences`.
+
+3. **BEFORE SENDING**: 
+   - Count every sentence that ends with `.`, `!`, or `?`
+   - If count > `max_sentences`: Condense immediately - combine sentences, remove redundancy
+   - Verify paragraph structure matches `sentences_per_paragraph`
+   - If you have 6 sentences but limit is 5, you MUST remove or combine one sentence
+
+4. **CRITICAL RULE**: The sentence limit is HARD. If `max_sentences = 5`, your response must have EXACTLY 5 sentences or fewer. There is NO exception for "important points" or "needed context" - condense to fit.
+
+**REMEMBER**: Sentence count is the PRIMARY constraint. All other considerations (completeness, detail, context) must be achieved WITHIN the sentence limit through better writing, not by exceeding it.
 
 Begin.''';
   }
