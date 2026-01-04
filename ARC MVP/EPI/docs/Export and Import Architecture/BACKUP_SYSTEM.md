@@ -1,8 +1,8 @@
 # ARCX Backup System Documentation
 
-**Version:** 2.1.76  
-**Last Updated:** January 1, 2026  
-**Status:** Current Implementation Analysis & Recommendations
+**Version:** 2.1.84  
+**Last Updated:** January 4, 2026  
+**Status:** Current Implementation with Enhanced Incremental Backups
 
 ---
 
@@ -659,19 +659,21 @@ class ExportHistory {
 - More accurate than date-based filtering
 - Prevents exporting unchanged entries
 
-### 3. Smart Media Deduplication
+### 3. Smart Media Deduplication ✅ IMPLEMENTED
 
 **Feature:** Track exported media across all exports
 
 **Implementation:**
 - Store media SHA-256 hashes in export history
 - Skip media files already exported in previous backups
-- Create "media-only" export for new media separately
+- **Text-Only Option**: Option to exclude all media from incremental backups
+- Create "media-only" export for new media separately (via full backup)
 
 **Benefits:**
 - Prevents duplicate media in incremental backups
 - Media exports become truly incremental
 - Significant space savings for photo-heavy journals
+- Text-only option reduces backup size by 90%+ for frequent backups
 
 ### 4. Automatic Temp File Cleanup
 
