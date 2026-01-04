@@ -58,6 +58,7 @@ class ARCXExportOptions {
   final bool incrementalMode;        // If true, only export new/changed entries
   final bool skipExportedMedia;      // If true, skip media already in export history
   final bool trackExportHistory;     // If true, record this export in history
+  final bool excludeMediaFromIncremental; // If true, exclude all media from incremental backups (text-only)
   
   ARCXExportOptions({
     this.strategy = ARCXExportStrategy.together,
@@ -72,18 +73,21 @@ class ARCXExportOptions {
     this.incrementalMode = false,
     this.skipExportedMedia = false,
     this.trackExportHistory = true,
+    this.excludeMediaFromIncremental = false, // Default: include media in incremental backups
   });
   
   // Convenience constructor for incremental backup
   factory ARCXExportOptions.incremental({
     ARCXExportStrategy strategy = ARCXExportStrategy.together,
     bool encrypt = true,
+    bool excludeMedia = false, // Option to exclude media for text-only incremental backups
   }) => ARCXExportOptions(
     strategy: strategy,
     encrypt: encrypt,
     incrementalMode: true,
-    skipExportedMedia: true,
+    skipExportedMedia: !excludeMedia, // If excluding media, don't skip (we're not including any)
     trackExportHistory: true,
+    excludeMediaFromIncremental: excludeMedia,
   );
   
   // Convenience constructor for full backup
@@ -2025,7 +2029,45 @@ class ARCXExportServiceV2 {
       await outputFile.writeAsBytes(finalZipBytes);
       print('ARCX Export V2: ✓ Created ARCX archive: $arcxPath (${finalZipBytes.length} bytes)');
     } catch (e) {
-      throw Exception('Failed to write ARCX file to $arcxPath. Error: $e. Please ensure the folder has write permissions.');
+      // Check for disk space errors specifically
+      final errorString = e.toString();
+      if (errorString.contains('No space left on device') || 
+          errorString.contains('errno = 28') ||
+          errorString.contains('ENOSPC')) {
+        throw Exception(
+          'Backup failed: Not enough storage space on device.\n\n'
+          'The backup requires approximately ${(finalZipBytes.length / (1024 * 1024)).toStringAsFixed(1)} MB of free space.\n\n'
+          'Please free up space on your device and try again:\n'
+          '• Delete unused apps or files\n'
+          '• Clear app caches\n'
+          '• Move photos/videos to iCloud\n'
+          '• Check Settings → General → iPhone Storage'
+        );
+      } else if (errorString.contains('Permission denied') || 
+                 errorString.contains('errno = 13')) {
+        throw Exception(
+          'Backup failed: Write permission denied.\n\n'
+          'The selected backup folder does not have write permissions.\n\n'
+          'Please:\n'
+          '• Select a different folder (try "On My iPhone" → "ARC")\n'
+          '• Avoid iCloud Drive folders\n'
+          '• Use the "Use App Documents" button for recommended location'
+        );
+      } else {
+        // Generic error with helpful context
+        throw Exception(
+          'Backup failed: Failed to write ARCX file to $arcxPath\n\n'
+          'Error: $e\n\n'
+          'Possible causes:\n'
+          '• Not enough storage space (most common)\n'
+          '• Write permission denied\n'
+          '• Folder is read-only\n\n'
+          'Try:\n'
+          '• Free up space on your device\n'
+          '• Select a different backup folder\n'
+          '• Use "Use App Documents" for recommended location'
+        );
+      }
     }
     
     return arcxPath;
@@ -2059,11 +2101,15 @@ class ARCXExportServiceV2 {
   }
   
   /// Export incrementally - only new/changed entries since last export
+  /// 
+  /// [excludeMedia] - If true, creates text-only backup (entries + chats, no media)
+  ///                   This makes incremental backups much smaller and faster
   Future<ARCXExportResultV2> exportIncremental({
     required Directory outputDir,
     String? password,
     Function(String)? onProgress,
     ARCXExportStrategy strategy = ARCXExportStrategy.together,
+    bool excludeMedia = false, // Option to exclude media for space-efficient text-only backups
   }) async {
     try {
       onProgress?.call('Analyzing changes since last backup...');
@@ -2095,27 +2141,37 @@ class ARCXExportServiceV2 {
         chatsToExport = allChats;
       }
       
-      // Collect media from entries to export
+      // Collect media from entries to export (unless excluded)
       final mediaToExport = <MediaItem>[];
       final history = await historyService.getHistory();
       
-      for (final entry in entriesToExport) {
-        for (final media in entry.media) {
-          // Skip if already exported (by hash)
-          if (media.sha256 != null && 
-              history.allExportedMediaHashes.contains(media.sha256)) {
-            continue;
+      // Only collect media if not excluded from incremental backups
+      if (!excludeMedia) {
+        for (final entry in entriesToExport) {
+          for (final media in entry.media) {
+            // Skip if already exported (by hash)
+            if (media.sha256 != null && 
+                history.allExportedMediaHashes.contains(media.sha256)) {
+              continue;
+            }
+            mediaToExport.add(media);
           }
-          mediaToExport.add(media);
         }
       }
       
       // Show preview
-      onProgress?.call(
-        'Found ${entriesToExport.length} new entries, '
-        '${chatsToExport.length} new chats, '
-        '${mediaToExport.length} new media items'
-      );
+      if (excludeMedia) {
+        onProgress?.call(
+          'Found ${entriesToExport.length} new entries, '
+          '${chatsToExport.length} new chats (text-only backup, media excluded)'
+        );
+      } else {
+        onProgress?.call(
+          'Found ${entriesToExport.length} new entries, '
+          '${chatsToExport.length} new chats, '
+          '${mediaToExport.length} new media items'
+        );
+      }
       
       if (entriesToExport.isEmpty && chatsToExport.isEmpty) {
         onProgress?.call('No new data to export since last backup');
@@ -2131,14 +2187,15 @@ class ARCXExportServiceV2 {
       final selection = ARCXExportSelection(
         entryIds: entriesToExport.map((e) => e.id).toList(),
         chatThreadIds: chatsToExport.map((c) => c.id).toList(),
-        mediaIds: mediaToExport.map((m) => m.id).toList(),
+        mediaIds: excludeMedia ? [] : mediaToExport.map((m) => m.id).toList(), // Empty if excluding media
       );
       
       final options = ARCXExportOptions(
         strategy: strategy,
         incrementalMode: true,
-        skipExportedMedia: true,
+        skipExportedMedia: !excludeMedia, // If excluding media, don't skip (we're not including any)
         trackExportHistory: true,
+        excludeMediaFromIncremental: excludeMedia,
       );
       
       // Perform export

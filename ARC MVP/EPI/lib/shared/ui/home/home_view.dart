@@ -21,6 +21,12 @@ import 'package:my_app/arc/chat/data/context_provider.dart';
 import 'package:my_app/arc/chat/data/context_scope.dart';
 import 'package:my_app/services/shake_detector_service.dart';
 import 'package:my_app/ui/feedback/bug_report_dialog.dart';
+import 'package:my_app/arc/chat/voice/voice_journal/new_voice_journal_ui.dart';
+import 'package:my_app/arc/chat/voice/voice_journal/new_voice_journal_service.dart';
+import 'package:my_app/arc/chat/services/enhanced_lumara_api.dart';
+import 'package:my_app/arc/core/journal_repository.dart';
+import 'package:my_app/arc/core/journal_capture_cubit.dart';
+import 'package:my_app/telemetry/analytics.dart';
 
 // Debug flag for showing RIVET engineering labels
 const bool kShowRivetDebugLabels = false;
@@ -183,6 +189,10 @@ class _HomeViewState extends State<HomeView> {
                           ),
                         );
                       },
+                onVoiceJournalPressed: () {
+                        // Open Voice Journal UI
+                        _openVoiceJournal(context);
+                      },
                 showCenterButton: false,
               ),
             );
@@ -240,6 +250,64 @@ class _HomeViewState extends State<HomeView> {
       print('DEBUG: Refreshed phase cache from Phase tab: $currentPhase');
     } catch (e) {
       print('DEBUG: Error refreshing phase cache from Phase tab: $e');
+    }
+  }
+
+  /// Open Voice Journal UI
+  void _openVoiceJournal(BuildContext context) {
+    try {
+      // Get required services
+      final analytics = Analytics();
+      final lumaraApi = EnhancedLumaraApi(analytics);
+      final journalRepository = JournalRepository();
+      
+      // Initialize LUMARA API
+      lumaraApi.initialize().then((_) {
+        // Try to get journal cubit from context
+        JournalCaptureCubit? journalCubit;
+        try {
+          journalCubit = context.read<JournalCaptureCubit>();
+        } catch (e) {
+          debugPrint('Voice Journal: JournalCaptureCubit not available in context: $e');
+        }
+        
+        // Create voice journal service
+        final voiceService = NewVoiceJournalService(
+          lumaraApi: lumaraApi,
+          journalRepository: journalRepository,
+          journalCubit: journalCubit,
+        );
+        
+        // Navigate to voice journal UI
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => NewVoiceJournalUI(
+              service: voiceService,
+              onSessionComplete: () {
+                Navigator.pop(context);
+                // Optionally refresh journal view
+              },
+            ),
+          ),
+        );
+      }).catchError((e) {
+        debugPrint('Error initializing LUMARA API: $e');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error initializing voice journal: $e'),
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      });
+    } catch (e) {
+      debugPrint('Error opening voice journal: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error opening voice journal: $e'),
+          duration: const Duration(seconds: 3),
+        ),
+      );
     }
   }
   

@@ -14,6 +14,8 @@ import 'package:my_app/ui/screens/mcp_management_screen.dart';
 import 'package:my_app/arc/core/journal_repository.dart';
 import 'package:my_app/arc/chat/services/favorites_service.dart';
 import 'package:my_app/arc/chat/services/lumara_reflection_settings_service.dart';
+import 'package:my_app/models/engagement_discipline.dart';
+import 'package:my_app/models/memory_focus_preset.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:my_app/ui/subscription/subscription_management_view.dart';
 import 'package:my_app/services/firebase_auth_service.dart';
@@ -67,6 +69,18 @@ class _SettingsViewState extends State<SettingsView> {
   int _sentencesPerParagraph = 4;
   bool _responseLengthLoading = true;
   
+  // Memory Focus preset state
+  MemoryFocusPreset _memoryFocusPreset = MemoryFocusPreset.balanced;
+  bool _memoryFocusLoading = true;
+  
+  // Engagement settings state
+  EngagementSettings _engagementSettings = const EngagementSettings();
+  bool _engagementSettingsLoading = true;
+  
+  // Other LUMARA settings state
+  bool _crossModalEnabled = true;
+  bool _crossModalLoading = true;
+  
   // Phase share settings
   bool _phaseSharePromptsEnabled = true;
   bool _phaseShareSettingsLoading = true;
@@ -80,6 +94,9 @@ class _SettingsViewState extends State<SettingsView> {
     _loadPersonaPreference();
     _loadLumaraSettings();
     _loadResponseLengthSettings();
+    _loadMemoryFocusPreset();
+    _loadEngagementSettings();
+    _loadCrossModalSetting();
     _loadPhaseShareSettings();
   }
   
@@ -226,6 +243,69 @@ class _SettingsViewState extends State<SettingsView> {
       if (mounted) {
         setState(() {
           _responseLengthLoading = false;
+        });
+      }
+    }
+  }
+  
+  Future<void> _loadMemoryFocusPreset() async {
+    try {
+      final settingsService = LumaraReflectionSettingsService.instance;
+      await settingsService.initialize();
+      final preset = await settingsService.getMemoryFocusPreset();
+      if (mounted) {
+        setState(() {
+          _memoryFocusPreset = preset;
+          _memoryFocusLoading = false;
+        });
+      }
+    } catch (e) {
+      print('Error loading memory focus preset: $e');
+      if (mounted) {
+        setState(() {
+          _memoryFocusLoading = false;
+        });
+      }
+    }
+  }
+  
+  Future<void> _loadEngagementSettings() async {
+    try {
+      final settingsService = LumaraReflectionSettingsService.instance;
+      await settingsService.initialize();
+      final engagement = await settingsService.getEngagementSettings();
+      if (mounted) {
+        setState(() {
+          _engagementSettings = engagement;
+          _engagementSettingsLoading = false;
+        });
+      }
+    } catch (e) {
+      print('Error loading engagement settings: $e');
+      if (mounted) {
+        setState(() {
+          _engagementSettingsLoading = false;
+        });
+      }
+    }
+  }
+  
+  Future<void> _loadCrossModalSetting() async {
+    try {
+      final settingsService = LumaraReflectionSettingsService.instance;
+      await settingsService.initialize();
+      final enabled = await settingsService.isCrossModalEnabled();
+      if (mounted) {
+        setState(() {
+          _crossModalEnabled = enabled;
+          _crossModalLoading = false;
+        });
+      }
+    } catch (e) {
+      print('Error loading cross-modal setting: $e');
+      if (mounted) {
+        setState(() {
+          _crossModalLoading = false;
         });
       }
     }
@@ -634,8 +714,18 @@ class _SettingsViewState extends State<SettingsView> {
                     ],
                   ),
                 ),
+                // Memory Focus Preset Card
+                _buildMemoryFocusCard(),
+                // Engagement Mode Card
+                _buildEngagementModeCard(),
                 // Response Length Card
                 _buildResponseLengthCard(),
+                // Cross-Domain Synthesis Toggle
+                _buildCrossDomainSynthesisToggle(),
+                // Therapeutic Language Toggle
+                _buildTherapeuticLanguageToggle(),
+                // Include Media Toggle
+                _buildIncludeMediaToggle(),
                 // Therapeutic Depth Slider
                 _buildTherapeuticDepthCard(),
                 // Web Search Toggle
@@ -923,8 +1013,8 @@ class _SettingsViewState extends State<SettingsView> {
   
   /// Build response length card with toggle and sliders
   Widget _buildResponseLengthCard() {
-    final sentenceOptions = [3, 5, 10, 15, -1]; // -1 means infinity
-    final sentenceLabels = ['3', '5', '10', '15', '∞'];
+    final sentenceOptions = [3, 5, 10, 15, 20, -1]; // -1 means infinity
+    final sentenceLabels = ['3', '5', '10', '15', '20', '∞'];
     final paragraphOptions = [3, 4, 5];
     
     return Container(
@@ -1801,5 +1891,435 @@ class _SettingsViewState extends State<SettingsView> {
         ],
       ),
     );
+  }
+  
+  /// Build Memory Focus preset card
+  Widget _buildMemoryFocusCard() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            child: Row(
+              children: [
+                Icon(Icons.memory, color: kcAccentColor, size: 24),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Memory Focus',
+                        style: heading3Style(context).copyWith(
+                          color: kcPrimaryTextColor,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'How much context LUMARA uses from your history',
+                        style: bodyStyle(context).copyWith(
+                          color: kcSecondaryTextColor,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (_memoryFocusLoading)
+                  const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+              ],
+            ),
+          ),
+          const Divider(height: 1, color: Colors.white12),
+          ...MemoryFocusPreset.values.map((preset) => _buildMemoryFocusOption(preset)),
+        ],
+      ),
+    );
+  }
+  
+  Widget _buildMemoryFocusOption(MemoryFocusPreset preset) {
+    final isSelected = _memoryFocusPreset == preset;
+    return InkWell(
+      onTap: _memoryFocusLoading ? null : () => _setMemoryFocusPreset(preset),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
+          children: [
+            Container(
+              width: 20,
+              height: 20,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: isSelected ? kcAccentColor : Colors.white38,
+                  width: 2,
+                ),
+              ),
+              child: isSelected
+                  ? Center(
+                      child: Container(
+                        width: 10,
+                        height: 10,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: kcAccentColor,
+                        ),
+                      ),
+                    )
+                  : null,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    preset.displayName,
+                    style: bodyStyle(context).copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: isSelected ? kcAccentColor : kcPrimaryTextColor,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    preset.description,
+                    style: bodyStyle(context).copyWith(
+                      fontSize: 11,
+                      color: kcSecondaryTextColor,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+  
+  Future<void> _setMemoryFocusPreset(MemoryFocusPreset preset) async {
+    try {
+      final settingsService = LumaraReflectionSettingsService.instance;
+      await settingsService.setMemoryFocusPreset(preset);
+      if (mounted) {
+        setState(() {
+          _memoryFocusPreset = preset;
+        });
+      }
+    } catch (e) {
+      print('Error setting memory focus preset: $e');
+    }
+  }
+  
+  /// Build Engagement Mode card
+  Widget _buildEngagementModeCard() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            child: Row(
+              children: [
+                Icon(Icons.tune, color: kcAccentColor, size: 24),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Engagement Mode',
+                        style: heading3Style(context).copyWith(
+                          color: kcPrimaryTextColor,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'How deeply LUMARA engages with your reflections',
+                        style: bodyStyle(context).copyWith(
+                          color: kcSecondaryTextColor,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (_engagementSettingsLoading)
+                  const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+              ],
+            ),
+          ),
+          const Divider(height: 1, color: Colors.white12),
+          ...EngagementMode.values.map((mode) => _buildEngagementModeOption(mode)),
+        ],
+      ),
+    );
+  }
+  
+  Widget _buildEngagementModeOption(EngagementMode mode) {
+    final isSelected = _engagementSettings.defaultMode == mode;
+    return InkWell(
+      onTap: _engagementSettingsLoading ? null : () => _setEngagementMode(mode),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
+          children: [
+            Container(
+              width: 20,
+              height: 20,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: isSelected ? kcAccentColor : Colors.white38,
+                  width: 2,
+                ),
+              ),
+              child: isSelected
+                  ? Center(
+                      child: Container(
+                        width: 10,
+                        height: 10,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: kcAccentColor,
+                        ),
+                      ),
+                    )
+                  : null,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    mode.displayName,
+                    style: bodyStyle(context).copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: isSelected ? kcAccentColor : kcPrimaryTextColor,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    mode.description,
+                    style: bodyStyle(context).copyWith(
+                      fontSize: 11,
+                      color: kcSecondaryTextColor,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+  
+  Future<void> _setEngagementMode(EngagementMode mode) async {
+    try {
+      final settingsService = LumaraReflectionSettingsService.instance;
+      final updated = _engagementSettings.copyWith(defaultMode: mode);
+      await settingsService.saveAllSettingsWithEngagement(
+        engagementSettings: updated,
+      );
+      if (mounted) {
+        setState(() {
+          _engagementSettings = updated;
+        });
+      }
+    } catch (e) {
+      print('Error setting engagement mode: $e');
+    }
+  }
+  
+  /// Build Cross-Domain Synthesis toggle
+  Widget _buildCrossDomainSynthesisToggle() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+      ),
+      child: SwitchListTile(
+        title: Text(
+          'Cross-Domain Connections',
+          style: heading3Style(context).copyWith(
+            color: kcPrimaryTextColor,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        subtitle: Text(
+          'Allow LUMARA to connect themes across different life areas',
+          style: bodyStyle(context).copyWith(
+            color: kcSecondaryTextColor,
+          ),
+        ),
+        value: _engagementSettings.synthesisPreferences.allowCrossDomainSynthesis,
+        onChanged: _engagementSettingsLoading
+            ? null
+            : (value) => _setCrossDomainSynthesis(value),
+        secondary: Icon(
+          Icons.hub,
+          color: kcAccentColor,
+          size: 24,
+        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      ),
+    );
+  }
+  
+  Future<void> _setCrossDomainSynthesis(bool value) async {
+    try {
+      final settingsService = LumaraReflectionSettingsService.instance;
+      final updated = _engagementSettings.copyWith(
+        synthesisPreferences: _engagementSettings.synthesisPreferences.copyWith(
+          allowCrossDomainSynthesis: value,
+        ),
+      );
+      await settingsService.saveAllSettingsWithEngagement(
+        engagementSettings: updated,
+      );
+      if (mounted) {
+        setState(() {
+          _engagementSettings = updated;
+        });
+      }
+    } catch (e) {
+      print('Error setting cross-domain synthesis: $e');
+    }
+  }
+  
+  /// Build Therapeutic Language toggle
+  Widget _buildTherapeuticLanguageToggle() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+      ),
+      child: SwitchListTile(
+        title: Text(
+          'Therapeutic Language',
+          style: heading3Style(context).copyWith(
+            color: kcPrimaryTextColor,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        subtitle: Text(
+          'Allow therapy-style phrasing and direct advice',
+          style: bodyStyle(context).copyWith(
+            color: kcSecondaryTextColor,
+          ),
+        ),
+        value: _engagementSettings.responseDiscipline.allowTherapeuticLanguage,
+        onChanged: _engagementSettingsLoading
+            ? null
+            : (value) => _setTherapeuticLanguage(value),
+        secondary: Icon(
+          Icons.healing,
+          color: kcAccentColor,
+          size: 24,
+        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      ),
+    );
+  }
+  
+  Future<void> _setTherapeuticLanguage(bool value) async {
+    try {
+      final settingsService = LumaraReflectionSettingsService.instance;
+      final updated = _engagementSettings.copyWith(
+        responseDiscipline: _engagementSettings.responseDiscipline.copyWith(
+          allowTherapeuticLanguage: value,
+        ),
+      );
+      await settingsService.saveAllSettingsWithEngagement(
+        engagementSettings: updated,
+      );
+      if (mounted) {
+        setState(() {
+          _engagementSettings = updated;
+        });
+      }
+    } catch (e) {
+      print('Error setting therapeutic language: $e');
+    }
+  }
+  
+  /// Build Include Media toggle
+  Widget _buildIncludeMediaToggle() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+      ),
+      child: SwitchListTile(
+        title: Text(
+          'Include Media',
+          style: heading3Style(context).copyWith(
+            color: kcPrimaryTextColor,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        subtitle: Text(
+          'Analyze photos, audio, and video in reflections',
+          style: bodyStyle(context).copyWith(
+            color: kcSecondaryTextColor,
+          ),
+        ),
+        value: _crossModalEnabled,
+        onChanged: _crossModalLoading
+            ? null
+            : (value) => _setCrossModalEnabled(value),
+        secondary: Icon(
+          Icons.perm_media,
+          color: kcAccentColor,
+          size: 24,
+        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      ),
+    );
+  }
+  
+  Future<void> _setCrossModalEnabled(bool value) async {
+    try {
+      final settingsService = LumaraReflectionSettingsService.instance;
+      await settingsService.setCrossModalEnabled(value);
+      if (mounted) {
+        setState(() {
+          _crossModalEnabled = value;
+        });
+      }
+    } catch (e) {
+      print('Error setting cross-modal enabled: $e');
+    }
   }
 }

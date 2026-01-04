@@ -4,6 +4,7 @@
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import '../../../models/engagement_discipline.dart';
+import '../../../models/memory_focus_preset.dart';
 
 /// LUMARA Persona types
 enum LumaraPersona {
@@ -114,6 +115,9 @@ class LumaraReflectionSettingsService {
   // Engagement discipline keys
   static const String _keyEngagementSettings = 'lumara_engagement_settings';
   static const String _keyConversationEngagementOverride = 'lumara_conversation_engagement_override';
+  
+  // Memory Focus preset key
+  static const String _keyMemoryFocusPreset = 'lumara_memory_focus_preset';
 
   /// Initialize the service
   Future<void> initialize() async {
@@ -255,8 +259,8 @@ class LumaraReflectionSettingsService {
   /// Set max sentences (-1 for infinity/no limit)
   Future<void> setMaxSentences(int value) async {
     await initialize();
-    // Allow -1 for infinity, or valid sentence counts: 3, 5, 10, 15
-    if (value == -1 || value == 3 || value == 5 || value == 10 || value == 15) {
+    // Allow -1 for infinity, or valid sentence counts: 3, 5, 10, 15, 20
+    if (value == -1 || value == 3 || value == 5 || value == 10 || value == 15 || value == 20) {
       await _prefs!.setInt(_keyMaxSentences, value);
     }
   }
@@ -277,12 +281,49 @@ class LumaraReflectionSettingsService {
     await _prefs!.setInt(_keySentencesPerParagraph, clampedValue);
   }
 
-  /// Get effective lookback years adjusted for therapeutic depth level
+  /// Get Memory Focus preset (default: balanced)
+  Future<MemoryFocusPreset> getMemoryFocusPreset() async {
+    await initialize();
+    final presetString = _prefs!.getString(_keyMemoryFocusPreset);
+    if (presetString == null) {
+      // Migration: Detect preset from existing values
+      final lookback = await getLookbackYears();
+      final similarity = await getSimilarityThreshold();
+      final maxMatches = await getMaxMatches();
+      final detected = MemoryFocusPresetUtils.detectPreset(
+        lookbackYears: lookback,
+        similarityThreshold: similarity,
+        maxMatches: maxMatches,
+      );
+      // Save detected preset
+      await setMemoryFocusPreset(detected);
+      return detected;
+    }
+    return MemoryFocusPresetUtils.fromJson(presetString);
+  }
+
+  /// Set Memory Focus preset
+  Future<void> setMemoryFocusPreset(MemoryFocusPreset preset) async {
+    await initialize();
+    await _prefs!.setString(_keyMemoryFocusPreset, preset.toJson());
+    
+    // If not custom, update underlying values
+    if (preset != MemoryFocusPreset.custom) {
+      await setLookbackYears(preset.lookbackYears);
+      await setSimilarityThreshold(preset.similarityThreshold);
+      await setMaxMatches(preset.maxMatches);
+    }
+  }
+
+  /// Get effective lookback years adjusted for preset and therapeutic depth level
   /// Depth 1 (Light): Reduce by 40%
   /// Depth 2 (Moderate): Standard
   /// Depth 3 (Deep): Extend by 40%
   Future<int> getEffectiveLookbackYears() async {
-    final baseYears = await getLookbackYears();
+    final preset = await getMemoryFocusPreset();
+    final baseYears = preset == MemoryFocusPreset.custom 
+        ? await getLookbackYears() 
+        : preset.lookbackYears;
     final therapeuticEnabled = await isTherapeuticPresenceEnabled();
     
     if (!therapeuticEnabled) {
@@ -300,12 +341,15 @@ class LumaraReflectionSettingsService {
     }
   }
 
-  /// Get effective max matches adjusted for therapeutic depth level
+  /// Get effective max matches adjusted for preset and therapeutic depth level
   /// Depth 1 (Light): Reduce by 40%
   /// Depth 2 (Moderate): Standard
   /// Depth 3 (Deep): Increase by 60%
   Future<int> getEffectiveMaxMatches() async {
-    final baseMatches = await getMaxMatches();
+    final preset = await getMemoryFocusPreset();
+    final baseMatches = preset == MemoryFocusPreset.custom 
+        ? await getMaxMatches() 
+        : preset.maxMatches;
     final therapeuticEnabled = await isTherapeuticPresenceEnabled();
     
     if (!therapeuticEnabled) {

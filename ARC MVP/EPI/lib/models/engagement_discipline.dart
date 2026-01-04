@@ -45,38 +45,59 @@ extension EngagementModeExtension on EngagementMode {
 }
 
 /// Domain synthesis preferences for INTEGRATE mode
+/// Simplified: Single toggle for cross-domain connections
 class SynthesisPreferences {
-  final bool allowFaithWorkSynthesis;
-  final bool allowRelationshipWorkSynthesis;
-  final bool allowHealthEmotionalSynthesis;
-  final bool allowCreativeIntellectualSynthesis;
+  final bool allowCrossDomainSynthesis; // Single toggle replacing 4 separate toggles
   final List<String> protectedDomains;
   final SynthesisDepth synthesisDepth;
 
   const SynthesisPreferences({
-    this.allowFaithWorkSynthesis = false,
-    this.allowRelationshipWorkSynthesis = true,
-    this.allowHealthEmotionalSynthesis = true,
-    this.allowCreativeIntellectualSynthesis = true,
+    this.allowCrossDomainSynthesis = true, // Default: allow cross-domain connections
     this.protectedDomains = const [],
     this.synthesisDepth = SynthesisDepth.moderate,
   });
+  
+  /// Legacy getters for backward compatibility
+  @Deprecated('Use allowCrossDomainSynthesis instead')
+  bool get allowFaithWorkSynthesis => allowCrossDomainSynthesis;
+  
+  @Deprecated('Use allowCrossDomainSynthesis instead')
+  bool get allowRelationshipWorkSynthesis => allowCrossDomainSynthesis;
+  
+  @Deprecated('Use allowCrossDomainSynthesis instead')
+  bool get allowHealthEmotionalSynthesis => allowCrossDomainSynthesis;
+  
+  @Deprecated('Use allowCrossDomainSynthesis instead')
+  bool get allowCreativeIntellectualSynthesis => allowCrossDomainSynthesis;
 
   Map<String, dynamic> toJson() => {
-    'allowFaithWorkSynthesis': allowFaithWorkSynthesis,
-    'allowRelationshipWorkSynthesis': allowRelationshipWorkSynthesis,
-    'allowHealthEmotionalSynthesis': allowHealthEmotionalSynthesis,
-    'allowCreativeIntellectualSynthesis': allowCreativeIntellectualSynthesis,
+    'allowCrossDomainSynthesis': allowCrossDomainSynthesis,
     'protectedDomains': protectedDomains,
     'synthesisDepth': synthesisDepth.toString(),
+    // Legacy fields for backward compatibility
+    'allowFaithWorkSynthesis': allowCrossDomainSynthesis,
+    'allowRelationshipWorkSynthesis': allowCrossDomainSynthesis,
+    'allowHealthEmotionalSynthesis': allowCrossDomainSynthesis,
+    'allowCreativeIntellectualSynthesis': allowCrossDomainSynthesis,
   };
 
   factory SynthesisPreferences.fromJson(Map<String, dynamic> json) {
+    // Migration: If old format exists, convert to new format
+    final hasOldFormat = json['allowFaithWorkSynthesis'] != null ||
+        json['allowRelationshipWorkSynthesis'] != null;
+    
+    bool allowCrossDomain = json['allowCrossDomainSynthesis'] ?? true;
+    
+    if (hasOldFormat) {
+      // If any of the old toggles were enabled, enable cross-domain
+      allowCrossDomain = (json['allowFaithWorkSynthesis'] ?? false) ||
+          (json['allowRelationshipWorkSynthesis'] ?? true) ||
+          (json['allowHealthEmotionalSynthesis'] ?? true) ||
+          (json['allowCreativeIntellectualSynthesis'] ?? true);
+    }
+    
     return SynthesisPreferences(
-      allowFaithWorkSynthesis: json['allowFaithWorkSynthesis'] ?? false,
-      allowRelationshipWorkSynthesis: json['allowRelationshipWorkSynthesis'] ?? true,
-      allowHealthEmotionalSynthesis: json['allowHealthEmotionalSynthesis'] ?? true,
-      allowCreativeIntellectualSynthesis: json['allowCreativeIntellectualSynthesis'] ?? true,
+      allowCrossDomainSynthesis: allowCrossDomain,
       protectedDomains: List<String>.from(json['protectedDomains'] ?? []),
       synthesisDepth: SynthesisDepth.values.firstWhere(
         (e) => e.toString() == json['synthesisDepth'],
@@ -86,18 +107,12 @@ class SynthesisPreferences {
   }
 
   SynthesisPreferences copyWith({
-    bool? allowFaithWorkSynthesis,
-    bool? allowRelationshipWorkSynthesis,
-    bool? allowHealthEmotionalSynthesis,
-    bool? allowCreativeIntellectualSynthesis,
+    bool? allowCrossDomainSynthesis,
     List<String>? protectedDomains,
     SynthesisDepth? synthesisDepth,
   }) {
     return SynthesisPreferences(
-      allowFaithWorkSynthesis: allowFaithWorkSynthesis ?? this.allowFaithWorkSynthesis,
-      allowRelationshipWorkSynthesis: allowRelationshipWorkSynthesis ?? this.allowRelationshipWorkSynthesis,
-      allowHealthEmotionalSynthesis: allowHealthEmotionalSynthesis ?? this.allowHealthEmotionalSynthesis,
-      allowCreativeIntellectualSynthesis: allowCreativeIntellectualSynthesis ?? this.allowCreativeIntellectualSynthesis,
+      allowCrossDomainSynthesis: allowCrossDomainSynthesis ?? this.allowCrossDomainSynthesis,
       protectedDomains: protectedDomains ?? this.protectedDomains,
       synthesisDepth: synthesisDepth ?? this.synthesisDepth,
     );
@@ -111,35 +126,67 @@ enum SynthesisDepth {
 }
 
 /// Response discipline preferences
+/// Auto-determines maxTemporalConnections and maxExplorativeQuestions from EngagementMode
 class ResponseDiscipline {
-  final int maxTemporalConnections;
-  final int maxExplorativeQuestions;
-  final bool allowTherapeuticLanguage;
-  final bool allowPrescriptiveGuidance;
+  final int? maxTemporalConnections; // Auto-determined from mode if null
+  final int? maxExplorativeQuestions; // Auto-determined from mode if null
+  final bool allowTherapeuticLanguage; // Combined therapeutic + prescriptive guidance
   final ResponseLength preferredLength;
 
   const ResponseDiscipline({
-    this.maxTemporalConnections = 2,
-    this.maxExplorativeQuestions = 1,
-    this.allowTherapeuticLanguage = false,
-    this.allowPrescriptiveGuidance = false,
+    this.maxTemporalConnections, // null = auto-determine from mode
+    this.maxExplorativeQuestions, // null = auto-determine from mode
+    this.allowTherapeuticLanguage = false, // Combined setting
     this.preferredLength = ResponseLength.moderate,
   });
+  
+  /// Get effective maxTemporalConnections based on mode
+  int getEffectiveMaxTemporalConnections(EngagementMode mode) {
+    if (maxTemporalConnections != null) return maxTemporalConnections!;
+    
+    switch (mode) {
+      case EngagementMode.reflect:
+        return 1;
+      case EngagementMode.explore:
+        return 2;
+      case EngagementMode.integrate:
+        return 3;
+    }
+  }
+  
+  /// Get effective maxExplorativeQuestions based on mode
+  int getEffectiveMaxExplorativeQuestions(EngagementMode mode) {
+    if (maxExplorativeQuestions != null) return maxExplorativeQuestions!;
+    
+    switch (mode) {
+      case EngagementMode.reflect:
+        return 0;
+      case EngagementMode.explore:
+        return 1;
+      case EngagementMode.integrate:
+        return 2;
+    }
+  }
 
   Map<String, dynamic> toJson() => {
     'maxTemporalConnections': maxTemporalConnections,
     'maxExplorativeQuestions': maxExplorativeQuestions,
     'allowTherapeuticLanguage': allowTherapeuticLanguage,
-    'allowPrescriptiveGuidance': allowPrescriptiveGuidance,
     'preferredLength': preferredLength.toString(),
+    // Legacy field for backward compatibility
+    'allowPrescriptiveGuidance': allowTherapeuticLanguage,
   };
 
   factory ResponseDiscipline.fromJson(Map<String, dynamic> json) {
+    // Migration: Combine therapeutic language and prescriptive guidance
+    final allowTherapeutic = json['allowTherapeuticLanguage'] ?? false;
+    final allowPrescriptive = json['allowPrescriptiveGuidance'] ?? false;
+    final combinedTherapeutic = allowTherapeutic || allowPrescriptive;
+    
     return ResponseDiscipline(
-      maxTemporalConnections: json['maxTemporalConnections'] ?? 2,
-      maxExplorativeQuestions: json['maxExplorativeQuestions'] ?? 1,
-      allowTherapeuticLanguage: json['allowTherapeuticLanguage'] ?? false,
-      allowPrescriptiveGuidance: json['allowPrescriptiveGuidance'] ?? false,
+      maxTemporalConnections: json['maxTemporalConnections'], // null = auto-determine
+      maxExplorativeQuestions: json['maxExplorativeQuestions'], // null = auto-determine
+      allowTherapeuticLanguage: combinedTherapeutic,
       preferredLength: ResponseLength.values.firstWhere(
         (e) => e.toString() == json['preferredLength'],
         orElse: () => ResponseLength.moderate,
@@ -151,17 +198,19 @@ class ResponseDiscipline {
     int? maxTemporalConnections,
     int? maxExplorativeQuestions,
     bool? allowTherapeuticLanguage,
-    bool? allowPrescriptiveGuidance,
     ResponseLength? preferredLength,
   }) {
     return ResponseDiscipline(
       maxTemporalConnections: maxTemporalConnections ?? this.maxTemporalConnections,
       maxExplorativeQuestions: maxExplorativeQuestions ?? this.maxExplorativeQuestions,
       allowTherapeuticLanguage: allowTherapeuticLanguage ?? this.allowTherapeuticLanguage,
-      allowPrescriptiveGuidance: allowPrescriptiveGuidance ?? this.allowPrescriptiveGuidance,
       preferredLength: preferredLength ?? this.preferredLength,
     );
   }
+  
+  /// Legacy getter for backward compatibility
+  @Deprecated('Use allowTherapeuticLanguage instead')
+  bool get allowPrescriptiveGuidance => allowTherapeuticLanguage;
 }
 
 enum ResponseLength {
@@ -263,8 +312,8 @@ class EngagementContext {
     'engagement': {
       'mode': effectiveMode.toString(),
       'synthesis_allowed': _getSynthesisAllowed(),
-      'max_temporal_connections': settings.responseDiscipline.maxTemporalConnections,
-      'max_explorative_questions': settings.responseDiscipline.maxExplorativeQuestions,
+      'max_temporal_connections': settings.responseDiscipline.getEffectiveMaxTemporalConnections(effectiveMode),
+      'max_explorative_questions': settings.responseDiscipline.getEffectiveMaxExplorativeQuestions(effectiveMode),
       'allow_therapeutic_language': settings.responseDiscipline.allowTherapeuticLanguage,
       'allow_prescriptive_guidance': settings.responseDiscipline.allowPrescriptiveGuidance,
       'response_length': settings.responseDiscipline.preferredLength.toString(),
@@ -275,10 +324,11 @@ class EngagementContext {
   };
 
   Map<String, bool> _getSynthesisAllowed() => {
-    'faith_work': settings.synthesisPreferences.allowFaithWorkSynthesis,
-    'relationship_work': settings.synthesisPreferences.allowRelationshipWorkSynthesis,
-    'health_emotional': settings.synthesisPreferences.allowHealthEmotionalSynthesis,
-    'creative_intellectual': settings.synthesisPreferences.allowCreativeIntellectualSynthesis,
+    // All domains use the same setting (simplified)
+    'faith_work': settings.synthesisPreferences.allowCrossDomainSynthesis,
+    'relationship_work': settings.synthesisPreferences.allowCrossDomainSynthesis,
+    'health_emotional': settings.synthesisPreferences.allowCrossDomainSynthesis,
+    'creative_intellectual': settings.synthesisPreferences.allowCrossDomainSynthesis,
   };
 }
 
