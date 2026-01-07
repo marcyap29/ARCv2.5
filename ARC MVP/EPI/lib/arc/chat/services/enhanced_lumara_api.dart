@@ -882,9 +882,10 @@ Respond now:''';
 
     try {
       final response = await geminiSend(
-        prompt: factualPrompt,
-        systemInstruction: 'You are LUMARA, an AI assistant providing direct, factual answers.',
-        maxTokens: responseMode.maxWords * 2, // Allow some buffer for token estimation
+        system: 'You are LUMARA, an AI assistant providing direct, factual answers.',
+        user: factualPrompt,
+        intent: 'factual_answer',
+        skipTransformation: true, // Skip transformation for direct factual responses
       );
 
       if (response.isNotEmpty) {
@@ -930,9 +931,10 @@ Respond now:''';
 
     try {
       final response = await geminiSend(
-        prompt: conversationalPrompt,
-        systemInstruction: 'You are LUMARA, providing brief, warm acknowledgments to simple updates.',
-        maxTokens: responseMode.maxWords * 2, // Allow some buffer
+        system: 'You are LUMARA, providing brief, warm acknowledgments to simple updates.',
+        user: conversationalPrompt,
+        intent: 'conversational_ack',
+        skipTransformation: true, // Skip transformation for brief conversational responses
       );
 
       if (response.isNotEmpty) {
