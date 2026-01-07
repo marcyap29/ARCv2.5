@@ -445,8 +445,28 @@ class CorrelationResistantTransformer {
       abstractParts.add('health or wellness');
     }
     
-    // Learning/growth indicators
-    if (RegExp(r'\b(learn|learned|understand|realize|insight|growth|change|improve|better)\b').hasMatch(lowerText)) {
+    // Technical/Scientific/Academic indicators - More specific than generic "learning"
+    if (RegExp(r'\b(calculus|mathematics|physics|science|engineering|algorithm|formula|equation|theory|hypothesis|research|analysis|data|statistics|probability|chemistry|biology|computer|programming|code|software|technical|academic)\b').hasMatch(lowerText)) {
+      // Extract specific technical subjects for better context
+      String? subject;
+      if (RegExp(r'\b(calculus|derivative|integral|mathematics|math)\b').hasMatch(lowerText)) subject = 'mathematics';
+      else if (RegExp(r'\b(physics|mechanics|thermodynamics|quantum|relativity)\b').hasMatch(lowerText)) subject = 'physics';
+      else if (RegExp(r'\b(programming|code|software|algorithm|computer)\b').hasMatch(lowerText)) subject = 'computer science';
+      else if (RegExp(r'\b(chemistry|chemical|biology|biological)\b').hasMatch(lowerText)) subject = 'science';
+      else if (RegExp(r'\b(engineering|technical|analysis|research)\b').hasMatch(lowerText)) subject = 'technical analysis';
+
+      if (subject != null) {
+        abstractParts.add('technical question or discussion about $subject');
+      } else {
+        abstractParts.add('technical or academic discussion');
+      }
+    }
+    // Question/Clarification indicators - Important for factual entries
+    else if (RegExp(r'\?(.*\?)?|does this|is this|am i (right|correct|understanding)|did i get|make sense|correct me|clarify|explain|help me understand').hasMatch(lowerText)) {
+      abstractParts.add('question seeking clarification or understanding');
+    }
+    // Learning/growth indicators - Now more specific, after technical patterns
+    else if (RegExp(r'\b(learn|learned|understand|realize|insight|growth|change|improve|better)\b').hasMatch(lowerText)) {
       abstractParts.add('learning or personal growth');
     }
     
@@ -480,17 +500,41 @@ class CorrelationResistantTransformer {
 
   /// Extract themes (5-10 max)
   List<String> _extractThemes(String aliasedText) {
-    // Simple keyword extraction (in production, use more sophisticated NLP)
+    // Enhanced keyword extraction with technical subjects
     final commonThemes = [
       'reflection', 'planning', 'analysis', 'problem-solving',
       'emotional processing', 'goal setting', 'decision making',
       'relationship', 'work', 'health', 'growth', 'learning',
+      // Technical themes
+      'mathematics', 'calculus', 'physics', 'science', 'engineering',
+      'programming', 'computer science', 'research', 'academic',
+      'question', 'clarification', 'understanding', 'explanation',
     ];
-    
+
     final lowerText = aliasedText.toLowerCase();
-    final foundThemes = commonThemes.where((theme) => lowerText.contains(theme)).take(10).toList();
-    
-    return foundThemes.isEmpty ? ['general inquiry'] : foundThemes;
+    final foundThemes = <String>[];
+
+    // Enhanced theme detection with specific subject identification
+    for (final theme in commonThemes) {
+      if (lowerText.contains(theme)) {
+        foundThemes.add(theme);
+      }
+    }
+
+    // Specific subject detection for better context
+    if (RegExp(r'\b(calculus|derivative|integral|newton)\b').hasMatch(lowerText)) {
+      foundThemes.add('calculus');
+    }
+    if (RegExp(r'\b(predict|prediction|calculate|calculation)\b').hasMatch(lowerText)) {
+      foundThemes.add('mathematical concepts');
+    }
+    if (RegExp(r'\?|\bdoes this\b|\bis this\b').hasMatch(lowerText)) {
+      foundThemes.add('seeking clarification');
+    }
+
+    // Remove duplicates and limit
+    final uniqueThemes = foundThemes.toSet().toList();
+    return uniqueThemes.isEmpty ? ['general inquiry'] : uniqueThemes.take(10).toList();
   }
 
   /// Determine task type from intent
