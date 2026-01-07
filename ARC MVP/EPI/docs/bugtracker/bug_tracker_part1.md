@@ -1,8 +1,34 @@
 # EPI MVP - Bug Tracker (Part 1: December 2025 - January 2026)
 
-**Version:** 2.1.76  
-**Last Updated:** January 1, 2026  
-**Coverage:** December 2025 - January 2026 releases (v2.1.43 - v2.1.76)
+**Version:** 2.1.85
+**Last Updated:** January 7, 2026
+**Coverage:** December 2025 - January 2026 releases (v2.1.43 - v2.1.85)
+
+---
+
+## Resolved Issues (v2.1.85)
+
+### LUMARA Over-Synthesis on Simple Questions
+- **Issue**: LUMARA was turning simple factual questions like "Does Newton's calculus predict or calculate movement?" into lengthy therapy sessions instead of direct answers
+- **Root Cause**: No pre-processing classification system - all entries went through full LUMARA synthesis pipeline regardless of content type
+- **Resolution**: Implemented comprehensive Entry Classification System
+  1. **5 Entry Types**: Factual, Reflective, Analytical, Conversational, Meta-Analysis
+  2. **Pre-Processing Classification**: Classification happens before LUMARA master prompt to prevent over-synthesis
+  3. **Response Mode Optimization**: Different response modes with appropriate word limits and context scoping
+  4. **Pattern Detection**: Emotional density, first-person indicators, technical markers, meta-analysis cues
+  5. **Analytics & Monitoring**: Firebase-based logging for classification accuracy tracking
+- **Impact**:
+  - Factual questions now get direct 100-word answers instead of therapy sessions
+  - Conversational updates get brief acknowledgments (30 words)
+  - Reflective entries still get full LUMARA synthesis (unchanged)
+  - Classification is transparent to user (no UI changes)
+  - Existing LUMARA settings still apply after classification
+- **Files Modified**:
+  - `lib/services/lumara/entry_classifier.dart` - Core classification logic
+  - `lib/services/lumara/response_mode.dart` - Response configuration
+  - `lib/services/lumara/classification_logger.dart` - Analytics
+  - `lib/arc/chat/services/enhanced_lumara_api.dart` - Integration with LUMARA pipeline
+  - `test/services/lumara/entry_classifier_test.dart` - Comprehensive test suite
 
 ---
 
@@ -109,19 +135,33 @@
   3. Multiple exports accumulating in `Documents/Exports/` directory
   4. No automatic cleanup of old exports
   5. Full backups every time (no incremental backup option) causing redundant data
-- **Resolution**:
-  1. Documented space requirements and recommendations in `BACKUP_SYSTEM.md`
-  2. Recommended using date range filtering for incremental backups
-  3. Recommended exporting media separately from entries/chats
-  4. Recommended cleaning up old exports regularly
-  5. Recommended exporting to cloud storage when possible
+- **Resolution** (v2.1.84):
+  1. ✅ **Enhanced Error Handling**: 
+     - Detects disk space errors (errno 28) vs permission errors (errno 13)
+     - Clear, actionable error messages with specific guidance
+     - Shows required space in MB and provides steps to free up space
+     - Error dialogs instead of snackbars for better readability
+  2. ✅ **Text-Only Incremental Backups**:
+     - Option to exclude all media from incremental backups
+     - Reduces backup size by 90%+ (typically < 1 MB vs hundreds of MB)
+     - Ideal for frequent daily backups when space is limited
+  3. ✅ **Incremental Backup System**:
+     - Only exports new/changed entries since last backup
+     - Media deduplication by SHA-256 hash
+     - Typical backup size reduced from ~500MB to ~30-50MB (or < 1 MB text-only)
+  4. Documented space requirements and recommendations in `BACKUP_SYSTEM.md`
+  5. Recommended exporting media separately from entries/chats
+  6. Recommended cleaning up old exports regularly
 - **Impact**: 
   - Users have clear guidance on managing export space
-  - Recommendations provided for space-saving strategies
-  - Future incremental backup feature planned
+  - Text-only option dramatically reduces backup size
+  - Better error messages help users resolve issues quickly
+  - Incremental backups prevent redundant data
 - **Files Modified**: 
-  - `docs/Export and Import Architecture/BACKUP_SYSTEM.md` - Comprehensive documentation added
-- **Status**: ✅ Documented (Future feature: Incremental backups)
+  - `lib/mira/store/arcx/services/arcx_export_service_v2.dart` - Enhanced error handling, text-only option
+  - `lib/shared/ui/settings/local_backup_settings_view.dart` - Dual backup buttons, error dialogs
+  - `docs/Export and Import Architecture/BACKUP_SYSTEM.md` - Comprehensive documentation
+- **Status**: ✅ Resolved (v2.1.84)
 
 ### Phase Sharing Image Capture Failures
 - **Issue**: Multiple "Failed to capture arcform image" errors when trying to share phases

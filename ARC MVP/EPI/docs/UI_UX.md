@@ -1,7 +1,7 @@
 # EPI MVP - UI/UX Feature Documentation
 
-**Version:** 2.1.83
-**Last Updated:** January 2, 2026
+**Version:** 2.1.85
+**Last Updated:** January 7, 2026
 **Status:** ✅ Comprehensive Feature Analysis Complete
 
 ---
@@ -292,6 +292,7 @@ Media Capture → Keyword Analysis → Save to Timeline
 - **Audio Output:** Text-to-Speech for AI responses
 - **Message Editing:** In-place editing with state tracking
 - **Dynamic Visibility:** Context-aware input field display
+- **Intelligent Response Classification (v2.1.85):** Transparent background classification system that optimizes LUMARA responses without UI changes
 - **Enhanced Text Formatting:** Professional paragraph formatting for LUMARA responses
   - **Chat-Specific Rules:** Fixed 3 sentences per paragraph for consistent readability
   - **Simplified Processing:** Streamlined paragraph logic for improved performance
@@ -2020,14 +2021,24 @@ UnifiedVoicePanel(
 #### Quick Backup Card
 **Features:**
 - **Preview Display**: Shows count of new entries, chats, and media before backup
-- **"Backup New Entries" Button**: Initiates incremental backup
+- **Dual Backup Options**:
+  - **"Text Only" Button**: Creates text-only incremental backup (entries + chats, no media)
+    - Much smaller and faster (typically < 1 MB vs hundreds of MB)
+    - Ideal for frequent daily backups
+    - Reduces backup size by 90%+ compared to full incremental
+  - **"Backup All" Button**: Full incremental backup including all new media
+    - Includes all new entries, chats, and media items
+    - Recommended for weekly or periodic backups
+- **Media Warning Banner**: Shows when new media items would be included, with tip to use text-only for frequent backups
 - **Size Efficiency**: Only exports data changed since last backup (90%+ size reduction)
 - **Real-time Preview**: Updates preview when new data is available
 
 **Visual Design:**
 - Card with purple accent border
 - Info rows showing entry/chat/media counts
-- Clear call-to-action button
+- Orange warning banner when media would be included
+- Two-button layout: Outlined "Text Only" button + Primary "Backup All" button
+- Helpful tip text below buttons
 
 #### Full Backup Card
 **Features:**
@@ -2058,12 +2069,19 @@ UnifiedVoicePanel(
 - **"Use App Documents" Button**: One-tap setup for safe backup folder
 - **Path Validation**: Detects and warns about restricted locations (iCloud Drive)
 - **Permission Testing**: Validates folder permissions before starting export
-- **Error Handling**: Clear messages for permission issues
+- **Enhanced Error Handling**: 
+  - Clear error dialogs (not snackbars) for better readability
+  - Specific detection of disk space errors (errno 28) vs permission errors (errno 13)
+  - Actionable error messages with steps to resolve:
+    - Disk space errors: Shows required space in MB, suggests freeing space, points to iPhone Storage settings
+    - Permission errors: Explains write permission issues, suggests alternative folders
+    - Generic errors: Lists possible causes and solutions
 
 **Visual Design:**
 - Blue info card with guidance text
 - Warning dialogs for restricted paths
 - Helpful instructions for folder selection
+- Error dialogs with icon, title, and scrollable error message
 
 ### 🔄 Import/Export UI Reorganization (v2.1.77)
 
@@ -2096,5 +2114,5 @@ UnifiedVoicePanel(
 
 ---
 
-*This comprehensive UI/UX documentation reflects the current state of the EPI Flutter application as of January 1, 2026. The interface combines sophisticated AI integration with thoughtful human-centered design to create a meaningful personal journaling and life insight experience.*
+*This comprehensive UI/UX documentation reflects the current state of the EPI Flutter application as of January 4, 2026. The interface combines sophisticated AI integration with thoughtful human-centered design to create a meaningful personal journaling and life insight experience.*
 

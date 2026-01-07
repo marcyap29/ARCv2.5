@@ -1,8 +1,8 @@
 # EPI MVP - Architecture Overview
 
-**Version:** 2.1.83
-**Last Updated:** January 2, 2026
-**Status:** ✅ Production Ready - MVP Fully Operational with Health Integration, AssemblyAI v3, Web Access Safety, Correlation-Resistant PII Protection, Bible Reference Retrieval, Google Drive Backup & Temporal Notifications
+**Version:** 2.1.85
+**Last Updated:** January 7, 2026
+**Status:** ✅ Production Ready - MVP Fully Operational with Health Integration, AssemblyAI v3, Web Access Safety, Correlation-Resistant PII Protection, Bible Reference Retrieval, Google Drive Backup, Temporal Notifications & Enhanced Incremental Backups
 
 ---
 
@@ -30,6 +30,7 @@ EPI (Evolving Personal Intelligence) is a Flutter-based intelligent journaling a
 - ✅ **Stripe Integration Setup (v2.1.76)**: Complete Stripe payment integration with checkout, customer portal, and webhook handlers. Comprehensive documentation and setup guides
 - ✅ **Incremental Backup System (v2.1.77)**: Space-efficient incremental backups with export history tracking, media deduplication, and 90%+ size reduction
 - ✅ **Temporal Notifications System (v2.1.83)**: Multi-cadence notification system (daily, monthly, 6-month, yearly) with phase-aware insights, deep linking, and comprehensive settings UI
+- ✅ **LUMARA Entry Classification System (v2.1.85)**: Intelligent classification prevents over-synthesis on simple questions while preserving sophisticated temporal intelligence for complex entries
 
 ### Current Version
 
@@ -252,6 +253,13 @@ The EPI system is organized into 5 core modules:
 - `guard/` - Safety and privacy guards
 - `prompts/` - Prompt management
 
+**Classification System Files:**
+- `lib/services/lumara/entry_classifier.dart` - Core classification logic
+- `lib/services/lumara/response_mode.dart` - Response mode configuration
+- `lib/services/lumara/classification_logger.dart` - Analytics and monitoring
+- `lib/services/lumara/lumara_classifier_integration.dart` - Integration helper
+- `test/services/lumara/entry_classifier_test.dart` - Comprehensive test suite
+
 **Key Features:**
 - LLM integration (Gemini API, on-device Qwen)
 - Response safety checks
@@ -335,6 +343,12 @@ The EPI system is organized into 5 core modules:
   - Character-to-book resolution for prophets and biblical figures
   - Privacy-protected (Bible names whitelisted in PRISM)
   - Context-preserving (skips correlation-resistant transformation for Bible questions)
+- **Entry Classification System**: Intelligent classification of user entries to optimize LUMARA responses
+  - **5 Entry Types**: Factual, Reflective, Analytical, Conversational, Meta-Analysis
+  - **Pre-Processing Classification**: Classification happens before LUMARA processing to prevent over-synthesis
+  - **Response Mode Optimization**: Different response modes with appropriate word limits and context scoping
+  - **Pattern Detection**: Emotional density, first-person density, technical indicators, and meta-analysis patterns
+  - **Classification Logging**: Firebase-based analytics for monitoring and improving classification accuracy
 
 ### Platform-Specific
 - **iOS**: Swift, Metal acceleration
@@ -397,7 +411,8 @@ ExportHistoryService checks last export date
     ↓
 Filter entries/chats modified since last export
     ↓
-Filter media by SHA-256 hash (skip already exported)
+If text-only mode: Skip all media
+If full mode: Filter media by SHA-256 hash (skip already exported)
     ↓
 Create ARCX archive with only new/changed data
     ↓
@@ -406,11 +421,22 @@ Record export in ExportHistoryService
 Update last export date and tracked IDs/hashes
 ```
 
+**Backup Modes:**
+- **Text-Only Incremental**: Excludes all media for space-efficient backups
+  - Typical size: < 1 MB
+  - Ideal for frequent daily backups
+  - 90%+ size reduction vs full incremental
+- **Full Incremental**: Includes entries, chats, and new media
+  - Media deduplication by SHA-256 hash
+  - Typical size: ~30-50MB (reduced from ~500MB)
+
 **Benefits:**
-- **90%+ Size Reduction**: Typical backup size reduced from ~500MB to ~30-50MB
+- **90%+ Size Reduction**: Text-only backups are < 1 MB, full incremental ~30-50MB (vs ~500MB full)
 - **Faster Backups**: Less data to process and encrypt
 - **Storage Efficiency**: Prevents redundant data in backup files
 - **Smart Deduplication**: Media files tracked by hash to prevent duplicates
+- **Flexible Options**: Choose text-only for frequent backups, full for periodic backups
+- **Enhanced Error Handling**: Clear detection and reporting of disk space vs permission errors
 
 ---
 

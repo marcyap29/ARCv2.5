@@ -1,7 +1,7 @@
 # EPI MVP - Comprehensive Features Guide
 
-**Version:** 2.1.83
-**Last Updated:** January 2, 2026
+**Version:** 2.1.85
+**Last Updated:** January 7, 2026
 
 ---
 
@@ -158,6 +158,25 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
   - Low sleep/energy → LUMARA is more gentle and supportive
   - Moderate levels → Balanced tone
   - High sleep + energy → May offer more direct insights and challenges
+
+**Entry Classification System (v2.1.85)**
+- **Intelligent Classification**: Automatically classifies user entries to optimize LUMARA responses
+- **5 Entry Types**:
+  - **Factual** (≤100 words): Direct answers to questions and clarifications
+  - **Reflective** (≤300 words): Full LUMARA synthesis for personal growth and emotional processing
+  - **Analytical** (≤250 words): Intellectual engagement with ideas and theoretical frameworks
+  - **Conversational** (≤30 words): Brief acknowledgment of mundane updates and simple observations
+  - **Meta-Analysis** (≤600 words): Comprehensive pattern recognition across journal history
+- **Pre-Processing Classification**: Classification happens before LUMARA synthesis to prevent over-analysis
+- **Pattern Detection**: Uses emotional density, first-person indicators, technical markers, and meta-analysis cues
+- **Response Optimization**: Different response modes with appropriate context scoping and word limits
+- **Examples**:
+  - "Does Newton's calculus predict or calculate movement?" → Factual (direct answer)
+  - "204.3 lbs this morning. Heaviest I've been. My goal is to lose 30 pounds." → Reflective (full synthesis)
+  - "Had coffee with Sarah this morning." → Conversational (brief acknowledgment)
+  - "What patterns do you see in my weight loss attempts?" → Meta-Analysis (comprehensive review)
+- **User Control**: Existing LUMARA settings still modify responses; classification optimizes initial processing
+
 - **Scrollable Text Input**: Text input scrolls when content exceeds 5 lines, send button always accessible
 - **Auto-Minimize**: Input area automatically minimizes when clicking outside (ChatGPT-like behavior)
 - **Auto-Scroll UX**: Unified scroll behavior across journal and chat interfaces
@@ -669,9 +688,16 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 
 **Quick Backup (Incremental)**
 - **Automatic Change Detection**: Only exports entries and chats modified since last backup
-- **Media Deduplication**: Skips media files already exported using SHA-256 hash tracking
+- **Dual Backup Options**:
+  - **Text-Only Mode**: Excludes all media for space-efficient backups
+    - Typical size: < 1 MB (vs hundreds of MB with media)
+    - Ideal for frequent daily backups
+    - 90%+ size reduction compared to full incremental
+  - **Full Mode**: Includes all new entries, chats, and media
+    - Media deduplication: Skips media files already exported using SHA-256 hash tracking
+    - Typical backup size: ~30-50MB (reduced from ~500MB)
 - **Export Preview**: Shows count of new entries, chats, and media before backup
-- **Size Reduction**: Typical backup size reduced from ~500MB to ~30-50MB
+- **Media Warning**: Banner alerts when media would be included, suggests text-only for frequent backups
 - **Fast Execution**: Less data to process means faster backup times
 
 **Full Backup**
@@ -685,13 +711,25 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 - **Export Tracking**: Maintains record of all exports with entry IDs, chat IDs, and media hashes
 
 **UI Features**
-- **Quick Backup Card**: Preview and initiate incremental backups
+- **Quick Backup Card**: Preview and initiate incremental backups with dual options
+  - **"Text Only" Button**: Fast, space-efficient text-only backups
+  - **"Backup All" Button**: Full incremental backup including media
+  - **Media Warning Banner**: Alerts when media would be included
 - **Full Backup Card**: Option for complete backups
 - **Backup History Card**: View statistics and manage history
 - **Folder Guidance**: Info card explaining recommended backup locations
 - **"Use App Documents" Button**: One-tap setup for safe backup folder
 - **Path Validation**: Detects and warns about restricted locations (iCloud Drive)
 - **Permission Testing**: Validates folder permissions before starting export
+
+**Enhanced Error Handling (v2.1.84)**
+- **Smart Error Detection**: Distinguishes disk space errors (errno 28) from permission errors (errno 13)
+- **Clear Error Messages**: 
+  - Disk space errors: Shows required space in MB, suggests freeing space, links to iPhone Storage settings
+  - Permission errors: Explains write permission issues, suggests alternative folders
+  - Generic errors: Lists possible causes and actionable solutions
+- **Error Dialogs**: Replaced snackbars with scrollable error dialogs for better readability
+- **Helpful Guidance**: Step-by-step instructions to resolve common backup issues
 
 **Benefits**
 - **Storage Efficiency**: Prevents redundant data in backup files

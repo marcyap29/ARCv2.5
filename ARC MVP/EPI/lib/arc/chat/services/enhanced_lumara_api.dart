@@ -28,6 +28,9 @@ import '../../../arc/chat/chat/chat_repo_impl.dart';
 import '../../../arc/chat/chat/chat_models.dart';
 import 'package:my_app/arc/internal/echo/prism_adapter.dart';
 import 'package:my_app/arc/internal/echo/correlation_resistant_transformer.dart';
+import '../../../services/lumara/entry_classifier.dart';
+import '../../../services/lumara/response_mode.dart';
+import '../../../services/lumara/classification_logger.dart';
 
 /// Result of generating a reflection with attribution traces
 class ReflectionResult {
@@ -180,6 +183,39 @@ class EnhancedLumaraApi {
       if (!_initialized) {
         await initialize();
       }
+
+      // ===========================================================
+      // STEP 0: CLASSIFY ENTRY TYPE (NEW - BEFORE ANY OTHER PROCESSING)
+      // ===========================================================
+      final entryType = EntryClassifier.classify(request.userText);
+      final responseMode = ResponseMode.forEntryType(entryType, request.userText);
+
+      onProgress?.call('Entry classified as: ${EntryClassifier.getTypeDescription(entryType)}');
+
+      // Log classification for monitoring
+      if (userId != null) {
+        await ClassificationLogger.logClassification(
+          userId: userId,
+          entryText: request.userText,
+          classification: entryType,
+          responseMode: responseMode,
+        );
+      }
+
+      // ===========================================================
+      // HANDLE DIFFERENT RESPONSE MODES
+      // ===========================================================
+
+      if (entryType == EntryType.factual) {
+        // FACTUAL MODE: Direct answer without full LUMARA processing
+        return await _generateFactualResponse(request, responseMode, onProgress);
+      } else if (entryType == EntryType.conversational) {
+        // CONVERSATIONAL MODE: Brief acknowledgment
+        return await _generateConversationalResponse(request, responseMode, onProgress);
+      }
+
+      // FOR REFLECTIVE, ANALYTICAL, AND META-ANALYSIS: Continue with existing LUMARA processing
+      // but modify it based on response mode
 
       // ===========================================================
       // PRIORITY 2: Use on-device LUMARA with Firebase proxy for API key
@@ -819,4 +855,101 @@ Follow the ECHO structure (Empathize → Clarify → Highlight → Open) but exp
   }
 
   /// Fallback method to call local Gemini API when Firebase backend fails
+
+  /// Generate a direct, factual response for simple questions
+  Future<ReflectionResult> _generateFactualResponse(
+    models.LumaraReflectionRequest request,
+    ResponseMode responseMode,
+    void Function(String message)? onProgress
+  ) async {
+    onProgress?.call('Generating direct answer...');
+
+    // Create a simple, direct prompt for factual questions
+    final factualPrompt = '''
+You are LUMARA, providing a direct, factual answer to the user's question.
+
+User Question: ${request.userText}
+
+Instructions:
+- Provide a clear, direct answer to the question
+- Keep your response under ${responseMode.maxWords} words
+- Be informative but concise
+- Use a warm, helpful tone while staying focused on the facts
+- Do not include reflection headers or extensive personal analysis
+- Answer the question directly without turning it into a therapy session
+
+Respond now:''';
+
+    try {
+      final response = await geminiSend(
+        prompt: factualPrompt,
+        systemInstruction: 'You are LUMARA, an AI assistant providing direct, factual answers.',
+        maxTokens: responseMode.maxWords * 2, // Allow some buffer for token estimation
+      );
+
+      if (response.isNotEmpty) {
+        return ReflectionResult(
+          reflection: response,
+          attributionTraces: [], // No historical context needed for factual responses
+        );
+      } else {
+        throw Exception('Empty response from Gemini API');
+      }
+    } catch (e) {
+      print('Error generating factual response: $e');
+      // Fallback response
+      return ReflectionResult(
+        reflection: "I understand you're asking about ${request.userText.split(' ').take(5).join(' ')}. I'm having trouble generating a response right now, but I'm here to help when you're ready to try again.",
+        attributionTraces: [],
+      );
+    }
+  }
+
+  /// Generate a brief conversational response for mundane updates
+  Future<ReflectionResult> _generateConversationalResponse(
+    models.LumaraReflectionRequest request,
+    ResponseMode responseMode,
+    void Function(String message)? onProgress
+  ) async {
+    onProgress?.call('Generating brief acknowledgment...');
+
+    // Create a minimal prompt for conversational acknowledgments
+    final conversationalPrompt = '''
+You are LUMARA, providing a brief, warm acknowledgment to the user's update.
+
+User Update: ${request.userText}
+
+Instructions:
+- Provide a very brief, friendly acknowledgment (under ${responseMode.maxWords} words)
+- Show that you heard them without over-analyzing
+- Be warm and present but keep it short
+- No reflection headers or extensive analysis needed
+- This is just a simple life update that deserves a kind acknowledgment
+
+Respond now:''';
+
+    try {
+      final response = await geminiSend(
+        prompt: conversationalPrompt,
+        systemInstruction: 'You are LUMARA, providing brief, warm acknowledgments to simple updates.',
+        maxTokens: responseMode.maxWords * 2, // Allow some buffer
+      );
+
+      if (response.isNotEmpty) {
+        return ReflectionResult(
+          reflection: response,
+          attributionTraces: [], // No historical context needed for conversational responses
+        );
+      } else {
+        throw Exception('Empty response from Gemini API');
+      }
+    } catch (e) {
+      print('Error generating conversational response: $e');
+      // Fallback response
+      return ReflectionResult(
+        reflection: "Thanks for sharing that with me.",
+        attributionTraces: [],
+      );
+    }
+  }
 }

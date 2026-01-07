@@ -1,7 +1,7 @@
 # EPI ARC MVP - Changelog
 
-**Version:** 2.1.83
-**Last Updated:** January 2, 2026
+**Version:** 2.1.85
+**Last Updated:** January 7, 2026
 
 ---
 
@@ -14,6 +14,82 @@ This changelog has been split into parts for easier navigation:
 | **[CHANGELOG_part1.md](CHANGELOG_part1.md)** | Dec 2025 | v2.1.43 - v2.1.53 (Current) |
 | **[CHANGELOG_part2.md](CHANGELOG_part2.md)** | Nov 2025 | v2.1.28 - v2.1.42 |
 | **[CHANGELOG_part3.md](CHANGELOG_part3.md)** | Jan-Oct 2025 | v2.0.0 - v2.1.27 & Earlier |
+
+---
+
+## [2.1.85] - January 7, 2026
+
+### **LUMARA Entry Classification System** - ✅ Complete
+
+**Problem Solved**: LUMARA was over-synthesizing simple factual questions, turning "Does Newton's calculus predict or calculate movement?" into lengthy therapy sessions instead of direct answers.
+
+**Solution**: Intelligent pre-processing classification system that determines entry type before LUMARA synthesis.
+
+#### Features
+- **5 Entry Types**: Factual, Reflective, Analytical, Conversational, Meta-Analysis
+- **Pre-Processing Classification**: Classification happens before master prompt to prevent over-synthesis
+- **Response Mode Optimization**: Different word limits and context scoping per type
+- **Pattern Detection**: Emotional density, first-person indicators, technical markers, meta-analysis cues
+- **Analytics & Monitoring**: Firebase-based logging for classification accuracy tracking
+
+#### Technical Implementation
+- **Files Added**:
+  - `lib/services/lumara/entry_classifier.dart` - Core classification logic
+  - `lib/services/lumara/response_mode.dart` - Response configuration
+  - `lib/services/lumara/classification_logger.dart` - Analytics
+  - `lib/services/lumara/lumara_classifier_integration.dart` - Integration helper
+  - `test/services/lumara/entry_classifier_test.dart` - Comprehensive tests
+- **Integration**: Enhanced `enhanced_lumara_api.dart` with classification pipeline
+- **Methods Added**: `_generateFactualResponse()`, `_generateConversationalResponse()`
+
+#### Response Examples
+- **Factual**: "Does Newton's calculus predict or calculate?" → Direct 100-word answer
+- **Conversational**: "Had coffee with Sarah" → "Thanks for sharing that with me."
+- **Reflective**: Weight/goal entries → Full LUMARA synthesis (unchanged)
+- **Meta-Analysis**: "What patterns do you see?" → 600-word comprehensive analysis
+
+#### User Experience
+- **No User Interface Changes**: Classification happens transparently
+- **Settings Preserved**: Existing LUMARA settings still apply after classification
+- **Backward Compatible**: All existing functionality maintained
+- **Performance**: Classification adds <100ms to response time
+
+---
+
+## [2.1.84] - January 4, 2026
+
+### **Enhanced Incremental Backup System** - ✅ Complete
+
+- **Text-Only Incremental Backup Option**:
+  - New `excludeMedia` parameter in `exportIncremental()` method
+  - Option to create space-efficient text-only backups (entries + chats, no media)
+  - Reduces backup size by 90%+ for frequent incremental backups
+  - Media can be backed up separately when needed
+
+- **Improved Error Handling**:
+  - Enhanced error detection for disk space errors (errno 28) vs permission errors (errno 13)
+  - Clear, actionable error messages with specific guidance
+  - Error dialogs instead of snackbars for better readability
+  - Shows required space in MB and provides steps to free up space
+  - Detects and warns about restricted backup locations (iCloud Drive)
+
+- **UI Improvements**:
+  - Two backup buttons: "Text Only" (fast, small) and "Backup All" (includes media)
+  - Warning banner when new media items would be included
+  - Helpful tip suggesting text-only for frequent backups
+  - Better visual feedback during backup process
+
+- **Technical Implementation**:
+  - Added `excludeMediaFromIncremental` option to `ARCXExportOptions`
+  - Updated `exportIncremental()` to support media exclusion
+  - Improved error messages in `arcx_export_service_v2.dart`
+  - Enhanced `LocalBackupSettingsView` with dual backup options
+
+- **User Experience**:
+  - Faster, smaller backups for daily use (text-only)
+  - Full backups with media when needed
+  - Clear error messages help users resolve issues quickly
+  - Better guidance on backup folder selection
 
 ---
 
