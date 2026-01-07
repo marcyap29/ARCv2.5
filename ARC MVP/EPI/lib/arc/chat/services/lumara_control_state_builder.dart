@@ -319,7 +319,53 @@ class LumaraControlStateBuilder {
     }
     
     state['persona'] = persona;
-    
+
+    // ============================================================
+    // F2. QUESTION TYPE (Factual vs Reflective)
+    // ============================================================
+    final questionType = <String, dynamic>{};
+
+    try {
+      // Detect if this is a simple factual question
+      bool isSimpleFactualQuestion = false;
+
+      if (userMessage != null && userMessage.trim().isNotEmpty) {
+        final lower = userMessage.toLowerCase();
+
+        // Check for simple factual question patterns
+        final factualQuestionPatterns = [
+          'does this make sense', 'does that make sense', 'make sense?',
+          'is this correct', 'is that correct', 'is this right', 'is that right',
+          'am i right about', 'am i correct about', 'am i understanding',
+          'is it true that', 'is it accurate that',
+          'did i understand', 'do i have this right',
+          'correct?', 'right?',
+        ];
+
+        if (factualQuestionPatterns.any((pattern) => lower.contains(pattern))) {
+          // Check if it's actually asking for deep analysis disguised as factual
+          final deepAnalysisIndicators = [
+            'what does this mean for', 'what does this say about',
+            'what should i do', 'how should i', 'what am i missing',
+            'pattern', 'trend', 'theme',
+          ];
+
+          // If no deep analysis indicators, treat as simple factual question
+          if (!deepAnalysisIndicators.any((indicator) => lower.contains(indicator))) {
+            isSimpleFactualQuestion = true;
+            print('LUMARA Control State: Detected simple factual question');
+          }
+        }
+      }
+
+      questionType['isSimpleFactual'] = isSimpleFactualQuestion;
+    } catch (e) {
+      print('LUMARA Control State: Error detecting question type: $e');
+      questionType['isSimpleFactual'] = false;
+    }
+
+    state['questionType'] = questionType;
+
     // ============================================================
     // G. WEB ACCESS CAPABILITY
     // ============================================================
@@ -855,9 +901,36 @@ class LumaraControlStateBuilder {
   /// Detect persona from question text using pattern matching
   static String? _detectPersonaFromQuestion(String question) {
     if (question.isEmpty) return null;
-    
+
     final lower = question.toLowerCase();
-    
+
+    // PRIORITY 1: Simple factual questions → return null for simple, direct answer
+    // These should NOT trigger deep reflection - just answer the question
+    final factualQuestionPatterns = [
+      'does this make sense', 'does that make sense', 'make sense?',
+      'is this correct', 'is that correct', 'is this right', 'is that right',
+      'am i right about', 'am i correct about', 'am i understanding',
+      'is it true that', 'is it accurate that',
+      'did i understand', 'do i have this right',
+      'correct?', 'right?', // Statement followed by verification
+    ];
+
+    // Check for factual verification questions
+    if (factualQuestionPatterns.any((pattern) => lower.contains(pattern))) {
+      // Check if it's actually asking for deep analysis disguised as factual
+      final deepAnalysisIndicators = [
+        'what does this mean for', 'what does this say about',
+        'what should i do', 'how should i', 'what am i missing',
+        'pattern', 'trend', 'theme',
+      ];
+
+      // If no deep analysis indicators, treat as simple factual question
+      if (!deepAnalysisIndicators.any((indicator) => lower.contains(indicator))) {
+        print('LUMARA Control State: Detected simple factual question - returning null for direct answer');
+        return null; // null = no special persona, just answer the question simply
+      }
+    }
+
     // Explicit advice/opinion requests → prioritize strategist or challenger
     final explicitAdvicePatterns = [
       'tell me your thoughts', 'what do you think', 'what are your thoughts',
