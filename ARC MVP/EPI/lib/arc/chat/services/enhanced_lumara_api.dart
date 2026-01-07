@@ -277,22 +277,39 @@ class EnhancedLumaraApi {
           final entryPrismResult = prismAdapter.scrub(request.userText);
           
           String entryDescription;
-          if (entryPrismResult.hadPII) {
-            // Transform to correlation-resistant payload to get semantic summary
-            final entryTransformation = await prismAdapter.transformToCorrelationResistant(
-              prismScrubbedText: entryPrismResult.scrubbedText,
-              intent: 'journal_reflection',
-              prismResult: entryPrismResult,
-              rotationWindow: RotationWindow.session,
-            );
-            // Use semantic summary instead of verbatim text
-            entryDescription = entryTransformation.cloudPayloadBlock.semanticSummary;
-            print('LUMARA: Using abstract entry description (${entryDescription.length} chars) instead of verbatim text');
+
+          // CLASSIFICATION-AWARE PRIVACY: Preserve semantic content for factual/analytical entries
+          if (entryType == EntryType.factual || entryType == EntryType.analytical) {
+            // For factual/analytical entries, preserve the semantic content after PII scrubbing
+            // These rarely contain sensitive personal info, and cloud needs to understand the question
+            if (entryPrismResult.hadPII) {
+              // Just use the PII-scrubbed text, don't abstract to generic summary
+              entryDescription = entryPrismResult.scrubbedText;
+              print('LUMARA: Using PII-scrubbed text for factual/analytical entry (${entryDescription.length} chars)');
+            } else {
+              // No PII, use original text for factual questions
+              entryDescription = request.userText;
+              print('LUMARA: Using original text for factual/analytical entry (no PII detected)');
+            }
           } else {
-            // No PII found, use original text (but still abstract it slightly for consistency)
-            entryDescription = request.userText.length > 200 
-                ? '${request.userText.substring(0, 200)}...' 
-                : request.userText;
+            // For reflective/personal entries, use full abstraction for privacy
+            if (entryPrismResult.hadPII) {
+              // Transform to correlation-resistant payload to get semantic summary
+              final entryTransformation = await prismAdapter.transformToCorrelationResistant(
+                prismScrubbedText: entryPrismResult.scrubbedText,
+                intent: 'journal_reflection',
+                prismResult: entryPrismResult,
+                rotationWindow: RotationWindow.session,
+              );
+              // Use semantic summary for personal/emotional entries
+              entryDescription = entryTransformation.cloudPayloadBlock.semanticSummary;
+              print('LUMARA: Using abstract entry description for reflective entry (${entryDescription.length} chars) instead of verbatim text');
+            } else {
+              // No PII found, but still abstract slightly for reflective entries for consistency
+              entryDescription = request.userText.length > 200
+                  ? '${request.userText.substring(0, 200)}...'
+                  : request.userText;
+            }
           }
           
           String userPrompt;
