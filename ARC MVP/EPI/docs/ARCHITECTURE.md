@@ -1,6 +1,6 @@
 # EPI MVP - Architecture Overview
 
-**Version:** 2.1.85
+**Version:** 2.1.86
 **Last Updated:** January 7, 2026
 **Status:** ✅ Production Ready - MVP Fully Operational with Health Integration, AssemblyAI v3, Web Access Safety, Correlation-Resistant PII Protection, Bible Reference Retrieval, Google Drive Backup, Temporal Notifications & Enhanced Incremental Backups
 
@@ -31,6 +31,7 @@ EPI (Evolving Personal Intelligence) is a Flutter-based intelligent journaling a
 - ✅ **Incremental Backup System (v2.1.77)**: Space-efficient incremental backups with export history tracking, media deduplication, and 90%+ size reduction
 - ✅ **Temporal Notifications System (v2.1.83)**: Multi-cadence notification system (daily, monthly, 6-month, yearly) with phase-aware insights, deep linking, and comprehensive settings UI
 - ✅ **LUMARA Entry Classification System (v2.1.85)**: Intelligent classification prevents over-synthesis on simple questions while preserving sophisticated temporal intelligence for complex entries
+- ✅ **Enhanced PRISM Semantic Summarization (v2.1.86)**: Classification-aware privacy system with improved technical content detection and on-device semantic analysis
 
 ### Current Version
 
@@ -349,6 +350,12 @@ The EPI system is organized into 5 core modules:
   - **Response Mode Optimization**: Different response modes with appropriate word limits and context scoping
   - **Pattern Detection**: Emotional density, first-person density, technical indicators, and meta-analysis patterns
   - **Classification Logging**: Firebase-based analytics for monitoring and improving classification accuracy
+- **Enhanced PRISM Privacy System**: Classification-aware privacy protection with improved semantic analysis
+  - **Dual Privacy Strategy**: Classification-aware PRISM preserves semantic content for factual entries while using full abstraction for personal/emotional content
+  - **Technical Content Detection**: On-device recognition of mathematics, physics, computer science, engineering topics with subject-specific summarization
+  - **Enhanced Semantic Summarization**: Improved on-device analysis creates descriptive summaries instead of generic abstractions
+  - **Privacy Guarantee**: Personal/emotional entries still receive full correlation-resistant transformation with rotating aliases and non-verbatim abstraction
+  - **On-Device Processing**: All classification and semantic analysis happens locally before any cloud transmission
 
 ### Platform-Specific
 - **iOS**: Swift, Metal acceleration

@@ -239,13 +239,16 @@ class _KeywordsDiscoveredWidgetState extends State<KeywordsDiscoveredWidget> {
                       fontWeight: FontWeight.w500,
                     ),
                   ),
-                  const SizedBox(width: 4),
+                  const SizedBox(width: 6),
                   GestureDetector(
                     onTap: () => _removeManualKeyword(keyword),
-                    child: Icon(
-                      Icons.close,
-                      size: 12,
-                      color: theme.colorScheme.secondary.withOpacity(0.7),
+                    child: Container(
+                      padding: const EdgeInsets.all(2),
+                      child: Icon(
+                        Icons.close,
+                        size: 16,
+                        color: theme.colorScheme.secondary.withOpacity(0.8),
+                      ),
                     ),
                   ),
                 ],

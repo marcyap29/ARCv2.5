@@ -1,8 +1,8 @@
 # Backend Architecture & Setup
 
-**Version:** 2.1.76  
-**Last Updated:** January 1, 2026  
-**Status:** ✅ Production Ready with Health Integration, AssemblyAI v3, Internet Access, Correlation-Resistant PII Protection & Stripe Integration
+**Version:** 2.1.86
+**Last Updated:** January 7, 2026
+**Status:** ✅ Production Ready with Health Integration, AssemblyAI v3, Internet Access, Enhanced Classification-Aware PRISM Privacy Protection & Stripe Integration
 
 ---
 
@@ -111,12 +111,20 @@ await geminiSend(
 );
 ```
 
-**Privacy Protection:**
+**Privacy Protection (Enhanced v2.1.86):**
 - ✅ PRISM scrubbing: Local PII detection and masking
-- ✅ Correlation-resistant transformation: Rotating aliases prevent re-identification
-- ✅ Structured JSON payloads: No verbatim text transmission
-- ✅ Session-based rotation: Identifiers rotate per session
+- ✅ Classification-Aware Privacy: Dual strategy based on content type
+  - **Technical/Factual Content**: Preserves semantic content after PII scrubbing
+  - **Personal/Emotional Content**: Full correlation-resistant transformation
+- ✅ Enhanced Semantic Analysis: On-device technical content detection
+  - Mathematics, physics, computer science, engineering recognition
+  - Subject-specific summarization preserves context while protecting privacy
+- ✅ Correlation-resistant transformation: Rotating aliases prevent re-identification for personal content
+- ✅ Enhanced semantic summaries: Descriptive abstractions instead of generic summaries
+- ✅ Structured JSON payloads: No verbatim personal text transmission
+- ✅ Session-based rotation: Identifiers rotate per session for personal content
 - ✅ Reversible mapping: Stored locally only, never transmitted
+- ✅ Privacy Guarantee: All PII scrubbed regardless of content type, no personal verbatim text sent to cloud
 
 **Server Side (`functions/lib/index.js`):**
 ```javascript

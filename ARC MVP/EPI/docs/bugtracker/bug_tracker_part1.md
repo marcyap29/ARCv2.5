@@ -1,8 +1,31 @@
 # EPI MVP - Bug Tracker (Part 1: December 2025 - January 2026)
 
-**Version:** 2.1.85
+**Version:** 2.1.86
 **Last Updated:** January 7, 2026
-**Coverage:** December 2025 - January 2026 releases (v2.1.43 - v2.1.85)
+**Coverage:** December 2025 - January 2026 releases (v2.1.43 - v2.1.86)
+
+---
+
+## Resolved Issues (v2.1.86)
+
+### PRISM Generic Semantic Summarization Issue
+- **Issue**: PRISM was creating overly generic semantic summaries like "brief entry about learning" for technical questions, causing cloud LUMARA to lose important context even when classification worked perfectly locally
+- **Root Cause**: Semantic summarization system lacked technical content detection and created one-size-fits-all abstractions regardless of subject matter
+- **Impact**: Technical questions like Newton's calculus example received generic reflections instead of direct answers even after classification system was implemented
+- **Resolution**: Enhanced PRISM semantic summarization with classification-aware processing
+  1. **Technical Content Detection**: Added on-device recognition for mathematics, physics, computer science, engineering, chemistry, biology
+  2. **Subject-Specific Summarization**: Technical questions now get descriptive summaries preserving semantic content
+  3. **Enhanced Pattern Recognition**: Improved detection of clarification requests, understanding verification, help-seeking patterns
+  4. **Dual Privacy Strategy**: Technical content preserves semantics after PII scrubbing, personal content maintains full abstraction
+  5. **Better Theme Extraction**: Specific subject identification (calculus, physics, etc.) instead of generic categories
+- **Implementation**:
+  - Enhanced `correlation_resistant_transformer.dart` with technical pattern recognition
+  - Improved `_generateSemanticSummary()` method with subject-specific logic
+  - Added classification-aware processing in `enhanced_lumara_api.dart`
+  - Maintained all existing privacy protections and PII scrubbing
+- **Privacy Maintained**: All PII still scrubbed, personal entries still get correlation-resistant transformation, only semantic content enhanced
+- **User Experience**: Technical questions now receive proper context while personal entries maintain maximum privacy protection
+- **Example Fix**: "Newton's calculus question" → "technical question about mathematics" instead of "brief entry about learning"
 
 ---
 

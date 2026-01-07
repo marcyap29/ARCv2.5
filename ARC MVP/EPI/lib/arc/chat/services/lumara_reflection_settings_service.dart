@@ -86,10 +86,10 @@ class LumaraReflectionSettingsService {
   static const bool _defaultWebAccessEnabled = false; // Opt-in by default
   static const String _defaultLumaraPersona = 'auto'; // Auto-adapt by default
   
-  // Response length defaults
-  static const bool _defaultResponseLengthAuto = true; // Auto by default
-  static const int _defaultMaxSentences = -1; // -1 means infinity (no limit)
-  static const int _defaultSentencesPerParagraph = 4; // Default: 4 sentences per paragraph
+  // Response length defaults (simplified modes)
+  static const String _defaultResponseLengthMode = 'medium'; // short | medium | long
+  static const int _defaultMaxSentences = 12; // medium default
+  static const int _defaultSentencesPerParagraph = 3; // Max 3 sentences per paragraph
 
   // Engagement discipline defaults
   static const EngagementMode _defaultEngagementMode = EngagementMode.reflect;
@@ -108,7 +108,7 @@ class LumaraReflectionSettingsService {
   static const String _keyLumaraPersona = 'lumara_persona';
   
   // Response length keys
-  static const String _keyResponseLengthAuto = 'lumara_response_length_auto';
+  static const String _keyResponseLengthMode = 'lumara_response_length_mode';
   static const String _keyMaxSentences = 'lumara_max_sentences';
   static const String _keySentencesPerParagraph = 'lumara_sentences_per_paragraph';
 
@@ -238,47 +238,70 @@ class LumaraReflectionSettingsService {
     await _prefs!.setString(_keyLumaraPersona, persona.name);
   }
 
-  /// Check if response length is set to auto (default: true)
-  Future<bool> isResponseLengthAuto() async {
+  /// Response length mode (short | medium | long)
+  Future<String> getResponseLengthMode() async {
     await initialize();
-    return _prefs!.getBool(_keyResponseLengthAuto) ?? _defaultResponseLengthAuto;
+    return _prefs!.getString(_keyResponseLengthMode) ?? _defaultResponseLengthMode;
   }
 
-  /// Set response length auto mode
-  Future<void> setResponseLengthAuto(bool value) async {
+  Future<void> setResponseLengthMode(String mode) async {
     await initialize();
-    await _prefs!.setBool(_keyResponseLengthAuto, value);
+    final normalized = (mode == 'short' || mode == 'long') ? mode : 'medium';
+    await _prefs!.setString(_keyResponseLengthMode, normalized);
+    // Persist derived limits for compatibility
+    final max = _mapModeToMaxSentences(normalized);
+    await _prefs!.setInt(_keyMaxSentences, max);
+    await _prefs!.setInt(_keySentencesPerParagraph, _defaultSentencesPerParagraph);
   }
 
-  /// Get max sentences (-1 means infinity/no limit, default: -1)
+  /// Get max sentences (derived from mode; defaults to medium)
   Future<int> getMaxSentences() async {
     await initialize();
-    return _prefs!.getInt(_keyMaxSentences) ?? _defaultMaxSentences;
+    final stored = _prefs!.getInt(_keyMaxSentences);
+    if (stored != null) return stored;
+    final mode = await getResponseLengthMode();
+    return _mapModeToMaxSentences(mode);
   }
 
-  /// Set max sentences (-1 for infinity/no limit)
+  /// Set max sentences (kept for compatibility; also updates mode heuristically)
   Future<void> setMaxSentences(int value) async {
     await initialize();
-    // Allow -1 for infinity, or valid sentence counts: 3, 5, 10, 15, 20
-    if (value == -1 || value == 3 || value == 5 || value == 10 || value == 15 || value == 20) {
-      await _prefs!.setInt(_keyMaxSentences, value);
+    String mode;
+    if (value <= 5) {
+      mode = 'short';
+    } else if (value <= 12) {
+      mode = 'medium';
+    } else {
+      mode = 'long';
     }
+    await setResponseLengthMode(mode);
   }
 
-  /// Get sentences per paragraph (default: 4, valid: 3, 4, 5)
+  /// Get sentences per paragraph (max 3)
   Future<int> getSentencesPerParagraph() async {
     await initialize();
     final value = _prefs!.getInt(_keySentencesPerParagraph) ?? _defaultSentencesPerParagraph;
-    // Clamp to valid range
-    return value.clamp(3, 5);
+    return value.clamp(1, 3);
   }
 
-  /// Set sentences per paragraph (valid: 3, 4, 5)
+  /// Set sentences per paragraph (valid: 1-3)
   Future<void> setSentencesPerParagraph(int value) async {
     await initialize();
     // Clamp to valid range
-    final clampedValue = value.clamp(3, 5);
+    final clampedValue = value.clamp(1, 3);
     await _prefs!.setInt(_keySentencesPerParagraph, clampedValue);
+  }
+
+  int _mapModeToMaxSentences(String mode) {
+    switch (mode) {
+      case 'short':
+        return 5;
+      case 'long':
+        return 20;
+      case 'medium':
+      default:
+        return 12;
+    }
   }
 
   /// Get Memory Focus preset (default: balanced)
@@ -593,4 +616,3 @@ class LumaraReflectionSettingsService {
     }
   }
 }
-

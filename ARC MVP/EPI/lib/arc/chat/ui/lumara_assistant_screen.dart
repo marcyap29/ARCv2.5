@@ -38,6 +38,7 @@ import '../chat/chat_models.dart';
 import 'widgets/chat_navigation_drawer.dart';
 import 'package:my_app/ui/subscription/lumara_subscription_status.dart';
 import 'package:my_app/services/firebase_auth_service.dart';
+import 'package:my_app/arc/chat/services/lumara_reflection_settings_service.dart';
 
 /// Main LUMARA Assistant screen
 class LumaraAssistantScreen extends StatefulWidget {
@@ -61,6 +62,7 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
   JournalEntry? _currentEntry; // Store current entry for context
   bool _isDrawerOpen = false; // Track drawer state
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+  final GlobalKey _lengthMenuKey = GlobalKey();
   
   // Scroll position tracking for scroll buttons
   bool _showScrollToTop = false;
@@ -1335,6 +1337,14 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
                 tooltip: 'Send',
               ),
               IconButton(
+                key: _lengthMenuKey,
+                icon: const Icon(Icons.expand_more, size: 20),
+                padding: const EdgeInsets.all(8),
+                constraints: const BoxConstraints(),
+                onPressed: _showLengthMenu,
+                tooltip: 'Choose reply length',
+              ),
+              IconButton(
                 icon: const Icon(Icons.palette, size: 20),
                 padding: const EdgeInsets.all(8),
                 constraints: const BoxConstraints(),
@@ -1398,6 +1408,43 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
       });
       // Don't dismiss keyboard - keep it open for next message
     }
+  }
+
+  Future<void> _showLengthMenu() async {
+    final anchorContext = _lengthMenuKey.currentContext;
+    final overlay = Overlay.of(context);
+    if (anchorContext == null || overlay == null) return;
+
+    final box = anchorContext.findRenderObject() as RenderBox?;
+    final overlayBox = overlay.context.findRenderObject() as RenderBox?;
+    if (box == null || overlayBox == null) return;
+
+    final offset = box.localToGlobal(Offset.zero, ancestor: overlayBox);
+
+    final selection = await showMenu<String>(
+      context: context,
+      position: RelativeRect.fromLTRB(
+        offset.dx,
+        offset.dy - 4,
+        overlayBox.size.width - offset.dx - box.size.width,
+        overlayBox.size.height - offset.dy - box.size.height,
+      ),
+      items: const [
+        PopupMenuItem(value: 'short', child: Text('Short (≤5 sentences)')),
+        PopupMenuItem(value: 'medium', child: Text('Medium (≤12 sentences)')),
+        PopupMenuItem(value: 'long', child: Text('Long (≤20 sentences)')),
+      ],
+    );
+
+    if (selection == null) return;
+
+    await LumaraReflectionSettingsService.instance
+        .setResponseLengthMode(selection);
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('LUMARA length set to ${selection.toUpperCase()}')),
+    );
   }
 
   void _startEditingMessage(LumaraMessage message) {

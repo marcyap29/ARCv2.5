@@ -63,19 +63,19 @@ class _SettingsViewState extends State<SettingsView> {
   bool _webAccessEnabled = false;
   bool _lumaraSettingsLoading = true;
   
-  // Response length state
-  bool _responseLengthAuto = true;
-  int _maxSentences = -1; // -1 means infinity
-  int _sentencesPerParagraph = 4;
-  bool _responseLengthLoading = true;
-  
-  // Memory Focus preset state
-  MemoryFocusPreset _memoryFocusPreset = MemoryFocusPreset.balanced;
-  bool _memoryFocusLoading = true;
-  
+// Response length state
+String _responseLengthMode = 'medium'; // short | medium | long
+int _maxSentences = 12;
+int _sentencesPerParagraph = 3;
+bool _responseLengthLoading = true;
+
   // Engagement settings state
   EngagementSettings _engagementSettings = const EngagementSettings();
   bool _engagementSettingsLoading = true;
+
+  // Memory Focus preset state
+  MemoryFocusPreset _memoryFocusPreset = MemoryFocusPreset.balanced;
+  bool _memoryFocusLoading = true;
   
   // Other LUMARA settings state
   bool _crossModalEnabled = true;
@@ -95,8 +95,8 @@ class _SettingsViewState extends State<SettingsView> {
     _loadLumaraSettings();
     _loadResponseLengthSettings();
     _loadMemoryFocusPreset();
-    _loadEngagementSettings();
     _loadCrossModalSetting();
+    _loadEngagementSettings();
     _loadPhaseShareSettings();
   }
   
@@ -227,12 +227,12 @@ class _SettingsViewState extends State<SettingsView> {
     try {
       final settingsService = LumaraReflectionSettingsService.instance;
       await settingsService.initialize();
-      final auto = await settingsService.isResponseLengthAuto();
+      final mode = await settingsService.getResponseLengthMode();
       final maxSent = await settingsService.getMaxSentences();
       final sentPerPara = await settingsService.getSentencesPerParagraph();
       if (mounted) {
         setState(() {
-          _responseLengthAuto = auto;
+          _responseLengthMode = mode;
           _maxSentences = maxSent;
           _sentencesPerParagraph = sentPerPara;
           _responseLengthLoading = false;
@@ -269,6 +269,27 @@ class _SettingsViewState extends State<SettingsView> {
     }
   }
   
+  Future<void> _loadCrossModalSetting() async {
+    try {
+      final settingsService = LumaraReflectionSettingsService.instance;
+      await settingsService.initialize();
+      final enabled = await settingsService.isCrossModalEnabled();
+      if (mounted) {
+        setState(() {
+          _crossModalEnabled = enabled;
+          _crossModalLoading = false;
+        });
+      }
+    } catch (e) {
+      print('Error loading cross-modal setting: $e');
+      if (mounted) {
+        setState(() {
+          _crossModalLoading = false;
+        });
+      }
+    }
+  }
+
   Future<void> _loadEngagementSettings() async {
     try {
       final settingsService = LumaraReflectionSettingsService.instance;
@@ -290,49 +311,21 @@ class _SettingsViewState extends State<SettingsView> {
     }
   }
   
-  Future<void> _loadCrossModalSetting() async {
-    try {
-      final settingsService = LumaraReflectionSettingsService.instance;
-      await settingsService.initialize();
-      final enabled = await settingsService.isCrossModalEnabled();
-      if (mounted) {
-        setState(() {
-          _crossModalEnabled = enabled;
-          _crossModalLoading = false;
-        });
-      }
-    } catch (e) {
-      print('Error loading cross-modal setting: $e');
-      if (mounted) {
-        setState(() {
-          _crossModalLoading = false;
-        });
-      }
+  Future<void> _setResponseLengthMode(String mode) async {
+    final normalized = (mode == 'short' || mode == 'long') ? mode : 'medium';
+    final settingsService = LumaraReflectionSettingsService.instance;
+    await settingsService.setResponseLengthMode(normalized);
+
+    final max = await settingsService.getMaxSentences();
+    final spp = await settingsService.getSentencesPerParagraph();
+
+    if (mounted) {
+      setState(() {
+        _responseLengthMode = normalized;
+        _maxSentences = max;
+        _sentencesPerParagraph = spp;
+      });
     }
-  }
-  
-  Future<void> _setResponseLengthAuto(bool value) async {
-    setState(() {
-      _responseLengthAuto = value;
-    });
-    final settingsService = LumaraReflectionSettingsService.instance;
-    await settingsService.setResponseLengthAuto(value);
-  }
-  
-  Future<void> _setMaxSentences(int value) async {
-    setState(() {
-      _maxSentences = value;
-    });
-    final settingsService = LumaraReflectionSettingsService.instance;
-    await settingsService.setMaxSentences(value);
-  }
-  
-  Future<void> _setSentencesPerParagraph(int value) async {
-    setState(() {
-      _sentencesPerParagraph = value;
-    });
-    final settingsService = LumaraReflectionSettingsService.instance;
-    await settingsService.setSentencesPerParagraph(value);
   }
   
   Future<void> _setTherapeuticDepthLevel(int level) async {
@@ -1011,12 +1004,28 @@ class _SettingsViewState extends State<SettingsView> {
     );
   }
   
-  /// Build response length card with toggle and sliders
+  /// Build response length card with simple modes
   Widget _buildResponseLengthCard() {
-    final sentenceOptions = [3, 5, 10, 15, 20, -1]; // -1 means infinity
-    final sentenceLabels = ['3', '5', '10', '15', '20', '∞'];
-    final paragraphOptions = [3, 4, 5];
-    
+    final modes = [
+      {'key': 'short', 'label': 'Short', 'limit': 'Up to 5 sentences'},
+      {'key': 'medium', 'label': 'Medium', 'limit': 'Up to 12 sentences'},
+      {'key': 'long', 'label': 'Long', 'limit': 'Up to 20 sentences'},
+    ];
+
+    String limitText;
+    switch (_responseLengthMode) {
+      case 'short':
+        limitText = 'Short: up to 5 sentences. One paragraph max (3 sentences).';
+        break;
+      case 'long':
+        limitText = 'Long: up to 20 sentences. Max 3 sentences per paragraph.';
+        break;
+      case 'medium':
+      default:
+        limitText = 'Medium: up to 12 sentences. Max 3 sentences per paragraph.';
+        break;
+    }
+
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(16),
@@ -1050,9 +1059,7 @@ class _SettingsViewState extends State<SettingsView> {
                       ),
                     ),
                     Text(
-                      _responseLengthAuto 
-                          ? 'Auto: LUMARA chooses appropriate length'
-                          : 'Manual: Set sentence and paragraph limits',
+                      limitText,
                       style: bodyStyle(context).copyWith(
                         color: kcSecondaryTextColor,
                         fontSize: 12,
@@ -1070,248 +1077,65 @@ class _SettingsViewState extends State<SettingsView> {
             ],
           ),
           const SizedBox(height: 16),
-          // Toggle: Auto / Off
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Mode',
-                style: bodyStyle(context).copyWith(
-                  color: kcPrimaryTextColor,
-                  fontWeight: FontWeight.w500,
+            children: modes.map((mode) {
+              final isSelected = _responseLengthMode == mode['key'];
+              return Expanded(
+                child: GestureDetector(
+                  onTap: _responseLengthLoading
+                      ? null
+                      : () => _setResponseLengthMode(mode['key'] as String),
+                  child: Container(
+                    margin: EdgeInsets.only(
+                        right: mode['key'] == 'long' ? 0 : 8),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? kcAccentColor.withValues(alpha: 0.3)
+                          : Colors.transparent,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: isSelected
+                            ? kcAccentColor
+                            : Colors.white.withValues(alpha: 0.2),
+                      ),
+                    ),
+                    child: Column(
+                      children: [
+                        Text(
+                          mode['label'] as String,
+                          style: bodyStyle(context).copyWith(
+                            color: isSelected
+                                ? kcAccentColor
+                                : kcSecondaryTextColor,
+                            fontWeight:
+                                isSelected ? FontWeight.w600 : FontWeight.normal,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          mode['limit'] as String,
+                          textAlign: TextAlign.center,
+                          style: bodyStyle(context).copyWith(
+                            color: kcSecondaryTextColor,
+                            fontSize: 11,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-              ),
-              Row(
-                children: [
-                  GestureDetector(
-                    onTap: _responseLengthLoading ? null : () => _setResponseLengthAuto(true),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: _responseLengthAuto 
-                            ? kcAccentColor.withValues(alpha: 0.3)
-                            : Colors.transparent,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                          color: _responseLengthAuto 
-                              ? kcAccentColor
-                              : Colors.white.withValues(alpha: 0.3),
-                        ),
-                      ),
-                      child: Text(
-                        'Auto',
-                        style: bodyStyle(context).copyWith(
-                          color: _responseLengthAuto 
-                              ? kcAccentColor
-                              : kcSecondaryTextColor,
-                          fontWeight: _responseLengthAuto ? FontWeight.w600 : FontWeight.normal,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  GestureDetector(
-                    onTap: _responseLengthLoading ? null : () => _setResponseLengthAuto(false),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: !_responseLengthAuto 
-                            ? kcAccentColor.withValues(alpha: 0.3)
-                            : Colors.transparent,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                          color: !_responseLengthAuto 
-                              ? kcAccentColor
-                              : Colors.white.withValues(alpha: 0.3),
-                        ),
-                      ),
-                      child: Text(
-                        'Off',
-                        style: bodyStyle(context).copyWith(
-                          color: !_responseLengthAuto 
-                              ? kcAccentColor
-                              : kcSecondaryTextColor,
-                          fontWeight: !_responseLengthAuto ? FontWeight.w600 : FontWeight.normal,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
+              );
+            }).toList(),
           ),
-          if (!_responseLengthAuto) ...[
-            const SizedBox(height: 20),
-            // Sentence Number Slider
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Sentence Number',
-                      style: bodyStyle(context).copyWith(
-                        color: kcPrimaryTextColor,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: kcAccentColor.withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        _maxSentences == -1 ? '∞' : '$_maxSentences',
-                        style: bodyStyle(context).copyWith(
-                          color: kcAccentColor,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: sentenceOptions.asMap().entries.map((entry) {
-                    final index = entry.key;
-                    final value = entry.value;
-                    final isSelected = _maxSentences == value;
-                    return Expanded(
-                      child: GestureDetector(
-                        onTap: _responseLengthLoading ? null : () => _setMaxSentences(value),
-                        child: Container(
-                          margin: EdgeInsets.only(right: index < sentenceOptions.length - 1 ? 4 : 0),
-                          padding: const EdgeInsets.symmetric(vertical: 8),
-                          decoration: BoxDecoration(
-                            color: isSelected 
-                                ? kcAccentColor.withValues(alpha: 0.3)
-                                : Colors.transparent,
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(
-                              color: isSelected 
-                                  ? kcAccentColor
-                                  : Colors.white.withValues(alpha: 0.2),
-                            ),
-                          ),
-                          child: Text(
-                            sentenceLabels[index],
-                            textAlign: TextAlign.center,
-                            style: bodyStyle(context).copyWith(
-                              color: isSelected 
-                                  ? kcAccentColor
-                                  : kcSecondaryTextColor,
-                              fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ),
-                      ),
-                    );
-                  }).toList(),
-                ),
-              ],
+          const SizedBox(height: 12),
+          Text(
+            'Strict limits: max 3 sentences per paragraph. Short responses can stay in a single paragraph.',
+            style: bodyStyle(context).copyWith(
+              color: kcSecondaryTextColor,
+              fontSize: 12,
             ),
-            const SizedBox(height: 20),
-            // Sentences per Paragraph Slider
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Sentences per Paragraph',
-                      style: bodyStyle(context).copyWith(
-                        color: kcPrimaryTextColor,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: kcAccentColor.withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        '$_sentencesPerParagraph',
-                        style: bodyStyle(context).copyWith(
-                          color: kcAccentColor,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: paragraphOptions.map((value) {
-                    final isSelected = _sentencesPerParagraph == value;
-                    return Expanded(
-                      child: GestureDetector(
-                        onTap: _responseLengthLoading ? null : () => _setSentencesPerParagraph(value),
-                        child: Container(
-                          margin: EdgeInsets.only(right: value < paragraphOptions.last ? 4 : 0),
-                          padding: const EdgeInsets.symmetric(vertical: 8),
-                          decoration: BoxDecoration(
-                            color: isSelected 
-                                ? kcAccentColor.withValues(alpha: 0.3)
-                                : Colors.transparent,
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(
-                              color: isSelected 
-                                  ? kcAccentColor
-                                  : Colors.white.withValues(alpha: 0.2),
-                            ),
-                          ),
-                          child: Text(
-                            '$value',
-                            textAlign: TextAlign.center,
-                            style: bodyStyle(context).copyWith(
-                              color: isSelected 
-                                  ? kcAccentColor
-                                  : kcSecondaryTextColor,
-                              fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ),
-                      ),
-                    );
-                  }).toList(),
-                ),
-              ],
-            ),
-          ] else ...[
-            // Grayed out placeholder when Auto is selected
-            Opacity(
-              opacity: 0.5,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 12),
-                  Text(
-                    'Sentence Number: Auto',
-                    style: bodyStyle(context).copyWith(
-                      color: kcSecondaryTextColor,
-                      fontSize: 12,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Sentences per Paragraph: Auto',
-                    style: bodyStyle(context).copyWith(
-                      color: kcSecondaryTextColor,
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
+          ),
         ],
       ),
     );
@@ -1422,6 +1246,256 @@ class _SettingsViewState extends State<SettingsView> {
       ),
     );
   }
+
+  /// Build Engagement Mode card
+  Widget _buildEngagementModeCard() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            child: Row(
+              children: [
+                Icon(Icons.tune, color: kcAccentColor, size: 24),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Engagement Mode',
+                        style: heading3Style(context).copyWith(
+                          color: kcPrimaryTextColor,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'How deeply LUMARA engages with your reflections',
+                        style: bodyStyle(context).copyWith(
+                          color: kcSecondaryTextColor,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (_engagementSettingsLoading)
+                  const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+              ],
+            ),
+          ),
+          const Divider(height: 1, color: Colors.white12),
+          ...EngagementMode.values.map((mode) => _buildEngagementModeOption(mode)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEngagementModeOption(EngagementMode mode) {
+    final isSelected = _engagementSettings.defaultMode == mode;
+    return InkWell(
+      onTap: _engagementSettingsLoading ? null : () => _setEngagementMode(mode),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
+          children: [
+            Container(
+              width: 20,
+              height: 20,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: isSelected ? kcAccentColor : Colors.white38,
+                  width: 2,
+                ),
+              ),
+              child: isSelected
+                  ? Center(
+                      child: Container(
+                        width: 10,
+                        height: 10,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: kcAccentColor,
+                        ),
+                      ),
+                    )
+                  : null,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    mode.displayName,
+                    style: bodyStyle(context).copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: isSelected ? kcAccentColor : kcPrimaryTextColor,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    mode.description,
+                    style: bodyStyle(context).copyWith(
+                      fontSize: 11,
+                      color: kcSecondaryTextColor,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _setEngagementMode(EngagementMode mode) async {
+    try {
+      final settingsService = LumaraReflectionSettingsService.instance;
+      final updated = _engagementSettings.copyWith(defaultMode: mode);
+      await settingsService.saveAllSettingsWithEngagement(
+        engagementSettings: updated,
+      );
+      if (mounted) {
+        setState(() {
+          _engagementSettings = updated;
+        });
+      }
+    } catch (e) {
+      print('Error setting engagement mode: $e');
+    }
+  }
+
+  /// Build Cross-Domain Synthesis toggle
+  Widget _buildCrossDomainSynthesisToggle() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+      ),
+      child: SwitchListTile(
+        title: Text(
+          'Cross-Domain Connections',
+          style: heading3Style(context).copyWith(
+            color: kcPrimaryTextColor,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        subtitle: Text(
+          'Allow LUMARA to connect themes across different life areas',
+          style: bodyStyle(context).copyWith(
+            color: kcSecondaryTextColor,
+          ),
+        ),
+        value: _engagementSettings.synthesisPreferences.allowCrossDomainSynthesis,
+        onChanged: _engagementSettingsLoading
+            ? null
+            : (value) => _setCrossDomainSynthesis(value),
+        secondary: Icon(
+          Icons.hub,
+          color: kcAccentColor,
+          size: 24,
+        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      ),
+    );
+  }
+
+  Future<void> _setCrossDomainSynthesis(bool value) async {
+    try {
+      final settingsService = LumaraReflectionSettingsService.instance;
+      final updated = _engagementSettings.copyWith(
+        synthesisPreferences: _engagementSettings.synthesisPreferences.copyWith(
+          allowCrossDomainSynthesis: value,
+        ),
+      );
+      await settingsService.saveAllSettingsWithEngagement(
+        engagementSettings: updated,
+      );
+      if (mounted) {
+        setState(() {
+          _engagementSettings = updated;
+        });
+      }
+    } catch (e) {
+      print('Error setting cross-domain synthesis: $e');
+    }
+  }
+
+  /// Build Therapeutic Language toggle
+  Widget _buildTherapeuticLanguageToggle() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+      ),
+      child: SwitchListTile(
+        title: Text(
+          'Therapeutic Language',
+          style: heading3Style(context).copyWith(
+            color: kcPrimaryTextColor,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        subtitle: Text(
+          'Allow therapy-style phrasing and direct advice',
+          style: bodyStyle(context).copyWith(
+            color: kcSecondaryTextColor,
+          ),
+        ),
+        value: _engagementSettings.responseDiscipline.allowTherapeuticLanguage,
+        onChanged: _engagementSettingsLoading
+            ? null
+            : (value) => _setTherapeuticLanguage(value),
+        secondary: Icon(
+          Icons.healing,
+          color: kcAccentColor,
+          size: 24,
+        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      ),
+    );
+  }
+
+  Future<void> _setTherapeuticLanguage(bool value) async {
+    try {
+      final settingsService = LumaraReflectionSettingsService.instance;
+      final updated = _engagementSettings.copyWith(
+        responseDiscipline: _engagementSettings.responseDiscipline.copyWith(
+          allowTherapeuticLanguage: value,
+        ),
+      );
+      await settingsService.saveAllSettingsWithEngagement(
+        engagementSettings: updated,
+      );
+      if (mounted) {
+        setState(() {
+          _engagementSettings = updated;
+        });
+      }
+    } catch (e) {
+      print('Error setting therapeutic language: $e');
+    }
+  }
+
 
   /// Build a persona option radio tile
   Widget _buildPersonaOption(LumaraPersona persona) {
@@ -2020,255 +2094,6 @@ class _SettingsViewState extends State<SettingsView> {
       }
     } catch (e) {
       print('Error setting memory focus preset: $e');
-    }
-  }
-  
-  /// Build Engagement Mode card
-  Widget _buildEngagementModeCard() {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-            child: Row(
-              children: [
-                Icon(Icons.tune, color: kcAccentColor, size: 24),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Engagement Mode',
-                        style: heading3Style(context).copyWith(
-                          color: kcPrimaryTextColor,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        'How deeply LUMARA engages with your reflections',
-                        style: bodyStyle(context).copyWith(
-                          color: kcSecondaryTextColor,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                if (_engagementSettingsLoading)
-                  const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  ),
-              ],
-            ),
-          ),
-          const Divider(height: 1, color: Colors.white12),
-          ...EngagementMode.values.map((mode) => _buildEngagementModeOption(mode)),
-        ],
-      ),
-    );
-  }
-  
-  Widget _buildEngagementModeOption(EngagementMode mode) {
-    final isSelected = _engagementSettings.defaultMode == mode;
-    return InkWell(
-      onTap: _engagementSettingsLoading ? null : () => _setEngagementMode(mode),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        child: Row(
-          children: [
-            Container(
-              width: 20,
-              height: 20,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: isSelected ? kcAccentColor : Colors.white38,
-                  width: 2,
-                ),
-              ),
-              child: isSelected
-                  ? Center(
-                      child: Container(
-                        width: 10,
-                        height: 10,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: kcAccentColor,
-                        ),
-                      ),
-                    )
-                  : null,
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    mode.displayName,
-                    style: bodyStyle(context).copyWith(
-                      fontWeight: FontWeight.w600,
-                      color: isSelected ? kcAccentColor : kcPrimaryTextColor,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    mode.description,
-                    style: bodyStyle(context).copyWith(
-                      fontSize: 11,
-                      color: kcSecondaryTextColor,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-  
-  Future<void> _setEngagementMode(EngagementMode mode) async {
-    try {
-      final settingsService = LumaraReflectionSettingsService.instance;
-      final updated = _engagementSettings.copyWith(defaultMode: mode);
-      await settingsService.saveAllSettingsWithEngagement(
-        engagementSettings: updated,
-      );
-      if (mounted) {
-        setState(() {
-          _engagementSettings = updated;
-        });
-      }
-    } catch (e) {
-      print('Error setting engagement mode: $e');
-    }
-  }
-  
-  /// Build Cross-Domain Synthesis toggle
-  Widget _buildCrossDomainSynthesisToggle() {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
-      ),
-      child: SwitchListTile(
-        title: Text(
-          'Cross-Domain Connections',
-          style: heading3Style(context).copyWith(
-            color: kcPrimaryTextColor,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-        subtitle: Text(
-          'Allow LUMARA to connect themes across different life areas',
-          style: bodyStyle(context).copyWith(
-            color: kcSecondaryTextColor,
-          ),
-        ),
-        value: _engagementSettings.synthesisPreferences.allowCrossDomainSynthesis,
-        onChanged: _engagementSettingsLoading
-            ? null
-            : (value) => _setCrossDomainSynthesis(value),
-        secondary: Icon(
-          Icons.hub,
-          color: kcAccentColor,
-          size: 24,
-        ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      ),
-    );
-  }
-  
-  Future<void> _setCrossDomainSynthesis(bool value) async {
-    try {
-      final settingsService = LumaraReflectionSettingsService.instance;
-      final updated = _engagementSettings.copyWith(
-        synthesisPreferences: _engagementSettings.synthesisPreferences.copyWith(
-          allowCrossDomainSynthesis: value,
-        ),
-      );
-      await settingsService.saveAllSettingsWithEngagement(
-        engagementSettings: updated,
-      );
-      if (mounted) {
-        setState(() {
-          _engagementSettings = updated;
-        });
-      }
-    } catch (e) {
-      print('Error setting cross-domain synthesis: $e');
-    }
-  }
-  
-  /// Build Therapeutic Language toggle
-  Widget _buildTherapeuticLanguageToggle() {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
-      ),
-      child: SwitchListTile(
-        title: Text(
-          'Therapeutic Language',
-          style: heading3Style(context).copyWith(
-            color: kcPrimaryTextColor,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-        subtitle: Text(
-          'Allow therapy-style phrasing and direct advice',
-          style: bodyStyle(context).copyWith(
-            color: kcSecondaryTextColor,
-          ),
-        ),
-        value: _engagementSettings.responseDiscipline.allowTherapeuticLanguage,
-        onChanged: _engagementSettingsLoading
-            ? null
-            : (value) => _setTherapeuticLanguage(value),
-        secondary: Icon(
-          Icons.healing,
-          color: kcAccentColor,
-          size: 24,
-        ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      ),
-    );
-  }
-  
-  Future<void> _setTherapeuticLanguage(bool value) async {
-    try {
-      final settingsService = LumaraReflectionSettingsService.instance;
-      final updated = _engagementSettings.copyWith(
-        responseDiscipline: _engagementSettings.responseDiscipline.copyWith(
-          allowTherapeuticLanguage: value,
-        ),
-      );
-      await settingsService.saveAllSettingsWithEngagement(
-        engagementSettings: updated,
-      );
-      if (mounted) {
-        setState(() {
-          _engagementSettings = updated;
-        });
-      }
-    } catch (e) {
-      print('Error setting therapeutic language: $e');
     }
   }
   

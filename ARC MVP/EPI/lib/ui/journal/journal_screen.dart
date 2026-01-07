@@ -711,41 +711,41 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
 
   void _onLumaraFabTapped() async {
     _analytics.logLumaraEvent('fab_tapped');
-    
-    // Check if entry is empty - if so, show confirmation dialog for journaling prompt
-    if (_entryState.text.trim().isEmpty) {
-      final shouldGetPrompt = await showDialog<bool>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Get a Journaling Prompt?'),
-          content: const Text(
-            'Would you like LUMARA to suggest a writing prompt based on your entries, chats, drafts, media, and current phase?',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('No, thanks'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('Yes, please'),
-            ),
-          ],
-        ),
-      );
-      
-      if (shouldGetPrompt == true) {
-        await _generateJournalingPrompt();
-        return;
-      } else {
-        return; // User declined
-      }
-    }
-    
-    // If entry has text, directly generate a reflection using LUMARA
+
+    // Always generate LUMARA reflection for normal press
     _generateLumaraReflection();
   }
-  
+
+  void _onLumaraLongPress() async {
+    _analytics.logLumaraEvent('long_press');
+
+    // Only allow prompt generation if entry is completely empty
+    if (_entryState.text.trim().isEmpty) {
+      try {
+        await _generateJournalingPrompt();
+      } catch (e) {
+        print('Error in long press prompt generation: $e');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error generating prompt: $e'),
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
+      }
+    } else {
+      // Show message that long press only works with empty entries
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Long press for prompts only works when entry is empty'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    }
+  }
 
   Future<void> _generateLumaraReflectionWithIntent(String intent) async {
     // Store original text
@@ -880,14 +880,17 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
           }
         }
       } catch (fallbackError) {
-        // If even fallback fails, show error
+        // If even fallback fails, show basic traditional prompts
+        print('Fallback error: $fallbackError');
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Error generating prompts: $fallbackError'),
-              duration: const Duration(seconds: 3),
-            ),
-          );
+          final basicPrompts = [
+            'What\'s on your mind right now?',
+            'How are you feeling today?',
+            'What happened today that you want to remember?',
+            'What are you grateful for?',
+            'What\'s one thing you learned recently?'
+          ];
+          await _showPromptSelectionDialog(basicPrompts, [], [], currentPhase);
         }
       }
     }
@@ -2253,25 +2256,28 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
                         ),
                         
                               // LUMARA button
-                              IconButton(
+                              GestureDetector(
+                                onLongPress: _onLumaraLongPress,
+                                child: IconButton(
                           onPressed: _onLumaraFabTapped,
                           icon: LumaraIcon(
                             size: 18,
-                            color: _isLumaraConfigured 
-                              ? null 
+                            color: _isLumaraConfigured
+                              ? null
                               : theme.colorScheme.onSurface.withOpacity(0.5),
                           ),
-                                tooltip: 'LUMARA',
+                                tooltip: 'LUMARA (long-press for prompt when empty)',
                           padding: const EdgeInsets.all(4),
                           constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
                           style: IconButton.styleFrom(
-                            backgroundColor: _showLumaraBox 
+                            backgroundColor: _showLumaraBox
                               ? theme.colorScheme.primary.withOpacity(0.2)
-                              : _isLumaraConfigured 
-                                ? null 
+                              : _isLumaraConfigured
+                                ? null
                                 : theme.colorScheme.surface.withOpacity(0.5),
                           ),
-                        ),
+                                ),
+                              ),
                         
                         // Continue button
                               // Enable if entry has user text OR LUMARA blocks (allow entries that start with reflections)

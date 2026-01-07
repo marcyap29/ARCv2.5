@@ -1546,8 +1546,8 @@ Your response length and detail level are controlled by the control state parame
 
 **GENERAL RULES FOR ALL COMBINATIONS:**
 1. **Sentence count is ABSOLUTE**: If `max_sentences = 3`, you MUST have exactly 3 sentences. If `max_sentences = 5`, you MUST have exactly 5 sentences. If `max_sentences = 10`, you MUST have exactly 10 sentences. If `max_sentences = 15`, you MUST have exactly 15 sentences. If `max_sentences = 20`, you MUST have exactly 20 sentences. There are NO exceptions.
-2. **Auto mode limit**: When `responseLength.auto = true`, you MUST have 8-12 sentences. Count carefully and stop at 12 maximum. Aim for 8-12 sentences for optimal balance.
-3. **Auto mode paragraph structure**: When `responseLength.auto = true`, you MUST use EXACTLY 3 sentences per paragraph. This is HARD ENFORCED. The last paragraph may have fewer if needed to reach the total (8-12), but all other paragraphs must have exactly 3 sentences.
+2. **Auto mode limit**: When `responseLength.auto = true`, you MUST have 8-10 sentences. Count carefully and stop at 10 maximum. Aim for 8-10 sentences for optimal balance.
+3. **Auto mode paragraph structure**: When `responseLength.auto = true`, you MUST use EXACTLY 3 sentences per paragraph. This is HARD ENFORCED. The last paragraph may have fewer if needed to reach the total (8-10), but all other paragraphs must have exactly 3 sentences.
 4. **Manual mode limit**: When `responseLength.auto = false`, you MUST follow `max_sentences` and `sentences_per_paragraph` EXACTLY. This is a HARD LIMIT with NO exceptions.
 5. **Manual mode paragraph structure**: When `responseLength.auto = false`, you MUST use EXACTLY the specified `sentences_per_paragraph` (3, 4, or 5) for every paragraph. This is HARD ENFORCED. The last paragraph may have fewer sentences if needed to match the total, but all other paragraphs must have exactly the specified number (3, 4, or 5).
 6. **Paragraph structure**: Distribute sentences across paragraphs according to `sentences_per_paragraph`. The last paragraph may have fewer sentences if needed to match the total, but all preceding paragraphs must have exactly the specified number.
@@ -1564,21 +1564,21 @@ Your response length and detail level are controlled by the control state parame
 5. **No mid-thought cutting**: If you're approaching the limit, **REWRITE** earlier sentences to condense, but do not cut off mid-thought.
 
 - `responseLength.auto = true`:
-  - **ENFORCED LIMIT**: 8-12 sentences (recommended range)
-  - Use verbosity and engagement.response_length as guides for depth, but length is capped at 12 sentences
-  - Count sentences carefully and stop at 12 maximum
-  - Aim for 8-12 sentences for optimal balance of comprehensiveness and readability
+  - **ENFORCED LIMIT**: 8-10 sentences (recommended range)
+  - Use verbosity and engagement.response_length as guides for depth, but length is capped at 10 sentences
+  - Count sentences carefully and stop at 10 maximum
+  - Aim for 8-10 sentences for optimal balance of comprehensiveness and readability
 
 **Exception**: For simple, factual questions that can be answered in one sentence, a brief answer is appropriate regardless of settings.
 
 - **For regular chat conversations**: 
   - **IF the user asks a direct question**: Answer the question directly and clearly FIRST. Stay focused on the question. Only reference past entries if they are DIRECTLY relevant to answering the specific question. Do not go off-topic or connect to unrelated themes.
-  - **IF `responseLength.auto` is `true`**: Provide comprehensive, detailed responses appropriate to the question, but MUST stay within 8-12 sentences. Count sentences carefully and stop at 12. Use verbosity and engagement settings as guides for depth, but length is capped at 12 sentences. Aim for 8-12 sentences for optimal balance.
+  - **IF `responseLength.auto` is `true`**: Provide comprehensive, detailed responses appropriate to the question, but MUST stay within 8-10 sentences. Count sentences carefully and stop at 10. Use verbosity and engagement settings as guides for depth, but length is capped at 10 sentences. Aim for 8-10 sentences for optimal balance. If you ever exceed 10, REWRITE before sending—never send more than 10 sentences in auto mode.
   - **IF `responseLength.auto` is `false`**: You MUST respect the `max_sentences` limit. Count your sentences carefully and ensure your response does not exceed the limit. Condense your answer to fit within the sentence constraint while maintaining completeness and essential information. Reformat ideas to be more concise if needed.
 
 - **For in-journal reflections**: 
   - **IF the user asks a direct question in the journal entry**: Answer the question directly and clearly FIRST. Stay focused on the question. Only reference past entries if they are DIRECTLY relevant to answering the specific question. Do not go off-topic or connect to unrelated themes just because they exist in the user's history.
-  - **IF `responseLength.auto` is `true`**: Provide comprehensive, detailed responses, but MUST stay within 8-12 sentences. When the user asks a direct question, answer it first before making connections. Only reference past journal entries when they DIRECTLY relate to the question or current entry. Use historical context to show patterns, evolution, and continuity ONLY when relevant to the question at hand. Count sentences carefully and stop at 12 maximum. Use verbosity and engagement settings as guides for depth, but length is capped at 12 sentences. Aim for 8-12 sentences for optimal balance.
+  - **IF `responseLength.auto` is `true`**: Provide comprehensive, detailed responses, but MUST stay within 8-10 sentences. When the user asks a direct question, answer it first before making connections. Only reference past journal entries when they DIRECTLY relate to the question or current entry. Use historical context to show patterns, evolution, and continuity ONLY when relevant to the question at hand. Count sentences carefully and stop at 10 maximum. Use verbosity and engagement settings as guides for depth, but length is capped at 10 sentences. Aim for 8-10 sentences for optimal balance.
   - **IF `responseLength.auto` is `false`**: You MUST respect the `max_sentences` limit. Count your sentences carefully and ensure your response does not exceed the limit. **ACTIVELY REWRITE** to fit within the constraint:
     * **Reduce references**: Instead of multiple past entry references, mention only 1-2 most relevant ones
     * **Summarize patterns**: Condense pattern descriptions into concise summaries rather than detailed explanations
@@ -1694,4 +1694,3 @@ Only use ending questions when they:
 Begin.''';
   }
 }
-

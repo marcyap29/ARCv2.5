@@ -286,17 +286,18 @@ class SubscriptionService {
 
       // Ensure token is fresh (Firebase will auto-refresh if expired)
       final currentUser = authService.currentUser;
+      String? idToken;
       if (currentUser != null) {
         try {
           // Don't force refresh - Firebase automatically refreshes expired tokens
           // This is more efficient and handles token lifecycle properly
-          await currentUser.getIdToken(false);
+          idToken = await currentUser.getIdToken(false);
           debugPrint('SubscriptionService: ✅ Token ready for checkout Function call');
         } catch (e) {
           debugPrint('SubscriptionService: ⚠️ Token check failed, trying force refresh: $e');
           // If automatic refresh failed, try forcing it
           try {
-            await currentUser.getIdToken(true);
+            idToken = await currentUser.getIdToken(true);
             debugPrint('SubscriptionService: ✅ Token force-refreshed successfully');
           } catch (forceError) {
             debugPrint('SubscriptionService: ❌ Force refresh also failed: $forceError');
@@ -314,10 +315,11 @@ class SubscriptionService {
         'billingInterval': interval.apiValue,
         'successUrl': 'arc://subscription/success',
         'cancelUrl': 'arc://subscription/cancel',
+        if (idToken != null) 'idToken': idToken, // Fallback path if auth context is missing
       });
 
       final data = result.data as Map<String, dynamic>;
-      final checkoutUrl = data['url'] as String?;
+      final checkoutUrl = (data['url'] ?? data['checkoutUrl']) as String?;
 
       if (checkoutUrl != null && checkoutUrl.isNotEmpty) {
         debugPrint('SubscriptionService: 🚀 Launching checkout URL: $checkoutUrl');

@@ -229,10 +229,10 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
         intent: 'summary',
         phase: null,
         userId: null,
-        chatContext: 'Generate a brief 2-3 sentence summary based on the structured privacy-preserving payload. '
-            'Focus on the semantic summary, themes, and entities provided. '
-            'Capture the key points, main topics discussed, and any important insights. '
-            'Focus on what the user learned or reflected on.',
+        chatContext: 'Summarize this entry in 1-3 sentences, strictly no more. '
+            'Only state what was discussed or reflected on. '
+            'Do not include phase, mood, advice, or fluff. '
+            'Keep it concise and factual.',
         onProgress: (msg) => print('Summary generation: $msg'),
       );
       
@@ -240,7 +240,7 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
       
       // Step 4: Restore PII in the returned summary (for local display)
       final summaryWithPII = prismAdapter.restore(
-        result.reflection,
+        _constrainSummary(result.reflection),
         scrubbingResult.reversibleMap,
       );
       
@@ -252,6 +252,68 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
       print('Summary generation: Stack trace: $stackTrace');
       return '';
     }
+  }
+
+  /// Ensure the content has an up-to-date summary block at the top.
+  /// - If none exists, try to generate one and prepend it.
+  /// - If one exists, regenerate and replace when different (when refreshExisting is true).
+  /// Returns the content with the summary block (or original content if generation skipped).
+  Future<String> _ensureSummarySection({
+    required String content,
+    bool refreshExisting = true,
+  }) async {
+    final summaryPattern = RegExp(
+      r'^## Summary\s*\n\n(.+?)\n\n---\n\n',
+      dotAll: true,
+    );
+
+    String body = content;
+    String? existingSummary;
+    final match = summaryPattern.firstMatch(content);
+    if (match != null) {
+      existingSummary = match.group(1)?.trim();
+      body = content.substring(match.end);
+    }
+
+    final generatedSummary = await _generateSummary(body);
+    final trimmedGenerated = generatedSummary.trim();
+
+    // Decide which summary to use
+    String? finalSummary;
+    if (trimmedGenerated.isNotEmpty &&
+        (existingSummary == null ||
+            (refreshExisting && trimmedGenerated != existingSummary.trim()))) {
+      finalSummary = trimmedGenerated;
+    } else if (existingSummary != null) {
+      finalSummary = existingSummary;
+    }
+
+    if (finalSummary == null || finalSummary.isEmpty) {
+      return existingSummary != null ? content : body;
+    }
+
+    final constrained = _constrainSummary(finalSummary);
+    return '## Summary\n\n$constrained\n\n---\n\n$body';
+  }
+
+  /// Enforce 1-3 sentences and trim excessive length for summaries.
+  String _constrainSummary(String text) {
+    final normalized = text.trim();
+    if (normalized.isEmpty) return normalized;
+
+    // Split into sentences conservatively.
+    final sentences = normalized
+        .split(RegExp(r'(?<=[.!?])\s+'))
+        .where((s) => s.trim().isNotEmpty)
+        .toList();
+
+    final limited = sentences.take(3).join(' ').trim();
+
+    // Hard cap length to avoid run-ons.
+    const maxChars = 420;
+    final clipped = limited.length > maxChars ? '${limited.substring(0, maxChars).trimRight()}…' : limited;
+
+    return clipped;
   }
 
   JournalCaptureCubit(this._journalRepository) : super(JournalCaptureInitial()) {
@@ -398,10 +460,16 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
     List<MediaItem>? media,
   }) async {
     try {
+      // Ensure a summary block exists and is current
+      final contentWithSummary = await _ensureSummarySection(
+        content: content,
+        refreshExisting: true,
+      );
+
       // Use selected keywords if provided, otherwise extract from content using curated library
       final keywords = selectedKeywords?.isNotEmpty == true 
           ? selectedKeywords! 
-          : await _extractKeywordsFromLibrary(content, mood);
+          : await _extractKeywordsFromLibrary(contentWithSummary, mood);
       
       // Generate overview for the entry
       String? overview;
@@ -418,8 +486,8 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
       final now = DateTime.now();
       final entry = JournalEntry(
         id: const Uuid().v4(),
-        title: _generateTitle(content),
-        content: content, // Content without auto-added phase hashtag
+        title: _generateTitle(contentWithSummary),
+        content: contentWithSummary, // Content includes summary header
         createdAt: now,
         updatedAt: now,
         tags: const [], // Tags could be extracted from content in a more advanced implementation
@@ -489,11 +557,17 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
     }) async {
     try {
       final entryDate = DateTime.now();
+
+      // Generate or refresh summary before adding phase hashtag
+      final contentWithSummary = await _ensureSummarySection(
+        content: content,
+        refreshExisting: true,
+      );
       
       // Use selected keywords if provided, otherwise extract from content using curated library
       final keywords = selectedKeywords?.isNotEmpty == true 
           ? selectedKeywords! 
-          : await _extractKeywordsFromLibrary(content, mood);
+          : await _extractKeywordsFromLibrary(contentWithSummary, mood);
       
       // Phase hashtag auto-addition DISABLED - using autoPhase/userPhaseOverride/regimes instead
       // Keep content clean, phase is tracked via proper fields
@@ -501,8 +575,8 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
       final now = entryDate;
       final entry = JournalEntry(
         id: const Uuid().v4(),
-        title: _generateTitle(content),
-        content: content, // Keep content clean - no hashtag injection
+        title: _generateTitle(contentWithSummary),
+        content: contentWithSummary, // Keep content clean - no hashtag injection
         createdAt: now,
         updatedAt: now,
         tags: const [],
@@ -747,14 +821,11 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
         print('DEBUG: Adjusted entry date to match latest photo: $entryDate (offset: ${dateOffset.inHours} hours ${dateOffset.inMinutes.remainder(60)} minutes)');
       }
       
-      // Generate summary before adding phase hashtag
-      String contentWithSummary = content;
-      final summary = await _generateSummary(content);
-      
-      if (summary.isNotEmpty) {
-        // Prepend summary to content
-        contentWithSummary = '## Summary\n\n$summary\n\n---\n\n$content';
-      }
+      // Generate or refresh summary before adding phase hashtag
+      final contentWithSummary = await _ensureSummarySection(
+        content: content,
+        refreshExisting: true,
+      );
       
       // Automatically add phase hashtag to content if missing
       // Uses Phase Regime system (date-based) to determine phase
@@ -954,6 +1025,12 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
   }) async {
     try {
       final entryDate = DateTime.now();
+
+      // Generate or refresh summary before saving
+      final contentWithSummary = await _ensureSummarySection(
+        content: content,
+        refreshExisting: true,
+      );
       
       // Generate overview for the entry
       String? overview;
@@ -973,8 +1050,8 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
       final now = entryDate;
       final entry = JournalEntry(
         id: const Uuid().v4(),
-        title: _generateTitle(content),
-        content: content, // Keep content clean - no hashtag injection
+        title: _generateTitle(contentWithSummary),
+        content: contentWithSummary, // Keep content clean - no hashtag injection
         createdAt: now,
         updatedAt: now,
         tags: const [],
@@ -1025,6 +1102,12 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
   }) async {
     try {
       final entryDate = DateTime.now();
+
+      // Generate or refresh summary before saving
+      final contentWithSummary = await _ensureSummarySection(
+        content: content,
+        refreshExisting: true,
+      );
       
       // Generate overview for the entry
       String? overview;
@@ -1044,8 +1127,8 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
       final now = entryDate;
       final entry = JournalEntry(
         id: const Uuid().v4(),
-        title: _generateTitle(content),
-        content: content, // Keep content clean - no hashtag injection
+        title: _generateTitle(contentWithSummary),
+        content: contentWithSummary, // Keep content clean - no hashtag injection
         createdAt: now,
         updatedAt: now,
         tags: const [],
@@ -1099,6 +1182,7 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
     List<Map<String, dynamic>>? blocks,
     String? title,
     bool allowTimestampEditing = false, // Only allow when editing from timeline
+    bool enableAutoSummary = false, // Backward-compatible summary generation for edits
   }) async {
     try {
       print('DEBUG: JournalCaptureCubit.updateEntryWithKeywords - Existing media count: ${existingEntry.media.length}');
@@ -1143,11 +1227,16 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
         metadata['originalCreatedAt'] = originalCreatedAt.toIso8601String();
       }
 
+      // Optionally generate or refresh summary when editing legacy entries
+      final contentWithSummary = enableAutoSummary
+          ? await _ensureSummarySection(content: content, refreshExisting: true)
+          : content;
+
       // Automatically add phase hashtag to content if missing
       // Uses Phase Regime system (date-based) to determine phase
       // Use final creation date for phase determination
       final contentWithPhase = await _ensurePhaseHashtagInContent(
-        content: content,
+        content: contentWithSummary,
         entryDate: originalCreatedAt, // Always use original creation date
         emotion: emotion,
         emotionReason: emotionReason,

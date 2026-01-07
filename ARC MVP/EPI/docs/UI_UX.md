@@ -1,6 +1,6 @@
 # EPI MVP - UI/UX Feature Documentation
 
-**Version:** 2.1.85
+**Version:** 2.1.86
 **Last Updated:** January 7, 2026
 **Status:** ✅ Comprehensive Feature Analysis Complete
 
@@ -292,7 +292,9 @@ Media Capture → Keyword Analysis → Save to Timeline
 - **Audio Output:** Text-to-Speech for AI responses
 - **Message Editing:** In-place editing with state tracking
 - **Dynamic Visibility:** Context-aware input field display
-- **Intelligent Response Classification (v2.1.85):** Transparent background classification system that optimizes LUMARA responses without UI changes
+- **Intelligent Response Classification (v2.1.85-86):** Transparent background classification system with enhanced privacy processing that optimizes LUMARA responses without UI changes
+  - **Classification-Aware Privacy (v2.1.86)**: Enhanced PRISM system provides better semantic context for technical content while maintaining full privacy for personal entries
+  - **No User Interface Changes**: All enhancements happen transparently in the background
 - **Enhanced Text Formatting:** Professional paragraph formatting for LUMARA responses
   - **Chat-Specific Rules:** Fixed 3 sentences per paragraph for consistent readability
   - **Simplified Processing:** Streamlined paragraph logic for improved performance

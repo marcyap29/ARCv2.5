@@ -408,25 +408,27 @@ class LumaraControlStateBuilder {
     // J. RESPONSE LENGTH CONTROLS
     // ============================================================
     final responseLength = <String, dynamic>{};
-    
     try {
       final settingsService = LumaraReflectionSettingsService.instance;
       await settingsService.initialize();
-      
-      final isAuto = await settingsService.isResponseLengthAuto();
-      final maxSentences = await settingsService.getMaxSentences();
-      final sentencesPerParagraph = await settingsService.getSentencesPerParagraph();
-      
-      responseLength['auto'] = isAuto;
-      if (!isAuto) {
-        responseLength['max_sentences'] = maxSentences; // -1 means infinity
-        responseLength['sentences_per_paragraph'] = sentencesPerParagraph;
-      }
+
+      final mode = await settingsService.getResponseLengthMode(); // short|medium|long
+      final mapping = {
+        'short': 5,
+        'medium': 12,
+        'long': 20,
+      };
+      final maxSentences = mapping[mode] ?? 12;
+      responseLength['auto'] = false;
+      responseLength['max_sentences'] = maxSentences;
+      responseLength['sentences_per_paragraph'] = 3;
+      responseLength['mode'] = mode;
     } catch (e) {
-      // Default to auto if error
-      responseLength['auto'] = true;
+      responseLength['auto'] = false;
+      responseLength['max_sentences'] = 12;
+      responseLength['sentences_per_paragraph'] = 3;
+      responseLength['mode'] = 'medium';
     }
-    
     state['responseLength'] = responseLength;
 
     // ============================================================
@@ -1127,4 +1129,3 @@ class LumaraControlStateBuilder {
     }
   }
 }
-

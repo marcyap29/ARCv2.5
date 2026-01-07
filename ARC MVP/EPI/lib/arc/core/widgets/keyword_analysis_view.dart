@@ -59,6 +59,7 @@ class _KeywordAnalysisViewState extends State<KeywordAnalysisView>
   final JournalRepository _journalRepository = JournalRepository();
   List<String> _pastKeywords = [];
   List<String> _filteredSuggestions = [];
+  bool _generateSummaryForEdit = false;
 
   @override
   void initState() {
@@ -69,6 +70,10 @@ class _KeywordAnalysisViewState extends State<KeywordAnalysisView>
       _titleController.text = widget.title!;
     } else if (widget.existingEntry != null && widget.existingEntry!.title.isNotEmpty) {
       _titleController.text = widget.existingEntry!.title;
+    }
+    // Default summary toggle: on when editing an older entry that lacks a summary block
+    if (widget.existingEntry != null && !widget.content.trim().startsWith('## Summary')) {
+      _generateSummaryForEdit = true;
     }
     
     // Load past keywords for autocomplete
@@ -238,6 +243,7 @@ class _KeywordAnalysisViewState extends State<KeywordAnalysisView>
         blocks: widget.lumaraBlocks, // Pass LUMARA blocks
         title: _titleController.text.trim(),
         allowTimestampEditing: widget.isTimelineEditing, // Allow timestamp editing only when editing from timeline
+        enableAutoSummary: _generateSummaryForEdit,
       );
       
       // Show success message with keyword count
@@ -639,9 +645,14 @@ class _KeywordAnalysisViewState extends State<KeywordAnalysisView>
 
   Widget _buildKeywordAnalysis(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16.0),
+      padding: EdgeInsets.only(
+        left: 16.0,
+        right: 16.0,
+        top: 16.0,
+        bottom: 16.0 + MediaQuery.of(context).viewInsets.bottom,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -701,6 +712,12 @@ class _KeywordAnalysisViewState extends State<KeywordAnalysisView>
             }),
             const SizedBox(height: 24.0),
           ],
+
+          // Optional summary generation for edits (timeline/backward compatibility)
+          if (widget.existingEntry != null) ...[
+            _buildSummaryToggle(context),
+            const SizedBox(height: 24.0),
+          ],
           
           // Manual keyword input
           _buildManualKeywordInput(context, theme),
@@ -736,22 +753,86 @@ class _KeywordAnalysisViewState extends State<KeywordAnalysisView>
               spacing: 8.0,
               runSpacing: 8.0,
               children: widget.selectedKeywords!.map((keyword) {
-                return Chip(
+                return InputChip(
                   label: Text(
                     keyword,
                     style: TextStyle(
-                      color: theme.colorScheme.primary,
-                      fontSize: 12,
+                      color: theme.colorScheme.onPrimaryContainer,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
-                  backgroundColor: theme.colorScheme.primary.withOpacity(0.1),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  backgroundColor: theme.colorScheme.primary.withOpacity(0.12),
                   side: BorderSide(
-                    color: theme.colorScheme.primary.withOpacity(0.3),
+                    color: theme.colorScheme.primary.withOpacity(0.4),
+                    width: 1.2,
                   ),
+                  deleteIcon: Container(
+                    padding: const EdgeInsets.all(2),
+                    child: Icon(
+                      Icons.close,
+                      size: 20,
+                      color: theme.colorScheme.primary,
+                    ),
+                  ),
+                  onDeleted: () {
+                    setState(() {
+                      widget.selectedKeywords?.remove(keyword);
+                      widget.manualKeywords?.remove(keyword);
+                    });
+                  },
+                  visualDensity: VisualDensity.comfortable,
                 );
               }).toList(),
             ),
           ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSummaryToggle(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.all(16.0),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.3),
+        borderRadius: BorderRadius.circular(12.0),
+        border: Border.all(
+          color: theme.colorScheme.outline.withOpacity(0.2),
+        ),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Generate or refresh summary',
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Create an AI summary when saving this edit. Useful for older timeline entries missing summaries.',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Switch.adaptive(
+            value: _generateSummaryForEdit,
+            onChanged: (value) {
+              setState(() {
+                _generateSummaryForEdit = value;
+              });
+            },
+          ),
         ],
       ),
     );
@@ -807,7 +888,8 @@ class _KeywordAnalysisViewState extends State<KeywordAnalysisView>
                   keyword,
                   style: TextStyle(
                     color: isSelected ? Colors.white : color,
-                    fontSize: 12,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
                 selected: isSelected,
@@ -823,6 +905,8 @@ class _KeywordAnalysisViewState extends State<KeywordAnalysisView>
                 selectedColor: color.withOpacity(0.3),
                 checkmarkColor: Colors.white,
                 backgroundColor: color.withOpacity(0.1),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                visualDensity: VisualDensity.comfortable,
                 side: BorderSide(
                   color: color.withOpacity(0.3),
                 ),
@@ -847,6 +931,38 @@ class _KeywordAnalysisViewState extends State<KeywordAnalysisView>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Suggestions show above the input so they stay visible above the keyboard
+          if (_filteredSuggestions.isNotEmpty) ...[
+            Container(
+              constraints: const BoxConstraints(maxHeight: 150),
+              margin: const EdgeInsets.only(bottom: 8.0),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surface,
+                borderRadius: BorderRadius.circular(8.0),
+                border: Border.all(
+                  color: theme.colorScheme.outline.withOpacity(0.3),
+                ),
+              ),
+              child: ListView.builder(
+                shrinkWrap: true,
+                physics: const ClampingScrollPhysics(),
+                itemCount: _filteredSuggestions.length,
+                itemBuilder: (context, index) {
+                  final suggestion = _filteredSuggestions[index];
+                  return ListTile(
+                    dense: true,
+                    title: Text(
+                      suggestion,
+                      style: theme.textTheme.bodySmall,
+                    ),
+                    onTap: () {
+                      _selectSuggestion(suggestion);
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
           Row(
             children: [
               Icon(
@@ -915,37 +1031,6 @@ class _KeywordAnalysisViewState extends State<KeywordAnalysisView>
                   ),
                 ],
               ),
-              // Autocomplete suggestions
-              if (_filteredSuggestions.isNotEmpty) ...[
-                const SizedBox(height: 8.0),
-                Container(
-                  constraints: const BoxConstraints(maxHeight: 150),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.surface,
-                    borderRadius: BorderRadius.circular(8.0),
-                    border: Border.all(
-                      color: theme.colorScheme.outline.withOpacity(0.3),
-                    ),
-                  ),
-                  child: ListView.builder(
-                    shrinkWrap: true,
-                    itemCount: _filteredSuggestions.length,
-                    itemBuilder: (context, index) {
-                      final suggestion = _filteredSuggestions[index];
-                      return ListTile(
-                        dense: true,
-                        title: Text(
-                          suggestion,
-                          style: theme.textTheme.bodySmall,
-                        ),
-                        onTap: () {
-                          _selectSuggestion(suggestion);
-                        },
-                      );
-                    },
-                  ),
-                ),
-              ],
             ],
           ),
         ],
@@ -1043,7 +1128,8 @@ class _KeywordAnalysisViewState extends State<KeywordAnalysisView>
               backgroundColor: theme.colorScheme.primary,
               labelStyle: TextStyle(
                 color: theme.colorScheme.onPrimary,
-                fontSize: 12,
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
               ),
             )).toList(),
           ),

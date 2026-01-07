@@ -28,13 +28,13 @@ class RivetConfig {
 
   const RivetConfig({
     this.maxCandidates = 20,
-    this.preselectTop = 15,
-    this.tauAdd = 0.15, // Lowered from 0.35 to be less restrictive
+    this.preselectTop = 12,
+    this.tauAdd = 0.25, // Raise gate to drop weak/noisy terms
     this.tauDropRatio = 0.6,
     this.minGapVsRandom = 0.15,
-    this.minEvidenceTypes = 1, // Lowered from 2 to be less restrictive
-    this.minPhaseMatch = 0.10, // Lowered from 0.20 to be less restrictive
-    this.minEmotionAmp = 0.05, // Lowered from 0.15 to be less restrictive
+    this.minEvidenceTypes = 2, // Require at least two evidence signals
+    this.minPhaseMatch = 0.20, // Require a real link to current phase
+    this.minEmotionAmp = 0.10, // Ignore terms with negligible emotional signal
     this.maxNewPerDay = 2,
     this.minPhaseDwellDays = 3,
     this.minPhaseDelta = 0.12,
@@ -534,27 +534,51 @@ class EnhancedKeywordExtractor {
       'again', 'still', 'yet', 'already', 'just', 'only', 'also', 'too',
       'very', 'much', 'many', 'most', 'more', 'less', 'little', 'few',
       'several', 'some', 'any', 'all', 'every', 'each', 'both', 'either',
-      'neither', 'none', 'no', 'not', 'yes'
+      'neither', 'none', 'no', 'not', 'yes',
+      // Pronouns and filler that add noise
+      'i', 'im', 'ive', 'me', 'my', 'mine', 'myself',
+      'you', 'your', 'yours', 'yourself', 'yourselves',
+      'we', 'us', 'our', 'ours', 'ourselves',
+      'they', 'them', 'their', 'theirs', 'themselves',
+      'he', 'him', 'his', 'himself', 'she', 'her', 'hers', 'herself',
+      'it', 'its', 'itself', 'be', 'being', 'been', 'am',
+      'cause', 'because', 'due', 'etc', 'eg', 'ie',
+      'new', 'initial', 'initially',
     };
     
-    // Extract meaningful words (lowered minimum length to 2 for better coverage)
-    final extractedWords = words
-        .where((word) => word.length >= 2 && !stopWords.contains(word))
-        .map((word) => word.replaceAll(RegExp(r'[^\w]'), ''))
-        .where((word) => word.isNotEmpty)
-        .toSet();
+    // Extract meaningful words; keep curated short terms, drop short generic tokens
+    final extractedWords = <String>{};
+    for (final raw in words) {
+      final cleaned = raw.replaceAll(RegExp(r'[^\w]'), '');
+      if (cleaned.isEmpty) continue;
+
+      final isStopWord = stopWords.contains(cleaned);
+      final isCurated = curatedKeywords.contains(cleaned);
+      final isLongEnough = cleaned.length >= 4;
+
+      if (isCurated || (!isStopWord && isLongEnough)) {
+        extractedWords.add(cleaned);
+      }
+    }
     
     // Find matching curated keywords (only exact word matches, not partial)
     final matchingCurated = curatedKeywords
         .where((keyword) => _isExactWordMatch(textLower, keyword))
         .toSet();
     
-    // Extract 2-word phrases for better context (lowered minimum length)
+    // Extract 2-word phrases for better context (favor specific, non-stop tokens)
     final phrases = <String>{};
     for (int i = 0; i < words.length - 1; i++) {
-      if (words[i].length >= 2 && words[i + 1].length >= 2 &&
-          !stopWords.contains(words[i]) && !stopWords.contains(words[i + 1])) {
-        final phrase = '${words[i]} ${words[i + 1]}';
+      final first = words[i].replaceAll(RegExp(r'[^\w]'), '');
+      final second = words[i + 1].replaceAll(RegExp(r'[^\w]'), '');
+
+      final firstOk = first.isNotEmpty && !stopWords.contains(first) &&
+          (first.length >= 4 || curatedKeywords.contains(first));
+      final secondOk = second.isNotEmpty && !stopWords.contains(second) &&
+          (second.length >= 4 || curatedKeywords.contains(second));
+
+      if (firstOk && secondOk) {
+        final phrase = '$first $second';
         if (phrase.length <= 25) phrases.add(phrase); // Increased max length
       }
     }
@@ -661,25 +685,6 @@ class EnhancedKeywordExtractor {
       if (decision.accept) {
         gatedCandidates.add(candidate);
       }
-    }
-    
-    // Fallback: if RIVET gating is too strict and we have no candidates,
-    // take the top candidates by score regardless of RIVET decision
-    if (gatedCandidates.isEmpty && candidates.isNotEmpty) {
-      // Sort by score and take top candidates
-      candidates.sort((a, b) => (b['score'] as double).compareTo(a['score'] as double));
-      final fallbackCandidates = candidates.take(config.maxCandidates).toList();
-      
-      // Mark them as accepted with fallback reason
-      for (final candidate in fallbackCandidates) {
-        candidate['rivet_decision'] = RivetDecision(
-          accept: true,
-          reasonCodes: ['FALLBACK_ACCEPTED'],
-          trace: {'fallback': true, 'score': candidate['score']},
-        );
-      }
-      
-      return fallbackCandidates;
     }
     
     return gatedCandidates;

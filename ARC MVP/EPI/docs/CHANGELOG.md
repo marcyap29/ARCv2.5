@@ -1,6 +1,6 @@
 # EPI ARC MVP - Changelog
 
-**Version:** 2.1.85
+**Version:** 2.1.86
 **Last Updated:** January 7, 2026
 
 ---
@@ -11,9 +11,48 @@ This changelog has been split into parts for easier navigation:
 
 | Part | Coverage | Description |
 |------|----------|-------------|
-| **[CHANGELOG_part1.md](CHANGELOG_part1.md)** | Dec 2025 | v2.1.43 - v2.1.53 (Current) |
+| **[CHANGELOG_part1.md](CHANGELOG_part1.md)** | Dec 2025 | v2.1.43 - v2.1.86 (Current) |
 | **[CHANGELOG_part2.md](CHANGELOG_part2.md)** | Nov 2025 | v2.1.28 - v2.1.42 |
 | **[CHANGELOG_part3.md](CHANGELOG_part3.md)** | Jan-Oct 2025 | v2.0.0 - v2.1.27 & Earlier |
+
+---
+
+## [2.1.86] - January 7, 2026
+
+### **Enhanced PRISM Privacy System & Classification-Aware Abstraction** - ✅ Complete
+
+**Problem Resolved**: PRISM was creating generic summaries like "brief entry about learning" for technical questions, causing cloud LUMARA to lose important context while the classification system worked perfectly locally.
+
+**Root Cause**: PRISM semantic summarization was creating overly generic abstractions that didn't preserve semantic content needed for factual question processing.
+
+**Solution**: Classification-aware PRISM system with enhanced on-device semantic analysis.
+
+#### Enhanced Privacy Architecture
+- **Dual Privacy Strategy**: Classification-aware PRISM now preserves semantic content for factual/analytical entries while maintaining full abstraction for personal/emotional content
+- **Smart Abstraction**: Technical questions maintain their semantic content after PII scrubbing, personal entries get full correlation-resistant transformation
+- **Privacy Guarantee Maintained**: All PII still scrubbed, personal entries still get rotating aliases and non-verbatim abstraction
+
+#### Technical Content Detection
+- **Subject-Specific Recognition**: On-device detection of mathematics, physics, computer science, engineering, chemistry, biology topics
+- **Enhanced Semantic Summaries**: Instead of "brief entry about learning" → "technical question about mathematics" or "discussion about calculus concepts"
+- **Question Pattern Recognition**: Improved detection of clarification requests, understanding verification, help-seeking patterns
+- **Theme Extraction**: Better identification of specific subjects (Newton, calculus, prediction vs calculation)
+
+#### Implementation Details
+- **File Enhanced**: `lib/arc/internal/echo/correlation_resistant_transformer.dart`
+- **Integration Point**: `lib/arc/chat/services/enhanced_lumara_api.dart` - classification-aware privacy processing
+- **Privacy Layer**: PRISM maintains all security guarantees while providing better semantic context
+- **On-Device Processing**: All enhancements happen locally before any cloud transmission
+
+#### User Experience Impact
+- **Factual Questions**: Now get direct answers with proper technical context preserved
+- **Personal Entries**: Continue receiving full privacy protection with improved semantic summaries
+- **Technical Discussions**: Better context preservation for educational and analytical content
+- **Privacy Transparency**: No changes to user interface, enhanced privacy system works transparently
+
+#### Examples
+- **Before**: "Does Newton's calculus predict or calculate?" → "brief entry about learning" → Generic reflection
+- **After**: "Does Newton's calculus predict or calculate?" → Technical question preserved → Direct mathematical answer
 
 ---
 

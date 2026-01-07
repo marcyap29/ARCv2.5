@@ -1,6 +1,6 @@
 # EPI MVP - Comprehensive Features Guide
 
-**Version:** 2.1.85
+**Version:** 2.1.86
 **Last Updated:** January 7, 2026
 
 ---
@@ -527,12 +527,18 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 - No cloud transmission (unless explicitly configured)
 - Privacy-first architecture
 
-**Data Protection**
+**Data Protection (v2.1.86)**
 - **PII Detection**: Automatic detection of sensitive data
 - **PII Masking**: Real-time masking in UI
 - **PRISM Scrubbing**: Local PII scrubbing with reversible mapping (device-only)
-- **Correlation-Resistant Transformation**: Rotating aliases and structured JSON payloads
+- **Classification-Aware Privacy (NEW)**: Dual privacy strategy based on content type
+  - **Technical/Factual Content**: Preserves semantic content after PII scrubbing for proper cloud processing
+  - **Personal/Emotional Content**: Full correlation-resistant transformation with rotating aliases
+  - **Enhanced Semantic Analysis**: On-device technical content detection (mathematics, physics, computer science, engineering)
+  - **Privacy Guarantee**: No verbatim personal text sent to cloud, all PII scrubbed regardless of content type
+- **Correlation-Resistant Transformation**: Rotating aliases and structured JSON payloads for personal content
 - **Session-Based Rotation**: Identifiers rotate per session to prevent cross-call linkage
+- **Enhanced Semantic Summaries**: Improved on-device abstraction creates descriptive summaries instead of generic ones
 - **Encryption**: AES-256-GCM for sensitive data
 - **Data Integrity**: Ed25519 signing
 
