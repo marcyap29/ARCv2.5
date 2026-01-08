@@ -22,6 +22,7 @@ This bug tracker has been split into parts for easier navigation:
 Detailed bug reports are available in the [records/](records/) directory:
 
 ### LUMARA Issues
+- [lumara-user-prompt-override.md](records/lumara-user-prompt-override.md) - **CRITICAL:** User prompt overriding master prompt constraints (v3.0) ✅ RESOLVED
 - [lumara-response-cutoff.md](records/lumara-response-cutoff.md) - Response truncation issues
 - [lumara-subject-drift-and-repetitive-endings.md](records/lumara-subject-drift-and-repetitive-endings.md) - Subject focus and ending phrase issues
 - [lumara-integration-formatting.md](records/lumara-integration-formatting.md) - Formatting and integration bugs

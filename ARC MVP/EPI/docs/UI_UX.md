@@ -43,6 +43,7 @@ The EPI (Evolving Personal Intelligence) Flutter application provides a sophisti
 27. [LUMARA Response Length Controls (v2.1.79)](#27-lumara-response-length-controls-v2179)
 28. [Journal Entry Overview (v2.1.80)](#28-journal-entry-overview-v2180)
 29. [Simplified Settings System (v2.1.87)](#29-simplified-settings-system-v2187)
+30. [LUMARA v3.0 User Prompt System (v3.0)](#30-lumara-v30-user-prompt-system-v30)
 
 ---
 
@@ -2204,5 +2205,119 @@ UnifiedVoicePanel(
 
 ---
 
-*This comprehensive UI/UX documentation reflects the current state of the EPI Flutter application as of January 7, 2026. The interface combines sophisticated AI integration with thoughtful human-centered design to create a meaningful personal journaling and life insight experience.*
+## 30. LUMARA v3.0 User Prompt System (v3.0)
+
+**Status:** ✅ **ACTIVE**  
+**Date:** January 2026  
+**Files:** `lib/arc/chat/services/enhanced_lumara_api.dart`
+
+### Overview
+
+The LUMARA User Prompt System ensures that user prompts reinforce master prompt constraints instead of overriding them. This critical fix resolves issues where responses violated word limits, used banned phrases, and provided unrequested action items.
+
+### Key Features
+
+- **Constraint Reinforcement**: User prompts now read from control state and enforce constraints
+- **Word Limit Enforcement**: Explicit word limits in user prompt (e.g., "250 words MAXIMUM")
+- **Dated Examples Requirement**: Requires specific number of dated pattern examples
+- **Banned Phrases List**: Includes forbidden melodramatic phrases for Companion mode
+- **Persona-Specific Instructions**: Different instructions for Companion, Strategist, Therapist, Challenger
+- **Mode Support**: Handles conversation modes (ideas, think, perspective, next steps, etc.)
+
+### User Prompt Structure
+
+```
+═══════════════════════════════════════════════════════════
+CURRENT ENTRY TO RESPOND TO
+═══════════════════════════════════════════════════════════
+
+[Entry Text]
+
+═══════════════════════════════════════════════════════════
+RESPONSE REQUIREMENTS (from control state)
+═══════════════════════════════════════════════════════════
+
+WORD LIMIT: [maxWords] words MAXIMUM
+- Count as you write
+- STOP at [maxWords] words
+- This is NOT negotiable
+
+PATTERN EXAMPLES: [min]-[max] dated examples required
+- Include specific dates or timeframes
+- Examples with dates provided
+
+CONTENT TYPE: PERSONAL REFLECTION / PROJECT/WORK CONTENT
+[Content-specific instructions]
+
+PERSONA: [persona]
+[Persona-specific instructions with banned phrases list]
+
+[MODE-SPECIFIC INSTRUCTION: if applicable]
+
+═══════════════════════════════════════════════════════════
+
+Respond now following ALL constraints above.
+```
+
+### Persona Instructions
+
+**Companion Mode:**
+- Warm, conversational tone
+- 2-4 dated pattern examples
+- Focus on person, not strategic vision
+- Forbidden phrases list included
+- No unrequested action items
+
+**Strategist Mode:**
+- Analytical, decisive tone
+- 3-8 dated examples
+- Structured format for metaAnalysis only
+- 2-4 concrete action items
+
+**Therapist Mode:**
+- Gentle, grounding tone
+- ECHO framework
+- Reference past struggles with dates
+- Maximum word limit enforced
+
+**Challenger Mode:**
+- Direct, challenging tone
+- 1-2 sharp dated examples
+- Hard questions
+- Maximum word limit enforced
+
+### Implementation Details
+
+**Method:** `_buildUserPrompt()`
+- Reads constraints from control state JSON
+- Builds prompt that reinforces master prompt
+- Includes base context (historical entries, mood, phase)
+- Adds persona-specific instructions
+- Handles conversation modes and special requests
+
+**Method:** `_getPersonaSpecificInstructions()`
+- Returns persona-specific instructions
+- Includes banned phrases for Companion
+- Provides format requirements
+- Sets tone expectations
+
+### Critical Constraints Enforced
+
+1. **Word Limits**: Hard limits with counting instructions
+2. **Dated Examples**: Specific number required with date examples
+3. **Banned Phrases**: Explicit list for Companion mode
+4. **Action Items**: Only when explicitly requested
+5. **Content Type**: Personal vs. project distinction
+6. **Structured Format**: Only for metaAnalysis entries
+
+### Related Documentation
+
+- [User Prompt System Documentation](../../USERPROMPT.md)
+- [LUMARA Master Prompt System](../lib/arc/chat/prompts/README_MASTER_PROMPT.md)
+- [LUMARA v3.0 Implementation Summary](../../LUMARA_V3_IMPLEMENTATION_SUMMARY.md)
+- [Bug Tracker: User Prompt Override](../bugtracker/records/lumara-user-prompt-override.md)
+
+---
+
+*This comprehensive UI/UX documentation reflects the current state of the EPI Flutter application as of January 2026. The interface combines sophisticated AI integration with thoughtful human-centered design to create a meaningful personal journaling and life insight experience.*
 

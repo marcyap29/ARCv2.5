@@ -131,17 +131,38 @@ final masterPrompt = LumaraMasterPrompt.getMasterPrompt(controlStateJson);
 
 ### Journal Reflections (`enhanced_lumara_api.dart`)
 
-The journal reflection system uses the master prompt:
+The journal reflection system uses the master prompt with a user prompt that reinforces constraints:
 
 ```dart
+// Build control state
 final controlStateJson = await LumaraControlStateBuilder.buildControlState(
   userId: userId,
   prismActivity: prismActivity,
   chronoContext: chronoContext,
+  userMessage: request.userText,
+  maxWords: responseMode.maxWords,
+  userIntent: detectedUserIntent,
 );
 
+// Get master prompt (system prompt)
 final systemPrompt = LumaraMasterPrompt.getMasterPrompt(controlStateJson);
+
+// Build user prompt that REINFORCES constraints (not overrides)
+final userPrompt = _buildUserPrompt(
+  baseContext: baseContext,
+  entryText: request.userText,
+  effectivePersona: effectivePersona,
+  maxWords: maxWords,
+  minPatternExamples: minPatternExamples,
+  maxPatternExamples: maxPatternExamples,
+  isPersonalContent: isPersonalContent,
+  useStructuredFormat: useStructuredFormat,
+  entryClassification: entryClassification,
+  // ... other parameters
+);
 ```
+
+**Critical:** The user prompt must **reinforce** the master prompt constraints, not override them. See [User Prompt System](../../../../docs/USERPROMPT.md) for details.
 
 ## Behavior Rules
 
@@ -213,6 +234,11 @@ LUMARA avoids generic, formulaic ending questions. Responses should:
 - They feel like a natural extension of the conversation, not a default mechanism
 - They are specific and contextual, not generic or formulaic
 
+## Related Documentation
+
+- [User Prompt System](../../../../docs/USERPROMPT.md) - How user prompts reinforce master prompt constraints
+- [LUMARA v3.0 Implementation Summary](../../../../LUMARA_V3_IMPLEMENTATION_SUMMARY.md) - Complete v3.0 changes
+
 ## Future Enhancements
 
 - Enhanced PRISM activity analysis (sentiment, cognitive load detection)
@@ -223,6 +249,6 @@ LUMARA avoids generic, formulaic ending questions. Responses should:
 ---
 
 **Status**: ✅ Active  
-**Last Updated**: January 2, 2026  
-**Version**: 2.2
+**Last Updated**: January 2026  
+**Version**: 3.0
 

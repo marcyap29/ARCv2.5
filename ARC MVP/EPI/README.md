@@ -17,7 +17,9 @@ EPI (Evolving Personal Intelligence) is a sophisticated Flutter-based personal i
 ### 🤖 LUMARA AI Assistant
 - **Intelligent Classification System (v2.1.85)**: Automatically classifies entry types for optimal response generation
 - **Enhanced Privacy Processing (v2.1.86)**: Classification-aware PRISM system preserves semantic content for technical questions while maintaining full privacy for personal entries
-- **Persona-Based Responses**: 4 adaptive personas (Companion, Strategist, Challenger, Neutral) based on context and user state
+- **Companion-First Persona Selection (v3.0)**: Personal reflections default to warm, conversational Companion mode with enforced word limits and pattern recognition
+- **User Prompt System (v3.0)**: User prompts now reinforce master prompt constraints, ensuring word limits, dated examples, and banned phrases are properly enforced
+- **Persona-Based Responses**: 4 adaptive personas (Companion, Strategist, Challenger, Therapist) based on context and user state
 - **Health-Integrated Responses**: Sleep quality and energy levels influence AI interaction style
 - **Voice Chat Mode**: Full duplex voice conversations with push-to-talk and hands-free modes
 - **On-Device Processing**: All personal data remains local with cloud API proxy for model access

@@ -137,6 +137,12 @@ Successfully implemented the LUMARA Response Generation System v3.0 specificatio
   - **NEW:** Maps `ConversationMode` to `UserIntent` for persona selection
   - **NEW:** Passes `maxWords` and `userIntent` to control state builder
   - **NEW:** Verification logging that master prompt contains updated sections
+  - **CRITICAL FIX:** Replaced broken user prompt that was overriding master prompt constraints
+  - **NEW:** `_buildUserPrompt()` method that respects control state constraints
+  - **NEW:** `_getPersonaSpecificInstructions()` with banned phrases list
+  - **REMOVED:** "No limit on response length" instructions that contradicted word limits
+  - **REMOVED:** Vague "ACTIVELY reference past journal entries" without date requirements
+  - **REMOVED:** "You are encouraged to offer gentle guidance" causing unrequested action items
 
 - `lib/arc/chat/llm/prompts/lumara_master_prompt.dart`
   - **NEW:** Critical word limit enforcement section at top of prompt
@@ -148,8 +154,9 @@ Successfully implemented the LUMARA Response Generation System v3.0 specificatio
 - **Companion-First**: Personal reflections default to Companion persona
 - **Entry Classification**: Distinguishes reflective, analytical, factual, conversational, metaAnalysis
 - **User Intent Mapping**: Journaling options (regenerate, continue thought, explore options) correctly map to intents
-- **Word Limit Enforcement**: Hard 250-word limit for Companion, enforced in prompt
+- **Word Limit Enforcement**: Hard 250-word limit for Companion, enforced in both master and user prompts
 - **Structured Format Control**: Only uses 5-section format for explicit pattern analysis requests
+- **User Prompt Alignment**: User prompt now reinforces master prompt constraints instead of overriding them
 
 ## 🚀 Implementation Status
 
@@ -174,7 +181,7 @@ Successfully implemented the LUMARA Response Generation System v3.0 specificatio
 - `lib/services/lumara/master_prompt_builder.dart`
 - `lib/services/lumara/validation_service.dart`
 - `lib/arc/chat/services/lumara_control_state_builder.dart` ⭐ **NEW**
-- `lib/arc/chat/services/enhanced_lumara_api.dart` ⭐ **NEW**
+- `lib/arc/chat/services/enhanced_lumara_api.dart` ⭐ **NEW - CRITICAL USER PROMPT FIX**
 - `lib/arc/chat/llm/prompts/lumara_master_prompt.dart` ⭐ **NEW**
 - `test/services/lumara/lumara_pattern_recognition_test.dart` (new)
 

@@ -53,10 +53,6 @@ class EnhancedLumaraApi {
   final JournalRepository _journalRepo = JournalRepository();
   final ChatRepo _chatRepo = ChatRepoImpl.instance;
 
-  static const String _standardReflectionLengthRule =
-      'Provide a comprehensive, detailed response. Draw connections to past journal entries when relevant. Use historical context to show patterns, evolution, and continuity in the user\'s experience. Be thorough and detailed - there is no limit on response length. Let your response flow naturally to completion. Avoid bullet points. **REFLECTION DISCIPLINE**: Default to reflection-first, but feel free to offer gentle guidance, suggestions, goals, or habits when they naturally emerge from the reflection and feel helpful. You may use language like "This might be a good time to..." or "You might consider..." when patterns suggest helpful directions. Do not end with generic extension questions - let your persona naturally ask questions only when genuinely relevant, not as a default ending.';
-  static const String _deepReflectionLengthRule =
-      'Provide an extensive, in-depth exploration. Actively reference and analyze past journal entries to show longitudinal patterns, thematic evolution, and meaningful connections. Use historical context extensively to provide rich, contextualized reflection. Be thorough and detailed - there is no limit on response length. Let your response flow naturally to completion. Avoid bullet points. **REFLECTION DISCIPLINE**: Default to reflection-first, but feel free to offer gentle guidance, suggestions, goals, or habits when they naturally emerge from the reflection and feel helpful. You may use language like "This might be a good time to..." or "You might consider..." when patterns suggest helpful directions. Do not end with generic extension questions - let your persona naturally ask questions only when genuinely relevant, not as a default ending.';
   
   // LLM Provider tracking (for logging only - we use geminiSend directly)
   LLMProviderBase? _llmProvider;
@@ -356,68 +352,6 @@ class EnhancedLumaraApi {
           
           final baseContext = contextParts.join('\n\n');
           
-          // Build prompt based on options
-          if (request.options.conversationMode != null) {
-            // Continuation dialogue mode
-            final mode = request.options.conversationMode!;
-            String modeInstruction = '';
-            var lengthInstruction = _standardReflectionLengthRule;
-            switch (mode) {
-              case models.ConversationMode.ideas:
-                modeInstruction = 'Expand Open step into 2–3 practical but gentle suggestions drawn from user\'s past successful patterns. Tone: Warm, creative.';
-                break;
-              case models.ConversationMode.think:
-                modeInstruction = 'Generate logical scaffolding (mini reflection framework: What → Why → What now). Tone: Structured, steady.';
-                break;
-              case models.ConversationMode.perspective:
-                modeInstruction = 'Reframe context using contrastive reasoning (e.g., "Another way to see this might be…"). Tone: Cognitive reframing.';
-                break;
-              case models.ConversationMode.nextSteps:
-                modeInstruction = 'Provide small, phase-appropriate actions (Discovery → explore; Recovery → rest). Tone: Pragmatic, grounded.';
-                break;
-              case models.ConversationMode.reflectDeeply:
-                modeInstruction = 'Invoke More Depth pipeline, reusing current reflection and adding a new Clarify + Open pair. Tone: Introspective.';
-                lengthInstruction = _deepReflectionLengthRule;
-                break;
-              case models.ConversationMode.continueThought:
-                modeInstruction = 'Extend the previous reflection with additional detail, depth, or considerations. Build naturally on what was already said without repeating earlier content. If the previous reflection was complete, provide additional insights, examples, or perspectives that deepen the understanding. Keep the extension focused and valuable.';
-                break;
-            }
-            userPrompt = '$baseContext\n\n**COMPREHENSIVE REFLECTION**: $modeInstruction Address the CURRENT ENTRY while actively drawing connections to past journal entries from the historical context. Use historical entries to show patterns, evolution, and meaningful connections. Be thorough and detailed - there is no limit on response length. Let your response flow naturally to completion. Follow the ECHO structure (Empathize → Clarify → Highlight → Open) with expanded detail. **REFLECTION DISCIPLINE**: Default to reflection-first, but feel free to offer gentle guidance, suggestions, goals, or habits when they naturally emerge from the reflection and feel helpful. Do not end with generic extension questions - let your persona naturally ask questions only when genuinely relevant, not as a default ending. $lengthInstruction';
-          } else if (request.options.regenerate) {
-            // Regenerate: different rhetorical focus - FOCUS ON CURRENT ENTRY
-            userPrompt = '$baseContext\n\n**COMPREHENSIVE REFLECTION**: Rebuild reflection from the CURRENT ENTRY marked above with different rhetorical focus. Actively reference past journal entries to show patterns and connections. Be thorough and detailed - there is no limit on response length. Let your response flow naturally to completion. Randomly vary Highlight and Open while staying relevant to what the user just wrote. Keep empathy level constant. Follow ECHO structure with expanded detail. **REFLECTION DISCIPLINE**: Default to reflection-first, but feel free to offer gentle guidance, suggestions, goals, or habits when they naturally emerge from the reflection and feel helpful. Do not end with generic extension questions - let your persona naturally ask questions only when genuinely relevant, not as a default ending. $_standardReflectionLengthRule';
-          } else if (request.options.toneMode == models.ToneMode.soft) {
-            // Soften tone - FOCUS ON CURRENT ENTRY
-            userPrompt = '$baseContext\n\n**COMPREHENSIVE REFLECTION**: Rewrite in gentler, slower rhythm about the CURRENT ENTRY marked above. Draw connections to past journal entries for context and continuity. Be thorough and detailed - there is no limit on response length. Let your response flow naturally to completion. Add permission language ("It\'s okay if this takes time."). Apply tone-softening rule for Recovery/Consolidation even if phase is unknown. Follow ECHO structure with expanded detail. **REFLECTION DISCIPLINE**: Default to reflection-first, but feel free to offer gentle guidance, suggestions, goals, or habits when they naturally emerge from the reflection and feel helpful. Do not end with generic extension questions - let your persona naturally ask questions only when genuinely relevant, not as a default ending. $_standardReflectionLengthRule';
-          } else if (request.options.preferQuestionExpansion) {
-            // More depth - FOCUS ON CURRENT ENTRY
-            userPrompt = '$baseContext\n\n**COMPREHENSIVE REFLECTION**: Expand Clarify and Highlight steps for richer introspection about the CURRENT ENTRY marked above. Extensively reference past journal entries to show patterns, evolution, and meaningful connections. Be thorough and detailed - there is no limit on response length. Let your response flow naturally to completion. Add multiple reflective links that connect the current entry to historical patterns and themes. Follow ECHO structure with deep, detailed exploration. **REFLECTION DISCIPLINE**: Default to reflection-first, but feel free to offer gentle guidance, suggestions, goals, or habits when they naturally emerge from the reflection and feel helpful. Do not end with generic extension questions - let your persona naturally ask questions only when genuinely relevant, not as a default ending. $_deepReflectionLengthRule';
-          } else {
-            // Default: first activation with rich context - EMPHASIZE CURRENT ENTRY
-            userPrompt = '''$baseContext
-
-**IMPORTANT INSTRUCTION**: Provide a comprehensive reflection that:
-1. Addresses the CURRENT ENTRY as the primary focus
-2. ACTIVELY references and draws connections to past journal entries from the historical context
-3. Shows patterns, themes, and evolution across the user's journal history
-4. Uses historical entries to provide deeper context and meaning to the current entry
-
-The historical context is not just background - it is essential material for understanding patterns, showing continuity, and providing rich, contextualized reflection. Draw explicit connections between the current entry and past entries when relevant.
-
-**REFLECTION DISCIPLINE**:
-- Your primary role is sense-making through reflection. Reflect lived experience accurately. Surface patterns. Situate moments within a larger arc.
-- You are encouraged to offer gentle guidance, suggestions, goals, or habits when they naturally emerge from the reflection and feel helpful.
-- You may use language like "This might be a good time to...", "You might consider...", or "It could be helpful to..." when patterns suggest helpful directions.
-- Reference past entries for continuity and to suggest helpful directions when patterns emerge (e.g., "You previously set goals to..." or "This might be a good time to return to..." when relevant).
-- Use SAGE internally to structure understanding, but do NOT label sections or turn it into an improvement framework.
-- Growth may be framed as emerging awareness or as natural next steps when patterns suggest them.
-- Do NOT end with generic ending questions like "Does this resonate?" or "Does this resonate with you?" - let responses end naturally when complete. Only use ending questions when they genuinely deepen reflection and connect directly to specific insights you've identified.
-- If guidance is not explicitly requested, do not provide it. When uncertain, reflect and stop.
-
-Follow the ECHO structure (Empathize → Clarify → Highlight → Open) but expand each section with detail. Include connections to past entries in your Highlight section. Consider the mood, phase, circadian context, recent chats, and any media when crafting your reflection. Be thorough and detailed - there is no limit on response length. Let your response flow naturally to completion. $_standardReflectionLengthRule''';
-          }
-          
           // Use Gemini API directly via geminiSend() - same as main LUMARA chat
           print('LUMARA Enhanced API v2.3: Calling Gemini API directly (same as main chat)');
           
@@ -480,12 +414,43 @@ Follow the ECHO structure (Empathize → Clarify → Highlight → Open) but exp
             userIntent: detectedUserIntent, // Pass detected user intent from conversation mode
           );
           
+          // Parse control state to extract values for user prompt
+          final controlState = jsonDecode(controlStateJson) as Map<String, dynamic>;
+          final responseModeState = controlState['responseMode'] as Map<String, dynamic>? ?? {};
+          final personaState = controlState['persona'] as Map<String, dynamic>? ?? {};
+          final effectivePersona = personaState['effective'] as String? ?? 'companion';
+          final maxWords = responseModeState['maxWords'] as int? ?? 250;
+          final minPatternExamples = responseModeState['minPatternExamples'] as int? ?? 2;
+          final maxPatternExamples = responseModeState['maxPatternExamples'] as int? ?? 4;
+          final isPersonalContent = responseModeState['isPersonalContent'] as bool? ?? true;
+          final useStructuredFormat = responseModeState['useStructuredFormat'] as bool? ?? false;
+          final entryClassification = controlState['entryClassification'] as String? ?? 'reflective';
+          
+          // Build user prompt that RESPECTS control state constraints
+          userPrompt = _buildUserPrompt(
+            baseContext: baseContext,
+            entryText: request.userText,
+            effectivePersona: effectivePersona,
+            maxWords: maxWords,
+            minPatternExamples: minPatternExamples,
+            maxPatternExamples: maxPatternExamples,
+            isPersonalContent: isPersonalContent,
+            useStructuredFormat: useStructuredFormat,
+            entryClassification: entryClassification,
+            conversationMode: request.options.conversationMode,
+            regenerate: request.options.regenerate,
+            toneMode: request.options.toneMode,
+            preferQuestionExpansion: request.options.preferQuestionExpansion,
+            userIntent: detectedUserIntent,
+          );
+          
           // Get master prompt with control state
           final systemPrompt = LumaraMasterPrompt.getMasterPrompt(controlStateJson);
           
           print('🔵 LUMARA Enhanced API v2.3: Using unified master prompt with control state');
           print('🔵 LUMARA Enhanced API v2.3: System prompt length: ${systemPrompt.length}');
           print('🔵 LUMARA Enhanced API v2.3: User prompt length: ${userPrompt.length}');
+          print('🔵 LUMARA Enhanced API v2.3: Persona=$effectivePersona, maxWords=$maxWords, patternExamples=$minPatternExamples-$maxPatternExamples');
           
           // Verify master prompt contains our updated instructions
           if (systemPrompt.contains('CRITICAL: WORD LIMIT ENFORCEMENT')) {
@@ -1011,6 +976,198 @@ Respond now:''';
       case models.ConversationMode.continueThought:
         // Continue thought doesn't change persona - use default
         return null; // Will default to reflect
+    }
+  }
+
+  /// Build user prompt that RESPECTS control state constraints
+  /// This replaces the broken prompts that were overriding master prompt constraints
+  String _buildUserPrompt({
+    required String baseContext,
+    required String entryText,
+    required String effectivePersona,
+    required int maxWords,
+    required int minPatternExamples,
+    required int maxPatternExamples,
+    required bool isPersonalContent,
+    required bool useStructuredFormat,
+    required String entryClassification,
+    models.ConversationMode? conversationMode,
+    bool? regenerate,
+    models.ToneMode? toneMode,
+    bool? preferQuestionExpansion,
+    UserIntent? userIntent,
+  }) {
+    final buffer = StringBuffer();
+    
+    // Include base context (historical entries, mood, phase, etc.)
+    if (baseContext.isNotEmpty) {
+      buffer.writeln(baseContext);
+      buffer.writeln();
+    }
+    
+    buffer.writeln('═══════════════════════════════════════════════════════════');
+    buffer.writeln('CURRENT ENTRY TO RESPOND TO');
+    buffer.writeln('═══════════════════════════════════════════════════════════');
+    buffer.writeln();
+    buffer.writeln(entryText);
+    buffer.writeln();
+    buffer.writeln('═══════════════════════════════════════════════════════════');
+    buffer.writeln('RESPONSE REQUIREMENTS (from control state)');
+    buffer.writeln('═══════════════════════════════════════════════════════════');
+    buffer.writeln();
+    buffer.writeln('WORD LIMIT: $maxWords words MAXIMUM');
+    buffer.writeln('- Count as you write');
+    buffer.writeln('- STOP at $maxWords words');
+    buffer.writeln('- This is NOT negotiable');
+    buffer.writeln();
+    buffer.writeln('PATTERN EXAMPLES: $minPatternExamples-$maxPatternExamples dated examples required');
+    buffer.writeln('- Include specific dates or timeframes');
+    buffer.writeln('- Examples:');
+    buffer.writeln('  * "When you got stuck on Firebase in August..."');
+    buffer.writeln('  * "Your Learning Space insight from September 15..."');
+    buffer.writeln('  * "Like when you hit this threshold on October 3..."');
+    buffer.writeln();
+    buffer.writeln('CONTENT TYPE: ${isPersonalContent ? 'PERSONAL REFLECTION' : 'PROJECT/WORK CONTENT'}');
+    if (isPersonalContent) {
+      buffer.writeln('- Focus on patterns in how they work/think/problem-solve');
+      buffer.writeln('- Show personal growth and rhythms');
+      buffer.writeln('- Don\'t list all their projects');
+      buffer.writeln('- Don\'t make it about strategic vision');
+    } else {
+      buffer.writeln('- Can reference technical work directly');
+      buffer.writeln('- Show patterns in project development');
+      buffer.writeln('- Connect to strategic goals when relevant');
+    }
+    buffer.writeln();
+    buffer.writeln('PERSONA: $effectivePersona');
+    buffer.writeln(_getPersonaSpecificInstructions(
+      effectivePersona,
+      maxWords,
+      minPatternExamples,
+      maxPatternExamples,
+      useStructuredFormat,
+    ));
+    
+    // Add mode-specific instructions
+    if (conversationMode != null) {
+      buffer.writeln();
+      buffer.writeln('MODE-SPECIFIC INSTRUCTION:');
+      switch (conversationMode) {
+        case models.ConversationMode.ideas:
+          buffer.writeln('Expand with 2-3 practical suggestions drawn from past successful patterns.');
+          break;
+        case models.ConversationMode.think:
+          buffer.writeln('Generate logical scaffolding (What → Why → What now).');
+          break;
+        case models.ConversationMode.perspective:
+          buffer.writeln('Reframe using contrastive reasoning ("Another way to see this...").');
+          break;
+        case models.ConversationMode.nextSteps:
+          buffer.writeln('Provide small, phase-appropriate actions.');
+          break;
+        case models.ConversationMode.reflectDeeply:
+          buffer.writeln('Deep introspection with expanded Clarify and Highlight sections.');
+          break;
+        case models.ConversationMode.continueThought:
+          buffer.writeln('Extend previous reflection with additional insights, building naturally.');
+          break;
+      }
+    } else if (regenerate == true) {
+      buffer.writeln();
+      buffer.writeln('MODE-SPECIFIC INSTRUCTION: Rebuild reflection with different rhetorical focus.');
+    } else if (toneMode == models.ToneMode.soft) {
+      buffer.writeln();
+      buffer.writeln('MODE-SPECIFIC INSTRUCTION: Use gentler, slower rhythm. Add permission language.');
+    } else if (preferQuestionExpansion == true) {
+      buffer.writeln();
+      buffer.writeln('MODE-SPECIFIC INSTRUCTION: Expand Clarify and Highlight for richer introspection.');
+    }
+    
+    buffer.writeln();
+    buffer.writeln('═══════════════════════════════════════════════════════════');
+    buffer.writeln();
+    buffer.writeln('Respond now following ALL constraints above.');
+    
+    return buffer.toString();
+  }
+
+  /// Get persona-specific instructions
+  String _getPersonaSpecificInstructions(
+    String persona,
+    int maxWords,
+    int minPatternExamples,
+    int maxPatternExamples,
+    bool useStructuredFormat,
+  ) {
+    switch (persona) {
+      case 'companion':
+        return '''
+COMPANION MODE:
+✓ Warm, conversational, supportive tone
+✓ Start with ✨ Reflection header
+✓ $minPatternExamples-$maxPatternExamples dated pattern examples
+✓ Focus on the person, not their strategic vision
+
+✗ FORBIDDEN PHRASES (never use):
+  - "beautifully encapsulates"
+  - "profound strength"
+  - "evolving identity"
+  - "embodying the principles"
+  - "on the precipice of"
+  - "journey of bringing"
+  - "shaping the contours of your identity"
+  - "significant moment in your journey"
+
+✗ DO NOT provide action items unless explicitly requested
+''';
+      
+      case 'strategist':
+        if (useStructuredFormat) {
+          return '''
+STRATEGIST MODE (Structured Format):
+✓ Analytical, decisive tone
+✓ Start with ✨ Analysis header
+✓ Use 5-section structured format:
+  1. Signal Separation
+  2. Phase Determination
+  3. Interpretation
+  4. Phase-Appropriate Actions
+  5. Reflective Links
+✓ Include $minPatternExamples-$maxPatternExamples dated examples
+✓ Provide 2-4 concrete action items
+''';
+        } else {
+          return '''
+STRATEGIST MODE (Conversational):
+✓ Analytical, decisive tone
+✓ Start with ✨ Analysis header
+✓ Include $minPatternExamples-$maxPatternExamples dated examples
+✓ Provide 2-4 concrete action items
+''';
+        }
+      
+      case 'therapist':
+        return '''
+THERAPIST MODE:
+✓ Gentle, grounding, containing tone
+✓ Start with ✨ Reflection header
+✓ Use ECHO framework (Empathize, Clarify, Hold space, Offer)
+✓ Reference past struggles with dates for continuity
+✓ Maximum $maxWords words
+''';
+      
+      case 'challenger':
+        return '''
+CHALLENGER MODE:
+✓ Direct, challenging, growth-oriented tone
+✓ No header needed
+✓ Use 1-2 sharp dated examples
+✓ Ask hard questions
+✓ Maximum $maxWords words
+''';
+      
+      default:
+        return '';
     }
   }
 }
