@@ -1,8 +1,8 @@
 # Backend Architecture & Setup
 
-**Version:** 2.1.86
+**Version:** 2.1.87
 **Last Updated:** January 7, 2026
-**Status:** ✅ Production Ready with Health Integration, AssemblyAI v3, Internet Access, Enhanced Classification-Aware PRISM Privacy Protection & Stripe Integration
+**Status:** ✅ Production Ready with Companion-First LUMARA, Validation & Logging, Health Integration, AssemblyAI v3, Internet Access, Enhanced Classification-Aware PRISM Privacy Protection & Stripe Integration
 
 ---
 
@@ -569,6 +569,90 @@ const userId = request.auth?.uid || `mvp_test_${Date.now()}`;
 ```
 
 **Note:** Proper authentication will be re-implemented in Priority 3.
+
+---
+
+## Companion-First LUMARA Validation & Logging (v2.1.87)
+
+### Firebase Collections for Monitoring
+
+The new Companion-First LUMARA system includes comprehensive validation and logging infrastructure using Firebase Firestore.
+
+#### Validation Logs Collection
+**Collection:** `lumara_validation_logs`
+
+**Purpose:** Monitor response quality and rule compliance
+
+**Document Schema:**
+```javascript
+{
+  user_id: string,
+  entry_type: string,         // factual, reflective, analytical, conversational, metaAnalysis
+  persona: string,            // companion, strategist, therapist, challenger
+  is_valid: boolean,
+  violations: string[],       // Array of violation descriptions
+  metrics: {
+    wordCount: number,
+    maxWords: number,
+    referenceCount: number,
+    maxReferencesAllowed: number,
+    isPersonalContent: boolean
+  },
+  entry_preview: string,      // First 100 chars of entry
+  response_preview: string,   // First 100 chars of response
+  timestamp: FieldValue.serverTimestamp()
+}
+```
+
+#### Persona Distribution Collection
+**Collection:** `lumara_persona_distribution`
+
+**Purpose:** Monitor persona selection against 50-60% Companion target
+
+**Document Schema:**
+```javascript
+{
+  user_id: string,
+  entry_type: string,
+  user_intent: string,        // reflect, thinkThrough, differentPerspective, etc.
+  selected_persona: string,
+  selection_reason: string,   // "Companion-first default", "High emotional intensity", etc.
+  was_companion_first: boolean,
+  timestamp: FieldValue.serverTimestamp(),
+  date: string               // YYYY-MM-DD for daily aggregation
+}
+```
+
+### Analytics & Monitoring
+
+**Persona Distribution Tracking:**
+- Daily aggregation of persona usage percentages
+- Target monitoring: 50-60% Companion, 25-35% Strategist, 10-15% Therapist, <5% Challenger
+- Alerts if Companion usage drops below 50%
+
+**Validation Monitoring:**
+- Real-time tracking of response rule violations
+- Reference limit enforcement logging
+- Word count compliance monitoring
+- Entry-type specific validation tracking
+
+**Performance Metrics:**
+- Response quality scores based on validation pass rates
+- User experience metrics (simplified settings adoption)
+- System behavior compliance (anti-over-referencing effectiveness)
+
+### Client-Side Integration
+
+**Validation Service:** `lib/services/lumara/validation_service.dart`
+- Comprehensive response validation with strict Companion checks
+- Firebase logging integration for monitoring violations
+- Real-time compliance enforcement
+
+**Logging Integration:** All validation results automatically logged to Firebase for:
+- System performance monitoring
+- User experience optimization
+- Persona distribution analysis
+- Rule effectiveness measurement
 
 ---
 

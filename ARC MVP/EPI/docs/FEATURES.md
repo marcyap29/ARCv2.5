@@ -1,6 +1,6 @@
 # EPI MVP - Comprehensive Features Guide
 
-**Version:** 2.1.86
+**Version:** 2.1.87
 **Last Updated:** January 7, 2026
 
 ---
@@ -140,14 +140,17 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
   5. Tap orb again to stop and process
   6. LUMARA responds with voice + text
 
-**LUMARA Persona (v2.1.51)**
-- **Auto Mode**: Adapts personality based on context automatically
-- **The Companion**: Warm, supportive presence for daily reflection
-- **The Therapist**: Deep therapeutic support with ECHO+SAGE
-- **The Strategist**: Operational sharpness with 5-section structured output
-- **The Challenger**: Direct feedback that pushes growth
-- Auto-detection based on sentinel alerts, emotional tone, readiness, time of day
-- Manual selection via Settings → LUMARA → LUMARA Persona
+**Companion-First LUMARA System (v2.1.87)**
+- **Backend-Only Personas**: No manual persona selection - all decisions automated based on entry classification and user state
+- **Companion-First Default**: 50-60% usage target with warm, supportive responses for most interactions
+- **The Companion**: Warm, supportive presence for daily reflection (primary persona)
+- **The Therapist**: Deep therapeutic support for high distress or low readiness situations
+- **The Strategist**: Structured analytical responses when users press "Think through" or "Suggest steps"
+- **The Challenger**: Direct feedback when users press "Different perspective" and have high readiness
+- **Safety Escalation Hierarchy**: Sentinel alerts → High distress → User intent buttons → Entry type → Default Companion
+- **Anti-Over-Referencing**: Maximum 1 past reference for personal content, maximum 3 for project content
+- **Personal vs. Project Detection**: Intelligent analysis distinguishing personal reflections from technical discussions
+- **Simplified Settings**: Essential controls only (Memory Focus, Web Access, Include Media) with advanced options moved to separate screen
 
 **Health→LUMARA Integration (v2.1.52)**
 - **Sleep Quality Signal**: 0-100% slider affects LUMARA's warmth and challenge level

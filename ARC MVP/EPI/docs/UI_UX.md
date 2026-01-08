@@ -1,6 +1,6 @@
 # EPI MVP - UI/UX Feature Documentation
 
-**Version:** 2.1.86
+**Version:** 2.1.87
 **Last Updated:** January 7, 2026
 **Status:** ✅ Comprehensive Feature Analysis Complete
 
@@ -42,6 +42,7 @@ The EPI (Evolving Personal Intelligence) Flutter application provides a sophisti
 26. [Engagement Discipline (v2.1.75)](#engagement-discipline-ui-v2175)
 27. [LUMARA Response Length Controls (v2.1.79)](#27-lumara-response-length-controls-v2179)
 28. [Journal Entry Overview (v2.1.80)](#28-journal-entry-overview-v2180)
+29. [Simplified Settings System (v2.1.87)](#29-simplified-settings-system-v2187)
 
 ---
 
@@ -2116,5 +2117,92 @@ UnifiedVoicePanel(
 
 ---
 
-*This comprehensive UI/UX documentation reflects the current state of the EPI Flutter application as of January 4, 2026. The interface combines sophisticated AI integration with thoughtful human-centered design to create a meaningful personal journaling and life insight experience.*
+## 29. Simplified Settings System (v2.1.87)
+
+### 📱 Simplified LUMARA Settings
+**File:** `lib/shared/ui/settings/simplified_settings_view.dart`
+
+**Problem Addressed**: Previous settings overwhelmed users with complex options (manual persona selection, therapeutic depth sliders, response length controls, voice response toggles) leading to decision paralysis.
+
+**Solution**: Streamlined settings interface focusing on essential user controls while moving advanced options to separate screen.
+
+#### Essential Settings (Main Screen)
+```
+┌─────────────────────────────────────────┐
+│ ← LUMARA Settings                       │
+├─────────────────────────────────────────┤
+│                                         │
+│ 🧠 Memory Focus                         │
+│ Balance between recent events and       │
+│ patterns across your full journal       │
+│ [• Recent Focus] [Past Patterns] [Balanced] │
+│                                         │
+│ 🌐 Web Access                          │
+│ Allow LUMARA to search for factual      │
+│ information when needed                 │
+│ [Toggle ON/OFF]                         │
+│                                         │
+│ 📎 Include Media                        │
+│ Include photos and recordings in        │
+│ LUMARA's analysis                       │
+│ [Toggle ON/OFF]                         │
+│                                         │
+│ ⚙️ Advanced Settings                    │
+│ [Arrow to advanced screen]              │
+│                                         │
+└─────────────────────────────────────────┘
+```
+
+#### Advanced Settings Screen
+**File:** `lib/shared/ui/settings/simplified_advanced_settings_view.dart`
+
+**Purpose**: Houses complex options for power users without overwhelming casual users.
+
+**Legacy Settings Preserved**:
+- Manual persona override (marked as deprecated)
+- Therapeutic depth controls (marked as deprecated)
+- Response length sliders (marked as deprecated)
+- Voice response toggles (marked as deprecated)
+- Advanced engagement controls
+- VEIL safety configurations
+
+#### Key UI/UX Principles
+
+**Cognitive Load Reduction**:
+- 3 essential settings on main screen (down from 8+ complex options)
+- Clear, descriptive text explaining each setting's purpose
+- No overwhelming sliders or complex multi-choice selectors
+
+**Progressive Disclosure**:
+- Essential settings immediately visible
+- Advanced settings hidden behind single tap
+- Clear distinction between simplified and advanced interfaces
+
+**Backwards Compatibility**:
+- All existing settings preserved for power users
+- Clear migration path with deprecation notices
+- No functionality lost, just better organized
+
+**Clear Descriptions**:
+- Each setting includes explanation of its impact
+- No technical jargon or ambiguous labels
+- Benefits-focused language ("Balance between recent events and patterns")
+
+#### User Experience Flow
+
+1. **New Users**: See only 3 essential, clearly explained settings
+2. **Power Users**: Can access advanced screen for full control
+3. **Migration**: Existing users retain all settings with clear upgrade path
+4. **Onboarding**: Simplified interface reduces setup cognitive load
+
+#### Backend Integration
+
+- **Companion-First System**: Settings optimized for new backend-only persona selection
+- **No Manual Persona**: Removed overwhelming persona picker from main settings
+- **Intelligent Defaults**: System makes smart choices based on entry classification and user state
+- **Validation Integration**: Settings changes validated against new Companion-first rules
+
+---
+
+*This comprehensive UI/UX documentation reflects the current state of the EPI Flutter application as of January 7, 2026. The interface combines sophisticated AI integration with thoughtful human-centered design to create a meaningful personal journaling and life insight experience.*
 

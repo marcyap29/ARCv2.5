@@ -1,6 +1,6 @@
 # EPI ARC MVP - Changelog
 
-**Version:** 2.1.86
+**Version:** 2.1.87
 **Last Updated:** January 7, 2026
 
 ---
@@ -11,9 +11,76 @@ This changelog has been split into parts for easier navigation:
 
 | Part | Coverage | Description |
 |------|----------|-------------|
-| **[CHANGELOG_part1.md](CHANGELOG_part1.md)** | Dec 2025 | v2.1.43 - v2.1.86 (Current) |
+| **[CHANGELOG_part1.md](CHANGELOG_part1.md)** | Dec 2025 | v2.1.43 - v2.1.87 (Current) |
 | **[CHANGELOG_part2.md](CHANGELOG_part2.md)** | Nov 2025 | v2.1.28 - v2.1.42 |
 | **[CHANGELOG_part3.md](CHANGELOG_part3.md)** | Jan-Oct 2025 | v2.0.0 - v2.1.27 & Earlier |
+
+---
+
+## [2.1.87] - January 7, 2026
+
+### **Companion-First LUMARA Response System** - ✅ Complete
+
+**Problem Resolved**: LUMARA was over-synthesizing simple questions and showing overwhelming persona options in settings, with manual persona selection causing inconsistent user experiences.
+
+**Root Cause**: Strategic persona bias was turning factual questions into lengthy therapeutic sessions, while complex settings overwhelmed users with too many choices.
+
+**Solution**: Complete architectural overhaul implementing Companion-first response system with simplified settings.
+
+#### Core Architecture Changes
+- **Backend-Only Personas**: Removed manual persona selection from UI - all decisions automated based on entry classification and user state
+- **Companion-First Default**: 50-60% Companion usage target with intelligent escalation only when needed
+- **Persona Distribution**: 50-60% Companion, 25-35% Strategist, 10-15% Therapist, <5% Challenger
+- **Safety Escalation Hierarchy**: Sentinel alerts → High distress detection → User intent buttons → Entry type → Default Companion
+
+#### Anti-Over-Referencing System
+- **Strict Reference Limits**: Maximum 1 past reference for personal Companion responses, maximum 3 for project content
+- **Personal vs. Project Detection**: Intelligent content analysis distinguishing personal reflections from technical/project discussions
+- **Forbidden Pattern Detection**: Comprehensive validation against over-referencing phrases like "this drives your ARC journey"
+- **Master Prompt Controls**: Explicit anti-over-referencing instructions with persona-specific behavioral guidelines
+
+#### User Intent & Classification Integration
+- **User Intent Detection**: Button interactions mapped to 6 intent types (reflect, suggestIdeas, thinkThrough, differentPerspective, suggestSteps, reflectDeeply)
+- **Entry Classification Integration**: Builds on existing 5-type system (factual, reflective, analytical, conversational, metaAnalysis)
+- **Response Mode Configuration**: Persona and entry type determine word limits, reference limits, and formatting rules
+- **Intelligent Escalation**: High emotional intensity or low readiness scores trigger Therapist override regardless of button pressed
+
+#### Simplified Settings Experience
+- **Removed Overwhelming Options**: Manual persona selection, voice responses, therapeutic depth, response length sliders
+- **Essential Controls Preserved**: Memory Focus, Web Access, Include Media with clear descriptions
+- **Advanced Settings Screen**: Power-user options moved to separate screen to reduce cognitive load
+- **Clear Deprecation**: Legacy settings clearly marked as deprecated with migration guidance
+
+#### Validation & Monitoring System
+- **Comprehensive Response Validation**: Word count limits, reference count enforcement, entry-type specific rules
+- **Firebase Logging**: Persona distribution monitoring, validation violation tracking, selection reason logging
+- **Real-Time Compliance**: Responses validated against strict Companion behavioral rules
+- **Performance Metrics**: Track persona distribution against 50-60% Companion target
+
+#### Implementation Files
+- **Core Service**: `lib/services/lumara/companion_first_service.dart` - Main integration point
+- **Entry Classification**: `lib/services/lumara/entry_classifier.dart` (leveraged existing system)
+- **User Intent Detection**: `lib/services/lumara/user_intent.dart` - New button interaction mapping
+- **Persona Selection**: `lib/services/lumara/persona_selector.dart` - Companion-first logic with safety overrides
+- **Response Configuration**: `lib/services/lumara/response_mode_v2.dart` - Strict anti-over-referencing controls
+- **Master Prompt Building**: `lib/services/lumara/master_prompt_builder.dart` - Persona-specific instructions
+- **Validation System**: `lib/services/lumara/validation_service.dart` - Comprehensive rule checking
+- **Simplified Settings**: `lib/shared/ui/settings/simplified_settings_view.dart` - Reduced cognitive load
+- **Advanced Settings**: `lib/shared/ui/settings/simplified_advanced_settings_view.dart` - Power-user options
+- **Test Suite**: `test/services/lumara/companion_first_test.dart` - Comprehensive validation
+
+#### User Experience Impact
+- **Natural Interactions**: Companion persona provides warm, supportive responses without over-referencing
+- **Intelligent Escalation**: System automatically escalates to Strategist/Therapist when appropriate
+- **Simplified Experience**: Settings no longer overwhelm users with complex persona configurations
+- **Consistent Quality**: Backend automation ensures reliable persona selection and response quality
+- **Safety Maintained**: All safety checks and escalation paths preserved with enhanced monitoring
+
+#### Migration Strategy
+- **Graceful Transition**: Existing user preferences migrate to simplified system
+- **Backwards Compatibility**: Advanced settings preserved for users who need them
+- **No Data Loss**: All existing entries and chat history maintained
+- **Transparent Migration**: Users notified of changes with clear benefits explanation
 
 ---
 

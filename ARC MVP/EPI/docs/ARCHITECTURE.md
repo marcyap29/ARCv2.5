@@ -1,8 +1,8 @@
 # EPI MVP - Architecture Overview
 
-**Version:** 2.1.86
+**Version:** 2.1.87
 **Last Updated:** January 7, 2026
-**Status:** ✅ Production Ready - MVP Fully Operational with Health Integration, AssemblyAI v3, Web Access Safety, Correlation-Resistant PII Protection, Bible Reference Retrieval, Google Drive Backup, Temporal Notifications & Enhanced Incremental Backups
+**Status:** ✅ Production Ready - MVP Fully Operational with Companion-First LUMARA, Simplified Settings, Health Integration, AssemblyAI v3, Web Access Safety, Correlation-Resistant PII Protection, Bible Reference Retrieval, Google Drive Backup, Temporal Notifications & Enhanced Incremental Backups
 
 ---
 
@@ -350,6 +350,15 @@ The EPI system is organized into 5 core modules:
   - **Response Mode Optimization**: Different response modes with appropriate word limits and context scoping
   - **Pattern Detection**: Emotional density, first-person density, technical indicators, and meta-analysis patterns
   - **Classification Logging**: Firebase-based analytics for monitoring and improving classification accuracy
+- **Companion-First LUMARA System (v2.1.87)**: Complete architectural overhaul implementing Companion-first persona selection
+  - **Persona Distribution Target**: 50-60% Companion, 25-35% Strategist, 10-15% Therapist, <5% Challenger
+  - **Backend-Only Personas**: No manual persona selection - all decisions made by system based on entry classification and user state
+  - **Strict Anti-Over-Referencing**: Maximum 1 past reference for personal Companion responses, maximum 3 for project content
+  - **Personal vs. Project Detection**: Intelligent content analysis distinguishing personal reflections from project discussions
+  - **User Intent Detection**: Button interactions mapped to 6 intent types (reflect, suggestIdeas, thinkThrough, differentPerspective, suggestSteps, reflectDeeply)
+  - **Safety Escalation Hierarchy**: Sentinel alerts → High distress → User intent → Entry type → Default Companion
+  - **Validation System**: Comprehensive response validation with Firebase logging for violations and persona distribution monitoring
+  - **Simplified Settings**: Removed overwhelming options (manual persona, therapeutic depth, response length) while preserving essential controls
 - **Enhanced PRISM Privacy System**: Classification-aware privacy protection with improved semantic analysis
   - **Dual Privacy Strategy**: Classification-aware PRISM preserves semantic content for factual entries while using full abstraction for personal/emotional content
   - **Technical Content Detection**: On-device recognition of mathematics, physics, computer science, engineering topics with subject-specific summarization
