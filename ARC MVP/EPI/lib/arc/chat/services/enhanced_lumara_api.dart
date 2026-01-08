@@ -335,9 +335,9 @@ class EnhancedLumaraApi {
             contextParts.add('Circadian context: Time window: $window, Chronotype: $chronotype, Rhythm coherence: ${(rhythmScore * 100).toStringAsFixed(0)}%${isFragmented ? ' (fragmented)' : ''}');
           }
           
-          // Add earlier entries context - emphasize active use
+          // Add earlier entries context - use for pattern recognition with dated examples
           if (matches.isNotEmpty) {
-            contextParts.add('**HISTORICAL CONTEXT FROM EARLIER ENTRIES (USE ACTIVELY TO SHOW PATTERNS AND CONNECTIONS)**:\n${matches.map((m) => 'From ${m.approxDate?.year}: ${m.excerpt}').join('\n\n')}\n\n**IMPORTANT**: Actively reference these past entries in your reflection to show patterns, evolution, and meaningful connections to the current entry.');
+            contextParts.add('**HISTORICAL CONTEXT (Use for pattern recognition with dated examples)**:\n${matches.map((m) => 'From ${m.approxDate?.toString().substring(0, 10) ?? 'Unknown date'}: ${m.excerpt}').join('\n\n')}\n\n**PATTERN REQUIREMENT**: If showing patterns, reference specific dated examples from above (e.g., "in August", "on October 3rd"). Focus on meaningful patterns, not listing all projects.');
           }
           
           // Add chat context
@@ -369,7 +369,7 @@ class EnhancedLumaraApi {
             // Add blank line separator
             '',
             // Add recent entries as important context for pattern recognition
-            '**HISTORICAL CONTEXT (USE ACTIVELY FOR PATTERNS AND CONNECTIONS)**:',
+            '**HISTORICAL CONTEXT (Use for pattern recognition with dated examples)**:',
             ...recentJournalEntries.map((e) => '- ${e.content}').take(20), // Increase to 20 entries for richer context
           ];
           
@@ -527,16 +527,35 @@ class EnhancedLumaraApi {
               .toList();
           final matchedHints = matches.take(1).map((m) => m.id).toList();
           
+          var scoredResponse = geminiResponse;
+          
+          // Validate and enforce word limit BEFORE scoring
+          final words = scoredResponse.trim().split(RegExp(r'\s+'));
+          final wordCount = words.length;
+          
+          print('📊 Initial word count: $wordCount words (limit: $maxWords)');
+          
+          if (wordCount > maxWords + 50) {
+            print('⚠️ WARNING: Response exceeds word limit by ${wordCount - maxWords} words');
+            
+            // Truncate to word limit
+            final truncated = words.take(maxWords).join(' ');
+            scoredResponse = truncated;
+            
+            final newWordCount = scoredResponse.split(RegExp(r'\s+')).length;
+            print('✂️ Truncated response to $newWordCount words');
+          }
+          
+          // Create scoring input with potentially truncated response
           final scoringInput = scoring.ScoringInput(
             userText: request.userText,
-            candidate: geminiResponse,
+            candidate: scoredResponse, // Use truncated response if it was truncated
             phaseHint: _convertToScoringPhaseHint(currentPhase),
             entryType: _convertToScoringEntryType(request.entryType.name),
             priorKeywords: priorKeywords,
             matchedNodeHints: matchedHints,
           );
           
-          var scoredResponse = geminiResponse;
           final breakdown = scoring.LumaraResponseScoring.scoreLumaraResponse(scoringInput);
           
           print('🌼 LUMARA Response Scoring v2.3: resonance=${breakdown.resonance.toStringAsFixed(2)}, empathy=${breakdown.empathy.toStringAsFixed(2)}, depth=${breakdown.depth.toStringAsFixed(2)}, agency=${breakdown.agency.toStringAsFixed(2)}');
@@ -544,7 +563,7 @@ class EnhancedLumaraApi {
           // If below threshold, auto-fix
           if (breakdown.resonance < scoring.minResonance) {
             print('🌼 Auto-fixing response below threshold (${breakdown.resonance.toStringAsFixed(2)})');
-            scoredResponse = scoring.LumaraResponseScoring.autoTightenToEcho(geminiResponse);
+            scoredResponse = scoring.LumaraResponseScoring.autoTightenToEcho(scoredResponse);
             final fixedBreakdown = scoring.LumaraResponseScoring.scoreLumaraResponse(
               scoring.ScoringInput(
                 userText: request.userText,
@@ -557,7 +576,63 @@ class EnhancedLumaraApi {
             print('🌼 After auto-fix: resonance=${fixedBreakdown.resonance.toStringAsFixed(2)}');
           }
           
-          final formatted = '✨ Reflection\n\n$scoredResponse';
+          // Validate pattern examples for Companion mode
+          if (effectivePersona == 'companion' && isPersonalContent) {
+            final datePatterns = [
+              RegExp(r'\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2}\b', caseSensitive: false),
+              RegExp(r'\b(January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2}\b', caseSensitive: false),
+              RegExp(r'\bin (January|February|March|April|May|June|July|August|September|October|November|December)\b', caseSensitive: false),
+              RegExp(r'\b(in|on|during|since|from)\s+(January|February|March|April|May|June|July|August|September|October|November|December)\b', caseSensitive: false),
+              RegExp(r'\b(January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{4}\b', caseSensitive: false),
+              RegExp(r'\b\d{1,2}\s+(January|February|March|April|May|June|July|August|September|October|November|December)\b', caseSensitive: false),
+            ];
+            
+            int dateCount = 0;
+            for (final pattern in datePatterns) {
+              dateCount += pattern.allMatches(scoredResponse).length;
+            }
+            
+            if (dateCount < minPatternExamples) {
+              print('⚠️ WARNING: Insufficient dated examples ($dateCount found, $minPatternExamples required)');
+            } else {
+              print('✅ Pattern examples: $dateCount dated examples found');
+            }
+            
+            // Check for strategic buzzwords
+            final buzzwords = [
+              'strategic vision',
+              'strategic positioning',
+              'strategic considerations',
+              'strategic planning',
+              'market positioning',
+              'epi architecture',
+              'ppi principles',
+              'fundamental',
+              'integral steps',
+              'manifesting',
+            ];
+            
+            int buzzwordCount = 0;
+            final lowerResponse = scoredResponse.toLowerCase();
+            for (final word in buzzwords) {
+              if (lowerResponse.contains(word)) {
+                buzzwordCount++;
+                print('⚠️ Strategic buzzword detected: "$word"');
+              }
+            }
+            
+            if (buzzwordCount > 0) {
+              print('⚠️ WARNING: $buzzwordCount strategic buzzwords in personal reflection');
+            }
+          }
+          
+          // Don't add hardcoded header - LLM should follow persona instructions
+          // Companion and Therapist use ✨ Reflection
+          // Strategist uses ✨ Analysis  
+          // Challenger uses no header
+          final formatted = scoredResponse.trim();
+          
+          print('📊 Final word count: ${formatted.split(RegExp(r'\s+')).length} words');
           
           // Create attribution traces from the matched nodes that were actually used
           final attributionTraces = <AttributionTrace>[];
@@ -1111,12 +1186,20 @@ COMPANION MODE:
 ✗ FORBIDDEN PHRASES (never use):
   - "beautifully encapsulates"
   - "profound strength"
+  - "profound sense"
   - "evolving identity"
   - "embodying the principles"
   - "on the precipice of"
   - "journey of bringing"
   - "shaping the contours of your identity"
   - "significant moment in your journey"
+  - "strategic considerations"
+  - "strategic planning"
+  - "strategic vision"
+  - "strategic positioning"
+  - "fundamental" (when used melodramatically)
+  - "integral steps"
+  - "manifesting"
 
 ✗ DO NOT provide action items unless explicitly requested
 ''';
