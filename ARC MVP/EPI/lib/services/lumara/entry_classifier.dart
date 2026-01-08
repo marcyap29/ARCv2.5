@@ -45,15 +45,21 @@ class EntryClassifier {
         'is this correct',
         'am i understanding',
         'did i get this',
+        'is my understanding',
+        'does newton',
+        'is newton',
       ];
 
       if (factualTriggers.any((trigger) => lowerText.contains(trigger))) {
+        print('LUMARA Classifier: Detected factual question via trigger: ${factualTriggers.where((t) => lowerText.contains(t)).first}');
         return EntryType.factual;
       }
 
       // Pattern: "I thought X but it's actually Y?"
       if (lowerText.contains('i thought') ||
-          lowerText.contains('i learned')) {
+          lowerText.contains('i learned') ||
+          lowerText.contains('i had thought')) {
+        print('LUMARA Classifier: Detected factual clarification via learning pattern');
         return EntryType.factual;
       }
     }
@@ -153,6 +159,7 @@ class EntryClassifier {
       'code', 'coding', 'programming', 'data', 'system', 'architecture',
       'framework', 'model', 'technical', 'methodology', 'implementation',
       'integration', 'optimization', 'variable', 'constant', 'derivative',
+      'newton', 'calculus', 'predict', 'movement', 'predict or calculate',
     ];
 
     int count = 0;
