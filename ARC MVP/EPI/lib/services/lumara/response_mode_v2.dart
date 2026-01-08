@@ -18,8 +18,11 @@ class ResponseMode {
   final bool useStructuredFormat;
   final ContextScope contextScope;
   final String toneGuidance;
-  final int maxPastReferences;  // NEW: Strict limit on references
-  final bool isPersonalContent;  // NEW: Personal vs. project detection
+  final int maxPastReferences;  // DEPRECATED: Use pattern examples instead
+  final bool isPersonalContent;  // Personal vs. project detection
+  final int minPatternExamples;  // NEW: Minimum dated examples for patterns
+  final int maxPatternExamples;  // NEW: Maximum dated examples
+  final bool requireDates;       // NEW: Require specific dates/contexts
 
   ResponseMode({
     required this.persona,
@@ -32,6 +35,9 @@ class ResponseMode {
     required this.toneGuidance,
     required this.maxPastReferences,
     required this.isPersonalContent,
+    required this.minPatternExamples,
+    required this.maxPatternExamples,
+    required this.requireDates,
   });
 
   /// Configure response mode with strict Companion controls
@@ -44,7 +50,7 @@ class ResponseMode {
     // Detect if content is personal reflection vs. project planning
     final isPersonal = _detectPersonalContent(entryText);
 
-    // Special handling for factual (always brief)
+    // Special handling for factual (always brief, no patterns)
     if (entryType == EntryType.factual) {
       return ResponseMode(
         persona: persona,
@@ -54,13 +60,16 @@ class ResponseMode {
         useReflectionHeader: false,
         useStructuredFormat: false,
         contextScope: ContextScope.minimal(),
-        toneGuidance: "Direct, helpful, concise, educational",
-        maxPastReferences: 0,  // No references for factual
+        toneGuidance: "Direct, helpful, concise",
+        maxPastReferences: 0,
         isPersonalContent: false,
+        minPatternExamples: 0,
+        maxPatternExamples: 0,
+        requireDates: false,
       );
     }
 
-    // Special handling for conversational (always minimal)
+    // Special handling for conversational (brief, no patterns)
     if (entryType == EntryType.conversational) {
       return ResponseMode(
         persona: persona,
@@ -70,9 +79,12 @@ class ResponseMode {
         useReflectionHeader: false,
         useStructuredFormat: false,
         contextScope: ContextScope.minimal(),
-        toneGuidance: "Warm, brief, acknowledging",
-        maxPastReferences: 0,  // No references for conversational
+        toneGuidance: "Warm, brief",
+        maxPastReferences: 0,
         isPersonalContent: false,
+        minPatternExamples: 0,
+        maxPatternExamples: 0,
+        requireDates: false,
       );
     }
 
@@ -134,16 +146,12 @@ class ResponseMode {
     return personalCount > projectCount;
   }
 
-  /// Configure Companion persona mode (STRICT CONTROLS)
+  /// Configure Companion persona (PATTERN RECOGNITION ENABLED)
   static ResponseMode _companionMode(
     EntryType type,
     UserIntent intent,
     bool isPersonal,
   ) {
-    // STRICT: Personal content gets maximum 1 reference
-    // Project content can have 2-3 references
-    int maxRefs = isPersonal ? 1 : 3;
-
     return ResponseMode(
       persona: "companion",
       entryType: type,
@@ -152,9 +160,12 @@ class ResponseMode {
       useReflectionHeader: true,
       useStructuredFormat: false,
       contextScope: ContextScope.moderate(),
-      toneGuidance: "Warm, supportive, conversational, validating, friendly",
-      maxPastReferences: maxRefs,
+      toneGuidance: "Warm, supportive, conversational, pattern-revealing",
+      maxPastReferences: isPersonal ? 1 : 3,  // Keep for backward compatibility
       isPersonalContent: isPersonal,
+      minPatternExamples: 2,  // Show at least 2 dated examples
+      maxPatternExamples: 4,  // Up to 4 dated examples
+      requireDates: true,     // Must include specific dates/contexts
     );
   }
 
@@ -168,9 +179,12 @@ class ResponseMode {
       useReflectionHeader: true,
       useStructuredFormat: false,
       contextScope: ContextScope.full(),
-      toneGuidance: "Gentle, grounding, containing, therapeutic, empathetic",
-      maxPastReferences: 2,  // Can reference past struggles/patterns
+      toneGuidance: "Gentle, grounding, containing, therapeutic",
+      maxPastReferences: 2,
       isPersonalContent: true,
+      minPatternExamples: 1,  // Can reference past struggles
+      maxPatternExamples: 3,
+      requireDates: true,
     );
   }
 
@@ -183,21 +197,22 @@ class ResponseMode {
       type == EntryType.metaAnalysis
     );
 
-    int wordLimit = useStructure ? 500 : 300;
-
     return ResponseMode(
       persona: "strategist",
       entryType: type,
       userIntent: intent,
-      maxWords: wordLimit,
+      maxWords: useStructure ? 500 : 300,
       useReflectionHeader: true,
       useStructuredFormat: useStructure,
       contextScope: ContextScope.full(),
       toneGuidance: useStructure
-        ? "Analytical, structured, concrete, decisive, action-oriented"
-        : "Analytical but conversational, insightful, clear",
-      maxPastReferences: 5,  // Can pull more context for analysis
+        ? "Analytical, structured, concrete, decisive"
+        : "Analytical but conversational, insightful",
+      maxPastReferences: 5,
       isPersonalContent: false,
+      minPatternExamples: 3,  // Deep pattern analysis
+      maxPatternExamples: 8,
+      requireDates: true,
     );
   }
 
@@ -211,9 +226,12 @@ class ResponseMode {
       useReflectionHeader: false,
       useStructuredFormat: false,
       contextScope: ContextScope.moderate(),
-      toneGuidance: "Direct, challenging, growth-oriented, honest",
-      maxPastReferences: 2,  // Limited references, focus on current
+      toneGuidance: "Direct, challenging, growth-oriented",
+      maxPastReferences: 2,
       isPersonalContent: true,
+      minPatternExamples: 1,  // Sharp, focused examples
+      maxPatternExamples: 2,
+      requireDates: true,
     );
   }
 
@@ -230,6 +248,8 @@ class ResponseMode {
       'toneGuidance': toneGuidance,
       'maxPastReferences': maxPastReferences,
       'isPersonalContent': isPersonalContent,
+      'patternExamples': '$minPatternExamples-$maxPatternExamples',
+      'requireDates': requireDates,
     };
   }
 
@@ -245,6 +265,9 @@ class ResponseMode {
     String? toneGuidance,
     int? maxPastReferences,
     bool? isPersonalContent,
+    int? minPatternExamples,
+    int? maxPatternExamples,
+    bool? requireDates,
   }) {
     return ResponseMode(
       persona: persona ?? this.persona,
@@ -257,6 +280,9 @@ class ResponseMode {
       toneGuidance: toneGuidance ?? this.toneGuidance,
       maxPastReferences: maxPastReferences ?? this.maxPastReferences,
       isPersonalContent: isPersonalContent ?? this.isPersonalContent,
+      minPatternExamples: minPatternExamples ?? this.minPatternExamples,
+      maxPatternExamples: maxPatternExamples ?? this.maxPatternExamples,
+      requireDates: requireDates ?? this.requireDates,
     );
   }
 }

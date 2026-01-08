@@ -51,6 +51,23 @@ class ValidationService {
       violations.add('Response exceeds word limit: $wordCount words (max $maxWords)');
     }
 
+    // NEW: Banned phrases validation (melodrama prevention)
+    final bannedPhraseViolations = _detectBannedPhrases(response);
+    violations.addAll(bannedPhraseViolations);
+
+    // NEW: Pattern examples validation (for pattern-enabled personas)
+    if (responseMode.minPatternExamples > 0 && persona == "companion") {
+      final exampleCount = _countDatedExamples(response);
+
+      if (exampleCount < responseMode.minPatternExamples) {
+        violations.add('Insufficient dated examples: $exampleCount found (min ${responseMode.minPatternExamples})');
+      }
+
+      if (exampleCount > responseMode.maxPatternExamples) {
+        violations.add('Too many examples: $exampleCount found (max ${responseMode.maxPatternExamples})');
+      }
+    }
+
     // Reference count validation (CRITICAL for Companion mode)
     if (persona == "companion") {
       final refCount = _countPastReferences(response);
@@ -160,6 +177,10 @@ class ValidationService {
       'isPersonalContent': responseMode.isPersonalContent,
       'referenceCount': persona == "companion" ? _countPastReferences(response) : 0,
       'maxReferencesAllowed': maxRefs,
+      'datedExamplesCount': _countDatedExamples(response),
+      'minPatternExamples': responseMode.minPatternExamples,
+      'maxPatternExamples': responseMode.maxPatternExamples,
+      'bannedPhrasesDetected': _detectBannedPhrases(response).length,
     };
 
     return ValidationResult(
@@ -314,6 +335,57 @@ class ValidationService {
     final lowerResponse = response.toLowerCase();
     return therapeuticPatterns.any((pattern) => RegExp(pattern).hasMatch(lowerResponse));
   }
+
+  /// NEW: Detect banned melodramatic phrases
+  static List<String> _detectBannedPhrases(String response) {
+    final violations = <String>[];
+    final bannedPhrases = [
+      'significant moment in your journey',
+      'shaping the contours of your identity',
+      'expressions of commitment to',
+      'integral steps in manifesting',
+      'self-authorship',
+      'transforming into foundational moments',
+      'aligns with your .+ phase',
+      'reflects your strategic vision',
+      'demonstrates your commitment to',
+      'ongoing commitment to',
+      'as you continue to evolve',
+      'expressions of your deepest commitments',
+      'manifesting your vision',
+    ];
+
+    final lowerResponse = response.toLowerCase();
+
+    for (var phrase in bannedPhrases) {
+      if (RegExp(phrase).hasMatch(lowerResponse)) {
+        violations.add('Banned melodramatic phrase detected: "$phrase"');
+      }
+    }
+
+    return violations;
+  }
+
+  /// NEW: Count dated examples in response
+  static int _countDatedExamples(String response) {
+    // Look for date patterns
+    final datePatterns = [
+      r'\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2}\b',  // "Aug 12"
+      r'\b\d{1,2}\/\d{1,2}\b',  // "8/12"
+      r'\b\d{4}-\d{2}-\d{2}\b',  // "2024-08-12"
+      r'\blast (week|month|year)\b',  // "last week"
+      r'\b\d+ (weeks|months|days) ago\b',  // "3 weeks ago"
+      r'\b(yesterday|today|last night|this morning)\b',  // relative dates
+      r'\b(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)\b',  // day names
+    ];
+
+    int count = 0;
+    for (var pattern in datePatterns) {
+      count += RegExp(pattern, caseSensitive: false).allMatches(response).length;
+    }
+
+    return count;
+  }
 }
 
 class ValidationLogger {
@@ -447,6 +519,8 @@ class ValidationLogger {
     if (violation.contains('factual')) return 'Factual Violations';
     if (violation.contains('header')) return 'Header Issues';
     if (violation.contains('format')) return 'Format Issues';
+    if (violation.contains('Banned melodramatic phrase')) return 'Banned Phrases';
+    if (violation.contains('dated examples')) return 'Pattern Examples';
     return 'Other';
   }
 }

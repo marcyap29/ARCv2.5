@@ -8,7 +8,7 @@ class LumaraContextBuilder {
   final List<String> recentKeywords;
   final List<String> memorySnippets;
   final List<String> journalExcerpts;
-  final List<String> favoriteExamples; // Favorite LUMARA reply examples for style guidance
+  final List<String> favoriteExamples; // Library reference only - user's saved responses for personal reference
 
   LumaraContextBuilder({
     required this.userName,
@@ -60,14 +60,16 @@ class LumaraContextBuilder {
     
     buffer.writeln();
     
-    // Favorites Style Examples
+    // User's Favorite Examples (Library Reference - Not for Response Adaptation)
     if (favoriteExamples.isNotEmpty) {
-      buffer.writeln('[FAVORITE_STYLE_EXAMPLES_START]');
+      buffer.writeln('[USER_FAVORITES_LIBRARY_START]');
+      buffer.writeln('Note: These are user\'s saved responses for personal reference only.');
+      buffer.writeln('Do NOT adapt writing style based on these examples.');
       for (final example in favoriteExamples) {
         buffer.writeln(example);
         buffer.writeln('---');
       }
-      buffer.writeln('[FAVORITE_STYLE_EXAMPLES_END]');
+      buffer.writeln('[USER_FAVORITES_LIBRARY_END]');
       buffer.writeln();
     }
     
@@ -82,9 +84,9 @@ class LumaraContextBuilder {
   /// Build a minimal context block when no data is available
   String buildMinimalContextBlock() {
     final favoritesSection = favoriteExamples.isNotEmpty
-        ? '\n[FAVORITE_STYLE_EXAMPLES_START]\n${favoriteExamples.join('\n---\n')}\n[FAVORITE_STYLE_EXAMPLES_END]\n'
+        ? '\n[USER_FAVORITES_LIBRARY_START]\nNote: These are user\'s saved responses for personal reference only.\nDo NOT adapt writing style based on these examples.\n${favoriteExamples.join('\n---\n')}\n[USER_FAVORITES_LIBRARY_END]\n'
         : '';
-    
+
     return '''[USER_PROFILE]
 name: $userName
 phase_preference: steady, structured

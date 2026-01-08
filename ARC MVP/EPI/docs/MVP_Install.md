@@ -1,3 +1,4 @@
+
 ate# EPI MVP Install Guide (Main MVP – Gemini API)
 
 This guide installs and runs the full MVP. The app uses Gemini via the LLMRegistry. If no key is provided (or the API fails), it falls back to the rule‑based client.
