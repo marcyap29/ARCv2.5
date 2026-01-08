@@ -2924,6 +2924,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
         attributionTraces: block.attributionTraces,
         blockId: blockId,
         onRegenerate: () => _onRegenerateReflection(index),
+        onReflectDeeply: () => _onReflectDeeply(index),
         onContinueThought: () => _onContinueThought(index),
         onContinueWithLumara: () => _onContinueWithLumara(index),
         onDelete: () => _onDeleteReflection(index),
@@ -5046,6 +5047,10 @@ $originalEntryTextToInclude
         },
       ),
     );
+  }
+
+  Future<void> _onReflectDeeply(int index) async {
+    await _handleLumaraContinuation(lumara_models.ConversationMode.reflectDeeply, index);
   }
 
   Future<void> _onContinueThought(int index) async {

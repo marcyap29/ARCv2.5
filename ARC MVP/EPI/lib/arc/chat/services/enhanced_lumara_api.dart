@@ -31,6 +31,7 @@ import 'package:my_app/arc/internal/echo/correlation_resistant_transformer.dart'
 import '../../../services/lumara/entry_classifier.dart';
 import '../../../services/lumara/response_mode.dart';
 import '../../../services/lumara/classification_logger.dart';
+import '../../../services/lumara/user_intent.dart';
 
 /// Result of generating a reflection with attribution traces
 class ReflectionResult {
@@ -462,21 +463,43 @@ Follow the ECHO structure (Empathize → Clarify → Highlight → Open) but exp
             'cognitive_load': 'moderate', // Could be enhanced with analysis
           };
           
+          // Convert ConversationMode to UserIntent for persona selection
+          UserIntent? detectedUserIntent;
+          if (request.options.conversationMode != null) {
+            detectedUserIntent = _convertConversationModeToUserIntent(request.options.conversationMode!);
+            print('🔵 LUMARA Enhanced API: ConversationMode ${request.options.conversationMode!.name} → UserIntent ${detectedUserIntent?.toString().split('.').last ?? "null"}');
+          }
+          
           // Build unified control state JSON (pass user text for dynamic persona/response mode detection)
           final controlStateJson = await LumaraControlStateBuilder.buildControlState(
             userId: userId,
             prismActivity: prismActivity,
             chronoContext: chronoContext,
             userMessage: request.userText, // Pass user message for question intent detection
+            maxWords: responseMode.maxWords, // Pass word limit from response mode
+            userIntent: detectedUserIntent, // Pass detected user intent from conversation mode
           );
           
           // Get master prompt with control state
           final systemPrompt = LumaraMasterPrompt.getMasterPrompt(controlStateJson);
           
-          print('LUMARA Enhanced API v2.3: Using unified master prompt with control state');
+          print('🔵 LUMARA Enhanced API v2.3: Using unified master prompt with control state');
+          print('🔵 LUMARA Enhanced API v2.3: System prompt length: ${systemPrompt.length}');
+          print('🔵 LUMARA Enhanced API v2.3: User prompt length: ${userPrompt.length}');
           
-          print('LUMARA Enhanced API v2.3: System prompt length: ${systemPrompt.length}');
-          print('LUMARA Enhanced API v2.3: User prompt length: ${userPrompt.length}');
+          // Verify master prompt contains our updated instructions
+          if (systemPrompt.contains('CRITICAL: WORD LIMIT ENFORCEMENT')) {
+            print('✅ Master prompt contains word limit enforcement section');
+          }
+          if (systemPrompt.contains('persona.effective') && systemPrompt.contains('companion')) {
+            print('✅ Master prompt contains persona.effective references');
+          }
+          if (systemPrompt.contains('responseMode.maxWords')) {
+            print('✅ Master prompt contains responseMode.maxWords references');
+          }
+          if (systemPrompt.contains('entryClassification')) {
+            print('✅ Master prompt contains entryClassification references');
+          }
           
           onProgress?.call('Calling cloud API...');
 
@@ -969,6 +992,25 @@ Respond now:''';
         reflection: "Thanks for sharing that with me.",
         attributionTraces: [],
       );
+    }
+  }
+
+  /// Convert ConversationMode (from UI) to UserIntent (for persona selection)
+  static UserIntent? _convertConversationModeToUserIntent(models.ConversationMode conversationMode) {
+    switch (conversationMode) {
+      case models.ConversationMode.ideas:
+        return UserIntent.suggestIdeas;
+      case models.ConversationMode.think:
+        return UserIntent.thinkThrough;
+      case models.ConversationMode.perspective:
+        return UserIntent.differentPerspective;
+      case models.ConversationMode.nextSteps:
+        return UserIntent.suggestSteps;
+      case models.ConversationMode.reflectDeeply:
+        return UserIntent.reflectDeeply;
+      case models.ConversationMode.continueThought:
+        // Continue thought doesn't change persona - use default
+        return null; // Will default to reflect
     }
   }
 }

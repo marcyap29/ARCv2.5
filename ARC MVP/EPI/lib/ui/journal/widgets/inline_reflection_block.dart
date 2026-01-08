@@ -17,8 +17,9 @@ class InlineReflectionBlock extends StatefulWidget {
   final bool isLoading; // Whether LUMARA is currently generating insights
   final String? loadingMessage; // Optional loading message
   final VoidCallback onRegenerate;
-  final VoidCallback onContinueWithLumara;
+  final VoidCallback onReflectDeeply; // NEW: Reflect more deeply button
   final VoidCallback onContinueThought;
+  final VoidCallback onContinueWithLumara;
   final VoidCallback onDelete;
   final List<AttributionTrace>? attributionTraces; // Memory attribution traces
   final String? blockId; // Unique ID for favorites tracking
@@ -31,8 +32,9 @@ class InlineReflectionBlock extends StatefulWidget {
     this.isLoading = false,
     this.loadingMessage,
     required this.onRegenerate,
-    required this.onContinueWithLumara,
+    required this.onReflectDeeply,
     required this.onContinueThought,
+    required this.onContinueWithLumara,
     required this.onDelete,
     this.attributionTraces,
     this.blockId,
@@ -350,6 +352,12 @@ class _InlineReflectionBlockState extends State<InlineReflectionBlock> with Sing
                                   label: 'Regenerate',
                                   icon: Icons.refresh,
                                   onPressed: widget.isLoading ? () {} : widget.onRegenerate,
+                                ),
+                                const SizedBox(width: 8),
+                                LumaraActionButton(
+                                  label: 'Reflect more deeply',
+                                  icon: Icons.insights,
+                                  onPressed: widget.isLoading ? () {} : widget.onReflectDeeply,
                                 ),
                                 const SizedBox(width: 8),
                                 LumaraActionButton(

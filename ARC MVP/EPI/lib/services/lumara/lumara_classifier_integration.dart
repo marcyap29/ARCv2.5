@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'entry_classifier.dart';
+import 'user_intent.dart';
+import 'persona_selector.dart';
 import 'response_mode.dart';
 import 'classification_logger.dart';
 
@@ -567,15 +569,26 @@ You DO NOT modify the control state. You ONLY follow it.
     required bool sentinelAlert,
     required String userMessage,
   }) {
-    // Replace with your existing persona determination logic
-    if (sentinelAlert) return "therapist";
-    if (phase == "Recovery") return readinessScore < 40 ? "therapist" : "companion";
-    if (phase == "Discovery") {
-      if (readinessScore >= 70) return "strategist";
-      if (readinessScore >= 40) return "companion";
-      return "therapist";
+    // Use new Companion-First PersonaSelector logic
+    // Import EntryClassifier and PersonaSelector at top of file
+    try {
+      final entryType = EntryClassifier.classify(userMessage);
+      final userIntent = UserIntent.reflect; // Default if no button info
+      final emotionalIntensity = PersonaSelector.calculateEmotionalIntensity(userMessage);
+      
+      return PersonaSelector.selectPersona(
+        entryType: entryType,
+        userIntent: userIntent,
+        phase: phase,
+        readinessScore: readinessScore,
+        sentinelAlert: sentinelAlert,
+        emotionalIntensity: emotionalIntensity,
+      );
+    } catch (e) {
+      // Fallback to Companion if classification fails
+      print('LUMARA Classifier Integration: Error in persona selection, defaulting to Companion: $e');
+      return "companion";
     }
-    return "companion";
   }
 
   static Future<Map<String, dynamic>> _getVeilState(String userId) async {

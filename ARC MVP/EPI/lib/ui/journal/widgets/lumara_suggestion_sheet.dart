@@ -41,11 +41,7 @@ class LumaraSuggestionSheet extends StatelessWidget {
         LumaraIntent.next,
         Icons.navigate_next,
       ),
-      _SuggestionItem(
-        'Reflect more deeply',
-        LumaraIntent.analyze,
-        Icons.insights,
-      ),
+      // Note: "Reflect more deeply" has been moved to default action buttons
     ];
 
     return SafeArea(

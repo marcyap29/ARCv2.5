@@ -58,14 +58,24 @@ FUNCTION BuildLUMARAMasterPrompt(userId, userMessage, context):
     
     
     // ============================================================
-    // STEP 3: Determine Effective Persona Based on Phase + Context
+    // STEP 3: Determine Effective Persona Based on Entry Type + Intent (Companion-First)
     // ============================================================
+    
+    // ⭐ NEW: Classify entry type first
+    entryType ← EntryClassifier.classify(userMessage)
+    // entryType: factual, reflective, analytical, conversational, metaAnalysis
+    
+    // ⭐ NEW: Detect user intent from conversation mode/button
+    userIntent ← UserIntentDetector.detectIntent(conversationMode)
+    // userIntent: reflect, suggestIdeas, thinkThrough, differentPerspective, 
+    //             suggestSteps, reflectDeeply
     
     effectivePersona ← DeterminePersona(
         currentPhase,
         readinessScore,
         sentinelAlert,
         userMessage,
+        userIntent,  // ⭐ NEW: User intent from UI actions
         prismState
     )
     
@@ -82,13 +92,27 @@ FUNCTION BuildLUMARAMasterPrompt(userId, userMessage, context):
     // STEP 4: Construct Unified Control State JSON
     // ============================================================
     
+    // ⭐ UPDATED: Response mode includes word limits and entry classification
+    responseMode ← DetermineResponseMode(
+        persona: effectivePersona,
+        entryType: entryType,
+        userIntent: userIntent,
+        userMessage: userMessage
+    )
+    // responseMode includes:
+    //   - maxWords: Word limit (250 for Companion, 500 for Strategist metaAnalysis)
+    //   - useStructuredFormat: Boolean (true only for metaAnalysis)
+    //   - minPatternExamples, maxPatternExamples: Pattern recognition requirements
+    //   - isPersonalContent: Boolean (true for reflective entries)
+    
     controlState ← {
         'atlas': atlasState,
         'veil': veilState,
         'favorites': favoritesState,
         'prism': prismState,
         'persona': personaState,
-        'responseMode': DetermineResponseMode(userMessage),
+        'responseMode': responseMode,
+        'entryClassification': entryType.toString(),  // ⭐ NEW: For structured format detection
         'webAccess': GetWebAccessSetting(userId)
     }
     
@@ -110,51 +134,81 @@ FUNCTION BuildLUMARAMasterPrompt(userId, userMessage, context):
     RETURN masterPrompt
 
 
-FUNCTION DeterminePersona(phase, readinessScore, sentinelAlert, userMessage, prismState):
+FUNCTION DeterminePersona(phase, readinessScore, sentinelAlert, userMessage, userIntent, prismState):
+    // ⭐ UPDATED: Companion-First Logic (v3.0)
+    // Personal reflections default to Companion unless there's a strong reason to escalate
+    
     // Priority 1: Safety override (highest priority)
     IF sentinelAlert == true:
         RETURN "therapist"  // Maximum safety and support
     
-    // Priority 2: Explicit user request detection
+    // Priority 2: Entry Classification and User Intent
     IF userMessage != null:
-        questionIntent ← DetectQuestionIntent(userMessage)
-        IF questionIntent == "explicit_advice":
-            RETURN "strategist"
-        IF questionIntent == "hard_truth":
-            RETURN "challenger"
-        IF questionIntent == "emotional_support":
-            RETURN "therapist"
+        entryType ← EntryClassifier.classify(userMessage)
+        // entryType can be: factual, reflective, analytical, conversational, metaAnalysis
+        
+        // User Intent from conversation mode/button
+        // userIntent can be: reflect, suggestIdeas, thinkThrough, differentPerspective, 
+        //                    suggestSteps, reflectDeeply
+        
+        // Intent-based persona selection (explicit user actions)
+        IF userIntent == "suggestIdeas":
+            RETURN "strategist"  // Ideas require strategic thinking
+        IF userIntent == "thinkThrough":
+            RETURN "strategist"  // Analytical thinking
+        IF userIntent == "differentPerspective":
+            RETURN "challenger"  // Challenging perspective
+        IF userIntent == "suggestSteps":
+            RETURN "strategist"  // Action-oriented guidance
+        
+        // Entry type-based persona selection
+        IF entryType == "metaAnalysis":
+            RETURN "strategist"  // Explicit pattern analysis request
+        
+        IF entryType == "reflective":
+            // Personal reflection → Companion by default
+            emotionalIntensity ← CalculateEmotionalIntensity(userMessage)
+            IF emotionalIntensity > 0.4:
+                RETURN "therapist"  // High emotional intensity → therapeutic support
+            ELSE:
+                RETURN "companion"  // Default for personal reflections ✅
+        
+        IF entryType == "analytical":
+            // Analytical entry → Strategist if readiness is high
+            IF readinessScore >= 60:
+                RETURN "strategist"
+            ELSE:
+                RETURN "companion"
+        
+        IF entryType == "factual" OR entryType == "conversational":
+            RETURN "companion"  // Simple questions and conversations
     
-    // Priority 3: Phase-based persona adaptation
+    // Priority 3: Phase-based fallback (only if entry classification fails)
     IF phase == "Recovery":
-        // Recovery phase: prioritize safety and support
         IF readinessScore < 40:
-            RETURN "therapist"  // Low readiness → therapeutic support
+            RETURN "therapist"
         ELSE:
-            RETURN "companion"  // Moderate readiness → gentle companion
+            RETURN "companion"
     
     ELSE IF phase == "Discovery":
-        // Discovery phase: adaptive based on readiness
         IF readinessScore >= 70:
-            RETURN "strategist"  // High readiness → analytical guidance
+            RETURN "strategist"
         ELSE IF readinessScore >= 40:
-            RETURN "companion"  // Moderate readiness → supportive exploration
+            RETURN "companion"
         ELSE:
-            RETURN "therapist"  // Low readiness → safe exploration
+            RETURN "therapist"
     
     ELSE IF phase == "Breakthrough":
-        // Breakthrough phase: can handle challenge and structure
         IF readinessScore >= 60:
-            RETURN "challenger"  // High readiness → growth-oriented challenge
+            RETURN "challenger"
         ELSE:
-            RETURN "strategist"  // Moderate readiness → structured guidance
+            RETURN "strategist"
     
     ELSE IF phase == "Consolidation":
-        // Consolidation phase: structured reflection and integration
         IF readinessScore >= 50:
-            RETURN "strategist"  // Moderate-high readiness → analytical integration
+            RETURN "strategist"
         ELSE:
-            RETURN "companion"  // Lower readiness → supportive integration
+            RETURN "companion"
     
     // Priority 4: Emotional state override
     emotionalTone ← prismState['emotional_tone']

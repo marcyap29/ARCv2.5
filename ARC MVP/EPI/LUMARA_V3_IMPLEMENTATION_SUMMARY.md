@@ -120,6 +120,37 @@ Successfully implemented the LUMARA Response Generation System v3.0 specificatio
 - **Temporal intelligence activated**: ARC's core value of pattern recognition across time
 - **Grounded in specifics**: Dates and contexts required, not abstract journey language
 
+### 6. Companion-First Persona Selection
+**Objective:** Implement Companion-first logic for personal reflections
+
+**Changes Made:**
+- `lib/arc/chat/services/lumara_control_state_builder.dart`
+  - **NEW:** Uses `PersonaSelector.selectPersona()` with Companion-first logic
+  - **NEW:** Entry classification via `EntryClassifier.classify()`
+  - **NEW:** User intent detection from conversation mode (reflect, suggestIdeas, thinkThrough, etc.)
+  - **NEW:** Word limit enforcement (`maxWords` passed to control state)
+  - **NEW:** `entryClassification` added to control state for structured format detection
+  - Replaced old phase-based persona selection with entry-type and intent-based selection
+  - Added comprehensive logging for persona selection debugging
+
+- `lib/arc/chat/services/enhanced_lumara_api.dart`
+  - **NEW:** Maps `ConversationMode` to `UserIntent` for persona selection
+  - **NEW:** Passes `maxWords` and `userIntent` to control state builder
+  - **NEW:** Verification logging that master prompt contains updated sections
+
+- `lib/arc/chat/llm/prompts/lumara_master_prompt.dart`
+  - **NEW:** Critical word limit enforcement section at top of prompt
+  - **NEW:** Companion mode detection with explicit instructions
+  - **NEW:** Structured format only for `entryClassification == "metaAnalysis"`
+  - **NEW:** Word count check in final checklist
+
+**Key Features:**
+- **Companion-First**: Personal reflections default to Companion persona
+- **Entry Classification**: Distinguishes reflective, analytical, factual, conversational, metaAnalysis
+- **User Intent Mapping**: Journaling options (regenerate, continue thought, explore options) correctly map to intents
+- **Word Limit Enforcement**: Hard 250-word limit for Companion, enforced in prompt
+- **Structured Format Control**: Only uses 5-section format for explicit pattern analysis requests
+
 ## 🚀 Implementation Status
 
 **Status**: ✅ **COMPLETE - READY FOR DEPLOYMENT**
@@ -132,12 +163,19 @@ Successfully implemented the LUMARA Response Generation System v3.0 specificatio
 5. ✅ Word allocation guidance (40% validate, 40% patterns, 20% insights)
 6. ✅ Validation system with dated example counting
 7. ✅ Comprehensive testing suite (12 tests passing)
+8. ✅ Companion-first persona selection for personal reflections
+9. ✅ Word limit enforcement (250 words for Companion)
+10. ✅ Entry classification and user intent detection
+11. ✅ Journaling options correctly mapped to user intents
 
 **Files Modified:**
 - `lib/arc/chat/llm/prompts/lumara_context_builder.dart`
 - `lib/services/lumara/response_mode_v2.dart`
 - `lib/services/lumara/master_prompt_builder.dart`
 - `lib/services/lumara/validation_service.dart`
+- `lib/arc/chat/services/lumara_control_state_builder.dart` ⭐ **NEW**
+- `lib/arc/chat/services/enhanced_lumara_api.dart` ⭐ **NEW**
+- `lib/arc/chat/llm/prompts/lumara_master_prompt.dart` ⭐ **NEW**
 - `test/services/lumara/lumara_pattern_recognition_test.dart` (new)
 
 **Next Steps for User:**
@@ -145,6 +183,8 @@ Successfully implemented the LUMARA Response Generation System v3.0 specificatio
 2. Monitor validation metrics in Firebase
 3. Target: 80%+ of Companion responses include 2+ dated examples
 4. Target: <5% banned phrase violations
-5. Collect user feedback on pattern recognition quality
+5. Target: 100% of personal reflections use Companion persona (not Strategist)
+6. Target: 100% of Companion responses respect 250-word limit
+7. Collect user feedback on pattern recognition quality
 
-The LUMARA system now delivers on ARC's core value proposition: **showing users patterns across time that they can't see themselves**, grounded in specific dated examples rather than vague strategic buzzwords or melodramatic journey language.
+The LUMARA system now delivers on ARC's core value proposition: **showing users patterns across time that they can't see themselves**, grounded in specific dated examples rather than vague strategic buzzwords or melodramatic journey language. **Personal reflections now correctly default to Companion mode with enforced word limits and conversational format.**
