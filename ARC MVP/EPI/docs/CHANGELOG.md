@@ -1,7 +1,7 @@
 # EPI ARC MVP - Changelog
 
-**Version:** 2.1.87
-**Last Updated:** January 7, 2026
+**Version:** 2.1.88
+**Last Updated:** January 9, 2026
 
 ---
 
@@ -14,6 +14,38 @@ This changelog has been split into parts for easier navigation:
 | **[CHANGELOG_part1.md](CHANGELOG_part1.md)** | Dec 2025 | v2.1.43 - v2.1.87 (Current) |
 | **[CHANGELOG_part2.md](CHANGELOG_part2.md)** | Nov 2025 | v2.1.28 - v2.1.42 |
 | **[CHANGELOG_part3.md](CHANGELOG_part3.md)** | Jan-Oct 2025 | v2.0.0 - v2.1.27 & Earlier |
+
+---
+
+## [2.1.88] - January 9, 2026
+
+### 🔧 Major Fixes
+- **Fixed Entry Timestamp Locking**: Resolved bug where journal entries started a week ago but finished today were getting today's date instead of preserving original draft creation timestamp
+- **Implemented On-Device Summary Generation**: Complete replacement of cloud-based summary system with local processing
+  - Removed dependency on PRISM/ECHO scrubbing that was ruining summary accuracy
+  - Uses raw entry content for accurate summaries (e.g., RISA argument framework correctly summarized)
+  - 100% privacy - no data sent to cloud for summaries
+  - Leverages existing EnhancedKeywordExtractor and SentenceExtractionUtil
+  - Faster response times (local processing vs cloud API calls)
+
+### 🚀 Draft System Improvements
+- **Gmail-like Draft Architecture**: Enhanced draft system to match Gmail's seamless experience
+  - Faster auto-save: 2-second debounce (down from 5 seconds)
+  - Reduced throttle: 10-second minimum (down from 30 seconds)
+  - Immediate draft cleanup: Completed drafts deleted immediately instead of moved to history
+  - Multiple save triggers: Text changes, user actions (blur/focus), periodic saves (60s), app lifecycle
+  - Enhanced crash recovery with app lifecycle management
+
+### 📁 Files Modified
+- `lib/core/services/draft_cache_service.dart`: Gmail-like timing, immediate cleanup, periodic saves
+- `lib/arc/core/journal_capture_cubit.dart`: On-device summary generation, draft date preservation
+- Removed cloud dependencies for summary generation (PRISM/ECHO imports removed)
+
+### 🎯 User Experience Impact
+- Journal entries now preserve original creation date regardless of completion timing
+- Summaries accurately reflect entry content without privacy-scrubbing interference
+- Faster, more responsive draft saving with multiple recovery points
+- Complete privacy for summary generation (no cloud processing)
 
 ---
 
