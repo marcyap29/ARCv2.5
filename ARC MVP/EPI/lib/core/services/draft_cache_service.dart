@@ -162,8 +162,8 @@ class DraftCacheService {
   // Content hash tracking for autosave
   String? _lastContentHash;
   DateTime? _lastWriteTime;
-  static const Duration _debounceDelay = Duration(seconds: 5);
-  static const Duration _throttleMinInterval = Duration(seconds: 30);
+  static const Duration _debounceDelay = Duration(seconds: 2); // Gmail-like: 2 seconds instead of 5
+  static const Duration _throttleMinInterval = Duration(seconds: 10); // Gmail-like: 10 seconds instead of 30
   
   // Version service integration
   final JournalVersionService _versionService = JournalVersionService.instance;
@@ -385,7 +385,10 @@ class DraftCacheService {
       }
     }
 
-    debugPrint('DraftCacheService: Created new draft $draftId${linkedEntryId != null ? ' (linked to entry $linkedEntryId)' : ''}');
+    // Start Gmail-like periodic saves for long writing sessions
+    startPeriodicSave();
+
+    debugPrint('DraftCacheService: Created new draft $draftId${linkedEntryId != null ? ' (linked to entry $linkedEntryId)' : ''} with periodic saves');
     return draftId;
   }
 
@@ -397,11 +400,12 @@ class DraftCacheService {
   }
 
   /// Update the current draft content with debounce and hash checking
+  /// Gmail-like behavior: supports multiple trigger types for seamless saving
   Future<void> updateDraftContent(String content, {List<Map<String, dynamic>>? lumaraBlocks, bool immediate = false}) async {
     if (_currentDraft == null) return;
 
     final newHash = _computeContentHash(content);
-    
+
     // Skip if content hasn't changed
     if (newHash == _lastContentHash && !immediate) {
       return;
@@ -411,7 +415,7 @@ class DraftCacheService {
     _debounceTimer?.cancel();
 
     if (immediate) {
-      // Save immediately (e.g., on blur, on exit)
+      // Save immediately (e.g., on blur, on exit, on pause)
       await _performDraftWrite(content, lumaraBlocks, newHash);
     } else {
       // Debounce: schedule save after delay
@@ -419,6 +423,32 @@ class DraftCacheService {
         await _performDraftWrite(content, lumaraBlocks, newHash);
       });
     }
+  }
+
+  /// Gmail-like auto-save triggered by user actions (blur, selection change, etc.)
+  Future<void> updateDraftOnUserAction(String content, {List<Map<String, dynamic>>? lumaraBlocks}) async {
+    // Save immediately on user actions that indicate intent to pause
+    await updateDraftContent(content, lumaraBlocks: lumaraBlocks, immediate: true);
+  }
+
+  /// Gmail-like periodic save for long writing sessions (every 60 seconds)
+  void startPeriodicSave() {
+    // Cancel any existing periodic timer
+    _autoSaveTimer?.cancel();
+
+    // Start periodic save every minute during active writing
+    _autoSaveTimer = Timer.periodic(const Duration(seconds: 60), (_) async {
+      if (_currentDraft != null) {
+        await updateDraftContent(_currentDraft!.content, immediate: true);
+        debugPrint('DraftCacheService: Periodic save completed');
+      }
+    });
+  }
+
+  /// Stop periodic saves
+  void stopPeriodicSave() {
+    _autoSaveTimer?.cancel();
+    _autoSaveTimer = null;
   }
 
   /// Perform the actual draft write with throttle check
@@ -602,23 +632,41 @@ class DraftCacheService {
   /// Restore a draft as the current working draft
   Future<void> restoreDraft(JournalDraft draft) async {
     _currentDraft = draft.copyWith(lastModified: DateTime.now());
+    _lastContentHash = _computeContentHash(_currentDraft!.content);
     await _saveDraft(_currentDraft!);
-    // _startAutoSave(); // Disabled: No more automatic saving every few seconds
-    debugPrint('DraftCacheService: Restored draft ${draft.id}');
+
+    // Start Gmail-like periodic saves for restored draft
+    startPeriodicSave();
+
+    debugPrint('DraftCacheService: Restored draft ${draft.id} with periodic saves');
   }
 
   /// Complete the current draft (when successfully saved as journal entry)
+  /// Gmail-like behavior: immediately delete completed draft instead of moving to history
   Future<void> completeDraft() async {
     if (_currentDraft == null) return;
 
-    // Move to history before clearing
-    await _moveDraftToHistory(_currentDraft!);
+    final draftId = _currentDraft!.id;
+    final linkedEntryId = _currentDraft!.linkedEntryId;
+
+    // Clear current draft immediately (Gmail-like)
     await _clearCurrentDraft();
+
+    // Also clear from MCP version service if linked
+    if (linkedEntryId != null) {
+      try {
+        await _versionService.discardDraft(linkedEntryId);
+      } catch (e) {
+        debugPrint('DraftCacheService: Error clearing MCP draft: $e');
+      }
+    }
 
     _stopAutoSave();
     _currentDraft = null;
+    _lastContentHash = null;
+    _lastWriteTime = null;
 
-    debugPrint('DraftCacheService: Completed and cleared current draft');
+    debugPrint('DraftCacheService: Completed and immediately deleted draft $draftId (Gmail-like)');
   }
 
   /// Save current draft immediately (for app close/reset/crash scenarios)
@@ -828,26 +876,15 @@ class DraftCacheService {
     }
   }
 
-  Future<void> _moveDraftToHistory(JournalDraft draft) async {
-    try {
-      final currentHistory = await getDraftHistory();
-      currentHistory.insert(0, draft);
-
-      // Keep only the most recent drafts
-      final trimmedHistory = currentHistory.take(_maxDraftHistory).toList();
-
-      await _box?.put(_draftHistoryKey,
-          trimmedHistory.map((d) => d.toJson()).toList());
-    } catch (e) {
-      debugPrint('DraftCacheService: Error moving draft to history - $e');
-    }
-  }
+  // Removed _moveDraftToHistory - drafts are now immediately deleted when completed (Gmail-like)
 
   void _stopAutoSave() {
+    // Cancel both periodic timer and debounce timer
     _autoSaveTimer?.cancel();
     _autoSaveTimer = null;
     _debounceTimer?.cancel();
     _debounceTimer = null;
+    debugPrint('DraftCacheService: Stopped all auto-save timers');
   }
 
   /// Publish current draft (save as version, update latest, clear draft)

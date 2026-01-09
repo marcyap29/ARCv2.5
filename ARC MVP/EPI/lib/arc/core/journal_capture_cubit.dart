@@ -28,8 +28,7 @@ import 'package:uuid/uuid.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:audioplayers/audioplayers.dart';
-import 'package:my_app/arc/internal/echo/prism_adapter.dart';
-import 'package:my_app/arc/internal/echo/correlation_resistant_transformer.dart';
+// Removed PRISM/ECHO imports - now using on-device summary generation
 import 'package:crypto/crypto.dart';
 import 'package:hive/hive.dart';
 import 'package:my_app/core/services/draft_cache_service.dart';
@@ -47,6 +46,7 @@ import 'package:my_app/arc/chat/models/lumara_reflection_options.dart' as lumara
 import 'package:my_app/services/assemblyai_service.dart';
 import 'package:my_app/arc/chat/voice/transcription/assemblyai_provider.dart';
 import 'package:my_app/arc/chat/voice/transcription/transcription_provider.dart';
+import 'package:my_app/mira/memory/sentence_extraction_util.dart';
 
 class JournalCaptureCubit extends Cubit<JournalCaptureState> {
   final JournalRepository _journalRepository;
@@ -59,8 +59,7 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
   String _draftContent = '';
   String? _currentDraftId;
   List<MediaItem> _draftMediaItems = [];
-  static const _autoSaveDelay = Duration(seconds: 3);
-  DateTime? _lastSaveTime;
+  // Removed _autoSaveDelay and _lastSaveTime - now using Gmail-like auto-save
   final AudioPlayer _audioPlayer = AudioPlayer();
   bool _isRecording = false;
   bool _isPaused = false;
@@ -164,13 +163,10 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
     }
   }
   
-  /// Generate summary of journal entry content
-  /// Creates JSON representation, scrubs PII, sends for summary, then restores PII
+  /// Generate summary of journal entry content ON-DEVICE
+  /// Uses local text processing - NO cloud APIs, NO data sent anywhere
   Future<String> _generateSummary(String content) async {
-    if (_lumaraApi == null) {
-      print('Summary generation: LUMARA API not set, skipping summary');
-      return '';
-    }
+    // On-device summary generation - no LUMARA API needed!
     
     if (content.trim().isEmpty) {
       print('Summary generation: Content is empty, skipping summary');
@@ -191,62 +187,46 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
     }
     
     try {
-      print('Summary generation: Starting summary generation for ${wordCount} words');
-      
-      // Step 1: Scrub PII from the content (PRISM)
-      final prismAdapter = PrismAdapter();
-      final scrubbingResult = prismAdapter.scrub(content);
-      final scrubbedContent = scrubbingResult.scrubbedText;
-      
-      print('Summary generation: PII scrubbed (${scrubbingResult.redactionCount} redactions)');
-      
-      // SECURITY: Validate scrubbing passed
-      if (!prismAdapter.isSafeToSend(scrubbedContent)) {
-        print('Summary generation: SECURITY WARNING - PII still detected after scrubbing');
-        return ''; // Fail safely
+      print('On-device summary: Starting ON-DEVICE summary generation for $wordCount words');
+      print('On-device summary: Using RAW content - no PRISM/ECHO scrubbing for accurate summaries');
+
+      // Step 1: Extract key sentences using existing on-device utilities
+      final keywordResponse = EnhancedKeywordExtractor.extractKeywords(
+        entryText: content,
+        currentPhase: 'Discovery', // Use default phase for summary extraction
+      );
+
+      // Step 2: Extract 1-2 most relevant sentences using local processing
+      final keywordList = keywordResponse.candidates.take(5).map((kw) => kw.keyword).toList();
+      final topSentences = extractRelevantSentences(
+        content,
+        keywords: keywordList,
+        maxSentences: 2, // Keep it concise - 1-2 sentences max
+      );
+
+      print('On-device summary: Extracted sentences based on keywords: ${keywordList.take(3).join(", ")}');
+
+      // Step 3: Clean up and format the summary
+      var cleanSummary = _constrainSummary(topSentences);
+
+      // Fallback: If extraction failed, use first meaningful sentences
+      if (cleanSummary.trim().isEmpty || cleanSummary.length < 20) {
+        final sentences = content.split(RegExp(r'(?<=[\.\?\!])\s+'))
+            .where((s) => s.trim().isNotEmpty && s.length > 10)
+            .toList();
+
+        if (sentences.isNotEmpty) {
+          // Take first 1-2 substantial sentences
+          final fallbackText = sentences.take(2).join(' ');
+          cleanSummary = _constrainSummary(fallbackText);
+          print('On-device summary: Used fallback approach with first sentences');
+        }
       }
-      
-      // Step 2: Transform to correlation-resistant payload
-      final transformationResult = await prismAdapter.transformToCorrelationResistant(
-        prismScrubbedText: scrubbedContent,
-        intent: 'summary',
-        prismResult: scrubbingResult,
-        rotationWindow: RotationWindow.session,
-      );
-      
-      // Log local audit block (NEVER SEND TO SERVER)
-      final localAudit = transformationResult.localAuditBlock;
-      print('Summary generation: LOCAL AUDIT - Window ID: ${localAudit.windowId}');
-      print('Summary generation: LOCAL AUDIT - Token classes: ${localAudit.tokenClassCounts}');
-      
-      // Step 3: Generate summary using structured payload
-      // Send the JSON payload instead of verbatim text
-      final payloadJson = transformationResult.cloudPayloadBlock.toJsonString();
-      print('Summary generation: Sending correlation-resistant payload (${payloadJson.length} chars)');
-      
-      final result = await _lumaraApi!.generatePromptedReflection(
-        entryText: payloadJson,  // Send structured JSON, not verbatim text
-        intent: 'summary',
-        phase: null,
-        userId: null,
-        chatContext: 'Summarize this entry in 1-3 sentences, strictly no more. '
-            'Only state what was discussed or reflected on. '
-            'Do not include phase, mood, advice, or fluff. '
-            'Keep it concise and factual.',
-        onProgress: (msg) => print('Summary generation: $msg'),
-      );
-      
-      print('Summary generation: Received summary from LUMARA (${result.reflection.length} chars)');
-      
-      // Step 4: Restore PII in the returned summary (for local display)
-      final summaryWithPII = prismAdapter.restore(
-        _constrainSummary(result.reflection),
-        scrubbingResult.reversibleMap,
-      );
-      
-      print('Summary generation: PII restored, final summary length: ${summaryWithPII.length} chars');
-      
-      return summaryWithPII;
+
+      print('On-device summary: Generated ${cleanSummary.length} character summary ON-DEVICE');
+      print('On-device summary: NO DATA SENT TO CLOUD - COMPLETELY PRIVATE');
+
+      return cleanSummary;
     } catch (e, stackTrace) {
       print('Summary generation: Error generating summary: $e');
       print('Summary generation: Stack trace: $stackTrace');
@@ -320,9 +300,23 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
     _initializeDraftCache();
   }
 
+  /// Update draft content with Gmail-like auto-saving
   void updateDraft(String content) {
     _draftContent = content;
-    _autoSaveDraft();
+
+    // Use new Gmail-like auto-save (2-second debounce instead of 3)
+    if (_currentDraftId != null) {
+      _draftCache.updateDraftContent(content);
+    }
+  }
+
+  /// Update draft content on user action (blur, selection change) - saves immediately
+  Future<void> updateDraftOnUserAction(String content) async {
+    _draftContent = content;
+
+    if (_currentDraftId != null) {
+      await _draftCache.updateDraftOnUserAction(content);
+    }
   }
 
   /// Initialize draft cache and check for recoverable drafts
@@ -438,18 +432,17 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
     }
   }
 
-  void _autoSaveDraft() {
-    // Auto-save after delay if content has changed
-    if (_lastSaveTime == null ||
-        DateTime.now().difference(_lastSaveTime!) > _autoSaveDelay) {
-      _lastSaveTime = DateTime.now();
+  // Removed _autoSaveDraft - now using Gmail-like auto-save directly in updateDraft()
 
-      // Save to draft cache
-      if (_currentDraftId != null) {
-        _draftCache.updateDraftContent(_draftContent);
-      }
-
-      emit(JournalCaptureDraftSaved());
+  /// Get draft creation date to preserve original entry timestamp, or current time if no draft
+  DateTime _getDraftCreationDateOrNow() {
+    final currentDraft = _draftCache.getCurrentDraft();
+    if (currentDraft != null) {
+      debugPrint('JournalCaptureCubit: Using draft creation date: ${currentDraft.createdAt}');
+      return currentDraft.createdAt;
+    } else {
+      debugPrint('JournalCaptureCubit: No draft found, using current time');
+      return DateTime.now();
     }
   }
 
@@ -483,7 +476,7 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
         // Continue without overview if generation fails
       }
       
-      final now = DateTime.now();
+      final now = _getDraftCreationDateOrNow(); // Use draft creation date instead of DateTime.now()
       final entry = JournalEntry(
         id: const Uuid().v4(),
         title: _generateTitle(contentWithSummary),
@@ -556,7 +549,7 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
     List<MediaItem>? media,
     }) async {
     try {
-      final entryDate = DateTime.now();
+      final entryDate = _getDraftCreationDateOrNow(); // Use draft creation date instead of DateTime.now()
 
       // Generate or refresh summary before adding phase hashtag
       final contentWithSummary = await _ensureSummarySection(
@@ -771,7 +764,8 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
       }
       
       // Extract photo dates and adjust entry date to match latest photo
-      DateTime entryDate = DateTime.now();
+      // IMPORTANT: Use draft creation date if available to preserve original timestamp
+      DateTime entryDate = _getDraftCreationDateOrNow();
       Duration? dateOffset;
       final photoDates = <DateTime>[];
       
@@ -812,7 +806,7 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
             ? latestPhotoDateUtc.toLocal() 
             : latestPhotoDateUtc;
         
-        final originalEntryDate = DateTime.now(); // Already in local time
+        final originalEntryDate = _getDraftCreationDateOrNow(); // Use draft date, not current time
         dateOffset = latestPhotoDateLocal.difference(originalEntryDate);
         entryDate = latestPhotoDateLocal;
         
@@ -1024,7 +1018,7 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
     List<MediaItem>? media,
   }) async {
     try {
-      final entryDate = DateTime.now();
+      final entryDate = _getDraftCreationDateOrNow(); // Use draft creation date instead of DateTime.now()
 
       // Generate or refresh summary before saving
       final contentWithSummary = await _ensureSummarySection(
@@ -1101,7 +1095,7 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
     List<MediaItem>? media,
   }) async {
     try {
-      final entryDate = DateTime.now();
+      final entryDate = _getDraftCreationDateOrNow(); // Use draft creation date instead of DateTime.now()
 
       // Generate or refresh summary before saving
       final contentWithSummary = await _ensureSummarySection(
