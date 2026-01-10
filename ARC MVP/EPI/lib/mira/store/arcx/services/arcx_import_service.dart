@@ -25,10 +25,12 @@ import 'package:my_app/models/phase_models.dart';
 import 'arcx_crypto_service.dart';
 import '../models/arcx_manifest.dart';
 import '../models/arcx_result.dart';
+import 'arcx_import_service_v2.dart';
 
 class ARCXImportService {
   final JournalRepository? _journalRepo;
   final ChatRepo? _chatRepo;
+  final PhaseRegimeService? _phaseRegimeService;
   
   // Media deduplication cache - maps URI to MediaItem to prevent duplicates
   final Map<String, MediaItem> _mediaCache = {};
@@ -36,8 +38,10 @@ class ARCXImportService {
   ARCXImportService({
     JournalRepository? journalRepo,
     ChatRepo? chatRepo,
+    PhaseRegimeService? phaseRegimeService,
   }) : _journalRepo = journalRepo,
-       _chatRepo = chatRepo;
+       _chatRepo = chatRepo,
+       _phaseRegimeService = phaseRegimeService;
   
   /// Clear the media cache (call before starting a new import)
   void clearMediaCache() {
@@ -101,9 +105,39 @@ class ARCXImportService {
       final manifestJson = jsonDecode(utf8.decode(manifestFile.content as List<int>)) as Map<String, dynamic>;
       final manifest = ARCXManifest.fromJson(manifestJson);
       
-      // Check if this is ARCX 1.2 format - legacy service can't handle it
+      // Check if this is ARCX 1.2 format - automatically route to V2 service
       if (manifest.arcxVersion == '1.2') {
-        throw Exception('This archive uses ARCX 1.2 format. Please use the V2 import service. The V2 service should have automatically detected and handled this format.');
+        print('ARCX Import: Detected ARCX 1.2 format, automatically routing to V2 import service');
+        // Use V2 service for ARCX 1.2
+        final v2Service = ARCXImportServiceV2(
+          journalRepo: _journalRepo,
+          chatRepo: _chatRepo,
+          phaseRegimeService: _phaseRegimeService,
+        );
+        
+        final v2Result = await v2Service.import(
+          arcxPath: arcxPath,
+          options: ARCXImportOptions(
+            validateChecksums: true,
+            dedupeMedia: true,
+            skipExisting: true,
+            resolveLinks: true,
+          ),
+          password: password,
+          onProgress: (message) {
+            print('ARCX Import (V2): $message');
+          },
+        );
+        
+        // Convert V2 result to legacy result format for backward compatibility
+        return ARCXImportResult(
+          success: v2Result.success,
+          entriesImported: v2Result.entriesImported,
+          chatSessionsImported: v2Result.chatsImported,
+          photosImported: v2Result.mediaImported,
+          error: v2Result.error,
+          warnings: v2Result.warnings,
+        );
       }
       
       if (!manifest.validate()) {
