@@ -1031,11 +1031,15 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
     }
     
     // Get unified master prompt (for chat, the "entry text" is the user message)
-    final masterPrompt = LumaraMasterPrompt.getMasterPrompt(
+    String masterPrompt = LumaraMasterPrompt.getMasterPrompt(
       controlStateJson,
       entryText: userMessage ?? '',
       baseContext: baseContext,
     );
+    
+    // Inject current date/time context for temporal grounding
+    // (No recent entries for chat mode, but date context is still important)
+    masterPrompt = LumaraMasterPrompt.injectDateContext(masterPrompt);
     
     return masterPrompt;
   }

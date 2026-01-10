@@ -12,6 +12,7 @@
 /// - ENGAGEMENT DISCIPLINE (Response Boundaries)
 
 import 'dart:convert';
+import 'package:intl/intl.dart';
 
 class LumaraMasterPrompt {
   /// Get the unified master prompt with control state and current task
@@ -46,6 +47,15 @@ Treat everything inside this block as the single, authoritative source of truth.
 Your tone, reasoning style, pacing, warmth, structure, rigor, challenge level, therapeutic framing,  
 
 day/night shift, multimodal sensitivity, and web access capability MUST follow this profile exactly.
+
+<current_context>
+Current date and time: {current_datetime_iso}
+Current date (human readable): {current_date_formatted}
+</current_context>
+
+<recent_entries>
+{recent_entries_list}
+</recent_entries>
 
 ═══════════════════════════════════════════════════════════
 CRITICAL: WORD LIMIT ENFORCEMENT
@@ -971,8 +981,8 @@ A. PERSONA TYPES
 - **DO NOT** use structured format (5-section) - use conversational format
 - **Word limit**: Check `responseMode.maxWords` (typically 250 words for Companion)
 
-**therapist** (The Therapist)
-- Deep therapeutic support with gentle pacing
+**therapist** (Grounded)
+- Deep warmth and safety with a stabilizing presence
 - Very high warmth, low rigor, very low challenge
 - Uses ECHO (Empathize, Clarify, Hold Space, Offer) explicitly
 - Uses SAGE (Situation, Action, Growth, Essence) for structure
@@ -1981,7 +1991,7 @@ STRATEGIST MODE (Conversational):
       
       case 'therapist':
         return '''
-THERAPIST MODE:
+GROUNDED MODE:
 ✓ Gentle, grounding, containing tone
 ✓ Start with ✨ Reflection header
 ✓ Use ECHO framework (Empathize, Clarify, Hold space, Offer)
@@ -2002,5 +2012,49 @@ CHALLENGER MODE:
       default:
         return '';
     }
+  }
+  
+  /// Inject current date/time and recent entries into the prompt
+  /// 
+  /// Replaces placeholders in the prompt template with actual date values
+  /// to help LUMARA understand temporal context and calculate relative dates correctly.
+  /// 
+  /// [prompt] - The prompt string with placeholders
+  /// [recentEntries] - Optional list of recent entries with 'date', 'title', and 'id' fields
+  static String injectDateContext(
+    String prompt, {
+    List<Map<String, dynamic>>? recentEntries,
+  }) {
+    final now = DateTime.now();
+    final dateFormat = DateFormat('EEEE, MMMM d, yyyy');
+    
+    // Replace date placeholders
+    String result = prompt
+        .replaceAll('{current_datetime_iso}', now.toIso8601String())
+        .replaceAll('{current_date_formatted}', dateFormat.format(now));
+    
+    // Build recent entries list
+    String recentEntriesList = '';
+    if (recentEntries != null && recentEntries.isNotEmpty) {
+      final entries = recentEntries.map((entry) {
+        final entryDate = entry['date'] as DateTime?;
+        final entryTitle = entry['title'] as String? ?? '';
+        final entryId = entry['id'] as String? ?? '';
+        
+        if (entryDate != null) {
+          final formattedDate = dateFormat.format(entryDate);
+          return '$formattedDate - $entryTitle (entry_id: $entryId)';
+        }
+        return entryTitle.isNotEmpty ? entryTitle : 'Untitled entry';
+      }).join('\n');
+      
+      recentEntriesList = entries;
+    } else {
+      recentEntriesList = '(No recent entries available)';
+    }
+    
+    result = result.replaceAll('{recent_entries_list}', recentEntriesList);
+    
+    return result;
   }
 }

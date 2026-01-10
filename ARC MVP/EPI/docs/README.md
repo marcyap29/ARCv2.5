@@ -36,7 +36,7 @@ Welcome to the EPI (Evolving Personal Intelligence) documentation. This director
 - **🎤 Jarvis-Style Voice Chat**: Talk to LUMARA with glowing, throbbing voice indicator
 - **💊 Health→LUMARA Integration**: Sleep quality and energy level influence LUMARA's tone
 - **⚙️ Settings Reorganization**: Unified Advanced Settings with Combined Analysis view
-- **🎭 LUMARA Persona**: Choose response style - Companion, Therapist, Strategist, or Challenger
+- **🎭 LUMARA Persona**: Choose response style - Companion, Grounded, Strategist, or Challenger
 
 ## Documentation Structure
 

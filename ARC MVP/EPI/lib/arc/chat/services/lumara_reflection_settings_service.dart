@@ -24,7 +24,7 @@ extension LumaraPersonaExtension on LumaraPersona {
       case LumaraPersona.companion:
         return 'The Companion';
       case LumaraPersona.therapist:
-        return 'The Therapist';
+        return 'Grounded';
       case LumaraPersona.strategist:
         return 'The Strategist';
       case LumaraPersona.challenger:
@@ -39,7 +39,7 @@ extension LumaraPersonaExtension on LumaraPersona {
       case LumaraPersona.companion:
         return 'Warm, supportive presence for daily reflection';
       case LumaraPersona.therapist:
-        return 'Deep therapeutic support with gentle pacing';
+        return 'Deep warmth and safety with a stabilizing presence';
       case LumaraPersona.strategist:
         return 'Sharp, analytical insights with concrete actions';
       case LumaraPersona.challenger:

@@ -240,6 +240,28 @@ class EngagementSettings {
   /// Get the active engagement mode considering overrides
   EngagementMode get activeMode => conversationOverride ?? defaultMode;
 
+  /// Derived: Max questions per response based on mode
+  int get maxQuestionsPerResponse {
+    switch (activeMode) {
+      case EngagementMode.reflect:
+        return 0;
+      case EngagementMode.explore:
+      case EngagementMode.integrate:
+        return 1;
+    }
+  }
+
+  /// Derived: Allow cross-domain synthesis based on mode
+  bool get allowCrossDomainSynthesis {
+    switch (activeMode) {
+      case EngagementMode.reflect:
+      case EngagementMode.explore:
+        return false;
+      case EngagementMode.integrate:
+        return true;
+    }
+  }
+
   Map<String, dynamic> toJson() => {
     'defaultMode': defaultMode.toString(),
     'conversationOverride': conversationOverride?.toString(),

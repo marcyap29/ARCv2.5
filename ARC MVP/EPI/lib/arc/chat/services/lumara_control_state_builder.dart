@@ -504,44 +504,50 @@ class LumaraControlStateBuilder {
 
     try {
       final settingsService = LumaraReflectionSettingsService.instance;
+      final engagementSettings = await settingsService.getEngagementSettings();
+      final activeMode = engagementSettings.activeMode;
 
-      // Build engagement context with all necessary signals
-      final engagementContext = await settingsService.buildEngagementContext(
-        atlasPhase: atlas['phase'] as String? ?? 'Discovery',
-        readinessScore: atlas['readinessScore'] as int? ?? 50,
-        veilState: veil,
-        favoritesProfile: (favorites['favoritesProfile'] as Map<String, dynamic>?) ?? {},
-        sentinelAlert: sentinelAlert,
-      );
-
-      // Add engagement data to state
-      engagement.addAll(engagementContext.toControlStateJson()['engagement'] as Map<String, dynamic>);
+      // Build simplified engagement control state using derived properties
+      engagement.addAll({
+        'mode': activeMode.toString().split('.').last, // 'reflect', 'explore', 'integrate'
+        'maxQuestionsPerResponse': engagementSettings.maxQuestionsPerResponse,
+        'allowCrossDomainSynthesis': engagementSettings.allowCrossDomainSynthesis,
+        'max_temporal_connections': engagementSettings.responseDiscipline
+            .getEffectiveMaxTemporalConnections(activeMode),
+        'max_explorative_questions': engagementSettings.maxQuestionsPerResponse,
+        'synthesis_allowed': {
+          'faith_work': engagementSettings.allowCrossDomainSynthesis,
+          'relationship_work': engagementSettings.allowCrossDomainSynthesis,
+          'health_emotional': engagementSettings.allowCrossDomainSynthesis,
+          'creative_intellectual': engagementSettings.allowCrossDomainSynthesis,
+        },
+        'allow_therapeutic_language': engagementSettings.responseDiscipline.allowTherapeuticLanguage,
+        'allow_prescriptive_guidance': engagementSettings.responseDiscipline.allowPrescriptiveGuidance,
+        'response_length': engagementSettings.responseDiscipline.preferredLength.toString(),
+        'synthesis_depth': engagementSettings.synthesisPreferences.synthesisDepth.toString(),
+        'protected_domains': engagementSettings.synthesisPreferences.protectedDomains,
+      });
 
     } catch (e) {
       print('LUMARA Control State: Error building engagement context: $e');
-      // Provide fallback engagement settings
+      // Provide fallback engagement settings (REFLECT mode defaults)
       engagement.addAll({
         'mode': 'reflect',
+        'maxQuestionsPerResponse': 0,
+        'allowCrossDomainSynthesis': false,
         'synthesis_allowed': {
           'faith_work': false,
-          'relationship_work': true,
-          'health_emotional': true,
-          'creative_intellectual': true,
+          'relationship_work': false,
+          'health_emotional': false,
+          'creative_intellectual': false,
         },
-        'max_temporal_connections': 2,
-        'max_explorative_questions': 1,
+        'max_temporal_connections': 1,
+        'max_explorative_questions': 0,
         'allow_therapeutic_language': false,
         'allow_prescriptive_guidance': false,
         'response_length': 'moderate',
         'synthesis_depth': 'moderate',
         'protected_domains': <String>[],
-        'behavioral_params': {
-          'engagement_intensity': 0.3,
-          'explorative_tendency': 0.2,
-          'synthesis_tendency': 0.1,
-          'stopping_threshold': 0.7,
-          'question_propensity': 0.1,
-        },
       });
     }
 

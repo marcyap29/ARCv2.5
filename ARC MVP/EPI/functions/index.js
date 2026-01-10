@@ -145,8 +145,19 @@ exports.proxyGemini = onCall(
     const uid = request.auth.uid;
     const email = request.auth.token.email;
 
-    if (!system || !user) {
+    // Allow empty string for user (when all content is in system prompt)
+    // But require that parameters are provided (not null/undefined)
+    if (system == null || user == null) {
       throw new HttpsError("invalid-argument", "system and user parameters are required");
+    }
+    
+    // Convert to string if needed (handles correlation-resistant transformation objects)
+    const systemStr = typeof system === 'string' ? system : JSON.stringify(system);
+    const userStr = typeof user === 'string' ? user : JSON.stringify(user);
+    
+    // Ensure at least one has content (allow empty user if system has content)
+    if (systemStr.trim().length === 0 && userStr.trim().length === 0) {
+      throw new HttpsError("invalid-argument", "At least one of system or user must have content");
     }
 
     console.log(`proxyGemini called by user: ${uid} (${email})`);
@@ -168,15 +179,15 @@ exports.proxyGemini = onCall(
 
       // Use startChat for proper tool support (googleSearch)
       const chat = model.startChat({
-        history: system
+        history: systemStr.trim().length > 0
           ? [
-              { role: "user", parts: [{ text: system }] },
+              { role: "user", parts: [{ text: systemStr }] },
               { role: "model", parts: [{ text: "Ok." }] },
             ]
           : [],
       });
 
-      const result = await chat.sendMessage(user);
+      const result = await chat.sendMessage(userStr);
       const response = result.response;
       const text = response.text();
 

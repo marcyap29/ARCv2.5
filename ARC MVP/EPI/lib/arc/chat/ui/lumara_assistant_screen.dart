@@ -29,7 +29,6 @@ import 'package:my_app/arc/core/journal_repository.dart';
 import '../services/favorites_service.dart';
 import 'package:my_app/shared/widgets/lumara_icon.dart';
 import '../data/models/lumara_favorite.dart';
-import 'package:my_app/shared/widgets/lumara_action_menu.dart';
 import 'package:my_app/shared/ui/settings/favorites_management_view.dart';
 import '../voice/audio_io.dart';
 import '../chat/chat_models.dart';
@@ -39,9 +38,8 @@ import 'package:my_app/services/firebase_auth_service.dart';
 import 'package:my_app/arc/chat/services/lumara_reflection_settings_service.dart';
 // Removed persona selector widget - personas accessed through different UI
 import 'package:my_app/services/sentinel/crisis_mode.dart';
-import 'package:my_app/services/sentinel/sentinel_analyzer.dart';
-import 'package:my_app/services/firebase_auth_service.dart';
 import 'package:my_app/arc/chat/models/lumara_reflection_options.dart' as models;
+import 'package:my_app/models/engagement_discipline.dart';
 
 /// Main LUMARA Assistant screen
 class LumaraAssistantScreen extends StatefulWidget {
@@ -65,7 +63,7 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
   JournalEntry? _currentEntry; // Store current entry for context
   bool _isDrawerOpen = false; // Track drawer state
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
-  final GlobalKey _lengthMenuKey = GlobalKey();
+  final GlobalKey _modeMenuKey = GlobalKey();
   
   // Scroll position tracking for scroll buttons
   bool _showScrollToTop = false;
@@ -1329,12 +1327,12 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
                 tooltip: 'Send',
               ),
               IconButton(
-                key: _lengthMenuKey,
+                key: _modeMenuKey,
                 icon: const Icon(Icons.expand_more, size: 20),
                 padding: const EdgeInsets.all(8),
                 constraints: const BoxConstraints(),
-                onPressed: _showLengthMenu,
-                tooltip: 'Choose reply length',
+                onPressed: _showEngagementModeMenu,
+                tooltip: 'Choose engagement mode',
               ),
               IconButton(
                 icon: const Icon(Icons.palette, size: 20),
@@ -1402,8 +1400,8 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
     }
   }
 
-  Future<void> _showLengthMenu() async {
-    final anchorContext = _lengthMenuKey.currentContext;
+  Future<void> _showEngagementModeMenu() async {
+    final anchorContext = _modeMenuKey.currentContext;
     final overlay = Overlay.of(context);
     if (anchorContext == null || overlay == null) return;
 
@@ -1413,7 +1411,12 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
 
     final offset = box.localToGlobal(Offset.zero, ancestor: overlayBox);
 
-    final selection = await showMenu<String>(
+    // Get current engagement settings
+    final settingsService = LumaraReflectionSettingsService.instance;
+    final currentSettings = await settingsService.getEngagementSettings();
+    final currentMode = currentSettings.activeMode;
+
+    final selection = await showMenu<EngagementMode>(
       context: context,
       position: RelativeRect.fromLTRB(
         offset.dx,
@@ -1421,21 +1424,53 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
         overlayBox.size.width - offset.dx - box.size.width,
         overlayBox.size.height - offset.dy - box.size.height,
       ),
-      items: const [
-        PopupMenuItem(value: 'short', child: Text('Short (≤5 sentences)')),
-        PopupMenuItem(value: 'medium', child: Text('Medium (≤12 sentences)')),
-        PopupMenuItem(value: 'long', child: Text('Long (≤20 sentences)')),
-      ],
+      items: EngagementMode.values.map((mode) {
+        final isSelected = mode == currentMode;
+        return PopupMenuItem<EngagementMode>(
+          value: mode,
+          child: Row(
+            children: [
+              if (isSelected)
+                Icon(Icons.check, size: 18, color: Colors.blue)
+              else
+                const SizedBox(width: 18),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      mode.displayName,
+                      style: TextStyle(
+                        fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                      ),
+                    ),
+                    Text(
+                      mode.description,
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      }).toList(),
     );
 
     if (selection == null) return;
 
-    await LumaraReflectionSettingsService.instance
-        .setResponseLengthMode(selection);
+    // Update conversation override (per-session)
+    final updated = currentSettings.copyWith(conversationOverride: selection);
+    await settingsService.setEngagementSettings(updated);
     if (!mounted) return;
 
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('LUMARA length set to ${selection.toUpperCase()}')),
+      SnackBar(content: Text('Engagement mode set to ${selection.displayName}')),
     );
   }
 

@@ -62,12 +62,6 @@ class _SettingsViewState extends State<SettingsView> {
   int _therapeuticDepthLevel = 2;
   bool _webAccessEnabled = false;
   bool _lumaraSettingsLoading = true;
-  
-// Response length state
-String _responseLengthMode = 'medium'; // short | medium | long
-int _maxSentences = 12;
-int _sentencesPerParagraph = 3;
-bool _responseLengthLoading = true;
 
   // Engagement settings state
   EngagementSettings _engagementSettings = const EngagementSettings();
@@ -93,7 +87,6 @@ bool _responseLengthLoading = true;
     _loadShakeToReportPreference();
     _loadPersonaPreference();
     _loadLumaraSettings();
-    _loadResponseLengthSettings();
     _loadMemoryFocusPreset();
     _loadCrossModalSetting();
     _loadEngagementSettings();
@@ -223,31 +216,6 @@ bool _responseLengthLoading = true;
     }
   }
   
-  Future<void> _loadResponseLengthSettings() async {
-    try {
-      final settingsService = LumaraReflectionSettingsService.instance;
-      await settingsService.initialize();
-      final mode = await settingsService.getResponseLengthMode();
-      final maxSent = await settingsService.getMaxSentences();
-      final sentPerPara = await settingsService.getSentencesPerParagraph();
-      if (mounted) {
-        setState(() {
-          _responseLengthMode = mode;
-          _maxSentences = maxSent;
-          _sentencesPerParagraph = sentPerPara;
-          _responseLengthLoading = false;
-        });
-      }
-    } catch (e) {
-      print('Error loading response length settings: $e');
-      if (mounted) {
-        setState(() {
-          _responseLengthLoading = false;
-        });
-      }
-    }
-  }
-  
   Future<void> _loadMemoryFocusPreset() async {
     try {
       final settingsService = LumaraReflectionSettingsService.instance;
@@ -308,23 +276,6 @@ bool _responseLengthLoading = true;
           _engagementSettingsLoading = false;
         });
       }
-    }
-  }
-  
-  Future<void> _setResponseLengthMode(String mode) async {
-    final normalized = (mode == 'short' || mode == 'long') ? mode : 'medium';
-    final settingsService = LumaraReflectionSettingsService.instance;
-    await settingsService.setResponseLengthMode(normalized);
-
-    final max = await settingsService.getMaxSentences();
-    final spp = await settingsService.getSentencesPerParagraph();
-
-    if (mounted) {
-      setState(() {
-        _responseLengthMode = normalized;
-        _maxSentences = max;
-        _sentencesPerParagraph = spp;
-      });
     }
   }
   
@@ -711,8 +662,6 @@ bool _responseLengthLoading = true;
                 _buildMemoryFocusCard(),
                 // Engagement Mode Card
                 _buildEngagementModeCard(),
-                // Response Length Card
-                _buildResponseLengthCard(),
                 // Cross-Domain Synthesis Toggle
                 _buildCrossDomainSynthesisToggle(),
                 // Therapeutic Language Toggle
@@ -1001,143 +950,6 @@ bool _responseLengthLoading = true;
         const SizedBox(height: 12),
         ...children,
       ],
-    );
-  }
-  
-  /// Build response length card with simple modes
-  Widget _buildResponseLengthCard() {
-    final modes = [
-      {'key': 'short', 'label': 'Short', 'limit': 'Up to 5 sentences'},
-      {'key': 'medium', 'label': 'Medium', 'limit': 'Up to 12 sentences'},
-      {'key': 'long', 'label': 'Long', 'limit': 'Up to 20 sentences'},
-    ];
-
-    String limitText;
-    switch (_responseLengthMode) {
-      case 'short':
-        limitText = 'Short: up to 5 sentences. One paragraph max (3 sentences).';
-        break;
-      case 'long':
-        limitText = 'Long: up to 20 sentences. Max 3 sentences per paragraph.';
-        break;
-      case 'medium':
-      default:
-        limitText = 'Medium: up to 12 sentences. Max 3 sentences per paragraph.';
-        break;
-    }
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.1),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(
-                Icons.text_fields,
-                color: kcAccentColor,
-                size: 24,
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'LUMARA Length of Response',
-                      style: heading3Style(context).copyWith(
-                        color: kcPrimaryTextColor,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    Text(
-                      limitText,
-                      style: bodyStyle(context).copyWith(
-                        color: kcSecondaryTextColor,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              if (_responseLengthLoading)
-                const SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: modes.map((mode) {
-              final isSelected = _responseLengthMode == mode['key'];
-              return Expanded(
-                child: GestureDetector(
-                  onTap: _responseLengthLoading
-                      ? null
-                      : () => _setResponseLengthMode(mode['key'] as String),
-                  child: Container(
-                    margin: EdgeInsets.only(
-                        right: mode['key'] == 'long' ? 0 : 8),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    decoration: BoxDecoration(
-                      color: isSelected
-                          ? kcAccentColor.withValues(alpha: 0.3)
-                          : Colors.transparent,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: isSelected
-                            ? kcAccentColor
-                            : Colors.white.withValues(alpha: 0.2),
-                      ),
-                    ),
-                    child: Column(
-                      children: [
-                        Text(
-                          mode['label'] as String,
-                          style: bodyStyle(context).copyWith(
-                            color: isSelected
-                                ? kcAccentColor
-                                : kcSecondaryTextColor,
-                            fontWeight:
-                                isSelected ? FontWeight.w600 : FontWeight.normal,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          mode['limit'] as String,
-                          textAlign: TextAlign.center,
-                          style: bodyStyle(context).copyWith(
-                            color: kcSecondaryTextColor,
-                            fontSize: 11,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              );
-            }).toList(),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            'Strict limits: max 3 sentences per paragraph. Short responses can stay in a single paragraph.',
-            style: bodyStyle(context).copyWith(
-              color: kcSecondaryTextColor,
-              fontSize: 12,
-            ),
-          ),
-        ],
-      ),
     );
   }
   

@@ -65,7 +65,7 @@ import 'package:my_app/services/user_phase_service.dart';
 import 'package:my_app/shared/widgets/lumara_icon.dart';
 import 'package:my_app/arc/ui/widgets/attachment_menu_button.dart';
 import 'package:my_app/arc/ui/widgets/private_notes_panel.dart';
-import 'package:my_app/arc/core/private_notes_storage.dart';
+import 'package:my_app/models/engagement_discipline.dart';
 
 /// Main journal screen with integrated LUMARA companion and OCR scanning
 class JournalScreen extends StatefulWidget {
@@ -99,6 +99,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
   final Analytics _analytics = Analytics();
   late final LumaraInlineApi _lumaraApi;
   late final EnhancedLumaraApi _enhancedLumaraApi;
+  final GlobalKey _engagementModeMenuKey = GlobalKey();
   // late final OcrService _ocrService; // TODO: OCR service not yet implemented
   final DraftCacheService _draftCache = DraftCacheService.instance;
   
@@ -714,6 +715,80 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
 
     // Always generate LUMARA reflection for normal press
     _generateLumaraReflection();
+  }
+
+  Future<void> _showEngagementModeMenu(BuildContext context) async {
+    final anchorContext = _engagementModeMenuKey.currentContext;
+    final overlay = Overlay.of(context);
+    if (anchorContext == null || overlay == null) return;
+
+    final box = anchorContext.findRenderObject() as RenderBox?;
+    final overlayBox = overlay.context.findRenderObject() as RenderBox?;
+    if (box == null || overlayBox == null) return;
+
+    final offset = box.localToGlobal(Offset.zero, ancestor: overlayBox);
+
+    // Get current engagement settings
+    final settingsService = LumaraReflectionSettingsService.instance;
+    final currentSettings = await settingsService.getEngagementSettings();
+    final currentMode = currentSettings.activeMode;
+
+    final selection = await showMenu<EngagementMode>(
+      context: context,
+      position: RelativeRect.fromLTRB(
+        offset.dx,
+        offset.dy - 4,
+        overlayBox.size.width - offset.dx - box.size.width,
+        overlayBox.size.height - offset.dy - box.size.height,
+      ),
+      items: EngagementMode.values.map((mode) {
+        final isSelected = mode == currentMode;
+        return PopupMenuItem<EngagementMode>(
+          value: mode,
+          child: Row(
+            children: [
+              if (isSelected)
+                Icon(Icons.check, size: 18, color: Colors.blue)
+              else
+                const SizedBox(width: 18),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      mode.displayName,
+                      style: TextStyle(
+                        fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                      ),
+                    ),
+                    Text(
+                      mode.description,
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      }).toList(),
+    );
+
+    if (selection == null) return;
+
+    // Update conversation override (per-session)
+    final updated = currentSettings.copyWith(conversationOverride: selection);
+    await settingsService.setEngagementSettings(updated);
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Engagement mode set to ${selection.displayName}')),
+    );
   }
 
   void _onLumaraLongPress() async {
@@ -2276,6 +2351,18 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
                                 ? null
                                 : theme.colorScheme.surface.withOpacity(0.5),
                           ),
+                                ),
+                              ),
+                              
+                              // Engagement Mode selector (chevron button)
+                              Builder(
+                                key: _engagementModeMenuKey,
+                                builder: (context) => IconButton(
+                                  icon: Icon(Icons.expand_more, size: 18),
+                                  padding: const EdgeInsets.all(4),
+                                  constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                                  onPressed: () => _showEngagementModeMenu(context),
+                                  tooltip: 'Choose engagement mode',
                                 ),
                               ),
                         

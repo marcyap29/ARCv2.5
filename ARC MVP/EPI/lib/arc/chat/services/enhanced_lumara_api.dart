@@ -535,11 +535,25 @@ class EnhancedLumaraApi {
           );
           
           // Get unified master prompt (includes entry text, context, and all constraints)
-          final systemPrompt = LumaraMasterPrompt.getMasterPrompt(
+          String systemPrompt = LumaraMasterPrompt.getMasterPrompt(
             simplifiedControlStateJson,
             entryText: request.userText,
             baseContext: baseContext.isNotEmpty ? baseContext : null,
             modeSpecificInstructions: modeSpecificInstructions.isNotEmpty ? modeSpecificInstructions : null,
+          );
+          
+          // Inject current date/time and recent entries context for temporal grounding
+          final recentEntries = recentJournalEntries.take(5).map((entry) => {
+            'date': entry.createdAt,
+            'title': entry.content.split('\n').first.trim().isEmpty 
+                ? 'Untitled entry' 
+                : entry.content.split('\n').first.trim(),
+            'id': entry.id,
+          }).toList();
+          
+          systemPrompt = LumaraMasterPrompt.injectDateContext(
+            systemPrompt,
+            recentEntries: recentEntries,
           );
           
           print('🔵 LUMARA V23: Using unified master prompt');

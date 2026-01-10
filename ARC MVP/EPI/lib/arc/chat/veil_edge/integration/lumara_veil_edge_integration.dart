@@ -221,11 +221,14 @@ class LumaraVeilEdgeIntegration {
       );
       
       // Get unified master prompt with VEIL-EDGE context
-      final systemPrompt = LumaraMasterPrompt.getMasterPrompt(
+      String systemPrompt = LumaraMasterPrompt.getMasterPrompt(
         controlStateJson,
         entryText: userMessage,
         baseContext: veilContext,
       );
+      
+      // Inject current date/time context for temporal grounding
+      systemPrompt = LumaraMasterPrompt.injectDateContext(systemPrompt);
       
       final response = await geminiSend(
         system: systemPrompt,
