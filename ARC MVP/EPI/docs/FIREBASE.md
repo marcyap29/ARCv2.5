@@ -196,6 +196,177 @@ FirebaseAuth.instance.authStateChanges().listen((User? user) {
 | Token expired | Call `getIdToken(true)` to force refresh |
 | Anonymous user can't subscribe | Prompt user to sign in with Google first |
 
+### Fixing `UNAUTHENTICATED` Errors in Firebase Callable Functions
+
+The most common cause of `[firebase_functions/unauthenticated] UNAUTHENTICATED` errors is that the auth token isn't being sent with the callable request.
+
+#### Root Cause
+
+Firebase callable functions automatically include the auth token from `FirebaseAuth.instance.currentUser`. However, the token may not be attached if:
+
+1. **User just signed in** - Token hasn't propagated yet
+2. **Token expired** - Firebase didn't auto-refresh
+3. **Auth state not synced** - Callable created before auth completed
+
+#### Solution: Force Token Refresh Before Callable
+
+```dart
+// ALWAYS refresh token before making a callable request
+Future<void> makeAuthenticatedCall() async {
+  final user = FirebaseAuth.instance.currentUser;
+  
+  if (user == null) {
+    throw Exception('User not signed in');
+  }
+  
+  if (user.isAnonymous) {
+    throw Exception('Anonymous users cannot access this feature');
+  }
+  
+  // CRITICAL: Force refresh the token
+  final token = await user.getIdToken(true);
+  
+  if (token == null) {
+    throw Exception('Could not obtain auth token');
+  }
+  
+  print('Token obtained: ${token.substring(0, 30)}...');
+  
+  // Now make the callable - Firebase will include the fresh token
+  final functions = FirebaseFunctions.instance;
+  final callable = functions.httpsCallable('yourFunctionName');
+  
+  final result = await callable.call({'data': 'value'});
+}
+```
+
+#### After Google Sign-In - Wait for Token
+
+```dart
+Future<void> signInAndCall() async {
+  // Sign in with Google
+  final credential = await signInWithGoogle();
+  
+  if (credential?.user != null) {
+    // CRITICAL: Wait for auth state to propagate
+    await Future.delayed(Duration(milliseconds: 500));
+    
+    // CRITICAL: Force refresh token
+    final token = await credential!.user!.getIdToken(true);
+    
+    // Verify token exists
+    if (token == null) {
+      throw Exception('Failed to get token after sign-in');
+    }
+    
+    // Now safe to make callable
+    await makeAuthenticatedCall();
+  }
+}
+```
+
+#### Debug Checklist
+
+```dart
+void debugAuthState() async {
+  final auth = FirebaseAuth.instance;
+  final user = auth.currentUser;
+  
+  print('=== AUTH DEBUG ===');
+  print('User: ${user?.uid ?? "NULL"}');
+  print('Email: ${user?.email ?? "NULL"}');
+  print('isAnonymous: ${user?.isAnonymous}');
+  print('Provider: ${user?.providerData.map((p) => p.providerId).toList()}');
+  
+  if (user != null) {
+    try {
+      final token = await user.getIdToken(true);
+      print('Token: ${token?.substring(0, 30)}...');
+      print('Token length: ${token?.length}');
+    } catch (e) {
+      print('Token ERROR: $e');
+    }
+  }
+  print('==================');
+}
+```
+
+#### Server-Side Verification (Cloud Function)
+
+```javascript
+// In your Cloud Function
+exports.yourFunction = onCall(async (request) => {
+  // Check if auth exists
+  if (!request.auth) {
+    console.error('No auth context in request');
+    throw new HttpsError('unauthenticated', 'User must be authenticated');
+  }
+  
+  // Check if anonymous
+  const isAnonymous = request.auth.token.firebase?.sign_in_provider === 'anonymous';
+  if (isAnonymous) {
+    throw new HttpsError('unauthenticated', 'Anonymous users not allowed');
+  }
+  
+  // Log auth details
+  console.log('Auth UID:', request.auth.uid);
+  console.log('Auth Email:', request.auth.token.email);
+  console.log('Provider:', request.auth.token.firebase?.sign_in_provider);
+  
+  // Proceed with function logic
+  return { success: true };
+});
+```
+
+#### Complete Flow for Subscription Checkout
+
+```dart
+Future<bool> createCheckoutSession() async {
+  // Step 1: Verify user is signed in with real account
+  final auth = FirebaseAuthService.instance;
+  
+  if (!auth.hasRealAccount) {
+    // Navigate to sign-in first
+    await Navigator.push(context, MaterialPageRoute(
+      builder: (_) => SignInScreen(returnOnSignIn: true),
+    ));
+    
+    // Wait for auth to settle
+    await Future.delayed(Duration(milliseconds: 500));
+  }
+  
+  // Step 2: Get fresh user reference
+  final user = FirebaseAuth.instance.currentUser;
+  if (user == null || user.isAnonymous) {
+    throw Exception('Sign in required');
+  }
+  
+  // Step 3: Force token refresh
+  final token = await user.getIdToken(true);
+  if (token == null) {
+    throw Exception('Could not get auth token');
+  }
+  
+  print('✅ Token ready: ${token.length} chars');
+  
+  // Step 4: Make callable (token automatically included)
+  final callable = FirebaseFunctions.instance.httpsCallable('createCheckoutSession');
+  final result = await callable.call({
+    'billingInterval': 'annual',
+  });
+  
+  return result.data['url'] != null;
+}
+```
+
+#### Key Points
+
+1. **Always call `getIdToken(true)`** before callable functions
+2. **Wait 500ms** after sign-in for auth state to propagate
+3. **Check `isAnonymous`** - anonymous users can't use premium features
+4. **Log token details** for debugging
+5. **Server-side**: Always verify `request.auth` exists
+
 ## Functions Development
 
 ### Navigate to Functions Directory
