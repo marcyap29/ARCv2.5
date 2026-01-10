@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:convert';
+import 'dart:async';
 import 'package:crypto/crypto.dart';
 import 'package:archive/archive_io.dart';
 import 'package:my_app/mira/store/mcp/import/manifest_reader.dart';
@@ -1166,7 +1167,13 @@ class McpImportService {
   Future<bool> _importLumaraFavorite(McpNode node) async {
     try {
       final favoritesService = FavoritesService.instance;
-      await favoritesService.initialize();
+      await favoritesService.initialize().timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          print('  ⚠️ FavoritesService.initialize() timed out');
+          throw TimeoutException('FavoritesService initialization timed out', const Duration(seconds: 10));
+        },
+      );
 
       // Extract favorite data from node metadata
       final metadata = node.metadata ?? {};
@@ -1175,6 +1182,11 @@ class McpImportService {
       final sourceId = metadata['source_id'] as String?;
       final sourceType = metadata['source_type'] as String?;
       final favoriteMetadata = metadata['metadata'] as Map<String, dynamic>? ?? {};
+      
+      // Get category (default to 'answer' for backward compatibility)
+      final category = metadata['category'] as String? ?? 'answer';
+      final sessionId = metadata['session_id'] as String?;
+      final entryId = metadata['entry_id'] as String?;
       
       // Get content from narrative essence or contentSummary
       final content = node.narrative?.essence ?? 
@@ -1186,22 +1198,75 @@ class McpImportService {
         return false;
       }
 
-      // Check if favorite already exists
+      // Check if favorite already exists (by sourceId if available)
+      bool alreadyExists = false;
       if (sourceId != null) {
-        final existing = await favoritesService.findFavoriteBySourceId(sourceId);
-        if (existing != null) {
-          print('  LUMARA favorite already exists for sourceId: $sourceId, skipping');
-          return false;
+        try {
+          final existing = await favoritesService.findFavoriteBySourceId(sourceId).timeout(
+            const Duration(seconds: 2),
+            onTimeout: () => null,
+          );
+          if (existing != null) {
+            print('  LUMARA favorite already exists for sourceId: $sourceId, skipping');
+            alreadyExists = true;
+          }
+        } catch (e) {
+          // Continue to try adding it anyway
         }
       }
-
-      // Check capacity
-      if (await favoritesService.isAtCapacity()) {
-        print('  Warning: LUMARA favorites at capacity, cannot import ${node.id}');
+      
+      // Also check category-specific lookups
+      if (!alreadyExists) {
+        if (category == 'chat' && sessionId != null) {
+          try {
+            final existing = await favoritesService.findFavoriteChatBySessionId(sessionId).timeout(
+              const Duration(seconds: 2),
+              onTimeout: () => null,
+            );
+            if (existing != null) {
+              print('  LUMARA favorite chat already exists for sessionId: $sessionId, skipping');
+              alreadyExists = true;
+            }
+          } catch (e) {
+            // Continue to try adding it anyway
+          }
+        } else if (category == 'journal_entry' && entryId != null) {
+          try {
+            final existing = await favoritesService.findFavoriteJournalEntryByEntryId(entryId).timeout(
+              const Duration(seconds: 2),
+              onTimeout: () => null,
+            );
+            if (existing != null) {
+              print('  LUMARA favorite journal entry already exists for entryId: $entryId, skipping');
+              alreadyExists = true;
+            }
+          } catch (e) {
+            // Continue to try adding it anyway
+          }
+        }
+      }
+      
+      if (alreadyExists) {
         return false;
       }
 
-      // Create favorite
+      // Check category-specific capacity (not just total capacity)
+      try {
+        final atCapacity = await favoritesService.isCategoryAtCapacity(category).timeout(
+          const Duration(seconds: 2),
+          onTimeout: () => false,
+        );
+        if (atCapacity) {
+          final limit = await favoritesService.getCategoryLimit(category);
+          print('  Warning: LUMARA favorites at capacity for category $category ($limit), cannot import ${node.id}');
+          return false;
+        }
+      } catch (e) {
+        print('  ⚠️ Error checking capacity for $category: $e');
+        // Continue to try adding it anyway
+      }
+
+      // Create favorite with category
       final favorite = LumaraFavorite(
         id: favoriteId,
         content: content,
@@ -1209,20 +1274,31 @@ class McpImportService {
         sourceId: sourceId,
         sourceType: sourceType,
         metadata: favoriteMetadata,
+        category: category,
+        sessionId: sessionId,
+        entryId: entryId,
       );
 
-      // Add favorite
-      final added = await favoritesService.addFavorite(favorite);
-      if (added) {
-        print('  ✅ Imported LUMARA favorite: ${node.id}');
-        return true;
-      } else {
-        print('  ⚠️ Failed to add LUMARA favorite: ${node.id} (may be at capacity)');
+      // Add favorite with timeout
+      try {
+        final added = await favoritesService.addFavorite(favorite).timeout(
+          const Duration(seconds: 5),
+          onTimeout: () => false,
+        );
+        if (added) {
+          print('  ✅ Imported LUMARA favorite: ${node.id} (category: $category)');
+          return true;
+        } else {
+          print('  ⚠️ Failed to add LUMARA favorite: ${node.id} (category: $category, may be at capacity)');
+          return false;
+        }
+      } catch (e) {
+        print('  ⚠️ Error adding LUMARA favorite ${node.id}: $e');
         return false;
       }
     } catch (e) {
       print('  Failed to import LUMARA favorite ${node.id}: $e');
-      rethrow;
+      return false; // Don't rethrow, just return false
     }
   }
 

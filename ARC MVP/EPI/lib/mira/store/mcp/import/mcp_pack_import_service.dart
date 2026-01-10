@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:convert';
+import 'dart:async';
 import 'package:path/path.dart' as path;
 import 'package:archive/archive_io.dart';
 import 'package:path_provider/path_provider.dart';
@@ -989,13 +990,35 @@ class McpPackImportService {
         final data = jsonDecode(content) as Map<String, dynamic>;
         final favoritesJson = data['lumara_favorites'] as List<dynamic>? ?? [];
         
-        final favoritesService = FavoritesService.instance;
-        await favoritesService.initialize();
+        // Initialize FavoritesService with timeout to prevent hanging
+        FavoritesService favoritesService;
+        try {
+          favoritesService = FavoritesService.instance;
+          await favoritesService.initialize().timeout(
+            const Duration(seconds: 10),
+            onTimeout: () {
+              print('⚠️ MCP Import: FavoritesService.initialize() timed out after 10 seconds');
+              throw TimeoutException('FavoritesService initialization timed out', const Duration(seconds: 10));
+            },
+          );
+        } catch (e) {
+          print('⚠️ MCP Import: Failed to initialize FavoritesService: $e');
+          print('⚠️ MCP Import: Skipping LUMARA favorites import due to initialization failure');
+          return; // Don't fail the entire import if favorites service fails
+        }
         
-        int importedCount = 0;
+        // Import with deduplication - check for existing favorites to avoid duplicates
+        int importedAnswers = 0;
+        int importedChats = 0;
+        int importedEntries = 0;
+        int skippedCount = 0;
+        
         for (final favJson in favoritesJson) {
           try {
             final favoriteMap = favJson as Map<String, dynamic>;
+            
+            // Get category (default to 'answer' for backward compatibility)
+            final category = favoriteMap['category'] as String? ?? 'answer';
             
             // Preserve all fields including category, sessionId, and entryId
             final favorite = LumaraFavorite(
@@ -1005,45 +1028,110 @@ class McpPackImportService {
               sourceId: favoriteMap['source_id'] as String?,
               sourceType: favoriteMap['source_type'] as String?,
               metadata: favoriteMap['metadata'] as Map<String, dynamic>? ?? {},
-              category: favoriteMap['category'] as String? ?? 'answer', // Preserve category (answer, chat, journal_entry)
-              sessionId: favoriteMap['session_id'] as String?, // For saved chats
-              entryId: favoriteMap['entry_id'] as String?, // For favorite journal entries
+              category: category,
+              sessionId: favoriteMap['session_id'] as String?,
+              entryId: favoriteMap['entry_id'] as String?,
             );
             
-            // Check if favorite already exists
-            bool shouldImport = true;
+            // Check if favorite already exists (by sourceId if available, or by sessionId/entryId for category-specific)
+            bool alreadyExists = false;
             if (favorite.sourceId != null) {
-              final existing = await favoritesService.findFavoriteBySourceId(favorite.sourceId!);
-              if (existing != null) {
-                shouldImport = false;
+              try {
+                final existing = await favoritesService.findFavoriteBySourceId(favorite.sourceId!).timeout(
+                  const Duration(seconds: 2),
+                  onTimeout: () => null,
+                );
+                if (existing != null) {
+                  alreadyExists = true;
+                }
+              } catch (e) {
+                // Continue to try adding it anyway
               }
             }
             
-            // Check category-specific capacity (not just total capacity)
-            if (shouldImport) {
-              final category = favorite.category;
-              if (await favoritesService.isCategoryAtCapacity(category)) {
+            // Also check category-specific lookups
+            if (!alreadyExists) {
+              if (category == 'chat' && favorite.sessionId != null) {
+                try {
+                  final existing = await favoritesService.findFavoriteChatBySessionId(favorite.sessionId!).timeout(
+                    const Duration(seconds: 2),
+                    onTimeout: () => null,
+                  );
+                  if (existing != null) {
+                    alreadyExists = true;
+                  }
+                } catch (e) {
+                  // Continue to try adding it anyway
+                }
+              } else if (category == 'journal_entry' && favorite.entryId != null) {
+                try {
+                  final existing = await favoritesService.findFavoriteJournalEntryByEntryId(favorite.entryId!).timeout(
+                    const Duration(seconds: 2),
+                    onTimeout: () => null,
+                  );
+                  if (existing != null) {
+                    alreadyExists = true;
+                  }
+                } catch (e) {
+                  // Continue to try adding it anyway
+                }
+              }
+            }
+            
+            if (alreadyExists) {
+              skippedCount++;
+              continue;
+            }
+            
+            // Check category-specific capacity
+            try {
+              final atCapacity = await favoritesService.isCategoryAtCapacity(category).timeout(
+                const Duration(seconds: 2),
+                onTimeout: () => false,
+              );
+              if (atCapacity) {
                 final limit = await favoritesService.getCategoryLimit(category);
                 print('⚠️ MCP Import: Category $category at capacity ($limit), skipping favorite');
-                shouldImport = false;
+                skippedCount++;
+                continue;
               }
+            } catch (e) {
+              print('⚠️ MCP Import: Error checking capacity for $category: $e');
+              // Continue to try adding it anyway
             }
             
-            if (shouldImport) {
-              final added = await favoritesService.addFavorite(favorite);
+            // Add favorite with timeout
+            try {
+              final added = await favoritesService.addFavorite(favorite).timeout(
+                const Duration(seconds: 5),
+                onTimeout: () => false,
+              );
               if (added) {
-                importedCount++;
-                print('📦 MCP Import: ✓ Imported favorite ${favorite.id} (category: ${favorite.category})');
+                if (category == 'answer') {
+                  importedAnswers++;
+                } else if (category == 'chat') {
+                  importedChats++;
+                } else if (category == 'journal_entry') {
+                  importedEntries++;
+                }
+                print('📦 MCP Import: ✓ Imported favorite ${favorite.id} (category: $category)');
               } else {
-                print('⚠️ MCP Import: Failed to add favorite ${favorite.id} (category: ${favorite.category})');
+                skippedCount++;
+                print('⚠️ MCP Import: Failed to add favorite ${favorite.id} (category: $category)');
               }
+            } catch (e) {
+              print('⚠️ MCP Import: Error adding favorite ${favorite.id}: $e');
+              skippedCount++;
             }
           } catch (e) {
             print('⚠️ MCP Import: Failed to import favorite: $e');
+            skippedCount++;
           }
         }
         
-        print('📦 MCP Import: ✓ Imported $importedCount LUMARA favorites');
+        print('📦 MCP Import: ✓ Imported LUMARA favorites (${importedAnswers} answers, ${importedChats} chats, ${importedEntries} entries, $skippedCount skipped)');
+      } else {
+        print('📦 MCP Import: ⚠️ lumara_favorites.json not found, skipping LUMARA favorites');
       }
     } catch (e) {
       print('⚠️ MCP Import: Failed to import LUMARA favorites: $e');
