@@ -6,7 +6,11 @@ import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
 
 class SignInScreen extends StatefulWidget {
-  const SignInScreen({super.key});
+  /// If true, will pop back after sign-in instead of navigating to /home
+  /// Use this when sign-in is triggered from subscription or other flows
+  final bool returnOnSignIn;
+  
+  const SignInScreen({super.key, this.returnOnSignIn = false});
 
   @override
   State<SignInScreen> createState() => _SignInScreenState();
@@ -50,7 +54,13 @@ class _SignInScreenState extends State<SignInScreen> {
       final userCredential = await FirebaseAuthService.instance.signInWithGoogle();
 
       if (userCredential != null && mounted) {
-        Navigator.of(context).pushReplacementNamed('/home');
+        // Check if we should return to previous screen or go to home
+        if (widget.returnOnSignIn && Navigator.of(context).canPop()) {
+          debugPrint('SignInScreen: Sign-in successful, returning to previous screen');
+          Navigator.of(context).pop(true); // Return true to indicate successful sign-in
+        } else {
+          Navigator.of(context).pushReplacementNamed('/home');
+        }
       } else if (mounted) {
         // User cancelled - just reset loading state
         setState(() {
@@ -104,7 +114,13 @@ class _SignInScreenState extends State<SignInScreen> {
       }
 
       if (mounted) {
-        Navigator.of(context).pushReplacementNamed('/home');
+        // Check if we should return to previous screen or go to home
+        if (widget.returnOnSignIn && Navigator.of(context).canPop()) {
+          debugPrint('SignInScreen: Email sign-in successful, returning to previous screen');
+          Navigator.of(context).pop(true); // Return true to indicate successful sign-in
+        } else {
+          Navigator.of(context).pushReplacementNamed('/home');
+        }
       }
     } on FirebaseAuthException catch (e) {
       if (mounted) {

@@ -32,6 +32,7 @@ EPI (Evolving Personal Intelligence) is a Flutter-based intelligent journaling a
 - ✅ **Temporal Notifications System (v2.1.83)**: Multi-cadence notification system (daily, monthly, 6-month, yearly) with phase-aware insights, deep linking, and comprehensive settings UI
 - ✅ **LUMARA Entry Classification System (v2.1.85)**: Intelligent classification prevents over-synthesis on simple questions while preserving sophisticated temporal intelligence for complex entries
 - ✅ **Enhanced PRISM Semantic Summarization (v2.1.86)**: Classification-aware privacy system with improved technical content detection and on-device semantic analysis
+- ✅ **LUMARA v3.0 User Prompt System (v3.0)**: Fixed user prompt to reinforce master prompt constraints instead of overriding them, ensuring word limits, dated examples, and banned phrases are properly enforced
 
 ### Current Version
 
