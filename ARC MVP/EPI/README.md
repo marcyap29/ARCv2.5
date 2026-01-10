@@ -1,8 +1,8 @@
 # EPI MVP - Evolving Personal Intelligence
 
-**Version:** 3.1
+**Version:** 3.2
 **Last Updated:** January 9, 2026
-**Status:** ✅ Production Ready with Enhanced Privacy System
+**Status:** ✅ Production Ready with Unified Prompt System
 
 ---
 
@@ -18,7 +18,7 @@ EPI (Evolving Personal Intelligence) is a sophisticated Flutter-based personal i
 - **Intelligent Classification System (v2.1.85)**: Automatically classifies entry types for optimal response generation
 - **Enhanced Privacy Processing (v2.1.86)**: Classification-aware PRISM system preserves semantic content for technical questions while maintaining full privacy for personal entries
 - **Companion-First Persona Selection (v3.0)**: Personal reflections default to warm, conversational Companion mode with enforced word limits and pattern recognition
-- **User Prompt System (v3.0)**: User prompts now reinforce master prompt constraints, ensuring word limits, dated examples, and banned phrases are properly enforced
+- **Unified Prompt System (v3.2)**: Consolidated master prompt and user prompt into single unified prompt, eliminating duplication and override risk
 - **Persona-Based Responses**: 4 adaptive personas (Companion, Strategist, Challenger, Therapist) based on context and user state
 - **Health-Integrated Responses**: Sleep quality and energy levels influence AI interaction style
 - **Voice Chat Mode**: Full duplex voice conversations with push-to-talk and hands-free modes

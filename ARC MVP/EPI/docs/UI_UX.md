@@ -2206,26 +2206,36 @@ UnifiedVoicePanel(
 
 ---
 
-## 30. LUMARA v3.0 User Prompt System (v3.0)
+## 30. LUMARA Unified Prompt System (v3.2)
 
 **Status:** ✅ **ACTIVE**  
 **Date:** January 2026  
-**Files:** `lib/arc/chat/services/enhanced_lumara_api.dart`
+**Version:** v3.2 (Unified Prompt)  
+**Files:** `lib/arc/chat/llm/prompts/lumara_master_prompt.dart`, `lib/arc/chat/services/enhanced_lumara_api.dart`
 
 ### Overview
 
-The LUMARA User Prompt System ensures that user prompts reinforce master prompt constraints instead of overriding them. This critical fix resolves issues where responses violated word limits, used banned phrases, and provided unrequested action items.
+The LUMARA Unified Prompt System consolidates the master prompt and user prompt into a single, unified prompt. This eliminates duplication, prevents constraint conflicts, and simplifies maintenance. All constraints, entry text, and context are now in one place.
+
+### Evolution
+
+- **v3.0**: Fixed user prompt to reinforce master prompt constraints instead of overriding them
+- **v3.2**: Unified master prompt and user prompt into single prompt system
 
 ### Key Features
 
-- **Constraint Reinforcement**: User prompts now read from control state and enforce constraints
-- **Word Limit Enforcement**: Explicit word limits in user prompt (e.g., "250 words MAXIMUM")
+- **Single Source of Truth**: All constraints, entry text, and context in one unified prompt
+- **No Duplication**: Eliminated duplicate constraint definitions between master and user prompts
+- **No Override Risk**: Single prompt prevents constraint conflicts
+- **Simplified Codebase**: Removed ~200 lines of duplicate code
+- **Unified API**: `getMasterPrompt()` now accepts `entryText`, `baseContext`, and `modeSpecificInstructions`
+- **Word Limit Enforcement**: Explicit word limits enforced in unified prompt
 - **Dated Examples Requirement**: Requires specific number of dated pattern examples
 - **Banned Phrases List**: Includes forbidden melodramatic phrases for Companion mode
 - **Persona-Specific Instructions**: Different instructions for Companion, Strategist, Therapist, Challenger
 - **Mode Support**: Handles conversation modes (ideas, think, perspective, next steps, etc.)
 
-### User Prompt Structure
+### Unified Prompt Structure
 
 ```
 ═══════════════════════════════════════════════════════════
@@ -2289,18 +2299,17 @@ Respond now following ALL constraints above.
 
 ### Implementation Details
 
-**Method:** `_buildUserPrompt()`
-- Reads constraints from control state JSON
-- Builds prompt that reinforces master prompt
-- Includes base context (historical entries, mood, phase)
-- Adds persona-specific instructions
-- Handles conversation modes and special requests
+**Method:** `LumaraMasterPrompt.getMasterPrompt()`
+- Accepts `controlStateJson`, `entryText` (required), `baseContext` (optional), `modeSpecificInstructions` (optional)
+- Builds complete unified prompt with all constraints, entry text, and context
+- Includes persona-specific instructions based on control state
+- Handles historical context and mode-specific instructions
+- Returns single prompt string (user prompt is now empty string)
 
-**Method:** `_getPersonaSpecificInstructions()`
-- Returns persona-specific instructions
-- Includes banned phrases for Companion
-- Provides format requirements
-- Sets tone expectations
+**Breaking Changes (v3.2):**
+- `getMasterPrompt()` now requires `entryText` parameter
+- `_buildUserPrompt()` method removed entirely
+- User prompt parameter in `geminiSend()` is now empty string
 
 ### Critical Constraints Enforced
 
@@ -2313,7 +2322,8 @@ Respond now following ALL constraints above.
 
 ### Related Documentation
 
-- [User Prompt System Documentation](../../USERPROMPT.md)
+- [Unified Prompt System Documentation](../DOCS/CONSOLIDATED_PROMPT_PROPOSAL.md)
+- [Old API Audit](../DOCS/OLD_API_AUDIT.md)
 - [LUMARA Master Prompt System](../lib/arc/chat/prompts/README_MASTER_PROMPT.md)
 - [LUMARA v3.0 Implementation Summary](../../LUMARA_V3_IMPLEMENTATION_SUMMARY.md)
 - [Bug Tracker: User Prompt Override](../bugtracker/records/lumara-user-prompt-override.md)
