@@ -1,7 +1,7 @@
 # EPI ARC MVP - Changelog
 
-**Version:** 2.1.90
-**Last Updated:** January 9, 2026
+**Version:** 3.2.1
+**Last Updated:** January 10, 2026
 
 ---
 
@@ -14,6 +14,92 @@ This changelog has been split into parts for easier navigation:
 | **[CHANGELOG_part1.md](CHANGELOG_part1.md)** | Dec 2025 | v2.1.43 - v2.1.87 (Current) |
 | **[CHANGELOG_part2.md](CHANGELOG_part2.md)** | Nov 2025 | v2.1.28 - v2.1.42 |
 | **[CHANGELOG_part3.md](CHANGELOG_part3.md)** | Jan-Oct 2025 | v2.0.0 - v2.1.27 & Earlier |
+
+---
+
+## [3.2.1] - January 10, 2026
+
+### 🔧 Stripe Checkout UNAUTHENTICATED Fix
+
+**Critical Bug Fix**: Resolved `UNAUTHENTICATED` error when creating Stripe checkout sessions.
+
+#### Problem
+- Users clicking "Subscribe" received `[firebase_functions/unauthenticated] UNAUTHENTICATED`
+- Error occurred even though user was fully authenticated with Google
+- `getUserSubscription` worked fine but `createCheckoutSession` failed
+
+#### Root Cause
+Cloud Run IAM policy was blocking requests to `createCheckoutSession` service before they reached the function code. This is separate from Firebase Auth.
+
+#### Solution
+1. Set Cloud Run IAM policy to "Allow unauthenticated invocations" for `createcheckoutsession` service
+2. Function code still validates Firebase Auth internally
+3. Added debug logging to diagnose similar issues
+
+#### Files Modified
+- `functions/index.js`: Added auth context debug logging
+- Cloud Console: Updated IAM policy for `createcheckoutsession`
+
+#### Documentation Updated
+- `docs/bugtracker/records/stripe-checkout-unauthenticated.md`: Full bug report
+- `docs/bugtracker/bug_tracker.md`: Added reference to new record
+- `docs/FIREBASE.md`: Added Cloud Run IAM troubleshooting section
+
+---
+
+## [3.2] - January 9, 2026
+
+### 🎯 LUMARA Unified Prompt System
+- **Unified Prompt Architecture**: Consolidated master prompt and user prompt into single unified prompt
+  - Eliminated duplication of constraints (word limits, pattern examples, persona instructions)
+  - Removed override risk - single source of truth for all instructions
+  - Simplified codebase - removed ~200 lines of duplicate code
+  - Updated `LumaraMasterPrompt.getMasterPrompt()` to accept `entryText`, `baseContext`, and `modeSpecificInstructions`
+  - Removed `_buildUserPrompt()` method entirely
+- **Breaking Changes**:
+  - `getMasterPrompt()` now requires `entryText` parameter
+  - User prompt parameter in `geminiSend()` is now empty string
+  - `_buildUserPrompt()` method removed
+- **Benefits**:
+  - Single source of truth for all constraints
+  - No duplication or override risk
+  - Simpler maintenance (update constraints in one place)
+  - Clearer structure
+
+### 📁 Files Modified
+- `lib/arc/chat/llm/prompts/lumara_master_prompt.dart`: Unified prompt with entry text and context
+- `lib/arc/chat/services/enhanced_lumara_api.dart`: Updated to use unified prompt, removed `_buildUserPrompt()`
+- `lib/arc/chat/bloc/lumara_assistant_cubit.dart`: Updated for chat mode
+- `lib/arc/chat/veil_edge/integration/lumara_veil_edge_integration.dart`: Updated (deprecated code)
+- Documentation: Updated all references to unified prompt system
+
+### 🎯 Impact
+- Simpler, more maintainable prompt system
+- No risk of constraint conflicts
+- All production code updated and verified
+
+---
+
+## [3.1] - January 9, 2026
+
+### 🎯 Adaptive Framework for RIVET and Sentinel
+- **User Cadence Detection**: Automatically detects journaling patterns (power user, frequent, weekly, sporadic)
+- **Adaptive RIVET Configuration**: Phase detection parameters adjust to user cadence
+- **Adaptive Sentinel Configuration**: Emotional density calculation adapts to writing style and frequency
+- **Smooth Transitions**: Configuration changes gradually over 5 entries to prevent sudden shifts
+- **Psychological Time**: Algorithms measure in journal entries, not calendar days
+
+### 📁 Files Created
+- `lib/services/adaptive/user_cadence_detector.dart`
+- `lib/services/adaptive/adaptive_config.dart`
+- `lib/services/adaptive/rivet_config.dart`
+- `lib/services/adaptive/adaptive_sentinel_calculator.dart`
+- `lib/services/adaptive/adaptive_algorithm_service.dart`
+
+### 📁 Files Modified
+- `lib/services/sentinel/sentinel_config.dart`: Added adaptive configuration parameters
+- `DOCS/RIVET_ARCHITECTURE.md`: Added adaptive framework section
+- `DOCS/SENTINEL_ARCHITECTURE.md`: Added adaptive framework section
 
 ---
 

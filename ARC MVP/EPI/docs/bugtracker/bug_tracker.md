@@ -1,7 +1,7 @@
 # EPI MVP - Bug Tracker
 
-**Version:** 2.1.76  
-**Last Updated:** January 1, 2026
+**Version:** 3.2.1  
+**Last Updated:** January 10, 2026
 
 ---
 
@@ -45,6 +45,9 @@ Detailed bug reports are available in the [records/](records/) directory:
 - [mediaitem-adapter-registration-conflict.md](records/mediaitem-adapter-registration-conflict.md) - MediaItem adapter conflicts
 - [photo-duplication-view-entry.md](records/photo-duplication-view-entry.md) - Photo duplication bugs
 
+### Subscription & Payment Issues
+- [stripe-checkout-unauthenticated.md](records/stripe-checkout-unauthenticated.md) - **CRITICAL:** Cloud Run IAM blocking Stripe checkout ✅ RESOLVED
+
 ### Feature-Specific Issues
 - [constellation-zero-stars-display.md](records/constellation-zero-stars-display.md) - Constellation visualization
 - [draft-creation-unwanted-drafts.md](records/draft-creation-unwanted-drafts.md) - Draft management
@@ -64,4 +67,4 @@ Historical bug tracker files are archived in [archive/](archive/):
 ---
 
 **Status**: ✅ Active - All resolved issues documented  
-**Last Updated**: January 1, 2026
+**Last Updated**: January 10, 2026

@@ -542,6 +542,45 @@ firebase login
 firebase functions:list
 ```
 
+### Cloud Run IAM Issues (UNAUTHENTICATED Error)
+
+If a callable function returns `UNAUTHENTICATED` error even though the user is logged in, the issue is likely **Cloud Run IAM policy**, not Firebase Auth.
+
+#### Symptoms
+- `[firebase_functions/unauthenticated] UNAUTHENTICATED` error
+- Other callable functions work fine with the same auth
+- User is definitely logged in (Firebase Auth tokens are valid)
+
+#### Root Cause
+Firebase Functions v2 runs on Cloud Run. Cloud Run has its own IAM layer that controls who can invoke the service. If Cloud Run blocks the request, the function code never executes.
+
+#### Solution
+
+1. Go to [Google Cloud Console - Cloud Run](https://console.cloud.google.com/run)
+2. Select your project (e.g., `arc-epi`)
+3. Click on the affected service (e.g., `createcheckoutsession`)
+4. Go to the **"Security"** tab
+5. Under "Authentication", select **"Allow unauthenticated invocations"**
+6. Click **Save**
+
+**Why this is safe**: The function code still validates Firebase Auth internally:
+```javascript
+if (!request.auth) {
+  throw new HttpsError("unauthenticated", "...");
+}
+```
+
+Only authenticated Firebase users can successfully use the function.
+
+#### Verify the Fix
+
+Check Firebase Functions logs:
+```bash
+firebase functions:log --only <functionName>
+```
+
+If you see "not authorized to invoke" errors, the IAM policy is still blocking requests.
+
 ### Delete Functions
 
 ```bash

@@ -1,25 +1,41 @@
-# LUMARA User Prompt System
+# LUMARA Unified Prompt System
 
-**Status:** ✅ **ACTIVE**  
-**Version:** 3.0  
+**Status:** ✅ **ACTIVE** (Deprecated - Now Unified)  
+**Version:** 3.2  
 **Date:** January 2026
 
 ---
 
 ## Overview
 
-The LUMARA User Prompt System is responsible for building the user-facing prompt that instructs the LLM on how to respond to journal entries. This prompt **must reinforce** the constraints set in the master prompt, not override them.
+**⚠️ NOTE: As of v3.2, the user prompt has been unified into the master prompt. This document is kept for historical reference.**
+
+The LUMARA prompt system has been consolidated into a single unified prompt that contains all instructions, constraints, entry text, and context in one place.
 
 ## Architecture
 
-### Two-Prompt System
+### Unified Prompt System (v3.2+)
 
-LUMARA uses a two-prompt architecture:
+LUMARA now uses a single unified prompt:
+
+1. **Unified Master Prompt**: Contains all behavior rules, constraints, entry text, and context
+2. **No separate user prompt**: Everything is in one place
+
+**Benefits:**
+- Single source of truth
+- No duplication of constraints
+- No override risk
+- Simpler codebase
+- Easier maintenance
+
+### Previous Two-Prompt System (v3.0-v3.1)
+
+Previously, LUMARA used a two-prompt architecture:
 
 1. **Master Prompt (System Prompt)**: Defines overall behavior, persona, and constraints
 2. **User Prompt**: Provides specific entry content and reinforces constraints
 
-**Critical Rule:** The user prompt comes **after** the master prompt, so it must **reinforce** constraints, not contradict them.
+**Critical Rule:** The user prompt came **after** the master prompt, so it had to **reinforce** constraints, not contradict them.
 
 ### Control State Flow
 

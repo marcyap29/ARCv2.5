@@ -209,10 +209,19 @@ exports.createCheckoutSession = onCall(
   {
     cors: true,
     secrets: [STRIPE_SECRET_KEY, STRIPE_PRICE_ID_MONTHLY, STRIPE_PRICE_ID_ANNUAL],
+    // invoker is set manually in Cloud Console to avoid IAM conflicts
   },
   async (request) => {
+    // Debug logging for auth context
+    console.log('createCheckoutSession: Received request');
+    console.log('createCheckoutSession: request.auth =', request.auth ? 'present' : 'null');
+    console.log('createCheckoutSession: request.rawRequest.headers.authorization =', 
+      request.rawRequest?.headers?.authorization ? 'present' : 'missing');
+    
     // Verify authentication
     if (!request.auth) {
+      console.log('createCheckoutSession: AUTH FAILED - request.auth is null');
+      console.log('createCheckoutSession: Full request keys:', Object.keys(request));
       throw new HttpsError("unauthenticated", "User must be logged in to subscribe");
     }
 
