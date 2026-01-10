@@ -220,6 +220,10 @@ class _SubscriptionManagementViewState extends State<SubscriptionManagementView>
         _error = null;
       });
 
+      // Clear subscription cache to ensure fresh data
+      debugPrint('SubscriptionManagementView: Clearing subscription cache for fresh data');
+      SubscriptionService.instance.clearCache();
+
       final details = await SubscriptionService.instance.getSubscriptionDetails();
 
       if (mounted) {
@@ -425,7 +429,16 @@ class _SubscriptionManagementViewState extends State<SubscriptionManagementView>
         FutureBuilder<bool>(
           future: SubscriptionService.instance.hasPremiumAccess(),
           builder: (context, snapshot) {
+            // Force refresh if we have connection issues or if subscription state seems wrong
+            if (snapshot.hasError) {
+              debugPrint('SubscriptionManagementView: Error checking premium access: ${snapshot.error}');
+            }
+
             final isPremium = snapshot.data ?? false;
+
+            debugPrint('SubscriptionManagementView: 🔍 Premium access check result: $isPremium');
+            debugPrint('SubscriptionManagementView: 🔍 Snapshot state: ${snapshot.connectionState}');
+            debugPrint('SubscriptionManagementView: 🔍 Has error: ${snapshot.hasError}');
 
             if (!isPremium) {
               // Show pricing selector for free users
@@ -497,11 +510,16 @@ class _SubscriptionManagementViewState extends State<SubscriptionManagementView>
       // Check if user is properly authenticated first
       final authService = FirebaseAuthService.instance;
 
-      debugPrint('SubscriptionManagement: AUTH STATUS CHECK:');
+      debugPrint('SubscriptionManagement: 🔐 DETAILED AUTH STATUS CHECK:');
       debugPrint('  isSignedIn: ${authService.isSignedIn}');
       debugPrint('  isAnonymous: ${authService.isAnonymous}');
       debugPrint('  hasRealAccount: ${authService.hasRealAccount}');
       debugPrint('  currentUser: ${authService.currentUser?.email ?? authService.currentUser?.uid ?? "NULL"}');
+      debugPrint('  selectedInterval: ${interval.displayName}');
+
+      // Always clear subscription cache before authentication check
+      debugPrint('SubscriptionManagement: 🔄 Clearing cache before proceeding');
+      SubscriptionService.instance.clearCache();
 
       // Force Google sign-in for all subscription access (even if user thinks they're signed in)
       if (!authService.hasRealAccount) {
