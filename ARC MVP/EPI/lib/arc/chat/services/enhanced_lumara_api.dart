@@ -7,7 +7,6 @@ import 'dart:math';
 import '../../../services/gemini_send.dart';
 import 'lumara_reflection_settings_service.dart';
 import '../llm/prompts/lumara_master_prompt.dart';
-import 'lumara_control_state_builder.dart';
 import '../../../mira/memory/sentence_extraction_util.dart';
 import 'package:my_app/telemetry/analytics.dart';
 import '../models/reflective_node.dart';
@@ -32,15 +31,38 @@ import '../../../services/lumara/entry_classifier.dart';
 import '../../../services/lumara/response_mode.dart';
 import '../../../services/lumara/classification_logger.dart';
 import '../../../services/lumara/user_intent.dart';
+import '../../../services/sentinel/sentinel_analyzer.dart';
+import '../../../services/sentinel/crisis_mode.dart';
 
 /// Result of generating a reflection with attribution traces
 class ReflectionResult {
   final String reflection;
   final List<AttributionTrace> attributionTraces;
+  final String? persona; // Selected persona (companion, strategist, therapist, challenger)
+  final bool? safetyOverride; // Whether safety override was triggered
+  final double? sentinelScore; // Sentinel score if calculated
 
   const ReflectionResult({
     required this.reflection,
     required this.attributionTraces,
+    this.persona,
+    this.safetyOverride,
+    this.sentinelScore,
+  });
+}
+
+/// Response parameters for each persona
+class ResponseParameters {
+  final int maxWords;
+  final int minPatternExamples;
+  final int maxPatternExamples;
+  final bool useStructuredFormat;
+  
+  ResponseParameters({
+    required this.maxWords,
+    required this.minPatternExamples,
+    required this.maxPatternExamples,
+    required this.useStructuredFormat,
   });
 }
 
@@ -387,44 +409,100 @@ class EnhancedLumaraApi {
           }
           allMedia.addAll(mediaFromEntries);
           
-          final prismActivity = <String, dynamic>{
-            'journal_entries': allJournalEntries,
-            'drafts': drafts.map((e) => e.content).toList(),
-            'chats': allChats,
-            'media': allMedia,
-            'patterns': matches.map((m) => m.excerpt ?? '').where((e) => e.isNotEmpty).toList(),
-            'emotional_tone': mood ?? 'neutral',
-            'cognitive_load': 'moderate', // Could be enhanced with analysis
-          };
+          // Note: prismActivity is no longer used in simplified system
+          // Historical context is built directly in user prompt
           
-          // Convert ConversationMode to UserIntent for persona selection
-          UserIntent? detectedUserIntent;
-          if (request.options.conversationMode != null) {
-            detectedUserIntent = _convertConversationModeToUserIntent(request.options.conversationMode!);
-            print('🔵 LUMARA Enhanced API: ConversationMode ${request.options.conversationMode!.name} → UserIntent ${detectedUserIntent?.toString().split('.').last ?? "null"}');
+          // ═══════════════════════════════════════════════════════════
+          // STEP 1: CHECK SENTINEL FOR CRISIS (HIGHEST PRIORITY)
+          // ═══════════════════════════════════════════════════════════
+          
+          print('═══════════════════════════════════════════════════════════');
+          print('🚀 LUMARA V23 Generation Starting');
+          print('═══════════════════════════════════════════════════════════');
+          
+          String selectedPersona;
+          bool safetyOverride = false;
+          SentinelScore? sentinelScore;
+          
+          if (userId != null) {
+            // Check if already in crisis mode (within cooldown period)
+            final alreadyInCrisis = await CrisisMode.isInCrisisMode(userId);
+            
+            // Calculate SENTINEL score with temporal clustering
+            sentinelScore = await SentinelAnalyzer.calculateSentinelScore(
+              userId: userId,
+              currentEntryText: request.userText,
+            );
+            
+            if (alreadyInCrisis || sentinelScore.alert) {
+              // SAFETY OVERRIDE: Force Therapist mode regardless of user selection
+              selectedPersona = 'therapist';
+              safetyOverride = true;
+              
+              // Activate crisis mode if not already active
+              if (!alreadyInCrisis && sentinelScore.alert) {
+                await CrisisMode.activateCrisisMode(
+                  userId: userId,
+                  sentinelScore: sentinelScore,
+                );
+              }
+              
+              print('🚨 SAFETY OVERRIDE ACTIVE');
+              print('   Already in crisis mode: $alreadyInCrisis');
+              print('   Sentinel score: ${sentinelScore.score.toStringAsFixed(2)}');
+              print('   Reason: ${sentinelScore.reason}');
+              print('   → FORCING THERAPIST MODE');
+              
+              _analytics.logLumaraEvent('safety_override_triggered', data: {
+                'sentinel_score': sentinelScore.score,
+                'already_in_crisis': alreadyInCrisis,
+                'reason': sentinelScore.reason,
+                'original_mode': request.options.conversationMode?.name,
+                'trigger_count': sentinelScore.triggerEntries.length,
+                'timespan_days': sentinelScore.timespan.inDays,
+              });
+            } else {
+              // NORMAL MODE: Respect user selection
+              selectedPersona = _getPersonaFromConversationMode(
+                request.options.conversationMode,
+              );
+              
+              print('🎯 USER-SELECTED PERSONA: $selectedPersona');
+              print('   Mode: ${request.options.conversationMode?.name ?? "default (companion)"}');
+              print('   Sentinel score: ${sentinelScore.score.toStringAsFixed(2)} (below threshold)');
+            }
+          } else {
+            // No user ID, default to Companion
+            selectedPersona = _getPersonaFromConversationMode(
+              request.options.conversationMode,
+            );
+            
+            print('🎯 USER-SELECTED PERSONA: $selectedPersona (no Sentinel check - no userId)');
           }
           
-          // Build unified control state JSON (pass user text for dynamic persona/response mode detection)
-          final controlStateJson = await LumaraControlStateBuilder.buildControlState(
-            userId: userId,
-            prismActivity: prismActivity,
-            chronoContext: chronoContext,
-            userMessage: request.userText, // Pass user message for question intent detection
-            maxWords: responseMode.maxWords, // Pass word limit from response mode
-            userIntent: detectedUserIntent, // Pass detected user intent from conversation mode
-          );
+          // ═══════════════════════════════════════════════════════════
+          // STEP 2: SET RESPONSE PARAMETERS BASED ON PERSONA
+          // ═══════════════════════════════════════════════════════════
           
-          // Parse control state to extract values for user prompt
-          final controlState = jsonDecode(controlStateJson) as Map<String, dynamic>;
-          final responseModeState = controlState['responseMode'] as Map<String, dynamic>? ?? {};
-          final personaState = controlState['persona'] as Map<String, dynamic>? ?? {};
-          final effectivePersona = personaState['effective'] as String? ?? 'companion';
-          final maxWords = responseModeState['maxWords'] as int? ?? 250;
-          final minPatternExamples = responseModeState['minPatternExamples'] as int? ?? 2;
-          final maxPatternExamples = responseModeState['maxPatternExamples'] as int? ?? 4;
-          final isPersonalContent = responseModeState['isPersonalContent'] as bool? ?? true;
-          final useStructuredFormat = responseModeState['useStructuredFormat'] as bool? ?? false;
-          final entryClassification = controlState['entryClassification'] as String? ?? 'reflective';
+          final responseParams = _getResponseParameters(selectedPersona, safetyOverride);
+          
+          print('');
+          print('📊 RESPONSE PARAMETERS:');
+          print('   Persona: $selectedPersona');
+          print('   Safety Override: $safetyOverride');
+          print('   Max Words: ${responseParams.maxWords}');
+          print('   Pattern Examples: ${responseParams.minPatternExamples}-${responseParams.maxPatternExamples}');
+          print('   Structured Format: ${responseParams.useStructuredFormat}');
+          print('');
+          
+          // Use response parameters for control state
+          final maxWords = responseParams.maxWords;
+          final minPatternExamples = responseParams.minPatternExamples;
+          final maxPatternExamples = responseParams.maxPatternExamples;
+          final isPersonalContent = entryType == EntryType.reflective || entryType == EntryType.analytical;
+          final useStructuredFormat = responseParams.useStructuredFormat;
+          final entryClassification = entryType.toString().split('.').last;
+          final effectivePersona = selectedPersona;
           
           // Build user prompt that RESPECTS control state constraints
           userPrompt = _buildUserPrompt(
@@ -441,29 +519,42 @@ class EnhancedLumaraApi {
             regenerate: request.options.regenerate,
             toneMode: request.options.toneMode,
             preferQuestionExpansion: request.options.preferQuestionExpansion,
-            userIntent: detectedUserIntent,
+            userIntent: null, // Not used in simplified system
           );
           
-          // Get master prompt with control state
-          final systemPrompt = LumaraMasterPrompt.getMasterPrompt(controlStateJson);
+          // Build simplified control state for master prompt
+          final simplifiedControlState = {
+            'persona': {
+              'effective': selectedPersona,
+              'isAuto': false,
+              'safetyOverride': safetyOverride,
+            },
+            'responseMode': {
+              'maxWords': maxWords,
+              'minPatternExamples': minPatternExamples,
+              'maxPatternExamples': maxPatternExamples,
+              'useStructuredFormat': useStructuredFormat,
+              'isPersonalContent': isPersonalContent,
+            },
+            'entryClassification': entryClassification,
+            'sentinel': sentinelScore != null ? {
+              'score': sentinelScore.score,
+              'alert': sentinelScore.alert,
+              'reason': sentinelScore.reason,
+            } : null,
+          };
           
-          print('🔵 LUMARA Enhanced API v2.3: Using unified master prompt with control state');
-          print('🔵 LUMARA Enhanced API v2.3: System prompt length: ${systemPrompt.length}');
-          print('🔵 LUMARA Enhanced API v2.3: User prompt length: ${userPrompt.length}');
-          print('🔵 LUMARA Enhanced API v2.3: Persona=$effectivePersona, maxWords=$maxWords, patternExamples=$minPatternExamples-$maxPatternExamples');
+          final simplifiedControlStateJson = jsonEncode(simplifiedControlState);
           
-          // Verify master prompt contains our updated instructions
-          if (systemPrompt.contains('CRITICAL: WORD LIMIT ENFORCEMENT')) {
-            print('✅ Master prompt contains word limit enforcement section');
-          }
-          if (systemPrompt.contains('persona.effective') && systemPrompt.contains('companion')) {
-            print('✅ Master prompt contains persona.effective references');
-          }
-          if (systemPrompt.contains('responseMode.maxWords')) {
-            print('✅ Master prompt contains responseMode.maxWords references');
-          }
-          if (systemPrompt.contains('entryClassification')) {
-            print('✅ Master prompt contains entryClassification references');
+          // Get master prompt with simplified control state
+          final systemPrompt = LumaraMasterPrompt.getMasterPrompt(simplifiedControlStateJson);
+          
+          print('🔵 LUMARA V23: Using simplified master prompt');
+          print('🔵 LUMARA V23: System prompt length: ${systemPrompt.length}');
+          print('🔵 LUMARA V23: User prompt length: ${userPrompt.length}');
+          print('🔵 LUMARA V23: Persona=$selectedPersona, maxWords=$maxWords, patternExamples=$minPatternExamples-$maxPatternExamples');
+          if (safetyOverride) {
+            print('🚨 LUMARA V23: SAFETY OVERRIDE ACTIVE - Therapist mode forced');
           }
           
           onProgress?.call('Calling cloud API...');
@@ -634,6 +725,13 @@ class EnhancedLumaraApi {
           
           print('📊 Final word count: ${formatted.split(RegExp(r'\s+')).length} words');
           
+          // Validate response
+          _validateResponse(
+            response: formatted,
+            persona: selectedPersona,
+            responseParams: responseParams,
+          );
+          
           // Create attribution traces from the matched nodes that were actually used
           final attributionTraces = <AttributionTrace>[];
           for (final match in matches) {
@@ -690,23 +788,8 @@ class EnhancedLumaraApi {
               maxSentences: 3,
             );
             
-            // Get current phase from control state (not from entry's stored phase)
-            // The control state has the actual current phase from PhaseRegimeService
-            String? currentPhaseFromControlState;
-            try {
-              // Parse the control state JSON we already built
-              final controlState = jsonDecode(controlStateJson) as Map<String, dynamic>;
-              final atlas = controlState['atlas'] as Map<String, dynamic>?;
-              currentPhaseFromControlState = atlas?['phase'] as String?;
-              if (currentPhaseFromControlState != null) {
-                currentPhaseFromControlState = currentPhaseFromControlState.toLowerCase();
-                print('LUMARA Enhanced API v2.3: Using current phase from control state: $currentPhaseFromControlState (entry phase was: ${request.phaseHint?.name})');
-              }
-            } catch (e) {
-              print('LUMARA Enhanced API v2.3: Error parsing phase from control state: $e');
-              // Fallback to phaseHint if control state parsing fails
-              currentPhaseFromControlState = request.phaseHint?.name;
-            }
+            // Get current phase from request phase hint
+            final currentPhaseFromControlState = request.phaseHint?.name.toLowerCase();
             
             // Try to extract entry ID from request if available, otherwise use a generated ID
             String entryId = 'current_entry';
@@ -737,9 +820,16 @@ class EnhancedLumaraApi {
             'attribution_traces': attributionTraces.length,
           });
           
+          print('═══════════════════════════════════════════════════════════');
+          print('✨ LUMARA V23 Generation Complete');
+          print('═══════════════════════════════════════════════════════════');
+          
           return ReflectionResult(
             reflection: formatted,
             attributionTraces: attributionTraces,
+            persona: selectedPersona,
+            safetyOverride: safetyOverride,
+            sentinelScore: sentinelScore?.score,
           );
       } catch (e) {
         print('LUMARA Enhanced API: ✗ Error calling Gemini API: $e');
@@ -1035,23 +1125,143 @@ Respond now:''';
     }
   }
 
-  /// Convert ConversationMode (from UI) to UserIntent (for persona selection)
-  static UserIntent? _convertConversationModeToUserIntent(models.ConversationMode conversationMode) {
-    switch (conversationMode) {
-      case models.ConversationMode.ideas:
-        return UserIntent.suggestIdeas;
-      case models.ConversationMode.think:
-        return UserIntent.thinkThrough;
-      case models.ConversationMode.perspective:
-        return UserIntent.differentPerspective;
-      case models.ConversationMode.nextSteps:
-        return UserIntent.suggestSteps;
-      case models.ConversationMode.reflectDeeply:
-        return UserIntent.reflectDeeply;
-      case models.ConversationMode.continueThought:
-        // Continue thought doesn't change persona - use default
-        return null; // Will default to reflect
+  /// Get persona from conversation mode (when NOT in emergency)
+  /// Simplified: Direct mapping, no auto-detection
+  String _getPersonaFromConversationMode(models.ConversationMode? mode) {
+    if (mode == null) {
+      return 'companion'; // Default
     }
+    
+    switch (mode) {
+      case models.ConversationMode.think:
+      case models.ConversationMode.nextSteps:
+        return 'strategist';
+      
+      case models.ConversationMode.reflectDeeply:
+        return 'therapist';
+      
+      case models.ConversationMode.perspective:
+        // Use strategist (safer than challenger for now)
+        return 'strategist';
+      
+      case models.ConversationMode.ideas:
+      case models.ConversationMode.continueThought:
+        return 'companion';
+    }
+  }
+
+  /// Get response parameters based on persona and safety override
+  ResponseParameters _getResponseParameters(String persona, bool safetyOverride) {
+    if (safetyOverride) {
+      // Emergency therapist mode: shorter, no examples needed
+      return ResponseParameters(
+        maxWords: 200,
+        minPatternExamples: 0,
+        maxPatternExamples: 2,
+        useStructuredFormat: false,
+      );
+    }
+    
+    switch (persona) {
+      case 'companion':
+        return ResponseParameters(
+          maxWords: 250,
+          minPatternExamples: 2,
+          maxPatternExamples: 4,
+          useStructuredFormat: false,
+        );
+      
+      case 'strategist':
+        return ResponseParameters(
+          maxWords: 400,
+          minPatternExamples: 3,
+          maxPatternExamples: 8,
+          useStructuredFormat: true,
+        );
+      
+      case 'therapist':
+        return ResponseParameters(
+          maxWords: 300,
+          minPatternExamples: 1,
+          maxPatternExamples: 3,
+          useStructuredFormat: false,
+        );
+      
+      case 'challenger':
+        return ResponseParameters(
+          maxWords: 250,
+          minPatternExamples: 1,
+          maxPatternExamples: 2,
+          useStructuredFormat: false,
+        );
+      
+      default:
+        return ResponseParameters(
+          maxWords: 250,
+          minPatternExamples: 2,
+          maxPatternExamples: 4,
+          useStructuredFormat: false,
+        );
+    }
+  }
+
+  /// Validate response meets requirements
+  void _validateResponse({
+    required String response,
+    required String persona,
+    required ResponseParameters responseParams,
+  }) {
+    final wordCount = response.split(RegExp(r'\s+')).length;
+    
+    print('');
+    print('🔍 VALIDATION:');
+    print('   Word count: $wordCount (max: ${responseParams.maxWords})');
+    
+    if (wordCount > responseParams.maxWords * 1.2) {
+      print('   ⚠️  WARNING: Word count exceeds limit by >20%');
+    }
+    
+    // Check for sycophancy in Companion mode
+    if (persona == 'companion') {
+      final sycophancyPhrases = [
+        'great insight',
+        'powerful realization',
+        'brilliant',
+        'amazing how',
+        'incredible',
+        'truly inspiring',
+        'profound',
+        'you\'re absolutely right',
+        'what a',
+        'such a great',
+        'really important that you',
+      ];
+      
+      final lowerResponse = response.toLowerCase();
+      final foundSycophancy = <String>[];
+      
+      for (final phrase in sycophancyPhrases) {
+        if (lowerResponse.contains(phrase)) {
+          foundSycophancy.add(phrase);
+        }
+      }
+      
+      if (foundSycophancy.isNotEmpty) {
+        print('   ⚠️  SYCOPHANCY DETECTED:');
+        for (final phrase in foundSycophancy) {
+          print('      - "$phrase"');
+        }
+        
+        _analytics.logLumaraEvent('sycophancy_detected', data: {
+          'phrases': foundSycophancy,
+          'response_length': response.length,
+        });
+      } else {
+        print('   ✅ No sycophancy detected');
+      }
+    }
+    
+    print('');
   }
 
   /// Build user prompt that RESPECTS control state constraints

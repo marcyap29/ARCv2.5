@@ -37,7 +37,7 @@ import 'widgets/chat_navigation_drawer.dart';
 import 'package:my_app/ui/subscription/lumara_subscription_status.dart';
 import 'package:my_app/services/firebase_auth_service.dart';
 import 'package:my_app/arc/chat/services/lumara_reflection_settings_service.dart';
-import 'package:my_app/arc/chat/ui/widgets/persona_selector_widget.dart' as persona_widget;
+// Removed persona selector widget - personas accessed through different UI
 import 'package:my_app/services/sentinel/crisis_mode.dart';
 import 'package:my_app/services/sentinel/sentinel_analyzer.dart';
 import 'package:my_app/services/firebase_auth_service.dart';
@@ -81,8 +81,9 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
   // Enhanced attribution service
   final EnhancedAttributionService _enhancedAttributionService = EnhancedAttributionService();
   
-  // Persona selection (default: Companion)
-  persona_widget.LumaraPersona _selectedPersona = persona_widget.LumaraPersona.companion;
+  // Persona system kept but dropdown removed from header (accessed elsewhere)
+  // Default: Companion mode
+  String _selectedPersona = 'companion';
   
   // Crisis mode tracking
   bool _isCrisisMode = false;
@@ -112,7 +113,7 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
             _isCrisisMode = inCrisis;
             // Force therapist persona if in crisis mode
             if (inCrisis) {
-              _selectedPersona = persona_widget.LumaraPersona.therapist;
+              _selectedPersona = 'therapist';
             }
           });
         }
@@ -379,23 +380,6 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
           },
         ),
         actions: [
-          // Persona selector with width constraint to prevent overlap
-          SizedBox(
-            width: 120, // Fixed width to prevent overlap with Premium badge
-            child: persona_widget.PersonaSelectorWidget(
-              selectedPersona: _selectedPersona,
-              onPersonaChanged: (persona) {
-                setState(() {
-                  _selectedPersona = persona;
-                  // Force therapist if in crisis mode
-                  if (_isCrisisMode && persona != persona_widget.LumaraPersona.therapist) {
-                    _selectedPersona = persona_widget.LumaraPersona.therapist;
-                  }
-                });
-              },
-            ),
-          ),
-          const SizedBox(width: 8),
           // Voice chat button
           IconButton(
             icon: const Icon(Icons.mic_none),
@@ -2648,34 +2632,24 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
     await _sendCurrentMessageWithMode(mode);
   }
   
-  /// Map persona enum to conversation mode
+  /// Map persona string to conversation mode
   /// The enhanced API uses conversation modes to determine persona
-  models.ConversationMode? _personaToConversationMode(persona_widget.LumaraPersona persona) {
+  models.ConversationMode? _personaToConversationMode(String persona) {
     switch (persona) {
-      case persona_widget.LumaraPersona.companion:
+      case 'companion':
         return null; // Default - no mode needed
-      case persona_widget.LumaraPersona.strategist:
+      case 'strategist':
         return models.ConversationMode.think; // Think through maps to strategist
-      case persona_widget.LumaraPersona.therapist:
+      case 'therapist':
         return models.ConversationMode.reflectDeeply; // Reflect deeply maps to therapist
-      case persona_widget.LumaraPersona.challenger:
+      case 'challenger':
         return models.ConversationMode.perspective; // Different perspective maps to challenger
+      default:
+        return null;
     }
   }
   
-  /// Map persona enum to string (for logging)
-  String _personaToString(persona_widget.LumaraPersona persona) {
-    switch (persona) {
-      case persona_widget.LumaraPersona.companion:
-        return 'companion';
-      case persona_widget.LumaraPersona.strategist:
-        return 'strategist';
-      case persona_widget.LumaraPersona.therapist:
-        return 'therapist';
-      case persona_widget.LumaraPersona.challenger:
-        return 'challenger';
-    }
-  }
+  // Removed _personaToString method - persona is already a string
 
   /// Handle reflect deeply
   Future<void> _handleReflectDeeply(LumaraMessage message) async {
@@ -2693,8 +2667,8 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
       entryToUse = await _getMostRecentEntry();
     }
     
-    // Get persona string
-    final personaString = _personaToString(_selectedPersona);
+    // Get persona string (already a string)
+    final personaString = _selectedPersona;
     
     // Send with conversation mode and persona
     context.read<LumaraAssistantCubit>().sendMessage(

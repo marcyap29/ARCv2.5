@@ -32,6 +32,10 @@ import '../services/reflective_query_formatter.dart';
 import '../services/bible_retrieval_helper.dart';
 import 'package:my_app/prism/atlas/phase/phase_history_repository.dart';
 import 'package:my_app/aurora/services/circadian_profile_service.dart';
+import 'package:my_app/services/sentinel/sentinel_analyzer.dart';
+import 'package:my_app/services/sentinel/crisis_mode.dart';
+import 'package:my_app/services/firebase_auth_service.dart';
+import 'package:my_app/arc/chat/models/lumara_reflection_options.dart' as models;
 
 /// LUMARA Assistant Cubit State
 abstract class LumaraAssistantState {}
@@ -201,7 +205,15 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
   }
   
   /// Send a message to LUMARA
-  Future<void> sendMessage(String text, {JournalEntry? currentEntry}) async {
+  /// 
+  /// [conversationMode] - Optional conversation mode (from UI buttons)
+  /// [persona] - Optional persona override (from UI selector, 'companion' default)
+  Future<void> sendMessage(
+    String text, {
+    JournalEntry? currentEntry,
+    models.ConversationMode? conversationMode,
+    String? persona, // 'companion', 'strategist', 'therapist', 'challenger'
+  }) async {
     if (text.trim().isEmpty) return;
 
     final currentState = state;
@@ -209,6 +221,63 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
 
     print('LUMARA Debug: Sending message: "$text"');
     print('LUMARA Debug: Current message count: ${currentState.messages.length}');
+    if (conversationMode != null) {
+      print('LUMARA Debug: Conversation mode: ${conversationMode.name}');
+    }
+    if (persona != null) {
+      print('LUMARA Debug: Persona override: $persona');
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // STEP 1: CHECK SENTINEL FOR CRISIS (HIGHEST PRIORITY)
+    // ═══════════════════════════════════════════════════════════
+    String? effectivePersona = persona;
+    bool safetyOverride = false;
+    
+    try {
+      final authService = FirebaseAuthService.instance;
+      final user = authService.currentUser;
+      if (user != null) {
+        // Check if already in crisis mode
+        final alreadyInCrisis = await CrisisMode.isInCrisisMode(user.uid);
+        
+        // Calculate SENTINEL score
+        final sentinelScore = await SentinelAnalyzer.calculateSentinelScore(
+          userId: user.uid,
+          currentEntryText: text,
+        );
+        
+        if (alreadyInCrisis || sentinelScore.alert) {
+          // SAFETY OVERRIDE: Force Therapist mode
+          effectivePersona = 'therapist';
+          safetyOverride = true;
+          
+          // Activate crisis mode if not already active
+          if (!alreadyInCrisis && sentinelScore.alert) {
+            await CrisisMode.activateCrisisMode(
+              userId: user.uid,
+              sentinelScore: sentinelScore,
+            );
+          }
+          
+          print('🚨 LUMARA Chat: SAFETY OVERRIDE ACTIVE');
+          print('   Sentinel score: ${sentinelScore.score.toStringAsFixed(2)}');
+          print('   Reason: ${sentinelScore.reason}');
+          print('   → FORCING THERAPIST MODE');
+        } else {
+          // Use provided persona or default to companion
+          effectivePersona = persona ?? 'companion';
+          print('🎯 LUMARA Chat: Using persona: $effectivePersona');
+        }
+      } else {
+        // No user ID, use provided persona or default
+        effectivePersona = persona ?? 'companion';
+      }
+    } catch (e) {
+      print('⚠️ LUMARA Chat: Error checking Sentinel: $e');
+      // Fallback to provided persona or default
+      effectivePersona = persona ?? 'companion';
+    }
 
     // Check for memory commands
     if (text.startsWith('/memory')) {
@@ -316,6 +385,119 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
             print('LUMARA: Including Bible verses in ArcLLM context');
           }
           
+          // ═══════════════════════════════════════════════════════════
+          // STEP 2: DETECT CONVERSATION MODE FROM TEXT (if not provided)
+          // ═══════════════════════════════════════════════════════════
+          models.ConversationMode? detectedMode = conversationMode;
+          if (detectedMode == null) {
+            detectedMode = _detectConversationModeFromText(text);
+          }
+          
+          // ═══════════════════════════════════════════════════════════
+          // STEP 3: USE ENHANCED LUMARA API IF CONVERSATION MODE OR SAFETY OVERRIDE
+          // ═══════════════════════════════════════════════════════════
+          // Use enhanced API when: conversation mode specified, safety override, or persona not companion
+          if (detectedMode != null || safetyOverride || effectivePersona != 'companion') {
+            print('LUMARA Chat: Using enhanced_lumara_api with mode: ${detectedMode?.name}, safetyOverride: $safetyOverride, persona: $effectivePersona');
+            
+            try {
+              // Convert phase hint JSON to PhaseHint enum
+              models.PhaseHint? phaseHintEnum;
+              if (phaseHint != null && phaseHint != 'null') {
+                try {
+                  final phaseData = jsonDecode(phaseHint) as Map<String, dynamic>;
+                  final phaseName = phaseData['phase'] as String?;
+                  if (phaseName != null) {
+                    phaseHintEnum = models.PhaseHint.values.firstWhere(
+                      (e) => e.name == phaseName.toLowerCase(),
+                      orElse: () => models.PhaseHint.consolidation,
+                    );
+                  }
+                } catch (e) {
+                  print('LUMARA Chat: Error parsing phase hint: $e');
+                }
+              }
+              
+              // Build reflection request
+              final request = models.LumaraReflectionRequest(
+                userText: userIntent,
+                phaseHint: phaseHintEnum,
+                entryType: models.EntryType.chat,
+                priorKeywords: [],
+                matchedNodeHints: [],
+                mediaCandidates: [],
+                options: models.LumaraReflectionOptions(
+                  conversationMode: detectedMode,
+                  toneMode: models.ToneMode.normal,
+                  regenerate: false,
+                  preferQuestionExpansion: false,
+                ),
+              );
+              
+              // Get user ID for enhanced API
+              final authService = FirebaseAuthService.instance;
+              final user = authService.currentUser;
+              final userId = user?.uid;
+              
+              // Generate reflection using enhanced API
+              final result = await _enhancedApi.generatePromptedReflectionV23(
+                request: request,
+                userId: userId,
+              );
+              
+              print('LUMARA Chat: Enhanced API response received (${result.reflection.length} chars)');
+              
+              // Use attribution traces from enhanced API
+              var attributionTraces = result.attributionTraces;
+              print('LUMARA Chat: Using ${attributionTraces.length} attribution traces from enhanced API');
+              
+              // Enrich attribution traces
+              if (attributionTraces.isNotEmpty) {
+                attributionTraces = await _enrichAttributionTraces(attributionTraces);
+              }
+              
+              // Record assistant response
+              await _recordAssistantMessage(result.reflection);
+              
+              // Create assistant message
+              final assistantMessage = LumaraMessage.assistant(
+                content: result.reflection,
+                attributionTraces: attributionTraces,
+              );
+              
+              // Add to chat session
+              await _addToChatSession(result.reflection, 'assistant', messageId: assistantMessage.id, timestamp: assistantMessage.timestamp);
+              
+              // Check for more history suggestion
+              var finalMessages = [...updatedMessages, assistantMessage];
+              if (hasMoreHistory() && _queryNeedsMoreHistory(text)) {
+                final suggestionMsg = _generateLoadMoreSuggestionMessage();
+                if (suggestionMsg.isNotEmpty) {
+                  final suggestionMessage = LumaraMessage.system(content: suggestionMsg);
+                  finalMessages = [...finalMessages, suggestionMessage];
+                }
+              }
+              
+              // Speak response if enabled
+              _speakResponseIfEnabled(result.reflection);
+              
+              emit(currentState.copyWith(
+                messages: finalMessages,
+                isProcessing: false,
+                apiErrorMessage: null,
+              ));
+              
+              print('LUMARA Chat: Enhanced API complete');
+              return; // Exit early - enhanced API succeeded
+            } catch (e) {
+              print('LUMARA Chat: Enhanced API failed: $e');
+              // Fall through to ArcLLM chat as fallback
+            }
+          }
+          
+          // ═══════════════════════════════════════════════════════════
+          // STEP 4: FALLBACK TO STANDARD ArcLLM CHAT
+          // ═══════════════════════════════════════════════════════════
           // Use ArcLLM to call Gemini directly with all journal context
           final response = await _arcLLM.chat(
             userIntent: userIntent,
@@ -2470,6 +2652,36 @@ Available: ${yearsAgo} more year${yearsAgo > 1 ? 's' : ''} of history''';
         apiErrorMessage: 'Error processing reflective query',
       ));
     }
+  }
+
+  /// Detect conversation mode from message text
+  models.ConversationMode? _detectConversationModeFromText(String text) {
+    final lowerText = text.toLowerCase();
+    
+    // Check for explicit mode requests
+    if (lowerText.contains('regenerate') || lowerText.contains('different approach')) {
+      return null; // Regenerate is handled separately
+    }
+    if (lowerText.contains('reflect more deeply') || lowerText.contains('more depth')) {
+      return models.ConversationMode.reflectDeeply;
+    }
+    if (lowerText.contains('continue thought') || lowerText.contains('continue')) {
+      return models.ConversationMode.continueThought;
+    }
+    if (lowerText.contains('suggest some ideas') || lowerText.contains('suggest ideas')) {
+      return models.ConversationMode.ideas;
+    }
+    if (lowerText.contains('think this through') || lowerText.contains('think through')) {
+      return models.ConversationMode.think;
+    }
+    if (lowerText.contains('different perspective') || lowerText.contains('another way')) {
+      return models.ConversationMode.perspective;
+    }
+    if (lowerText.contains('suggest next steps') || lowerText.contains('next steps')) {
+      return models.ConversationMode.nextSteps;
+    }
+    
+    return null; // No mode detected, use default
   }
 
   /// Get memory statistics
