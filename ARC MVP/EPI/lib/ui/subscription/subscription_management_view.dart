@@ -497,9 +497,25 @@ class _SubscriptionManagementViewState extends State<SubscriptionManagementView>
       // Check if user is properly authenticated first
       final authService = FirebaseAuthService.instance;
 
-      if (!authService.isSignedIn || authService.isAnonymous) {
+      debugPrint('SubscriptionManagement: AUTH STATUS CHECK:');
+      debugPrint('  isSignedIn: ${authService.isSignedIn}');
+      debugPrint('  isAnonymous: ${authService.isAnonymous}');
+      debugPrint('  hasRealAccount: ${authService.hasRealAccount}');
+      debugPrint('  currentUser: ${authService.currentUser?.email ?? authService.currentUser?.uid ?? "NULL"}');
+
+      // Force Google sign-in for all subscription access (even if user thinks they're signed in)
+      if (!authService.hasRealAccount) {
         // Need to sign in with Google for subscription access
-        debugPrint('SubscriptionManagement: User not authenticated, prompting for Google sign-in');
+        debugPrint('SubscriptionManagement: User needs real account, prompting for Google sign-in');
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Signing in with Google for subscription access...'),
+              backgroundColor: Colors.blue,
+            ),
+          );
+        }
 
         final userCredential = await authService.signInWithGoogle();
 
@@ -516,6 +532,15 @@ class _SubscriptionManagementViewState extends State<SubscriptionManagementView>
         }
 
         debugPrint('SubscriptionManagement: User successfully signed in with Google');
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Successfully signed in! Opening subscription checkout...'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
       }
 
       final success = await SubscriptionService.instance.createStripeCheckoutSession(
