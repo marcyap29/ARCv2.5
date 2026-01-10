@@ -3,6 +3,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:my_app/services/subscription_service.dart';
+import 'package:my_app/services/firebase_auth_service.dart';
 import 'package:my_app/ui/subscription/lumara_subscription_status.dart';
 
 class PricingSelector extends StatefulWidget {
@@ -493,6 +494,30 @@ class _SubscriptionManagementViewState extends State<SubscriptionManagementView>
     });
 
     try {
+      // Check if user is properly authenticated first
+      final authService = FirebaseAuthService.instance;
+
+      if (!authService.isSignedIn || authService.isAnonymous) {
+        // Need to sign in with Google for subscription access
+        debugPrint('SubscriptionManagement: User not authenticated, prompting for Google sign-in');
+
+        final userCredential = await authService.signInWithGoogle();
+
+        if (userCredential == null) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Google sign-in is required for subscription access'),
+                backgroundColor: Colors.orange,
+              ),
+            );
+          }
+          return;
+        }
+
+        debugPrint('SubscriptionManagement: User successfully signed in with Google');
+      }
+
       final success = await SubscriptionService.instance.createStripeCheckoutSession(
         interval: interval,
       );

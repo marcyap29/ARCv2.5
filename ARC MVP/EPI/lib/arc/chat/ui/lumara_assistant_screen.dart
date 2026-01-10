@@ -22,8 +22,6 @@ import '../voice/voice_service.dart';
 import '../voice/voice_journal/unified_voice_panel.dart';
 import '../voice/voice_permissions.dart';
 import 'package:my_app/services/assemblyai_service.dart';
-import '../data/context_provider.dart';
-import '../data/context_scope.dart';
 import '../services/enhanced_lumara_api.dart';
 import '../../../telemetry/analytics.dart';
 import 'package:my_app/models/journal_entry_model.dart';
@@ -39,6 +37,11 @@ import 'widgets/chat_navigation_drawer.dart';
 import 'package:my_app/ui/subscription/lumara_subscription_status.dart';
 import 'package:my_app/services/firebase_auth_service.dart';
 import 'package:my_app/arc/chat/services/lumara_reflection_settings_service.dart';
+import 'package:my_app/arc/chat/ui/widgets/persona_selector_widget.dart' as persona_widget;
+import 'package:my_app/services/sentinel/crisis_mode.dart';
+import 'package:my_app/services/sentinel/sentinel_analyzer.dart';
+import 'package:my_app/services/firebase_auth_service.dart';
+import 'package:my_app/arc/chat/models/lumara_reflection_options.dart' as models;
 
 /// Main LUMARA Assistant screen
 class LumaraAssistantScreen extends StatefulWidget {
@@ -77,6 +80,12 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
 
   // Enhanced attribution service
   final EnhancedAttributionService _enhancedAttributionService = EnhancedAttributionService();
+  
+  // Persona selection (default: Companion)
+  persona_widget.LumaraPersona _selectedPersona = persona_widget.LumaraPersona.companion;
+  
+  // Crisis mode tracking
+  bool _isCrisisMode = false;
 
   @override
   void initState() {
@@ -88,6 +97,29 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
     _scrollController.addListener(_onScrollChanged);
     _initializeAudioIO();
     _initializeVoiceChat();
+    _checkCrisisMode();
+  }
+
+  /// Check if user is in crisis mode (Sentinel override)
+  Future<void> _checkCrisisMode() async {
+    try {
+      final authService = FirebaseAuthService.instance;
+      final user = authService.currentUser;
+      if (user != null) {
+        final inCrisis = await CrisisMode.isInCrisisMode(user.uid);
+        if (mounted) {
+          setState(() {
+            _isCrisisMode = inCrisis;
+            // Force therapist persona if in crisis mode
+            if (inCrisis) {
+              _selectedPersona = persona_widget.LumaraPersona.therapist;
+            }
+          });
+        }
+      }
+    } catch (e) {
+      print('Error checking crisis mode: $e');
+    }
   }
   
   @override
@@ -347,6 +379,23 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
           },
         ),
         actions: [
+          // Persona selector with width constraint to prevent overlap
+          SizedBox(
+            width: 120, // Fixed width to prevent overlap with Premium badge
+            child: persona_widget.PersonaSelectorWidget(
+              selectedPersona: _selectedPersona,
+              onPersonaChanged: (persona) {
+                setState(() {
+                  _selectedPersona = persona;
+                  // Force therapist if in crisis mode
+                  if (_isCrisisMode && persona != persona_widget.LumaraPersona.therapist) {
+                    _selectedPersona = persona_widget.LumaraPersona.therapist;
+                  }
+                });
+              },
+            ),
+          ),
+          const SizedBox(width: 8),
           // Voice chat button
           IconButton(
             icon: const Icon(Icons.mic_none),
@@ -1046,17 +1095,6 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
                           },
                         ),
 
-                        // Fork button - create new chat from this message
-                        IconButton(
-                          icon: Icon(Icons.call_split, size: 16, color: Colors.grey[600]),
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(),
-                          onPressed: () => _forkChatFromMessage(message),
-                          tooltip: 'Fork Chat',
-                        ),
-
-                        // Removed Delete icon from chat bubbles as requested
-                        
                         // Bookmark icon to save entire chat
                         FutureBuilder<String?>(
                           future: _getCurrentSessionId(),
@@ -1083,48 +1121,18 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
                             );
                           },
                         ),
-                        // Fork button - create new thread from this message
+                        const Spacer(),
+                        // Settings icon (matching journal UI)
                         IconButton(
-                          icon: Icon(Icons.call_split, size: 16, color: Colors.grey[600]),
+                          icon: Icon(Icons.tune, size: 18, color: Colors.grey[600]),
                           padding: EdgeInsets.zero,
                           constraints: const BoxConstraints(),
-                          onPressed: () => _forkChatFromMessage(message),
-                          tooltip: 'Fork Chat',
+                          onPressed: () => _showChatMessageOptions(context, message),
+                          tooltip: 'Options',
                         ),
                       ],
                     ),
-                    // Action buttons (same as in-journal LUMARA Answers)
-                    const Gap(8),
-                    LumaraActionMenu(
-                      actions: [
-                        LumaraActionButton(
-                          label: 'Regenerate',
-                          icon: Icons.refresh,
-                          onPressed: () async => await _handleRegenerate(message),
-                        ),
-                        LumaraActionButton(
-                          label: 'Soften tone',
-                          icon: Icons.favorite_outline,
-                          onPressed: () async => await _handleSoftenTone(message),
-                        ),
-                        LumaraActionButton(
-                          label: 'More depth',
-                          icon: Icons.insights,
-                          onPressed: () async => await _handleMoreDepth(message),
-                        ),
-                        LumaraActionButton(
-                          label: 'Continue thought',
-                          icon: Icons.play_arrow,
-                          onPressed: () => _continueAssistantThought(message),
-                        ),
-                        LumaraActionButton(
-                          label: 'Explore LUMARA conversation options',
-                          icon: Icons.chat,
-                          onPressed: () => _handleExploreConversation(message),
-                          isPrimary: true,
-                        ),
-                      ],
-                    ),
+                    // Action buttons removed - now in settings menu
                   ],
                   
                   // Enhanced Attribution display for assistant messages
@@ -1679,16 +1687,83 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
       print('LUMARA: Using provided current entry ${entryToUse.id} as context');
     }
     
+    // Map persona to conversation mode (enhanced API uses modes, not direct persona)
+    models.ConversationMode? personaMode = _personaToConversationMode(_selectedPersona);
+    
+    // Detect conversation mode from message text (overrides persona mode if detected)
+    models.ConversationMode? detectedMode = _detectConversationModeFromText(message);
+    
+    // Use detected mode if present, otherwise use persona mode
+    final finalMode = detectedMode ?? personaMode;
+    
     // Note: If entryToUse is still null, sendMessage will work without current entry
     // The weighted context system will still use recent LUMARA responses and other entries
-    context.read<LumaraAssistantCubit>().sendMessage(message, currentEntry: entryToUse);
+    context.read<LumaraAssistantCubit>().sendMessage(
+      message,
+      currentEntry: entryToUse,
+      conversationMode: finalMode,
+      persona: null, // Persona is determined by conversation mode in enhanced API
+    );
+  }
+  
+  /// Detect conversation mode from message text
+  models.ConversationMode? _detectConversationModeFromText(String text) {
+    final lowerText = text.toLowerCase();
+    
+    if (lowerText.contains('regenerate') || lowerText.contains('different approach')) {
+      return null; // Regenerate handled separately
+    }
+    if (lowerText.contains('reflect more deeply') || lowerText.contains('more depth')) {
+      return models.ConversationMode.reflectDeeply;
+    }
+    if (lowerText.contains('continue thought') || lowerText.contains('continue')) {
+      return models.ConversationMode.continueThought;
+    }
+    if (lowerText.contains('suggest some ideas') || lowerText.contains('suggest ideas')) {
+      return models.ConversationMode.ideas;
+    }
+    if (lowerText.contains('think this through') || lowerText.contains('think through')) {
+      return models.ConversationMode.think;
+    }
+    if (lowerText.contains('different perspective') || lowerText.contains('another way')) {
+      return models.ConversationMode.perspective;
+    }
+    if (lowerText.contains('suggest next steps') || lowerText.contains('next steps')) {
+      return models.ConversationMode.nextSteps;
+    }
+    
+    return null;
   }
 
   void _continueAssistantThought(LumaraMessage message) {
-    context.read<LumaraAssistantCubit>().continueAssistantMessage(
-          message.id,
-          currentEntry: _currentEntry,
-        );
+    // Get current entry for context
+    JournalEntry? entryToUse = _currentEntry;
+    if (entryToUse == null) {
+      _getMostRecentEntry().then((entry) {
+        if (entry != null) {
+          _sendMessageWithMode('Continue thought', models.ConversationMode.continueThought, entry);
+        } else {
+          _sendMessageWithMode('Continue thought', models.ConversationMode.continueThought, null);
+        }
+      });
+      return;
+    }
+    
+    _sendMessageWithMode('Continue thought', models.ConversationMode.continueThought, entryToUse);
+  }
+  
+  /// Send message with conversation mode and entry
+  Future<void> _sendMessageWithMode(
+    String text,
+    models.ConversationMode mode,
+    JournalEntry? entry,
+  ) async {
+    context.read<LumaraAssistantCubit>().sendMessage(
+      text,
+      currentEntry: entry,
+      conversationMode: mode,
+      persona: null, // Persona determined by conversation mode
+    );
   }
   
   /// Get the most recent journal entry as fallback for context
@@ -2362,8 +2437,25 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
   // Handler methods for action buttons
   Future<void> _handleRegenerate(LumaraMessage message) async {
     if (message.role != LumaraMessageRole.assistant) return;
-    _messageController.text = 'Can you regenerate your last response with a different approach?';
-    await _sendCurrentMessage();
+    
+    // Get current entry for context
+    JournalEntry? entryToUse = _currentEntry;
+    if (entryToUse == null) {
+      entryToUse = await _getMostRecentEntry();
+    }
+    
+    // Map persona to conversation mode
+    models.ConversationMode? personaMode = _personaToConversationMode(_selectedPersona);
+    
+    // Send regenerate request with conversation mode
+    context.read<LumaraAssistantCubit>().sendMessage(
+      'Can you regenerate your last response with a different approach?',
+      currentEntry: entryToUse,
+      conversationMode: personaMode, // Use persona mode for regenerate
+      persona: null,
+    );
+    
+    _messageController.clear();
   }
 
   Future<void> _handleSoftenTone(LumaraMessage message) async {
@@ -2382,6 +2474,237 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
     if (message.role != LumaraMessageRole.assistant) return;
     // This is already in a chat, so just focus the input
     _inputFocusNode.requestFocus();
+  }
+
+  /// Show chat message options menu (matching journal UI)
+  void _showChatMessageOptions(BuildContext context, LumaraMessage message) {
+    if (message.role != LumaraMessageRole.assistant) return;
+    
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Drag handle
+            Container(
+              width: 48,
+              height: 5,
+              margin: const EdgeInsets.symmetric(vertical: 8),
+              decoration: BoxDecoration(
+                color: Theme.of(context).dividerColor,
+                borderRadius: BorderRadius.circular(3),
+              ),
+            ),
+            // Default options
+            ListTile(
+              leading: Icon(Icons.refresh, color: Theme.of(context).colorScheme.primary),
+              title: const Text('Regenerate'),
+              onTap: () {
+                Navigator.pop(context);
+                _handleRegenerate(message);
+              },
+            ),
+            ListTile(
+              leading: Icon(Icons.insights, color: Theme.of(context).colorScheme.primary),
+              title: const Text('Reflect more deeply'),
+              onTap: () {
+                Navigator.pop(context);
+                _handleReflectDeeply(message);
+              },
+            ),
+            ListTile(
+              leading: Icon(Icons.play_arrow, color: Theme.of(context).colorScheme.primary),
+              title: const Text('Continue thought'),
+              onTap: () {
+                Navigator.pop(context);
+                _continueAssistantThought(message);
+              },
+            ),
+            const Divider(),
+            // More options
+            ListTile(
+              leading: Icon(Icons.more_horiz, color: Theme.of(context).colorScheme.primary),
+              title: const Text('More options'),
+              trailing: Icon(Icons.chevron_right, color: Theme.of(context).colorScheme.onSurfaceVariant),
+              onTap: () {
+                Navigator.pop(context);
+                _showMoreOptions(context, message);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Show more options (matching journal "Explore options")
+  void _showMoreOptions(BuildContext context, LumaraMessage message) {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Drag handle
+            Container(
+              width: 48,
+              height: 5,
+              margin: const EdgeInsets.symmetric(vertical: 8),
+              decoration: BoxDecoration(
+                color: Theme.of(context).dividerColor,
+                borderRadius: BorderRadius.circular(3),
+              ),
+            ),
+            // Header
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.auto_awesome,
+                    size: 20,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Explore options',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+            // Options
+            ListTile(
+              leading: Icon(Icons.lightbulb_outline, color: Theme.of(context).colorScheme.primary),
+              title: const Text('Suggest some ideas'),
+              onTap: () {
+                Navigator.pop(context);
+                _handleConversationMode(message, models.ConversationMode.ideas);
+              },
+            ),
+            ListTile(
+              leading: Icon(Icons.psychology, color: Theme.of(context).colorScheme.primary),
+              title: const Text('Help me think this through'),
+              onTap: () {
+                Navigator.pop(context);
+                _handleConversationMode(message, models.ConversationMode.think);
+              },
+            ),
+            ListTile(
+              leading: Icon(Icons.visibility, color: Theme.of(context).colorScheme.primary),
+              title: const Text('Offer a different perspective'),
+              onTap: () {
+                Navigator.pop(context);
+                _handleConversationMode(message, models.ConversationMode.perspective);
+              },
+            ),
+            ListTile(
+              leading: Icon(Icons.navigate_next, color: Theme.of(context).colorScheme.primary),
+              title: const Text('Suggest next steps'),
+              onTap: () {
+                Navigator.pop(context);
+                _handleConversationMode(message, models.ConversationMode.nextSteps);
+              },
+            ),
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Handle conversation mode selection
+  Future<void> _handleConversationMode(LumaraMessage message, models.ConversationMode mode) async {
+    if (message.role != LumaraMessageRole.assistant) return;
+    
+    // Map conversation mode to user message
+    String modeText;
+    switch (mode) {
+      case models.ConversationMode.ideas:
+        modeText = 'Suggest some ideas';
+        break;
+      case models.ConversationMode.think:
+        modeText = 'Help me think this through';
+        break;
+      case models.ConversationMode.perspective:
+        modeText = 'Offer a different perspective';
+        break;
+      case models.ConversationMode.nextSteps:
+        modeText = 'Suggest next steps';
+        break;
+      case models.ConversationMode.reflectDeeply:
+        modeText = 'Reflect more deeply';
+        break;
+      case models.ConversationMode.continueThought:
+        modeText = 'Continue thought';
+        break;
+    }
+    
+    _messageController.text = modeText;
+    await _sendCurrentMessageWithMode(mode);
+  }
+  
+  /// Map persona enum to conversation mode
+  /// The enhanced API uses conversation modes to determine persona
+  models.ConversationMode? _personaToConversationMode(persona_widget.LumaraPersona persona) {
+    switch (persona) {
+      case persona_widget.LumaraPersona.companion:
+        return null; // Default - no mode needed
+      case persona_widget.LumaraPersona.strategist:
+        return models.ConversationMode.think; // Think through maps to strategist
+      case persona_widget.LumaraPersona.therapist:
+        return models.ConversationMode.reflectDeeply; // Reflect deeply maps to therapist
+      case persona_widget.LumaraPersona.challenger:
+        return models.ConversationMode.perspective; // Different perspective maps to challenger
+    }
+  }
+  
+  /// Map persona enum to string (for logging)
+  String _personaToString(persona_widget.LumaraPersona persona) {
+    switch (persona) {
+      case persona_widget.LumaraPersona.companion:
+        return 'companion';
+      case persona_widget.LumaraPersona.strategist:
+        return 'strategist';
+      case persona_widget.LumaraPersona.therapist:
+        return 'therapist';
+      case persona_widget.LumaraPersona.challenger:
+        return 'challenger';
+    }
+  }
+
+  /// Handle reflect deeply
+  Future<void> _handleReflectDeeply(LumaraMessage message) async {
+    await _handleConversationMode(message, models.ConversationMode.reflectDeeply);
+  }
+
+  /// Send message with conversation mode
+  Future<void> _sendCurrentMessageWithMode(models.ConversationMode mode) async {
+    final text = _messageController.text.trim();
+    if (text.isEmpty) return;
+    
+    // Get current entry for context
+    JournalEntry? entryToUse = _currentEntry;
+    if (entryToUse == null) {
+      entryToUse = await _getMostRecentEntry();
+    }
+    
+    // Get persona string
+    final personaString = _personaToString(_selectedPersona);
+    
+    // Send with conversation mode and persona
+    context.read<LumaraAssistantCubit>().sendMessage(
+      text,
+      currentEntry: entryToUse,
+      conversationMode: mode,
+      persona: personaString,
+    );
+    
+    _messageController.clear();
   }
 
   /// Fork chat from a specific message
