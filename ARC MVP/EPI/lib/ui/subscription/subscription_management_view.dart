@@ -631,7 +631,27 @@ class _SubscriptionManagementViewState extends State<SubscriptionManagementView>
             return;
           }
           
-          debugPrint('SubscriptionManagement: ✅ Sign-in successful! Proceeding to checkout...');
+          debugPrint('SubscriptionManagement: ✅ Sign-in successful! Verifying token...');
+          
+          // CRITICAL: Force refresh the auth token to ensure it's ready for Firebase callable
+          try {
+            final user = updatedAuth.currentUser;
+            if (user != null) {
+              // Force refresh token to ensure it's valid and fresh
+              final token = await user.getIdToken(true);
+              if (token != null) {
+                debugPrint('SubscriptionManagement: ✅ Auth token refreshed successfully');
+                debugPrint('  Token length: ${token.length}');
+                debugPrint('  Token preview: ${token.substring(0, token.length > 30 ? 30 : token.length)}...');
+              } else {
+                debugPrint('SubscriptionManagement: ⚠️ Token refresh returned null');
+              }
+            }
+          } catch (e) {
+            debugPrint('SubscriptionManagement: ⚠️ Token refresh failed: $e');
+            // Continue anyway - the subscription service will also try to refresh
+          }
+          
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
@@ -642,9 +662,31 @@ class _SubscriptionManagementViewState extends State<SubscriptionManagementView>
             );
           }
           
-          // Give Firebase a moment to fully propagate auth state
+          // Give Firebase a moment to fully propagate auth state and token
           await Future.delayed(const Duration(milliseconds: 500));
         }
+      }
+
+      // Final verification before proceeding
+      final finalAuth = FirebaseAuthService.instance;
+      final finalUser = finalAuth.currentUser;
+      
+      if (finalUser == null || finalUser.isAnonymous) {
+        debugPrint('SubscriptionManagement: ❌ Final auth check failed');
+        throw Exception('Authentication required. Please sign in with Google.');
+      }
+      
+      // One more token refresh right before the checkout call
+      debugPrint('SubscriptionManagement: 🔑 Final token verification...');
+      try {
+        final finalToken = await finalUser.getIdToken(true);
+        if (finalToken == null) {
+          throw Exception('Could not obtain authentication token.');
+        }
+        debugPrint('SubscriptionManagement: ✅ Final token obtained (${finalToken.length} chars)');
+      } catch (e) {
+        debugPrint('SubscriptionManagement: ❌ Final token verification failed: $e');
+        throw Exception('Authentication token expired. Please sign in again.');
       }
 
       // Now proceed with Stripe checkout
