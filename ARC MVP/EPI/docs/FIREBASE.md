@@ -15,6 +15,57 @@ firebase login
 firebase login:list
 ```
 
+## Avoiding Frequent Re-Authentication (Recommended)
+
+Firebase CLI tokens expire every 1-2 weeks. Use **gcloud Application Default Credentials (ADC)** for longer-lasting authentication:
+
+### One-Time Setup
+
+```bash
+# Install gcloud CLI (macOS)
+curl -O https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-cli-darwin-arm.tar.gz
+tar -xzf google-cloud-cli-darwin-arm.tar.gz -C ~/
+~/google-cloud-sdk/install.sh --quiet --path-update true
+rm google-cloud-cli-darwin-arm.tar.gz
+
+# Restart terminal or source config
+source ~/.zshrc
+
+# Authenticate with gcloud ADC (opens browser)
+~/google-cloud-sdk/bin/gcloud auth application-default login
+
+# Also login to Firebase normally
+firebase login
+```
+
+### Why This Works
+
+- **gcloud ADC** creates credentials at `~/.config/gcloud/application_default_credentials.json`
+- Many Firebase/Google services automatically use these credentials as fallback
+- ADC tokens last longer than Firebase CLI tokens
+- You have two layers of auth: Firebase CLI + gcloud ADC
+
+### If Firebase Session Expires
+
+```bash
+# Re-authenticate Firebase CLI
+firebase login --reauth
+
+# Set your project
+firebase use arc-epi
+
+# Deploy
+firebase deploy --only functions --force
+```
+
+### Fix Permission Issues
+
+If you see "firebase-tools update check failed", fix config permissions:
+
+```bash
+sudo chown -R $USER:$(id -gn $USER) ~/.config
+```
+
 ## Project Setup
 
 ```bash

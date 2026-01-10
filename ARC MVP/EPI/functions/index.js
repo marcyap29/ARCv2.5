@@ -324,6 +324,7 @@ exports.createPortalSession = onCall(
   {
     cors: true,
     secrets: [STRIPE_SECRET_KEY],
+    invoker: "private", // Only authenticated users can invoke
   },
   async (request) => {
     if (!request.auth) {
@@ -615,10 +616,16 @@ async function handlePaymentFailed(invoice) {
 /**
  * Health check function
  */
-exports.healthCheck = onRequest(async (req, res) => {
-  res.json({
-    status: 'healthy',
-    timestamp: new Date().toISOString(),
-    functions: ['getUserSubscription', 'getAssemblyAIToken', 'proxyGemini', 'createCheckoutSession', 'createPortalSession', 'stripeWebhook']
-  });
-});
+exports.healthCheck = onRequest(
+  {
+    cors: true,
+    invoker: "public", // Anyone can access health check
+  },
+  async (req, res) => {
+    res.json({
+      status: 'healthy',
+      timestamp: new Date().toISOString(),
+      functions: ['getUserSubscription', 'getAssemblyAIToken', 'proxyGemini', 'createCheckoutSession', 'createPortalSession', 'stripeWebhook']
+    });
+  }
+);
