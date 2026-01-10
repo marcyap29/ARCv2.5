@@ -203,17 +203,6 @@ class LumaraVeilEdgeIntegration {
         chronoContext: chronoContext,
       );
       
-      // Get master prompt with control state
-      final systemPrompt = LumaraMasterPrompt.getMasterPrompt(controlStateJson);
-      
-      // Build user prompt incorporating VEIL-EDGE routing context
-      final userPrompt = _buildUserPromptWithVeilContext(
-        userMessage: userMessage,
-        routeResult: routeResult,
-        signals: signals,
-        circadianContext: circadianContext,
-      );
-      
       // PRIORITY 2: VEIL-EDGE integration uses local API
       // NOTE: This feature is NOT actively used in production LUMARA flows
       // If needed in future, should be migrated to Firebase Functions
@@ -224,14 +213,28 @@ class LumaraVeilEdgeIntegration {
       );
       
       /* DEPRECATED - Local API call
+      // Build VEIL-EDGE context
+      final veilContext = _buildVeilContextString(
+        routeResult: routeResult,
+        signals: signals,
+        circadianContext: circadianContext,
+      );
+      
+      // Get unified master prompt with VEIL-EDGE context
+      final systemPrompt = LumaraMasterPrompt.getMasterPrompt(
+        controlStateJson,
+        entryText: userMessage,
+        baseContext: veilContext,
+      );
+      
       final response = await geminiSend(
         system: systemPrompt,
-        user: userPrompt,
+        user: '', // Empty user prompt - everything is in unified prompt
         jsonExpected: false,
       );
-      */
       
       return response.trim();
+      */
       
     } catch (e) {
       // Fallback to formatted response if LLM call fails
@@ -270,21 +273,15 @@ class LumaraVeilEdgeIntegration {
     return 'low';
   }
   
-  /// Build user prompt incorporating VEIL-EDGE routing context
-  String _buildUserPromptWithVeilContext({
-    required String userMessage,
+  /// Build VEIL-EDGE context string for unified prompt
+  String _buildVeilContextString({
     required VeilEdgeRouteResult routeResult,
     required UserSignals signals,
     required CircadianContext circadianContext,
   }) {
     final buffer = StringBuffer();
     
-    // Add user message
-    buffer.writeln(userMessage);
-    buffer.writeln();
-    
-    // Add VEIL-EDGE context
-    buffer.writeln('Context:');
+    buffer.writeln('VEIL-EDGE Context:');
     buffer.writeln('- Phase group: ${routeResult.phaseGroup}');
     buffer.writeln('- Variant: ${routeResult.variant}');
     buffer.writeln('- Blocks: ${routeResult.blocks.join(", ")}');

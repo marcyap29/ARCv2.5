@@ -30,7 +30,6 @@ import 'package:my_app/arc/internal/echo/correlation_resistant_transformer.dart'
 import '../../../services/lumara/entry_classifier.dart';
 import '../../../services/lumara/response_mode.dart';
 import '../../../services/lumara/classification_logger.dart';
-import '../../../services/lumara/user_intent.dart';
 import '../../../services/sentinel/sentinel_analyzer.dart';
 import '../../../services/sentinel/crisis_mode.dart';
 
@@ -331,7 +330,6 @@ class EnhancedLumaraApi {
             }
           }
           
-          String userPrompt;
           
           // Build context based on options
           // Use abstract description instead of verbatim entry text
@@ -504,24 +502,6 @@ class EnhancedLumaraApi {
           final entryClassification = entryType.toString().split('.').last;
           final effectivePersona = selectedPersona;
           
-          // Build user prompt that RESPECTS control state constraints
-          userPrompt = _buildUserPrompt(
-            baseContext: baseContext,
-            entryText: request.userText,
-            effectivePersona: effectivePersona,
-            maxWords: maxWords,
-            minPatternExamples: minPatternExamples,
-            maxPatternExamples: maxPatternExamples,
-            isPersonalContent: isPersonalContent,
-            useStructuredFormat: useStructuredFormat,
-            entryClassification: entryClassification,
-            conversationMode: request.options.conversationMode,
-            regenerate: request.options.regenerate,
-            toneMode: request.options.toneMode,
-            preferQuestionExpansion: request.options.preferQuestionExpansion,
-            userIntent: null, // Not used in simplified system
-          );
-          
           // Build simplified control state for master prompt
           final simplifiedControlState = {
             'persona': {
@@ -546,12 +526,24 @@ class EnhancedLumaraApi {
           
           final simplifiedControlStateJson = jsonEncode(simplifiedControlState);
           
-          // Get master prompt with simplified control state
-          final systemPrompt = LumaraMasterPrompt.getMasterPrompt(simplifiedControlStateJson);
+          // Get mode-specific instructions
+          final modeSpecificInstructions = _getModeSpecificInstructions(
+            conversationMode: request.options.conversationMode,
+            regenerate: request.options.regenerate,
+            toneMode: request.options.toneMode,
+            preferQuestionExpansion: request.options.preferQuestionExpansion,
+          );
           
-          print('🔵 LUMARA V23: Using simplified master prompt');
-          print('🔵 LUMARA V23: System prompt length: ${systemPrompt.length}');
-          print('🔵 LUMARA V23: User prompt length: ${userPrompt.length}');
+          // Get unified master prompt (includes entry text, context, and all constraints)
+          final systemPrompt = LumaraMasterPrompt.getMasterPrompt(
+            simplifiedControlStateJson,
+            entryText: request.userText,
+            baseContext: baseContext.isNotEmpty ? baseContext : null,
+            modeSpecificInstructions: modeSpecificInstructions.isNotEmpty ? modeSpecificInstructions : null,
+          );
+          
+          print('🔵 LUMARA V23: Using unified master prompt');
+          print('🔵 LUMARA V23: Unified prompt length: ${systemPrompt.length}');
           print('🔵 LUMARA V23: Persona=$selectedPersona, maxWords=$maxWords, patternExamples=$minPatternExamples-$maxPatternExamples');
           if (safetyOverride) {
             print('🚨 LUMARA V23: SAFETY OVERRIDE ACTIVE - Therapist mode forced');
@@ -568,11 +560,11 @@ class EnhancedLumaraApi {
             try {
               // Direct Gemini API call - same protocol as main LUMARA chat
               // Pass entryId for per-entry usage limit tracking (free tier: 5 per entry)
-              // NOTE: userPrompt already contains abstracted entry description, not verbatim text
+              // NOTE: Unified prompt contains abstracted entry description, not verbatim text
               // Skip transformation since we've already abstracted the entry text in the prompt
               geminiResponse = await geminiSend(
                 system: systemPrompt,
-                user: userPrompt,
+                user: '', // Empty user prompt - everything is in the unified system prompt
                 jsonExpected: false,
                 entryId: entryId,
                 intent: 'journal_reflection', // Specify intent for journal entries
@@ -1266,201 +1258,36 @@ Respond now:''';
 
   /// Build user prompt that RESPECTS control state constraints
   /// This replaces the broken prompts that were overriding master prompt constraints
-  String _buildUserPrompt({
-    required String baseContext,
-    required String entryText,
-    required String effectivePersona,
-    required int maxWords,
-    required int minPatternExamples,
-    required int maxPatternExamples,
-    required bool isPersonalContent,
-    required bool useStructuredFormat,
-    required String entryClassification,
+  /// Get mode-specific instructions for the unified prompt
+  String _getModeSpecificInstructions({
     models.ConversationMode? conversationMode,
     bool? regenerate,
     models.ToneMode? toneMode,
     bool? preferQuestionExpansion,
-    UserIntent? userIntent,
   }) {
-    final buffer = StringBuffer();
-    
-    // Include base context (historical entries, mood, phase, etc.)
-    if (baseContext.isNotEmpty) {
-      buffer.writeln(baseContext);
-      buffer.writeln();
-    }
-    
-    buffer.writeln('═══════════════════════════════════════════════════════════');
-    buffer.writeln('CURRENT ENTRY TO RESPOND TO');
-    buffer.writeln('═══════════════════════════════════════════════════════════');
-    buffer.writeln();
-    buffer.writeln(entryText);
-    buffer.writeln();
-    buffer.writeln('═══════════════════════════════════════════════════════════');
-    buffer.writeln('RESPONSE REQUIREMENTS (from control state)');
-    buffer.writeln('═══════════════════════════════════════════════════════════');
-    buffer.writeln();
-    buffer.writeln('WORD LIMIT: $maxWords words MAXIMUM');
-    buffer.writeln('- Count as you write');
-    buffer.writeln('- STOP at $maxWords words');
-    buffer.writeln('- This is NOT negotiable');
-    buffer.writeln();
-    buffer.writeln('PATTERN EXAMPLES: $minPatternExamples-$maxPatternExamples dated examples required');
-    buffer.writeln('- Include specific dates or timeframes');
-    buffer.writeln('- Examples:');
-    buffer.writeln('  * "When you got stuck on Firebase in August..."');
-    buffer.writeln('  * "Your Learning Space insight from September 15..."');
-    buffer.writeln('  * "Like when you hit this threshold on October 3..."');
-    buffer.writeln();
-    buffer.writeln('CONTENT TYPE: ${isPersonalContent ? 'PERSONAL REFLECTION' : 'PROJECT/WORK CONTENT'}');
-    if (isPersonalContent) {
-      buffer.writeln('- Focus on patterns in how they work/think/problem-solve');
-      buffer.writeln('- Show personal growth and rhythms');
-      buffer.writeln('- Don\'t list all their projects');
-      buffer.writeln('- Don\'t make it about strategic vision');
-    } else {
-      buffer.writeln('- Can reference technical work directly');
-      buffer.writeln('- Show patterns in project development');
-      buffer.writeln('- Connect to strategic goals when relevant');
-    }
-    buffer.writeln();
-    buffer.writeln('PERSONA: $effectivePersona');
-    buffer.writeln(_getPersonaSpecificInstructions(
-      effectivePersona,
-      maxWords,
-      minPatternExamples,
-      maxPatternExamples,
-      useStructuredFormat,
-    ));
-    
-    // Add mode-specific instructions
     if (conversationMode != null) {
-      buffer.writeln();
-      buffer.writeln('MODE-SPECIFIC INSTRUCTION:');
       switch (conversationMode) {
         case models.ConversationMode.ideas:
-          buffer.writeln('Expand with 2-3 practical suggestions drawn from past successful patterns.');
-          break;
+          return 'Expand with 2-3 practical suggestions drawn from past successful patterns.';
         case models.ConversationMode.think:
-          buffer.writeln('Generate logical scaffolding (What → Why → What now).');
-          break;
+          return 'Generate logical scaffolding (What → Why → What now).';
         case models.ConversationMode.perspective:
-          buffer.writeln('Reframe using contrastive reasoning ("Another way to see this...").');
-          break;
+          return 'Reframe using contrastive reasoning ("Another way to see this...").';
         case models.ConversationMode.nextSteps:
-          buffer.writeln('Provide small, phase-appropriate actions.');
-          break;
+          return 'Provide small, phase-appropriate actions.';
         case models.ConversationMode.reflectDeeply:
-          buffer.writeln('Deep introspection with expanded Clarify and Highlight sections.');
-          break;
+          return 'Deep introspection with expanded Clarify and Highlight sections.';
         case models.ConversationMode.continueThought:
-          buffer.writeln('Extend previous reflection with additional insights, building naturally.');
-          break;
+          return 'Extend previous reflection with additional insights, building naturally.';
       }
     } else if (regenerate == true) {
-      buffer.writeln();
-      buffer.writeln('MODE-SPECIFIC INSTRUCTION: Rebuild reflection with different rhetorical focus.');
+      return 'Rebuild reflection with different rhetorical focus.';
     } else if (toneMode == models.ToneMode.soft) {
-      buffer.writeln();
-      buffer.writeln('MODE-SPECIFIC INSTRUCTION: Use gentler, slower rhythm. Add permission language.');
+      return 'Use gentler, slower rhythm. Add permission language.';
     } else if (preferQuestionExpansion == true) {
-      buffer.writeln();
-      buffer.writeln('MODE-SPECIFIC INSTRUCTION: Expand Clarify and Highlight for richer introspection.');
+      return 'Expand Clarify and Highlight for richer introspection.';
     }
     
-    buffer.writeln();
-    buffer.writeln('═══════════════════════════════════════════════════════════');
-    buffer.writeln();
-    buffer.writeln('Respond now following ALL constraints above.');
-    
-    return buffer.toString();
-  }
-
-  /// Get persona-specific instructions
-  String _getPersonaSpecificInstructions(
-    String persona,
-    int maxWords,
-    int minPatternExamples,
-    int maxPatternExamples,
-    bool useStructuredFormat,
-  ) {
-    switch (persona) {
-      case 'companion':
-        return '''
-COMPANION MODE:
-✓ Warm, conversational, supportive tone
-✓ Start with ✨ Reflection header
-✓ $minPatternExamples-$maxPatternExamples dated pattern examples
-✓ Focus on the person, not their strategic vision
-
-✗ FORBIDDEN PHRASES (never use):
-  - "beautifully encapsulates"
-  - "profound strength"
-  - "profound sense"
-  - "evolving identity"
-  - "embodying the principles"
-  - "on the precipice of"
-  - "journey of bringing"
-  - "shaping the contours of your identity"
-  - "significant moment in your journey"
-  - "strategic considerations"
-  - "strategic planning"
-  - "strategic vision"
-  - "strategic positioning"
-  - "fundamental" (when used melodramatically)
-  - "integral steps"
-  - "manifesting"
-
-✗ DO NOT provide action items unless explicitly requested
-''';
-      
-      case 'strategist':
-        if (useStructuredFormat) {
-          return '''
-STRATEGIST MODE (Structured Format):
-✓ Analytical, decisive tone
-✓ Start with ✨ Analysis header
-✓ Use 5-section structured format:
-  1. Signal Separation
-  2. Phase Determination
-  3. Interpretation
-  4. Phase-Appropriate Actions
-  5. Reflective Links
-✓ Include $minPatternExamples-$maxPatternExamples dated examples
-✓ Provide 2-4 concrete action items
-''';
-        } else {
-          return '''
-STRATEGIST MODE (Conversational):
-✓ Analytical, decisive tone
-✓ Start with ✨ Analysis header
-✓ Include $minPatternExamples-$maxPatternExamples dated examples
-✓ Provide 2-4 concrete action items
-''';
-        }
-      
-      case 'therapist':
-        return '''
-THERAPIST MODE:
-✓ Gentle, grounding, containing tone
-✓ Start with ✨ Reflection header
-✓ Use ECHO framework (Empathize, Clarify, Hold space, Offer)
-✓ Reference past struggles with dates for continuity
-✓ Maximum $maxWords words
-''';
-      
-      case 'challenger':
-        return '''
-CHALLENGER MODE:
-✓ Direct, challenging, growth-oriented tone
-✓ No header needed
-✓ Use 1-2 sharp dated examples
-✓ Ask hard questions
-✓ Maximum $maxWords words
-''';
-      
-      default:
-        return '';
-    }
+    return '';
   }
 }

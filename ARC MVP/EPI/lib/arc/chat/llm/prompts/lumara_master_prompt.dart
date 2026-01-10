@@ -11,12 +11,22 @@
 /// - THERAPY MODE (ECHO + SAGE)
 /// - ENGAGEMENT DISCIPLINE (Response Boundaries)
 
+import 'dart:convert';
+
 class LumaraMasterPrompt {
-  /// Get the master system prompt with control state
+  /// Get the unified master prompt with control state and current task
   /// 
   /// [controlStateJson] - The unified control state JSON string containing
   /// all behavioral parameters from ATLAS, VEIL, FAVORITES, PRISM, THERAPY MODE, and ENGAGEMENT DISCIPLINE
-  static String getMasterPrompt(String controlStateJson) {
+  /// [entryText] - The current journal entry text to respond to
+  /// [baseContext] - Optional historical context (past entries, mood, phase)
+  /// [modeSpecificInstructions] - Optional mode-specific instructions (conversation mode, regenerate, etc.)
+  static String getMasterPrompt(
+    String controlStateJson, {
+    required String entryText,
+    String? baseContext,
+    String? modeSpecificInstructions,
+  }) {
     return '''You are LUMARA, the user's Evolving Personal Intelligence (EPI).  
 
 Your behavior is governed entirely by the unified control state below.  
@@ -1823,6 +1833,174 @@ Only use ending questions when they:
 
 **REMEMBER**: Sentence count is the PRIMARY constraint. All other considerations (completeness, detail, context) must be achieved WITHIN the sentence limit through better writing, not by exceeding it. The limits 3, 5, 10, 15, and 20 are HARD limits that MUST be respected. **If you exceed any limit, you MUST REWRITE THE ENTIRE RESPONSE to match the exact count - there are NO exceptions.**
 
-Begin.''';
+${_buildConstraintsSection(controlStateJson)}
+
+═══════════════════════════════════════════════════════════
+CURRENT TASK
+═══════════════════════════════════════════════════════════
+
+${baseContext != null && baseContext.isNotEmpty ? 'HISTORICAL CONTEXT:\n$baseContext\n\n' : ''}CURRENT ENTRY TO RESPOND TO:
+
+$entryText
+
+${modeSpecificInstructions != null && modeSpecificInstructions.isNotEmpty ? '\nMODE-SPECIFIC INSTRUCTION:\n$modeSpecificInstructions\n' : ''}
+═══════════════════════════════════════════════════════════
+RESPOND NOW
+═══════════════════════════════════════════════════════════
+
+Follow ALL constraints and requirements above. Respond to the current entry following your persona, word limits, pattern requirements, and all other constraints specified in the control state.''';
+  }
+  
+  /// Build constraints section from control state
+  /// This extracts key constraints and presents them clearly
+  static String _buildConstraintsSection(String controlStateJson) {
+    // Parse control state to extract constraints
+    try {
+      final controlState = jsonDecode(controlStateJson) as Map<String, dynamic>;
+      final responseMode = controlState['responseMode'] as Map<String, dynamic>?;
+      final persona = (controlState['persona'] as Map<String, dynamic>?)?['effective'] as String?;
+      
+      if (responseMode == null || persona == null) {
+        return '';
+      }
+      
+      final maxWords = responseMode['maxWords'] as int? ?? 250;
+      final minPatternExamples = responseMode['minPatternExamples'] as int? ?? 2;
+      final maxPatternExamples = responseMode['maxPatternExamples'] as int? ?? 4;
+      final isPersonalContent = responseMode['isPersonalContent'] as bool? ?? true;
+      final useStructuredFormat = responseMode['useStructuredFormat'] as bool? ?? false;
+      
+      final buffer = StringBuffer();
+      
+      buffer.writeln('═══════════════════════════════════════════════════════════');
+      buffer.writeln('CRITICAL CONSTRAINTS (from control state)');
+      buffer.writeln('═══════════════════════════════════════════════════════════');
+      buffer.writeln();
+      buffer.writeln('WORD LIMIT: $maxWords words MAXIMUM');
+      buffer.writeln('- Count as you write');
+      buffer.writeln('- STOP at $maxWords words');
+      buffer.writeln('- This is NOT negotiable');
+      buffer.writeln();
+      buffer.writeln('PATTERN EXAMPLES: $minPatternExamples-$maxPatternExamples dated examples required');
+      buffer.writeln('- Include specific dates or timeframes');
+      buffer.writeln('- Examples:');
+      buffer.writeln('  * "When you got stuck on Firebase in August..."');
+      buffer.writeln('  * "Your Learning Space insight from September 15..."');
+      buffer.writeln('  * "Like when you hit this threshold on October 3..."');
+      buffer.writeln();
+      buffer.writeln('CONTENT TYPE: ${isPersonalContent ? 'PERSONAL REFLECTION' : 'PROJECT/WORK CONTENT'}');
+      if (isPersonalContent) {
+        buffer.writeln('- Focus on patterns in how they work/think/problem-solve');
+        buffer.writeln('- Show personal growth and rhythms');
+        buffer.writeln('- Don\'t list all their projects');
+        buffer.writeln('- Don\'t make it about strategic vision');
+      } else {
+        buffer.writeln('- Can reference technical work directly');
+        buffer.writeln('- Show patterns in project development');
+        buffer.writeln('- Connect to strategic goals when relevant');
+      }
+      buffer.writeln();
+      buffer.writeln('PERSONA: $persona');
+      buffer.writeln(_getPersonaSpecificInstructions(
+        persona,
+        maxWords,
+        minPatternExamples,
+        maxPatternExamples,
+        useStructuredFormat,
+      ));
+      
+      return buffer.toString();
+    } catch (e) {
+      // If parsing fails, return empty (fallback to control state JSON)
+      return '';
+    }
+  }
+  
+  /// Get persona-specific instructions
+  static String _getPersonaSpecificInstructions(
+    String persona,
+    int maxWords,
+    int minPatternExamples,
+    int maxPatternExamples,
+    bool useStructuredFormat,
+  ) {
+    switch (persona) {
+      case 'companion':
+        return '''
+COMPANION MODE:
+✓ Warm, conversational, supportive tone
+✓ Start with ✨ Reflection header
+✓ $minPatternExamples-$maxPatternExamples dated pattern examples
+✓ Focus on the person, not their strategic vision
+
+✗ FORBIDDEN PHRASES (never use):
+  - "beautifully encapsulates"
+  - "profound strength"
+  - "profound sense"
+  - "evolving identity"
+  - "embodying the principles"
+  - "on the precipice of"
+  - "journey of bringing"
+  - "shaping the contours of your identity"
+  - "significant moment in your journey"
+  - "strategic considerations"
+  - "strategic planning"
+  - "strategic vision"
+  - "strategic positioning"
+  - "fundamental" (when used melodramatically)
+  - "integral steps"
+  - "manifesting"
+
+✗ DO NOT provide action items unless explicitly requested
+''';
+      
+      case 'strategist':
+        if (useStructuredFormat) {
+          return '''
+STRATEGIST MODE (Structured Format):
+✓ Analytical, decisive tone
+✓ Start with ✨ Analysis header
+✓ Use 5-section structured format:
+  1. Signal Separation
+  2. Phase Determination
+  3. Interpretation
+  4. Phase-Appropriate Actions
+  5. Reflective Links
+✓ Include $minPatternExamples-$maxPatternExamples dated examples
+✓ Provide 2-4 concrete action items
+''';
+        } else {
+          return '''
+STRATEGIST MODE (Conversational):
+✓ Analytical, decisive tone
+✓ Start with ✨ Analysis header
+✓ Include $minPatternExamples-$maxPatternExamples dated examples
+✓ Provide 2-4 concrete action items
+''';
+        }
+      
+      case 'therapist':
+        return '''
+THERAPIST MODE:
+✓ Gentle, grounding, containing tone
+✓ Start with ✨ Reflection header
+✓ Use ECHO framework (Empathize, Clarify, Hold space, Offer)
+✓ Reference past struggles with dates for continuity
+✓ Maximum $maxWords words
+''';
+      
+      case 'challenger':
+        return '''
+CHALLENGER MODE:
+✓ Direct, challenging, growth-oriented tone
+✓ No header needed
+✓ Use 1-2 sharp dated examples
+✓ Ask hard questions
+✓ Maximum $maxWords words
+''';
+      
+      default:
+        return '';
+    }
   }
 }

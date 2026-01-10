@@ -1022,17 +1022,20 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
       userMessage: userMessage, // Pass user message for question intent detection
     );
     
-    // Get master prompt with control state
-    final masterPrompt = LumaraMasterPrompt.getMasterPrompt(controlStateJson);
-    
-    // Add context about current entry/keywords if provided (for user message context, not control state)
+    // Build context string if entry text or keywords provided
+    String? baseContext;
     if (entryText != null && entryText.isNotEmpty) {
-      return '$masterPrompt\n\n--- CURRENT CONTEXT ---\nRecent journal entry context:\n$entryText';
+      baseContext = 'Recent journal entry context:\n$entryText';
+    } else if (keywords != null && keywords.isNotEmpty) {
+      baseContext = 'Recent keywords: $keywords';
     }
     
-    if (keywords != null && keywords.isNotEmpty) {
-      return '$masterPrompt\n\n--- CURRENT CONTEXT ---\nRecent keywords: $keywords';
-    }
+    // Get unified master prompt (for chat, the "entry text" is the user message)
+    final masterPrompt = LumaraMasterPrompt.getMasterPrompt(
+      controlStateJson,
+      entryText: userMessage ?? '',
+      baseContext: baseContext,
+    );
     
     return masterPrompt;
   }

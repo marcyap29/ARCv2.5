@@ -176,7 +176,7 @@ FUNCTION DeterminePersona(phase, readinessScore, sentinelAlert, userMessage, use
         IF entryType == "analytical":
             // Analytical entry → Strategist if readiness is high
             IF readinessScore >= 60:
-                RETURN "strategist"
+            RETURN "strategist"
             ELSE:
                 RETURN "companion"
         
