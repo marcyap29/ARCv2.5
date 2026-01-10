@@ -72,6 +72,130 @@ firebase deploy --only firestore:indexes
 firebase deploy --only storage
 ```
 
+## Firebase Authentication
+
+### Enable Auth Providers (Firebase Console)
+
+1. Go to [Firebase Console](https://console.firebase.google.com)
+2. Select your project
+3. Navigate to **Authentication** → **Sign-in method**
+4. Enable desired providers:
+   - **Google** (recommended for ARC)
+   - Email/Password
+   - Anonymous (for trial users)
+
+### Google Sign-In Setup
+
+#### iOS Setup
+
+1. Download `GoogleService-Info.plist` from Firebase Console
+2. Add to `ios/Runner/` directory
+3. Add URL scheme to `ios/Runner/Info.plist`:
+
+```xml
+<key>CFBundleURLTypes</key>
+<array>
+  <dict>
+    <key>CFBundleURLSchemes</key>
+    <array>
+      <!-- Reversed client ID from GoogleService-Info.plist -->
+      <string>com.googleusercontent.apps.YOUR_CLIENT_ID</string>
+    </array>
+  </dict>
+</array>
+```
+
+#### Android Setup
+
+1. Download `google-services.json` from Firebase Console
+2. Add to `android/app/` directory
+3. Add SHA-1 fingerprint to Firebase Console:
+
+```bash
+# Get debug SHA-1
+cd android
+./gradlew signingReport
+```
+
+### Auth Emulator
+
+```bash
+# Start auth emulator
+firebase emulators:start --only auth
+
+# Start with functions (for testing callable auth)
+firebase emulators:start --only auth,functions
+```
+
+### Export/Import Auth Users
+
+```bash
+# Export users to JSON
+firebase auth:export users.json --format=json
+
+# Import users
+firebase auth:import users.json
+```
+
+### Manage Users (CLI)
+
+```bash
+# List users (requires Admin SDK, typically done in code)
+# Use Firebase Console for user management
+```
+
+### Flutter Auth Configuration
+
+In your Flutter app (`lib/services/firebase_auth_service.dart`):
+
+```dart
+// Initialize Google Sign-In
+final GoogleSignIn _googleSignIn = GoogleSignIn.instance;
+await _googleSignIn.initialize();
+
+// Sign in with Google
+final googleUser = await _googleSignIn.authenticate(
+  scopeHint: ['email', 'profile'],
+);
+
+// Get Firebase credential
+final credential = GoogleAuthProvider.credential(
+  accessToken: accessToken,
+  idToken: googleAuth.idToken,
+);
+
+// Sign in to Firebase
+final userCredential = await FirebaseAuth.instance.signInWithCredential(credential);
+```
+
+### Auth Token Management
+
+```dart
+// Get current user's ID token
+final token = await FirebaseAuth.instance.currentUser?.getIdToken();
+
+// Force refresh token
+final freshToken = await FirebaseAuth.instance.currentUser?.getIdToken(true);
+
+// Listen to auth state changes
+FirebaseAuth.instance.authStateChanges().listen((User? user) {
+  if (user != null) {
+    print('User signed in: ${user.email}');
+  } else {
+    print('User signed out');
+  }
+});
+```
+
+### Common Auth Issues
+
+| Issue | Solution |
+|-------|----------|
+| `UNAUTHENTICATED` error in callable | Ensure `getIdToken(true)` is called before callable |
+| Google Sign-In not working | Check SHA-1 fingerprint and OAuth consent screen |
+| Token expired | Call `getIdToken(true)` to force refresh |
+| Anonymous user can't subscribe | Prompt user to sign in with Google first |
+
 ## Functions Development
 
 ### Navigate to Functions Directory
@@ -253,6 +377,8 @@ firebase functions:secrets:set KEY        # Add a secret
 ## Related Documentation
 
 - [Firebase CLI Reference](https://firebase.google.com/docs/cli)
+- [Firebase Authentication](https://firebase.google.com/docs/auth)
+- [Google Sign-In for Flutter](https://pub.dev/packages/google_sign_in)
 - [Cloud Functions Documentation](https://firebase.google.com/docs/functions)
 - [Firebase Emulator Suite](https://firebase.google.com/docs/emulator-suite)
 
