@@ -1,6 +1,7 @@
 // lib/ui/subscription/subscription_management_view.dart
 // Full-screen subscription management view
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:my_app/services/subscription_service.dart';
 import 'package:my_app/services/firebase_auth_service.dart';
@@ -447,6 +448,7 @@ class _SubscriptionManagementViewState extends State<SubscriptionManagementView>
                 child: Padding(
                   padding: const EdgeInsets.all(16),
                   child: Column(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
                         'Upgrade to Premium',
@@ -464,10 +466,21 @@ class _SubscriptionManagementViewState extends State<SubscriptionManagementView>
                       ),
                       const SizedBox(height: 24),
                       _upgradeLoading
-                          ? const CircularProgressIndicator()
+                          ? const Padding(
+                              padding: EdgeInsets.all(24.0),
+                              child: CircularProgressIndicator(),
+                            )
                           : PricingSelector(
                               onIntervalSelected: _initiateUpgrade,
                             ),
+                      // Debug: Ensure button is visible
+                      if (kDebugMode) ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          'Debug: Premium check = false, showing pricing',
+                          style: TextStyle(fontSize: 10, color: Colors.grey),
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -526,38 +539,125 @@ class _SubscriptionManagementViewState extends State<SubscriptionManagementView>
         // Need to sign in with Google for subscription access
         debugPrint('SubscriptionManagement: User needs real account, prompting for Google sign-in');
 
+        // Show a dialog to explain why sign-in is needed
+        final shouldContinue = await showDialog<bool>(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => AlertDialog(
+            title: const Row(
+              children: [
+                Icon(Icons.account_circle, color: Colors.blue),
+                SizedBox(width: 12),
+                Text('Sign In Required'),
+              ],
+            ),
+            content: const Text(
+              'To subscribe to Premium, you need to sign in with Google. This ensures your subscription is securely linked to your account.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton.icon(
+                onPressed: () => Navigator.of(context).pop(true),
+                icon: const Icon(Icons.login),
+                label: const Text('Sign In with Google'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue,
+                  foregroundColor: Colors.white,
+                ),
+              ),
+            ],
+          ),
+        );
+
+        if (shouldContinue != true) {
+          debugPrint('SubscriptionManagement: User cancelled sign-in');
+          return;
+        }
+
+        // Show loading indicator
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Signing in with Google for subscription access...'),
+              content: Row(
+                children: [
+                  SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
+                  ),
+                  SizedBox(width: 16),
+                  Text('Signing in with Google...'),
+                ],
+              ),
               backgroundColor: Colors.blue,
+              duration: Duration(seconds: 30), // Long duration for sign-in
             ),
           );
         }
 
-        final userCredential = await authService.signInWithGoogle();
+        try {
+          final userCredential = await authService.signInWithGoogle();
 
-        if (userCredential == null) {
+          if (userCredential == null) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).hideCurrentSnackBar();
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Sign-in was cancelled. Please sign in to subscribe.'),
+                  backgroundColor: Colors.orange,
+                ),
+              );
+            }
+            return;
+          }
+
+          debugPrint('SubscriptionManagement: ✅ User successfully signed in with Google');
+          debugPrint('  User ID: ${userCredential.user?.uid}');
+          debugPrint('  Email: ${userCredential.user?.email}');
+          debugPrint('  isAnonymous: ${userCredential.user?.isAnonymous}');
+
+          // Wait a moment for auth state to propagate
+          await Future.delayed(const Duration(milliseconds: 500));
+
+          // Verify auth state is updated
+          final updatedAuth = FirebaseAuthService.instance;
+          if (!updatedAuth.hasRealAccount) {
+            throw Exception('Sign-in completed but account is still anonymous. Please try again.');
+          }
+
           if (mounted) {
+            ScaffoldMessenger.of(context).hideCurrentSnackBar();
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
-                content: Text('Google sign-in is required for subscription access'),
-                backgroundColor: Colors.orange,
+                content: Text('✅ Successfully signed in! Opening checkout...'),
+                backgroundColor: Colors.green,
+                duration: Duration(seconds: 2),
+              ),
+            );
+          }
+
+          // Wait a bit more for auth token to be ready
+          await Future.delayed(const Duration(milliseconds: 300));
+
+        } catch (e) {
+          debugPrint('SubscriptionManagement: ❌ Google sign-in failed: $e');
+          if (mounted) {
+            ScaffoldMessenger.of(context).hideCurrentSnackBar();
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Sign-in failed: ${e.toString()}'),
+                backgroundColor: Colors.red,
+                duration: const Duration(seconds: 5),
               ),
             );
           }
           return;
-        }
-
-        debugPrint('SubscriptionManagement: User successfully signed in with Google');
-
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Successfully signed in! Opening subscription checkout...'),
-              backgroundColor: Colors.green,
-            ),
-          );
         }
       }
 

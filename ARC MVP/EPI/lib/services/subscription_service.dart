@@ -306,16 +306,76 @@ class SubscriptionService {
         }
       }
 
+      // CRITICAL: Ensure Firebase Functions instance is created AFTER authentication
+      // This ensures the callable has the correct auth context
       final functions = FirebaseService.instance.getFunctions();
+      
+      // Verify auth state one more time before making the call
+      final finalAuthCheck = FirebaseAuthService.instance;
+      if (!finalAuthCheck.hasRealAccount) {
+        debugPrint('SubscriptionService: ❌ Final auth check failed - user still anonymous');
+        throw Exception('Please sign in with Google to subscribe. Authentication is required.');
+      }
+
+      // Get fresh token right before the call
+      final freshUser = finalAuthCheck.currentUser;
+      String? freshToken;
+      if (freshUser != null) {
+        try {
+          freshToken = await freshUser.getIdToken(true); // Force refresh
+          if (freshToken != null) {
+            debugPrint('SubscriptionService: ✅ Fresh token obtained (${freshToken.substring(0, freshToken.length > 20 ? 20 : freshToken.length)}...)');
+          }
+        } catch (e) {
+          debugPrint('SubscriptionService: ⚠️ Could not get fresh token: $e');
+          // Use existing token as fallback
+          freshToken = idToken;
+        }
+      }
+
+      // CRITICAL: Create callable AFTER ensuring auth state is ready
+      // Firebase callables automatically include auth token from current user
+      // But we need to ensure the user is fully authenticated before creating the callable
+      if (freshUser == null) {
+        throw Exception('User authentication is required. Please sign in and try again.');
+      }
+
+      // Verify user is not anonymous
+      if (freshUser.isAnonymous) {
+        throw Exception('Anonymous users cannot subscribe. Please sign in with Google.');
+      }
+
+      // Ensure we have a valid token
+      if (freshToken == null) {
+        debugPrint('SubscriptionService: ⚠️ No token available, attempting to get one...');
+        try {
+          freshToken = await freshUser.getIdToken(true);
+          if (freshToken == null) {
+            throw Exception('Could not obtain authentication token. Please sign in again.');
+          }
+        } catch (e) {
+          debugPrint('SubscriptionService: ❌ Failed to get token: $e');
+          throw Exception('Authentication token is required. Please sign in again.');
+        }
+      }
+
       final callable = functions.httpsCallable('createCheckoutSession');
 
       debugPrint('SubscriptionService: 💳 Creating Stripe checkout session (${interval.apiValue})');
+      debugPrint('SubscriptionService: 🔐 Auth context:');
+      debugPrint('  User ID: ${freshUser.uid}');
+      debugPrint('  Email: ${freshUser.email ?? "No email"}');
+      debugPrint('  isAnonymous: ${freshUser.isAnonymous}');
+      debugPrint('  Has token: true'); // freshToken is guaranteed non-null after the check above
+      final preview = freshToken.length > 30 ? freshToken.substring(0, 30) : freshToken;
+      debugPrint('  Token preview: $preview...');
 
+      // Make the callable request
+      // Firebase automatically includes the auth token in the request headers
       final result = await callable.call({
         'billingInterval': interval.apiValue,
         'successUrl': 'arc://subscription/success',
         'cancelUrl': 'arc://subscription/cancel',
-        if (idToken != null) 'idToken': idToken, // Fallback path if auth context is missing
       });
 
       final data = result.data as Map<String, dynamic>;

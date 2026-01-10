@@ -207,8 +207,21 @@ class FirebaseAuthService {
 
       debugPrint('FirebaseAuthService: Successfully signed in to Firebase: ${userCredential.user?.email}');
 
+      // CRITICAL: Reload user to ensure all claims and tokens are fresh
+      if (userCredential.user != null) {
+        try {
+          await userCredential.user!.reload();
+          debugPrint('FirebaseAuthService: ✅ User reloaded successfully');
+        } catch (e) {
+          debugPrint('FirebaseAuthService: ⚠️ User reload failed (non-critical): $e');
+        }
+      }
+
       // Force refresh the auth token to ensure all services have the new user
       await _refreshAuthState(userCredential.user);
+
+      // Wait a moment for auth state to fully propagate
+      await Future.delayed(const Duration(milliseconds: 300));
 
       return userCredential;
 
