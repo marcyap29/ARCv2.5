@@ -2,7 +2,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:cloud_functions/cloud_functions.dart';
 import 'firebase_auth_service.dart';
 import 'firebase_service.dart';
 
@@ -316,33 +315,23 @@ class SubscriptionService {
         throw Exception('Anonymous users cannot subscribe. Please sign in with Google.');
       }
       
-      String? freshToken;
+      // Ensure token is fresh (Firebase will auto-refresh if expired)
       try {
-        freshToken = await freshUser.getIdToken(true); // Force refresh
-        if (freshToken == null) {
-          throw Exception('Could not obtain authentication token. Please sign in again.');
-        }
-        debugPrint('SubscriptionService: ✅ Fresh token obtained (${freshToken.substring(0, freshToken.length > 20 ? 20 : freshToken.length)}...)');
+        await freshUser.getIdToken(true); // Force refresh to ensure token is valid
+        debugPrint('SubscriptionService: ✅ Token refreshed and ready for Function call');
       } catch (e) {
-        debugPrint('SubscriptionService: ⚠️ Could not get fresh token: $e');
+        debugPrint('SubscriptionService: ⚠️ Token refresh failed: $e');
         throw Exception('Authentication token is required. Please sign in again.');
       }
       
-      // CRITICAL: Ensure Functions instance uses the same Firebase app as Auth
+      // CRITICAL: Use the same Functions instance pattern as getUserSubscription
       // This ensures the callable has access to the authenticated user context
-      final authApp = FirebaseAuthService.instance.auth.app;
-      final functionsRegion = const String.fromEnvironment(
-        'FIREBASE_FUNCTIONS_REGION',
-        defaultValue: 'us-central1',
-      );
-      final functions = FirebaseFunctions.instanceFor(app: authApp, region: functionsRegion);
-      
-      debugPrint('SubscriptionService: 🔗 Functions instance created with auth app: ${authApp.name}');
-
-      // CRITICAL: Create callable AFTER ensuring auth state is ready
-      // Firebase callables automatically include auth token from current user
-      // The Functions instance is now using the same app as Auth, so it has access to the user
+      // FirebaseService.instance.getFunctions() returns a singleton that's already
+      // configured with the correct auth context
+      final functions = FirebaseService.instance.getFunctions();
       final callable = functions.httpsCallable('createCheckoutSession');
+      
+      debugPrint('SubscriptionService: 🔗 Using FirebaseService Functions instance (same as getUserSubscription)');
 
       debugPrint('SubscriptionService: 💳 Creating Stripe checkout session (${interval.apiValue})');
       debugPrint('SubscriptionService: 🔐 Auth context:');
