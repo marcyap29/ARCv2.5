@@ -2,6 +2,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'firebase_auth_service.dart';
 import 'firebase_service.dart';
 
@@ -285,31 +286,18 @@ class SubscriptionService {
       }
 
       // Ensure token is fresh (Firebase will auto-refresh if expired)
+      // Verify user is authenticated before proceeding
       final currentUser = authService.currentUser;
-      String? idToken;
-      if (currentUser != null) {
-        try {
-          // Don't force refresh - Firebase automatically refreshes expired tokens
-          // This is more efficient and handles token lifecycle properly
-          idToken = await currentUser.getIdToken(false);
-          debugPrint('SubscriptionService: ✅ Token ready for checkout Function call');
-        } catch (e) {
-          debugPrint('SubscriptionService: ⚠️ Token check failed, trying force refresh: $e');
-          // If automatic refresh failed, try forcing it
-          try {
-            idToken = await currentUser.getIdToken(true);
-            debugPrint('SubscriptionService: ✅ Token force-refreshed successfully');
-          } catch (forceError) {
-            debugPrint('SubscriptionService: ❌ Force refresh also failed: $forceError');
-            throw Exception('Authentication failed. Please try signing in again.');
-          }
-        }
+      if (currentUser == null) {
+        throw Exception('User authentication is required. Please sign in and try again.');
       }
-
-      // CRITICAL: Ensure Firebase Functions instance is created AFTER authentication
-      // This ensures the callable has the correct auth context
-      final functions = FirebaseService.instance.getFunctions();
       
+      if (currentUser.isAnonymous) {
+        throw Exception('Anonymous users cannot subscribe. Please sign in with Google.');
+      }
+      
+      debugPrint('SubscriptionService: ✅ User authenticated: ${currentUser.uid}');
+
       // Verify auth state one more time before making the call
       final finalAuthCheck = FirebaseAuthService.instance;
       if (!finalAuthCheck.hasRealAccount) {
@@ -319,46 +307,41 @@ class SubscriptionService {
 
       // Get fresh token right before the call
       final freshUser = finalAuthCheck.currentUser;
-      String? freshToken;
-      if (freshUser != null) {
-        try {
-          freshToken = await freshUser.getIdToken(true); // Force refresh
-          if (freshToken != null) {
-            debugPrint('SubscriptionService: ✅ Fresh token obtained (${freshToken.substring(0, freshToken.length > 20 ? 20 : freshToken.length)}...)');
-          }
-        } catch (e) {
-          debugPrint('SubscriptionService: ⚠️ Could not get fresh token: $e');
-          // Use existing token as fallback
-          freshToken = idToken;
-        }
-      }
-
-      // CRITICAL: Create callable AFTER ensuring auth state is ready
-      // Firebase callables automatically include auth token from current user
-      // But we need to ensure the user is fully authenticated before creating the callable
       if (freshUser == null) {
         throw Exception('User authentication is required. Please sign in and try again.');
       }
-
+      
       // Verify user is not anonymous
       if (freshUser.isAnonymous) {
         throw Exception('Anonymous users cannot subscribe. Please sign in with Google.');
       }
-
-      // Ensure we have a valid token
-      if (freshToken == null) {
-        debugPrint('SubscriptionService: ⚠️ No token available, attempting to get one...');
-        try {
-          freshToken = await freshUser.getIdToken(true);
-          if (freshToken == null) {
-            throw Exception('Could not obtain authentication token. Please sign in again.');
-          }
-        } catch (e) {
-          debugPrint('SubscriptionService: ❌ Failed to get token: $e');
-          throw Exception('Authentication token is required. Please sign in again.');
+      
+      String? freshToken;
+      try {
+        freshToken = await freshUser.getIdToken(true); // Force refresh
+        if (freshToken == null) {
+          throw Exception('Could not obtain authentication token. Please sign in again.');
         }
+        debugPrint('SubscriptionService: ✅ Fresh token obtained (${freshToken.substring(0, freshToken.length > 20 ? 20 : freshToken.length)}...)');
+      } catch (e) {
+        debugPrint('SubscriptionService: ⚠️ Could not get fresh token: $e');
+        throw Exception('Authentication token is required. Please sign in again.');
       }
+      
+      // CRITICAL: Ensure Functions instance uses the same Firebase app as Auth
+      // This ensures the callable has access to the authenticated user context
+      final authApp = FirebaseAuthService.instance.auth.app;
+      final functionsRegion = const String.fromEnvironment(
+        'FIREBASE_FUNCTIONS_REGION',
+        defaultValue: 'us-central1',
+      );
+      final functions = FirebaseFunctions.instanceFor(app: authApp, region: functionsRegion);
+      
+      debugPrint('SubscriptionService: 🔗 Functions instance created with auth app: ${authApp.name}');
 
+      // CRITICAL: Create callable AFTER ensuring auth state is ready
+      // Firebase callables automatically include auth token from current user
+      // The Functions instance is now using the same app as Auth, so it has access to the user
       final callable = functions.httpsCallable('createCheckoutSession');
 
       debugPrint('SubscriptionService: 💳 Creating Stripe checkout session (${interval.apiValue})');
