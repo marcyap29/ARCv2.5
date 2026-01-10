@@ -1,8 +1,8 @@
 # LUMARA Master Unified Prompt System
 
 **Status:** ✅ **ACTIVE**  
-**Version:** 2.0  
-**Date:** January 2025
+**Version:** 3.2 (Unified Prompt System)  
+**Date:** January 2026
 
 ## Overview
 
@@ -144,25 +144,30 @@ final controlStateJson = await LumaraControlStateBuilder.buildControlState(
   userIntent: detectedUserIntent,
 );
 
-// Get master prompt (system prompt)
-final systemPrompt = LumaraMasterPrompt.getMasterPrompt(controlStateJson);
+// Get mode-specific instructions
+final modeSpecificInstructions = _getModeSpecificInstructions(
+  conversationMode: request.options.conversationMode,
+  regenerate: request.options.regenerate,
+  toneMode: request.options.toneMode,
+);
 
-// Build user prompt that REINFORCES constraints (not overrides)
-final userPrompt = _buildUserPrompt(
-  baseContext: baseContext,
+// Get unified master prompt (includes entry text, context, and all constraints)
+final unifiedPrompt = LumaraMasterPrompt.getMasterPrompt(
+  controlStateJson,
   entryText: request.userText,
-  effectivePersona: effectivePersona,
-  maxWords: maxWords,
-  minPatternExamples: minPatternExamples,
-  maxPatternExamples: maxPatternExamples,
-  isPersonalContent: isPersonalContent,
-  useStructuredFormat: useStructuredFormat,
-  entryClassification: entryClassification,
-  // ... other parameters
+  baseContext: baseContext.isNotEmpty ? baseContext : null,
+  modeSpecificInstructions: modeSpecificInstructions.isNotEmpty ? modeSpecificInstructions : null,
+);
+
+// Call LLM with unified prompt (user parameter is empty)
+final response = await geminiSend(
+  system: unifiedPrompt,
+  user: '', // Empty - everything is in unified prompt
+  jsonExpected: false,
 );
 ```
 
-**Critical:** The user prompt must **reinforce** the master prompt constraints, not override them. See [User Prompt System](../../../../docs/USERPROMPT.md) for details.
+**Note:** As of v3.2, the master prompt and user prompt have been unified into a single prompt. All constraints, entry text, and context are now in one place, eliminating duplication and override risk.
 
 ## Behavior Rules
 
