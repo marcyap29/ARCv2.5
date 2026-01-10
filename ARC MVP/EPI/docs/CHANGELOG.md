@@ -1,6 +1,6 @@
 # EPI ARC MVP - Changelog
 
-**Version:** 2.1.89
+**Version:** 2.1.90
 **Last Updated:** January 9, 2026
 
 ---
@@ -14,6 +14,36 @@ This changelog has been split into parts for easier navigation:
 | **[CHANGELOG_part1.md](CHANGELOG_part1.md)** | Dec 2025 | v2.1.43 - v2.1.87 (Current) |
 | **[CHANGELOG_part2.md](CHANGELOG_part2.md)** | Nov 2025 | v2.1.28 - v2.1.42 |
 | **[CHANGELOG_part3.md](CHANGELOG_part3.md)** | Jan-Oct 2025 | v2.0.0 - v2.1.27 & Earlier |
+
+---
+
+## [2.1.90] - January 9, 2026
+
+### 🚀 Backend & Infrastructure
+- **Firebase Functions Deployed**: Successfully deployed all Stripe integration functions to production
+  - `createCheckoutSession`: Creates Stripe checkout sessions for subscriptions
+  - `createPortalSession`: Manages subscription portal access
+  - `getUserSubscription`: Checks user premium status
+  - `getAssemblyAIToken`: Provides cloud transcription tokens
+  - `proxyGemini`: AI proxy service
+  - `stripeWebhook`: Handles Stripe webhook events
+  - `healthCheck`: Diagnostic endpoint
+- **Function Security**: Configured proper invoker settings for all functions
+- **Removed Legacy Functions**: Cleaned up old unused functions (analyzeJournalEntry, checkThrottleStatus, etc.)
+
+### 🔧 Developer Experience
+- **gcloud ADC Setup**: Implemented Google Cloud Application Default Credentials for longer-lasting authentication
+- **Reduced Re-authentication**: Firebase CLI tokens now supplemented with gcloud ADC, reducing frequent re-auth needs
+- **Documentation**: Updated FIREBASE.md with complete gcloud ADC setup instructions and troubleshooting
+
+### 📁 Files Modified
+- `functions/index.js`: Added invoker configuration for createPortalSession and healthCheck
+- `docs/FIREBASE.md`: Added gcloud ADC authentication setup section
+
+### 🎯 Impact
+- All Stripe subscription functions are live and functional
+- Developers can deploy without frequent re-authentication
+- Better documentation for Firebase deployment workflows
 
 ---
 
