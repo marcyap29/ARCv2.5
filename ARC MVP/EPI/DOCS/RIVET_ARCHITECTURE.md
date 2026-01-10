@@ -621,6 +621,250 @@ Test Scenarios
 
 ---
 
+## Adaptive Framework
+
+### Overview
+
+RIVET now includes an **adaptive configuration system** that automatically adjusts algorithmic parameters based on user journaling cadence. The core principle: **Psychological time ≠ Calendar time**. A phase transition takes the same number of journal entries whether written daily or weekly, but spans different calendar periods.
+
+### User Cadence Detection
+
+```
+User Cadence Detection
+─────────────────────────────────────────────────────────────
+
+Purpose: Detect user's journaling pattern to adapt RIVET parameters
+
+Method:
+  1. Calculate days between consecutive entries
+  2. Filter outliers (gaps > 30 days = breaks, not pattern)
+  3. Calculate average and standard deviation
+  4. Classify user type based on average cadence
+
+User Types:
+  - power_user: ≤ 2 days between entries (daily/near-daily)
+  - frequent: 2-4 days between entries (2-3 times per week)
+  - weekly: 4-9 days between entries (once per week)
+  - sporadic: > 9 days between entries (less than weekly)
+  - insufficient_data: < 5 entries total
+
+Recalculation:
+  - Recalculate cadence every 10 new entries
+  - Track user type transitions over time
+```
+
+**Pseudocode:**
+```python
+def calculate_cadence(entries):
+    """
+    Calculate user journaling cadence
+    
+    Args:
+        entries: List of JournalEntry objects
+    
+    Returns:
+        UserCadenceMetrics
+    """
+    if len(entries) < 5:
+        return UserCadenceMetrics.insufficient_data()
+    
+    # Calculate days between consecutive entries
+    days_between = []
+    for i in range(1, len(entries)):
+        days_diff = (entries[i].timestamp - entries[i-1].timestamp).days
+        days_between.append(days_diff)
+    
+    # Filter outliers (gaps > 30 days = breaks)
+    filtered_gaps = [d for d in days_between if d <= 30]
+    
+    if not filtered_gaps:
+        return UserCadenceMetrics.sporadic()
+    
+    avg_days = sum(filtered_gaps) / len(filtered_gaps)
+    std_dev = calculate_std_dev(filtered_gaps, avg_days)
+    
+    return UserCadenceMetrics(
+        avg_days_between=avg_days,
+        std_dev=std_dev,
+        total_entries=len(entries),
+        window_days=30
+    )
+
+def classify_user_type(metrics):
+    """
+    Classify user based on cadence metrics
+    
+    Args:
+        metrics: UserCadenceMetrics
+    
+    Returns:
+        UserType enum
+    """
+    avg = metrics.avg_days_between
+    
+    if avg <= 2.0:
+        return UserType.power_user
+    elif avg <= 4.0:
+        return UserType.frequent
+    elif avg <= 9.0:
+        return UserType.weekly
+    else:
+        return UserType.sporadic
+```
+
+### Adaptive RIVET Configuration
+
+```
+Adaptive Configuration by User Type
+─────────────────────────────────────────────────────────────
+
+Power User (daily):
+  - minStabilityDays: 7
+  - maxStabilityDays: 14
+  - minEntriesForDetection: 7
+  - minEntriesInWindow: 5
+  - phaseConfidenceThreshold: 0.65
+  - transitionConfidenceThreshold: 0.60
+  - temporalDecayFactor: 0.95
+  - minIntensityForEmerging: 0.70
+  - minIntensityForEstablished: 0.80
+
+Frequent User (2-3x/week):
+  - minStabilityDays: 14
+  - maxStabilityDays: 28
+  - minEntriesForDetection: 7
+  - minEntriesInWindow: 5
+  - phaseConfidenceThreshold: 0.60
+  - transitionConfidenceThreshold: 0.55
+  - temporalDecayFactor: 0.97
+  - minIntensityForEmerging: 0.65
+  - minIntensityForEstablished: 0.75
+
+Weekly User:
+  - minStabilityDays: 28
+  - maxStabilityDays: 56
+  - minEntriesForDetection: 6
+  - minEntriesInWindow: 4
+  - phaseConfidenceThreshold: 0.55
+  - transitionConfidenceThreshold: 0.50
+  - temporalDecayFactor: 0.98
+  - minIntensityForEmerging: 0.60
+  - minIntensityForEstablished: 0.70
+
+Sporadic User:
+  - minStabilityDays: 42
+  - maxStabilityDays: 84
+  - minEntriesForDetection: 5
+  - minEntriesInWindow: 4
+  - phaseConfidenceThreshold: 0.50
+  - transitionConfidenceThreshold: 0.45
+  - temporalDecayFactor: 0.99
+  - minIntensityForEmerging: 0.55
+  - minIntensityForEstablished: 0.65
+```
+
+### Phase Intensity Calculation
+
+```
+Phase Intensity Calculator
+─────────────────────────────────────────────────────────────
+
+Purpose: Calculate how strongly an entry matches a phase signature
+
+Components:
+  1. Semantic Match (40%): Keyword alignment with phase signature
+  2. Emotional Alignment (30%): Emotional tone matches phase expectations
+  3. Consistency (30%): Similar signals across recent entries
+
+Formula:
+  intensity = (semantic_match × 0.4) + 
+              (emotional_alignment × 0.3) + 
+              (consistency × 0.3)
+
+Phase States:
+  - emerging: Low confidence, high intensity
+  - established: High confidence, high intensity
+  - stable: High confidence, moderate/low intensity
+  - unclear: Low confidence, low intensity
+```
+
+**Pseudocode:**
+```python
+def calculate_phase_intensity(entry, target_phase, config):
+    """
+    Calculate phase intensity for an entry
+    
+    Args:
+        entry: JournalEntry
+        target_phase: PhaseSignature
+        config: RivetConfig
+    
+    Returns:
+        Phase intensity score (0.0-1.0)
+    """
+    # Semantic match: keyword alignment
+    semantic_match = calculate_semantic_match(entry, target_phase)
+    
+    # Emotional alignment: tone matches phase expectations
+    emotional_alignment = calculate_emotional_alignment(entry, target_phase)
+    
+    # Consistency: similar signals across recent entries
+    consistency = calculate_consistency(entry, target_phase)
+    
+    intensity = (semantic_match * 0.4) + \
+                (emotional_alignment * 0.3) + \
+                (consistency * 0.3)
+    
+    return intensity.clamp(0.0, 1.0)
+
+def determine_phase_state(confidence, intensity, config):
+    """
+    Determine phase state from confidence and intensity
+    
+    Args:
+        confidence: Phase confidence score
+        intensity: Phase intensity score
+        config: RivetConfig
+    
+    Returns:
+        PhaseState enum
+    """
+    if confidence < config.phase_confidence_threshold:
+        if intensity >= config.min_intensity_for_emerging:
+            return PhaseState.emerging
+        else:
+            return PhaseState.unclear
+    else:
+        if intensity >= config.min_intensity_for_established:
+            return PhaseState.established
+        else:
+            return PhaseState.stable
+```
+
+### Configuration Transitions
+
+```
+Smooth Configuration Transitions
+─────────────────────────────────────────────────────────────
+
+When user type changes:
+  1. Detect type transition (e.g., power_user → weekly)
+  2. Start gradual interpolation over 5 entries
+  3. Linearly blend old and new configs
+  4. Complete transition after 5 entries
+
+Transition Formula:
+  config_t = old_config × (1 - progress) + new_config × progress
+  progress = entries_since_transition / 5
+
+Benefits:
+  - Prevents sudden algorithmic shifts
+  - Maintains measurement continuity
+  - Smooth user experience
+```
+
+---
+
 ## References
 
 - **Location**: `lib/prism/atlas/rivet/`
@@ -628,4 +872,5 @@ Test Scenarios
 - **Models**: `rivet_models.dart`
 - **Storage**: `rivet_storage.dart`
 - **Integration**: `rivet_provider.dart`
+- **Adaptive Framework**: `lib/services/adaptive/` (NEW)
 

@@ -1,7 +1,7 @@
 # EPI MVP - Architecture Overview
 
-**Version:** 2.1.87
-**Last Updated:** January 7, 2026
+**Version:** 3.1
+**Last Updated:** January 9, 2026
 **Status:** ✅ Production Ready - MVP Fully Operational with Companion-First LUMARA, Simplified Settings, Health Integration, AssemblyAI v3, Web Access Safety, Correlation-Resistant PII Protection, Bible Reference Retrieval, Google Drive Backup, Temporal Notifications & Enhanced Incremental Backups
 
 ---
@@ -33,6 +33,7 @@ EPI (Evolving Personal Intelligence) is a Flutter-based intelligent journaling a
 - ✅ **LUMARA Entry Classification System (v2.1.85)**: Intelligent classification prevents over-synthesis on simple questions while preserving sophisticated temporal intelligence for complex entries
 - ✅ **Enhanced PRISM Semantic Summarization (v2.1.86)**: Classification-aware privacy system with improved technical content detection and on-device semantic analysis
 - ✅ **LUMARA v3.0 User Prompt System (v3.0)**: Fixed user prompt to reinforce master prompt constraints instead of overriding them, ensuring word limits, dated examples, and banned phrases are properly enforced
+- ✅ **Adaptive Framework (v3.1)**: User-adaptive calibration system for SENTINEL and RIVET algorithms that automatically adjusts parameters based on journaling cadence (power user, frequent, weekly, sporadic)
 
 ### Current Version
 
@@ -205,6 +206,12 @@ The EPI system is organized into 5 core modules:
     - `phase_tracker.dart` - EMA smoothing and hysteresis for stable phase detection
   - `rivet/` - Risk-Validation Evidence Tracker
   - `sentinel/` - Severity evaluation and negative trend identification
+- `adaptive/` - User-adaptive calibration system (NEW v3.1)
+  - `user_cadence_detector.dart` - Detects user journaling patterns (power user, frequent, weekly, sporadic)
+  - `adaptive_config.dart` - Unified adaptive configuration for RIVET and Sentinel
+  - `rivet_config.dart` - Adaptive RIVET configuration by user type
+  - `adaptive_sentinel_calculator.dart` - Enhanced Sentinel with emotional concentration and explicit emotion detection
+  - `adaptive_algorithm_service.dart` - Orchestration service for adaptive algorithms
 - `extractors/` - Keyword, emotion, context, metadata extraction
   - `enhanced_keyword_extractor.dart` - Curated keyword library with intensities and RIVET gating
 - `processors/` - Text, image, audio, video processing
@@ -220,6 +227,11 @@ The EPI system is organized into 5 core modules:
 - Automatic migration of legacy phase data
 - RIVET gating for phase transitions
 - SENTINEL risk monitoring
+- **Adaptive Framework (v3.1)**: Automatic calibration based on user journaling cadence
+  - User cadence detection (power user, frequent, weekly, sporadic)
+  - Adaptive RIVET configuration (stability windows, confidence thresholds, temporal decay)
+  - Adaptive Sentinel configuration (emotional intensity weights, normalization methods, explicit emotion multipliers)
+  - Smooth configuration transitions when user patterns change
 - Health data integration
 - Privacy-aware processing
 
@@ -541,12 +553,62 @@ Update last export date and tracked IDs/hashes
 
 ---
 
+## Adaptive Framework (v3.1)
+
+### Overview
+
+The Adaptive Framework automatically calibrates RIVET and Sentinel algorithms based on user journaling patterns. The core principle: **Psychological time ≠ Calendar time**. A phase transition takes the same number of journal entries whether written daily or weekly, but spans different calendar periods.
+
+### User Cadence Detection
+
+The system automatically detects user journaling cadence and classifies users into one of five types:
+
+- **Power User**: ≤ 2 days between entries (daily/near-daily journaling)
+- **Frequent**: 2-4 days between entries (2-3 times per week)
+- **Weekly**: 4-9 days between entries (once per week)
+- **Sporadic**: > 9 days between entries (less than weekly)
+- **Insufficient Data**: < 5 entries total
+
+### Adaptive RIVET Configuration
+
+RIVET parameters automatically adjust based on user type:
+
+- **Stability Windows**: Power users (7-14 days) vs. Sporadic users (42-84 days)
+- **Confidence Thresholds**: Lower thresholds for sparse journalers
+- **Temporal Decay**: Slower decay for less frequent entries
+- **Phase Intensity**: Adjusted thresholds for emerging vs. established phases
+
+### Adaptive Sentinel Configuration
+
+Sentinel emotional density calculation adapts to user patterns:
+
+- **Component Weights**: Higher emotional intensity weight for sparse journalers
+- **Emotional Concentration**: Detects when multiple emotional terms cluster in same semantic family
+- **Explicit Emotion Detection**: Multipliers for explicit emotion statements ("I feel...", "I'm so...")
+- **Word Count Normalization**: Linear for power users, sqrt/log for sparse journalers
+- **Temporal Decay**: Slower decay for less frequent entries
+
+### Configuration Transitions
+
+When user cadence changes (e.g., power user → weekly), the system smoothly transitions configurations over 5 entries to prevent sudden algorithmic shifts.
+
+### Implementation
+
+- **Location**: `lib/services/adaptive/`
+- **Storage**: Firebase Firestore (`users/{userId}/adaptive_state/cadence_profile`)
+- **Recalculation**: Every 10 new entries or on demand
+- **Documentation**: See [RIVET Architecture](RIVET_ARCHITECTURE.md) and [Sentinel Architecture](SENTINEL_ARCHITECTURE.md) for detailed pseudocode
+
+---
+
 ## Related Documentation
 
 For detailed information on specific modules and features, see:
 - [Features Guide](FEATURES.md)
 - [Changelog](CHANGELOG.md)
 - [Bug Tracker](BUGTRACKER.md)
+- [RIVET Architecture](RIVET_ARCHITECTURE.md) - Phase detection and validation
+- [Sentinel Architecture](SENTINEL_ARCHITECTURE.md) - Crisis detection system
 
 ---
 

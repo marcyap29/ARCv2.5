@@ -731,6 +731,401 @@ Test Scenarios
 
 ---
 
+## Adaptive Framework
+
+### Overview
+
+Sentinel now includes an **adaptive configuration system** that automatically adjusts emotional density calculation based on user journaling cadence and writing style. The system adapts to different usage patterns to maintain consistent psychological measurement across different cadences.
+
+### User Cadence Detection
+
+```
+User Cadence Detection
+─────────────────────────────────────────────────────────────
+
+Purpose: Detect user's journaling pattern to adapt Sentinel parameters
+
+Method:
+  1. Calculate days between consecutive entries
+  2. Filter outliers (gaps > 30 days = breaks, not pattern)
+  3. Calculate average and standard deviation
+  4. Classify user type based on average cadence
+
+User Types:
+  - power_user: ≤ 2 days between entries (daily/near-daily)
+  - frequent: 2-4 days between entries (2-3 times per week)
+  - weekly: 4-9 days between entries (once per week)
+  - sporadic: > 9 days between entries (less than weekly)
+  - insufficient_data: < 5 entries total
+
+Recalculation:
+  - Recalculate cadence every 10 new entries
+  - Track user type transitions over time
+```
+
+### Adaptive Sentinel Configuration
+
+```
+Adaptive Configuration by User Type
+─────────────────────────────────────────────────────────────
+
+Power User (daily):
+  - emotionalIntensityWeight: 0.25
+  - emotionalDiversityWeight: 0.25
+  - thematicCoherenceWeight: 0.25
+  - temporalDynamicsWeight: 0.25
+  - emotionalConcentrationWeight: 0.0
+  - explicitEmotionMultiplier: 1.0-1.0
+  - normalizationMethod: linear
+  - normalizationFloor: 50
+  - temporalDecayFactor: 0.95
+  - highIntensityThreshold: 0.7
+  - minWordsForFullScore: 100
+
+Frequent User (2-3x/week):
+  - emotionalIntensityWeight: 0.30
+  - emotionalDiversityWeight: 0.20
+  - thematicCoherenceWeight: 0.20
+  - temporalDynamicsWeight: 0.20
+  - emotionalConcentrationWeight: 0.10
+  - explicitEmotionMultiplier: 1.0-1.3
+  - normalizationMethod: sqrt
+  - normalizationFloor: 50
+  - temporalDecayFactor: 0.97
+  - highIntensityThreshold: 0.7
+  - minWordsForFullScore: 100
+
+Weekly User:
+  - emotionalIntensityWeight: 0.35
+  - emotionalDiversityWeight: 0.15
+  - thematicCoherenceWeight: 0.15
+  - temporalDynamicsWeight: 0.15
+  - emotionalConcentrationWeight: 0.20
+  - explicitEmotionMultiplier: 1.0-1.5
+  - normalizationMethod: sqrt
+  - normalizationFloor: 50
+  - temporalDecayFactor: 0.98
+  - highIntensityThreshold: 0.65
+  - minWordsForFullScore: 75
+
+Sporadic User:
+  - emotionalIntensityWeight: 0.40
+  - emotionalDiversityWeight: 0.10
+  - thematicCoherenceWeight: 0.10
+  - temporalDynamicsWeight: 0.15
+  - emotionalConcentrationWeight: 0.25
+  - explicitEmotionMultiplier: 1.0-1.5
+  - normalizationMethod: sqrt
+  - normalizationFloor: 40
+  - temporalDecayFactor: 0.99
+  - highIntensityThreshold: 0.6
+  - minWordsForFullScore: 50
+```
+
+### Emotional Concentration Metric
+
+```
+Emotional Concentration Calculation
+─────────────────────────────────────────────────────────────
+
+Purpose: Detect when multiple emotional terms cluster in same semantic family
+
+Method:
+  1. Group emotional terms by semantic family (fear, anger, sadness, etc.)
+  2. Calculate concentration score for each family
+  3. Return maximum concentration across families
+
+Emotion Families:
+  - fear: afraid, scared, terrified, anxious, worried, etc.
+  - anger: angry, furious, mad, irritated, frustrated, etc.
+  - sadness: sad, depressed, miserable, down, hopeless, etc.
+  - joy: happy, joyful, excited, elated, thrilled, etc.
+  - disgust: disgusted, revolted, repulsed, sickened, etc.
+  - surprise: surprised, shocked, astonished, amazed, etc.
+  - shame: ashamed, embarrassed, humiliated, guilty, etc.
+
+Formula:
+  concentration = (family_term_count / total_terms) × avg_intensity
+
+Properties:
+  - Higher concentration = more focused emotional state
+  - Important for sparse journalers (weekly/sporadic)
+  - Range: [0.0, 1.0]
+```
+
+**Pseudocode:**
+```python
+def calculate_emotional_concentration(emotional_terms, config):
+    """
+    Calculate emotional concentration score
+    
+    Args:
+        emotional_terms: Map of term -> intensity
+        config: SentinelConfig
+    
+    Returns:
+        Concentration score (0.0-1.0)
+    """
+    if not emotional_terms:
+        return 0.0
+    
+    # Group terms by emotion family
+    family_groups = {}
+    for term, intensity in emotional_terms.items():
+        family = find_emotion_family(term)
+        if family:
+            family_groups.setdefault(family, []).append((term, intensity))
+    
+    # Calculate concentration for each family
+    max_concentration = 0.0
+    for family, terms in family_groups.items():
+        if len(terms) >= 2:  # Multiple terms from same family
+            avg_intensity = sum(i for _, i in terms) / len(terms)
+            concentration = (len(terms) / len(emotional_terms)) * avg_intensity
+            max_concentration = max(max_concentration, concentration)
+    
+    return max_concentration.clamp(0.0, 1.0)
+```
+
+### Explicit Emotion Detection
+
+```
+Explicit Emotion Detection
+─────────────────────────────────────────────────────────────
+
+Purpose: Boost scores for explicit emotion statements
+
+Patterns:
+  - "I feel [emotion]"
+  - "I am [emotion]"
+  - "I'm [emotion]"
+  - "I'm so [emotion]"
+  - "I'm feeling [emotion]"
+  - "I can't cope/handle/deal"
+
+Multiplier Calculation:
+  - Base multiplier: config.explicitEmotionMultiplierMin
+  - Increment per match: (max - min) / 3
+  - Max multiplier: config.explicitEmotionMultiplierMax
+
+Formula:
+  multiplier = min + (increment × match_count.clamp(0, 3))
+
+Properties:
+  - Rewards explicit emotional expression
+  - Important for users who express emotions directly
+  - Range: [min, max] (typically 1.0-1.5)
+```
+
+**Pseudocode:**
+```python
+def calculate_explicit_emotion_multiplier(text, config):
+    """
+    Calculate multiplier for explicit emotion statements
+    
+    Args:
+        text: Entry text
+        config: SentinelConfig
+    
+    Returns:
+        Multiplier (1.0-1.5 typically)
+    """
+    patterns = [
+        r'\bi\s+feel\s+(\w+)',
+        r'\bi\s+am\s+(\w+)',
+        r'\bi\'m\s+(\w+)',
+        r'\bi\'m\s+so\s+(\w+)',
+        r'\bi\s+can\'t\s+(handle|deal|cope)',
+        r'\bi\'m\s+feeling\s+(\w+)',
+    ]
+    
+    match_count = 0
+    for pattern in patterns:
+        if re.search(pattern, text, re.IGNORECASE):
+            match_count += 1
+    
+    if match_count == 0:
+        return config.explicit_emotion_multiplier_min
+    
+    increment = (config.explicit_emotion_multiplier_max - 
+                config.explicit_emotion_multiplier_min) / 3
+    
+    multiplier = config.explicit_emotion_multiplier_min + \
+                 (increment * min(match_count, 3))
+    
+    return multiplier.clamp(
+        config.explicit_emotion_multiplier_min,
+        config.explicit_emotion_multiplier_max
+    )
+```
+
+### Adaptive Word Count Normalization
+
+```
+Word Count Normalization
+─────────────────────────────────────────────────────────────
+
+Purpose: Normalize emotional density scores by entry length
+
+Methods:
+  1. Linear: divide by word_count
+  2. Sqrt: divide by sqrt(word_count)
+  3. Log: divide by log(word_count + 1)
+
+Selection by User Type:
+  - Power user: linear (entries typically similar length)
+  - Frequent/Weekly/Sporadic: sqrt (entries vary more in length)
+
+Formula:
+  normalized_score = raw_score / normalization_function(word_count)
+
+Properties:
+  - Prevents long entries from dominating scores
+  - Adapts to user writing style
+  - Maintains score comparability across entries
+```
+
+**Pseudocode:**
+```python
+def normalize_by_word_count(raw_score, word_count, config):
+    """
+    Normalize score by word count using adaptive method
+    
+    Args:
+        raw_score: Raw emotional density score
+        word_count: Number of words in entry
+        config: SentinelConfig
+    
+    Returns:
+        Normalized score
+    """
+    effective_count = max(word_count, config.normalization_floor)
+    
+    if config.normalization_method == WordCountNormalization.linear:
+        return raw_score / effective_count
+    elif config.normalization_method == WordCountNormalization.sqrt:
+        return raw_score / sqrt(effective_count)
+    elif config.normalization_method == WordCountNormalization.log:
+        return raw_score / log(effective_count + 1)
+```
+
+### Enhanced Emotional Density Calculation
+
+```
+Adaptive Emotional Density Pipeline
+─────────────────────────────────────────────────────────────
+
+INPUT: JournalEntry
+  ├─ text, timestamp, userId
+
+PROCESS:
+  1. Extract emotional terms and intensities
+     └─ emotional_terms = extract_emotional_terms(entry.text)
+  
+  2. Calculate base components
+     ├─ emotional_intensity = calculate_intensity(emotional_terms)
+     ├─ emotional_diversity = calculate_diversity(emotional_terms)
+     ├─ thematic_coherence = calculate_coherence(entry.text)
+     └─ temporal_dynamics = calculate_temporal(entry, prior_entries)
+  
+  3. Calculate NEW components
+     ├─ emotional_concentration = calculate_concentration(emotional_terms, config)
+     └─ explicit_multiplier = calculate_explicit_multiplier(entry.text, config)
+  
+  4. Weighted combination
+     └─ raw_score = (intensity × weight_intensity) +
+                     (diversity × weight_diversity) +
+                     (coherence × weight_coherence) +
+                     (temporal × weight_temporal) +
+                     (concentration × weight_concentration)
+  
+  5. Apply explicit emotion multiplier
+     └─ raw_score *= explicit_multiplier
+  
+  6. Normalize by word count
+     └─ normalized_score = normalize(raw_score, word_count, config)
+
+OUTPUT: Emotional Density Score (0.0-1.0)
+```
+
+**Pseudocode:**
+```python
+def calculate_emotional_density(entry, prior_entries, config):
+    """
+    Calculate adaptive emotional density score
+    
+    Args:
+        entry: JournalEntry
+        prior_entries: List of recent JournalEntry objects
+        config: SentinelConfig
+    
+    Returns:
+        Emotional density score (0.0-1.0)
+    """
+    # Extract emotional terms
+    emotional_terms = extract_emotional_terms(entry.text)
+    
+    # Calculate base components
+    emotional_intensity = calculate_emotional_intensity(emotional_terms)
+    emotional_diversity = calculate_emotional_diversity(emotional_terms)
+    thematic_coherence = calculate_thematic_coherence(entry.text)
+    temporal_dynamics = calculate_temporal_dynamics(entry, prior_entries)
+    
+    # NEW: Calculate emotional concentration
+    emotional_concentration = calculate_emotional_concentration(
+        emotional_terms,
+        config
+    )
+    
+    # NEW: Detect explicit emotion statements
+    explicit_multiplier = calculate_explicit_emotion_multiplier(
+        entry.text,
+        config
+    )
+    
+    # Weighted combination
+    raw_score = (
+        emotional_intensity * config.emotional_intensity_weight +
+        emotional_diversity * config.emotional_diversity_weight +
+        thematic_coherence * config.thematic_coherence_weight +
+        temporal_dynamics * config.temporal_dynamics_weight +
+        emotional_concentration * config.emotional_concentration_weight
+    )
+    
+    # Apply explicit emotion multiplier
+    raw_score *= explicit_multiplier
+    
+    # Normalize by word count
+    word_count = len(entry.text.split())
+    normalized_score = normalize_by_word_count(raw_score, word_count, config)
+    
+    return normalized_score.clamp(0.0, 1.0)
+```
+
+### Configuration Transitions
+
+```
+Smooth Configuration Transitions
+─────────────────────────────────────────────────────────────
+
+When user type changes:
+  1. Detect type transition (e.g., power_user → weekly)
+  2. Start gradual interpolation over 5 entries
+  3. Linearly blend old and new configs
+  4. Complete transition after 5 entries
+
+Transition Formula:
+  config_t = old_config × (1 - progress) + new_config × progress
+  progress = entries_since_transition / 5
+
+Benefits:
+  - Prevents sudden algorithmic shifts
+  - Maintains measurement continuity
+  - Smooth user experience
+```
+
+---
+
 ## References
 
 - **Location**: `lib/services/sentinel/`
@@ -738,4 +1133,5 @@ Test Scenarios
 - **Crisis Mode**: `crisis_mode.dart`
 - **Configuration**: `sentinel_config.dart`
 - **Integration**: `lib/arc/chat/services/enhanced_lumara_api.dart`
+- **Adaptive Framework**: `lib/services/adaptive/` (NEW)
 

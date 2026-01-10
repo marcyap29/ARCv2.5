@@ -1,6 +1,6 @@
 # EPI MVP - Evolving Personal Intelligence
 
-**Version:** 2.1.89
+**Version:** 3.1
 **Last Updated:** January 9, 2026
 **Status:** ✅ Production Ready with Enhanced Privacy System
 
@@ -32,6 +32,7 @@ EPI (Evolving Personal Intelligence) is a sophisticated Flutter-based personal i
 
 ### 🌊 Phase Detection (RIVET System)
 - **Automatic Life Phase Detection**: AI-powered analysis of journal patterns
+- **Adaptive Configuration (v3.1)**: Automatically adjusts RIVET parameters based on user journaling cadence (power user, frequent, weekly, sporadic)
 - **Interactive 3D Visualization**: ARCForm spherical representations of emotional states
 - **Timeline Navigation**: Explore life phases with entry-level granularity
 - **Phase Regime Tracking**: 10-day rolling windows for trend analysis
@@ -44,6 +45,13 @@ EPI (Evolving Personal Intelligence) is a sophisticated Flutter-based personal i
 - **PII Scrubbing**: Automatic removal of personally identifiable information
 - **Correlation-Resistant Transformation**: Advanced privacy techniques for cloud processing
 - **Local Data Sovereignty**: All personal data stored locally on device
+
+### 🎯 Adaptive Framework (v3.1)
+- **User Cadence Detection**: Automatically detects journaling patterns (daily, weekly, sporadic)
+- **Adaptive RIVET**: Phase detection parameters adjust to user cadence
+- **Adaptive Sentinel**: Emotional density calculation adapts to writing style and frequency
+- **Smooth Transitions**: Configuration changes gradually over 5 entries to prevent sudden shifts
+- **Psychological Time**: Algorithms measure in journal entries, not calendar days
 
 ### 🎯 Health Integration
 - **HealthKit Integration**: Sleep quality, energy levels, activity data
