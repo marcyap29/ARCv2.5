@@ -1,7 +1,7 @@
 # EPI MVP - UI/UX Feature Documentation
 
-**Version:** 2.1.87
-**Last Updated:** January 7, 2026
+**Version:** 2.1.89
+**Last Updated:** January 9, 2026
 **Status:** ✅ Comprehensive Feature Analysis Complete
 
 ---
@@ -44,6 +44,7 @@ The EPI (Evolving Personal Intelligence) Flutter application provides a sophisti
 28. [Journal Entry Overview (v2.1.80)](#28-journal-entry-overview-v2180)
 29. [Simplified Settings System (v2.1.87)](#29-simplified-settings-system-v2187)
 30. [LUMARA v3.0 User Prompt System (v3.0)](#30-lumara-v30-user-prompt-system-v30)
+31. [LUMARA Header Redesign (v2.1.89)](#31-lumara-header-redesign-v2189)
 
 ---
 
@@ -2316,6 +2317,120 @@ Respond now following ALL constraints above.
 - [LUMARA Master Prompt System](../lib/arc/chat/prompts/README_MASTER_PROMPT.md)
 - [LUMARA v3.0 Implementation Summary](../../LUMARA_V3_IMPLEMENTATION_SUMMARY.md)
 - [Bug Tracker: User Prompt Override](../bugtracker/records/lumara-user-prompt-override.md)
+
+---
+
+## 31. LUMARA Header Redesign (v2.1.89)
+
+### Overview
+Comprehensive redesign of the LUMARA chat interface header to resolve UI overlap issues and improve user experience. The primary focus was removing UI clutter while maintaining persona functionality through alternative access methods.
+
+### Problem Addressed
+**UI Overlap Issue**: The persona dropdown selector (":Companion", ":Strategist", etc.) was appearing in the AppBar actions and visually overlapping with the subscription status badge ("Premium"/"Free"), making both elements difficult to read.
+
+### Key Changes
+
+#### Header Simplification
+- **Removed**: PersonaSelectorWidget dropdown from AppBar actions
+- **Retained**: Clean layout with just "LUMARA" title and subscription status
+- **Result**: No more visual overlap, better readability
+
+#### Persona Access Redesign
+- **Previous**: Dropdown menu in header for persona selection
+- **Current**: Personas accessed via action buttons below chat messages
+- **Available Actions**:
+  - "Think more deeply" → Strategist mode
+  - "Reflect on this" → Therapist mode
+  - "Challenge me" → Challenger mode
+  - "Regenerate" → Companion mode
+
+#### UI Component Changes
+**AppBar Structure (After)**:
+```dart
+AppBar(
+  title: Row(
+    children: [
+      Text('LUMARA'),
+      SizedBox(width: 12),
+      LumaraSubscriptionStatus(compact: true), // Clearly visible now
+    ],
+  ),
+  actions: [
+    // Persona dropdown REMOVED
+    IconButton(icon: Icons.mic_none), // Voice chat
+    PopupMenuButton(), // Settings menu
+  ],
+)
+```
+
+### User Experience Impact
+
+#### Positive Changes
+- **Cleaner Interface**: Header no longer cluttered with overlapping elements
+- **Better Readability**: Subscription status clearly visible
+- **Intuitive Interaction**: Personas accessible through contextual action buttons
+- **Consistent Design**: Follows mobile app best practices for header layout
+
+#### Maintained Functionality
+- **Full Persona Access**: All persona modes remain available
+- **Context-Aware**: Persona actions appear when relevant to conversation
+- **Crisis Mode**: Automatic therapist mode still enforced when needed
+
+### Technical Implementation
+
+#### Files Modified
+1. **`lib/arc/chat/ui/lumara_assistant_screen.dart`**
+   - Removed PersonaSelectorWidget from AppBar actions
+   - Simplified persona system to use string values
+   - Cleaned up enum imports and references
+
+2. **`lib/arc/chat/ui/widgets/persona_selector_widget.dart`**
+   - Widget preserved but no longer used in header
+   - Fixed syntax and formatting issues
+
+#### Code Quality Improvements
+- **Simplified Logic**: Removed complex enum handling in favor of strings
+- **Better Maintainability**: Cleaner separation of concerns
+- **Enhanced Debugging**: Easier to trace persona state changes
+
+### Design Principles Applied
+
+#### Visual Hierarchy
+- **Primary**: LUMARA brand name
+- **Secondary**: Subscription status
+- **Tertiary**: Action buttons
+
+#### Information Architecture
+- **Header**: Essential branding and status
+- **Content Area**: Interactive elements and personas
+- **Actions**: Secondary functions (voice, settings)
+
+#### Accessibility
+- **Improved Touch Targets**: No overlapping interactive elements
+- **Clear Information**: Subscription status easily readable
+- **Logical Flow**: Personas accessible where most relevant
+
+### Future Considerations
+
+#### Potential Enhancements
+- **Persona Indicators**: Subtle visual cues for active persona
+- **Quick Access**: Consider floating action button for persona switching
+- **Customization**: User preference for persona access method
+
+#### Mobile-First Design
+- **Responsive Layout**: Header adapts to different screen sizes
+- **Touch Optimization**: All elements have appropriate touch targets
+- **Performance**: Reduced widget complexity improves rendering
+
+### Related Updates
+- **Authentication Flow**: Enhanced Google sign-in requirement for subscriptions
+- **Debug Logging**: Improved troubleshooting for persona state
+- **Error Handling**: Better user feedback during authentication
+
+### Documentation References
+- [Bug Report: UI Overlap Issue](../bugtracker/records/lumara-ui-overlap-stripe-auth-fixes.md)
+- [LUMARA Persona System](../FEATURES.md#lumara-persona-system)
+- [Header Design Guidelines](../ARCHITECTURE.md#ui-components)
 
 ---
 

@@ -1,7 +1,18 @@
 # Stripe Integration Analysis - EPI Flutter App
 
+**Last Updated:** January 9, 2026
+**Version:** v2.1.89
+
 ## Overview
 This document provides a comprehensive analysis of the current Stripe integration in the EPI Flutter application, documenting the architecture, implementation status, and requirements for completing the payment system.
+
+## Recent Updates (v2.1.89)
+- **Fixed Authentication Issues**: Resolved UNAUTHENTICATED errors in subscription upgrade flow
+- **Enhanced Google Sign-in Requirement**: All subscription access now requires real Google accounts using `hasRealAccount` check
+- **Improved User Experience**: Added progress feedback during authentication process with SnackBar notifications
+- **Debug Logging**: Comprehensive authentication status tracking for troubleshooting
+- **UI Header Cleanup**: Removed PersonaSelectorWidget from LUMARA header to eliminate overlap with Premium badge
+- **Persona Access Preserved**: Personas remain accessible via action buttons below chat bubbles
 
 ---
 
@@ -232,6 +243,59 @@ url_launcher: ^6.3.1  # For opening checkout URLs
 - **Webhook Verification**: Production deployment vulnerable without signature verification
 - **API Key Exposure**: Need proper secrets management
 - **Auth Bypass**: Ensure all payment functions properly authenticate users
+
+### ✅ **RECENT AUTHENTICATION FIXES (v2.1.89)**
+
+#### Enhanced Google Sign-in Enforcement
+**Problem**: Users without real Google accounts were reaching subscription flow and getting UNAUTHENTICATED errors.
+
+**Solution**: Implemented robust authentication check using `hasRealAccount` property:
+
+```dart
+// Enhanced authentication flow in subscription_management_view.dart:507
+if (!authService.hasRealAccount) {
+  debugPrint('SubscriptionManagement: User needs real account, prompting for Google sign-in');
+
+  if (mounted) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Signing in with Google for subscription access...'),
+        backgroundColor: Colors.blue,
+      ),
+    );
+  }
+
+  final userCredential = await authService.signInWithGoogle();
+
+  if (userCredential == null) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Google sign-in is required for subscription access'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+    }
+    return;
+  }
+}
+```
+
+#### Debug Logging Enhancement
+Added comprehensive authentication status logging for troubleshooting:
+
+```dart
+debugPrint('SubscriptionManagement: AUTH STATUS CHECK:');
+debugPrint('  isSignedIn: ${authService.isSignedIn}');
+debugPrint('  isAnonymous: ${authService.isAnonymous}');
+debugPrint('  hasRealAccount: ${authService.hasRealAccount}');
+debugPrint('  currentUser: ${authService.currentUser?.email ?? authService.currentUser?.uid ?? "NULL"}');
+```
+
+#### User Experience Improvements
+- **Progress Feedback**: SnackBar notifications during sign-in process
+- **Clear Messaging**: Explicit requirement for Google accounts
+- **Graceful Handling**: Proper error states and retry mechanisms
 
 ---
 

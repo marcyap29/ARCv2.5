@@ -1,6 +1,6 @@
 # EPI ARC MVP - Changelog
 
-**Version:** 2.1.88
+**Version:** 2.1.89
 **Last Updated:** January 9, 2026
 
 ---
@@ -14,6 +14,33 @@ This changelog has been split into parts for easier navigation:
 | **[CHANGELOG_part1.md](CHANGELOG_part1.md)** | Dec 2025 | v2.1.43 - v2.1.87 (Current) |
 | **[CHANGELOG_part2.md](CHANGELOG_part2.md)** | Nov 2025 | v2.1.28 - v2.1.42 |
 | **[CHANGELOG_part3.md](CHANGELOG_part3.md)** | Jan-Oct 2025 | v2.0.0 - v2.1.27 & Earlier |
+
+---
+
+## [2.1.89] - January 9, 2026
+
+### 🎨 UI/UX Improvements
+- **Fixed LUMARA Header Overlap Issue**: Removed persona dropdown from header that was covering Premium badge
+- **Improved User Experience**: Personas now accessible only through action buttons below chat bubbles and journal entries
+- **Cleaner Header Design**: LUMARA header now shows only essential elements (LUMARA title + subscription status)
+
+### 🔐 Authentication & Subscription Enhancements
+- **Enhanced Stripe Integration**: Fixed UNAUTHENTICATED errors in subscription upgrade flow
+- **Forced Google Sign-in**: All subscription access now requires real Google account (no anonymous users)
+- **Better User Feedback**: Added progress messages during authentication process
+- **Robust Authentication Checks**: Enhanced auth validation using `hasRealAccount` instead of `isAnonymous`
+- **Debug Logging**: Added comprehensive authentication status logging for troubleshooting
+
+### 📁 Files Modified
+- `lib/arc/chat/ui/lumara_assistant_screen.dart`: Removed persona dropdown from header
+- `lib/arc/chat/ui/widgets/persona_selector_widget.dart`: Widget simplified and cleaned up
+- `lib/ui/subscription/subscription_management_view.dart`: Enhanced authentication flow
+
+### 🎯 User Experience Impact
+- Clean LUMARA interface without UI overlap issues
+- Personas accessible via intuitive action buttons ("think more deeply", "regenerate", etc.)
+- Reliable subscription upgrade flow with proper authentication
+- Clear feedback during sign-in process
 
 ---
 

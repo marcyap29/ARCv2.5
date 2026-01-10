@@ -1,7 +1,7 @@
 # EPI MVP - Evolving Personal Intelligence
 
-**Version:** 2.1.86
-**Last Updated:** January 7, 2026
+**Version:** 2.1.89
+**Last Updated:** January 9, 2026
 **Status:** ✅ Production Ready with Enhanced Privacy System
 
 ---
@@ -59,8 +59,9 @@ EPI (Evolving Personal Intelligence) is a sophisticated Flutter-based personal i
 
 ### 🔐 Authentication & Subscription
 - **Firebase Authentication**: Anonymous, Google, and email/password options
+- **Enhanced Google Sign-in (v2.1.89)**: Robust authentication for subscription access
 - **Tiered Access System**: Free tier with upgrade options
-- **Stripe Integration**: Secure payment processing
+- **Stripe Integration**: Secure payment processing with improved authentication flow
 - **Rate Limiting**: Per-entry and per-chat usage controls
 
 ---

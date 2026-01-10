@@ -1,7 +1,7 @@
 # EPI MVP - Comprehensive Features Guide
 
-**Version:** 2.1.87
-**Last Updated:** January 7, 2026
+**Version:** 2.1.89
+**Last Updated:** January 9, 2026
 
 ---
 
@@ -291,6 +291,10 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 - **Decisiveness Rules**: Uses confident, grounded statements without hedging, speculation, or vague language
 
 **Unified LUMARA UI/UX**
+- **Clean Header Design (v2.1.89)**: Streamlined LUMARA chat header with icon and title only
+  - **Removed Elements**: PersonaSelectorWidget dropdown removed from header to eliminate UI overlap
+  - **Preserved Functionality**: Personas remain accessible via action buttons below chat bubbles
+  - **Visual Clarity**: Premium subscription badge no longer obstructed by persona text
 - **Consistent Header**: LUMARA icon and text header in both in-journal and in-chat bubbles
 - **Unified Button Placement**: Copy/delete buttons positioned at lower left in both interfaces
 - **Selectable Text**: In-journal LUMARA text is selectable and copyable
@@ -594,7 +598,10 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 - Automatic subscription status updates via webhooks
 - Secrets stored securely in Firebase Secret Manager
 - Webhook signature verification for security
-- Authentication required for all payment functions
+- **Enhanced Authentication (v2.1.89)**: Robust Google Sign-in enforcement for all subscription access
+  - Forces real Google accounts using `hasRealAccount` check
+  - Comprehensive debug logging for troubleshooting authentication issues
+  - Progress feedback with SnackBar notifications during sign-in process
 
 **Subscription Management UI:**
 - Subscription status display with tier badges
@@ -602,6 +609,7 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 - "Manage Subscription" button for premium users (opens Stripe Customer Portal)
 - Clear pricing display (Monthly vs Annual)
 - Cache management for subscription status
+- **Authentication UX**: Clear messaging when Google sign-in is required for subscription access
 
 **Setup Documentation:**
 - Complete setup guide: `docs/stripe/STRIPE_SECRETS_SETUP.md`
