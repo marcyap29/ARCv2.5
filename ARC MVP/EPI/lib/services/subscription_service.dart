@@ -370,13 +370,39 @@ class SubscriptionService {
       final preview = freshToken.length > 30 ? freshToken.substring(0, 30) : freshToken;
       debugPrint('  Token preview: $preview...');
 
+      // CRITICAL: Wait a moment to ensure auth state is fully propagated to Firebase
+      await Future.delayed(const Duration(milliseconds: 300));
+      
+      // Verify auth state one final time right before the call
+      final preCallAuth = FirebaseAuthService.instance;
+      if (preCallAuth.currentUser == null || preCallAuth.currentUser!.isAnonymous) {
+        debugPrint('SubscriptionService: ❌ PRE-CALL AUTH CHECK FAILED');
+        debugPrint('  currentUser: ${preCallAuth.currentUser?.uid ?? "NULL"}');
+        debugPrint('  isAnonymous: ${preCallAuth.currentUser?.isAnonymous ?? true}');
+        throw Exception('Authentication required. Please sign in with Google and try again.');
+      }
+
       // Make the callable request
       // Firebase automatically includes the auth token in the request headers
+      debugPrint('SubscriptionService: 📞 Calling Firebase Function createCheckoutSession...');
+      debugPrint('SubscriptionService: 🔐 Pre-call auth state:');
+      debugPrint('  User ID: ${preCallAuth.currentUser!.uid}');
+      debugPrint('  Email: ${preCallAuth.currentUser!.email ?? "No email"}');
+      debugPrint('  isAnonymous: ${preCallAuth.currentUser!.isAnonymous}');
+      
       final result = await callable.call({
         'billingInterval': interval.apiValue,
         'successUrl': 'arc://subscription/success',
         'cancelUrl': 'arc://subscription/cancel',
-      });
+      }).timeout(
+        const Duration(seconds: 30),
+        onTimeout: () {
+          debugPrint('SubscriptionService: ❌ Function call timed out after 30 seconds');
+          throw Exception('Request timed out. Please check your connection and try again.');
+        },
+      );
+      
+      debugPrint('SubscriptionService: ✅ Function call succeeded');
 
       final data = result.data as Map<String, dynamic>;
       final checkoutUrl = (data['url'] ?? data['checkoutUrl']) as String?;

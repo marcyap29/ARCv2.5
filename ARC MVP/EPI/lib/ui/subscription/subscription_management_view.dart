@@ -535,9 +535,25 @@ class _SubscriptionManagementViewState extends State<SubscriptionManagementView>
       debugPrint('SubscriptionManagement: 🔄 Clearing cache before proceeding');
       SubscriptionService.instance.clearCache();
 
+      // ALWAYS check authentication status - be very explicit
+      final isSignedIn = authService.isSignedIn;
+      final isAnonymous = authService.isAnonymous;
+      final hasRealAccount = authService.hasRealAccount;
+      final currentUser = authService.currentUser;
+      
+      debugPrint('SubscriptionManagement: 🔍 DETAILED AUTH CHECK:');
+      debugPrint('  isSignedIn: $isSignedIn');
+      debugPrint('  isAnonymous: $isAnonymous');
+      debugPrint('  hasRealAccount: $hasRealAccount');
+      debugPrint('  currentUser: ${currentUser?.uid ?? "NULL"}');
+      debugPrint('  email: ${currentUser?.email ?? "NULL"}');
+      debugPrint('  providerData: ${currentUser?.providerData.map((p) => p.providerId).toList() ?? []}');
+      
       // If not signed in with a real account, navigate to sign-in screen first
-      if (!authService.hasRealAccount) {
-        debugPrint('SubscriptionManagement: User needs to sign in first - navigating to sign-in screen');
+      // Check multiple conditions to be absolutely sure
+      if (!hasRealAccount || isAnonymous || currentUser == null || currentUser.isAnonymous) {
+        debugPrint('SubscriptionManagement: ⚠️ User needs to sign in first - navigating to sign-in screen');
+        debugPrint('  Reason: hasRealAccount=$hasRealAccount, isAnonymous=$isAnonymous, currentUser=${currentUser != null}');
         
         // Show dialog explaining the process
         final shouldContinue = await showDialog<bool>(
@@ -667,12 +683,55 @@ class _SubscriptionManagementViewState extends State<SubscriptionManagementView>
         }
       }
 
-      // Final verification before proceeding
+      // Final verification before proceeding - be VERY strict
       final finalAuth = FirebaseAuthService.instance;
       final finalUser = finalAuth.currentUser;
       
-      if (finalUser == null || finalUser.isAnonymous) {
-        debugPrint('SubscriptionManagement: ❌ Final auth check failed');
+      debugPrint('SubscriptionManagement: 🔍 FINAL AUTH CHECK:');
+      debugPrint('  finalUser: ${finalUser?.uid ?? "NULL"}');
+      debugPrint('  isAnonymous: ${finalUser?.isAnonymous ?? true}');
+      debugPrint('  email: ${finalUser?.email ?? "NULL"}');
+      debugPrint('  hasRealAccount: ${finalAuth.hasRealAccount}');
+      
+      if (finalUser == null) {
+        debugPrint('SubscriptionManagement: ❌ Final auth check failed - user is NULL');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Please sign in to subscribe. Tap to sign in.'),
+              duration: Duration(seconds: 5),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+        throw Exception('Authentication required. Please sign in with Google.');
+      }
+      
+      if (finalUser.isAnonymous) {
+        debugPrint('SubscriptionManagement: ❌ Final auth check failed - user is ANONYMOUS');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Please sign in with Google to subscribe. Anonymous accounts cannot subscribe.'),
+              duration: Duration(seconds: 5),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+        throw Exception('Authentication required. Please sign in with Google.');
+      }
+      
+      if (!finalAuth.hasRealAccount) {
+        debugPrint('SubscriptionManagement: ❌ Final auth check failed - hasRealAccount is FALSE');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Please sign in with Google to subscribe.'),
+              duration: Duration(seconds: 5),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
         throw Exception('Authentication required. Please sign in with Google.');
       }
       
