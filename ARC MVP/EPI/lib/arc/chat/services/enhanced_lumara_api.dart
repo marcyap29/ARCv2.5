@@ -543,17 +543,35 @@ class EnhancedLumaraApi {
           );
           
           // Inject current date/time and recent entries context for temporal grounding
-          final recentEntries = recentJournalEntries.take(5).map((entry) => {
-            'date': entry.createdAt,
-            'title': entry.content.split('\n').first.trim().isEmpty 
-                ? 'Untitled entry' 
-                : entry.content.split('\n').first.trim(),
-            'id': entry.id,
-          }).toList();
+          // Exclude current entry from recent entries list to avoid confusion
+          final now = DateTime.now();
+          final recentEntries = recentJournalEntries
+              .where((entry) => entryId == null || entry.id != entryId) // Exclude current entry
+              .take(5)
+              .map((entry) {
+                final daysAgo = now.difference(entry.createdAt).inDays;
+                final relativeDate = daysAgo == 0 
+                    ? 'today' 
+                    : daysAgo == 1 
+                        ? 'yesterday' 
+                        : '$daysAgo days ago';
+                
+                return {
+                  'date': entry.createdAt,
+                  'relativeDate': relativeDate,
+                  'daysAgo': daysAgo,
+                  'title': entry.content.split('\n').first.trim().isEmpty 
+                      ? 'Untitled entry' 
+                      : entry.content.split('\n').first.trim(),
+                  'id': entry.id,
+                };
+              })
+              .toList();
           
           systemPrompt = LumaraMasterPrompt.injectDateContext(
             systemPrompt,
             recentEntries: recentEntries,
+            currentDate: now,
           );
           
           print('🔵 LUMARA V23: Using unified master prompt');

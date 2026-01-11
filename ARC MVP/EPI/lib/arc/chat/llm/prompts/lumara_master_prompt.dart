@@ -57,6 +57,13 @@ Current date (human readable): {current_date_formatted}
 {recent_entries_list}
 </recent_entries>
 
+**CRITICAL: TEMPORAL CONTEXT USAGE**
+- Use the current date above to calculate relative dates correctly
+- When referencing past entries, use the exact dates from the recent_entries list
+- Do NOT assume dates - use the dates provided in recent_entries
+- Calculate "yesterday", "last week", etc. based on the current date shown above
+- If an entry says "3 days ago", that means it was written 3 days before the current date
+
 ═══════════════════════════════════════════════════════════
 CRITICAL: WORD LIMIT ENFORCEMENT
 ═══════════════════════════════════════════════════════════
@@ -2020,12 +2027,14 @@ CHALLENGER MODE:
   /// to help LUMARA understand temporal context and calculate relative dates correctly.
   /// 
   /// [prompt] - The prompt string with placeholders
-  /// [recentEntries] - Optional list of recent entries with 'date', 'title', and 'id' fields
+  /// [recentEntries] - Optional list of recent entries with 'date', 'title', 'id', 'relativeDate', and 'daysAgo' fields
+  /// [currentDate] - Optional current date (defaults to DateTime.now())
   static String injectDateContext(
     String prompt, {
     List<Map<String, dynamic>>? recentEntries,
+    DateTime? currentDate,
   }) {
-    final now = DateTime.now();
+    final now = currentDate ?? DateTime.now();
     final dateFormat = DateFormat('EEEE, MMMM d, yyyy');
     
     // Replace date placeholders
@@ -2033,17 +2042,24 @@ CHALLENGER MODE:
         .replaceAll('{current_datetime_iso}', now.toIso8601String())
         .replaceAll('{current_date_formatted}', dateFormat.format(now));
     
-    // Build recent entries list
+    // Build recent entries list with relative dates
     String recentEntriesList = '';
     if (recentEntries != null && recentEntries.isNotEmpty) {
       final entries = recentEntries.map((entry) {
         final entryDate = entry['date'] as DateTime?;
         final entryTitle = entry['title'] as String? ?? '';
         final entryId = entry['id'] as String? ?? '';
+        final relativeDate = entry['relativeDate'] as String?;
+        final daysAgo = entry['daysAgo'] as int?;
         
         if (entryDate != null) {
           final formattedDate = dateFormat.format(entryDate);
-          return '$formattedDate - $entryTitle (entry_id: $entryId)';
+          // Include both absolute date and relative date for clarity
+          if (relativeDate != null && daysAgo != null) {
+            return '$formattedDate ($relativeDate) - $entryTitle (entry_id: $entryId)';
+          } else {
+            return '$formattedDate - $entryTitle (entry_id: $entryId)';
+          }
         }
         return entryTitle.isNotEmpty ? entryTitle : 'Untitled entry';
       }).join('\n');
