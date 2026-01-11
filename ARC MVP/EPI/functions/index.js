@@ -145,9 +145,20 @@ exports.proxyGemini = onCall(
     const uid = request.auth.uid;
     const email = request.auth.token.email;
 
+    // Debug logging for parameter validation
+    console.log('proxyGemini: Received data:', {
+      hasSystem: system != null,
+      hasUser: user != null,
+      systemType: typeof system,
+      userType: typeof user,
+      systemLength: typeof system === 'string' ? system.length : 'N/A',
+      userLength: typeof user === 'string' ? user.length : 'N/A',
+    });
+
     // Allow empty string for user (when all content is in system prompt)
     // But require that parameters are provided (not null/undefined)
     if (system == null || user == null) {
+      console.error('proxyGemini: Missing parameters', { system: system == null, user: user == null });
       throw new HttpsError("invalid-argument", "system and user parameters are required");
     }
     

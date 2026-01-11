@@ -1,7 +1,7 @@
 # EPI Documentation
 
-**Last Updated:** January 2, 2026  
-**Version:** 2.1.82
+**Last Updated:** January 10, 2026  
+**Version:** 3.2.2
 
 ---
 
@@ -9,7 +9,21 @@
 
 Welcome to the EPI (Evolving Personal Intelligence) documentation. This directory contains comprehensive documentation for the EPI MVP intelligent journaling application.
 
-### Recent Highlights (v2.1.83)
+### Recent Highlights (v3.2.2)
+
+- **🕐 Temporal Context Injection**: LUMARA now has access to current date/time for accurate temporal grounding
+  - Can calculate relative dates correctly ("yesterday", "last week")
+  - Includes recent entries list with dates for temporal reference
+  - Fixes temporal confusion in responses
+- **🎭 Persona Updates**: Renamed "Therapist" persona to "Grounded" with updated description
+  - New description: "Deep warmth and safety with a stabilizing presence"
+  - Better reflects the persona's stabilizing nature
+- **⚙️ Settings Simplification**: Removed Cross-Domain Connections card from Settings
+  - Cross-domain synthesis now automatically enabled with INTEGRATE mode
+  - Cleaner, less overwhelming settings UI
+- **🔧 Bug Fixes**: Fixed Gemini API proxy to accept empty user strings for journal reflections
+
+### Previous Highlights (v2.1.83)
 
 - **🔔 Temporal Notifications System**: Multi-cadence notification system with phase-aware insights
   - Daily resonance prompts, monthly thread reviews, 6-month arc views, yearly becoming summaries
