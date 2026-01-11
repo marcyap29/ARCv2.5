@@ -8,6 +8,7 @@ import '../../../services/gemini_send.dart';
 import 'lumara_reflection_settings_service.dart';
 import '../llm/prompts/lumara_master_prompt.dart';
 import '../../../mira/memory/sentence_extraction_util.dart';
+import 'lumara_context_selector.dart';
 import 'package:my_app/telemetry/analytics.dart';
 import '../models/reflective_node.dart';
 import '../models/lumara_reflection_options.dart' as models;
@@ -28,10 +29,12 @@ import '../../../arc/chat/chat/chat_models.dart';
 import 'package:my_app/arc/internal/echo/prism_adapter.dart';
 import 'package:my_app/arc/internal/echo/correlation_resistant_transformer.dart';
 import '../../../services/lumara/entry_classifier.dart';
+import 'package:intl/intl.dart';
 import '../../../services/lumara/response_mode.dart';
 import '../../../services/lumara/classification_logger.dart';
 import '../../../services/sentinel/sentinel_analyzer.dart';
 import '../../../services/sentinel/crisis_mode.dart';
+import '../../../models/engagement_discipline.dart' show EngagementMode;
 
 /// Result of generating a reflection with attribution traces
 class ReflectionResult {
@@ -50,18 +53,37 @@ class ReflectionResult {
   });
 }
 
-/// Response parameters for each persona
+/// Response length target based on engagement mode
+class ResponseLengthTarget {
+  final int sentences;
+  final int words;
+  final String description;
+  
+  const ResponseLengthTarget({
+    required this.sentences,
+    required this.words,
+    required this.description,
+  });
+}
+
+/// Response parameters for LUMARA
 class ResponseParameters {
   final int maxWords;
+  final int targetWords;
+  final int targetSentences;
   final int minPatternExamples;
   final int maxPatternExamples;
   final bool useStructuredFormat;
+  final String lengthGuidance;
   
   ResponseParameters({
     required this.maxWords,
+    required this.targetWords,
+    required this.targetSentences,
     required this.minPatternExamples,
     required this.maxPatternExamples,
     required this.useStructuredFormat,
+    required this.lengthGuidance,
   });
 }
 
@@ -243,8 +265,8 @@ class EnhancedLumaraApi {
       // 1. Get settings from service
       final settingsService = LumaraReflectionSettingsService.instance;
       final similarityThreshold = await settingsService.getSimilarityThreshold();
-      final lookbackYears = await settingsService.getEffectiveLookbackYears();
-      final maxMatches = await settingsService.getEffectiveMaxMatches();
+      final lookbackYears = await settingsService.getEffectiveLookbackYears(); // Legacy: still used for node storage
+      final maxMatches = await settingsService.getEffectiveMaxEntries(); // Updated to use maxEntries
       
       // Therapeutic mode is now handled by control state builder
       // No need to determine depth level here - it's in the control state JSON
@@ -370,28 +392,46 @@ class EnhancedLumaraApi {
             contextParts.add('\n$mediaContext');
           }
           
-          final baseContext = contextParts.join('\n\n');
-          
           // Use Gemini API directly via geminiSend() - same as main LUMARA chat
           print('LUMARA Enhanced API v2.3: Calling Gemini API directly (same as main chat)');
           
-          // Build PRISM activity context from request and matches
-          // Query repositories for actual data instead of using empty arrays
-          final recentJournalEntries = await _getRecentJournalEntries(limit: 20);
-          final drafts = await _getDrafts(limit: 10);
+          // Get Memory Focus preset and Engagement Mode for context selection
+          final memoryFocusPreset = await settingsService.getMemoryFocusPreset();
+          final engagementSettings = await settingsService.getEngagementSettings();
+          final engagementMode = engagementSettings.activeMode;
+          
+          // Use new context selector instead of hard-coded limits
+          final contextSelector = LumaraContextSelector();
+          final recentJournalEntries = await contextSelector.selectContextEntries(
+            memoryFocus: memoryFocusPreset,
+            engagementMode: engagementMode,
+            currentEntryText: request.userText,
+            currentDate: DateTime.now(),
+            entryId: entryId, // Use entryId parameter from function signature
+          );
+          
           final recentChats = await _getRecentChats(limit: 10);
           final mediaFromEntries = await _extractMediaFromEntries(recentJournalEntries);
           
-          // Prioritize current entry with special marking and weight multiple entries
-          final allJournalEntries = [
-            // Mark current entry as primary focus with special formatting
-            '**CURRENT ENTRY (PRIMARY FOCUS)**: ${request.userText}',
-            // Add blank line separator
-            '',
-            // Add recent entries as important context for pattern recognition
-            '**HISTORICAL CONTEXT (Use for pattern recognition with dated examples)**:',
-            ...recentJournalEntries.map((e) => '- ${e.content}').take(20), // Increase to 20 entries for richer context
-          ];
+          // Get current date/time for consistent use throughout
+          final now = DateTime.now();
+          final dateFormat = DateFormat('EEEE, MMMM d, yyyy');
+          final todayDateStr = dateFormat.format(now);
+          
+          // Build base context with current entry explicitly labeled as TODAY
+          // Start with existing context parts, then add current entry with explicit TODAY labeling
+          final baseContextParts = <String>[];
+          baseContextParts.addAll(contextParts);
+          baseContextParts.add('');
+          baseContextParts.add('**CURRENT ENTRY (PRIMARY FOCUS - WRITTEN TODAY, $todayDateStr)**: ${request.userText}');
+          baseContextParts.add('');
+          baseContextParts.add('**HISTORICAL CONTEXT (Use for pattern recognition with dated examples)**:');
+          baseContextParts.add('**NOTE**: The journal entries listed below (with "-" bullets) are PAST entries from your journal history. The CURRENT ENTRY above (marked "PRIMARY FOCUS - WRITTEN TODAY") is being written TODAY ($todayDateStr) and is NOT a past entry.');
+          // Use all entries from context selector (already limited by Memory Focus preset)
+          baseContextParts.addAll(recentJournalEntries.map((e) => '- ${e.content}'));
+          
+          // Replace baseContext with updated version that includes current entry with explicit TODAY labeling
+          final baseContext = baseContextParts.join('\n\n');
           
           // Combine provided chat context with recent chats
           final allChats = <String>[];
@@ -479,22 +519,31 @@ class EnhancedLumaraApi {
           }
           
           // ═══════════════════════════════════════════════════════════
-          // STEP 2: SET RESPONSE PARAMETERS BASED ON PERSONA
+          // STEP 2: SET RESPONSE PARAMETERS BASED ON PERSONA + ENGAGEMENT MODE
           // ═══════════════════════════════════════════════════════════
           
-          final responseParams = _getResponseParameters(selectedPersona, safetyOverride);
+          final responseParams = _getResponseParameters(
+            selectedPersona, 
+            safetyOverride,
+            engagementMode: engagementMode,
+          );
           
           print('');
           print('📊 RESPONSE PARAMETERS:');
           print('   Persona: $selectedPersona');
+          print('   Engagement Mode: ${engagementMode != null ? engagementMode.name : "reflect"}');
           print('   Safety Override: $safetyOverride');
-          print('   Max Words: ${responseParams.maxWords}');
+          print('   Target Words: ${responseParams.targetWords}');
+          print('   Target Sentences: ${responseParams.targetSentences}');
+          print('   Max Words (buffer): ${responseParams.maxWords}');
           print('   Pattern Examples: ${responseParams.minPatternExamples}-${responseParams.maxPatternExamples}');
           print('   Structured Format: ${responseParams.useStructuredFormat}');
           print('');
           
           // Use response parameters for control state
           final maxWords = responseParams.maxWords;
+          final targetWords = responseParams.targetWords;
+          final targetSentences = responseParams.targetSentences;
           final minPatternExamples = responseParams.minPatternExamples;
           final maxPatternExamples = responseParams.maxPatternExamples;
           final isPersonalContent = entryType == EntryType.reflective || entryType == EntryType.analytical;
@@ -510,11 +559,17 @@ class EnhancedLumaraApi {
               'safetyOverride': safetyOverride,
             },
             'responseMode': {
+              'targetWords': targetWords,
+              'targetSentences': targetSentences,
               'maxWords': maxWords,
               'minPatternExamples': minPatternExamples,
               'maxPatternExamples': maxPatternExamples,
               'useStructuredFormat': useStructuredFormat,
               'isPersonalContent': isPersonalContent,
+              'lengthGuidance': responseParams.lengthGuidance,
+            },
+            'engagement': {
+              'mode': engagementMode != null ? engagementMode.name : 'reflect',
             },
             'entryClassification': entryClassification,
             'sentinel': sentinelScore != null ? {
@@ -543,11 +598,9 @@ class EnhancedLumaraApi {
           );
           
           // Inject current date/time and recent entries context for temporal grounding
-          // Exclude current entry from recent entries list to avoid confusion
-          final now = DateTime.now();
+          // Context selector already excludes current entry and respects Memory Focus limits
+          // Use the same 'now' instance from above for consistency
           final recentEntries = recentJournalEntries
-              .where((entry) => entryId == null || entry.id != entryId) // Exclude current entry
-              .take(5)
               .map((entry) {
                 final daysAgo = now.difference(entry.createdAt).inDays;
                 final relativeDate = daysAgo == 0 
@@ -650,15 +703,17 @@ class EnhancedLumaraApi {
           
           print('📊 Initial word count: $wordCount words (limit: $maxWords)');
           
-          if (wordCount > maxWords + 50) {
+          // Always truncate if over limit (not just if > limit + 50)
+          // This ensures responses never exceed the limit, preventing mid-sentence cuts
+          if (wordCount > maxWords) {
             print('⚠️ WARNING: Response exceeds word limit by ${wordCount - maxWords} words');
             
-            // Truncate to word limit
-            final truncated = words.take(maxWords).join(' ');
+            // Truncate to word limit, but stop at sentence boundaries
+            final truncated = _truncateAtSentenceBoundary(scoredResponse, maxWords);
             scoredResponse = truncated;
             
             final newWordCount = scoredResponse.split(RegExp(r'\s+')).length;
-            print('✂️ Truncated response to $newWordCount words');
+            print('✂️ Truncated response to $newWordCount words (stopped at sentence boundary)');
           }
           
           // Create scoring input with potentially truncated response
@@ -1149,6 +1204,26 @@ Respond now:''';
     }
   }
 
+  /// Truncate text at sentence boundary instead of mid-sentence
+  String _truncateAtSentenceBoundary(String text, int maxWords) {
+    final words = text.trim().split(RegExp(r'\s+'));
+    if (words.length <= maxWords) {
+      return text;
+    }
+    
+    // Find last sentence boundary before word limit
+    final truncated = words.take(maxWords).join(' ');
+    final lastPeriod = truncated.lastIndexOf(RegExp(r'[.!?]'));
+    
+    // If we're at least 70% through, use that boundary
+    if (lastPeriod > truncated.length * 0.7) {
+      return truncated.substring(0, lastPeriod + 1).trim();
+    }
+    
+    // Otherwise return with ellipsis
+    return '${truncated.trim()}...';
+  }
+  
   /// Get persona from conversation mode (when NOT in emergency)
   /// Simplified: Direct mapping, no auto-detection
   String _getPersonaFromConversationMode(models.ConversationMode? mode) {
@@ -1174,59 +1249,124 @@ Respond now:''';
     }
   }
 
-  /// Get response parameters based on persona and safety override
-  ResponseParameters _getResponseParameters(String persona, bool safetyOverride) {
+  // Base response lengths by Engagement Mode (primary driver)
+  static final Map<EngagementMode, ResponseLengthTarget> engagementLengthTargets = {
+    EngagementMode.reflect: const ResponseLengthTarget(
+      sentences: 5,
+      words: 200,
+      description: 'Brief surface-level observations',
+    ),
+    EngagementMode.explore: const ResponseLengthTarget(
+      sentences: 10,
+      words: 400,
+      description: 'Deeper investigation with follow-up questions',
+    ),
+    EngagementMode.integrate: const ResponseLengthTarget(
+      sentences: 15,
+      words: 500,
+      description: 'Comprehensive cross-domain synthesis',
+    ),
+  };
+
+  // Persona modifies density/style, not length (multiplier on base)
+  static const Map<String, double> personaDensityModifiers = {
+    'companion': 1.0,     // Warm and conversational (neutral length)
+    'strategist': 1.15,   // More analytical detail (+15%)
+    'therapist': 0.9,     // More concise and clear (-10%) - Grounded persona
+    'challenger': 0.85,   // Sharp and direct (-15%)
+  };
+
+  /// Get response parameters based on engagement mode (primary) and persona (density modifier)
+  ResponseParameters _getResponseParameters(
+    String persona, 
+    bool safetyOverride, {
+    EngagementMode? engagementMode,
+  }) {
     if (safetyOverride) {
       // Emergency therapist mode: shorter, no examples needed
       return ResponseParameters(
-        maxWords: 200,
+        maxWords: 250, // 25% buffer on 200
+        targetWords: 200,
+        targetSentences: 5,
         minPatternExamples: 0,
         maxPatternExamples: 2,
         useStructuredFormat: false,
+        lengthGuidance: 'Emergency mode: Brief, supportive response (~200 words, 5 sentences)',
       );
     }
     
+    // Default to REFLECT if engagement mode not provided
+    final effectiveMode = engagementMode ?? EngagementMode.reflect;
+    
+    // Get base target from engagement mode
+    final baseTarget = engagementLengthTargets[effectiveMode]!;
+    
+    // Apply persona density modifier
+    final personaModifier = personaDensityModifiers[persona] ?? 1.0;
+    
+    final targetWords = (baseTarget.words * personaModifier).round();
+    final targetSentences = (baseTarget.sentences * personaModifier).round();
+    final maxWords = (targetWords * 1.25).round(); // 25% buffer before truncation
+    
+    // Persona-specific settings (for pattern examples and format)
+    int minPatternExamples;
+    int maxPatternExamples;
+    bool useStructuredFormat;
+    
     switch (persona) {
       case 'companion':
-        return ResponseParameters(
-          maxWords: 250,
-          minPatternExamples: 2,
-          maxPatternExamples: 4,
-          useStructuredFormat: false,
-        );
+        minPatternExamples = 2;
+        maxPatternExamples = 4;
+        useStructuredFormat = false;
+        break;
       
       case 'strategist':
-        return ResponseParameters(
-          maxWords: 400,
-          minPatternExamples: 3,
-          maxPatternExamples: 8,
-          useStructuredFormat: true,
-        );
+        minPatternExamples = 3;
+        maxPatternExamples = 8;
+        useStructuredFormat = true;
+        break;
       
       case 'therapist':
-        return ResponseParameters(
-          maxWords: 300,
-          minPatternExamples: 1,
-          maxPatternExamples: 3,
-          useStructuredFormat: false,
-        );
+        minPatternExamples = 1;
+        maxPatternExamples = 3;
+        useStructuredFormat = false;
+        break;
       
       case 'challenger':
-        return ResponseParameters(
-          maxWords: 250,
-          minPatternExamples: 1,
-          maxPatternExamples: 2,
-          useStructuredFormat: false,
-        );
+        minPatternExamples = 1;
+        maxPatternExamples = 2;
+        useStructuredFormat = false;
+        break;
       
       default:
-        return ResponseParameters(
-          maxWords: 250,
-          minPatternExamples: 2,
-          maxPatternExamples: 4,
-          useStructuredFormat: false,
-        );
+        minPatternExamples = 2;
+        maxPatternExamples = 4;
+        useStructuredFormat = false;
+        break;
     }
+    
+    // Build length guidance for prompt
+    final lengthGuidance = '''
+Target response length: $targetSentences sentences (~$targetWords words)
+Context: ${baseTarget.description}
+
+Length guidelines by mode:
+- REFLECT: Brief, surface-level observations only
+- EXPLORE: Deeper investigation, include follow-up questions
+- INTEGRATE: Comprehensive synthesis across domains and time
+
+Stay within target length naturally. Quality over quantity.
+''';
+    
+    return ResponseParameters(
+      maxWords: maxWords,
+      targetWords: targetWords,
+      targetSentences: targetSentences,
+      minPatternExamples: minPatternExamples,
+      maxPatternExamples: maxPatternExamples,
+      useStructuredFormat: useStructuredFormat,
+      lengthGuidance: lengthGuidance,
+    );
   }
 
   /// Validate response meets requirements

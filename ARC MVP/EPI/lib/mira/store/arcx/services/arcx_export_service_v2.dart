@@ -2213,14 +2213,14 @@ class ARCXExportServiceV2 {
       
       // Filter to only new/modified since last export
       final entriesToExport = allEntries.where((e) => 
-        e.createdAt.isAfter(lastExportDate) || 
-        e.updatedAt.isAfter(lastExportDate)
-      ).toList();
-      
+          e.createdAt.isAfter(lastExportDate) || 
+          e.updatedAt.isAfter(lastExportDate)
+        ).toList();
+        
       final chatsToExport = allChats.where((c) => 
-        c.createdAt.isAfter(lastExportDate) ||
-        c.updatedAt.isAfter(lastExportDate)
-      ).toList();
+          c.createdAt.isAfter(lastExportDate) ||
+          c.updatedAt.isAfter(lastExportDate)
+        ).toList();
       
       // Collect media from entries to export (unless excluded)
       final mediaToExport = <MediaItem>[];

@@ -1,7 +1,7 @@
 # EPI Documentation
 
 **Last Updated:** January 10, 2026  
-**Version:** 3.2.2
+**Version:** 3.2.3
 
 ---
 
@@ -9,7 +9,28 @@
 
 Welcome to the EPI (Evolving Personal Intelligence) documentation. This directory contains comprehensive documentation for the EPI MVP intelligent journaling application.
 
-### Recent Highlights (v3.2.2)
+### Recent Highlights (v3.2.4)
+
+- **🎯 Response Length Architecture Refactor**: Response length now determined by Engagement Mode, not Persona
+  - **REFLECT**: 200 words base (brief surface-level observations)
+  - **EXPLORE**: 400 words base (deeper investigation with follow-up questions)
+  - **INTEGRATE**: 500 words base (comprehensive cross-domain synthesis)
+  - Persona affects communication style/density, not base length
+  - Improved truncation at sentence boundaries prevents mid-sentence cuts
+- **🧠 Two-Stage Memory System**: Complementary memory architecture for LUMARA
+  - **Stage 1: Context Selection** - Temporal/phase-aware entry selection (which parts of the journey?)
+  - **Stage 2: Polymeta Filtering** - Domain/confidence-based memory filtering (what to remember from those parts?)
+  - No conflict: Context Selection handles temporal breadth, Polymeta handles semantic detail
+
+### Previous Highlights (v3.2.3)
+
+- **📦 Export System Improvements**: Enhanced backup system with automatic first export and sequential labeling
+  - **First Export = Full Export**: Automatically performs full exhaustive export of ALL files (entries, chats, media) when no previous exports exist
+  - **Sequential Export Numbering**: Exports labeled with sequential numbers (export_1_, export_2_, etc.) for clear tracking
+  - **Full Export UI Option**: Always-available Full Export button with clear description
+  - Makes it easy to understand export sequence and what each export contains
+
+### Previous Highlights (v3.2.2)
 
 - **🕐 Temporal Context Injection**: LUMARA now has access to current date/time for accurate temporal grounding
   - Can calculate relative dates correctly ("yesterday", "last week")

@@ -71,6 +71,13 @@ class _SettingsViewState extends State<SettingsView> {
   MemoryFocusPreset _memoryFocusPreset = MemoryFocusPreset.balanced;
   bool _memoryFocusLoading = true;
   
+  // Custom Memory Focus settings state
+  bool _showCustomMemorySettings = false;
+  int _customTimeWindowDays = 90;
+  double _customSimilarityThreshold = 0.55;
+  int _customMaxEntries = 20;
+  bool _customMemorySettingsLoading = true;
+  
   // Other LUMARA settings state
   bool _crossModalEnabled = true;
   bool _crossModalLoading = true;
@@ -221,17 +228,37 @@ class _SettingsViewState extends State<SettingsView> {
       final settingsService = LumaraReflectionSettingsService.instance;
       await settingsService.initialize();
       final preset = await settingsService.getMemoryFocusPreset();
-      if (mounted) {
-        setState(() {
-          _memoryFocusPreset = preset;
-          _memoryFocusLoading = false;
-        });
+      
+      // Load custom values if Custom preset is selected
+      if (preset == MemoryFocusPreset.custom) {
+        final settings = await settingsService.loadAllSettings();
+        if (mounted) {
+          setState(() {
+            _memoryFocusPreset = preset;
+            _showCustomMemorySettings = true;
+            _customTimeWindowDays = settings['timeWindowDays'] as int? ?? settings['lookbackYears'] as int? ?? 90;
+            _customSimilarityThreshold = settings['similarityThreshold'] as double? ?? 0.55;
+            _customMaxEntries = settings['maxMatches'] as int? ?? 20;
+            _memoryFocusLoading = false;
+            _customMemorySettingsLoading = false;
+          });
+        }
+      } else {
+        if (mounted) {
+          setState(() {
+            _memoryFocusPreset = preset;
+            _showCustomMemorySettings = false;
+            _memoryFocusLoading = false;
+            _customMemorySettingsLoading = false;
+          });
+        }
       }
     } catch (e) {
       print('Error loading memory focus preset: $e');
       if (mounted) {
         setState(() {
           _memoryFocusLoading = false;
+          _customMemorySettingsLoading = false;
         });
       }
     }
@@ -1830,6 +1857,149 @@ class _SettingsViewState extends State<SettingsView> {
           ),
           const Divider(height: 1, color: Colors.white12),
           ...MemoryFocusPreset.values.map((preset) => _buildMemoryFocusOption(preset)),
+          // Show custom sliders when Custom is selected
+          if (_showCustomMemorySettings) ..._buildCustomMemorySettings(),
+        ],
+      ),
+    );
+  }
+  
+  List<Widget> _buildCustomMemorySettings() {
+    return [
+      const Divider(height: 1, color: Colors.white12),
+      Padding(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+        child: Text(
+          'Custom Settings',
+          style: heading3Style(context).copyWith(
+            color: kcPrimaryTextColor,
+            fontWeight: FontWeight.w500,
+            fontSize: 14,
+          ),
+        ),
+      ),
+      _buildCustomSliderCard(
+        title: 'Time Window',
+        subtitle: 'How far back LUMARA searches your history',
+        icon: Icons.history,
+        value: _customTimeWindowDays.toDouble(),
+        min: 1,
+        max: 365,
+        divisions: 36, // Every 10 days
+        loading: _customMemorySettingsLoading,
+        onChanged: (value) => _setCustomTimeWindowDays(value.round()),
+        labels: const ['1 day', '30 days', '90 days', '180 days', '365 days'],
+      ),
+      _buildCustomSliderCard(
+        title: 'Matching Precision',
+        subtitle: 'How similar memories must be to include them',
+        icon: Icons.tune,
+        value: _customSimilarityThreshold,
+        min: 0.3,
+        max: 0.9,
+        divisions: 12,
+        loading: _customMemorySettingsLoading,
+        onChanged: _setCustomSimilarityThreshold,
+        labels: const ['Loose', 'Balanced', 'Strict'],
+      ),
+      _buildCustomSliderCard(
+        title: 'Maximum Entries',
+        subtitle: 'Maximum number of past entries to include',
+        icon: Icons.format_list_numbered,
+        value: _customMaxEntries.toDouble(),
+        min: 1,
+        max: 50,
+        divisions: 49,
+        loading: _customMemorySettingsLoading,
+        onChanged: (value) => _setCustomMaxEntries(value.round()),
+        labels: const ['1', '10', '20', '30', '50'],
+      ),
+    ];
+  }
+  
+  Widget _buildCustomSliderCard({
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required double value,
+    required double min,
+    required double max,
+    required int divisions,
+    required bool loading,
+    required Function(double) onChanged,
+    required List<String> labels,
+  }) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.03),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.1),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, color: kcAccentColor, size: 20),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: heading3Style(context).copyWith(
+                        color: kcPrimaryTextColor,
+                        fontWeight: FontWeight.w500,
+                        fontSize: 14,
+                      ),
+                    ),
+                    Text(
+                      subtitle,
+                      style: bodyStyle(context).copyWith(
+                        color: kcSecondaryTextColor,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (loading)
+                const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Slider(
+            value: value,
+            min: min,
+            max: max,
+            divisions: divisions,
+            activeColor: kcAccentColor,
+            inactiveColor: Colors.grey.withValues(alpha: 0.3),
+            onChanged: loading ? null : onChanged,
+          ),
+          if (labels.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: labels.map((label) => Text(
+                  label,
+                  style: bodyStyle(context).copyWith(
+                    color: kcSecondaryTextColor,
+                    fontSize: 9,
+                  ),
+                )).toList(),
+              ),
+            ),
         ],
       ),
     );
@@ -1902,10 +2072,81 @@ class _SettingsViewState extends State<SettingsView> {
       if (mounted) {
         setState(() {
           _memoryFocusPreset = preset;
+          _showCustomMemorySettings = preset == MemoryFocusPreset.custom;
+          
+          // Load custom values if switching to Custom
+          if (preset == MemoryFocusPreset.custom) {
+            _loadCustomMemorySettings();
+          }
         });
       }
     } catch (e) {
       print('Error setting memory focus preset: $e');
+    }
+  }
+  
+  Future<void> _loadCustomMemorySettings() async {
+    try {
+      final settingsService = LumaraReflectionSettingsService.instance;
+      await settingsService.initialize();
+      final settings = await settingsService.loadAllSettings();
+      if (mounted) {
+        setState(() {
+          _customTimeWindowDays = settings['timeWindowDays'] as int? ?? (settings['lookbackYears'] as int? ?? 5) * 365;
+          _customSimilarityThreshold = settings['similarityThreshold'] as double? ?? 0.55;
+          _customMaxEntries = settings['maxMatches'] as int? ?? 20;
+          _customMemorySettingsLoading = false;
+        });
+      }
+    } catch (e) {
+      print('Error loading custom memory settings: $e');
+      if (mounted) {
+        setState(() {
+          _customMemorySettingsLoading = false;
+        });
+      }
+    }
+  }
+  
+  Future<void> _setCustomTimeWindowDays(int days) async {
+    try {
+      final settingsService = LumaraReflectionSettingsService.instance;
+      await settingsService.setTimeWindowDays(days);
+      if (mounted) {
+        setState(() {
+          _customTimeWindowDays = days;
+        });
+      }
+    } catch (e) {
+      print('Error setting custom time window days: $e');
+    }
+  }
+  
+  Future<void> _setCustomSimilarityThreshold(double threshold) async {
+    try {
+      final settingsService = LumaraReflectionSettingsService.instance;
+      await settingsService.setSimilarityThreshold(threshold);
+      if (mounted) {
+        setState(() {
+          _customSimilarityThreshold = threshold;
+        });
+      }
+    } catch (e) {
+      print('Error setting custom similarity threshold: $e');
+    }
+  }
+  
+  Future<void> _setCustomMaxEntries(int entries) async {
+    try {
+      final settingsService = LumaraReflectionSettingsService.instance;
+      await settingsService.setMaxMatches(entries);
+      if (mounted) {
+        setState(() {
+          _customMaxEntries = entries;
+        });
+      }
+    } catch (e) {
+      print('Error setting custom max entries: $e');
     }
   }
   

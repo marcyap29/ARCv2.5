@@ -98,7 +98,8 @@ class LumaraReflectionSettingsService {
 
   // Keys for SharedPreferences
   static const String _keySimilarityThreshold = 'lumara_similarity_threshold';
-  static const String _keyLookbackYears = 'lumara_lookback_years';
+  static const String _keyLookbackYears = 'lumara_lookback_years'; // Legacy: kept for backward compatibility
+  static const String _keyTimeWindowDays = 'lumara_time_window_days'; // New: time window in days
   static const String _keyMaxMatches = 'lumara_max_matches';
   static const String _keyCrossModalEnabled = 'lumara_cross_modal_enabled';
   static const String _keyTherapeuticPresenceEnabled = 'lumara_therapeutic_presence_enabled';
@@ -136,16 +137,53 @@ class LumaraReflectionSettingsService {
     await _prefs!.setDouble(_keySimilarityThreshold, value);
   }
 
-  /// Get lookback years (default: 5)
+  /// Get time window in days (default: 90 days for balanced preset)
+  Future<int> getTimeWindowDays() async {
+    await initialize();
+    // Check for new days key first
+    final days = _prefs!.getInt(_keyTimeWindowDays);
+    if (days != null) {
+      return days;
+    }
+    // Fallback to legacy years key and convert
+    final years = _prefs!.getInt(_keyLookbackYears);
+    if (years != null) {
+      // Convert years to days (approximate)
+      final daysFromYears = years * 365;
+      // Save as days for future use
+      await _prefs!.setInt(_keyTimeWindowDays, daysFromYears);
+      return daysFromYears;
+    }
+    return 90; // Default: 90 days (balanced preset)
+  }
+
+  /// Set time window in days
+  Future<void> setTimeWindowDays(int days) async {
+    await initialize();
+    await _prefs!.setInt(_keyTimeWindowDays, days);
+    // Also update legacy years key for backward compatibility
+    await _prefs!.setInt(_keyLookbackYears, (days / 365).round().clamp(1, 10));
+  }
+
+  /// Get lookback years (default: 5) - Legacy method for backward compatibility
+  @Deprecated('Use getTimeWindowDays() instead')
   Future<int> getLookbackYears() async {
     await initialize();
+    // Try to get from days first and convert
+    final days = _prefs!.getInt(_keyTimeWindowDays);
+    if (days != null) {
+      return (days / 365).round().clamp(1, 10);
+    }
     return _prefs!.getInt(_keyLookbackYears) ?? _defaultLookbackYears;
   }
 
-  /// Set lookback years
+  /// Set lookback years - Legacy method for backward compatibility
+  @Deprecated('Use setTimeWindowDays() instead')
   Future<void> setLookbackYears(int value) async {
     await initialize();
     await _prefs!.setInt(_keyLookbackYears, value);
+    // Also update days key
+    await _prefs!.setInt(_keyTimeWindowDays, value * 365);
   }
 
   /// Get max matches (default: 5)
@@ -332,62 +370,83 @@ class LumaraReflectionSettingsService {
     
     // If not custom, update underlying values
     if (preset != MemoryFocusPreset.custom) {
-      await setLookbackYears(preset.lookbackYears);
+      await setTimeWindowDays(preset.timeWindowDays);
       await setSimilarityThreshold(preset.similarityThreshold);
-      await setMaxMatches(preset.maxMatches);
+      await setMaxMatches(preset.maxEntries);
     }
   }
 
+  /// Get effective time window in days adjusted for preset and therapeutic depth level
+  /// Depth 1 (Light): Reduce by 40%
+  /// Depth 2 (Moderate): Standard
+  /// Depth 3 (Deep): Extend by 40%
+  Future<int> getEffectiveTimeWindowDays() async {
+    final preset = await getMemoryFocusPreset();
+    final baseDays = preset == MemoryFocusPreset.custom 
+        ? await getTimeWindowDays() 
+        : preset.timeWindowDays;
+    final therapeuticEnabled = await isTherapeuticPresenceEnabled();
+    
+    if (!therapeuticEnabled) {
+      return baseDays;
+    }
+
+    final depthLevel = await getTherapeuticDepthLevel();
+    switch (depthLevel) {
+      case 1: // Light
+        return (baseDays * 0.6).round().clamp(1, 365);
+      case 3: // Deep
+        return (baseDays * 1.4).round().clamp(1, 365);
+      default: // Moderate (2)
+        return baseDays;
+    }
+  }
+  
   /// Get effective lookback years adjusted for preset and therapeutic depth level
   /// Depth 1 (Light): Reduce by 40%
   /// Depth 2 (Moderate): Standard
   /// Depth 3 (Deep): Extend by 40%
+  /// Legacy method for backward compatibility
+  @Deprecated('Use getEffectiveTimeWindowDays() instead')
   Future<int> getEffectiveLookbackYears() async {
+    final days = await getEffectiveTimeWindowDays();
+    return (days / 365).round().clamp(1, 10);
+  }
+
+  /// Get effective max entries adjusted for preset and therapeutic depth level
+  /// Depth 1 (Light): Reduce by 40%
+  /// Depth 2 (Moderate): Standard
+  /// Depth 3 (Deep): Increase by 60%
+  Future<int> getEffectiveMaxEntries() async {
     final preset = await getMemoryFocusPreset();
-    final baseYears = preset == MemoryFocusPreset.custom 
-        ? await getLookbackYears() 
-        : preset.lookbackYears;
+    final baseEntries = preset == MemoryFocusPreset.custom 
+        ? await getMaxMatches() 
+        : preset.maxEntries;
     final therapeuticEnabled = await isTherapeuticPresenceEnabled();
     
     if (!therapeuticEnabled) {
-      return baseYears;
+      return baseEntries;
     }
 
     final depthLevel = await getTherapeuticDepthLevel();
     switch (depthLevel) {
       case 1: // Light
-        return (baseYears * 0.6).round().clamp(1, 10);
+        return (baseEntries * 0.6).round().clamp(1, 50);
       case 3: // Deep
-        return (baseYears * 1.4).round().clamp(1, 10);
+        return (baseEntries * 1.6).round().clamp(1, 50);
       default: // Moderate (2)
-        return baseYears;
+        return baseEntries;
     }
   }
-
+  
   /// Get effective max matches adjusted for preset and therapeutic depth level
   /// Depth 1 (Light): Reduce by 40%
   /// Depth 2 (Moderate): Standard
   /// Depth 3 (Deep): Increase by 60%
+  /// Legacy method for backward compatibility
+  @Deprecated('Use getEffectiveMaxEntries() instead')
   Future<int> getEffectiveMaxMatches() async {
-    final preset = await getMemoryFocusPreset();
-    final baseMatches = preset == MemoryFocusPreset.custom 
-        ? await getMaxMatches() 
-        : preset.maxMatches;
-    final therapeuticEnabled = await isTherapeuticPresenceEnabled();
-    
-    if (!therapeuticEnabled) {
-      return baseMatches;
-    }
-
-    final depthLevel = await getTherapeuticDepthLevel();
-    switch (depthLevel) {
-      case 1: // Light
-        return (baseMatches * 0.6).round().clamp(1, 20);
-      case 3: // Deep
-        return (baseMatches * 1.6).round().clamp(1, 20);
-      default: // Moderate (2)
-        return baseMatches;
-    }
+    return await getEffectiveMaxEntries();
   }
 
   /// Load all settings (for UI initialization)
@@ -395,7 +454,8 @@ class LumaraReflectionSettingsService {
     await initialize();
     return {
       'similarityThreshold': await getSimilarityThreshold(),
-      'lookbackYears': await getLookbackYears(),
+      'timeWindowDays': await getTimeWindowDays(),
+      'lookbackYears': await getLookbackYears(), // Legacy: kept for backward compatibility
       'maxMatches': await getMaxMatches(),
       'crossModalEnabled': await isCrossModalEnabled(),
       'therapeuticPresenceEnabled': await isTherapeuticPresenceEnabled(),
@@ -616,3 +676,4 @@ class LumaraReflectionSettingsService {
     }
   }
 }
+

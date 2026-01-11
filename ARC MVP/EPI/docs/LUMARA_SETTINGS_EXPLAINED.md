@@ -2,12 +2,48 @@
 
 ## Response Length Settings
 
+### Engagement-Mode-Based Response Lengths (Primary Driver)
+
+**Response length is determined by Engagement Mode, not Persona:**
+
+- **REFLECT Mode**: 200 words base (5 sentences)
+  - Brief, surface-level observations
+  - Focused on grounding and pattern recognition
+  - No exploratory questions
+
+- **EXPLORE Mode**: 400 words base (10 sentences)
+  - Deeper investigation with follow-up questions
+  - Allows connecting questions and alternative framings
+  - Medium-length responses for investigation
+
+- **INTEGRATE Mode**: 500 words base (15 sentences)
+  - Comprehensive cross-domain synthesis
+  - Longest responses for developmental analysis
+  - Cross-domain connections and trajectory themes
+
+**Persona Density Modifiers:**
+- Persona affects communication style/density, not base length:
+  - **Companion**: 1.0x (neutral - warm and conversational)
+  - **Strategist**: 1.15x (+15% for analytical detail)
+  - **Grounded**: 0.9x (-10% for concise clarity)
+  - **Challenger**: 0.85x (-15% for sharp directness)
+
+**Example Word Limits:**
+
+| Engagement Mode | Companion | Strategist | Grounded | Challenger |
+|-----------------|-----------|------------|----------|------------|
+| **REFLECT**     | 200       | 230        | 180      | 170        |
+| **EXPLORE**     | 400       | 460        | 360      | 340        |
+| **INTEGRATE**   | 500       | 575        | 450      | 425        |
+
 ### Auto Mode vs Manual Mode
 
 **Auto Mode (responseLength.auto = true):**
 - LUMARA automatically determines response length based on context
 - **ENFORCED LIMIT**: Responses are capped at 10-15 sentences maximum
 - LUMARA chooses the appropriate length within this range based on:
+  - Engagement Mode (primary driver)
+  - Persona density modifier
   - `behavior.verbosity` (0.0-1.0)
   - `engagement.response_length` (concise/moderate/detailed)
   - Context complexity
@@ -20,6 +56,10 @@
 - **ABSOLUTE STRICT LIMIT**: LUMARA must follow these settings exactly
 - No exceptions - if max_sentences = 10, response must have exactly 10 sentences or fewer
 - Paragraph structure must match sentences_per_paragraph setting
+
+**Truncation:**
+- Responses are truncated at sentence boundaries to prevent mid-sentence cuts
+- 25% buffer allows natural flow before truncation triggers
 
 ---
 

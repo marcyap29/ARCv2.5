@@ -59,10 +59,16 @@ Current date (human readable): {current_date_formatted}
 
 **CRITICAL: TEMPORAL CONTEXT USAGE**
 - Use the current date above to calculate relative dates correctly
-- When referencing past entries, use the exact dates from the recent_entries list
+- When referencing past entries, use the exact dates from the recent_entries list (in the <recent_entries> section above)
 - Do NOT assume dates - use the dates provided in recent_entries
 - Calculate "yesterday", "last week", etc. based on the current date shown above
 - If an entry says "3 days ago", that means it was written 3 days before the current date
+- **CRITICAL**: The CURRENT ENTRY text (in the "CURRENT TASK" section below) is being written TODAY (the current date shown above)
+- The CURRENT ENTRY is NOT in the recent_entries list (the <recent_entries> section) - it's the entry being written right now
+- The CURRENT ENTRY is also NOT in the HISTORICAL CONTEXT section - it's marked as "PRIMARY FOCUS - WRITTEN TODAY"
+- **NEVER** reference the CURRENT ENTRY with a past date (e.g., "yesterday", "last week", "on January 8")
+- **NEVER** say the CURRENT ENTRY was written on a different date - it's being written TODAY
+- If you see content in the CURRENT ENTRY that matches something in recent_entries or HISTORICAL CONTEXT, the CURRENT ENTRY is the source being written TODAY, not a past entry
 
 ═══════════════════════════════════════════════════════════
 CRITICAL: WORD LIMIT ENFORCEMENT
@@ -1856,9 +1862,11 @@ ${_buildConstraintsSection(controlStateJson)}
 CURRENT TASK
 ═══════════════════════════════════════════════════════════
 
-${baseContext != null && baseContext.isNotEmpty ? 'HISTORICAL CONTEXT:\n$baseContext\n\n' : ''}CURRENT ENTRY TO RESPOND TO:
+${baseContext != null && baseContext.isNotEmpty ? 'HISTORICAL CONTEXT:\n$baseContext\n\n' : ''}CURRENT ENTRY TO RESPOND TO (WRITTEN TODAY - ${DateTime.now().toIso8601String().split('T')[0]}):
 
 $entryText
+
+**REMINDER**: The entry above is being written TODAY (${DateTime.now().toIso8601String().split('T')[0]}). Do NOT reference it as if it were written in the past. It is the current entry being written right now.
 
 ${modeSpecificInstructions != null && modeSpecificInstructions.isNotEmpty ? '\nMODE-SPECIFIC INSTRUCTION:\n$modeSpecificInstructions\n' : ''}
 ═══════════════════════════════════════════════════════════

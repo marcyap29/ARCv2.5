@@ -4,9 +4,9 @@
 /// lookback years, similarity threshold, and max matches into intuitive options.
 
 enum MemoryFocusPreset {
-  focused,        // 2 years, 0.7 precision, 3 entries - for direct questions
-  balanced,       // 5 years, 0.55 precision, 5 entries - default, recommended
-  comprehensive,  // 10 years, 0.4 precision, 10 entries - deep analysis
+  focused,        // 30 days, 0.7 precision, 10 entries - for direct questions
+  balanced,       // 90 days, 0.55 precision, 20 entries - default, recommended
+  comprehensive,  // 365 days, 0.4 precision, 50 entries - deep analysis
   custom,         // User-defined values
 }
 
@@ -27,28 +27,34 @@ extension MemoryFocusPresetExtension on MemoryFocusPreset {
   String get description {
     switch (this) {
       case MemoryFocusPreset.focused:
-        return 'Concise, on-topic responses. Best for direct questions.';
+        return 'Concise, on-topic responses. Best for direct questions. (30 days, 10 entries)';
       case MemoryFocusPreset.balanced:
-        return 'Good context without overwhelming. Recommended for most users.';
+        return 'Good context without overwhelming. Recommended for most users. (90 days, 20 entries)';
       case MemoryFocusPreset.comprehensive:
-        return 'Deep historical context. Best for long-term pattern analysis.';
+        return 'Deep historical context. Best for long-term pattern analysis. (365 days, 50 entries)';
       case MemoryFocusPreset.custom:
         return 'Fine-tune memory settings manually.';
     }
   }
 
-  /// Get the lookback years for this preset
-  int get lookbackYears {
+  /// Get the time window in days for this preset
+  int get timeWindowDays {
     switch (this) {
       case MemoryFocusPreset.focused:
-        return 2;
+        return 30;
       case MemoryFocusPreset.balanced:
-        return 5;
+        return 90;
       case MemoryFocusPreset.comprehensive:
-        return 10;
+        return 365;
       case MemoryFocusPreset.custom:
-        return 5; // Default, will be overridden by user settings
+        return 90; // Default, will be overridden by user settings
     }
+  }
+  
+  /// Get the lookback years for this preset (for backward compatibility)
+  @Deprecated('Use timeWindowDays instead')
+  int get lookbackYears {
+    return (timeWindowDays / 365).round().clamp(1, 10);
   }
 
   /// Get the similarity threshold for this preset
@@ -65,18 +71,24 @@ extension MemoryFocusPresetExtension on MemoryFocusPreset {
     }
   }
 
-  /// Get the max matches for this preset
-  int get maxMatches {
+  /// Get the max entries for this preset
+  int get maxEntries {
     switch (this) {
       case MemoryFocusPreset.focused:
-        return 3;
-      case MemoryFocusPreset.balanced:
-        return 5;
-      case MemoryFocusPreset.comprehensive:
         return 10;
+      case MemoryFocusPreset.balanced:
+        return 20;
+      case MemoryFocusPreset.comprehensive:
+        return 50;
       case MemoryFocusPreset.custom:
-        return 5; // Default, will be overridden by user settings
+        return 20; // Default, will be overridden by user settings
     }
+  }
+  
+  /// Get the max matches for this preset (for backward compatibility)
+  @Deprecated('Use maxEntries instead')
+  int get maxMatches {
+    return maxEntries;
   }
 
   /// Convert to string for JSON serialization

@@ -125,15 +125,35 @@ Fine-tune how LUMARA responds and what language it uses:
 
 ### Response Length
 
+**Engagement Mode is the Primary Driver:**
+
+Response length is determined by Engagement Mode, not Persona. This ensures that:
+- Quick check-ins (REFLECT) get brief responses
+- Deep exploration (EXPLORE) gets longer investigation
+- Developmental synthesis (INTEGRATE) gets comprehensive analysis
+
+**Base Lengths by Engagement Mode:**
+- **REFLECT**: 200 words base (5 sentences) - Brief surface-level observations
+- **EXPLORE**: 400 words base (10 sentences) - Deeper investigation with follow-up questions
+- **INTEGRATE**: 500 words base (15 sentences) - Comprehensive cross-domain synthesis
+
+**Persona Density Modifiers:**
+Persona affects communication style/density, not base length:
+- **Companion**: 1.0x (neutral - warm and conversational)
+- **Strategist**: 1.15x (+15% for analytical detail)
+- **Grounded**: 0.9x (-10% for concise clarity)
+- **Challenger**: 0.85x (-15% for sharp directness)
+
 **Two Control Systems:**
 
 1. **Engagement Discipline Response Length** (via `engagement.response_length`):
    - **Preferred Length**: Concise (1-2 paragraphs), Moderate (2-4 paragraphs), or Detailed (4+ paragraphs)
    - Default: Moderate
    - Used when Response Length Auto mode is enabled
+   - **Note**: Engagement Mode base lengths take precedence
 
 2. **Manual Response Length Controls** (via `responseLength` section):
-   - **Auto Mode** (default): LUMARA chooses appropriate length based on question complexity
+   - **Auto Mode** (default): LUMARA chooses appropriate length based on Engagement Mode + Persona modifier
    - **Manual Mode**: User sets precise limits:
      - **Sentence Number**: 3, 5, 10, 15, or ∞ (infinity) - total sentences in response
      - **Sentences per Paragraph**: 3, 4, or 5 - paragraph structure
@@ -143,7 +163,7 @@ Fine-tune how LUMARA responds and what language it uses:
 
 **Priority Order:**
 1. If `responseLength.auto` is `false`: Use manual controls (`max_sentences`, `sentences_per_paragraph`)
-2. If `responseLength.auto` is `true`: Use `engagement.response_length` and `behavior.verbosity`
+2. If `responseLength.auto` is `true`: Use Engagement Mode base length + Persona modifier + `engagement.response_length` and `behavior.verbosity`
 
 ---
 

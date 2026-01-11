@@ -1,8 +1,8 @@
 # EPI MVP - Architecture Overview
 
-**Version:** 3.1
-**Last Updated:** January 9, 2026
-**Status:** ✅ Production Ready - MVP Fully Operational with Companion-First LUMARA, Simplified Settings, Health Integration, AssemblyAI v3, Web Access Safety, Correlation-Resistant PII Protection, Bible Reference Retrieval, Google Drive Backup, Temporal Notifications & Enhanced Incremental Backups
+**Version:** 3.2.3
+**Last Updated:** January 10, 2026
+**Status:** ✅ Production Ready - MVP Fully Operational with Companion-First LUMARA, Simplified Settings, Health Integration, AssemblyAI v3, Web Access Safety, Correlation-Resistant PII Protection, Bible Reference Retrieval, Google Drive Backup, Temporal Notifications, Enhanced Incremental Backups, Automatic First Export, and Sequential Export Numbering
 
 ---
 
@@ -35,6 +35,7 @@ EPI (Evolving Personal Intelligence) is a Flutter-based intelligent journaling a
 - ✅ **LUMARA v3.0 User Prompt System (v3.0)**: Fixed user prompt to reinforce master prompt constraints instead of overriding them, ensuring word limits, dated examples, and banned phrases are properly enforced
 - ✅ **LUMARA v3.2 Unified Prompt System (v3.2)**: Consolidated master prompt and user prompt into single unified prompt, eliminating duplication and override risk
 - ✅ **Adaptive Framework (v3.1)**: User-adaptive calibration system for SENTINEL and RIVET algorithms that automatically adjusts parameters based on journaling cadence (power user, frequent, weekly, sporadic)
+- ✅ **Export System Improvements (v3.2.3)**: Automatic first export (full backup of all files), sequential export numbering for clear tracking, and always-available full export option
 - ✅ **Export System Improvements (v3.2.3)**: Automatic first export (full backup of all files), sequential export numbering for clear tracking, and always-available full export option
 
 ### Current Version
@@ -257,6 +258,17 @@ The EPI system is organized into 5 core modules:
 - Export/import with extended data support
 - Secure key management
 - Google Drive cloud backup integration
+- **Two-Stage Memory System (v3.2.4)**: Complementary memory architecture
+  - **Stage 1: Context Selection** (Temporal/Phase-Aware Entry Selection)
+    - `LumaraContextSelector` selects entries based on Memory Focus, Engagement Mode, semantic relevance, and phase intelligence
+    - Determines: "Which parts of the journey?" (horizontal - time/phases)
+  - **Stage 2: Polymeta Memory Filtering** (Domain/Confidence-Based)
+    - `MemoryModeService` filters memories FROM selected entries
+    - Applies domain modes (Always On/Suggestive/High Confidence Only)
+    - Applies decay/reinforcement rates
+    - Determines: "What to remember from those parts?" (vertical - domain/confidence)
+  - **No Conflict**: These systems are complementary, not competing
+  - **Integration Pattern**: Context Selector selects entries → Polymeta filters memories from those entries → Both included in prompt
 
 ---
 
