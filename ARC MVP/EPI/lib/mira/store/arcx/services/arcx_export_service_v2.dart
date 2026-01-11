@@ -146,6 +146,7 @@ class ARCXExportServiceV2 {
     required Directory outputDir,
     String? password,
     Function(String)? onProgress,
+    int? exportNumber, // Optional export number for filename labeling (1, 2, 3, etc.)
   }) async {
     try {
       print('ARCX Export V2: Starting export...');
@@ -208,6 +209,7 @@ class ARCXExportServiceV2 {
               outputDir: outputDir,
               password: password,
               onProgress: onProgress,
+              exportNumber: exportNumber,
             );
           case ARCXExportStrategy.separateGroups:
             return await _exportSeparateGroups(
@@ -220,6 +222,7 @@ class ARCXExportServiceV2 {
               outputDir: outputDir,
               password: password,
               onProgress: onProgress,
+              exportNumber: exportNumber,
             );
           case ARCXExportStrategy.entriesChatsTogetherMediaSeparate:
             return await _exportEntriesChatsTogetherMediaSeparate(
@@ -232,6 +235,7 @@ class ARCXExportServiceV2 {
               outputDir: outputDir,
               password: password,
               onProgress: onProgress,
+              exportNumber: exportNumber,
             );
         }
       } finally {
@@ -260,6 +264,7 @@ class ARCXExportServiceV2 {
     required Directory outputDir,
     String? password,
     Function(String)? onProgress,
+    int? exportNumber,
   }) async {
     // Create payload directory
     final appDocDir = await getApplicationDocumentsDirectory();
@@ -374,6 +379,7 @@ class ARCXExportServiceV2 {
         password: password,
         onProgress: onProgress,
         compression: options.compression,
+        exportNumber: exportNumber,
       );
       
       onProgress?.call('Export complete!');
@@ -405,6 +411,7 @@ class ARCXExportServiceV2 {
     required Directory outputDir,
     String? password,
     Function(String)? onProgress,
+    int? exportNumber,
   }) async {
     // Build links map for all groups
     final links = _buildLinksMap(entries, chats, media);
@@ -427,6 +434,7 @@ class ARCXExportServiceV2 {
         password: password,
         onProgress: onProgress,
         includePhaseRegimes: true, // Phase regimes included with entries
+        exportNumber: exportNumber,
       );
       results.add(entriesPath);
     }
@@ -446,6 +454,7 @@ class ARCXExportServiceV2 {
         outputDir: outputDir,
         password: password,
         onProgress: onProgress,
+        exportNumber: exportNumber,
       );
       results.add(chatsPath);
     }
@@ -465,6 +474,7 @@ class ARCXExportServiceV2 {
         outputDir: outputDir,
         password: password,
         onProgress: onProgress,
+        exportNumber: exportNumber,
       );
       results.add(mediaPath);
     }
@@ -489,6 +499,7 @@ class ARCXExportServiceV2 {
     required Directory outputDir,
     String? password,
     Function(String)? onProgress,
+    int? exportNumber,
   }) async {
     // Build links map for all groups
     final links = _buildLinksMap(entries, chats, media);
@@ -597,6 +608,7 @@ class ARCXExportServiceV2 {
           password: password,
           onProgress: onProgress,
           compression: entriesChatsOptions.compression,
+          exportNumber: exportNumber,
         );
         
         results.add(entriesChatsPath);
@@ -637,6 +649,7 @@ class ARCXExportServiceV2 {
         outputDir: outputDir,
         password: password,
         onProgress: onProgress,
+        exportNumber: exportNumber,
       );
       results.add(mediaPath);
     }
@@ -664,6 +677,7 @@ class ARCXExportServiceV2 {
     String? password,
     Function(String)? onProgress,
     bool includePhaseRegimes = false,
+    int? exportNumber,
   }) async {
     final appDocDir = await getApplicationDocumentsDirectory();
     final tempDir = Directory(path.join(appDocDir.path, 'arcx_export_${exportId}'));
@@ -759,6 +773,7 @@ class ARCXExportServiceV2 {
         password: password,
         onProgress: onProgress,
         compression: options.compression,
+        exportNumber: exportNumber,
       );
       
       return arcxPath;
@@ -1876,6 +1891,7 @@ class ARCXExportServiceV2 {
     String? password,
     Function(String)? onProgress,
     String compression = 'auto', // 'auto' or 'off'
+    int? exportNumber, // Optional export number for filename labeling
   }) async {
     onProgress?.call('Creating archive...');
     
@@ -1998,7 +2014,10 @@ class ARCXExportServiceV2 {
     }
     
     final timestamp = DateTime.now().toIso8601String().replaceAll(':', '-').split('.')[0];
-    final arcxFileName = 'export_$timestamp.arcx';
+    // Include export number in filename for UI/UX tracking (e.g., export_1_2026-01-10T17-15-40.arcx)
+    final arcxFileName = exportNumber != null 
+        ? 'export_${exportNumber}_$timestamp.arcx'
+        : 'export_$timestamp.arcx';
     
     // Clean path: remove trailing spaces and normalize
     final cleanOutputPath = outputDir.path.trim();
@@ -2104,6 +2123,9 @@ class ARCXExportServiceV2 {
   /// 
   /// [excludeMedia] - If true, creates text-only backup (entries + chats, no media)
   ///                   This makes incremental backups much smaller and faster
+  /// 
+  /// **IMPORTANT**: If there are NO previous exports recorded, this performs a FULL export
+  /// of ALL files (entries, chats, media) regardless of excludeMedia setting.
   Future<ARCXExportResultV2> exportIncremental({
     required Directory outputDir,
     String? password,
@@ -2112,38 +2134,96 @@ class ARCXExportServiceV2 {
     bool excludeMedia = false, // Option to exclude media for space-efficient text-only backups
   }) async {
     try {
-      onProgress?.call('Analyzing changes since last backup...');
-      
       final historyService = ExportHistoryService.instance;
       final lastExportDate = await historyService.getLastExportDate();
+      final history = await historyService.getHistory();
+      
+      // CRITICAL: If there are NO previous exports, perform FULL exhaustive export
+      if (lastExportDate == null || history.totalExports == 0) {
+        onProgress?.call('No previous exports found. Performing full backup of all files...');
+        debugPrint('ARCX Export: No previous exports - performing FULL export with ALL media');
+        
+        // Get ALL data for first export
+        final allEntries = await _journalRepo?.getAllJournalEntries() ?? [];
+        final allChats = await _chatRepo?.listAll(includeArchived: true) ?? [];
+        
+        // Collect ALL media from ALL entries (no exclusions for first export)
+        final allMedia = <MediaItem>[];
+        for (final entry in allEntries) {
+          allMedia.addAll(entry.media);
+        }
+        
+        onProgress?.call(
+          'Full backup: ${allEntries.length} entries, ${allChats.length} chats, ${allMedia.length} media files'
+        );
+        
+        // Create selection with ALL data
+        final selection = ARCXExportSelection(
+          entryIds: allEntries.map((e) => e.id).toList(),
+          chatThreadIds: allChats.map((c) => c.id).toList(),
+          mediaIds: allMedia.map((m) => m.id).toList(), // ALL media for first export
+        );
+        
+        // Use full backup options (not incremental)
+        final options = ARCXExportOptions.fullBackup(strategy: strategy);
+        
+        // Perform export with numbered filename
+        final exportNumber = await historyService.getNextExportNumber();
+        final result = await export(
+          selection: selection,
+          options: options,
+          outputDir: outputDir,
+          password: password,
+          onProgress: onProgress,
+          exportNumber: exportNumber,
+        );
+        
+        // Record as full backup (first export)
+        if (result.success && options.trackExportHistory) {
+          final mediaHashes = allMedia
+              .where((m) => m.sha256 != null)
+              .map((m) => m.sha256!)
+              .toSet();
+          
+          await historyService.recordExport(ExportRecord(
+            exportId: 'arcx-full-${DateTime.now().millisecondsSinceEpoch}',
+            exportedAt: DateTime.now(),
+            exportPath: result.arcxPath,
+            entryIds: allEntries.map((e) => e.id).toSet(),
+            chatIds: allChats.map((c) => c.id).toSet(),
+            mediaHashes: mediaHashes,
+            entriesCount: result.entriesExported,
+            chatsCount: result.chatsExported,
+            mediaCount: result.mediaExported,
+            archiveSizeBytes: await _getFileSize(result.arcxPath ?? ''),
+            isFullBackup: true,
+            exportNumber: exportNumber,
+          ));
+        }
+        
+        return result;
+      }
+      
+      // Normal incremental export (previous exports exist)
+      onProgress?.call('Analyzing changes since last backup...');
       
       // Get all current entries and chats
       final allEntries = await _journalRepo?.getAllJournalEntries() ?? [];
       final allChats = await _chatRepo?.listAll(includeArchived: true) ?? [];
       
       // Filter to only new/modified since last export
-      List<JournalEntry> entriesToExport;
-      List<ChatSession> chatsToExport;
+      final entriesToExport = allEntries.where((e) => 
+        e.createdAt.isAfter(lastExportDate) || 
+        e.updatedAt.isAfter(lastExportDate)
+      ).toList();
       
-      if (lastExportDate != null) {
-        entriesToExport = allEntries.where((e) => 
-          e.createdAt.isAfter(lastExportDate) || 
-          e.updatedAt.isAfter(lastExportDate)
-        ).toList();
-        
-        chatsToExport = allChats.where((c) => 
-          c.createdAt.isAfter(lastExportDate) ||
-          c.updatedAt.isAfter(lastExportDate)
-        ).toList();
-      } else {
-        // No previous export - export everything
-        entriesToExport = allEntries;
-        chatsToExport = allChats;
-      }
+      final chatsToExport = allChats.where((c) => 
+        c.createdAt.isAfter(lastExportDate) ||
+        c.updatedAt.isAfter(lastExportDate)
+      ).toList();
       
       // Collect media from entries to export (unless excluded)
       final mediaToExport = <MediaItem>[];
-      final history = await historyService.getHistory();
       
       // Only collect media if not excluded from incremental backups
       if (!excludeMedia) {
@@ -2198,6 +2278,9 @@ class ARCXExportServiceV2 {
         excludeMediaFromIncremental: excludeMedia,
       );
       
+      // Get export number for sequential labeling
+      final exportNumber = await historyService.getNextExportNumber();
+      
       // Perform export
       final result = await export(
         selection: selection,
@@ -2205,6 +2288,7 @@ class ARCXExportServiceV2 {
         outputDir: outputDir,
         password: password,
         onProgress: onProgress,
+        exportNumber: exportNumber,
       );
       
       // Record export in history
@@ -2226,6 +2310,7 @@ class ARCXExportServiceV2 {
           mediaCount: result.mediaExported,
           archiveSizeBytes: await _getFileSize(result.arcxPath ?? ''),
           isFullBackup: false,
+          exportNumber: exportNumber,
         ));
       }
       
@@ -2257,18 +2342,21 @@ class ARCXExportServiceV2 {
     
     final options = ARCXExportOptions.fullBackup(strategy: strategy);
     
+    // Get export number for sequential labeling
+    final historyService = ExportHistoryService.instance;
+    final exportNumber = await historyService.getNextExportNumber();
+    
     final result = await export(
       selection: selection,
       options: options,
       outputDir: outputDir,
       password: password,
       onProgress: onProgress,
+      exportNumber: exportNumber,
     );
     
     // Record full backup in history
     if (result.success) {
-      final historyService = ExportHistoryService.instance;
-      
       // Collect all media hashes
       final mediaHashes = <String>{};
       for (final entry in allEntries) {
@@ -2291,6 +2379,7 @@ class ARCXExportServiceV2 {
         mediaCount: result.mediaExported,
         archiveSizeBytes: await _getFileSize(result.arcxPath ?? ''),
         isFullBackup: true,
+        exportNumber: exportNumber,
       ));
     }
     

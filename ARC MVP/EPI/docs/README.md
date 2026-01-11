@@ -15,6 +15,8 @@ Welcome to the EPI (Evolving Personal Intelligence) documentation. This director
   - Can calculate relative dates correctly ("yesterday", "last week")
   - Includes recent entries list with dates for temporal reference
   - Fixes temporal confusion in responses
+  - **Accuracy Fix**: Excludes current entry from recent entries, adds relative date information (e.g., "3 days ago")
+  - Recent entries format: `Friday, January 7, 2026 (3 days ago) - Entry Title`
 - **🎭 Persona Updates**: Renamed "Therapist" persona to "Grounded" with updated description
   - New description: "Deep warmth and safety with a stabilizing presence"
   - Better reflects the persona's stabilizing nature

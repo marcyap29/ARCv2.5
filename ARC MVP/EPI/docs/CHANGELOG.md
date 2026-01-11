@@ -1,6 +1,6 @@
 # EPI ARC MVP - Changelog
 
-**Version:** 3.2.1
+**Version:** 3.2.2
 **Last Updated:** January 10, 2026
 
 ---
@@ -14,6 +14,144 @@ This changelog has been split into parts for easier navigation:
 | **[CHANGELOG_part1.md](CHANGELOG_part1.md)** | Dec 2025 | v2.1.43 - v2.1.87 (Current) |
 | **[CHANGELOG_part2.md](CHANGELOG_part2.md)** | Nov 2025 | v2.1.28 - v2.1.42 |
 | **[CHANGELOG_part3.md](CHANGELOG_part3.md)** | Jan-Oct 2025 | v2.0.0 - v2.1.27 & Earlier |
+
+---
+
+## [3.2.3] - January 10, 2026
+
+### 📦 Export System Improvements
+
+#### First Export = Full Export
+- **Automatic Full Export on First Run**: When there are NO previous exports recorded, the app now automatically performs a full exhaustive export of ALL available files
+  - Includes ALL entries, chats, and media files (no exclusions)
+  - Ensures complete backup on first use
+  - User doesn't need to manually trigger full export for initial backup
+  - Subsequent exports are incremental (only new/changed data)
+
+#### Export Numbering & Labeling
+- **Sequential Export Labels**: Exports now include sequential numbers in filenames for clear tracking
+  - First export: `export_1_2026-01-10T17-15-40.arcx`
+  - Second export: `export_2_2026-01-11T18-20-30.arcx`
+  - Third export: `export_3_2026-01-12T19-30-45.arcx`
+  - Makes it easy to understand export sequence and order
+- **Export History Tracking**: Export numbers are tracked in export history
+  - Numbers persist across app restarts
+  - Sequential numbering continues from last export
+  - Helps users understand which export is which
+
+#### Full Export UI Option
+- **Always Available Full Export**: Full Export button is now always visible and available
+  - Updated description: "Export ALL files: X entries, Y chats, and ALL media files"
+  - Clear indication that it exports everything, including all media
+  - Available even when incremental backups exist
+  - Users can create full backups anytime, not just on first run
+
+### 📁 Files Modified
+- `lib/services/export_history_service.dart`: Added exportNumber field and getNextExportNumber() method
+- `lib/mira/store/arcx/services/arcx_export_service_v2.dart`: Updated exportIncremental() to perform full export on first run, added exportNumber parameter throughout export pipeline
+- `lib/shared/ui/settings/local_backup_settings_view.dart`: Updated Full Backup card description for clarity
+
+---
+
+## [3.2.3] - January 10, 2026
+
+### 📦 Export System Improvements
+
+#### First Export = Full Export
+- **Automatic Full Export on First Run**: When there are NO previous exports recorded, the app now automatically performs a full exhaustive export of ALL available files
+  - Includes ALL entries, chats, and media files (no exclusions)
+  - Ensures complete backup on first use
+  - User doesn't need to manually trigger full export for initial backup
+  - Subsequent exports are incremental (only new/changed data)
+
+#### Export Numbering & Labeling
+- **Sequential Export Labels**: Exports now include sequential numbers in filenames for clear tracking
+  - First export: `export_1_2026-01-10T17-15-40.arcx`
+  - Second export: `export_2_2026-01-11T18-20-30.arcx`
+  - Third export: `export_3_2026-01-12T19-30-45.arcx`
+  - Makes it easy to understand export sequence and order
+- **Export History Tracking**: Export numbers are tracked in export history
+  - Numbers persist across app restarts
+  - Sequential numbering continues from last export
+  - Helps users understand which export is which
+
+#### Full Export UI Option
+- **Always Available Full Export**: Full Export button is now always visible and available
+  - Updated description: "Export ALL files: X entries, Y chats, and ALL media files"
+  - Clear indication that it exports everything, including all media
+  - Available even when incremental backups exist
+  - Users can create full backups anytime, not just on first run
+
+### 📁 Files Modified
+- `lib/services/export_history_service.dart`: Added exportNumber field and getNextExportNumber() method
+- `lib/mira/store/arcx/services/arcx_export_service_v2.dart`: Updated exportIncremental() to perform full export on first run, added exportNumber parameter throughout export pipeline
+- `lib/shared/ui/settings/local_backup_settings_view.dart`: Updated Full Backup card description for clarity
+
+---
+
+## [3.2.2] - January 10, 2026
+
+### 🎯 LUMARA Improvements
+
+#### Temporal Context Injection
+- **Date/Time Grounding**: Added current date and time context to LUMARA's master prompt
+  - LUMARA now knows the current date in both ISO format and human-readable format
+  - Can accurately calculate relative dates ("yesterday", "last week", etc.)
+  - Includes recent entries list with dates for temporal reference
+  - Fixes temporal confusion where LUMARA couldn't determine "today" vs "yesterday"
+- **Implementation**:
+  - Added `<current_context>` and `<recent_entries>` sections to master prompt
+  - Created `injectDateContext()` helper method to inject actual date values
+  - Updated all prompt call sites to include date context
+- **Temporal Context Accuracy Fix** (January 10, 2026):
+  - **Problem**: LUMARA was referencing past entries with incorrect dates (e.g., saying "yesterday" for entries 3 days ago)
+  - **Root Cause**: Current entry was included in recent entries list, no relative date information, unclear instructions
+  - **Solution**:
+    - Exclude current entry from recent entries list to avoid confusion
+    - Add relative date information (e.g., "3 days ago") alongside absolute dates
+    - Format: `Friday, January 7, 2026 (3 days ago) - Entry Title`
+    - Added explicit temporal context usage instructions to master prompt
+    - Use consistent `DateTime.now()` reference point for all date calculations
+  - **Impact**: LUMARA now accurately references past entries with correct relative dates
+  - **Documentation**: See `docs/bugtracker/records/lumara-temporal-context-incorrect-dates.md`
+
+#### Persona Updates
+- **Renamed "Therapist" to "Grounded"**: Updated persona display name and description
+  - Display name changed from "The Therapist" to "Grounded"
+  - Description updated to "Deep warmth and safety with a stabilizing presence"
+  - Internal enum value remains `therapist` for backward compatibility
+  - Updated master prompt documentation to reflect new name
+
+#### Settings Simplification
+- **Removed Cross-Domain Connections Card**: Simplified settings UI
+  - Cross-domain synthesis now automatically enabled when INTEGRATE mode is selected
+  - Removed redundant toggle from Settings screen
+  - Functionality preserved - INTEGRATE mode always enables cross-domain connections
+  - Settings UI is now cleaner and less overwhelming
+
+### 🔧 Bug Fixes
+
+#### Gemini API Proxy Fix
+- **Empty User String Support**: Fixed `proxyGemini` function to accept empty user strings
+  - **Problem**: Journal reflections failed with "system and user parameters are required" error
+  - **Root Cause**: Function rejected empty string `user` parameter (falsy check `!user`)
+  - **Solution**: Changed validation to check for null/undefined instead of falsy values
+  - Now allows empty user when all content is in system prompt (journal reflections)
+  - Handles both string and object types (correlation-resistant transformation)
+  - Added debug logging for parameter validation
+  - **Impact**: Journal reflections now work correctly with unified prompt system
+  - **Commit**: `bd2f8065c` - Deployed January 10, 2026
+  - **Documentation**: See `docs/bugtracker/records/gemini-api-empty-user-string.md`
+
+### 📁 Files Modified
+- `functions/index.js`: Updated `proxyGemini` validation logic
+- `lib/arc/chat/llm/prompts/lumara_master_prompt.dart`: Added date context placeholders, injection method, and temporal context instructions
+- `lib/arc/chat/services/enhanced_lumara_api.dart`: Added date context injection with recent entries, excluded current entry, added relative dates
+- `lib/arc/chat/bloc/lumara_assistant_cubit.dart`: Added date context injection for chat mode
+- `lib/arc/chat/veil_edge/integration/lumara_veil_edge_integration.dart`: Added date context injection
+- `lib/arc/chat/services/lumara_reflection_settings_service.dart`: Updated persona display name and description
+- `lib/shared/ui/settings/settings_view.dart`: Removed Cross-Domain Connections card, updated Engagement Mode to auto-enable cross-domain for INTEGRATE
+- `lib/models/engagement_discipline.dart`: Updated `_setEngagementMode` to automatically enable cross-domain synthesis for INTEGRATE mode
 
 ---
 

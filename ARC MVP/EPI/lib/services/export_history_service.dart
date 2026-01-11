@@ -21,6 +21,7 @@ class ExportRecord {
   final int mediaCount;
   final int archiveSizeBytes;
   final bool isFullBackup;
+  final int? exportNumber; // Sequential export number (1, 2, 3, etc.) for UI/UX tracking
   
   ExportRecord({
     required this.exportId,
@@ -34,6 +35,7 @@ class ExportRecord {
     required this.mediaCount,
     required this.archiveSizeBytes,
     required this.isFullBackup,
+    this.exportNumber,
   });
   
   Map<String, dynamic> toJson() => {
@@ -48,6 +50,7 @@ class ExportRecord {
     'mediaCount': mediaCount,
     'archiveSizeBytes': archiveSizeBytes,
     'isFullBackup': isFullBackup,
+    'exportNumber': exportNumber,
   };
   
   factory ExportRecord.fromJson(Map<String, dynamic> json) => ExportRecord(
@@ -62,6 +65,7 @@ class ExportRecord {
     mediaCount: json['mediaCount'] as int? ?? 0,
     archiveSizeBytes: json['archiveSizeBytes'] as int? ?? 0,
     isFullBackup: json['isFullBackup'] as bool? ?? true,
+    exportNumber: json['exportNumber'] as int?,
   );
 }
 
@@ -225,6 +229,21 @@ class ExportHistoryService {
   Future<DateTime?> getLastFullBackupDate() async {
     final history = await getHistory();
     return history.lastFullBackupDate;
+  }
+  
+  /// Get next export number for sequential labeling (1, 2, 3, etc.)
+  /// Returns 1 for first export, then increments sequentially
+  Future<int> getNextExportNumber() async {
+    final history = await getHistory();
+    if (history.totalExports == 0) {
+      return 1; // First export
+    }
+    // Find the highest export number from recent exports
+    final maxNumber = history.recentExports
+        .where((e) => e.exportNumber != null)
+        .map((e) => e.exportNumber!)
+        .fold<int>(0, (max, num) => num > max ? num : max);
+    return maxNumber + 1;
   }
   
   /// Get summary for UI display

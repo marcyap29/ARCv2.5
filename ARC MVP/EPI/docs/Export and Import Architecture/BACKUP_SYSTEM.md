@@ -1,8 +1,8 @@
 # ARCX Backup System Documentation
 
-**Version:** 2.1.84  
-**Last Updated:** January 4, 2026  
-**Status:** Current Implementation with Enhanced Incremental Backups
+**Version:** 3.2.3  
+**Last Updated:** January 10, 2026  
+**Status:** Current Implementation with Enhanced Incremental Backups, First Export Full Backup, and Sequential Export Numbering
 
 ---
 
@@ -618,32 +618,40 @@ class ARCXImportResultV2 {
 
 ## Recommended Implementation (Future Features)
 
-### 1. Incremental Backup Tracking
+### 1. Incremental Backup Tracking ✅ IMPLEMENTED (v3.2.3)
 
 **Feature:** Track last export date and exported entry IDs
 
 **Implementation:**
-```dart
-class ExportHistory {
-  final DateTime lastExportDate;
-  final Set<String> exportedEntryIds;
-  final Set<String> exportedChatIds;
-  final Set<String> exportedMediaIds;
-  final String lastExportPath;
-  
-  // Store in SharedPreferences or local database
-}
-```
+- `ExportHistoryService` tracks last export date, exported entry/chat IDs, and media hashes
+- Stores export history in SharedPreferences
+- Automatically detects if no previous exports exist
+
+**First Export Behavior:**
+- **Automatic Full Export**: If no previous exports are recorded, the system automatically performs a FULL exhaustive export
+  - Includes ALL entries, chats, and media files (no exclusions)
+  - Ensures complete backup on first use
+  - User doesn't need to manually trigger full export for initial backup
+  - Subsequent exports are incremental (only new/changed data)
+
+**Export Numbering:**
+- **Sequential Labels**: Exports include sequential numbers in filenames
+  - First export: `export_1_2026-01-10T17-15-40.arcx`
+  - Second export: `export_2_2026-01-11T18-20-30.arcx`
+  - Makes it easy to understand export sequence and order
+- Export numbers are tracked in export history and persist across app restarts
 
 **UI Enhancement:**
-- Add "Export New Entries Only" button
-- Automatically filters to entries since last export
-- Shows count: "Export 57 new entries since Dec 15, 2025"
+- "Quick Backup" button for incremental backups
+- "Full Backup" button always available for complete exports
+- Preview shows new entries, chats, and media counts
+- Clear indication of what will be exported
 
 **Benefits:**
-- Automatic incremental backups
+- Automatic incremental backups after first export
 - No manual date selection needed
-- Dramatically reduces export size
+- Dramatically reduces export size (90%+ reduction)
+- Clear export labeling for user understanding
 
 ### 2. Export Diff Detection
 
