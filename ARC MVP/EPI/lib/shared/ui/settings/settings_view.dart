@@ -10,7 +10,6 @@ import 'package:my_app/shared/ui/settings/favorites_management_view.dart';
 import 'package:my_app/shared/ui/settings/advanced_settings_view.dart';
 import 'package:my_app/shared/ui/settings/voiceover_preference_service.dart';
 import 'package:my_app/shared/ui/settings/throttle_settings_view.dart';
-import 'package:my_app/ui/screens/mcp_management_screen.dart';
 import 'package:my_app/arc/core/journal_repository.dart';
 import 'package:my_app/arc/chat/services/favorites_service.dart';
 import 'package:my_app/arc/chat/services/lumara_reflection_settings_service.dart';
@@ -553,22 +552,6 @@ class _SettingsViewState extends State<SettingsView> {
                   icon: Icons.cloud_download,
                   onTap: () {
                     _restoreDataFromSettings(context);
-                  },
-                ),
-                _buildSettingsTile(
-                  context,
-                  title: 'Advanced Export',
-                  subtitle: 'Custom exports with date filtering, multi-select, and sharing',
-                  icon: Icons.tune,
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => McpManagementScreen(
-                          journalRepository: context.read<JournalRepository>(),
-                        ),
-                      ),
-                    );
                   },
                 ),
               ],

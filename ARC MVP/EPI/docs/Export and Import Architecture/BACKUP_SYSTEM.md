@@ -1,8 +1,8 @@
 # ARCX Backup System Documentation
 
-**Version:** 3.2.3  
-**Last Updated:** January 10, 2026  
-**Status:** Current Implementation with Enhanced Incremental Backups, First Export Full Backup, and Sequential Export Numbering
+**Version:** 3.2.4  
+**Last Updated:** January 11, 2026  
+**Status:** Current Implementation with Enhanced Incremental Backups, First Export Full Backup, Sequential Export Numbering, and First Backup on Import
 
 ---
 
@@ -360,6 +360,44 @@ class ARCXImportOptions {
 - Tracked in `_missingLinks` map
 - Reported as warnings in import result
 - Doesn't fail import, just warns user
+
+### First Backup on Import (v3.2.4)
+
+**Purpose:** When a user loads a backup into a completely new/empty app (no entries, no chats), the system automatically creates an export record marking that imported data as the first save. This ensures proper tracking for future incremental backups.
+
+**How It Works:**
+1. **Empty App Detection:** Before import starts, the system checks if the app has any existing entries or chats
+2. **Import Tracking:** During import, all imported entry IDs, chat IDs, and media hashes are tracked
+3. **Export Record Creation:** After successful import, if the app was empty and data was imported:
+   - Creates an `ExportRecord` with all imported IDs and hashes
+   - Marks it as a full backup (`isFullBackup: true`)
+   - Assigns export number (1 if first export, otherwise next sequential number)
+   - Records it in `ExportHistoryService`
+4. **Future Incremental Backups:** Subsequent incremental backups will only export new entries/chats created after the import date
+
+**Benefits:**
+- Users can see their imported backup in backup history
+- Future incremental backups correctly identify new data vs. imported data
+- Export history properly tracks what was imported vs. what was created locally
+- Works for both ARCX (`.arcx`) and ZIP (`.zip`) import formats
+
+**Implementation Details:**
+- **ARCX Import:** `ARCXImportServiceV2` tracks imported IDs and creates export record
+- **ZIP Import:** `McpPackImportService` tracks imported IDs and creates export record
+- **Export Record Fields:**
+  - `exportId`: Generated UUID
+  - `exportedAt`: Current date/time (when import completed)
+  - `exportPath`: The imported file path (for reference)
+  - `entryIds`: All imported entry IDs (including skipped ones)
+  - `chatIds`: All imported chat IDs (including skipped ones)
+  - `mediaHashes`: All imported media SHA-256 hashes
+  - `isFullBackup`: `true` (treating imported backup as full backup)
+  - `exportNumber`: Sequential number (1, 2, 3, etc.)
+
+**Edge Cases:**
+- If import fails, no export record is created
+- If app was empty but import resulted in 0 entries and 0 chats, no record is created
+- If export history already exists, the record uses `getNextExportNumber()` instead of hardcoding `1`
 
 ### Import Results
 
@@ -900,7 +938,7 @@ class ARCXImportResultV2 {
 
 ---
 
-**Version:** 2.1.76  
-**Last Updated:** January 1, 2026  
-**Status:** Documentation Complete - Awaiting Implementation
+**Version:** 3.2.4  
+**Last Updated:** January 11, 2026  
+**Status:** Current Implementation - All Features Complete
 

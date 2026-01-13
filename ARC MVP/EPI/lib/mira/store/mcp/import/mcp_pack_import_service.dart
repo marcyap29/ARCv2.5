@@ -23,6 +23,10 @@ import 'package:my_app/prism/atlas/phase/phase_inference_service.dart';
 import 'package:my_app/models/user_profile_model.dart';
 import 'package:my_app/state/journal_entry_state.dart';
 import 'package:my_app/arc/chat/chat/chat_repo.dart';
+import 'package:my_app/services/export_history_service.dart';
+import 'package:uuid/uuid.dart';
+
+const _uuid = Uuid();
 
 /// MCP Pack Import Service for .zip files only
 class McpPackImportService {
@@ -32,6 +36,12 @@ class McpPackImportService {
 
   // Media deduplication cache - maps URI to MediaItem to prevent duplicates
   final Map<String, MediaItem> _mediaCache = {};
+  
+  // Tracking for first backup on import
+  bool _wasAppEmptyBeforeImport = false;
+  final Set<String> _importedEntryIds = {};
+  final Set<String> _importedChatIds = {};
+  final Set<String> _importedMediaHashes = {};
 
   McpPackImportService({
     JournalRepository? journalRepo,
@@ -44,7 +54,38 @@ class McpPackImportService {
   /// Clear the media cache (call before starting a new import)
   void clearMediaCache() {
     _mediaCache.clear();
+    _wasAppEmptyBeforeImport = false;
+    _importedEntryIds.clear();
+    _importedChatIds.clear();
+    _importedMediaHashes.clear();
     print('🧹 Cleared media cache for new import');
+  }
+  
+  /// Check if app is empty (no entries, no chats)
+  Future<bool> _checkIfAppIsEmpty() async {
+    try {
+      // Check entries
+      if (_journalRepo != null) {
+        final entries = await _journalRepo!.getAllJournalEntries();
+        if (entries.isNotEmpty) {
+          return false;
+        }
+      }
+      
+      // Check chats
+      if (_chatRepo != null) {
+        final chats = await _chatRepo!.listAll(includeArchived: true);
+        if (chats.isNotEmpty) {
+          return false;
+        }
+      }
+      
+      return true;
+    } catch (e) {
+      print('MCP Import: ⚠️ Error checking if app is empty: $e');
+      // If we can't check, assume not empty to be safe
+      return false;
+    }
   }
 
   /// Import from MCP package (.zip) only
@@ -86,6 +127,12 @@ class McpPackImportService {
 
       // Clear media cache for this import
       clearMediaCache();
+      
+      // Check if app is empty before import (for first backup tracking)
+      _wasAppEmptyBeforeImport = await _checkIfAppIsEmpty();
+      if (_wasAppEmptyBeforeImport) {
+        print('MCP Import: 📋 App is empty - will create export record after successful import');
+      }
 
       // Import all media (photos, videos, audio, files) first
       final mediaMapping = await _importAllMedia(mcpDir);
@@ -149,6 +196,21 @@ class McpPackImportService {
           print('✅ Phase regimes rebuilt using 10-day rolling windows');
         } catch (e) {
           print('⚠️ Failed to rebuild phase regimes: $e');
+        }
+      }
+
+      // Create export record if app was empty before import and we imported data
+      if (_wasAppEmptyBeforeImport && (entriesImported > 0 || chatSessionCount > 0)) {
+        try {
+          await _createExportRecordFromImport(
+            zipPath: inputPath,
+            entriesImported: entriesImported,
+            chatsImported: chatSessionCount,
+            mediaImported: mediaMapping.length,
+          );
+        } catch (e) {
+          print('MCP Import: ⚠️ Failed to create export record: $e');
+          // Don't fail the import if export record creation fails
         }
       }
 
@@ -468,6 +530,11 @@ class McpPackImportService {
                 
                 final mediaItem = await _createMediaItemFromJson(enhancedMediaJson, photoMapping, entryJson['id'] as String? ?? 'unknown');
                 if (mediaItem != null) {
+                  // Track media hash for export record (if not already tracked)
+                  if (mediaItem.sha256 != null && mediaItem.sha256!.isNotEmpty) {
+                    _importedMediaHashes.add(mediaItem.sha256!);
+                  }
+                  
                   // Check cache for deduplication
                   final cacheKey = mediaItem.uri;
                   if (_mediaCache.containsKey(cacheKey)) {
@@ -617,6 +684,8 @@ class McpPackImportService {
               
             await _journalRepo!.createJournalEntry(journalEntry);
             entriesImported++;
+            // Track imported entry ID for export record
+            _importedEntryIds.add(journalEntry.id);
               
               // Special logging for entries 23, 24, 25
               if (entryId.contains('da055a24') || entryId.contains('ee12c32f') || entryId.contains('f25f9d72')) {
@@ -840,7 +909,7 @@ class McpPackImportService {
         sizeBytes = mediaJson['size'] as int?;
       }
 
-      return MediaItem(
+      final mediaItem = MediaItem(
         id: mediaId,
         type: mediaType, // Use detected type (image, video, audio, file)
         uri: finalUri,
@@ -858,6 +927,14 @@ class McpPackImportService {
         transcript: mediaJson['transcript'] as String?,
         sha256: mediaJson['sha256'] as String?,
       );
+      
+      // Track media hash for export record
+      final sha256 = mediaJson['sha256'] as String?;
+      if (sha256 != null && sha256.isNotEmpty) {
+        _importedMediaHashes.add(sha256);
+      }
+      
+      return mediaItem;
     } catch (e, stackTrace) {
       print('⚠️ Failed to create MediaItem: $e');
       print('   Stack trace: $stackTrace');
@@ -1138,6 +1215,69 @@ class McpPackImportService {
     }
   }
   
+  /// Create export record from imported backup (for first backup on import)
+  Future<void> _createExportRecordFromImport({
+    required String zipPath,
+    required int entriesImported,
+    required int chatsImported,
+    required int mediaImported,
+  }) async {
+    try {
+      print('MCP Import: 📝 Creating export record for imported backup...');
+      
+      // Get file size
+      int archiveSizeBytes = 0;
+      try {
+        final zipFile = File(zipPath);
+        if (await zipFile.exists()) {
+          archiveSizeBytes = await zipFile.length();
+        }
+      } catch (e) {
+        print('MCP Import: ⚠️ Could not get file size: $e');
+      }
+      
+      // Get next export number (or use 1 if no history exists)
+      final exportHistoryService = ExportHistoryService.instance;
+      final history = await exportHistoryService.getHistory();
+      final exportNumber = history.totalExports == 0 
+          ? 1 
+          : await exportHistoryService.getNextExportNumber();
+      
+      // Create export record
+      final record = ExportRecord(
+        exportId: _uuid.v4(),
+        exportedAt: DateTime.now(),
+        exportPath: zipPath,
+        entryIds: _importedEntryIds,
+        chatIds: _importedChatIds,
+        mediaHashes: _importedMediaHashes,
+        entriesCount: entriesImported,
+        chatsCount: chatsImported,
+        mediaCount: mediaImported,
+        archiveSizeBytes: archiveSizeBytes,
+        isFullBackup: true,
+        exportNumber: exportNumber,
+      );
+      
+      // Record the export
+      await exportHistoryService.recordExport(record);
+      
+      print('MCP Import: ✅ Created export record #$exportNumber');
+      print('  - Entries: ${_importedEntryIds.length} (${entriesImported} imported)');
+      print('  - Chats: ${_importedChatIds.length} (${chatsImported} imported)');
+      print('  - Media: ${_importedMediaHashes.length} (${mediaImported} imported)');
+      
+      // Clear tracking variables
+      _importedEntryIds.clear();
+      _importedChatIds.clear();
+      _importedMediaHashes.clear();
+    } catch (e, stackTrace) {
+      print('MCP Import: ✗ Error creating export record: $e');
+      print('MCP Import: Stack trace: $stackTrace');
+      rethrow;
+    }
+  }
+  
   /// Infer phase for an imported entry that needs migration
   Future<void> _inferPhaseForImportedEntry(JournalEntry entry) async {
     try {
@@ -1243,6 +1383,8 @@ class McpPackImportService {
               
               // Store mapping
               sessionIdMap[mcpSessionId] = newSessionId;
+              // Track imported chat ID for export record
+              _importedChatIds.add(newSessionId);
               
               // Update session with metadata if present
               if (metadata != null && metadata.isNotEmpty) {
@@ -1320,6 +1462,8 @@ class McpPackImportService {
             
             // Store mapping (use the full "session:{id}" format)
             sessionIdMap[mcpSessionId] = newSessionId;
+            // Track imported chat ID for export record
+            _importedChatIds.add(newSessionId);
             
             // Update session with metadata if present (preserves fork relationships, etc.)
             if (metadata != null && metadata.isNotEmpty) {

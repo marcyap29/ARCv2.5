@@ -22,7 +22,6 @@ import 'package:my_app/shared/ui/settings/conflict_management_view.dart';
 import 'package:my_app/shared/ui/settings/favorites_management_view.dart';
 import 'package:my_app/shared/ui/settings/simplified_advanced_settings_view.dart';
 import 'package:my_app/shared/ui/settings/throttle_settings_view.dart';
-import 'package:my_app/ui/screens/mcp_management_screen.dart';
 import 'package:my_app/arc/core/journal_repository.dart';
 import 'package:my_app/arc/chat/services/favorites_service.dart';
 import 'package:my_app/arc/chat/services/lumara_reflection_settings_service.dart';
@@ -33,17 +32,6 @@ import 'package:my_app/services/firebase_auth_service.dart';
 import 'package:my_app/shared/ui/settings/local_backup_settings_view.dart';
 import 'package:my_app/shared/ui/settings/temporal_notification_settings_view.dart';
 import 'package:my_app/arc/phase/share/phase_share_service.dart';
-import 'package:file_picker/file_picker.dart';
-import 'dart:io';
-import 'package:my_app/mira/store/mcp/import/mcp_pack_import_service.dart';
-import 'package:my_app/mira/store/arcx/ui/arcx_import_progress_screen.dart';
-import 'package:my_app/services/phase_regime_service.dart';
-import 'package:my_app/services/rivet_sweep_service.dart';
-import 'package:my_app/services/analytics_service.dart';
-import 'package:my_app/utils/file_utils.dart';
-import 'package:my_app/arc/ui/timeline/timeline_cubit.dart';
-import 'package:my_app/shared/ui/home/home_view.dart';
-import 'package:my_app/arc/chat/chat/chat_repo_impl.dart';
 
 class SimplifiedSettingsView extends StatefulWidget {
   const SimplifiedSettingsView({super.key});
@@ -349,22 +337,6 @@ class _SimplifiedSettingsViewState extends State<SimplifiedSettingsView> {
                   icon: Icons.cloud_download,
                   onTap: () {
                     _restoreDataFromSettings(context);
-                  },
-                ),
-                _buildSettingsTile(
-                  context,
-                  title: 'Advanced Export',
-                  subtitle: 'Custom exports with date filtering, multi-select, and sharing',
-                  icon: Icons.tune,
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => McpManagementScreen(
-                          journalRepository: context.read<JournalRepository>(),
-                        ),
-                      ),
-                    );
                   },
                 ),
               ],

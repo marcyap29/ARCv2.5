@@ -31,6 +31,7 @@ import 'package:my_app/state/journal_entry_state.dart';
 import 'package:hive/hive.dart';
 import 'package:my_app/models/user_profile_model.dart';
 import 'package:my_app/prism/atlas/phase/phase_inference_service.dart';
+import 'package:my_app/services/export_history_service.dart';
 
 const _uuid = Uuid();
 
@@ -64,6 +65,12 @@ class ARCXImportServiceV2 {
   final Map<String, String> _mediaIdMap = {}; // old_id -> new_id
   final Map<String, List<String>> _missingLinks = {}; // type -> [ids]
   
+  // Tracking for first backup on import
+  bool _wasAppEmptyBeforeImport = false;
+  final Set<String> _importedEntryIds = {};
+  final Set<String> _importedChatIds = {};
+  final Set<String> _importedMediaHashes = {};
+  
   ARCXImportServiceV2({
     JournalRepository? journalRepo,
     ChatRepo? chatRepo,
@@ -79,7 +86,38 @@ class ARCXImportServiceV2 {
     _chatIdMap.clear();
     _mediaIdMap.clear();
     _missingLinks.clear();
+    _wasAppEmptyBeforeImport = false;
+    _importedEntryIds.clear();
+    _importedChatIds.clear();
+    _importedMediaHashes.clear();
     print('ARCX Import V2: 🧹 Cleared caches for new import');
+  }
+  
+  /// Check if app is empty (no entries, no chats)
+  Future<bool> _checkIfAppIsEmpty() async {
+    try {
+      // Check entries
+      if (_journalRepo != null) {
+        final entries = await _journalRepo!.getAllJournalEntries();
+        if (entries.isNotEmpty) {
+          return false;
+        }
+      }
+      
+      // Check chats
+      if (_chatRepo != null) {
+        final chats = await _chatRepo!.listAll(includeArchived: true);
+        if (chats.isNotEmpty) {
+          return false;
+        }
+      }
+      
+      return true;
+    } catch (e) {
+      print('ARCX Import V2: ⚠️ Error checking if app is empty: $e');
+      // If we can't check, assume not empty to be safe
+      return false;
+    }
   }
   
   /// Import ARCX archive
@@ -94,6 +132,12 @@ class ARCXImportServiceV2 {
       onProgress?.call('Loading archive...');
       
       clearCaches();
+      
+      // Check if app is empty before import (for first backup tracking)
+      _wasAppEmptyBeforeImport = await _checkIfAppIsEmpty();
+      if (_wasAppEmptyBeforeImport) {
+        print('ARCX Import V2: 📋 App is empty - will create export record after successful import');
+      }
       
       // Step 1: Load and validate .arcx file
       final arcxFile = File(arcxPath);
@@ -326,6 +370,21 @@ class ARCXImportServiceV2 {
         
         onProgress?.call('Import complete!');
         
+        // Create export record if app was empty before import and we imported data
+        if (_wasAppEmptyBeforeImport && (entriesImported > 0 || chatsImported > 0)) {
+          try {
+            await _createExportRecordFromImport(
+              arcxPath: arcxPath,
+              entriesImported: entriesImported,
+              chatsImported: chatsImported,
+              mediaImported: mediaImported,
+            );
+          } catch (e) {
+            print('ARCX Import V2: ⚠️ Failed to create export record: $e');
+            // Don't fail the import if export record creation fails
+          }
+        }
+        
         return ARCXImportResultV2.success(
           entriesImported: entriesImported,
           chatsImported: chatsImported,
@@ -494,8 +553,12 @@ class ARCXImportServiceV2 {
             if (mediaItem != null) {
               // Cache for deduplication (by SHA256 hash)
               final contentHash = mediaItemData['sha256'] as String?;
-              if (contentHash != null && options.dedupeMedia) {
-                _mediaCache[contentHash] = mediaItem;
+              if (contentHash != null) {
+                if (options.dedupeMedia) {
+                  _mediaCache[contentHash] = mediaItem;
+                }
+                // Track media hash for export record
+                _importedMediaHashes.add(contentHash);
               }
               
               // ALWAYS cache by ID for link resolution (even if deduplication is disabled)
@@ -561,6 +624,8 @@ class ARCXImportServiceV2 {
             if (existing != null) {
               print('ARCX Import V2: ⚠️ Entry $entryId already exists, skipping');
               _entryIdMap[entryId] = entryId; // Map to itself
+              // Track skipped entry ID for export record
+              _importedEntryIds.add(entryId);
               continue;
             }
           }
@@ -572,6 +637,8 @@ class ARCXImportServiceV2 {
           if (entry != null) {
             await _journalRepo!.createJournalEntry(entry);
             _entryIdMap[entryId] = entry.id;
+            // Track imported entry ID for export record
+            _importedEntryIds.add(entry.id);
             imported++;
             
             // If entry needs phase inference, run it after import
@@ -1009,6 +1076,8 @@ class ARCXImportServiceV2 {
               if (existing != null) {
                 print('ARCX Import V2: ⚠️ Chat $chatId already exists, skipping');
                 _chatIdMap[chatId] = chatId; // Map to itself
+                // Track skipped chat ID for export record
+                _importedChatIds.add(chatId);
                 skipped++;
                 continue;
               }
@@ -1028,6 +1097,8 @@ class ARCXImportServiceV2 {
             
             // Map the ID
             _chatIdMap[chatId] = chat.id;
+            // Track imported chat ID for export record
+            _importedChatIds.add(chat.id);
             imported++;
           } else {
             print('ARCX Import V2: ✗ Failed to import chat $chatId');
@@ -1587,6 +1658,69 @@ class ARCXImportServiceV2 {
     } catch (e) {
       print('ARCX Import V2: ⚠️ Error updating user phase from regimes: $e');
       // Don't throw - phase update failure shouldn't break import
+    }
+  }
+  
+  /// Create export record from imported backup (for first backup on import)
+  Future<void> _createExportRecordFromImport({
+    required String arcxPath,
+    required int entriesImported,
+    required int chatsImported,
+    required int mediaImported,
+  }) async {
+    try {
+      print('ARCX Import V2: 📝 Creating export record for imported backup...');
+      
+      // Get file size
+      int archiveSizeBytes = 0;
+      try {
+        final arcxFile = File(arcxPath);
+        if (await arcxFile.exists()) {
+          archiveSizeBytes = await arcxFile.length();
+        }
+      } catch (e) {
+        print('ARCX Import V2: ⚠️ Could not get file size: $e');
+      }
+      
+      // Get next export number (or use 1 if no history exists)
+      final exportHistoryService = ExportHistoryService.instance;
+      final history = await exportHistoryService.getHistory();
+      final exportNumber = history.totalExports == 0 
+          ? 1 
+          : await exportHistoryService.getNextExportNumber();
+      
+      // Create export record
+      final record = ExportRecord(
+        exportId: _uuid.v4(),
+        exportedAt: DateTime.now(),
+        exportPath: arcxPath,
+        entryIds: _importedEntryIds,
+        chatIds: _importedChatIds,
+        mediaHashes: _importedMediaHashes,
+        entriesCount: entriesImported,
+        chatsCount: chatsImported,
+        mediaCount: mediaImported,
+        archiveSizeBytes: archiveSizeBytes,
+        isFullBackup: true,
+        exportNumber: exportNumber,
+      );
+      
+      // Record the export
+      await exportHistoryService.recordExport(record);
+      
+      print('ARCX Import V2: ✅ Created export record #$exportNumber');
+      print('  - Entries: ${_importedEntryIds.length} (${entriesImported} imported)');
+      print('  - Chats: ${_importedChatIds.length} (${chatsImported} imported)');
+      print('  - Media: ${_importedMediaHashes.length} (${mediaImported} imported)');
+      
+      // Clear tracking variables
+      _importedEntryIds.clear();
+      _importedChatIds.clear();
+      _importedMediaHashes.clear();
+    } catch (e, stackTrace) {
+      print('ARCX Import V2: ✗ Error creating export record: $e');
+      print('ARCX Import V2: Stack trace: $stackTrace');
+      rethrow;
     }
   }
   
