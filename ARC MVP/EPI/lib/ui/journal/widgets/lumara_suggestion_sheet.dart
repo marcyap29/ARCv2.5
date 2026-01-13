@@ -27,7 +27,7 @@ class LumaraSuggestionSheet extends StatelessWidget {
         Icons.play_arrow,
       ),
       _SuggestionItem(
-        'Analyze, Interpret, Suggest Actions',
+        'Deep Analysis',
         LumaraIntent.think,
         Icons.psychology,
       ),

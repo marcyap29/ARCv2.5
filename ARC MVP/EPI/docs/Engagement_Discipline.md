@@ -137,6 +137,12 @@ Response length is determined by Engagement Mode, not Persona. This ensures that
 - **EXPLORE**: 400 words base (10 sentences) - Deeper investigation with follow-up questions
 - **INTEGRATE**: 500 words base (15 sentences) - Comprehensive cross-domain synthesis
 
+**Conversation Mode Overrides:**
+- **"Analyze"** (ConversationMode.ideas): 600 words base (18 sentences) - Extended analysis with practical suggestions
+- **"Deep Analysis"** (ConversationMode.think): 750 words base (22 sentences) - Comprehensive deep analysis with structured scaffolding
+
+**Note:** Conversation mode overrides take precedence over engagement mode base lengths when active. Persona density modifiers still apply.
+
 **Persona Density Modifiers:**
 Persona affects communication style/density, not base length:
 - **Companion**: 1.0x (neutral - warm and conversational)

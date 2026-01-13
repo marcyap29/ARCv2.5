@@ -21,6 +21,22 @@
   - Longest responses for developmental analysis
   - Cross-domain connections and trajectory themes
 
+### Conversation Mode Response Length Overrides
+
+**Extended Analysis Modes:**
+- **"Analyze"** (ConversationMode.ideas): 600 words base (18 sentences)
+  - Extended analysis with practical suggestions
+  - Longer than INTEGRATE mode for comprehensive analysis
+  - Available in both in-journal and in-chat interfaces
+  
+- **"Deep Analysis"** (ConversationMode.think): 750 words base (22 sentences)
+  - Comprehensive deep analysis with structured scaffolding
+  - Longest response mode for thorough investigation
+  - Available in main menu and suggestion sheets
+  - Includes interpretation, structured analysis, and concrete action suggestions
+
+**Note:** These conversation mode overrides take precedence over engagement mode base lengths when active. Persona density modifiers still apply to these extended lengths.
+
 **Persona Density Modifiers:**
 - Persona affects communication style/density, not base length:
   - **Companion**: 1.0x (neutral - warm and conversational)

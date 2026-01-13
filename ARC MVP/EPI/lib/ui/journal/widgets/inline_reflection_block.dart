@@ -369,13 +369,7 @@ class _InlineReflectionBlockState extends State<InlineReflectionBlock> with Sing
                                 ),
                                 const SizedBox(width: 8),
                                 LumaraActionButton(
-                                  label: 'Reflect more deeply',
-                                  icon: Icons.insights,
-                                  onPressed: widget.isLoading ? () {} : widget.onReflectDeeply,
-                                ),
-                                const SizedBox(width: 8),
-                                LumaraActionButton(
-                                  label: 'Suggest ideas',
+                                  label: 'Analyze',
                                   icon: Icons.lightbulb_outline,
                                   onPressed: widget.isLoading ? () {} : widget.onContinueThought,
                                 ),

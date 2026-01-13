@@ -5141,7 +5141,7 @@ $originalEntryTextToInclude
   }
 
   Future<void> _onContinueThought(int index) async {
-    await _handleLumaraContinuation(lumara_models.ConversationMode.continueThought, index);
+    await _handleLumaraContinuation(lumara_models.ConversationMode.ideas, index);
   }
 
   /// Handle LUMARA continuation with conversation mode (v2.3)

@@ -2561,8 +2561,16 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
               },
             ),
             ListTile(
+              leading: Icon(Icons.psychology, color: Theme.of(context).colorScheme.primary),
+              title: const Text('Deep Analysis'),
+              onTap: () {
+                Navigator.pop(context);
+                _handleConversationMode(message, models.ConversationMode.think);
+              },
+            ),
+            ListTile(
               leading: Icon(Icons.lightbulb_outline, color: Theme.of(context).colorScheme.primary),
-              title: const Text('Suggest ideas'),
+              title: const Text('Analyze'),
               onTap: () {
                 Navigator.pop(context);
                 _handleConversationMode(message, models.ConversationMode.ideas);
@@ -2631,14 +2639,6 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
               onTap: () {
                 Navigator.pop(context);
                 _continueAssistantThought(message);
-              },
-            ),
-            ListTile(
-              leading: Icon(Icons.psychology, color: Theme.of(context).colorScheme.primary),
-              title: const Text('Analyze, Interpret, Suggest Actions'),
-              onTap: () {
-                Navigator.pop(context);
-                _handleConversationMode(message, models.ConversationMode.think);
               },
             ),
             ListTile(

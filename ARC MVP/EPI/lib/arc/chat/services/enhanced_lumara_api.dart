@@ -526,6 +526,7 @@ class EnhancedLumaraApi {
             selectedPersona, 
             safetyOverride,
             engagementMode: engagementMode,
+            conversationMode: request.options.conversationMode,
           );
           
           print('');
@@ -1262,10 +1263,12 @@ Respond now:''';
   };
 
   /// Get response parameters based on engagement mode (primary) and persona (density modifier)
+  /// Conversation modes can override engagement mode lengths for specific analysis types
   ResponseParameters _getResponseParameters(
     String persona, 
     bool safetyOverride, {
     EngagementMode? engagementMode,
+    models.ConversationMode? conversationMode,
   }) {
     if (safetyOverride) {
       // Emergency therapist mode: shorter, no examples needed
@@ -1280,11 +1283,34 @@ Respond now:''';
       );
     }
     
-    // Default to REFLECT if engagement mode not provided
-    final effectiveMode = engagementMode ?? EngagementMode.reflect;
+    // Check if conversation mode overrides engagement mode length
+    ResponseLengthTarget? conversationModeOverride;
+    if (conversationMode != null) {
+      switch (conversationMode) {
+        case models.ConversationMode.ideas:
+          // "Analyze" - longer than integrate (500 words, 15 sentences)
+          conversationModeOverride = const ResponseLengthTarget(
+            sentences: 18,
+            words: 600,
+            description: 'Extended analysis with practical suggestions',
+          );
+          break;
+        case models.ConversationMode.think:
+          // "Deep Analysis" - even longer than analyze
+          conversationModeOverride = const ResponseLengthTarget(
+            sentences: 22,
+            words: 750,
+            description: 'Comprehensive deep analysis with structured scaffolding',
+          );
+          break;
+        default:
+          // No override for other conversation modes
+          break;
+      }
+    }
     
-    // Get base target from engagement mode
-    final baseTarget = engagementLengthTargets[effectiveMode]!;
+    // Use conversation mode override if available, otherwise use engagement mode
+    final baseTarget = conversationModeOverride ?? engagementLengthTargets[engagementMode ?? EngagementMode.reflect]!;
     
     // Apply persona density modifier
     final personaModifier = personaDensityModifiers[persona] ?? 1.0;
@@ -1331,7 +1357,19 @@ Respond now:''';
     }
     
     // Build length guidance for prompt
-    final lengthGuidance = '''
+    String lengthGuidance;
+    if (conversationModeOverride != null) {
+      // Conversation mode override - use specific guidance
+      lengthGuidance = '''
+Target response length: $targetSentences sentences (~$targetWords words)
+Context: ${baseTarget.description}
+
+This is an extended analysis mode - provide comprehensive, detailed insights.
+Stay within target length naturally. Quality over quantity.
+''';
+    } else {
+      // Standard engagement mode guidance
+      lengthGuidance = '''
 Target response length: $targetSentences sentences (~$targetWords words)
 Context: ${baseTarget.description}
 
@@ -1342,6 +1380,7 @@ Length guidelines by mode:
 
 Stay within target length naturally. Quality over quantity.
 ''';
+    }
     
     return ResponseParameters(
       maxWords: maxWords,
