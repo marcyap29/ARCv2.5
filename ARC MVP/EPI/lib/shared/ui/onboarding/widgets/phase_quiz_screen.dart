@@ -2,10 +2,14 @@
 // Phase Detection Quiz Interface (Screens 5-9)
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:my_app/shared/text_style.dart';
 import 'package:my_app/shared/ui/onboarding/arc_onboarding_cubit.dart';
-import 'package:my_app/shared/widgets/lumara_icon.dart';
+import 'package:my_app/services/user_phase_service.dart';
+import 'package:my_app/arc/core/journal_repository.dart';
+import 'package:my_app/models/user_profile_model.dart';
+import 'package:hive/hive.dart';
 
 class PhaseQuizScreen extends StatefulWidget {
   const PhaseQuizScreen({super.key});
@@ -16,7 +20,10 @@ class PhaseQuizScreen extends StatefulWidget {
 
 class _PhaseQuizScreenState extends State<PhaseQuizScreen> {
   final TextEditingController _textController = TextEditingController();
+  final FocusNode _focusNode = FocusNode();
   int _currentQuestionIndex = 0;
+  bool _hasExistingPhase = false;
+  bool _isKeyboardVisible = false;
 
   final List<String> _questions = [
     "Let's start simple—where are you right now? One sentence.",
@@ -30,7 +37,55 @@ class _PhaseQuizScreenState extends State<PhaseQuizScreen> {
   void initState() {
     super.initState();
     _textController.addListener(_onTextChanged);
+    _focusNode.addListener(_onFocusChanged);
     _loadCurrentResponse();
+    _checkExistingPhase();
+  }
+
+  void _onFocusChanged() {
+    setState(() {
+      _isKeyboardVisible = _focusNode.hasFocus;
+    });
+  }
+
+  Future<void> _checkExistingPhase() async {
+    try {
+      // Check if user has existing phase (not default Discovery)
+      final phase = await UserPhaseService.getCurrentPhase();
+      final hasPhase = phase.isNotEmpty && phase != 'Discovery';
+      
+      // Check if user has journal entries (from backup restore)
+      final journalRepo = JournalRepository();
+      final entries = await journalRepo.getAllJournalEntries();
+      final nonOnboardingEntries = entries.where((e) => 
+        !e.tags.contains('onboarding')
+      ).toList();
+      final hasEntries = nonOnboardingEntries.isNotEmpty;
+      
+      // Check if user has previously completed onboarding
+      bool hasCompletedOnboarding = false;
+      try {
+        Box<UserProfile> userBox;
+        if (Hive.isBoxOpen('user_profile')) {
+          userBox = Hive.box<UserProfile>('user_profile');
+        } else {
+          userBox = await Hive.openBox<UserProfile>('user_profile');
+        }
+        final userProfile = userBox.get('profile');
+        hasCompletedOnboarding = userProfile?.onboardingCompleted ?? false;
+      } catch (e) {
+        // Ignore errors
+      }
+      
+      // Show skip button if user has existing phase OR has journal entries OR has completed onboarding before
+      if (hasPhase || hasEntries || hasCompletedOnboarding) {
+        setState(() {
+          _hasExistingPhase = true;
+        });
+      }
+    } catch (e) {
+      // Ignore errors, assume new user
+    }
   }
 
   void _loadCurrentResponse() {
@@ -45,9 +100,16 @@ class _PhaseQuizScreenState extends State<PhaseQuizScreen> {
     setState(() {});
   }
 
+  void _dismissKeyboard() {
+    _focusNode.unfocus();
+  }
+
   @override
   void dispose() {
+    _textController.removeListener(_onTextChanged);
+    _focusNode.removeListener(_onFocusChanged);
     _textController.dispose();
+    _focusNode.dispose();
     super.dispose();
   }
 
@@ -101,30 +163,66 @@ class _PhaseQuizScreenState extends State<PhaseQuizScreen> {
     return Scaffold(
       backgroundColor: Colors.black,
       body: SafeArea(
-        child: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [
-                const Color(0xFFD4AF37).withOpacity(0.1),
-                Colors.black,
-              ],
+        child: GestureDetector(
+          onTap: _dismissKeyboard, // Dismiss keyboard when tapping outside
+          behavior: HitTestBehavior.opaque,
+          child: Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  const Color(0xFFD4AF37).withOpacity(0.1),
+                  Colors.black,
+                ],
+              ),
             ),
-          ),
-          child: Column(
-            children: [
-              // LUMARA symbol in top corner (static, 20% opacity)
-              Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Align(
-                  alignment: Alignment.topRight,
-                  child: Opacity(
-                    opacity: 0.2,
-                    child: const LumaraIcon(size: 32),
+            child: Column(
+              children: [
+                // LUMARA symbol in top corner (static, 20% opacity)
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      // Skip button (only show if user has existing phase)
+                      if (_hasExistingPhase)
+                        TextButton(
+                          onPressed: () {
+                            _dismissKeyboard();
+                            context.read<ArcOnboardingCubit>().skipQuiz();
+                          },
+                          child: Text(
+                            'Skip Quiz',
+                            style: bodyStyle(context).copyWith(
+                              color: Colors.white.withOpacity(0.6),
+                              fontSize: 14,
+                            ),
+                          ),
+                        )
+                      else
+                        const SizedBox.shrink(),
+                      // LUMARA symbol (full image scaled down)
+                      Opacity(
+                        opacity: 0.2,
+                        child: Image.asset(
+                          'assets/images/LUMARA_Symbol-Final.png',
+                          width: 32,
+                          height: 32,
+                          fit: BoxFit.contain,
+                          errorBuilder: (context, error, stackTrace) {
+                            // Fallback to a simple icon if image not found
+                            return Icon(
+                              Icons.psychology,
+                              size: 32,
+                              color: const Color(0xFFD4AF37).withOpacity(0.2),
+                            );
+                          },
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              ),
 
               // Progress indicator (5 dots)
               Padding(
@@ -147,14 +245,16 @@ class _PhaseQuizScreenState extends State<PhaseQuizScreen> {
                 ),
               ),
 
-              // Question text
+              // Question text (scrollable to handle keyboard)
               Expanded(
-                child: Center(
+                child: SingleChildScrollView(
+                  keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
                   child: Padding(
                     padding: const EdgeInsets.all(32.0),
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
+                        const SizedBox(height: 20),
                         // Question with fade-in effect
                         AnimatedOpacity(
                           opacity: 1.0,
@@ -172,6 +272,7 @@ class _PhaseQuizScreenState extends State<PhaseQuizScreen> {
                         // Text input field
                         TextField(
                           controller: _textController,
+                          focusNode: _focusNode,
                           style: bodyStyle(context).copyWith(
                             color: Colors.white,
                             fontSize: 16,
@@ -203,10 +304,25 @@ class _PhaseQuizScreenState extends State<PhaseQuizScreen> {
                               ),
                             ),
                             contentPadding: const EdgeInsets.all(16),
+                            suffixIcon: _isKeyboardVisible
+                                ? IconButton(
+                                    icon: const Icon(
+                                      Icons.keyboard_hide,
+                                      color: Color(0xFFD4AF37),
+                                    ),
+                                    onPressed: _dismissKeyboard,
+                                    tooltip: 'Hide keyboard',
+                                  )
+                                : null,
                           ),
                           maxLines: 5,
                           minLines: 3,
-                          autofocus: true,
+                          textInputAction: TextInputAction.done,
+                          onSubmitted: (_) {
+                            if (canContinue) {
+                              _submitResponse();
+                            }
+                          },
                         ),
                         const SizedBox(height: 32),
                         // Continue button
@@ -240,6 +356,7 @@ class _PhaseQuizScreenState extends State<PhaseQuizScreen> {
                             ),
                           ),
                         ),
+                        const SizedBox(height: 20),
                       ],
                     ),
                   ),
@@ -249,6 +366,7 @@ class _PhaseQuizScreenState extends State<PhaseQuizScreen> {
           ),
         ),
       ),
+    ),
     );
   }
 }

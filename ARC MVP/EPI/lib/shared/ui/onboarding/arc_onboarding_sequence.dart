@@ -4,7 +4,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:my_app/shared/text_style.dart';
-import 'package:my_app/services/user_phase_service.dart';
 import 'package:my_app/shared/ui/home/home_view.dart';
 import 'arc_onboarding_cubit.dart';
 import 'arc_onboarding_state.dart';
@@ -45,114 +44,77 @@ class ArcOnboardingSequenceContent extends StatelessWidget {
       },
       child: BlocBuilder<ArcOnboardingCubit, ArcOnboardingState>(
         builder: (context, state) {
-          // Screen routing based on state
+          // Screen routing based on state with layered fade transitions
+          Widget currentScreen;
+          String screenKey;
           switch (state.currentScreen) {
             case OnboardingScreen.logoReveal:
-              return const _LogoRevealScreen();
+              // Skip logo reveal, go directly to LUMARA intro
+              currentScreen = const _LumaraIntroScreen();
+              screenKey = 'lumara_intro';
+              break;
             case OnboardingScreen.lumaraIntro:
-              return const _LumaraIntroScreen();
+              currentScreen = const _LumaraIntroScreen();
+              screenKey = 'lumara_intro';
+              break;
             case OnboardingScreen.arcIntro:
-              return const _ArcIntroScreen();
+              currentScreen = const _ArcIntroScreen();
+              screenKey = 'arc_intro';
+              break;
             case OnboardingScreen.narrativeIntelligence:
-              return const _NarrativeIntelligenceScreen();
+              currentScreen = const _NarrativeIntelligenceScreen();
+              screenKey = 'narrative_intelligence';
+              break;
             case OnboardingScreen.phaseQuiz:
-              return const PhaseQuizScreen();
+              currentScreen = const PhaseQuizScreen();
+              screenKey = 'phase_quiz';
+              break;
             case OnboardingScreen.phaseAnalysis:
-              return const PhaseAnalysisScreen();
+              currentScreen = const PhaseAnalysisScreen();
+              screenKey = 'phase_analysis';
+              break;
             case OnboardingScreen.phaseReveal:
-              return PhaseRevealScreen(
+              currentScreen = PhaseRevealScreen(
                 phaseAnalysis: state.phaseAnalysis!,
               );
+              screenKey = 'phase_reveal';
+              break;
             case OnboardingScreen.complete:
               // Navigation handled by listener
-              return const Center(child: CircularProgressIndicator());
+              currentScreen = const Center(child: CircularProgressIndicator());
+              screenKey = 'complete';
+              break;
           }
+          
+          // Use AnimatedSwitcher with custom layered fade transition for intro screens
+          if (state.currentScreen == OnboardingScreen.lumaraIntro ||
+              state.currentScreen == OnboardingScreen.arcIntro ||
+              state.currentScreen == OnboardingScreen.narrativeIntelligence) {
+            return AnimatedSwitcher(
+              duration: const Duration(milliseconds: 1600),
+              switchInCurve: const Cubic(0.25, 0.1, 0.25, 1.0), // Custom eased curve
+              switchOutCurve: const Cubic(0.25, 0.1, 0.25, 1.0), // Custom eased curve
+              transitionBuilder: (Widget child, Animation<double> animation) {
+                return _LayeredFadeTransition(
+                  animation: animation,
+                  child: child,
+                );
+              },
+              child: KeyedSubtree(
+                key: ValueKey(screenKey),
+                child: currentScreen,
+              ),
+            );
+          }
+          
+          return currentScreen;
         },
       ),
     );
   }
 }
 
-/// Screen 1: Logo Reveal (updated splash screen)
-class _LogoRevealScreen extends StatefulWidget {
-  const _LogoRevealScreen();
-
-  @override
-  State<_LogoRevealScreen> createState() => _LogoRevealScreenState();
-}
-
-class _LogoRevealScreenState extends State<_LogoRevealScreen> {
-  String _currentPhase = 'Discovery';
-  bool _phaseLoaded = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadCurrentPhase();
-    // Auto-advance after 3 seconds
-    Future.delayed(const Duration(seconds: 3), () {
-      if (mounted) {
-        context.read<ArcOnboardingCubit>().nextScreen();
-      }
-    });
-  }
-
-  Future<void> _loadCurrentPhase() async {
-    try {
-      final phase = await UserPhaseService.getCurrentPhase();
-      if (mounted) {
-        setState(() {
-          _currentPhase = phase;
-          _phaseLoaded = true;
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() => _phaseLoaded = true);
-      }
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      body: GestureDetector(
-        onTap: () => context.read<ArcOnboardingCubit>().nextScreen(),
-        child: SafeArea(
-          child: Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                // ARC Logo
-                Image.asset(
-                  'assets/images/ARC-Logo.png',
-                  width: 200,
-                  height: 200,
-                  fit: BoxFit.contain,
-                ),
-                const SizedBox(height: 24),
-                // Phase indicator (rotating)
-                if (_phaseLoaded)
-                  Text(
-                    _currentPhase,
-                    style: TextStyle(
-                      color: Colors.white.withOpacity(0.5),
-                      fontSize: 14,
-                      fontWeight: FontWeight.w300,
-                      letterSpacing: 2,
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Screen 2: LUMARA Introduction
+/// Screen 1: LUMARA Introduction (first screen after splash)
 class _LumaraIntroScreen extends StatelessWidget {
   const _LumaraIntroScreen();
 
@@ -163,66 +125,55 @@ class _LumaraIntroScreen extends StatelessWidget {
       body: GestureDetector(
         onTap: () => context.read<ArcOnboardingCubit>().nextScreen(),
         child: SafeArea(
-          child: Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  const Color(0xFFD4AF37).withOpacity(0.3),
-                  Colors.black,
-                ],
-              ),
-            ),
-            child: Center(
-              child: Padding(
-                padding: const EdgeInsets.all(32.0),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    // Pulsing LUMARA symbol
-                    const LumaraPulsingSymbol(size: 120),
-                    const SizedBox(height: 48),
-                    // Text
-                    Text(
-                      "Hi, I'm LUMARA, your personal intelligence.",
-                      style: heading1Style(context).copyWith(
-                        color: Colors.white,
-                        fontSize: 24,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 24),
-                    Text(
-                      "I'm here to understand your narrative arc. As you journal and reflect, I learn the patterns in your journey—not just what happened, but what it means for where you're going.",
-                      style: bodyStyle(context).copyWith(
-                        color: Colors.white.withOpacity(0.8),
-                        fontSize: 16,
-                        height: 1.6,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      "I'll help you see the story you're living.",
-                      style: bodyStyle(context).copyWith(
-                        color: Colors.white.withOpacity(0.8),
-                        fontSize: 16,
-                        height: 1.6,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 48),
-                    Text(
-                      'Tap to continue',
-                      style: bodyStyle(context).copyWith(
-                        color: Colors.white.withOpacity(0.5),
-                        fontSize: 14,
-                      ),
-                    ),
-                  ],
+          child: _LayeredScreenContent(
+            gradientColors: [
+              const Color(0xFFD4AF37).withOpacity(0.3),
+              Colors.black,
+            ],
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // Pulsing LUMARA symbol (standardized size)
+                const LumaraPulsingSymbol(size: 120),
+                const SizedBox(height: 48),
+                // Text
+                Text(
+                  "Hi, I'm LUMARA, your personal intelligence.",
+                  style: heading1Style(context).copyWith(
+                    color: Colors.white,
+                    fontSize: 24,
+                  ),
+                  textAlign: TextAlign.center,
                 ),
-              ),
+                const SizedBox(height: 24),
+                Text(
+                  "I'm here to understand your narrative arc. As you journal and reflect, I learn the patterns in your journey—not just what happened, but what it means for where you're going.",
+                  style: bodyStyle(context).copyWith(
+                    color: Colors.white.withOpacity(0.8),
+                    fontSize: 16,
+                    height: 1.6,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  "I'll help you see the story you're living.",
+                  style: bodyStyle(context).copyWith(
+                    color: Colors.white.withOpacity(0.8),
+                    fontSize: 16,
+                    height: 1.6,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 48),
+                Text(
+                  'Tap to continue',
+                  style: bodyStyle(context).copyWith(
+                    color: Colors.white.withOpacity(0.5),
+                    fontSize: 14,
+                  ),
+                ),
+              ],
             ),
           ),
         ),
@@ -242,68 +193,57 @@ class _ArcIntroScreen extends StatelessWidget {
       body: GestureDetector(
         onTap: () => context.read<ArcOnboardingCubit>().nextScreen(),
         child: SafeArea(
-          child: Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  const Color(0xFFD4AF37).withOpacity(0.1),
-                  Colors.black,
-                ],
-              ),
-            ),
-            child: Center(
-              child: Padding(
-                padding: const EdgeInsets.all(32.0),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    // LUMARA symbol (reduced opacity)
-                    Opacity(
-                      opacity: 0.3,
-                      child: const LumaraPulsingSymbol(size: 80),
-                    ),
-                    const SizedBox(height: 48),
-                    Text(
-                      "Welcome to ARC.",
-                      style: heading1Style(context).copyWith(
-                        color: Colors.white,
-                        fontSize: 28,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 24),
-                    Text(
-                      "This is where you journal, reflect, and talk with me. Write what matters. Your words stay on your device—private by design, powerful by architecture.",
-                      style: bodyStyle(context).copyWith(
-                        color: Colors.white.withOpacity(0.8),
-                        fontSize: 16,
-                        height: 1.6,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      "ARC learns your patterns locally, then helps me give you insights that understand your whole story.",
-                      style: bodyStyle(context).copyWith(
-                        color: Colors.white.withOpacity(0.8),
-                        fontSize: 16,
-                        height: 1.6,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 48),
-                    Text(
-                      'Tap to continue',
-                      style: bodyStyle(context).copyWith(
-                        color: Colors.white.withOpacity(0.5),
-                        fontSize: 14,
-                      ),
-                    ),
-                  ],
+          child: _LayeredScreenContent(
+            gradientColors: [
+              const Color(0xFFD4AF37).withOpacity(0.1),
+              Colors.black,
+            ],
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // LUMARA symbol (reduced opacity, standardized size)
+                Opacity(
+                  opacity: 0.3,
+                  child: const LumaraPulsingSymbol(size: 120),
                 ),
-              ),
+                const SizedBox(height: 48),
+                Text(
+                  "Welcome to ARC.",
+                  style: heading1Style(context).copyWith(
+                    color: Colors.white,
+                    fontSize: 28,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 24),
+                Text(
+                  "This is where you journal, reflect, and talk with me. Write what matters. Your words stay on your device—private by design, powerful by architecture.",
+                  style: bodyStyle(context).copyWith(
+                    color: Colors.white.withOpacity(0.8),
+                    fontSize: 16,
+                    height: 1.6,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  "ARC learns your patterns locally, then helps me give you insights that understand your whole story.",
+                  style: bodyStyle(context).copyWith(
+                    color: Colors.white.withOpacity(0.8),
+                    fontSize: 16,
+                    height: 1.6,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 48),
+                Text(
+                  'Tap to continue',
+                  style: bodyStyle(context).copyWith(
+                    color: Colors.white.withOpacity(0.5),
+                    fontSize: 14,
+                  ),
+                ),
+              ],
             ),
           ),
         ),
@@ -321,80 +261,59 @@ class _NarrativeIntelligenceScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: Colors.black,
       body: SafeArea(
-        child: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [
-                const Color(0xFFD4AF37).withOpacity(0.2),
-                Colors.black,
-              ],
-            ),
-          ),
-          child: Center(
-            child: Padding(
-              padding: const EdgeInsets.all(32.0),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  // Abstract visualization placeholder (interwoven arcs)
-                  Container(
-                    width: 200,
-                    height: 200,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: const Color(0xFFD4AF37).withOpacity(0.3),
-                        width: 2,
-                      ),
-                    ),
-                    child: CustomPaint(
-                      painter: _InterwovenArcsPainter(),
-                    ),
+        child: _LayeredScreenContent(
+          gradientColors: [
+            const Color(0xFFD4AF37).withOpacity(0.2),
+            Colors.black,
+          ],
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const SizedBox(height: 40),
+                Text(
+                  "ARC and LUMARA are built on something new: Narrative Intelligence.",
+                  style: heading1Style(context).copyWith(
+                    color: Colors.white,
+                    fontSize: 24,
                   ),
-                  const SizedBox(height: 48),
-                  Text(
-                    "ARC and LUMARA are built on something new: Narrative Intelligence.",
-                    style: heading1Style(context).copyWith(
-                      color: Colors.white,
-                      fontSize: 24,
-                    ),
-                    textAlign: TextAlign.center,
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 24),
+                Text(
+                  "Not just memory. Not just AI assistance.",
+                  style: bodyStyle(context).copyWith(
+                    color: Colors.white.withOpacity(0.8),
+                    fontSize: 16,
+                    height: 1.6,
                   ),
-                  const SizedBox(height: 24),
-                  Text(
-                    "Not just memory. Not just AI assistance.",
-                    style: bodyStyle(context).copyWith(
-                      color: Colors.white.withOpacity(0.8),
-                      fontSize: 16,
-                      height: 1.6,
-                    ),
-                    textAlign: TextAlign.center,
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  "Intelligence that tracks *who you're becoming*, not just what you've done. That understands developmental trajectories, not disconnected moments.",
+                  style: bodyStyle(context).copyWith(
+                    color: Colors.white.withOpacity(0.8),
+                    fontSize: 16,
+                    height: 1.6,
                   ),
-                  const SizedBox(height: 16),
-                  Text(
-                    "Intelligence that tracks *who you're becoming*, not just what you've done. That understands developmental trajectories, not disconnected moments.",
-                    style: bodyStyle(context).copyWith(
-                      color: Colors.white.withOpacity(0.8),
-                      fontSize: 16,
-                      height: 1.6,
-                    ),
-                    textAlign: TextAlign.center,
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  "Your life has an arc. Let's follow it together.",
+                  style: bodyStyle(context).copyWith(
+                    color: Colors.white.withOpacity(0.8),
+                    fontSize: 16,
+                    height: 1.6,
+                    fontStyle: FontStyle.italic,
                   ),
-                  const SizedBox(height: 16),
-                  Text(
-                    "Your life has an arc. Let's follow it together.",
-                    style: bodyStyle(context).copyWith(
-                      color: Colors.white.withOpacity(0.8),
-                      fontSize: 16,
-                      height: 1.6,
-                      fontStyle: FontStyle.italic,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 48),
-                  ElevatedButton(
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 48),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
                     onPressed: () {
                       context.read<ArcOnboardingCubit>().startPhaseQuiz();
                     },
@@ -417,8 +336,9 @@ class _NarrativeIntelligenceScreen extends StatelessWidget {
                       ),
                     ),
                   ),
-                ],
-              ),
+                ),
+                const SizedBox(height: 40),
+              ],
             ),
           ),
         ),
@@ -427,34 +347,61 @@ class _NarrativeIntelligenceScreen extends StatelessWidget {
   }
 }
 
-/// Painter for interwoven arcs visualization
-class _InterwovenArcsPainter extends CustomPainter {
+/// Widget that provides layered content structure for smooth transitions
+class _LayeredScreenContent extends StatelessWidget {
+  final List<Color> gradientColors;
+  final Widget child;
+
+  const _LayeredScreenContent({
+    required this.gradientColors,
+    required this.child,
+  });
+
   @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = const Color(0xFFD4AF37).withOpacity(0.5)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2;
-
-    final center = Offset(size.width / 2, size.height / 2);
-    final radius = size.width / 2 - 10;
-
-    // Draw interwoven arcs
-    for (int i = 0; i < 4; i++) {
-      final angle = (i * 90) * (3.14159 / 180);
-      final startAngle = angle;
-      final sweepAngle = 180 * (3.14159 / 180);
-
-      canvas.drawArc(
-        Rect.fromCircle(center: center, radius: radius),
-        startAngle,
-        sweepAngle,
-        false,
-        paint,
-      );
-    }
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: gradientColors,
+        ),
+      ),
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32.0),
+          child: child,
+        ),
+      ),
+    );
   }
+}
+
+/// Custom layered fade transition for smoother screen transitions
+/// Uses a gentler, longer fade with eased curves to avoid harsh transitions
+class _LayeredFadeTransition extends StatelessWidget {
+  final Animation<double> animation;
+  final Widget child;
+
+  const _LayeredFadeTransition({
+    required this.animation,
+    required this.child,
+  });
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  Widget build(BuildContext context) {
+    // Create smooth fade with very gentle eased curves
+    // Using a custom cubic curve for smoother, less abrupt transitions
+    final fadeAnimation = CurvedAnimation(
+      parent: animation,
+      curve: const Cubic(0.25, 0.1, 0.25, 1.0), // Gentle ease-in-out
+    );
+    
+    // Apply the fade with a slight delay for smoother appearance
+    // The curve ensures the fade starts slowly and ends slowly, avoiding harsh cuts
+    return FadeTransition(
+      opacity: fadeAnimation,
+      child: child,
+    );
+  }
 }
