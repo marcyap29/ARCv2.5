@@ -29,6 +29,7 @@ import 'package:my_app/services/firebase_service.dart';
 import 'package:my_app/services/firebase_auth_service.dart';
 import 'package:my_app/services/scheduled_local_backup_service.dart';
 import 'package:my_app/services/local_backup_settings_service.dart';
+import 'package:my_app/services/health_data_refresh_service.dart';
 import 'package:my_app/arc/core/journal_repository.dart';
 import 'package:my_app/arc/chat/chat/chat_repo_impl.dart';
 import 'package:my_app/services/phase_regime_service.dart';
@@ -368,6 +369,13 @@ Future<void> bootstrap({
           await _initializeScheduledBackups();
         } catch (e, st) {
           logger.e('Failed to initialize scheduled backups', e, st);
+        }
+        
+        // Initialize health data refresh service
+        try {
+          await _initializeHealthDataRefresh();
+        } catch (e, st) {
+          logger.e('Failed to initialize health data refresh', e, st);
         }
       }
 
@@ -919,6 +927,17 @@ Future<void> _initializeScheduledBackups() async {
     }
   } catch (e, st) {
     logger.e('Failed to initialize scheduled backups', e, st);
+  }
+}
+
+/// Initialize Health Data Refresh service
+Future<void> _initializeHealthDataRefresh() async {
+  try {
+    await HealthDataRefreshService.instance.startScheduledRefresh();
+    logger.d('Health data refresh service initialized');
+  } catch (e, st) {
+    logger.e('Failed to initialize health data refresh service', e, st);
+    // Don't throw - health refresh is non-critical
   }
 }
 

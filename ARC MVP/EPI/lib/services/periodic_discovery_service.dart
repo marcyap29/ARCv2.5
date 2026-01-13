@@ -235,7 +235,7 @@ class PeriodicDiscoveryService {
         return DiscoveryType.breakthrough;
       case UserPhase.reflection:
         return DiscoveryType.support;
-      case UserPhase.planning:
+      case UserPhase.transition:
         return DiscoveryType.selfcare;
       case UserPhase.discovery:
         return DiscoveryType.exploration;

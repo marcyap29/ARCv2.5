@@ -234,12 +234,15 @@ Media Capture → Keyword Analysis → Save to Timeline
 #### Suggestion Sheet
 **File:** `lib/ui/journal/widgets/lumara_suggestion_sheet.dart`
 
-**5 Reflection Intents:**
-1. **"Suggest some ideas"** 💡 - Creative brainstorming
-2. **"Help me think this through"** 🧠 - Analytical processing
+**Quick Action Buttons (Outside Explore Options):**
+- **"Suggest ideas"** 💡 - Creative brainstorming (quick access)
+
+**Explore Options (5 Reflection Intents):**
+1. **"Continue thought"** ▶️ - Continue LUMARA's reflection
+2. **"Analyze, Interpret, Suggest Actions"** 🧠 - Analytical processing
 3. **"Offer a different perspective"** 👁️ - Alternative viewpoints
 4. **"Suggest next steps"** ➡️ - Action planning
-5. **"Reflect more deeply"** 🔍 - Deeper introspection
+5. **"Analyze further"** 🔍 - Deeper introspection
 
 **Features:**
 - **Bottom Sheet Modal:** Dismissible with drag handle

@@ -111,18 +111,16 @@ class LumaraContextSelector {
   
   /// Get time window in days from Memory Focus preset
   int _getTimeWindowDays(MemoryFocusPreset preset, int? customDays) {
-    if (preset == MemoryFocusPreset.custom && customDays != null) {
-      return customDays;
-    }
-    return preset.timeWindowDays;
+    return (preset == MemoryFocusPreset.custom && customDays != null)
+        ? customDays
+        : preset.timeWindowDays;
   }
-  
+
   /// Get max entries from Memory Focus preset
   int _getMaxEntries(MemoryFocusPreset preset, int? customEntries) {
-    if (preset == MemoryFocusPreset.custom && customEntries != null) {
-      return customEntries;
-    }
-    return preset.maxEntries;
+    return (preset == MemoryFocusPreset.custom && customEntries != null)
+        ? customEntries
+        : preset.maxEntries;
   }
   
   /// Get custom values from settings service if Custom preset is selected
@@ -150,20 +148,21 @@ class LumaraContextSelector {
   
   /// Get similarity threshold from Memory Focus preset
   double _getSimilarityThreshold(MemoryFocusPreset preset, double? customThreshold) {
-    if (preset == MemoryFocusPreset.custom && customThreshold != null) {
-      return customThreshold;
-    }
-    return preset.similarityThreshold;
+    return (preset == MemoryFocusPreset.custom && customThreshold != null)
+        ? customThreshold
+        : preset.similarityThreshold;
   }
   
   /// Get all entries within time window
   Future<List<JournalEntry>> _getEntriesInWindow(DateTime cutoffDate, DateTime currentDate) async {
     try {
       final allEntries = await _journalRepo.getAllJournalEntries();
+      final endDate = currentDate.add(Duration(days: 1));
+
       return allEntries
-          .where((entry) => entry.createdAt.isAfter(cutoffDate) && entry.createdAt.isBefore(currentDate.add(Duration(days: 1))))
+          .where((entry) => entry.createdAt.isAfter(cutoffDate) && entry.createdAt.isBefore(endDate))
           .toList()
-        ..sort((a, b) => b.createdAt.compareTo(a.createdAt)); // Newest first
+        ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
     } catch (e) {
       print('Error getting entries in window: $e');
       return [];
@@ -194,23 +193,18 @@ class LumaraContextSelector {
     DateTime currentDate,
   ) {
     if (entries.isEmpty) return [];
-    
-    // Prefer last 14 days within time window
+
     final recentCutoff = currentDate.subtract(Duration(days: 14));
     final recentEntries = entries.where((e) => e.createdAt.isAfter(recentCutoff)).toList();
-    final otherEntries = entries.where((e) => !e.createdAt.isAfter(recentCutoff)).toList();
-    
-    // Take 70% from recent, 30% from older (if available)
+    final olderEntries = entries.where((e) => !e.createdAt.isAfter(recentCutoff)).toList();
+
     final recentCount = (maxCount * 0.7).round();
-    final otherCount = maxCount - recentCount;
-    
-    final result = <JournalEntry>[];
-    result.addAll(recentEntries.take(recentCount));
-    
-    if (result.length < maxCount && otherEntries.isNotEmpty) {
-      result.addAll(otherEntries.take(otherCount));
-    }
-    
+    final result = <JournalEntry>[
+      ...recentEntries.take(recentCount),
+      if (recentEntries.length < recentCount && olderEntries.isNotEmpty)
+        ...olderEntries.take(maxCount - recentEntries.length),
+    ];
+
     return result.take(maxCount).toList();
   }
   
@@ -221,32 +215,20 @@ class LumaraContextSelector {
     DateTime currentDate,
   ) {
     if (entries.isEmpty) return [];
-    
-    // Sort by date (newest first)
+
     entries.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-    
+
     final total = entries.length;
     final recentCount = (maxCount * 0.4).round();
     final middleCount = (maxCount * 0.3).round();
     final earlyCount = maxCount - recentCount - middleCount;
-    
-    // Most recent quarter
-    final recent = entries.take(recentCount).toList();
-    
-    // Middle period
-    final middleStart = total ~/ 3;
-    final middle = entries.skip(middleStart).take(middleCount).toList();
-    
-    // Earliest period
-    final earlyStart = (total * 2) ~/ 3;
-    final early = entries.skip(earlyStart).take(earlyCount).toList();
-    
-    final result = <JournalEntry>[];
-    result.addAll(recent);
-    result.addAll(middle);
-    result.addAll(early);
-    
-    // Remove duplicates and limit
+
+    final result = [
+      ...entries.take(recentCount),
+      ...entries.skip(total ~/ 3).take(middleCount),
+      ...entries.skip((total * 2) ~/ 3).take(earlyCount),
+    ];
+
     return result.toSet().toList().take(maxCount).toList();
   }
   
@@ -257,30 +239,18 @@ class LumaraContextSelector {
     DateTime currentDate,
   ) {
     if (entries.isEmpty) return [];
-    
-    // For now, return stratified sample similar to EXPLORE
-    // TODO: Integrate with RIVET phase transitions when available
-    // TODO: Get current phase entries from ATLAS
-    // TODO: Prioritize phase transition markers
-    
-    // Placeholder: Use stratified approach but prioritize entries with phase metadata
+
     entries.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-    
-    // Check if entries have phase metadata
+
     final phaseEntries = entries.where((e) => e.metadata?['phase'] != null).toList();
     final nonPhaseEntries = entries.where((e) => e.metadata?['phase'] == null).toList();
-    
-    final result = <JournalEntry>[];
-    
-    // Prioritize phase entries (up to 60% of max)
     final phaseCount = (maxCount * 0.6).round();
-    result.addAll(phaseEntries.take(phaseCount));
-    
-    // Fill remaining with other entries
-    if (result.length < maxCount) {
-      result.addAll(nonPhaseEntries.take(maxCount - result.length));
-    }
-    
+
+    final result = [
+      ...phaseEntries.take(phaseCount),
+      ...nonPhaseEntries.take(maxCount - phaseEntries.length.clamp(0, phaseCount)),
+    ];
+
     return result.take(maxCount).toList();
   }
   
@@ -336,19 +306,12 @@ class LumaraContextSelector {
     // - Include entries from adjacent phases for context
     
     if (mode == EngagementMode.integrate) {
-      // In INTEGRATE mode, prioritize entries with phase metadata
-      // This ensures phase-aware synthesis has access to developmental context
       final phaseEntries = entries.where((e) => e.metadata?['phase'] != null).toList();
       final otherEntries = entries.where((e) => e.metadata?['phase'] == null).toList();
-      
-      // Prioritize phase entries for cross-domain synthesis
-      final result = <JournalEntry>[];
-      result.addAll(phaseEntries);
-      result.addAll(otherEntries);
-      
-      return result.take(maxCount).toList();
+
+      return [...phaseEntries, ...otherEntries].take(maxCount).toList();
     }
-    
+
     return entries.take(maxCount).toList();
   }
 }

@@ -169,12 +169,10 @@ class LumaraReflectionSettingsService {
   @Deprecated('Use getTimeWindowDays() instead')
   Future<int> getLookbackYears() async {
     await initialize();
-    // Try to get from days first and convert
     final days = _prefs!.getInt(_keyTimeWindowDays);
-    if (days != null) {
-      return (days / 365).round().clamp(1, 10);
-    }
-    return _prefs!.getInt(_keyLookbackYears) ?? _defaultLookbackYears;
+    return days != null
+        ? (days / 365).round().clamp(1, 10)
+        : _prefs!.getInt(_keyLookbackYears) ?? _defaultLookbackYears;
   }
 
   /// Set lookback years - Legacy method for backward compatibility
@@ -304,14 +302,7 @@ class LumaraReflectionSettingsService {
   /// Set max sentences (kept for compatibility; also updates mode heuristically)
   Future<void> setMaxSentences(int value) async {
     await initialize();
-    String mode;
-    if (value <= 5) {
-      mode = 'short';
-    } else if (value <= 12) {
-      mode = 'medium';
-    } else {
-      mode = 'long';
-    }
+    final mode = value <= 5 ? 'short' : (value <= 12 ? 'medium' : 'long');
     await setResponseLengthMode(mode);
   }
 
@@ -382,24 +373,19 @@ class LumaraReflectionSettingsService {
   /// Depth 3 (Deep): Extend by 40%
   Future<int> getEffectiveTimeWindowDays() async {
     final preset = await getMemoryFocusPreset();
-    final baseDays = preset == MemoryFocusPreset.custom 
-        ? await getTimeWindowDays() 
+    final baseDays = preset == MemoryFocusPreset.custom
+        ? await getTimeWindowDays()
         : preset.timeWindowDays;
-    final therapeuticEnabled = await isTherapeuticPresenceEnabled();
-    
-    if (!therapeuticEnabled) {
-      return baseDays;
-    }
 
+    if (!await isTherapeuticPresenceEnabled()) return baseDays;
+
+    final multiplier = await _getDepthMultiplier();
+    return (baseDays * multiplier).round().clamp(1, 365);
+  }
+
+  Future<double> _getDepthMultiplier() async {
     final depthLevel = await getTherapeuticDepthLevel();
-    switch (depthLevel) {
-      case 1: // Light
-        return (baseDays * 0.6).round().clamp(1, 365);
-      case 3: // Deep
-        return (baseDays * 1.4).round().clamp(1, 365);
-      default: // Moderate (2)
-        return baseDays;
-    }
+    return depthLevel == 1 ? 0.6 : (depthLevel == 3 ? 1.4 : 1.0);
   }
   
   /// Get effective lookback years adjusted for preset and therapeutic depth level
@@ -419,24 +405,19 @@ class LumaraReflectionSettingsService {
   /// Depth 3 (Deep): Increase by 60%
   Future<int> getEffectiveMaxEntries() async {
     final preset = await getMemoryFocusPreset();
-    final baseEntries = preset == MemoryFocusPreset.custom 
-        ? await getMaxMatches() 
+    final baseEntries = preset == MemoryFocusPreset.custom
+        ? await getMaxMatches()
         : preset.maxEntries;
-    final therapeuticEnabled = await isTherapeuticPresenceEnabled();
-    
-    if (!therapeuticEnabled) {
-      return baseEntries;
-    }
 
+    if (!await isTherapeuticPresenceEnabled()) return baseEntries;
+
+    final multiplier = await _getEntriesMultiplier();
+    return (baseEntries * multiplier).round().clamp(1, 50);
+  }
+
+  Future<double> _getEntriesMultiplier() async {
     final depthLevel = await getTherapeuticDepthLevel();
-    switch (depthLevel) {
-      case 1: // Light
-        return (baseEntries * 0.6).round().clamp(1, 50);
-      case 3: // Deep
-        return (baseEntries * 1.6).round().clamp(1, 50);
-      default: // Moderate (2)
-        return baseEntries;
-    }
+    return depthLevel == 1 ? 0.6 : (depthLevel == 3 ? 1.6 : 1.0);
   }
   
   /// Get effective max matches adjusted for preset and therapeutic depth level
@@ -538,10 +519,7 @@ class LumaraReflectionSettingsService {
   Future<EngagementMode?> getConversationEngagementOverride() async {
     await initialize();
     final overrideString = _prefs!.getString(_keyConversationEngagementOverride);
-
-    if (overrideString == null) {
-      return null;
-    }
+    if (overrideString == null) return null;
 
     try {
       return EngagementModeExtension.fromJson(overrideString);
@@ -553,12 +531,9 @@ class LumaraReflectionSettingsService {
   /// Set conversation-specific engagement mode override
   Future<void> setConversationEngagementOverride(EngagementMode? mode) async {
     await initialize();
-
-    if (mode == null) {
-      await _prefs!.remove(_keyConversationEngagementOverride);
-    } else {
-      await _prefs!.setString(_keyConversationEngagementOverride, mode.toJson());
-    }
+    mode == null
+        ? await _prefs!.remove(_keyConversationEngagementOverride)
+        : await _prefs!.setString(_keyConversationEngagementOverride, mode.toJson());
   }
 
   /// Clear conversation override to return to default mode

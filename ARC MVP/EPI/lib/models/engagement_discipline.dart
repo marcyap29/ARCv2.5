@@ -142,29 +142,22 @@ class ResponseDiscipline {
   
   /// Get effective maxTemporalConnections based on mode
   int getEffectiveMaxTemporalConnections(EngagementMode mode) {
-    if (maxTemporalConnections != null) return maxTemporalConnections!;
-    
-    switch (mode) {
-      case EngagementMode.reflect:
-        return 1;
-      case EngagementMode.explore:
-        return 2;
-      case EngagementMode.integrate:
-        return 3;
-    }
+    return maxTemporalConnections ?? _getModeValue(mode, reflect: 1, explore: 2, integrate: 3);
   }
-  
+
   /// Get effective maxExplorativeQuestions based on mode
   int getEffectiveMaxExplorativeQuestions(EngagementMode mode) {
-    if (maxExplorativeQuestions != null) return maxExplorativeQuestions!;
-    
+    return maxExplorativeQuestions ?? _getModeValue(mode, reflect: 0, explore: 1, integrate: 2);
+  }
+
+  int _getModeValue(EngagementMode mode, {required int reflect, required int explore, required int integrate}) {
     switch (mode) {
       case EngagementMode.reflect:
-        return 0;
+        return reflect;
       case EngagementMode.explore:
-        return 1;
+        return explore;
       case EngagementMode.integrate:
-        return 2;
+        return integrate;
     }
   }
 
@@ -241,26 +234,10 @@ class EngagementSettings {
   EngagementMode get activeMode => conversationOverride ?? defaultMode;
 
   /// Derived: Max questions per response based on mode
-  int get maxQuestionsPerResponse {
-    switch (activeMode) {
-      case EngagementMode.reflect:
-        return 0;
-      case EngagementMode.explore:
-      case EngagementMode.integrate:
-        return 1;
-    }
-  }
+  int get maxQuestionsPerResponse => activeMode == EngagementMode.reflect ? 0 : 1;
 
   /// Derived: Allow cross-domain synthesis based on mode
-  bool get allowCrossDomainSynthesis {
-    switch (activeMode) {
-      case EngagementMode.reflect:
-      case EngagementMode.explore:
-        return false;
-      case EngagementMode.integrate:
-        return true;
-    }
-  }
+  bool get allowCrossDomainSynthesis => activeMode == EngagementMode.integrate;
 
   Map<String, dynamic> toJson() => {
     'defaultMode': defaultMode.toString(),
@@ -429,51 +406,46 @@ class EngagementBehaviorComputer {
     String phase,
     int readinessScore,
   ) {
-    // Adjust engagement based on phase and readiness
-    double phaseMultiplier = 1.0;
-    double readinessMultiplier = readinessScore / 100.0;
+    final phaseMultiplier = _getPhaseMultiplier(phase, params);
+    final readinessMultiplier = readinessScore / 100.0;
 
-    switch (phase.toLowerCase()) {
-      case 'discovery':
-        phaseMultiplier = 1.2; // Higher engagement during discovery
-        break;
-      case 'recovery':
-        phaseMultiplier = 0.8; // Lower engagement during recovery
-        params['stopping_threshold'] = params['stopping_threshold']! + 0.2;
-        break;
-      case 'breakthrough':
-        phaseMultiplier = 1.1; // Moderate boost during breakthrough
-        break;
-      case 'consolidation':
-        params['synthesis_tendency'] = params['synthesis_tendency']! + 0.2;
-        break;
-    }
-
-    // Apply multipliers
     params['engagement_intensity'] =
         (params['engagement_intensity']! * phaseMultiplier * readinessMultiplier).clamp(0.0, 1.0);
 
     return params;
   }
 
+  static double _getPhaseMultiplier(String phase, Map<String, double> params) {
+    switch (phase.toLowerCase()) {
+      case 'discovery':
+        return 1.2;
+      case 'recovery':
+        params['stopping_threshold'] = params['stopping_threshold']! + 0.2;
+        return 0.8;
+      case 'breakthrough':
+        return 1.1;
+      case 'consolidation':
+        params['synthesis_tendency'] = params['synthesis_tendency']! + 0.2;
+        return 1.0;
+      default:
+        return 1.0;
+    }
+  }
+
   static Map<String, double> _adaptToVeilState(
     Map<String, double> params,
     Map<String, dynamic> veilState,
   ) {
-    // Reduce engagement intensity based on low energy/sleep
     final health = veilState['health'] as Map<String, dynamic>? ?? {};
     final sleepQuality = health['sleepQuality'] as double? ?? 1.0;
     final energyLevel = health['energyLevel'] as double? ?? 1.0;
-
     final healthMultiplier = (sleepQuality + energyLevel) / 2.0;
 
-    // Reduce engagement if user is tired
     if (healthMultiplier < 0.5) {
       params['engagement_intensity'] = params['engagement_intensity']! * 0.7;
       params['stopping_threshold'] = params['stopping_threshold']! + 0.2;
     }
 
-    // Adapt to time of day
     final timeOfDay = veilState['timeOfDay'] as String? ?? 'day';
     if (timeOfDay == 'night' || timeOfDay == 'late_night') {
       params['engagement_intensity'] = params['engagement_intensity']! * 0.8;

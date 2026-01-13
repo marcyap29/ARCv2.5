@@ -1,8 +1,8 @@
 # Backend Architecture & Setup
 
-**Version:** 2.1.87
-**Last Updated:** January 7, 2026
-**Status:** ✅ Production Ready with Companion-First LUMARA, Validation & Logging, Health Integration, AssemblyAI v3, Internet Access, Enhanced Classification-Aware PRISM Privacy Protection & Stripe Integration
+**Version:** 3.1
+**Last Updated:** January 9, 2026
+**Status:** ✅ Production Ready with Adaptive Framework, Companion-First LUMARA, Validation & Logging, Health Integration, AssemblyAI v3, Internet Access, Enhanced Classification-Aware PRISM Privacy Protection & Stripe Integration
 
 ---
 
@@ -199,6 +199,11 @@ LUMARA's web access is governed by a comprehensive 10-rule safety layer that ens
    - User documents and subscription data
    - Rate limiting state
    - Phase regimes and system state
+   - **Adaptive Framework State (v3.1)**: User cadence profiles stored at `users/{userId}/adaptive_state/cadence_profile`
+     - User type classification (power user, frequent, weekly, sporadic)
+     - Cadence metrics (average days between entries, standard deviation)
+     - User type transition history
+     - Last calculation timestamp and entry count
 
 4. **Secret Manager**
    - `GEMINI_API_KEY` - Gemini API key for proxy
@@ -673,6 +678,6 @@ The new Companion-First LUMARA system includes comprehensive validation and logg
 
 ---
 
-**Status**: ✅ Production Ready with Authentication, AssemblyAI v3, Web Access Safety & Stripe Integration  
-**Last Updated**: January 1, 2026  
-**Version**: 2.1.76
+**Status**: ✅ Production Ready with Adaptive Framework, Authentication, AssemblyAI v3, Web Access Safety & Stripe Integration  
+**Last Updated**: January 9, 2026  
+**Version**: 3.1

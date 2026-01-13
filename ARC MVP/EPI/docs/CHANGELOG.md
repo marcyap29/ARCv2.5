@@ -1,6 +1,6 @@
 # EPI ARC MVP - Changelog
 
-**Version:** 3.2.2
+**Version:** 3.2.4
 **Last Updated:** January 10, 2026
 
 ---
@@ -14,6 +14,69 @@ This changelog has been split into parts for easier navigation:
 | **[CHANGELOG_part1.md](CHANGELOG_part1.md)** | Dec 2025 | v2.1.43 - v2.1.87 (Current) |
 | **[CHANGELOG_part2.md](CHANGELOG_part2.md)** | Nov 2025 | v2.1.28 - v2.1.42 |
 | **[CHANGELOG_part3.md](CHANGELOG_part3.md)** | Jan-Oct 2025 | v2.0.0 - v2.1.27 & Earlier |
+
+---
+
+## [3.2.4] - January 10, 2026
+
+### 🎯 Response Length Architecture Refactor
+
+#### Engagement-Mode-Based Response Lengths
+- **Decoupled from Persona**: Response length is now primarily determined by Engagement Mode, not Persona
+  - **REFLECT**: 200 words base (5 sentences) - Brief surface-level observations
+  - **EXPLORE**: 400 words base (10 sentences) - Deeper investigation with follow-up questions
+  - **INTEGRATE**: 500 words base (15 sentences) - Comprehensive cross-domain synthesis
+- **Persona Density Modifiers**: Persona now affects communication style/density, not base length
+  - Companion: 1.0x (neutral)
+  - Strategist: 1.15x (+15% for analytical detail)
+  - Grounded: 0.9x (-10% for concise clarity)
+  - Challenger: 0.85x (-15% for sharp directness)
+- **Improved Truncation**: Responses are truncated at sentence boundaries to prevent mid-sentence cuts
+- **25% Buffer**: Max words set to 125% of target to allow natural flow before truncation
+
+#### New Word Limits by Combination
+
+| Engagement Mode | Companion | Strategist | Grounded | Challenger |
+|-----------------|-----------|------------|----------|------------|
+| **REFLECT**     | 200       | 230        | 180      | 170        |
+| **EXPLORE**     | 400       | 460        | 360      | 340        |
+| **INTEGRATE**   | 500       | 575        | 450      | 425        |
+
+**Why This Matters:**
+- Old system: "Companion persona = short responses" (incorrect - persona is about warmth, not length)
+- New system: "Integrate mode = long responses" (correct - mode is about scope)
+- Aligns architecture with user needs: Quick check-in → Reflect → Brief, Deep exploration → Explore → Longer, Developmental synthesis → Integrate → Comprehensive
+
+### 🧠 Phase Intelligence Integration Architecture
+
+#### Two-Stage Memory System
+- **Stage 1: Context Selection** (Temporal/Phase-Aware Entry Selection)
+  - `LumaraContextSelector` selects entries based on:
+    - Memory Focus preset (time window + max entry count)
+    - Engagement Mode (sampling strategy: REFLECT/EXPLORE/INTEGRATE)
+    - Semantic relevance
+    - Phase intelligence (RIVET/SENTINEL/ATLAS)
+  - Determines: "Which parts of the journey?" (horizontal - time/phases)
+  
+- **Stage 2: Polymeta Memory Filtering** (Domain/Confidence-Based)
+  - `MemoryModeService` filters memories FROM selected entries
+  - Applies domain modes (Always On/Suggestive/High Confidence Only)
+  - Applies decay/reinforcement rates
+  - Determines: "What to remember from those parts?" (vertical - domain/confidence)
+
+**No Conflict**: These systems are complementary, not competing:
+- Context Selection handles temporal breadth
+- Polymeta handles semantic detail and assertiveness
+
+**Integration Pattern:**
+1. Context Selector selects entries (coverage: which time periods/phases matter)
+2. MemoryModeService retrieves memories from those selected entries
+3. Both entry excerpts + filtered memories are included in prompt
+
+### 📁 Files Modified
+- `lib/arc/chat/services/enhanced_lumara_api.dart`: Refactored response length logic, added engagement-mode-based targets, persona density modifiers
+- `lib/arc/chat/services/lumara_context_selector.dart`: Added architecture documentation for two-stage memory system integration
+- `lib/arc/chat/services/lumara_reflection_settings_service.dart`: Updated to support days instead of years for time windows
 
 ---
 

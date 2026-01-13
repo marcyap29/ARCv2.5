@@ -2466,12 +2466,12 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
     // Map persona to conversation mode
     models.ConversationMode? personaMode = _personaToConversationMode(_selectedPersona);
     
-    // Send regenerate request with conversation mode
+    // Send explicit regenerate instruction that references the previous message
     context.read<LumaraAssistantCubit>().sendMessage(
-      'Can you regenerate your last response with a different approach?',
+      'Please regenerate your previous response using a different approach, tone, or perspective while maintaining the same core insights.',
       currentEntry: entryToUse,
       conversationMode: personaMode, // Use persona mode for regenerate
-      persona: null,
+      persona: _selectedPersona,
     );
     
     _messageController.clear();
@@ -2479,14 +2479,42 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
 
   Future<void> _handleSoftenTone(LumaraMessage message) async {
     if (message.role != LumaraMessageRole.assistant) return;
-    _messageController.text = 'Can you soften the tone of your last response?';
-    await _sendCurrentMessage();
+    
+    // Get current entry for context
+    JournalEntry? entryToUse = _currentEntry;
+    if (entryToUse == null) {
+      entryToUse = await _getMostRecentEntry();
+    }
+    
+    // Send explicit instruction to soften tone
+    context.read<LumaraAssistantCubit>().sendMessage(
+      'Please rephrase your previous response with a softer, more gentle tone while keeping the same insights.',
+      currentEntry: entryToUse,
+      conversationMode: null,
+      persona: _selectedPersona,
+    );
+    
+    _messageController.clear();
   }
 
   Future<void> _handleMoreDepth(LumaraMessage message) async {
     if (message.role != LumaraMessageRole.assistant) return;
-    _messageController.text = 'Can you provide more depth on this topic?';
-    await _sendCurrentMessage();
+    
+    // Get current entry for context
+    JournalEntry? entryToUse = _currentEntry;
+    if (entryToUse == null) {
+      entryToUse = await _getMostRecentEntry();
+    }
+    
+    // Send explicit instruction for more depth
+    context.read<LumaraAssistantCubit>().sendMessage(
+      'Please provide more depth and detail on the topic from your previous response. Explore the underlying patterns, connections, and implications.',
+      currentEntry: entryToUse,
+      conversationMode: models.ConversationMode.reflectDeeply,
+      persona: _selectedPersona,
+    );
+    
+    _messageController.clear();
   }
 
   void _handleExploreConversation(LumaraMessage message) {
@@ -2533,11 +2561,11 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
               },
             ),
             ListTile(
-              leading: Icon(Icons.play_arrow, color: Theme.of(context).colorScheme.primary),
-              title: const Text('Continue thought'),
+              leading: Icon(Icons.lightbulb_outline, color: Theme.of(context).colorScheme.primary),
+              title: const Text('Suggest ideas'),
               onTap: () {
                 Navigator.pop(context);
-                _continueAssistantThought(message);
+                _handleConversationMode(message, models.ConversationMode.ideas);
               },
             ),
             const Divider(),
@@ -2598,16 +2626,16 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
             const SizedBox(height: 8),
             // Options
             ListTile(
-              leading: Icon(Icons.lightbulb_outline, color: Theme.of(context).colorScheme.primary),
-              title: const Text('Suggest some ideas'),
+              leading: Icon(Icons.play_arrow, color: Theme.of(context).colorScheme.primary),
+              title: const Text('Continue thought'),
               onTap: () {
                 Navigator.pop(context);
-                _handleConversationMode(message, models.ConversationMode.ideas);
+                _continueAssistantThought(message);
               },
             ),
             ListTile(
               leading: Icon(Icons.psychology, color: Theme.of(context).colorScheme.primary),
-              title: const Text('Help me think this through'),
+              title: const Text('Analyze, Interpret, Suggest Actions'),
               onTap: () {
                 Navigator.pop(context);
                 _handleConversationMode(message, models.ConversationMode.think);
@@ -2640,31 +2668,48 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
   Future<void> _handleConversationMode(LumaraMessage message, models.ConversationMode mode) async {
     if (message.role != LumaraMessageRole.assistant) return;
     
-    // Map conversation mode to user message
-    String modeText;
+    // Get current entry for context
+    JournalEntry? entryToUse = _currentEntry;
+    if (entryToUse == null) {
+      entryToUse = await _getMostRecentEntry();
+    }
+    
+    // Map conversation mode to explicit action-oriented instruction
+    // These instructions reference the previous message and request specific actions
+    String actionInstruction;
     switch (mode) {
       case models.ConversationMode.ideas:
-        modeText = 'Suggest some ideas';
+        actionInstruction = 'Based on your previous response, please suggest some practical ideas I can explore.';
         break;
       case models.ConversationMode.think:
-        modeText = 'Help me think this through';
+        actionInstruction = 'Please analyze the topic from your previous response, interpret the key points, and suggest concrete actions I can take.';
         break;
       case models.ConversationMode.perspective:
-        modeText = 'Offer a different perspective';
+        actionInstruction = 'Please offer a different perspective on what you discussed in your previous response.';
         break;
       case models.ConversationMode.nextSteps:
-        modeText = 'Suggest next steps';
+        actionInstruction = 'Based on your previous response, what are the specific next steps I should consider?';
         break;
       case models.ConversationMode.reflectDeeply:
-        modeText = 'Reflect more deeply';
+        actionInstruction = 'Please reflect more deeply on the themes and insights from your previous response. Explore the underlying patterns and connections.';
         break;
       case models.ConversationMode.continueThought:
-        modeText = 'Continue thought';
+        actionInstruction = 'Please continue your previous thought exactly where it left off.';
         break;
     }
     
-    _messageController.text = modeText;
-    await _sendCurrentMessageWithMode(mode);
+    // Get persona string (already a string)
+    final personaString = _selectedPersona;
+    
+    // Send with explicit instruction, conversation mode, and persona
+    context.read<LumaraAssistantCubit>().sendMessage(
+      actionInstruction,
+      currentEntry: entryToUse,
+      conversationMode: mode,
+      persona: personaString,
+    );
+    
+    _messageController.clear();
   }
   
   /// Map persona string to conversation mode
@@ -2692,6 +2737,8 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
   }
 
   /// Send message with conversation mode
+  /// NOTE: This method is now primarily used by _handleConversationMode
+  /// which constructs explicit instructions. This is kept for backward compatibility.
   Future<void> _sendCurrentMessageWithMode(models.ConversationMode mode) async {
     final text = _messageController.text.trim();
     if (text.isEmpty) return;

@@ -22,12 +22,12 @@ class LumaraSuggestionSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     final items = <_SuggestionItem>[
       _SuggestionItem(
-        'Suggest some ideas',
-        LumaraIntent.ideas,
-        Icons.lightbulb_outline,
+        'Continue thought',
+        LumaraIntent.ideas, // Reusing intent for continue thought
+        Icons.play_arrow,
       ),
       _SuggestionItem(
-        'Help me think this through',
+        'Analyze, Interpret, Suggest Actions',
         LumaraIntent.think,
         Icons.psychology,
       ),
@@ -41,7 +41,7 @@ class LumaraSuggestionSheet extends StatelessWidget {
         LumaraIntent.next,
         Icons.navigate_next,
       ),
-      // Note: "Reflect more deeply" has been moved to default action buttons
+      // Note: "Suggest ideas" has been moved to quick action buttons
     ];
 
     return SafeArea(

@@ -3,6 +3,7 @@ import 'package:hive/hive.dart';
 import 'package:my_app/main/bootstrap.dart';
 import 'draft_cache_service.dart';
 import '../../services/firebase_auth_service.dart';
+import '../../services/health_data_refresh_service.dart';
 
 /// Manages app-level lifecycle events and recovery mechanisms
 class AppLifecycleManager with WidgetsBindingObserver {
@@ -64,6 +65,9 @@ class AppLifecycleManager with WidgetsBindingObserver {
     // Refresh authentication token on app resume to ensure it's fresh
     _refreshAuthToken();
     
+    // Refresh health data if stale (non-blocking)
+    _refreshHealthDataIfNeeded();
+    
     // Check if this is a cold start after force quit
     if (_lastPauseTime != null) {
       final pauseDuration = _lastResumeTime!.difference(_lastPauseTime!);
@@ -77,6 +81,18 @@ class AppLifecycleManager with WidgetsBindingObserver {
       logger.d('App resumed - first launch or cold start detected');
       _handleColdStart();
     }
+  }
+
+  /// Refresh health data if stale (non-blocking)
+  void _refreshHealthDataIfNeeded() {
+    Future.microtask(() async {
+      try {
+        await HealthDataRefreshService.instance.checkAndRefreshIfNeeded();
+      } catch (e) {
+        logger.w('Failed to refresh health data on resume: $e');
+        // Don't block app resume - continue anyway
+      }
+    });
   }
 
   /// Refresh authentication token on app resume

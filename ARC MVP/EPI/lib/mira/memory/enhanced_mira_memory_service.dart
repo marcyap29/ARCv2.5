@@ -106,7 +106,7 @@ class EnhancedMiraMemoryService {
     );
 
     // Store the node
-    await _miraService.addNode(node);
+    await _miraService.repo.upsertNode(node);
 
     // Handle conflicts if any
     if (conflicts.isNotEmpty) {
@@ -936,19 +936,19 @@ class EnhancedMiraMemoryService {
       final allMiraNodes = <MiraNode>[];
       
       // Get entry nodes
-      final entryNodes = await _miraService.getNodesByType(NodeType.entry, limit: 1000);
+      final entryNodes = await _miraService.repo.findNodesByType(NodeType.entry);
       allMiraNodes.addAll(entryNodes);
       
       // Get keyword nodes
-      final keywordNodes = await _miraService.getNodesByType(NodeType.keyword, limit: 1000);
+      final keywordNodes = await _miraService.repo.findNodesByType(NodeType.keyword);
       allMiraNodes.addAll(keywordNodes);
       
       // Get emotion nodes
-      final emotionNodes = await _miraService.getNodesByType(NodeType.emotion, limit: 1000);
+      final emotionNodes = await _miraService.repo.findNodesByType(NodeType.emotion);
       allMiraNodes.addAll(emotionNodes);
       
       // Get phase nodes
-      final phaseNodes = await _miraService.getNodesByType(NodeType.phase, limit: 1000);
+      final phaseNodes = await _miraService.repo.findNodesByType(NodeType.phase);
       allMiraNodes.addAll(phaseNodes);
       
       print('LUMARA Memory: Found ${allMiraNodes.length} total nodes in MIRA repository');
@@ -1114,7 +1114,7 @@ class EnhancedMiraMemoryService {
   Future<EnhancedMiraNode?> getNodeById(String nodeId) async {
     try {
       // Try to get the node directly by ID first
-      final miraNode = await _miraService.getNode(nodeId);
+      final miraNode = await _miraService.repo.getNode(nodeId);
       if (miraNode != null) {
         return _convertToEnhancedNode(miraNode);
       }
@@ -1123,19 +1123,19 @@ class EnhancedMiraMemoryService {
       final allMiraNodes = <MiraNode>[];
       
       // Get entry nodes
-      final entryNodes = await _miraService.getNodesByType(NodeType.entry, limit: 1000);
+      final entryNodes = await _miraService.repo.findNodesByType(NodeType.entry);
       allMiraNodes.addAll(entryNodes);
       
       // Get keyword nodes
-      final keywordNodes = await _miraService.getNodesByType(NodeType.keyword, limit: 1000);
+      final keywordNodes = await _miraService.repo.findNodesByType(NodeType.keyword);
       allMiraNodes.addAll(keywordNodes);
       
       // Get emotion nodes
-      final emotionNodes = await _miraService.getNodesByType(NodeType.emotion, limit: 1000);
+      final emotionNodes = await _miraService.repo.findNodesByType(NodeType.emotion);
       allMiraNodes.addAll(emotionNodes);
       
       // Get phase nodes
-      final phaseNodes = await _miraService.getNodesByType(NodeType.phase, limit: 1000);
+      final phaseNodes = await _miraService.repo.findNodesByType(NodeType.phase);
       allMiraNodes.addAll(phaseNodes);
       
       final foundNode = allMiraNodes.firstWhere(
@@ -1161,19 +1161,19 @@ class EnhancedMiraMemoryService {
       final allMiraNodes = <MiraNode>[];
       
       // Get entry nodes
-      final entryNodes = await _miraService.getNodesByType(NodeType.entry, limit: 1000);
+      final entryNodes = await _miraService.repo.findNodesByType(NodeType.entry);
       allMiraNodes.addAll(entryNodes);
       
       // Get keyword nodes
-      final keywordNodes = await _miraService.getNodesByType(NodeType.keyword, limit: 1000);
+      final keywordNodes = await _miraService.repo.findNodesByType(NodeType.keyword);
       allMiraNodes.addAll(keywordNodes);
       
       // Get emotion nodes
-      final emotionNodes = await _miraService.getNodesByType(NodeType.emotion, limit: 1000);
+      final emotionNodes = await _miraService.repo.findNodesByType(NodeType.emotion);
       allMiraNodes.addAll(emotionNodes);
       
       // Get phase nodes
-      final phaseNodes = await _miraService.getNodesByType(NodeType.phase, limit: 1000);
+      final phaseNodes = await _miraService.repo.findNodesByType(NodeType.phase);
       allMiraNodes.addAll(phaseNodes);
       
       // Convert MiraNode to EnhancedMiraNode
@@ -1520,7 +1520,7 @@ class EnhancedMiraMemoryService {
               // Mark for deletion - in a real system, this would update the node
               // For now, we just update lifecycle metadata to reflect decay
               final updatedNode = await _applyDecayToNode(node, candidate.decayScore);
-              await _miraService.addNode(_convertFromEnhancedNode(updatedNode));
+              await _miraService.repo.upsertNode(_convertFromEnhancedNode(updatedNode));
               print('MIRA Memory: Marked node ${node.id} for deletion (decay: ${(candidate.decayScore * 100).toStringAsFixed(1)}%)');
             }
             break;
@@ -1528,14 +1528,14 @@ class EnhancedMiraMemoryService {
           case PruningAction.archive:
             // Archive memories with decay between 5-10%
             final archivedNode = await _archiveNode(node, candidate.decayScore);
-            await _miraService.addNode(_convertFromEnhancedNode(archivedNode));
+            await _miraService.repo.upsertNode(_convertFromEnhancedNode(archivedNode));
             print('MIRA Memory: Archived node ${node.id} (decay: ${(candidate.decayScore * 100).toStringAsFixed(1)}%)');
             break;
             
           case PruningAction.compress:
             // Compress/summarize memories with decay between 10-20%
             final compressedNode = await _compressNode(node, candidate.decayScore);
-            await _miraService.addNode(_convertFromEnhancedNode(compressedNode));
+            await _miraService.repo.upsertNode(_convertFromEnhancedNode(compressedNode));
             print('MIRA Memory: Compressed node ${node.id} (decay: ${(candidate.decayScore * 100).toStringAsFixed(1)}%)');
             break;
             
@@ -1543,7 +1543,7 @@ class EnhancedMiraMemoryService {
             // Merge similar memories
             // This would require finding similar nodes - for now, just update decay metadata
             final updatedNode = await _applyDecayToNode(node, candidate.decayScore);
-            await _miraService.addNode(_convertFromEnhancedNode(updatedNode));
+            await _miraService.repo.upsertNode(_convertFromEnhancedNode(updatedNode));
             break;
         }
       }
@@ -1556,21 +1556,21 @@ class EnhancedMiraMemoryService {
           switch (decayOp.action) {
             case DecayAction.archive:
               final archivedNode = await _archiveNode(node, 0.0);
-              await _miraService.addNode(_convertFromEnhancedNode(archivedNode));
+              await _miraService.repo.upsertNode(_convertFromEnhancedNode(archivedNode));
               break;
             case DecayAction.compress:
               final compressedNode = await _compressNode(node, 0.0);
-              await _miraService.addNode(_convertFromEnhancedNode(compressedNode));
+              await _miraService.repo.upsertNode(_convertFromEnhancedNode(compressedNode));
               break;
             case DecayAction.delete:
               // Mark for deletion
               final updatedNode = await _applyDecayToNode(node, 0.0);
-              await _miraService.addNode(_convertFromEnhancedNode(updatedNode));
+              await _miraService.repo.upsertNode(_convertFromEnhancedNode(updatedNode));
               break;
             case DecayAction.restore:
               // Restore from decay
               final restoredNode = await _restoreNodeFromDecay(node);
-              await _miraService.addNode(_convertFromEnhancedNode(restoredNode));
+              await _miraService.repo.upsertNode(_convertFromEnhancedNode(restoredNode));
               break;
           }
         }

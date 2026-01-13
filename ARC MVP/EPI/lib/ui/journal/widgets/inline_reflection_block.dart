@@ -375,8 +375,8 @@ class _InlineReflectionBlockState extends State<InlineReflectionBlock> with Sing
                                 ),
                                 const SizedBox(width: 8),
                                 LumaraActionButton(
-                                  label: 'Continue thought',
-                                  icon: Icons.play_arrow,
+                                  label: 'Suggest ideas',
+                                  icon: Icons.lightbulb_outline,
                                   onPressed: widget.isLoading ? () {} : widget.onContinueThought,
                                 ),
                                 const SizedBox(width: 8),

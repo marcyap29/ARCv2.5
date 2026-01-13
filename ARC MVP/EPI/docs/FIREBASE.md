@@ -542,6 +542,39 @@ firebase login
 firebase functions:list
 ```
 
+### proxyGemini Empty User String Error
+
+If LUMARA journal reflections fail with "system and user parameters are required" error, the function may not be handling empty user strings correctly.
+
+#### Symptoms
+- Error: `Gemini API request failed: system and user parameters are required`
+- Journal reflections fail but chat works fine
+- Error occurs even though parameters are being sent
+
+#### Root Cause
+The `proxyGemini` function was rejecting empty string `user` parameters. Journal reflections use unified prompts where all content is in the `system` prompt, with `user` set to empty string.
+
+#### Solution
+Updated function validation to:
+1. Check for `null`/`undefined` instead of falsy values
+2. Allow empty strings when `system` has content
+3. Handle both string and object types
+
+#### Verification
+```bash
+# Check function logs
+firebase functions:log --only proxyGemini
+
+# Verify function is deployed
+firebase functions:list | grep proxyGemini
+```
+
+#### Related Documentation
+- See `docs/bugtracker/records/gemini-api-empty-user-string.md` for full details
+- Fixed in v3.2.2 (January 10, 2026)
+
+---
+
 ### Cloud Run IAM Issues (UNAUTHENTICATED Error)
 
 If a callable function returns `UNAUTHENTICATED` error even though the user is logged in, the issue is likely **Cloud Run IAM policy**, not Firebase Auth.

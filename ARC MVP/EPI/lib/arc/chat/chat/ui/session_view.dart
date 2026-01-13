@@ -1008,8 +1008,8 @@ class _SessionViewState extends State<SessionView> {
                           onPressed: () => _handleMoreDepth(message),
                         ),
                         _ActionButton(
-                          label: 'Continue thought',
-                          icon: Icons.play_arrow,
+                          label: 'Suggest ideas',
+                          icon: Icons.lightbulb_outline,
                           onPressed: () => _handleContinueThought(message),
                         ),
                         _ActionButton(

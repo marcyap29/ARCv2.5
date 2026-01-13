@@ -1,6 +1,6 @@
 # EPI MVP - Bug Tracker
 
-**Version:** 3.2.1  
+**Version:** 3.2.2  
 **Last Updated:** January 10, 2026
 
 ---
@@ -22,6 +22,8 @@ This bug tracker has been split into parts for easier navigation:
 Detailed bug reports are available in the [records/](records/) directory:
 
 ### LUMARA Issues
+- [lumara-temporal-context-incorrect-dates.md](records/lumara-temporal-context-incorrect-dates.md) - **HIGH:** Incorrect date references in reflections (v3.2.2) ✅ RESOLVED
+- [gemini-api-empty-user-string.md](records/gemini-api-empty-user-string.md) - **CRITICAL:** Empty user string rejection in journal reflections (v3.2.2) ✅ RESOLVED
 - [lumara-user-prompt-override.md](records/lumara-user-prompt-override.md) - **CRITICAL:** User prompt overriding master prompt constraints (v3.0) ✅ RESOLVED
 - [lumara-response-cutoff.md](records/lumara-response-cutoff.md) - Response truncation issues
 - [lumara-subject-drift-and-repetitive-endings.md](records/lumara-subject-drift-and-repetitive-endings.md) - Subject focus and ending phrase issues
@@ -44,6 +46,10 @@ Detailed bug reports are available in the [records/](records/) directory:
 - [hive-initialization-order.md](records/hive-initialization-order.md) - Hive initialization problems
 - [mediaitem-adapter-registration-conflict.md](records/mediaitem-adapter-registration-conflict.md) - MediaItem adapter conflicts
 - [photo-duplication-view-entry.md](records/photo-duplication-view-entry.md) - Photo duplication bugs
+
+### API & Integration Issues
+- [gemini-api-empty-user-string.md](records/gemini-api-empty-user-string.md) - **CRITICAL:** Empty user string rejection in journal reflections ✅ RESOLVED
+- [vision-api-integration-ios.md](records/vision-api-integration-ios.md) - Vision API iOS integration
 
 ### Subscription & Payment Issues
 - [stripe-checkout-unauthenticated.md](records/stripe-checkout-unauthenticated.md) - **CRITICAL:** Cloud Run IAM blocking Stripe checkout ✅ RESOLVED

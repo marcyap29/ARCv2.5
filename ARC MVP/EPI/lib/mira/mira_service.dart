@@ -6,7 +6,6 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'core/flags.dart';
 import 'core/mira_repo.dart';
 import 'core/hive_repo.dart';
-import 'core/sqlite_repo.dart';
 import 'core/schema.dart';
 import 'package:my_app/mira/store/mcp/bundle/writer.dart';
 import 'package:my_app/mira/store/mcp/bundle/reader.dart';
@@ -51,18 +50,13 @@ class MiraService {
 
     _flags = flags ?? MiraFlags.defaults();
 
-    // Initialize storage based on flags
-    if (_flags.useSqliteRepo && sqliteDatabase != null) {
-      _repo = SqliteMiraRepo(database: sqliteDatabase);
-    } else {
-      // Default to Hive implementation
-      await Hive.initFlutter();
+    // Initialize Hive storage (SQLite implementation removed - use Hive only)
+    await Hive.initFlutter();
 
-      // Register adapters for MIRA types
-      _registerHiveAdapters();
+    // Register adapters for MIRA types
+    _registerHiveAdapters();
 
-      _repo = await HiveMiraRepo.create(boxName: hiveBoxName ?? 'mira_default');
-    }
+    _repo = await HiveMiraRepo.create(boxName: hiveBoxName ?? 'mira_default');
 
     // Initialize MCP components
     _bundleWriter = McpBundleWriter(_repo);
@@ -187,46 +181,9 @@ class MiraService {
     );
   }
 
-  /// ---- Graph Access Convenience API (thin wrappers over repo) ----
-  Future<void> addNode(MiraNode node) async {
-    _ensureInitialized();
-    await _repo.upsertNode(node);
-  }
-
-  Future<void> addEdge(MiraEdge edge) async {
-    _ensureInitialized();
-    await _repo.upsertEdge(edge);
-  }
-
-  Future<void> removeNode(String nodeId) async {
-    _ensureInitialized();
-    await _repo.removeNode(nodeId);
-  }
-
-  Future<void> removeEdge(String edgeId) async {
-    _ensureInitialized();
-    await _repo.removeEdge(edgeId);
-  }
-
-  Future<List<MiraNode>> getNodesByType(NodeType type, {int limit = 100}) async {
-    _ensureInitialized();
-    return _repo.findNodesByType(type, limit: limit);
-  }
-
-  Future<List<MiraEdge>> getEdgesBySource(String nodeId, {EdgeType? label}) async {
-    _ensureInitialized();
-    return _repo.edgesFrom(nodeId, label: label);
-  }
-
-  Future<List<MiraEdge>> getEdgesByDestination(String nodeId, {EdgeType? label}) async {
-    _ensureInitialized();
-    return _repo.edgesTo(nodeId, label: label);
-  }
-
-  Future<MiraNode?> getNode(String nodeId) async {
-    _ensureInitialized();
-    return _repo.getNode(nodeId);
-  }
+  /// Direct repository access - use repo getter for graph operations
+  /// Example: await miraService.repo.upsertNode(node);
+  /// Eliminates redundant wrapper methods for cleaner architecture
 
   /// Add semantic data to MIRA
   Future<void> addSemanticData({
@@ -347,7 +304,7 @@ class MiraService {
       'enabled': _flags.miraEnabled,
       'advanced_enabled': _flags.miraAdvancedEnabled,
       'retrieval_enabled': _flags.retrievalEnabled,
-      'storage_backend': _flags.useSqliteRepo ? 'sqlite' : 'hive',
+      'storage_backend': 'hive',
       'node_counts': nodeCounts.map((k, v) => MapEntry(k.toString().split('.').last, v)),
       'edge_counts': edgeCounts.map((k, v) => MapEntry(k.toString().split('.').last, v)),
       'total_nodes': nodeCounts.values.fold(0, (sum, count) => sum + count),

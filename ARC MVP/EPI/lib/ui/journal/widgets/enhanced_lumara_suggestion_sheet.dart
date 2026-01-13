@@ -287,8 +287,8 @@ class _EnhancedLumaraSuggestionSheetState extends State<EnhancedLumaraSuggestion
 
   Widget _buildTraditionalIntents(ThemeData theme) {
     final items = [
-      (LumaraIntent.suggestIdeas, 'Suggest some ideas', Icons.lightbulb),
-      (LumaraIntent.thinkThrough, 'Help me think through this', Icons.psychology),
+      (LumaraIntent.suggestIdeas, 'Continue thought', Icons.play_arrow),
+      (LumaraIntent.thinkThrough, 'Analyze, Interpret, Suggest Actions', Icons.psychology),
       (LumaraIntent.differentPerspective, 'Offer different perspective', Icons.flip),
       (LumaraIntent.nextSteps, 'Suggest next steps', Icons.navigation),
       (LumaraIntent.analyzeFurther, 'Analyze further', Icons.analytics),

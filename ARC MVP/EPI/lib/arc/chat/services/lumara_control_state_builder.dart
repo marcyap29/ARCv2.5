@@ -261,33 +261,21 @@ class LumaraControlStateBuilder {
     try {
       final settingsService = LumaraReflectionSettingsService.instance;
       final therapeuticEnabled = await settingsService.isTherapeuticPresenceEnabled();
-      final therapeuticAutomaticMode = await settingsService.isTherapeuticAutomaticMode();
-      
-      if (therapeuticEnabled) {
-        if (therapeuticAutomaticMode) {
-          // Automatic mode: system decides based on context
-          // For now, default to supportive, but could be enhanced
+
+      if (!therapeuticEnabled) {
+        therapy['therapyMode'] = 'off';
+      } else {
+        final automaticMode = await settingsService.isTherapeuticAutomaticMode();
+        if (automaticMode) {
           therapy['therapyMode'] = 'supportive';
         } else {
-          // Manual mode: use user's selected depth level
           final depthLevel = await settingsService.getTherapeuticDepthLevel();
-          if (depthLevel == 1) {
-            therapy['therapyMode'] = 'supportive';
-          } else if (depthLevel == 2) {
-            therapy['therapyMode'] = 'supportive';
-          } else if (depthLevel == 3) {
-            therapy['therapyMode'] = 'deep_therapeutic';
-          } else {
-            therapy['therapyMode'] = 'supportive';
-          }
+          therapy['therapyMode'] = (depthLevel == 3) ? 'deep_therapeutic' : 'supportive';
         }
-      } else {
-        therapy['therapyMode'] = 'off';
       }
-      
-      // Override if sentinel alert is active
+
       if (sentinelAlert) {
-        therapy['therapyMode'] = 'supportive'; // Force minimum supportive mode
+        therapy['therapyMode'] = 'supportive';
       }
     } catch (e) {
       print('LUMARA Control State: Error getting therapy mode: $e');
@@ -696,32 +684,24 @@ class LumaraControlStateBuilder {
     final veil = state['veil'] as Map<String, dynamic>? ?? {};
     final favorites = state['favorites'] as Map<String, dynamic>? ?? {};
     final therapy = state['therapy'] as Map<String, dynamic>? ?? {};
-    
+
     final sentinelAlert = atlas['sentinelAlert'] as bool? ?? false;
     final health = veil['health'] as Map<String, dynamic>? ?? {};
     final sleepQuality = health['sleepQuality'] as double? ?? 0.7;
     final favoritesProfile = favorites['favoritesProfile'] as Map<String, dynamic>?;
     final therapyMode = therapy['therapyMode'] as String? ?? 'off';
-    
-    double warmth = 0.6; // Base warmth
-    
-    if (sentinelAlert) {
-      warmth = 0.8; // High warmth for safety
-    }
-    
-    if (sleepQuality < 0.5) {
-      warmth += 0.1; // Increase warmth for low sleep
-    }
-    
+
+    if (sentinelAlert) return 0.8;
+    if (therapyMode == 'deep_therapeutic') return 0.7;
+
+    double warmth = 0.6;
+    if (sleepQuality < 0.5) warmth += 0.1;
+
     if (favoritesProfile != null) {
       final favWarmth = favoritesProfile['warmth'] as double? ?? 0.6;
-      warmth = (warmth + favWarmth) / 2; // Blend with favorites
+      warmth = (warmth + favWarmth) / 2;
     }
-    
-    if (therapyMode == 'deep_therapeutic') {
-      warmth = 0.7; // Higher warmth for therapeutic mode
-    }
-    
+
     return warmth.clamp(0.0, 1.0);
   }
   
@@ -730,28 +710,22 @@ class LumaraControlStateBuilder {
     final atlas = state['atlas'] as Map<String, dynamic>? ?? {};
     final veil = state['veil'] as Map<String, dynamic>? ?? {};
     final favorites = state['favorites'] as Map<String, dynamic>? ?? {};
-    
+
     final readinessScore = atlas['readinessScore'] as int? ?? 50;
     final sophisticationLevel = veil['sophisticationLevel'] as String? ?? 'moderate';
     final favoritesProfile = favorites['favoritesProfile'] as Map<String, dynamic>?;
-    
-    double rigor = 0.5; // Base rigor
-    
-    if (readinessScore > 70) {
-      rigor += 0.2; // Higher rigor for high readiness
-    }
-    
-    if (sophisticationLevel == 'analytical') {
-      rigor += 0.2;
-    } else if (sophisticationLevel == 'simple') {
-      rigor -= 0.2;
-    }
-    
+
+    double rigor = 0.5;
+
+    if (readinessScore > 70) rigor += 0.2;
+    if (sophisticationLevel == 'analytical') rigor += 0.2;
+    if (sophisticationLevel == 'simple') rigor -= 0.2;
+
     if (favoritesProfile != null) {
       final favRigor = favoritesProfile['rigor'] as double? ?? 0.5;
-      rigor = (rigor + favRigor) / 2; // Blend with favorites
+      rigor = (rigor + favRigor) / 2;
     }
-    
+
     return rigor.clamp(0.0, 1.0);
   }
   
@@ -759,27 +733,19 @@ class LumaraControlStateBuilder {
   static double _computeAbstraction(Map<String, dynamic> state) {
     final atlas = state['atlas'] as Map<String, dynamic>? ?? {};
     final veil = state['veil'] as Map<String, dynamic>? ?? {};
-    
+
     final sentinelAlert = atlas['sentinelAlert'] as bool? ?? false;
     final health = veil['health'] as Map<String, dynamic>? ?? {};
     final sleepQuality = health['sleepQuality'] as double? ?? 0.7;
     final energyLevel = health['energyLevel'] as double? ?? 0.7;
     final timeOfDay = veil['timeOfDay'] as String? ?? 'afternoon';
-    
-    double abstraction = 0.5; // Base abstraction
-    
-    if (sentinelAlert) {
-      abstraction = 0.2; // Low abstraction for safety
-    }
-    
-    if (sleepQuality < 0.5 || energyLevel < 0.5) {
-      abstraction -= 0.2; // Lower abstraction for low energy/sleep
-    }
-    
-    if (timeOfDay == 'night') {
-      abstraction -= 0.1; // Lower abstraction at night
-    }
-    
+
+    if (sentinelAlert) return 0.2;
+
+    double abstraction = 0.5;
+    if (sleepQuality < 0.5 || energyLevel < 0.5) abstraction -= 0.2;
+    if (timeOfDay == 'night') abstraction -= 0.1;
+
     return abstraction.clamp(0.0, 1.0);
   }
   
@@ -817,34 +783,22 @@ class LumaraControlStateBuilder {
     final atlas = state['atlas'] as Map<String, dynamic>? ?? {};
     final veil = state['veil'] as Map<String, dynamic>? ?? {};
     final prism = state['prism'] as Map<String, dynamic>? ?? {};
-    
+
     final sentinelAlert = atlas['sentinelAlert'] as bool? ?? false;
     final readinessScore = atlas['readinessScore'] as int? ?? 50;
     final health = veil['health'] as Map<String, dynamic>? ?? {};
     final sleepQuality = health['sleepQuality'] as double? ?? 0.7;
     final prismActivity = prism['prism_activity'] as Map<String, dynamic>?;
     final cognitiveLoad = prismActivity?['cognitive_load'] as String? ?? 'moderate';
-    
-    double challenge = 0.5; // Base challenge
-    
-    if (sentinelAlert) {
-      challenge = 0.2; // Low challenge for safety
-    }
-    
-    if (readinessScore > 70) {
-      challenge += 0.2; // Higher challenge for high readiness
-    }
-    
-    if (sleepQuality < 0.5) {
-      challenge -= 0.2; // Lower challenge for low sleep
-    }
-    
-    if (cognitiveLoad == 'high') {
-      challenge -= 0.1; // Lower challenge for high cognitive load
-    } else if (cognitiveLoad == 'low') {
-      challenge += 0.1; // Higher challenge for low cognitive load
-    }
-    
+
+    if (sentinelAlert) return 0.2;
+
+    double challenge = 0.5;
+    if (readinessScore > 70) challenge += 0.2;
+    if (sleepQuality < 0.5) challenge -= 0.2;
+    if (cognitiveLoad == 'high') challenge -= 0.1;
+    if (cognitiveLoad == 'low') challenge += 0.1;
+
     return challenge.clamp(0.0, 1.0);
   }
   

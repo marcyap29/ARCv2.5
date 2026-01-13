@@ -112,6 +112,8 @@ class HealthService {
       HealthDataType.SLEEP_ASLEEP,
       HealthDataType.WEIGHT,
       HealthDataType.WORKOUT,
+      // Note: VO2_MAX is not yet available in the health package enum
+      // Will be extracted from workout data when available
     ];
     // Debug: Log the health data fetch attempt
     debugPrint('🔍 HealthIngest Debug - Fetching health data from HealthKit');
@@ -179,6 +181,7 @@ class HealthService {
         case HealthDataType.WEIGHT:
           weightKg = (p.value as num).toDouble();
           break;
+        // Note: VO2_MAX parsing would go here when health package supports it
         case HealthDataType.WORKOUT:
           workouts.add(HealthIngest._encodeWorkout(p));
           break;
@@ -252,6 +255,8 @@ class HealthIngest {
       HealthDataType.SLEEP_IN_BED,
       HealthDataType.WEIGHT,
       HealthDataType.WORKOUT,
+      // Note: VO2_MAX is not yet available in the health package enum
+      // Will be extracted from workout data when available
     ];
 
     // Get health data, catching errors for unavailable types
@@ -319,6 +324,8 @@ class HealthIngest {
         case HealthDataType.WEIGHT:
           b.weightKg = val.toDouble();
           break;
+        // Note: VO2_MAX parsing would go here when health package supports it
+        // For now, VO2 Max can be extracted from workout data
         case HealthDataType.WORKOUT:
           final workout = _encodeWorkout(p);
           b.workouts.add(workout);
@@ -452,6 +459,7 @@ class HealthIngest {
         "avg_hr": {"value": d.avgHr, "unit": "bpm"},
         "hrv_sdnn": {"value": d.hrvSdnn, "unit": "ms"},
         "cardio_recovery_1min": {"value": d.cardioRecovery1Min, "unit": "bpm"},
+        "vo2_max": {"value": d.vo2Max, "unit": "ml/(kg·min)"},
         "sleep_total_minutes": d.sleepMin,
         "weight": {"value": d.weightKg, "unit": "kg"},
         "workouts": d.workouts

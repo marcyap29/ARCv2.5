@@ -59,7 +59,7 @@ class ChatToMiraAdapter {
     try {
       // Create session node
       final sessionNode = ChatSessionNode.fromModel(session);
-      await _miraService.addNode(sessionNode);
+      await _miraService.repo.upsertNode(sessionNode);
       result.syncedSessions++;
 
       // Get messages for this session
@@ -71,7 +71,7 @@ class ChatToMiraAdapter {
 
         // Create message node
         final messageNode = ChatMessageNode.fromModel(message);
-        await _miraService.addNode(messageNode);
+        await _miraService.repo.upsertNode(messageNode);
         result.syncedMessages++;
 
         // Create contains edge (session contains message)
@@ -106,12 +106,12 @@ class ChatToMiraAdapter {
 
       // Remove message nodes and edges
       for (final message in messages) {
-        await _miraService.removeNode('msg:${message.id}');
-        await _miraService.removeEdge('session:${sessionId}_contains_msg:${message.id}');
+        await _miraService.repo.removeNode('msg:${message.id}');
+        await _miraService.repo.removeEdge('session:${sessionId}_contains_msg:${message.id}');
       }
 
       // Remove session node
-      await _miraService.removeNode('session:$sessionId');
+      await _miraService.repo.removeNode('session:$sessionId');
 
       print('ChatToMira: Removed session $sessionId from MIRA');
     } catch (e) {
@@ -123,7 +123,7 @@ class ChatToMiraAdapter {
   /// Get chat-related nodes from MIRA
   Future<List<ChatSessionNode>> getChatSessionsFromMira() async {
     try {
-      final nodes = await _miraService.getNodesByType(NodeType.entry);
+      final nodes = await _miraService.repo.findNodesByType(NodeType.entry);
       return nodes
           .map(ChatSessionNode.fromMiraNode)
           .whereType<ChatSessionNode>()
@@ -137,7 +137,7 @@ class ChatToMiraAdapter {
   /// Get message nodes for a session from MIRA
   Future<List<ChatMessageNode>> getSessionMessagesFromMira(String sessionId) async {
     try {
-      final edges = await _miraService.getEdgesBySource(
+      final edges = await _miraService.repo.edgesFrom(
         'session:$sessionId',
         label: EdgeType.belongsTo,
       );
@@ -154,7 +154,7 @@ class ChatToMiraAdapter {
 
       final messages = <ChatMessageNode>[];
       for (final edge in orderedEdges) {
-        final rawNode = await _miraService.getNode(edge.dst);
+        final rawNode = await _miraService.repo.getNode(edge.dst);
         if (rawNode == null) {
           continue;
         }

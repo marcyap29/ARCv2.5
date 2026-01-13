@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:my_app/prism/services/health_service.dart';
 import 'package:my_app/mira/store/mcp/mcp_fs.dart';
 import 'package:my_app/services/health_data_service.dart';
+import 'package:my_app/services/health_data_refresh_service.dart';
 import 'package:health/health.dart';
 
 class HealthSettingsDialog extends StatefulWidget {
@@ -22,29 +23,141 @@ class _HealthSettingsDialogState extends State<HealthSettingsDialog> {
   double _energyLevel = 0.7;
   bool _loadingHealthData = true;
   bool _savingHealthData = false;
+  
+  // Hybrid mode state
+  bool _isAutoMode = false;
+  bool _refreshingHealth = false;
+  String? _healthDataSource;
+  DateTime? _healthDataLastUpdated;
+  
+  // Refresh settings state
+  DateTime? _lastRefreshTime;
+  bool _autoRefreshEnabled = true;
+  String _refreshTime = "08:00";
+  bool _refreshingNow = false;
 
   @override
   void initState() {
     super.initState();
     _loadHealthData();
+    _loadRefreshSettings();
+  }
+  
+  Future<void> _loadRefreshSettings() async {
+    try {
+      final refreshService = HealthDataRefreshService.instance;
+      await refreshService.initialize();
+      
+      final lastRefresh = await refreshService.getLastRefreshTime();
+      final autoRefreshEnabled = await refreshService.isAutoRefreshEnabled();
+      final refreshTime = await refreshService.getRefreshTime();
+      
+      if (mounted) {
+        setState(() {
+          _lastRefreshTime = lastRefresh;
+          _autoRefreshEnabled = autoRefreshEnabled;
+          _refreshTime = refreshTime;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading refresh settings: $e');
+    }
   }
 
   Future<void> _loadHealthData() async {
     try {
-      final healthData = await HealthDataService.instance.getHealthData();
+      // Check if auto-detected health data is available
+      final autoHealthData = await HealthDataService.instance.getAutoDetectedHealthData();
+      final manualHealthData = await HealthDataService.instance.getHealthData();
+      
+      // Determine mode: Auto if auto data is not stale/default, else Manual
+      final hasAutoData = !autoHealthData.isStale && 
+                         (autoHealthData.sleepQuality != 0.7 || autoHealthData.energyLevel != 0.7);
+      
       if (mounted) {
         setState(() {
-          _sleepQuality = healthData.sleepQuality;
-          _energyLevel = healthData.energyLevel;
+          _isAutoMode = hasAutoData;
+          if (_isAutoMode) {
+            _sleepQuality = autoHealthData.sleepQuality;
+            _energyLevel = autoHealthData.energyLevel;
+            _healthDataSource = 'Apple Health';
+            _healthDataLastUpdated = autoHealthData.lastUpdated ?? DateTime.now();
+          } else {
+            _sleepQuality = manualHealthData.sleepQuality;
+            _energyLevel = manualHealthData.energyLevel;
+            _healthDataSource = null;
+            _healthDataLastUpdated = manualHealthData.lastUpdated;
+          }
           _loadingHealthData = false;
         });
       }
     } catch (e) {
       debugPrint('Error loading health data: $e');
       if (mounted) {
-        setState(() => _loadingHealthData = false);
+        setState(() {
+          _isAutoMode = false;
+          _loadingHealthData = false;
+        });
       }
     }
+  }
+  
+  Future<void> _refreshFromHealth() async {
+    setState(() => _refreshingHealth = true);
+    try {
+      final autoHealthData = await HealthDataService.instance.getAutoDetectedHealthData();
+      
+      if (mounted) {
+        setState(() {
+          _sleepQuality = autoHealthData.sleepQuality;
+          _energyLevel = autoHealthData.energyLevel;
+          _healthDataLastUpdated = DateTime.now();
+          _refreshingHealth = false;
+        });
+        
+        // Save the refreshed data
+        await HealthDataService.instance.updateHealthData(
+          sleepQuality: _sleepQuality,
+          energyLevel: _energyLevel,
+        );
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Health data refreshed from Apple Health'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _refreshingHealth = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to refresh: ${e.toString()}'),
+            backgroundColor: Colors.orange,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    }
+  }
+  
+  void _switchToManualMode() {
+    setState(() {
+      _isAutoMode = false;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Switched to manual mode'),
+        duration: Duration(seconds: 1),
+      ),
+    );
+  }
+  
+  void _switchToAutoMode() async {
+    setState(() => _isAutoMode = true);
+    await _refreshFromHealth();
   }
 
   Future<void> _saveHealthData() async {
@@ -389,12 +502,24 @@ class _HealthSettingsDialogState extends State<HealthSettingsDialog> {
         ),
         const SizedBox(height: 8),
         Text(
-          'Tell LUMARA how you\'re feeling right now. This helps LUMARA adapt its tone and depth to match your current state.',
+          _isAutoMode
+              ? 'Health data is automatically detected from Apple Health. You can override to set manually.'
+              : 'Tell LUMARA how you\'re feeling right now. This helps LUMARA adapt its tone and depth to match your current state.',
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
             color: Colors.grey,
           ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 16),
+        
+        // Mode Toggle
+        _buildModeToggle(context),
+        
+        const SizedBox(height: 16),
+        
+        // Refresh Settings Section
+        _buildRefreshSettingsSection(context),
+        
+        const SizedBox(height: 16),
         // Explanatory cards
         Container(
           padding: const EdgeInsets.all(12),
@@ -470,29 +595,47 @@ class _HealthSettingsDialogState extends State<HealthSettingsDialog> {
         if (_loadingHealthData)
           const Center(child: CircularProgressIndicator())
         else ...[
-          // Sleep Quality Slider
-          _buildHealthSlider(
-            context: context,
-            label: 'Sleep Quality',
-            icon: Icons.bedtime,
-            value: _sleepQuality,
-            onChanged: (v) => setState(() => _sleepQuality = v),
-            lowLabel: 'Poor',
-            highLabel: 'Great',
-          ),
-          
-          const SizedBox(height: 16),
-          
-          // Energy Level Slider
-          _buildHealthSlider(
-            context: context,
-            label: 'Energy Level',
-            icon: Icons.bolt,
-            value: _energyLevel,
-            onChanged: (v) => setState(() => _energyLevel = v),
-            lowLabel: 'Low',
-            highLabel: 'High',
-          ),
+          // Show auto mode or manual mode UI
+          if (_isAutoMode) ...[
+            _buildAutoModeDisplay(context),
+          ] else ...[
+            // Manual Mode - Sliders
+            _buildHealthSlider(
+              context: context,
+              label: 'Sleep Quality',
+              icon: Icons.bedtime,
+              value: _sleepQuality,
+              onChanged: (v) => setState(() => _sleepQuality = v),
+              lowLabel: 'Poor',
+              highLabel: 'Great',
+            ),
+            
+            const SizedBox(height: 16),
+            
+            _buildHealthSlider(
+              context: context,
+              label: 'Energy Level',
+              icon: Icons.bolt,
+              value: _energyLevel,
+              onChanged: (v) => setState(() => _energyLevel = v),
+              lowLabel: 'Low',
+              highLabel: 'High',
+            ),
+            
+            // Reset to Auto button (if health data available)
+            if (_healthDataSource != null) ...[
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
+                onPressed: _switchToAutoMode,
+                icon: const Icon(Icons.refresh, size: 18),
+                label: const Text('Reset to Auto'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.purple,
+                  side: const BorderSide(color: Colors.purple),
+                ),
+              ),
+            ],
+          ],
           
           const SizedBox(height: 20),
           
@@ -616,6 +759,449 @@ class _HealthSettingsDialogState extends State<HealthSettingsDialog> {
       return 'LUMARA may offer more direct insights and challenges.';
     }
     return 'LUMARA will adapt to your current state.';
+  }
+  
+  Widget _buildModeToggle(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.white.withOpacity(0.1)),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: GestureDetector(
+              onTap: () => setState(() => _isAutoMode = false),
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                decoration: BoxDecoration(
+                  color: !_isAutoMode ? Colors.purple.withOpacity(0.3) : Colors.transparent,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Center(
+                  child: Text(
+                    'Manual',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: !_isAutoMode ? Colors.white : Colors.grey,
+                      fontWeight: !_isAutoMode ? FontWeight.w600 : FontWeight.normal,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Expanded(
+            child: GestureDetector(
+              onTap: () {
+                if (_healthDataSource != null) {
+                  _switchToAutoMode();
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('No health data available. Please import health data first.'),
+                      backgroundColor: Colors.orange,
+                      duration: Duration(seconds: 3),
+                    ),
+                  );
+                }
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                decoration: BoxDecoration(
+                  color: _isAutoMode ? Colors.purple.withOpacity(0.3) : Colors.transparent,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Center(
+                  child: Text(
+                    'Auto (Health)',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: _isAutoMode ? Colors.white : Colors.grey,
+                      fontWeight: _isAutoMode ? FontWeight.w600 : FontWeight.normal,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  Widget _buildAutoModeDisplay(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Sleep Quality Card
+        _buildAutoModeCard(
+          context: context,
+          label: 'Sleep Quality',
+          icon: Icons.bedtime,
+          value: _sleepQuality,
+          source: _healthDataSource,
+          lastUpdated: _healthDataLastUpdated,
+          onRefresh: _refreshFromHealth,
+          refreshing: _refreshingHealth,
+          onOverride: _switchToManualMode,
+        ),
+        
+        const SizedBox(height: 16),
+        
+        // Energy Level Card
+        _buildAutoModeCard(
+          context: context,
+          label: 'Energy Level',
+          icon: Icons.bolt,
+          value: _energyLevel,
+          source: _healthDataSource,
+          lastUpdated: _healthDataLastUpdated,
+          onRefresh: _refreshFromHealth,
+          refreshing: _refreshingHealth,
+          onOverride: _switchToManualMode,
+        ),
+      ],
+    );
+  }
+  
+  Widget _buildAutoModeCard({
+    required BuildContext context,
+    required String label,
+    required IconData icon,
+    required double value,
+    required String? source,
+    required DateTime? lastUpdated,
+    required VoidCallback onRefresh,
+    required bool refreshing,
+    required VoidCallback onOverride,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white.withOpacity(0.1)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, size: 18, color: Colors.grey),
+              const SizedBox(width: 8),
+              Text(
+                label,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const Spacer(),
+              Text(
+                '${(value * 100).toInt()}%',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: _getValueColor(value),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          
+          // Progress Bar
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(
+              value: value,
+              minHeight: 8,
+              backgroundColor: Colors.grey.withOpacity(0.3),
+              valueColor: AlwaysStoppedAnimation<Color>(_getValueColor(value)),
+            ),
+          ),
+          
+          const SizedBox(height: 12),
+          
+          // Source Info
+          if (source != null) ...[
+            Row(
+              children: [
+                const Icon(Icons.info_outline, size: 14, color: Colors.purple),
+                const SizedBox(width: 6),
+                Text(
+                  'From $source',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Colors.purple,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+            if (lastUpdated != null) ...[
+              const SizedBox(height: 4),
+              Text(
+                'Last updated: ${_formatLastUpdated(lastUpdated)}',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Colors.grey,
+                  fontSize: 11,
+                ),
+              ),
+            ],
+            const SizedBox(height: 12),
+            
+            // Action Buttons
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: refreshing ? null : onRefresh,
+                    icon: refreshing
+                        ? const SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.refresh, size: 16),
+                    label: const Text('Refresh'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.purple,
+                      side: const BorderSide(color: Colors.purple),
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: TextButton(
+                    onPressed: onOverride,
+                    child: const Text('Override'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: Colors.grey,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+  
+  String _formatLastUpdated(DateTime dateTime) {
+    final now = DateTime.now();
+    final difference = now.difference(dateTime);
+    
+    if (difference.inDays > 0) {
+      return '${difference.inDays} day${difference.inDays > 1 ? 's' : ''} ago';
+    } else if (difference.inHours > 0) {
+      return '${difference.inHours} hour${difference.inHours > 1 ? 's' : ''} ago';
+    } else if (difference.inMinutes > 0) {
+      return '${difference.inMinutes} minute${difference.inMinutes > 1 ? 's' : ''} ago';
+    } else {
+      return 'Just now';
+    }
+  }
+  
+  Widget _buildRefreshSettingsSection(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.blue.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.blue.withOpacity(0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.schedule, size: 20, color: Colors.blue),
+              const SizedBox(width: 8),
+              Text(
+                'Auto-Refresh Settings',
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.blue,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          
+          // Last refresh time
+          if (_lastRefreshTime != null) ...[
+            Row(
+              children: [
+                const Icon(Icons.access_time, size: 16, color: Colors.grey),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Last refreshed: ${_formatRefreshTime(_lastRefreshTime!)}',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Colors.grey.shade700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+          ] else ...[
+            Row(
+              children: [
+                const Icon(Icons.info_outline, size: 16, color: Colors.grey),
+                const SizedBox(width: 8),
+                Text(
+                  'Never refreshed',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Colors.grey.shade700,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+          ],
+          
+          // Auto-refresh toggle
+          SwitchListTile(
+            title: const Text('Auto-refresh health data'),
+            subtitle: const Text('Automatically refresh from Apple Health'),
+            value: _autoRefreshEnabled,
+            onChanged: (value) async {
+              setState(() => _autoRefreshEnabled = value);
+              await HealthDataRefreshService.instance.setAutoRefreshEnabled(value);
+              if (value) {
+                await HealthDataRefreshService.instance.startScheduledRefresh();
+              }
+            },
+            contentPadding: EdgeInsets.zero,
+          ),
+          
+          // Refresh time picker
+          if (_autoRefreshEnabled) ...[
+            const SizedBox(height: 8),
+            ListTile(
+              leading: const Icon(Icons.alarm, size: 20),
+              title: const Text('Refresh time'),
+              subtitle: Text(_formatRefreshTimeString(_refreshTime)),
+              trailing: const Icon(Icons.chevron_right),
+              contentPadding: EdgeInsets.zero,
+              onTap: () => _showTimePicker(context),
+            ),
+          ],
+          
+          const SizedBox(height: 12),
+          
+          // Refresh Now button
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: _refreshingNow ? null : _refreshNow,
+              icon: _refreshingNow
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.refresh, size: 18),
+              label: Text(_refreshingNow ? 'Refreshing...' : 'Refresh Now'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.blue,
+                side: const BorderSide(color: Colors.blue),
+                padding: const EdgeInsets.symmetric(vertical: 12),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  String _formatRefreshTime(DateTime dateTime) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final refreshDate = DateTime(dateTime.year, dateTime.month, dateTime.day);
+    
+    if (refreshDate == today) {
+      // Today - show time
+      final hour = dateTime.hour;
+      final minute = dateTime.minute;
+      final period = hour >= 12 ? 'PM' : 'AM';
+      final displayHour = hour > 12 ? hour - 12 : (hour == 0 ? 12 : hour);
+      return 'Today at ${displayHour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')} $period';
+    } else if (refreshDate == today.subtract(const Duration(days: 1))) {
+      // Yesterday
+      final hour = dateTime.hour;
+      final minute = dateTime.minute;
+      final period = hour >= 12 ? 'PM' : 'AM';
+      final displayHour = hour > 12 ? hour - 12 : (hour == 0 ? 12 : hour);
+      return 'Yesterday at ${displayHour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')} $period';
+    } else {
+      // Older
+      return '${dateTime.month}/${dateTime.day}/${dateTime.year}';
+    }
+  }
+  
+  String _formatRefreshTimeString(String timeString) {
+    final parts = timeString.split(':');
+    final hour = int.parse(parts[0]);
+    final minute = int.parse(parts[1]);
+    final period = hour >= 12 ? 'PM' : 'AM';
+    final displayHour = hour > 12 ? hour - 12 : (hour == 0 ? 12 : hour);
+    return '${displayHour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')} $period';
+  }
+  
+  Future<void> _showTimePicker(BuildContext context) async {
+    final parts = _refreshTime.split(':');
+    final initialTime = TimeOfDay(
+      hour: int.parse(parts[0]),
+      minute: int.parse(parts[1]),
+    );
+    
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: initialTime,
+    );
+    
+    if (picked != null && mounted) {
+      final newTime = '${picked.hour.toString().padLeft(2, '0')}:${picked.minute.toString().padLeft(2, '0')}';
+      setState(() => _refreshTime = newTime);
+      await HealthDataRefreshService.instance.setRefreshTime(newTime);
+    }
+  }
+  
+  Future<void> _refreshNow() async {
+    setState(() => _refreshingNow = true);
+    try {
+      await HealthDataRefreshService.instance.forceRefresh();
+      
+      // Reload health data and refresh settings
+      await _loadHealthData();
+      await _loadRefreshSettings();
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Health data refreshed successfully'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to refresh: ${e.toString()}'),
+            backgroundColor: Colors.orange,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _refreshingNow = false);
+      }
+    }
   }
 }
 

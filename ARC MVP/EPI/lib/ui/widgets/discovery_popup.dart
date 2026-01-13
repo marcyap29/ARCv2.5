@@ -340,8 +340,8 @@ class _DiscoveryPopupState extends State<DiscoveryPopup>
       //   return 'Celebration';
       case UserPhase.reflection:
         return 'Reflection';
-      case UserPhase.planning:
-        return 'Planning';
+      case UserPhase.transition:
+        return 'Transition';
       // case UserPhase.uncertainty: // COMMENTED OUT - not in enum
       //   return 'Uncertainty';
     }

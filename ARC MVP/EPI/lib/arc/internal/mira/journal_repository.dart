@@ -552,7 +552,7 @@ class JournalRepository {
         List<String> candidateNodeIds = [];
         
         try {
-          final entryNodes = await miraService.getNodesByType(NodeType.entry, limit: 10000);
+          final entryNodes = await miraService.repo.findNodesByType(NodeType.entry);
           print('🔍 Journal: Searching through ${entryNodes.length} MIRA entry nodes for entry $id');
           
           for (final node in entryNodes) {

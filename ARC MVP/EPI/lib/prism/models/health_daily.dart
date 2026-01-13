@@ -10,6 +10,7 @@ class HealthDaily {
   double? restingHr;
   double? hrvSdnn;
   double? cardioRecovery1Min; // bpm drop after 1 min
+  double? vo2Max; // ml/(kg·min)
   int sleepMin = 0;
   double? weightKg;
   double? avgHr; // average HR during the day (from samples)

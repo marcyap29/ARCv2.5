@@ -27,6 +27,12 @@ class PhaseHistoryEntry extends HiveObject {
   
   @HiveField(6)
   final String text;
+  
+  @HiveField(7)
+  final int? operationalReadinessScore; // 10-100 rating for military readiness
+  
+  @HiveField(8)
+  final Map<String, dynamic>? healthData; // Health data snapshot (sleepQuality, energyLevel)
 
   PhaseHistoryEntry({
     required this.id,
@@ -36,6 +42,8 @@ class PhaseHistoryEntry extends HiveObject {
     required this.emotion,
     required this.reason,
     required this.text,
+    this.operationalReadinessScore,
+    this.healthData,
   });
 
   Map<String, dynamic> toJson() {
@@ -47,6 +55,8 @@ class PhaseHistoryEntry extends HiveObject {
       'emotion': emotion,
       'reason': reason,
       'text': text,
+      'operationalReadinessScore': operationalReadinessScore,
+      'healthData': healthData,
     };
   }
 
@@ -59,6 +69,10 @@ class PhaseHistoryEntry extends HiveObject {
       emotion: json['emotion'] as String,
       reason: json['reason'] as String,
       text: json['text'] as String,
+      operationalReadinessScore: json['operationalReadinessScore'] as int?,
+      healthData: json['healthData'] != null 
+          ? Map<String, dynamic>.from(json['healthData'] as Map)
+          : null,
     );
   }
 

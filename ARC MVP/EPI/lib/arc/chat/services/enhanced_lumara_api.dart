@@ -1207,42 +1207,27 @@ Respond now:''';
   /// Truncate text at sentence boundary instead of mid-sentence
   String _truncateAtSentenceBoundary(String text, int maxWords) {
     final words = text.trim().split(RegExp(r'\s+'));
-    if (words.length <= maxWords) {
-      return text;
-    }
-    
-    // Find last sentence boundary before word limit
+    if (words.length <= maxWords) return text;
+
     final truncated = words.take(maxWords).join(' ');
     final lastPeriod = truncated.lastIndexOf(RegExp(r'[.!?]'));
-    
-    // If we're at least 70% through, use that boundary
-    if (lastPeriod > truncated.length * 0.7) {
-      return truncated.substring(0, lastPeriod + 1).trim();
-    }
-    
-    // Otherwise return with ellipsis
-    return '${truncated.trim()}...';
+
+    return (lastPeriod > truncated.length * 0.7)
+        ? truncated.substring(0, lastPeriod + 1).trim()
+        : '${truncated.trim()}...';
   }
   
   /// Get persona from conversation mode (when NOT in emergency)
-  /// Simplified: Direct mapping, no auto-detection
   String _getPersonaFromConversationMode(models.ConversationMode? mode) {
-    if (mode == null) {
-      return 'companion'; // Default
-    }
-    
+    if (mode == null) return 'companion';
+
     switch (mode) {
       case models.ConversationMode.think:
       case models.ConversationMode.nextSteps:
+      case models.ConversationMode.perspective:
         return 'strategist';
-      
       case models.ConversationMode.reflectDeeply:
         return 'therapist';
-      
-      case models.ConversationMode.perspective:
-        // Use strategist (safer than challenger for now)
-        return 'strategist';
-      
       case models.ConversationMode.ideas:
       case models.ConversationMode.continueThought:
         return 'companion';
