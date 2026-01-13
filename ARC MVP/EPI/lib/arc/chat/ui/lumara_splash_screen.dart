@@ -10,6 +10,8 @@ import 'package:my_app/services/analytics_service.dart';
 import 'package:my_app/services/rivet_sweep_service.dart';
 import 'package:my_app/ui/auth/sign_in_screen.dart';
 import 'package:my_app/ui/splash/animated_phase_shape.dart';
+import 'package:my_app/shared/ui/onboarding/arc_onboarding_sequence.dart';
+import 'package:my_app/arc/core/journal_repository.dart';
 
 /// Splash screen with ARC logo and animated phase shape
 class LumaraSplashScreen extends StatefulWidget {
@@ -102,26 +104,59 @@ class _LumaraSplashScreenState extends State<LumaraSplashScreen>
     });
   }
 
-  void _checkAuthAndNavigate() {
+  Future<void> _checkAuthAndNavigate() async {
     _timer?.cancel();
 
     // Check if user is authenticated
     final isSignedIn = FirebaseAuthService.instance.isSignedIn;
 
     if (isSignedIn) {
-      // User is signed in, go to home
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(
-          builder: (context) => HomeView(),
-        ),
-      );
+      // Check if this is a first-time user (no journal entries)
+      final userEntryCount = await _getUserEntryCount();
+      
+      if (userEntryCount == 0) {
+        // First-time user - show onboarding
+        if (mounted) {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder: (context) => const ArcOnboardingSequence(),
+            ),
+          );
+        }
+      } else {
+        // Returning user - go to home
+        if (mounted) {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder: (context) => HomeView(),
+            ),
+          );
+        }
+      }
     } else {
       // User is not signed in, go to sign-in screen
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(
-          builder: (context) => const SignInScreen(),
-        ),
-      );
+      if (mounted) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (context) => const SignInScreen(),
+          ),
+        );
+      }
+    }
+  }
+
+  Future<int> _getUserEntryCount() async {
+    try {
+      final journalRepo = JournalRepository();
+      final entries = await journalRepo.getAllJournalEntries();
+      // Filter out onboarding entries (they have 'onboarding' tag)
+      final nonOnboardingEntries = entries.where((e) => 
+        !e.tags.contains('onboarding')
+      ).toList();
+      return nonOnboardingEntries.length;
+    } catch (e) {
+      print('Error getting user entry count: $e');
+      return 0; // Default to showing onboarding on error
     }
   }
 
