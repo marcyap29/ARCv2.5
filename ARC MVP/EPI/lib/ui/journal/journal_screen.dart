@@ -3013,6 +3013,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
         onRegenerate: () => _onRegenerateReflection(index),
         onReflectDeeply: () => _onReflectDeeply(index),
         onContinueThought: () => _onContinueThought(index),
+        onDeepAnalysis: () => _onDeepAnalysis(index),
         onContinueWithLumara: () => _onContinueWithLumara(index),
         onDelete: () => _onDeleteReflection(index),
       ));
@@ -5142,6 +5143,10 @@ $originalEntryTextToInclude
 
   Future<void> _onContinueThought(int index) async {
     await _handleLumaraContinuation(lumara_models.ConversationMode.ideas, index);
+  }
+
+  Future<void> _onDeepAnalysis(int index) async {
+    await _handleLumaraContinuation(lumara_models.ConversationMode.think, index);
   }
 
   /// Handle LUMARA continuation with conversation mode (v2.3)

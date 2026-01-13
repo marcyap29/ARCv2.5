@@ -22,6 +22,7 @@ class InlineReflectionBlock extends StatefulWidget {
   final VoidCallback onRegenerate;
   final VoidCallback onReflectDeeply; // NEW: Reflect more deeply button
   final VoidCallback onContinueThought;
+  final VoidCallback onDeepAnalysis; // Deep Analysis button
   final VoidCallback onContinueWithLumara;
   final VoidCallback onDelete;
   final List<AttributionTrace>? attributionTraces; // Memory attribution traces
@@ -37,6 +38,7 @@ class InlineReflectionBlock extends StatefulWidget {
     required this.onRegenerate,
     required this.onReflectDeeply,
     required this.onContinueThought,
+    required this.onDeepAnalysis,
     required this.onContinueWithLumara,
     required this.onDelete,
     this.attributionTraces,
@@ -375,10 +377,9 @@ class _InlineReflectionBlockState extends State<InlineReflectionBlock> with Sing
                                 ),
                                 const SizedBox(width: 8),
                                 LumaraActionButton(
-                                  label: 'Explore options',
-                                  icon: Icons.chat,
-                                  onPressed: widget.isLoading ? () {} : widget.onContinueWithLumara,
-                                  isPrimary: true,
+                                  label: 'Deep Analysis',
+                                  icon: Icons.psychology,
+                                  onPressed: widget.isLoading ? () {} : widget.onDeepAnalysis,
                                 ),
                               ],
                             ),

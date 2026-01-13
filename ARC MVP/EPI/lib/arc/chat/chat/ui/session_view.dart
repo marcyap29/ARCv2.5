@@ -1003,9 +1003,9 @@ class _SessionViewState extends State<SessionView> {
                           onPressed: () => _handleSoftenTone(message),
                         ),
                         _ActionButton(
-                          label: 'More depth',
-                          icon: Icons.insights,
-                          onPressed: () => _handleMoreDepth(message),
+                          label: 'Regenerate',
+                          icon: Icons.refresh,
+                          onPressed: () => _handleRegenerate(message),
                         ),
                         _ActionButton(
                           label: 'Analyze',
@@ -1013,10 +1013,9 @@ class _SessionViewState extends State<SessionView> {
                           onPressed: () => _handleContinueThought(message),
                         ),
                         _ActionButton(
-                          label: 'Explore LUMARA conversation options',
-                          icon: Icons.chat,
-                          onPressed: () => _handleExploreConversation(message),
-                          isPrimary: true,
+                          label: 'Deep Analysis',
+                          icon: Icons.psychology,
+                          onPressed: () => _handleDeepAnalysis(message),
                         ),
                       ],
                     ),
@@ -1387,7 +1386,13 @@ class _SessionViewState extends State<SessionView> {
 
   void _handleContinueThought(ChatMessage message) {
     if (message.role != MessageRole.assistant) return;
-    _messageController.text = 'Please continue your thought.';
+    _messageController.text = 'Based on your previous response, please suggest some practical ideas I can explore.';
+    _sendMessage();
+  }
+
+  void _handleDeepAnalysis(ChatMessage message) {
+    if (message.role != MessageRole.assistant) return;
+    _messageController.text = 'Please analyze the topic from your previous response, interpret the key points, and suggest concrete actions I can take.';
     _sendMessage();
   }
 

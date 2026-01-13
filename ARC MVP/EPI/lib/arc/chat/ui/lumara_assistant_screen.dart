@@ -2553,19 +2553,11 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
               },
             ),
             ListTile(
-              leading: Icon(Icons.insights, color: Theme.of(context).colorScheme.primary),
-              title: const Text('Reflect more deeply'),
+              leading: Icon(Icons.refresh, color: Theme.of(context).colorScheme.primary),
+              title: const Text('Regenerate'),
               onTap: () {
                 Navigator.pop(context);
-                _handleReflectDeeply(message);
-              },
-            ),
-            ListTile(
-              leading: Icon(Icons.psychology, color: Theme.of(context).colorScheme.primary),
-              title: const Text('Deep Analysis'),
-              onTap: () {
-                Navigator.pop(context);
-                _handleConversationMode(message, models.ConversationMode.think);
+                _handleRegenerate(message);
               },
             ),
             ListTile(
@@ -2576,15 +2568,12 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
                 _handleConversationMode(message, models.ConversationMode.ideas);
               },
             ),
-            const Divider(),
-            // More options
             ListTile(
-              leading: Icon(Icons.more_horiz, color: Theme.of(context).colorScheme.primary),
-              title: const Text('More options'),
-              trailing: Icon(Icons.chevron_right, color: Theme.of(context).colorScheme.onSurfaceVariant),
+              leading: Icon(Icons.psychology, color: Theme.of(context).colorScheme.primary),
+              title: const Text('Deep Analysis'),
               onTap: () {
                 Navigator.pop(context);
-                _showMoreOptions(context, message);
+                _handleConversationMode(message, models.ConversationMode.think);
               },
             ),
           ],
