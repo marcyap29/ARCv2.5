@@ -524,7 +524,32 @@ class _SettingsViewState extends State<SettingsView> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
 
-            // Import & Export Section (Top Priority)
+            // Subscription & Account Section (Top Priority)
+            _buildSection(
+              context,
+              title: 'Subscription & Account',
+              children: [
+                _buildAccountTile(context),
+                _buildSettingsTile(
+                  context,
+                  title: 'Subscription Management',
+                  subtitle: 'Manage your subscription tier and billing',
+                  icon: Icons.workspace_premium,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const SubscriptionManagementView(),
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 32),
+
+            // Import & Export Section
             _buildSection(
               context,
               title: 'Import & Export',
@@ -559,23 +584,20 @@ class _SettingsViewState extends State<SettingsView> {
 
             const SizedBox(height: 32),
 
-            // Subscription & Account Section
+            // Advanced Settings Section
             _buildSection(
               context,
-              title: 'Subscription & Account',
+              title: 'Advanced Settings',
               children: [
-                _buildAccountTile(context),
                 _buildSettingsTile(
                   context,
-                  title: 'Subscription Management',
-                  subtitle: 'Manage your subscription tier and billing',
-                  icon: Icons.workspace_premium,
+                  title: 'Advanced Settings',
+                  subtitle: 'Analysis, memory lookback, matching precision',
+                  icon: Icons.settings_applications,
                   onTap: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(
-                        builder: (context) => const SubscriptionManagementView(),
-                      ),
+                      MaterialPageRoute(builder: (context) => const AdvancedSettingsView()),
                     );
                   },
                 ),
@@ -584,7 +606,7 @@ class _SettingsViewState extends State<SettingsView> {
 
             const SizedBox(height: 32),
 
-            // LUMARA Section (between Import/Export and Privacy)
+            // LUMARA Section
             _buildSection(
               context,
               title: 'LUMARA',
@@ -808,19 +830,6 @@ class _SettingsViewState extends State<SettingsView> {
                       vertical: 8,
                     ),
                   ),
-                ),
-                // Advanced Settings
-                _buildSettingsTile(
-                  context,
-                  title: 'Advanced Settings',
-                  subtitle: 'Analysis, memory lookback, matching precision',
-                  icon: Icons.settings_applications,
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const AdvancedSettingsView()),
-                    );
-                  },
                 ),
                 // Phase Share Settings
                 _buildPhaseShareToggle(),

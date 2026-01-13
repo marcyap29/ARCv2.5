@@ -309,7 +309,32 @@ class _SimplifiedSettingsViewState extends State<SimplifiedSettingsView> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
 
-            // Import & Export Section (Top Priority)
+            // Subscription & Account Section (Top Priority)
+            _buildSection(
+              context,
+              title: 'Subscription & Account',
+              children: [
+                _buildAccountTile(context),
+                _buildSettingsTile(
+                  context,
+                  title: 'Subscription Management',
+                  subtitle: 'Manage your subscription tier and billing',
+                  icon: Icons.workspace_premium,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const SubscriptionManagementView(),
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 32),
+
+            // Import & Export Section
             _buildSection(
               context,
               title: 'Import & Export',
@@ -344,23 +369,20 @@ class _SimplifiedSettingsViewState extends State<SimplifiedSettingsView> {
 
             const SizedBox(height: 32),
 
-            // Subscription & Account Section
+            // Advanced Settings Section
             _buildSection(
               context,
-              title: 'Subscription & Account',
+              title: 'Advanced Settings',
               children: [
-                _buildAccountTile(context),
                 _buildSettingsTile(
                   context,
-                  title: 'Subscription Management',
-                  subtitle: 'Manage your subscription tier and billing',
-                  icon: Icons.workspace_premium,
+                  title: 'Advanced Settings',
+                  subtitle: 'Memory lookback, matching precision, debug options',
+                  icon: Icons.settings_applications,
                   onTap: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(
-                        builder: (context) => const SubscriptionManagementView(),
-                      ),
+                      MaterialPageRoute(builder: (context) => const SimplifiedAdvancedSettingsView()),
                     );
                   },
                 ),
@@ -440,20 +462,6 @@ class _SimplifiedSettingsViewState extends State<SimplifiedSettingsView> {
 
                 // Include Media Toggle (KEPT)
                 _buildIncludeMediaToggle(),
-
-                // Advanced Settings (NEW - Houses complex options)
-                _buildSettingsTile(
-                  context,
-                  title: 'Advanced Settings',
-                  subtitle: 'Memory lookback, matching precision, debug options',
-                  icon: Icons.settings_applications,
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const SimplifiedAdvancedSettingsView()),
-                    );
-                  },
-                ),
 
                 // Phase Share Settings
                 _buildPhaseShareToggle(),
