@@ -1,68 +1,55 @@
 // lib/shared/ui/onboarding/onboarding_phase_detector.dart
 // Phase Detection Algorithm for Onboarding Responses
+// Uses PhaseRecommender for consistency with main app phase detection
 
 import 'package:my_app/models/phase_models.dart';
 import 'package:my_app/shared/ui/onboarding/arc_onboarding_state.dart';
+import 'package:my_app/arc/ui/arcforms/phase_recommender.dart';
 
 class OnboardingPhaseDetector {
   /// Analyze onboarding responses to detect user phase
+  /// Uses PhaseRecommender to ensure consistency with main app phase detection
   Future<PhaseAnalysis> analyzeOnboardingResponses({
     required Map<int, String> responses,
     required DateTime timestamp,
   }) async {
-    // Phase detection markers
-    final phaseScores = <PhaseLabel, int>{};
-    for (final phase in PhaseLabel.values) {
-      phaseScores[phase] = 0;
+    // Combine all responses into a single text (same format as saved journal entry)
+    final allText = responses.values.join(' ').trim();
+    
+    // Use PhaseRecommender to detect phase (same logic as main app)
+    // This ensures quiz results match what the main app would detect
+    final recommendedPhase = PhaseRecommender.recommend(
+      emotion: '', // No emotion in quiz
+      reason: '', // No reason in quiz
+      text: allText,
+      selectedKeywords: null, // No keywords selected in quiz
+    );
+    
+    // Convert string phase to PhaseLabel enum
+    PhaseLabel detectedPhase;
+    try {
+      detectedPhase = PhaseLabel.values.firstWhere(
+        (p) => p.toString().split('.').last.toLowerCase() == recommendedPhase.toLowerCase(),
+      );
+    } catch (e) {
+      // Fallback to discovery if phase not found
+      detectedPhase = PhaseLabel.discovery;
     }
-
-    // Q1: Temporal markers, emotional valence, direction words
-    final q1 = responses[0]?.toLowerCase() ?? '';
-    _analyzeTemporalMarkers(q1, phaseScores);
-    _analyzeEmotionalValence(q1, phaseScores);
-    _analyzeDirectionWords(q1, phaseScores);
-
-    // Q2: Question vs problem, new vs ongoing, energy level
-    final q2 = responses[1]?.toLowerCase() ?? '';
-    _analyzeQuestionVsProblem(q2, phaseScores);
-    _analyzeNewVsOngoing(q2, phaseScores);
-    _analyzeEnergyLevel(q2, phaseScores);
-
-    // Q3: Sudden vs gradual, recent vs longstanding, triggered vs emergent
-    final q3 = responses[2]?.toLowerCase() ?? '';
-    _analyzeTemporalPattern(q3, phaseScores);
-    _analyzeTriggeredVsEmergent(q3, phaseScores);
-
-    // Q4: Trajectory, momentum, stability vs change
-    final q4 = responses[3]?.toLowerCase() ?? '';
-    _analyzeTrajectory(q4, phaseScores);
-    _analyzeMomentum(q4, phaseScores);
-
-    // Q5: What they're protecting or pursuing, stakes level
-    final q5 = responses[4]?.toLowerCase() ?? '';
-    _analyzeStakes(q5, phaseScores);
-    _analyzeProtectionVsPursuit(q5, phaseScores);
-
-    // Analyze text length across all responses (longer responses suggest consolidation)
-    final allText = responses.values.join(' ').toLowerCase();
-    _analyzeTextLength(allText, phaseScores);
-
-    // Find highest scoring phase
-    PhaseLabel detectedPhase = PhaseLabel.discovery;
-    int maxScore = 0;
-    for (final entry in phaseScores.entries) {
-      if (entry.value > maxScore) {
-        maxScore = entry.value;
-        detectedPhase = entry.key;
-      }
-    }
-
-    // Calculate confidence
-    final totalMarkers = phaseScores.values.fold(0, (a, b) => a + b);
+    
+    // Calculate confidence based on text length and keyword matches
+    // Use PhaseRecommender scoring for consistency
+    final phaseScores = PhaseRecommender.score(
+      emotion: '',
+      reason: '',
+      text: allText,
+      selectedKeywords: null,
+    );
+    
+    final bestScore = phaseScores[recommendedPhase] ?? 0.0;
     ConfidenceLevel confidence;
-    if (maxScore >= 3 && totalMarkers >= 5) {
+    if (bestScore >= 0.7) {
       confidence = ConfidenceLevel.high;
-    } else if (maxScore >= 2 && totalMarkers >= 3) {
+    } else if (bestScore >= 0.4) {
       confidence = ConfidenceLevel.medium;
     } else {
       confidence = ConfidenceLevel.low;
@@ -72,7 +59,7 @@ class OnboardingPhaseDetector {
     final recognitionStatement = _generateRecognitionStatement(
       detectedPhase,
       responses,
-      maxScore,
+      bestScore.toInt(),
     );
     final trackingQuestion = _generateTrackingQuestion(
       detectedPhase,
@@ -93,6 +80,11 @@ class OnboardingPhaseDetector {
     );
   }
 
+  // Removed unused analysis methods - now using PhaseRecommender for consistency
+  // Keeping _generateRecognitionStatement and _generateTrackingQuestion as they're still used
+  
+  // Unused - kept for reference but not called
+  @Deprecated('Use PhaseRecommender instead')
   void _analyzeTemporalMarkers(String text, Map<PhaseLabel, int> scores) {
     // Recovery: past difficulty references
     if (RegExp(r'\b(was|were|had|before|past|ago|used to|recovering|healing)\b')
@@ -398,11 +390,11 @@ class OnboardingPhaseDetector {
 
   String _generateReasoning(
     PhaseLabel phase,
-    Map<PhaseLabel, int> scores,
+    Map<String, double> scores,
     ConfidenceLevel confidence,
   ) {
     final phaseName = phase.name;
-    final phaseScore = scores[phase] ?? 0;
+    final phaseScore = scores[phaseName] ?? 0.0;
     final confidenceStr = confidence.name;
 
     return 'Detected $phaseName phase with score $phaseScore and $confidenceStr confidence. '
