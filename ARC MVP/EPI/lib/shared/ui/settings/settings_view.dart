@@ -25,6 +25,7 @@ import 'package:file_picker/file_picker.dart';
 import 'dart:io';
 import 'package:my_app/mira/store/mcp/import/mcp_pack_import_service.dart';
 import 'package:my_app/mira/store/arcx/ui/arcx_import_progress_screen.dart';
+import 'package:my_app/mira/store/arcx/services/arcx_import_service_v2.dart';
 import 'package:my_app/services/phase_regime_service.dart';
 import 'package:my_app/services/rivet_sweep_service.dart';
 import 'package:my_app/services/analytics_service.dart';
@@ -32,6 +33,7 @@ import 'package:my_app/utils/file_utils.dart';
 import 'package:my_app/arc/ui/timeline/timeline_cubit.dart';
 import 'package:my_app/shared/ui/home/home_view.dart';
 import 'package:my_app/arc/chat/chat/chat_repo_impl.dart';
+import 'package:path/path.dart' as path;
 
 class SettingsView extends StatefulWidget {
   const SettingsView({super.key});
@@ -1613,17 +1615,19 @@ class _SettingsViewState extends State<SettingsView> {
       final hasZip = files.any((p) => p.endsWith('.zip') || p.endsWith('.mcpkg') || FileUtils.isMcpPackage(p));
 
       if (hasArcx) {
-        // ARCX file(s) - navigate to ARCX import progress screen
-        if (files.length == 1) {
-          // Single ARCX file
-          final arcxFile = File(files.first);
+        // ARCX file(s) - handle single or multiple files
+        final arcxFiles = files.where((p) => p.endsWith('.arcx')).toList();
+        
+        if (arcxFiles.length == 1) {
+          // Single ARCX file - navigate to ARCX import progress screen
+          final arcxFile = File(arcxFiles.first);
           if (!await arcxFile.exists()) {
             _showImportError(context, 'File not found');
             return;
           }
 
           // Find manifest file (sibling to .arcx)
-          final manifestPath = files.first.replaceAll('.arcx', '.manifest.json');
+          final manifestPath = arcxFiles.first.replaceAll('.arcx', '.manifest.json');
           final manifestFile = File(manifestPath);
           String? actualManifestPath;
           
@@ -1637,7 +1641,7 @@ class _SettingsViewState extends State<SettingsView> {
             context,
             MaterialPageRoute(
               builder: (context) => ARCXImportProgressScreen(
-                arcxPath: files.first,
+                arcxPath: arcxFiles.first,
                 manifestPath: actualManifestPath,
                 parentContext: context,
               ),
@@ -1666,14 +1670,16 @@ class _SettingsViewState extends State<SettingsView> {
             }
           });
         } else {
-          // Multiple ARCX files - show error for now (separated packages need more complex handling)
-          _showImportError(context, 'Multiple ARCX files selected. Please select one file at a time.');
+          // Multiple ARCX files - import sequentially
+          await _importMultipleArcFiles(context, arcxFiles);
         }
       } else if (hasZip) {
         // ZIP file(s) - use MCP pack import service
-        if (files.length == 1) {
+        final zipFiles = files.where((p) => p.endsWith('.zip') || p.endsWith('.mcpkg') || FileUtils.isMcpPackage(p)).toList();
+        
+        if (zipFiles.length == 1) {
           // Single ZIP file
-          final zipFile = File(files.first);
+          final zipFile = File(zipFiles.first);
           if (!await zipFile.exists()) {
             _showImportError(context, 'File not found');
             return;
@@ -1711,7 +1717,7 @@ class _SettingsViewState extends State<SettingsView> {
               chatRepo: chatRepo,
             );
 
-            final importResult = await importService.importFromPath(files.first);
+            final importResult = await importService.importFromPath(zipFiles.first);
 
             if (!context.mounted) return;
             Navigator.pop(context); // Close loading dialog
@@ -1752,7 +1758,8 @@ class _SettingsViewState extends State<SettingsView> {
             _showImportError(context, 'Import failed: $e');
           }
         } else {
-          _showImportError(context, 'Multiple ZIP files selected. Please select one file at a time.');
+          // Multiple ZIP files - import sequentially
+          await _importMultipleZipFiles(context, zipFiles);
         }
       } else {
         _showImportError(context, 'Unsupported file format');
@@ -1796,6 +1803,315 @@ class _SettingsViewState extends State<SettingsView> {
         ],
       ),
     );
+  }
+  
+  /// Import multiple ARCX files sequentially
+  Future<void> _importMultipleArcFiles(BuildContext context, List<String> filePaths) async {
+    final journalRepo = context.read<JournalRepository>();
+    final chatRepo = ChatRepoImpl.instance;
+    await chatRepo.initialize();
+    
+    // Initialize PhaseRegimeService for import
+    PhaseRegimeService? phaseRegimeService;
+    try {
+      final analyticsService = AnalyticsService();
+      final rivetSweepService = RivetSweepService(analyticsService);
+      phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
+      await phaseRegimeService.initialize();
+    } catch (e) {
+      print('Warning: Could not initialize PhaseRegimeService: $e');
+    }
+    
+    final importService = ARCXImportServiceV2(
+      journalRepo: journalRepo,
+      chatRepo: chatRepo,
+      phaseRegimeService: phaseRegimeService,
+    );
+    
+    int totalEntries = 0;
+    int totalChats = 0;
+    int totalMedia = 0;
+    int totalFavorites = 0;
+    int successCount = 0;
+    int failureCount = 0;
+    final warnings = <String>[];
+    final failedFiles = <String>[];
+    
+    // Show progress dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        backgroundColor: kcBackgroundColor,
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const CircularProgressIndicator(),
+            const SizedBox(height: 16),
+            Text(
+              'Importing ${filePaths.length} Archives...',
+              style: const TextStyle(color: Colors.white),
+            ),
+          ],
+        ),
+      ),
+    );
+    
+    try {
+      for (int i = 0; i < filePaths.length; i++) {
+        final filePath = filePaths[i];
+        if (!await File(filePath).exists()) {
+          warnings.add('File not found: ${path.basename(filePath)}');
+          failedFiles.add(path.basename(filePath));
+          failureCount++;
+          continue;
+        }
+        
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Importing file ${i + 1} of ${filePaths.length}: ${path.basename(filePath)}...'),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+        
+        try {
+          final result = await importService.import(
+            arcxPath: filePath,
+            options: ARCXImportOptions(
+              validateChecksums: true,
+              dedupeMedia: true,
+              skipExisting: true,
+              resolveLinks: true,
+            ),
+            password: null,
+            onProgress: (message) {
+              print('ARCX Import: $message');
+            },
+          );
+          
+          if (result.success) {
+            totalEntries += result.entriesImported;
+            totalChats += result.chatsImported;
+            totalMedia += result.mediaImported;
+            final favoritesMap = result.lumaraFavoritesImported;
+            totalFavorites += (favoritesMap['answers'] ?? 0) + (favoritesMap['chats'] ?? 0) + (favoritesMap['entries'] ?? 0);
+            if (result.warnings != null && result.warnings!.isNotEmpty) {
+              warnings.addAll(result.warnings!);
+            }
+            successCount++;
+          } else {
+            warnings.add('Failed to import ${path.basename(filePath)}: ${result.error}');
+            failedFiles.add(path.basename(filePath));
+            failureCount++;
+          }
+        } catch (e) {
+          warnings.add('Failed to import ${path.basename(filePath)}: $e');
+          failedFiles.add(path.basename(filePath));
+          failureCount++;
+        }
+      }
+      
+      // Hide progress dialog
+      if (!context.mounted) return;
+      Navigator.pop(context);
+      
+      // Refresh timeline
+      try {
+        context.read<TimelineCubit>().reloadAllEntries();
+        print('✅ Timeline refreshed after ARCX import');
+      } catch (e) {
+        print('⚠️ Could not refresh timeline: $e');
+      }
+      
+      // Show success dialog with summary
+      final message = StringBuffer();
+      message.writeln('Successfully imported $successCount of ${filePaths.length} archives.');
+      message.writeln('\nImported:');
+      message.writeln('• $totalEntries entries');
+      message.writeln('• $totalChats chats');
+      message.writeln('• $totalMedia media items');
+      message.writeln('• $totalFavorites favorites');
+      
+      if (failureCount > 0) {
+        message.writeln('\nFailed: $failureCount files');
+        if (failedFiles.isNotEmpty) {
+          message.writeln('Failed files: ${failedFiles.join(", ")}');
+        }
+      }
+      
+      if (warnings.isNotEmpty) {
+        message.writeln('\nWarnings:');
+        for (final warning in warnings.take(5)) {
+          message.writeln('• $warning');
+        }
+        if (warnings.length > 5) {
+          message.writeln('... and ${warnings.length - 5} more');
+        }
+      }
+      
+      _showImportSuccess(context, 'Import Complete', message.toString());
+      
+      // Navigate to timeline after a short delay
+      Future.delayed(const Duration(milliseconds: 500), () {
+        if (context.mounted) {
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(
+              builder: (context) => const HomeView(initialTab: 0), // Journal tab
+            ),
+            (route) => false,
+          );
+        }
+      });
+    } catch (e) {
+      if (!context.mounted) return;
+      Navigator.pop(context);
+      _showImportError(context, 'Import failed: $e');
+    }
+  }
+  
+  /// Import multiple ZIP files sequentially
+  Future<void> _importMultipleZipFiles(BuildContext context, List<String> filePaths) async {
+    // Initialize PhaseRegimeService for extended data import
+    PhaseRegimeService? phaseRegimeService;
+    try {
+      final analyticsService = AnalyticsService();
+      final rivetSweepService = RivetSweepService(analyticsService);
+      phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
+      await phaseRegimeService.initialize();
+    } catch (e) {
+      print('Warning: Could not initialize PhaseRegimeService: $e');
+    }
+
+    // Initialize ChatRepo for chat import
+    final chatRepo = ChatRepoImpl.instance;
+    await chatRepo.initialize();
+    
+    final journalRepo = context.read<JournalRepository>();
+    final importService = McpPackImportService(
+      journalRepo: journalRepo,
+      phaseRegimeService: phaseRegimeService,
+      chatRepo: chatRepo,
+    );
+    
+    int totalEntries = 0;
+    int totalPhotos = 0;
+    int successCount = 0;
+    int failureCount = 0;
+    final warnings = <String>[];
+    final failedFiles = <String>[];
+    
+    // Show progress dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        backgroundColor: kcBackgroundColor,
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const CircularProgressIndicator(),
+            const SizedBox(height: 16),
+            Text(
+              'Importing ${filePaths.length} Archives...',
+              style: const TextStyle(color: Colors.white),
+            ),
+          ],
+        ),
+      ),
+    );
+    
+    try {
+      for (int i = 0; i < filePaths.length; i++) {
+        final filePath = filePaths[i];
+        if (!await File(filePath).exists()) {
+          warnings.add('File not found: ${path.basename(filePath)}');
+          failedFiles.add(path.basename(filePath));
+          failureCount++;
+          continue;
+        }
+        
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Importing file ${i + 1} of ${filePaths.length}: ${path.basename(filePath)}...'),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+        
+        try {
+          final importResult = await importService.importFromPath(filePath);
+          
+          if (importResult.success) {
+            totalEntries += importResult.totalEntries;
+            totalPhotos += importResult.totalPhotos;
+            successCount++;
+          } else {
+            warnings.add('Failed to import ${path.basename(filePath)}: ${importResult.error ?? "Unknown error"}');
+            failedFiles.add(path.basename(filePath));
+            failureCount++;
+          }
+        } catch (e) {
+          warnings.add('Failed to import ${path.basename(filePath)}: $e');
+          failedFiles.add(path.basename(filePath));
+          failureCount++;
+        }
+      }
+      
+      // Hide progress dialog
+      if (!context.mounted) return;
+      Navigator.pop(context);
+      
+      // Refresh timeline
+      try {
+        context.read<TimelineCubit>().reloadAllEntries();
+        print('✅ Timeline refreshed after ZIP import');
+      } catch (e) {
+        print('⚠️ Could not refresh timeline: $e');
+      }
+      
+      // Show success dialog with summary
+      final message = StringBuffer();
+      message.writeln('Successfully imported $successCount of ${filePaths.length} archives.');
+      message.writeln('\nImported:');
+      message.writeln('• $totalEntries entries');
+      message.writeln('• $totalPhotos media items');
+      
+      if (failureCount > 0) {
+        message.writeln('\nFailed: $failureCount files');
+        if (failedFiles.isNotEmpty) {
+          message.writeln('Failed files: ${failedFiles.join(", ")}');
+        }
+      }
+      
+      if (warnings.isNotEmpty) {
+        message.writeln('\nWarnings:');
+        for (final warning in warnings.take(5)) {
+          message.writeln('• $warning');
+        }
+        if (warnings.length > 5) {
+          message.writeln('... and ${warnings.length - 5} more');
+        }
+      }
+      
+      _showImportSuccess(context, 'Import Complete', message.toString());
+      
+      // Navigate to timeline after a short delay
+      Future.delayed(const Duration(milliseconds: 500), () {
+        if (context.mounted) {
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(
+              builder: (context) => const HomeView(initialTab: 0), // Journal tab
+            ),
+            (route) => false,
+          );
+        }
+      });
+    } catch (e) {
+      if (!context.mounted) return;
+      Navigator.pop(context);
+      _showImportError(context, 'Import failed: $e');
+    }
   }
   
   /// Build Memory Focus preset card
