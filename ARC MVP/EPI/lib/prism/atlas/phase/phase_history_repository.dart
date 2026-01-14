@@ -27,7 +27,7 @@ class PhaseHistoryEntry extends HiveObject {
   
   @HiveField(6)
   final String text;
-  
+
   @HiveField(7)
   final int? operationalReadinessScore; // 10-100 rating for military readiness
   

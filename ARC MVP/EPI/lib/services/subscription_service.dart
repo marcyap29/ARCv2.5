@@ -346,8 +346,8 @@ class SubscriptionService {
       
       final result = await callable.call({
         'billingInterval': interval.apiValue,
-        'successUrl': 'arc://subscription/success',
-        'cancelUrl': 'arc://subscription/cancel',
+        'successUrl': 'https://arc-app.com/subscription/success?session_id={CHECKOUT_SESSION_ID}',
+        'cancelUrl': 'https://arc-app.com/subscription/cancel',
       }).timeout(
         const Duration(seconds: 30),
         onTimeout: () {

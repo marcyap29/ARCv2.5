@@ -600,27 +600,27 @@ class _HealthSettingsDialogState extends State<HealthSettingsDialog> {
             _buildAutoModeDisplay(context),
           ] else ...[
             // Manual Mode - Sliders
-            _buildHealthSlider(
-              context: context,
-              label: 'Sleep Quality',
-              icon: Icons.bedtime,
-              value: _sleepQuality,
-              onChanged: (v) => setState(() => _sleepQuality = v),
-              lowLabel: 'Poor',
-              highLabel: 'Great',
-            ),
-            
-            const SizedBox(height: 16),
-            
-            _buildHealthSlider(
-              context: context,
-              label: 'Energy Level',
-              icon: Icons.bolt,
-              value: _energyLevel,
-              onChanged: (v) => setState(() => _energyLevel = v),
-              lowLabel: 'Low',
-              highLabel: 'High',
-            ),
+          _buildHealthSlider(
+            context: context,
+            label: 'Sleep Quality',
+            icon: Icons.bedtime,
+            value: _sleepQuality,
+            onChanged: (v) => setState(() => _sleepQuality = v),
+            lowLabel: 'Poor',
+            highLabel: 'Great',
+          ),
+          
+          const SizedBox(height: 16),
+          
+          _buildHealthSlider(
+            context: context,
+            label: 'Energy Level',
+            icon: Icons.bolt,
+            value: _energyLevel,
+            onChanged: (v) => setState(() => _energyLevel = v),
+            lowLabel: 'Low',
+            highLabel: 'High',
+          ),
             
             // Reset to Auto button (if health data available)
             if (_healthDataSource != null) ...[

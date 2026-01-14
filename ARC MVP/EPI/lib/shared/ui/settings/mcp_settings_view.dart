@@ -354,73 +354,133 @@ class _McpSettingsViewContent extends StatelessWidget {
 
   Future<void> _importFromMcp(BuildContext context) async {
     try {
-      // Let the user pick a .zip or a folder containing an MCP bundle
+      // Let the user pick one or more .zip files containing MCP bundles
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['zip'],
-        allowMultiple: false,
+        allowMultiple: true, // Enable multi-select
         withData: false,
       );
 
       if (result == null || result.files.isEmpty) return;
 
-      final pickedPath = result.files.single.path;
-      if (pickedPath == null) return;
+      // Get all selected file paths
+      final pickedPaths = result.files
+          .where((f) => f.path != null)
+          .map((f) => f.path!)
+          .toList();
 
-      final pickedFile = File(pickedPath);
-      if (!await pickedFile.exists()) return;
+      if (pickedPaths.isEmpty) return;
 
-      // Copy picked ZIP into app sandbox first to avoid security-scope issues
-      final docs = await getApplicationDocumentsDirectory();
-      final importRoot = Directory('${docs.path}/mcp_imports');
-      if (!await importRoot.exists()) await importRoot.create(recursive: true);
-      final ts = DateTime.now().millisecondsSinceEpoch;
-      final localZip = File('${importRoot.path}/incoming_$ts.zip');
-      await localZip.writeAsBytes(await pickedFile.readAsBytes(), flush: true);
+      final totalFiles = pickedPaths.length;
+      int successCount = 0;
+      int failureCount = 0;
+      final List<String> failedFiles = [];
 
-      // Unzip into app documents under mcp_imports/<timestamp>
-      final dest = Directory('${importRoot.path}/extracted_$ts');
-      await dest.create(recursive: true);
+      // Process each file sequentially
+      for (int i = 0; i < pickedPaths.length; i++) {
+        final pickedPath = pickedPaths[i];
+        final fileName = pickedPath.split('/').last;
 
-      // Extract ZIP with robust handling of zero-byte files
-      try {
-        final bytes = await localZip.readAsBytes();
-        final archive = ZipDecoder().decodeBytes(bytes, verify: true);
-
-        print('📦 ZIP contains ${archive.files.length} files:');
-        for (final file in archive.files) {
-          print('  ${file.name} (${file.size} bytes, isFile: ${file.isFile})');
+        // Show progress for multiple files
+        if (totalFiles > 1 && context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Importing file ${i + 1} of $totalFiles: $fileName'),
+              duration: const Duration(seconds: 2),
+            ),
+          );
         }
 
-        // Custom extraction to handle zero-byte files properly
-        await _extractArchiveRobustly(archive, dest);
-      } catch (e) {
-        print('❌ Primary extraction failed: $e');
         try {
-          final inputStream = InputFileStream(localZip.path);
-          final archive = ZipDecoder().decodeBuffer(inputStream);
-          await _extractArchiveRobustly(archive, dest);
-        } catch (e2) {
-          if (context.mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Import failed: Unable to extract ZIP ($e2)'),
-                backgroundColor: Colors.red,
-              ),
-            );
+          final pickedFile = File(pickedPath);
+          if (!await pickedFile.exists()) {
+            failureCount++;
+            failedFiles.add('$fileName (file not found)');
+            continue;
           }
-          return;
+
+          // Copy picked ZIP into app sandbox first to avoid security-scope issues
+          final docs = await getApplicationDocumentsDirectory();
+          final importRoot = Directory('${docs.path}/mcp_imports');
+          if (!await importRoot.exists()) await importRoot.create(recursive: true);
+          final ts = DateTime.now().millisecondsSinceEpoch;
+          final localZip = File('${importRoot.path}/incoming_${ts}_$i.zip');
+          await localZip.writeAsBytes(await pickedFile.readAsBytes(), flush: true);
+
+          // Unzip into app documents under mcp_imports/<timestamp>
+          final dest = Directory('${importRoot.path}/extracted_${ts}_$i');
+          await dest.create(recursive: true);
+
+          // Extract ZIP with robust handling of zero-byte files
+          try {
+            final bytes = await localZip.readAsBytes();
+            final archive = ZipDecoder().decodeBytes(bytes, verify: true);
+
+            print('📦 ZIP contains ${archive.files.length} files:');
+            for (final file in archive.files) {
+              print('  ${file.name} (${file.size} bytes, isFile: ${file.isFile})');
+            }
+
+            // Custom extraction to handle zero-byte files properly
+            await _extractArchiveRobustly(archive, dest);
+          } catch (e) {
+            print('❌ Primary extraction failed: $e');
+            try {
+              final inputStream = InputFileStream(localZip.path);
+              final archive = ZipDecoder().decodeBuffer(inputStream);
+              await _extractArchiveRobustly(archive, dest);
+            } catch (e2) {
+              failureCount++;
+              failedFiles.add('$fileName (extraction failed: $e2)');
+              continue;
+            }
+          }
+
+          // Locate bundle root (some zips contain a top-level folder)
+          final bundleRoot = await _locateBundleRoot(dest);
+
+          // Kick off import from detected bundle root directory
+          await context.read<McpSettingsCubit>().importFromMcp(
+            bundleDir: bundleRoot,
+            options: const McpImportOptions(),
+          );
+
+          successCount++;
+        } catch (e) {
+          failureCount++;
+          failedFiles.add('$fileName ($e)');
+          print('❌ Failed to import $fileName: $e');
         }
       }
 
-      // Locate bundle root (some zips contain a top-level folder)
-      final bundleRoot = await _locateBundleRoot(dest);
+      // Show final result
+      if (context.mounted) {
+        String message;
+        if (totalFiles == 1) {
+          if (successCount == 1) {
+            message = 'Import completed successfully!';
+          } else {
+            message = 'Import failed: ${failedFiles.first}';
+          }
+        } else {
+          if (successCount == totalFiles) {
+            message = 'All $totalFiles files imported successfully!';
+          } else if (successCount > 0) {
+            message = '$successCount of $totalFiles files imported ($failureCount failed). Errors: ${failedFiles.join(", ")}';
+          } else {
+            message = 'All $failureCount imports failed. Errors: ${failedFiles.join(", ")}';
+          }
+        }
 
-      // Kick off import from detected bundle root directory
-      await context.read<McpSettingsCubit>().importFromMcp(
-        bundleDir: bundleRoot,
-        options: const McpImportOptions(),
-      );
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(message),
+            backgroundColor: successCount > 0 ? Colors.green : Colors.red,
+            duration: Duration(seconds: successCount == totalFiles ? 3 : 5),
+          ),
+        );
+      }
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

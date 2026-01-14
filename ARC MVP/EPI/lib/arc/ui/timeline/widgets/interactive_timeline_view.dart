@@ -17,7 +17,6 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:my_app/arc/ui/arcforms/arcform_renderer_state.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
-import 'package:my_app/shared/ui/onboarding/phase_quiz_prompt_view.dart';
 import 'package:my_app/prism/atlas/rivet/rivet_provider.dart';
 import 'package:my_app/prism/atlas/rivet/rivet_models.dart';
 import 'package:my_app/core/services/draft_cache_service.dart';
@@ -1349,7 +1348,7 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
             ),
             const SizedBox(height: 12),
             Text(
-              'All your journal entries have been deleted.\nTime to start fresh with a new phase!',
+              'All your journal entries have been deleted.\nStart a new entry to begin your journey.',
               style: bodyStyle(context).copyWith(
                 color: kcSecondaryTextColor,
                 fontSize: 16,
@@ -1357,46 +1356,9 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
               ),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 32),
-            ElevatedButton(
-              onPressed: _restartPhaseQuestionnaire,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: kcPrimaryColor,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.refresh, color: Colors.white),
-                  const SizedBox(width: 8),
-                  Flexible(
-                    child: Text(
-                      'Start Phase Questionnaire',
-                      style: buttonStyle(context).copyWith(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                      softWrap: true,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ],
-              ),
-            ),
           ],
         ),
       ),
-    );
-  }
-
-  void _restartPhaseQuestionnaire() {
-    // Navigate to phase quiz prompt for elegant restart flow
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (context) => const PhaseQuizPromptView()),
     );
   }
 

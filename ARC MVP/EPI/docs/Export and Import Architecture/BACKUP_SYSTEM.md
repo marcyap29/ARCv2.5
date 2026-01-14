@@ -278,24 +278,27 @@ ARCX supports importing two formats:
 
 **Import Flow:**
 ```
-1. User selects .zip file
+1. User selects one or more .zip files (multi-select supported)
    ↓
-2. Extract ZIP to temp directory
+2. For each selected file:
+   a. Extract ZIP to temp directory
+   b. Detect format version:
+      - New format: Entries/, Chats/, extensions/
+      - Legacy format: nodes/journal/, nodes/chat/, PhaseRegimes/
+   c. Import journal entries (McpPackImportService)
+   d. Import chats (EnhancedMcpImportService)
+   e. Import LUMARA favorites from nodes.jsonl
+   f. Import phase regimes, RIVET, Sentinel (if present)
+   g. Clean up temp directory
    ↓
-3. Detect format version:
-   - New format: Entries/, Chats/, extensions/
-   - Legacy format: nodes/journal/, nodes/chat/, PhaseRegimes/
-   ↓
-4. Import journal entries (McpPackImportService)
-   ↓
-5. Import chats (EnhancedMcpImportService)
-   ↓
-6. Import LUMARA favorites from nodes.jsonl
-   ↓
-7. Import phase regimes, RIVET, Sentinel (if present)
-   ↓
-8. Clean up temp directory
+3. Show final summary with success/failure counts
 ```
+
+**Multi-Select Support (v3.2.4):**
+- Users can select multiple ZIP files simultaneously
+- Files processed sequentially with progress feedback
+- Each file processed independently with error handling
+- Final status shows total success/failure counts
 
 **Format Detection:**
 - Automatically detects new vs. legacy structure

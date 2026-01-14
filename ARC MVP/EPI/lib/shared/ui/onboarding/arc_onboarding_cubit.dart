@@ -11,7 +11,9 @@ import 'package:hive/hive.dart';
 import 'package:logger/logger.dart';
 
 class ArcOnboardingCubit extends Cubit<ArcOnboardingState> {
-  ArcOnboardingCubit() : super(const ArcOnboardingState());
+  ArcOnboardingCubit() : super(const ArcOnboardingState(
+    currentScreen: OnboardingScreen.lumaraIntro, // Start with LUMARA intro, skip logo reveal
+  ));
 
   final Logger _logger = Logger();
   final OnboardingPhaseDetector _phaseDetector = OnboardingPhaseDetector();
@@ -22,6 +24,7 @@ class ArcOnboardingCubit extends Cubit<ArcOnboardingState> {
 
     switch (current) {
       case OnboardingScreen.logoReveal:
+        // Skip logo reveal, go to LUMARA intro
         next = OnboardingScreen.lumaraIntro;
         break;
       case OnboardingScreen.lumaraIntro:
@@ -139,5 +142,75 @@ class ArcOnboardingCubit extends Cubit<ArcOnboardingState> {
 
   void completeOnboarding() {
     emit(state.copyWith(currentScreen: OnboardingScreen.complete));
+  }
+
+  /// Skip directly to main page (for users with saved content)
+  void skipToMainPage() {
+    _logger.d('Skipping to main page');
+    completeOnboarding();
+  }
+
+  /// Skip quiz for returning users or users with existing phase data
+  Future<void> skipQuiz() async {
+    _logger.d('Skipping quiz for returning user');
+    
+    emit(state.copyWith(
+      currentScreen: OnboardingScreen.phaseAnalysis,
+      isLoading: true,
+    ));
+
+    try {
+      // Get existing phase or default to Discovery
+      String phaseString = 'Discovery';
+      try {
+        phaseString = await UserPhaseService.getCurrentPhase();
+      } catch (e) {
+        _logger.w('Could not get existing phase, defaulting to Discovery: $e');
+      }
+
+      // Convert to PhaseLabel
+      PhaseLabel phase = PhaseLabel.discovery;
+      try {
+        phase = PhaseLabel.values.firstWhere(
+          (p) => p.name == phaseString.toLowerCase(),
+          orElse: () => PhaseLabel.discovery,
+        );
+      } catch (e) {
+        _logger.w('Could not parse phase, defaulting to Discovery: $e');
+      }
+
+      // Create default analysis for skipped quiz
+      final defaultAnalysis = PhaseAnalysis(
+        phase: phase,
+        confidence: ConfidenceLevel.low,
+        recognitionStatement: "Welcome back. Your phase constellation will fill with words and patterns as you journal.",
+        trackingQuestion: "What are you exploring?",
+        reasoning: "Quiz skipped - using existing phase: $phaseString",
+      );
+
+      // Set user phase if not already set
+      await _setUserPhase(phase);
+
+      emit(state.copyWith(
+        phaseAnalysis: defaultAnalysis,
+        currentScreen: OnboardingScreen.phaseReveal,
+        isLoading: false,
+      ));
+    } catch (e, stackTrace) {
+      _logger.e('Error skipping quiz: $e\nStackTrace: $stackTrace');
+      // Default to Discovery phase on error
+      final defaultAnalysis = PhaseAnalysis(
+        phase: PhaseLabel.discovery,
+        confidence: ConfidenceLevel.low,
+        recognitionStatement: "Welcome back. Let's begin your journey.",
+        trackingQuestion: "What are you discovering?",
+        reasoning: "Error during skip, defaulting to Discovery",
+      );
+      emit(state.copyWith(
+        phaseAnalysis: defaultAnalysis,
+        currentScreen: OnboardingScreen.phaseReveal,
+        isLoading: false,
+      ));
+    }
   }
 }

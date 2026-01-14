@@ -6,10 +6,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:my_app/shared/text_style.dart';
 import 'package:my_app/shared/ui/onboarding/arc_onboarding_cubit.dart';
-import 'package:my_app/services/user_phase_service.dart';
-import 'package:my_app/arc/core/journal_repository.dart';
-import 'package:my_app/models/user_profile_model.dart';
-import 'package:hive/hive.dart';
 
 class PhaseQuizScreen extends StatefulWidget {
   const PhaseQuizScreen({super.key});
@@ -22,7 +18,6 @@ class _PhaseQuizScreenState extends State<PhaseQuizScreen> {
   final TextEditingController _textController = TextEditingController();
   final FocusNode _focusNode = FocusNode();
   int _currentQuestionIndex = 0;
-  bool _hasExistingPhase = false;
   bool _isKeyboardVisible = false;
 
   final List<String> _questions = [
@@ -39,7 +34,6 @@ class _PhaseQuizScreenState extends State<PhaseQuizScreen> {
     _textController.addListener(_onTextChanged);
     _focusNode.addListener(_onFocusChanged);
     _loadCurrentResponse();
-    _checkExistingPhase();
   }
 
   void _onFocusChanged() {
@@ -48,45 +42,6 @@ class _PhaseQuizScreenState extends State<PhaseQuizScreen> {
     });
   }
 
-  Future<void> _checkExistingPhase() async {
-    try {
-      // Check if user has existing phase (not default Discovery)
-      final phase = await UserPhaseService.getCurrentPhase();
-      final hasPhase = phase.isNotEmpty && phase != 'Discovery';
-      
-      // Check if user has journal entries (from backup restore)
-      final journalRepo = JournalRepository();
-      final entries = await journalRepo.getAllJournalEntries();
-      final nonOnboardingEntries = entries.where((e) => 
-        !e.tags.contains('onboarding')
-      ).toList();
-      final hasEntries = nonOnboardingEntries.isNotEmpty;
-      
-      // Check if user has previously completed onboarding
-      bool hasCompletedOnboarding = false;
-      try {
-        Box<UserProfile> userBox;
-        if (Hive.isBoxOpen('user_profile')) {
-          userBox = Hive.box<UserProfile>('user_profile');
-        } else {
-          userBox = await Hive.openBox<UserProfile>('user_profile');
-        }
-        final userProfile = userBox.get('profile');
-        hasCompletedOnboarding = userProfile?.onboardingCompleted ?? false;
-      } catch (e) {
-        // Ignore errors
-      }
-      
-      // Show skip button if user has existing phase OR has journal entries OR has completed onboarding before
-      if (hasPhase || hasEntries || hasCompletedOnboarding) {
-        setState(() {
-          _hasExistingPhase = true;
-        });
-      }
-    } catch (e) {
-      // Ignore errors, assume new user
-    }
-  }
 
   void _loadCurrentResponse() {
     final cubit = context.read<ArcOnboardingCubit>();
@@ -179,29 +134,25 @@ class _PhaseQuizScreenState extends State<PhaseQuizScreen> {
             ),
             child: Column(
               children: [
-                // LUMARA symbol in top corner (static, 20% opacity)
+                // Close button (X) in upper left corner
                 Padding(
                   padding: const EdgeInsets.all(16.0),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      // Skip button (only show if user has existing phase)
-                      if (_hasExistingPhase)
-                        TextButton(
-                          onPressed: () {
-                            _dismissKeyboard();
-                            context.read<ArcOnboardingCubit>().skipQuiz();
-                          },
-                          child: Text(
-                            'Skip Quiz',
-                            style: bodyStyle(context).copyWith(
-                              color: Colors.white.withOpacity(0.6),
-                              fontSize: 14,
-                            ),
-                          ),
-                        )
-                      else
-                        const SizedBox.shrink(),
+                      // Close button (X) - always visible
+                      IconButton(
+                        onPressed: () {
+                          _dismissKeyboard();
+                          context.read<ArcOnboardingCubit>().skipToMainPage();
+                        },
+                        icon: const Icon(
+                          Icons.close,
+                          color: Colors.white,
+                          size: 24,
+                        ),
+                        tooltip: 'Close quiz',
+                      ),
                       // LUMARA symbol (full image scaled down)
                       Opacity(
                         opacity: 0.2,

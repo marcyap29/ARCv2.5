@@ -283,29 +283,86 @@ class _ChatExportImportScreenState extends State<ChatExportImportScreen> {
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['json'],
-        allowMultiple: false,
+        allowMultiple: true, // Enable multi-select
       );
 
       if (result != null && result.files.isNotEmpty) {
-        final file = File(result.files.first.path!);
-        final jsonString = await file.readAsString();
-        final jsonData = jsonDecode(jsonString);
-        
-        setState(() {
-          _importStatus = 'Parsing import data...';
-        });
+        final files = result.files
+            .where((f) => f.path != null)
+            .map((f) => File(f.path!))
+            .toList();
 
-        final exportData = ChatExportData.fromJson(jsonData);
-        
-        setState(() {
-          _importStatus = 'Importing data...';
-        });
+        if (files.isEmpty) {
+          setState(() {
+            _isImporting = false;
+            _importStatus = 'No valid files selected';
+          });
+          return;
+        }
 
-        await widget.chatRepo.importData(exportData, merge: true);
+        final totalFiles = files.length;
+        int totalSessions = 0;
+        int totalMessages = 0;
+        int successCount = 0;
+        int failureCount = 0;
+        final List<String> failedFiles = [];
+
+        // Process each file sequentially
+        for (int i = 0; i < files.length; i++) {
+          final file = files[i];
+          final fileName = file.path.split('/').last;
+
+          try {
+            setState(() {
+              if (totalFiles > 1) {
+                _importStatus = 'Processing file ${i + 1} of $totalFiles: $fileName';
+              } else {
+                _importStatus = 'Parsing import data...';
+              }
+            });
+
+            final jsonString = await file.readAsString();
+            final jsonData = jsonDecode(jsonString);
+            
+            final exportData = ChatExportData.fromJson(jsonData);
+            
+            setState(() {
+              if (totalFiles > 1) {
+                _importStatus = 'Importing file ${i + 1} of $totalFiles: $fileName';
+              } else {
+                _importStatus = 'Importing data...';
+              }
+            });
+
+            await widget.chatRepo.importData(exportData, merge: true);
+            
+            totalSessions += exportData.sessions.length;
+            totalMessages += exportData.messages.length;
+            successCount++;
+          } catch (e) {
+            failureCount++;
+            failedFiles.add('$fileName ($e)');
+            print('❌ Failed to import $fileName: $e');
+          }
+        }
         
         setState(() {
           _isImporting = false;
-          _importStatus = 'Import completed successfully! ${exportData.sessions.length} sessions imported.';
+          if (totalFiles == 1) {
+            if (successCount == 1) {
+              _importStatus = 'Import completed successfully! $totalSessions sessions, $totalMessages messages imported.';
+            } else {
+              _importStatus = 'Import failed: ${failedFiles.first}';
+            }
+          } else {
+            if (successCount == totalFiles) {
+              _importStatus = 'All $totalFiles files imported successfully! $totalSessions sessions, $totalMessages messages imported.';
+            } else if (successCount > 0) {
+              _importStatus = '$successCount of $totalFiles files imported ($failureCount failed). $totalSessions sessions, $totalMessages messages imported. Errors: ${failedFiles.join(", ")}';
+            } else {
+              _importStatus = 'All $failureCount imports failed. Errors: ${failedFiles.join(", ")}';
+            }
+          }
         });
 
         // Clear status after 5 seconds

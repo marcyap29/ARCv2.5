@@ -44,7 +44,7 @@ class ArcOnboardingState extends Equatable {
   final bool isLoading;
 
   const ArcOnboardingState({
-    this.currentScreen = OnboardingScreen.logoReveal,
+    this.currentScreen = OnboardingScreen.lumaraIntro, // Start with LUMARA intro, skip logo reveal
     this.quizResponses = const {},
     this.phaseAnalysis,
     this.isLoading = false,

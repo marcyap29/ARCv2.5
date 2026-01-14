@@ -45,7 +45,7 @@ class PhaseRevealScreen extends StatelessWidget {
           child: Stack(
             children: [
               Center(
-                child: Padding(
+                child: SingleChildScrollView(
                   padding: const EdgeInsets.all(32.0),
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -164,9 +164,9 @@ class PhaseRevealScreen extends StatelessWidget {
                     ),
                   ),
                 ],
+                  ),
+                ),
               ),
-            ),
-          ),
               // Close button (X) in upper left corner
               Positioned(
                 top: 16,

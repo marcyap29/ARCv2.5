@@ -309,8 +309,8 @@ exports.createCheckoutSession = onCall(
           },
         ],
         mode: "subscription",
-        success_url: successUrl || "https://arc-app.com/success?session_id={CHECKOUT_SESSION_ID}",
-        cancel_url: cancelUrl || "https://arc-app.com/cancel",
+        success_url: successUrl || "https://arc-app.com/subscription/success?session_id={CHECKOUT_SESSION_ID}",
+        cancel_url: cancelUrl || "https://arc-app.com/subscription/cancel",
         subscription_data: {
           metadata: {
             firebaseUID: userId,
