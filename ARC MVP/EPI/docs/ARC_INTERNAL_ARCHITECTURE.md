@@ -1,7 +1,7 @@
 # ARC Internal Architecture
 
-**Version:** 2.1.61  
-**Last Updated:** December 19, 2025
+**Version:** 2.1.62
+**Last Updated:** January 14, 2026
 
 ---
 
@@ -189,3 +189,87 @@ ARC's internal architecture mirrors the external EPI modules but provides ARC-sp
 - **Backward Compatibility**: Re-exports in old locations ensure existing imports continue to work
 - **Barrel Exports**: Each module has a barrel export file (`*_internal.dart`) for convenient importing
 - **Gradual Migration**: Files can be updated to use new paths incrementally without breaking existing code
+
+---
+
+## Subscription System Architecture
+
+**Location**: `lib/services/subscription_service.dart`, `lib/ui/subscription/`, `functions/index.js`
+
+**Purpose**: Premium tier access control and Stripe payment integration
+
+### Components
+
+**Client-Side (Flutter)**:
+- `SubscriptionService` - Central subscription management with caching
+- `SubscriptionManagementView` - Full subscription UI with pricing options
+- `LumaraSubscriptionStatus` - Compact subscription status widget
+- `PhaseHistoryAccessControl` - Feature access enforcement
+
+**Backend (Firebase Functions)**:
+- `getUserSubscription()` - Retrieves user subscription tier from Firestore
+- `createCheckoutSession()` - Creates Stripe checkout sessions for payments
+- `createPortalSession()` - Opens Stripe Customer Portal for subscription management
+- `stripeWebhook()` - Processes Stripe payment events and updates user records
+
+### Subscription Tiers
+
+| Tier | Features | Limitations |
+|------|----------|------------|
+| **Free** | Basic journaling, 50 LUMARA/day, 3/min rate limit | Last 30 days history only |
+| **Premium** | Unlimited LUMARA, no rate limits, priority support | Full historical access |
+
+### Payment Flow
+
+```
+User clicks Subscribe
+  ↓ (Client-side authentication check)
+SubscriptionService.createStripeCheckoutSession()
+  ↓ (Firebase Function call)
+createCheckoutSession() validates user & creates customer
+  ↓ (Stripe API call)
+Stripe checkout session created & returned
+  ↓ (URL launcher)
+User redirected to Stripe checkout page
+  ↓ (Payment completion)
+Stripe webhook triggers → Firebase Function updates Firestore
+  ↓ (Cache refresh)
+User sees premium access in app
+```
+
+### Architecture Features
+
+**Security**:
+- Authentication required for all subscription operations
+- Stripe webhook signature verification
+- Secure customer ID storage and management
+- Test/live mode customer ID conflict resolution
+
+**Caching Strategy**:
+- 5-minute in-memory cache for subscription status
+- 24-hour SharedPreferences fallback for offline access
+- Automatic cache clearing on subscription changes
+
+**Error Handling**:
+- Graceful degradation to free tier on API failures
+- Comprehensive error logging and user feedback
+- Automatic retry mechanisms for network issues
+- Test/live mode customer ID automatic cleanup
+
+**Integration Points**:
+- LUMARA rate limiting based on subscription tier
+- Phase history access control
+- Feature flag system for premium-only capabilities
+- Subscription status indicators throughout UI
+
+### Recent Fixes (v2.1.62)
+
+**Critical Bug Resolved**: Fixed getUserSubscription() function that was hardcoded to only return premium for specific email addresses rather than checking actual Stripe subscription status in Firestore.
+
+**Technical Issues Fixed**:
+1. **Firebase Admin Import Error**: Updated from legacy `admin.firestore.FieldValue.delete()` to new `FieldValue.delete()` syntax
+2. **Test/Live Mode Mismatch**: Added automatic detection and cleanup of invalid customer IDs from test mode when using live keys
+3. **Customer Creation Logic**: Enhanced to handle test-to-live migration scenarios automatically
+4. **Error Handling**: Improved error messaging and logging for better debugging
+
+**Impact**: Subscription system now fully functional end-to-end with proper premium access granted after Stripe payment completion.

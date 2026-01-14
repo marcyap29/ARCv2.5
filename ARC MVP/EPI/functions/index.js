@@ -2,7 +2,7 @@ const { onCall, onRequest, HttpsError } = require("firebase-functions/v2/https")
 const { defineSecret } = require("firebase-functions/params");
 const { initializeApp } = require("firebase-admin/app");
 const { getAuth } = require("firebase-admin/auth");
-const { getFirestore } = require("firebase-admin/firestore");
+const { getFirestore, FieldValue } = require("firebase-admin/firestore");
 const https = require("https");
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 const Stripe = require("stripe");
@@ -20,7 +20,7 @@ const STRIPE_PRICE_ID_ANNUAL = defineSecret("STRIPE_PRICE_ID_ANNUAL");
 
 /**
  * Get user subscription tier
- * Returns premium for marcyap@orbitalai.net, free for others
+ * Returns premium for founder emails, checks Firestore for others
  */
 exports.getUserSubscription = onCall(
   {
@@ -39,18 +39,34 @@ exports.getUserSubscription = onCall(
 
   console.log(`getUserSubscription called by user: ${uid} (${email})`);
 
-  // Check user's subscription status from Firestore
-  const userRef = db.collection('users').doc(uid);
-  const userDoc = await userRef.get();
+  // Founder/admin emails always get premium access
+  const founderEmails = [
+    'marcyap@orbitalai.net',
+    // Add more founder/admin emails here
+  ];
+
+  const isFounder = founderEmails.includes(email?.toLowerCase());
 
   let tier = 'free';
-  if (userDoc.exists) {
-    const userData = userDoc.data();
-    // Check if user has active Stripe subscription
-    if (userData.stripeSubscriptionId &&
-        userData.subscriptionStatus === 'active' &&
-        userData.subscriptionTier === 'premium') {
-      tier = 'premium';
+  
+  if (isFounder) {
+    // Founders always get premium
+    tier = 'premium';
+    console.log(`User ${email} is a founder - granting premium access`);
+  } else {
+    // Check user's subscription status from Firestore
+    const db = getFirestore();
+    const userRef = db.collection('users').doc(uid);
+    const userDoc = await userRef.get();
+
+    if (userDoc.exists) {
+      const userData = userDoc.data();
+      // Check if user has active Stripe subscription
+      if (userData.stripeSubscriptionId &&
+          userData.subscriptionStatus === 'active' &&
+          userData.subscriptionTier === 'premium') {
+        tier = 'premium';
+      }
     }
   }
 
@@ -60,6 +76,7 @@ exports.getUserSubscription = onCall(
     tier: tier,
     uid: uid,
     email: email,
+    isFounder: isFounder,
     features: {
       lumaraThrottled: tier === 'free',
       phaseHistoryRestricted: tier === 'free',
@@ -237,6 +254,7 @@ exports.createCheckoutSession = onCall(
   {
     cors: true,
     secrets: [STRIPE_SECRET_KEY, STRIPE_PRICE_ID_MONTHLY, STRIPE_PRICE_ID_ANNUAL],
+    timeoutSeconds: 60, // Increase timeout to 60 seconds
     // invoker is set manually in Cloud Console to avoid IAM conflicts
   },
   async (request) => {
@@ -262,24 +280,50 @@ exports.createCheckoutSession = onCall(
     // Determine which price to use (monthly or annual)
     const interval = billingInterval || "monthly"; // "monthly" or "annual"
 
-    // Get price IDs from Firebase Secret Manager
-    const priceIdMonthly = STRIPE_PRICE_ID_MONTHLY.value();
-    const priceIdAnnual = STRIPE_PRICE_ID_ANNUAL.value();
+    // Get price IDs from Firebase Secret Manager with error handling
+    let priceIdMonthly, priceIdAnnual, stripeSecretKey;
+    try {
+      priceIdMonthly = STRIPE_PRICE_ID_MONTHLY.value();
+      priceIdAnnual = STRIPE_PRICE_ID_ANNUAL.value();
+      stripeSecretKey = STRIPE_SECRET_KEY.value();
+      
+      console.log('createCheckoutSession: Secrets retrieved successfully');
+      console.log('createCheckoutSession: priceIdMonthly length:', priceIdMonthly?.length || 0);
+      console.log('createCheckoutSession: priceIdAnnual length:', priceIdAnnual?.length || 0);
+      console.log('createCheckoutSession: stripeSecretKey length:', stripeSecretKey?.length || 0);
+    } catch (secretError) {
+      console.error('createCheckoutSession: Error accessing secrets:', secretError);
+      throw new HttpsError(
+        "failed-precondition",
+        `Stripe configuration error: ${secretError.message || "Unable to access Stripe secrets"}`
+      );
+    }
 
     const priceId = interval === "annual" ? priceIdAnnual : priceIdMonthly;
 
-    if (!priceId) {
+    if (!priceId || !priceId.trim()) {
+      console.error(`createCheckoutSession: Price ID missing for ${interval} billing`);
       throw new HttpsError(
         "failed-precondition",
         `Price ID not configured for ${interval} billing`
       );
     }
 
+    if (!stripeSecretKey || !stripeSecretKey.trim()) {
+      console.error('createCheckoutSession: Stripe secret key missing');
+      throw new HttpsError(
+        "failed-precondition",
+        "Stripe secret key not configured"
+      );
+    }
+
     try {
       // Initialize Stripe with secret key
-      const stripe = new Stripe(STRIPE_SECRET_KEY.value(), {
+      const stripe = new Stripe(stripeSecretKey, {
         apiVersion: "2023-10-16",
       });
+      
+      console.log('createCheckoutSession: Stripe client initialized');
 
       const db = getFirestore();
 
@@ -287,7 +331,28 @@ exports.createCheckoutSession = onCall(
       const userDoc = await db.collection("users").doc(userId).get();
       let customerId = userDoc.data()?.stripeCustomerId;
 
-      // Create Stripe customer if doesn't exist
+      // Check if existing customer ID is from test mode - if so, ignore it
+      if (customerId) {
+        try {
+          // Try to retrieve the customer to see if it exists in live mode
+          await stripe.customers.retrieve(customerId);
+          console.log(`createCheckoutSession: Using existing customer ${customerId}`);
+        } catch (error) {
+          if (error.type === 'StripeInvalidRequestError' && error.code === 'resource_missing') {
+            console.log(`createCheckoutSession: Customer ${customerId} doesn't exist in live mode, creating new one`);
+            customerId = null; // Force creation of new customer
+
+            // Clean up the invalid customer ID from Firestore
+            await userDoc.ref.update({
+              stripeCustomerId: FieldValue.delete(),
+            });
+          } else {
+            throw error; // Re-throw other Stripe errors
+          }
+        }
+      }
+
+      // Create Stripe customer if doesn't exist or invalid
       if (!customerId) {
         const customer = await stripe.customers.create({
           email: userEmail,
@@ -349,7 +414,36 @@ exports.createCheckoutSession = onCall(
 
     } catch (error) {
       console.error("Stripe checkout error:", error);
-      throw new HttpsError("internal", `Payment initialization failed: ${error.message}`);
+      console.error("Stripe checkout error details:", {
+        message: error.message,
+        type: error.type,
+        code: error.code,
+        statusCode: error.statusCode,
+        stack: error.stack?.substring(0, 500),
+      });
+      
+      // Provide more specific error messages
+      if (error.type === 'StripeInvalidRequestError') {
+        throw new HttpsError(
+          "invalid-argument",
+          `Stripe configuration error: ${error.message || "Invalid request"}`
+        );
+      } else if (error.type === 'StripeAPIError') {
+        throw new HttpsError(
+          "unavailable",
+          `Stripe service error: ${error.message || "Stripe API unavailable"}`
+        );
+      } else if (error.message?.includes('secret')) {
+        throw new HttpsError(
+          "failed-precondition",
+          `Configuration error: ${error.message}`
+        );
+      }
+      
+      throw new HttpsError(
+        "internal",
+        `Payment initialization failed: ${error.message || "Unknown error"}`
+      );
     }
   }
 );
@@ -587,6 +681,73 @@ async function handleSubscriptionCanceled(subscription) {
 
   console.log(`User ${userDoc.id} subscription canceled`);
 }
+
+/**
+ * Debug function to clean up test mode customer IDs
+ * This can be called once to fix the test/live mode mismatch
+ */
+exports.cleanupTestCustomers = onCall(
+  {
+    cors: true,
+  },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "Must be authenticated");
+    }
+
+    const uid = request.auth.uid;
+    const email = request.auth.token.email;
+
+    console.log(`cleanupTestCustomers called by: ${uid} (${email})`);
+
+    const db = getFirestore();
+    const userRef = db.collection('users').doc(uid);
+    const userDoc = await userRef.get();
+
+    if (userDoc.exists) {
+      const userData = userDoc.data();
+      const currentCustomerId = userData.stripeCustomerId;
+
+      if (currentCustomerId && currentCustomerId.includes('test')) {
+        // Remove test mode customer ID
+        await userRef.update({
+          stripeCustomerId: FieldValue.delete(),
+        });
+
+        console.log(`Removed test customer ID ${currentCustomerId} for user ${uid}`);
+        return {
+          success: true,
+          message: `Removed test customer ID: ${currentCustomerId}`,
+          oldCustomerId: currentCustomerId
+        };
+      } else if (currentCustomerId && currentCustomerId.startsWith('cus_')) {
+        // Check if this looks like a test customer that doesn't have 'test' in the ID
+        // Test customer from logs: cus_TlbOUtqkQoy0Bo
+        await userRef.update({
+          stripeCustomerId: FieldValue.delete(),
+        });
+
+        console.log(`Removed potentially test customer ID ${currentCustomerId} for user ${uid}`);
+        return {
+          success: true,
+          message: `Removed customer ID to allow fresh creation: ${currentCustomerId}`,
+          oldCustomerId: currentCustomerId
+        };
+      } else {
+        return {
+          success: false,
+          message: "No customer ID found to clean up",
+          currentCustomerId: currentCustomerId
+        };
+      }
+    } else {
+      return {
+        success: false,
+        message: "User document not found"
+      };
+    }
+  }
+);
 
 /**
  * Handle successful payment

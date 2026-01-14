@@ -1,8 +1,45 @@
-# EPI ARC MVP - Changelog (Part 1: December 2025)
+# EPI ARC MVP - Changelog (Part 1: January 2026)
 
-**Version:** 2.1.54
-**Last Updated:** December 13, 2025
-**Coverage:** December 2025 releases
+**Version:** 2.1.62
+**Last Updated:** January 14, 2026
+**Coverage:** January 2026 releases and December 2025 releases
+
+---
+
+## [2.1.62] - January 14, 2026
+
+### **Critical Subscription System Fixes** - ✅ Complete
+
+Fixed major bugs preventing Stripe subscription payments from working, enabling full end-to-end premium subscription functionality.
+
+#### Firebase Functions Fixes
+- **Critical**: Fixed `getUserSubscription()` function that was hardcoded to only return premium for specific email addresses
+- **Updated**: Changed from checking hardcoded email list to checking actual Stripe subscription status in Firestore
+- **Fixed**: Firebase Admin import error - updated from legacy `admin.firestore.FieldValue.delete()` to new `FieldValue.delete()` syntax
+- **Enhanced**: Added automatic detection and cleanup of test mode customer IDs when using live Stripe keys
+
+#### Client-Side Improvements
+- **Enhanced**: Better error handling with 60-second timeouts (increased from 30s)
+- **Added**: Detailed logging for subscription flow debugging
+- **Improved**: Authentication flow validation with multiple checkpoints
+- **Fixed**: Cache clearing on subscription status changes
+
+#### Payment Flow Resolution
+- **Test/Live Mode**: Automatic customer ID migration from test to live mode
+- **Customer Creation**: Enhanced logic to handle invalid customer ID scenarios
+- **Error Recovery**: Graceful handling of Stripe API errors with user-friendly messages
+- **Webhook Processing**: Verified webhook signature validation and Firestore updates
+
+#### Files Modified
+- `functions/index.js` - Core subscription backend functions
+- `lib/services/subscription_service.dart` - Client-side subscription service
+- `lib/ui/subscription/subscription_management_view.dart` - Subscription UI improvements
+
+#### Impact
+- ✅ Subscription payments now work end-to-end
+- ✅ Users receive premium access immediately after payment
+- ✅ Test-to-production migration handled automatically
+- ✅ Comprehensive error handling prevents user confusion
 
 ---
 

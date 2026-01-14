@@ -344,17 +344,41 @@ class SubscriptionService {
       // Using the same pattern as getUserSubscription which works correctly
       debugPrint('SubscriptionService: 📞 Calling Firebase Function createCheckoutSession...');
       
-      final result = await callable.call({
-        'billingInterval': interval.apiValue,
-        'successUrl': 'https://arc-app.com/subscription/success?session_id={CHECKOUT_SESSION_ID}',
-        'cancelUrl': 'https://arc-app.com/subscription/cancel',
-      }).timeout(
-        const Duration(seconds: 30),
-        onTimeout: () {
-          debugPrint('SubscriptionService: ❌ Function call timed out after 30 seconds');
+      dynamic result;
+      try {
+        result = await callable.call({
+          'billingInterval': interval.apiValue,
+          'successUrl': 'https://arc-app.com/subscription/success?session_id={CHECKOUT_SESSION_ID}',
+          'cancelUrl': 'https://arc-app.com/subscription/cancel',
+        }).timeout(
+          const Duration(seconds: 60), // Increased to match function timeout
+          onTimeout: () {
+            debugPrint('SubscriptionService: ❌ Function call timed out after 60 seconds');
+            throw Exception('Request timed out. The server may be experiencing issues. Please try again.');
+          },
+        );
+      } catch (error) {
+        debugPrint('SubscriptionService: ❌ Firebase Function error: $error');
+        debugPrint('SubscriptionService: Error type: ${error.runtimeType}');
+        if (error is Exception) {
+          debugPrint('SubscriptionService: Error message: ${error.toString()}');
+        }
+        
+        // Handle Firebase-specific errors
+        final errorStr = error.toString().toLowerCase();
+        if (errorStr.contains('unauthenticated') || errorStr.contains('auth')) {
+          throw Exception('Please sign in to subscribe. Your session may have expired.');
+        } else if (errorStr.contains('internal')) {
+          throw Exception('Server error occurred. Please check your Stripe configuration or try again later.');
+        } else if (errorStr.contains('failed-precondition') || errorStr.contains('configuration')) {
+          throw Exception('Subscription service is not properly configured. Please contact support.');
+        } else if (errorStr.contains('timeout')) {
           throw Exception('Request timed out. Please check your connection and try again.');
-        },
-      );
+        }
+        
+        // Re-throw with original error message
+        throw Exception('Failed to create checkout session: ${error.toString()}');
+      }
       
       debugPrint('SubscriptionService: ✅ Function call succeeded');
 
