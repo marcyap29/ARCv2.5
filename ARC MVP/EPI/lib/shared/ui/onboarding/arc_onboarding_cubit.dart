@@ -6,6 +6,7 @@ import 'package:my_app/shared/ui/onboarding/arc_onboarding_state.dart';
 import 'package:my_app/shared/ui/onboarding/onboarding_phase_detector.dart';
 import 'package:my_app/models/phase_models.dart';
 import 'package:my_app/models/journal_entry_model.dart';
+import 'package:my_app/state/journal_entry_state.dart';
 import 'package:my_app/services/user_phase_service.dart';
 import 'package:hive/hive.dart';
 import 'package:logger/logger.dart';
@@ -103,27 +104,55 @@ class ArcOnboardingCubit extends Cubit<ArcOnboardingState> {
       final journalBox = Hive.box<JournalEntry>('journal_entries');
       final now = DateTime.now();
 
-      for (final entry in state.quizResponses.entries) {
-        final questionNumber = entry.key + 1;
-        final response = entry.value;
+      // Questions for the conversation
+      final questions = [
+        "Let's start simple—where are you right now? One sentence.",
+        "What's been occupying your thoughts lately?",
+        "When did this start mattering to you?",
+        "Is this feeling getting stronger, quieter, or shifting into something else?",
+        "What changes if this resolves? Or if it doesn't?",
+      ];
 
-        final journalEntry = JournalEntry(
-          id: 'onboarding_q${questionNumber}_${now.millisecondsSinceEpoch}',
-          title: 'Onboarding Response - Question $questionNumber',
-          content: response,
-          createdAt: now,
-          updatedAt: now,
-          tags: ['onboarding', 'phase_detection'],
-          mood: 'Reflective',
-          audioUri: null,
-          sageAnnotation: null,
-          keywords: [],
-        );
-
-        await journalBox.put(journalEntry.id, journalEntry);
+      // Create LUMARA blocks for each question-response pair
+      final lumaraBlocks = <InlineBlock>[];
+      for (int i = 0; i < questions.length; i++) {
+        final response = state.quizResponses[i] ?? '';
+        if (response.isNotEmpty) {
+          lumaraBlocks.add(
+            InlineBlock(
+              type: 'inline_reflection',
+              intent: 'ideas', // Using 'ideas' intent for quiz questions
+              content: questions[i], // LUMARA question (will display in purple)
+              timestamp: now.millisecondsSinceEpoch + i, // Slight offset for ordering
+              userComment: response, // User response (will display in normal text)
+            ),
+          );
+        }
       }
 
-      _logger.i('Saved ${state.quizResponses.length} quiz responses as journal entries');
+      // Create a single journal entry with the conversation
+      final journalEntry = JournalEntry(
+        id: 'onboarding_phase_quiz_${now.millisecondsSinceEpoch}',
+        title: 'Phase Detection Conversation',
+        content: '', // Empty content - conversation is in lumaraBlocks
+        createdAt: now,
+        updatedAt: now,
+        tags: ['onboarding', 'phase_detection'],
+        mood: 'Reflective',
+        audioUri: null,
+        sageAnnotation: null,
+        keywords: [],
+        lumaraBlocks: lumaraBlocks, // Store conversation as LUMARA blocks
+        metadata: {
+          'onboarding': true,
+          'phase_detection': true,
+          'conversation_format': true,
+        },
+      );
+
+      await journalBox.put(journalEntry.id, journalEntry);
+
+      _logger.i('Saved phase quiz conversation as single journal entry with ${lumaraBlocks.length} LUMARA blocks');
     } catch (e) {
       _logger.e('Error saving quiz responses: $e');
     }

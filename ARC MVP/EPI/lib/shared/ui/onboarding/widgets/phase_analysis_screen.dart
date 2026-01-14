@@ -3,6 +3,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/ui/onboarding/arc_onboarding_cubit.dart';
 import 'package:my_app/shared/ui/onboarding/widgets/lumara_pulsing_symbol.dart';
 
@@ -20,7 +21,7 @@ class PhaseAnalysisScreen extends StatelessWidget {
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
               colors: [
-                const Color(0xFFD4AF37).withOpacity(0.2),
+                kcPrimaryColor.withOpacity(0.2),
                 Colors.black,
               ],
             ),

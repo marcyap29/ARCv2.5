@@ -1,9 +1,10 @@
 // lib/shared/ui/onboarding/widgets/lumara_pulsing_symbol.dart
-// Pulsing LUMARA golden symbol widget
+// Pulsing LUMARA symbol widget
 
 import 'package:flutter/material.dart';
+import 'package:my_app/shared/app_colors.dart';
 
-/// Pulsing LUMARA symbol with golden texture
+/// Pulsing LUMARA symbol with purple theme
 /// Pulse via opacity/brightness layers (0.7 → 1.0 → 0.7, 3s cycle)
 class LumaraPulsingSymbol extends StatefulWidget {
   final double size;
@@ -59,7 +60,7 @@ class _LumaraPulsingSymbolState extends State<LumaraPulsingSymbol>
           decoration: BoxDecoration(
             boxShadow: [
               BoxShadow(
-                color: const Color(0xFFD4AF37).withOpacity(0.3 * opacity),
+                color: kcPrimaryColor.withOpacity(0.3 * opacity),
                 blurRadius: 20 * opacity,
                 spreadRadius: 5 * opacity,
               ),
@@ -77,7 +78,7 @@ class _LumaraPulsingSymbolState extends State<LumaraPulsingSymbol>
                 return Icon(
                   Icons.psychology,
                   size: widget.size,
-                  color: const Color(0xFFD4AF37),
+                  color: kcPrimaryColor,
                 );
               },
             ),

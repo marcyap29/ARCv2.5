@@ -4,6 +4,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:my_app/shared/text_style.dart';
+import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/ui/onboarding/arc_onboarding_cubit.dart';
 import 'package:my_app/shared/ui/onboarding/arc_onboarding_state.dart';
 import 'package:my_app/models/phase_models.dart';
@@ -37,7 +38,7 @@ class PhaseRevealScreen extends StatelessWidget {
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
               colors: [
-                const Color(0xFFD4AF37).withOpacity(0.2),
+                kcPrimaryColor.withOpacity(0.2),
                 Colors.black,
               ],
             ),
@@ -106,7 +107,7 @@ class PhaseRevealScreen extends StatelessWidget {
                       color: Colors.white.withOpacity(0.05),
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
-                        color: const Color(0xFFD4AF37).withOpacity(0.3),
+                        color: kcPrimaryColor.withOpacity(0.3),
                         width: 1,
                       ),
                     ),
@@ -123,7 +124,7 @@ class PhaseRevealScreen extends StatelessWidget {
                         Text(
                           phaseAnalysis.trackingQuestion,
                           style: bodyStyle(context).copyWith(
-                            color: const Color(0xFFD4AF37),
+                            color: kcPrimaryColor,
                             fontSize: 14,
                             fontStyle: FontStyle.italic,
                           ),
@@ -143,8 +144,8 @@ class PhaseRevealScreen extends StatelessWidget {
                         // Navigation handled by BlocListener in parent
                       },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFD4AF37),
-                        foregroundColor: Colors.black,
+                        backgroundColor: kcPrimaryColor,
+                        foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(
                           horizontal: 32,
                           vertical: 16,

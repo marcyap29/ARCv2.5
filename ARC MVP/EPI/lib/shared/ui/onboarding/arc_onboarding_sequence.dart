@@ -4,6 +4,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:my_app/shared/text_style.dart';
+import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/ui/home/home_view.dart';
 import 'arc_onboarding_cubit.dart';
 import 'arc_onboarding_state.dart';
@@ -127,7 +128,7 @@ class _LumaraIntroScreen extends StatelessWidget {
         child: SafeArea(
           child: _LayeredScreenContent(
             gradientColors: [
-              const Color(0xFFD4AF37).withOpacity(0.3),
+              kcPrimaryColor.withOpacity(0.3),
               Colors.black,
             ],
             child: Column(
@@ -195,7 +196,7 @@ class _ArcIntroScreen extends StatelessWidget {
         child: SafeArea(
           child: _LayeredScreenContent(
             gradientColors: [
-              const Color(0xFFD4AF37).withOpacity(0.1),
+              kcPrimaryColor.withOpacity(0.1),
               Colors.black,
             ],
             child: Column(
@@ -263,7 +264,7 @@ class _NarrativeIntelligenceScreen extends StatelessWidget {
       body: SafeArea(
         child: _LayeredScreenContent(
           gradientColors: [
-            const Color(0xFFD4AF37).withOpacity(0.2),
+            kcPrimaryColor.withOpacity(0.2),
             Colors.black,
           ],
           child: SingleChildScrollView(
@@ -318,8 +319,8 @@ class _NarrativeIntelligenceScreen extends StatelessWidget {
                       context.read<ArcOnboardingCubit>().startPhaseQuiz();
                     },
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFD4AF37),
-                      foregroundColor: Colors.black,
+                      backgroundColor: kcPrimaryColor,
+                      foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(
                         horizontal: 32,
                         vertical: 16,
@@ -331,7 +332,7 @@ class _NarrativeIntelligenceScreen extends StatelessWidget {
                     child: Text(
                       'Begin Phase Detection',
                       style: buttonStyle(context).copyWith(
-                        color: Colors.black,
+                        color: Colors.white,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
