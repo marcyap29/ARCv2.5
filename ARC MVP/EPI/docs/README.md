@@ -138,6 +138,37 @@ Welcome to the EPI (Evolving Personal Intelligence) documentation. This director
   - Bug fixes and enhancements
 
 - **[BUGTRACKER.md](BUGTRACKER.md)** - Bug tracking and issue management
+
+### 📁 DOCS Folder (Technical Documentation)
+
+- **[APPLE_HEALTH_INTEGRATION.md](../DOCS/APPLE_HEALTH_INTEGRATION.md)** - Apple Health biometric phase enhancement
+  - Biometric signatures by phase (sleep, activity, HRV, exercise)
+  - Phase probability adjustment algorithm
+  - Local processing architecture (data never leaves device)
+  
+- **[PROMPT_REFERENCES.md](../DOCS/PROMPT_REFERENCES.md)** - Complete catalog of all AI prompts
+  - System prompts (LUMARA, ECHO, On-Device)
+  - Phase classification with SENTINEL integration
+  - Therapeutic presence, decision clarity, expert mentor modes
+  
+- **[SENTINEL_ARCHITECTURE.md](../DOCS/SENTINEL_ARCHITECTURE.md)** - SENTINEL wellbeing monitoring system
+  - Risk detection algorithms and scoring
+  - Crisis mode management
+  - Adaptive framework based on user cadence
+  
+- **[SENTINEL_DETECTION_FACTORS.md](../DOCS/SENTINEL_DETECTION_FACTORS.md)** - All SENTINEL detection factors
+  - Core detection factors (28 factors documented)
+  - Adaptive configuration parameters
+  
+- **[PHASE_DETECTION_FACTORS.md](../DOCS/PHASE_DETECTION_FACTORS.md)** - Phase detection methodology
+  - Keyword scoring system
+  - Emotion mapping
+  - Content analysis factors
+  
+- **[ONBOARDING_TEXT.md](../DOCS/ONBOARDING_TEXT.md)** - All onboarding sequence text
+  - LUMARA, ARC, Narrative Intelligence introductions
+  - SENTINEL introduction
+  - Phase quiz questions and reveal templates
   - Resolved issues
   - Known issues
   - Bug resolution history
@@ -272,5 +303,5 @@ Welcome to the EPI (Evolving Personal Intelligence) documentation. This director
 ---
 
 **Status**: ✅ Production Ready with Authentication
-**Last Updated**: December 13, 2025
-**Version**: 2.1.54
+**Last Updated**: January 14, 2026
+**Version**: 3.2.5

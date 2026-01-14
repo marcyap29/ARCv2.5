@@ -735,6 +735,8 @@ Apple Health Data (last 7 days) → Biometric Analyzer
 5. Optional feature - works perfectly fine without health integration
 6. Transparency - show user how health data influenced classification
 
+**📄 Full Implementation Details:** See [APPLE_HEALTH_INTEGRATION.md](APPLE_HEALTH_INTEGRATION.md) for complete architecture, code examples, data models, and implementation guide.
+
 ---
 
 ## Version History

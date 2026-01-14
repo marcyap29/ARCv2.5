@@ -1,7 +1,7 @@
 # EPI ARC MVP - Changelog
 
-**Version:** 3.2.4
-**Last Updated:** January 13, 2026
+**Version:** 3.2.5
+**Last Updated:** January 14, 2026
 
 ---
 
@@ -84,6 +84,12 @@ This changelog has been split into parts for easier navigation:
   - Consolidation: Highly consistent patterns
 - **Confidence Adjustments**: Rules for when to increase/decrease phase confidence based on biometric agreement/contradiction
 - **Privacy**: All health data processed locally on device, never leaves phone
+- **New Documentation File**: `DOCS/APPLE_HEALTH_INTEGRATION.md` with comprehensive implementation guide
+  - Full `BiometricPhaseAnalyzer` class with sleep, activity, HRV, exercise analysis
+  - `PhaseProbabilityAdjuster` for combining text and biometric signals
+  - Data models (`BiometricPhaseSignals`, `SleepMetrics`, `ActivityMetrics`, `HRVMetrics`, `ExerciseMetrics`)
+  - User-facing settings UI mockup
+  - Biometric signature summary table
 
 ---
 
