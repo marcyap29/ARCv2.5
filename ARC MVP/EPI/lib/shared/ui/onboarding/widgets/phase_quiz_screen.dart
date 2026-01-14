@@ -119,7 +119,7 @@ class _PhaseQuizScreenState extends State<PhaseQuizScreen> {
       backgroundColor: Colors.black,
       body: SafeArea(
         child: GestureDetector(
-          onTap: _dismissKeyboard, // Dismiss keyboard when tapping outside
+          onTap: _dismissKeyboard,
           behavior: HitTestBehavior.opaque,
           child: Container(
             decoration: BoxDecoration(
@@ -134,13 +134,13 @@ class _PhaseQuizScreenState extends State<PhaseQuizScreen> {
             ),
             child: Column(
               children: [
-                // Close button (X) in upper left corner
+                // Top row: Close button (X) left, LUMARA symbol right
                 Padding(
                   padding: const EdgeInsets.all(16.0),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      // Close button (X) - always visible
+                      // Close button (X)
                       IconButton(
                         onPressed: () {
                           _dismissKeyboard();
@@ -162,7 +162,6 @@ class _PhaseQuizScreenState extends State<PhaseQuizScreen> {
                           height: 32,
                           fit: BoxFit.contain,
                           errorBuilder: (context, error, stackTrace) {
-                            // Fallback to a simple icon if image not found
                             return Icon(
                               Icons.psychology,
                               size: 32,
@@ -196,119 +195,121 @@ class _PhaseQuizScreenState extends State<PhaseQuizScreen> {
                   ),
                 ),
 
-                // Question text (scrollable to handle keyboard)
+                // Question and input - CENTERED vertically
                 Expanded(
-                  child: SingleChildScrollView(
-                    keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-                    child: Padding(
-                      padding: const EdgeInsets.all(32.0),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const SizedBox(height: 20),
-                          // Question with fade-in effect
-                          AnimatedOpacity(
-                            opacity: 1.0,
-                            duration: const Duration(milliseconds: 300),
-                            child: Text(
-                              currentQuestion,
-                              style: heading1Style(context).copyWith(
-                                color: Colors.white,
-                                fontSize: 22,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                          ),
-                          const SizedBox(height: 48),
-                          // Text input field
-                          TextField(
-                            controller: _textController,
-                            focusNode: _focusNode,
-                            style: bodyStyle(context).copyWith(
-                              color: Colors.white,
-                              fontSize: 16,
-                            ),
-                            decoration: InputDecoration(
-                              hintText: 'Type your response...',
-                              hintStyle: bodyStyle(context).copyWith(
-                                color: Colors.white.withOpacity(0.4),
-                              ),
-                              filled: true,
-                              fillColor: Colors.white.withOpacity(0.1),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide(
-                                  color: Colors.white.withOpacity(0.2),
-                                ),
-                              ),
-                              enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide(
-                                  color: Colors.white.withOpacity(0.2),
-                                ),
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide(
-                                  color: kcPrimaryColor,
-                                  width: 2,
-                                ),
-                              ),
-                              contentPadding: const EdgeInsets.all(16),
-                              suffixIcon: _isKeyboardVisible
-                                  ? IconButton(
-                                      icon: Icon(
-                                        Icons.keyboard_hide,
-                                        color: kcPrimaryColor,
-                                      ),
-                                      onPressed: _dismissKeyboard,
-                                      tooltip: 'Hide keyboard',
-                                    )
-                                  : null,
-                            ),
-                            maxLines: 5,
-                            minLines: 3,
-                            textInputAction: TextInputAction.done,
-                            onSubmitted: (_) {
-                              if (canContinue) {
-                                _submitResponse();
-                              }
-                            },
-                          ),
-                          const SizedBox(height: 32),
-                          // Continue button
-                          SizedBox(
-                            width: double.infinity,
-                            child: ElevatedButton(
-                              onPressed: canContinue ? _submitResponse : null,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: canContinue
-                                    ? kcPrimaryColor
-                                    : Colors.white.withOpacity(0.2),
-                                foregroundColor: canContinue
-                                    ? Colors.white
-                                    : Colors.white.withOpacity(0.5),
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 32,
-                                  vertical: 16,
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                              ),
+                  child: Center(
+                    child: SingleChildScrollView(
+                      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+                      child: Padding(
+                        padding: const EdgeInsets.all(32.0),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            // Question with fade-in effect
+                            AnimatedOpacity(
+                              opacity: 1.0,
+                              duration: const Duration(milliseconds: 300),
                               child: Text(
-                                'Continue',
-                                style: buttonStyle(context).copyWith(
-                                  color: canContinue
+                                currentQuestion,
+                                style: heading1Style(context).copyWith(
+                                  color: Colors.white,
+                                  fontSize: 22,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                            const SizedBox(height: 48),
+                            // Text input field
+                            TextField(
+                              controller: _textController,
+                              focusNode: _focusNode,
+                              style: bodyStyle(context).copyWith(
+                                color: Colors.white,
+                                fontSize: 16,
+                              ),
+                              decoration: InputDecoration(
+                                hintText: 'Type your response...',
+                                hintStyle: bodyStyle(context).copyWith(
+                                  color: Colors.white.withOpacity(0.4),
+                                ),
+                                filled: true,
+                                fillColor: Colors.white.withOpacity(0.1),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: BorderSide(
+                                    color: Colors.white.withOpacity(0.2),
+                                  ),
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: BorderSide(
+                                    color: Colors.white.withOpacity(0.2),
+                                  ),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: BorderSide(
+                                    color: kcPrimaryColor,
+                                    width: 2,
+                                  ),
+                                ),
+                                contentPadding: const EdgeInsets.all(16),
+                                suffixIcon: _isKeyboardVisible
+                                    ? IconButton(
+                                        icon: Icon(
+                                          Icons.keyboard_hide,
+                                          color: kcPrimaryColor,
+                                        ),
+                                        onPressed: _dismissKeyboard,
+                                        tooltip: 'Hide keyboard',
+                                      )
+                                    : null,
+                              ),
+                              maxLines: 5,
+                              minLines: 3,
+                              textInputAction: TextInputAction.done,
+                              autofocus: true,
+                              onSubmitted: (_) {
+                                if (canContinue) {
+                                  _submitResponse();
+                                }
+                              },
+                            ),
+                            const SizedBox(height: 32),
+                            // Continue button
+                            SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton(
+                                onPressed: canContinue ? _submitResponse : null,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: canContinue
+                                      ? kcPrimaryColor
+                                      : Colors.white.withOpacity(0.2),
+                                  foregroundColor: canContinue
                                       ? Colors.white
                                       : Colors.white.withOpacity(0.5),
-                                  fontWeight: FontWeight.w600,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 32,
+                                    vertical: 16,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                                child: Text(
+                                  'Continue',
+                                  style: buttonStyle(context).copyWith(
+                                    color: canContinue
+                                        ? Colors.white
+                                        : Colors.white.withOpacity(0.5),
+                                    fontWeight: FontWeight.w600,
+                                  ),
                                 ),
                               ),
                             ),
-                          ),
-                          const SizedBox(height: 20),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
                   ),
