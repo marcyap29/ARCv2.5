@@ -1,5 +1,5 @@
 // lib/shared/ui/onboarding/widgets/phase_quiz_screen.dart
-// Phase Detection Quiz Interface - Conversation Style
+// Phase Detection Quiz Interface (Screens 5-9)
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -16,10 +16,10 @@ class PhaseQuizScreen extends StatefulWidget {
 }
 
 class _PhaseQuizScreenState extends State<PhaseQuizScreen> {
-  final List<TextEditingController> _responseControllers = [];
-  final List<FocusNode> _focusNodes = [];
-  final ScrollController _scrollController = ScrollController();
+  final TextEditingController _textController = TextEditingController();
+  final FocusNode _focusNode = FocusNode();
   int _currentQuestionIndex = 0;
+  bool _isKeyboardVisible = false;
 
   final List<String> _questions = [
     "Let's start simple—where are you right now? One sentence.",
@@ -32,114 +32,94 @@ class _PhaseQuizScreenState extends State<PhaseQuizScreen> {
   @override
   void initState() {
     super.initState();
-    // Initialize controllers and focus nodes for each question
-    for (int i = 0; i < _questions.length; i++) {
-      _responseControllers.add(TextEditingController());
-      _focusNodes.add(FocusNode());
-    }
-    _loadSavedResponses();
-    // Restore current question index from saved state
-    _restoreQuestionIndex();
+    _textController.addListener(_onTextChanged);
+    _focusNode.addListener(_onFocusChanged);
+    _loadCurrentResponse();
   }
-  
-  void _restoreQuestionIndex() {
-    final cubit = context.read<ArcOnboardingCubit>();
-    // Find the first unanswered question
-    for (int i = 0; i < _questions.length; i++) {
-      if (cubit.state.quizResponses[i] == null || cubit.state.quizResponses[i]!.isEmpty) {
-        setState(() {
-          _currentQuestionIndex = i;
-        });
-        return;
-      }
-    }
-    // All questions answered, stay on last question
+
+  void _onFocusChanged() {
     setState(() {
-      _currentQuestionIndex = _questions.length - 1;
+      _isKeyboardVisible = _focusNode.hasFocus;
     });
   }
 
-  void _loadSavedResponses() {
+  void _loadCurrentResponse() {
     final cubit = context.read<ArcOnboardingCubit>();
-    for (int i = 0; i < _questions.length; i++) {
-      final response = cubit.state.quizResponses[i];
-      if (response != null) {
-        _responseControllers[i].text = response;
-      }
+    final response = cubit.state.quizResponses[_currentQuestionIndex];
+    if (response != null) {
+      _textController.text = response;
     }
+  }
+
+  void _onTextChanged() {
+    setState(() {});
+  }
+
+  void _dismissKeyboard() {
+    _focusNode.unfocus();
   }
 
   @override
   void dispose() {
-    for (final controller in _responseControllers) {
-      controller.dispose();
-    }
-    for (final focusNode in _focusNodes) {
-      focusNode.dispose();
-    }
-    _scrollController.dispose();
+    _textController.removeListener(_onTextChanged);
+    _focusNode.removeListener(_onFocusChanged);
+    _textController.dispose();
+    _focusNode.dispose();
     super.dispose();
   }
 
-  void _dismissKeyboard() {
-    for (final focusNode in _focusNodes) {
-      focusNode.unfocus();
+  void _submitResponse() {
+    final response = _textController.text.trim();
+    if (response.length >= 10) {
+      context.read<ArcOnboardingCubit>().submitQuizResponse(
+            _currentQuestionIndex,
+            response,
+          );
+
+      // Brief acknowledgment
+      _showAcknowledgment();
+
+      // Move to next question after delay
+      Future.delayed(const Duration(milliseconds: 800), () {
+        if (mounted) {
+          if (_currentQuestionIndex < _questions.length - 1) {
+            setState(() {
+              _currentQuestionIndex++;
+              _textController.clear();
+              _loadCurrentResponse();
+            });
+          } else {
+            // All questions answered, complete quiz
+            context.read<ArcOnboardingCubit>().completeQuiz();
+          }
+        }
+      });
     }
   }
 
-  bool _canContinue() {
-    // Check if current response has at least 10 characters
-    final currentController = _responseControllers[_currentQuestionIndex];
-    return currentController.text.trim().length >= 10;
-  }
-
-  void _continueToNext() {
-    if (!_canContinue()) return;
-
-    final cubit = context.read<ArcOnboardingCubit>();
+  void _showAcknowledgment() {
+    final acknowledgments = ['I see.', 'Got it.', 'Understood.'];
+    final random = acknowledgments[_currentQuestionIndex % acknowledgments.length];
     
-    // Save current response
-    final response = _responseControllers[_currentQuestionIndex].text.trim();
-    cubit.submitQuizResponse(_currentQuestionIndex, response);
-
-    // Move to next question or complete quiz
-    if (_currentQuestionIndex < _questions.length - 1) {
-      setState(() {
-        _currentQuestionIndex++;
-        // Focus on next question's text field
-        Future.delayed(const Duration(milliseconds: 100), () {
-          _focusNodes[_currentQuestionIndex].requestFocus();
-        });
-      });
-    } else {
-      // Last question - complete quiz
-      cubit.completeQuiz();
-    }
-  }
-  
-  void _goToPrevious() {
-    if (_currentQuestionIndex > 0) {
-      setState(() {
-        _currentQuestionIndex--;
-        // Focus on previous question's text field
-        Future.delayed(const Duration(milliseconds: 100), () {
-          _focusNodes[_currentQuestionIndex].requestFocus();
-        });
-      });
-    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(random),
+        duration: const Duration(milliseconds: 600),
+        backgroundColor: kcPrimaryColor.withOpacity(0.8),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final canContinue = _canContinue();
-    final isLastQuestion = _currentQuestionIndex == _questions.length - 1;
-    final isFirstQuestion = _currentQuestionIndex == 0;
+    final canContinue = _textController.text.trim().length >= 10;
+    final currentQuestion = _questions[_currentQuestionIndex];
 
     return Scaffold(
       backgroundColor: Colors.black,
       body: SafeArea(
         child: GestureDetector(
-          onTap: _dismissKeyboard,
+          onTap: _dismissKeyboard, // Dismiss keyboard when tapping outside
           behavior: HitTestBehavior.opaque,
           child: Container(
             decoration: BoxDecoration(
@@ -160,6 +140,7 @@ class _PhaseQuizScreenState extends State<PhaseQuizScreen> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
+                      // Close button (X) - always visible
                       IconButton(
                         onPressed: () {
                           _dismissKeyboard();
@@ -172,25 +153,6 @@ class _PhaseQuizScreenState extends State<PhaseQuizScreen> {
                         ),
                         tooltip: 'Close quiz',
                       ),
-                      // Progress indicator (5 dots)
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: List.generate(_questions.length, (index) {
-                          return Container(
-                            margin: const EdgeInsets.symmetric(horizontal: 4),
-                            width: 8,
-                            height: 8,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: index == _currentQuestionIndex
-                                  ? kcPrimaryColor
-                                  : index < _currentQuestionIndex
-                                      ? kcPrimaryColor.withOpacity(0.5)
-                                      : Colors.white.withOpacity(0.2),
-                            ),
-                          );
-                        }),
-                      ),
                       // LUMARA symbol (full image scaled down)
                       Opacity(
                         opacity: 0.2,
@@ -200,6 +162,7 @@ class _PhaseQuizScreenState extends State<PhaseQuizScreen> {
                           height: 32,
                           fit: BoxFit.contain,
                           errorBuilder: (context, error, stackTrace) {
+                            // Fallback to a simple icon if image not found
                             return Icon(
                               Icons.psychology,
                               size: 32,
@@ -212,104 +175,141 @@ class _PhaseQuizScreenState extends State<PhaseQuizScreen> {
                   ),
                 ),
 
-                // Single question display
+                // Progress indicator (5 dots)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 16.0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: List.generate(5, (index) {
+                      return Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 4.0),
+                        width: 8.0,
+                        height: 8.0,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: index == _currentQuestionIndex
+                              ? kcPrimaryColor
+                              : Colors.white.withOpacity(0.3),
+                        ),
+                      );
+                    }),
+                  ),
+                ),
+
+                // Question text (scrollable to handle keyboard)
                 Expanded(
                   child: SingleChildScrollView(
-                    controller: _scrollController,
                     keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        // Question number indicator
-                        Text(
-                          'Question ${_currentQuestionIndex + 1} of ${_questions.length}',
-                          style: bodyStyle(context).copyWith(
-                            color: Colors.white.withOpacity(0.6),
-                            fontSize: 14,
+                    child: Padding(
+                      padding: const EdgeInsets.all(32.0),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const SizedBox(height: 20),
+                          // Question with fade-in effect
+                          AnimatedOpacity(
+                            opacity: 1.0,
+                            duration: const Duration(milliseconds: 300),
+                            child: Text(
+                              currentQuestion,
+                              style: heading1Style(context).copyWith(
+                                color: Colors.white,
+                                fontSize: 22,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
                           ),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 32),
-
-                        // Current question and response
-                        _buildConversationItem(
-                          question: _questions[_currentQuestionIndex],
-                          controller: _responseControllers[_currentQuestionIndex],
-                          focusNode: _focusNodes[_currentQuestionIndex],
-                          questionNumber: _currentQuestionIndex + 1,
-                        ),
-
-                        const SizedBox(height: 32),
-
-                        // Navigation buttons
-                        Row(
-                          children: [
-                            // Previous button
-                            if (!isFirstQuestion)
-                              Expanded(
-                                child: OutlinedButton(
-                                  onPressed: _goToPrevious,
-                                  style: OutlinedButton.styleFrom(
-                                    side: BorderSide(
-                                      color: Colors.white.withOpacity(0.3),
-                                    ),
-                                    foregroundColor: Colors.white,
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 24,
-                                      vertical: 16,
-                                    ),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                  ),
-                                  child: Text(
-                                    'Previous',
-                                    style: buttonStyle(context).copyWith(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 16,
-                                    ),
-                                  ),
+                          const SizedBox(height: 48),
+                          // Text input field
+                          TextField(
+                            controller: _textController,
+                            focusNode: _focusNode,
+                            style: bodyStyle(context).copyWith(
+                              color: Colors.white,
+                              fontSize: 16,
+                            ),
+                            decoration: InputDecoration(
+                              hintText: 'Type your response...',
+                              hintStyle: bodyStyle(context).copyWith(
+                                color: Colors.white.withOpacity(0.4),
+                              ),
+                              filled: true,
+                              fillColor: Colors.white.withOpacity(0.1),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide(
+                                  color: Colors.white.withOpacity(0.2),
                                 ),
                               ),
-                            if (!isFirstQuestion) const SizedBox(width: 16),
-                            // Continue/Submit button
-                            Expanded(
-                              flex: isFirstQuestion ? 1 : 1,
-                              child: ElevatedButton(
-                                onPressed: canContinue ? _continueToNext : null,
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: canContinue
-                                      ? kcPrimaryColor
-                                      : Colors.white.withOpacity(0.2),
-                                  foregroundColor: canContinue
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide(
+                                  color: Colors.white.withOpacity(0.2),
+                                ),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide(
+                                  color: kcPrimaryColor,
+                                  width: 2,
+                                ),
+                              ),
+                              contentPadding: const EdgeInsets.all(16),
+                              suffixIcon: _isKeyboardVisible
+                                  ? IconButton(
+                                      icon: Icon(
+                                        Icons.keyboard_hide,
+                                        color: kcPrimaryColor,
+                                      ),
+                                      onPressed: _dismissKeyboard,
+                                      tooltip: 'Hide keyboard',
+                                    )
+                                  : null,
+                            ),
+                            maxLines: 5,
+                            minLines: 3,
+                            textInputAction: TextInputAction.done,
+                            onSubmitted: (_) {
+                              if (canContinue) {
+                                _submitResponse();
+                              }
+                            },
+                          ),
+                          const SizedBox(height: 32),
+                          // Continue button
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton(
+                              onPressed: canContinue ? _submitResponse : null,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: canContinue
+                                    ? kcPrimaryColor
+                                    : Colors.white.withOpacity(0.2),
+                                foregroundColor: canContinue
+                                    ? Colors.white
+                                    : Colors.white.withOpacity(0.5),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 32,
+                                  vertical: 16,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                              child: Text(
+                                'Continue',
+                                style: buttonStyle(context).copyWith(
+                                  color: canContinue
                                       ? Colors.white
                                       : Colors.white.withOpacity(0.5),
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 32,
-                                    vertical: 16,
-                                  ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                ),
-                                child: Text(
-                                  isLastQuestion ? 'Submit' : 'Continue',
-                                  style: buttonStyle(context).copyWith(
-                                    color: canContinue
-                                        ? Colors.white
-                                        : Colors.white.withOpacity(0.5),
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 18,
-                                  ),
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
                             ),
-                          ],
-                        ),
-                        const SizedBox(height: 20),
-                      ],
+                          ),
+                          const SizedBox(height: 20),
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -317,141 +317,6 @@ class _PhaseQuizScreenState extends State<PhaseQuizScreen> {
             ),
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildConversationItem({
-    required String question,
-    required TextEditingController controller,
-    required FocusNode focusNode,
-    required int questionNumber,
-  }) {
-    final responseLength = controller.text.trim().length;
-    final isValid = responseLength >= 10;
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 32),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // LUMARA question (purple, like comments)
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // LUMARA label
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: kcPrimaryColor.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Text(
-                  'LUMARA',
-                  style: bodyStyle(context).copyWith(
-                    color: kcPrimaryColor,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          // Question text in purple
-          Text(
-            question,
-            style: bodyStyle(context).copyWith(
-              color: const Color(0xFF7C3AED), // Purple for LUMARA questions
-              fontSize: 16,
-              height: 1.5,
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          // User response field
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // User label
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Text(
-                  'You',
-                  style: bodyStyle(context).copyWith(
-                    color: Colors.white.withOpacity(0.7),
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          // Text input for user response
-          TextField(
-            controller: controller,
-            focusNode: focusNode,
-            style: bodyStyle(context).copyWith(
-              color: Colors.white, // Normal text color for user responses
-              fontSize: 16,
-            ),
-            decoration: InputDecoration(
-              hintText: 'Type your response...',
-              hintStyle: bodyStyle(context).copyWith(
-                color: Colors.white.withOpacity(0.4),
-              ),
-              filled: true,
-              fillColor: Colors.white.withOpacity(0.05),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(
-                  color: isValid
-                      ? kcPrimaryColor.withOpacity(0.5)
-                      : Colors.white.withOpacity(0.2),
-                  width: 1,
-                ),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(
-                  color: isValid
-                      ? kcPrimaryColor.withOpacity(0.5)
-                      : Colors.white.withOpacity(0.2),
-                  width: 1,
-                ),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(
-                  color: kcPrimaryColor,
-                  width: 2,
-                ),
-              ),
-              contentPadding: const EdgeInsets.all(16),
-            ),
-            maxLines: 3,
-            minLines: 2,
-            onChanged: (_) => setState(() {}),
-          ),
-          // Character count indicator
-          Padding(
-            padding: const EdgeInsets.only(top: 4),
-            child: Text(
-              '${responseLength}/10 characters ${isValid ? "✓" : ""}',
-              style: bodyStyle(context).copyWith(
-                color: isValid
-                    ? kcPrimaryColor.withOpacity(0.7)
-                    : Colors.white.withOpacity(0.4),
-                fontSize: 12,
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }
