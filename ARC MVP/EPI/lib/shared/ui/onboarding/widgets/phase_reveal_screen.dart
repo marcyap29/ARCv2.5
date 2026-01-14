@@ -6,6 +6,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:my_app/shared/text_style.dart';
 import 'package:my_app/shared/ui/onboarding/arc_onboarding_cubit.dart';
 import 'package:my_app/shared/ui/onboarding/arc_onboarding_state.dart';
+import 'package:my_app/models/phase_models.dart';
 import 'package:my_app/ui/splash/animated_phase_shape.dart';
 import 'package:my_app/shared/ui/onboarding/widgets/lumara_pulsing_symbol.dart';
 
@@ -17,8 +18,10 @@ class PhaseRevealScreen extends StatelessWidget {
     required this.phaseAnalysis,
   });
 
-  String _getPhaseName(phase) {
-    return phase.name[0].toUpperCase() + phase.name.substring(1);
+  String _getPhaseName(PhaseLabel phase) {
+    // Convert enum to string using toString and extract the name part
+    final phaseString = phase.toString().split('.').last;
+    return phaseString[0].toUpperCase() + phaseString.substring(1);
   }
 
   @override
@@ -39,16 +42,18 @@ class PhaseRevealScreen extends StatelessWidget {
               ],
             ),
           ),
-          child: Center(
-            child: Padding(
-              padding: const EdgeInsets.all(32.0),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  // LUMARA symbol faded to background (20% opacity)
+          child: Stack(
+            children: [
+              Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(32.0),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                  // LUMARA symbol faded to background (20% opacity, standardized size)
                   Opacity(
                     opacity: 0.2,
-                    child: const LumaraPulsingSymbol(size: 100),
+                    child: const LumaraPulsingSymbol(size: 120),
                   ),
                   const SizedBox(height: 48),
 
@@ -161,6 +166,24 @@ class PhaseRevealScreen extends StatelessWidget {
                 ],
               ),
             ),
+          ),
+              // Close button (X) in upper left corner
+              Positioned(
+                top: 16,
+                left: 16,
+                child: IconButton(
+                  onPressed: () {
+                    context.read<ArcOnboardingCubit>().skipToMainPage();
+                  },
+                  icon: const Icon(
+                    Icons.close,
+                    color: Colors.white,
+                    size: 24,
+                  ),
+                  tooltip: 'Close quiz',
+                ),
+              ),
+            ],
           ),
         ),
       ),
