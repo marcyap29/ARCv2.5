@@ -1828,6 +1828,35 @@ class _SettingsViewState extends State<SettingsView> {
       phaseRegimeService: phaseRegimeService,
     );
     
+    // Sort files by creation date (oldest first)
+    final sortedFiles = <String>[];
+    final fileStats = <String, DateTime>{};
+    
+    for (final filePath in filePaths) {
+      try {
+        final file = File(filePath);
+        if (await file.exists()) {
+          final stat = await file.stat();
+          // Use modified time as creation time indicator (most reliable across platforms)
+          final creationTime = stat.modified;
+          fileStats[filePath] = creationTime;
+          sortedFiles.add(filePath);
+        }
+      } catch (e) {
+        print('Warning: Could not get file stats for $filePath: $e');
+        // Add to end if we can't get stats
+        sortedFiles.add(filePath);
+        fileStats[filePath] = DateTime.now();
+      }
+    }
+    
+    // Sort by creation date (oldest first)
+    sortedFiles.sort((a, b) {
+      final dateA = fileStats[a] ?? DateTime.now();
+      final dateB = fileStats[b] ?? DateTime.now();
+      return dateA.compareTo(dateB);
+    });
+    
     int totalEntries = 0;
     int totalChats = 0;
     int totalMedia = 0;
@@ -1926,7 +1955,7 @@ class _SettingsViewState extends State<SettingsView> {
       
       // Show success dialog with summary
       final message = StringBuffer();
-      message.writeln('Successfully imported $successCount of ${filePaths.length} archives.');
+      message.writeln('Successfully imported $successCount of ${sortedFiles.length} archives.');
       message.writeln('\nImported:');
       message.writeln('• $totalEntries entries');
       message.writeln('• $totalChats chats');
@@ -1994,6 +2023,35 @@ class _SettingsViewState extends State<SettingsView> {
       chatRepo: chatRepo,
     );
     
+    // Sort files by creation date (oldest first)
+    final sortedFiles = <String>[];
+    final fileStats = <String, DateTime>{};
+    
+    for (final filePath in filePaths) {
+      try {
+        final file = File(filePath);
+        if (await file.exists()) {
+          final stat = await file.stat();
+          // Use modified time as creation time indicator (most reliable across platforms)
+          final creationTime = stat.modified;
+          fileStats[filePath] = creationTime;
+          sortedFiles.add(filePath);
+        }
+      } catch (e) {
+        print('Warning: Could not get file stats for $filePath: $e');
+        // Add to end if we can't get stats
+        sortedFiles.add(filePath);
+        fileStats[filePath] = DateTime.now();
+      }
+    }
+    
+    // Sort by creation date (oldest first)
+    sortedFiles.sort((a, b) {
+      final dateA = fileStats[a] ?? DateTime.now();
+      final dateB = fileStats[b] ?? DateTime.now();
+      return dateA.compareTo(dateB);
+    });
+    
     int totalEntries = 0;
     int totalPhotos = 0;
     int successCount = 0;
@@ -2013,7 +2071,7 @@ class _SettingsViewState extends State<SettingsView> {
             const CircularProgressIndicator(),
             const SizedBox(height: 16),
             Text(
-              'Importing ${filePaths.length} Archives...',
+              'Importing ${sortedFiles.length} Archives...',
               style: const TextStyle(color: Colors.white),
             ),
           ],
@@ -2022,8 +2080,8 @@ class _SettingsViewState extends State<SettingsView> {
     );
     
     try {
-      for (int i = 0; i < filePaths.length; i++) {
-        final filePath = filePaths[i];
+      for (int i = 0; i < sortedFiles.length; i++) {
+        final filePath = sortedFiles[i];
         if (!await File(filePath).exists()) {
           warnings.add('File not found: ${path.basename(filePath)}');
           failedFiles.add(path.basename(filePath));
@@ -2034,7 +2092,7 @@ class _SettingsViewState extends State<SettingsView> {
         if (!context.mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Importing file ${i + 1} of ${filePaths.length}: ${path.basename(filePath)}...'),
+            content: Text('Importing file ${i + 1} of ${sortedFiles.length}: ${path.basename(filePath)}...'),
             duration: const Duration(seconds: 2),
           ),
         );
@@ -2072,7 +2130,7 @@ class _SettingsViewState extends State<SettingsView> {
       
       // Show success dialog with summary
       final message = StringBuffer();
-      message.writeln('Successfully imported $successCount of ${filePaths.length} archives.');
+      message.writeln('Successfully imported $successCount of ${sortedFiles.length} archives.');
       message.writeln('\nImported:');
       message.writeln('• $totalEntries entries');
       message.writeln('• $totalPhotos media items');
