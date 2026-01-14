@@ -39,14 +39,20 @@ exports.getUserSubscription = onCall(
 
   console.log(`getUserSubscription called by user: ${uid} (${email})`);
 
-  // Premium users - add more emails here as needed
-  const premiumEmails = [
-    'marcyap@orbitalai.net',
-    // Add more premium emails here
-  ];
+  // Check user's subscription status from Firestore
+  const userRef = db.collection('users').doc(uid);
+  const userDoc = await userRef.get();
 
-  // Check if user has premium access
-  const tier = premiumEmails.includes(email) ? 'premium' : 'free';
+  let tier = 'free';
+  if (userDoc.exists) {
+    const userData = userDoc.data();
+    // Check if user has active Stripe subscription
+    if (userData.stripeSubscriptionId &&
+        userData.subscriptionStatus === 'active' &&
+        userData.subscriptionTier === 'premium') {
+      tier = 'premium';
+    }
+  }
 
   console.log(`Returning subscription tier: ${tier} for ${email}`);
 

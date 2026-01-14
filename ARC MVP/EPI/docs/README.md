@@ -1,7 +1,7 @@
 # EPI Documentation
 
-**Last Updated:** January 10, 2026  
-**Version:** 3.2.3
+**Last Updated:** January 14, 2026
+**Version:** 3.2.5
 
 ---
 
@@ -9,8 +9,47 @@
 
 Welcome to the EPI (Evolving Personal Intelligence) documentation. This directory contains comprehensive documentation for the EPI MVP intelligent journaling application.
 
-### Recent Highlights (v3.2.4)
+### Recent Highlights (v3.2.5)
 
+- **🛡️ SENTINEL Onboarding Screen**: New introduction screen explaining LUMARA's wellbeing monitoring
+  - Positioned between Narrative Intelligence and Phase Quiz (Screen 4)
+  - Clear, compassionate explanation of crisis detection capabilities
+  - Two action buttons: "Start Phase Quiz" and "Skip Phase Quiz"
+- **🎬 Dramatic Phase Reveal Animation**: Cinematic two-stage reveal for phase detection results
+  - Screen starts completely dark (all content invisible)
+  - Stage 1: Phase constellation emerges from darkness (3s fade-in) while spinning
+  - Stage 2: Phase name and content fade in (2s fade-in)
+  - Total reveal time: ~5.5 seconds for dramatic effect
+- **📜 Comprehensive Prompt Documentation**: New PROMPT_REFERENCES.md catalogs all prompts
+  - System prompts (LUMARA, ECHO, On-Device)
+  - Phase classification with SENTINEL integration
+  - Therapeutic presence, decision clarity, expert mentor modes
+- **🏥 Apple Health Integration Architecture**: Documented biometric phase enhancement
+  - Health data validates/challenges journal content (max 20% influence)
+  - Catches denial, burnout, and mind-body misalignment
+  - Local processing only - data never leaves device
+- **🔧 Combined RIVET + SENTINEL Prompt**: New unified phase classification prompt
+  - Includes Breakthrough Dominance Rule (prevents false positives)
+  - Integrated SENTINEL signals (critical language, isolation, relief markers)
+  - 10 few-shot examples for consistent classification
+
+### Previous Highlights (v3.2.4)
+
+- **🌟 ARC Onboarding Sequence**: New conversational phase detection flow for first-time users
+  - **12-Screen Experience**: Warm, inspiring introduction to LUMARA, ARC, and Narrative Intelligence
+  - **Intelligent Phase Detection**: 5-question conversational quiz that feels like meeting a perceptive companion
+  - **Conversation Format (v3.2.4)**: All questions displayed simultaneously in a single conversation-style interface
+    - LUMARA questions in purple (like in-journal comments)
+    - User responses in normal text
+    - Single journal entry output with conversation format
+  - **Automatic Routing**: First-time users (entryCount == 0) automatically shown onboarding sequence
+  - **Personalized Recognition**: Phase reveal includes personalized recognition statement and tracking question
+  - **Purple/Black Theme (v3.2.4)**: Consistent purple/black color scheme matching app's primary design
+  - **Skip Options**: 
+    - "Skip Phase Quiz" button on Narrative Intelligence screen for users with saved content
+    - Close (X) button on all quiz screens (Phase Quiz, Phase Analysis, Phase Reveal) to exit at any time
+  - **Smooth Transitions**: Layered fade transitions (1600ms) with custom eased curves for natural feel
+  - **Bug Fixes**: Fixed PhaseLabel enum name access for better Dart version compatibility
 - **🎯 Response Length Architecture Refactor**: Response length now determined by Engagement Mode, not Persona
   - **REFLECT**: 200 words base (brief surface-level observations)
   - **EXPLORE**: 400 words base (deeper investigation with follow-up questions)
@@ -57,8 +96,8 @@ Welcome to the EPI (Evolving Personal Intelligence) documentation. This director
   - All keywords now come from curated library with intensity values
   - Phase-aware keyword selection based on current developmental phase
   - RIVET gating for quality control
-- **🎯 Simplified LUMARA Actions**: Removed "More Depth" and "Soften Tone" buttons for cleaner UI
-  - Focus on essential actions: Regenerate, Continue thought, Explore options
+- **🎯 Simplified LUMARA Actions**: Streamlined action buttons for cleaner UI
+  - Focus on essential actions: Regenerate, Analyze, Deep Analysis
 
 ### Previous Highlights (v2.1.61)
 

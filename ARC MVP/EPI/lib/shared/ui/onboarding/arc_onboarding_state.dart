@@ -9,6 +9,7 @@ enum OnboardingScreen {
   lumaraIntro,
   arcIntro,
   narrativeIntelligence,
+  sentinelIntro,
   phaseQuiz,
   phaseAnalysis,
   phaseReveal,

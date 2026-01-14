@@ -703,7 +703,7 @@ Long Press → Edit Mode | Scroll Up → Load History
 - **Returning Users**: Skip onboarding and go directly to main interface
 - **Entry Point**: Splash screen (`lumara_splash_screen.dart`) checks entry count and routes accordingly
 
-#### 11-Screen Onboarding Flow
+#### 12-Screen Onboarding Flow
 
 **Note**: The original splash screen with ARC logo and rotating phase shape remains as the app's entry point. Onboarding sequence starts directly with LUMARA Introduction for first-time users.
 
@@ -744,7 +744,7 @@ Long Press → Edit Mode | Scroll Up → Load History
 
 **Screen 3: Narrative Intelligence Concept**
 - **Visual**: Text-focused interface (removed large visualization for better accessibility)
-- **Layout**: Scrollable content with full-width buttons always accessible
+- **Layout**: Centered content
 - **Text**:
   ```
   ARC and LUMARA are built on something new: Narrative Intelligence.
@@ -756,14 +756,30 @@ Long Press → Edit Mode | Scroll Up → Load History
   
   Your life has an arc. Let's follow it together.
   ```
-- **Interaction**: 
-  - "Begin Phase Detection" button (primary, golden background)
-  - "Skip Phase Quiz" button (secondary, semi-transparent white with border)
-    - Same shape as primary button but different styling
-    - Allows users with saved content to bypass quiz and go directly to main interface
+- **Interaction**: Tap/swipe to continue (consistent with other intro screens)
 - **Transition**: Layered fade transition (1600ms) with custom eased curves for smooth, non-harsh transitions
 
-**Screens 4-8: Phase Detection Quiz**
+**Screen 4: SENTINEL Introduction**
+- **Visual**: Text-focused interface with purple gradient background
+- **Layout**: Scrollable content with two buttons at bottom
+- **Text**:
+  ```
+  One more thing.
+  
+  I'm designed to notice patterns in your writing—including when things 
+  might be getting harder than usual.
+  
+  If I detect sustained distress, sudden intensity, or language suggesting 
+  crisis, I'll check in directly. Not to judge, but because staying silent 
+  wouldn't be right.
+  ```
+- **Interaction**:
+  - "Start Phase Quiz" button (primary, purple background)
+  - "Skip Phase Quiz" button (secondary, outlined style)
+    - Allows users with saved content to bypass quiz and go directly to main interface
+- **Transition**: Layered fade transition (1600ms) with custom eased curves
+
+**Screens 5-9: Phase Detection Quiz**
 - **Visual**: Clean, focused interface
   - **Close Button (X)**: Upper left corner, always visible
     - White close icon (24px size)
@@ -787,7 +803,7 @@ Long Press → Edit Mode | Scroll Up → Load History
   4. "Is this feeling getting stronger, quieter, or shifting into something else?"
   5. "What changes if this resolves? Or if it doesn't?"
 
-**Screen 9: Phase Analysis (Processing)**
+**Screen 10: Phase Analysis (Processing)**
 - **Visual**: LUMARA symbol returns to center, pulsing more intentionally
 - **LUMARA Symbol**: Standardized size 120px
 - **Close Button (X)**: Upper left corner, always visible
@@ -795,14 +811,18 @@ Long Press → Edit Mode | Scroll Up → Load History
 - **Text**: "Let me see your pattern..." (3-5 second pause)
 - **Backend**: Calls phase detection algorithm to analyze responses
 
-**Screen 10: Phase Reveal**
+**Screen 11: Phase Reveal (Dramatic Animation)**
 - **Visual**: 
   - **Close Button (X)**: Upper left corner, always visible
-    - Allows users to exit and return to main interface
   - LUMARA symbol fades to background (20% opacity, standardized size 120px)
-  - User's phase constellation appears center—**empty** except for phase name
-  - Gentle rotation, golden wireframe structure visible
-- **Text**:
+  - User's phase constellation with spinning animation (15-second rotation cycle)
+- **Dramatic Reveal Animation** (NEW):
+  - Screen starts completely dark (all content at 0% opacity)
+  - **Stage 1**: Phase constellation emerges from darkness (3-second fade-in with easeInOut curve) while spinning
+  - **Stage 2**: After constellation is visible, all text content fades in (2-second fade-in)
+  - Total reveal time: ~5.5 seconds
+  - Initial 500ms darkness pause before animation begins
+- **Text** (appears in Stage 2):
   ```
   You're in [PHASE NAME].
   
@@ -817,11 +837,11 @@ Long Press → Edit Mode | Scroll Up → Load History
   The question you're living: [TRACKING QUESTION]
   ```
 - **Interaction**: 
-  - "Enter ARC" button (primary action)
-  - Close button (X) in upper left (exit option)
-- **Transition**: Fade through constellation into main interface (1200ms)
+  - "Enter ARC" button (appears with content in Stage 2)
+  - Close button (X) in upper left (always visible)
+- **Transition**: Navigates to main interface on button press
 
-**Screen 11: Main Interface Debut**
+**Screen 12: Main Interface Debut**
 - **Visual**: Full main screen
   - Timeline with single entry point (today)
   - Four primary tabs visible
@@ -1051,16 +1071,23 @@ Long Press → Edit Mode | Scroll Up → Load History
 - **Cancellation:** Ability to cancel mid-process
 - **Completion Notification:** Success confirmation with file location
 
-### 📥 MCP Import System
+### 📥 MCP Import System (v3.2.4)
 **File:** `lib/ui/export_import/mcp_import_screen.dart`
 
 #### Import Features
 - **File Selection:** Browse and select MCP bundles
-- **Multi-Select Support (v3.2.4):** Select and import multiple ZIP files simultaneously
-  - Batch processing of multiple MCP bundles
+- **Multi-Select Support (v3.2.4):** Select and import multiple files simultaneously
+  - **MCP/ZIP Import**: Select and import multiple ZIP files simultaneously
+  - **ARCX Import**: Select and import multiple ARCX files simultaneously (via Settings → Import Data)
+  - **ZIP Import (Settings)**: Select and import multiple ZIP files from Settings → Import Data
+  - Batch processing of multiple archives
   - Progress feedback showing "Importing file X of Y"
+  - **Chronological Sorting**: Files automatically sorted by creation date (oldest first) before import
+    - Ensures data timeline consistency
+    - Uses file modification time as sorting key
+    - Files processed in chronological order
   - Sequential processing with error handling per file
-  - Final summary showing success/failure counts
+  - Final summary showing success/failure counts and imported data statistics
 - **Preview Mode:** Inspect bundle contents before import
 - **Conflict Resolution:** Handle data conflicts intelligently
 - **Progress Monitoring:** Real-time import progress display
@@ -1081,6 +1108,10 @@ Long Press → Edit Mode | Scroll Up → Load History
 - **Time Estimation:** Remaining time calculation
 - **Cancellation Support:** Safe cancellation with cleanup
 - **Error Handling:** Clear error messages and recovery options
+- **Multi-Select Support (v3.2.4):** Import multiple ARCX files from Settings → Import Data
+  - Files automatically sorted chronologically (oldest first)
+  - Progress feedback for each file
+  - Detailed success/failure summary
 
 ### 📊 Data Management
 **File:** `lib/ui/screens/mcp_management_screen.dart`

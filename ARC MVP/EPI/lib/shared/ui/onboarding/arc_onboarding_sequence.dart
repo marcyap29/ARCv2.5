@@ -66,6 +66,10 @@ class ArcOnboardingSequenceContent extends StatelessWidget {
               currentScreen = const _NarrativeIntelligenceScreen();
               screenKey = 'narrative_intelligence';
               break;
+            case OnboardingScreen.sentinelIntro:
+              currentScreen = const _SentinelIntroScreen();
+              screenKey = 'sentinel_intro';
+              break;
             case OnboardingScreen.phaseQuiz:
               currentScreen = const PhaseQuizScreen();
               screenKey = 'phase_quiz';
@@ -90,7 +94,8 @@ class ArcOnboardingSequenceContent extends StatelessWidget {
           // Use AnimatedSwitcher with custom layered fade transition for intro screens
           if (state.currentScreen == OnboardingScreen.lumaraIntro ||
               state.currentScreen == OnboardingScreen.arcIntro ||
-              state.currentScreen == OnboardingScreen.narrativeIntelligence) {
+              state.currentScreen == OnboardingScreen.narrativeIntelligence ||
+              state.currentScreen == OnboardingScreen.sentinelIntro) {
             return AnimatedSwitcher(
               duration: const Duration(milliseconds: 1600),
               switchInCurve: const Cubic(0.25, 0.1, 0.25, 1.0), // Custom eased curve
@@ -253,7 +258,7 @@ class _ArcIntroScreen extends StatelessWidget {
   }
 }
 
-/// Screen 4: Narrative Intelligence Concept
+/// Screen 3: Narrative Intelligence Concept
 class _NarrativeIntelligenceScreen extends StatelessWidget {
   const _NarrativeIntelligenceScreen();
 
@@ -261,17 +266,17 @@ class _NarrativeIntelligenceScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      body: SafeArea(
-        child: _LayeredScreenContent(
-          gradientColors: [
-            kcPrimaryColor.withOpacity(0.2),
-            Colors.black,
-          ],
-          child: SingleChildScrollView(
+      body: GestureDetector(
+        onTap: () => context.read<ArcOnboardingCubit>().nextScreen(),
+        child: SafeArea(
+          child: _LayeredScreenContent(
+            gradientColors: [
+              kcPrimaryColor.withOpacity(0.2),
+              Colors.black,
+            ],
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const SizedBox(height: 40),
                 Text(
                   "ARC and LUMARA are built on something new: Narrative Intelligence.",
                   style: heading1Style(context).copyWith(
@@ -312,6 +317,71 @@ class _NarrativeIntelligenceScreen extends StatelessWidget {
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 48),
+                Text(
+                  'Tap to continue',
+                  style: bodyStyle(context).copyWith(
+                    color: Colors.white.withOpacity(0.5),
+                    fontSize: 14,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Screen 4: SENTINEL Introduction
+class _SentinelIntroScreen extends StatelessWidget {
+  const _SentinelIntroScreen();
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: SafeArea(
+        child: _LayeredScreenContent(
+          gradientColors: [
+            kcPrimaryColor.withOpacity(0.2),
+            Colors.black,
+          ],
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const SizedBox(height: 40),
+                Text(
+                  "One more thing.",
+                  style: heading1Style(context).copyWith(
+                    color: Colors.white,
+                    fontSize: 24,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 24),
+                Text(
+                  "I'm designed to notice patterns in your writing—including when things might be getting harder than usual.",
+                  style: bodyStyle(context).copyWith(
+                    color: Colors.white.withOpacity(0.8),
+                    fontSize: 16,
+                    height: 1.6,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  "If I detect sustained distress, sudden intensity, or language suggesting crisis, I'll check in directly. Not to judge, but because staying silent wouldn't be right.",
+                  style: bodyStyle(context).copyWith(
+                    color: Colors.white.withOpacity(0.8),
+                    fontSize: 16,
+                    height: 1.6,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 48),
+                // Primary button: Start Phase Quiz
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
@@ -330,7 +400,7 @@ class _NarrativeIntelligenceScreen extends StatelessWidget {
                       ),
                     ),
                     child: Text(
-                      'Begin Phase Detection',
+                      'Start Phase Quiz',
                       style: buttonStyle(context).copyWith(
                         color: Colors.white,
                         fontWeight: FontWeight.w600,
@@ -339,25 +409,25 @@ class _NarrativeIntelligenceScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 16),
+                // Secondary button: Skip Phase Quiz
                 SizedBox(
                   width: double.infinity,
-                  child: ElevatedButton(
+                  child: OutlinedButton(
                     onPressed: () {
                       context.read<ArcOnboardingCubit>().skipToMainPage();
                     },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.white.withOpacity(0.1),
+                    style: OutlinedButton.styleFrom(
                       foregroundColor: Colors.white,
+                      side: BorderSide(
+                        color: Colors.white.withOpacity(0.3),
+                        width: 1,
+                      ),
                       padding: const EdgeInsets.symmetric(
                         horizontal: 32,
                         vertical: 16,
                       ),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
-                        side: BorderSide(
-                          color: Colors.white.withOpacity(0.3),
-                          width: 1,
-                        ),
                       ),
                     ),
                     child: Text(

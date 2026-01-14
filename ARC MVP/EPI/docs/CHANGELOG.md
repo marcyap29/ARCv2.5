@@ -17,6 +17,76 @@ This changelog has been split into parts for easier navigation:
 
 ---
 
+## [3.2.5] - January 14, 2026
+
+### 🛡️ SENTINEL Introduction Screen
+
+#### New Features
+- **New Onboarding Screen**: Added SENTINEL introduction as Screen 4 in the onboarding flow
+  - Heading: "One more thing."
+  - Body text explains LUMARA's wellbeing monitoring capabilities
+  - Positioned between Narrative Intelligence and Phase Quiz
+  - Two buttons: "Start Phase Quiz" (primary) and "Skip Phase Quiz" (secondary)
+- **Narrative Intelligence Update**: Changed from buttons to tap-to-continue pattern for consistency with other intro screens
+
+### 🎬 Phase Reveal Dramatic Animation
+
+#### New Features
+- **Cinematic Phase Reveal**: Implemented dramatic two-stage reveal animation
+  - Screen starts completely dark (all content at 0% opacity)
+  - Phase constellation emerges from darkness (3 seconds fade-in) while spinning
+  - After constellation is visible, all content fades in (2 seconds fade-in)
+  - Total reveal time: ~5.5 seconds
+- **Animation Details**:
+  - 500ms initial darkness pause
+  - Smooth easeInOut curves for both animations
+  - Phase shape continues spinning throughout (15-second rotation cycle)
+  - Content includes phase name, recognition statement, tracking question, and "Enter ARC" button
+
+### 📜 Prompt Documentation
+
+#### New Files
+- **prompts_phase_classification.dart**: New combined RIVET + SENTINEL phase classification prompt
+  - Comprehensive phase definitions for all six phases
+  - Breakthrough Dominance Rule (prevents false breakthrough detection)
+  - Integrated SENTINEL signals (critical language, isolation markers, relief markers, amplitude)
+  - JSON output format with validation rules
+  - 10 few-shot examples covering various scenarios
+  - Crisis response templates for different alert levels
+- **PROMPT_REFERENCES.md**: Complete catalog of all prompts used in ARC
+  - System prompts (LUMARA, ECHO, On-Device)
+  - Phase classification prompts
+  - SENTINEL crisis detection
+  - Conversation modes
+  - Therapeutic presence
+  - Decision clarity modes
+  - Expert mentor modes
+  - Task-specific prompts
+  - Onboarding prompts
+
+### 📝 Documentation Updates
+- **ONBOARDING_TEXT.md**: Updated with SENTINEL screen (Screen 4) and renumbered subsequent screens
+
+### 🏥 Apple Health Integration for Phase Detection
+
+#### New Feature Documentation
+- **Biometric Phase Analysis**: Documented architecture for Apple Health integration with phase detection
+  - Health data enhances (max 20% influence), never replaces text-based classification
+  - Validates or challenges journal content based on body signals
+  - Catches denial, burnout, and mind-body misalignment
+- **Data Points Tracked**:
+  - Tier 1 (High Signal): Sleep patterns, activity levels, HRV, exercise
+  - Tier 2 (Medium Signal): Mindfulness, body metrics
+- **Biometric Signatures**: Defined expected patterns for each phase
+  - Recovery: High sleep, low activity, recovering HRV
+  - Transition: Erratic patterns across all metrics
+  - Discovery/Expansion: Good sleep, high activity, stable HRV
+  - Consolidation: Highly consistent patterns
+- **Confidence Adjustments**: Rules for when to increase/decrease phase confidence based on biometric agreement/contradiction
+- **Privacy**: All health data processed locally on device, never leaves phone
+
+---
+
 ## [3.2.4] - January 13, 2026
 
 ### 🎨 Onboarding Color Theme Update
@@ -61,12 +131,26 @@ This changelog has been split into parts for easier navigation:
     - Progress feedback: "Importing file X of Y" for each file
     - Sequential processing with per-file error handling
     - Final summary shows success/failure counts and specific error details
+  - **ARCX Import**: Select and import multiple ARCX files simultaneously
+    - Progress feedback: "Importing file X of Y" for each file
+    - Sequential processing with per-file error handling
+    - Final summary shows success/failure counts, imported entries/chats/media, and specific error details
+    - Chronological sorting: Files automatically sorted by creation date (oldest first) before import
+  - **ZIP Import (Settings)**: Select and import multiple ZIP files from Settings → Import Data
+    - Progress feedback: "Importing file X of Y" for each file
+    - Sequential processing with per-file error handling
+    - Final summary shows success/failure counts and imported entries/media
+    - Chronological sorting: Files automatically sorted by creation date (oldest first) before import
   - **Chat Import**: Select and import multiple JSON files at once
     - Merges chat data from all selected files into one dataset
     - Tracks total sessions and messages imported across all files
     - Progress indicators: "Processing file X of Y" and "Importing file X of Y"
     - Detailed error reporting for failed files
-- **Benefits**: Significantly reduces time spent loading files one at a time
+- **Chronological Import Order**: All multi-select imports now sort files by creation/modification date (oldest first)
+  - Ensures data is imported in chronological order for better timeline consistency
+  - Uses file modification time as the sorting key (most reliable across platforms)
+  - Files that can't be stat'd are added to the end with current timestamp
+- **Benefits**: Significantly reduces time spent loading files one at a time while maintaining chronological data integrity
 
 ### 🎯 ARC Onboarding Sequence Enhancements
 

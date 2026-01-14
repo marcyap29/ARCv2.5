@@ -42,13 +42,28 @@
 > 
 > Your life has an arc. Let's follow it together.
 
-**Buttons:**
-- "Begin Phase Detection"
-- "Skip Phase Quiz"
+**Instruction:**
+> Tap to continue
 
 ---
 
-## Screen 4: Phase Detection Quiz (Questions)
+## Screen 4: SENTINEL Introduction
+
+**Main Heading:**
+> One more thing.
+
+**Body Text:**
+> I'm designed to notice patterns in your writing—including when things might be getting harder than usual.
+> 
+> If I detect sustained distress, sudden intensity, or language suggesting crisis, I'll check in directly. Not to judge, but because staying silent wouldn't be right.
+
+**Buttons:**
+- "Start Phase Quiz" (primary)
+- "Skip Phase Quiz" (secondary)
+
+---
+
+## Screen 5: Phase Detection Quiz (Questions)
 
 **Question 1:**
 > Let's start simple—where are you right now? One sentence.
@@ -67,14 +82,14 @@
 
 ---
 
-## Screen 5: Phase Analysis (Processing)
+## Screen 6: Phase Analysis (Processing)
 
 **Text:**
 > Let me see your pattern...
 
 ---
 
-## Screen 6: Phase Reveal
+## Screen 7: Phase Reveal
 
 **Main Heading:**
 > You're in [PHASE NAME].
@@ -105,9 +120,10 @@
 1. **LUMARA Introduction**: Personal introduction, explains narrative arc understanding
 2. **ARC Introduction**: Platform introduction, privacy emphasis, local learning
 3. **Narrative Intelligence**: Concept introduction, developmental trajectories
-4. **Phase Quiz**: 5 conversational questions about current state
-5. **Phase Analysis**: Processing message ("Let me see your pattern...")
-6. **Phase Reveal**: Phase name, recognition statement, constellation explanation, tracking question
+4. **SENTINEL Introduction**: Wellbeing monitoring explanation, crisis check-in notice
+5. **Phase Quiz**: 5 conversational questions about current state
+6. **Phase Analysis**: Processing message ("Let me see your pattern...")
+7. **Phase Reveal**: Phase name, recognition statement, constellation explanation, tracking question
 
 ---
 

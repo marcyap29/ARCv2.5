@@ -555,7 +555,7 @@ class ARCXImportServiceV2 {
               final contentHash = mediaItemData['sha256'] as String?;
               if (contentHash != null) {
                 if (options.dedupeMedia) {
-                  _mediaCache[contentHash] = mediaItem;
+                _mediaCache[contentHash] = mediaItem;
                 }
                 // Track media hash for export record
                 _importedMediaHashes.add(contentHash);
