@@ -1,7 +1,7 @@
 # EPI ARC MVP - Changelog
 
 **Version:** 3.2.4
-**Last Updated:** January 10, 2026
+**Last Updated:** January 13, 2026
 
 ---
 
@@ -14,6 +14,272 @@ This changelog has been split into parts for easier navigation:
 | **[CHANGELOG_part1.md](CHANGELOG_part1.md)** | Dec 2025 | v2.1.43 - v2.1.87 (Current) |
 | **[CHANGELOG_part2.md](CHANGELOG_part2.md)** | Nov 2025 | v2.1.28 - v2.1.42 |
 | **[CHANGELOG_part3.md](CHANGELOG_part3.md)** | Jan-Oct 2025 | v2.0.0 - v2.1.27 & Earlier |
+
+---
+
+## [3.2.4] - January 13, 2026
+
+### 🎨 Onboarding Color Theme Update
+
+#### Design Changes
+- **Color Scheme Alignment**: Updated onboarding screens to match app's primary purple/black theme
+  - Replaced all golden colors (`#D4AF37`) with purple theme colors
+  - Primary purple: `#4F46E5` (`kcPrimaryColor`)
+  - Purple gradient: `#4F46E5 → #7C3AED`
+  - Black backgrounds throughout
+  - Buttons, borders, progress indicators, and accents now use purple instead of golden
+- **Visual Consistency**: Onboarding now seamlessly matches the rest of the app's design system
+
+### 📝 Phase Quiz Redesign - Conversation Format
+
+#### New Features
+- **Single Conversation Entry**: Phase quiz now displays all 5 questions simultaneously in a conversation-style format
+  - LUMARA questions shown in purple (`#7C3AED`) with "LUMARA" label (like in-journal comments)
+  - User responses shown in normal white text with "You" label
+  - All questions visible at once for easier editing and review
+  - Character count indicators for each response (10+ characters required)
+  - Single "Continue" button submits all responses when all are valid
+- **Single Journal Entry Output**: Quiz conversation saved as a single journal entry instead of 5 separate entries
+  - Entry titled "Phase Detection Conversation"
+  - Uses `lumaraBlocks` to store conversation format:
+    - LUMARA questions in `InlineBlock.content` (displays in purple)
+    - User responses in `InlineBlock.userComment` (displays in normal text)
+  - Displays as a back-and-forth conversation in the journal timeline
+  - Maintains same phase detection logic (extracts responses from conversation)
+
+#### Benefits
+- **Better UX**: Users can see and edit all responses at once
+- **Cleaner Journal**: Single conversation entry instead of 5 separate entries
+- **Visual Consistency**: Matches in-journal LUMARA comment styling
+- **Easier Review**: All questions and responses visible together
+
+### 🚀 Multi-Select File Loading
+
+#### New Features
+- **Multi-Select File Import**: Enabled multi-select file loading for faster batch imports
+  - **MCP Import**: Select and import multiple ZIP files simultaneously
+    - Progress feedback: "Importing file X of Y" for each file
+    - Sequential processing with per-file error handling
+    - Final summary shows success/failure counts and specific error details
+  - **Chat Import**: Select and import multiple JSON files at once
+    - Merges chat data from all selected files into one dataset
+    - Tracks total sessions and messages imported across all files
+    - Progress indicators: "Processing file X of Y" and "Importing file X of Y"
+    - Detailed error reporting for failed files
+- **Benefits**: Significantly reduces time spent loading files one at a time
+
+### 🎯 ARC Onboarding Sequence Enhancements
+
+#### New Features
+- **Skip Phase Quiz Button**: Added "Skip Phase Quiz" button on Narrative Intelligence screen for users with saved content
+  - Same shape as "Begin Phase Detection" button but with different styling (semi-transparent white with border)
+  - Allows users to bypass the quiz and go directly to main interface
+- **Close Button on Quiz Screens**: Added "X" close button in upper left corner of all quiz-related screens
+  - Available on Phase Quiz, Phase Analysis, and Phase Reveal screens
+  - Allows users to exit quiz at any time and return to main interface
+  - Always visible (no conditional logic)
+
+#### Bug Fixes
+- **Phase Reveal Screen Crash**: Fixed `NoSuchMethodError` when accessing `PhaseLabel.name`
+  - Updated `_getPhaseName` method to use `toString().split('.').last` instead of `.name` property
+  - Added missing import for `PhaseLabel` from `phase_models.dart`
+  - More compatible across different Dart versions
+
+### 🎯 ARC Onboarding Sequence Refinements (Earlier)
+
+#### UI Improvements
+- **Removed Logo Reveal Screen**: Onboarding now starts directly with LUMARA Introduction, skipping the redundant logo reveal screen
+- **LUMARA Symbol Image**: Replaced custom-painted symbol with actual LUMARA symbol image asset (`LUMARA_Symbol-Final.png`)
+- **Standardized Sizes**: All LUMARA symbols now consistently 120px across all onboarding screens
+- **Narrative Intelligence Screen Fix**: Made screen scrollable and removed large visualization that was blocking the "Begin Phase Detection" button
+- **Better Accessibility**: Full-width button on Narrative Intelligence screen ensures it's always accessible
+- **Layered Transparency Transitions**: Implemented smoother, non-harsh fade transitions between intro screens
+  - Increased transition duration from 1200ms to 1600ms
+  - Custom cubic easing curves (`Cubic(0.25, 0.1, 0.25, 1.0)`) for gentler fades
+  - Transitions feel more natural and less abrupt
+- **Full LUMARA Symbol in Quiz**: Quiz screen now uses full LUMARA symbol image scaled down to 32x32px instead of separate icon widget
+  - Maintains visual consistency with larger symbol used elsewhere
+  - Better image quality and consistency across all onboarding screens
+
+#### Technical Changes
+- Updated `LumaraPulsingSymbol` widget to use image asset instead of custom painter
+- Removed `_LogoRevealScreen` from onboarding sequence
+- Updated state initialization to start with `lumaraIntro` instead of `logoReveal`
+- Added `SingleChildScrollView` to Narrative Intelligence screen for better content accessibility
+- Standardized all LUMARA symbol sizes to 120px (was previously 80px, 100px, 120px, 150px)
+- Implemented `AnimatedSwitcher` with custom `_LayeredFadeTransition` for intro screens
+- Replaced `LumaraIcon` widget with full `LUMARA_Symbol-Final.png` image in quiz screen
+- Added `_LayeredScreenContent` widget for consistent screen structure
+
+#### Files Modified
+- `lib/shared/ui/onboarding/arc_onboarding_sequence.dart`: 
+  - Removed logo reveal screen, fixed Narrative Intelligence layout
+  - Added `AnimatedSwitcher` with layered fade transitions
+  - Refactored screens to use `_LayeredScreenContent` widget
+  - Added "Skip Phase Quiz" button on Narrative Intelligence screen
+- `lib/shared/ui/onboarding/arc_onboarding_cubit.dart`: 
+  - Updated to start with LUMARA intro
+  - Added `skipToMainPage()` method for bypassing quiz flow
+- `lib/shared/ui/onboarding/arc_onboarding_state.dart`: Updated default screen to `lumaraIntro`
+- `lib/shared/ui/onboarding/widgets/lumara_pulsing_symbol.dart`: Replaced custom painter with image asset
+- `lib/shared/ui/onboarding/widgets/phase_analysis_screen.dart`: 
+  - Standardized size to 120px
+  - Added close button (X) in upper left corner
+- `lib/shared/ui/onboarding/widgets/phase_reveal_screen.dart`: 
+  - Standardized size to 120px
+  - Added close button (X) in upper left corner
+  - Fixed `_getPhaseName` method to use `toString().split('.').last` instead of `.name` property
+  - Added missing import for `PhaseLabel` from `phase_models.dart`
+- `lib/shared/ui/onboarding/widgets/phase_quiz_screen.dart`: 
+  - Replaced `LumaraIcon` with full LUMARA symbol image scaled down
+  - Added close button (X) in upper left corner (replaced conditional skip button)
+  - Removed unused `_hasExistingPhase` field and related logic
+  - Cleaned up unused imports
+
+---
+
+## [3.2.4] - January 12, 2026
+
+### 🎯 ARC Onboarding Sequence Implementation
+
+#### New Conversational Phase Detection Flow
+- **Complete Onboarding System**: Implemented warm, inspiring 12-screen onboarding flow that introduces new users to LUMARA, ARC, and Narrative Intelligence
+- **First-Time User Detection**: Splash screen checks `userEntryCount == 0` and automatically routes to onboarding for new users
+- **Conversational Quiz**: 5-question phase detection quiz that feels like meeting a perceptive companion, not completing a survey
+- **Intelligent Phase Detection**: Sophisticated algorithm analyzes responses for temporal markers, emotional valence, trajectory, and stakes to detect user's current phase
+
+#### Screen Sequence
+1. **LUMARA Introduction**: Pulsing golden LUMARA symbol (120px) with introduction text
+2. **ARC Introduction**: Platform introduction with LUMARA symbol at 30% opacity (120px)
+3. **Narrative Intelligence**: Concept explanation with scrollable content and accessible button
+4. **Phase Detection Quiz**: 5 conversational questions with progress indicators
+5. **Phase Analysis**: Processing screen with pulsing LUMARA symbol (120px)
+6. **Phase Reveal**: Empty phase constellation with LUMARA symbol at 20% opacity (120px)
+7. **Main Interface**: Direct entry into full app experience
+
+**Note**: Original splash screen with ARC logo and rotating phase remains as app entry point. Onboarding sequence starts directly with LUMARA Introduction for first-time users.
+
+#### Phase Detection Algorithm
+- **Pattern Matching**: Analyzes responses across 5 questions for phase-specific markers
+- **Confidence Levels**: High (3+ markers), Medium (2 markers), Low (mixed signals)
+- **Detection Rules**: 
+  - Recovery requires explicit past difficulty references
+  - Breakthrough requires resolution language, not just insight
+  - Transition requires movement/between language
+  - Discovery for new territory and questioning
+  - Expansion for building on established foundation
+  - Consolidation for integration and habit-building
+- **Personalized Output**: Generates recognition statements and tracking questions specific to user's responses
+
+#### Technical Implementation
+- **State Management**: `ArcOnboardingCubit` manages onboarding flow state
+- **Widget Architecture**: Modular widgets for each screen (LumaraPulsingSymbol, PhaseQuizScreen, PhaseAnalysisScreen, PhaseRevealScreen)
+- **Data Persistence**: Quiz responses saved as journal entries with `onboarding` tag
+- **Phase Assignment**: Automatically sets user phase via `UserPhaseService.forceUpdatePhase()`
+- **Navigation**: Smooth transitions with fade effects (800ms-1200ms durations)
+- **Golden Theme**: Consistent golden color scheme (#D4AF37) throughout
+
+#### Files Created
+- `lib/shared/ui/onboarding/arc_onboarding_sequence.dart`: Main onboarding flow
+- `lib/shared/ui/onboarding/arc_onboarding_cubit.dart`: State management
+- `lib/shared/ui/onboarding/arc_onboarding_state.dart`: State definitions
+- `lib/shared/ui/onboarding/onboarding_phase_detector.dart`: Phase detection algorithm
+- `lib/shared/ui/onboarding/widgets/lumara_pulsing_symbol.dart`: Pulsing golden symbol widget
+- `lib/shared/ui/onboarding/widgets/phase_quiz_screen.dart`: Quiz interface
+- `lib/shared/ui/onboarding/widgets/phase_analysis_screen.dart`: Processing screen
+- `lib/shared/ui/onboarding/widgets/phase_reveal_screen.dart`: Phase reveal screen
+
+#### Files Modified
+- `lib/arc/chat/ui/lumara_splash_screen.dart`: Added first-time user detection and onboarding routing
+
+---
+
+## [3.2.4] - January 12, 2026
+
+### 🎯 LUMARA Action Buttons Streamlining
+
+#### Simplified Main Menu
+- **Streamlined Action Buttons**: Main submenu now shows only three core options: **Regenerate | Analyze | Deep Analysis**
+- **Removed Options**: "Continue thought", "Offer a different perspective", and "Suggest next steps" removed from main menu
+- **Consistent Across Interfaces**: Same button layout in both in-journal and in-chat interfaces
+- **Improved UX**: Cleaner, more focused interface with essential actions readily available
+
+#### Technical Implementation
+- Updated `inline_reflection_block.dart`: Changed from "Regenerate | Analyze | Explore options" to "Regenerate | Analyze | Deep Analysis"
+- Updated `lumara_assistant_screen.dart`: Removed "Reflect more deeply" and "More options" submenu from main menu
+- Updated `session_view.dart`: Changed action buttons to match new layout
+- Added `onDeepAnalysis` callback to `InlineReflectionBlock` widget
+- Added `_onDeepAnalysis` method in `journal_screen.dart` for Deep Analysis functionality
+
+### 📁 Files Modified
+- `lib/ui/journal/widgets/inline_reflection_block.dart`: Updated action buttons, added `onDeepAnalysis` callback
+- `lib/ui/journal/journal_screen.dart`: Added `_onDeepAnalysis` method
+- `lib/arc/chat/ui/lumara_assistant_screen.dart`: Removed "More options" submenu, streamlined main menu
+- `lib/arc/chat/chat/ui/session_view.dart`: Updated action buttons, added `_handleDeepAnalysis` handler
+
+---
+
+## [3.2.4] - January 11, 2026
+
+### 🎯 LUMARA Conversation Mode Updates
+
+#### UI Changes
+- **Renamed "Suggest ideas" to "Analyze"**: Updated label across in-journal and in-chat interfaces for clarity
+- **Renamed "Analyze, Interpret, Suggest Actions" to "Deep Analysis"**: More concise and descriptive label
+- **Removed "Reflect more deeply" from in-journal settings**: Streamlined in-journal action buttons
+- **Moved "Deep Analysis" to main menu**: Now accessible directly from message context menu alongside "Reflect more deeply"
+
+#### Extended Response Lengths
+- **"Analyze" mode**: Extended to 600 words base (18 sentences) - longer than INTEGRATE mode for comprehensive analysis
+- **"Deep Analysis" mode**: Extended to 750 words base (22 sentences) - longest response mode for thorough investigation
+- **Conversation mode overrides**: These extended lengths take precedence over engagement mode base lengths when active
+- **Persona modifiers still apply**: Density modifiers (Companion 1.0x, Strategist 1.15x, etc.) are applied to extended lengths
+
+#### Technical Implementation
+- Updated `_getResponseParameters` in `enhanced_lumara_api.dart` to check for conversation mode overrides before using engagement mode
+- Fixed "Analyze" button to use `ConversationMode.ideas` instead of `ConversationMode.continueThought` in in-journal settings
+- Applied changes to both in-journal (`inline_reflection_block.dart`) and in-chat (`lumara_assistant_screen.dart`, `session_view.dart`) interfaces
+
+### 📁 Files Modified
+- `lib/ui/journal/widgets/inline_reflection_block.dart`: Removed "Reflect more deeply", renamed "Suggest ideas" to "Analyze"
+- `lib/ui/journal/widgets/lumara_suggestion_sheet.dart`: Renamed "Analyze, Interpret, Suggest Actions" to "Deep Analysis"
+- `lib/ui/journal/widgets/enhanced_lumara_suggestion_sheet.dart`: Renamed to "Deep Analysis"
+- `lib/ui/journal/journal_screen.dart`: Fixed "Analyze" to use `ConversationMode.ideas`
+- `lib/arc/chat/ui/lumara_assistant_screen.dart`: Updated labels, moved "Deep Analysis" to main menu
+- `lib/arc/chat/chat/ui/session_view.dart`: Updated "Suggest ideas" to "Analyze"
+- `lib/arc/chat/services/enhanced_lumara_api.dart`: Added conversation mode response length overrides
+
+---
+
+## [3.2.4] - January 11, 2026
+
+### 📦 Backup System Enhancements
+
+#### First Backup on Import
+- **Automatic Export Record Creation**: When importing a backup into a completely empty app (no entries, no chats), the system now automatically creates an export record marking that imported data as the first save
+  - Detects empty app state before import begins
+  - Tracks all imported entry IDs, chat IDs, and media hashes during import
+  - Creates `ExportRecord` after successful import if app was empty
+  - Marks imported backup as full backup (`isFullBackup: true`)
+  - Assigns sequential export number (1 if first export, otherwise next number)
+  - Works for both ARCX (`.arcx`) and ZIP (`.zip`) import formats
+- **Benefits**:
+  - Users can see their imported backup in backup history
+  - Future incremental backups correctly identify new data vs. imported data
+  - Export history properly tracks what was imported vs. what was created locally
+  - Ensures proper incremental backup behavior from the start
+
+#### UI Simplification
+- **Removed Advanced Export**: The "Advanced Export" option has been removed from Settings → Import & Export
+  - Regular local export now handles all export functionality
+  - Simplified UI with just "Local Backup" and "Import Data" options
+  - All export features (date filtering, media selection, etc.) available through Local Backup
+
+### 📁 Files Modified
+- `lib/mira/store/arcx/services/arcx_import_service_v2.dart`: Added empty app detection, import tracking, and export record creation
+- `lib/mira/store/mcp/import/mcp_pack_import_service.dart`: Added same first backup on import logic for ZIP imports
+- `lib/shared/ui/settings/settings_view.dart`: Removed Advanced Export tile
+- `lib/shared/ui/settings/simplified_settings_view.dart`: Removed Advanced Export tile
 
 ---
 

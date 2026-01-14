@@ -234,15 +234,12 @@ Media Capture → Keyword Analysis → Save to Timeline
 #### Suggestion Sheet
 **File:** `lib/ui/journal/widgets/lumara_suggestion_sheet.dart`
 
-**Quick Action Buttons (Outside Explore Options):**
-- **"Suggest ideas"** 💡 - Creative brainstorming (quick access)
+**Main Action Buttons (Below LUMARA Comments/Bubbles):**
+- **"Regenerate"** 🔄 - Regenerate the response with a different approach
+- **"Analyze"** 💡 - Extended analysis with practical suggestions (600 words, 18 sentences)
+- **"Deep Analysis"** 🧠 - Comprehensive deep analysis with structured scaffolding (750 words, 22 sentences)
 
-**Explore Options (5 Reflection Intents):**
-1. **"Continue thought"** ▶️ - Continue LUMARA's reflection
-2. **"Analyze, Interpret, Suggest Actions"** 🧠 - Analytical processing
-3. **"Offer a different perspective"** 👁️ - Alternative viewpoints
-4. **"Suggest next steps"** ➡️ - Action planning
-5. **"Analyze further"** 🔍 - Deeper introspection
+**Note:** The action buttons are now streamlined to three core options. "Continue thought", "Offer a different perspective", and "Suggest next steps" have been removed from the main menu for a cleaner, more focused interface.
 
 **Features:**
 - **Bottom Sheet Modal:** Dismissible with drag handle
@@ -697,60 +694,248 @@ Long Press → Edit Mode | Scroll Up → Load History
 
 ## 9. User Onboarding
 
-### 🌟 Onboarding Experience
-**File:** `lib/shared/ui/onboarding/onboarding_view.dart`
+### 🌟 ARC Onboarding Sequence
+**File:** `lib/shared/ui/onboarding/arc_onboarding_sequence.dart`
 
-#### 4-Stage Onboarding Flow
+#### Entry Logic
+- **First-Time User Detection**: Checks `userEntryCount == 0` at app startup
+- **Automatic Routing**: First-time users automatically shown onboarding sequence
+- **Returning Users**: Skip onboarding and go directly to main interface
+- **Entry Point**: Splash screen (`lumara_splash_screen.dart`) checks entry count and routes accordingly
 
-1. **Welcome Screen**
-   - App introduction with mission statement
-   - Ethereal music fade-in (2s duration)
-   - Beautiful visual introduction to EPI concept
+#### 11-Screen Onboarding Flow
 
-2. **Central Word Input**
-   - Single text field for life journey central concept
-   - Focused, meditative interface design
-   - Guidance text explaining the purpose
+**Note**: The original splash screen with ARC logo and rotating phase shape remains as the app's entry point. Onboarding sequence starts directly with LUMARA Introduction for first-time users.
 
-3. **Phase Grid Selection**
-   - Visual grid of 6 Atlas phases
-   - Interactive selection with visual feedback
-   - Phase descriptions and characteristics
+**Screen 1: LUMARA Introduction**
+- **Visual**: Breathing/pulsing LUMARA symbol (golden, glittery texture)
+  - Uses actual LUMARA symbol image asset (`LUMARA_Symbol-Final.png`)
+  - Pulse via opacity layers (0.7 → 1.0 → 0.7, 3s cycle)
+  - Golden texture remains visible throughout pulse
+  - Standardized size: 120px
+- **Text**: 
+  ```
+  Hi, I'm LUMARA, your personal intelligence.
+  
+  I'm here to understand your narrative arc. As you journal and reflect, 
+  I learn the patterns in your journey—not just what happened, but what 
+  it means for where you're going.
+  
+  I'll help you see the story you're living.
+  ```
+- **Interaction**: Tap/swipe to continue
+- **Transition**: Layered fade transition (1600ms) with custom eased curves for smooth, non-harsh transitions
 
-4. **Phase Celebration View**
-   - Congratulatory screen with selected phase
-   - Phase emoji and description display
-   - Completion celebration with music fade-out
+**Screen 2: ARC Introduction**
+- **Visual**: Keep LUMARA symbol, reduce opacity to 30%, bring text forward
+- **LUMARA Symbol**: Standardized size 120px (with 30% opacity)
+- **Text**:
+  ```
+  Welcome to ARC.
+  
+  This is where you journal, reflect, and talk with me. Write what matters. 
+  Your words stay on your device—private by design, powerful by architecture.
+  
+  ARC learns your patterns locally, then helps me give you insights that 
+  understand your whole story.
+  ```
+- **Interaction**: Tap/swipe to continue
+- **Transition**: Layered fade transition (1600ms) with custom eased curves for smooth, non-harsh transitions
+
+**Screen 3: Narrative Intelligence Concept**
+- **Visual**: Text-focused interface (removed large visualization for better accessibility)
+- **Layout**: Scrollable content with full-width buttons always accessible
+- **Text**:
+  ```
+  ARC and LUMARA are built on something new: Narrative Intelligence.
+  
+  Not just memory. Not just AI assistance.
+  
+  Intelligence that tracks *who you're becoming*, not just what you've done. 
+  That understands developmental trajectories, not disconnected moments.
+  
+  Your life has an arc. Let's follow it together.
+  ```
+- **Interaction**: 
+  - "Begin Phase Detection" button (primary, golden background)
+  - "Skip Phase Quiz" button (secondary, semi-transparent white with border)
+    - Same shape as primary button but different styling
+    - Allows users with saved content to bypass quiz and go directly to main interface
+- **Transition**: Layered fade transition (1600ms) with custom eased curves for smooth, non-harsh transitions
+
+**Screens 4-8: Phase Detection Quiz**
+- **Visual**: Clean, focused interface
+  - **Close Button (X)**: Upper left corner, always visible
+    - White close icon (24px size)
+    - Allows users to exit quiz at any time and return to main interface
+  - LUMARA symbol small in top right corner (static, 20% opacity)
+    - Uses full LUMARA symbol image (`LUMARA_Symbol-Final.png`) scaled down to 32x32px
+    - Consistent with larger symbol used elsewhere in onboarding
+  - Large text area for question
+  - Simple text input field
+  - Progress indicator (5 dots, current one highlighted)
+- **Interaction Pattern**:
+  - Question appears with gentle fade-in
+  - User types response
+  - "Continue" button activates after 10+ characters
+  - After submit: brief acknowledgment ("I see." / "Got it." / "Understood."), then next question fades in
+  - **Exit Option**: Close button (X) in upper left allows exiting quiz at any time
+- **Questions** (conversational, not clinical):
+  1. "Let's start simple—where are you right now? One sentence."
+  2. "What's been occupying your thoughts lately?"
+  3. "When did this start mattering to you?"
+  4. "Is this feeling getting stronger, quieter, or shifting into something else?"
+  5. "What changes if this resolves? Or if it doesn't?"
+
+**Screen 9: Phase Analysis (Processing)**
+- **Visual**: LUMARA symbol returns to center, pulsing more intentionally
+- **LUMARA Symbol**: Standardized size 120px
+- **Close Button (X)**: Upper left corner, always visible
+  - Allows users to exit and return to main interface
+- **Text**: "Let me see your pattern..." (3-5 second pause)
+- **Backend**: Calls phase detection algorithm to analyze responses
+
+**Screen 10: Phase Reveal**
+- **Visual**: 
+  - **Close Button (X)**: Upper left corner, always visible
+    - Allows users to exit and return to main interface
+  - LUMARA symbol fades to background (20% opacity, standardized size 120px)
+  - User's phase constellation appears center—**empty** except for phase name
+  - Gentle rotation, golden wireframe structure visible
+- **Text**:
+  ```
+  You're in [PHASE NAME].
+  
+  [RECOGNITION STATEMENT - specific to their answers, 1-2 sentences 
+  proving you understood them]
+  
+  Your phase constellation will fill with words and patterns as you journal. 
+  This is how ARC visualizes your narrative structure over time.
+  ```
+- **Subtext** (smaller, bottom):
+  ```
+  The question you're living: [TRACKING QUESTION]
+  ```
+- **Interaction**: 
+  - "Enter ARC" button (primary action)
+  - Close button (X) in upper left (exit option)
+- **Transition**: Fade through constellation into main interface (1200ms)
+
+**Screen 11: Main Interface Debut**
+- **Visual**: Full main screen
+  - Timeline with single entry point (today)
+  - Four primary tabs visible
+  - User's phase constellation visible in designated UI location
+- **No additional tutorial**: User is in the environment, ready to journal
+
+#### Phase Detection Algorithm
+
+**Detection Rules**:
+- **Recovery**: Requires explicit past difficulty reference
+- **Breakthrough**: Requires resolution language, not just insight
+- **Transition**: Requires movement/between language
+- **Discovery**: New territory, questioning, "figuring out"
+- **Expansion**: Building on established foundation
+- **Consolidation**: Integration, habit-building, reinforcement language
+
+**Confidence Factors**:
+- **High**: 3+ clear markers, consistent temporal signal, decisive language
+- **Medium**: 2 markers, some ambiguity between adjacent phases
+- **Low**: Mixed signals, unusual pattern, insufficient information
+
+**Default**: If truly no directional signal → Discovery (but should be rare)
+
+**Analysis Process**:
+- Q1: Temporal markers, emotional valence, direction words
+- Q2: Question vs problem, new vs ongoing, energy level
+- Q3: Sudden vs gradual, recent vs longstanding, triggered vs emergent
+- Q4: Trajectory, momentum, stability vs change
+- Q5: What they're protecting or pursuing, stakes level
 
 #### Onboarding Components
 
-**Central Word Input Widget:**
-- **Focused Experience:** Single text field dominates screen
-- **Guidance Context:** Clear instructions for meaningful input
-- **Validation:** Ensures substantive input before proceeding
+**LumaraPulsingSymbol Widget:**
+- **File:** `lib/shared/ui/onboarding/widgets/lumara_pulsing_symbol.dart`
+- **Image Asset**: Uses `LUMARA_Symbol-Final.png` from `assets/images/`
+- **Pulse Animation**: 0.7 → 1.0 → 0.7 opacity cycle (3 seconds)
+- **Standardized Size**: 120px consistently across all screens
+- **Golden Texture**: Maintains glittery golden appearance throughout pulse
+- **Fallback**: Falls back to psychology icon if image not found
 
-**Atlas Phase Grid:**
-- **File:** `lib/shared/ui/onboarding/widgets/atlas_phase_grid.dart`
-- **6-Phase Selector:** Discovery, Expansion, Transition, Consolidation, Recovery, Reflection
-- **Visual Design:** Grid layout with icons and descriptions
-- **Selection Feedback:** Clear indication of chosen phase
+**PhaseQuizScreen Widget:**
+- **File:** `lib/shared/ui/onboarding/widgets/phase_quiz_screen.dart`
+- **Conversation-Style Interface (v3.2.4)**: All 5 questions displayed simultaneously in a single conversation format
+  - LUMARA questions displayed in purple (`#7C3AED`) with "LUMARA" label (like in-journal comments)
+  - User responses displayed in normal white text with "You" label
+  - Conversation-style layout similar to journal entries with LUMARA comments
+  - All questions visible at once for easier editing and review
+- **Input Validation**: Requires 10+ characters for each response before submission
+- **Character Count Indicators**: Shows character count and validation status for each response
+- **Single Submit**: One "Continue" button that submits all responses when all are valid
 
-**Phase Celebration View:**
-- **File:** `lib/shared/ui/onboarding/phase_celebration_view.dart`
-- **Celebration Animation:** Congratulatory interface with phase details
-- **Music Integration:** 2s audio fade-out for closure
-- **Transition Preparation:** Setup for main app experience
+**PhaseAnalysisScreen Widget:**
+- **File:** `lib/shared/ui/onboarding/widgets/phase_analysis_screen.dart`
+- **Processing Display**: Pulsing LUMARA symbol with "Let me see your pattern..." text
+- **Duration**: 3-5 second analysis period
 
-#### Audio Integration
-- **Ethereal Music System:** Background audio for meditative experience
-- **Fade Timing:** 2s fade-in at welcome, 2s fade-out before celebration
-- **Volume Control:** Respects system volume and audio preferences
+**PhaseRevealScreen Widget:**
+- **File:** `lib/shared/ui/onboarding/widgets/phase_reveal_screen.dart`
+- **Constellation Visualization**: Empty phase constellation with wireframe structure
+- **Recognition Statement**: Personalized 1-2 sentence proof of understanding
+- **Tracking Question**: Extracted from user's Q5 response or phase-specific default
+- **Close Button**: X button in upper left corner for exiting quiz flow
+- **Phase Name Display**: Fixed to use `toString().split('.').last` for Dart compatibility
 
-### 🎯 Optional Clarification
-**Phase Quiz Prompt View:**
-- Additional questions for phase clarification if needed
-- Branching logic based on user responses
-- Refinement of phase selection through guided questions
+**OnboardingPhaseDetector Service:**
+- **File:** `lib/shared/ui/onboarding/onboarding_phase_detector.dart`
+- **Pattern Matching**: Analyzes responses for phase-specific markers
+- **Confidence Calculation**: Determines high/medium/low confidence levels
+- **Statement Generation**: Creates personalized recognition statements and tracking questions
+
+#### Data Persistence
+
+**Quiz Responses as Single Journal Entry (v3.2.4)**:
+- All quiz responses saved as a **single journal entry** titled "Phase Detection Conversation"
+- Entry uses `lumaraBlocks` to store the conversation format:
+  - Each LUMARA question stored in `InlineBlock.content` (displays in purple)
+  - Each user response stored in `InlineBlock.userComment` (displays in normal text)
+- Entry displays as a back-and-forth conversation in the journal:
+  - LUMARA questions appear in purple (like in-journal comments)
+  - User responses appear in normal text color
+  - All in one cohesive conversation entry
+- Metadata flagged with `onboarding` and `phase_detection` tags
+- Stored in journal repository for temporal graph integration
+- Phase assignment automatically set based on detection results
+
+**Phase Assignment**:
+- User phase automatically set via `UserPhaseService.forceUpdatePhase()`
+- Phase mutable—SENTINEL/ATLAS can override if data contradicts
+- Phase becomes part of user's narrative structure from first entry
+
+#### Tone Guidelines
+- **Warm but not syrupy**: Perceptive friend, not therapist
+- **Efficient**: No corporate onboarding bloat
+- **Specific**: When revealing phase, prove you understood with concrete observation
+- **Mysterious without being cryptic**: Hint at depth without explaining everything
+
+#### Technical Notes
+- **Layered Transparency Transitions**: 
+  - Custom `AnimatedSwitcher` with 1600ms duration for intro screens (LUMARA Intro → ARC Intro → Narrative Intelligence)
+  - Custom cubic easing curves (`Cubic(0.25, 0.1, 0.25, 1.0)`) for smooth, non-harsh fades
+  - Transitions feel more natural with longer duration and gentle easing
+- **LUMARA Symbol Consistency**: 
+  - Full LUMARA symbol image (`LUMARA_Symbol-Final.png`) used throughout onboarding
+  - Quiz screen uses full image scaled down to 32x32px (instead of separate icon widget)
+  - Maintains visual consistency across all screens
+- **Color Theme (v3.2.4)**: 
+  - Onboarding now uses app's primary purple/black color scheme instead of golden
+  - Primary purple: `#4F46E5` (`kcPrimaryColor`)
+  - Purple gradient: `#4F46E5 → #7C3AED`
+  - Black backgrounds: `Colors.black`
+  - Matches the rest of the app's design system
+- All animations: smooth easing curves, no jarring transitions
+- Quiz responses become part of user's temporal graph
+- Phase assignment is mutable—SENTINEL/ATLAS can override if data contradicts
 
 ---
 
@@ -871,6 +1056,11 @@ Long Press → Edit Mode | Scroll Up → Load History
 
 #### Import Features
 - **File Selection:** Browse and select MCP bundles
+- **Multi-Select Support (v3.2.4):** Select and import multiple ZIP files simultaneously
+  - Batch processing of multiple MCP bundles
+  - Progress feedback showing "Importing file X of Y"
+  - Sequential processing with error handling per file
+  - Final summary showing success/failure counts
 - **Preview Mode:** Inspect bundle contents before import
 - **Conflict Resolution:** Handle data conflicts intelligently
 - **Progress Monitoring:** Real-time import progress display
@@ -2096,29 +2286,20 @@ UnifiedVoicePanel(
 **File:** `lib/shared/ui/settings/settings_view.dart`
 
 #### Settings → Import & Export Section
-**Reorganized Structure:**
-1. **Local Backup**: Regular automated backups with incremental tracking
+**Simplified Structure (v3.2.4):**
+1. **Local Backup**: Regular automated backups with incremental tracking and scheduling
+   - All export features (date filtering, media selection, etc.) available here
+   - Quick Backup (incremental) and Full Backup options
+   - Backup history and statistics
 2. **Import Data**: Direct access to restore from backup files (.zip, .mcpkg, .arcx)
-3. **Advanced Export**: Custom exports with date filtering, multi-select, and sharing
+   - First Backup on Import: When importing into an empty app, automatically creates export record
+   - Ensures proper tracking for future incremental backups
 
 **Benefits:**
-- **Clearer Purpose**: Separated regular backups from advanced exports
-- **Direct Access**: Import now directly accessible from Settings (no navigation needed)
-- **Better Organization**: Three distinct options with clear descriptions
-
-#### Advanced Export Screen
-**File:** `lib/ui/screens/mcp_management_screen.dart`
-
-**Updated Purpose:**
-- **Custom Exports**: Date range filtering, multi-select, password encryption
-- **Export Strategy Options**: Different packaging methods
-- **Sharing Integration**: Direct share functionality
-- **Removed Import**: Import moved to main Settings menu
-
-**Visual Design:**
-- Updated description explaining advanced export purpose
-- Clear distinction from regular backups
-- Reference to Local Backup for regular backups
+- **Simplified UI**: Removed redundant "Advanced Export" option
+- **Unified Export**: All export functionality in Local Backup
+- **Direct Access**: Import directly accessible from Settings
+- **Better Organization**: Two clear options with comprehensive functionality
 
 ---
 
