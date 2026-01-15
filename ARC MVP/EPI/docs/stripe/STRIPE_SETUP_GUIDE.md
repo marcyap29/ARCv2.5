@@ -17,9 +17,12 @@ This guide will help you set up Stripe integration with your Firebase Cloud Func
 3. Create "ARC Premium" product with these prices:
    - **Monthly**: $30.00/month recurring
    - **Annual**: $200.00/year recurring
-4. After creation, copy both **Price IDs**:
+4. Create "ARC Founders Commit" product:
+   - **One-time**: $1,500.00 upfront (non-recurring)
+5. After creation, copy all **Price IDs**:
    - Monthly: `price_...`
    - Annual: `price_...`
+   - Founders Upfront: `price_...`
 
 ### Set Up Webhook
 1. Go to **Developers → Webhooks**
@@ -68,6 +71,9 @@ firebase functions:secrets:set STRIPE_PRICE_ID_MONTHLY
 
 firebase functions:secrets:set STRIPE_PRICE_ID_ANNUAL
 # When prompted, enter: price_YOUR_ANNUAL_PRICE_ID
+
+firebase functions:secrets:set STRIPE_FOUNDER_PRICE_ID_UPFRONT
+# When prompted, enter: price_YOUR_FOUNDERS_UPFRONT_PRICE_ID
 ```
 
 ### For Production (When Ready)
@@ -81,7 +87,7 @@ firebase functions:secrets:set STRIPE_SECRET_KEY
 firebase functions:secrets:set STRIPE_WEBHOOK_SECRET
 # Enter: whsec_YOUR_LIVE_WEBHOOK_SECRET
 
-# Price IDs are usually the same between test/live if created in live mode
+# Price IDs are different between test and live mode - create in both modes
 ```
 
 ## 3. Deploy Functions
@@ -100,7 +106,7 @@ firebase deploy --only functions
 
 ### Test Flow
 1. Open your app
-2. Try to subscribe (monthly or annual)
+2. Try to subscribe (monthly, annual, and founders upfront)
 3. You should be redirected to Stripe Checkout
 4. Use test card: `4242 4242 4242 4242` (any future expiry, any CVC)
 5. Complete payment

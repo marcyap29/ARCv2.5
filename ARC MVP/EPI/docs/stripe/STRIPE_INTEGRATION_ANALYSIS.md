@@ -1,6 +1,6 @@
 # Stripe Integration Analysis - EPI Flutter App
 
-**Last Updated:** January 9, 2026
+**Last Updated:** January 15, 2026
 **Version:** v2.1.89
 
 ## Overview
@@ -31,16 +31,15 @@ lib/
 └── shared/ui/settings/
     └── settings_view.dart                 # Settings entry point
 
-functions/lib/functions/
-├── createCheckoutSession.js               # Stripe checkout creation
-├── getUserSubscription.js                 # Subscription status retrieval
-└── stripeWebhook.js                      # Webhook handler
+functions/
+└── index.js                               # Stripe checkout, webhook, and subscription handlers
 ```
 
 ### Subscription System
-**Two-Tier Structure:**
-- **Free Tier**: 50 LUMARA requests/day, 3/minute rate limit, limited phase history
-- **Premium Tier**: Unlimited access, no rate limits, full phase history, $30/month
+**Three-Tier Structure (plus Founders commitment):**
+- **Free Tier**: 20 LUMARA requests/day, 3/minute rate limit, limited phase history
+- **Premium Tier**: Unlimited access, no rate limits, full phase history, $30/month or $200/year
+- **Founders Commit**: $1,500 upfront for 3 years (one-time payment), premium access plus founder benefits
 
 ### Payment Flow Architecture
 ```
@@ -80,42 +79,23 @@ User Clicks Upgrade → SubscriptionService.createStripeCheckoutSession()
 ```javascript
 users/{userId}: {
   subscriptionTier: "free" | "premium",
-  subscriptionStatus: "active" | "canceled" | "trial",
+  subscriptionStatus: "active" | "canceled" | "trial" | "founders",
   stripeCustomerId: "cus_XXXXX",
-  stripeSubscriptionId: "sub_XXXXX",
+  stripeSubscriptionId: "sub_XXXXX", // null for founders upfront
+  billingInterval: "monthly" | "annual" | "founders_upfront",
   currentPeriodEnd: timestamp,
   lastCheckoutAttempt: timestamp,
+  foundersCommit: true | false,
+  foundersTermMonths: 36,
   createdAt: timestamp
 }
 ```
 
 ### 🚧 **INCOMPLETE/TODO ITEMS**
 
-#### Critical Missing Components
-1. **Real Stripe Integration**
-   - Current: Mock implementation in `createCheckoutSession()`
-   - Location: `functions/lib/functions/createCheckoutSession.js`
-   - Status: Returns placeholder URL, no actual Stripe SDK usage
-
-2. **Checkout URL Handling**
-   - Issue: Generated checkout URL not opened in browser/webview
-   - Location: `lib/services/subscription_service.dart:295`
-   - Comment: `// TODO: Open checkout URL in webview or browser`
-
-3. **Webhook Signature Verification**
-   - Security Issue: Webhook events accepted without Stripe signature verification
-   - Production Risk: Vulnerable to malicious webhook calls
-   - Location: `functions/lib/functions/stripeWebhook.js`
-
-4. **Subscription Cancellation**
-   - UI: Cancel button exists but non-functional
-   - Backend: Function defined but incomplete implementation
-   - Missing: Actual Stripe subscription cancellation API calls
-
-#### Functional Gaps
-- No payment method management
-- No billing history/invoice retrieval
-- No payment failure handling
+#### Current Gaps
+- No in-app billing history view (managed via Stripe Customer Portal)
+- No in-app subscription cancellation API (handled via Customer Portal)
 - No subscription pause/resume
 - No pro-rating for mid-cycle changes
 - No free trial implementation
@@ -163,13 +143,22 @@ if (features.phaseHistoryRestricted) {
 ### Firebase Setup Checklist
 - [ ] **Stripe Secret Key** in Firebase Secret Manager
 - [ ] **Stripe Webhook Secret** in Firebase Secret Manager
+- [ ] **Stripe Price IDs** in Firebase Secret Manager:
+  - `STRIPE_PRICE_ID_MONTHLY`
+  - `STRIPE_PRICE_ID_ANNUAL`
+  - `STRIPE_FOUNDER_PRICE_ID_UPFRONT`
 - [ ] **Cloud Functions** deployed to `us-central1`
 - [ ] **Firestore Rules** configured for user documents
 
 ### Stripe Setup Checklist
 - [ ] **Stripe Account** created
-- [ ] **Product**: Premium Subscription created
-- [ ] **Price ID**: `price_premium_monthly` ($30/month)
+- [ ] **Products** created:
+  - Premium Subscription (monthly + annual recurring)
+  - Founders Commit (one-time $1,500)
+- [ ] **Price IDs** captured:
+  - Monthly (`STRIPE_PRICE_ID_MONTHLY`)
+  - Annual (`STRIPE_PRICE_ID_ANNUAL`)
+  - Founders upfront (`STRIPE_FOUNDER_PRICE_ID_UPFRONT`)
 - [ ] **API Keys**: Publishable and Secret keys obtained
 - [ ] **Webhook Endpoint**: `https://us-central1-arc-epi.cloudfunctions.net/stripeWebhook`
 - [ ] **Webhook Events**:
@@ -194,18 +183,20 @@ url_launcher: ^6.3.1  # For opening checkout URLs
 
 ## 5. CURRENT PRICING STRUCTURE
 
-| Feature | Free | Premium ($30/month) |
-|---------|------|-------------------|
-| LUMARA Requests | 50/day | Unlimited |
-| Rate Limiting | 3/minute | None |
-| Phase History | Limited | Full Access |
-| Favorites Limit | 25/category | Unlimited |
-| Support Level | Community | Priority |
+| Feature | Free | Premium | Founders |
+|---------|------|---------|----------|
+| LUMARA Requests | 20/day | Unlimited | Unlimited |
+| Rate Limiting | 3/minute | None | None |
+| Phase History | Limited | Full Access | Full Access |
+| Favorites Limit | 25/category | Unlimited | Unlimited |
+| Support Level | Community | Priority | Priority + founder benefits |
 
 **Price Configuration:**
-- Hardcoded in UI: `lumara_subscription_status.dart:226`
-- Stripe Price ID: `price_premium_monthly`
-- Amount: $3000 cents = $30.00/month
+- UI copy: `lib/ui/subscription/subscription_management_view.dart`
+- Stripe Price IDs:
+  - `STRIPE_PRICE_ID_MONTHLY` → $30.00/month (recurring)
+  - `STRIPE_PRICE_ID_ANNUAL` → $200.00/year (recurring)
+  - `STRIPE_FOUNDER_PRICE_ID_UPFRONT` → $1,500 one-time (3-year commit)
 
 ---
 

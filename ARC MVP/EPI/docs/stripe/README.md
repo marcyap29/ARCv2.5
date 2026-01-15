@@ -1,13 +1,13 @@
 # Stripe Integration Documentation
 
-**Last Updated:** January 14, 2026
+**Last Updated:** January 15, 2026
 **Status:** ✅ Production Ready
 
 ---
 
 ## Overview
 
-This directory contains all documentation related to Stripe payment integration for ARC's subscription system. The integration enables premium subscriptions with monthly and annual billing options.
+This directory contains all documentation related to Stripe payment integration for ARC's subscription system. The integration enables premium subscriptions (monthly/annual) and a Founders upfront commitment option.
 
 ---
 

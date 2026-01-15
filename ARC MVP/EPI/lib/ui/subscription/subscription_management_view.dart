@@ -23,7 +23,22 @@ class _PricingSelectorState extends State<PricingSelector> {
   @override
   Widget build(BuildContext context) {
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        _buildSectionTitle('Free - Limited Access'),
+        const SizedBox(height: 8),
+        _buildBulletRow(Icons.chat_bubble_outline, '20 LUMARA requests per day'),
+        _buildBulletRow(Icons.speed, '3 requests per minute'),
+        _buildBulletRow(Icons.history, 'Limited phase history access'),
+        const SizedBox(height: 8),
+        _buildParagraph('Good for exploring. Not enough to build narrative intelligence.'),
+        const SizedBox(height: 24),
+
+        _buildSectionTitle('Premium'),
+        const SizedBox(height: 8),
+        _buildParagraph('Monthly: \$30/month\nFull access. Cancel anytime.\n\nAnnual: \$200/year\n\$16.67/month. Save \$160.'),
+        const SizedBox(height: 16),
+
         // Toggle switch
         Container(
           decoration: BoxDecoration(
@@ -35,11 +50,12 @@ class _PricingSelectorState extends State<PricingSelector> {
             mainAxisSize: MainAxisSize.min,
             children: [
               _buildToggleOption(
-                label: 'Monthly',
+                label: 'Monthly \$30/mo',
                 interval: BillingInterval.monthly,
+                badge: 'Save \$160',
               ),
               _buildToggleOption(
-                label: 'Annual',
+                label: 'Annual \$200/yr',
                 interval: BillingInterval.annual,
                 badge: 'Save \$160',
               ),
@@ -56,16 +72,34 @@ class _PricingSelectorState extends State<PricingSelector> {
               ? _buildPriceCard(
                   price: '\$30',
                   period: '/month',
-                  description: 'Billed monthly',
+                  description: 'Full access. Cancel anytime.',
                 )
               : _buildPriceCard(
                   price: '\$200',
                   period: '/year',
-                  description: 'Just \$16.67/month • Save \$160',
+                  description: '\$16.67/month • Save \$160',
                   highlighted: true,
                 ),
         ),
 
+        const SizedBox(height: 24),
+
+        _buildSectionTitle('What you get'),
+        const SizedBox(height: 8),
+        _buildBulletRow(Icons.all_inclusive, 'Unlimited LUMARA reflections', isPositive: true),
+        _buildBulletRow(Icons.history, 'Full phase detection and history', isPositive: true),
+        _buildBulletRow(Icons.auto_awesome, 'Personalized phase visuals that evolve with your entries', isPositive: true),
+        _buildBulletRow(Icons.memory, 'Complete narrative memory across all time', isPositive: true),
+        _buildBulletRow(Icons.tune, 'Persona adaptation (4 modes)', isPositive: true),
+        _buildBulletRow(Icons.hub, 'Knowledge graph visualization', isPositive: true),
+        const SizedBox(height: 12),
+        _buildParagraph(
+          'By month 6, LUMARA connects patterns you can\'t see. By month 12, you have a developmental map no other AI can build.',
+        ),
+        const SizedBox(height: 8),
+        _buildParagraph(
+          'The annual commit makes sense because continuity matters - stopping/starting breaks the temporal thread.',
+        ),
         const SizedBox(height: 24),
 
         // Subscribe button
@@ -79,13 +113,117 @@ class _PricingSelectorState extends State<PricingSelector> {
             ),
             child: Text(
               _selectedInterval == BillingInterval.annual
-                  ? 'Subscribe & Save \$160'
-                  : 'Subscribe Monthly',
+                  ? 'Continue with Annual (\$200/year)'
+                  : 'Continue with Monthly (\$30/month)',
               style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
             ),
           ),
         ),
+
+        const SizedBox(height: 24),
+
+        _buildFoundersCard(),
       ],
+    );
+  }
+
+  Widget _buildSectionTitle(String text) {
+    return Text(
+      text,
+      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+    );
+  }
+
+  Widget _buildParagraph(String text) {
+    return Text(
+      text,
+      style: TextStyle(
+        fontSize: 14,
+        height: 1.4,
+        color: Colors.grey.shade700,
+      ),
+    );
+  }
+
+  Widget _buildBulletRow(IconData icon, String text, {bool isPositive = false}) {
+    final color = isPositive ? Colors.green.shade700 : Colors.grey.shade700;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 18, color: color),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              text,
+              style: TextStyle(fontSize: 14, color: Colors.grey.shade700),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFoundersCard() {
+    return Card(
+      elevation: 1,
+      child: ExpansionTile(
+        tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        leading: const Icon(Icons.stars, color: Colors.purple),
+        title: const Text(
+          'Founders Commit: \$1,500 (3 years)',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        subtitle: Text(
+          'Not a subscription. A partnership.',
+          style: TextStyle(color: Colors.grey.shade600),
+        ),
+        childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        children: [
+          _buildParagraph(
+            'Help shape the future of Narrative Intelligence. Limited to 150 members.',
+          ),
+          const SizedBox(height: 12),
+          _buildParagraph(
+            'Premium costs \$200/year and you can cancel anytime.\nFounders costs \$1,500 for 3 years and you help build this.',
+          ),
+          const SizedBox(height: 12),
+          _buildSectionTitle('What you get beyond Premium'),
+          const SizedBox(height: 8),
+          _buildBulletRow(Icons.schedule, 'Early access to new features (4-8 weeks, or +2 months if paid upfront)', isPositive: true),
+          _buildBulletRow(Icons.people_alt, 'Monthly calls with the team - your requests get priority', isPositive: true),
+          _buildBulletRow(Icons.lock, 'Private founding community (150 max)', isPositive: true),
+          _buildBulletRow(Icons.price_change, 'Price locked at \$500/year for 3 years', isPositive: true),
+          _buildBulletRow(Icons.verified, 'Permanent founding badge', isPositive: true),
+          const SizedBox(height: 12),
+          _buildSectionTitle('This is for'),
+          const SizedBox(height: 8),
+          _buildBulletRow(Icons.check_circle, 'Consistent journalers ready to commit 3 years', isPositive: true),
+          _buildBulletRow(Icons.check_circle, 'People who want to shape where Narrative Intelligence goes', isPositive: true),
+          _buildBulletRow(Icons.check_circle, 'Those who see the long game', isPositive: true),
+          const SizedBox(height: 12),
+          _buildSectionTitle('Not for'),
+          const SizedBox(height: 8),
+          _buildBulletRow(Icons.cancel, '"Trying it out" (use Free)'),
+          _buildBulletRow(Icons.cancel, 'Looking for a discount (Premium is cheaper)'),
+          const SizedBox(height: 12),
+          _buildParagraph('Limited to 150 members. When full, closes forever.'),
+          const SizedBox(height: 8),
+          _buildParagraph(
+            'By Year 3 you\'ll have 36+ months of narrative memory the system learned from your story. That\'s irreplaceable.',
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: () => widget.onIntervalSelected(BillingInterval.foundersUpfront),
+              icon: const Icon(Icons.arrow_forward),
+              label: const Text('Continue with Founders Commit'),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -399,7 +537,7 @@ class _SubscriptionManagementViewState extends State<SubscriptionManagementView>
                 style: TextStyle(color: Colors.grey.shade600),
               ),
               const SizedBox(height: 8),
-              const Text('Upgrade to Premium for full access'),
+              const Text('Upgrade to Premium or Founders for full access'),
             ],
           ],
         ),
@@ -452,14 +590,14 @@ class _SubscriptionManagementViewState extends State<SubscriptionManagementView>
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
-                        'Upgrade to Premium',
+                        'Choose Your Plan',
                         style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        'Get unlimited LUMARA requests and full phase history access',
+                        'Premium is the standard subscription. Founders is a 3-year commitment for builders.',
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                           color: Colors.grey.shade600,
                         ),
@@ -513,6 +651,17 @@ class _SubscriptionManagementViewState extends State<SubscriptionManagementView>
         ),
       ],
     );
+  }
+
+  String _checkoutLabel(BillingInterval interval) {
+    switch (interval) {
+      case BillingInterval.monthly:
+        return 'Premium Monthly';
+      case BillingInterval.annual:
+        return 'Premium Annual';
+      case BillingInterval.foundersUpfront:
+        return 'Founders Commit';
+    }
   }
 
   Future<void> _initiateUpgrade(BillingInterval interval) async {
@@ -572,12 +721,12 @@ class _SubscriptionManagementViewState extends State<SubscriptionManagementView>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'To subscribe to Premium, you need to sign in first.',
+                  'To continue, you need to sign in first.',
                   style: TextStyle(fontSize: 16),
                 ),
                 SizedBox(height: 16),
                 Text(
-                  'After signing in, you\'ll be automatically redirected to complete your subscription.',
+                  'After signing in, you\'ll be automatically redirected to complete your checkout.',
                   style: TextStyle(fontSize: 14, color: Colors.grey),
                 ),
               ],
@@ -636,7 +785,7 @@ class _SubscriptionManagementViewState extends State<SubscriptionManagementView>
             if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
-                  content: Text('Please sign in to subscribe to Premium.'),
+                  content: Text('Please sign in to continue.'),
                   backgroundColor: Colors.orange,
                 ),
               );
@@ -698,7 +847,7 @@ class _SubscriptionManagementViewState extends State<SubscriptionManagementView>
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Please sign in to subscribe. Tap to sign in.'),
+              content: Text('Please sign in to continue. Tap to sign in.'),
               duration: Duration(seconds: 5),
               backgroundColor: Colors.orange,
             ),
@@ -712,7 +861,7 @@ class _SubscriptionManagementViewState extends State<SubscriptionManagementView>
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Please sign in with Google to subscribe. Anonymous accounts cannot subscribe.'),
+              content: Text('Please sign in with Google to continue. Anonymous accounts cannot subscribe.'),
               duration: Duration(seconds: 5),
               backgroundColor: Colors.orange,
             ),
@@ -726,7 +875,7 @@ class _SubscriptionManagementViewState extends State<SubscriptionManagementView>
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Please sign in with Google to subscribe.'),
+              content: Text('Please sign in with Google to continue.'),
               duration: Duration(seconds: 5),
               backgroundColor: Colors.orange,
             ),
@@ -759,7 +908,7 @@ class _SubscriptionManagementViewState extends State<SubscriptionManagementView>
         if (success) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Opening checkout for ${interval.displayName} subscription...'),
+              content: Text('Opening checkout for ${_checkoutLabel(interval)}...'),
               duration: const Duration(seconds: 3),
             ),
           );

@@ -496,8 +496,12 @@ When emulators are running, access the Emulator UI at:
 # Set a secret
 firebase functions:secrets:set SECRET_NAME
 
-# Example: Set Stripe secret key
+# Example: Set Stripe secrets
 firebase functions:secrets:set STRIPE_SECRET_KEY
+firebase functions:secrets:set STRIPE_WEBHOOK_SECRET
+firebase functions:secrets:set STRIPE_PRICE_ID_MONTHLY
+firebase functions:secrets:set STRIPE_PRICE_ID_ANNUAL
+firebase functions:secrets:set STRIPE_FOUNDER_PRICE_ID_UPFRONT
 
 # Set Gemini API key
 firebase functions:secrets:set GEMINI_API_KEY

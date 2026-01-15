@@ -18,6 +18,7 @@ const STRIPE_SECRET_KEY = defineSecret("STRIPE_SECRET_KEY");
 const STRIPE_WEBHOOK_SECRET = defineSecret("STRIPE_WEBHOOK_SECRET");
 const STRIPE_PRICE_ID_MONTHLY = defineSecret("STRIPE_PRICE_ID_MONTHLY");
 const STRIPE_PRICE_ID_ANNUAL = defineSecret("STRIPE_PRICE_ID_ANNUAL");
+const STRIPE_FOUNDER_PRICE_ID_UPFRONT = defineSecret("STRIPE_FOUNDER_PRICE_ID_UPFRONT");
 
 // Simple Gemini API proxy - hides API key from client
 exports.proxyGemini = onCall(
@@ -193,7 +194,12 @@ exports.getUserSubscription = onCall(
 exports.createCheckoutSession = onCall(
   {
     cors: true,
-    secrets: [STRIPE_SECRET_KEY, STRIPE_PRICE_ID_MONTHLY, STRIPE_PRICE_ID_ANNUAL],
+    secrets: [
+      STRIPE_SECRET_KEY,
+      STRIPE_PRICE_ID_MONTHLY,
+      STRIPE_PRICE_ID_ANNUAL,
+      STRIPE_FOUNDER_PRICE_ID_UPFRONT,
+    ],
   },
   async (request) => {
     // Verify authentication
@@ -208,15 +214,17 @@ exports.createCheckoutSession = onCall(
     logger.info(`createCheckoutSession called by user: ${userId} (${userEmail})`);
 
     // Determine which price to use (monthly or annual)
-    const interval = billingInterval || "monthly"; // "monthly" or "annual"
+    const interval = billingInterval || "monthly"; // "monthly", "annual", or "founders_upfront"
+    const isFoundersUpfront = interval === "founders_upfront";
 
     // Get Stripe secrets from Secret Manager with error handling
-    let stripeSecretKey, priceIdMonthly, priceIdAnnual;
+    let stripeSecretKey, priceIdMonthly, priceIdAnnual, priceIdFounders;
     
     try {
       stripeSecretKey = STRIPE_SECRET_KEY.value();
       priceIdMonthly = STRIPE_PRICE_ID_MONTHLY.value();
       priceIdAnnual = STRIPE_PRICE_ID_ANNUAL.value();
+      priceIdFounders = STRIPE_FOUNDER_PRICE_ID_UPFRONT.value();
     } catch (secretError) {
       logger.error("createCheckoutSession: Stripe secrets not configured", {
         error: secretError.message,
@@ -236,7 +244,7 @@ exports.createCheckoutSession = onCall(
       );
     }
 
-    const priceId = interval === "annual" ? priceIdAnnual : priceIdMonthly;
+    const priceId = isFoundersUpfront ? priceIdFounders : (interval === "annual" ? priceIdAnnual : priceIdMonthly);
 
     if (!priceId || priceId.trim() === "") {
       logger.error(`createCheckoutSession: Price ID not configured for ${interval} billing`);
@@ -281,7 +289,7 @@ exports.createCheckoutSession = onCall(
       }
 
       // Create checkout session
-      const session = await stripe.checkout.sessions.create({
+      const sessionPayload = {
         customer: customerId,
         payment_method_types: ["card"],
         line_items: [
@@ -290,14 +298,13 @@ exports.createCheckoutSession = onCall(
             quantity: 1,
           },
         ],
-        mode: "subscription",
+        mode: isFoundersUpfront ? "payment" : "subscription",
         success_url: successUrl || "https://arc-app.com/success?session_id={CHECKOUT_SESSION_ID}",
         cancel_url: cancelUrl || "https://arc-app.com/cancel",
-        subscription_data: {
-          metadata: {
-            firebaseUID: userId,
-            billingInterval: interval,
-          },
+        metadata: {
+          firebaseUID: userId,
+          billingInterval: interval,
+          planType: isFoundersUpfront ? "founders" : "premium",
         },
         allow_promotion_codes: true, // Enable discount codes
         billing_address_collection: "auto",
@@ -305,7 +312,27 @@ exports.createCheckoutSession = onCall(
           address: "auto",
           name: "auto",
         },
-      });
+      };
+
+      if (isFoundersUpfront) {
+        sessionPayload.payment_intent_data = {
+          metadata: {
+            firebaseUID: userId,
+            billingInterval: interval,
+            planType: "founders",
+          },
+        };
+      } else {
+        sessionPayload.subscription_data = {
+          metadata: {
+            firebaseUID: userId,
+            billingInterval: interval,
+            planType: "premium",
+          },
+        };
+      }
+
+      const session = await stripe.checkout.sessions.create(sessionPayload);
 
       // Log checkout attempt
       await db.collection("users").doc(userId).set(
@@ -461,6 +488,7 @@ exports.stripeWebhook = onRequest(
 async function handleCheckoutComplete(session) {
   const customerId = session.customer;
   const subscriptionId = session.subscription;
+  const isFoundersUpfront = session.mode === "payment" || session.metadata?.planType === "founders";
 
   logger.info(`Handling checkout complete for customer: ${customerId}`);
 
@@ -480,12 +508,23 @@ async function handleCheckoutComplete(session) {
 
   const userDoc = usersSnapshot.docs[0];
 
-  await userDoc.ref.update({
+  const updatePayload = {
     subscriptionTier: "premium",
-    subscriptionStatus: "active",
-    stripeSubscriptionId: subscriptionId,
+    subscriptionStatus: isFoundersUpfront ? "founders" : "active",
     subscribedAt: new Date(),
-  });
+    billingInterval: isFoundersUpfront ? "founders_upfront" : (session.metadata?.billingInterval || "monthly"),
+  };
+
+  if (!isFoundersUpfront && subscriptionId) {
+    updatePayload.stripeSubscriptionId = subscriptionId;
+  }
+
+  if (isFoundersUpfront) {
+    updatePayload.foundersCommit = true;
+    updatePayload.foundersTermMonths = 36;
+  }
+
+  await userDoc.ref.update(updatePayload);
 
   logger.info(`User ${userDoc.id} upgraded to premium`);
 }

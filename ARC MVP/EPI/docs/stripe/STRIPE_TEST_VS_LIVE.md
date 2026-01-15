@@ -58,7 +58,10 @@ You'll see:
 
 **Use TEST MODE keys for now:**
 - `sk_test_...` (Secret key)
-- Test Price IDs (created in test mode)
+- Test Price IDs (created in test mode):
+  - Monthly (`STRIPE_PRICE_ID_MONTHLY`)
+  - Annual (`STRIPE_PRICE_ID_ANNUAL`)
+  - Founders upfront (`STRIPE_FOUNDER_PRICE_ID_UPFRONT`)
 - Test webhook secret
 
 **Switch to LIVE MODE later when:**

@@ -91,14 +91,29 @@ This guide will walk you through setting up all Stripe secrets in Firebase Secre
    - **Billing period:** Select **"Recurring"** → **"Yearly"**
 3. Click **"Save product"**
 
-### 2.4 Get Your Price IDs
+### 2.4 Create the Founders Commit Product
+1. In Stripe Dashboard, click **"Products"** in the left sidebar
+2. Click the **"+ Add product"** button (top right)
+3. Fill in the product details:
+   - **Name:** `ARC Founders Commit`
+   - **Description:** `Founders commitment for ARC (3-year, upfront)`
+   - Leave other fields as default
+4. Scroll down to **"Pricing"** section
+5. Add a one-time price:
+   - **Price:** `1500.00`
+   - **Currency:** `USD`
+   - **Billing period:** **One-time** (non-recurring)
+6. Click **"Save product"**
+
+### 2.5 Get Your Price IDs
 1. After saving, you'll see your product page
-2. You'll see both prices listed
+2. You'll see all prices listed
 3. For each price, click on it to open the price details
 4. Copy the **Price ID** (starts with `price_...`)
    - **Monthly Price ID:** `price_...` (save this)
    - **Annual Price ID:** `price_...` (save this)
-5. **Save both Price IDs** - you'll need them in Step 3
+   - **Founders Upfront Price ID:** `price_...` (save this)
+5. **Save all Price IDs** - you'll need them in Step 4
 
 ---
 
@@ -181,7 +196,18 @@ firebase functions:secrets:set STRIPE_PRICE_ID_ANNUAL
 - Press Enter
 - You'll see: `✔ Created a new secret version for STRIPE_PRICE_ID_ANNUAL`
 
-### 4.5 Add Webhook Secret
+### 4.5 Add Founders Upfront Price ID
+Run this command:
+```bash
+firebase functions:secrets:set STRIPE_FOUNDER_PRICE_ID_UPFRONT
+```
+
+**When prompted:**
+- Paste your Founders upfront Price ID (the `price_...` one-time price)
+- Press Enter
+- You'll see: `✔ Created a new secret version for STRIPE_FOUNDER_PRICE_ID_UPFRONT`
+
+### 4.6 Add Webhook Secret
 Run this command:
 ```bash
 firebase functions:secrets:set STRIPE_WEBHOOK_SECRET
@@ -192,13 +218,17 @@ firebase functions:secrets:set STRIPE_WEBHOOK_SECRET
 - Press Enter
 - You'll see: `✔ Created a new secret version for STRIPE_WEBHOOK_SECRET`
 
-### 4.6 Verify Secrets Are Set
-Run this command to verify:
+### 4.7 Verify Secrets Are Set
+Run these commands to verify:
 ```bash
 firebase functions:secrets:access STRIPE_SECRET_KEY
+firebase functions:secrets:access STRIPE_PRICE_ID_MONTHLY
+firebase functions:secrets:access STRIPE_PRICE_ID_ANNUAL
+firebase functions:secrets:access STRIPE_FOUNDER_PRICE_ID_UPFRONT
+firebase functions:secrets:access STRIPE_WEBHOOK_SECRET
 ```
 
-You should see your secret key displayed (or a message confirming it exists).
+You should see each secret displayed (or a message confirming it exists).
 
 ---
 
@@ -264,6 +294,10 @@ firebase functions:secrets:set STRIPE_PRICE_ID_MONTHLY
 
 # Add Annual Price ID
 firebase functions:secrets:set STRIPE_PRICE_ID_ANNUAL
+# (Paste: price_...)
+
+# Add Founders Upfront Price ID
+firebase functions:secrets:set STRIPE_FOUNDER_PRICE_ID_UPFRONT
 # (Paste: price_...)
 
 # Add Webhook Secret

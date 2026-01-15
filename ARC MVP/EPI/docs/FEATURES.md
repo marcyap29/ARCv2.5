@@ -1,7 +1,7 @@
 # EPI MVP - Comprehensive Features Guide
 
-**Version:** 2.1.89
-**Last Updated:** January 9, 2026
+**Version:** 3.2.4
+**Last Updated:** January 11, 2026
 
 ---
 
@@ -94,7 +94,7 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 
 - **Calendar Week Sync**: The calendar week view now highlights the week containing the journal entry currently visible in the timeline list, and tapping a day scrolls the list to that entry. **Enhanced in v2.1.27**: Synchronization logic is now precision-tuned to prevent visual jumps, ensuring the calendar always reflects the exact date being viewed.
 - **Tab Bar Action Center**: The + journal action now shares the bottom navigation bar surface, sitting centered above the Journal | LUMARA | Insights tabs so it stays visible without floating over content.
-- **Unified Action Buttons**: Both in-chat and in-journal LUMARA bubbles expose a simplified toolbar (Regenerate, Continue thought, Explore conversation), providing essential actions while maintaining a clean, focused interface.
+- **Unified Action Buttons**: Both in-chat and in-journal LUMARA bubbles expose a streamlined toolbar (Regenerate, Analyze, Deep Analysis), providing essential actions while maintaining a clean, focused interface.
 
 ### Scroll Navigation (v2.1.50)
 
@@ -688,6 +688,19 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 
 **Import Features**
 - **Format Support**: MCP v1 compliant ZIP files and ARCX encrypted archives
+- **Multi-Select File Loading (v3.2.4)**: Select and import multiple files at once to save time
+  - **MCP Import**: Select multiple ZIP files simultaneously for batch processing
+  - **ARCX Import**: Select multiple ARCX files simultaneously for batch processing
+  - **ZIP Import (Settings)**: Select multiple ZIP files from Settings → Import Data for batch processing
+  - **Chat Import**: Select multiple JSON files to merge chat data from multiple exports
+  - **Progress Feedback**: Real-time progress indicators showing "File X of Y" during import
+  - **Sequential Processing**: Files processed one at a time with clear status updates
+  - **Chronological Sorting**: Files automatically sorted by creation date (oldest first) before import
+    - Ensures data timeline consistency
+    - Uses file modification time as sorting key
+    - Files processed in chronological order
+  - **Error Handling**: Detailed error reporting showing which specific files failed
+  - **Success Summary**: Final status message shows total success/failure counts and imported data statistics
 - **Backward Compatibility (v2.1.54)**:
   - Supports new date-bucketed structure (`Entries/`, `Chats/`, `extensions/`)
   - Supports legacy flat structure (`nodes/journal/`, `nodes/chat/`, `PhaseRegimes/`)
@@ -698,6 +711,7 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 - **Timeline Integration**: Automatic timeline refresh after import
 - **Media Handling**: Photo and media import with deduplication
 - **Duplicate Detection**: Prevents duplicate entries and favorites
+- **First Backup on Import (v3.2.4)**: When importing into an empty app, automatically creates an export record marking the imported data as the first save, ensuring proper tracking for future incremental backups
 
 ### Incremental Backup System (v2.1.77)
 
@@ -751,8 +765,8 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 **Benefits**
 - **Storage Efficiency**: Prevents redundant data in backup files
 - **Faster Backups**: Less data to process and encrypt
-- **Better Organization**: Clear separation between regular backups and advanced exports
 - **User Guidance**: Clear instructions on where to save backups
+- **First Backup Tracking**: Imported backups are automatically tracked for proper incremental backup behavior
 
 ### Data Portability
 
@@ -769,9 +783,9 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 - Legacy formats (with conversion)
 
 **Import/Export UI Organization (v2.1.77)**
-- **Settings → Local Backup**: Regular automated backups with incremental tracking
+- **Settings → Local Backup**: Regular automated backups with incremental tracking and scheduling
 - **Settings → Import Data**: Direct access to restore from backup files (.zip, .mcpkg, .arcx)
-- **Settings → Advanced Export**: Custom exports with date filtering, multi-select, and sharing options
+- **First Backup on Import (v3.2.4)**: When importing into an empty app, the system automatically creates an export record marking the imported data as the first save, ensuring future incremental backups correctly identify new vs. imported data
 
 ---
 
@@ -847,6 +861,6 @@ All core features are production-ready and fully operational:
 ---
 
 **Features Guide Status:** ✅ Complete
-**Last Updated:** December 13, 2025
-**Version:** 2.1.54
+**Last Updated:** January 11, 2026
+**Version:** 3.2.4
 

@@ -8,7 +8,8 @@ import 'firebase_service.dart';
 // Enum for billing interval
 enum BillingInterval {
   monthly,
-  annual;
+  annual,
+  foundersUpfront;
 
   String get displayName {
     switch (this) {
@@ -16,6 +17,8 @@ enum BillingInterval {
         return 'Monthly';
       case BillingInterval.annual:
         return 'Annual';
+      case BillingInterval.foundersUpfront:
+        return 'Founders';
     }
   }
 
@@ -25,6 +28,8 @@ enum BillingInterval {
         return 'monthly';
       case BillingInterval.annual:
         return 'annual';
+      case BillingInterval.foundersUpfront:
+        return 'founders_upfront';
     }
   }
 }

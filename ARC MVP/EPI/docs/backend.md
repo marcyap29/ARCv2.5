@@ -336,14 +336,18 @@ For complete setup instructions, see archived documentation: `archive/setup/OAUT
 ### Configuration
 
 **Subscription Tiers:**
-- **Free:** Limited access (50 requests/day, 10/minute)
-- **Premium:** $30/month - Unlimited access
+- **Free:** Limited access (20 requests/day, 3/minute)
+- **Premium:** $30/month or $200/year - Unlimited access
+- **Founders Commit:** $1,500 upfront for 3 years (one-time payment)
 
 **Setup Steps:**
 1. Create Stripe account and get API keys
-2. Add Stripe secret keys to Firebase Secret Manager:
+2. Add Stripe secrets to Firebase Secret Manager:
    - `STRIPE_SECRET_KEY`
    - `STRIPE_WEBHOOK_SECRET`
+   - `STRIPE_PRICE_ID_MONTHLY`
+   - `STRIPE_PRICE_ID_ANNUAL`
+   - `STRIPE_FOUNDER_PRICE_ID_UPFRONT`
 3. Configure webhook endpoint: `https://us-central1-arc-epi.cloudfunctions.net/stripeWebhook`
 4. Subscribe to events: `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted`
 

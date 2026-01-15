@@ -57,23 +57,28 @@ Before starting, ensure:
 
 ### 3.1 Verify/Create Products and Prices
 1. Go to **Products** in Stripe Dashboard (Live Mode)
-2. Check if your product exists:
-   - **ARC Premium** (the product itself)
-3. If it doesn't exist, create it:
+2. Check if your products exist:
+   - **ARC Premium** (monthly + annual recurring)
+   - **ARC Founders Commit** (one-time upfront)
+3. If they don't exist, create them:
    - Click **"+ Add product"**
    - Name: "ARC Premium"
    - Add pricing:
      - Monthly: $30.00/month (recurring)
      - Annual: $200.00/year (recurring)
+   - Create another product:
+     - Name: "ARC Founders Commit"
+     - Price: $1,500.00 (one-time, non-recurring)
 4. **Copy the Price IDs** (NOT the Product ID - you need the Price IDs!)
    - After creating prices, each price will have its own ID starting with `price_...`
    - Monthly Price ID: `price_...` ← **This is what you need**
    - Annual Price ID: `price_...` ← **This is what you need**
+   - Founders Upfront Price ID: `price_...` ← **This is what you need**
    
    **Important:** 
    - Product ID starts with `prod_...` - **Don't use this**
    - Price ID starts with `price_...` - **Use this** ✅
-   - You need the Price IDs for each billing interval (monthly and annual)
+   - You need the Price IDs for monthly, annual, and founders upfront
 
 **Important:** Price IDs are different between test and live mode. You'll need to update these in Firebase Secret Manager.
 
@@ -137,6 +142,10 @@ firebase functions:secrets:set STRIPE_PRICE_ID_MONTHLY
 # Update Annual Price ID
 firebase functions:secrets:set STRIPE_PRICE_ID_ANNUAL
 # When prompted, paste your LIVE annual price ID: price_...
+
+# Update Founder Upfront Price ID
+firebase functions:secrets:set STRIPE_FOUNDER_PRICE_ID_UPFRONT
+# When prompted, paste your LIVE founder upfront price ID: price_...
 ```
 
 ### 5.4 Verify Secrets
@@ -146,6 +155,7 @@ firebase functions:secrets:access STRIPE_SECRET_KEY
 firebase functions:secrets:access STRIPE_WEBHOOK_SECRET
 firebase functions:secrets:access STRIPE_PRICE_ID_MONTHLY
 firebase functions:secrets:access STRIPE_PRICE_ID_ANNUAL
+firebase functions:secrets:access STRIPE_FOUNDER_PRICE_ID_UPFRONT
 ```
 
 **Note:** Make sure all secrets start with:
@@ -211,7 +221,7 @@ firebase functions:log --only stripeWebhook
 1. Use a real credit card (your own for testing)
 2. Test the subscription flow:
    - Open your app
-   - Try to subscribe (monthly or annual)
+  - Try to subscribe (monthly, annual, and founders upfront)
    - Complete checkout with real card
    - Verify subscription activates
 
@@ -277,6 +287,7 @@ Before going fully live, verify:
 - [ ] `STRIPE_WEBHOOK_SECRET` updated to live secret (`whsec_...`)
 - [ ] `STRIPE_PRICE_ID_MONTHLY` updated to live price ID
 - [ ] `STRIPE_PRICE_ID_ANNUAL` updated to live price ID
+- [ ] `STRIPE_FOUNDER_PRICE_ID_UPFRONT` updated to live price ID
 - [ ] Functions redeployed
 - [ ] Function logs checked
 
