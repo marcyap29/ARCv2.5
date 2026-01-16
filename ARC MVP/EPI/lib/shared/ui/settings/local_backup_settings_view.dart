@@ -577,7 +577,7 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
               ),
               const SizedBox(height: 12),
               Text(
-                'Files are numbered sequentially (001, 002, etc.) from oldest to newest entries.',
+                'Files are numbered sequentially. Future Quick Backups will continue the numbering (e.g., ARC_Inc_004_date.arcx).',
                 style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 12, fontStyle: FontStyle.italic),
               ),
             ],
@@ -1128,7 +1128,7 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
                       ),
                     ),
                     Text(
-                      'Export only new entries since last backup',
+                      'Add new entries to your existing backup set',
                       style: bodyStyle(context).copyWith(
                         color: kcSecondaryTextColor,
                         fontSize: 12,
@@ -1300,7 +1300,7 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
                       ),
                     ),
                     Text(
-                      'Export ALL files: $totalEntries entries, $totalChats chats, and ALL media files',
+                      'Create new backup set: $totalEntries entries, $totalChats chats, ALL media',
                       style: bodyStyle(context).copyWith(
                         color: kcSecondaryTextColor,
                         fontSize: 12,
@@ -1312,7 +1312,7 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
             ],
           ),
           const SizedBox(height: 12),
-          // Chunked backup info
+          // Backup set info
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
@@ -1320,17 +1320,32 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
               borderRadius: BorderRadius.circular(8),
               border: Border.all(color: Colors.blue.withOpacity(0.2)),
             ),
-            child: Row(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(Icons.auto_awesome, color: Colors.blue[300], size: 18),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Automatically splits into ~200MB files for easier management',
-                    style: TextStyle(
-                      color: Colors.blue[200],
-                      fontSize: 11,
+                Row(
+                  children: [
+                    Icon(Icons.folder_special, color: Colors.blue[300], size: 18),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Creates a backup set folder with numbered files',
+                        style: TextStyle(
+                          color: Colors.blue[200],
+                          fontSize: 11,
+                        ),
+                      ),
                     ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  '• Full: ARC_Full_001.arcx, ARC_Full_002.arcx (~200MB each)\n'
+                  '• Incremental: ARC_Inc_003_2026-01-17.arcx (added later)',
+                  style: TextStyle(
+                    color: Colors.blue[200]!.withOpacity(0.8),
+                    fontSize: 10,
+                    fontFamily: 'monospace',
                   ),
                 ),
               ],

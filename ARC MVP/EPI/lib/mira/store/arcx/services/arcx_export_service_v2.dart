@@ -2176,8 +2176,10 @@ class ARCXExportServiceV2 {
   /// [excludeMedia] - If true, creates text-only backup (entries + chats, no media)
   ///                   This makes incremental backups much smaller and faster
   /// 
-  /// **IMPORTANT**: If there are NO previous exports recorded, this performs a FULL export
-  /// of ALL files (entries, chats, media) regardless of excludeMedia setting.
+  /// Uses the "Backup Set" model:
+  /// - If no backup set exists, creates one with a full chunked backup first
+  /// - Subsequent incrementals continue numbering in the same backup set folder
+  /// - Incremental files are named: ARC_Inc_NNN_YYYY-MM-DD.arcx
   Future<ARCXExportResultV2> exportIncremental({
     required Directory outputDir,
     String? password,
@@ -2190,73 +2192,36 @@ class ARCXExportServiceV2 {
       final lastExportDate = await historyService.getLastExportDate();
       final history = await historyService.getHistory();
       
-      // CRITICAL: If there are NO previous exports, perform FULL exhaustive export
-      if (lastExportDate == null || history.totalExports == 0) {
-        onProgress?.call('No previous exports found. Performing full backup of all files...');
-        debugPrint('ARCX Export: No previous exports - performing FULL export with ALL media');
+      // Find the latest backup set folder
+      Directory? backupSetDir = await _findLatestBackupSet(outputDir);
+      
+      // If no backup set exists OR no previous exports, create a new backup set with full backup
+      if (backupSetDir == null || lastExportDate == null || history.totalExports == 0) {
+        onProgress?.call('No backup set found. Creating new backup set with full backup...');
+        debugPrint('ARCX Export: No backup set found - creating new backup set');
         
-        // Get ALL data for first export
-        final allEntries = await _journalRepo?.getAllJournalEntries() ?? [];
-        final allChats = await _chatRepo?.listAll(includeArchived: true) ?? [];
-        
-        // Collect ALL media from ALL entries (no exclusions for first export)
-        final allMedia = <MediaItem>[];
-        for (final entry in allEntries) {
-          allMedia.addAll(entry.media);
-        }
-        
-        onProgress?.call(
-          'Full backup: ${allEntries.length} entries, ${allChats.length} chats, ${allMedia.length} media files'
-        );
-        
-        // Create selection with ALL data
-        final selection = ARCXExportSelection(
-          entryIds: allEntries.map((e) => e.id).toList(),
-          chatThreadIds: allChats.map((c) => c.id).toList(),
-          mediaIds: allMedia.map((m) => m.id).toList(), // ALL media for first export
-        );
-        
-        // Use full backup options (not incremental)
-        final options = ARCXExportOptions.fullBackup(strategy: strategy);
-        
-        // Perform export with numbered filename
-        final exportNumber = await historyService.getNextExportNumber();
-        final result = await export(
-          selection: selection,
-          options: options,
+        // Use chunked full backup to create the backup set
+        final chunkedResult = await exportFullBackupChunked(
           outputDir: outputDir,
           password: password,
           onProgress: onProgress,
-          exportNumber: exportNumber,
+          chunkSizeMB: 200,
         );
         
-        // Record as full backup (first export)
-        if (result.success && options.trackExportHistory) {
-          final mediaHashes = allMedia
-              .where((m) => m.sha256 != null)
-              .map((m) => m.sha256!)
-              .toSet();
-          
-          await historyService.recordExport(ExportRecord(
-            exportId: 'arcx-full-${DateTime.now().millisecondsSinceEpoch}',
-            exportedAt: DateTime.now(),
-            exportPath: result.arcxPath,
-            entryIds: allEntries.map((e) => e.id).toSet(),
-            chatIds: allChats.map((c) => c.id).toSet(),
-            mediaHashes: mediaHashes,
-            entriesCount: result.entriesExported,
-            chatsCount: result.chatsExported,
-            mediaCount: result.mediaExported,
-            archiveSizeBytes: await _getFileSize(result.arcxPath ?? ''),
-            isFullBackup: true,
-            exportNumber: exportNumber,
-          ));
+        if (chunkedResult.success) {
+          return ARCXExportResultV2.success(
+            arcxPath: chunkedResult.folderPath,
+            entriesExported: chunkedResult.totalEntries,
+            chatsExported: chunkedResult.totalChats,
+            mediaExported: chunkedResult.totalMedia,
+            separatePackages: chunkedResult.chunkPaths,
+          );
+        } else {
+          return ARCXExportResultV2.failure(chunkedResult.error ?? 'Failed to create backup set');
         }
-        
-        return result;
       }
       
-      // Normal incremental export (previous exports exist)
+      // Normal incremental export (backup set and previous exports exist)
       onProgress?.call('Analyzing changes since last backup...');
       
       // Get all current entries and chats
@@ -2308,19 +2273,27 @@ class ARCXExportServiceV2 {
       if (entriesToExport.isEmpty && chatsToExport.isEmpty) {
         onProgress?.call('No new data to export since last backup');
         return ARCXExportResultV2.success(
-          arcxPath: '',
+          arcxPath: backupSetDir.path,
           entriesExported: 0,
           chatsExported: 0,
           mediaExported: 0,
         );
       }
       
-      // Create selection with filtered data
-      final selection = ARCXExportSelection(
-        entryIds: entriesToExport.map((e) => e.id).toList(),
-        chatThreadIds: chatsToExport.map((c) => c.id).toList(),
-        mediaIds: excludeMedia ? [] : mediaToExport.map((m) => m.id).toList(), // Empty if excluding media
-      );
+      // Get the next file number in the backup set
+      final highestNum = await _getHighestFileNumber(backupSetDir);
+      final nextNum = (highestNum + 1).toString().padLeft(3, '0');
+      final timestamp = DateTime.now();
+      final dateStr = '${timestamp.year}-${timestamp.month.toString().padLeft(2, '0')}-${timestamp.day.toString().padLeft(2, '0')}';
+      final incFilename = 'ARC_Inc_${nextNum}_$dateStr';
+      
+      onProgress?.call('Creating incremental backup: $incFilename.arcx');
+      
+      // Collect media for this incremental's entries
+      final incMedia = <MediaItem>[];
+      for (final entry in entriesToExport) {
+        incMedia.addAll(entry.media);
+      }
       
       final options = ARCXExportOptions(
         strategy: strategy,
@@ -2330,18 +2303,31 @@ class ARCXExportServiceV2 {
         excludeMediaFromIncremental: excludeMedia,
       );
       
-      // Get export number for sequential labeling
-      final exportNumber = await historyService.getNextExportNumber();
+      final exportId = _uuid.v4();
+      final exportedAt = DateTime.now().toUtc().toIso8601String();
       
-      // Perform export
-      final result = await export(
-        selection: selection,
+      // Export to backup set folder using _exportTogether
+      final result = await _exportTogether(
+        entries: entriesToExport,
+        chats: chatsToExport,
+        media: excludeMedia ? [] : incMedia,
         options: options,
-        outputDir: outputDir,
+        exportId: exportId,
+        exportedAt: exportedAt,
+        outputDir: backupSetDir, // Export to the backup set folder
         password: password,
         onProgress: onProgress,
-        exportNumber: exportNumber,
+        exportNumber: highestNum + 1,
       );
+      
+      String? finalPath;
+      if (result.success && result.arcxPath != null) {
+        // Rename to use our incremental filename format
+        final originalFile = File(result.arcxPath!);
+        finalPath = path.join(backupSetDir.path, '$incFilename.arcx');
+        await originalFile.rename(finalPath);
+        debugPrint('ARCX Incremental: Created $finalPath');
+      }
       
       // Record export in history
       if (result.success && options.trackExportHistory) {
@@ -2350,23 +2336,29 @@ class ARCXExportServiceV2 {
             .map((m) => m.sha256!)
             .toSet();
         
+        final exportNumber = await historyService.getNextExportNumber();
         await historyService.recordExport(ExportRecord(
-          exportId: 'arcx-inc-${DateTime.now().millisecondsSinceEpoch}',
-          exportedAt: DateTime.now(),
-          exportPath: result.arcxPath,
+          exportId: 'arcx-inc-${timestamp.millisecondsSinceEpoch}',
+          exportedAt: timestamp,
+          exportPath: finalPath ?? result.arcxPath,
           entryIds: entriesToExport.map((e) => e.id).toSet(),
           chatIds: chatsToExport.map((c) => c.id).toSet(),
           mediaHashes: mediaHashes,
           entriesCount: result.entriesExported,
           chatsCount: result.chatsExported,
           mediaCount: result.mediaExported,
-          archiveSizeBytes: await _getFileSize(result.arcxPath ?? ''),
+          archiveSizeBytes: await _getFileSize(finalPath ?? result.arcxPath ?? ''),
           isFullBackup: false,
           exportNumber: exportNumber,
         ));
       }
       
-      return result;
+      return ARCXExportResultV2.success(
+        arcxPath: finalPath ?? result.arcxPath ?? backupSetDir.path,
+        entriesExported: result.entriesExported,
+        chatsExported: result.chatsExported,
+        mediaExported: result.mediaExported,
+      );
     } catch (e, stackTrace) {
       debugPrint('ARCX Incremental Export: Failed: $e');
       debugPrint('Stack trace: $stackTrace');
@@ -2440,15 +2432,18 @@ class ARCXExportServiceV2 {
   
   /// Export full backup split into chunks of ~chunkSizeMB each
   /// 
-  /// Creates a dated folder containing multiple .arcx files, each up to the specified size.
+  /// Creates a "backup set" folder containing multiple .arcx files, each up to the specified size.
   /// Files are numbered sequentially (001, 002, etc.) with oldest entries first.
+  /// Incremental backups will continue numbering in this same folder.
   /// 
   /// Example output:
   /// ```
-  /// ARC_Backup_2026-01-16/
-  ///   ├── ARC_Backup_2026-01-16_001.arcx  (oldest entries, ≤200MB)
-  ///   ├── ARC_Backup_2026-01-16_002.arcx  (next batch, ≤200MB)
-  ///   └── ARC_Backup_2026-01-16_003.arcx  (newest entries, remaining)
+  /// ARC_BackupSet_2026-01-16/
+  ///   ├── ARC_Full_001.arcx  (oldest entries, ≤200MB)
+  ///   ├── ARC_Full_002.arcx  (next batch, ≤200MB)
+  ///   ├── ARC_Full_003.arcx  (newest entries, remaining)
+  ///   ├── ARC_Inc_004_2026-01-17.arcx  (incremental backup later)
+  ///   └── ARC_Inc_005_2026-01-20.arcx  (another incremental)
   /// ```
   Future<ChunkedBackupResult> exportFullBackupChunked({
     required Directory outputDir,
@@ -2461,7 +2456,7 @@ class ARCXExportServiceV2 {
       
       final timestamp = DateTime.now();
       final dateStr = '${timestamp.year}-${timestamp.month.toString().padLeft(2, '0')}-${timestamp.day.toString().padLeft(2, '0')}';
-      final dateFolderName = 'ARC_Backup_$dateStr';
+      final dateFolderName = 'ARC_BackupSet_$dateStr';
       final backupDir = Directory(path.join(outputDir.path, dateFolderName));
       
       // Create backup folder
@@ -2492,7 +2487,7 @@ class ARCXExportServiceV2 {
       for (int i = 0; i < chunks.length; i++) {
         final chunk = chunks[i];
         final chunkNum = (i + 1).toString().padLeft(3, '0');
-        final chunkFilename = '${dateFolderName}_$chunkNum';
+        final chunkFilename = 'ARC_Full_$chunkNum';
         
         onProgress?.call('Exporting chunk ${i + 1}/${chunks.length} (${chunk.entries.length} entries, ${chunk.chats.length} chats)...');
         
@@ -2699,6 +2694,88 @@ class ARCXExportServiceV2 {
       }
     } catch (_) {}
     return 0;
+  }
+  
+  /// Find the latest backup set folder in the output directory
+  /// Returns null if no backup set exists
+  Future<Directory?> _findLatestBackupSet(Directory outputDir) async {
+    if (!await outputDir.exists()) return null;
+    
+    Directory? latestSet;
+    DateTime? latestDate;
+    
+    await for (final entity in outputDir.list()) {
+      if (entity is Directory) {
+        final name = path.basename(entity.path);
+        // Match ARC_BackupSet_YYYY-MM-DD pattern
+        final match = RegExp(r'^ARC_BackupSet_(\d{4})-(\d{2})-(\d{2})$').firstMatch(name);
+        if (match != null) {
+          try {
+            final year = int.parse(match.group(1)!);
+            final month = int.parse(match.group(2)!);
+            final day = int.parse(match.group(3)!);
+            final setDate = DateTime(year, month, day);
+            
+            if (latestDate == null || setDate.isAfter(latestDate)) {
+              latestDate = setDate;
+              latestSet = entity;
+            }
+          } catch (_) {}
+        }
+      }
+    }
+    
+    return latestSet;
+  }
+  
+  /// Get the highest file number in a backup set folder
+  /// Returns 0 if folder is empty or no numbered files exist
+  Future<int> _getHighestFileNumber(Directory backupSetDir) async {
+    int highestNum = 0;
+    
+    if (!await backupSetDir.exists()) return 0;
+    
+    await for (final entity in backupSetDir.list()) {
+      if (entity is File && entity.path.endsWith('.arcx')) {
+        final fileName = path.basenameWithoutExtension(entity.path);
+        // Match ARC_Full_NNN or ARC_Inc_NNN_* pattern
+        final fullMatch = RegExp(r'^ARC_Full_(\d{3})$').firstMatch(fileName);
+        final incMatch = RegExp(r'^ARC_Inc_(\d{3})_').firstMatch(fileName);
+        
+        int? num;
+        if (fullMatch != null) {
+          num = int.tryParse(fullMatch.group(1)!);
+        } else if (incMatch != null) {
+          num = int.tryParse(incMatch.group(1)!);
+        }
+        
+        if (num != null && num > highestNum) {
+          highestNum = num;
+        }
+      }
+    }
+    
+    return highestNum;
+  }
+  
+  /// Get the timestamp of the newest file in a backup set
+  Future<DateTime?> _getLatestBackupTimestamp(Directory backupSetDir) async {
+    DateTime? latestTime;
+    
+    if (!await backupSetDir.exists()) return null;
+    
+    await for (final entity in backupSetDir.list()) {
+      if (entity is File && entity.path.endsWith('.arcx')) {
+        try {
+          final stat = await entity.stat();
+          if (latestTime == null || stat.modified.isAfter(latestTime)) {
+            latestTime = stat.modified;
+          }
+        } catch (_) {}
+      }
+    }
+    
+    return latestTime;
   }
   
   /// Get incremental export preview (for UI)

@@ -1,8 +1,8 @@
 # ARCX Backup System Documentation
 
-**Version:** 3.2.5  
+**Version:** 3.2.6  
 **Last Updated:** January 16, 2026  
-**Status:** Current Implementation with Enhanced Incremental Backups, Chunked Full Backup, First Export Full Backup, Sequential Export Numbering, and First Backup on Import
+**Status:** Current Implementation with Backup Set Model, Enhanced Incremental Backups, Chunked Full Backup, First Export Full Backup, Sequential Export Numbering, and First Backup on Import
 
 ---
 
@@ -49,7 +49,39 @@ The system supports three export strategies:
    - `export_YYYY-MM-DD_media.arcx` - Media files
    - Useful when media is large but entries/chats are small
 
-### Chunked Full Backup ✅ NEW (v3.2.5)
+### Backup Set Model ✅ NEW (v3.2.6)
+
+**Concept:** A "backup set" is a folder containing related backup files. Full backups create the base files, and incremental backups continue numbering in the same folder.
+
+**How It Works:**
+1. **Full Backup** creates a new backup set folder: `ARC_BackupSet_YYYY-MM-DD/`
+2. Full backup chunks are named: `ARC_Full_001.arcx`, `ARC_Full_002.arcx`, etc.
+3. **Incremental Backups** find the latest backup set and continue numbering
+4. Incremental files are named: `ARC_Inc_004_2026-01-17.arcx` (number + actual date)
+5. Restore order is always clear: just restore 001 → 002 → 003 → etc.
+
+**Output Structure:**
+```
+ARC_BackupSet_2026-01-16/
+  ├── ARC_Full_001.arcx           (full backup chunk 1, Jan 16)
+  ├── ARC_Full_002.arcx           (full backup chunk 2, Jan 16)
+  ├── ARC_Full_003.arcx           (full backup chunk 3, Jan 16)
+  ├── ARC_Inc_004_2026-01-17.arcx (incremental, Jan 17)
+  └── ARC_Inc_005_2026-01-20.arcx (incremental, Jan 20)
+```
+
+**Key Features:**
+- **Clear Restore Order:** Files numbered sequentially (001, 002, 003...)
+- **Type Distinction:** `ARC_Full_` vs `ARC_Inc_` prefix shows backup type
+- **Date Visibility:** Folder name = set start date, file suffix = actual date for incrementals
+- **Self-Documenting:** Looking at the folder tells the whole story
+- **Automatic Set Detection:** Incremental backups automatically find latest set
+
+**When a New Set is Created:**
+- User triggers "Full Backup" → Creates new `ARC_BackupSet_YYYY-MM-DD/`
+- No existing backup set found → Creates new set with full backup first
+
+### Chunked Full Backup
 
 **Feature:** Automatically splits large full backups into multiple ~200MB files
 
@@ -57,18 +89,11 @@ The system supports three export strategies:
 
 **How It Works:**
 1. User triggers "Full Backup" from Settings → Local Backup
-2. System sorts all entries chronologically (oldest → newest)
-3. System estimates size of each entry (JSON + media)
-4. When accumulated size approaches 200MB, a new chunk is created
-5. All chunks are stored in a dated folder
-
-**Output Structure:**
-```
-ARC_Backup_2026-01-16/
-  ├── ARC_Backup_2026-01-16_001.arcx  (oldest entries, ≤200MB)
-  ├── ARC_Backup_2026-01-16_002.arcx  (next batch, ≤200MB)
-  └── ARC_Backup_2026-01-16_003.arcx  (newest entries, remaining)
-```
+2. System creates new backup set folder: `ARC_BackupSet_YYYY-MM-DD/`
+3. System sorts all entries chronologically (oldest → newest)
+4. System estimates size of each entry (JSON + media)
+5. When accumulated size approaches 200MB, a new chunk is created
+6. Chunks named: `ARC_Full_001.arcx`, `ARC_Full_002.arcx`, etc.
 
 **Key Features:**
 - **Automatic Chunking:** No user configuration needed (200MB default)
@@ -93,10 +118,42 @@ final result = await exportService.exportFullBackupChunked(
 );
 
 // Result includes:
-// - folderPath: Path to dated folder
+// - folderPath: Path to backup set folder
 // - chunkPaths: List of all .arcx files created
 // - totalChunks: Number of chunks created
 // - totalEntries, totalChats, totalMedia: Counts
+```
+
+### Incremental Backup (Backup Set Model)
+
+**Feature:** Adds new entries to existing backup set with continuous numbering
+
+**How It Works:**
+1. User triggers "Quick Backup" from Settings → Local Backup
+2. System finds the latest `ARC_BackupSet_*` folder
+3. System gets the highest file number in that folder
+4. System exports new entries since last backup
+5. File saved as: `ARC_Inc_{next_number}_{today's_date}.arcx`
+
+**If No Backup Set Exists:**
+- System automatically creates a new backup set with full backup first
+- Then future quick backups add to that set
+
+**Example Flow:**
+```
+Day 1: User triggers Full Backup
+  → Creates ARC_BackupSet_2026-01-16/
+  → Creates ARC_Full_001.arcx, ARC_Full_002.arcx, ARC_Full_003.arcx
+
+Day 2: User triggers Quick Backup (3 new entries)
+  → Finds ARC_BackupSet_2026-01-16/
+  → Gets highest number (003)
+  → Creates ARC_Inc_004_2026-01-17.arcx
+
+Day 5: User triggers Quick Backup (5 new entries)
+  → Finds ARC_BackupSet_2026-01-16/
+  → Gets highest number (004)
+  → Creates ARC_Inc_005_2026-01-20.arcx
 ```
 
 ### Data Structure
@@ -964,6 +1021,7 @@ class ARCXImportResultV2 {
 - ✅ **Import system** with deduplication and link resolution
 - ✅ **Incremental backup tracking** (v3.2.3)
 - ✅ **Chunked full backup** - auto-splits into ~200MB files (v3.2.5)
+- ✅ **Backup set model** - full + incremental in same folder with sequential numbering (v3.2.6)
 - ✅ **Export history** with sequential numbering
 - ✅ **First backup on import** tracking
 
@@ -992,7 +1050,7 @@ class ARCXImportResultV2 {
 
 ---
 
-**Version:** 3.2.5  
+**Version:** 3.2.6  
 **Last Updated:** January 16, 2026  
-**Status:** Current Implementation - All Features Complete (Including Chunked Backup)
+**Status:** Current Implementation - All Features Complete (Including Backup Set Model)
 

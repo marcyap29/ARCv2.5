@@ -1,6 +1,6 @@
 # EPI MVP - Comprehensive Features Guide
 
-**Version:** 3.2.5
+**Version:** 3.2.6
 **Last Updated:** January 16, 2026
 
 ---
@@ -734,15 +734,28 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 - **Media Warning**: Banner alerts when media would be included, suggests text-only for frequent backups
 - **Fast Execution**: Less data to process means faster backup times
 
+**Backup Set Model (v3.2.6)**
+- **Unified Backup System**: Full and incremental backups share the same folder with sequential numbering
+  - Creates backup set folder: `ARC_BackupSet_YYYY-MM-DD/`
+  - Full backup chunks: `ARC_Full_001.arcx`, `ARC_Full_002.arcx`, etc.
+  - Incremental backups continue: `ARC_Inc_004_2026-01-17.arcx` (number + date)
+  - Clear restore order: Just restore 001 → 002 → 003, etc.
+- **Automatic Set Detection**: Quick Backups automatically find and add to existing backup set
+- **Type Distinction**: `ARC_Full_` vs `ARC_Inc_` prefix clearly shows backup type
+- **Self-Documenting**: Folder structure tells the complete backup story
+
 **Full Backup with Chunked Export (v3.2.5)**
 - **Complete Export**: Exports all data regardless of previous exports
 - **Automatic Chunking**: Large backups automatically split into ~200MB files
-  - Creates dated folder: `ARC_Backup_YYYY-MM-DD/`
-  - Files numbered sequentially: `_001.arcx`, `_002.arcx`, etc.
+  - Creates backup set folder: `ARC_BackupSet_YYYY-MM-DD/`
+  - Files named: `ARC_Full_001.arcx`, `ARC_Full_002.arcx`, etc.
   - Oldest entries first, newest entries last
   - Each chunk is self-contained with its entries + media
 - **Better Manageability**: Smaller files easier to transfer, email, or upload
 - **Error Recovery**: If one chunk fails, others remain usable
+- **History Tracking**: Records full backup date for reference
+- **Recommended Frequency**: Monthly or before major changes
+
 **Backup History Management**
 - **Export Statistics**: View total exports, entries backed up, last full backup date
 - **History Clearing**: Option to clear history and force full backup
@@ -871,6 +884,6 @@ All core features are production-ready and fully operational:
 ---
 
 **Features Guide Status:** ✅ Complete
-**Last Updated:** January 16, 2026
-**Version:** 3.2.5
+**Last Updated:** January 11, 2026
+**Version:** 3.2.4
 
