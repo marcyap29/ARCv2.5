@@ -253,7 +253,12 @@ exports.proxyGemini = onCall(
 exports.createCheckoutSession = onCall(
   {
     cors: true,
-    secrets: [STRIPE_SECRET_KEY, STRIPE_PRICE_ID_MONTHLY, STRIPE_PRICE_ID_ANNUAL],
+    secrets: [
+      STRIPE_SECRET_KEY,
+      STRIPE_PRICE_ID_MONTHLY,
+      STRIPE_PRICE_ID_ANNUAL,
+      STRIPE_FOUNDER_PRICE_ID_UPFRONT,
+    ],
     timeoutSeconds: 60, // Increase timeout to 60 seconds
     // invoker is set manually in Cloud Console to avoid IAM conflicts
   },
@@ -278,13 +283,15 @@ exports.createCheckoutSession = onCall(
     console.log(`createCheckoutSession called by user: ${userId} (${userEmail})`);
 
     // Determine which price to use (monthly or annual)
-    const interval = billingInterval || "monthly"; // "monthly" or "annual"
+    const interval = billingInterval || "monthly"; // "monthly", "annual", or "founders_upfront"
+    const isFoundersUpfront = interval === "founders_upfront";
 
     // Get price IDs from Firebase Secret Manager with error handling
-    let priceIdMonthly, priceIdAnnual, stripeSecretKey;
+    let priceIdMonthly, priceIdAnnual, priceIdFounders, stripeSecretKey;
     try {
       priceIdMonthly = STRIPE_PRICE_ID_MONTHLY.value();
       priceIdAnnual = STRIPE_PRICE_ID_ANNUAL.value();
+      priceIdFounders = STRIPE_FOUNDER_PRICE_ID_UPFRONT.value();
       stripeSecretKey = STRIPE_SECRET_KEY.value();
       
       console.log('createCheckoutSession: Secrets retrieved successfully');
@@ -299,7 +306,20 @@ exports.createCheckoutSession = onCall(
       );
     }
 
-    const priceId = interval === "annual" ? priceIdAnnual : priceIdMonthly;
+    const priceId = isFoundersUpfront
+      ? priceIdFounders
+      : (interval === "annual" ? priceIdAnnual : priceIdMonthly);
+
+    if (
+      isFoundersUpfront &&
+      (priceIdFounders === priceIdMonthly || priceIdFounders === priceIdAnnual)
+    ) {
+      console.error('createCheckoutSession: Founders price ID misconfigured (matches monthly/annual)');
+      throw new HttpsError(
+        "failed-precondition",
+        "Founders pricing is misconfigured. Please contact support."
+      );
+    }
 
     if (!priceId || !priceId.trim()) {
       console.error(`createCheckoutSession: Price ID missing for ${interval} billing`);
@@ -370,7 +390,7 @@ exports.createCheckoutSession = onCall(
       }
 
       // Create checkout session
-      const session = await stripe.checkout.sessions.create({
+      const sessionPayload = {
         customer: customerId,
         payment_method_types: ["card"],
         line_items: [
@@ -379,14 +399,13 @@ exports.createCheckoutSession = onCall(
             quantity: 1,
           },
         ],
-        mode: "subscription",
+        mode: isFoundersUpfront ? "payment" : "subscription",
         success_url: successUrl || "https://arc-app.com/subscription/success?session_id={CHECKOUT_SESSION_ID}",
         cancel_url: cancelUrl || "https://arc-app.com/subscription/cancel",
-        subscription_data: {
-          metadata: {
-            firebaseUID: userId,
-            billingInterval: interval,
-          },
+        metadata: {
+          firebaseUID: userId,
+          billingInterval: interval,
+          planType: isFoundersUpfront ? "founders" : "premium",
         },
         allow_promotion_codes: true, // Enable discount codes
         billing_address_collection: "auto",
@@ -394,7 +413,35 @@ exports.createCheckoutSession = onCall(
           address: "auto",
           name: "auto",
         },
-      });
+      };
+
+      if (isFoundersUpfront) {
+        sessionPayload.payment_intent_data = {
+          metadata: {
+            firebaseUID: userId,
+            billingInterval: interval,
+            planType: "founders",
+          },
+        };
+      } else {
+        sessionPayload.subscription_data = {
+          metadata: {
+            firebaseUID: userId,
+            billingInterval: interval,
+            planType: "premium",
+          },
+        };
+      }
+
+      const session = await stripe.checkout.sessions.create(sessionPayload);
+      console.log('createCheckoutSession: session.url =', session.url ? 'present' : 'missing');
+
+      if (!session.url) {
+        throw new HttpsError(
+          "internal",
+          "Stripe checkout URL missing. Please contact support."
+        );
+      }
 
       // Log checkout attempt
       await db.collection("users").doc(userId).set(
@@ -410,6 +457,7 @@ exports.createCheckoutSession = onCall(
       return {
         sessionId: session.id,
         url: session.url,
+        checkoutUrl: session.url,
       };
 
     } catch (error) {
