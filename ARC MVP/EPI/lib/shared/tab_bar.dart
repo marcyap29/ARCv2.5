@@ -83,7 +83,7 @@ class _CustomTabBarState extends State<CustomTabBar> {
               ),
             ),
           ),
-          // Third tab (Journal) - index 2
+          // Third tab (Conversation) - index 2
           Expanded(
             child: GestureDetector(
               onTap: () => widget.onTabSelected(2),
@@ -153,7 +153,7 @@ class _CustomTabBarState extends State<CustomTabBar> {
           Text(
             tab.text!,
             style: const TextStyle(
-              fontSize: 12,
+              fontSize: 10,
               fontWeight: FontWeight.w500,
               color: textColor,
             ),
