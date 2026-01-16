@@ -1,6 +1,6 @@
 # EPI ARC MVP - Changelog
 
-**Version:** 3.2.5
+**Version:** 3.2.6
 **Last Updated:** January 16, 2026
 
 ---
@@ -14,6 +14,25 @@ This changelog has been split into parts for easier navigation:
 | **[CHANGELOG_part1.md](CHANGELOG_part1.md)** | Dec 2025 | v2.1.43 - v2.1.87 (Current) |
 | **[CHANGELOG_part2.md](CHANGELOG_part2.md)** | Nov 2025 | v2.1.28 - v2.1.42 |
 | **[CHANGELOG_part3.md](CHANGELOG_part3.md)** | Jan-Oct 2025 | v2.0.0 - v2.1.27 & Earlier |
+
+---
+
+## [3.2.6] - January 16, 2026 (Backup Set Model)
+
+### 📁 Backup Set Model
+
+#### New Features
+- **Unified Backup System**: Full and incremental backups now share the same folder with sequential numbering
+  - Creates backup set folder: `ARC_BackupSet_YYYY-MM-DD/`
+  - Full backup chunks: `ARC_Full_001.arcx`, `ARC_Full_002.arcx`, etc.
+  - Incremental backups continue: `ARC_Inc_004_2026-01-17.arcx` (number + actual date)
+- **Automatic Set Detection**: Quick Backups find latest backup set and continue numbering
+- **Clear Restore Order**: Files numbered sequentially (001, 002, 003...)
+- **Type Distinction**: `ARC_Full_` vs `ARC_Inc_` prefix identifies backup type
+
+#### UI Enhancements
+- Updated Quick Backup Card: "Add new entries to your existing backup set"
+- Updated Full Backup Card: "Create new backup set" with file naming examples
 
 ---
 
