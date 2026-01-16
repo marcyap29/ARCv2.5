@@ -125,6 +125,58 @@ class ARCXExportSelection {
   bool get isEmpty => entryIds.isEmpty && chatThreadIds.isEmpty && mediaIds.isEmpty;
 }
 
+/// Result of a chunked backup operation
+class ChunkedBackupResult {
+  final bool success;
+  final String folderPath;
+  final List<String> chunkPaths;
+  final int totalChunks;
+  final int totalEntries;
+  final int totalChats;
+  final int totalMedia;
+  final DateTime timestamp;
+  final String? error;
+  
+  ChunkedBackupResult({
+    required this.success,
+    required this.folderPath,
+    required this.chunkPaths,
+    required this.totalChunks,
+    required this.totalEntries,
+    required this.totalChats,
+    required this.totalMedia,
+    required this.timestamp,
+    this.error,
+  });
+  
+  factory ChunkedBackupResult.failure(String error) {
+    return ChunkedBackupResult(
+      success: false,
+      folderPath: '',
+      chunkPaths: [],
+      totalChunks: 0,
+      totalEntries: 0,
+      totalChats: 0,
+      totalMedia: 0,
+      timestamp: DateTime.now(),
+      error: error,
+    );
+  }
+}
+
+/// A chunk of data for export (used internally)
+class _ExportChunk {
+  final List<JournalEntry> entries;
+  final List<ChatSession> chats;
+  final int estimatedSizeBytes;
+  
+  _ExportChunk({
+    required this.entries,
+    required this.chats,
+    required this.estimatedSizeBytes,
+  });
+}
+
 /// ARCX Export Service V2
 class ARCXExportServiceV2 {
   final JournalRepository? _journalRepo;
@@ -2384,6 +2436,257 @@ class ARCXExportServiceV2 {
     }
     
     return result;
+  }
+  
+  /// Export full backup split into chunks of ~chunkSizeMB each
+  /// 
+  /// Creates a dated folder containing multiple .arcx files, each up to the specified size.
+  /// Files are numbered sequentially (001, 002, etc.) with oldest entries first.
+  /// 
+  /// Example output:
+  /// ```
+  /// ARC_Backup_2026-01-16/
+  ///   ├── ARC_Backup_2026-01-16_001.arcx  (oldest entries, ≤200MB)
+  ///   ├── ARC_Backup_2026-01-16_002.arcx  (next batch, ≤200MB)
+  ///   └── ARC_Backup_2026-01-16_003.arcx  (newest entries, remaining)
+  /// ```
+  Future<ChunkedBackupResult> exportFullBackupChunked({
+    required Directory outputDir,
+    String? password,
+    Function(String)? onProgress,
+    int chunkSizeMB = 200,
+  }) async {
+    try {
+      onProgress?.call('Preparing chunked backup...');
+      
+      final timestamp = DateTime.now();
+      final dateStr = '${timestamp.year}-${timestamp.month.toString().padLeft(2, '0')}-${timestamp.day.toString().padLeft(2, '0')}';
+      final dateFolderName = 'ARC_Backup_$dateStr';
+      final backupDir = Directory(path.join(outputDir.path, dateFolderName));
+      
+      // Create backup folder
+      if (!await backupDir.exists()) {
+        await backupDir.create(recursive: true);
+      }
+      
+      // Get all entries sorted chronologically (oldest first)
+      final allEntries = await _journalRepo?.getAllJournalEntries() ?? [];
+      allEntries.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+      
+      final allChats = await _chatRepo?.listAll(includeArchived: true) ?? [];
+      allChats.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+      
+      onProgress?.call('Found ${allEntries.length} entries and ${allChats.length} chats');
+      
+      if (allEntries.isEmpty && allChats.isEmpty) {
+        return ChunkedBackupResult.failure('No data to backup');
+      }
+      
+      // Split into chunks based on estimated size
+      final chunks = _splitDataIntoChunks(allEntries, allChats, chunkSizeMB);
+      onProgress?.call('Splitting into ${chunks.length} chunk(s) of ~${chunkSizeMB}MB each');
+      
+      final chunkPaths = <String>[];
+      int totalMedia = 0;
+      
+      for (int i = 0; i < chunks.length; i++) {
+        final chunk = chunks[i];
+        final chunkNum = (i + 1).toString().padLeft(3, '0');
+        final chunkFilename = '${dateFolderName}_$chunkNum';
+        
+        onProgress?.call('Exporting chunk ${i + 1}/${chunks.length} (${chunk.entries.length} entries, ${chunk.chats.length} chats)...');
+        
+        // Collect media for this chunk's entries
+        final chunkMedia = <MediaItem>[];
+        for (final entry in chunk.entries) {
+          chunkMedia.addAll(entry.media);
+        }
+        totalMedia += chunkMedia.length;
+        
+        final options = ARCXExportOptions.fullBackup();
+        final exportId = _uuid.v4();
+        final exportedAt = DateTime.now().toUtc().toIso8601String();
+        
+        // Export this chunk using _exportTogether
+        final result = await _exportTogether(
+          entries: chunk.entries,
+          chats: chunk.chats,
+          media: chunkMedia,
+          options: options,
+          exportId: exportId,
+          exportedAt: exportedAt,
+          outputDir: backupDir,
+          password: password,
+          onProgress: (msg) => onProgress?.call('Chunk ${i + 1}: $msg'),
+          exportNumber: i + 1,
+        );
+        
+        if (result.success && result.arcxPath != null) {
+          // Rename to use our custom filename format
+          final originalFile = File(result.arcxPath!);
+          final newPath = path.join(backupDir.path, '$chunkFilename.arcx');
+          await originalFile.rename(newPath);
+          chunkPaths.add(newPath);
+          debugPrint('ARCX Chunked Backup: Created chunk ${i + 1}: $newPath');
+        } else {
+          debugPrint('ARCX Chunked Backup: Failed to create chunk ${i + 1}: ${result.error}');
+          return ChunkedBackupResult.failure('Failed to create chunk ${i + 1}: ${result.error}');
+        }
+      }
+      
+      onProgress?.call('Chunked backup complete: ${chunks.length} files created');
+      
+      // Record in export history
+      final historyService = ExportHistoryService.instance;
+      final mediaHashes = <String>{};
+      for (final entry in allEntries) {
+        for (final media in entry.media) {
+          if (media.sha256 != null) {
+            mediaHashes.add(media.sha256!);
+          }
+        }
+      }
+      
+      await historyService.recordExport(ExportRecord(
+        exportId: 'arcx-chunked-${timestamp.millisecondsSinceEpoch}',
+        exportedAt: timestamp,
+        exportPath: backupDir.path,
+        entryIds: allEntries.map((e) => e.id).toSet(),
+        chatIds: allChats.map((c) => c.id).toSet(),
+        mediaHashes: mediaHashes,
+        entriesCount: allEntries.length,
+        chatsCount: allChats.length,
+        mediaCount: totalMedia,
+        archiveSizeBytes: await _getFolderSize(backupDir.path),
+        isFullBackup: true,
+        exportNumber: await historyService.getNextExportNumber(),
+      ));
+      
+      return ChunkedBackupResult(
+        success: true,
+        folderPath: backupDir.path,
+        chunkPaths: chunkPaths,
+        totalChunks: chunks.length,
+        totalEntries: allEntries.length,
+        totalChats: allChats.length,
+        totalMedia: totalMedia,
+        timestamp: timestamp,
+      );
+    } catch (e, stackTrace) {
+      debugPrint('ARCX Chunked Backup: Failed: $e');
+      debugPrint('Stack trace: $stackTrace');
+      return ChunkedBackupResult.failure(e.toString());
+    }
+  }
+  
+  /// Split entries and chats into chunks based on estimated size
+  List<_ExportChunk> _splitDataIntoChunks(
+    List<JournalEntry> entries,
+    List<ChatSession> chats,
+    int chunkSizeMB,
+  ) {
+    final chunkSizeBytes = chunkSizeMB * 1024 * 1024;
+    final chunks = <_ExportChunk>[];
+    
+    var currentEntries = <JournalEntry>[];
+    var currentChats = <ChatSession>[];
+    var currentSize = 0;
+    
+    // Process entries (already sorted oldest → newest)
+    for (final entry in entries) {
+      final entrySize = _estimateEntrySize(entry);
+      
+      // If adding this entry would exceed chunk size and we have entries, finalize current chunk
+      if (currentSize + entrySize > chunkSizeBytes && currentEntries.isNotEmpty) {
+        chunks.add(_ExportChunk(
+          entries: List.from(currentEntries),
+          chats: List.from(currentChats),
+          estimatedSizeBytes: currentSize,
+        ));
+        currentEntries = [];
+        currentChats = [];
+        currentSize = 0;
+      }
+      
+      currentEntries.add(entry);
+      currentSize += entrySize;
+    }
+    
+    // Process remaining chats - add to the last chunk or create new one
+    for (final chat in chats) {
+      final chatSize = _estimateChatSize(chat);
+      
+      if (currentSize + chatSize > chunkSizeBytes && (currentEntries.isNotEmpty || currentChats.isNotEmpty)) {
+        chunks.add(_ExportChunk(
+          entries: List.from(currentEntries),
+          chats: List.from(currentChats),
+          estimatedSizeBytes: currentSize,
+        ));
+        currentEntries = [];
+        currentChats = [];
+        currentSize = 0;
+      }
+      
+      currentChats.add(chat);
+      currentSize += chatSize;
+    }
+    
+    // Add remaining data as final chunk
+    if (currentEntries.isNotEmpty || currentChats.isNotEmpty) {
+      chunks.add(_ExportChunk(
+        entries: currentEntries,
+        chats: currentChats,
+        estimatedSizeBytes: currentSize,
+      ));
+    }
+    
+    // If no chunks were created (shouldn't happen), create one with all data
+    if (chunks.isEmpty && (entries.isNotEmpty || chats.isNotEmpty)) {
+      chunks.add(_ExportChunk(
+        entries: entries,
+        chats: chats,
+        estimatedSizeBytes: entries.fold(0, (sum, e) => sum + _estimateEntrySize(e)) +
+                           chats.fold(0, (sum, c) => sum + _estimateChatSize(c)),
+      ));
+    }
+    
+    return chunks;
+  }
+  
+  /// Estimate the size of a journal entry including media
+  int _estimateEntrySize(JournalEntry entry) {
+    // Base JSON size (rough estimate)
+    var size = utf8.encode(jsonEncode(entry.toJson())).length;
+    
+    // Add media sizes
+    for (final media in entry.media) {
+      size += media.sizeBytes ?? 500000; // Default 500KB if unknown
+    }
+    
+    return size;
+  }
+  
+  /// Estimate the size of a chat session
+  int _estimateChatSize(ChatSession chat) {
+    // Estimate: ~1KB per message + metadata
+    // ChatSession.messages might be lazy-loaded, estimate based on typical size
+    return 50000; // 50KB average per session (conservative estimate)
+  }
+  
+  /// Get total size of a folder
+  Future<int> _getFolderSize(String folderPath) async {
+    int totalSize = 0;
+    try {
+      final dir = Directory(folderPath);
+      if (await dir.exists()) {
+        await for (final entity in dir.list(recursive: true, followLinks: false)) {
+          if (entity is File) {
+            totalSize += await entity.length();
+          }
+        }
+      }
+    } catch (_) {}
+    return totalSize;
   }
   
   /// Get file size helper
