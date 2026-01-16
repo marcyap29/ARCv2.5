@@ -1,8 +1,8 @@
 # ARCX Backup System Documentation
 
-**Version:** 3.2.4  
-**Last Updated:** January 11, 2026  
-**Status:** Current Implementation with Enhanced Incremental Backups, First Export Full Backup, Sequential Export Numbering, and First Backup on Import
+**Version:** 3.2.5  
+**Last Updated:** January 16, 2026  
+**Status:** Current Implementation with Enhanced Incremental Backups, Chunked Full Backup, First Export Full Backup, Sequential Export Numbering, and First Backup on Import
 
 ---
 
@@ -48,6 +48,56 @@ The system supports three export strategies:
    - `export_YYYY-MM-DD_entries-chats.arcx` - Entries and chats
    - `export_YYYY-MM-DD_media.arcx` - Media files
    - Useful when media is large but entries/chats are small
+
+### Chunked Full Backup ✅ NEW (v3.2.5)
+
+**Feature:** Automatically splits large full backups into multiple ~200MB files
+
+**Purpose:** Makes large backups more manageable, easier to transfer, and prevents single-file size issues.
+
+**How It Works:**
+1. User triggers "Full Backup" from Settings → Local Backup
+2. System sorts all entries chronologically (oldest → newest)
+3. System estimates size of each entry (JSON + media)
+4. When accumulated size approaches 200MB, a new chunk is created
+5. All chunks are stored in a dated folder
+
+**Output Structure:**
+```
+ARC_Backup_2026-01-16/
+  ├── ARC_Backup_2026-01-16_001.arcx  (oldest entries, ≤200MB)
+  ├── ARC_Backup_2026-01-16_002.arcx  (next batch, ≤200MB)
+  └── ARC_Backup_2026-01-16_003.arcx  (newest entries, remaining)
+```
+
+**Key Features:**
+- **Automatic Chunking:** No user configuration needed (200MB default)
+- **Chronological Ordering:** Files numbered 001, 002, etc. from oldest to newest entries
+- **Self-Contained Chunks:** Each `.arcx` file contains entries + their associated media
+- **Export History:** Entire chunked backup recorded as single export in history
+- **UI Feedback:** Shows info dialog listing all created chunk files
+
+**Benefits:**
+- **Easier Transfers:** Smaller files easier to email, upload, or share
+- **Better Error Recovery:** If one chunk fails, others are still usable
+- **Storage Friendly:** Can fit on storage media with file size limits
+- **Progress Visibility:** User sees chunk-by-chunk progress
+
+**Implementation:**
+```dart
+final result = await exportService.exportFullBackupChunked(
+  outputDir: outputDir,
+  password: password,
+  chunkSizeMB: 200, // Default 200MB per chunk
+  onProgress: (msg) => print(msg),
+);
+
+// Result includes:
+// - folderPath: Path to dated folder
+// - chunkPaths: List of all .arcx files created
+// - totalChunks: Number of chunks created
+// - totalEntries, totalChats, totalMedia: Counts
+```
 
 ### Data Structure
 
@@ -912,9 +962,10 @@ class ARCXImportResultV2 {
 - ✅ **Date range filtering** available
 - ✅ **Media pack organization** for large files
 - ✅ **Import system** with deduplication and link resolution
-- ❌ **No incremental backup** tracking
-- ❌ **Full exports every time** (redundant data)
-- ❌ **No automatic space management**
+- ✅ **Incremental backup tracking** (v3.2.3)
+- ✅ **Chunked full backup** - auto-splits into ~200MB files (v3.2.5)
+- ✅ **Export history** with sequential numbering
+- ✅ **First backup on import** tracking
 
 ### Recommended Actions
 
@@ -941,7 +992,7 @@ class ARCXImportResultV2 {
 
 ---
 
-**Version:** 3.2.4  
-**Last Updated:** January 11, 2026  
-**Status:** Current Implementation - All Features Complete
+**Version:** 3.2.5  
+**Last Updated:** January 16, 2026  
+**Status:** Current Implementation - All Features Complete (Including Chunked Backup)
 
