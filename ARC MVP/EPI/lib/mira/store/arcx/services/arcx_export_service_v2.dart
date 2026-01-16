@@ -2587,12 +2587,31 @@ class ARCXExportServiceV2 {
     var currentChats = <ChatSession>[];
     var currentSize = 0;
     
+    debugPrint('ARCX Chunking: Target chunk size: ${chunkSizeMB}MB (${chunkSizeBytes} bytes)');
+    debugPrint('ARCX Chunking: Processing ${entries.length} entries and ${chats.length} chats');
+    
     // Process entries (already sorted oldest → newest)
     for (final entry in entries) {
       final entrySize = _estimateEntrySize(entry);
       
-      // If adding this entry would exceed chunk size and we have entries, finalize current chunk
+      debugPrint('ARCX Chunking: Entry ${entry.id.substring(0, 8)}... estimated size: ${(entrySize / 1024 / 1024).toStringAsFixed(2)}MB, media count: ${entry.media.length}');
+      
+      // If current chunk is already at/over target and we have data, finalize it
+      if (currentSize >= chunkSizeBytes && currentEntries.isNotEmpty) {
+        debugPrint('ARCX Chunking: Creating chunk with ${currentEntries.length} entries, estimated ${(currentSize / 1024 / 1024).toStringAsFixed(2)}MB');
+        chunks.add(_ExportChunk(
+          entries: List.from(currentEntries),
+          chats: List.from(currentChats),
+          estimatedSizeBytes: currentSize,
+        ));
+        currentEntries = [];
+        currentChats = [];
+        currentSize = 0;
+      }
+      
+      // If adding this entry would exceed chunk size AND we already have entries, start new chunk
       if (currentSize + entrySize > chunkSizeBytes && currentEntries.isNotEmpty) {
+        debugPrint('ARCX Chunking: Entry would exceed limit. Creating chunk with ${currentEntries.length} entries, estimated ${(currentSize / 1024 / 1024).toStringAsFixed(2)}MB');
         chunks.add(_ExportChunk(
           entries: List.from(currentEntries),
           chats: List.from(currentChats),
@@ -2628,6 +2647,7 @@ class ARCXExportServiceV2 {
     
     // Add remaining data as final chunk
     if (currentEntries.isNotEmpty || currentChats.isNotEmpty) {
+      debugPrint('ARCX Chunking: Final chunk with ${currentEntries.length} entries, ${currentChats.length} chats, estimated ${(currentSize / 1024 / 1024).toStringAsFixed(2)}MB');
       chunks.add(_ExportChunk(
         entries: currentEntries,
         chats: currentChats,
@@ -2645,6 +2665,7 @@ class ARCXExportServiceV2 {
       ));
     }
     
+    debugPrint('ARCX Chunking: Created ${chunks.length} chunks total');
     return chunks;
   }
   
@@ -2653,9 +2674,27 @@ class ARCXExportServiceV2 {
     // Base JSON size (rough estimate)
     var size = utf8.encode(jsonEncode(entry.toJson())).length;
     
-    // Add media sizes
+    // Add media sizes - use realistic defaults for photos/videos
     for (final media in entry.media) {
-      size += media.sizeBytes ?? 500000; // Default 500KB if unknown
+      if (media.sizeBytes != null && media.sizeBytes! > 0) {
+        size += media.sizeBytes!;
+      } else {
+        // Realistic defaults based on media type
+        switch (media.type) {
+          case MediaType.video:
+            size += 50 * 1024 * 1024; // 50MB default for videos
+            break;
+          case MediaType.image:
+            size += 4 * 1024 * 1024; // 4MB default for photos (modern phone photos)
+            break;
+          case MediaType.audio:
+            size += 5 * 1024 * 1024; // 5MB default for audio
+            break;
+          case MediaType.file:
+            size += 3 * 1024 * 1024; // 3MB default for unknown files
+            break;
+        }
+      }
     }
     
     return size;
