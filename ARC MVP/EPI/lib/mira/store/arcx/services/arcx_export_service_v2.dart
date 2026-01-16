@@ -2594,7 +2594,7 @@ class ARCXExportServiceV2 {
     for (final entry in entries) {
       final entrySize = _estimateEntrySize(entry);
       
-      debugPrint('ARCX Chunking: Entry ${entry.id.substring(0, 8)}... estimated size: ${(entrySize / 1024 / 1024).toStringAsFixed(2)}MB, media count: ${entry.media.length}');
+      debugPrint('ARCX Chunking: Entry ${entry.id.length > 8 ? entry.id.substring(0, 8) : entry.id}... estimated size: ${(entrySize / 1024 / 1024).toStringAsFixed(2)}MB, media count: ${entry.media.length}');
       
       // If current chunk is already at/over target and we have data, finalize it
       if (currentSize >= chunkSizeBytes && currentEntries.isNotEmpty) {
