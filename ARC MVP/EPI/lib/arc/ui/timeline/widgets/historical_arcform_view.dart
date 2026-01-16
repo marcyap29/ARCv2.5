@@ -323,7 +323,7 @@ class _HistoricalArcformViewState extends State<HistoricalArcformView> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Journal Entry',
+                  'Conversation',
                   style: heading1Style(context).copyWith(fontSize: 16),
                 ),
                 const SizedBox(height: 12),

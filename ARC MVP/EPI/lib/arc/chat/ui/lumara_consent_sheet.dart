@@ -64,8 +64,8 @@ class _LumaraConsentSheetState extends State<LumaraConsentSheet> {
           
           // Scope toggles
           _buildScopeToggle(
-            'Journal Entries',
-            'Access your journal entries for pattern analysis',
+            'Conversations',
+            'Access your conversations for pattern analysis',
             _scope.journal,
             (value) => setState(() {
               _scope = _scope.copyWith(journal: value);

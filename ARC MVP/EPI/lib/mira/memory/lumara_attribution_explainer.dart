@@ -286,7 +286,7 @@ Your memory system is becoming more comprehensive, allowing for increasingly per
   /// Helper methods for generating descriptions and insights
   static String _getSourceTypeDescription(SourceType sourceType) {
     switch (sourceType) {
-      case SourceType.journalEntry: return 'Journal Entry';
+      case SourceType.journalEntry: return 'Conversation';
       case SourceType.chatMessage: return 'Chat Message';
       case SourceType.chatSession: return 'Chat Conversation';
       case SourceType.photo: return 'Photo';

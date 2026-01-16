@@ -66,7 +66,7 @@ class _DataViewState extends State<DataView> {
                         ),
                         const SizedBox(height: 12),
                         Text(
-                          'Journal Entries: ${_storageInfo!['total_entries']}',
+                          'Conversations: ${_storageInfo!['total_entries']}',
                           style: const TextStyle(color: Colors.white70),
                         ),
                         Text(

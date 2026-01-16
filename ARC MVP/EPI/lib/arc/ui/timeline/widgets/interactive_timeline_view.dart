@@ -1162,7 +1162,7 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
 
         // Entry type label
         Text(
-          'JOURNAL ENTRY',
+          'CONVERSATION',
           style: captionStyle(context).copyWith(
             fontSize: 10.5, // Reduced by 1/8 from 12 to 10.5
             fontWeight: FontWeight.w600,

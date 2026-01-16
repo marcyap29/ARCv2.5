@@ -47,17 +47,17 @@ class _HomeViewState extends State<HomeView> {
   // Shake to report bug
   StreamSubscription? _shakeSubscription;
   
-  // Navigation: 4 buttons (LUMARA + Phase + Journal + New)
+  // Navigation: 4 buttons (LUMARA + Phase + Conversation + New)
   List<TabItem> get _tabs {
     return const [
       TabItem(icon: Icons.psychology, text: 'LUMARA'),
       TabItem(icon: Icons.insights, text: 'Phase'),
-      TabItem(icon: Icons.book, text: 'Journal'),
+      TabItem(icon: Icons.chat_bubble_outline, text: 'Conversation'),
     ];
   }
 
   List<String> get _tabNames {
-    return const ['LUMARA', 'Phase', 'Journal'];
+    return const ['LUMARA', 'Phase', 'Conversation'];
   }
 
   @override

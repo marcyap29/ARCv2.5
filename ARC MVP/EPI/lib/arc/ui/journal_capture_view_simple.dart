@@ -458,7 +458,7 @@ class _JournalCaptureViewMultimodalState extends State<JournalCaptureViewMultimo
     // TODO: Implement journal entry saving with MCP integration
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Journal entry saved with ${_mcpPointers.length} media items'),
+        content: Text('Conversation saved with ${_mcpPointers.length} media items'),
         backgroundColor: Colors.green,
       ),
     );

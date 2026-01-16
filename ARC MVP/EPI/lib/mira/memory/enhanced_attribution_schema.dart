@@ -154,7 +154,7 @@ class EnhancedAttributionTrace {
   String getSourceTypeDescription() {
     switch (sourceType) {
       case SourceType.journalEntry:
-        return 'Journal Entry';
+        return 'Conversation';
       case SourceType.chatMessage:
         return 'Chat Message';
       case SourceType.chatSession:

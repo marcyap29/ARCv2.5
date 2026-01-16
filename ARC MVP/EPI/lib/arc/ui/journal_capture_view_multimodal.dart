@@ -429,7 +429,7 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
     // TODO: Implement journal entry saving with MCP integration
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('Journal entry saved'),
+        content: Text('Conversation saved'),
         backgroundColor: Colors.green,
       ),
     );
