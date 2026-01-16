@@ -1,7 +1,7 @@
 # EPI ARC MVP - Changelog
 
 **Version:** 3.2.5
-**Last Updated:** January 14, 2026
+**Last Updated:** January 16, 2026
 
 ---
 
@@ -17,7 +17,34 @@ This changelog has been split into parts for easier navigation:
 
 ---
 
-## [3.2.5] - January 14, 2026
+## [3.2.5] - January 16, 2026
+
+### 💾 Chunked Full Backup
+
+#### New Features
+- **Automatic Chunking**: Full backups now automatically split into ~200MB files
+  - Creates dated folder: `ARC_Backup_YYYY-MM-DD/`
+  - Files numbered sequentially: `_001.arcx`, `_002.arcx`, `_003.arcx`, etc.
+  - Entries sorted chronologically (oldest first → newest last)
+  - Each chunk is self-contained with its entries + associated media
+- **UI Enhancements**:
+  - Info banner in Full Backup card explains auto-splitting
+  - Progress feedback shows chunk-by-chunk export status
+  - Completion dialog lists all created files when multiple chunks generated
+- **Benefits**:
+  - Easier to transfer, email, or upload smaller files
+  - Better error recovery (if one chunk fails, others remain usable)
+  - Works with storage media that have file size limits
+
+#### Technical Details
+- New `exportFullBackupChunked()` method in `ARCXExportServiceV2`
+- `ChunkedBackupResult` model for result tracking
+- Size estimation for entries includes JSON + media bytes
+- Export history records chunked backup as single operation
+
+---
+
+## [3.2.5] - January 14, 2026 (Previous)
 
 ### 🛡️ SENTINEL Introduction Screen
 

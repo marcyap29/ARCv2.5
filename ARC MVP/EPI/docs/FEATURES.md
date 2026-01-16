@@ -1,7 +1,7 @@
 # EPI MVP - Comprehensive Features Guide
 
-**Version:** 3.2.4
-**Last Updated:** January 11, 2026
+**Version:** 3.2.5
+**Last Updated:** January 16, 2026
 
 ---
 
@@ -734,11 +734,15 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 - **Media Warning**: Banner alerts when media would be included, suggests text-only for frequent backups
 - **Fast Execution**: Less data to process means faster backup times
 
-**Full Backup**
+**Full Backup with Chunked Export (v3.2.5)**
 - **Complete Export**: Exports all data regardless of previous exports
-- **History Tracking**: Records full backup date for reference
-- **Recommended Frequency**: Monthly or before major changes
-
+- **Automatic Chunking**: Large backups automatically split into ~200MB files
+  - Creates dated folder: `ARC_Backup_YYYY-MM-DD/`
+  - Files numbered sequentially: `_001.arcx`, `_002.arcx`, etc.
+  - Oldest entries first, newest entries last
+  - Each chunk is self-contained with its entries + media
+- **Better Manageability**: Smaller files easier to transfer, email, or upload
+- **Error Recovery**: If one chunk fails, others remain usable
 **Backup History Management**
 - **Export Statistics**: View total exports, entries backed up, last full backup date
 - **History Clearing**: Option to clear history and force full backup
@@ -749,7 +753,10 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
   - **"Text Only" Button**: Fast, space-efficient text-only backups
   - **"Backup All" Button**: Full incremental backup including media
   - **Media Warning Banner**: Alerts when media would be included
-- **Full Backup Card**: Option for complete backups
+- **Full Backup Card**: Option for complete backups with auto-chunking
+  - **Info Banner**: Explains automatic ~200MB file splitting
+  - **Progress Feedback**: Shows chunk-by-chunk progress
+  - **Completion Dialog**: Lists all created chunk files when multiple chunks generated
 - **Backup History Card**: View statistics and manage history
 - **Folder Guidance**: Info card explaining recommended backup locations
 - **"Use App Documents" Button**: One-tap setup for safe backup folder
@@ -864,6 +871,6 @@ All core features are production-ready and fully operational:
 ---
 
 **Features Guide Status:** ✅ Complete
-**Last Updated:** January 11, 2026
-**Version:** 3.2.4
+**Last Updated:** January 16, 2026
+**Version:** 3.2.5
 
