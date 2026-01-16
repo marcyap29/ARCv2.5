@@ -46,18 +46,23 @@ class _PricingSelectorState extends State<PricingSelector> {
             borderRadius: BorderRadius.circular(12),
           ),
           padding: const EdgeInsets.all(4),
+          width: double.infinity,
           child: Row(
-            mainAxisSize: MainAxisSize.min,
+            mainAxisSize: MainAxisSize.max,
             children: [
-              _buildToggleOption(
-                label: 'Monthly \$30/mo',
-                interval: BillingInterval.monthly,
-                badge: 'Save \$160',
+              Expanded(
+                child: _buildToggleOption(
+                  label: 'Monthly\n\$30/mo',
+                  interval: BillingInterval.monthly,
+                  badge: 'Save \$160',
+                ),
               ),
-              _buildToggleOption(
-                label: 'Annual \$200/yr',
-                interval: BillingInterval.annual,
-                badge: 'Save \$160',
+              Expanded(
+                child: _buildToggleOption(
+                  label: 'Annual\n\$200/yr',
+                  interval: BillingInterval.annual,
+                  badge: 'Save \$160',
+                ),
               ),
             ],
           ),
@@ -239,7 +244,7 @@ class _PricingSelectorState extends State<PricingSelector> {
         setState(() => _selectedInterval = interval);
       },
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
           color: isSelected ? Colors.white : Colors.transparent,
           borderRadius: BorderRadius.circular(8),
@@ -247,22 +252,25 @@ class _PricingSelectorState extends State<PricingSelector> {
               ? [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 4)]
               : null,
         ),
-        child: Row(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
             Text(
               label,
+              textAlign: TextAlign.center,
               style: TextStyle(
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                color: isSelected ? Colors.black : Colors.grey.shade600,
+                fontSize: 13,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                color: isSelected ? Colors.black : Colors.grey.shade700,
               ),
             ),
             if (badge != null) ...[
-              const SizedBox(width: 8),
+              const SizedBox(height: 6),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
                   color: Colors.green,
-                  borderRadius: BorderRadius.circular(4),
+                  borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
                   badge,

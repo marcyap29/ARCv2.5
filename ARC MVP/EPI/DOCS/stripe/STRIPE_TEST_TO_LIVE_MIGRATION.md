@@ -74,6 +74,7 @@ Before starting, ensure:
    - Monthly Price ID: `price_...` ← **This is what you need**
    - Annual Price ID: `price_...` ← **This is what you need**
    - Founders Upfront Price ID: `price_...` ← **This is what you need**
+   - Make sure this is a **one-time** price and different from monthly/annual
    
    **Important:** 
    - Product ID starts with `prod_...` - **Don't use this**

@@ -197,6 +197,7 @@ url_launcher: ^6.3.1  # For opening checkout URLs
   - `STRIPE_PRICE_ID_MONTHLY` → $30.00/month (recurring)
   - `STRIPE_PRICE_ID_ANNUAL` → $200.00/year (recurring)
   - `STRIPE_FOUNDER_PRICE_ID_UPFRONT` → $1,500 one-time (3-year commit)
+  - Founders price ID must be distinct from monthly/annual and must be one-time (non-recurring)
 
 ---
 

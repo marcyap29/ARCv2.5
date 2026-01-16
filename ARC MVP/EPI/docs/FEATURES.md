@@ -588,12 +588,13 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 ### Subscription & Payment System (v2.1.76)
 
 **Subscription Tiers:**
-- **Free Tier**: 50 LUMARA requests/day, 3 requests/minute rate limit, limited phase history
+- **Free Tier**: 20 LUMARA requests/day, 3 requests/minute rate limit, limited phase history
 - **Premium Tier**: Unlimited LUMARA requests, no rate limits, full phase history, $30/month or $200/year
+- **Founders Commit**: $1,500 upfront for 3 years (one-time payment), premium access plus early access + founder benefits
 
 **Stripe Integration:**
 - Secure payment processing via Stripe Checkout
-- Monthly and annual subscription options
+- Monthly and annual subscription options, plus Founders upfront (3-year) option
 - Customer Portal for subscription management
 - Automatic subscription status updates via webhooks
 - Secrets stored securely in Firebase Secret Manager
@@ -607,7 +608,9 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 - Subscription status display with tier badges
 - Upgrade prompts for free users
 - "Manage Subscription" button for premium users (opens Stripe Customer Portal)
-- Clear pricing display (Monthly vs Annual)
+- Clear pricing display with monthly/annual toggle and savings callout
+- Founders presented as a separate expandable card (not part of the subscription toggle)
+- Toggle optimized for small screens with full-width options and stacked labels
 - Cache management for subscription status
 - **Authentication UX**: Clear messaging when Google sign-in is required for subscription access
 

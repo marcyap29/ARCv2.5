@@ -244,7 +244,20 @@ exports.createCheckoutSession = onCall(
       );
     }
 
-    const priceId = isFoundersUpfront ? priceIdFounders : (interval === "annual" ? priceIdAnnual : priceIdMonthly);
+    const priceId = isFoundersUpfront
+      ? priceIdFounders
+      : (interval === "annual" ? priceIdAnnual : priceIdMonthly);
+
+    if (
+      isFoundersUpfront &&
+      (priceIdFounders === priceIdMonthly || priceIdFounders === priceIdAnnual)
+    ) {
+      logger.error("createCheckoutSession: Founders price ID misconfigured (matches monthly/annual)");
+      throw new HttpsError(
+        "failed-precondition",
+        "Founders pricing is misconfigured. Please contact support."
+      );
+    }
 
     if (!priceId || priceId.trim() === "") {
       logger.error(`createCheckoutSession: Price ID not configured for ${interval} billing`);
