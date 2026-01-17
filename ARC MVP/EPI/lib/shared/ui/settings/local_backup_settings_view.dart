@@ -1114,21 +1114,21 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
         children: [
           Row(
             children: [
-              Icon(Icons.bolt, color: kcAccentColor, size: 24),
+              Icon(Icons.update, color: kcAccentColor, size: 24),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Quick Backup',
+                      'Incremental Backup',
                       style: heading3Style(context).copyWith(
                         color: kcPrimaryTextColor,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
                     Text(
-                      'Add new entries to your existing backup set',
+                      'Backs up your most recent entries since the last backup and adds them to your existing backup set',
                       style: bodyStyle(context).copyWith(
                         color: kcSecondaryTextColor,
                         fontSize: 12,

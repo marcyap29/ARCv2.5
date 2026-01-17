@@ -1829,8 +1829,9 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
               style: TextStyle(fontWeight: FontWeight.bold),
             ),
             SizedBox(height: 8),
-            Text('• 20 requests per day'),
+            Text('• 4 requests per conversation'),
             Text('• 3 requests per minute'),
+            Text('• 10 chat messages per day'),
             Text('• 30 days of phase history'),
             SizedBox(height: 16),
             Text(

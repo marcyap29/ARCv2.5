@@ -15,10 +15,10 @@ import {
 const db = admin.firestore();
 
 /**
- * Check if user can perform a deep analysis on a journal entry
+ * Check if user can perform a deep analysis on a conversation
  * 
  * Rules:
- * - FREE tier: Max 4 analyses per entry
+ * - FREE tier: Max 4 analyses per conversation
  * - PAID tier: Unlimited
  */
 export async function checkCanAnalyzeEntry(
@@ -57,7 +57,7 @@ export async function checkCanAnalyzeEntry(
         allowed: false,
         error: {
           code: "ENTRY_NOT_FOUND",
-          message: "Journal entry not found",
+          message: "Conversation not found",
           currentUsage: 0,
           limit: 0,
           upgradeRequired: false,
@@ -75,7 +75,7 @@ export async function checkCanAnalyzeEntry(
         allowed: false,
         error: {
           code: "ANALYSIS_LIMIT_REACHED",
-          message: `You've reached the limit of ${limit} analyses per entry. Upgrade to PAID for unlimited analyses.`,
+          message: `You've reached the limit of ${limit} analyses per conversation. Upgrade to PAID for unlimited analyses.`,
           currentUsage: currentCount,
           limit: limit,
           upgradeRequired: true,
@@ -181,7 +181,7 @@ export async function checkCanSendMessage(
 }
 
 /**
- * Increment analysis count for a journal entry
+ * Increment analysis count for a conversation
  */
 export async function incrementAnalysisCount(
   entryId: string

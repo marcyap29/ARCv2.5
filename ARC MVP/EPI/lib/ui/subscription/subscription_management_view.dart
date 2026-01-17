@@ -27,8 +27,9 @@ class _PricingSelectorState extends State<PricingSelector> {
       children: [
         _buildSectionTitle('Free - Limited Access'),
         const SizedBox(height: 8),
-        _buildBulletRow(Icons.chat_bubble_outline, '20 LUMARA requests per day'),
+        _buildBulletRow(Icons.chat_bubble_outline, '4 LUMARA requests per conversation'),
         _buildBulletRow(Icons.speed, '3 requests per minute'),
+        _buildBulletRow(Icons.chat_bubble_outline, '10 chat messages per day'),
         _buildBulletRow(Icons.history, 'Limited phase history access'),
         const SizedBox(height: 8),
         _buildParagraph('Good for exploring. Not enough to build narrative intelligence.'),

@@ -26,8 +26,8 @@ export function isAdminEmail(email: string | undefined): boolean {
  * Usage limits for free tier (applies to ALL free users, anonymous or not)
  */
 export const FREE_TIER_LIMITS = {
-  JOURNAL_COMMENTS_PER_ENTRY: 5,  // Max in-journal LUMARA comments per entry
-  CHAT_MESSAGES_PER_CHAT: 20,     // Max in-chat LUMARA messages per chat
+  LUMARA_REFLECTIONS_PER_CONVERSATION: 5,  // Max LUMARA reflections per conversation
+  CHAT_MESSAGES_PER_DAY: 10,               // Max in-chat LUMARA messages per day
 };
 
 /**
@@ -152,10 +152,10 @@ export async function enforceAuth(
 }
 
 /**
- * Check and enforce per-entry limit for in-journal LUMARA comments
+ * Check and enforce per-conversation limit for LUMARA reflections
  * 
  * @param userId - The user's ID
- * @param entryId - The journal entry ID
+ * @param entryId - The conversation ID
  * @param isPremium - Whether user has premium subscription
  * @throws HttpsError if limit reached
  */
@@ -166,11 +166,11 @@ export async function checkJournalEntryLimit(
 ): Promise<{ remaining: number }> {
   // Premium users have unlimited access
   if (isPremium) {
-    logger.info(`Premium user ${userId} - no journal entry limit`);
+    logger.info(`Premium user ${userId} - no conversation limit`);
     return { remaining: -1 }; // -1 indicates unlimited
   }
 
-  // Get or create entry usage document
+  // Get or create conversation usage document
   const usageRef = db.collection("usageLimits").doc(`${userId}_entry_${entryId}`);
   const usageDoc = await usageRef.get();
 
@@ -180,13 +180,13 @@ export async function checkJournalEntryLimit(
     currentCount = usageDoc.data()?.count || 0;
   }
 
-  const limit = FREE_TIER_LIMITS.JOURNAL_COMMENTS_PER_ENTRY;
+  const limit = FREE_TIER_LIMITS.LUMARA_REFLECTIONS_PER_CONVERSATION;
 
   if (currentCount >= limit) {
-    logger.warn(`Journal entry limit reached for user ${userId}, entry ${entryId} (${currentCount}/${limit})`);
+    logger.warn(`Conversation limit reached for user ${userId}, conversation ${entryId} (${currentCount}/${limit})`);
     throw new HttpsError(
       "resource-exhausted",
-      `The free version of Arc is limited to ${limit} LUMARA in-journal comments per entry.`,
+      `The free version of Arc is limited to ${limit} LUMARA reflections per conversation.`,
       { 
         code: AuthErrorCodes.JOURNAL_LIMIT_REACHED,
         limit: limit,
@@ -205,16 +205,16 @@ export async function checkJournalEntryLimit(
   }, { merge: true });
 
   const remaining = limit - currentCount - 1;
-  logger.info(`Journal entry usage for user ${userId}, entry ${entryId}: ${currentCount + 1}/${limit} (${remaining} remaining)`);
+  logger.info(`Conversation usage for user ${userId}, conversation ${entryId}: ${currentCount + 1}/${limit} (${remaining} remaining)`);
 
   return { remaining };
 }
 
 /**
- * Check and enforce per-chat limit for in-chat LUMARA messages
+ * Check and enforce per-day limit for in-chat LUMARA messages
  * 
  * @param userId - The user's ID
- * @param chatId - The chat/thread ID
+ * @param chatId - The chat/thread ID (for logging only)
  * @param isPremium - Whether user has premium subscription
  * @throws HttpsError if limit reached
  */
@@ -229,23 +229,34 @@ export async function checkChatLimit(
     return { remaining: -1 }; // -1 indicates unlimited
   }
 
-  // Get or create chat usage document
-  const usageRef = db.collection("usageLimits").doc(`${userId}_chat_${chatId}`);
+  // Get or create daily usage document (track per day, not per chat)
+  const now = admin.firestore.Timestamp.now();
+  const oneDayAgo = new Date(now.toMillis() - 24 * 60 * 60 * 1000);
+  const usageRef = db.collection("usageLimits").doc(`${userId}_chat_daily`);
   const usageDoc = await usageRef.get();
 
   let currentCount = 0;
+  let lastDayWindowStart = now;
 
   if (usageDoc.exists) {
-    currentCount = usageDoc.data()?.count || 0;
+    const data = usageDoc.data();
+    currentCount = data?.count || 0;
+    lastDayWindowStart = data?.lastDayWindowStart || now;
+    
+    // Reset if it's been more than 24 hours
+    if (lastDayWindowStart.toMillis() < oneDayAgo.getTime()) {
+      currentCount = 0;
+      lastDayWindowStart = now;
+    }
   }
 
-  const limit = FREE_TIER_LIMITS.CHAT_MESSAGES_PER_CHAT;
+  const limit = FREE_TIER_LIMITS.CHAT_MESSAGES_PER_DAY;
 
   if (currentCount >= limit) {
-    logger.warn(`Chat limit reached for user ${userId}, chat ${chatId} (${currentCount}/${limit})`);
+    logger.warn(`Chat limit reached for user ${userId} (${currentCount}/${limit} messages today)`);
     throw new HttpsError(
       "resource-exhausted",
-      `The free version of Arc is limited to ${limit} LUMARA messages per chat.`,
+      `The free version of Arc is limited to ${limit} LUMARA chat messages per day.`,
       { 
         code: AuthErrorCodes.CHAT_LIMIT_REACHED,
         limit: limit,
@@ -258,13 +269,13 @@ export async function checkChatLimit(
   // Increment usage counter
   await usageRef.set({
     userId,
-    chatId,
     count: admin.firestore.FieldValue.increment(1),
+    lastDayWindowStart: lastDayWindowStart,
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
   }, { merge: true });
 
   const remaining = limit - currentCount - 1;
-  logger.info(`Chat usage for user ${userId}, chat ${chatId}: ${currentCount + 1}/${limit} (${remaining} remaining)`);
+  logger.info(`Chat usage for user ${userId}: ${currentCount + 1}/${limit} messages today (${remaining} remaining)`);
 
   return { remaining };
 }

@@ -68,8 +68,8 @@ export const analyzeJournalEntry = onCall(
       const plan = user.plan || user.subscriptionTier?.toLowerCase() || "free";
       const tier: SubscriptionTier = (plan === "pro" ? "PAID" : "FREE") as SubscriptionTier;
 
-      // Check rate limit (primary quota enforcement)
-      const rateLimitCheck = await checkRateLimit(userId);
+      // Check rate limit (primary quota enforcement) - 4 per conversation
+      const rateLimitCheck = await checkRateLimit(userId, entryId);  // Pass entryId as conversationId
       if (!rateLimitCheck.allowed) {
         throw new HttpsError(
           "resource-exhausted",

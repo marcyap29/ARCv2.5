@@ -153,7 +153,7 @@ class _CustomTabBarState extends State<CustomTabBar> {
           Text(
             tab.text!,
             style: const TextStyle(
-              fontSize: 10,
+              fontSize: 8.5,
               fontWeight: FontWeight.w500,
               color: textColor,
             ),
