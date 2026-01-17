@@ -129,7 +129,7 @@ final result = await exportService.exportFullBackupChunked(
 **Feature:** Adds new entries to existing backup set with continuous numbering
 
 **How It Works:**
-1. User triggers "Quick Backup" from Settings → Local Backup
+1. User triggers "Incremental Backup" from Settings → Local Backup
 2. System finds the latest `ARC_BackupSet_*` folder
 3. System gets the highest file number in that folder
 4. System exports new entries since last backup
@@ -137,7 +137,7 @@ final result = await exportService.exportFullBackupChunked(
 
 **If No Backup Set Exists:**
 - System automatically creates a new backup set with full backup first
-- Then future quick backups add to that set
+- Then future incremental backups add to that set
 
 **Example Flow:**
 ```
@@ -145,12 +145,12 @@ Day 1: User triggers Full Backup
   → Creates ARC_BackupSet_2026-01-16/
   → Creates ARC_Full_001.arcx, ARC_Full_002.arcx, ARC_Full_003.arcx
 
-Day 2: User triggers Quick Backup (3 new entries)
+Day 2: User triggers Incremental Backup (3 new entries)
   → Finds ARC_BackupSet_2026-01-16/
   → Gets highest number (003)
   → Creates ARC_Inc_004_2026-01-17.arcx
 
-Day 5: User triggers Quick Backup (5 new entries)
+Day 5: User triggers Incremental Backup (5 new entries)
   → Finds ARC_BackupSet_2026-01-16/
   → Gets highest number (004)
   → Creates ARC_Inc_005_2026-01-20.arcx
@@ -790,7 +790,7 @@ class ARCXImportResultV2 {
 - Export numbers are tracked in export history and persist across app restarts
 
 **UI Enhancement:**
-- "Quick Backup" button for incremental backups
+- "Incremental Backup" button for incremental backups
 - "Full Backup" button always available for complete exports
 - Preview shows new entries, chats, and media counts
 - Clear indication of what will be exported

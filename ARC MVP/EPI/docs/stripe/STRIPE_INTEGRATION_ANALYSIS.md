@@ -37,7 +37,7 @@ functions/
 
 ### Subscription System
 **Three-Tier Structure (plus Founders commitment):**
-- **Free Tier**: 20 LUMARA requests/day, 3/minute rate limit, limited phase history
+- **Free Tier**: 4 LUMARA requests per conversation, 3/minute rate limit, 10 chat messages per day, limited phase history
 - **Premium Tier**: Unlimited access, no rate limits, full phase history, $30/month or $200/year
 - **Founders Commit**: $1,500 upfront for 3 years (one-time payment), premium access plus founder benefits
 
@@ -63,7 +63,7 @@ User Clicks Upgrade → SubscriptionService.createStripeCheckoutSession()
 - **UI Components**: Full subscription management interface
 - **Status Widget**: Compact and full views with tier badges
 - **Settings Integration**: Navigation from Settings → Subscription
-- **Rate Limiting**: Enforced for LUMARA chat (20/day, 3/min for free)
+- **Rate Limiting**: Enforced for LUMARA chat (4 per conversation, 10/day, 3/min for free)
 - **Feature Flags**: Subscription-based feature access control
 - **Authentication**: Firebase Auth integration
 - **Local Caching**: 24-hour offline fallback support
@@ -185,7 +185,8 @@ url_launcher: ^6.3.1  # For opening checkout URLs
 
 | Feature | Free | Premium | Founders |
 |---------|------|---------|----------|
-| LUMARA Requests | 20/day | Unlimited | Unlimited |
+| LUMARA Requests | 4 per conversation | Unlimited | Unlimited |
+| Chat Messages | 10/day | Unlimited | Unlimited |
 | Rate Limiting | 3/minute | None | None |
 | Phase History | Limited | Full Access | Full Access |
 | Favorites Limit | 25/category | Unlimited | Unlimited |

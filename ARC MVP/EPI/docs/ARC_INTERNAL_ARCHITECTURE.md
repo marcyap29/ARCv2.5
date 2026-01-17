@@ -216,7 +216,7 @@ ARC's internal architecture mirrors the external EPI modules but provides ARC-sp
 
 | Tier | Features | Limitations |
 |------|----------|------------|
-| **Free** | Basic journaling, 20 LUMARA/day, 3/min rate limit | Last 30 days history only |
+| **Free** | Basic journaling, 4 LUMARA requests per conversation, 3/min rate limit, 10 chat messages per day | Last 30 days history only |
 | **Premium** | Unlimited LUMARA, no rate limits, priority support | Full historical access |
 | **Founders** | Premium access + founder benefits (3-year commitment) | Separate checkout (one-time upfront) |
 

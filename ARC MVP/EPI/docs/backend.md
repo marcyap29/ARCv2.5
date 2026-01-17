@@ -336,7 +336,7 @@ For complete setup instructions, see archived documentation: `archive/setup/OAUT
 ### Configuration
 
 **Subscription Tiers:**
-- **Free:** Limited access (20 requests/day, 3/minute)
+- **Free:** Limited access (4 requests per conversation, 3/minute, 10 chat messages per day)
 - **Premium:** $30/month or $200/year - Unlimited access
 - **Founders Commit:** $1,500 upfront for 3 years (one-time payment)
 
@@ -545,8 +545,9 @@ Firestore (User Document + Usage Tracking)
 
 | Feature | Free Tier | Admin/Premium |
 |---------|-----------|---------------|
-| In-Journal LUMARA | 5 per entry | Unlimited |
-| In-Chat LUMARA | 20 per chat | Unlimited |
+| In-Journal LUMARA | 5 per conversation | Unlimited |
+| In-Chat LUMARA | 10 per day | Unlimited |
+| LUMARA Requests | 4 per conversation | Unlimited |
 
 #### 3. Sign-In UI (`sign_in_screen.dart`)
 

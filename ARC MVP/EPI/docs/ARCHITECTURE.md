@@ -442,7 +442,7 @@ MIRA Store → MCP Export Service → ZIP/ARCX Archive
   - `exportFullBackup()`: Exports all data and records as full backup
   - `getIncrementalExportPreview()`: Provides summary of new data for UI
 - **LocalBackupSettingsView**: UI for backup management
-  - Quick Backup: Incremental backup with preview
+  - Incremental Backup: Incremental backup with preview
   - Full Backup: Complete backup option
   - Backup History: Statistics and history management
 
