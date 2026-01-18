@@ -586,27 +586,28 @@ class _SettingsViewState extends State<SettingsView> {
 
             const SizedBox(height: 32),
 
-            // Advanced Settings Section
-            _buildSection(
-              context,
-              title: 'Advanced Settings',
-              children: [
-                _buildSettingsTile(
-                  context,
-                  title: 'Advanced Settings',
-                  subtitle: 'Analysis, memory lookback, matching precision',
-                  icon: Icons.settings_applications,
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const AdvancedSettingsView()),
-                    );
-                  },
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 32),
+            // Advanced Settings Section - Admin only (marcyap@orbitalai.net)
+            if (FirebaseAuthService.instance.currentUser?.email?.toLowerCase() == 'marcyap@orbitalai.net') ...[
+              _buildSection(
+                context,
+                title: 'Advanced Settings',
+                children: [
+                  _buildSettingsTile(
+                    context,
+                    title: 'Advanced Settings',
+                    subtitle: 'Analysis, memory lookback, matching precision',
+                    icon: Icons.settings_applications,
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const AdvancedSettingsView()),
+                      );
+                    },
+                  ),
+                ],
+              ),
+              const SizedBox(height: 32),
+            ],
 
             // LUMARA Section
             _buildSection(
