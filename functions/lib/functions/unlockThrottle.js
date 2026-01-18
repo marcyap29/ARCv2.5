@@ -36,7 +36,7 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.checkThrottleStatus = exports.lockThrottle = exports.unlockThrottle = void 0;
 const https_1 = require("firebase-functions/v2/https");
-const { logger } = require("firebase-functions/v2");
+const v2_1 = require("firebase-functions/v2");
 const admin_1 = require("../admin");
 const config_1 = require("../config");
 const crypto = __importStar(require("crypto"));
@@ -62,7 +62,7 @@ exports.unlockThrottle = (0, https_1.onCall)({
     if (!userId) {
         throw new https_1.HttpsError("unauthenticated", "User must be authenticated");
     }
-    logger.info(`Throttle unlock attempt for user ${userId}`);
+    v2_1.logger.info(`Throttle unlock attempt for user ${userId}`);
     try {
         // Get the correct password from secrets
         const correctPassword = config_1.THROTTLE_UNLOCK_PASSWORD.value();
@@ -72,12 +72,12 @@ exports.unlockThrottle = (0, https_1.onCall)({
         const correctBuffer = Buffer.from(correctPassword, 'utf8');
         // Ensure buffers are same length to prevent timing attacks
         if (providedBuffer.length !== correctBuffer.length) {
-            logger.warn(`Invalid throttle unlock password attempt for user ${userId}`);
+            v2_1.logger.warn(`Invalid throttle unlock password attempt for user ${userId}`);
             throw new https_1.HttpsError("permission-denied", "Invalid password");
         }
         // Constant-time comparison to prevent timing attacks
         if (!crypto.timingSafeEqual(providedBuffer, correctBuffer)) {
-            logger.warn(`Invalid throttle unlock password attempt for user ${userId}`);
+            v2_1.logger.warn(`Invalid throttle unlock password attempt for user ${userId}`);
             throw new https_1.HttpsError("permission-denied", "Invalid password");
         }
         // Password is correct - unlock throttle for this user
@@ -86,14 +86,14 @@ exports.unlockThrottle = (0, https_1.onCall)({
             throttleUnlockedAt: admin_1.admin.firestore.FieldValue.serverTimestamp(),
             updatedAt: admin_1.admin.firestore.FieldValue.serverTimestamp(),
         });
-        logger.info(`Throttle unlocked for user ${userId}`);
+        v2_1.logger.info(`Throttle unlocked for user ${userId}`);
         return {
             success: true,
             message: "Throttle unlocked successfully",
         };
     }
     catch (error) {
-        logger.error("Error unlocking throttle:", error);
+        v2_1.logger.error("Error unlocking throttle:", error);
         if (error instanceof https_1.HttpsError) {
             throw error;
         }
@@ -111,7 +111,7 @@ exports.lockThrottle = (0, https_1.onCall)(async (request) => {
     if (!userId) {
         throw new https_1.HttpsError("unauthenticated", "User must be authenticated");
     }
-    logger.info(`Throttle lock request for user ${userId}`);
+    v2_1.logger.info(`Throttle lock request for user ${userId}`);
     try {
         // Remove throttle unlock
         await db.collection("users").doc(userId).update({
@@ -119,14 +119,14 @@ exports.lockThrottle = (0, https_1.onCall)(async (request) => {
             throttleUnlockedAt: admin_1.admin.firestore.FieldValue.delete(),
             updatedAt: admin_1.admin.firestore.FieldValue.serverTimestamp(),
         });
-        logger.info(`Throttle locked for user ${userId}`);
+        v2_1.logger.info(`Throttle locked for user ${userId}`);
         return {
             success: true,
             message: "Throttle locked successfully",
         };
     }
     catch (error) {
-        logger.error("Error locking throttle:", error);
+        v2_1.logger.error("Error locking throttle:", error);
         if (error instanceof https_1.HttpsError) {
             throw error;
         }
@@ -155,7 +155,7 @@ exports.checkThrottleStatus = (0, https_1.onCall)(async (request) => {
         };
     }
     catch (error) {
-        logger.error("Error checking throttle status:", error);
+        v2_1.logger.error("Error checking throttle status:", error);
         return { unlocked: false };
     }
 });
