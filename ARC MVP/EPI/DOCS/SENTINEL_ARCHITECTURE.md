@@ -4,7 +4,23 @@
 
 ## Overview
 
-Sentinel detects crisis situations by analyzing temporal clustering of high emotional intensity in journal entries. It uses multi-window temporal analysis to identify when emotional distress is concentrated in time (indicating crisis) versus dispersed (indicating normal variance).
+Sentinel detects crisis situations by analyzing temporal clustering of high emotional intensity in conversations (journal entries). It uses multi-window temporal analysis to identify when emotional distress is concentrated in time (indicating crisis) versus dispersed (indicating normal variance).
+
+## Implementation Note
+
+There are two SENTINEL implementations in the codebase:
+
+1. **SentinelAnalyzer** (`lib/services/sentinel/sentinel_analyzer.dart`): 
+   - Simpler implementation focused on temporal clustering
+   - Uses basic intensity markers and self-harm language detection
+   - Currently used for real-time crisis detection
+   - This document primarily describes this implementation
+
+2. **SentinelRiskDetector** (`lib/prism/atlas/sentinel/sentinel_risk_detector.dart`):
+   - Advanced implementation with comprehensive risk pattern detection
+   - Uses keyword amplitude mapping, source weighting, and multiple pattern types
+   - Provides detailed risk level classifications and recommendations
+   - See `SENTINEL_DETECTION_FACTORS.md` for detailed documentation of this implementation
 
 ---
 
@@ -25,10 +41,10 @@ Result containing:
 - `timespan`: Time period analyzed
 
 ### 4. CrisisEntry
-Entry with elevated emotional intensity:
-- `text`: Entry text
+Conversation with elevated emotional intensity:
+- `text`: Conversation text
 - `intensity`: Calculated emotional intensity (0.0-1.0)
-- `timestamp`: When entry was created
+- `timestamp`: When conversation was created
 
 ---
 
@@ -39,7 +55,7 @@ Entry with elevated emotional intensity:
 ```
 Emotional Intensity Detection
 ─────────────────────────────────────────────────────────────
-Purpose: Quantify emotional distress level in entry text
+Purpose: Quantify emotional distress level in conversation text
 
 Method:
   1. Scan text for high-intensity emotional markers
@@ -66,10 +82,10 @@ Properties:
 ```python
 def calculate_emotional_intensity(text):
     """
-    Calculate emotional intensity from entry text
+    Calculate emotional intensity from conversation text
     
     Args:
-        text: Journal entry text
+        text: Conversation text
     
     Returns:
         Intensity score (0.0-1.0)
@@ -122,7 +138,7 @@ def detect_self_harm_language(text):
     Detect explicit self-harm or suicide language
     
     Args:
-        text: Journal entry text
+        text: Conversation text
     
     Returns:
         True if critical language detected
@@ -278,7 +294,7 @@ Sentinel Score Calculation Pipeline
 
 INPUT:
   - userId: User identifier
-  - currentEntryText: Text of current journal entry
+  - currentEntryText: Text of current conversation
 
 PROCESS:
   1. Get recent crisis entries (last 30 days, intensity ≥ 0.3)
@@ -314,7 +330,7 @@ def calculate_sentinel_score(user_id, current_entry_text):
     
     Args:
         user_id: User identifier
-        current_entry_text: Text of current journal entry
+        current_entry_text: Text of current conversation
     
     Returns:
         SentinelScore object
@@ -475,7 +491,7 @@ Sentinel → LUMARA Integration
 ─────────────────────────────────────────────────────────────
 
 Data Flow:
-  Journal Entry Created
+  Conversation Created
     ↓
   SentinelAnalyzer.calculateSentinelScore()
     ↓
@@ -491,10 +507,10 @@ Data Flow:
 ```python
 def process_journal_entry_with_sentinel(entry, lumara_service):
     """
-    Process journal entry with Sentinel crisis detection
+    Process conversation with Sentinel crisis detection
     
     Args:
-        entry: JournalEntry
+        entry: JournalEntry (conversation)
         lumara_service: LUMARA service instance
     
     Returns:
@@ -570,7 +586,7 @@ Sentinel Data Flow
 ─────────────────────────────────────────────────────────────
 
 1. Entry Creation:
-   Journal Entry → Firestore
+   Conversation → Firestore
      ↓
    Sentinel Analyzer (triggered)
      ↓
@@ -1015,7 +1031,7 @@ def normalize_by_word_count(raw_score, word_count, config):
 Adaptive Emotional Density Pipeline
 ─────────────────────────────────────────────────────────────
 
-INPUT: JournalEntry
+INPUT: Conversation (JournalEntry)
   ├─ text, timestamp, userId
 
 PROCESS:

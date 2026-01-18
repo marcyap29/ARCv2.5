@@ -426,7 +426,7 @@ RIVET ↔ PhaseTracker Integration
 ─────────────────────────────────────────────────────────────
 
 Data Flow:
-  Journal Entry
+  Conversation (Journal Entry)
     ↓
   PhaseTracker (predicts phase)
     ↓
@@ -448,7 +448,7 @@ Data Flow:
 ```python
 def process_journal_entry(entry, phase_tracker, rivet_service):
     """
-    Process journal entry through phase detection and RIVET validation
+    Process conversation through phase detection and RIVET validation
     
     Args:
         entry: JournalEntry

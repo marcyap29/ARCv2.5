@@ -4,6 +4,12 @@
 
 SENTINEL (Severity Evaluation and Negative Trend Identification for Emotional Longitudinal tracking) is the reverse of RIVET - instead of filtering keywords to add, it monitors keyword patterns over time to detect escalating risk levels.
 
+## Implementation Note
+
+This document describes the **advanced SENTINEL implementation** (`SentinelRiskDetector`) which provides comprehensive risk pattern detection using keyword amplitude mapping, source weighting, and multiple pattern types. 
+
+For the simpler real-time crisis detection implementation (`SentinelAnalyzer`), see `SENTINEL_ARCHITECTURE.md`.
+
 ## Current Factors
 
 ### 1. **Keyword Amplitude** (Primary Signal - 0.0-1.0 scale)
@@ -36,12 +42,12 @@ SENTINEL (Severity Evaluation and Negative Trend Identification for Emotional Lo
 **Location**: `SentinelRiskDetector._calculateMetricsWithWeighting()`, `ReflectiveEntryData.effectiveConfidence`
 
 **How it works**:
-- Different entry sources have different confidence levels:
-  - **Journal entries**: High confidence (1.0)
+- Different conversation sources have different confidence levels:
+  - **Journal entries (conversations)**: High confidence (1.0)
   - **Draft entries**: Medium confidence (0.8)
   - **Chat entries**: Lower confidence (0.6)
 - Amplitude is multiplied by source confidence: `weightedAmplitude = baseAmplitude * sourceWeight`
-- Ensures journal entries have more weight than casual chat
+- Ensures journal conversations have more weight than casual chat
 
 **Weight**: Applied to all amplitude calculations
 
