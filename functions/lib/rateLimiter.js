@@ -10,14 +10,14 @@ const db = admin_1.admin.firestore();
  *
  * Rules:
  * - FREE tier:
- *   - Max 20 requests per day
- *   - Max 3 requests per minute
+ *   - Max 4 requests per conversation (entryId or chatId)
+ *   - Max 3 requests per minute (global)
  * - PAID/PRO tier: Unlimited
  *
  * This is the primary quota enforcement mechanism.
- * Legacy per-entry/thread limits are secondary.
  */
-async function checkRateLimit(userId) {
+async function checkRateLimit(userId, conversationId // entryId for journal, chatId for chat
+) {
     try {
         // Load or create user document
         const userRef = db.collection("users").doc(userId);
@@ -56,9 +56,52 @@ async function checkRateLimit(userId) {
         if (user.throttleUnlocked === true) {
             return { allowed: true };
         }
-        // Free tier: Check rate limits
         const now = admin_1.admin.firestore.Timestamp.now();
-        const rateLimitRef = db.collection("rateLimits").doc(userId);
+        // If conversationId provided, check per-conversation limit (4 per conversation)
+        if (conversationId) {
+            const conversationLimitRef = db.collection("rateLimits").doc(`${userId}_conv_${conversationId}`);
+            const conversationLimitDoc = await conversationLimitRef.get();
+            let conversationLimit;
+            if (!conversationLimitDoc.exists) {
+                // First request for this conversation - initialize
+                conversationLimit = {
+                    userId,
+                    requestsToday: 0,
+                    requestsLastMinute: 0,
+                    lastRequestTimestamp: now,
+                    lastMinuteWindowStart: now,
+                    lastDayWindowStart: now,
+                    updatedAt: now,
+                };
+                await conversationLimitRef.set(conversationLimit);
+            }
+            else {
+                conversationLimit = conversationLimitDoc.data();
+            }
+            const maxPerConversation = 4; // 4 requests per conversation
+            // Check per-conversation limit
+            if (conversationLimit.requestsToday >= maxPerConversation) {
+                return {
+                    allowed: false,
+                    error: {
+                        code: "RATE_LIMIT_CONVERSATION_EXCEEDED",
+                        message: `You've reached the limit of ${maxPerConversation} LUMARA requests per conversation. Upgrade to Pro for unlimited access.`,
+                        currentUsage: conversationLimit.requestsToday,
+                        limit: maxPerConversation,
+                        upgradeRequired: true,
+                        tier: "FREE",
+                        retryAfter: 0,
+                    },
+                };
+            }
+            // Increment per-conversation counter
+            conversationLimit.requestsToday += 1;
+            conversationLimit.lastRequestTimestamp = now;
+            conversationLimit.updatedAt = now;
+            await conversationLimitRef.set(conversationLimit, { merge: true });
+        }
+        // Check global per-minute limit (applies to all requests)
+        const rateLimitRef = db.collection("rateLimits").doc(`${userId}_global`);
         const rateLimitDoc = await rateLimitRef.get();
         let rateLimit;
         if (!rateLimitDoc.exists) {
@@ -77,38 +120,14 @@ async function checkRateLimit(userId) {
         else {
             rateLimit = rateLimitDoc.data();
         }
-        // Check if we need to reset windows
+        // Check if we need to reset minute window
         const oneMinuteAgo = new Date(now.toMillis() - 60 * 1000);
-        const oneDayAgo = new Date(now.toMillis() - 24 * 60 * 60 * 1000);
         // Reset minute window if needed
         if (rateLimit.lastMinuteWindowStart.toMillis() < oneMinuteAgo.getTime()) {
             rateLimit.requestsLastMinute = 0;
             rateLimit.lastMinuteWindowStart = now;
         }
-        // Reset day window if needed
-        if (rateLimit.lastDayWindowStart.toMillis() < oneDayAgo.getTime()) {
-            rateLimit.requestsToday = 0;
-            rateLimit.lastDayWindowStart = now;
-        }
-        const maxPerDay = parseInt(config_1.FREE_MAX_REQUESTS_PER_DAY.value(), 10);
         const maxPerMinute = parseInt(config_1.FREE_MAX_REQUESTS_PER_MINUTE.value(), 10);
-        // Check daily limit
-        if (rateLimit.requestsToday >= maxPerDay) {
-            const nextReset = new Date(rateLimit.lastDayWindowStart.toMillis() + 24 * 60 * 60 * 1000);
-            const retryAfter = Math.ceil((nextReset.getTime() - Date.now()) / 1000);
-            return {
-                allowed: false,
-                error: {
-                    code: "RATE_LIMIT_DAILY_EXCEEDED",
-                    message: `You've reached the daily limit of ${maxPerDay} requests. Upgrade to Pro for unlimited access.`,
-                    currentUsage: rateLimit.requestsToday,
-                    limit: maxPerDay,
-                    upgradeRequired: true,
-                    tier: "FREE",
-                    retryAfter: retryAfter > 0 ? retryAfter : 0,
-                },
-            };
-        }
         // Check per-minute limit
         if (rateLimit.requestsLastMinute >= maxPerMinute) {
             const nextReset = new Date(rateLimit.lastMinuteWindowStart.toMillis() + 60 * 1000);
@@ -126,8 +145,7 @@ async function checkRateLimit(userId) {
                 },
             };
         }
-        // Allowed - increment counters
-        rateLimit.requestsToday += 1;
+        // Allowed - increment global minute counter
         rateLimit.requestsLastMinute += 1;
         rateLimit.lastRequestTimestamp = now;
         rateLimit.updatedAt = now;
