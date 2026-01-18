@@ -456,8 +456,8 @@ class _SimplifiedArcformView3DState extends State<SimplifiedArcformView3D> {
                               phase: arcformData.phase,
                               skin: arcformData.skin,
                               showNebula: true,
-                              enableLabels: true, // Enable keyword labels
-                              // No initialZoom - use phase-specific defaults for preview
+                              enableLabels: false, // Disable labels for compact preview (matches Conversation tab)
+                              initialZoom: 0.5, // Compact zoom level (matches Conversation tab)
                             ),
                           ),
                         )

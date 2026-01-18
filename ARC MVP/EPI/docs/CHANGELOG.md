@@ -1,6 +1,6 @@
 # EPI ARC MVP - Changelog
 
-**Version:** 3.2.8
+**Version:** 3.2.9
 **Last Updated:** January 17, 2026
 
 ---
@@ -14,6 +14,33 @@ This changelog has been split into parts for easier navigation:
 | **[CHANGELOG_part1.md](CHANGELOG_part1.md)** | Dec 2025 | v2.1.43 - v2.1.87 (Current) |
 | **[CHANGELOG_part2.md](CHANGELOG_part2.md)** | Nov 2025 | v2.1.28 - v2.1.42 |
 | **[CHANGELOG_part3.md](CHANGELOG_part3.md)** | Jan-Oct 2025 | v2.0.0 - v2.1.27 & Earlier |
+
+---
+
+## [3.2.9] - January 17, 2026
+
+### 🎨 Phase Preview UI Consistency
+
+#### Changes
+- **Unified Preview Styling**: Phase tab and Conversation tab previews now share identical styling
+  - Both use `initialZoom: 0.5` for optimal constellation visibility
+  - Both use `enableLabels: false` for cleaner compact previews
+  - Both have matching container height of 200px
+- **Improved Full-Screen Viewer**: Zoomed in 1.5x for better initial view
+  - Changed `initialZoom` from `0.8` to `1.2`
+  - Constellation appears closer/larger when opening full-screen view
+  - Labels enabled in full-screen for detailed exploration
+
+#### Technical Details
+| Component | Before | After |
+|-----------|--------|-------|
+| Phase Tab Preview | Phase-specific zoom, labels enabled | `initialZoom: 0.5`, labels disabled |
+| Conversation Tab Preview | `height: 180`, `initialZoom: 0.5` | `height: 200`, `initialZoom: 0.5` |
+| Full-Screen Viewer | `initialZoom: 0.8` | `initialZoom: 1.2` (1.5x closer) |
+
+#### Files Changed
+- `lib/ui/phase/simplified_arcform_view_3d.dart` - Updated preview settings
+- `lib/arc/ui/timeline/widgets/current_phase_arcform_preview.dart` - Updated heights and full-screen zoom
 
 ---
 

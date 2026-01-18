@@ -1,7 +1,7 @@
 # EPI Documentation
 
 **Last Updated:** January 17, 2026
-**Version:** 3.2.7
+**Version:** 3.2.9
 
 ---
 
@@ -9,7 +9,14 @@
 
 Welcome to the EPI (Evolving Personal Intelligence) documentation. This directory contains comprehensive documentation for the EPI MVP intelligent journaling application.
 
-### Recent Highlights (v3.2.8)
+### Recent Highlights (v3.2.9)
+
+- **🎨 Phase Preview UI Consistency**: Unified styling across Phase and Conversation tabs
+  - Both previews now share identical zoom level (`0.5`) and label settings
+  - Matching container heights (200px) for visual consistency
+  - Full-screen viewer zoomed in 1.5x for better initial view
+
+### Previous Highlights (v3.2.8)
 
 - **🐛 Bug Reporting Improvements**: Enhanced shake-to-report functionality
   - Bug reports now submit directly to Google Sheets for centralized tracking
