@@ -9,7 +9,14 @@
 
 Welcome to the EPI (Evolving Personal Intelligence) documentation. This directory contains comprehensive documentation for the EPI MVP intelligent journaling application.
 
-### Recent Highlights (v3.2.7)
+### Recent Highlights (v3.2.8)
+
+- **🐛 Bug Reporting Improvements**: Enhanced shake-to-report functionality
+  - Bug reports now submit directly to Google Sheets for centralized tracking
+  - Reduced shake sensitivity to prevent false triggers (3s cooldown, 0.3s min duration)
+  - Includes device info, app version, and user details automatically
+
+### Previous Highlights (v3.2.7)
 
 - **⚙️ Advanced Settings Consolidation**: Unified settings management for LUMARA
   - Merged two separate settings views into single `advanced_settings_view.dart`

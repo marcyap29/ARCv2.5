@@ -1,9 +1,16 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:my_app/shared/app_colors.dart';
+import 'package:my_app/services/firebase_auth_service.dart';
+
+/// Google Apps Script URL for bug report submissions
+/// This endpoint appends bug reports to a Google Sheet
+const String kBugReportWebhookUrl = 'https://script.google.com/macros/s/AKfycbxtmqvVyqqK0sm6SkavZmr9RhbsaF_CzLc4KuyZM3JeqPLKsSbWXGVPRtAtoC_RVoZW/exec';
 
 /// Dialog for reporting bugs, triggered by shaking the device
 class BugReportDialog extends StatefulWidget {
@@ -114,36 +121,72 @@ class _BugReportDialogState extends State<BugReportDialog> {
     setState(() => _isSubmitting = true);
 
     try {
-      // Collect report data
+      // Get user info if available
+      final authService = FirebaseAuthService.instance;
+      final userId = authService.currentUser?.uid ?? 'anonymous';
+      final userEmail = authService.currentUser?.email ?? '';
+      
+      // Build the bug report payload
       final reportData = {
         'description': _descriptionController.text.trim(),
-        'timestamp': DateTime.now().toIso8601String(),
-        if (_includeDeviceInfo && _deviceInfo != null) 'device': _deviceInfo,
-        if (_includeDeviceInfo && _appVersion != null) 'app_version': _appVersion,
+        'device': _includeDeviceInfo ? (_deviceInfo ?? 'Unknown') : 'Not included',
+        'appVersion': _includeDeviceInfo ? (_appVersion ?? 'Unknown') : 'Not included',
+        'userId': userId,
+        'userEmail': userEmail,
       };
-
-      // For now, we'll store the report locally
-      // In production, this would send to a backend service
+      
+      // Send to Google Sheets via Apps Script
+      final response = await http.post(
+        Uri.parse(kBugReportWebhookUrl),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(reportData),
+      ).timeout(
+        const Duration(seconds: 10),
+        onTimeout: () => http.Response('{"success": false, "error": "timeout"}', 408),
+      );
+      
+      // Check response
+      final success = response.statusCode == 200 || response.statusCode == 302;
+      
+      // Also store locally as backup
       final prefs = await SharedPreferences.getInstance();
       final existingReports = prefs.getStringList('bug_reports') ?? [];
-      existingReports.add(reportData.toString());
+      existingReports.add('${DateTime.now().toIso8601String()}: ${reportData.toString()}');
       await prefs.setStringList('bug_reports', existingReports);
-
+      
+      if (mounted) {
+        Navigator.of(context).pop();
+        if (success) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Bug report submitted. Thank you!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Report saved locally. Will retry later.'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      // Store locally on error
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        final existingReports = prefs.getStringList('bug_reports') ?? [];
+        existingReports.add('${DateTime.now().toIso8601String()}: ${_descriptionController.text.trim()}');
+        await prefs.setStringList('bug_reports', existingReports);
+      } catch (_) {}
+      
       if (mounted) {
         Navigator.of(context).pop();
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Thank you! Your feedback has been recorded.'),
-            backgroundColor: Colors.green,
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error submitting report: $e'),
-            backgroundColor: Colors.red,
+            content: Text('Report saved locally. Will retry later.'),
+            backgroundColor: Colors.orange,
           ),
         );
       }

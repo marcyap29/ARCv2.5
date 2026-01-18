@@ -1,6 +1,6 @@
 # EPI ARC MVP - Changelog
 
-**Version:** 3.2.7
+**Version:** 3.2.8
 **Last Updated:** January 17, 2026
 
 ---
@@ -14,6 +14,27 @@ This changelog has been split into parts for easier navigation:
 | **[CHANGELOG_part1.md](CHANGELOG_part1.md)** | Dec 2025 | v2.1.43 - v2.1.87 (Current) |
 | **[CHANGELOG_part2.md](CHANGELOG_part2.md)** | Nov 2025 | v2.1.28 - v2.1.42 |
 | **[CHANGELOG_part3.md](CHANGELOG_part3.md)** | Jan-Oct 2025 | v2.0.0 - v2.1.27 & Earlier |
+
+---
+
+## [3.2.8] - January 17, 2026
+
+### 🐛 Bug Reporting Improvements
+
+#### New Features
+- **Google Sheets Integration**: Bug reports now submit directly to a Google Sheet for centralized tracking
+  - Reports include: description, device info, app version, user ID, user email
+  - Automatic timestamp added by Google Apps Script
+  - Local backup stored if network fails
+- **Reduced Shake Sensitivity**: Fixed false triggers when placing phone on desk
+  - Added 3-second cooldown between shake detections
+  - Added 0.3-second minimum shake duration filter
+  - Brief bumps no longer trigger bug report dialog
+
+#### Technical Details
+- **Bug Report Endpoint**: Google Apps Script webhook → Google Sheet
+- **iOS Changes**: `ShakeDetectorPlugin.swift` - Added `motionBegan`/`motionEnded` pattern with duration check
+- **Flutter Changes**: `bug_report_dialog.dart` - HTTP POST to Apps Script instead of mailto
 
 ---
 
