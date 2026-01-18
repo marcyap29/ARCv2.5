@@ -1,7 +1,7 @@
 # EPI MVP - UI/UX Feature Documentation
 
-**Version:** 3.1
-**Last Updated:** January 9, 2026
+**Version:** 3.2.9
+**Last Updated:** January 17, 2026
 **Status:** ✅ Comprehensive Feature Analysis Complete
 
 ---
@@ -428,14 +428,18 @@ Long Press → Edit Mode | Scroll Up → Load History
 - **Week Synchronization:** ValueNotifier for week changes
 - **Visual Density:** Compact view showing activity patterns
 
-### 🎭 Current Phase Preview
+### 🎭 Current Phase Preview (v3.2.9)
 **File:** `lib/arc/ui/timeline/widgets/current_phase_arcform_preview.dart`
 
 - **Live Phase Display:** Shows active life phase constellation
 - **Auto-Refresh:** Updates when phase detection changes
 - **Duration Indicator:** Shows time spent in current phase
 - **Quick Access:** Tap to open full phase analysis
-- **Visual Consistency:** Matches full ARCForm styling
+- **Visual Consistency:** Matches Phase tab preview styling exactly
+- **Unified Settings (v3.2.9):**
+  - Container height: 200px (matches Phase tab)
+  - `initialZoom: 0.5` for optimal constellation visibility
+  - `enableLabels: false` for clean compact preview
 
 ### 📑 Entry Content Rendering
 **File:** `lib/arc/ui/timeline/widgets/entry_content_renderer.dart`
@@ -1491,7 +1495,7 @@ The Phase tab (formerly "Insights") provides comprehensive phase visualization a
 - Gradient progress bar showing trend percentage
 - Phase-specific color coding
 
-#### 3D Phase Visualization
+#### 3D Phase Visualization (v3.2.9)
 **File:** `lib/ui/phase/simplified_arcform_view_3d.dart`
 
 **Features:**
@@ -1499,6 +1503,11 @@ The Phase tab (formerly "Insights") provides comprehensive phase visualization a
 - **Scrollable Content**: 3D view and all cards scroll together via `footerWidgets`
 - **Phase Info Dialog**: "Phase Info" and "About this Phase" text (renamed from ARCForm)
 - **No Metadata Chips**: Removed Nodes/Edges/Created chips for cleaner UI
+- **Unified Preview Styling (v3.2.9)**: Matches Conversation tab preview exactly
+  - Container height: 200px
+  - `initialZoom: 0.5` for optimal constellation visibility
+  - `enableLabels: false` for clean compact preview
+  - Tapping opens full-screen viewer at `initialZoom: 1.2` with labels enabled
 
 #### Change Phase Button
 **Location:** Below 3D visualization, above Past Phases section
@@ -1561,15 +1570,17 @@ The Phase tab (formerly "Insights") provides comprehensive phase visualization a
 - **Simplified Phase Preview**: Removed Nodes/Edges/Tap to expand text
 - **Expanded 3D Preview**: Preview image fills available space
 
-### 🎯 Phase Preview Card
+### 🎯 Phase Preview Card (v3.2.9)
 **File:** `lib/arc/ui/timeline/widgets/current_phase_arcform_preview.dart`
 
 **Changes:**
 - **Removed Cards**: Phase Transition Readiness and Change Phase moved to Phase tab
 - **Cleaner Card**: No metadata chips, expanded 3D visualization
 - **Tappable**: Opens `FullScreenPhaseViewer` (shared with Phase tab)
+- **Unified Styling (v3.2.9)**: Now matches Phase tab preview exactly
+  - `initialZoom: 0.5`, `enableLabels: false`, height: 200px
 
-### 📖 Full Screen Phase Viewer
+### 📖 Full Screen Phase Viewer (v3.2.9)
 **File:** `lib/arc/ui/timeline/widgets/current_phase_arcform_preview.dart`
 
 **Shared Component:** Used by both Journal and Phase tabs
@@ -1579,6 +1590,9 @@ The Phase tab (formerly "Insights") provides comprehensive phase visualization a
 - **Share Functionality**: "Share Phase" tooltip
 - **3D Controls**: Manual rotation and zoom
 - **Empty State**: "No Phase data available" message
+- **Improved Initial View (v3.2.9)**: `initialZoom: 1.2` (1.5x closer than before)
+  - Constellation appears larger/closer when opening full-screen
+  - Labels enabled for detailed exploration
 
 ---
 

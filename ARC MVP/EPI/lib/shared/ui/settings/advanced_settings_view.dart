@@ -1,5 +1,5 @@
 // lib/shared/ui/settings/advanced_settings_view.dart
-// Advanced Settings View - contains Analysis settings only (LUMARA settings moved to main Settings view)
+// Consolidated Advanced Settings View - combines Analysis, Memory, Debug, and Response Behavior settings
 
 import 'package:flutter/material.dart';
 import 'package:my_app/shared/app_colors.dart';
@@ -8,6 +8,8 @@ import 'package:my_app/shared/ui/settings/combined_analysis_view.dart';
 import 'package:my_app/shared/ui/settings/health_readiness_view.dart';
 import 'package:my_app/arc/chat/voice/transcription/transcription_provider.dart';
 import 'package:my_app/services/assemblyai_service.dart';
+import 'package:my_app/arc/chat/services/lumara_reflection_settings_service.dart';
+import 'package:my_app/models/engagement_discipline.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class AdvancedSettingsView extends StatefulWidget {
@@ -24,22 +26,48 @@ class _AdvancedSettingsViewState extends State<AdvancedSettingsView> {
   SttMode _sttMode = SttMode.auto;
   SttTier _userTier = SttTier.free;
 
+  // Advanced memory settings
+  int _lookbackYears = 2;
+  double _similarityThreshold = 0.55;
+  int _maxMatches = 5;
+  bool _memorySettingsLoading = true;
+
+  // Debug settings
+  bool _showClassificationDebug = false;
+  bool _debugSettingsLoading = true;
+
+  // Engagement settings (Response Behavior)
+  EngagementSettings _engagementSettings = const EngagementSettings();
+  bool _engagementSettingsLoading = true;
+
+  // Therapeutic settings (Response Behavior)
+  int _therapeuticDepthLevel = 2;
+  bool _therapeuticSettingsLoading = true;
+
   @override
   void initState() {
     super.initState();
-    _loadSettings();
+    _loadAllSettings();
   }
 
-  Future<void> _loadSettings() async {
+  Future<void> _loadAllSettings() async {
+    await Future.wait([
+      _loadTranscriptionSettings(),
+      _loadMemorySettings(),
+      _loadDebugSettings(),
+      _loadEngagementSettings(),
+      _loadTherapeuticSettings(),
+    ]);
+  }
+
+  Future<void> _loadTranscriptionSettings() async {
     try {
-      // Load transcription settings
       final prefs = await SharedPreferences.getInstance();
       final savedMode = prefs.getString('stt_mode');
       final sttMode = savedMode != null
           ? SttMode.values.firstWhere((m) => m.name == savedMode, orElse: () => SttMode.auto)
           : SttMode.auto;
       
-      // Get user tier
       final assemblyAIService = AssemblyAIService();
       final userTier = await assemblyAIService.getUserTier();
       
@@ -51,7 +79,7 @@ class _AdvancedSettingsViewState extends State<AdvancedSettingsView> {
         });
       }
     } catch (e) {
-      print('Error loading settings: $e');
+      debugPrint('Error loading transcription settings: $e');
       if (mounted) {
         setState(() {
           _isLoading = false;
@@ -60,7 +88,204 @@ class _AdvancedSettingsViewState extends State<AdvancedSettingsView> {
     }
   }
 
-  // Removed: _saveSettings() - LUMARA settings now saved in main Settings view
+  Future<void> _loadMemorySettings() async {
+    try {
+      final settingsService = LumaraReflectionSettingsService.instance;
+      await settingsService.initialize();
+
+      final settings = await settingsService.loadAllSettings();
+      if (mounted) {
+        setState(() {
+          _lookbackYears = settings['lookbackYears'] as int? ?? 2;
+          _similarityThreshold = settings['similarityThreshold'] as double? ?? 0.55;
+          _maxMatches = settings['maxMatches'] as int? ?? 5;
+          _memorySettingsLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading memory settings: $e');
+      if (mounted) {
+        setState(() {
+          _memorySettingsLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _loadDebugSettings() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final showDebug = prefs.getBool('show_classification_debug') ?? false;
+      if (mounted) {
+        setState(() {
+          _showClassificationDebug = showDebug;
+          _debugSettingsLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading debug settings: $e');
+      if (mounted) {
+        setState(() {
+          _debugSettingsLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _loadEngagementSettings() async {
+    try {
+      final settingsService = LumaraReflectionSettingsService.instance;
+      await settingsService.initialize();
+      final engagement = await settingsService.getEngagementSettings();
+      if (mounted) {
+        setState(() {
+          _engagementSettings = engagement;
+          _engagementSettingsLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading engagement settings: $e');
+      if (mounted) {
+        setState(() {
+          _engagementSettingsLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _loadTherapeuticSettings() async {
+    try {
+      final settingsService = LumaraReflectionSettingsService.instance;
+      await settingsService.initialize();
+      final settings = await settingsService.loadAllSettings();
+      if (mounted) {
+        setState(() {
+          _therapeuticDepthLevel = settings['therapeuticDepthLevel'] as int? ?? 2;
+          _therapeuticSettingsLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading therapeutic settings: $e');
+      if (mounted) {
+        setState(() {
+          _therapeuticSettingsLoading = false;
+        });
+      }
+    }
+  }
+
+  // Memory settings handlers
+  Future<void> _setLookbackYears(int years) async {
+    try {
+      final settingsService = LumaraReflectionSettingsService.instance;
+      await settingsService.setLookbackYears(years);
+      if (mounted) {
+        setState(() {
+          _lookbackYears = years;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error setting lookback years: $e');
+    }
+  }
+
+  Future<void> _setSimilarityThreshold(double threshold) async {
+    try {
+      final settingsService = LumaraReflectionSettingsService.instance;
+      await settingsService.setSimilarityThreshold(threshold);
+      if (mounted) {
+        setState(() {
+          _similarityThreshold = threshold;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error setting similarity threshold: $e');
+    }
+  }
+
+  Future<void> _setMaxMatches(int matches) async {
+    try {
+      final settingsService = LumaraReflectionSettingsService.instance;
+      await settingsService.setMaxMatches(matches);
+      if (mounted) {
+        setState(() {
+          _maxMatches = matches;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error setting max matches: $e');
+    }
+  }
+
+  // Debug settings handlers
+  Future<void> _setShowClassificationDebug(bool show) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('show_classification_debug', show);
+      if (mounted) {
+        setState(() {
+          _showClassificationDebug = show;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error setting classification debug: $e');
+    }
+  }
+
+  // Response Behavior handlers
+  Future<void> _setTherapeuticDepthLevel(int level) async {
+    try {
+      setState(() {
+        _therapeuticDepthLevel = level;
+      });
+      final settingsService = LumaraReflectionSettingsService.instance;
+      await settingsService.setTherapeuticDepthLevel(level);
+    } catch (e) {
+      debugPrint('Error setting therapeutic depth: $e');
+    }
+  }
+
+  Future<void> _setCrossDomainSynthesis(bool value) async {
+    try {
+      final settingsService = LumaraReflectionSettingsService.instance;
+      final updated = _engagementSettings.copyWith(
+        synthesisPreferences: _engagementSettings.synthesisPreferences.copyWith(
+          allowCrossDomainSynthesis: value,
+        ),
+      );
+      await settingsService.saveAllSettingsWithEngagement(
+        engagementSettings: updated,
+      );
+      if (mounted) {
+        setState(() {
+          _engagementSettings = updated;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error setting cross-domain synthesis: $e');
+    }
+  }
+
+  Future<void> _setTherapeuticLanguage(bool value) async {
+    try {
+      final settingsService = LumaraReflectionSettingsService.instance;
+      final updated = _engagementSettings.copyWith(
+        responseDiscipline: _engagementSettings.responseDiscipline.copyWith(
+          allowTherapeuticLanguage: value,
+        ),
+      );
+      await settingsService.saveAllSettingsWithEngagement(
+        engagementSettings: updated,
+      );
+      if (mounted) {
+        setState(() {
+          _engagementSettings = updated;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error setting therapeutic language: $e');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -135,6 +360,101 @@ class _AdvancedSettingsViewState extends State<AdvancedSettingsView> {
                   ),
                   
                   const SizedBox(height: 32),
+
+                  // Memory Configuration Section
+                  _buildSection(
+                    title: 'Memory Configuration',
+                    children: [
+                      // Lookback Years Slider
+                      _buildSliderCard(
+                        title: 'Memory Lookback',
+                        subtitle: 'How far back LUMARA searches your history',
+                        icon: Icons.history,
+                        value: _lookbackYears.toDouble(),
+                        min: 1,
+                        max: 10,
+                        divisions: 9,
+                        loading: _memorySettingsLoading,
+                        onChanged: (value) => _setLookbackYears(value.round()),
+                        displayValue: '$_lookbackYears ${_lookbackYears == 1 ? 'year' : 'years'}',
+                      ),
+
+                      // Similarity Threshold Slider
+                      _buildSliderCard(
+                        title: 'Matching Precision',
+                        subtitle: 'How similar memories must be to include them',
+                        icon: Icons.tune,
+                        value: _similarityThreshold,
+                        min: 0.3,
+                        max: 0.9,
+                        divisions: 12,
+                        loading: _memorySettingsLoading,
+                        onChanged: _setSimilarityThreshold,
+                        displayValue: _similarityThreshold < 0.45 ? 'Loose' : _similarityThreshold > 0.7 ? 'Strict' : 'Balanced',
+                      ),
+
+                      // Max Matches Slider
+                      _buildSliderCard(
+                        title: 'Maximum Matches',
+                        subtitle: 'Maximum number of past entries to include',
+                        icon: Icons.format_list_numbered,
+                        value: _maxMatches.toDouble(),
+                        min: 1,
+                        max: 20,
+                        divisions: 19,
+                        loading: _memorySettingsLoading,
+                        onChanged: (value) => _setMaxMatches(value.round()),
+                        displayValue: '$_maxMatches',
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 32),
+
+                  // Response Behavior Section (formerly Legacy Settings)
+                  _buildSection(
+                    title: 'Response Behavior',
+                    children: [
+                      // Therapeutic Depth
+                      _buildTherapeuticDepthCard(),
+
+                      // Cross-Domain Synthesis Toggle
+                      _buildSwitchTile(
+                        title: 'Cross-Domain Connections',
+                        subtitle: 'Allow LUMARA to make connections across different life areas',
+                        icon: Icons.hub,
+                        value: _engagementSettings.synthesisPreferences.allowCrossDomainSynthesis,
+                        onChanged: _engagementSettingsLoading ? null : _setCrossDomainSynthesis,
+                      ),
+
+                      // Therapeutic Language Toggle
+                      _buildSwitchTile(
+                        title: 'Therapeutic Language',
+                        subtitle: 'Allow supportive, therapy-style phrasing in responses',
+                        icon: Icons.healing,
+                        value: _engagementSettings.responseDiscipline.allowTherapeuticLanguage,
+                        onChanged: _engagementSettingsLoading ? null : _setTherapeuticLanguage,
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 32),
+
+                  // Debug & Development Section
+                  _buildSection(
+                    title: 'Debug & Development',
+                    children: [
+                      _buildSwitchTile(
+                        title: 'Show Classification Debug',
+                        subtitle: 'Show how entries are classified (factual, reflective, etc.)',
+                        icon: Icons.bug_report,
+                        value: _showClassificationDebug,
+                        onChanged: _debugSettingsLoading ? null : _setShowClassificationDebug,
+                      ),
+                    ],
+                  ),
+                  
+                  const SizedBox(height: 32),
                   
                   // About Section
                   _buildInfoCard(),
@@ -200,16 +520,17 @@ class _AdvancedSettingsViewState extends State<AdvancedSettingsView> {
     );
   }
 
-  Widget _buildSliderTile({
+  Widget _buildSliderCard({
     required String title,
     required String subtitle,
+    required IconData icon,
     required double value,
     required double min,
     required double max,
     required int divisions,
-    required String displayValue,
-    required IconData icon,
+    required bool loading,
     required ValueChanged<double> onChanged,
+    required String displayValue,
   }) {
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
@@ -247,21 +568,28 @@ class _AdvancedSettingsViewState extends State<AdvancedSettingsView> {
                   ],
                 ),
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: kcAccentColor.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  displayValue,
-                  style: bodyStyle(context).copyWith(
-                    color: kcAccentColor,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 13,
+              if (loading)
+                const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              else
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: kcAccentColor.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    displayValue,
+                    style: bodyStyle(context).copyWith(
+                      color: kcAccentColor,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13,
+                    ),
                   ),
                 ),
-              ),
             ],
           ),
           const SizedBox(height: 12),
@@ -272,7 +600,7 @@ class _AdvancedSettingsViewState extends State<AdvancedSettingsView> {
             divisions: divisions,
             activeColor: kcAccentColor,
             inactiveColor: Colors.grey.withOpacity(0.3),
-            onChanged: onChanged,
+            onChanged: loading ? null : onChanged,
           ),
         ],
       ),
@@ -284,7 +612,7 @@ class _AdvancedSettingsViewState extends State<AdvancedSettingsView> {
     required String subtitle,
     required IconData icon,
     required bool value,
-    required ValueChanged<bool> onChanged,
+    required ValueChanged<bool>? onChanged,
   }) {
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
@@ -313,6 +641,88 @@ class _AdvancedSettingsViewState extends State<AdvancedSettingsView> {
         onChanged: onChanged,
         activeColor: kcAccentColor,
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      ),
+    );
+  }
+
+  Widget _buildTherapeuticDepthCard() {
+    final depthLabels = ['Light', 'Moderate', 'Deep'];
+    final depthDescriptions = [
+      'Supportive and encouraging',
+      'Reflective and insight-oriented',
+      'Exploratory and emotionally resonant',
+    ];
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white.withOpacity(0.1)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.psychology,
+                color: kcAccentColor,
+                size: 24,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Therapeutic Depth',
+                      style: heading3Style(context).copyWith(
+                        color: kcPrimaryTextColor,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    Text(
+                      depthDescriptions[_therapeuticDepthLevel - 1],
+                      style: bodyStyle(context).copyWith(
+                        color: kcSecondaryTextColor,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: kcAccentColor.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  depthLabels[_therapeuticDepthLevel - 1],
+                  style: bodyStyle(context).copyWith(
+                    color: kcAccentColor,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Slider(
+            value: _therapeuticDepthLevel.toDouble(),
+            min: 1,
+            max: 3,
+            divisions: 2,
+            activeColor: kcAccentColor,
+            inactiveColor: Colors.grey.withOpacity(0.3),
+            onChanged: _therapeuticSettingsLoading
+                ? null
+                : (value) => _setTherapeuticDepthLevel(value.round()),
+          ),
+        ],
       ),
     );
   }
@@ -509,9 +919,6 @@ class _AdvancedSettingsViewState extends State<AdvancedSettingsView> {
     );
   }
 
-  // Removed: Engagement Discipline section moved to main Settings view
-  // Removed: _buildEngagementModeSelector, _buildSynthesisPreferencesCard, _buildResponseDisciplineCard
-
   Widget _buildInfoCard() {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -538,7 +945,7 @@ class _AdvancedSettingsViewState extends State<AdvancedSettingsView> {
           ),
           const SizedBox(height: 8),
           Text(
-            'These settings control analysis features and voice transcription. LUMARA settings have been moved to the main Settings view.',
+            'These settings control analysis features, memory retrieval, voice transcription, and LUMARA\'s response behavior. Most users can leave these at their defaults.',
             style: bodyStyle(context).copyWith(
               color: kcSecondaryTextColor,
               fontSize: 12,
@@ -549,4 +956,3 @@ class _AdvancedSettingsViewState extends State<AdvancedSettingsView> {
     );
   }
 }
-

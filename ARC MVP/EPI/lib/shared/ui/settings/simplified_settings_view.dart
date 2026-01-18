@@ -20,7 +20,7 @@ import 'package:my_app/shared/ui/settings/memory_mode_settings_view.dart';
 import 'package:my_app/shared/ui/settings/memory_snapshot_management_view.dart';
 import 'package:my_app/shared/ui/settings/conflict_management_view.dart';
 import 'package:my_app/shared/ui/settings/favorites_management_view.dart';
-import 'package:my_app/shared/ui/settings/simplified_advanced_settings_view.dart';
+import 'package:my_app/shared/ui/settings/advanced_settings_view.dart';
 import 'package:my_app/shared/ui/settings/throttle_settings_view.dart';
 import 'package:my_app/arc/core/journal_repository.dart';
 import 'package:my_app/arc/chat/services/favorites_service.dart';
@@ -369,27 +369,28 @@ class _SimplifiedSettingsViewState extends State<SimplifiedSettingsView> {
 
             const SizedBox(height: 32),
 
-            // Advanced Settings Section
-            _buildSection(
-              context,
-              title: 'Advanced Settings',
-              children: [
-                _buildSettingsTile(
-                  context,
-                  title: 'Advanced Settings',
-                  subtitle: 'Memory lookback, matching precision, debug options',
-                  icon: Icons.settings_applications,
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const SimplifiedAdvancedSettingsView()),
-                    );
-                  },
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 32),
+            // Advanced Settings Section - Admin only (marcyap@orbitalai.net)
+            if (FirebaseAuthService.instance.currentUser?.email?.toLowerCase() == 'marcyap@orbitalai.net') ...[
+              _buildSection(
+                context,
+                title: 'Advanced Settings',
+                children: [
+                  _buildSettingsTile(
+                    context,
+                    title: 'Advanced Settings',
+                    subtitle: 'Memory lookback, matching precision, debug options',
+                    icon: Icons.settings_applications,
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const AdvancedSettingsView()),
+                      );
+                    },
+                  ),
+                ],
+              ),
+              const SizedBox(height: 32),
+            ],
 
             // SIMPLIFIED LUMARA Section
             _buildSection(

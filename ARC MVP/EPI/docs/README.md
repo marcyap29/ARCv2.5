@@ -1,7 +1,7 @@
 # EPI Documentation
 
-**Last Updated:** January 14, 2026
-**Version:** 3.2.5
+**Last Updated:** January 17, 2026
+**Version:** 3.2.9
 
 ---
 
@@ -9,7 +9,29 @@
 
 Welcome to the EPI (Evolving Personal Intelligence) documentation. This directory contains comprehensive documentation for the EPI MVP intelligent journaling application.
 
-### Recent Highlights (v3.2.5)
+### Recent Highlights (v3.2.9)
+
+- **🎨 Phase Preview UI Consistency**: Unified styling across Phase and Conversation tabs
+  - Both previews now share identical zoom level (`0.5`) and label settings
+  - Matching container heights (200px) for visual consistency
+  - Full-screen viewer zoomed in 1.5x for better initial view
+
+### Previous Highlights (v3.2.8)
+
+- **🐛 Bug Reporting Improvements**: Enhanced shake-to-report functionality
+  - Bug reports now submit directly to Google Sheets for centralized tracking
+  - Reduced shake sensitivity to prevent false triggers (3s cooldown, 0.3s min duration)
+  - Includes device info, app version, and user details automatically
+
+### Previous Highlights (v3.2.7)
+
+- **⚙️ Advanced Settings Consolidation**: Unified settings management for LUMARA
+  - Merged two separate settings views into single `advanced_settings_view.dart`
+  - Renamed "Legacy Settings (Deprecated)" to "Response Behavior"
+  - Admin-only access for Advanced Settings (restricted to `marcyap@orbitalai.net`)
+  - Consolidated sections: Analysis, Health, Voice, Memory, Response Behavior, Debug
+
+### Previous Highlights (v3.2.5)
 
 - **🛡️ SENTINEL Onboarding Screen**: New introduction screen explaining LUMARA's wellbeing monitoring
   - Positioned between Narrative Intelligence and Phase Quiz (Screen 4)
@@ -224,8 +246,9 @@ Welcome to the EPI (Evolving Personal Intelligence) documentation. This director
 - 🔐 **Google Sign-In Configured (Dec 10, 2025)**: Updated iOS OAuth client and URL scheme
 - 🎉 **Priority 3 Complete (v2.1.46)**: Authentication & Security Implementation
   - Firebase Auth: Anonymous, Google, Email/Password sign-in
-  - Per-entry rate limiting: 5 LUMARA comments per journal entry (free tier)
-  - Per-chat rate limiting: 20 LUMARA messages per chat (free tier)
+  - Per-conversation rate limiting: 5 LUMARA reflections per conversation (free tier)
+  - Daily chat rate limiting: 10 LUMARA messages per day (free tier)
+  - LUMARA requests: 4 requests per conversation (free tier)
   - Complete sign-in UI with account management
 - 🎉 **Priority 2 Complete (v2.1.45)**: Firebase API Proxy Implementation
   - API keys now securely hidden in Firebase Functions

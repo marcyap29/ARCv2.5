@@ -567,7 +567,7 @@ class _CompactArcformPreviewState extends State<_CompactArcformPreview> {
   Widget build(BuildContext context) {
     if (_isLoading) {
       return Container(
-        height: 180,
+        height: 200, // Match Phase tab preview height
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
           color: kcSurfaceColor,
@@ -582,7 +582,7 @@ class _CompactArcformPreviewState extends State<_CompactArcformPreview> {
 
     if (_snapshots.isEmpty) {
       return Container(
-        height: 180,
+        height: 200, // Match Phase tab preview height
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
           color: kcSurfaceColor,
@@ -635,7 +635,7 @@ class _CompactArcformPreviewState extends State<_CompactArcformPreview> {
         }
       },
       child: Container(
-        height: 180,
+        height: 200, // Match Phase tab preview height
         margin: const EdgeInsets.fromLTRB(16, 16, 16, 8), // Increased top margin to prevent clipping with pinned calendar
         decoration: BoxDecoration(
           color: kcSurfaceColor,
@@ -771,7 +771,7 @@ class FullScreenPhaseViewer extends StatelessWidget {
           skin: arcform.skin,
           showNebula: true,
           enableLabels: true,
-          initialZoom: 0.8, // Zoomed out by double from 1.6
+          initialZoom: 1.2, // Zoomed in 1.5x from 0.8 for better initial view
         ),
       ),
     );
