@@ -1,7 +1,7 @@
 # EPI MVP - UI/UX Feature Documentation
 
-**Version:** 3.2.9
-**Last Updated:** January 17, 2026
+**Version:** 3.1
+**Last Updated:** January 9, 2026
 **Status:** ✅ Comprehensive Feature Analysis Complete
 
 ---
@@ -45,6 +45,7 @@ The EPI (Evolving Personal Intelligence) Flutter application provides a sophisti
 29. [Simplified Settings System (v2.1.87)](#29-simplified-settings-system-v2187)
 30. [LUMARA v3.0 User Prompt System (v3.0)](#30-lumara-v30-user-prompt-system-v30)
 31. [LUMARA Header Redesign (v2.1.89)](#31-lumara-header-redesign-v2189)
+32. [Voice Mode v2.0 - LUMARA Sigil (v3.2.9)](#32-voice-mode-v20---lumara-sigil-v329)
 
 ---
 
@@ -428,18 +429,14 @@ Long Press → Edit Mode | Scroll Up → Load History
 - **Week Synchronization:** ValueNotifier for week changes
 - **Visual Density:** Compact view showing activity patterns
 
-### 🎭 Current Phase Preview (v3.2.9)
+### 🎭 Current Phase Preview
 **File:** `lib/arc/ui/timeline/widgets/current_phase_arcform_preview.dart`
 
 - **Live Phase Display:** Shows active life phase constellation
 - **Auto-Refresh:** Updates when phase detection changes
 - **Duration Indicator:** Shows time spent in current phase
 - **Quick Access:** Tap to open full phase analysis
-- **Visual Consistency:** Matches Phase tab preview styling exactly
-- **Unified Settings (v3.2.9):**
-  - Container height: 200px (matches Phase tab)
-  - `initialZoom: 0.5` for optimal constellation visibility
-  - `enableLabels: false` for clean compact preview
+- **Visual Consistency:** Matches full ARCForm styling
 
 ### 📑 Entry Content Rendering
 **File:** `lib/arc/ui/timeline/widgets/entry_content_renderer.dart`
@@ -1495,7 +1492,7 @@ The Phase tab (formerly "Insights") provides comprehensive phase visualization a
 - Gradient progress bar showing trend percentage
 - Phase-specific color coding
 
-#### 3D Phase Visualization (v3.2.9)
+#### 3D Phase Visualization
 **File:** `lib/ui/phase/simplified_arcform_view_3d.dart`
 
 **Features:**
@@ -1503,11 +1500,6 @@ The Phase tab (formerly "Insights") provides comprehensive phase visualization a
 - **Scrollable Content**: 3D view and all cards scroll together via `footerWidgets`
 - **Phase Info Dialog**: "Phase Info" and "About this Phase" text (renamed from ARCForm)
 - **No Metadata Chips**: Removed Nodes/Edges/Created chips for cleaner UI
-- **Unified Preview Styling (v3.2.9)**: Matches Conversation tab preview exactly
-  - Container height: 200px
-  - `initialZoom: 0.5` for optimal constellation visibility
-  - `enableLabels: false` for clean compact preview
-  - Tapping opens full-screen viewer at `initialZoom: 1.2` with labels enabled
 
 #### Change Phase Button
 **Location:** Below 3D visualization, above Past Phases section
@@ -1570,17 +1562,15 @@ The Phase tab (formerly "Insights") provides comprehensive phase visualization a
 - **Simplified Phase Preview**: Removed Nodes/Edges/Tap to expand text
 - **Expanded 3D Preview**: Preview image fills available space
 
-### 🎯 Phase Preview Card (v3.2.9)
+### 🎯 Phase Preview Card
 **File:** `lib/arc/ui/timeline/widgets/current_phase_arcform_preview.dart`
 
 **Changes:**
 - **Removed Cards**: Phase Transition Readiness and Change Phase moved to Phase tab
 - **Cleaner Card**: No metadata chips, expanded 3D visualization
 - **Tappable**: Opens `FullScreenPhaseViewer` (shared with Phase tab)
-- **Unified Styling (v3.2.9)**: Now matches Phase tab preview exactly
-  - `initialZoom: 0.5`, `enableLabels: false`, height: 200px
 
-### 📖 Full Screen Phase Viewer (v3.2.9)
+### 📖 Full Screen Phase Viewer
 **File:** `lib/arc/ui/timeline/widgets/current_phase_arcform_preview.dart`
 
 **Shared Component:** Used by both Journal and Phase tabs
@@ -1590,9 +1580,6 @@ The Phase tab (formerly "Insights") provides comprehensive phase visualization a
 - **Share Functionality**: "Share Phase" tooltip
 - **3D Controls**: Manual rotation and zoom
 - **Empty State**: "No Phase data available" message
-- **Improved Initial View (v3.2.9)**: `initialZoom: 1.2` (1.5x closer than before)
-  - Constellation appears larger/closer when opening full-screen
-  - Labels enabled for detailed exploration
 
 ---
 
@@ -2261,7 +2248,7 @@ UnifiedVoicePanel(
 
 **Purpose:** Space-efficient incremental backups with export history tracking.
 
-#### Quick Backup Card
+#### Incremental Backup Card
 **Features:**
 - **Preview Display**: Shows count of new entries, chats, and media before backup
 - **Dual Backup Options**:
@@ -2670,6 +2657,182 @@ AppBar(
 - [Bug Report: UI Overlap Issue](../bugtracker/records/lumara-ui-overlap-stripe-auth-fixes.md)
 - [LUMARA Persona System](../FEATURES.md#lumara-persona-system)
 - [Header Design Guidelines](../ARCHITECTURE.md#ui-components)
+
+---
+
+## 32. Voice Mode v2.0 - LUMARA Sigil (v3.2.9)
+
+### Overview
+
+Voice Mode v2.0 introduces a sophisticated voice interface with the animated LUMARA sigil as its centerpiece. Activated via long-press on the + button, it provides natural conversational interaction with phase-adaptive smart endpoint detection.
+
+### Activation
+
+**Location:** + (QuickJournalEntry) floating action button
+
+| Gesture | Action |
+|---------|--------|
+| **Tap** | Open journal entry panel (existing behavior) |
+| **Long-press (300ms)** | Launch Voice Mode |
+
+**Visual Hint:** Small mic icon (🎤) in bottom-right corner of + button when voice services are configured.
+
+**Haptic Feedback:**
+- Light tap - When long-press starts
+- Medium impact - After 300ms (confirms "keep holding")
+- Medium impact - On voice mode launch
+
+### Voice Sigil Widget
+
+**File:** `lib/arc/chat/voice/ui/voice_sigil.dart`
+
+The LUMARA sigil serves as the main interactive element with six animation states:
+
+| State | Visual | Description |
+|-------|--------|-------------|
+| **IDLE** | Gentle pulse | Inviting interaction, gold LUMARA sigil centered |
+| **LISTENING** | Breathing + ripples | Calm rhythmic animation with audio-reactive ripples |
+| **COMMITMENT** | Ring contracts | Inner ring contracts inward (0.5-1.5s silence) |
+| **ACCELERATING** | Shimmer intensifies | Ring nearly contracted, building to endpoint (1.5s+) |
+| **THINKING** | Spinner | Processing user input |
+| **SPEAKING** | Speaking animation | LUMARA responding via TTS |
+
+**Animation Controllers:**
+- `_pulseController` - 2s gentle idle animation (0.95-1.05 scale)
+- `_breathingController` - 1.5s listening animation
+- `_shimmerController` - 800ms accelerating shimmer
+- `_thinkingController` - 1.2s thinking spinner
+
+### Commitment Ring
+
+**File:** `lib/arc/chat/voice/ui/commitment_ring_painter.dart`
+
+Visual countdown showing commitment to end turn:
+
+**Features:**
+- **Contracting Ring**: Inner ring contracts inward as silence duration increases
+- **Opacity Increase**: Ring becomes more visible as commitment builds (0.3 → 0.8)
+- **Phase-Adaptive Colors**: Uses current phase color for visual consistency
+- **Pulsing Dots**: At high commitment (>0.8), dots appear around the ring
+
+**Commitment Visualization:**
+```
+commitmentLevel = 0.0: Full radius (no commitment)
+commitmentLevel = 1.0: 30% radius (about to commit/end turn)
+```
+
+### Voice Mode Screen
+
+**File:** `lib/arc/chat/voice/ui/voice_mode_screen.dart`
+
+**Layout:**
+```
+┌─────────────────────────────────────────┐
+│              [Back Button]              │
+├─────────────────────────────────────────┤
+│                                         │
+│           ┌─────────────┐               │
+│           │             │               │
+│           │   LUMARA    │  ← Voice Sigil
+│           │   SIGIL     │    (animated)
+│           │             │               │
+│           └─────────────┘               │
+│                                         │
+│       "Listening..." / Status           │
+│                                         │
+│        [Transcript Preview]             │
+│                                         │
+└─────────────────────────────────────────┘
+```
+
+### Smart Endpoint Detection
+
+**File:** `lib/arc/chat/voice/endpoint/smart_endpoint_detector.dart`
+
+Phase-adaptive silence detection for natural conversation flow:
+
+| Phase | Silence Threshold | Description |
+|-------|-------------------|-------------|
+| **Discovery** | Longer | Allow exploration, hesitation |
+| **Expansion** | Medium | Balance flow and momentum |
+| **Transition** | Variable | Sensitive to context shifts |
+| **Consolidation** | Shorter | Direct, purposeful exchanges |
+| **Recovery** | Longer | Patient, supportive listening |
+| **Breakthrough** | Adaptive | Match intensity of insight |
+
+### Wispr Flow Integration
+
+**Files:**
+- `lib/arc/chat/voice/wispr/wispr_flow_service.dart` - WebSocket streaming transcription
+- `lib/arc/chat/voice/wispr/wispr_rate_limiter.dart` - API usage limits
+- `lib/arc/chat/voice/config/wispr_config_service.dart` - Secure API key retrieval
+
+**Authentication Flow:**
+1. User initiates voice mode
+2. `WisprConfigService` calls `getWisprApiKey` Cloud Function
+3. Cloud Function retrieves API key from Firebase Secrets
+4. WebSocket connection established with Wispr Flow
+5. Real-time streaming transcription begins
+
+### Voice Session Service
+
+**File:** `lib/arc/chat/voice/services/voice_session_service.dart`
+
+Orchestrates the complete voice conversation:
+
+1. **Initialize** - Fetch API key, setup services
+2. **Permission Check** - Request microphone access
+3. **Listening** - Capture audio, stream to Wispr
+4. **Smart Endpoint** - Detect natural turn boundaries
+5. **Processing** - Scrub PII via PRISM adapter
+6. **LUMARA Response** - Generate and speak via TTS
+7. **Continue/Finish** - Loop or save session to timeline
+
+### Voice Timeline Storage
+
+**File:** `lib/arc/chat/voice/storage/voice_timeline_storage.dart`
+
+Sessions are saved as `VoiceConversationEntry` to the timeline, preserving:
+- Full conversation transcript
+- User turns and LUMARA responses
+- Phase context at time of session
+- Session duration and metadata
+
+### Files & Components
+
+**UI Components:**
+- `voice_sigil.dart` - Animated LUMARA sigil
+- `commitment_ring_painter.dart` - Endpoint countdown ring
+- `voice_mode_screen.dart` - Full-screen voice interface
+- `voice_mode_launcher.dart` - Entry point and initialization
+
+**Services:**
+- `voice_session_service.dart` - Session orchestration
+- `wispr_flow_service.dart` - Streaming transcription
+- `wispr_config_service.dart` - Secure API key management
+- `audio_capture_service.dart` - Microphone input
+
+**Endpoint Detection:**
+- `smart_endpoint_detector.dart` - Phase-adaptive silence detection
+- `linguistic_analyzer.dart` - Sentence completion analysis
+- `filler_word_handler.dart` - Filter hesitations/fillers
+
+**Data Models:**
+- `voice_session.dart` - Session and turn models
+
+### Requirements
+
+- **Firebase Functions**: `WISPR_FLOW_API_KEY` secret configured
+- **Cloud Function**: `getWisprApiKey` deployed
+- **Microphone Permissions**: Granted by user
+- **Authentication**: User signed in via Firebase Auth
+
+### Design Philosophy
+
+- **Natural Interaction**: Phase-adaptive timing feels conversational
+- **Visual Feedback**: LUMARA sigil provides clear state indication
+- **Privacy First**: PII scrubbing via PRISM before storage
+- **Accessible**: Large tap target, clear visual states
 
 ---
 
