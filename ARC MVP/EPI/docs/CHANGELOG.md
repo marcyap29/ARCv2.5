@@ -1,5 +1,182 @@
 # EPI ARC MVP - Changelog
 
+**Version:** 3.3.0
+
+---
+
+## [3.3.0] - 2026-01-17
+
+### 🚨 Crisis Detection & Recovery System
+
+**Major Feature:** Comprehensive crisis detection and graduated intervention system
+
+#### Backend (TypeScript/Firebase Functions)
+
+**New Components:**
+- **SENTINEL Crisis Detector** (`functions/src/sentinel/crisis_detector.ts`)
+  - Local keyword-based crisis detection (< 5ms)
+  - Three-tier pattern system (CRITICAL, HIGH, MODERATE)
+  - Intensity amplifiers (temporal, absolute, isolation, finality)
+  - False positive filtering
+  - 0-100 scoring with 70-point crisis threshold
+
+- **RESOLVE Recovery Tracker** (`functions/src/prism/rivet/resolve.ts`)
+  - 7-day history window for recovery monitoring
+  - Recovery phases: acute → stabilizing → recovering → resolved
+  - RESOLVE score (0-100) for recovery momentum
+  - Consecutive stable days counter
+  - Trajectory detection (declining/flat/improving)
+  - Positive indicator detection
+
+- **Crisis Templates** (`functions/src/services/crisisTemplates.ts`)
+  - Pre-written responses for crisis situations
+  - Severity-based messaging (CRITICAL vs HIGH)
+  - Embedded crisis resources (988, Crisis Text Line, 911)
+
+- **Graduated Intervention System** (`functions/src/services/crisisIntervention.ts`)
+  - Level 1: Alert + Resources (first crisis in 24hrs)
+  - Level 2: Require Acknowledgment (second crisis in 24hrs)
+  - Level 3: Limited Mode (third+ crisis in 24hrs, 24hr pause on AI reflections)
+  - Journaling always remains available (never fully blocked)
+  - Automatic expiration after 24 hours
+
+**Updated Components:**
+- **analyzeJournalEntry** (`functions/src/functions/analyzeJournalEntry.ts`)
+  - Integrated SENTINEL → RESOLVE → RIVET → GEMINI pipeline
+  - Local analysis happens first (before any external API calls)
+  - Crisis detection before Gemini API calls
+  - Testing mode support (mock responses)
+  - Enhanced response structure with crisis metadata
+  - Limited mode checking and enforcement
+
+- **UserDocument** (`functions/src/types.ts`)
+  - Added `isTestingAccount?: boolean` field for testing mode
+
+#### Frontend (Dart/Flutter)
+
+**New Widgets:**
+- **Crisis Acknowledgment Dialog** (`lib/ui/widgets/crisis_acknowledgment_dialog.dart`)
+  - Modal dialog for Level 2 intervention
+  - Three checkboxes for resource acknowledgment
+  - Non-dismissible until user acknowledges
+  - Formatted resource display with icons
+  - Helper function: `showCrisisAcknowledgmentDialog()`
+
+- **Testing Mode Display** (`lib/ui/widgets/testing_mode_display.dart`)
+  - Comprehensive analysis visualization
+  - SENTINEL section (crisis detection metrics)
+  - Intervention level display (color-coded)
+  - RIVET section (phase consistency, if available)
+  - RESOLVE section (recovery tracking)
+  - Processing path and performance indicators
+
+#### Documentation
+
+**New Documentation:**
+- `DOCS/CRISIS_SYSTEM_README.md` - System overview and quick start
+- `DOCS/CRISIS_SYSTEM_INTEGRATION_GUIDE.md` - Integration instructions
+- `DOCS/CRISIS_SYSTEM_TESTING.md` - Test scenarios and cases
+
+#### Key Features
+
+- ✅ **Local Analysis First** - Crisis detection happens internally before any external API calls
+- ✅ **Never Fully Deactivate** - Journaling remains available even during intervention
+- ✅ **Graduated Response** - Intervention escalates proportionally to crisis frequency
+- ✅ **Time-Limited** - All restrictions expire automatically after 24 hours
+- ✅ **Testing Support** - Comprehensive debugging with mock responses
+- ✅ **Recovery Tracking** - RESOLVE monitors recovery trajectory over time
+- ✅ **Performance** - SENTINEL detection < 5ms, total analysis < 500ms
+
+#### Database Schema Updates
+
+**User Document:**
+```typescript
+{
+  isTestingAccount: boolean,
+  limited_mode: {
+    active: boolean,
+    activated_at: Timestamp,
+    expires_at: Timestamp,
+    reason: 'repeated_crisis_detection',
+    duration_hours: 24
+  }
+}
+```
+
+**Journal Entry Document:**
+```typescript
+{
+  sentinel_result: {
+    crisis_detected: boolean,
+    crisis_score: number,
+    crisis_level: 'NONE' | 'LOW' | 'MODERATE' | 'HIGH' | 'CRITICAL',
+    detected_patterns: string[],
+    intensity_factors: string[],
+    confidence: number,
+    timestamp: Timestamp
+  }
+}
+```
+
+#### Response Structure
+
+analyzeJournalEntry now returns:
+```typescript
+{
+  // Standard fields
+  success: boolean,
+  summary: string,
+  themes: string[],
+  suggestions: string[],
+  tier: 'FREE' | 'PAID',
+  
+  // Crisis detection (NEW)
+  crisis_detected: boolean,
+  crisis_level: 'NONE' | 'LOW' | 'MODERATE' | 'HIGH' | 'CRITICAL',
+  crisis_score: number,
+  
+  // Intervention (NEW)
+  intervention_level: 0 | 1 | 2 | 3,
+  requires_acknowledgment?: boolean,
+  acknowledgment_message?: string,
+  limited_mode?: boolean,
+  limited_mode_message?: string,
+  
+  // Recovery tracking (NEW)
+  resolve?: RESOLVEResult,
+  
+  // Debugging
+  used_gemini: boolean,
+  processing_path: string,
+  detection_time_ms: number
+}
+```
+
+#### Crisis Resources
+
+All interventions provide:
+- **National Suicide Prevention Lifeline**: 988 (call or text, 24/7)
+- **Crisis Text Line**: Text HOME to 741741
+- **Emergency Services**: 911
+
+#### Ethical Framework
+
+Core Principle: **"Create a bridge to help, not a wall to prevent harm."**
+
+- ✅ Detects crisis indicators in journal entries
+- ✅ Provides validated crisis resource information
+- ✅ Creates supportive boundaries during repeated crises
+- ✅ Tracks recovery trajectories over time
+- ✅ Encourages professional help when needed
+- ❌ Does not diagnose mental health conditions
+- ❌ Does not replace professional treatment
+- ❌ Does not contact emergency services without consent
+- ❌ Does not block journaling (protective outlet principle)
+
+---
+
+# EPI ARC MVP - Changelog
+
 **Version:** 3.2.6
 **Last Updated:** January 16, 2026
 

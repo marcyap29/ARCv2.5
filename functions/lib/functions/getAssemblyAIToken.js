@@ -15,9 +15,9 @@ const config_1 = require("../config");
  * 3. Returns a temporary token for AssemblyAI Streaming API
  *
  * Token eligibility:
- * - FREE users: Not eligible (will get eligibleForCloud: false)
- * - BETA users: Eligible (free cloud access during beta)
- * - PRO users: Eligible (paid subscription)
+ * - FREE users: Not eligible (will get eligibleForCloud: false) - use on-device transcription
+ * - BETA users: Not eligible (will get eligibleForCloud: false) - use on-device transcription
+ * - PRO users: Eligible (paid $30/month subscription) - get AssemblyAI cloud transcription
  *
  * The client should fall back to on-device transcription if:
  * - eligibleForCloud is false
@@ -45,9 +45,10 @@ exports.getAssemblyAIToken = (0, https_1.onCall)({
         }
         firebase_functions_1.logger.info(`STT token request from user ${userId} (tier: ${tier}, premium: ${isPremium}, beta: ${isBeta})`);
         // Step 3: Check eligibility for cloud transcription
-        // Current policy: BETA and PRO users get cloud access
-        // Future: FREE users will be LOCAL-only by default
-        const eligibleForCloud = tier === "PRO" || tier === "BETA";
+        // Policy: Only PRO users ($30/month subscription) get AssemblyAI cloud access
+        // FREE and BETA users use on-device transcription only
+        const eligibleForCloud = tier === "PRO";
+        firebase_functions_1.logger.info(`AssemblyAI eligibility check: tier=${tier}, isPremium=${isPremium}, eligibleForCloud=${eligibleForCloud}`);
         if (!eligibleForCloud) {
             firebase_functions_1.logger.info(`User ${userId} not eligible for cloud STT (tier: ${tier})`);
             return {

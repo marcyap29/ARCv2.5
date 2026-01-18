@@ -42,6 +42,8 @@ export interface UserDocument {
   // Beta access flags (for cloud features like AssemblyAI STT)
   isBetaUser?: boolean; // True if user has beta access
   betaAccess?: boolean; // Alternative beta flag
+  // Testing account flag (for crisis detection system)
+  isTestingAccount?: boolean; // True if user is in testing mode
   createdAt: admin.firestore.Timestamp;
   updatedAt: admin.firestore.Timestamp;
 }
