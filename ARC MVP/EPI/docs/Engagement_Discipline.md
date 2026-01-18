@@ -1,7 +1,7 @@
 # Engagement Discipline System
 
-**Version:** 2.1.75  
-**Last Updated:** December 29, 2025  
+**Version:** 3.2.7  
+**Last Updated:** January 17, 2026  
 **Status:** ✅ Production Ready
 
 ---
@@ -224,16 +224,25 @@ Engagement settings are persisted using SharedPreferences and integrated with th
 
 **Location:** `lib/shared/ui/settings/advanced_settings_view.dart`
 
-The Engagement Discipline UI is located in the Advanced Settings menu:
+The Advanced Settings view is a consolidated settings screen containing all advanced LUMARA options (admin-only access for `marcyap@orbitalai.net`):
 
-- **Engagement Mode Selector**: Radio button selection for Reflect, Explore, or Integrate
-- **Cross-Domain Synthesis Card**: Toggle switches for each synthesis option
-- **Response Boundaries Card**: Sliders and toggles for response discipline settings
+**Sections:**
+- **Analysis & Insights**: Phase detection, AURORA, VEIL, SENTINEL, Medical analysis
+- **Health & Readiness**: Operational readiness and phase ratings
+- **Voice & Transcription**: STT mode selection (Auto/Cloud/Local)
+- **Memory Configuration**: Lookback years, matching precision, max matches
+- **Response Behavior**: Therapeutic depth, cross-domain connections, therapeutic language
+- **Debug & Development**: Classification debug toggle
+
+**Response Behavior Section (formerly "Legacy Settings"):**
+- **Therapeutic Depth**: Light, Moderate, or Deep response styles
+- **Cross-Domain Connections**: Toggle for allowing connections across life areas
+- **Therapeutic Language**: Toggle for supportive, therapy-style phrasing
 
 **Styling:**
 - Black background with white text (`Colors.white.withOpacity(0.05)`)
 - Purple icons and toggles (`kcAccentColor`)
-- Consistent with other Advanced Settings cards
+- Consistent card-based layout throughout
 
 ---
 
@@ -300,21 +309,24 @@ These patterns are filtered at the response validation layer before presentation
 
 ### Settings Access
 
+**Note:** Advanced Settings is currently admin-only (restricted to `marcyap@orbitalai.net`).
+
 1. Navigate to **Settings** → **Advanced Settings**
-2. Scroll to **Engagement Discipline** section
-3. Configure:
-   - **Engagement Mode**: Select Reflect, Explore, or Integrate
-   - **Cross-Domain Synthesis**: Toggle synthesis options (only applies in Integrate mode)
-   - **Response Boundaries**: Adjust temporal connections, questions, and language permissions
+2. Browse consolidated settings sections:
+   - **Analysis & Insights**: Configure analysis features
+   - **Health & Readiness**: View operational metrics
+   - **Voice & Transcription**: Select transcription mode
+   - **Memory Configuration**: Adjust memory lookback and matching
+   - **Response Behavior**: Configure therapeutic depth, cross-domain connections, and language style
+   - **Debug & Development**: Enable debug features
 
 ### Visual Design
 
 - **Card-based layout**: Each setting category in its own card
 - **Consistent styling**: Black background, white text, purple accents
 - **Clear descriptions**: Each option includes explanatory text
-- **Radio buttons**: For engagement mode selection
-- **Toggle switches**: For synthesis and language permissions
-- **Sliders**: For numeric settings (temporal connections, questions)
+- **Toggle switches**: For boolean settings
+- **Sliders**: For numeric settings (lookback years, matching precision, therapeutic depth)
 
 ---
 
@@ -340,6 +352,6 @@ These patterns are filtered at the response validation layer before presentation
 ---
 
 **Status**: ✅ Production Ready  
-**Last Updated**: December 29, 2025  
-**Version**: 2.1.75
+**Last Updated**: January 17, 2026  
+**Version**: 3.2.7
 

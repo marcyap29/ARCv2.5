@@ -1,184 +1,7 @@
 # EPI ARC MVP - Changelog
 
-**Version:** 3.3.0
-
----
-
-## [3.3.0] - 2026-01-17
-
-### 🚨 Crisis Detection & Recovery System
-
-**Major Feature:** Comprehensive crisis detection and graduated intervention system
-
-#### Backend (TypeScript/Firebase Functions)
-
-**New Components:**
-- **SENTINEL Crisis Detector** (`functions/src/sentinel/crisis_detector.ts`)
-  - Local keyword-based crisis detection (< 5ms)
-  - Three-tier pattern system (CRITICAL, HIGH, MODERATE)
-  - Intensity amplifiers (temporal, absolute, isolation, finality)
-  - False positive filtering
-  - 0-100 scoring with 70-point crisis threshold
-
-- **RESOLVE Recovery Tracker** (`functions/src/prism/rivet/resolve.ts`)
-  - 7-day history window for recovery monitoring
-  - Recovery phases: acute → stabilizing → recovering → resolved
-  - RESOLVE score (0-100) for recovery momentum
-  - Consecutive stable days counter
-  - Trajectory detection (declining/flat/improving)
-  - Positive indicator detection
-
-- **Crisis Templates** (`functions/src/services/crisisTemplates.ts`)
-  - Pre-written responses for crisis situations
-  - Severity-based messaging (CRITICAL vs HIGH)
-  - Embedded crisis resources (988, Crisis Text Line, 911)
-
-- **Graduated Intervention System** (`functions/src/services/crisisIntervention.ts`)
-  - Level 1: Alert + Resources (first crisis in 24hrs)
-  - Level 2: Require Acknowledgment (second crisis in 24hrs)
-  - Level 3: Limited Mode (third+ crisis in 24hrs, 24hr pause on AI reflections)
-  - Journaling always remains available (never fully blocked)
-  - Automatic expiration after 24 hours
-
-**Updated Components:**
-- **analyzeJournalEntry** (`functions/src/functions/analyzeJournalEntry.ts`)
-  - Integrated SENTINEL → RESOLVE → RIVET → GEMINI pipeline
-  - Local analysis happens first (before any external API calls)
-  - Crisis detection before Gemini API calls
-  - Testing mode support (mock responses)
-  - Enhanced response structure with crisis metadata
-  - Limited mode checking and enforcement
-
-- **UserDocument** (`functions/src/types.ts`)
-  - Added `isTestingAccount?: boolean` field for testing mode
-
-#### Frontend (Dart/Flutter)
-
-**New Widgets:**
-- **Crisis Acknowledgment Dialog** (`lib/ui/widgets/crisis_acknowledgment_dialog.dart`)
-  - Modal dialog for Level 2 intervention
-  - Three checkboxes for resource acknowledgment
-  - Non-dismissible until user acknowledges
-  - Formatted resource display with icons
-  - Helper function: `showCrisisAcknowledgmentDialog()`
-
-- **Testing Mode Display** (`lib/ui/widgets/testing_mode_display.dart`)
-  - Comprehensive analysis visualization
-  - SENTINEL section (crisis detection metrics)
-  - Intervention level display (color-coded)
-  - RIVET section (phase consistency, if available)
-  - RESOLVE section (recovery tracking)
-  - Processing path and performance indicators
-
-#### Documentation
-
-**New Documentation:**
-- `DOCS/CRISIS_SYSTEM_README.md` - System overview and quick start
-- `DOCS/CRISIS_SYSTEM_INTEGRATION_GUIDE.md` - Integration instructions
-- `DOCS/CRISIS_SYSTEM_TESTING.md` - Test scenarios and cases
-
-#### Key Features
-
-- ✅ **Local Analysis First** - Crisis detection happens internally before any external API calls
-- ✅ **Never Fully Deactivate** - Journaling remains available even during intervention
-- ✅ **Graduated Response** - Intervention escalates proportionally to crisis frequency
-- ✅ **Time-Limited** - All restrictions expire automatically after 24 hours
-- ✅ **Testing Support** - Comprehensive debugging with mock responses
-- ✅ **Recovery Tracking** - RESOLVE monitors recovery trajectory over time
-- ✅ **Performance** - SENTINEL detection < 5ms, total analysis < 500ms
-
-#### Database Schema Updates
-
-**User Document:**
-```typescript
-{
-  isTestingAccount: boolean,
-  limited_mode: {
-    active: boolean,
-    activated_at: Timestamp,
-    expires_at: Timestamp,
-    reason: 'repeated_crisis_detection',
-    duration_hours: 24
-  }
-}
-```
-
-**Journal Entry Document:**
-```typescript
-{
-  sentinel_result: {
-    crisis_detected: boolean,
-    crisis_score: number,
-    crisis_level: 'NONE' | 'LOW' | 'MODERATE' | 'HIGH' | 'CRITICAL',
-    detected_patterns: string[],
-    intensity_factors: string[],
-    confidence: number,
-    timestamp: Timestamp
-  }
-}
-```
-
-#### Response Structure
-
-analyzeJournalEntry now returns:
-```typescript
-{
-  // Standard fields
-  success: boolean,
-  summary: string,
-  themes: string[],
-  suggestions: string[],
-  tier: 'FREE' | 'PAID',
-  
-  // Crisis detection (NEW)
-  crisis_detected: boolean,
-  crisis_level: 'NONE' | 'LOW' | 'MODERATE' | 'HIGH' | 'CRITICAL',
-  crisis_score: number,
-  
-  // Intervention (NEW)
-  intervention_level: 0 | 1 | 2 | 3,
-  requires_acknowledgment?: boolean,
-  acknowledgment_message?: string,
-  limited_mode?: boolean,
-  limited_mode_message?: string,
-  
-  // Recovery tracking (NEW)
-  resolve?: RESOLVEResult,
-  
-  // Debugging
-  used_gemini: boolean,
-  processing_path: string,
-  detection_time_ms: number
-}
-```
-
-#### Crisis Resources
-
-All interventions provide:
-- **National Suicide Prevention Lifeline**: 988 (call or text, 24/7)
-- **Crisis Text Line**: Text HOME to 741741
-- **Emergency Services**: 911
-
-#### Ethical Framework
-
-Core Principle: **"Create a bridge to help, not a wall to prevent harm."**
-
-- ✅ Detects crisis indicators in journal entries
-- ✅ Provides validated crisis resource information
-- ✅ Creates supportive boundaries during repeated crises
-- ✅ Tracks recovery trajectories over time
-- ✅ Encourages professional help when needed
-- ❌ Does not diagnose mental health conditions
-- ❌ Does not replace professional treatment
-- ❌ Does not contact emergency services without consent
-- ❌ Does not block journaling (protective outlet principle)
-
----
-
-# EPI ARC MVP - Changelog
-
-**Version:** 3.2.6
-**Last Updated:** January 16, 2026
+**Version:** 3.2.7
+**Last Updated:** January 17, 2026
 
 ---
 
@@ -194,22 +17,72 @@ This changelog has been split into parts for easier navigation:
 
 ---
 
-## [3.2.6] - January 16, 2026 (Backup Set Model)
+## [3.2.7] - January 17, 2026
+
+### ⚙️ Advanced Settings Consolidation
+
+#### Changes
+- **Consolidated Settings Views**: Merged `simplified_advanced_settings_view.dart` into `advanced_settings_view.dart`
+  - Single unified Advanced Settings screen with all options
+  - Removed redundant `SimplifiedAdvancedSettingsView` class
+- **Renamed "Legacy Settings"**: Changed section name from "Legacy Settings (Deprecated)" to "Response Behavior"
+  - Removed deprecation styling (grey colors, deprecation labels)
+  - Settings now display with active accent colors
+  - Clarified that these settings are functional and actively used
+- **Admin-Only Access**: Advanced Settings menu is now restricted to admin users (`marcyap@orbitalai.net`)
+  - Prevents accidental changes by regular users
+  - Keeps advanced tuning options accessible for debugging
+
+#### Consolidated Sections
+| Section | Features |
+|---------|----------|
+| Analysis & Insights | Phase detection, AURORA, VEIL, SENTINEL, Medical |
+| Health & Readiness | Operational readiness and phase ratings |
+| Voice & Transcription | STT mode (Auto/Cloud/Local) |
+| Memory Configuration | Lookback years, matching precision, max matches |
+| Response Behavior | Therapeutic depth, cross-domain connections, therapeutic language |
+| Debug & Development | Classification debug toggle |
+
+#### Technical Details
+- **Files Changed**: 4 files modified, 1 file deleted
+- **Lines Changed**: +481, -780 (net reduction of ~300 lines)
+- **Deleted**: `lib/shared/ui/settings/simplified_advanced_settings_view.dart`
+
+---
+
+## [3.2.6] - January 16, 2026
 
 ### 📁 Backup Set Model
 
 #### New Features
 - **Unified Backup System**: Full and incremental backups now share the same folder with sequential numbering
   - Creates backup set folder: `ARC_BackupSet_YYYY-MM-DD/`
-  - Full backup chunks: `ARC_Full_001.arcx`, `ARC_Full_002.arcx`, etc.
-  - Incremental backups continue: `ARC_Inc_004_2026-01-17.arcx` (number + actual date)
-- **Automatic Set Detection**: Quick Backups find latest backup set and continue numbering
-- **Clear Restore Order**: Files numbered sequentially (001, 002, 003...)
-- **Type Distinction**: `ARC_Full_` vs `ARC_Inc_` prefix identifies backup type
+  - Full backup chunks named: `ARC_Full_001.arcx`, `ARC_Full_002.arcx`, etc.
+  - Incremental backups continue numbering: `ARC_Inc_004_2026-01-17.arcx` (sequence number + actual date)
+- **Automatic Set Detection**: Incremental backups automatically find the latest backup set and continue numbering
+  - If no backup set exists, creates one with full backup first
+  - Scans for `ARC_BackupSet_*` folders, finds highest file number
+  - New incrementals save as next number in sequence
+- **Clear Restore Order**: Files numbered sequentially (001, 002, 003...) for easy restoration
+- **Type Distinction**: `ARC_Full_` vs `ARC_Inc_` prefix clearly identifies backup type
+- **Date Visibility**: Folder name shows set start date, incremental filenames include their actual date
 
 #### UI Enhancements
-- Updated Quick Backup Card: "Add new entries to your existing backup set"
-- Updated Full Backup Card: "Create new backup set" with file naming examples
+- **Incremental Backup Card**: Updated to say "Backs up your most recent entries since the last backup and adds them to your existing backup set"
+- **Full Backup Card**: Updated to say "Create new backup set" with visual explanation of file naming
+- **Info Banner**: Shows example structure with `ARC_Full_001.arcx` and `ARC_Inc_003_2026-01-17.arcx`
+
+#### Technical Details
+- New helper methods: `_findLatestBackupSet()`, `_getHighestFileNumber()`, `_getLatestBackupTimestamp()`
+- `exportIncremental()` now scans backup folder before creating files
+- `exportFullBackupChunked()` uses new `ARC_BackupSet_` folder naming
+- Updated naming from `ARC_Backup_date_001.arcx` to `ARC_Full_001.arcx`
+
+#### Benefits
+- **Self-Documenting**: Looking at a backup folder tells the complete story
+- **Clear Restore Order**: No guessing about which files to restore in what order
+- **Organized Structure**: Full + incremental backups logically grouped together
+- **Future-Proof**: New backup set created for each fresh full backup
 
 ---
 
@@ -1366,7 +1239,7 @@ Cloud Run IAM policy was blocking requests to `createCheckoutSession` service be
   - **Backup History Management**: View statistics, clear history to force full backup
   
 - **Local Backup UI Improvements**:
-  - **Quick Backup Card**: Shows preview of new entries, chats, and media before backup
+  - **Incremental Backup Card**: Shows preview of new entries, chats, and media before backup
   - **Full Backup Card**: Option to create complete backups
   - **Backup History Card**: Displays export statistics and last full backup date
   - **Folder Selection Guidance**: Info card explaining where to save backups (recommended locations)
