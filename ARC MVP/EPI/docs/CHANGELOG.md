@@ -19,18 +19,29 @@ This changelog has been split into parts for easier navigation:
 
 ## [3.3.1] - January 19, 2026
 
-### 🎙️ Voice Mode: Wispr Flow User-Configurable
+### 🎙️ Voice Mode: Usage Limits & Simplified Transcription
 
 #### Overview
-Restored Wispr Flow as an **optional** transcription backend for users who provide their own API key.
+Added monthly voice usage limits for free users and simplified transcription to Wispr (optional) → Apple On-Device.
+
+| Subscription | Monthly Voice Limit |
+|--------------|---------------------|
+| **Free** | 60 minutes |
+| **Premium** | Unlimited |
 
 | Backend | Priority | Requirements |
 |---------|----------|--------------|
 | **Wispr Flow** | 1st (if configured) | User's own API key |
-| **AssemblyAI** | 2nd (primary fallback) | PRO/BETA tier |
-| **Apple On-Device** | 3rd (final fallback) | Always available |
+| **Apple On-Device** | 2nd (default) | Always available |
 
-#### How to Enable Wispr Flow
+#### Voice Usage Limits
+- Free users get **60 minutes per month** of voice mode
+- Premium users get **unlimited** voice mode
+- Usage resets on the 1st of each month
+- Usage indicator shown in voice mode UI
+- Upgrade dialog shown when limit reached
+
+#### How to Enable Wispr Flow (Optional)
 1. Get API key from [wisprflow.ai](https://wisprflow.ai)
 2. Open **LUMARA Settings**
 3. Scroll to **External Services** card
@@ -40,22 +51,23 @@ Restored Wispr Flow as an **optional** transcription backend for users who provi
 Voice mode will automatically use Wispr Flow when configured.
 
 #### Technical Changes
-- Added `External Services` card to LUMARA Settings UI
-- Restored `wispr_flow_service.dart` and `wispr_config_service.dart`
-- Modified `UnifiedTranscriptionService` to check for user Wispr key first
-- Wispr API key stored locally via `SharedPreferences`
-- No Firebase Functions required for Wispr (user provides their own key)
+- Added `VoiceUsageService` for tracking monthly usage
+- Added usage check before starting voice sessions
+- Added usage indicator in voice mode UI
+- Removed AssemblyAI from transcription chain
+- Simplified to Wispr (optional) → Apple On-Device
 
 #### Files Changed
-- `lib/arc/chat/ui/lumara_settings_screen.dart` - Added External Services card
-- `lib/arc/chat/voice/config/wispr_config_service.dart` - Reads from SharedPreferences
-- `lib/arc/chat/voice/transcription/unified_transcription_service.dart` - Three-tier fallback
-- `lib/arc/chat/voice/config/voice_system_initializer.dart` - Updated initialization
+- `lib/arc/chat/voice/services/voice_usage_service.dart` - NEW: Usage tracking
+- `lib/arc/chat/voice/ui/voice_mode_screen.dart` - Usage indicator, limit checks
+- `lib/arc/chat/voice/transcription/unified_transcription_service.dart` - Simplified
+- `lib/arc/chat/voice/config/voice_system_initializer.dart` - Removed AssemblyAI
+- `lib/arc/chat/voice/services/voice_session_service.dart` - Removed AssemblyAI
 
 #### Notes
 - Wispr Flow API is for **personal use only**
 - Users manage their own Wispr account and usage
-- No rate limiting applied to user-provided keys
+- AssemblyAI removed to simplify backend
 
 ---
 

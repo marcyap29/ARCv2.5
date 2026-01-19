@@ -13,6 +13,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../services/voice_session_service.dart';
+import '../services/voice_usage_service.dart';
 import '../models/voice_session.dart';
 import '../storage/voice_timeline_storage.dart';
 import '../../../../models/phase_models.dart';
@@ -44,6 +45,11 @@ class _VoiceModeScreenState extends State<VoiceModeScreen> {
   double _audioLevel = 0.0;
   CommitmentLevel? _commitmentLevel;
   bool _isFirstTurn = true;
+  
+  // Voice usage tracking
+  final VoiceUsageService _usageService = VoiceUsageService.instance;
+  DateTime? _sessionStartTime;
+  VoiceUsageStats? _usageStats;
   
   @override
   void initState() {
@@ -114,11 +120,57 @@ class _VoiceModeScreenState extends State<VoiceModeScreen> {
   }
   
   Future<void> _initialize() async {
+    // Check voice usage limits first
+    await _usageService.initialize();
+    final usageCheck = await _usageService.canUseVoice();
+    
+    if (!mounted) return;
+    
+    setState(() {
+      _usageStats = usageCheck.stats;
+    });
+    
+    if (!usageCheck.canUse) {
+      // User has exceeded their monthly limit
+      _showUsageLimitExceeded(usageCheck.message ?? 'Monthly voice limit reached');
+      return;
+    }
+    
     final success = await widget.sessionService.initialize();
     if (success && mounted) {
       // Don't auto-start session - wait for user to tap sigil
       // State will be idle, user taps to begin
+      _sessionStartTime = DateTime.now();
     }
+  }
+  
+  void _showUsageLimitExceeded(String message) {
+    if (!mounted) return;
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Monthly Limit Reached'),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              Navigator.of(context).pop(); // Close voice mode too
+            },
+            child: const Text('OK'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              // TODO: Navigate to subscription screen
+              Navigator.of(context).pop();
+            },
+            child: const Text('Upgrade to Premium'),
+          ),
+        ],
+      ),
+    );
   }
   
   VoiceSigilState _mapToSigilState(VoiceSessionState sessionState) {
@@ -172,6 +224,13 @@ class _VoiceModeScreenState extends State<VoiceModeScreen> {
   
   Future<void> _onSessionComplete(VoiceSession session) async {
     if (!mounted) return;
+    
+    // Record voice usage (duration in seconds)
+    if (_sessionStartTime != null) {
+      final duration = DateTime.now().difference(_sessionStartTime!);
+      await _usageService.recordUsage(duration.inSeconds);
+      debugPrint('VoiceModeScreen: Recorded ${duration.inSeconds} seconds of voice usage');
+    }
     
     // Save session to timeline
     try {
@@ -253,7 +312,12 @@ class _VoiceModeScreenState extends State<VoiceModeScreen> {
             // Phase indicator
             _buildPhaseIndicator(),
             
-            const SizedBox(height: 12),
+            const SizedBox(height: 4),
+            
+            // Usage indicator (for free users)
+            _buildUsageIndicator(),
+            
+            const SizedBox(height: 8),
             
             // Transcript display (above sigil)
             Expanded(
@@ -312,6 +376,50 @@ class _VoiceModeScreenState extends State<VoiceModeScreen> {
               fontSize: 12,
               fontWeight: FontWeight.w600,
               letterSpacing: 1.2,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  Widget _buildUsageIndicator() {
+    // Don't show for unlimited users
+    if (_usageStats == null || _usageStats!.isUnlimited) {
+      return const SizedBox.shrink();
+    }
+    
+    final stats = _usageStats!;
+    final isWarning = stats.isApproachingLimit;
+    final isExceeded = stats.isLimitExceeded;
+    
+    final color = isExceeded 
+        ? Colors.red 
+        : (isWarning ? Colors.orange : Colors.white.withOpacity(0.5));
+    
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            isExceeded ? Icons.timer_off : Icons.timer,
+            size: 12,
+            color: color,
+          ),
+          const SizedBox(width: 4),
+          Text(
+            isExceeded 
+                ? 'Limit reached' 
+                : '${stats.minutesRemaining} min left',
+            style: TextStyle(
+              color: color,
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
             ),
           ),
         ],

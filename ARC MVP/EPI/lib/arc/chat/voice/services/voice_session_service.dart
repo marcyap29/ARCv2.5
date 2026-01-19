@@ -1,7 +1,7 @@
 /// Voice Session Service
 /// 
 /// Orchestrates the complete voice conversation flow:
-/// 1. Initialize transcription (AssemblyAI primary, Apple On-Device fallback)
+/// 1. Initialize transcription (Wispr optional, Apple On-Device default)
 /// 2. Start listening (audio capture)
 /// 3. Handle partial transcripts
 /// 4. Detect endpoints with smart detector
@@ -66,8 +66,7 @@ class TranscriptData {
 /// 
 /// Supports automatic fallback between transcription backends:
 /// - Wispr Flow (if user has configured their own API key in settings)
-/// - AssemblyAI (primary fallback, cloud-based, high accuracy)
-/// - Apple On-Device (final fallback, always available, no network required)
+/// - Apple On-Device (default, always available, no network required)
 class VoiceSessionService {
   final AudioCaptureService _audioCapture;
   final SmartEndpointDetector _endpointDetector;
@@ -100,7 +99,7 @@ class VoiceSessionService {
   // Public getter for endpoint detector (for UI tap handling)
   SmartEndpointDetector get endpointDetector => _endpointDetector;
   
-  /// Whether currently using on-device fallback instead of AssemblyAI
+  /// Whether currently using on-device (not Wispr)
   bool get isUsingFallback => _usingOnDeviceFallback;
   
   /// Currently active transcription backend
@@ -181,8 +180,8 @@ class VoiceSessionService {
   /// Initialize session
   /// 
   /// Uses unified transcription service:
-  /// - Primary: AssemblyAI (cloud-based, high accuracy)
-  /// - Fallback: Apple On-Device (always available)
+  /// - Wispr Flow (if user has their own API key)
+  /// - Apple On-Device (default, always available)
   Future<bool> initialize() async {
     _updateState(VoiceSessionState.initializing);
     _usingOnDeviceFallback = false;
@@ -200,13 +199,8 @@ class VoiceSessionService {
             onBackendStatusMessage?.call('Using Wispr Flow');
             break;
             
-          case TranscriptionBackend.assemblyAI:
-            debugPrint('VoiceSession: Using AssemblyAI (primary)');
-            break;
-            
           case TranscriptionBackend.appleOnDevice:
-            debugPrint('VoiceSession: Using Apple On-Device (fallback)');
-            onBackendStatusMessage?.call('Using on-device transcription');
+            debugPrint('VoiceSession: Using Apple On-Device');
             break;
             
           case TranscriptionBackend.none:
@@ -308,7 +302,7 @@ class VoiceSessionService {
     _endpointDetector.onAudioDetected();
     
     // Send audio to Wispr if using Wispr backend
-    // (AssemblyAI and On-Device handle their own audio capture)
+    // (On-Device handles its own audio capture)
     if (_unifiedTranscription.activeBackend == TranscriptionBackend.wisprFlow) {
       _unifiedTranscription.sendAudioData(audioData);
     }

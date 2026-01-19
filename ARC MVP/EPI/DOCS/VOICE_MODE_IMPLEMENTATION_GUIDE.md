@@ -298,11 +298,19 @@ Their useful functionality was merged into:
 
 ## Transcription Backend Fallback Chain
 
-Voice mode uses a three-tier transcription fallback system:
+Voice mode uses a two-tier transcription system:
 
 ```
 Voice Mode Start
        │
+       ▼
+┌─────────────────────────────────────────┐
+│  CHECK USAGE LIMITS                     │
+│  Free users: 60 min/month               │
+│  Premium: Unlimited                     │
+│  ✗ Limit exceeded → Show upgrade dialog │
+└─────────────────────────────────────────┘
+       │ Allowed
        ▼
 ┌─────────────────────────────────────────┐
 │  1. WISPR FLOW (Optional)               │
@@ -315,21 +323,25 @@ Voice Mode Start
        │ If not configured
        ▼
 ┌─────────────────────────────────────────┐
-│  2. ASSEMBLYAI (Primary Fallback)       │
-│     ✓ High accuracy cloud               │
-│     ✓ Real-time streaming               │
-│     ✗ Requires PRO/BETA tier            │
-└─────────────────────────────────────────┘
-       │ If not PRO/unavailable
-       ▼
-┌─────────────────────────────────────────┐
-│  3. APPLE ON-DEVICE (Final Fallback)    │
+│  2. APPLE ON-DEVICE (Default)           │
 │     ✓ Always available                  │
 │     ✓ No network required               │
 │     ✓ No API costs                      │
-│     ✗ Slightly lower accuracy           │
+│     ✓ Good accuracy                     │
 └─────────────────────────────────────────┘
 ```
+
+### Voice Mode Usage Limits
+
+| Subscription | Monthly Limit |
+|--------------|---------------|
+| **Free** | 60 minutes |
+| **Premium** | Unlimited |
+
+- Usage resets on the 1st of each month
+- Remaining time shown in voice mode UI
+- Dialog prompts upgrade when limit reached
+- Premium users see no limit indicator
 
 ### User-Provided Wispr Flow
 
@@ -346,11 +358,12 @@ Wispr Flow is available as an **optional** transcription backend for users who c
 | Component | File |
 |-----------|------|
 | Unified Service | `lib/arc/chat/voice/transcription/unified_transcription_service.dart` |
+| Usage Service | `lib/arc/chat/voice/services/voice_usage_service.dart` |
 | Wispr Flow | `lib/arc/chat/voice/wispr/wispr_flow_service.dart` |
 | Wispr Config | `lib/arc/chat/voice/config/wispr_config_service.dart` |
-| AssemblyAI | `lib/arc/chat/voice/transcription/assemblyai_provider.dart` |
 | Apple On-Device | `lib/arc/chat/voice/transcription/ondevice_provider.dart` |
 | Settings UI | `lib/arc/chat/ui/lumara_settings_screen.dart` (External Services card) |
+| Voice Mode UI | `lib/arc/chat/voice/ui/voice_mode_screen.dart` (Usage indicator) |
 
 ### User Feedback Messages
 
@@ -459,6 +472,7 @@ This ensures voice mode displays the correct phase based on user activity patter
 
 ## Version History
 
+- v3.1 (2026-01-19): Added voice usage limits (60 min/month free, unlimited premium), removed AssemblyAI
 - v3.0 (2026-01-19): Restored Wispr Flow as user-configurable option (personal API key)
 - v2.1 (2026-01-17): Added timeline saving, documented PRISM PII flow, updated architecture diagram
 - v2.0 (2026-01-17): Removed Wispr Flow (commercial restrictions), AssemblyAI now primary
