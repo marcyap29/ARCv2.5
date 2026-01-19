@@ -2477,8 +2477,9 @@ class ARCXExportServiceV2 {
         return ChunkedBackupResult.failure('No data to backup');
       }
       
-      // Split into chunks based on estimated size
-      final chunks = _splitDataIntoChunks(allEntries, allChats, chunkSizeMB);
+      // Split into chunks based on ACTUAL media sizes (async version checks accessibility)
+      onProgress?.call('Analyzing data for optimal chunking...');
+      final chunks = await _splitDataIntoChunksAsync(allEntries, allChats, chunkSizeMB, onProgress);
       onProgress?.call('Splitting into ${chunks.length} chunk(s) of ~${chunkSizeMB}MB each');
       
       final chunkPaths = <String>[];
@@ -2574,12 +2575,13 @@ class ARCXExportServiceV2 {
     }
   }
   
-  /// Split entries and chats into chunks based on estimated size
-  List<_ExportChunk> _splitDataIntoChunks(
+  /// Split entries and chats into chunks based on estimated size (async version with accurate media sizing)
+  Future<List<_ExportChunk>> _splitDataIntoChunksAsync(
     List<JournalEntry> entries,
     List<ChatSession> chats,
     int chunkSizeMB,
-  ) {
+    Function(String)? onProgress,
+  ) async {
     final chunkSizeBytes = chunkSizeMB * 1024 * 1024;
     final chunks = <_ExportChunk>[];
     
@@ -2589,16 +2591,25 @@ class ARCXExportServiceV2 {
     
     debugPrint('ARCX Chunking: Target chunk size: ${chunkSizeMB}MB (${chunkSizeBytes} bytes)');
     debugPrint('ARCX Chunking: Processing ${entries.length} entries and ${chats.length} chats');
+    onProgress?.call('Analyzing ${entries.length} entries for chunking...');
     
     // Process entries (already sorted oldest → newest)
-    for (final entry in entries) {
-      final entrySize = _estimateEntrySize(entry);
+    for (int i = 0; i < entries.length; i++) {
+      final entry = entries[i];
       
-      debugPrint('ARCX Chunking: Entry ${entry.id.length > 8 ? entry.id.substring(0, 8) : entry.id}... estimated size: ${(entrySize / 1024 / 1024).toStringAsFixed(2)}MB, media count: ${entry.media.length}');
+      // Show progress during estimation (this can take time for many entries with media)
+      if (i % 10 == 0 || entry.media.isNotEmpty) {
+        onProgress?.call('Analyzing entry ${i + 1}/${entries.length}...');
+      }
+      
+      // Use async estimation that checks actual media accessibility
+      final entrySize = await _estimateEntrySizeAsync(entry);
+      
+      debugPrint('ARCX Chunking: Entry ${entry.id.length > 8 ? entry.id.substring(0, 8) : entry.id}... actual size: ${(entrySize / 1024 / 1024).toStringAsFixed(2)}MB, media count: ${entry.media.length}');
       
       // If current chunk is already at/over target and we have data, finalize it
       if (currentSize >= chunkSizeBytes && currentEntries.isNotEmpty) {
-        debugPrint('ARCX Chunking: Creating chunk with ${currentEntries.length} entries, estimated ${(currentSize / 1024 / 1024).toStringAsFixed(2)}MB');
+        debugPrint('ARCX Chunking: Creating chunk with ${currentEntries.length} entries, size ${(currentSize / 1024 / 1024).toStringAsFixed(2)}MB');
         chunks.add(_ExportChunk(
           entries: List.from(currentEntries),
           chats: List.from(currentChats),
@@ -2611,7 +2622,7 @@ class ARCXExportServiceV2 {
       
       // If adding this entry would exceed chunk size AND we already have entries, start new chunk
       if (currentSize + entrySize > chunkSizeBytes && currentEntries.isNotEmpty) {
-        debugPrint('ARCX Chunking: Entry would exceed limit. Creating chunk with ${currentEntries.length} entries, estimated ${(currentSize / 1024 / 1024).toStringAsFixed(2)}MB');
+        debugPrint('ARCX Chunking: Entry would exceed limit. Creating chunk with ${currentEntries.length} entries, size ${(currentSize / 1024 / 1024).toStringAsFixed(2)}MB');
         chunks.add(_ExportChunk(
           entries: List.from(currentEntries),
           chats: List.from(currentChats),
@@ -2627,6 +2638,7 @@ class ARCXExportServiceV2 {
     }
     
     // Process remaining chats - add to the last chunk or create new one
+    onProgress?.call('Analyzing ${chats.length} chats...');
     for (final chat in chats) {
       final chatSize = _estimateChatSize(chat);
       
@@ -2647,7 +2659,7 @@ class ARCXExportServiceV2 {
     
     // Add remaining data as final chunk
     if (currentEntries.isNotEmpty || currentChats.isNotEmpty) {
-      debugPrint('ARCX Chunking: Final chunk with ${currentEntries.length} entries, ${currentChats.length} chats, estimated ${(currentSize / 1024 / 1024).toStringAsFixed(2)}MB');
+      debugPrint('ARCX Chunking: Final chunk with ${currentEntries.length} entries, ${currentChats.length} chats, size ${(currentSize / 1024 / 1024).toStringAsFixed(2)}MB');
       chunks.add(_ExportChunk(
         entries: currentEntries,
         chats: currentChats,
@@ -2657,48 +2669,108 @@ class ARCXExportServiceV2 {
     
     // If no chunks were created (shouldn't happen), create one with all data
     if (chunks.isEmpty && (entries.isNotEmpty || chats.isNotEmpty)) {
+      int totalSize = 0;
+      for (final e in entries) {
+        totalSize += await _estimateEntrySizeAsync(e);
+      }
+      for (final c in chats) {
+        totalSize += _estimateChatSize(c);
+      }
       chunks.add(_ExportChunk(
         entries: entries,
         chats: chats,
-        estimatedSizeBytes: entries.fold(0, (sum, e) => sum + _estimateEntrySize(e)) +
-                           chats.fold(0, (sum, c) => sum + _estimateChatSize(c)),
+        estimatedSizeBytes: totalSize,
       ));
     }
     
     debugPrint('ARCX Chunking: Created ${chunks.length} chunks total');
+    onProgress?.call('Data will be split into ${chunks.length} chunk(s)');
     return chunks;
   }
   
+  
   /// Estimate the size of a journal entry including media
-  int _estimateEntrySize(JournalEntry entry) {
+  /// This async version checks actual media accessibility to provide accurate estimates
+  Future<int> _estimateEntrySizeAsync(JournalEntry entry) async {
     // Base JSON size (rough estimate)
     var size = utf8.encode(jsonEncode(entry.toJson())).length;
     
-    // Add media sizes - use realistic defaults for photos/videos
+    // Add media sizes - only count media that can actually be retrieved
     for (final media in entry.media) {
-      if (media.sizeBytes != null && media.sizeBytes! > 0) {
-        size += media.sizeBytes!;
-      } else {
-        // Realistic defaults based on media type
-        switch (media.type) {
-          case MediaType.video:
-            size += 50 * 1024 * 1024; // 50MB default for videos
-            break;
-          case MediaType.image:
-            size += 4 * 1024 * 1024; // 4MB default for photos (modern phone photos)
-            break;
-          case MediaType.audio:
-            size += 5 * 1024 * 1024; // 5MB default for audio
-            break;
-          case MediaType.file:
-            size += 3 * 1024 * 1024; // 3MB default for unknown files
-            break;
-        }
-      }
+      final mediaSize = await _getActualMediaSize(media);
+      size += mediaSize;
     }
     
     return size;
   }
+  
+  /// Get the actual size of a media item by checking if it's accessible
+  /// Returns 0 if media cannot be retrieved (won't be included in export)
+  Future<int> _getActualMediaSize(MediaItem media) async {
+    // If we have a known size and it's a file:// URI, trust it
+    if (media.sizeBytes != null && media.sizeBytes! > 0) {
+      final mediaFile = File(media.uri);
+      if (await mediaFile.exists()) {
+        return media.sizeBytes!;
+      }
+    }
+    
+    // Try 1: Direct file path
+    final mediaFile = File(media.uri);
+    if (await mediaFile.exists()) {
+      try {
+        return await mediaFile.length();
+      } catch (_) {}
+    }
+    
+    // Try 2: Photo library URI (ph://)
+    if (PhotoBridge.isPhotoLibraryUri(media.uri)) {
+      final localId = PhotoBridge.extractLocalIdentifier(media.uri);
+      if (localId != null && media.type == MediaType.image) {
+        try {
+          final photoData = await PhotoBridge.getPhotoBytes(localId);
+          if (photoData != null) {
+            final bytes = photoData['bytes'] as Uint8List?;
+            if (bytes != null) {
+              return bytes.length;
+            }
+          }
+        } catch (_) {}
+        
+        // Try thumbnail fallback
+        try {
+          final thumbnailPath = await PhotoLibraryService.getPhotoThumbnail(media.uri, size: 1920);
+          if (thumbnailPath != null) {
+            final thumbFile = File(thumbnailPath);
+            if (await thumbFile.exists()) {
+              return await thumbFile.length();
+            }
+          }
+        } catch (_) {}
+      }
+    }
+    
+    // Try 3: Search in Documents/photos directory
+    if (media.type == MediaType.image) {
+      try {
+        final appDir = await getApplicationDocumentsDirectory();
+        final photosDir = Directory(path.join(appDir.path, 'photos'));
+        if (await photosDir.exists()) {
+          final fileName = path.basename(media.uri);
+          final possibleFile = File(path.join(photosDir.path, fileName));
+          if (await possibleFile.exists()) {
+            return await possibleFile.length();
+          }
+        }
+      } catch (_) {}
+    }
+    
+    // Media is not accessible - will be skipped during export
+    // Return 0 so it doesn't inflate the chunk size estimate
+    debugPrint('ARCX Chunking: Media not accessible, will skip: ${media.uri}');
+    return 0;
+  }
+  
   
   /// Estimate the size of a chat session
   int _estimateChatSize(ChatSession chat) {
