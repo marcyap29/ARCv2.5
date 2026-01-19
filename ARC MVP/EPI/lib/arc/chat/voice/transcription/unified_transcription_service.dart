@@ -1,10 +1,11 @@
 /// Unified Transcription Service
 /// 
-/// Provides seamless fallback between Wispr Flow and AssemblyAI:
-/// 1. Check Wispr rate limits
-/// 2. If under limit → use Wispr (faster, lower latency)
-/// 3. If limit exceeded → fall back to AssemblyAI (requires PRO/BETA tier)
-/// 4. If both unavailable → return error
+/// Provides seamless fallback between transcription backends:
+/// 1. Wispr Flow (primary) - fastest, lowest latency
+/// 2. AssemblyAI (first fallback) - requires PRO/BETA tier
+/// 3. Apple On-Device (final fallback) - always available, no network required
+/// 
+/// Fallback chain: Wispr → AssemblyAI → Apple On-Device
 
 import 'dart:async';
 import 'dart:typed_data';
@@ -12,12 +13,15 @@ import 'package:flutter/foundation.dart';
 import '../wispr/wispr_flow_service.dart';
 import '../wispr/wispr_rate_limiter.dart';
 import 'assemblyai_provider.dart';
+import 'ondevice_provider.dart';
+import 'transcription_provider.dart';
 import '../../../../services/assemblyai_service.dart';
 
 /// Active transcription provider
 enum TranscriptionBackend {
   wispr,
   assemblyAI,
+  appleOnDevice,
   none,
 }
 
@@ -70,6 +74,8 @@ class TranscriptionStartResult {
 }
 
 /// Unified transcription service with automatic fallback
+/// 
+/// Fallback chain: Wispr → AssemblyAI → Apple On-Device
 class UnifiedTranscriptionService {
   final WisprFlowService _wisprService;
   final WisprRateLimiter _wisprRateLimiter;
@@ -78,6 +84,7 @@ class UnifiedTranscriptionService {
   UnifiedTranscriptionStatus _status = UnifiedTranscriptionStatus.idle;
   TranscriptionBackend _activeBackend = TranscriptionBackend.none;
   AssemblyAIProvider? _assemblyAIProvider;
+  OnDeviceTranscriptionProvider? _onDeviceProvider;
   
   // Callbacks (unified interface)
   Function(String transcript, bool isFinal)? onTranscript;
@@ -99,25 +106,44 @@ class UnifiedTranscriptionService {
   /// Currently active backend
   TranscriptionBackend get activeBackend => _activeBackend;
   
-  /// Whether any transcription backend is connected
+  /// Whether any transcription backend is connected/ready
   bool get isConnected {
-    if (_activeBackend == TranscriptionBackend.wispr) {
-      return _wisprService.isConnected && _wisprService.isAuthenticated;
-    } else if (_activeBackend == TranscriptionBackend.assemblyAI) {
-      return _assemblyAIProvider?.isListening ?? false;
+    switch (_activeBackend) {
+      case TranscriptionBackend.wispr:
+        return _wisprService.isConnected && _wisprService.isAuthenticated;
+      case TranscriptionBackend.assemblyAI:
+        return _assemblyAIProvider?.isListening ?? false;
+      case TranscriptionBackend.appleOnDevice:
+        return _onDeviceProvider?.status == ProviderStatus.idle ||
+               _onDeviceProvider?.status == ProviderStatus.listening;
+      case TranscriptionBackend.none:
+        return false;
     }
-    return false;
+  }
+  
+  /// Get human-readable name for active backend
+  String get activeBackendName {
+    switch (_activeBackend) {
+      case TranscriptionBackend.wispr:
+        return 'Wispr Flow';
+      case TranscriptionBackend.assemblyAI:
+        return 'AssemblyAI';
+      case TranscriptionBackend.appleOnDevice:
+        return 'On-Device';
+      case TranscriptionBackend.none:
+        return 'None';
+    }
   }
   
   /// Initialize the service and determine best available backend
   /// 
-  /// Priority:
-  /// 1. Wispr (if under rate limit)
-  /// 2. AssemblyAI (if user is eligible - PRO/BETA tier)
-  /// 3. Error (no backend available)
+  /// Priority (fallback chain):
+  /// 1. Wispr (if under rate limit) - fastest, cloud-based
+  /// 2. AssemblyAI (if user is PRO/BETA) - cloud fallback
+  /// 3. Apple On-Device - always available, no network required
   Future<TranscriptionStartResult> initialize() async {
     _status = UnifiedTranscriptionStatus.initializing;
-    debugPrint('UnifiedTranscription: Initializing...');
+    debugPrint('UnifiedTranscription: Initializing (Wispr → AssemblyAI → Apple)...');
     
     // Step 1: Check Wispr rate limits
     final wisprLimitResult = await _wisprRateLimiter.checkLimit();
@@ -147,7 +173,7 @@ class UnifiedTranscriptionService {
                 'Hourly: ${wisprStats.hourlyMinutesRemaining}min remaining');
           }
           
-          debugPrint('UnifiedTranscription: Using Wispr backend');
+          debugPrint('UnifiedTranscription: Using Wispr backend (primary)');
           return TranscriptionStartResult.success(TranscriptionBackend.wispr);
         }
       } catch (e) {
@@ -174,7 +200,7 @@ class UnifiedTranscriptionService {
           _status = UnifiedTranscriptionStatus.ready;
           _setupAssemblyAICallbacks();
           
-          debugPrint('UnifiedTranscription: Using AssemblyAI backend (fallback)');
+          debugPrint('UnifiedTranscription: Using AssemblyAI backend (1st fallback)');
           return TranscriptionStartResult.success(TranscriptionBackend.assemblyAI);
         } else {
           debugPrint('UnifiedTranscription: AssemblyAI failed to initialize');
@@ -187,28 +213,29 @@ class UnifiedTranscriptionService {
           '(requires PRO/BETA tier)');
     }
     
-    // Step 4: No backend available
+    // Step 4: Fall back to Apple On-Device transcription
+    debugPrint('UnifiedTranscription: Attempting Apple On-Device fallback...');
+    
+    _onDeviceProvider = OnDeviceTranscriptionProvider();
+    final onDeviceInitialized = await _onDeviceProvider!.initialize();
+    
+    if (onDeviceInitialized) {
+      _activeBackend = TranscriptionBackend.appleOnDevice;
+      _status = UnifiedTranscriptionStatus.ready;
+      
+      debugPrint('UnifiedTranscription: Using Apple On-Device backend (2nd fallback)');
+      return TranscriptionStartResult.success(TranscriptionBackend.appleOnDevice);
+    } else {
+      debugPrint('UnifiedTranscription: Apple On-Device failed to initialize');
+    }
+    
+    // Step 5: No backend available (shouldn't happen - on-device should always work)
     _status = UnifiedTranscriptionStatus.error;
     _activeBackend = TranscriptionBackend.none;
     
-    // Provide helpful error message
-    final bool wisprLimited = wisprLimitResult == RateLimitResult.dailyLimitExceeded ||
-        wisprLimitResult == RateLimitResult.hourlyLimitExceeded;
-    
-    if (wisprLimited) {
-      final errorMsg = _wisprRateLimiter.getWarningMessage(wisprStats);
-      debugPrint('UnifiedTranscription: No backend available - Wispr limited, '
-          'AssemblyAI unavailable');
-      return TranscriptionStartResult(
-        success: false,
-        backend: TranscriptionBackend.none,
-        errorMessage: '$errorMsg AssemblyAI requires a PRO subscription.',
-        wisprLimitExceeded: true,
-      );
-    }
-    
+    debugPrint('UnifiedTranscription: All backends failed!');
     return TranscriptionStartResult.error(
-      'Voice transcription unavailable. Please try again later.',
+      'Voice transcription unavailable. Please check microphone permissions.',
     );
   }
   
@@ -221,39 +248,69 @@ class UnifiedTranscriptionService {
     
     _status = UnifiedTranscriptionStatus.listening;
     
-    if (_activeBackend == TranscriptionBackend.wispr) {
-      _wisprRateLimiter.startSession();
-      await _wisprService.startSession();
-      debugPrint('UnifiedTranscription: Started Wispr session');
-      return true;
-    } else if (_activeBackend == TranscriptionBackend.assemblyAI) {
-      await _assemblyAIProvider?.startListening(
-        onPartialResult: (segment) {
-          onTranscript?.call(segment.text, false);
-        },
-        onFinalResult: (segment) {
-          onTranscript?.call(segment.text, true);
-        },
-        onError: (error) {
-          onError?.call(error);
-        },
-      );
-      debugPrint('UnifiedTranscription: Started AssemblyAI session');
-      return true;
+    switch (_activeBackend) {
+      case TranscriptionBackend.wispr:
+        _wisprRateLimiter.startSession();
+        await _wisprService.startSession();
+        debugPrint('UnifiedTranscription: Started Wispr session');
+        return true;
+        
+      case TranscriptionBackend.assemblyAI:
+        await _assemblyAIProvider?.startListening(
+          onPartialResult: (segment) {
+            onTranscript?.call(segment.text, false);
+          },
+          onFinalResult: (segment) {
+            onTranscript?.call(segment.text, true);
+          },
+          onError: (error) {
+            onError?.call(error);
+          },
+        );
+        debugPrint('UnifiedTranscription: Started AssemblyAI session');
+        return true;
+        
+      case TranscriptionBackend.appleOnDevice:
+        await _onDeviceProvider?.startListening(
+          onPartialResult: (segment) {
+            onTranscript?.call(segment.text, false);
+          },
+          onFinalResult: (segment) {
+            onTranscript?.call(segment.text, true);
+          },
+          onError: (error) {
+            onError?.call(error);
+          },
+        );
+        onConnected?.call();
+        debugPrint('UnifiedTranscription: Started Apple On-Device session');
+        return true;
+        
+      case TranscriptionBackend.none:
+        return false;
     }
-    
-    return false;
   }
   
   /// Stop listening and get final transcript
   Future<void> stopListening() async {
     debugPrint('UnifiedTranscription: Stopping...');
     
-    if (_activeBackend == TranscriptionBackend.wispr) {
-      await _wisprService.commitSession();
-      await _wisprRateLimiter.endSession();
-    } else if (_activeBackend == TranscriptionBackend.assemblyAI) {
-      await _assemblyAIProvider?.stopListening();
+    switch (_activeBackend) {
+      case TranscriptionBackend.wispr:
+        await _wisprService.commitSession();
+        await _wisprRateLimiter.endSession();
+        break;
+        
+      case TranscriptionBackend.assemblyAI:
+        await _assemblyAIProvider?.stopListening();
+        break;
+        
+      case TranscriptionBackend.appleOnDevice:
+        await _onDeviceProvider?.stopListening();
+        break;
+        
+      case TranscriptionBackend.none:
+        break;
     }
     
     _status = UnifiedTranscriptionStatus.ready;
@@ -261,21 +318,34 @@ class UnifiedTranscriptionService {
   
   /// Send audio data to the active backend
   void sendAudioData(Uint8List audioData) {
+    // Only Wispr needs manual audio streaming
+    // AssemblyAI and Apple On-Device handle their own audio capture
     if (_activeBackend == TranscriptionBackend.wispr) {
       _wisprService.sendAudio(audioData);
     }
-    // AssemblyAI handles its own audio capture internally
   }
   
   /// Disconnect and cleanup
   Future<void> disconnect() async {
     debugPrint('UnifiedTranscription: Disconnecting...');
     
-    if (_activeBackend == TranscriptionBackend.wispr) {
-      await _wisprService.disconnect();
-    } else if (_activeBackend == TranscriptionBackend.assemblyAI) {
-      await _assemblyAIProvider?.stopListening();
-      _assemblyAIProvider = null;
+    switch (_activeBackend) {
+      case TranscriptionBackend.wispr:
+        await _wisprService.disconnect();
+        break;
+        
+      case TranscriptionBackend.assemblyAI:
+        await _assemblyAIProvider?.stopListening();
+        _assemblyAIProvider = null;
+        break;
+        
+      case TranscriptionBackend.appleOnDevice:
+        await _onDeviceProvider?.dispose();
+        _onDeviceProvider = null;
+        break;
+        
+      case TranscriptionBackend.none:
+        break;
     }
     
     _activeBackend = TranscriptionBackend.none;

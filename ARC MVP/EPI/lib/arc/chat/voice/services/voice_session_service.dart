@@ -170,19 +170,30 @@ class VoiceSessionService {
         final result = await unified.initialize();
         
         if (result.success) {
-          _usingFallbackTranscription = result.backend == TranscriptionBackend.assemblyAI;
+          _usingFallbackTranscription = result.backend != TranscriptionBackend.wispr;
           
-          if (_usingFallbackTranscription) {
-            debugPrint('VoiceSession: Using AssemblyAI fallback (Wispr limit exceeded)');
-            onRateLimitWarning?.call('Using cloud transcription (Wispr limit reached)');
-          } else {
-            debugPrint('VoiceSession: Using Wispr (primary)');
-            
-            // Check if approaching limit
-            final warning = await unified.getUsageWarning();
-            if (warning != null) {
-              onRateLimitWarning?.call(warning);
-            }
+          switch (result.backend) {
+            case TranscriptionBackend.wispr:
+              debugPrint('VoiceSession: Using Wispr (primary)');
+              // Check if approaching limit
+              final warning = await unified.getUsageWarning();
+              if (warning != null) {
+                onRateLimitWarning?.call(warning);
+              }
+              break;
+              
+            case TranscriptionBackend.assemblyAI:
+              debugPrint('VoiceSession: Using AssemblyAI (1st fallback - Wispr limit exceeded)');
+              onRateLimitWarning?.call('Using cloud transcription (Wispr limit reached)');
+              break;
+              
+            case TranscriptionBackend.appleOnDevice:
+              debugPrint('VoiceSession: Using Apple On-Device (2nd fallback)');
+              onRateLimitWarning?.call('Using on-device transcription (cloud unavailable)');
+              break;
+              
+            case TranscriptionBackend.none:
+              break;
           }
           
           // Setup unified transcription callbacks
