@@ -57,7 +57,7 @@ class VoiceTimelineStorage {
       );
       
       // Save to repository
-      await _journalRepository.addEntry(entry);
+      await _journalRepository.createJournalEntry(entry);
       
       debugPrint('VoiceStorage: Session saved to timeline (entry ID: $entryId)');
       return entryId;
@@ -188,7 +188,7 @@ class VoiceTimelineStorage {
   /// Get all voice entries from timeline
   Future<List<JournalEntry>> getAllVoiceEntries() async {
     try {
-      final allEntries = await _journalRepository.getAllEntries();
+      final allEntries = await _journalRepository.getAllJournalEntries();
       return allEntries.where(_isVoiceEntry).toList();
     } catch (e) {
       debugPrint('VoiceStorage: Error getting voice entries: $e');
@@ -222,7 +222,7 @@ class VoiceTimelineStorage {
   /// Delete voice entry
   Future<void> deleteVoiceEntry(String entryId) async {
     try {
-      await _journalRepository.deleteEntry(entryId);
+      await _journalRepository.deleteJournalEntry(entryId);
       debugPrint('VoiceStorage: Voice entry deleted');
     } catch (e) {
       debugPrint('VoiceStorage: Error deleting entry: $e');
