@@ -298,14 +298,24 @@ Their useful functionality was merged into:
 
 ## Transcription Backend Fallback Chain
 
-Voice mode uses a two-tier transcription fallback system:
+Voice mode uses a three-tier transcription fallback system:
 
 ```
 Voice Mode Start
        │
        ▼
 ┌─────────────────────────────────────────┐
-│  1. ASSEMBLYAI (Primary)                │
+│  1. WISPR FLOW (Optional)               │
+│     ✓ High accuracy streaming           │
+│     ✓ Real-time transcription           │
+│     ✗ Requires user's own API key       │
+│     User configures in LUMARA Settings  │
+│     → External Services                 │
+└─────────────────────────────────────────┘
+       │ If not configured
+       ▼
+┌─────────────────────────────────────────┐
+│  2. ASSEMBLYAI (Primary Fallback)       │
 │     ✓ High accuracy cloud               │
 │     ✓ Real-time streaming               │
 │     ✗ Requires PRO/BETA tier            │
@@ -313,7 +323,7 @@ Voice Mode Start
        │ If not PRO/unavailable
        ▼
 ┌─────────────────────────────────────────┐
-│  2. APPLE ON-DEVICE (Fallback)          │
+│  3. APPLE ON-DEVICE (Final Fallback)    │
 │     ✓ Always available                  │
 │     ✓ No network required               │
 │     ✓ No API costs                      │
@@ -321,13 +331,26 @@ Voice Mode Start
 └─────────────────────────────────────────┘
 ```
 
+### User-Provided Wispr Flow
+
+Wispr Flow is available as an **optional** transcription backend for users who configure their own API key:
+
+1. User obtains API key from [wisprflow.ai](https://wisprflow.ai)
+2. User enters key in **LUMARA Settings → External Services → Wispr Flow**
+3. Voice mode automatically uses Wispr when configured
+
+**Note:** Wispr Flow API is for personal use only. Users manage their own usage/billing.
+
 ### Implementation Files
 
 | Component | File |
 |-----------|------|
 | Unified Service | `lib/arc/chat/voice/transcription/unified_transcription_service.dart` |
+| Wispr Flow | `lib/arc/chat/voice/wispr/wispr_flow_service.dart` |
+| Wispr Config | `lib/arc/chat/voice/config/wispr_config_service.dart` |
 | AssemblyAI | `lib/arc/chat/voice/transcription/assemblyai_provider.dart` |
 | Apple On-Device | `lib/arc/chat/voice/transcription/ondevice_provider.dart` |
+| Settings UI | `lib/arc/chat/ui/lumara_settings_screen.dart` (External Services card) |
 
 ### User Feedback Messages
 
@@ -436,6 +459,7 @@ This ensures voice mode displays the correct phase based on user activity patter
 
 ## Version History
 
+- v3.0 (2026-01-19): Restored Wispr Flow as user-configurable option (personal API key)
 - v2.1 (2026-01-17): Added timeline saving, documented PRISM PII flow, updated architecture diagram
 - v2.0 (2026-01-17): Removed Wispr Flow (commercial restrictions), AssemblyAI now primary
 - v1.2 (2026-01-17): Added Apple On-Device as final transcription fallback

@@ -65,8 +65,9 @@ class TranscriptData {
 /// Main orchestrator for voice conversations with LUMARA
 /// 
 /// Supports automatic fallback between transcription backends:
-/// - Primary: AssemblyAI (cloud-based, high accuracy, PRO/BETA tier)
-/// - Fallback: Apple On-Device (always available, no network required)
+/// - Wispr Flow (if user has configured their own API key in settings)
+/// - AssemblyAI (primary fallback, cloud-based, high accuracy)
+/// - Apple On-Device (final fallback, always available, no network required)
 class VoiceSessionService {
   final AudioCaptureService _audioCapture;
   final SmartEndpointDetector _endpointDetector;
@@ -194,6 +195,11 @@ class VoiceSessionService {
         _usingOnDeviceFallback = result.backend == TranscriptionBackend.appleOnDevice;
         
         switch (result.backend) {
+          case TranscriptionBackend.wisprFlow:
+            debugPrint('VoiceSession: Using Wispr Flow (user API key)');
+            onBackendStatusMessage?.call('Using Wispr Flow');
+            break;
+            
           case TranscriptionBackend.assemblyAI:
             debugPrint('VoiceSession: Using AssemblyAI (primary)');
             break;
@@ -300,6 +306,12 @@ class VoiceSessionService {
     
     // Notify endpoint detector of audio
     _endpointDetector.onAudioDetected();
+    
+    // Send audio to Wispr if using Wispr backend
+    // (AssemblyAI and On-Device handle their own audio capture)
+    if (_unifiedTranscription.activeBackend == TranscriptionBackend.wisprFlow) {
+      _unifiedTranscription.sendAudioData(audioData);
+    }
   }
   
   /// Handle audio level updates

@@ -1,7 +1,7 @@
 # EPI ARC MVP - Changelog
 
-**Version:** 3.3.0
-**Last Updated:** January 17, 2026
+**Version:** 3.3.1
+**Last Updated:** January 19, 2026
 
 ---
 
@@ -14,6 +14,48 @@ This changelog has been split into parts for easier navigation:
 | **[CHANGELOG_part1.md](CHANGELOG_part1.md)** | Dec 2025 | v2.1.43 - v2.1.87 (Current) |
 | **[CHANGELOG_part2.md](CHANGELOG_part2.md)** | Nov 2025 | v2.1.28 - v2.1.42 |
 | **[CHANGELOG_part3.md](CHANGELOG_part3.md)** | Jan-Oct 2025 | v2.0.0 - v2.1.27 & Earlier |
+
+---
+
+## [3.3.1] - January 19, 2026
+
+### 🎙️ Voice Mode: Wispr Flow User-Configurable
+
+#### Overview
+Restored Wispr Flow as an **optional** transcription backend for users who provide their own API key.
+
+| Backend | Priority | Requirements |
+|---------|----------|--------------|
+| **Wispr Flow** | 1st (if configured) | User's own API key |
+| **AssemblyAI** | 2nd (primary fallback) | PRO/BETA tier |
+| **Apple On-Device** | 3rd (final fallback) | Always available |
+
+#### How to Enable Wispr Flow
+1. Get API key from [wisprflow.ai](https://wisprflow.ai)
+2. Open **LUMARA Settings**
+3. Scroll to **External Services** card
+4. Enter your Wispr Flow API key
+5. Tap **Save**
+
+Voice mode will automatically use Wispr Flow when configured.
+
+#### Technical Changes
+- Added `External Services` card to LUMARA Settings UI
+- Restored `wispr_flow_service.dart` and `wispr_config_service.dart`
+- Modified `UnifiedTranscriptionService` to check for user Wispr key first
+- Wispr API key stored locally via `SharedPreferences`
+- No Firebase Functions required for Wispr (user provides their own key)
+
+#### Files Changed
+- `lib/arc/chat/ui/lumara_settings_screen.dart` - Added External Services card
+- `lib/arc/chat/voice/config/wispr_config_service.dart` - Reads from SharedPreferences
+- `lib/arc/chat/voice/transcription/unified_transcription_service.dart` - Three-tier fallback
+- `lib/arc/chat/voice/config/voice_system_initializer.dart` - Updated initialization
+
+#### Notes
+- Wispr Flow API is for **personal use only**
+- Users manage their own Wispr account and usage
+- No rate limiting applied to user-provided keys
 
 ---
 

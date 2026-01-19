@@ -4,6 +4,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../config/api_config.dart';
 import '../services/enhanced_lumara_api.dart';
 import '../services/download_state_service.dart';
@@ -57,6 +58,11 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
   
   // Web Access settings
   bool _webAccessEnabled = false; // Opt-in by default
+  
+  // External Services - Wispr Flow (Voice Transcription)
+  final TextEditingController _wisprApiKeyController = TextEditingController();
+  bool _wisprApiKeyConfigured = false;
+  static const String _wisprApiKeyPrefKey = 'wispr_flow_api_key';
   
   // Subscription status
   SubscriptionTier _subscriptionTier = SubscriptionTier.free;
@@ -281,6 +287,7 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
     for (final controller in _apiKeyControllers.values) {
       controller.dispose();
     }
+    _wisprApiKeyController.dispose();
     _downloadStateService.removeListener(_onDownloadStateChanged);
     _refreshDebounceTimer?.cancel();
     super.dispose();
@@ -414,8 +421,15 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
 
     // Get current manual provider selection
     final manualProvider = _apiConfig.getManualProvider();
+    
+    // Load Wispr Flow API key
+    final prefs = await SharedPreferences.getInstance();
+    final wisprKey = prefs.getString(_wisprApiKeyPrefKey) ?? '';
+    _wisprApiKeyController.text = wisprKey;
+    
     setState(() {
       _selectedProvider = manualProvider;
+      _wisprApiKeyConfigured = wisprKey.isNotEmpty;
     });
   }
 
@@ -500,6 +514,12 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
             // API Keys Card - Only for Pro/Paying users
             if (_subscriptionTier == SubscriptionTier.premium) ...[
               _buildApiKeysCard(theme),
+              const SizedBox(height: 24),
+            ],
+
+            // External Services Card (Wispr Flow) - Only for Pro/Paying users
+            if (_subscriptionTier == SubscriptionTier.premium) ...[
+              _buildExternalServicesCard(theme),
               const SizedBox(height: 24),
             ],
 
@@ -1697,6 +1717,225 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
     );
   }
 
+  /// Build External Services card for voice transcription (Wispr Flow)
+  Widget _buildExternalServicesCard(ThemeData theme) {
+    return Card(
+      elevation: 2,
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.mic, color: theme.colorScheme.secondary, size: 24),
+                const SizedBox(width: 12),
+                Text(
+                  'External Services',
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: theme.colorScheme.secondary,
+                  ),
+                ),
+                const Spacer(),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.secondary.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    'OPTIONAL',
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: theme.colorScheme.secondary,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Connect external services for enhanced voice features',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 20),
+            
+            // Wispr Flow API Key
+            _buildWisprApiKeyField(theme),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Build Wispr Flow API key field
+  Widget _buildWisprApiKeyField(ThemeData theme) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.record_voice_over, color: theme.colorScheme.secondary, size: 20),
+              const SizedBox(width: 8),
+              Text(
+                'Wispr Flow',
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(width: 8),
+              if (_wisprApiKeyConfigured)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.green.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.check_circle, color: Colors.green, size: 14),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Configured',
+                        style: TextStyle(
+                          color: Colors.green,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Real-time voice transcription for LUMARA voice mode',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _wisprApiKeyController,
+                  decoration: InputDecoration(
+                    hintText: 'Enter Wispr Flow API key',
+                    suffixIcon: _wisprApiKeyConfigured
+                        ? Icon(Icons.check_circle, color: Colors.green, size: 20)
+                        : Icon(Icons.key, color: theme.colorScheme.onSurfaceVariant.withOpacity(0.5), size: 20),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  ),
+                  obscureText: true,
+                  onChanged: (value) {
+                    setState(() {}); // Trigger rebuild to show/hide Save button
+                  },
+                ),
+              ),
+              const SizedBox(width: 8),
+              ElevatedButton.icon(
+                onPressed: _wisprApiKeyController.text.trim().isEmpty
+                    ? null
+                    : () async {
+                        await _saveWisprApiKey();
+                      },
+                icon: Icon(Icons.save, size: 18),
+                label: Text('Save'),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  backgroundColor: _wisprApiKeyController.text.trim().isEmpty
+                      ? theme.colorScheme.surfaceVariant
+                      : theme.colorScheme.secondary,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Get your API key at wisprflow.ai (personal use only)',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant.withOpacity(0.7),
+              fontStyle: FontStyle.italic,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Save Wispr Flow API key
+  Future<void> _saveWisprApiKey() async {
+    final key = _wisprApiKeyController.text.trim();
+    if (key.isEmpty) return;
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_wisprApiKeyPrefKey, key);
+
+      setState(() {
+        _wisprApiKeyConfigured = true;
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.white),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text('Wispr Flow API key saved! Voice mode will use your key.'),
+                ),
+              ],
+            ),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 2),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.error, color: Colors.white),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text('Error saving Wispr API key: $e'),
+                ),
+              ],
+            ),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+        );
+      }
+    }
+  }
 
   Future<void> _clearAllApiKeys() async {
     final confirmed = await showDialog<bool>(
