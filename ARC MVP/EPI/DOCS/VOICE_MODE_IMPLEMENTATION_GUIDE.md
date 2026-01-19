@@ -472,6 +472,7 @@ This ensures voice mode displays the correct phase based on user activity patter
 
 ## Version History
 
+- v3.2 (2026-01-19): Fixed multi-turn voice conversations (speech_to_text state reset)
 - v3.1 (2026-01-19): Added voice usage limits (60 min/month free, unlimited premium), removed AssemblyAI
 - v3.0 (2026-01-19): Restored Wispr Flow as user-configurable option (personal API key)
 - v2.1 (2026-01-17): Added timeline saving, documented PRISM PII flow, updated architecture diagram

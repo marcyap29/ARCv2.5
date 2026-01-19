@@ -1,6 +1,6 @@
 # Voice Mode Status & Architecture
 
-> Last Updated: January 19, 2026
+> Last Updated: January 19, 2026 (v3.3.2)
 > 
 > **STATUS: IMPLEMENTED** - Jarvis/Samantha dual-mode system is now live.
 > See [VOICE_MODE_IMPLEMENTATION_GUIDE.md](./VOICE_MODE_IMPLEMENTATION_GUIDE.md) for full details.
