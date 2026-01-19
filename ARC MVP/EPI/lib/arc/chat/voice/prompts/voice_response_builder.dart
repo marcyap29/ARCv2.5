@@ -19,7 +19,7 @@ class VoiceResponseBuilder {
   String buildVoicePrompt({
     required String userMessage,
     required List<VoiceConversationTurn> conversationHistory,
-    required Phase currentPhase,
+    required PhaseLabel currentPhase,
     Map<String, dynamic>? additionalContext,
   }) {
     final buffer = StringBuffer();
@@ -81,9 +81,9 @@ class VoiceResponseBuilder {
     return buffer.toString();
   }
   
-  String _getPhaseGuidance(Phase phase) {
+  String _getPhaseGuidance(PhaseLabel phase) {
     switch (phase) {
-      case Phase.recovery:
+      case PhaseLabel.recovery:
         return '''
 Slower pacing, more space between exchanges.
 Soften pace and emphasize containment.
@@ -91,7 +91,7 @@ Soften pace and emphasize containment.
 "What would true restoration look like right now?"
 ''';
         
-      case Phase.transition:
+      case PhaseLabel.transition:
         return '''
 Steady presence, don't rush synthesis.
 Normalize ambiguity and uncertainty.
@@ -99,7 +99,7 @@ Normalize ambiguity and uncertainty.
 "You don't have to know where you're going yet..."
 ''';
         
-      case Phase.discovery:
+      case PhaseLabel.discovery:
         return '''
 Curious, exploratory tone.
 Use wondering language: "I'm curious about...", "What emerges when..."
@@ -107,7 +107,7 @@ Use wondering language: "I'm curious about...", "What emerges when..."
 "What feels most alive to explore right now?"
 ''';
         
-      case Phase.expansion:
+      case PhaseLabel.expansion:
         return '''
 Confident engagement, can challenge.
 Match heightened energy if present.
@@ -115,7 +115,7 @@ Match heightened energy if present.
 "What concrete step wants to be taken next?"
 ''';
         
-      case Phase.consolidation:
+      case PhaseLabel.consolidation:
         return '''
 Grounded, affirming.
 Help focus on what matters most.
@@ -123,7 +123,7 @@ Help focus on what matters most.
 "What feels most important to hold onto?"
 ''';
         
-      case Phase.breakthrough:
+      case PhaseLabel.breakthrough:
         return '''
 Celebratory but grounded.
 Can match heightened energy if present.
@@ -135,25 +135,25 @@ Can match heightened energy if present.
   
   /// Get response length guidance based on context
   int getRecommendedMaxWords({
-    required Phase phase,
+    required PhaseLabel phase,
     bool isComplexTopic = false,
     int turnNumber = 1,
   }) {
     int baseWords;
     
     switch (phase) {
-      case Phase.recovery:
-      case Phase.transition:
+      case PhaseLabel.recovery:
+      case PhaseLabel.transition:
         baseWords = 60; // More space, slower pacing
         break;
         
-      case Phase.discovery:
-      case Phase.expansion:
+      case PhaseLabel.discovery:
+      case PhaseLabel.expansion:
         baseWords = 50; // Balanced
         break;
         
-      case Phase.consolidation:
-      case Phase.breakthrough:
+      case PhaseLabel.consolidation:
+      case PhaseLabel.breakthrough:
         baseWords = 55; // Slightly more for integration
         break;
     }
@@ -173,7 +173,7 @@ Can match heightened energy if present.
   
   /// Build system message for voice context
   Map<String, String> buildSystemMessage({
-    required Phase phase,
+    required PhaseLabel phase,
     required int turnNumber,
   }) {
     return {

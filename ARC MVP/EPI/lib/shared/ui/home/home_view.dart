@@ -21,12 +21,13 @@ import 'package:my_app/arc/chat/data/context_provider.dart';
 import 'package:my_app/arc/chat/data/context_scope.dart';
 import 'package:my_app/services/shake_detector_service.dart';
 import 'package:my_app/ui/feedback/bug_report_dialog.dart';
-import 'package:my_app/arc/chat/voice/voice_journal/new_voice_journal_ui.dart';
-import 'package:my_app/arc/chat/voice/voice_journal/new_voice_journal_service.dart';
+import 'package:my_app/arc/chat/voice/ui/voice_mode_screen.dart';
+import 'package:my_app/arc/chat/voice/config/voice_system_initializer.dart';
 import 'package:my_app/arc/chat/services/enhanced_lumara_api.dart';
-import 'package:my_app/arc/core/journal_repository.dart';
-import 'package:my_app/arc/core/journal_capture_cubit.dart';
+import 'package:my_app/arc/internal/echo/prism_adapter.dart';
+import 'package:my_app/services/firebase_auth_service.dart';
 import 'package:my_app/telemetry/analytics.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 // Debug flag for showing RIVET engineering labels
 const bool kShowRivetDebugLabels = false;
@@ -253,61 +254,100 @@ class _HomeViewState extends State<HomeView> {
     }
   }
 
-  /// Open Voice Journal UI
-  void _openVoiceJournal(BuildContext context) {
+  /// Open Voice Mode UI with LUMARA sigil
+  void _openVoiceJournal(BuildContext context) async {
     try {
-      // Get required services
+      // Get current user ID
+      final userId = FirebaseAuthService.instance.currentUser?.uid;
+      if (userId == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please sign in to use voice mode'),
+            duration: Duration(seconds: 3),
+          ),
+        );
+        return;
+      }
+      
+      // Show loading indicator
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+      
+      // Create required services
       final analytics = Analytics();
       final lumaraApi = EnhancedLumaraApi(analytics);
-      final journalRepository = JournalRepository();
+      await lumaraApi.initialize();
       
-      // Initialize LUMARA API
-      lumaraApi.initialize().then((_) {
-        // Try to get journal cubit from context
-        JournalCaptureCubit? journalCubit;
-        try {
-          journalCubit = context.read<JournalCaptureCubit>();
-        } catch (e) {
-          debugPrint('Voice Journal: JournalCaptureCubit not available in context: $e');
+      final prism = PrismAdapter();
+      final firestore = FirebaseFirestore.instance;
+      
+      // Initialize voice system with all required parameters
+      final voiceInitializer = VoiceSystemInitializer(
+        userId: userId,
+        firestore: firestore,
+        lumaraApi: lumaraApi,
+        prism: prism,
+      );
+      final sessionService = await voiceInitializer.initialize();
+      
+      // Dismiss loading indicator
+      if (mounted) {
+        Navigator.pop(context);
+      }
+      
+      if (sessionService == null) {
+        debugPrint('Voice Mode: Failed to initialize voice session service');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Failed to initialize voice mode. Please try again.'),
+              duration: Duration(seconds: 3),
+            ),
+          );
         }
-        
-        // Create voice journal service
-        final voiceService = NewVoiceJournalService(
-          lumaraApi: lumaraApi,
-          journalRepository: journalRepository,
-          journalCubit: journalCubit,
-        );
-        
-        // Navigate to voice journal UI
+        return;
+      }
+      
+      // Navigate to voice mode screen with sigil
+      if (mounted) {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => NewVoiceJournalUI(
-              service: voiceService,
-              onSessionComplete: () {
+            builder: (context) => VoiceModeScreen(
+              sessionService: sessionService,
+              onComplete: () {
                 Navigator.pop(context);
-                // Optionally refresh journal view
+                // Refresh timeline to show new voice entry
+                try {
+                  context.read<TimelineCubit>().refreshEntries();
+                } catch (e) {
+                  debugPrint('Voice Mode: Could not refresh timeline: $e');
+                }
               },
             ),
           ),
         );
-      }).catchError((e) {
-        debugPrint('Error initializing LUMARA API: $e');
+      }
+    } catch (e) {
+      // Dismiss loading indicator if showing
+      if (mounted && Navigator.canPop(context)) {
+        Navigator.pop(context);
+      }
+      
+      debugPrint('Error opening voice mode: $e');
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error initializing voice journal: $e'),
+            content: Text('Error opening voice mode: $e'),
             duration: const Duration(seconds: 3),
           ),
         );
-      });
-    } catch (e) {
-      debugPrint('Error opening voice journal: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error opening voice journal: $e'),
-          duration: const Duration(seconds: 3),
-        ),
-      );
+      }
     }
   }
   

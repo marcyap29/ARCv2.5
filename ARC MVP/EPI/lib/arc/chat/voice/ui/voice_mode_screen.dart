@@ -7,8 +7,11 @@
 /// - Session controls
 /// - Turn counter
 /// - Phase indicator
+/// - Haptic feedback on interactions
+/// - Real-time transcript display
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../services/voice_session_service.dart';
 import '../models/voice_session.dart';
 import '../../../../models/phase_models.dart';
@@ -32,11 +35,13 @@ class VoiceModeScreen extends StatefulWidget {
 
 class _VoiceModeScreenState extends State<VoiceModeScreen> {
   VoiceSessionState _state = VoiceSessionState.idle;
+  VoiceSessionState _previousState = VoiceSessionState.idle;
   String _currentTranscript = '';
   String _lastLumaraResponse = '';
   int _turnCount = 0;
   double _audioLevel = 0.0;
   CommitmentLevel? _commitmentLevel;
+  bool _isFirstTurn = true;
   
   @override
   void initState() {
@@ -47,7 +52,9 @@ class _VoiceModeScreenState extends State<VoiceModeScreen> {
   
   void _setupCallbacks() {
     widget.sessionService.onStateChanged = (state) {
+      _previousState = _state;
       setState(() => _state = state);
+      _handleStateChangeHaptics(state);
     };
     
     widget.sessionService.onTranscriptUpdate = (transcript) {
@@ -55,9 +62,12 @@ class _VoiceModeScreenState extends State<VoiceModeScreen> {
     };
     
     widget.sessionService.onLumaraResponse = (response) {
+      // Haptic feedback when LUMARA starts responding
+      HapticFeedback.lightImpact();
       setState(() {
         _lastLumaraResponse = response;
         _currentTranscript = ''; // Clear transcript after LUMARA responds
+        _isFirstTurn = false;
       });
     };
     
@@ -66,12 +76,33 @@ class _VoiceModeScreenState extends State<VoiceModeScreen> {
     };
     
     widget.sessionService.onError = (error) {
+      HapticFeedback.heavyImpact(); // Error feedback
       _showError(error);
     };
     
     widget.sessionService.onSessionComplete = (session) {
       _onSessionComplete(session);
     };
+  }
+  
+  /// Handle haptic feedback based on state transitions
+  void _handleStateChangeHaptics(VoiceSessionState newState) {
+    // Haptic when starting to listen
+    if (newState == VoiceSessionState.listening && 
+        _previousState != VoiceSessionState.listening) {
+      HapticFeedback.mediumImpact();
+    }
+    
+    // Haptic when processing starts (user released)
+    if (newState == VoiceSessionState.processingTranscript && 
+        _previousState == VoiceSessionState.listening) {
+      HapticFeedback.lightImpact();
+    }
+    
+    // Haptic when LUMARA starts thinking
+    if (newState == VoiceSessionState.waitingForLumara) {
+      HapticFeedback.selectionClick();
+    }
   }
   
   Future<void> _initialize() async {
@@ -253,18 +284,148 @@ class _VoiceModeScreenState extends State<VoiceModeScreen> {
   }
   
   Widget _buildTranscriptDisplay() {
-    if (_currentTranscript.isEmpty) {
+    // Show instructions on first turn
+    if (_isFirstTurn && _state == VoiceSessionState.idle) {
       return Center(
-        child: Text(
-          _state == VoiceSessionState.listening 
-              ? 'Start speaking...' 
-              : '',
-          style: TextStyle(
-            color: Colors.white.withOpacity(0.3),
-            fontSize: 16,
-          ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.mic,
+              size: 32,
+              color: Colors.white.withOpacity(0.3),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Hold the sigil to speak',
+              style: TextStyle(
+                color: Colors.white.withOpacity(0.5),
+                fontSize: 16,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Release when finished',
+              style: TextStyle(
+                color: Colors.white.withOpacity(0.3),
+                fontSize: 14,
+              ),
+            ),
+          ],
         ),
       );
+    }
+    
+    // Show listening state with real-time transcript
+    if (_state == VoiceSessionState.listening) {
+      return SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 24),
+        child: Column(
+          children: [
+            // Recording indicator
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.red.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 8,
+                    height: 8,
+                    decoration: const BoxDecoration(
+                      color: Colors.red,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Recording',
+                    style: TextStyle(
+                      color: Colors.red.shade300,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            // Real-time transcript
+            if (_currentTranscript.isNotEmpty) ...[
+              Text(
+                'You:',
+                style: TextStyle(
+                  color: Colors.white.withOpacity(0.5),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                _currentTranscript,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  height: 1.5,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ] else ...[
+              Text(
+                'Listening...',
+                style: TextStyle(
+                  color: Colors.white.withOpacity(0.3),
+                  fontSize: 16,
+                ),
+              ),
+            ],
+          ],
+        ),
+      );
+    }
+    
+    // Show processing state
+    if (_state == VoiceSessionState.processingTranscript || 
+        _state == VoiceSessionState.scrubbing ||
+        _state == VoiceSessionState.waitingForLumara) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (_currentTranscript.isNotEmpty) ...[
+              Text(
+                'You said:',
+                style: TextStyle(
+                  color: Colors.white.withOpacity(0.5),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Text(
+                  _currentTranscript,
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.7),
+                    fontSize: 16,
+                    height: 1.5,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ],
+          ],
+        ),
+      );
+    }
+    
+    // Default empty state
+    if (_currentTranscript.isEmpty) {
+      return const SizedBox();
     }
     
     return SingleChildScrollView(

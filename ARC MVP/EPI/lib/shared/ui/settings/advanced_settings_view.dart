@@ -7,6 +7,7 @@ import 'package:my_app/shared/text_style.dart';
 import 'package:my_app/shared/ui/settings/combined_analysis_view.dart';
 import 'package:my_app/shared/ui/settings/health_readiness_view.dart';
 import 'package:my_app/arc/chat/voice/transcription/transcription_provider.dart';
+import 'package:my_app/arc/chat/voice/models/voice_input_mode.dart';
 import 'package:my_app/services/assemblyai_service.dart';
 import 'package:my_app/arc/chat/services/lumara_reflection_settings_service.dart';
 import 'package:my_app/models/engagement_discipline.dart';
@@ -25,6 +26,7 @@ class _AdvancedSettingsViewState extends State<AdvancedSettingsView> {
   // Voice & Transcription settings
   SttMode _sttMode = SttMode.auto;
   SttTier _userTier = SttTier.free;
+  VoiceInputMode _voiceInputMode = VoiceInputMode.pushToTalk;
 
   // Advanced memory settings
   int _lookbackYears = 2;
@@ -68,6 +70,15 @@ class _AdvancedSettingsViewState extends State<AdvancedSettingsView> {
           ? SttMode.values.firstWhere((m) => m.name == savedMode, orElse: () => SttMode.auto)
           : SttMode.auto;
       
+      // Load voice input mode
+      final savedVoiceInputMode = prefs.getString('voice_input_mode');
+      final voiceInputMode = savedVoiceInputMode != null
+          ? VoiceInputMode.values.firstWhere(
+              (m) => m.name == savedVoiceInputMode, 
+              orElse: () => VoiceInputMode.pushToTalk
+            )
+          : VoiceInputMode.pushToTalk;
+      
       final assemblyAIService = AssemblyAIService();
       final userTier = await assemblyAIService.getUserTier();
       
@@ -75,6 +86,7 @@ class _AdvancedSettingsViewState extends State<AdvancedSettingsView> {
         setState(() {
           _sttMode = sttMode;
           _userTier = userTier;
+          _voiceInputMode = voiceInputMode;
           _isLoading = false;
         });
       }
@@ -85,6 +97,20 @@ class _AdvancedSettingsViewState extends State<AdvancedSettingsView> {
           _isLoading = false;
         });
       }
+    }
+  }
+  
+  Future<void> _setVoiceInputMode(VoiceInputMode mode) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('voice_input_mode', mode.name);
+      if (mounted) {
+        setState(() {
+          _voiceInputMode = mode;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error setting voice input mode: $e');
     }
   }
 
@@ -356,6 +382,8 @@ class _AdvancedSettingsViewState extends State<AdvancedSettingsView> {
                     title: 'Voice & Transcription',
                     children: [
                       _buildTranscriptionModeTile(),
+                      const SizedBox(height: 8),
+                      _buildVoiceInputModeTile(),
                     ],
                   ),
                   
@@ -789,6 +817,139 @@ class _AdvancedSettingsViewState extends State<AdvancedSettingsView> {
             icon: Icons.smartphone,
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildVoiceInputModeTile() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white.withOpacity(0.1)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.touch_app, color: kcAccentColor, size: 24),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Voice Input Mode',
+                      style: heading3Style(context).copyWith(
+                        color: kcPrimaryTextColor,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    Text(
+                      'How you interact with voice mode',
+                      style: bodyStyle(context).copyWith(
+                        color: kcSecondaryTextColor,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          _buildVoiceInputModeOption(
+            mode: VoiceInputMode.pushToTalk,
+            title: 'Push to Talk (Recommended)',
+            description: 'Hold to speak, release to send. Clear control over recording.',
+            icon: Icons.touch_app,
+          ),
+          const SizedBox(height: 8),
+          _buildVoiceInputModeOption(
+            mode: VoiceInputMode.handsFree,
+            title: 'Hands-Free Mode',
+            description: 'Auto-detects when you finish speaking. Good for accessibility.',
+            icon: Icons.accessibility_new,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildVoiceInputModeOption({
+    required VoiceInputMode mode,
+    required String title,
+    required String description,
+    required IconData icon,
+  }) {
+    final isSelected = _voiceInputMode == mode;
+    
+    return GestureDetector(
+      onTap: () => _setVoiceInputMode(mode),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? kcAccentColor.withOpacity(0.15)
+              : Colors.white.withOpacity(0.03),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: isSelected
+                ? kcAccentColor
+                : Colors.white.withOpacity(0.1),
+            width: isSelected ? 2 : 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 20,
+              height: 20,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: isSelected ? kcAccentColor : kcSecondaryTextColor,
+                  width: 2,
+                ),
+                color: isSelected ? kcAccentColor : Colors.transparent,
+              ),
+              child: isSelected
+                  ? const Icon(Icons.check, size: 12, color: Colors.white)
+                  : null,
+            ),
+            const SizedBox(width: 12),
+            Icon(
+              icon,
+              size: 20,
+              color: isSelected ? kcAccentColor : kcSecondaryTextColor,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: bodyStyle(context).copyWith(
+                      color: kcPrimaryTextColor,
+                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                    ),
+                  ),
+                  Text(
+                    description,
+                    style: bodyStyle(context).copyWith(
+                      color: kcSecondaryTextColor,
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

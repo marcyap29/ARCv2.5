@@ -13,14 +13,16 @@
 
 import 'dart:async';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:uuid/uuid.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import '../wispr/wispr_flow_service.dart';
 import '../wispr/wispr_rate_limiter.dart';
 import '../audio/audio_capture_service.dart';
 import '../endpoint/smart_endpoint_detector.dart';
 import '../../../internal/echo/prism_adapter.dart';
 import '../voice_journal/tts_client.dart';
+import '../voice_journal/voice_prompt_builder.dart';
+import '../voice_journal/voice_mode.dart';
 import '../../services/enhanced_lumara_api.dart';
 import '../../models/lumara_reflection_options.dart' as models;
 import '../models/voice_session.dart';
@@ -318,21 +320,28 @@ class VoiceSessionService {
       // Build context for LUMARA
       final builtSession = _currentSession?.build();
       final conversationHistory = builtSession?.turns.map((turn) {
-        return {
-          'role': 'user',
-          'content': turn.userText,
-        };
+        return 'User: ${turn.userText}\nLUMARA: ${turn.lumaraResponse}';
       }).toList() ?? [];
       
-      // Call LUMARA API for voice conversation
+      // Build voice-specific prompt using VoicePromptBuilder
+      // This integrates with the LUMARA Master Unified Prompt via LumaraControlStateBuilder
+      final voicePromptContext = VoicePromptContext(
+        userId: _userId,
+        mode: VoiceMode.journal,
+        conversationHistory: conversationHistory,
+        daysInPhase: null, // TODO: Get from UserPhaseService if available
+      );
+      
+      final voiceSystemPrompt = await VoicePromptBuilder.buildVoicePrompt(voicePromptContext);
+      debugPrint('VoiceSession: Built voice prompt with unified control state');
+      
+      // Call LUMARA API for voice conversation with the full voice context
       final reflectionResult = await _lumaraApi.generatePromptedReflection(
         entryText: prismResult.scrubbedText,
-        intent: 'voice',
+        intent: 'voice_journal',
         phase: _currentPhase.name,
         userId: _userId,
-        chatContext: conversationHistory.isNotEmpty 
-            ? conversationHistory.map((msg) => '${msg['role']}: ${msg['content']}').join('\n')
-            : null,
+        chatContext: voiceSystemPrompt, // Pass the full voice system prompt as context
         options: models.LumaraReflectionOptions(
           conversationMode: models.ConversationMode.think, // Use 'think' mode for voice conversations
           toneMode: models.ToneMode.normal, // Use 'normal' tone (or 'soft' for gentler)

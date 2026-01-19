@@ -1,12 +1,12 @@
 /// Voice Sigil Widget
 /// 
 /// Main interactive voice UI element with sophisticated animations:
-/// - IDLE: Gentle pulsing, inviting interaction
-/// - LISTENING: Breathing animation with audio-reactive ripples
-/// - COMMITMENT: Inner ring contracting inward (0.5-1.5s)
-/// - ACCELERATING: Shimmer intensifies, ring nearly contracted (1.5s+)
-/// - THINKING: Thinking animation (spinner)
-/// - SPEAKING: LUMARA speaking animation
+/// - IDLE: Gentle pulsing with orbital particles
+/// - LISTENING: Breathing animation with inward-flowing particles
+/// - COMMITMENT: Inner ring contracting with particles compressing
+/// - ACCELERATING: Shimmer intensifies, particles accelerating inward
+/// - THINKING: Constellation points appear, particles compressed
+/// - SPEAKING: LUMARA speaking with outward-flowing particles
 /// 
 /// Uses the gold LUMARA sigil image as the center element
 
@@ -15,6 +15,9 @@ import 'dart:math' as math;
 import '../../../../models/phase_models.dart';
 import '../endpoint/smart_endpoint_detector.dart';
 import 'commitment_ring_painter.dart';
+import 'sigil_effects/sigil_particle_system.dart';
+import 'sigil_effects/sigil_shimmer.dart';
+import 'sigil_effects/constellation_points.dart';
 
 /// Voice sigil animation state
 enum VoiceSigilState {
@@ -56,14 +59,21 @@ class _VoiceSigilState extends State<VoiceSigil> with TickerProviderStateMixin {
   late AnimationController _breathingController;
   late AnimationController _shimmerController;
   late AnimationController _thinkingController;
+  late AnimationController _particleController;
   
   late Animation<double> _pulseAnimation;
   late Animation<double> _breathingAnimation;
   late Animation<double> _shimmerAnimation;
   
+  // Particle system
+  final ParticleSystemManager _particleManager = ParticleSystemManager();
+  
   @override
   void initState() {
     super.initState();
+    
+    // Initialize particle system
+    _particleManager.initialize(count: 25);
     
     // Idle pulse animation (gentle, slow)
     _pulseController = AnimationController(
@@ -97,6 +107,12 @@ class _VoiceSigilState extends State<VoiceSigil> with TickerProviderStateMixin {
       duration: const Duration(milliseconds: 1200),
       vsync: this,
     );
+    
+    // Particle system animation (continuous)
+    _particleController = AnimationController(
+      duration: const Duration(milliseconds: 3000),
+      vsync: this,
+    )..repeat();
     
     _startAppropriateAnimation();
   }
@@ -151,6 +167,7 @@ class _VoiceSigilState extends State<VoiceSigil> with TickerProviderStateMixin {
     _breathingController.dispose();
     _shimmerController.dispose();
     _thinkingController.dispose();
+    _particleController.dispose();
     super.dispose();
   }
   
@@ -175,6 +192,7 @@ class _VoiceSigilState extends State<VoiceSigil> with TickerProviderStateMixin {
   @override
   Widget build(BuildContext context) {
     final phaseColor = _getPhaseColor();
+    final flowDirection = _particleManager.getFlowDirection(widget.state);
     
     return GestureDetector(
       onTap: widget.onTap,
@@ -184,6 +202,23 @@ class _VoiceSigilState extends State<VoiceSigil> with TickerProviderStateMixin {
         child: Stack(
           alignment: Alignment.center,
           children: [
+            // Particle system layer (always present, behavior changes with state)
+            AnimatedBuilder(
+              animation: _particleController,
+              builder: (context, child) {
+                return CustomPaint(
+                  size: Size(widget.size, widget.size),
+                  painter: SigilParticleSystem(
+                    state: widget.state,
+                    phaseColor: phaseColor,
+                    flowDirection: flowDirection,
+                    animationValue: _particleController.value,
+                    particles: _particleManager.particles,
+                  ),
+                );
+              },
+            ),
+            
             // Audio-reactive ripples (listening state)
             if (widget.state == VoiceSigilState.listening)
               AnimatedBuilder(
@@ -201,21 +236,22 @@ class _VoiceSigilState extends State<VoiceSigil> with TickerProviderStateMixin {
                 },
               ),
             
-            // Accelerating shimmer (accelerating state)
-            if (widget.state == VoiceSigilState.accelerating)
-              AnimatedBuilder(
-                animation: _shimmerController,
-                builder: (context, child) {
-                  return CustomPaint(
-                    size: Size(widget.size, widget.size),
-                    painter: ShimmerPainter(
-                      animationValue: _shimmerAnimation.value,
-                      phaseColor: phaseColor,
-                      isAccelerating: true,
-                    ),
-                  );
-                },
-              ),
+            // Shimmer effect (always present with varying intensity)
+            AnimatedBuilder(
+              animation: _shimmerController.isAnimating ? _shimmerController : _particleController,
+              builder: (context, child) {
+                return CustomPaint(
+                  size: Size(widget.size, widget.size),
+                  painter: SigilShimmer(
+                    state: widget.state,
+                    phaseColor: phaseColor,
+                    animationValue: _shimmerController.isAnimating 
+                        ? _shimmerAnimation.value 
+                        : _particleController.value,
+                  ),
+                );
+              },
+            ),
             
             // Commitment ring (commitment & accelerating states)
             if (widget.commitmentLevel != null && 
@@ -233,7 +269,23 @@ class _VoiceSigilState extends State<VoiceSigil> with TickerProviderStateMixin {
             // Main sigil (always present)
             _buildMainSigil(phaseColor),
             
-            // Thinking spinner overlay
+            // Constellation points (thinking state)
+            if (widget.state == VoiceSigilState.thinking)
+              AnimatedBuilder(
+                animation: _thinkingController,
+                builder: (context, child) {
+                  return CustomPaint(
+                    size: Size(widget.size, widget.size),
+                    painter: ConstellationPoints(
+                      phaseColor: phaseColor,
+                      animationValue: _thinkingController.value,
+                      intensity: 1.0,
+                    ),
+                  );
+                },
+              ),
+            
+            // Thinking spinner overlay (subtle, over constellation)
             if (widget.state == VoiceSigilState.thinking)
               AnimatedBuilder(
                 animation: _thinkingController,
@@ -242,8 +294,8 @@ class _VoiceSigilState extends State<VoiceSigil> with TickerProviderStateMixin {
                     angle: _thinkingController.value * 2 * math.pi,
                     child: Icon(
                       Icons.refresh,
-                      size: widget.size * 0.3,
-                      color: phaseColor.withOpacity(0.6),
+                      size: widget.size * 0.2,
+                      color: phaseColor.withOpacity(0.3),
                     ),
                   );
                 },

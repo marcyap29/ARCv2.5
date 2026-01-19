@@ -62,6 +62,12 @@ class TtsJournalClient {
   bool get isInitialized => _isInitialized;
   bool get isSpeaking => _isSpeaking;
   bool get isPaused => _isPaused;
+  
+  // Public setters for callbacks (used by VoiceSessionService)
+  set onStart(OnTtsStart? callback) => _onStart = callback;
+  set onComplete(OnTtsComplete? callback) => _onComplete = callback;
+  set onError(OnTtsError? callback) => _onError = callback;
+  set onProgress(OnTtsProgress? callback) => _onProgress = callback;
 
   /// Initialize TTS engine
   Future<bool> initialize() async {
