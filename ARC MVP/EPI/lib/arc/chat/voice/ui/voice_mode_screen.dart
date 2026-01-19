@@ -185,7 +185,9 @@ class _VoiceModeScreenState extends State<VoiceModeScreen> {
   }
   
   Future<void> _endSession() async {
+    debugPrint('VoiceModeScreen: Finish button pressed, ending session...');
     await widget.sessionService.endSession();
+    debugPrint('VoiceModeScreen: Session ended');
   }
   
   @override
@@ -524,17 +526,24 @@ class _VoiceModeScreenState extends State<VoiceModeScreen> {
   }
   
   Widget _buildControls() {
+    // Finish button should be enabled when:
+    // 1. At least one turn has completed (_turnCount > 0)
+    // 2. We're in a state where finishing makes sense (idle after turn, or error)
+    // 3. NOT during active processing (listening, scrubbing, waitingForLumara, speaking)
+    final canFinish = _turnCount > 0 && 
+        (_state == VoiceSessionState.idle || _state == VoiceSessionState.error);
+    
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         // Finish button
         OutlinedButton.icon(
-          onPressed: _state != VoiceSessionState.idle ? _endSession : null,
+          onPressed: canFinish ? _endSession : null,
           icon: const Icon(Icons.check),
           label: const Text('Finish'),
           style: OutlinedButton.styleFrom(
-            foregroundColor: Colors.white,
-            side: const BorderSide(color: Colors.white),
+            foregroundColor: canFinish ? Colors.white : Colors.white38,
+            side: BorderSide(color: canFinish ? Colors.white : Colors.white38),
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
           ),
         ),
