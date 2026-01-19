@@ -8,6 +8,8 @@ import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/tab_bar.dart';
 import 'package:my_app/services/user_phase_service.dart';
 import 'package:my_app/services/analytics_service.dart';
+import 'package:my_app/services/phase_regime_service.dart';
+import 'package:my_app/services/rivet_sweep_service.dart';
 import 'package:flutter/foundation.dart';
 import 'package:my_app/core/services/photo_library_service.dart';
 import 'dart:math' as math;
@@ -296,12 +298,11 @@ class _HomeViewState extends State<HomeView> {
       );
       final sessionService = await voiceInitializer.initialize();
       
-      // Set the user's actual phase (not hardcoded default)
+      // Set the user's actual phase using PhaseRegimeService (same as Phase tab)
       if (sessionService != null) {
-        final currentPhaseString = await UserPhaseService.getCurrentPhase();
-        final currentPhase = _stringToPhaseLabel(currentPhaseString);
+        final currentPhase = await _getCurrentPhaseFromRegimeService();
         sessionService.updatePhase(currentPhase);
-        debugPrint('Voice Mode: Set phase to $currentPhaseString (${currentPhase.name})');
+        debugPrint('Voice Mode: Set phase to ${currentPhase.name}');
       }
       
       // Dismiss loading indicator
@@ -360,6 +361,41 @@ class _HomeViewState extends State<HomeView> {
     }
   }
   
+  /// Get current phase using PhaseRegimeService (same approach as Phase tab)
+  /// This is the authoritative source for the user's current phase
+  Future<PhaseLabel> _getCurrentPhaseFromRegimeService() async {
+    try {
+      final analyticsService = AnalyticsService();
+      final rivetSweepService = RivetSweepService(analyticsService);
+      final phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
+      await phaseRegimeService.initialize();
+
+      final currentRegime = phaseRegimeService.phaseIndex.currentRegime;
+      
+      if (currentRegime != null) {
+        final phaseName = currentRegime.label.toString().split('.').last.toLowerCase();
+        debugPrint('Voice Mode: PhaseRegimeService currentRegime = $phaseName');
+        return _stringToPhaseLabel(phaseName);
+      } else {
+        // Get the most recent regime if no current ongoing regime
+        final allRegimes = phaseRegimeService.phaseIndex.allRegimes;
+        if (allRegimes.isNotEmpty) {
+          final sortedRegimes = List.from(allRegimes)..sort((a, b) => b.start.compareTo(a.start));
+          final phaseName = sortedRegimes.first.label.toString().split('.').last.toLowerCase();
+          debugPrint('Voice Mode: Using most recent regime = $phaseName');
+          return _stringToPhaseLabel(phaseName);
+        }
+      }
+      
+      debugPrint('Voice Mode: No regimes found, defaulting to Discovery');
+      return PhaseLabel.discovery;
+      
+    } catch (e) {
+      debugPrint('Voice Mode: Error getting phase from PhaseRegimeService: $e');
+      return PhaseLabel.discovery;
+    }
+  }
+
   /// Convert phase string to PhaseLabel enum
   PhaseLabel _stringToPhaseLabel(String phase) {
     final normalized = phase.toLowerCase().trim();
