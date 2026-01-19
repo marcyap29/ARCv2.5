@@ -29,7 +29,6 @@ import 'package:my_app/arc/chat/services/enhanced_lumara_api.dart';
 import 'package:my_app/arc/internal/echo/prism_adapter.dart';
 import 'package:my_app/services/firebase_auth_service.dart';
 import 'package:my_app/telemetry/analytics.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:my_app/models/phase_models.dart';
 
 // Debug flag for showing RIVET engineering labels
@@ -287,12 +286,10 @@ class _HomeViewState extends State<HomeView> {
       await lumaraApi.initialize();
       
       final prism = PrismAdapter();
-      final firestore = FirebaseFirestore.instance;
       
       // Initialize voice system with all required parameters
       final voiceInitializer = VoiceSystemInitializer(
         userId: userId,
-        firestore: firestore,
         lumaraApi: lumaraApi,
         prism: prism,
       );
