@@ -2145,8 +2145,13 @@ Unified voice interface for both Voice Journal and Voice Chat modes. Features dy
 
 ```
 ┌─────────────────────────────────────────┐
-│ 1. AssemblyAI STT (Streaming)           │
-│    ↓ On-device transcription            │
+│ 0. Voice Usage Check                    │
+│    ↓ Free: 60 min/month limit           │
+│    ↓ Premium: Unlimited                 │
+├─────────────────────────────────────────┤
+│ 1. Speech-to-Text                       │
+│    ↓ Wispr Flow (if user API key set)   │
+│    ↓ Apple On-Device (default)          │
 ├─────────────────────────────────────────┤
 │ 2. PRISM PII Scrubbing                  │
 │    ↓ Correlation-resistant payload      │
@@ -2175,6 +2180,9 @@ Unified voice interface for both Voice Journal and Voice Chat modes. Features dy
 ├─────────────────────────────────────────┤
 │ 6. Text-to-Speech                       │
 │    → Natural voice output               │
+├─────────────────────────────────────────┤
+│ 7. Usage Tracking                       │
+│    → Session duration recorded          │
 └─────────────────────────────────────────┘
 ```
 
@@ -2229,7 +2237,9 @@ UnifiedVoicePanel(
   - `voice_journal_conversation.dart` - Conversation management
   - `journal_store.dart` / `chat_store.dart` - Mode-specific storage
   - `prism_adapter.dart` - PII scrubbing
-  - `assemblyai_provider.dart` - STT integration
+  - `ondevice_provider.dart` - Apple On-Device STT (default)
+  - `wispr_flow_service.dart` - Wispr Flow STT (optional, user API key)
+  - `voice_usage_service.dart` - Monthly usage tracking
 
 ### Design Philosophy
 - **Unified**: Single component for both modes, reducing code duplication
@@ -2764,15 +2774,18 @@ Phase-adaptive silence detection for natural conversation flow:
 
 **Files:**
 - `lib/arc/chat/voice/transcription/unified_transcription_service.dart` - Backend orchestration with fallback
-- `lib/arc/chat/voice/transcription/assemblyai_provider.dart` - AssemblyAI streaming (primary)
-- `lib/arc/chat/voice/transcription/ondevice_provider.dart` - Apple On-Device (fallback)
+- `lib/arc/chat/voice/transcription/ondevice_provider.dart` - Apple On-Device (default)
+- `lib/arc/chat/voice/wispr/wispr_flow_service.dart` - Wispr Flow (optional, user API key)
+- `lib/arc/chat/voice/services/voice_usage_service.dart` - Monthly usage tracking
 
-**Fallback Chain:**
+**Initialization Flow:**
 1. User initiates voice mode
-2. `UnifiedTranscriptionService` checks AssemblyAI availability
-3. If available (PRO/BETA tier), use AssemblyAI streaming
-4. Otherwise, fall back to Apple On-Device transcription
-5. Real-time transcription begins
+2. `VoiceUsageService` checks monthly limit (60 min free, unlimited premium)
+3. If limit exceeded, show upgrade dialog
+4. `UnifiedTranscriptionService` checks if user has Wispr API key configured
+5. If Wispr available, use Wispr Flow streaming
+6. Otherwise, use Apple On-Device transcription (default)
+7. Real-time transcription begins
 
 ### Voice Session Service
 
@@ -2808,9 +2821,10 @@ Sessions are saved as `VoiceConversationEntry` to the timeline, preserving:
 
 **Services:**
 - `voice_session_service.dart` - Session orchestration
+- `voice_usage_service.dart` - Monthly usage tracking and limits
 - `unified_transcription_service.dart` - Transcription with fallback
-- `assemblyai_provider.dart` - AssemblyAI streaming
-- `ondevice_provider.dart` - Apple On-Device transcription
+- `ondevice_provider.dart` - Apple On-Device transcription (default)
+- `wispr_flow_service.dart` - Wispr Flow transcription (optional)
 - `audio_capture_service.dart` - Microphone input
 
 **Endpoint Detection:**
@@ -2823,7 +2837,8 @@ Sessions are saved as `VoiceConversationEntry` to the timeline, preserving:
 
 ### Requirements
 
-- **AssemblyAI**: PRO/BETA tier for cloud transcription (optional - on-device always available)
+- **Voice Limits**: Free users have 60 minutes/month, Premium users have unlimited
+- **Wispr Flow**: Optional - users can add their own API key in LUMARA Settings → External Services
 - **Microphone Permissions**: Granted by user
 - **Authentication**: User signed in via Firebase Auth
 

@@ -1,17 +1,30 @@
 # Voice Mode Status & Architecture
 
-> Last Updated: January 17, 2026
+> Last Updated: January 19, 2026
 > 
 > **STATUS: IMPLEMENTED** - Jarvis/Samantha dual-mode system is now live.
 > See [VOICE_MODE_IMPLEMENTATION_GUIDE.md](./VOICE_MODE_IMPLEMENTATION_GUIDE.md) for full details.
 
 ## Overview
 
-Voice mode allows users to have spoken conversations with LUMARA. The system captures speech via AssemblyAI (primary) or Apple On-Device (fallback), processes it through PRISM (PII scrubbing), sends to LUMARA for response generation, and plays back via TTS.
+Voice mode allows users to have spoken conversations with LUMARA. The system captures speech via **Wispr Flow** (optional, user-provided API key) or **Apple On-Device** (default), processes it through PRISM (PII scrubbing), sends to LUMARA for response generation, and plays back via TTS.
 
-**NEW:** Voice mode now automatically detects conversation depth and routes between:
+**Voice mode automatically detects conversation depth and routes between:**
 - **Jarvis Mode** - Quick, efficient responses (50-100 words, 3-5 seconds)
 - **Samantha Mode** - Deep, reflective engagement (150-200 words, 8-10 seconds)
+
+---
+
+## Voice Usage Limits
+
+| Subscription | Monthly Limit |
+|--------------|---------------|
+| **Free** | 60 minutes |
+| **Premium** | Unlimited |
+
+- Usage resets on the 1st of each month
+- Remaining time shown in voice mode UI
+- Upgrade dialog shown when limit reached
 
 ---
 
@@ -19,13 +32,14 @@ Voice mode allows users to have spoken conversations with LUMARA. The system cap
 
 ### What's Working
 - Long-press on "+" button activates voice mode
-- AssemblyAI/Apple On-Device for speech-to-text
+- **Wispr Flow** (optional) or **Apple On-Device** (default) for speech-to-text
 - Tap-to-toggle interaction (tap to start recording, tap to stop)
 - PRISM PII scrubbing before sending to LUMARA (PII never leaves device)
 - TTS playback of LUMARA responses (with PII restored)
 - Phase-aware UI colors (matches user's current phase)
 - Visual feedback (sigil animations for listening/thinking/speaking states)
 - Multi-turn conversations within a session
+- **Voice usage tracking** with monthly limits for free users
 - **Sessions saved to timeline** when user taps "Finish"
 - **Export/import compatible** - voice entries preserve all metadata
 
@@ -50,11 +64,13 @@ Voice mode currently uses **"fast paths"** - lightweight prompts that bypass the
 | Component | Path |
 |-----------|------|
 | Voice Session Service | `lib/arc/chat/voice/services/voice_session_service.dart` |
+| Voice Usage Service | `lib/arc/chat/voice/services/voice_usage_service.dart` |
 | Voice Mode Screen | `lib/arc/chat/voice/ui/voice_mode_screen.dart` |
 | Voice Sigil Widget | `lib/arc/chat/voice/ui/voice_sigil.dart` |
 | Unified Transcription | `lib/arc/chat/voice/transcription/unified_transcription_service.dart` |
-| AssemblyAI Provider | `lib/arc/chat/voice/transcription/assemblyai_provider.dart` |
 | Apple On-Device Provider | `lib/arc/chat/voice/transcription/ondevice_provider.dart` |
+| Wispr Flow Service | `lib/arc/chat/voice/wispr/wispr_flow_service.dart` |
+| Wispr Config Service | `lib/arc/chat/voice/config/wispr_config_service.dart` |
 | TTS Client | `lib/arc/chat/voice/voice_journal/tts_client.dart` |
 | Voice System Initializer | `lib/arc/chat/voice/config/voice_system_initializer.dart` |
 | Enhanced LUMARA API | `lib/arc/chat/services/enhanced_lumara_api.dart` |
