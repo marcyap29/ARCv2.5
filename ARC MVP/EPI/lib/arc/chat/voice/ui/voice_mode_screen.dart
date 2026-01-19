@@ -14,7 +14,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../services/voice_session_service.dart';
 import '../models/voice_session.dart';
+import '../storage/voice_timeline_storage.dart';
 import '../../../../models/phase_models.dart';
+import '../../../../arc/internal/mira/journal_repository.dart';
 import 'voice_sigil.dart';
 import '../endpoint/smart_endpoint_detector.dart';
 
@@ -171,14 +173,38 @@ class _VoiceModeScreenState extends State<VoiceModeScreen> {
   Future<void> _onSessionComplete(VoiceSession session) async {
     if (!mounted) return;
     
-    // Show completion message
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Voice session saved (${session.turnCount} turns)'),
-        backgroundColor: Colors.green.shade700,
-        duration: const Duration(seconds: 2),
-      ),
-    );
+    // Save session to timeline
+    try {
+      final journalRepository = JournalRepository();
+      final voiceStorage = VoiceTimelineStorage(journalRepository: journalRepository);
+      final entryId = await voiceStorage.saveVoiceSession(session);
+      
+      debugPrint('VoiceModeScreen: Session saved to timeline (entry ID: $entryId)');
+      
+      if (!mounted) return;
+      
+      // Show success message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Voice conversation saved (${session.turnCount} turns)'),
+          backgroundColor: Colors.green.shade700,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    } catch (e) {
+      debugPrint('VoiceModeScreen: Error saving session: $e');
+      
+      if (!mounted) return;
+      
+      // Show error message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error saving conversation: $e'),
+          backgroundColor: Colors.red.shade700,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
     
     // Call completion callback
     widget.onComplete?.call();
