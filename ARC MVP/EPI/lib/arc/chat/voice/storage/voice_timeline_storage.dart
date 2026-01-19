@@ -178,7 +178,7 @@ class VoiceTimelineStorage {
   /// Get voice entry from timeline by entry ID
   Future<JournalEntry?> getVoiceEntry(String entryId) async {
     try {
-      return await _journalRepository.getEntry(entryId);
+      return await _journalRepository.getJournalEntryById(entryId);
     } catch (e) {
       debugPrint('VoiceStorage: Error getting entry: $e');
       return null;
@@ -211,7 +211,7 @@ class VoiceTimelineStorage {
   /// Update voice entry (e.g., add notes)
   Future<void> updateVoiceEntry(String entryId, JournalEntry updatedEntry) async {
     try {
-      await _journalRepository.updateEntry(updatedEntry);
+      await _journalRepository.updateJournalEntry(updatedEntry);
       debugPrint('VoiceStorage: Voice entry updated');
     } catch (e) {
       debugPrint('VoiceStorage: Error updating entry: $e');
