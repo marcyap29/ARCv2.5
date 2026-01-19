@@ -101,31 +101,36 @@ Removed all mentions of "journal," "entry," and "journaling" from onboarding scr
 
 ---
 
-### 🔊 Transcription Backend Fallback Chain
+### 🔊 Transcription Backend System
 
-Voice mode now has a three-tier transcription fallback system:
+Voice mode uses a two-tier transcription system:
 
 | Priority | Backend | Requirements | Notes |
 |----------|---------|--------------|-------|
-| 1 | Wispr Flow | Under rate limit | Primary, fastest |
-| 2 | AssemblyAI | PRO/BETA tier | Cloud fallback |
-| 3 | Apple On-Device | None | Always available |
+| 1 | AssemblyAI | PRO/BETA tier | Primary, cloud-based |
+| 2 | Apple On-Device | None | Always available, no network |
+
+> **Note:** Wispr Flow was removed (not licensed for commercial use)
 
 #### Benefits
 - **Always works** - Apple On-Device guarantees voice mode availability
 - **Graceful degradation** - Best quality automatically selected
 - **No network dependency** - Works offline with on-device transcription
-- **Cost optimization** - Falls back to free options when cloud limits hit
+- **Commercial compliance** - All backends are commercially licensed
 
 #### User Feedback
-- Approaching Wispr limit: "You have X minutes remaining today"
-- Using AssemblyAI: "Using cloud transcription (Wispr limit reached)"
-- Using On-Device: "Using on-device transcription (cloud unavailable)"
+- Using On-Device: "Using on-device transcription"
 
 #### Files Added/Changed
-- `lib/arc/chat/voice/transcription/unified_transcription_service.dart` (NEW)
+- `lib/arc/chat/voice/transcription/unified_transcription_service.dart`
 - `lib/arc/chat/voice/config/voice_system_initializer.dart`
 - `lib/arc/chat/voice/services/voice_session_service.dart`
+
+#### Files Removed (Wispr Integration)
+- `lib/arc/chat/voice/wispr/wispr_flow_service.dart`
+- `lib/arc/chat/voice/wispr/wispr_rate_limiter.dart`
+- `lib/arc/chat/voice/config/wispr_config_service.dart`
+- `lib/arc/chat/voice/config/env_config.dart`
 
 ---
 
@@ -138,20 +143,6 @@ Voice mode now has a three-tier transcription fallback system:
 #### Phase Display Fix
 - **Bug**: Voice mode was using `UserPhaseService` which reads static onboarding data
 - **Fix**: Now uses `PhaseRegimeService` (same as Phase tab) for accurate current phase based on activity patterns
-
----
-
-### 🔒 Firebase & Backend
-
-#### Wispr API Integration
-- Added `getWisprApiKey` Cloud Function for secure API key retrieval
-- Implemented `WisprRateLimiter` with Firestore tracking
-- Added Firestore security rules for `users/{userId}/wispr_usage/{dateId}`
-
-#### Files Changed
-- `functions/src/functions/getWisprApiKey.ts`
-- `functions/src/index.ts`
-- `firestore.rules`
 
 ---
 

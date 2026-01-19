@@ -7,7 +7,7 @@
 
 ## Overview
 
-Voice mode allows users to have spoken conversations with LUMARA. The system captures speech via Wispr Flow API, processes it through PRISM (PII scrubbing), sends to LUMARA for response generation, and plays back via TTS.
+Voice mode allows users to have spoken conversations with LUMARA. The system captures speech via AssemblyAI (primary) or Apple On-Device (fallback), processes it through PRISM (PII scrubbing), sends to LUMARA for response generation, and plays back via TTS.
 
 **NEW:** Voice mode now automatically detects conversation depth and routes between:
 - **Jarvis Mode** - Quick, efficient responses (50-100 words, 3-5 seconds)
@@ -19,7 +19,7 @@ Voice mode allows users to have spoken conversations with LUMARA. The system cap
 
 ### What's Working
 - Long-press on "+" button activates voice mode
-- Wispr Flow integration for speech-to-text
+- AssemblyAI/Apple On-Device for speech-to-text
 - Tap-to-toggle interaction (tap to start recording, tap to stop)
 - PRISM PII scrubbing before sending to LUMARA
 - TTS playback of LUMARA responses
@@ -50,7 +50,9 @@ Voice mode currently uses **"fast paths"** - lightweight prompts that bypass the
 | Voice Session Service | `lib/arc/chat/voice/services/voice_session_service.dart` |
 | Voice Mode Screen | `lib/arc/chat/voice/ui/voice_mode_screen.dart` |
 | Voice Sigil Widget | `lib/arc/chat/voice/ui/voice_sigil.dart` |
-| Wispr Flow Service | `lib/arc/chat/voice/wispr/wispr_flow_service.dart` |
+| Unified Transcription | `lib/arc/chat/voice/transcription/unified_transcription_service.dart` |
+| AssemblyAI Provider | `lib/arc/chat/voice/transcription/assemblyai_provider.dart` |
+| Apple On-Device Provider | `lib/arc/chat/voice/transcription/ondevice_provider.dart` |
 | TTS Client | `lib/arc/chat/voice/voice_journal/tts_client.dart` |
 | Voice System Initializer | `lib/arc/chat/voice/config/voice_system_initializer.dart` |
 | Enhanced LUMARA API | `lib/arc/chat/services/enhanced_lumara_api.dart` |
@@ -74,7 +76,7 @@ Support two conversation styles within voice mode:
 User speaks
     │
     ▼
-Wispr transcribes → "I need to process something that happened today..."
+Transcribed → "I need to process something that happened today..."
     │
     ▼
 ┌─────────────────────────────────────────────────────────┐
@@ -282,7 +284,7 @@ I'm here to think through this with you, at whatever pace feels right."
 ### Latency Breakdown (Estimated)
 | Step | Jarvis | Samantha |
 |------|--------|----------|
-| Wispr processing | 0.5s | 0.5s |
+| Transcription | 0.5s | 0.5s |
 | PRISM scrubbing | 0.1s | 0.1s |
 | Depth detection | - | 0.1s |
 | Prompt building | 0.1s | 0.5s |

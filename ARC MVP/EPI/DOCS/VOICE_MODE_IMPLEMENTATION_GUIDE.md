@@ -274,28 +274,22 @@ Their useful functionality was merged into:
 
 ## Transcription Backend Fallback Chain
 
-Voice mode uses a three-tier transcription fallback system:
+Voice mode uses a two-tier transcription fallback system:
 
 ```
 Voice Mode Start
        │
        ▼
 ┌─────────────────────────────────────────┐
-│  1. WISPR FLOW (Primary)                │
-│     ✓ Fastest, lowest latency           │
-│     ✗ Rate limited (60 min/day)         │
-└─────────────────────────────────────────┘
-       │ If limit exceeded
-       ▼
-┌─────────────────────────────────────────┐
-│  2. ASSEMBLYAI (1st Fallback)           │
+│  1. ASSEMBLYAI (Primary)                │
 │     ✓ High accuracy cloud               │
+│     ✓ Real-time streaming               │
 │     ✗ Requires PRO/BETA tier            │
 └─────────────────────────────────────────┘
        │ If not PRO/unavailable
        ▼
 ┌─────────────────────────────────────────┐
-│  3. APPLE ON-DEVICE (2nd Fallback)      │
+│  2. APPLE ON-DEVICE (Fallback)          │
 │     ✓ Always available                  │
 │     ✓ No network required               │
 │     ✓ No API costs                      │
@@ -308,18 +302,15 @@ Voice Mode Start
 | Component | File |
 |-----------|------|
 | Unified Service | `lib/arc/chat/voice/transcription/unified_transcription_service.dart` |
-| Wispr Flow | `lib/arc/chat/voice/wispr/wispr_flow_service.dart` |
 | AssemblyAI | `lib/arc/chat/voice/transcription/assemblyai_provider.dart` |
 | Apple On-Device | `lib/arc/chat/voice/transcription/ondevice_provider.dart` |
-| Rate Limiter | `lib/arc/chat/voice/wispr/wispr_rate_limiter.dart` |
 
 ### User Feedback Messages
 
 | Backend | Message Shown |
 |---------|---------------|
-| Wispr (approaching limit) | "You have X minutes remaining today" |
-| AssemblyAI | "Using cloud transcription (Wispr limit reached)" |
-| Apple On-Device | "Using on-device transcription (cloud unavailable)" |
+| AssemblyAI | (none - primary backend) |
+| Apple On-Device | "Using on-device transcription" |
 
 ---
 
@@ -352,6 +343,7 @@ This ensures voice mode displays the correct phase based on user activity patter
 
 ## Version History
 
+- v2.0 (2026-01-17): Removed Wispr Flow (commercial restrictions), AssemblyAI now primary
 - v1.2 (2026-01-17): Added Apple On-Device as final transcription fallback
 - v1.1 (2026-01-17): Added AssemblyAI fallback, fixed phase detection, fixed Finish button
 - v1.0 (2026-01-17): Initial implementation with Jarvis/Samantha dual-mode system

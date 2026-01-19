@@ -2760,19 +2760,19 @@ Phase-adaptive silence detection for natural conversation flow:
 | **Recovery** | Longer | Patient, supportive listening |
 | **Breakthrough** | Adaptive | Match intensity of insight |
 
-### Wispr Flow Integration
+### Transcription Backend System
 
 **Files:**
-- `lib/arc/chat/voice/wispr/wispr_flow_service.dart` - WebSocket streaming transcription
-- `lib/arc/chat/voice/wispr/wispr_rate_limiter.dart` - API usage limits
-- `lib/arc/chat/voice/config/wispr_config_service.dart` - Secure API key retrieval
+- `lib/arc/chat/voice/transcription/unified_transcription_service.dart` - Backend orchestration with fallback
+- `lib/arc/chat/voice/transcription/assemblyai_provider.dart` - AssemblyAI streaming (primary)
+- `lib/arc/chat/voice/transcription/ondevice_provider.dart` - Apple On-Device (fallback)
 
-**Authentication Flow:**
+**Fallback Chain:**
 1. User initiates voice mode
-2. `WisprConfigService` calls `getWisprApiKey` Cloud Function
-3. Cloud Function retrieves API key from Firebase Secrets
-4. WebSocket connection established with Wispr Flow
-5. Real-time streaming transcription begins
+2. `UnifiedTranscriptionService` checks AssemblyAI availability
+3. If available (PRO/BETA tier), use AssemblyAI streaming
+4. Otherwise, fall back to Apple On-Device transcription
+5. Real-time transcription begins
 
 ### Voice Session Service
 
@@ -2780,9 +2780,9 @@ Phase-adaptive silence detection for natural conversation flow:
 
 Orchestrates the complete voice conversation:
 
-1. **Initialize** - Fetch API key, setup services
+1. **Initialize** - Setup transcription backend
 2. **Permission Check** - Request microphone access
-3. **Listening** - Capture audio, stream to Wispr
+3. **Listening** - Capture audio, transcribe in real-time
 4. **Smart Endpoint** - Detect natural turn boundaries
 5. **Processing** - Scrub PII via PRISM adapter
 6. **LUMARA Response** - Generate and speak via TTS
@@ -2808,8 +2808,9 @@ Sessions are saved as `VoiceConversationEntry` to the timeline, preserving:
 
 **Services:**
 - `voice_session_service.dart` - Session orchestration
-- `wispr_flow_service.dart` - Streaming transcription
-- `wispr_config_service.dart` - Secure API key management
+- `unified_transcription_service.dart` - Transcription with fallback
+- `assemblyai_provider.dart` - AssemblyAI streaming
+- `ondevice_provider.dart` - Apple On-Device transcription
 - `audio_capture_service.dart` - Microphone input
 
 **Endpoint Detection:**
@@ -2822,8 +2823,7 @@ Sessions are saved as `VoiceConversationEntry` to the timeline, preserving:
 
 ### Requirements
 
-- **Firebase Functions**: `WISPR_FLOW_API_KEY` secret configured
-- **Cloud Function**: `getWisprApiKey` deployed
+- **AssemblyAI**: PRO/BETA tier for cloud transcription (optional - on-device always available)
 - **Microphone Permissions**: Granted by user
 - **Authentication**: User signed in via Firebase Auth
 

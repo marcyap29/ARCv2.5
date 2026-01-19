@@ -1,8 +1,8 @@
 /// Audio Capture Service
 /// 
-/// Captures audio from microphone and converts to 16 kHz PCM WAV format for Wispr
+/// Captures audio from microphone for transcription
 /// - Records audio from microphone
-/// - Converts to 16 kHz sample rate
+/// - Standard 16 kHz sample rate
 /// - Outputs PCM S16LE format (16-bit signed little-endian)
 /// - Chunks audio into 1-second segments
 /// - Provides audio level stream for visualizations
@@ -13,7 +13,7 @@ import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:record/record.dart';
 
-/// Audio configuration for Wispr Flow
+/// Audio configuration for transcription
 class AudioCaptureConfig {
   final int sampleRate;
   final int bitRate;
@@ -21,7 +21,7 @@ class AudioCaptureConfig {
   final int chunkDurationMs;
   
   const AudioCaptureConfig({
-    this.sampleRate = 16000, // Wispr requires 16 kHz
+    this.sampleRate = 16000, // Standard 16 kHz for speech recognition
     this.bitRate = 128000,
     this.numChannels = 1, // Mono
     this.chunkDurationMs = 1000, // 1 second chunks
@@ -48,7 +48,7 @@ typedef OnCaptureError = void Function(String error);
 
 /// Audio Capture Service
 /// 
-/// Handles microphone recording and audio processing for Wispr Flow
+/// Handles microphone recording and audio processing for transcription
 class AudioCaptureService {
   final AudioCaptureConfig _config;
   final AudioRecorder _recorder = AudioRecorder();
