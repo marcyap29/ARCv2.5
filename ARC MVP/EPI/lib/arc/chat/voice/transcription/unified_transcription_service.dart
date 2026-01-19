@@ -188,7 +188,14 @@ class UnifiedTranscriptionService {
       return false;
     }
     
+    // Reset status to ready first in case we're restarting
+    if (_status == UnifiedTranscriptionStatus.listening) {
+      debugPrint('UnifiedTranscription: Already listening, stopping first...');
+      await stopListening();
+    }
+    
     _status = UnifiedTranscriptionStatus.listening;
+    debugPrint('UnifiedTranscription: Starting to listen (backend: $activeBackendName)');
     
     switch (_activeBackend) {
       case TranscriptionBackend.wisprFlow:
@@ -259,7 +266,7 @@ class UnifiedTranscriptionService {
   
   /// Stop listening and get final transcript
   Future<void> stopListening() async {
-    debugPrint('UnifiedTranscription: Stopping...');
+    debugPrint('UnifiedTranscription: Stopping (status: $_status, backend: $activeBackendName)...');
     
     switch (_activeBackend) {
       case TranscriptionBackend.wisprFlow:
@@ -275,6 +282,7 @@ class UnifiedTranscriptionService {
     }
     
     _status = UnifiedTranscriptionStatus.ready;
+    debugPrint('UnifiedTranscription: Stopped, status now: $_status');
   }
   
   /// Disconnect and cleanup

@@ -60,7 +60,17 @@ class OnDeviceTranscriptionProvider implements TranscriptionProvider {
       }
     }
 
+    // IMPORTANT: Cancel any previous session before starting new one
+    // This ensures clean state for multi-turn conversations
+    if (_stt.isListening) {
+      print('OnDevice STT: Already listening, stopping first...');
+      await _stt.stop();
+      // Brief delay to ensure clean state
+      await Future.delayed(const Duration(milliseconds: 100));
+    }
+
     _status = ProviderStatus.listening;
+    print('OnDevice STT: Starting new listening session...');
 
     await _stt.listen(
       onResult: (result) {
@@ -95,9 +105,18 @@ class OnDeviceTranscriptionProvider implements TranscriptionProvider {
 
   @override
   Future<void> stopListening() async {
+    print('OnDevice STT: Stopping listening (isListening: ${_stt.isListening})...');
     _status = ProviderStatus.processing;
-    await _stt.stop();
+    
+    if (_stt.isListening) {
+      await _stt.stop();
+    }
+    
+    // Brief delay to ensure the plugin fully stops
+    await Future.delayed(const Duration(milliseconds: 50));
+    
     _status = ProviderStatus.idle;
+    print('OnDevice STT: Stopped and ready for next session');
   }
 
   @override
