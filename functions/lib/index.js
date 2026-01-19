@@ -1,7 +1,7 @@
 "use strict";
 // index.ts - Main entry point for Cloud Functions
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getAssemblyAIToken = exports.proxyGemini = exports.createCheckoutSession = exports.getUserSubscription = exports.generateJournalReflection = exports.generateJournalPrompts = exports.checkThrottleStatus = exports.lockThrottle = exports.unlockThrottle = exports.stripeWebhook = exports.sendChatMessage = exports.analyzeJournalEntry = void 0;
+exports.getWisprApiKey = exports.getAssemblyAIToken = exports.proxyGemini = exports.createCheckoutSession = exports.getUserSubscription = exports.generateJournalReflection = exports.generateJournalPrompts = exports.checkThrottleStatus = exports.lockThrottle = exports.unlockThrottle = exports.stripeWebhook = exports.sendChatMessage = exports.analyzeJournalEntry = void 0;
 /**
  * Firebase Cloud Functions - ARC Backend
  *
@@ -34,6 +34,8 @@ const proxyGemini_1 = require("./functions/proxyGemini");
 Object.defineProperty(exports, "proxyGemini", { enumerable: true, get: function () { return proxyGemini_1.proxyGemini; } });
 const getAssemblyAIToken_1 = require("./functions/getAssemblyAIToken");
 Object.defineProperty(exports, "getAssemblyAIToken", { enumerable: true, get: function () { return getAssemblyAIToken_1.getAssemblyAIToken; } });
+const getWisprApiKey_1 = require("./functions/getWisprApiKey");
+Object.defineProperty(exports, "getWisprApiKey", { enumerable: true, get: function () { return getWisprApiKey_1.getWisprApiKey; } });
 /**
  * Architecture Overview (Priority 3: Authentication & Security):
  *

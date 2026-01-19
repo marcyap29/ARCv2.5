@@ -168,17 +168,27 @@ class WisprRateLimiter {
     
     final duration = DateTime.now().difference(_sessionStartTime!);
     final seconds = duration.inSeconds;
+    _sessionStartTime = null;  // Reset immediately to prevent double-ending
     
     debugPrint('WisprRateLimit: Session ended. Duration: ${seconds}s');
     
-    await _recordUsage(seconds);
-    _sessionStartTime = null;
+    // Record usage in background - don't let Firestore errors crash the session
+    _recordUsage(seconds).catchError((e) {
+      debugPrint('WisprRateLimit: Failed to record usage (non-critical): $e');
+    });
   }
   
   /// Record usage in Firestore
+  /// Uses FieldValue.increment() instead of transactions for better reliability
   Future<void> _recordUsage(int seconds) async {
     if (seconds <= 0) {
       debugPrint('WisprRateLimit: No usage to record');
+      return;
+    }
+    
+    // Validate userId before attempting write
+    if (_userId.isEmpty) {
+      debugPrint('WisprRateLimit: Cannot record usage - userId is empty');
       return;
     }
     
@@ -187,42 +197,33 @@ class WisprRateLimiter {
       final today = _getDateKey(now);
       final currentHour = _getHourKey(now);
       
+      final path = 'users/$_userId/wispr_usage/$today';
+      debugPrint('WisprRateLimit: Recording ${seconds}s to path: $path');
+      
       final docRef = _firestore
           .collection('users')
           .doc(_userId)
           .collection('wispr_usage')
           .doc(today);
       
-      await _firestore.runTransaction((transaction) async {
-        final snapshot = await transaction.get(docRef);
-        
-        if (!snapshot.exists) {
-          // Create new document
-          transaction.set(docRef, {
-            'total_seconds': seconds,
-            'hourly': {currentHour: seconds},
-            'last_updated': FieldValue.serverTimestamp(),
-            'date': today,
-          });
-        } else {
-          // Update existing document
-          final data = snapshot.data()!;
-          final currentTotal = data['total_seconds'] as int? ?? 0;
-          final hourlyData = data['hourly'] as Map<String, dynamic>? ?? {};
-          final currentHourly = hourlyData[currentHour] as int? ?? 0;
-          
-          transaction.update(docRef, {
-            'total_seconds': currentTotal + seconds,
-            'hourly.$currentHour': currentHourly + seconds,
-            'last_updated': FieldValue.serverTimestamp(),
-          });
-        }
-      });
+      // Use set with merge and FieldValue.increment() instead of transaction
+      // This is more resilient to network issues and doesn't require read-before-write
+      await docRef.set({
+        'total_seconds': FieldValue.increment(seconds),
+        'hourly': {currentHour: FieldValue.increment(seconds)},
+        'last_updated': FieldValue.serverTimestamp(),
+        'date': today,
+      }, SetOptions(merge: true)).timeout(
+        const Duration(seconds: 5),
+        onTimeout: () {
+          debugPrint('WisprRateLimit: Usage recording timed out (non-critical)');
+        },
+      );
       
-      debugPrint('WisprRateLimit: Recorded ${seconds}s usage for user $_userId');
+      debugPrint('WisprRateLimit: Successfully recorded ${seconds}s usage for user $_userId');
       
     } catch (e) {
-      debugPrint('WisprRateLimit: Error recording usage: $e');
+      debugPrint('WisprRateLimit: Error recording usage to users/$_userId/wispr_usage: $e');
       // Don't throw - usage tracking failures shouldn't break the app
     }
   }

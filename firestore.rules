@@ -58,6 +58,11 @@ service cloud.firestore {
       match /chatThreads/{threadId} {
         allow read, write: if isOwner(userId);
       }
+      
+      // User's Wispr voice usage tracking subcollection
+      match /wispr_usage/{dateId} {
+        allow read, write: if isOwner(userId);
+      }
     }
     
     // ============================================

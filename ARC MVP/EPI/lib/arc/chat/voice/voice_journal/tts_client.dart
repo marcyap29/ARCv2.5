@@ -94,6 +94,7 @@ class TtsJournalClient {
       });
       
       _tts.setCompletionHandler(() {
+        debugPrint('TTS: Completion handler fired');
         _isSpeaking = false;
         _isPaused = false;
         _onComplete?.call();
@@ -143,13 +144,15 @@ class TtsJournalClient {
     
     if (text.trim().isEmpty) {
       debugPrint('TTS: Empty text, skipping');
+      _onComplete?.call(); // Still call completion if text is empty
       return;
     }
     
-    _onStart = onStart;
-    _onComplete = onComplete;
-    _onError = onError;
-    _onProgress = onProgress;
+    // Only override callbacks if explicitly provided (don't null out existing ones)
+    if (onStart != null) _onStart = onStart;
+    if (onComplete != null) _onComplete = onComplete;
+    if (onError != null) _onError = onError;
+    if (onProgress != null) _onProgress = onProgress;
     
     _metrics.ttsStart = DateTime.now();
     _speakCompleter = Completer<void>();

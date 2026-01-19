@@ -84,9 +84,9 @@ class _VoiceSigilState extends State<VoiceSigil> with TickerProviderStateMixin {
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
     
-    // Listening breathing animation (calm, rhythmic)
+    // Listening breathing animation (alive, rhythmic)
     _breathingController = AnimationController(
-      duration: const Duration(milliseconds: 1500),
+      duration: const Duration(milliseconds: 1200), // Faster breathing
       vsync: this,
     );
     _breathingAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
@@ -172,20 +172,20 @@ class _VoiceSigilState extends State<VoiceSigil> with TickerProviderStateMixin {
   }
   
   Color _getPhaseColor() {
-    // Return phase-appropriate colors
+    // Colors matching the rest of the app (see calendar_week_timeline.dart)
     switch (widget.currentPhase) {
-      case PhaseLabel.recovery:
-        return const Color(0xFF7E57C2); // Soft purple
-      case PhaseLabel.transition:
-        return const Color(0xFFFF9800); // Orange
       case PhaseLabel.discovery:
-        return const Color(0xFF4CAF50); // Green
+        return const Color(0xFF7C3AED); // Purple
       case PhaseLabel.expansion:
-        return const Color(0xFF2196F3); // Blue
+        return const Color(0xFF059669); // Green
+      case PhaseLabel.transition:
+        return const Color(0xFFD97706); // Orange
       case PhaseLabel.consolidation:
-        return const Color(0xFF9C27B0); // Purple
+        return const Color(0xFF2563EB); // Blue
+      case PhaseLabel.recovery:
+        return const Color(0xFFDC2626); // Red
       case PhaseLabel.breakthrough:
-        return const Color(0xFFFFD700); // Gold
+        return const Color(0xFFFBBF24); // Yellow/Amber
     }
   }
   
@@ -264,6 +264,38 @@ class _VoiceSigilState extends State<VoiceSigil> with TickerProviderStateMixin {
                   isShowingIntent: true,
                   phaseColor: phaseColor,
                 ),
+              ),
+            
+            // Radial glow effect (speaking state - LUMARA is talking)
+            if (widget.state == VoiceSigilState.speaking)
+              AnimatedBuilder(
+                animation: _pulseController,
+                builder: (context, child) {
+                  // Normalize pulse value for glow intensity
+                  final normalizedPulse = (_pulseAnimation.value - 0.95) / 0.10;
+                  final glowIntensity = 0.3 + (normalizedPulse * 0.4); // 0.3 to 0.7
+                  final glowSize = widget.size * (1.2 + (normalizedPulse * 0.3)); // 1.2x to 1.5x
+                  
+                  return Container(
+                    width: glowSize,
+                    height: glowSize,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: phaseColor.withOpacity(glowIntensity),
+                          blurRadius: 40 + (normalizedPulse * 30),
+                          spreadRadius: 10 + (normalizedPulse * 20),
+                        ),
+                        BoxShadow(
+                          color: phaseColor.withOpacity(glowIntensity * 0.5),
+                          blurRadius: 80 + (normalizedPulse * 40),
+                          spreadRadius: 20 + (normalizedPulse * 30),
+                        ),
+                      ],
+                    ),
+                  );
+                },
               ),
             
             // Main sigil (always present)
@@ -349,7 +381,8 @@ class _VoiceSigilState extends State<VoiceSigil> with TickerProviderStateMixin {
         return AnimatedBuilder(
           animation: _breathingController,
           builder: (context, child) {
-            final scale = 1.0 + (_breathingAnimation.value * 0.03);
+            // More noticeable breathing: 0.94 → 1.06 (±6% scale)
+            final scale = 0.94 + (_breathingAnimation.value * 0.12);
             return Transform.scale(
               scale: scale,
               child: child,
@@ -362,10 +395,20 @@ class _VoiceSigilState extends State<VoiceSigil> with TickerProviderStateMixin {
         return AnimatedBuilder(
           animation: _pulseController,
           builder: (context, child) {
+            // More dramatic speaking animation
+            // Normalize pulse value (0.95-1.05) to 0-1 range for effects
+            final normalizedPulse = (_pulseAnimation.value - 0.95) / 0.10;
+            
+            // More pronounced scale: 0.92 → 1.08 (±8%)
+            final scale = 0.92 + (normalizedPulse * 0.16);
+            
+            // Brighter glow effect: opacity pulses from 0.85 to 1.0
+            final opacity = (0.85 + (normalizedPulse * 0.15)).clamp(0.0, 1.0);
+            
             return Transform.scale(
-              scale: _pulseAnimation.value * 1.02,
+              scale: scale,
               child: Opacity(
-                opacity: 0.7 + (_pulseAnimation.value * 0.3),
+                opacity: opacity,
                 child: child,
               ),
             );
@@ -382,43 +425,57 @@ class _VoiceSigilState extends State<VoiceSigil> with TickerProviderStateMixin {
   }
 }
 
-/// Helper widget to show state label (for debugging/development)
+/// Helper widget to show state label with instructions
 class VoiceSigilStateLabel extends StatelessWidget {
   final VoiceSigilState state;
+  final bool hasConversationStarted;
   final String? additionalInfo;
   
   const VoiceSigilStateLabel({
     super.key,
     required this.state,
+    this.hasConversationStarted = false,
     this.additionalInfo,
   });
   
   @override
   Widget build(BuildContext context) {
+    final labels = _getStateLabels();
+    
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.6),
-        borderRadius: BorderRadius.circular(12),
+        color: Colors.black.withOpacity(0.5),
+        borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
-            _getStateLabel(),
+            labels.primary,
             style: const TextStyle(
               color: Colors.white,
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
             ),
           ),
+          if (labels.secondary != null) ...[
+            const SizedBox(height: 4),
+            Text(
+              labels.secondary!,
+              style: TextStyle(
+                color: Colors.white.withOpacity(0.6),
+                fontSize: 12,
+              ),
+            ),
+          ],
           if (additionalInfo != null) ...[
-            const SizedBox(height: 2),
+            const SizedBox(height: 4),
             Text(
               additionalInfo!,
               style: TextStyle(
-                color: Colors.white.withOpacity(0.7),
-                fontSize: 10,
+                color: Colors.white.withOpacity(0.5),
+                fontSize: 11,
               ),
             ),
           ],
@@ -427,20 +484,55 @@ class VoiceSigilStateLabel extends StatelessWidget {
     );
   }
   
-  String _getStateLabel() {
+  _StateLabelInfo _getStateLabels() {
     switch (state) {
       case VoiceSigilState.idle:
-        return 'Tap to start';
+        if (hasConversationStarted) {
+          return _StateLabelInfo(
+            primary: 'Tap to continue',
+            secondary: 'Or tap Finish to end conversation',
+          );
+        }
+        return _StateLabelInfo(
+          primary: 'Tap to talk to LUMARA',
+          secondary: null,
+        );
       case VoiceSigilState.listening:
-        return 'Listening...';
+        return _StateLabelInfo(
+          primary: 'Listening...',
+          secondary: 'Tap when you\'re done',
+        );
       case VoiceSigilState.commitment:
-        return 'Preparing to process...';
+        return _StateLabelInfo(
+          primary: 'Processing...',
+          secondary: null,
+        );
       case VoiceSigilState.accelerating:
-        return 'Almost ready...';
+        return _StateLabelInfo(
+          primary: 'Almost ready...',
+          secondary: null,
+        );
       case VoiceSigilState.thinking:
-        return 'LUMARA is thinking...';
+        return _StateLabelInfo(
+          primary: 'LUMARA is thinking...',
+          secondary: null,
+        );
       case VoiceSigilState.speaking:
-        return 'LUMARA is speaking...';
+        return _StateLabelInfo(
+          primary: 'LUMARA',
+          secondary: null,
+        );
     }
   }
+}
+
+/// Helper class for state labels
+class _StateLabelInfo {
+  final String primary;
+  final String? secondary;
+  
+  const _StateLabelInfo({
+    required this.primary,
+    this.secondary,
+  });
 }

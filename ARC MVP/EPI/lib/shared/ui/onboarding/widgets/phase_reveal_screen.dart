@@ -174,7 +174,7 @@ class _PhaseRevealScreenState extends State<PhaseRevealScreen>
                                 const SizedBox(height: 16),
 
                                 Text(
-                                  "Your phase constellation will fill with words and patterns as you journal. This is how ARC visualizes your narrative structure over time.",
+                                  "Your phase constellation will fill with words and patterns as we talk. This is how ARC visualizes your narrative structure over time.",
                                   style: bodyStyle(context).copyWith(
                                     color: Colors.white.withOpacity(0.7),
                                     fontSize: 14,

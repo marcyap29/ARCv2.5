@@ -21,6 +21,7 @@ import { getUserSubscription } from "./functions/getUserSubscription";
 import { createCheckoutSession } from "./functions/createCheckoutSession";
 import { proxyGemini } from "./functions/proxyGemini";
 import { getAssemblyAIToken } from "./functions/getAssemblyAIToken";
+import { getWisprApiKey } from "./functions/getWisprApiKey";
 
 // Export all Cloud Functions
 export { analyzeJournalEntry };
@@ -33,6 +34,7 @@ export { getUserSubscription };
 export { createCheckoutSession };
 export { proxyGemini };
 export { getAssemblyAIToken };
+export { getWisprApiKey };
 
 /**
  * Architecture Overview (Priority 3: Authentication & Security):

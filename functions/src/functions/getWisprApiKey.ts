@@ -20,7 +20,10 @@ const wisprApiKey = defineSecret("WISPR_FLOW_API_KEY");
  * @returns {Object} { apiKey: string }
  */
 export const getWisprApiKey = onCall(
-  { secrets: [wisprApiKey] },
+  { 
+    secrets: [wisprApiKey],
+    region: 'us-central1',
+  },
   async (request) => {
     // Verify user is authenticated (same pattern as getUserSubscription)
     if (!request.auth?.uid) {

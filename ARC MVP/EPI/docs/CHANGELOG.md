@@ -1,6 +1,6 @@
 # EPI ARC MVP - Changelog
 
-**Version:** 3.2.9
+**Version:** 3.3.0
 **Last Updated:** January 17, 2026
 
 ---
@@ -14,6 +14,104 @@ This changelog has been split into parts for easier navigation:
 | **[CHANGELOG_part1.md](CHANGELOG_part1.md)** | Dec 2025 | v2.1.43 - v2.1.87 (Current) |
 | **[CHANGELOG_part2.md](CHANGELOG_part2.md)** | Nov 2025 | v2.1.28 - v2.1.42 |
 | **[CHANGELOG_part3.md](CHANGELOG_part3.md)** | Jan-Oct 2025 | v2.0.0 - v2.1.27 & Earlier |
+
+---
+
+## [3.3.0] - January 17, 2026
+
+### 🎙️ Voice Mode: Jarvis/Samantha Dual-Mode System
+
+#### Overview
+Voice mode now automatically detects conversation depth and routes between two response styles:
+
+| Mode | Inspiration | Response | Latency |
+|------|-------------|----------|---------|
+| **Jarvis** | Tony Stark's AI | Quick, 50-100 words | 3-5 sec |
+| **Samantha** | "Her" (2013) | Deep, 150-200 words | 8-10 sec |
+
+#### Key Features
+- **Automatic Depth Detection**: Each utterance classified independently
+- **Reflective Triggers**: Processing language, emotional states, decision support, self-reflective questions
+- **Phase-Aware Prompts**: Both modes adapt tone based on user's current phase
+- **Latency Optimized**: Hard ceiling of 10 seconds for all voice responses
+
+#### New Files
+- `lib/arc/chat/voice/prompts/voice_response_builders.dart` - Jarvis & Samantha prompt builders
+- `DOCS/VOICE_MODE_IMPLEMENTATION_GUIDE.md` - Full implementation documentation
+- `DOCS/VOICE_MODE_STATUS.md` - Architecture overview
+- `DOCS/LUMARA_RESPONSE_SYSTEMS.md` - Response system documentation
+- `DOCS/UNIFIED_INTENT_CLASSIFIER_PROMPT.md` - Classification spec
+
+#### Code Cleanup
+Removed orphaned classifier code (~97KB):
+- `lib/services/lumara/companion_first_service.dart`
+- `lib/services/lumara/lumara_classifier_integration.dart`
+- `lib/services/lumara/master_prompt_builder.dart`
+- `lib/services/lumara/validation_service.dart`
+- `lib/services/lumara/response_mode_v2.dart`
+- Related test files
+
+#### Technical Details
+- Extended `EntryClassifier` with `classifyVoiceDepth()` method
+- Added `VoiceDepthMode` enum (transactional/reflective)
+- Voice session service now routes based on depth classification
+- Conversation history passed to prompt builders for context
+
+---
+
+### 🔧 Voice Mode Fixes
+
+#### Correct Phase Display
+- Fixed voice mode defaulting to "Discovery" instead of user's actual phase
+- `home_view.dart` now fetches phase via `UserPhaseService.getCurrentPhase()`
+- Phase correctly propagated to voice session and UI
+
+#### Correct Phase Colors
+- Fixed `_getPhaseColor()` in `voice_mode_screen.dart` and `voice_sigil.dart`
+- Colors now match app's established theme (Discovery=purple, Expansion=green, etc.)
+
+#### UI/UX Improvements
+- Immediate visual feedback when tapping to start/stop recording
+- Enhanced sigil breathing animation during recording (±6% scale)
+- More dramatic glow and pulse effects when LUMARA speaks
+- Fixed Opacity assertion error in speaking state
+- Fixed RenderFlex overflow in voice mode screen
+- Prevented auto-recording on voice mode entry
+
+#### Stability Fixes
+- Fixed double transcript processing race condition
+- Added `_isProcessingTranscript` guard flag
+- Fixed TTS callback overwrite issue
+- Improved Wispr transcript timing with polling mechanism
+
+---
+
+### 📝 Onboarding Language Update
+
+#### Reframing from "Journal" to "Conversation"
+Removed all mentions of "journal," "entry," and "journaling" from onboarding screens:
+- Introduction text updated to reference "conversations" and "chat"
+- Aligns with positioning as "narrative intelligence" rather than journaling app
+
+#### Files Changed
+- `arc_onboarding_cubit.dart`
+- `arc_onboarding_sequence.dart`
+- `onboarding_view.dart`
+- `phase_reveal_screen.dart`
+
+---
+
+### 🔒 Firebase & Backend
+
+#### Wispr API Integration
+- Added `getWisprApiKey` Cloud Function for secure API key retrieval
+- Implemented `WisprRateLimiter` with Firestore tracking
+- Added Firestore security rules for `users/{userId}/wispr_usage/{dateId}`
+
+#### Files Changed
+- `functions/src/functions/getWisprApiKey.ts`
+- `functions/src/index.ts`
+- `firestore.rules`
 
 ---
 

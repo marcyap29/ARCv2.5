@@ -4,6 +4,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.checkRateLimit = checkRateLimit;
 const admin_1 = require("./admin");
 const config_1 = require("./config");
+// FREE_MAX_REQUESTS_PER_DAY removed - using conversation-based limits instead
 const db = admin_1.admin.firestore();
 /**
  * Check if user can make a request based on rate limits

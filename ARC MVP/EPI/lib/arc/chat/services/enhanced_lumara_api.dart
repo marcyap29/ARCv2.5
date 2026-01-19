@@ -160,6 +160,10 @@ class EnhancedLumaraApi {
   /// Returns both the reflection text and attribution traces
   /// 
   /// For in-journal LUMARA, pass [entryId] to enforce per-entry usage limits.
+  /// 
+  /// [forceQuickResponse] - When true (e.g., for voice mode), bypasses heavy reflective
+  /// processing and uses fast response paths regardless of content classification.
+  /// This ensures voice conversations get quick responses (2-5 seconds vs 30-40 seconds).
   Future<ReflectionResult> generatePromptedReflection({
     required String entryText,
     required String intent,
@@ -171,6 +175,7 @@ class EnhancedLumaraApi {
     String? chatContext,
     String? mediaContext,
     String? entryId, // For per-entry usage limit tracking
+    bool forceQuickResponse = false, // For voice mode - use fast paths
     // New v2.3 options
     models.LumaraReflectionOptions? options,
     void Function(String message)? onProgress,
@@ -199,6 +204,7 @@ class EnhancedLumaraApi {
       chatContext: chatContext,
       mediaContext: mediaContext,
       entryId: entryId,
+      forceQuickResponse: forceQuickResponse,
       onProgress: onProgress,
     );
     
@@ -209,6 +215,9 @@ class EnhancedLumaraApi {
   /// Returns both the reflection text and attribution traces from the nodes used
   /// 
   /// For in-journal LUMARA, pass [entryId] to enforce per-entry usage limits.
+  /// 
+  /// [forceQuickResponse] - For voice mode: bypass heavy reflective processing,
+  /// use fast paths (factual for questions, conversational for statements).
   Future<ReflectionResult> generatePromptedReflectionV23({
     required models.LumaraReflectionRequest request,
     String? userId,
@@ -217,6 +226,7 @@ class EnhancedLumaraApi {
     String? chatContext,
     String? mediaContext,
     String? entryId, // For per-entry usage limit tracking
+    bool forceQuickResponse = false, // For voice mode - use fast paths
     void Function(String message)? onProgress,
   }) async {
     try {
@@ -227,7 +237,22 @@ class EnhancedLumaraApi {
       // ===========================================================
       // STEP 0: CLASSIFY ENTRY TYPE (NEW - BEFORE ANY OTHER PROCESSING)
       // ===========================================================
-      final entryType = EntryClassifier.classify(request.userText);
+      EntryType entryType;
+      
+      if (forceQuickResponse) {
+        // VOICE MODE: Force fast paths regardless of content
+        // Use factual for questions (100 words), conversational for statements (50 words)
+        final isQuestion = request.userText.contains('?') || 
+            RegExp(r'\b(what|how|why|when|where|who|which|can|could|would|should|is|are|do|does|did)\b', caseSensitive: false)
+                .hasMatch(request.userText.split(' ').take(3).join(' '));
+        
+        entryType = isQuestion ? EntryType.factual : EntryType.conversational;
+        print('LUMARA: Voice mode - forcing ${entryType.name} path for fast response');
+      } else {
+        // Normal classification for journal/chat
+        entryType = EntryClassifier.classify(request.userText);
+      }
+      
       final responseMode = ResponseMode.forEntryType(entryType, request.userText);
 
       onProgress?.call('Entry classified as: ${EntryClassifier.getTypeDescription(entryType)}');

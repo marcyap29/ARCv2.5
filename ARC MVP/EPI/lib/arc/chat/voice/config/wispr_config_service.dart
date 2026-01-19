@@ -97,8 +97,16 @@ class WisprConfigService {
       
       // Refresh ID token to ensure it's valid for the function call
       try {
-        await currentUser.getIdToken(true); // Force refresh
-        debugPrint('WisprConfigService: Auth token refreshed');
+        final token = await currentUser.getIdToken(true); // Force refresh
+        debugPrint('WisprConfigService: Auth token refreshed (token length: ${token?.length ?? 0})');
+        
+        if (token == null || token.isEmpty) {
+          debugPrint('WisprConfigService: Token is null or empty after refresh');
+          return null;
+        }
+        
+        // Small delay to ensure token is fully propagated
+        await Future.delayed(const Duration(milliseconds: 100));
       } catch (e) {
         debugPrint('WisprConfigService: Failed to refresh auth token: $e');
         return null;
@@ -106,7 +114,12 @@ class WisprConfigService {
       
       debugPrint('WisprConfigService: Fetching API key from Firebase (user: ${currentUser.uid})...');
       
+      // Verify auth state one more time before calling
+      final authToken = await currentUser.getIdToken(false); // Don't force refresh, just get current
+      debugPrint('WisprConfigService: Current auth token exists: ${authToken != null && authToken.isNotEmpty}');
+      
       final callable = _functionsInstance.httpsCallable('getWisprApiKey');
+      debugPrint('WisprConfigService: Calling function with region: ${_functionsInstance.app.name}');
       final result = await callable.call<Map<String, dynamic>>();
       
       final data = result.data;

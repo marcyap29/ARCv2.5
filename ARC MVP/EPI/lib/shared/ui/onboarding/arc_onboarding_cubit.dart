@@ -215,7 +215,7 @@ class ArcOnboardingCubit extends Cubit<ArcOnboardingState> {
       final defaultAnalysis = PhaseAnalysis(
         phase: phase,
         confidence: ConfidenceLevel.low,
-        recognitionStatement: "Welcome back. Your phase constellation will fill with words and patterns as you journal.",
+        recognitionStatement: "Welcome back. Your phase constellation will fill with words and patterns as we talk.",
         trackingQuestion: "What are you exploring?",
         reasoning: "Quiz skipped - using existing phase: $phaseString",
       );

@@ -52,16 +52,19 @@ class _VoiceModeScreenState extends State<VoiceModeScreen> {
   
   void _setupCallbacks() {
     widget.sessionService.onStateChanged = (state) {
+      if (!mounted) return;
       _previousState = _state;
       setState(() => _state = state);
       _handleStateChangeHaptics(state);
     };
     
     widget.sessionService.onTranscriptUpdate = (transcript) {
+      if (!mounted) return;
       setState(() => _currentTranscript = transcript);
     };
     
     widget.sessionService.onLumaraResponse = (response) {
+      if (!mounted) return;
       // Haptic feedback when LUMARA starts responding
       HapticFeedback.lightImpact();
       setState(() {
@@ -72,15 +75,18 @@ class _VoiceModeScreenState extends State<VoiceModeScreen> {
     };
     
     widget.sessionService.onTurnComplete = (turn) {
+      if (!mounted) return;
       setState(() => _turnCount++);
     };
     
     widget.sessionService.onError = (error) {
+      if (!mounted) return;
       HapticFeedback.heavyImpact(); // Error feedback
       _showError(error);
     };
     
     widget.sessionService.onSessionComplete = (session) {
+      if (!mounted) return;
       _onSessionComplete(session);
     };
   }
@@ -108,7 +114,8 @@ class _VoiceModeScreenState extends State<VoiceModeScreen> {
   Future<void> _initialize() async {
     final success = await widget.sessionService.initialize();
     if (success && mounted) {
-      await widget.sessionService.startSession();
+      // Don't auto-start session - wait for user to tap sigil
+      // State will be idle, user taps to begin
     }
   }
   
@@ -132,19 +139,20 @@ class _VoiceModeScreenState extends State<VoiceModeScreen> {
   }
   
   Color _getPhaseColor(PhaseLabel phase) {
+    // Colors matching the rest of the app (see calendar_week_timeline.dart)
     switch (phase) {
-      case PhaseLabel.recovery:
-        return const Color(0xFF7E57C2);
-      case PhaseLabel.transition:
-        return const Color(0xFFFF9800);
       case PhaseLabel.discovery:
-        return const Color(0xFF4CAF50);
+        return const Color(0xFF7C3AED); // Purple
       case PhaseLabel.expansion:
-        return const Color(0xFF2196F3);
+        return const Color(0xFF059669); // Green
+      case PhaseLabel.transition:
+        return const Color(0xFFD97706); // Orange
       case PhaseLabel.consolidation:
-        return const Color(0xFF9C27B0);
+        return const Color(0xFF2563EB); // Blue
+      case PhaseLabel.recovery:
+        return const Color(0xFFDC2626); // Red
       case PhaseLabel.breakthrough:
-        return const Color(0xFFFFD700);
+        return const Color(0xFFFBBF24); // Yellow/Amber
     }
   }
   
@@ -217,20 +225,20 @@ class _VoiceModeScreenState extends State<VoiceModeScreen> {
             // Phase indicator
             _buildPhaseIndicator(),
             
-            const SizedBox(height: 20),
+            const SizedBox(height: 12),
             
             // Transcript display (above sigil)
             Expanded(
-              flex: 2,
+              flex: 1,
               child: _buildTranscriptDisplay(),
             ),
             
-            const SizedBox(height: 20),
+            const SizedBox(height: 8),
             
             // Voice sigil (center)
             _buildVoiceSigil(),
             
-            const SizedBox(height: 20),
+            const SizedBox(height: 8),
             
             // LUMARA response display (below sigil)
             Expanded(
@@ -238,12 +246,12 @@ class _VoiceModeScreenState extends State<VoiceModeScreen> {
               child: _buildLumaraResponseDisplay(),
             ),
             
-            const SizedBox(height: 20),
+            const SizedBox(height: 12),
             
             // Controls
             _buildControls(),
             
-            const SizedBox(height: 20),
+            const SizedBox(height: 12),
           ],
         ),
       ),
@@ -284,36 +292,9 @@ class _VoiceModeScreenState extends State<VoiceModeScreen> {
   }
   
   Widget _buildTranscriptDisplay() {
-    // Show instructions on first turn
+    // First turn idle state - no transcript to show, instructions are below sigil
     if (_isFirstTurn && _state == VoiceSessionState.idle) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.mic,
-              size: 32,
-              color: Colors.white.withOpacity(0.3),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'Hold the sigil to speak',
-              style: TextStyle(
-                color: Colors.white.withOpacity(0.5),
-                fontSize: 16,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Release when finished',
-              style: TextStyle(
-                color: Colors.white.withOpacity(0.3),
-                fontSize: 14,
-              ),
-            ),
-          ],
-        ),
-      );
+      return const SizedBox(); // Instructions are now shown below sigil via VoiceSigilStateLabel
     }
     
     // Show listening state with real-time transcript
@@ -497,24 +478,49 @@ class _VoiceModeScreenState extends State<VoiceModeScreen> {
             currentPhase: widget.sessionService.currentPhase,
             audioLevel: _audioLevel,
             commitmentLevel: _commitmentLevel,
-            onTap: _state == VoiceSessionState.listening 
-                ? () => widget.sessionService.endpointDetector.onUserTap()
-                : null,
+            onTap: _handleSigilTap,
             size: 200,
           ),
           
           const SizedBox(height: 16),
           
-          // State label
+          // State label with instructions
           VoiceSigilStateLabel(
             state: _mapToSigilState(_state),
-            additionalInfo: _state == VoiceSessionState.listening && _commitmentLevel != null
-                ? 'Tap to end'
-                : null,
+            hasConversationStarted: _turnCount > 0,
           ),
         ],
       ),
     );
+  }
+  
+  /// Handle tap on sigil for tap-to-toggle interaction
+  void _handleSigilTap() {
+    switch (_state) {
+      case VoiceSessionState.idle:
+        // Tap to start talking
+        HapticFeedback.mediumImpact();
+        widget.sessionService.startListening();
+        break;
+        
+      case VoiceSessionState.listening:
+        // Tap to stop and send to LUMARA
+        HapticFeedback.lightImpact();
+        widget.sessionService.stopListening();
+        break;
+        
+      case VoiceSessionState.processingTranscript:
+      case VoiceSessionState.scrubbing:
+      case VoiceSessionState.waitingForLumara:
+      case VoiceSessionState.speaking:
+        // Can't tap during these states - LUMARA is working
+        break;
+        
+      case VoiceSessionState.initializing:
+      case VoiceSessionState.error:
+        // Can't interact during these states
+        break;
+    }
   }
   
   Widget _buildControls() {

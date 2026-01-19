@@ -416,7 +416,8 @@ Be thoughtful, empathetic, and supportive while maintaining these protocols.`;
  * 3. Selects a non-repetitive closing using the tracking system
  * 4. Replaces the existing closing with the selected one
  */
-async function enforceClosingRotation(response, userId, conversationId, userMessage, atlasPhase) {
+// @ts-ignore - Function kept for future use
+async function _enforceClosingRotation(response, userId, conversationId, userMessage, atlasPhase) {
     try {
         // Check if response has a closing statement (ends with a question)
         const hasClosingQuestion = response.trim().endsWith('?');

@@ -6,6 +6,32 @@ enum EntryType {
   metaAnalysis    // Explicit requests for pattern recognition
 }
 
+/// Voice depth mode for Jarvis/Samantha dual-mode system
+/// Used to determine response depth in voice conversations
+enum VoiceDepthMode {
+  transactional,  // Jarvis: Quick, efficient, 50-100 words
+  reflective,     // Samantha: Deep, engaged, 150-200 words
+}
+
+/// Result of voice depth classification
+class VoiceDepthResult {
+  final VoiceDepthMode depth;
+  final double confidence;
+  final List<String> triggers;
+  
+  const VoiceDepthResult({
+    required this.depth,
+    required this.confidence,
+    required this.triggers,
+  });
+  
+  Map<String, dynamic> toJson() => {
+    'depth': depth.name,
+    'confidence': confidence,
+    'triggers': triggers,
+  };
+}
+
 class EntryClassifier {
 
   /// Main classification function
@@ -327,5 +353,210 @@ class EntryClassifier {
       'hasStruggleLanguage': _containsStruggleLanguage(lowerText),
       'finalClassification': classify(entryText),
     };
+  }
+
+  // =========================================================================
+  // VOICE DEPTH CLASSIFICATION (Jarvis/Samantha dual-mode system)
+  // =========================================================================
+
+  /// Classify voice input for depth mode (transactional vs reflective)
+  /// Used to route between Jarvis (quick) and Samantha (deep) response paths
+  /// 
+  /// Returns VoiceDepthResult with depth, confidence, and matched triggers
+  static VoiceDepthResult classifyVoiceDepth(String transcript) {
+    if (transcript.trim().isEmpty) {
+      return const VoiceDepthResult(
+        depth: VoiceDepthMode.transactional,
+        confidence: 1.0,
+        triggers: [],
+      );
+    }
+
+    final lowerText = transcript.toLowerCase();
+    final wordCount = _countWords(transcript);
+    final triggers = <String>[];
+    double confidence = 0.0;
+
+    // Check for REFLECTIVE triggers (any match → reflective)
+    
+    // 1. Explicit processing language
+    if (_containsProcessingLanguage(lowerText)) {
+      triggers.add('processing_language');
+      confidence += 0.3;
+    }
+
+    // 2. Emotional struggle markers (reuse existing)
+    if (_containsStruggleLanguage(lowerText)) {
+      triggers.add('struggle_language');
+      confidence += 0.25;
+    }
+
+    // 3. Emotional state declarations
+    if (_containsEmotionalStateDeclaration(lowerText)) {
+      triggers.add('emotional_state');
+      confidence += 0.25;
+    }
+
+    // 4. Decision support requests
+    if (_containsDecisionSupportLanguage(lowerText)) {
+      triggers.add('decision_support');
+      confidence += 0.25;
+    }
+
+    // 5. Self-reflective questions
+    if (_containsSelfReflectiveQuestions(lowerText)) {
+      triggers.add('self_reflective_question');
+      confidence += 0.25;
+    }
+
+    // 6. Relationship/identity exploration
+    if (_containsRelationshipIdentityLanguage(lowerText)) {
+      triggers.add('relationship_identity');
+      confidence += 0.2;
+    }
+
+    // 7. High emotional density (reuse existing calculation)
+    final emotionalDensity = _calculateEmotionalDensity(transcript);
+    if (emotionalDensity > 0.15) {
+      triggers.add('high_emotional_density');
+      confidence += 0.2;
+    }
+
+    // 8. Long utterances with personal pronouns
+    final firstPersonDensity = _calculateFirstPersonDensity(transcript);
+    if (wordCount > 50 && firstPersonDensity > 0.1) {
+      triggers.add('long_personal_utterance');
+      confidence += 0.15;
+    }
+
+    // Determine depth based on triggers
+    if (triggers.isNotEmpty) {
+      // Cap confidence at 1.0
+      confidence = confidence.clamp(0.0, 1.0);
+      return VoiceDepthResult(
+        depth: VoiceDepthMode.reflective,
+        confidence: confidence,
+        triggers: triggers,
+      );
+    }
+
+    // No reflective triggers → transactional (default)
+    // Higher confidence for shorter, simpler utterances
+    final transactionalConfidence = wordCount < 20 ? 1.0 : 
+                                    wordCount < 50 ? 0.9 : 0.8;
+    
+    return VoiceDepthResult(
+      depth: VoiceDepthMode.transactional,
+      confidence: transactionalConfidence,
+      triggers: [],
+    );
+  }
+
+  /// Check for explicit processing language
+  /// "I need to process...", "Help me think through...", etc.
+  static bool _containsProcessingLanguage(String lowerText) {
+    final processingPatterns = [
+      r'\bi need to process\b',
+      r'\bi need to think through\b',
+      r'\bi need to work through\b',
+      r'\bhelp me think about\b',
+      r'\bhelp me think through\b',
+      r'\bhelp me understand\b',
+      r'\bcan we talk about\b',
+      r"\blet'?s explore\b",
+      r"\blet'?s discuss\b",
+      r'\bi want to talk about\b',
+      r'\bi need to talk about\b',
+    ];
+
+    return processingPatterns.any((pattern) => 
+      RegExp(pattern).hasMatch(lowerText)
+    );
+  }
+
+  /// Check for emotional state declarations
+  /// "I'm feeling...", "I feel [emotion] about..."
+  static bool _containsEmotionalStateDeclaration(String lowerText) {
+    final emotionalStatePatterns = [
+      r"\bi'?m feeling\b",
+      r'\bi feel \w+ about\b',
+      r"\bi'?m so \w+ (about|that|because)\b",
+      r'\bfeeling (really|very|so|quite) \w+\b',
+    ];
+
+    return emotionalStatePatterns.any((pattern) => 
+      RegExp(pattern).hasMatch(lowerText)
+    );
+  }
+
+  /// Check for decision support requests
+  /// "Should I...", "What do you think about...", "Help me decide..."
+  static bool _containsDecisionSupportLanguage(String lowerText) {
+    final decisionPatterns = [
+      r'\bshould i\b',
+      r'\bwhat do you think (about|of)\b',
+      r'\bdo you think i should\b',
+      r'\bhelp me decide\b',
+      r"\bi can'?t decide\b",
+      r"\bi don'?t know (if|whether) i should\b",
+      r'\bwhat would you do\b',
+      r'\bwhat should i do\b',
+    ];
+
+    return decisionPatterns.any((pattern) => 
+      RegExp(pattern).hasMatch(lowerText)
+    );
+  }
+
+  /// Check for self-reflective questions
+  /// "Why do I...", "Am I being...", "What does it mean that I..."
+  static bool _containsSelfReflectiveQuestions(String lowerText) {
+    final selfReflectivePatterns = [
+      r'\bwhy do i\b',
+      r'\bwhy am i\b',
+      r'\bwhat does it mean that i\b',
+      r'\bam i being\b',
+      r'\bam i (too|being too)\b',
+      r"\bi don'?t understand why i\b",
+      r"\bi can'?t figure out (why|what)\b",
+      r"\bi'?m not sure (why|what|if) i\b",
+      r'\bwhat is wrong with me\b',
+      r"\bwhy can'?t i\b",
+    ];
+
+    return selfReflectivePatterns.any((pattern) => 
+      RegExp(pattern).hasMatch(lowerText)
+    );
+  }
+
+  /// Check for relationship/identity exploration
+  /// Questions about relationships, purpose, meaning, values
+  static bool _containsRelationshipIdentityLanguage(String lowerText) {
+    final relationshipIdentityPatterns = [
+      r'\bmy relationship with\b',
+      r'\bwho i (am|want to be)\b',
+      r'\bwhat i (really )?want\b',
+      r'\bmy purpose\b',
+      r'\bmeaning (of|in) (my )?life\b',
+      r'\bmy values\b',
+      r'\bwhat matters (to me|most)\b',
+      r'\bwho i am\b',
+      r'\bwhat kind of person\b',
+      r'\bmy identity\b',
+    ];
+
+    return relationshipIdentityPatterns.any((pattern) => 
+      RegExp(pattern).hasMatch(lowerText)
+    );
+  }
+
+  /// Get human-readable description of voice depth mode
+  static String getVoiceDepthDescription(VoiceDepthMode mode) {
+    switch (mode) {
+      case VoiceDepthMode.transactional:
+        return 'Quick Response (Jarvis)';
+      case VoiceDepthMode.reflective:
+        return 'Deep Engagement (Samantha)';
+    }
   }
 }

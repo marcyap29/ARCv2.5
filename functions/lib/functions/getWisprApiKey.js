@@ -19,7 +19,10 @@ const wisprApiKey = (0, params_1.defineSecret)("WISPR_FLOW_API_KEY");
  *
  * @returns {Object} { apiKey: string }
  */
-exports.getWisprApiKey = (0, https_1.onCall)({ secrets: [wisprApiKey] }, async (request) => {
+exports.getWisprApiKey = (0, https_1.onCall)({
+    secrets: [wisprApiKey],
+    region: 'us-central1',
+}, async (request) => {
     // Verify user is authenticated (same pattern as getUserSubscription)
     if (!request.auth?.uid) {
         firebase_functions_1.logger.warn("getWisprApiKey: Unauthenticated request");

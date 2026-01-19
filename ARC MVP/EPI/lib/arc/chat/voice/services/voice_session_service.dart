@@ -21,12 +21,12 @@ import '../audio/audio_capture_service.dart';
 import '../endpoint/smart_endpoint_detector.dart';
 import '../../../internal/echo/prism_adapter.dart';
 import '../voice_journal/tts_client.dart';
-import '../voice_journal/voice_prompt_builder.dart';
-import '../voice_journal/voice_mode.dart';
+import '../prompts/voice_response_builders.dart';
 import '../../services/enhanced_lumara_api.dart';
 import '../../models/lumara_reflection_options.dart' as models;
 import '../models/voice_session.dart';
 import '../../../../models/phase_models.dart';
+import '../../../../services/lumara/entry_classifier.dart';
 
 /// Voice session state
 enum VoiceSessionState {
@@ -67,6 +67,7 @@ class VoiceSessionService {
   
   String _currentTranscript = '';
   DateTime? _turnStartTime;
+  bool _isProcessingTranscript = false; // Guard against double processing
   
   // Callbacks
   OnSessionStateChanged? onStateChanged;
@@ -188,8 +189,9 @@ class VoiceSessionService {
   
   /// Start a new session
   Future<void> startSession() async {
-    if (_state != VoiceSessionState.idle) {
-      debugPrint('VoiceSession: Cannot start - not idle (current state: ${_state.name})');
+    // Allow starting from idle OR listening (listening set immediately for UI feedback)
+    if (_state != VoiceSessionState.idle && _state != VoiceSessionState.listening) {
+      debugPrint('VoiceSession: Cannot start - not idle/listening (current state: ${_state.name})');
       return;
     }
     
@@ -219,6 +221,18 @@ class VoiceSessionService {
   Future<void> _startTurn() async {
     _currentTranscript = '';
     _turnStartTime = DateTime.now();
+    _isProcessingTranscript = false; // Reset for new turn
+    
+    // Ensure Wispr is connected and authenticated before starting session
+    if (!_wisprService.isConnected || !_wisprService.isAuthenticated) {
+      debugPrint('VoiceSession: Wispr not connected/authenticated, reconnecting...');
+      final connected = await _wisprService.connect();
+      if (!connected || !_wisprService.isAuthenticated) {
+        onError?.call('Failed to connect to transcription service');
+        _updateState(VoiceSessionState.error);
+        return;
+      }
+    }
     
     // Start Wispr session
     await _wisprService.startSession();
@@ -255,28 +269,57 @@ class VoiceSessionService {
     debugPrint('VoiceSession: Wispr connected');
   }
   
+  /// Track if we're waiting for final transcript after endpoint detected
+  bool _waitingForFinalTranscript = false;
+  
   /// Handle transcripts from Wispr
   void _onWisprTranscript(WisprTranscript transcript) {
-    if (_state != VoiceSessionState.listening) return;
-    
-    // Update current transcript
+    // Update current transcript even if not in listening state
+    // (final transcript may arrive after endpoint detected)
     _currentTranscript = transcript.text;
     
     // Notify UI
     onTranscriptUpdate?.call(transcript.text);
     
-    // Update endpoint detector
-    _endpointDetector.onTranscriptUpdate(transcript.text);
+    // Update endpoint detector if still listening
+    if (_state == VoiceSessionState.listening) {
+      _endpointDetector.onTranscriptUpdate(transcript.text);
+    }
     
-    // If final transcript, commit Wispr session
-    if (transcript.isFinal) {
+    // If final transcript and we were waiting for it, process now
+    if (transcript.isFinal && _waitingForFinalTranscript) {
+      debugPrint('VoiceSession: Final transcript received, processing...');
+      _waitingForFinalTranscript = false;
+      _processTranscript();
+    } else if (transcript.isFinal && _state == VoiceSessionState.listening) {
+      // Auto-detected endpoint from Wispr
       _wisprService.commitSession();
     }
   }
   
-  /// Handle endpoint detection
+  /// Handle endpoint detection (auto-detected by smart endpoint detector)
   void _onEndpointDetected() async {
-    debugPrint('VoiceSession: Endpoint detected');
+    debugPrint('VoiceSession: Endpoint auto-detected');
+    await _stopListeningAndProcess();
+  }
+  
+  /// Stop listening and process transcript (for tap-to-toggle or endpoint detection)
+  Future<void> stopListening() async {
+    if (_state != VoiceSessionState.listening) {
+      debugPrint('VoiceSession: Cannot stop listening - not in listening state');
+      return;
+    }
+    debugPrint('VoiceSession: User tapped to stop listening');
+    await _stopListeningAndProcess();
+  }
+  
+  /// Internal method to stop listening and process transcript
+  Future<void> _stopListeningAndProcess() async {
+    final stopStart = DateTime.now();
+    debugPrint('VoiceSession: Stop requested, current transcript: "${_currentTranscript.substring(0, _currentTranscript.length.clamp(0, 50))}..."');
+    
+    // IMMEDIATE visual feedback - change state right away so UI responds
+    _updateState(VoiceSessionState.processingTranscript);
     
     // Stop audio capture
     await _audioCapture.stopRecording();
@@ -284,11 +327,48 @@ class VoiceSessionService {
     // Stop endpoint detector
     _endpointDetector.stop();
     
-    // Commit Wispr session if not already committed
+    // If we already have a good transcript from partial updates, process immediately
+    if (_currentTranscript.trim().isNotEmpty) {
+      debugPrint('VoiceSession: Have transcript from partials, processing immediately (${DateTime.now().difference(stopStart).inMilliseconds}ms)');
+      // Still commit to Wispr for cleanup, but don't wait
+      _wisprService.commitSession();
+      await _processTranscript();
+      return;
+    }
+    
+    // No partial transcript yet - need to commit and wait for Wispr to process
+    // Wispr sends transcript asynchronously after commit
+    _waitingForFinalTranscript = true;
     await _wisprService.commitSession();
     
-    // Process the transcript
-    await _processTranscript();
+    // Wait for Wispr to process and send transcript
+    // Wispr typically takes 500-1500ms after commit to send final transcript
+    debugPrint('VoiceSession: Waiting for Wispr transcript...');
+    
+    // Poll for transcript arrival with timeout
+    const pollInterval = Duration(milliseconds: 100);
+    const maxWait = Duration(seconds: 3);
+    var elapsed = Duration.zero;
+    
+    while (_waitingForFinalTranscript && elapsed < maxWait) {
+      await Future.delayed(pollInterval);
+      elapsed += pollInterval;
+      
+      // Check if transcript arrived via callback
+      if (_currentTranscript.trim().isNotEmpty) {
+        debugPrint('VoiceSession: Transcript received after ${elapsed.inMilliseconds}ms');
+        _waitingForFinalTranscript = false;
+        await _processTranscript();
+        return;
+      }
+    }
+    
+    // Timeout - process whatever we have (or empty)
+    if (_waitingForFinalTranscript) {
+      debugPrint('VoiceSession: Timeout after ${elapsed.inMilliseconds}ms, transcript: "${_currentTranscript}"');
+      _waitingForFinalTranscript = false;
+      await _processTranscript();
+    }
   }
   
   /// Handle endpoint state changes
@@ -299,9 +379,19 @@ class VoiceSessionService {
   
   /// Process transcript through PRISM and send to LUMARA
   Future<void> _processTranscript() async {
+    // Guard against double processing (race condition between callback and polling)
+    if (_isProcessingTranscript) {
+      debugPrint('VoiceSession: Already processing transcript, skipping duplicate call');
+      return;
+    }
+    _isProcessingTranscript = true;
+    
+    final processStart = DateTime.now();
+    
     if (_currentTranscript.trim().isEmpty) {
       debugPrint('VoiceSession: Empty transcript, skipping');
-      await _startTurn(); // Start new turn
+      _isProcessingTranscript = false;
+      _updateState(VoiceSessionState.idle);
       return;
     }
     
@@ -310,50 +400,86 @@ class VoiceSessionService {
     try {
       // Scrub PII through PRISM
       _updateState(VoiceSessionState.scrubbing);
+      final prismStart = DateTime.now();
       final prismResult = _prism.scrub(_currentTranscript);
+      debugPrint('VoiceSession: PRISM took ${DateTime.now().difference(prismStart).inMilliseconds}ms, scrubbed ${prismResult.redactionCount} items');
       
-      debugPrint('VoiceSession: PRISM scrubbed ${prismResult.redactionCount} PII items');
+      // =========================================================
+      // JARVIS/SAMANTHA DUAL-MODE ROUTING
+      // Classify depth and route to appropriate response path
+      // =========================================================
+      final depthResult = EntryClassifier.classifyVoiceDepth(prismResult.scrubbedText);
+      final isReflective = depthResult.depth == VoiceDepthMode.reflective;
+      
+      debugPrint('VoiceSession: Depth classification: ${depthResult.depth.name} '
+          '(confidence: ${depthResult.confidence.toStringAsFixed(2)}, '
+          'triggers: ${depthResult.triggers.join(", ")})');
       
       // Send to LUMARA
       _updateState(VoiceSessionState.waitingForLumara);
       
-      // Build context for LUMARA
+      // Build conversation history for context
       final builtSession = _currentSession?.build();
       final conversationHistory = builtSession?.turns.map((turn) {
         return 'User: ${turn.userText}\nLUMARA: ${turn.lumaraResponse}';
       }).toList() ?? [];
       
-      // Build voice-specific prompt using VoicePromptBuilder
-      // This integrates with the LUMARA Master Unified Prompt via LumaraControlStateBuilder
-      final voicePromptContext = VoicePromptContext(
-        userId: _userId,
-        mode: VoiceMode.journal,
-        conversationHistory: conversationHistory,
-        daysInPhase: null, // TODO: Get from UserPhaseService if available
-      );
+      // Build appropriate prompt based on depth mode
+      String voicePrompt;
+      if (isReflective) {
+        // SAMANTHA MODE: Deep, reflective engagement (150-200 words)
+        voicePrompt = SamanthaPromptBuilder.build(
+          userText: prismResult.scrubbedText,
+          currentPhase: _currentPhase,
+          conversationHistory: conversationHistory,
+          detectedTriggers: depthResult.triggers,
+        );
+        debugPrint('VoiceSession: Using SAMANTHA mode (reflective)');
+      } else {
+        // JARVIS MODE: Quick, efficient response (50-100 words)
+        voicePrompt = JarvisPromptBuilder.build(
+          userText: prismResult.scrubbedText,
+          currentPhase: _currentPhase,
+          conversationHistory: conversationHistory,
+        );
+        debugPrint('VoiceSession: Using JARVIS mode (transactional)');
+      }
       
-      final voiceSystemPrompt = await VoicePromptBuilder.buildVoicePrompt(voicePromptContext);
-      debugPrint('VoiceSession: Built voice prompt with unified control state');
-      
-      // Call LUMARA API for voice conversation with the full voice context
+      // Call LUMARA API with appropriate mode
+      final apiStart = DateTime.now();
       final reflectionResult = await _lumaraApi.generatePromptedReflection(
         entryText: prismResult.scrubbedText,
-        intent: 'voice_journal',
+        intent: isReflective ? 'reflective' : 'conversational',
         phase: _currentPhase.name,
         userId: _userId,
-        chatContext: voiceSystemPrompt, // Pass the full voice system prompt as context
+        chatContext: voicePrompt,  // Use built voice prompt
+        forceQuickResponse: !isReflective,  // Only force quick for Jarvis mode
         options: models.LumaraReflectionOptions(
-          conversationMode: models.ConversationMode.think, // Use 'think' mode for voice conversations
-          toneMode: models.ToneMode.normal, // Use 'normal' tone (or 'soft' for gentler)
+          conversationMode: models.ConversationMode.think,
+          toneMode: models.ToneMode.normal,
         ),
       );
+      
+      final apiDuration = DateTime.now().difference(apiStart).inMilliseconds;
+      final maxLatency = isReflective 
+          ? VoiceResponseConfig.samanthaHardLimitMs 
+          : VoiceResponseConfig.jarvisTargetLatencyMs;
+      
+      debugPrint('VoiceSession: LUMARA API took ${apiDuration}ms '
+          '(${isReflective ? "Samantha" : "Jarvis"} mode, limit: ${maxLatency}ms)');
+      
+      // Warn if latency exceeds target
+      if (apiDuration > maxLatency) {
+        debugPrint('VoiceSession: WARNING - Latency exceeded target! '
+            '${apiDuration}ms > ${maxLatency}ms');
+      }
       
       final response = reflectionResult.reflection;
       
       // Restore PII in response for TTS
       final restoredResponse = _prism.restore(response, prismResult.reversibleMap);
       
-      debugPrint('VoiceSession: LUMARA response received');
+      debugPrint('VoiceSession: Total processing took ${DateTime.now().difference(processStart).inMilliseconds}ms');
       onLumaraResponse?.call(restoredResponse);
       
       // Play TTS
@@ -364,7 +490,7 @@ class VoiceSessionService {
           ? DateTime.now().difference(_turnStartTime!)
           : null;
       
-      // Create turn
+      // Create turn with depth mode metadata
       final turn = VoiceConversationTurn(
         userText: _currentTranscript,
         lumaraResponse: restoredResponse,
@@ -379,26 +505,48 @@ class VoiceSessionService {
       onTurnComplete?.call(turn);
       
       debugPrint('VoiceSession: Turn complete');
+      _isProcessingTranscript = false;
       
     } catch (e) {
       debugPrint('VoiceSession: Error processing transcript: $e');
       onError?.call('Error processing: $e');
+      _isProcessingTranscript = false;
       _updateState(VoiceSessionState.error);
     }
   }
   
   /// Handle TTS completion
   void _onTtsComplete() async {
-    debugPrint('VoiceSession: TTS complete, starting new turn');
-    // Automatically start next turn
-    await _startTurn();
+    debugPrint('VoiceSession: TTS complete, ready for user to continue');
+    // Go to idle state - user taps to continue conversation
+    _updateState(VoiceSessionState.idle);
   }
   
   /// Handle TTS error
   void _onTtsError(String error) {
     debugPrint('VoiceSession: TTS error: $error');
-    // Continue anyway - start new turn
-    _startTurn();
+    // Go to idle state anyway
+    _updateState(VoiceSessionState.idle);
+  }
+  
+  /// Start listening (for tap-to-toggle interaction)
+  /// Call this when user taps to start talking
+  Future<void> startListening() async {
+    if (_state != VoiceSessionState.idle) {
+      debugPrint('VoiceSession: Cannot start listening - not idle (current: ${_state.name})');
+      return;
+    }
+    
+    // IMMEDIATE visual feedback - change state right away so UI responds
+    _updateState(VoiceSessionState.listening);
+    
+    // If no session yet, start one
+    if (_currentSession == null) {
+      await startSession();
+    } else {
+      // Continue existing session with new turn
+      await _startTurn();
+    }
   }
   
   /// Handle Wispr errors
@@ -419,30 +567,49 @@ class VoiceSessionService {
   }
   
   /// End session
+  /// Guarded against concurrent calls
+  bool _isEndingSession = false;
+  
   Future<VoiceSession?> endSession() async {
+    // Guard against concurrent calls
+    if (_isEndingSession) {
+      debugPrint('VoiceSession: Already ending session, ignoring duplicate call');
+      return null;
+    }
+    
     if (_currentSession == null) {
       debugPrint('VoiceSession: No active session to end');
       return null;
     }
     
+    _isEndingSession = true;
+    
     try {
+      // Capture session reference before async operations
+      final sessionBuilder = _currentSession;
+      if (sessionBuilder == null) {
+        debugPrint('VoiceSession: Session was null after guard check');
+        return null;
+      }
+      
+      // Clear session reference early to prevent double-ending
+      _currentSession = null;
+      _currentTranscript = '';
+      
       // Stop everything
       await _audioCapture.stopRecording();
       _endpointDetector.stop();
       await _tts.stop();
       
-      // End rate limiting tracking
-      await _rateLimiter.endSession();
+      // End rate limiting tracking (non-blocking)
+      _rateLimiter.endSession();
       
       // Build final session
-      final session = _currentSession!.build(endTime: DateTime.now());
+      final session = sessionBuilder.build(endTime: DateTime.now());
       
       debugPrint('VoiceSession: Session ended (${session.turnCount} turns, ${session.totalDuration.inSeconds}s)');
       
       onSessionComplete?.call(session);
-      
-      _currentSession = null;
-      _currentTranscript = '';
       _updateState(VoiceSessionState.idle);
       
       return session;
@@ -451,6 +618,8 @@ class VoiceSessionService {
       debugPrint('VoiceSession: Error ending session: $e');
       onError?.call('Error ending session: $e');
       return null;
+    } finally {
+      _isEndingSession = false;
     }
   }
   

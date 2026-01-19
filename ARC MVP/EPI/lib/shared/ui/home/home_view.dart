@@ -28,6 +28,7 @@ import 'package:my_app/arc/internal/echo/prism_adapter.dart';
 import 'package:my_app/services/firebase_auth_service.dart';
 import 'package:my_app/telemetry/analytics.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:my_app/models/phase_models.dart';
 
 // Debug flag for showing RIVET engineering labels
 const bool kShowRivetDebugLabels = false;
@@ -295,6 +296,14 @@ class _HomeViewState extends State<HomeView> {
       );
       final sessionService = await voiceInitializer.initialize();
       
+      // Set the user's actual phase (not hardcoded default)
+      if (sessionService != null) {
+        final currentPhaseString = await UserPhaseService.getCurrentPhase();
+        final currentPhase = _stringToPhaseLabel(currentPhaseString);
+        sessionService.updatePhase(currentPhase);
+        debugPrint('Voice Mode: Set phase to $currentPhaseString (${currentPhase.name})');
+      }
+      
       // Dismiss loading indicator
       if (mounted) {
         Navigator.pop(context);
@@ -351,8 +360,27 @@ class _HomeViewState extends State<HomeView> {
     }
   }
   
-  
-
+  /// Convert phase string to PhaseLabel enum
+  PhaseLabel _stringToPhaseLabel(String phase) {
+    final normalized = phase.toLowerCase().trim();
+    switch (normalized) {
+      case 'discovery':
+        return PhaseLabel.discovery;
+      case 'expansion':
+        return PhaseLabel.expansion;
+      case 'transition':
+        return PhaseLabel.transition;
+      case 'consolidation':
+        return PhaseLabel.consolidation;
+      case 'recovery':
+        return PhaseLabel.recovery;
+      case 'breakthrough':
+        return PhaseLabel.breakthrough;
+      default:
+        debugPrint('Voice Mode: Unknown phase "$phase", defaulting to discovery');
+        return PhaseLabel.discovery;
+    }
+  }
 
   @override
   void dispose() {

@@ -153,7 +153,7 @@ class _LumaraIntroScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 24),
                 Text(
-                  "I'm here to understand your narrative arc. As you journal and reflect, I learn the patterns in your journey—not just what happened, but what it means for where you're going.",
+                  "I'm here to understand your narrative arc. As we talk and reflect together, I learn the patterns in your journey—not just what happened, but what it means for where you're going.",
                   style: bodyStyle(context).copyWith(
                     color: Colors.white.withOpacity(0.8),
                     fontSize: 16,
@@ -223,7 +223,7 @@ class _ArcIntroScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 24),
                 Text(
-                  "This is where you journal, reflect, and talk with me. Write what matters. Your words stay on your device—private by design, powerful by architecture.",
+                  "This is where we have conversations. Share what matters. Your words stay on your device—private by design, powerful by architecture.",
                   style: bodyStyle(context).copyWith(
                     color: Colors.white.withOpacity(0.8),
                     fontSize: 16,

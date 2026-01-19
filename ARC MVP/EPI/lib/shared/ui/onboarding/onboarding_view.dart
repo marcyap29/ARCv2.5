@@ -229,7 +229,7 @@ class _OnboardingPage1 extends StatelessWidget {
             options: [
               'Self-discovery',
               'Coach',
-              'Journaling',
+              'Reflection',
               'Growth',
               'Recovery',
             ],
@@ -430,13 +430,13 @@ class _OnboardingPermissionsPageState extends State<_OnboardingPermissionsPage> 
           _PermissionItem(
             icon: Icons.mic,
             title: 'Microphone',
-            description: 'For voice journaling and audio notes',
+            description: 'For voice conversations with LUMARA',
           ),
           const SizedBox(height: 16),
           _PermissionItem(
             icon: Icons.photo_library,
             title: 'Photos',
-            description: 'To attach photos to your journal entries',
+            description: 'To share photos in your conversations',
           ),
           const SizedBox(height: 16),
           _PermissionItem(
@@ -448,7 +448,7 @@ class _OnboardingPermissionsPageState extends State<_OnboardingPermissionsPage> 
           _PermissionItem(
             icon: Icons.location_on,
             title: 'Location',
-            description: 'To automatically tag your entries with location',
+            description: 'To add context to your conversations',
           ),
           const SizedBox(height: 40),
           SizedBox(

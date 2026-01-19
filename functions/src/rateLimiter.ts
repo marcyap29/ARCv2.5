@@ -2,7 +2,8 @@
 
 import { admin } from "./admin";
 import { QuotaCheckResult, UserDocument, RateLimitDocument } from "./types";
-import { FREE_MAX_REQUESTS_PER_DAY, FREE_MAX_REQUESTS_PER_MINUTE } from "./config";
+import { FREE_MAX_REQUESTS_PER_MINUTE } from "./config";
+// FREE_MAX_REQUESTS_PER_DAY removed - using conversation-based limits instead
 
 const db = admin.firestore();
 

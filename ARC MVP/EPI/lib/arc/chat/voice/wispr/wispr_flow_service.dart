@@ -9,6 +9,7 @@
 
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math' show sqrt;
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
@@ -139,6 +140,8 @@ class WisprFlowService {
     try {
       _metrics.sessionStart = DateTime.now();
       
+      // Wispr Flow API requires Bearer prefix in URL per documentation:
+      // wss://platform-api.wisprflow.ai/api/v1/dash/ws?api_key=Bearer%20<API_KEY>
       final uri = Uri.parse('wss://platform-api.wisprflow.ai/api/v1/dash/ws?api_key=Bearer ${_config.apiKey}');
       
       debugPrint('WisprFlow: Connecting to ${uri.toString().replaceAll(_config.apiKey, '***')}');
@@ -191,20 +194,41 @@ class WisprFlowService {
   }
   
   /// Authenticate with Wispr
+  /// Per Wispr Flow API docs: https://api-docs.wisprflow.ai/websocket_api
+  /// Auth message: { "type": "auth", "access_token": "<TOKEN>", "language": ["en"] }
   Future<void> _authenticate() async {
+    // Per Wispr Flow API documentation:
+    // The auth message starts the session and includes language preference
     final authMessage = {
       'type': 'auth',
-      'api_key': _config.apiKey,
+      'access_token': _config.apiKey,
+      'language': ['en'],  // ISO 639-1 language codes
     };
     
     _sendMessage(authMessage);
+    debugPrint('WisprFlow: Auth message sent: ${authMessage.toString().replaceAll(_config.apiKey, '***')}');
     
-    // Wait for auth response (simple implementation)
-    await Future.delayed(Duration(milliseconds: 500));
-    _isAuthenticated = true;
+    // Wait a moment for any auth response
+    // The _handleMessage will set _isAuthenticated if it receives an auth confirmation
+    await Future.delayed(const Duration(milliseconds: 800));
+    
+    // If connection is still alive, assume we're authenticated
+    // (some APIs don't send explicit auth confirmation)
+    if (_isConnected) {
+      if (!_isAuthenticated) {
+        debugPrint('WisprFlow: No explicit auth response, assuming authenticated via URL parameter');
+        _isAuthenticated = true;
+      }
+    } else {
+      debugPrint('WisprFlow: Connection lost during auth - likely auth failure');
+      throw StateError('Authentication failed - connection closed');
+    }
   }
   
   /// Start a new transcription session
+  /// Per Wispr Flow API docs: https://api-docs.wisprflow.ai/websocket_api
+  /// There's no explicit "start" message - the auth message initiates the session
+  /// Just reset state and mark session as active
   Future<void> startSession({Map<String, dynamic>? context}) async {
     if (!_isAuthenticated) {
       throw StateError('Not authenticated. Call connect() first.');
@@ -218,22 +242,26 @@ class WisprFlowService {
     _audioPacketIndex = 0;
     _sessionActive = true;
     
-    final startMessage = {
-      'type': 'start',
-      'audio_format': {
-        'sample_rate': 16000,
-        'encoding': 'pcm_s16le',
-        'channels': 1,
-      },
-      'byte_encoding': _config.useBinaryEncoding ? 'binary' : 'base64',
-      if (context != null) 'context': context,
-    };
-    
-    _sendMessage(startMessage);
-    debugPrint('WisprFlow: Session started');
+    // Per Wispr Flow API, there's no explicit "start" message
+    // The session begins with the auth message (already sent during connect)
+    // Audio is sent via "append" messages, session ends with "commit"
+    debugPrint('WisprFlow: Session started (ready for audio packets)');
   }
   
   /// Send audio chunk (16 kHz PCM audio)
+  /// Per Wispr Flow API docs: https://api-docs.wisprflow.ai/websocket_api
+  /// Append message format:
+  /// {
+  ///   "type": "append",
+  ///   "position": 0,
+  ///   "audio_packets": {
+  ///     "packets": ["<base64Chunk>"],
+  ///     "volumes": [<volume>],  // Must match packets count!
+  ///     "packet_duration": <seconds>,
+  ///     "audio_encoding": "pcm_s16le",
+  ///     "byte_encoding": "base64"
+  ///   }
+  /// }
   void sendAudio(Uint8List audioData) {
     if (!_sessionActive) {
       debugPrint('WisprFlow: Cannot send audio - session not active');
@@ -244,23 +272,71 @@ class WisprFlowService {
       _metrics.firstAudioSent = DateTime.now();
     }
     
-    // Encode audio
-    final encodedAudio = _config.useBinaryEncoding 
-        ? audioData 
-        : base64Encode(audioData);
+    // Encode audio as base64
+    final encodedAudio = base64Encode(audioData);
     
+    // Calculate packet duration: bytes / (sample_rate * bytes_per_sample * channels)
+    // 16000 Hz * 2 bytes/sample * 1 channel = 32000 bytes/second
+    final packetDuration = audioData.length / 32000.0;
+    
+    // Calculate volume (RMS of audio samples) - normalized 0.0 to 1.0
+    final volume = _calculateVolume(audioData);
+    
+    // Per Wispr Flow API documentation
+    // 'volumes' field MUST have same number of items as 'packets'
+    // 'audio_encoding' must be 'wav' (not 'pcm_s16le')
     final appendMessage = {
       'type': 'append',
-      'audio': encodedAudio,
-      'packet_index': _audioPacketIndex,
+      'position': _audioPacketIndex,
+      'audio_packets': {
+        'packets': [encodedAudio],
+        'volumes': [volume],  // Must match packets array length!
+        'packet_duration': packetDuration,
+        'audio_encoding': 'wav',  // Wispr expects 'wav' encoding
+        'byte_encoding': 'base64',
+      },
     };
     
     _sendMessage(appendMessage);
     _audioPacketIndex++;
     _metrics.audioPacketsSent++;
+    
+    // Log every 10th packet to avoid spam
+    if (_audioPacketIndex % 10 == 0) {
+      debugPrint('WisprFlow: Sent ${_audioPacketIndex} audio packets (volume: ${volume.toStringAsFixed(3)})');
+    }
+  }
+  
+  /// Calculate volume (RMS) from PCM audio data
+  /// Returns normalized value 0.0 to 1.0
+  double _calculateVolume(Uint8List audioData) {
+    if (audioData.isEmpty) return 0.0;
+    
+    // Convert bytes to 16-bit samples (little-endian)
+    final samples = <int>[];
+    for (int i = 0; i < audioData.length - 1; i += 2) {
+      // Little-endian 16-bit signed integer
+      int sample = audioData[i] | (audioData[i + 1] << 8);
+      // Convert to signed
+      if (sample > 32767) sample -= 65536;
+      samples.add(sample);
+    }
+    
+    if (samples.isEmpty) return 0.0;
+    
+    // Calculate RMS (Root Mean Square)
+    double sumSquares = 0.0;
+    for (final sample in samples) {
+      sumSquares += sample * sample;
+    }
+    final rms = sqrt(sumSquares / samples.length);
+    
+    // Normalize to 0.0 - 1.0 (max 16-bit value is 32768)
+    return (rms / 32768.0).clamp(0.0, 1.0);
   }
   
   /// Commit the session (finalize transcription)
+  /// This tells Wispr we're done sending audio and to finalize the transcript
   Future<void> commitSession() async {
     if (!_sessionActive) {
       debugPrint('WisprFlow: No active session to commit');
@@ -272,48 +348,100 @@ class WisprFlowService {
       'total_packets': _audioPacketIndex,
     };
     
+    debugPrint('WisprFlow: Committing session with ${_audioPacketIndex} packets...');
     _sendMessage(commitMessage);
-    debugPrint('WisprFlow: Session committed (${_audioPacketIndex} packets)');
+    debugPrint('WisprFlow: Commit message sent, waiting for final transcript...');
     
-    _sessionActive = false;
+    // Don't immediately mark session as inactive - wait for transcript response
+    // The session will be reset on disconnect or when we start a new session
+    // _sessionActive = false;  // Commented out to allow receiving final transcript
   }
   
   /// Handle incoming messages
+  /// Per Wispr Flow API docs: https://api-docs.wisprflow.ai/websocket_api
+  /// Responses use 'status' field (not 'type'):
+  /// - status: "auth" - authentication confirmed
+  /// - status: "info" - informational events
+  /// - status: "text" - transcription results (with final: true/false)
+  /// - status: "error" - errors
   void _handleMessage(dynamic message) {
     try {
+      // Log raw message for debugging
+      final msgStr = message?.toString() ?? '';
+      debugPrint('WisprFlow: Raw message: ${msgStr.substring(0, msgStr.length.clamp(0, 500))}');
+      
       final Map<String, dynamic> data = message is String 
           ? jsonDecode(message) 
           : message;
       
-      final type = data['type'] as String?;
+      // Wispr Flow uses 'status' field for responses
+      final status = data['status'] as String?;
       
-      switch (type) {
-        case 'partial':
-        case 'interim':
-          _handleTranscript(data, isFinal: false);
-          break;
-          
-        case 'final':
-        case 'transcription':
-          _handleTranscript(data, isFinal: true);
-          break;
-          
-        case 'error':
-          final errorMsg = data['message'] as String? ?? 'Unknown error';
-          debugPrint('WisprFlow: Server error: $errorMsg');
-          onError?.call(errorMsg);
+      switch (status) {
+        case 'auth':
+          debugPrint('WisprFlow: Auth confirmed');
+          _isAuthenticated = true;
           break;
           
         case 'info':
-          debugPrint('WisprFlow: Info: ${data['message']}');
+          final msgInfo = data['message'];
+          debugPrint('WisprFlow: Info received: $msgInfo');
+          debugPrint('WisprFlow: Full info data: $data');
+          // Check for commit_received event
+          if (msgInfo is Map && msgInfo['event'] == 'commit_received') {
+            debugPrint('WisprFlow: Commit acknowledged, waiting for transcript...');
+          }
+          break;
+          
+        case 'text':
+          // Transcription result
+          final isFinal = data['final'] as bool? ?? false;
+          final body = data['body'] as Map<String, dynamic>?;
+          final text = body?['text'] as String? ?? data['text'] as String? ?? '';
+          final detectedLang = body?['detected_language'] as String?;
+          final position = data['position'];
+          
+          debugPrint('WisprFlow: ======== TEXT RESPONSE ========');
+          debugPrint('WisprFlow: Text received - final=$isFinal, position=$position, lang=$detectedLang');
+          debugPrint('WisprFlow: Content: "$text"');
+          debugPrint('WisprFlow: Full data: $data');
+          debugPrint('WisprFlow: ================================');
+          
+          _handleTranscript({
+            'text': text,
+            'detected_language': detectedLang,
+          }, isFinal: isFinal);
+          break;
+          
+        case 'error':
+          final errorMsg = data['error'] as String? ?? data['message'] as String? ?? 'Unknown error';
+          debugPrint('WisprFlow: Server error: $errorMsg');
+          debugPrint('WisprFlow: Full error data: $data');
+          onError?.call(errorMsg);
           break;
           
         default:
-          debugPrint('WisprFlow: Unknown message type: $type');
+          // Log full message when status is unknown/null
+          debugPrint('WisprFlow: Unknown status: $status');
+          debugPrint('WisprFlow: Full message data: $data');
+          
+          // Check if it's using old 'type' field format
+          final type = data['type'] as String?;
+          if (type != null) {
+            debugPrint('WisprFlow: Found type field instead: $type');
+          }
+          
+          // Check if it's an error in disguise
+          if (data.containsKey('error')) {
+            final errorMsg = data['error'] as String? ?? 'Unknown error';
+            debugPrint('WisprFlow: Error detected: $errorMsg');
+            onError?.call(errorMsg);
+          }
       }
       
     } catch (e) {
       debugPrint('WisprFlow: Error handling message: $e');
+      debugPrint('WisprFlow: Original message: $message');
       onError?.call('Message handling error: $e');
     }
   }
@@ -330,13 +458,17 @@ class WisprFlowService {
       _metrics.partialTranscriptsReceived++;
     }
     
+    final text = data['text'] as String? ?? '';
+    // Note: detected_language is available in data['detected_language'] if needed
+    
     final transcript = WisprTranscript(
-      text: data['text'] as String? ?? '',
+      text: text,
       isFinal: isFinal,
       confidence: data['confidence'] as double?,
       timestamp: DateTime.now(),
     );
     
+    debugPrint('WisprFlow: Transcript callback - isFinal=$isFinal, text="${text.substring(0, text.length.clamp(0, 100))}"');
     onTranscript?.call(transcript);
   }
   
