@@ -19,6 +19,7 @@ import '../wispr/wispr_flow_service.dart';
 import '../wispr/wispr_rate_limiter.dart';
 import '../audio/audio_capture_service.dart';
 import '../endpoint/smart_endpoint_detector.dart';
+import '../transcription/unified_transcription_service.dart';
 import '../../../internal/echo/prism_adapter.dart';
 import '../voice_journal/tts_client.dart';
 import '../prompts/voice_response_builders.dart';
@@ -51,6 +52,10 @@ typedef OnSessionError = void Function(String error);
 /// Voice Session Service
 /// 
 /// Main orchestrator for voice conversations with LUMARA
+/// 
+/// Supports automatic fallback between transcription backends:
+/// - Primary: Wispr Flow (faster, lower latency)
+/// - Fallback: AssemblyAI (if Wispr rate limit exceeded, requires PRO tier)
 class VoiceSessionService {
   final WisprFlowService _wisprService;
   final WisprRateLimiter _rateLimiter;
@@ -60,6 +65,7 @@ class VoiceSessionService {
   final TtsJournalClient _tts;
   final EnhancedLumaraApi _lumaraApi;
   final String _userId;
+  final UnifiedTranscriptionService? _unifiedTranscription;
   
   VoiceSessionState _state = VoiceSessionState.idle;
   VoiceSessionBuilder? _currentSession;
@@ -68,6 +74,7 @@ class VoiceSessionService {
   String _currentTranscript = '';
   DateTime? _turnStartTime;
   bool _isProcessingTranscript = false; // Guard against double processing
+  bool _usingFallbackTranscription = false; // Track if using AssemblyAI fallback
   
   // Callbacks
   OnSessionStateChanged? onStateChanged;
@@ -77,8 +84,19 @@ class VoiceSessionService {
   OnSessionComplete? onSessionComplete;
   OnSessionError? onError;
   
+  /// Callback for rate limit warnings
+  Function(String message)? onRateLimitWarning;
+  
   // Public getter for endpoint detector (for UI tap handling)
   SmartEndpointDetector get endpointDetector => _endpointDetector;
+  
+  /// Whether currently using fallback (AssemblyAI) instead of primary (Wispr)
+  bool get isUsingFallback => _usingFallbackTranscription;
+  
+  /// Currently active transcription backend
+  TranscriptionBackend get activeBackend {
+    return _unifiedTranscription?.activeBackend ?? TranscriptionBackend.wispr;
+  }
   
   VoiceSessionService({
     required WisprFlowService wisprService,
@@ -89,6 +107,7 @@ class VoiceSessionService {
     required TtsJournalClient tts,
     required EnhancedLumaraApi lumaraApi,
     required String userId,
+    UnifiedTranscriptionService? unifiedTranscription,
   })  : _wisprService = wisprService,
         _rateLimiter = rateLimiter,
         _audioCapture = audioCapture,
@@ -96,7 +115,8 @@ class VoiceSessionService {
         _prism = prism,
         _tts = tts,
         _lumaraApi = lumaraApi,
-        _userId = userId {
+        _userId = userId,
+        _unifiedTranscription = unifiedTranscription {
     _setupCallbacks();
   }
   
@@ -135,25 +155,73 @@ class VoiceSessionService {
   }
   
   /// Initialize session
+  /// 
+  /// Uses unified transcription service if available:
+  /// - Primary: Wispr Flow (faster, lower latency)
+  /// - Fallback: AssemblyAI (if Wispr limit exceeded, requires PRO tier)
   Future<bool> initialize() async {
     _updateState(VoiceSessionState.initializing);
+    _usingFallbackTranscription = false;
     
     try {
-      // Check rate limits
-      final limitCheck = await _rateLimiter.checkLimit();
-      if (limitCheck != RateLimitResult.allowed && limitCheck != RateLimitResult.approachingLimit) {
-        final stats = await _rateLimiter.getUsageStats();
-        final message = _rateLimiter.getWarningMessage(stats);
-        onError?.call(message);
-        _updateState(VoiceSessionState.error);
-        return false;
-      }
-      
-      // Warn if approaching limit
-      if (limitCheck == RateLimitResult.approachingLimit) {
-        final stats = await _rateLimiter.getUsageStats();
-        final message = _rateLimiter.getWarningMessage(stats);
-        debugPrint('VoiceSession: $message');
+      // Use unified transcription service if available (handles fallback logic)
+      final unified = _unifiedTranscription;
+      if (unified != null) {
+        final result = await unified.initialize();
+        
+        if (result.success) {
+          _usingFallbackTranscription = result.backend == TranscriptionBackend.assemblyAI;
+          
+          if (_usingFallbackTranscription) {
+            debugPrint('VoiceSession: Using AssemblyAI fallback (Wispr limit exceeded)');
+            onRateLimitWarning?.call('Using cloud transcription (Wispr limit reached)');
+          } else {
+            debugPrint('VoiceSession: Using Wispr (primary)');
+            
+            // Check if approaching limit
+            final warning = await unified.getUsageWarning();
+            if (warning != null) {
+              onRateLimitWarning?.call(warning);
+            }
+          }
+          
+          // Setup unified transcription callbacks
+          _setupUnifiedTranscriptionCallbacks();
+          
+        } else {
+          // Unified service failed - show error message
+          final errorMsg = result.errorMessage ?? 'Transcription unavailable';
+          debugPrint('VoiceSession: Unified transcription failed: $errorMsg');
+          onError?.call(errorMsg);
+          _updateState(VoiceSessionState.error);
+          return false;
+        }
+      } else {
+        // Fallback to direct Wispr (no unified service)
+        final limitCheck = await _rateLimiter.checkLimit();
+        if (limitCheck != RateLimitResult.allowed && limitCheck != RateLimitResult.approachingLimit) {
+          final stats = await _rateLimiter.getUsageStats();
+          final message = _rateLimiter.getWarningMessage(stats);
+          onError?.call(message);
+          _updateState(VoiceSessionState.error);
+          return false;
+        }
+        
+        // Warn if approaching limit
+        if (limitCheck == RateLimitResult.approachingLimit) {
+          final stats = await _rateLimiter.getUsageStats();
+          final message = _rateLimiter.getWarningMessage(stats);
+          debugPrint('VoiceSession: $message');
+          onRateLimitWarning?.call(message);
+        }
+        
+        // Connect to Wispr directly
+        final wisprConnected = await _wisprService.connect();
+        if (!wisprConnected) {
+          onError?.call('Failed to connect to transcription service');
+          _updateState(VoiceSessionState.error);
+          return false;
+        }
       }
       
       // Initialize audio capture
@@ -167,15 +235,8 @@ class VoiceSessionService {
       // Initialize TTS
       await _tts.initialize();
       
-      // Connect to Wispr
-      final wisprConnected = await _wisprService.connect();
-      if (!wisprConnected) {
-        onError?.call('Failed to connect to transcription service');
-        _updateState(VoiceSessionState.error);
-        return false;
-      }
-      
-      debugPrint('VoiceSession: Initialized successfully');
+      debugPrint('VoiceSession: Initialized successfully '
+          '(backend: ${_unifiedTranscription?.activeBackend.name ?? "wispr"})');
       _updateState(VoiceSessionState.idle);
       return true;
       
@@ -185,6 +246,34 @@ class VoiceSessionService {
       _updateState(VoiceSessionState.error);
       return false;
     }
+  }
+  
+  /// Setup callbacks for unified transcription service
+  void _setupUnifiedTranscriptionCallbacks() {
+    final unified = _unifiedTranscription;
+    if (unified == null) return;
+    
+    unified.onTranscript = (transcript, isFinal) {
+      // Convert unified callback to WisprTranscript format
+      final wisprTranscript = WisprTranscript(
+        text: transcript,
+        isFinal: isFinal,
+        timestamp: DateTime.now(),
+      );
+      _onWisprTranscript(wisprTranscript);
+    };
+    
+    unified.onError = (error) {
+      _onWisprError(error);
+    };
+    
+    unified.onConnected = () {
+      _onWisprConnected();
+    };
+    
+    unified.onDisconnected = () {
+      _onWisprDisconnected();
+    };
   }
   
   /// Start a new session

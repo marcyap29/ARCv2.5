@@ -2,7 +2,7 @@
 /// 
 /// Initializes all voice components with proper configuration
 /// - Loads API key from Firebase Cloud Functions or env vars
-/// - Sets up all services
+/// - Sets up all services with Wispr primary and AssemblyAI fallback
 /// - Handles initialization failures gracefully
 
 import 'package:flutter/foundation.dart';
@@ -11,12 +11,14 @@ import '../wispr/wispr_flow_service.dart';
 import '../wispr/wispr_rate_limiter.dart';
 import '../audio/audio_capture_service.dart';
 import '../endpoint/smart_endpoint_detector.dart';
+import '../transcription/unified_transcription_service.dart';
 import '../../../internal/echo/prism_adapter.dart';
 import '../voice_journal/tts_client.dart';
 import '../../services/enhanced_lumara_api.dart';
 import '../services/voice_session_service.dart';
 import 'wispr_config_service.dart';
 import 'env_config.dart';
+import '../../../../services/assemblyai_service.dart';
 
 /// Voice System Initializer
 /// 
@@ -37,24 +39,31 @@ class VoiceSystemInitializer {
   });
   
   /// Initialize voice system and return session service
+  /// 
+  /// Transcription backends (in order of preference):
+  /// 1. Wispr Flow (primary) - if under rate limit
+  /// 2. AssemblyAI (fallback) - if Wispr limit exceeded and user is PRO/BETA
   Future<VoiceSessionService?> initialize() async {
     try {
       debugPrint('VoiceSystem: Initializing...');
       
-      // 1. Get API key (try Remote Config first, then env vars)
+      // 1. Get Wispr API key (try Cloud Functions first, then env vars)
       String? apiKey = await _getApiKey();
       
       if (apiKey == null || apiKey.isEmpty) {
-        debugPrint('VoiceSystem: No API key configured');
-        return null;
+        debugPrint('VoiceSystem: No Wispr API key configured');
+        // Can still try AssemblyAI only
       }
       
-      // 2. Create Wispr service
-      final wisprConfig = WisprFlowConfig(
-        apiKey: apiKey,
-        useBinaryEncoding: false, // Use base64 for better compatibility
-      );
-      final wisprService = WisprFlowService(config: wisprConfig);
+      // 2. Create Wispr service (may be null if no API key)
+      WisprFlowService? wisprService;
+      if (apiKey != null && apiKey.isNotEmpty) {
+        final wisprConfig = WisprFlowConfig(
+          apiKey: apiKey,
+          useBinaryEncoding: false, // Use base64 for better compatibility
+        );
+        wisprService = WisprFlowService(config: wisprConfig);
+      }
       
       // 3. Create rate limiter
       final rateLimiter = WisprRateLimiter(
@@ -66,16 +75,47 @@ class VoiceSystemInitializer {
         ),
       );
       
-      // 4. Create audio capture
+      // 4. Create AssemblyAI service (fallback)
+      final assemblyAIService = AssemblyAIService.instance;
+      
+      // 5. Check if either backend is available
+      final wisprAvailable = wisprService != null;
+      final assemblyAIAvailable = await assemblyAIService.isAvailable();
+      
+      if (!wisprAvailable && !assemblyAIAvailable) {
+        debugPrint('VoiceSystem: No transcription backend available');
+        return null;
+      }
+      
+      debugPrint('VoiceSystem: Backends available - '
+          'Wispr: $wisprAvailable, AssemblyAI: $assemblyAIAvailable');
+      
+      // 6. Create unified transcription service
+      UnifiedTranscriptionService? unifiedTranscription;
+      if (wisprService != null) {
+        unifiedTranscription = UnifiedTranscriptionService(
+          wisprService: wisprService,
+          wisprRateLimiter: rateLimiter,
+          assemblyAIService: assemblyAIService,
+        );
+      }
+      
+      // 7. Create audio capture
       final audioCapture = AudioCaptureService();
       
-      // 5. Create endpoint detector
+      // 8. Create endpoint detector
       final endpointDetector = SmartEndpointDetector();
       
-      // 6. Create TTS client
+      // 9. Create TTS client
       final tts = TtsJournalClient();
       
-      // 7. Create session service
+      // 10. Create session service
+      // If Wispr is not available, we need to handle this differently
+      if (wisprService == null) {
+        debugPrint('VoiceSystem: Wispr not configured, voice mode requires Wispr API key');
+        return null;
+      }
+      
       final sessionService = VoiceSessionService(
         wisprService: wisprService,
         rateLimiter: rateLimiter,
@@ -85,9 +125,11 @@ class VoiceSystemInitializer {
         tts: tts,
         lumaraApi: lumaraApi,
         userId: userId,
+        unifiedTranscription: unifiedTranscription,
       );
       
-      debugPrint('VoiceSystem: Initialization complete');
+      debugPrint('VoiceSystem: Initialization complete '
+          '(Wispr primary, AssemblyAI fallback: $assemblyAIAvailable)');
       return sessionService;
       
     } catch (e) {
