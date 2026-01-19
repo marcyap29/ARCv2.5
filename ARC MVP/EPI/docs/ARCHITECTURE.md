@@ -1,8 +1,8 @@
 # EPI MVP - Architecture Overview
 
-**Version:** 3.2.3
-**Last Updated:** January 10, 2026
-**Status:** ✅ Production Ready - MVP Fully Operational with Companion-First LUMARA, Simplified Settings, Health Integration, AssemblyAI v3, Web Access Safety, Correlation-Resistant PII Protection, Bible Reference Retrieval, Google Drive Backup, Temporal Notifications, Enhanced Incremental Backups, Automatic First Export, and Sequential Export Numbering
+**Version:** 3.2.4
+**Last Updated:** January 19, 2026
+**Status:** ✅ Production Ready - MVP Fully Operational with Companion-First LUMARA, Simplified Settings, Health Integration, AssemblyAI v3, Web Access Safety, Correlation-Resistant PII Protection, Bible Reference Retrieval, Google Drive Backup, Temporal Notifications, Enhanced Incremental Backups, Automatic First Export, Sequential Export Numbering, and Local Backup Services
 
 ---
 
@@ -433,6 +433,20 @@ MIRA Store → MCP Export Service → ZIP/ARCX Archive
 **Purpose:** Space-efficient backups that only export new/changed data since last backup, reducing backup size by 90%+.
 
 **Components:**
+- **LocalBackupSettingsService** (`lib/services/local_backup_settings_service.dart`): Manages backup settings and preferences
+  - Stores backup folder path, format (ARCX/ZIP), schedule settings
+  - Tracks last backup timestamp
+  - Uses SharedPreferences for persistent storage
+- **LocalBackupService** (`lib/services/local_backup_service.dart`): Core backup operations
+  - Creates ARCX or ZIP format backups
+  - Progress tracking via streams (progress messages and percentages)
+  - Validates backup folder permissions
+  - Handles both ARCX and MCP ZIP export formats
+- **ScheduledLocalBackupService** (`lib/services/scheduled_local_backup_service.dart`): Automated backup scheduling
+  - Daily, weekly, or monthly scheduled backups
+  - Time-based trigger system (checks every minute)
+  - Prevents duplicate backups on same day
+  - Integrates with LocalBackupService for execution
 - **ExportHistoryService**: Tracks export history using SharedPreferences
   - Stores exported entry IDs, chat IDs, and media hashes (SHA-256)
   - Maintains last export date and last full backup date

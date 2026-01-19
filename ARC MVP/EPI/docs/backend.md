@@ -1,8 +1,8 @@
 # Backend Architecture & Setup
 
-**Version:** 3.1
-**Last Updated:** January 9, 2026
-**Status:** ✅ Production Ready with Adaptive Framework, Companion-First LUMARA, Validation & Logging, Health Integration, AssemblyAI v3, Internet Access, Enhanced Classification-Aware PRISM Privacy Protection & Stripe Integration
+**Version:** 3.2
+**Last Updated:** January 19, 2026
+**Status:** ✅ Production Ready with Adaptive Framework, Companion-First LUMARA, Validation & Logging, Health Integration, AssemblyAI v3, Internet Access, Enhanced Classification-Aware PRISM Privacy Protection, Stripe Integration, and Local Backup Services
 
 ---
 
@@ -326,6 +326,8 @@ exports.getAssemblyAIToken = onCall(
 - API keys and project IDs
 
 **Hotfix (Dec 10, 2025):** iOS Google Sign-In crash resolved by updating `GoogleService-Info.plist` with the correct `CLIENT_ID`/`REVERSED_CLIENT_ID` and adding the URL scheme to `Info.plist`.
+
+**Restoration (Jan 19, 2026):** `GoogleService-Info.plist` restored from ARCv1.0 to resolve build errors. File must be present in `ios/Runner/` directory for iOS builds to succeed.
 
 For complete setup instructions, see archived documentation: `archive/setup/OAUTH_SETUP.md`
 
@@ -683,6 +685,6 @@ The new Companion-First LUMARA system includes comprehensive validation and logg
 
 ---
 
-**Status**: ✅ Production Ready with Adaptive Framework, Authentication, AssemblyAI v3, Web Access Safety & Stripe Integration  
-**Last Updated**: January 9, 2026  
-**Version**: 3.1
+**Status**: ✅ Production Ready with Adaptive Framework, Authentication, AssemblyAI v3, Web Access Safety, Stripe Integration & Local Backup Services  
+**Last Updated**: January 19, 2026  
+**Version**: 3.2
