@@ -20,12 +20,22 @@ Voice mode supports two conversation styles that are automatically detected per-
 User speaks
     │
     ▼
-Wispr transcribes
+┌─────────────────────────────────────────────────────────┐
+│  TRANSCRIPTION                                          │
+│  AssemblyAI (primary) or Apple On-Device (fallback)     │
+└─────────────────────────────────────────────────────────┘
+    │
+    ▼
+┌─────────────────────────────────────────────────────────┐
+│  PRISM PII SCRUBBING (On-Device)                        │
+│  Removes names, locations, etc. before cloud call       │
+│  Creates reversible map for TTS restoration             │
+└─────────────────────────────────────────────────────────┘
     │
     ▼
 ┌─────────────────────────────────────────────────────────┐
 │  EntryClassifier.classifyVoiceDepth()                   │
-│  Analyzes transcript for reflective triggers            │
+│  Analyzes scrubbed transcript for reflective triggers   │
 └─────────────────────────────────────────────────────────┘
     │
     ├─── No triggers ────────► JARVIS MODE
@@ -39,7 +49,21 @@ Wispr transcribes
                                 150-200 words, 8-10 seconds
     │
     ▼
-LUMARA API → TTS → User hears response
+┌─────────────────────────────────────────────────────────┐
+│  LUMARA API (Cloud)                                     │
+│  Only scrubbed text sent - PII never leaves device      │
+└─────────────────────────────────────────────────────────┘
+    │
+    ▼
+┌─────────────────────────────────────────────────────────┐
+│  PII RESTORATION → TTS → User hears response            │
+└─────────────────────────────────────────────────────────┘
+    │
+    ▼
+┌─────────────────────────────────────────────────────────┐
+│  SESSION SAVED TO TIMELINE                              │
+│  When user taps "Finish" - saved as voice_conversation  │
+└─────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -314,6 +338,75 @@ Voice Mode Start
 
 ---
 
+## Timeline Saving
+
+Voice sessions are automatically saved to the timeline when the user taps "Finish".
+
+### How It Works
+
+```dart
+// In voice_mode_screen.dart
+Future<void> _onSessionComplete(VoiceSession session) async {
+  final journalRepository = JournalRepository();
+  final voiceStorage = VoiceTimelineStorage(journalRepository: journalRepository);
+  await voiceStorage.saveVoiceSession(session);
+}
+```
+
+### What Gets Saved
+
+| Field | Value |
+|-------|-------|
+| `entryType` | `'voice_conversation'` |
+| `isVoiceEntry` | `true` |
+| `content` | Formatted transcript (You: ... / LUMARA: ...) |
+| `tags` | `['voice', 'conversation', 'lumara']` |
+| `phase` | User's current phase at time of conversation |
+| `voiceSession.sessionId` | Unique session identifier |
+| `voiceSession.turnCount` | Number of conversation turns |
+| `voiceSession.totalDurationMs` | Session duration in milliseconds |
+
+### Export/Import Compatibility
+
+Voice entries are fully compatible with export/import:
+- **Export**: `metadata` field included with all voice data
+- **Import**: Original metadata preserved via spread operator (`...?entryJson['metadata']`)
+
+### Implementation Files
+
+| Component | File |
+|-----------|------|
+| Storage Service | `lib/arc/chat/voice/storage/voice_timeline_storage.dart` |
+| UI Integration | `lib/arc/chat/voice/ui/voice_mode_screen.dart` |
+| Export | `lib/mira/store/arcx/services/arcx_export_service_v2.dart` |
+| Import | `lib/mira/store/arcx/services/arcx_import_service_v2.dart` |
+
+---
+
+## Privacy: PRISM PII Scrubbing
+
+Voice mode scrubs PII **before** sending text to the cloud LLM:
+
+```
+Transcript: "I told Sarah about my job at Google in San Francisco"
+                │
+                ▼ PRISM Scrubbing (on-device)
+                │
+Scrubbed:   "I told [NAME1] about my job at [ORG1] in [LOCATION1]"
+                │
+                ▼ Sent to LUMARA API (cloud)
+                │
+Response:   "It sounds like sharing with [NAME1] was meaningful..."
+                │
+                ▼ PII Restoration (on-device)
+                │
+TTS Output: "It sounds like sharing with Sarah was meaningful..."
+```
+
+**Privacy Guarantee:** PII never leaves the device to reach the LLM.
+
+---
+
 ## Phase Detection
 
 Voice mode uses `PhaseRegimeService` (same as Phase tab) for accurate phase detection:
@@ -343,6 +436,7 @@ This ensures voice mode displays the correct phase based on user activity patter
 
 ## Version History
 
+- v2.1 (2026-01-17): Added timeline saving, documented PRISM PII flow, updated architecture diagram
 - v2.0 (2026-01-17): Removed Wispr Flow (commercial restrictions), AssemblyAI now primary
 - v1.2 (2026-01-17): Added Apple On-Device as final transcription fallback
 - v1.1 (2026-01-17): Added AssemblyAI fallback, fixed phase detection, fixed Finish button

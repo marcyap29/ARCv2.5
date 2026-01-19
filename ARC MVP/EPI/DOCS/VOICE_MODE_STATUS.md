@@ -21,11 +21,13 @@ Voice mode allows users to have spoken conversations with LUMARA. The system cap
 - Long-press on "+" button activates voice mode
 - AssemblyAI/Apple On-Device for speech-to-text
 - Tap-to-toggle interaction (tap to start recording, tap to stop)
-- PRISM PII scrubbing before sending to LUMARA
-- TTS playback of LUMARA responses
+- PRISM PII scrubbing before sending to LUMARA (PII never leaves device)
+- TTS playback of LUMARA responses (with PII restored)
 - Phase-aware UI colors (matches user's current phase)
 - Visual feedback (sigil animations for listening/thinking/speaking states)
 - Multi-turn conversations within a session
+- **Sessions saved to timeline** when user taps "Finish"
+- **Export/import compatible** - voice entries preserve all metadata
 
 ### Current Response Path
 Voice mode currently uses **"fast paths"** - lightweight prompts that bypass the full 260KB Master Unified Prompt:

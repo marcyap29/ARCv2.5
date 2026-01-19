@@ -146,6 +146,43 @@ Voice mode uses a two-tier transcription system:
 
 ---
 
+### 💾 Voice Session Timeline Saving
+
+Voice conversations are now saved to the timeline when users tap "Finish":
+
+#### Features
+- Sessions saved as `JournalEntry` with `entryType: 'voice_conversation'`
+- Full transcript preserved (You: ... / LUMARA: ...)
+- Session metadata stored (turnCount, duration, sessionId)
+- Tags automatically added: `['voice', 'conversation', 'lumara']`
+- Phase captured at time of conversation
+
+#### Export/Import Support
+- Voice entries fully compatible with ARCX export/import
+- Metadata preserved during round-trip
+- Can be identified via `metadata.isVoiceEntry` or `metadata.entryType`
+
+#### Files Changed
+- `lib/arc/chat/voice/ui/voice_mode_screen.dart` - Added timeline saving
+- `lib/arc/chat/voice/storage/voice_timeline_storage.dart` - Storage implementation
+
+---
+
+### 🔒 Privacy: PRISM PII Flow
+
+Voice mode now follows the established PRISM privacy flow:
+
+```
+User Speech → Transcription → PRISM Scrub → Cloud LLM → PII Restore → TTS
+```
+
+- **PII never leaves device** to reach the cloud LLM
+- Names, locations, emails, etc. replaced with tokens
+- Tokens restored before TTS playback
+- Same privacy guarantees as text entries
+
+---
+
 ## [3.2.9] - January 17, 2026
 
 ### 🎨 Phase Preview UI Consistency

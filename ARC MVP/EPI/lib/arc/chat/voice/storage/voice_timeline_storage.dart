@@ -3,7 +3,6 @@
 /// Saves voice sessions to timeline as JournalEntry objects
 /// - Marks entries as voice conversations
 /// - Formats transcript as conversation
-/// - Scrubs PII via PRISM before storage (consistent with regular entries)
 /// - Stores session metadata
 /// - Integrates with existing timeline system
 
@@ -12,21 +11,15 @@ import 'package:uuid/uuid.dart';
 import '../models/voice_session.dart';
 import '../../../../models/journal_entry_model.dart';
 import '../../../../arc/internal/mira/journal_repository.dart';
-import '../../../internal/echo/prism_adapter.dart';
 
 /// Voice Timeline Storage
 /// 
 /// Handles saving voice sessions to the journal/timeline
-/// PII is scrubbed before storage, consistent with regular journal entries
 class VoiceTimelineStorage {
   final JournalRepository _journalRepository;
-  final PrismAdapter _prism;
   
-  VoiceTimelineStorage({
-    required JournalRepository journalRepository,
-    PrismAdapter? prism,
-  }) : _journalRepository = journalRepository,
-       _prism = prism ?? PrismAdapter();
+  VoiceTimelineStorage({required JournalRepository journalRepository})
+      : _journalRepository = journalRepository;
   
   /// Save voice session to timeline
   /// 
@@ -64,7 +57,7 @@ class VoiceTimelineStorage {
       );
       
       // Save to repository
-      await _journalRepository.createJournalEntry(entry);
+      await _journalRepository.addEntry(entry);
       
       debugPrint('VoiceStorage: Session saved to timeline (entry ID: $entryId)');
       return entryId;
@@ -76,7 +69,6 @@ class VoiceTimelineStorage {
   }
   
   /// Format conversation as readable transcript
-  /// PII is scrubbed from user text before storage (same as regular entries)
   String _formatConversationTranscript(VoiceSession session) {
     final buffer = StringBuffer();
     
@@ -97,10 +89,7 @@ class VoiceTimelineStorage {
         buffer.writeln('[Turn ${i + 1}]');
       }
       
-      // Scrub PII from user text before storage (consistent with regular entries)
-      final scrubbedUserText = _prism.scrub(turn.userText).scrubbedText;
-      
-      buffer.writeln('You: $scrubbedUserText');
+      buffer.writeln('You: ${turn.userText}');
       buffer.writeln();
       buffer.writeln('LUMARA: ${turn.lumaraResponse}');
       buffer.writeln();
@@ -116,14 +105,12 @@ class VoiceTimelineStorage {
   }
   
   /// Generate title from first user message
-  /// PII is scrubbed from title (same as regular entries)
   String _generateTitle(VoiceSession session) {
     if (session.turns.isEmpty) {
       return 'Voice Conversation';
     }
     
-    // Scrub PII from first user text before using as title
-    final firstUserText = _prism.scrub(session.turns.first.userText).scrubbedText;
+    final firstUserText = session.turns.first.userText;
     
     // Take first sentence or first 50 characters
     String title;
@@ -159,14 +146,12 @@ class VoiceTimelineStorage {
   }
   
   /// Extract keywords from conversation
-  /// PII is scrubbed before keyword extraction
   Future<List<String>> _extractKeywords(VoiceSession session) async {
-    // Get all text from session and scrub PII
+    // Get all text from session
     final allText = session.getAllText();
-    final scrubbedText = _prism.scrub(allText).scrubbedText;
     
     // Simple keyword extraction (can be enhanced with NLP)
-    final words = scrubbedText.toLowerCase()
+    final words = allText.toLowerCase()
         .replaceAll(RegExp(r'[^\w\s]'), '')
         .split(RegExp(r'\s+'))
         .where((w) => w.length > 3)
@@ -193,7 +178,7 @@ class VoiceTimelineStorage {
   /// Get voice entry from timeline by entry ID
   Future<JournalEntry?> getVoiceEntry(String entryId) async {
     try {
-      return await _journalRepository.getJournalEntryById(entryId);
+      return await _journalRepository.getEntry(entryId);
     } catch (e) {
       debugPrint('VoiceStorage: Error getting entry: $e');
       return null;
@@ -203,7 +188,7 @@ class VoiceTimelineStorage {
   /// Get all voice entries from timeline
   Future<List<JournalEntry>> getAllVoiceEntries() async {
     try {
-      final allEntries = await _journalRepository.getAllJournalEntries();
+      final allEntries = await _journalRepository.getAllEntries();
       return allEntries.where(_isVoiceEntry).toList();
     } catch (e) {
       debugPrint('VoiceStorage: Error getting voice entries: $e');
@@ -226,7 +211,7 @@ class VoiceTimelineStorage {
   /// Update voice entry (e.g., add notes)
   Future<void> updateVoiceEntry(String entryId, JournalEntry updatedEntry) async {
     try {
-      await _journalRepository.updateJournalEntry(updatedEntry);
+      await _journalRepository.updateEntry(updatedEntry);
       debugPrint('VoiceStorage: Voice entry updated');
     } catch (e) {
       debugPrint('VoiceStorage: Error updating entry: $e');
@@ -237,7 +222,7 @@ class VoiceTimelineStorage {
   /// Delete voice entry
   Future<void> deleteVoiceEntry(String entryId) async {
     try {
-      await _journalRepository.deleteJournalEntry(entryId);
+      await _journalRepository.deleteEntry(entryId);
       debugPrint('VoiceStorage: Voice entry deleted');
     } catch (e) {
       debugPrint('VoiceStorage: Error deleting entry: $e');
