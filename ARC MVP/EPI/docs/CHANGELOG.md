@@ -101,6 +101,46 @@ Removed all mentions of "journal," "entry," and "journaling" from onboarding scr
 
 ---
 
+### 🔊 Transcription Backend Fallback Chain
+
+Voice mode now has a three-tier transcription fallback system:
+
+| Priority | Backend | Requirements | Notes |
+|----------|---------|--------------|-------|
+| 1 | Wispr Flow | Under rate limit | Primary, fastest |
+| 2 | AssemblyAI | PRO/BETA tier | Cloud fallback |
+| 3 | Apple On-Device | None | Always available |
+
+#### Benefits
+- **Always works** - Apple On-Device guarantees voice mode availability
+- **Graceful degradation** - Best quality automatically selected
+- **No network dependency** - Works offline with on-device transcription
+- **Cost optimization** - Falls back to free options when cloud limits hit
+
+#### User Feedback
+- Approaching Wispr limit: "You have X minutes remaining today"
+- Using AssemblyAI: "Using cloud transcription (Wispr limit reached)"
+- Using On-Device: "Using on-device transcription (cloud unavailable)"
+
+#### Files Added/Changed
+- `lib/arc/chat/voice/transcription/unified_transcription_service.dart` (NEW)
+- `lib/arc/chat/voice/config/voice_system_initializer.dart`
+- `lib/arc/chat/voice/services/voice_session_service.dart`
+
+---
+
+### 🐛 Voice Mode Bug Fixes
+
+#### Finish Button Fix
+- **Bug**: Finish button was disabled when state was `idle`, but that's exactly when users want to finish (after LUMARA responds)
+- **Fix**: Button now enabled when `turnCount > 0` AND state is `idle` or `error`
+
+#### Phase Display Fix
+- **Bug**: Voice mode was using `UserPhaseService` which reads static onboarding data
+- **Fix**: Now uses `PhaseRegimeService` (same as Phase tab) for accurate current phase based on activity patterns
+
+---
+
 ### 🔒 Firebase & Backend
 
 #### Wispr API Integration

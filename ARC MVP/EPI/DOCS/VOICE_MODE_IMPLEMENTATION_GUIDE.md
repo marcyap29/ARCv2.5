@@ -272,14 +272,86 @@ Their useful functionality was merged into:
 
 ---
 
+## Transcription Backend Fallback Chain
+
+Voice mode uses a three-tier transcription fallback system:
+
+```
+Voice Mode Start
+       │
+       ▼
+┌─────────────────────────────────────────┐
+│  1. WISPR FLOW (Primary)                │
+│     ✓ Fastest, lowest latency           │
+│     ✗ Rate limited (60 min/day)         │
+└─────────────────────────────────────────┘
+       │ If limit exceeded
+       ▼
+┌─────────────────────────────────────────┐
+│  2. ASSEMBLYAI (1st Fallback)           │
+│     ✓ High accuracy cloud               │
+│     ✗ Requires PRO/BETA tier            │
+└─────────────────────────────────────────┘
+       │ If not PRO/unavailable
+       ▼
+┌─────────────────────────────────────────┐
+│  3. APPLE ON-DEVICE (2nd Fallback)      │
+│     ✓ Always available                  │
+│     ✓ No network required               │
+│     ✓ No API costs                      │
+│     ✗ Slightly lower accuracy           │
+└─────────────────────────────────────────┘
+```
+
+### Implementation Files
+
+| Component | File |
+|-----------|------|
+| Unified Service | `lib/arc/chat/voice/transcription/unified_transcription_service.dart` |
+| Wispr Flow | `lib/arc/chat/voice/wispr/wispr_flow_service.dart` |
+| AssemblyAI | `lib/arc/chat/voice/transcription/assemblyai_provider.dart` |
+| Apple On-Device | `lib/arc/chat/voice/transcription/ondevice_provider.dart` |
+| Rate Limiter | `lib/arc/chat/voice/wispr/wispr_rate_limiter.dart` |
+
+### User Feedback Messages
+
+| Backend | Message Shown |
+|---------|---------------|
+| Wispr (approaching limit) | "You have X minutes remaining today" |
+| AssemblyAI | "Using cloud transcription (Wispr limit reached)" |
+| Apple On-Device | "Using on-device transcription (cloud unavailable)" |
+
+---
+
+## Phase Detection
+
+Voice mode uses `PhaseRegimeService` (same as Phase tab) for accurate phase detection:
+
+```dart
+// In home_view.dart
+final analyticsService = AnalyticsService();
+final rivetSweepService = RivetSweepService(analyticsService);
+final phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
+await phaseRegimeService.initialize();
+
+final currentRegime = phaseRegimeService.phaseIndex.currentRegime;
+```
+
+This ensures voice mode displays the correct phase based on user activity patterns, not the static onboarding selection.
+
+---
+
 ## Related Documentation
 
 - [LUMARA Response Systems](./LUMARA_RESPONSE_SYSTEMS.md) - Full response system architecture
 - [Voice Mode Status](./VOICE_MODE_STATUS.md) - Implementation status overview
 - [Unified Intent Classifier Prompt](./UNIFIED_INTENT_CLASSIFIER_PROMPT.md) - Detailed classification spec
+- [Prompt References](./PROMPT_REFERENCES.md) - All LUMARA prompts including voice mode
 
 ---
 
 ## Version History
 
+- v1.2 (2026-01-17): Added Apple On-Device as final transcription fallback
+- v1.1 (2026-01-17): Added AssemblyAI fallback, fixed phase detection, fixed Finish button
 - v1.0 (2026-01-17): Initial implementation with Jarvis/Samantha dual-mode system
