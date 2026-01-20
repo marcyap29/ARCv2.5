@@ -1,175 +1,80 @@
-/// Voice Response Builders
+/// Voice Response Configuration
 /// 
-/// Jarvis (transactional) and Samantha (reflective) prompt builders
-/// for the dual-mode voice conversation system.
+/// Voice mode now uses the Master Unified Prompt system with voice-specific adaptations.
+/// This file only contains configuration constants for voice response timing.
 /// 
-/// These are lightweight prompts optimized for voice response times:
-/// - Jarvis: 50-100 words, 2-5 seconds latency
-/// - Samantha: 150-200 words, 8-10 seconds latency
+/// The actual prompts are built in:
+/// - voice_session_service.dart: Uses Master Unified Prompt with voice mode instructions
 
-import '../../../../models/phase_models.dart';
-
-/// Jarvis Prompt Builder - Quick, efficient responses
-/// 
-/// Used for transactional queries: factual questions, brief updates,
-/// task requests, calculations, etc.
-class JarvisPromptBuilder {
-  /// Build Jarvis (transactional) prompt
-  /// 
-  /// [userText] - The user's transcribed speech
-  /// [currentPhase] - User's current phase (affects tone only)
-  /// [conversationHistory] - Recent turns in this session
-  static String build({
-    required String userText,
-    required PhaseLabel currentPhase,
-    List<String> conversationHistory = const [],
-  }) {
-    final phaseGuidance = _getPhaseGuidance(currentPhase);
-    final historyContext = conversationHistory.isEmpty
-        ? ''
-        : '\nRecent context: ${conversationHistory.take(2).join(' → ')}';
-    
-    return '''
-You are LUMARA, a narrative intelligence AI. The user is in ${currentPhase.name} phase.
-
-RESPONSE MODE: TRANSACTIONAL (Jarvis)
-- Be helpful, direct, and efficient
-- 50-100 words maximum
-- Match phase tone: $phaseGuidance
-- This is a voice conversation - be natural and conversational
-- No deep analysis or pattern recognition needed
-- Answer the question or acknowledge the update simply
-$historyContext
-
-User: $userText
-
-Respond briefly and naturally:''';
-  }
-
-  static String _getPhaseGuidance(PhaseLabel phase) {
-    switch (phase) {
-      case PhaseLabel.recovery:
-        return 'gentle and supportive';
-      case PhaseLabel.breakthrough:
-        return 'direct and confident';
-      case PhaseLabel.transition:
-        return 'grounding and clear';
-      case PhaseLabel.discovery:
-        return 'encouraging and curious';
-      case PhaseLabel.expansion:
-        return 'energetic and focused';
-      case PhaseLabel.consolidation:
-        return 'steady and affirming';
-    }
-  }
-}
-
-/// Samantha Prompt Builder - Deep, reflective responses
-/// 
-/// Used for reflective queries: processing emotions, decision support,
-/// relationship questions, identity exploration, etc.
-class SamanthaPromptBuilder {
-  /// Build Samantha (reflective) prompt
-  /// 
-  /// [userText] - The user's transcribed speech
-  /// [currentPhase] - User's current phase (affects tone and depth)
-  /// [conversationHistory] - Recent turns in this session
-  /// [detectedTriggers] - What triggered reflective mode (for context)
-  static String build({
-    required String userText,
-    required PhaseLabel currentPhase,
-    List<String> conversationHistory = const [],
-    List<String> detectedTriggers = const [],
-  }) {
-    final phaseDepthGuidance = _getPhaseDepthGuidance(currentPhase);
-    final engagementStyle = _getEngagementStyle(currentPhase);
-    
-    final historySection = conversationHistory.isEmpty
-        ? '(Starting new conversation)'
-        : conversationHistory.map((turn) => '- $turn').join('\n');
-    
-    return '''
-You are LUMARA, a narrative intelligence companion. The user is in ${currentPhase.name} phase and needs reflective engagement.
-
-RESPONSE MODE: REFLECTIVE (Samantha)
-
-Core personality:
-- Warm, thoughtful, emotionally attuned
-- You understand developmental context
-- You hold space without fixing
-- You ask connecting questions that deepen understanding
-
-Phase-specific guidance: $phaseDepthGuidance
-
-Conversation so far:
-$historySection
-
-Current user input: $userText
-
-Response guidelines:
-- 150-200 words (this is voice - be conversational, not formal)
-- $engagementStyle
-- You may ask ONE connecting question if it deepens reflection
-- Surface patterns you notice without being clinical
-- No platitudes or generic advice
-- Be present with what they're experiencing
-
-Respond with depth and warmth:''';
-  }
-
-  static String _getPhaseDepthGuidance(PhaseLabel phase) {
-    switch (phase) {
-      case PhaseLabel.recovery:
-        return 'Extra validation. Slow pacing. No pressure to move forward. Honor what they need to process. Be gentle and containing.';
-      case PhaseLabel.breakthrough:
-        return 'Match their energy. Challenge them strategically. Help them capitalize on clarity. Support forward momentum.';
-      case PhaseLabel.transition:
-        return 'Normalize uncertainty. Ground them. Help navigate the in-between without rushing. Hold space for ambiguity.';
-      case PhaseLabel.discovery:
-        return 'Encourage exploration. Reflect emerging patterns. Support experimentation. Be curious alongside them.';
-      case PhaseLabel.expansion:
-        return 'Help prioritize opportunities. Strategic guidance. Sustain momentum. Challenge when helpful.';
-      case PhaseLabel.consolidation:
-        return 'Integrate what they\'ve built. Recognize progress. Support sustainability. Affirm their growth.';
-    }
-  }
-
-  static String _getEngagementStyle(PhaseLabel phase) {
-    switch (phase) {
-      case PhaseLabel.recovery:
-        return 'Be gentle, validating, and grounding';
-      case PhaseLabel.breakthrough:
-        return 'Be energizing, direct, and momentum-focused';
-      case PhaseLabel.transition:
-        return 'Be steady, normalizing, and patient';
-      case PhaseLabel.discovery:
-        return 'Be curious, encouraging, and exploratory';
-      case PhaseLabel.expansion:
-        return 'Be strategic, focused, and growth-oriented';
-      case PhaseLabel.consolidation:
-        return 'Be affirming, integrative, and reflective';
-    }
-  }
-}
+import '../../../../models/engagement_discipline.dart';
 
 /// Voice Response Mode configuration
+/// 
+/// Three-tier voice conversation system (matches written mode EngagementMode):
+/// - Reflect: Casual conversation, shortest (default) - 100 words (vs 200 in written)
+/// - Explore: Pattern analysis, longer (when asked) - 200 words (vs 400 in written)
+/// - Integrate: Cross-domain synthesis, longest (when asked) - 300 words (vs 500 in written)
+/// 
+/// IMPORTANT: Voice mode word limits are SHORTER than written mode for the same engagement mode
+/// because spoken conversation needs to be more concise than written text.
+/// 
+/// Written mode limits (for reference):
+/// - Reflect: 200 words
+/// - Explore: 400 words
+/// - Integrate: 500 words
+/// 
+/// Contains latency targets and word limits for voice mode responses.
+/// These are used for performance monitoring and validation.
 class VoiceResponseConfig {
-  /// Jarvis configuration
-  static const int jarvisMaxWords = 100;
-  static const int jarvisTargetLatencyMs = 5000;
+  /// Reflect mode configuration (casual conversation, default)
+  /// Voice: 100 words (Written: 200 words) - 50% shorter for spoken conversation
+  static const int reflectiveMaxWords = 100;
+  static const int reflectiveTargetLatencyMs = 5000;
   
-  /// Samantha configuration  
-  static const int samanthaMaxWords = 200;
-  static const int samanthaTargetLatencyMs = 10000;
-  static const int samanthaHardLimitMs = 10000; // Hard ceiling
+  /// Explore mode configuration (pattern analysis, when asked)
+  /// Voice: 200 words (Written: 400 words) - 50% shorter for spoken conversation
+  static const int exploreMaxWords = 200;
+  static const int exploreTargetLatencyMs = 10000;
   
-  /// Get max words for voice depth mode
-  static int getMaxWords(bool isReflective) {
-    return isReflective ? samanthaMaxWords : jarvisMaxWords;
+  /// Integrate mode configuration (synthesis, when asked)
+  /// Voice: 300 words (Written: 500 words) - 40% shorter for spoken conversation
+  static const int integrateMaxWords = 300;
+  static const int integrateTargetLatencyMs = 15000;
+  static const int integrateHardLimitMs = 20000; // Hard ceiling for synthesis
+  
+  /// Get max words for voice engagement mode (matches written mode)
+  static int getMaxWords(EngagementMode mode) {
+    switch (mode) {
+      case EngagementMode.reflect:
+        return reflectiveMaxWords;
+      case EngagementMode.explore:
+        return exploreMaxWords;
+      case EngagementMode.integrate:
+        return integrateMaxWords;
+    }
   }
   
-  /// Get target latency for voice depth mode
-  static int getTargetLatencyMs(bool isReflective) {
-    return isReflective ? samanthaTargetLatencyMs : jarvisTargetLatencyMs;
+  /// Get target latency for voice engagement mode
+  static int getTargetLatencyMs(EngagementMode mode) {
+    switch (mode) {
+      case EngagementMode.reflect:
+        return reflectiveTargetLatencyMs;
+      case EngagementMode.explore:
+        return exploreTargetLatencyMs;
+      case EngagementMode.integrate:
+        return integrateTargetLatencyMs;
+    }
+  }
+  
+  /// Get hard limit latency for voice engagement mode
+  static int getHardLimitMs(EngagementMode mode) {
+    switch (mode) {
+      case EngagementMode.reflect:
+        return reflectiveTargetLatencyMs * 2; // 10s
+      case EngagementMode.explore:
+        return exploreTargetLatencyMs * 2; // 20s
+      case EngagementMode.integrate:
+        return integrateHardLimitMs; // 20s
+    }
   }
 }

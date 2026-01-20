@@ -1,17 +1,22 @@
 # Voice Mode Status & Architecture
 
-> Last Updated: January 19, 2026 (v3.3.2)
+> Last Updated: January 20, 2026 (v3.3.3)
 > 
-> **STATUS: IMPLEMENTED** - Jarvis/Samantha dual-mode system is now live.
+> **STATUS: IMPLEMENTED** - Master Unified Prompt integration with three-tier engagement system.
 > See [VOICE_MODE_IMPLEMENTATION_GUIDE.md](./VOICE_MODE_IMPLEMENTATION_GUIDE.md) for full details.
 
 ## Overview
 
 Voice mode allows users to have spoken conversations with LUMARA. The system captures speech via **Wispr Flow** (optional, user-provided API key) or **Apple On-Device** (default), processes it through PRISM (PII scrubbing), sends to LUMARA for response generation, and plays back via TTS.
 
-**Voice mode automatically detects conversation depth and routes between:**
-- **Jarvis Mode** - Quick, efficient responses (50-100 words, 3-5 seconds)
-- **Samantha Mode** - Deep, reflective engagement (150-200 words, 8-10 seconds)
+**Voice mode uses the same three-tier engagement system as written mode:**
+- **Reflect Mode** (default) - Casual conversation, 1-3 sentences, 100 words max (vs 200 in written)
+- **Explore Mode** (when asked) - Pattern analysis, 4-8 sentences, 200 words max (vs 400 in written)
+- **Integrate Mode** (when asked) - Cross-domain synthesis, 6-12 sentences, 300 words max (vs 500 in written)
+
+**Explicit Voice Commands:**
+- Explore: "Analyze", "Give me insight", "What patterns do you see?"
+- Integrate: "Deep analysis", "Go deeper", "Connect the dots"
 
 ---
 
@@ -44,18 +49,21 @@ Voice mode allows users to have spoken conversations with LUMARA. The system cap
 - **Export/import compatible** - voice entries preserve all metadata
 
 ### Current Response Path
-Voice mode currently uses **"fast paths"** - lightweight prompts that bypass the full 260KB Master Unified Prompt:
+Voice mode now uses the **full Master Unified Prompt** (260KB) matching written mode, ensuring consistent personality, tone, and capabilities:
 
-| Content Type | Prompt Size | Response | Latency |
-|--------------|-------------|----------|---------|
-| Questions | ~200 words | ~100 words max | 2-5 sec |
-| Statements | ~200 words | ~50 words max | 2-5 sec |
+| Engagement Mode | Response Length | Latency Target | Processing |
+|-----------------|-----------------|----------------|------------|
+| Reflect (default) | 1-3 sentences, 100 words max | 5 sec | Lightweight (skips node matching) |
+| Explore (when asked) | 4-8 sentences, 200 words max | 10 sec | Full processing (pattern analysis) |
+| Integrate (when asked) | 6-12 sentences, 300 words max | 15 sec | Full processing (synthesis) |
 
-**Trade-off:** Fast responses, but no access to:
-- User's journal history
+**Benefits:**
+- Full access to user's journal history
 - Pattern recognition across entries
 - Deep therapeutic engagement
 - Phase-specific guidance from the master prompt
+- Consistent personality and tone with written mode
+- Multi-turn conversation tracking
 
 ---
 

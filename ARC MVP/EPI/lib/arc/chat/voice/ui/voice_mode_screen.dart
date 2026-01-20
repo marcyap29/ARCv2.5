@@ -584,7 +584,7 @@ class _VoiceModeScreenState extends State<VoiceModeScreen> {
           Text(
             'LUMARA:',
             style: TextStyle(
-              color: _getPhaseColor(widget.sessionService.currentPhase).withOpacity(0.7),
+              color: const Color(0xFF7C3AED).withOpacity(0.7), // Purple label for LUMARA (same as journal mode)
               fontSize: 12,
               fontWeight: FontWeight.w600,
             ),
@@ -592,8 +592,8 @@ class _VoiceModeScreenState extends State<VoiceModeScreen> {
           const SizedBox(height: 8),
           Text(
             _lastLumaraResponse,
-            style: TextStyle(
-              color: _getPhaseColor(widget.sessionService.currentPhase),
+            style: const TextStyle(
+              color: Color(0xFF7C3AED), // Purple text for LUMARA (same as journal mode)
               fontSize: 18,
               height: 1.5,
             ),

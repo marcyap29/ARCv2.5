@@ -1,7 +1,7 @@
 # EPI ARC MVP - Changelog
 
-**Version:** 3.3.2
-**Last Updated:** January 19, 2026
+**Version:** 3.3.3
+**Last Updated:** January 20, 2026
 
 ---
 
@@ -14,6 +14,55 @@ This changelog has been split into parts for easier navigation:
 | **[CHANGELOG_part1.md](CHANGELOG_part1.md)** | Dec 2025 | v2.1.43 - v2.1.87 (Current) |
 | **[CHANGELOG_part2.md](CHANGELOG_part2.md)** | Nov 2025 | v2.1.28 - v2.1.42 |
 | **[CHANGELOG_part3.md](CHANGELOG_part3.md)** | Jan-Oct 2025 | v2.0.0 - v2.1.27 & Earlier |
+
+---
+
+## [3.3.3] - January 20, 2026
+
+### 🎙️ Voice Mode: Master Unified Prompt Integration & Multi-Turn Fixes
+
+#### Overview
+Voice mode now uses the full Master Unified Prompt system, matching written mode's three-tier engagement system (Reflect, Explore, Integrate). Fixed multi-turn conversation tracking across all modes (voice, written chat, journal).
+
+#### Voice Mode Enhancements
+- **Master Unified Prompt Integration**: Voice mode now uses the same 260KB Master Unified Prompt as written mode, ensuring consistent personality, tone, and capabilities
+- **Three-Tier Engagement System**: Replaced Jarvis/Samantha dual-mode with Reflect/Explore/Integrate system matching written mode
+  - **Reflect Mode** (default): Casual conversation, 1-3 sentences, 100 words max (vs 200 in written)
+  - **Explore Mode** (when asked): Pattern analysis, 4-8 sentences, 200 words max (vs 400 in written)
+  - **Integrate Mode** (when asked): Cross-domain synthesis, 6-12 sentences, 300 words max (vs 500 in written)
+- **Explicit Voice Commands**: Users can trigger Explore/Integrate modes with commands:
+  - Explore: "Analyze", "Give me insight", "What patterns do you see?"
+  - Integrate: "Deep analysis", "Go deeper", "Connect the dots"
+- **Purple Styling**: LUMARA's responses in voice mode now use purple color (`#7C3AED`) matching journal entries for visual consistency
+- **Multi-Turn Conversation Tracking**: Fixed issue where LUMARA would repeat questions instead of using provided information
+
+#### Multi-Turn Conversation Fixes
+- **Voice Mode**: Added explicit instructions that current user input is a continuation of conversation history
+- **Written Chat**: Added multi-turn conversation rules to Firebase function system prompt
+- **Journal Mode**: Enhanced Master Prompt with multi-turn conversation instructions for in-journal conversations
+- All modes now properly recognize when user is answering a previous question or providing requested information
+
+#### Technical Changes
+- `voice_session_service.dart`: Now uses Master Unified Prompt via `LumaraMasterPrompt.getMasterPrompt()`
+- `enhanced_lumara_api.dart`: Added `skipHeavyProcessing` flag for voice mode (skips node matching but uses Master Prompt)
+- `entry_classifier.dart`: Added `classifyVoiceDepth()` returning `EngagementMode` (Reflect/Explore/Integrate)
+- `voice_response_builders.dart`: Updated word limits for three-tier system
+- `voice_mode_screen.dart`: Purple styling for LUMARA responses
+- `voice_journal_panel.dart`: Purple styling for LUMARA responses
+- `unified_voice_panel.dart`: Purple styling for LUMARA responses
+- `sendChatMessage.ts`: Added multi-turn conversation instructions
+- `lumara_master_prompt.dart`: Enhanced in-journal conversation context with multi-turn rules
+
+#### Files Changed
+- `lib/arc/chat/voice/services/voice_session_service.dart` - Master Prompt integration, multi-turn instructions
+- `lib/arc/chat/services/enhanced_lumara_api.dart` - `skipHeavyProcessing` flag, Master Prompt support
+- `lib/services/lumara/entry_classifier.dart` - Three-tier engagement classification, explicit voice commands
+- `lib/arc/chat/voice/prompts/voice_response_builders.dart` - Updated word limits
+- `lib/arc/chat/voice/ui/voice_mode_screen.dart` - Purple styling
+- `lib/arc/chat/voice/voice_journal/voice_journal_panel.dart` - Purple styling
+- `lib/arc/chat/voice/voice_journal/unified_voice_panel.dart` - Purple styling
+- `functions/src/functions/sendChatMessage.ts` - Multi-turn conversation instructions
+- `lib/arc/chat/llm/prompts/lumara_master_prompt.dart` - Enhanced multi-turn rules
 
 ---
 

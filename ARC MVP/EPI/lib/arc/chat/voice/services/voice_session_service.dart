@@ -20,11 +20,12 @@ import '../endpoint/smart_endpoint_detector.dart';
 import '../transcription/unified_transcription_service.dart';
 import '../../../internal/echo/prism_adapter.dart';
 import '../voice_journal/tts_client.dart';
-import '../prompts/voice_response_builders.dart';
+import '../prompts/voice_response_builders.dart'; // For VoiceResponseConfig only
 import '../../services/enhanced_lumara_api.dart';
 import '../../models/lumara_reflection_options.dart' as models;
 import '../models/voice_session.dart';
 import '../../../../models/phase_models.dart';
+import '../../../../models/engagement_discipline.dart';
 import '../../../../services/lumara/entry_classifier.dart';
 
 /// Voice session state
@@ -275,10 +276,14 @@ class VoiceSessionService {
     _currentTranscript = '';
     _turnStartTime = DateTime.now();
     _isProcessingTranscript = false; // Reset for new turn
+    _waitingForFinalTranscript = false; // Reset waiting flag
+    
+    debugPrint('VoiceSession: Starting new turn (session: ${_currentSession?.build().sessionId})');
     
     // Start transcription
     final started = await _unifiedTranscription.startListening();
     if (!started) {
+      debugPrint('VoiceSession: Failed to start transcription, current state: ${_state.name}');
       onError?.call('Failed to start transcription');
       _updateState(VoiceSessionState.error);
       return;
@@ -291,7 +296,7 @@ class VoiceSessionService {
     _endpointDetector.start();
     
     _updateState(VoiceSessionState.listening);
-    debugPrint('VoiceSession: Turn started');
+    debugPrint('VoiceSession: Turn started successfully');
   }
   
   /// Handle audio chunks from microphone
@@ -439,13 +444,13 @@ class VoiceSessionService {
       debugPrint('VoiceSession: PRISM took ${DateTime.now().difference(prismStart).inMilliseconds}ms, scrubbed ${prismResult.redactionCount} items');
       
       // =========================================================
-      // JARVIS/SAMANTHA DUAL-MODE ROUTING
-      // Classify depth and route to appropriate response path
+      // THREE-TIER VOICE MODE ROUTING (matches written mode)
+      // Classify engagement: Reflect (default), Explore (when asked), Integrate (when asked)
       // =========================================================
       final depthResult = EntryClassifier.classifyVoiceDepth(prismResult.scrubbedText);
-      final isReflective = depthResult.depth == VoiceDepthMode.reflective;
+      final engagementMode = depthResult.depth; // Uses EngagementMode enum
       
-      debugPrint('VoiceSession: Depth classification: ${depthResult.depth.name} '
+      debugPrint('VoiceSession: Engagement mode classification: ${engagementMode.name} '
           '(confidence: ${depthResult.confidence.toStringAsFixed(2)}, '
           'triggers: ${depthResult.triggers.join(", ")})');
       
@@ -458,36 +463,30 @@ class VoiceSessionService {
         return 'User: ${turn.userText}\nLUMARA: ${turn.lumaraResponse}';
       }).toList() ?? [];
       
-      // Build appropriate prompt based on depth mode
-      String voicePrompt;
-      if (isReflective) {
-        // SAMANTHA MODE: Deep, reflective engagement (150-200 words)
-        voicePrompt = SamanthaPromptBuilder.build(
-          userText: prismResult.scrubbedText,
-          currentPhase: _currentPhase,
-          conversationHistory: conversationHistory,
-          detectedTriggers: depthResult.triggers,
-        );
-        debugPrint('VoiceSession: Using SAMANTHA mode (reflective)');
-      } else {
-        // JARVIS MODE: Quick, efficient response (50-100 words)
-        voicePrompt = JarvisPromptBuilder.build(
-          userText: prismResult.scrubbedText,
-          currentPhase: _currentPhase,
-          conversationHistory: conversationHistory,
-        );
-        debugPrint('VoiceSession: Using JARVIS mode (transactional)');
-      }
+      // Build voice-specific mode instructions
+      final voiceModeInstructions = _buildVoiceModeInstructions(
+        engagementMode: engagementMode,
+        currentPhase: _currentPhase,
+        conversationHistory: conversationHistory,
+        detectedTriggers: depthResult.triggers,
+      );
       
-      // Call LUMARA API with appropriate mode
+      final modeName = engagementMode == EngagementMode.reflect ? 'REFLECT' :
+                      engagementMode == EngagementMode.explore ? 'EXPLORE' : 'INTEGRATE';
+      debugPrint('VoiceSession: Using $modeName mode with Master Unified Prompt (matches written mode)');
+      debugPrint('VoiceSession: Max words: ${VoiceResponseConfig.getMaxWords(engagementMode)}');
+      
+      // Call LUMARA API - it will build Master Prompt internally with control state
+      // Pass voice mode instructions via chatContext so they're included in mode-specific instructions
+      // For Explore and Integrate modes, allow heavier processing to surface patterns/synthesis
       final apiStart = DateTime.now();
       final reflectionResult = await _lumaraApi.generatePromptedReflection(
         entryText: prismResult.scrubbedText,
-        intent: isReflective ? 'reflective' : 'conversational',
+        intent: engagementMode == EngagementMode.reflect ? 'conversational' : 'reflective',
         phase: _currentPhase.name,
         userId: _userId,
-        chatContext: voicePrompt,
-        forceQuickResponse: !isReflective,
+        chatContext: voiceModeInstructions, // Voice-specific instructions (will be added to mode-specific instructions)
+        skipHeavyProcessing: engagementMode == EngagementMode.reflect, // Only skip for reflect mode
         options: models.LumaraReflectionOptions(
           conversationMode: models.ConversationMode.think,
           toneMode: models.ToneMode.normal,
@@ -495,17 +494,22 @@ class VoiceSessionService {
       );
       
       final apiDuration = DateTime.now().difference(apiStart).inMilliseconds;
-      final maxLatency = isReflective 
-          ? VoiceResponseConfig.samanthaHardLimitMs 
-          : VoiceResponseConfig.jarvisTargetLatencyMs;
+      final maxLatency = VoiceResponseConfig.getTargetLatencyMs(engagementMode);
+      final hardLimit = VoiceResponseConfig.getHardLimitMs(engagementMode);
       
       debugPrint('VoiceSession: LUMARA API took ${apiDuration}ms '
-          '(${isReflective ? "Samantha" : "Jarvis"} mode, limit: ${maxLatency}ms)');
+          '(${engagementMode.name} mode, target: ${maxLatency}ms, hard limit: ${hardLimit}ms)');
       
       // Warn if latency exceeds target
       if (apiDuration > maxLatency) {
         debugPrint('VoiceSession: WARNING - Latency exceeded target! '
             '${apiDuration}ms > ${maxLatency}ms');
+      }
+      
+      // Error if latency exceeds hard limit
+      if (apiDuration > hardLimit) {
+        debugPrint('VoiceSession: ERROR - Latency exceeded hard limit! '
+            '${apiDuration}ms > ${hardLimit}ms');
       }
       
       final response = reflectionResult.reflection;
@@ -552,8 +556,10 @@ class VoiceSessionService {
   /// Handle TTS completion
   void _onTtsComplete() async {
     debugPrint('VoiceSession: TTS complete, ready for user to continue');
+    debugPrint('VoiceSession: Current session: ${_currentSession != null ? "exists" : "null"}, turn count: ${_currentSession?.build().turnCount ?? 0}');
     // Go to idle state - user taps to continue conversation
     _updateState(VoiceSessionState.idle);
+    debugPrint('VoiceSession: State set to idle, ready for next turn');
   }
   
   /// Handle TTS error
@@ -565,9 +571,19 @@ class VoiceSessionService {
   
   /// Start listening (for tap-to-toggle interaction)
   Future<void> startListening() async {
+    debugPrint('VoiceSession: startListening() called, current state: ${_state.name}');
+    
     if (_state != VoiceSessionState.idle) {
       debugPrint('VoiceSession: Cannot start listening - not idle (current: ${_state.name})');
-      return;
+      // If we're in an error state or stuck, try to recover
+      if (_state == VoiceSessionState.error || _state == VoiceSessionState.waitingForLumara) {
+        debugPrint('VoiceSession: Attempting recovery from ${_state.name} state');
+        _updateState(VoiceSessionState.idle);
+        // Small delay to ensure state is updated
+        await Future.delayed(const Duration(milliseconds: 100));
+      } else {
+        return;
+      }
     }
     
     // IMMEDIATE visual feedback
@@ -575,9 +591,11 @@ class VoiceSessionService {
     
     // If no session yet, start one
     if (_currentSession == null) {
+      debugPrint('VoiceSession: No session exists, starting new session');
       await startSession();
     } else {
       // Continue existing session with new turn
+      debugPrint('VoiceSession: Continuing existing session (${_currentSession?.build().turnCount ?? 0} turns), starting new turn');
       await _startTurn();
     }
   }
@@ -645,6 +663,180 @@ class VoiceSessionService {
       return null;
     } finally {
       _isEndingSession = false;
+    }
+  }
+  
+  /// Build voice-specific mode instructions for Master Unified Prompt
+  String _buildVoiceModeInstructions({
+    required EngagementMode engagementMode,
+    required PhaseLabel currentPhase,
+    required List<String> conversationHistory,
+    List<String> detectedTriggers = const [],
+  }) {
+    final buffer = StringBuffer();
+    
+    buffer.writeln('═══════════════════════════════════════════════════════════');
+    buffer.writeln('VOICE CONVERSATION MODE - CRITICAL INSTRUCTIONS');
+    buffer.writeln('═══════════════════════════════════════════════════════════');
+    buffer.writeln();
+    buffer.writeln('⚠️ THIS IS A REAL-TIME VOICE CONVERSATION, NOT A JOURNAL ENTRY ANALYSIS ⚠️');
+    buffer.writeln();
+    buffer.writeln('The user is speaking to you RIGHT NOW in a voice conversation.');
+    buffer.writeln('Respond ONLY to what they just said in this conversation.');
+    buffer.writeln();
+    buffer.writeln('🚫 STRICT PROHIBITIONS (unless explicitly asked by the user):');
+    buffer.writeln('- Do NOT reference historical journal entries');
+    buffer.writeln('- Do NOT reference scriptures, religious texts, or biblical figures');
+    buffer.writeln('- Do NOT reference unrelated historical events or educational content');
+    buffer.writeln('- Do NOT pull in context from past conversations unless directly relevant');
+    buffer.writeln('- Do NOT provide educational explanations unless the user explicitly asks');
+    buffer.writeln();
+    buffer.writeln('✅ STAY FOCUSED ON:');
+    buffer.writeln('- The current conversation topic');
+    buffer.writeln('- What the user just said in this turn');
+    buffer.writeln('- Responding naturally and conversationally to their immediate statement or question');
+    buffer.writeln();
+    buffer.writeln('If the user explicitly asks about historical entries, scriptures, or educational content,');
+    buffer.writeln('THEN and ONLY THEN may you reference such content. Otherwise, stay in the present moment.');
+    buffer.writeln();
+    buffer.writeln('RESPONSE REQUIREMENTS:');
+    buffer.writeln('- Conversational tone, natural spoken language');
+    buffer.writeln('- Write for the ear, not the eye');
+    buffer.writeln('- NO formatting artifacts (no bullets, headers, markdown, numbered lists, structured lists)');
+    buffer.writeln('- NO parenthetical asides or written conventions');
+    buffer.writeln('- Use natural spoken transitions ("That connects to...", not "Additionally,...")');
+    buffer.writeln('- Contractions are good. Sentence fragments are fine when natural.');
+    buffer.writeln('- Vary acknowledgment based on context: Sometimes "Got it" is enough. Sometimes more reflection is needed. Read the moment.');
+    buffer.writeln();
+    buffer.writeln('HARD CONSTRAINTS - NEVER:');
+    buffer.writeln('- Use therapeutic language like "How does that make you feel?"');
+    buffer.writeln('- Give prescriptive advice using "You should..."');
+    buffer.writeln('- Create dependency with phrases like "I\'m here for you" or "I\'ll always..."');
+    buffer.writeln('- Over-explain your own reasoning or responses');
+    buffer.writeln('- Start from zero - you maintain continuity across all conversations');
+    buffer.writeln('- Use written prose formatting - no bullet points, no structured lists in speech');
+    buffer.writeln('- Ask obvious questions just to keep conversation going');
+    buffer.writeln('- Probe without boundaries or purpose');
+    buffer.writeln();
+    buffer.writeln('NATURAL CONVERSATION PATTERNS:');
+    buffer.writeln('- Reference shared history naturally: "Like you mentioned last week about the project..." or "Different from how you were talking about this before."');
+    buffer.writeln('- Vary acknowledgment based on context: Sometimes "Got it" is enough. Sometimes more reflection is needed. Read the moment.');
+    buffer.writeln('- Don\'t force questions into every response. Natural conversations include statements that don\'t prompt further dialogue.');
+    buffer.writeln('- Use continuity indicators when relevant: "Still working through that..." "That\'s new..." "Same pattern as..."');
+    buffer.writeln();
+    
+    // Mode-specific instructions (matches written mode EngagementMode behavior)
+    switch (engagementMode) {
+      case EngagementMode.reflect:
+        buffer.writeln('MODE: REFLECT (Surface Patterns & Stop)');
+        buffer.writeln('CRITICAL: Do NOT simply repeat or mirror the user\'s words back to them.');
+        buffer.writeln('Your job is to provide ACTUAL INSIGHTS, not echo what they said.');
+        buffer.writeln();
+        buffer.writeln('REFLECT Mode Behavior:');
+        buffer.writeln('- Surface the pattern you notice, then stop');
+        buffer.writeln('- NO follow-up questions (except for clarification if absolutely needed)');
+        buffer.writeln('- Complete responses in 1-3 sentences');
+        buffer.writeln('- Visual transitions quickly back to idle state after speaking');
+        buffer.writeln('- Surface patterns you notice in what they said (identify themes, tensions, or observations)');
+        buffer.writeln('- Name what\'s happening without resolving it (acknowledge the situation, highlight key points)');
+        buffer.writeln('- Provide grounding (offer a brief perspective or insight that helps them understand their own words)');
+        buffer.writeln('- Answer questions directly if asked');
+        buffer.writeln('- Stay in the present moment - don\'t connect to other topics unless asked');
+        buffer.writeln('- NO cross-domain synthesis');
+        buffer.writeln('- Stop after achieving grounding - response should feel complete');
+        buffer.writeln();
+        buffer.writeln('Example of GOOD REFLECT response:');
+        buffer.writeln('User: "I\'m feeling overwhelmed with work and family responsibilities."');
+        buffer.writeln('LUMARA: "It sounds like you\'re juggling multiple demands right now. The tension between work and family often creates that sense of being pulled in different directions."');
+        buffer.writeln();
+        buffer.writeln('Example of BAD REFLECT response (DO NOT DO THIS):');
+        buffer.writeln('User: "I\'m feeling overwhelmed with work and family responsibilities."');
+        buffer.writeln('LUMARA: "You\'re feeling overwhelmed with work and family responsibilities." (This is just repeating - provide insight instead!)');
+        buffer.writeln();
+        break;
+        
+      case EngagementMode.explore:
+        buffer.writeln('MODE: EXPLORE (Pattern Analysis with One Engagement Move)');
+        buffer.writeln('EXPLORE Mode Behavior:');
+        buffer.writeln('- All REFLECT capabilities PLUS single engagement move');
+        buffer.writeln('- May ask ONE connecting question OR make ONE additional observation beyond the core response');
+        buffer.writeln('- Natural back-and-forth rhythm');
+        buffer.writeln('- Visual stays in active states longer');
+        buffer.writeln('- Surface patterns you notice in their current statement or recent conversation');
+        buffer.writeln('- Provide thoughtful analysis and insights');
+        buffer.writeln('- Reference relevant context from the conversation history if helpful');
+        buffer.writeln('- Questions should connect to trajectory, not probe emotions');
+        buffer.writeln('- Don\'t force questions - only ask if it genuinely deepens understanding');
+        buffer.writeln();
+        break;
+        
+      case EngagementMode.integrate:
+        buffer.writeln('MODE: INTEGRATE (Cross-Domain Synthesis)');
+        buffer.writeln('INTEGRATE Mode Behavior:');
+        buffer.writeln('- All EXPLORE capabilities PLUS full synthesis');
+        buffer.writeln('- May draw connections across different domains of their life they\'ve shared with you');
+        buffer.writeln('- Synthesize patterns across contexts');
+        buffer.writeln('- Visual shows constellation points connecting different themes');
+        buffer.writeln('- Connect long-term trajectory themes across life areas');
+        buffer.writeln('- Show how different pieces fit together into a bigger picture');
+        buffer.writeln('- Most active engagement posture while respecting boundaries');
+        buffer.writeln('- Synthesis must respect user\'s domain boundaries (check synthesis_allowed settings)');
+        buffer.writeln();
+        break;
+    }
+    
+    buffer.writeln('Phase: ${currentPhase.name}');
+    buffer.writeln(_getPhaseGuidanceForVoice(currentPhase));
+    buffer.writeln();
+    
+    if (conversationHistory.isNotEmpty) {
+      buffer.writeln('═══════════════════════════════════════════════════════════');
+      buffer.writeln('CONVERSATION HISTORY - CRITICAL FOR MULTI-TURN CONTEXT');
+      buffer.writeln('═══════════════════════════════════════════════════════════');
+      buffer.writeln();
+      buffer.writeln('The following is the conversation history up to this point:');
+      buffer.writeln();
+      buffer.writeln(conversationHistory.join('\n\n'));
+      buffer.writeln();
+      buffer.writeln('🚨 CRITICAL MULTI-TURN CONVERSATION RULES:');
+      buffer.writeln();
+      buffer.writeln('1. The current user input (in the "CURRENT TASK" section) is a CONTINUATION of the conversation above.');
+      buffer.writeln('2. If you asked a question in the last turn, the current user input is ANSWERING that question.');
+      buffer.writeln('3. If you requested information in the last turn, the current user input is PROVIDING that information.');
+      buffer.writeln('4. DO NOT repeat questions you already asked - the user has answered them.');
+      buffer.writeln('5. DO NOT ask for information you already requested - the user has provided it.');
+      buffer.writeln('6. USE the information the user just provided to fulfill their original request.');
+      buffer.writeln();
+      buffer.writeln('Example scenario:');
+      buffer.writeln('- Turn 1: User asks "Can you find scriptures about hope?"');
+      buffer.writeln('- Turn 2: LUMARA asks "What themes or feelings do you want the verses to address?"');
+      buffer.writeln('- Turn 3 (CURRENT): User says "I want verses about hope and strength"');
+      buffer.writeln('→ CORRECT: Provide scriptures about hope and strength (fulfill the original request)');
+      buffer.writeln('→ WRONG: Ask "What themes or feelings do you want the verses to address?" again (you already asked, they answered)');
+      buffer.writeln();
+      buffer.writeln('When the user provides information you requested, immediately use it to complete their original request.');
+      buffer.writeln('Do not ask for clarification unless the information is genuinely unclear or incomplete.');
+      buffer.writeln();
+    }
+    
+    return buffer.toString();
+  }
+  
+  /// Get phase-specific guidance for voice mode
+  String _getPhaseGuidanceForVoice(PhaseLabel phase) {
+    switch (phase) {
+      case PhaseLabel.recovery:
+        return 'Extra validation. Slow pacing. No pressure to move forward. Honor what they need to process. Be gentle and containing.';
+      case PhaseLabel.breakthrough:
+        return 'Match their energy. Challenge them strategically. Help them capitalize on clarity. Support forward momentum.';
+      case PhaseLabel.transition:
+        return 'Normalize uncertainty. Ground them. Help navigate the in-between without rushing. Hold space for ambiguity.';
+      case PhaseLabel.discovery:
+        return 'Encourage exploration. Reflect emerging patterns. Support experimentation. Be curious alongside them.';
+      case PhaseLabel.expansion:
+        return 'Help prioritize opportunities. Strategic guidance. Sustain momentum. Challenge when helpful.';
+      case PhaseLabel.consolidation:
+        return 'Integrate what they\'ve built. Recognize progress. Support sustainability. Affirm their growth.';
     }
   }
   

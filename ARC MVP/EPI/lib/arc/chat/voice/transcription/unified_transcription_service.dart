@@ -192,6 +192,8 @@ class UnifiedTranscriptionService {
     if (_status == UnifiedTranscriptionStatus.listening) {
       debugPrint('UnifiedTranscription: Already listening, stopping first...');
       await stopListening();
+      // Brief delay to ensure clean state before starting new session
+      await Future.delayed(const Duration(milliseconds: 150));
     }
     
     _status = UnifiedTranscriptionStatus.listening;
@@ -200,6 +202,16 @@ class UnifiedTranscriptionService {
     switch (_activeBackend) {
       case TranscriptionBackend.wisprFlow:
         _setupWisprCallbacks();
+        // Ensure Wispr service is still connected before starting new session
+        if (_wisprService?.isConnected != true) {
+          debugPrint('UnifiedTranscription: Wispr not connected, reconnecting...');
+          final reconnected = await _wisprService?.connect();
+          if (reconnected != true) {
+            debugPrint('UnifiedTranscription: Failed to reconnect Wispr');
+            _status = UnifiedTranscriptionStatus.error;
+            return false;
+          }
+        }
         _wisprService?.startSession();
         debugPrint('UnifiedTranscription: Started Wispr Flow session');
         return true;

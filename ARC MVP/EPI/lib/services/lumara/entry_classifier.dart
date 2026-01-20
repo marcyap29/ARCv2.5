@@ -1,3 +1,5 @@
+import '../../models/engagement_discipline.dart';
+
 enum EntryType {
   factual,        // Questions, clarifications, learning notes
   reflective,     // Feelings, struggles, personal assessment, goals
@@ -6,16 +8,10 @@ enum EntryType {
   metaAnalysis    // Explicit requests for pattern recognition
 }
 
-/// Voice depth mode for Jarvis/Samantha dual-mode system
-/// Used to determine response depth in voice conversations
-enum VoiceDepthMode {
-  transactional,  // Jarvis: Quick, efficient, 50-100 words
-  reflective,     // Samantha: Deep, engaged, 150-200 words
-}
-
 /// Result of voice depth classification
+/// Uses EngagementMode to match written mode behavior
 class VoiceDepthResult {
-  final VoiceDepthMode depth;
+  final EngagementMode depth;
   final double confidence;
   final List<String> triggers;
   
@@ -359,14 +355,18 @@ class EntryClassifier {
   // VOICE DEPTH CLASSIFICATION (Jarvis/Samantha dual-mode system)
   // =========================================================================
 
-  /// Classify voice input for depth mode (transactional vs reflective)
-  /// Used to route between Jarvis (quick) and Samantha (deep) response paths
+  /// Classify voice input for engagement mode (reflect, explore, or integrate)
+  /// Uses EngagementMode to match written mode behavior exactly
+  /// Three-tier system:
+  /// - Reflect (default): Casual conversation, shortest, stays in present moment
+  /// - Explore: Analysis and pattern surfacing, longer, when user asks for exploration
+  /// - Integrate: Synthesis across domains, longest, when user asks for synthesis
   /// 
-  /// Returns VoiceDepthResult with depth, confidence, and matched triggers
+  /// Returns VoiceDepthResult with depth (EngagementMode), confidence, and matched triggers
   static VoiceDepthResult classifyVoiceDepth(String transcript) {
     if (transcript.trim().isEmpty) {
       return const VoiceDepthResult(
-        depth: VoiceDepthMode.transactional,
+        depth: EngagementMode.reflect,
         confidence: 1.0,
         triggers: [],
       );
@@ -377,7 +377,30 @@ class EntryClassifier {
     final triggers = <String>[];
     double confidence = 0.0;
 
-    // Check for REFLECTIVE triggers (any match → reflective)
+    // PRIORITY 1: Check for INTEGRATE mode triggers (synthesis requests)
+    if (_containsIntegrationLanguage(lowerText)) {
+      triggers.add('integration_request');
+      confidence = 0.9;
+      return VoiceDepthResult(
+        depth: EngagementMode.integrate,
+        confidence: confidence,
+        triggers: triggers,
+      );
+    }
+
+    // PRIORITY 2: Check for EXPLORE mode triggers (pattern/analysis requests)
+    if (_containsExplorationLanguage(lowerText)) {
+      triggers.add('exploration_request');
+      confidence = 0.85;
+      return VoiceDepthResult(
+        depth: EngagementMode.explore,
+        confidence: confidence,
+        triggers: triggers,
+      );
+    }
+
+    // PRIORITY 3: Check for REFLECT triggers (emotional, personal processing)
+    // Default to reflect mode for casual conversation
     
     // 1. Explicit processing language
     if (_containsProcessingLanguage(lowerText)) {
@@ -434,20 +457,20 @@ class EntryClassifier {
       // Cap confidence at 1.0
       confidence = confidence.clamp(0.0, 1.0);
       return VoiceDepthResult(
-        depth: VoiceDepthMode.reflective,
+        depth: EngagementMode.reflect,
         confidence: confidence,
         triggers: triggers,
       );
     }
 
-    // No reflective triggers → transactional (default)
+    // No triggers → reflect (default for casual conversation)
     // Higher confidence for shorter, simpler utterances
-    final transactionalConfidence = wordCount < 20 ? 1.0 : 
-                                    wordCount < 50 ? 0.9 : 0.8;
+    final reflectConfidence = wordCount < 20 ? 1.0 : 
+                              wordCount < 50 ? 0.9 : 0.8;
     
     return VoiceDepthResult(
-      depth: VoiceDepthMode.transactional,
-      confidence: transactionalConfidence,
+      depth: EngagementMode.reflect,
+      confidence: reflectConfidence,
       triggers: [],
     );
   }
@@ -550,13 +573,120 @@ class EntryClassifier {
     );
   }
 
-  /// Get human-readable description of voice depth mode
-  static String getVoiceDepthDescription(VoiceDepthMode mode) {
+  /// Check for integration/synthesis language
+  /// "Connect the dots", "How does this relate to...", "Synthesize..."
+  /// Also includes explicit voice commands: "Deep analysis", "Go deeper", etc.
+  static bool _containsIntegrationLanguage(String lowerText) {
+    final integrationPatterns = [
+      // Explicit voice commands for Integrate mode
+      r'\bdeep analysis\b',
+      r'\bgo deeper\b',
+      r'\b(do|give|provide) (a )?deep analysis\b',
+      r'\bdeep dive\b',
+      r'\bgo into integrate (mode|mode)\b',
+      r'\bswitch to integrate\b',
+      r'\bintegrate mode\b',
+      r'\bsynthesis mode\b',
+      r'\bcomprehensive analysis\b',
+      r'\bfull analysis\b',
+      r'\bcomplete analysis\b',
+      
+      // Natural integration/synthesis language
+      r'\bsynthesize\b',
+      r'\bsynthesis\b',
+      r'\bintegrate\b',
+      r'\bintegration\b',
+      r'\bconnect the dots\b',
+      r'\bconnect (all|everything|these)\b',
+      r'\bhow does (this|that|it) (relate|connect|link) (to|with)\b',
+      r'\bhow (are|do) (these|all) (relate|connect|link)\b',
+      r"what's the (bigger|overall) (picture|pattern|connection)\b",
+      r'\bsee the (bigger|overall) (picture|pattern|connection)\b',
+      r'\bput (it|this|everything) together\b',
+      r'\bhow (does|do) (this|these|it|they) (fit|work) together\b',
+      r'\bacross (domains|areas|topics|contexts)\b',
+      r'\bhow (does|do) (my|this) .* (relate|connect|link) (to|with) (my|this) .*\b',
+      r'\bwhat (are|is) the (connections|links|relationships) (between|across)\b',
+      r'\bunify\b',
+      r'\bunified\b',
+      r'\bunifying\b',
+      r'\bholistic\b',
+      r'\bcomprehensive\b',
+      r'\bconnect everything\b',
+      r'\bsee how (this|it|everything) (connects|relates|fits)\b',
+      r'\bhow (does|do) (this|it|everything) (all|all of this) (connect|relate|fit together)\b',
+      r"what's the (full|complete|whole) (picture|story|context)\b",
+      r'\b(show|give) (me )?the (bigger|full|complete) (picture|view|perspective)\b',
+      r'\bweave (it|this|everything) together\b',
+      r'\bpiece (it|this|everything) together\b',
+    ];
+
+    return integrationPatterns.any((pattern) => 
+      RegExp(pattern).hasMatch(lowerText)
+    );
+  }
+
+  /// Check for exploration/analysis language
+  /// "What patterns...", "Explore...", "Analyze...", "Help me understand..."
+  /// Also includes explicit voice commands: "Analyze", "Give me insight", etc.
+  static bool _containsExplorationLanguage(String lowerText) {
+    final explorationPatterns = [
+      // Explicit voice commands for Explore mode
+      r'\banalyze\b',
+      r'\banalyze (this|that|it|for me)\b',
+      r'\bgive me (insight|insights)\b',
+      r'\b(show|give) (me )?(some )?insight\b',
+      r'\binsight (please|now)\b',
+      r'\bgo into explore (mode|mode)\b',
+      r'\bswitch to explore\b',
+      r'\bexplore mode\b',
+      
+      // Natural exploration language
+      r'\bwhat patterns?\b',
+      r'\bwhat (patterns|themes) (do you see|have you noticed|are there)\b',
+      r'\bexplore\b',
+      r'\bexploration\b',
+      r'\bexploring\b',
+      r'\banalysis\b',
+      r'\banalyzing\b',
+      r'\bhelp me understand\b',
+      r'\bhelp me see\b',
+      r'\bhelp me figure out\b',
+      r'\bwhat (do you see|are you noticing|insights) (in|about|from)\b',
+      r'\bwhat (can you|do you) (tell|show|reveal) (me|about)\b',
+      r'\bwhat (does|is) (this|that|it) (mean|suggest|indicate|reveal)\b',
+      r'\bwhat (are|is) the (themes|patterns|trends|insights)\b',
+      r'\bidentify (patterns|themes|trends)\b',
+      r'\bsurface (patterns|themes|insights)\b',
+      r'\bwhat (connections|insights|observations) (do you see|can you make)\b',
+      r'\bdig (deeper|into)\b',
+      r'\bdive (into|deeper)\b',
+      r'\bbreak (this|it) down\b',
+      r'\bunpack (this|it)\b',
+      r"what's (really|actually) (going on|happening|here)\b",
+      r'\bwhat (do|does) (my|this) (entries|journey|progress) (reveal|show|suggest)\b',
+      r'\bexamine (this|that|it)\b',
+      r'\binvestigate\b',
+      r'\blook deeper\b',
+      r'\bwhat do you think\b',
+      r"what's your take\b",
+      r"what's your perspective\b",
+    ];
+
+    return explorationPatterns.any((pattern) => 
+      RegExp(pattern).hasMatch(lowerText)
+    );
+  }
+
+  /// Get human-readable description of voice engagement mode
+  static String getVoiceDepthDescription(EngagementMode mode) {
     switch (mode) {
-      case VoiceDepthMode.transactional:
-        return 'Quick Response (Jarvis)';
-      case VoiceDepthMode.reflective:
-        return 'Deep Engagement (Samantha)';
+      case EngagementMode.reflect:
+        return 'Reflect (Casual Conversation)';
+      case EngagementMode.explore:
+        return 'Explore (Pattern Analysis)';
+      case EngagementMode.integrate:
+        return 'Integrate (Synthesis)';
     }
   }
 }

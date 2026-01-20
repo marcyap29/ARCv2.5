@@ -2104,9 +2104,10 @@ Unified voice interface for both Voice Journal and Voice Chat modes. Features dy
 ### Conversation History
 
 - **Display**: Scrollable list of conversation turns
-- **Format**: User message bubble (primary color) + LUMARA response bubble (secondary color)
+- **Format**: User message bubble (primary color) + LUMARA response bubble (purple `#7C3AED`)
 - **Visibility**: Only shown when conversation history exists
 - **Auto-scroll**: Scrolls to bottom when new messages arrive
+- **Styling**: LUMARA's responses use purple color matching journal entries for visual consistency
 
 ### Processing Indicator Card
 

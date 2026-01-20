@@ -2782,8 +2782,27 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
       });
     }
     
-    final currentPhase = entryWithLegacy.computedPhase ?? 'Discovery';
+    // Normalize phase value to match dropdown format (capitalized)
+    final rawPhase = entryWithLegacy.computedPhase ?? 'Discovery';
+    final currentPhase = rawPhase.isEmpty 
+        ? 'Discovery'
+        : rawPhase[0].toUpperCase() + rawPhase.substring(1).toLowerCase();
     final isManual = entryWithLegacy.isPhaseManuallyOverridden;
+    
+    // Available phase options (must match dropdown items exactly)
+    const availablePhases = [
+      'Discovery',
+      'Expansion',
+      'Transition',
+      'Consolidation',
+      'Recovery',
+      'Breakthrough',
+    ];
+    
+    // Ensure currentPhase matches one of the available phases
+    final normalizedPhase = availablePhases.contains(currentPhase) 
+        ? currentPhase 
+        : 'Discovery';
     
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -2840,7 +2859,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
           children: [
             Expanded(
               child: DropdownButtonFormField<String>(
-                value: currentPhase,
+                value: normalizedPhase,
                 decoration: InputDecoration(
                   labelText: 'Phase',
                   hintText: 'Select phase',
@@ -2849,14 +2868,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
                   ),
                   contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 ),
-                items: const [
-                  'Discovery',
-                  'Expansion',
-                  'Transition',
-                  'Consolidation',
-                  'Recovery',
-                  'Breakthrough',
-                ].map((phase) {
+                items: availablePhases.map((phase) {
                   return DropdownMenuItem<String>(
                     value: phase,
                     child: Text(phase),

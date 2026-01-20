@@ -338,12 +338,17 @@ class _UnifiedVoicePanelState extends State<UnifiedVoicePanel>
             style: theme.textTheme.labelSmall?.copyWith(
               color: isUser
                   ? theme.colorScheme.primary
-                  : theme.colorScheme.secondary,
+                  : const Color(0xFF7C3AED), // Purple label for LUMARA (same as journal mode)
               fontWeight: FontWeight.w600,
             ),
           ),
           const SizedBox(height: 4),
-          Text(text, style: theme.textTheme.bodyMedium),
+          Text(
+            text,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: isUser ? null : const Color(0xFF7C3AED), // Purple text for LUMARA (same as journal mode)
+            ),
+          ),
         ],
       ),
     );

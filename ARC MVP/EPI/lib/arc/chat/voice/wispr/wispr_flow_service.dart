@@ -234,9 +234,12 @@ class WisprFlowService {
       throw StateError('Not authenticated. Call connect() first.');
     }
     
+    // If session is still active from previous turn, reset it first
+    // This can happen if final transcript wasn't received yet
     if (_sessionActive) {
-      debugPrint('WisprFlow: Session already active');
-      return;
+      debugPrint('WisprFlow: Previous session still active, resetting for new turn');
+      _sessionActive = false;
+      _audioPacketIndex = 0;
     }
     
     _audioPacketIndex = 0;
@@ -245,7 +248,7 @@ class WisprFlowService {
     // Per Wispr Flow API, there's no explicit "start" message
     // The session begins with the auth message (already sent during connect)
     // Audio is sent via "append" messages, session ends with "commit"
-    debugPrint('WisprFlow: Session started (ready for audio packets)');
+    debugPrint('WisprFlow: Session started (ready for audio packets, index: $_audioPacketIndex)');
   }
   
   /// Send audio chunk (16 kHz PCM audio)
@@ -470,6 +473,14 @@ class WisprFlowService {
     
     debugPrint('WisprFlow: Transcript callback - isFinal=$isFinal, text="${text.substring(0, text.length.clamp(0, 100))}"');
     onTranscript?.call(transcript);
+    
+    // IMPORTANT: Reset session state after final transcript is received
+    // This allows the next turn to start properly
+    if (isFinal) {
+      debugPrint('WisprFlow: Final transcript received, resetting session state for next turn');
+      _sessionActive = false;
+      _audioPacketIndex = 0;
+    }
   }
   
   /// Handle connection errors

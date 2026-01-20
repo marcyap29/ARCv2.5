@@ -354,13 +354,13 @@ class _VoiceJournalPanelState extends State<VoiceJournalPanel>
                   Icon(
                     Icons.auto_awesome,
                     size: 16,
-                    color: theme.colorScheme.secondary,
+                    color: const Color(0xFF7C3AED), // Purple icon for LUMARA (same as journal mode)
                   ),
                   const SizedBox(width: 8),
                   Text(
                     'LUMARA',
                     style: theme.textTheme.labelMedium?.copyWith(
-                      color: theme.colorScheme.secondary,
+                      color: const Color(0xFF7C3AED), // Purple label for LUMARA (same as journal mode)
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -369,7 +369,9 @@ class _VoiceJournalPanelState extends State<VoiceJournalPanel>
               const SizedBox(height: 8),
               Text(
                 stateNotifier.lumaraReply,
-                style: theme.textTheme.bodyMedium,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: const Color(0xFF7C3AED), // Purple text for LUMARA (same as journal mode)
+                ),
               ),
             ],
           ],
