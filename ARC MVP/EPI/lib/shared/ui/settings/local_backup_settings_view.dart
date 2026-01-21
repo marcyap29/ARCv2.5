@@ -19,6 +19,10 @@ import 'package:my_app/services/analytics_service.dart';
 import 'package:my_app/services/rivet_sweep_service.dart';
 import 'package:my_app/mira/store/arcx/services/arcx_export_service_v2.dart';
 import 'package:my_app/services/export_history_service.dart';
+import 'package:my_app/shared/ui/settings/selective_backup_entry_selector.dart';
+import 'package:my_app/models/journal_entry_model.dart';
+import 'package:my_app/arc/chat/chat/chat_models.dart';
+import 'package:my_app/services/backup_file_scanner.dart';
 import 'package:intl/intl.dart';
 
 class LocalBackupSettingsView extends StatefulWidget {
@@ -136,6 +140,56 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
       print('Local Backup Settings: Error loading backup info: $e');
       if (mounted) {
         setState(() => _isLoadingPreview = false);
+      }
+    }
+  }
+  
+  Future<void> _performScan() async {
+    if (_backupPath == null || _backupPath!.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please select a backup folder first'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _isLoadingPreview = true;
+    });
+  
+    try {
+      // Force rescan of backup folder
+      final backupDir = Directory(_backupPath!);
+      await BackupFileScanner.invalidateCache(backupDir);
+    
+      // Reload preview (this will trigger a fresh scan)
+      await _loadBackupInfo();
+    
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Scan complete - backup status updated'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Scan error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoadingPreview = false;
+        });
       }
     }
   }
@@ -974,13 +1028,8 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
                     if (_backupPath != null) ...[
                       const SizedBox(height: 24),
                       
-                      // Incremental Backup Card
-                      _buildIncrementalBackupCard(),
-                      
-                      const SizedBox(height: 16),
-                      
-                      // Full Backup Card
-                      _buildFullBackupCard(),
+                      // Consolidated Backup Card
+                      _buildConsolidatedBackupCard(),
                       
                       const SizedBox(height: 16),
                       
@@ -1090,6 +1139,206 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
                 ],
               ),
             ),
+    );
+  }
+  
+  Widget _buildConsolidatedBackupCard() {
+    final preview = _incrementalPreview;
+    final hasChanges = preview?['hasChanges'] ?? false;
+    final newEntries = preview?['newEntries'] ?? 0;
+    final newChats = preview?['newChats'] ?? 0;
+    final newMedia = preview?['newMedia'] ?? 0;
+    final lastExport = preview?['lastExportDate'] as DateTime?;
+    final totalEntries = preview?['totalEntries'] ?? 0;
+    final totalChats = preview?['totalChats'] ?? 0;
+    
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: kcAccentColor.withOpacity(0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.backup, color: kcAccentColor, size: 24),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Backup Options',
+                      style: heading3Style(context).copyWith(
+                        color: kcPrimaryTextColor,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    Text(
+                      hasChanges 
+                          ? '$newEntries new entries, $newChats chats since last backup'
+                          : 'All data: $totalEntries entries, $totalChats chats',
+                      style: bodyStyle(context).copyWith(
+                        color: kcSecondaryTextColor,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          
+          // Quick stats
+          if (_isLoadingPreview)
+            const Center(child: CircularProgressIndicator())
+          else if (preview != null && lastExport != null) ...[
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  _buildStatItem(Icons.article_outlined, '$newEntries', 'New entries'),
+                  _buildStatItem(Icons.chat_bubble_outline, '$newChats', 'New chats'),
+                  _buildStatItem(Icons.photo_outlined, '$newMedia', 'New media'),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
+          
+          // Scan button
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: !_isLoadingPreview && !_isBackingUp ? _performScan : null,
+                  icon: Icon(_isLoadingPreview ? Icons.hourglass_empty : Icons.search, size: 18),
+                  label: Text(_isLoadingPreview ? 'Scanning...' : 'Scan for Changes'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: kcAccentColor,
+                    side: BorderSide(color: kcAccentColor.withOpacity(0.5)),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          
+          // Backup buttons
+          if (hasChanges) ...[
+            // Incremental backup (recommended)
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: !_isBackingUp ? () => _performIncrementalBackup(excludeMedia: false) : null,
+                icon: const Icon(Icons.update, size: 18),
+                label: const Text('Incremental Backup (Recommended)'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: kcAccentColor,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            // Text-only option
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: !_isBackingUp ? () => _performIncrementalBackup(excludeMedia: true) : null,
+                icon: const Icon(Icons.text_fields, size: 18),
+                label: const Text('Text Only (Faster)'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: kcSecondaryTextColor,
+                  side: BorderSide(color: kcSecondaryTextColor.withOpacity(0.5)),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+              ),
+            ),
+          ] else ...[
+            // Full backup when no incremental changes
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: !_isBackingUp ? _performFullBackup : null,
+                icon: const Icon(Icons.cloud_download, size: 18),
+                label: const Text('Create Full Backup'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: kcAccentColor,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+              ),
+            ),
+          ],
+          
+          const SizedBox(height: 12),
+          
+          // Selective backup option (lighter - uses date range first)
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: !_isBackingUp ? _triggerSelectiveBackupLite : null,
+              icon: const Icon(Icons.checklist, size: 18),
+              label: const Text('Select Specific Items'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: kcSecondaryTextColor,
+                side: BorderSide(color: kcSecondaryTextColor.withOpacity(0.5)),
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  Widget _buildStatItem(IconData icon, String value, String label) {
+    return Column(
+      children: [
+        Icon(icon, color: kcSecondaryTextColor, size: 20),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: bodyStyle(context).copyWith(
+            fontWeight: FontWeight.bold,
+            fontSize: 16,
+          ),
+        ),
+        Text(
+          label,
+          style: bodyStyle(context).copyWith(
+            color: kcSecondaryTextColor,
+            fontSize: 10,
+          ),
+        ),
+      ],
     );
   }
   
@@ -1371,6 +1620,363 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
         ],
       ),
     );
+  }
+  
+  Widget _buildSelectiveBackupCard() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.purple.withOpacity(0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.checklist, color: Colors.purple[300], size: 24),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Selective Backup',
+                      style: heading3Style(context).copyWith(
+                        color: kcPrimaryTextColor,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    Text(
+                      'Choose specific entries and chats to backup',
+                      style: bodyStyle(context).copyWith(
+                        color: kcSecondaryTextColor,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Colors.purple.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.purple.withOpacity(0.2)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.info_outline, color: Colors.purple[300], size: 18),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Select individual entries/chats or use date range batch selection',
+                        style: TextStyle(
+                          color: Colors.purple[200],
+                          fontSize: 11,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  '• Select specific entries and chats individually\n'
+                  '• Batch select by date range (e.g., 5/10-5/17)\n'
+                  '• All phase information is preserved',
+                  style: TextStyle(
+                    color: Colors.purple[200]!.withOpacity(0.8),
+                    fontSize: 10,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: !_isBackingUp ? _triggerSelectiveBackup : null,
+              icon: const Icon(Icons.checklist),
+              label: const Text('Select Entries & Chats'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.purple[700],
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                disabledBackgroundColor: kcSecondaryTextColor.withOpacity(0.3),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  // Lightweight selective backup - asks for date range first to avoid loading everything
+  Future<void> _triggerSelectiveBackupLite() async {
+    if (!mounted) return;
+    
+    try {
+      // First, ask for date range to limit what we load
+      final DateTimeRange? dateRange = await showDateRangePicker(
+        context: context,
+        firstDate: DateTime(2020),
+        lastDate: DateTime.now(),
+        helpText: 'Select date range for backup',
+        builder: (context, child) {
+          if (child == null) {
+            return const SizedBox.shrink();
+          }
+          return Theme(
+            data: Theme.of(context).copyWith(
+              colorScheme: ColorScheme.dark(
+                primary: kcAccentColor,
+                onPrimary: Colors.white,
+                surface: kcBackgroundColor,
+                onSurface: Colors.white,
+              ),
+            ),
+            child: child,
+          );
+        },
+      );
+      
+      if (dateRange == null || !mounted) return;
+      
+      // Show loading indicator
+      if (mounted) {
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => Dialog(
+            backgroundColor: kcBackgroundColor,
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const CircularProgressIndicator(),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Loading entries and chats...',
+                    style: bodyStyle(context),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      }
+      
+      try {
+        // Load only entries/chats in the selected date range
+        final startDate = DateTime(dateRange.start.year, dateRange.start.month, dateRange.start.day);
+        final endDate = DateTime(dateRange.end.year, dateRange.end.month, dateRange.end.day, 23, 59, 59);
+        
+        if (!mounted) {
+          Navigator.of(context).pop(); // Close loading dialog
+          return;
+        }
+        
+        // Load entries - filter as we go to reduce memory
+        final allEntries = await widget.journalRepo.getAllJournalEntries();
+        final entries = allEntries.where((e) {
+          final entryDate = e.createdAt;
+          return entryDate.isAfter(startDate.subtract(const Duration(days: 1))) &&
+                 entryDate.isBefore(endDate.add(const Duration(days: 1)));
+        }).toList();
+        
+        if (!mounted) {
+          Navigator.of(context).pop(); // Close loading dialog
+          return;
+        }
+        
+        // Load chats
+        final chatRepo = ChatRepoImpl.instance;
+        await chatRepo.initialize();
+        final allChats = await chatRepo.listAll();
+        final chats = allChats.where((c) {
+          final chatDate = c.createdAt;
+          return chatDate.isAfter(startDate.subtract(const Duration(days: 1))) &&
+                 chatDate.isBefore(endDate.add(const Duration(days: 1)));
+        }).toList();
+        
+        if (!mounted) {
+          Navigator.of(context).pop(); // Close loading dialog
+          return;
+        }
+        
+        // Close loading dialog
+        Navigator.of(context).pop();
+        
+        if (entries.isEmpty && chats.isEmpty) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('No entries or chats found in selected date range'),
+                backgroundColor: Colors.orange,
+              ),
+            );
+          }
+          return;
+        }
+        
+        // Show selective backup selector with filtered data
+        if (mounted) {
+          await showDialog(
+            context: context,
+            builder: (context) => SelectiveBackupEntrySelector(
+              allEntries: entries,
+              allChats: chats,
+              onConfirm: (selectedEntries, selectedChats) async {
+                await _performSelectiveBackup(selectedEntries, selectedChats);
+              },
+            ),
+          );
+        }
+      } catch (e, stackTrace) {
+        print('Error in _triggerSelectiveBackupLite: $e');
+        print('Stack trace: $stackTrace');
+        if (mounted) {
+          // Try to close loading dialog
+          try {
+            Navigator.of(context).pop();
+          } catch (_) {}
+          
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error loading data: $e'),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 5),
+            ),
+          );
+        }
+      }
+    } catch (e, stackTrace) {
+      print('Error showing date range picker: $e');
+      print('Stack trace: $stackTrace');
+      if (mounted) {
+        // Try to close any open dialogs
+        try {
+          Navigator.of(context).pop();
+        } catch (_) {}
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      }
+    }
+  }
+  
+  // Legacy method - kept for compatibility but not used in UI
+  Future<void> _triggerSelectiveBackup() async {
+    await _triggerSelectiveBackupLite();
+  }
+  
+  Future<void> _performSelectiveBackup(
+    List<JournalEntry> selectedEntries,
+    List<ChatSession> selectedChats,
+  ) async {
+    if (_backupPath == null || _backupPath!.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please select a backup folder first'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _isBackingUp = true;
+      _backupProgress = 'Starting selective backup...';
+      _backupPercentage = 0;
+    });
+
+    try {
+      final analyticsService = AnalyticsService();
+      final rivetSweepService = RivetSweepService(analyticsService);
+      final phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
+      await phaseRegimeService.initialize();
+
+      final chatRepo = ChatRepoImpl.instance;
+      await chatRepo.initialize();
+      
+      // Generate backup to temp location
+      final result = await _backupService.createBackupToTemp(
+        format: _backupFormat,
+        journalRepo: widget.journalRepo,
+        chatRepo: chatRepo,
+        phaseRegimeService: phaseRegimeService,
+        excludeMedia: false,
+        selectedEntries: selectedEntries,
+        selectedChats: selectedChats,
+      );
+
+      if (!result.success) {
+        if (mounted) {
+          _showBackupErrorDialog(result.error ?? 'Unknown error');
+        }
+        return;
+      }
+
+      // Now prompt user to pick save location
+      if (result.filePath != null && mounted) {
+        final selectedPath = await FilePicker.platform.getDirectoryPath();
+        
+        if (selectedPath != null) {
+          final sourceFile = File(result.filePath!);
+          final fileName = result.fileName ?? 'backup.zip';
+          final destFile = File(path.join(selectedPath, fileName));
+          
+          await sourceFile.copy(destFile.path);
+          
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  'Selective backup saved: ${result.entriesExported ?? 0} entries, ${result.chatsExported ?? 0} chats'
+                ),
+                backgroundColor: Colors.green,
+                duration: const Duration(seconds: 4),
+              ),
+            );
+          }
+        } else {
+          // User cancelled - delete temp file
+          try {
+            await File(result.filePath!).delete();
+          } catch (_) {}
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        _showBackupErrorDialog(e.toString());
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isBackingUp = false;
+          _backupProgress = '';
+          _backupPercentage = 0;
+        });
+      }
+    }
   }
   
   Widget _buildBackupHistoryCard() {
