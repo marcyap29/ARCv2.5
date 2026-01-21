@@ -1,6 +1,6 @@
 # EPI ARC MVP - Changelog
 
-**Version:** 3.3.3
+**Version:** 3.3.4
 **Last Updated:** January 20, 2026
 
 ---
@@ -14,6 +14,45 @@ This changelog has been split into parts for easier navigation:
 | **[CHANGELOG_part1.md](CHANGELOG_part1.md)** | Dec 2025 | v2.1.43 - v2.1.87 (Current) |
 | **[CHANGELOG_part2.md](CHANGELOG_part2.md)** | Nov 2025 | v2.1.28 - v2.1.42 |
 | **[CHANGELOG_part3.md](CHANGELOG_part3.md)** | Jan-Oct 2025 | v2.0.0 - v2.1.27 & Earlier |
+
+---
+
+## [3.3.4] - January 20, 2026
+
+### 🔄 Backup UI Consolidation & Scan Feature
+
+#### Overview
+Consolidated backup interface to reduce memory usage and improve usability. Added manual scan button for refreshing backup folder status.
+
+#### Backup UI Improvements
+- **Consolidated Interface**: Combined incremental, full, and selective backup options into a single "Backup Options" card
+  - Reduces memory footprint by eliminating redundant UI components
+  - Simplified user experience with unified backup controls
+  - Better visual hierarchy and organization
+- **Scan for Changes Button**: 
+  - Manual refresh of backup folder scan
+  - Invalidates cached backup index (`.backup_index.json`)
+  - Updates incremental backup preview with latest status
+  - Useful when backup files are modified outside the app or after manual file operations
+  - Shows "Scanning..." state during operation
+- **Selective Backup Enhancements**:
+  - Fixed date range picker crash with improved error handling
+  - Better null safety checks for date picker builder
+  - Improved memory management by filtering data before loading
+  - Enhanced error messages with stack traces for debugging
+
+#### Technical Changes
+- `local_backup_settings_view.dart`: 
+  - Consolidated `_buildIncrementalBackupCard`, `_buildFullBackupCard`, `_buildSelectiveBackupCard` into single `_buildConsolidatedBackupCard()`
+  - Added `_performScan()` method for manual backup folder scanning
+  - Fixed date range picker with null safety and error handling
+  - Removed deprecated `WillPopScope` usage
+  - Improved dialog context management
+
+#### Bug Fixes
+- Fixed crash when selecting date range in selective backup
+- Fixed memory issues by loading data only after date range selection
+- Improved error handling with try-catch blocks and stack trace logging
 
 ---
 

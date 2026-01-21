@@ -2259,9 +2259,16 @@ UnifiedVoicePanel(
 
 **Purpose:** Space-efficient incremental backups with export history tracking.
 
-#### Incremental Backup Card
+#### Consolidated Backup Options Card (v3.3.4)
 **Features:**
+- **Unified Interface**: Single card combining incremental, full, and selective backup options
 - **Preview Display**: Shows count of new entries, chats, and media before backup
+- **Backup Statistics**: Displays total entries, chats, and media counts
+- **Scan for Changes Button**: 
+  - Manually refresh backup folder scan
+  - Invalidates cached backup index
+  - Updates incremental backup preview
+  - Useful when backup files are modified outside the app
 - **Dual Backup Options**:
   - **"Text Only" Button**: Creates text-only incremental backup (entries + chats, no media)
     - Much smaller and faster (typically < 1 MB vs hundreds of MB)
@@ -2270,28 +2277,23 @@ UnifiedVoicePanel(
   - **"Backup All" Button**: Full incremental backup including all new media
     - Includes all new entries, chats, and media items
     - Recommended for weekly or periodic backups
+- **Selective Backup**: Choose specific entries and chats by date range
+  - Date range picker to limit data loading
+  - Individual entry/chat selection
+  - Batch selection by date ranges
+  - Reduces memory usage by filtering before loading
 - **Media Warning Banner**: Shows when new media items would be included, with tip to use text-only for frequent backups
 - **Size Efficiency**: Only exports data changed since last backup (90%+ size reduction)
 - **Real-time Preview**: Updates preview when new data is available
+- **Memory Optimized**: Consolidated UI reduces memory footprint, date range filtering prevents loading all data at once
 
 **Visual Design:**
-- Card with purple accent border
-- Info rows showing entry/chat/media counts
+- Single consolidated card with purple accent border
+- Statistics section showing entry/chat/media counts
+- Scan button with search icon
+- Backup action buttons (Incremental, Full, Selective)
 - Orange warning banner when media would be included
-- Two-button layout: Outlined "Text Only" button + Primary "Backup All" button
 - Helpful tip text below buttons
-
-#### Full Backup Card
-**Features:**
-- **Total Counts**: Shows all entries and chats in database
-- **"Create Full Backup" Button**: Exports complete backup
-- **History Tracking**: Records full backup date
-- **Recommended Frequency**: Monthly or before major changes
-
-**Visual Design:**
-- Card with blue accent
-- Total statistics display
-- Prominent backup button
 
 #### Backup History Card
 **Features:**

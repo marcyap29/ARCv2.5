@@ -707,6 +707,8 @@ class VoiceSessionService {
     buffer.writeln('- Use natural spoken transitions ("That connects to...", not "Additionally,...")');
     buffer.writeln('- Contractions are good. Sentence fragments are fine when natural.');
     buffer.writeln('- Vary acknowledgment based on context: Sometimes "Got it" is enough. Sometimes more reflection is needed. Read the moment.');
+    buffer.writeln('- Avoid formulaic acknowledgment phrases - start with substance, not "It sounds like" or similar');
+    buffer.writeln('- Direct observations are better than prefacing with acknowledgment phrases');
     buffer.writeln();
     buffer.writeln('HARD CONSTRAINTS - NEVER:');
     buffer.writeln('- Use therapeutic language like "How does that make you feel?"');
@@ -717,6 +719,8 @@ class VoiceSessionService {
     buffer.writeln('- Use written prose formatting - no bullet points, no structured lists in speech');
     buffer.writeln('- Ask obvious questions just to keep conversation going');
     buffer.writeln('- Probe without boundaries or purpose');
+    buffer.writeln('- NEVER use formulaic acknowledgment phrases like "It sounds like", "Okay, it sounds like", "It seems like", "I hear that", etc. as sentence starters');
+    buffer.writeln('- Start responses directly with substance, not formulaic acknowledgments');
     buffer.writeln();
     buffer.writeln('NATURAL CONVERSATION PATTERNS:');
     buffer.writeln('- Reference shared history naturally: "Like you mentioned last week about the project..." or "Different from how you were talking about this before."');
@@ -747,7 +751,7 @@ class VoiceSessionService {
         buffer.writeln();
         buffer.writeln('Example of GOOD REFLECT response:');
         buffer.writeln('User: "I\'m feeling overwhelmed with work and family responsibilities."');
-        buffer.writeln('LUMARA: "It sounds like you\'re juggling multiple demands right now. The tension between work and family often creates that sense of being pulled in different directions."');
+        buffer.writeln('LUMARA: "You\'re juggling multiple demands right now. The tension between work and family often creates that sense of being pulled in different directions."');
         buffer.writeln();
         buffer.writeln('Example of BAD REFLECT response (DO NOT DO THIS):');
         buffer.writeln('User: "I\'m feeling overwhelmed with work and family responsibilities."');
