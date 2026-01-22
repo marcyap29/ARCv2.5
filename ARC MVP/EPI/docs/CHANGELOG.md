@@ -1,7 +1,7 @@
 # EPI ARC MVP - Changelog
 
-**Version:** 3.3.5
-**Last Updated:** January 21, 2026
+**Version:** 3.3.6
+**Last Updated:** January 22, 2026
 
 ---
 
@@ -14,6 +14,79 @@ This changelog has been split into parts for easier navigation:
 | **[CHANGELOG_part1.md](CHANGELOG_part1.md)** | Dec 2025 | v2.1.43 - v2.1.87 (Current) |
 | **[CHANGELOG_part2.md](CHANGELOG_part2.md)** | Nov 2025 | v2.1.28 - v2.1.42 |
 | **[CHANGELOG_part3.md](CHANGELOG_part3.md)** | Jan-Oct 2025 | v2.0.0 - v2.1.27 & Earlier |
+
+---
+
+## [3.3.6] - January 22, 2026
+
+### 🧠 LUMARA Response System Enhancement - Direct Answers & Connection Permission
+
+#### Overview
+Enhanced LUMARA's response system to provide direct answers instead of reflecting questions back, while implementing a permission-based connection strategy to prevent connection fatigue.
+
+#### Response System Improvements
+- **Direct Answer Strategy**: LUMARA now answers questions directly instead of reflecting them back
+  - Eliminates frustrating "It seems like you're asking..." responses
+  - Provides substance immediately, not meta-commentary
+  - Maintains all temporal intelligence and pattern recognition capabilities
+- **Connection Permission System (REFLECT Mode)**:
+  - After answering, LUMARA offers relevant connections and asks permission
+  - User controls when to explore deeper connections
+  - Prevents connection fatigue from always pulling patterns
+  - Only offers connections if clearly relevant and meaningful
+- **Proactive Connections (EXPLORE/INTEGRATE Modes)**:
+  - Users who opt into deeper engagement get proactive connections
+  - Maintains full synthesis and pattern recognition capabilities
+  - Respects user's choice for depth
+
+#### PRISM Context Preservation Enhancement
+- **New PRISM Context Preserver** (`lib/arc/internal/echo/prism_context_preserver.dart`):
+  - Query classification system (question, request_for_suggestions, etc.)
+  - Semantic content extraction (preserves meaning while removing PII)
+  - Expected response type inference (guides LUMARA's response style)
+  - Context building from conversation history (PII-scrubbed summaries)
+- **Enhanced Privacy**: PRISM now preserves conversational structure while scrubbing PII
+  - Cloud API receives rich context without exposing personal identifiers
+  - Enables more helpful responses while maintaining privacy
+  - Strips identifiers, preserves meaning and structure
+
+#### Technical Changes
+- **Master Prompt** (`lib/arc/chat/llm/prompts/lumara_master_prompt.dart`):
+  - Added critical instruction: "NEVER reflect that they asked a question"
+  - Updated REFLECT mode with connection permission strategy
+  - Clarified EXPLORE/INTEGRATE modes maintain proactive connections
+  - Added PRISM context usage section
+  - Enhanced examples showing direct answer + optional connection flow
+- **PRISM Context Preserver** (new file):
+  - `PrismContextPreserver` class for context preparation
+  - `QueryType` enum for query classification
+  - `ExpectedResponseType` enum for response guidance
+  - `PrismContextPayload` for cloud API communication
+
+#### User Experience
+- **More Helpful Responses**: Direct answers to questions instead of reflection
+- **Reduced Fatigue**: Connections are optional in REFLECT mode, preventing overwhelming pattern pulls
+- **User Control**: Users choose when to explore deeper connections
+- **Maintained Intelligence**: All temporal connections, pattern recognition, and synthesis still available
+- **Better Privacy**: PRISM preserves context while maintaining privacy guarantees
+
+#### Example Flow
+**Before:**
+```
+User: "How do I implement button transitions?"
+LUMARA: "It sounds like you're looking to implement button transitions..."
+```
+
+**After (REFLECT Mode):**
+```
+User: "How do I implement button transitions?"
+LUMARA: "Use AnimatedContainer with Curves.easeInOut, 250ms duration. I notice this connects to your entries about UI refinement from last week. Want me to explore those connections?"
+```
+
+**If user accepts:**
+```
+LUMARA: "Your button transition question connects to three entries where you mentioned wanting smoother UI interactions. The pattern: you're iterating on polish details while building..."
+```
 
 ---
 

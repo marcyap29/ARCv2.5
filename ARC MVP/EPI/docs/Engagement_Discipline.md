@@ -1,7 +1,7 @@
 # Engagement Discipline System
 
-**Version:** 3.2.7  
-**Last Updated:** January 17, 2026  
+**Version:** 3.3.0  
+**Last Updated:** January 22, 2026  
 **Status:** ✅ Production Ready
 
 ---
@@ -32,27 +32,46 @@ The Engagement Discipline system provides user-controlled boundaries for LUMARA'
 
 ### Reflect Mode (Default)
 
-**Purpose:** Surface patterns and stop - minimal follow-up
+**Purpose:** Answer directly, then optionally offer connections with permission
 
 **Behavior:**
-- Surfaces patterns and temporal connections
-- Names tensions without resolving them
-- Stops after achieving grounding (pattern named, request fulfilled, temporal connection made)
-- NO follow-up questions except for clarification
+- **CRITICAL: Answers questions directly first** - Never reflects the question back
+- **Connection Permission Strategy**: After answering, if relevant connections exist, mentions them briefly and asks permission
+- If user accepts connection: Provides the connection and links it back to the original answer
+- If user declines/ignores: Doesn't push, just continues conversation normally
+- Connection threshold: Only offers if connection is clearly relevant and meaningful
+- Stops after achieving grounding (answer given, optional connection offered)
+- NO follow-up questions except for clarification (unless user accepts connection exploration)
 - NO synthesis across domains
 - Response should feel complete and grounded, not inviting further exploration
+
+**Connection Strategy Example:**
+```
+User: "How do I implement button transitions?"
+LUMARA: "Use AnimatedContainer with Curves.easeInOut, 250ms duration. I notice this connects to your entries about UI refinement from last week. Want me to explore those connections?"
+
+[If user says yes:]
+LUMARA: "Your button transition question connects to three entries where you mentioned wanting smoother UI interactions. The pattern: you're iterating on polish details while building..."
+
+[If user says no/ignores:]
+LUMARA: [Just continues with next topic, doesn't push]
+```
 
 **Best For:**
 - Journaling without exploration
 - Users who prefer minimal AI interaction
 - Quick pattern recognition without deep engagement
+- Preventing connection fatigue from always pulling patterns
 
 ### Explore Mode
+
+**Note:** Unlike REFLECT mode, EXPLORE mode makes proactive connections without asking permission (user has opted into deeper engagement).
 
 **Purpose:** Surface patterns and invite deeper examination
 
 **Behavior:**
-- All REFLECT mode capabilities
+- All REFLECT mode capabilities (including direct answers)
+- **Proactive connections:** Can make connections directly without asking permission
 - May ask ONE connecting question per response
 - Can propose alternative framings
 - Invite deeper examination when it adds developmental value

@@ -1,7 +1,7 @@
 # Privacy Scrubbing and Data Cleaning
 
-**Version:** 2.1.84  
-**Last Updated:** January 2025  
+**Version:** 2.2.0  
+**Last Updated:** January 22, 2026  
 **Status:** ✅ Production Ready
 
 ---
@@ -59,6 +59,55 @@ ARC-specific adapter that wraps the PiiScrubber service and provides:
 - `containsPII(String text)` - Check if text contains PII
 - `isSafeToSend(String text)` - Validate text is safe for transmission
 - `transformToCorrelationResistant(...)` - Add correlation-resistant layer
+
+#### 3. **PrismContextPreserver** (NEW)
+**Location**: `lib/arc/internal/echo/prism_context_preserver.dart`
+
+Enhanced PRISM layer that scrubs PII while preserving conversational structure for cloud API effectiveness. Core principle: **Strip identifiers, preserve meaning and structure**.
+
+**Key Features**:
+- Query classification (question, request_for_suggestions, request_for_input, etc.)
+- Semantic content extraction (preserves meaning while removing PII)
+- Expected response type inference (guides LUMARA's response style)
+- Context building from conversation history (PII-scrubbed summaries)
+
+**Key Methods**:
+- `prepareCloudContext(...)` - Main entry point: Convert raw user input into privacy-safe, context-rich payload
+- Query classification based on linguistic patterns
+- Semantic extraction that handles pronoun-heavy input
+- Context building that summarizes previous turns without exposing PII
+
+**Context Payload Structure**:
+```dart
+{
+  "conversation_turn": 4,
+  "total_turns": 6,
+  "previous_context": "User asked about conversational realism → system reflected",
+  "current_query_type": "request_for_suggestions",
+  "semantic_content": "User wants specific implementation methods for conversational realism",
+  "phase": "discovery",
+  "phase_stability": 0.7,
+  "emotional_intensity": 0.3,
+  "engagement_mode": "explore",
+  "recent_patterns": ["technical_iteration", "ui_refinement"],
+  "expected_response_type": "substantive_answer_with_concrete_suggestions",
+  "interaction_mode": "voice",
+  "scrubbed_input": "Suggestions on how to do this?"
+}
+```
+
+**What This Preserves**:
+- Semantic meaning: What they're talking about
+- Conversational structure: What happened in previous turns
+- Query intent: What kind of response they need
+- Emotional context: Phase + intensity
+- Expected response: What would be helpful
+
+**What This Removes**:
+- Names: People, places, companies
+- Dates: Specific times, appointments
+- Locations: Addresses, cities (unless relevant to semantic meaning)
+- Identifiable details: Phone numbers, emails, etc.
 
 ---
 

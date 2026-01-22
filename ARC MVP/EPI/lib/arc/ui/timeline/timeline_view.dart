@@ -626,23 +626,30 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
                 });
               },
               ),
-            // Timeline label with icon - centered
-            Expanded(
+            // Timeline label with icon - left-aligned with spacing
+            Flexible(
+              flex: 2,
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisAlignment: MainAxisAlignment.start,
                 children: [
-                  const Icon(Icons.timeline, size: 21),
-                  const SizedBox(width: 4),
-                  Text(
-                    _isSelectionMode ? 'Select Entries' : 'Conversations',
-                    style: heading1Style(context).copyWith(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w600,
+                  if (!_isSelectionMode) ...[
+                    const Icon(Icons.timeline, size: 21),
+                    const SizedBox(width: 4),
+                  ],
+                  Flexible(
+                    child: Text(
+                      _isSelectionMode ? 'Select Entries' : 'Conversations',
+                      style: heading1Style(context).copyWith(
+                        fontSize: _isSelectionMode ? 18 : 20,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                 ],
               ),
             ),
+            const SizedBox(width: 8),
             // Actions
           // Add a button to scroll to the latest entry
           IconButton(
@@ -668,6 +675,15 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
             tooltip:
                 _selectedCount == _totalEntries ? 'Deselect All' : 'Select All',
           ),
+          if (_selectedCount > 0)
+            IconButton(
+              icon: const Icon(Icons.file_download),
+              onPressed: () {
+                _timelineViewKey.currentState?.exportSelectedEntries();
+              },
+              tooltip: 'Export Selected',
+              color: kcAccentColor,
+            ),
           IconButton(
             icon: const Icon(Icons.clear),
             onPressed: () {

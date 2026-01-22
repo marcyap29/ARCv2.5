@@ -37,6 +37,9 @@ import 'package:my_app/arc/core/journal_repository.dart';
 import 'package:my_app/shared/ui/settings/favorites_management_view.dart';
 import 'package:scroll_to_index/scroll_to_index.dart';
 import 'package:my_app/arc/ui/timeline/widgets/current_phase_arcform_preview.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:my_app/mira/store/arcx/services/arcx_export_service_v2.dart';
+import 'package:my_app/services/export_history_service.dart';
 
 class InteractiveTimelineView extends StatefulWidget {
   final VoidCallback? onJumpToDate;
@@ -233,6 +236,17 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
                   fontWeight: FontWeight.w600,
                 ),
               ),
+            ),
+            const SizedBox(width: 8),
+            // Export selected button
+            IconButton(
+              onPressed:
+                  _selectedEntryIds.isNotEmpty ? _exportSelectedEntries : null,
+              icon: const Icon(Icons.file_download),
+              color: _selectedEntryIds.isNotEmpty
+                  ? kcAccentColor
+                  : kcSecondaryTextColor.withOpacity(0.3),
+              tooltip: 'Export Selected',
             ),
             const SizedBox(width: 8),
             // Delete selected button
@@ -1416,6 +1430,218 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
   
   void deleteSelectedEntries() {
     _deleteSelectedEntries();
+  }
+  
+  void exportSelectedEntries() {
+    _exportSelectedEntries();
+  }
+  
+  Future<void> _exportSelectedEntries() async {
+    if (_selectedEntryIds.isEmpty || !mounted) return;
+    
+    // Capture context early to avoid issues
+    final navigator = Navigator.of(context);
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+    
+    try {
+      // Show file picker to select export directory
+      String? selectedPath = await FilePicker.platform.getDirectoryPath();
+      
+      if (selectedPath == null || !mounted) {
+        // User cancelled or widget disposed
+        return;
+      }
+      
+      final outputDir = Directory(selectedPath);
+      
+      // Show progress dialog
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (dialogContext) => const Center(
+          child: Card(
+            child: Padding(
+              padding: EdgeInsets.all(24.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(height: 16),
+                  Text('Exporting entries...'),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+      
+      // Get repositories and services (don't load all entries!)
+      final journalRepo = context.read<JournalRepository>();
+      final historyService = ExportHistoryService.instance;
+      
+      // Validate we have entries to export
+      if (_selectedEntryIds.isEmpty) {
+        if (mounted) {
+          navigator.pop(); // Close progress dialog
+          scaffoldMessenger.showSnackBar(
+            const SnackBar(
+              content: Text('No entries selected to export'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+        return;
+      }
+      
+      // Create export selection with just the IDs (service will load them individually)
+      final selection = ARCXExportSelection(
+        entryIds: _selectedEntryIds.toList(),
+      );
+      
+      // Create export options
+      final options = ARCXExportOptions.fullBackup();
+      
+      // Get export number
+      final exportNumber = await historyService.getNextExportNumber();
+      
+      // Create export service with repository (so it can load entries individually)
+      final exportService = ARCXExportServiceV2(
+        journalRepo: journalRepo,
+      );
+      
+      // Export with progress updates
+      String? lastProgress = 'Preparing export...';
+      final progressNotifier = ValueNotifier<String>(lastProgress);
+      
+      // Update progress dialog
+      if (mounted) {
+        navigator.pop(); // Close initial dialog
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (dialogContext) => ValueListenableBuilder<String>(
+            valueListenable: progressNotifier,
+            builder: (context, progress, _) => Center(
+              child: Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(24.0),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const CircularProgressIndicator(),
+                      const SizedBox(height: 16),
+                      Text(progress),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      }
+      
+      final result = await exportService.export(
+        selection: selection,
+        options: options,
+        outputDir: outputDir,
+        password: null,
+        onProgress: (progress) {
+          if (mounted) {
+            lastProgress = progress;
+            progressNotifier.value = progress;
+          }
+        },
+        exportNumber: exportNumber,
+      );
+      
+      // Close progress dialog
+      if (mounted) {
+        navigator.pop();
+      }
+      
+      if (result.success) {
+        // Record export in history
+        final exportId = const Uuid().v4();
+        final exportedAt = DateTime.now();
+        
+        // Collect media hashes from selected entries (load individually to avoid memory issues)
+        final mediaHashes = <String>{};
+        for (final entryId in _selectedEntryIds) {
+          final entry = await journalRepo.getJournalEntryById(entryId);
+          if (entry != null) {
+            for (final media in entry.media) {
+              if (media.sha256 != null && media.sha256!.isNotEmpty) {
+                mediaHashes.add(media.sha256!);
+              }
+            }
+          }
+        }
+        
+        // Get archive size if file exists
+        int archiveSizeBytes = 0;
+        if (result.arcxPath != null) {
+          final file = File(result.arcxPath!);
+          if (await file.exists()) {
+            archiveSizeBytes = await file.length();
+          }
+        }
+        
+        final exportRecord = ExportRecord(
+          exportId: exportId,
+          exportedAt: exportedAt,
+          exportPath: result.arcxPath,
+          entryIds: _selectedEntryIds.toSet(),
+          chatIds: <String>{},
+          mediaHashes: mediaHashes,
+          entriesCount: result.entriesExported,
+          chatsCount: result.chatsExported,
+          mediaCount: result.mediaExported,
+          archiveSizeBytes: archiveSizeBytes,
+          isFullBackup: false, // This is a selective export
+          exportNumber: exportNumber,
+        );
+        
+        await historyService.recordExport(exportRecord);
+        
+        if (mounted) {
+          scaffoldMessenger.showSnackBar(
+            SnackBar(
+              content: Text('Successfully exported ${_selectedEntryIds.length} ${_selectedEntryIds.length == 1 ? 'entry' : 'entries'}'),
+              backgroundColor: Colors.green,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
+      } else {
+        if (mounted) {
+          scaffoldMessenger.showSnackBar(
+            SnackBar(
+              content: Text('Export failed: ${result.error ?? 'Unknown error'}'),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        }
+      }
+    } catch (e, stackTrace) {
+      print('Error exporting entries: $e');
+      print('Stack trace: $stackTrace');
+      
+      if (mounted) {
+        // Try to close progress dialog if still open
+        try {
+          navigator.pop();
+        } catch (_) {}
+        
+        scaffoldMessenger.showSnackBar(
+          SnackBar(
+            content: Text('Export error: ${e.toString()}'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    }
   }
   
   // Getters for parent widget
