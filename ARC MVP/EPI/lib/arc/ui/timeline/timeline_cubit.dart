@@ -19,9 +19,10 @@ class TimelineCubit extends Cubit<TimelineState> {
   final JournalRepository _journalRepository;
   PhaseIndex? _phaseIndex;
   PhaseRegimeService? _phaseRegimeService;
-  static const int _pageSize = 10;
+  static const int _pageSize = 20; // Load 20 entries at a time
   int _currentPage = 0;
   bool _hasMore = true;
+  bool _isLoadingMore = false; // Prevent concurrent loads
 
   TimelineCubit({JournalRepository? journalRepository})
       : _journalRepository = journalRepository ?? JournalRepository(),
@@ -54,13 +55,19 @@ class TimelineCubit extends Cubit<TimelineState> {
     emit(const TimelineLoading());
     _currentPage = 0;
     _hasMore = true;
-    await _loadAllEntries();
+    _isLoadingMore = false;
+    await _loadEntries(); // Use pagination instead of loading all
   }
 
   Future<void> loadMoreEntries() async {
-    if (!_hasMore) return;
+    if (!_hasMore || _isLoadingMore) return;
+    _isLoadingMore = true;
     _currentPage++;
-    await _loadEntries();
+    try {
+      await _loadEntries();
+    } finally {
+      _isLoadingMore = false;
+    }
   }
 
   Future<void> refreshEntries() async {
@@ -68,19 +75,22 @@ class TimelineCubit extends Cubit<TimelineState> {
     print('DEBUG: Refreshing timeline to show updated entries...');
     _currentPage = 0;
     _hasMore = true;
-    await _loadAllEntries();
+    _isLoadingMore = false;
+    await _loadEntries(); // Use pagination instead of loading all
     print('DEBUG: Timeline refresh completed');
   }
 
   /// Reload all entries (used when an entry's date changes and might move pages)
+  /// Uses pagination for performance - resets to page 0 and reloads
   Future<void> reloadAllEntries() async {
     print('DEBUG: TimelineCubit.reloadAllEntries() called');
-    print('DEBUG: Reloading all entries to handle date changes...');
+    print('DEBUG: Reloading entries to handle date changes (using pagination)...');
     emit(const TimelineLoading());
     _currentPage = 0;
     _hasMore = true;
-    await _loadAllEntries();
-    print('DEBUG: All entries reload completed');
+    _isLoadingMore = false;
+    await _loadEntries(); // Use pagination for performance
+    print('DEBUG: Entries reload completed');
   }
 
   /// Check if all entries have been deleted and emit a special state

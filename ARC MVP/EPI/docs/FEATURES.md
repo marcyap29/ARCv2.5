@@ -82,6 +82,10 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 - Empty state handling
 
 **Timeline Features**
+- **Pagination**: Loads 20 entries at a time for optimal performance
+  - Fast initial load (only first 20 entries)
+  - Automatic loading of next batch when scrolling through ~75% of loaded entries
+  - Reduces memory usage and improves responsiveness for large entry collections
 - **Date Navigation**: Jump to specific dates with accurate positioning
 - **Entry Selection**: Multi-select for batch operations
 - **Entry Viewing**: Full entry view with media

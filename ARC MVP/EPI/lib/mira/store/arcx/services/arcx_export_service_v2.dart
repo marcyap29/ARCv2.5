@@ -2229,15 +2229,26 @@ class ARCXExportServiceV2 {
       final allChats = await _chatRepo?.listAll(includeArchived: true) ?? [];
       
       // Filter to only new/modified since last export
-      final entriesToExport = allEntries.where((e) => 
-          e.createdAt.isAfter(lastExportDate) || 
-          e.updatedAt.isAfter(lastExportDate)
-        ).toList();
+      // IMPORTANT: Also check against already-exported IDs to prevent duplicates
+      final entriesToExport = allEntries.where((e) {
+        // Skip if already exported
+        if (history.allExportedEntryIds.contains(e.id)) {
+          return false;
+        }
+        // Include if created or updated after last export
+        return e.createdAt.isAfter(lastExportDate) || 
+               e.updatedAt.isAfter(lastExportDate);
+      }).toList();
         
-      final chatsToExport = allChats.where((c) => 
-          c.createdAt.isAfter(lastExportDate) ||
-          c.updatedAt.isAfter(lastExportDate)
-        ).toList();
+      final chatsToExport = allChats.where((c) {
+        // Skip if already exported (CRITICAL: prevents exponential duplication)
+        if (history.allExportedChatIds.contains(c.id)) {
+          return false;
+        }
+        // Include if created or updated after last export
+        return c.createdAt.isAfter(lastExportDate) ||
+               c.updatedAt.isAfter(lastExportDate);
+      }).toList();
       
       // Collect media from entries to export (unless excluded)
       final mediaToExport = <MediaItem>[];
@@ -2906,7 +2917,10 @@ class ARCXExportServiceV2 {
       final history = await historyService.getHistory();
       
       for (final entry in allEntries) {
-        if (entry.createdAt.isAfter(lastExportDate)) {
+        // Check if entry was already exported
+        final alreadyExported = history.allExportedEntryIds.contains(entry.id);
+        
+        if (!alreadyExported && entry.createdAt.isAfter(lastExportDate)) {
           newEntries++;
           // Count new media
           for (final media in entry.media) {
@@ -2915,13 +2929,21 @@ class ARCXExportServiceV2 {
               newMedia++;
             }
           }
-        } else if (entry.updatedAt.isAfter(lastExportDate)) {
+        } else if (!alreadyExported && entry.updatedAt.isAfter(lastExportDate)) {
           modifiedEntries++;
         }
       }
       
       for (final chat in allChats) {
-        if (chat.createdAt.isAfter(lastExportDate)) {
+        // Check if chat was already exported
+        final alreadyExported = history.allExportedChatIds.contains(chat.id);
+        
+        // Count as new if:
+        // 1. Not already exported AND
+        // 2. Created after last export date OR updated after last export date
+        if (!alreadyExported && 
+            (chat.createdAt.isAfter(lastExportDate) || 
+             chat.updatedAt.isAfter(lastExportDate))) {
           newChats++;
         }
       }

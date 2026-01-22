@@ -1,7 +1,7 @@
 # EPI ARC MVP - Changelog
 
-**Version:** 3.3.4
-**Last Updated:** January 20, 2026
+**Version:** 3.3.5
+**Last Updated:** January 21, 2026
 
 ---
 
@@ -14,6 +14,45 @@ This changelog has been split into parts for easier navigation:
 | **[CHANGELOG_part1.md](CHANGELOG_part1.md)** | Dec 2025 | v2.1.43 - v2.1.87 (Current) |
 | **[CHANGELOG_part2.md](CHANGELOG_part2.md)** | Nov 2025 | v2.1.28 - v2.1.42 |
 | **[CHANGELOG_part3.md](CHANGELOG_part3.md)** | Jan-Oct 2025 | v2.0.0 - v2.1.27 & Earlier |
+
+---
+
+## [3.3.5] - January 21, 2026
+
+### ⚡ Timeline Performance Optimization - Pagination
+
+#### Overview
+Implemented pagination for the timeline view to significantly reduce initial load time and improve scrolling performance, especially for users with large numbers of journal entries.
+
+#### Performance Improvements
+- **Pagination System**: Timeline now loads 20 entries at a time instead of loading all entries at once
+  - Initial load time reduced dramatically (only first 20 entries loaded)
+  - Faster app opening and timeline navigation
+  - Reduced memory usage during initial render
+- **Smart Scroll Detection**: Automatic loading of next batch when user scrolls through ~75% of loaded entries (15 out of 20 shown)
+  - Entry count-based detection for lists with 20+ entries
+  - Pixel-based fallback for smaller lists
+  - Prevents unnecessary loading while ensuring smooth scrolling experience
+- **Loading Guard**: Added `_isLoadingMore` flag to prevent concurrent pagination requests
+  - Prevents duplicate loads during rapid scrolling
+  - Ensures smooth pagination behavior
+
+#### Technical Changes
+- **TimelineCubit** (`lib/arc/ui/timeline/timeline_cubit.dart`):
+  - Increased page size from 10 to 20 entries
+  - Updated `loadEntries()`, `refreshEntries()`, and `reloadAllEntries()` to use pagination
+  - Added `_isLoadingMore` flag for concurrent load prevention
+  - Maintained `_loadAllEntries()` for filter/search operations (expected behavior)
+- **TimelineView** (`lib/arc/ui/timeline/timeline_view.dart`):
+  - Enhanced `_onScroll()` method with intelligent entry count-based detection
+  - Triggers pagination at 75% scroll position (15 entries shown out of 20)
+  - Maintains backward compatibility with pixel-based detection for smaller lists
+
+#### User Experience
+- **Faster Initial Load**: Timeline opens immediately with first 20 entries
+- **Seamless Scrolling**: Next batch loads automatically as user approaches end of current entries
+- **No Breaking Changes**: All existing functionality preserved (filter, search, selection, etc.)
+- **Improved Responsiveness**: Reduced lag and memory pressure, especially for large entry collections
 
 ---
 

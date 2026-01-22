@@ -96,13 +96,36 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
   }
 
   void _onScroll() {
-    if (_scrollController.position.pixels >=
-        _scrollController.position.maxScrollExtent - 200) {
-      _timelineCubit.loadMoreEntries();
+    final position = _scrollController.position;
+    
+    // Check if we should load more entries
+    // Load more when we're about 75% through the loaded entries (15 out of 20 shown)
+    final currentState = _timelineCubit.state;
+    if (currentState is TimelineLoaded && currentState.hasMore) {
+      // Count total entries loaded
+      int totalEntriesLoaded = 0;
+      for (final group in currentState.groupedEntries) {
+        totalEntriesLoaded += group.entries.length;
+      }
+      
+      // If we have at least 20 entries loaded, check scroll position
+      // Trigger when we're 75% through (15 entries shown = 5 left)
+      if (totalEntriesLoaded >= 20) {
+        // Calculate scroll percentage
+        final scrollPercentage = position.pixels / (position.maxScrollExtent > 0 ? position.maxScrollExtent : 1);
+        // Load more when we're at 75% scroll (meaning 15 entries shown out of 20)
+        if (scrollPercentage >= 0.75) {
+          _timelineCubit.loadMoreEntries();
+        }
+      } else {
+        // For smaller lists, use pixel-based detection
+        if (position.pixels >= position.maxScrollExtent - 200) {
+          _timelineCubit.loadMoreEntries();
+        }
+      }
     }
     
     // Track scroll position for scroll buttons
-    final position = _scrollController.position;
     final isNearTop = position.pixels <= 100;
     final isNearBottom = position.pixels >= position.maxScrollExtent - 100;
     

@@ -419,6 +419,11 @@ Long Press → Edit Mode | Scroll Up → Load History
 - **Loading States:** Skeleton screens while fetching data
 - **Empty States:** Guidance when no entries exist
 
+#### Performance Optimizations
+- **Lazy Loading:** Only renders visible entries plus buffer
+- **Pagination Guard:** Prevents concurrent load requests
+- **Memory Efficient:** Reduces initial memory footprint significantly
+
 ### 📊 Calendar Week View
 **File:** `lib/arc/ui/timeline/widgets/calendar_week_timeline.dart`
 
