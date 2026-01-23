@@ -8,6 +8,34 @@ enum EntryType {
   metaAnalysis    // Explicit requests for pattern recognition
 }
 
+/// What the user is seeking from this interaction
+/// Used to calibrate LUMARA's response style in voice mode
+enum SeekingType {
+  validation,   // "Am I right to feel this way?" - needs acknowledgment, not analysis
+  exploration,  // "Help me think through this" - wants questions that deepen
+  direction,    // "Tell me what to do" - wants clear recommendation
+  reflection,   // "I need to process this" - needs space and mirroring
+}
+
+/// Result of seeking classification
+class SeekingResult {
+  final SeekingType seeking;
+  final double confidence;
+  final List<String> triggers;
+  
+  const SeekingResult({
+    required this.seeking,
+    required this.confidence,
+    required this.triggers,
+  });
+  
+  Map<String, dynamic> toJson() => {
+    'seeking': seeking.name,
+    'confidence': confidence,
+    'triggers': triggers,
+  };
+}
+
 /// Result of voice depth classification
 /// Uses EngagementMode to match written mode behavior
 class VoiceDepthResult {
@@ -466,7 +494,7 @@ class EntryClassifier {
     // No triggers → reflect (default for casual conversation)
     // Higher confidence for shorter, simpler utterances
     final reflectConfidence = wordCount < 20 ? 1.0 : 
-                              wordCount < 50 ? 0.9 : 0.8;
+                                    wordCount < 50 ? 0.9 : 0.8;
     
     return VoiceDepthResult(
       depth: EngagementMode.reflect,
@@ -687,6 +715,226 @@ class EntryClassifier {
         return 'Explore (Pattern Analysis)';
       case EngagementMode.integrate:
         return 'Integrate (Synthesis)';
+    }
+  }
+
+  // =========================================================================
+  // SEEKING CLASSIFICATION (Voice Mode - What does the user want?)
+  // =========================================================================
+  
+  /// Classify what the user is seeking from this interaction
+  /// 
+  /// This is critical for voice mode response calibration:
+  /// - Someone seeking VALIDATION who gets analysis feels unheard
+  /// - Someone seeking DIRECTION who gets questions feels frustrated
+  /// - Someone seeking EXPLORATION wants deepening, not answers
+  /// - Someone seeking REFLECTION needs space, not action pressure
+  /// 
+  /// Returns SeekingResult with seeking type, confidence, and matched triggers
+  static SeekingResult classifySeeking(String transcript) {
+    if (transcript.trim().isEmpty) {
+      return const SeekingResult(
+        seeking: SeekingType.reflection,
+        confidence: 0.5,
+        triggers: [],
+      );
+    }
+
+    final lowerText = transcript.toLowerCase();
+    final triggers = <String>[];
+    
+    // PRIORITY 1: Direction seeking (explicit requests for advice/guidance)
+    if (_containsDirectionSeeking(lowerText)) {
+      triggers.add('direction_request');
+      return SeekingResult(
+        seeking: SeekingType.direction,
+        confidence: 0.9,
+        triggers: triggers,
+      );
+    }
+    
+    // PRIORITY 2: Validation seeking (checking if feelings/thoughts are okay)
+    if (_containsValidationSeeking(lowerText)) {
+      triggers.add('validation_request');
+      return SeekingResult(
+        seeking: SeekingType.validation,
+        confidence: 0.85,
+        triggers: triggers,
+      );
+    }
+    
+    // PRIORITY 3: Exploration seeking (wanting to think through something)
+    if (_containsExplorationSeeking(lowerText)) {
+      triggers.add('exploration_request');
+      return SeekingResult(
+        seeking: SeekingType.exploration,
+        confidence: 0.85,
+        triggers: triggers,
+      );
+    }
+    
+    // PRIORITY 4: Check for reflection indicators (processing, venting)
+    double reflectionConfidence = 0.5;
+    
+    // Venting/processing indicators
+    if (_containsVentingLanguage(lowerText)) {
+      triggers.add('venting');
+      reflectionConfidence += 0.25;
+    }
+    
+    // Emotional processing
+    if (_containsEmotionalStateDeclaration(lowerText)) {
+      triggers.add('emotional_processing');
+      reflectionConfidence += 0.2;
+    }
+    
+    // Struggle language without explicit request for help
+    if (_containsStruggleLanguage(lowerText) && !_containsExplicitHelpRequest(lowerText)) {
+      triggers.add('processing_struggle');
+      reflectionConfidence += 0.15;
+    }
+    
+    // If we have reflection triggers, return reflection
+    if (triggers.isNotEmpty) {
+      return SeekingResult(
+        seeking: SeekingType.reflection,
+        confidence: reflectionConfidence.clamp(0.0, 1.0),
+        triggers: triggers,
+      );
+    }
+    
+    // Default: Exploration (safe default - asks questions to understand)
+    return const SeekingResult(
+      seeking: SeekingType.exploration,
+      confidence: 0.5,
+      triggers: ['default'],
+    );
+  }
+  
+  /// Check for direction-seeking language
+  /// "What should I do?", "Tell me what to do", "Give me advice"
+  static bool _containsDirectionSeeking(String lowerText) {
+    final directionPatterns = [
+      r'\bwhat should i do\b',
+      r'\btell me what to do\b',
+      r'\bgive me (advice|guidance|direction|recommendation)\b',
+      r'\bwhat do you (think|suggest|recommend) i (do|should do)\b',
+      r'\bwhat would you (do|suggest|recommend)\b',
+      r'\bshould i \w+ or \w+\b',  // "Should I X or Y?"
+      r'\bi need (advice|guidance|direction|help deciding)\b',
+      r'\bhelp me decide\b',
+      r'\bjust tell me\b',
+      r'\bgive (me )?a straight answer\b',
+      r'\bwhat (is|would be) (the )?(best|right) (thing|choice|option|move)\b',
+      r'\bwhich (one|option|path|choice) should i\b',
+      r'\bwhat do i do\b',
+      r'\bhow do i (handle|deal with|approach|fix|solve)\b',
+      r'\bwhat (steps|actions) should i (take)?\b',
+    ];
+
+    return directionPatterns.any((pattern) => 
+      RegExp(pattern).hasMatch(lowerText)
+    );
+  }
+  
+  /// Check for validation-seeking language
+  /// "Is it okay that...", "Am I right to feel...", "Does that make sense?"
+  static bool _containsValidationSeeking(String lowerText) {
+    final validationPatterns = [
+      r'\bis (it|that) (okay|ok|alright|normal|valid)\b',
+      r'\bam i (right|wrong|crazy|overreacting|being unreasonable)\b',
+      r'\bdoes (that|this|it) make sense\b',
+      r'\bis (that|this|it) (reasonable|fair|justified)\b',
+      r'\bdo you (think|feel) (that|this|i)\b',
+      r'\bwould you (think|feel) the same\b',
+      r'\bam i justified\b',
+      r"\bi'?m not (crazy|wrong|overreacting),? (right|am i)\b",
+      r'\bdo i have (a )?right to\b',
+      r'\bis (it|this) (too much|asking too much)\b',
+      r'\bwas i (right|wrong) to\b',
+      r'\bdid i (do|handle) (that|this|it) (right|okay|wrong)\b',
+      r'\bi just need (to know|confirmation|reassurance)\b',
+      r"\btell me (i'?m|that i'?m) (not|being) (crazy|unreasonable)\b",
+      r'\bvalidate\b',
+      r'\breassure me\b',
+    ];
+
+    return validationPatterns.any((pattern) => 
+      RegExp(pattern).hasMatch(lowerText)
+    );
+  }
+  
+  /// Check for exploration-seeking language
+  /// "Help me think through...", "What might be going on?", "Let's explore..."
+  static bool _containsExplorationSeeking(String lowerText) {
+    final explorationPatterns = [
+      r'\bhelp me (think through|understand|figure out|work through|explore)\b',
+      r'\bwhat (might|could) be (going on|happening)\b',
+      r"\blet'?s (explore|think about|discuss|talk through)\b",
+      r'\bi want to (explore|understand|think through|talk through)\b',
+      r'\bwhy (do|might|would) (i|this)\b',
+      r'\bwhat (is|does) (this|that|it) (mean|say about)\b',
+      r'\bhelp me see\b',
+      r'\bwhat am i (missing|not seeing)\b',
+      r'\bwhat (else|other) (could|might)\b',
+      r'\bcan we (explore|dig into|unpack|think about)\b',
+      r'\bi want to get (to the bottom|clarity)\b',
+      r'\bhelp me (connect|process|unpack)\b',
+    ];
+
+    return explorationPatterns.any((pattern) => 
+      RegExp(pattern).hasMatch(lowerText)
+    );
+  }
+  
+  /// Check for venting language (processing, not seeking solutions)
+  static bool _containsVentingLanguage(String lowerText) {
+    final ventingPatterns = [
+      r'\bi just need to (vent|get this off my chest|talk)\b',
+      r'\blet me (vent|just say|get this out)\b',
+      r'\bi just (want|need) (to|you to) (listen|hear me)\b',
+      r"\bi don'?t (need|want) (advice|solutions|you to fix)\b",
+      r'\bjust (let me|need to) (vent|talk|express)\b',
+      r'\bi (just )?need to (process|express|get out)\b',
+      r'\bugh\b',
+      r'\bargh\b',
+      r'\b(so|really) (frustrated|annoyed|upset|angry|pissed)\b',
+      r"\bi can'?t (believe|stand|take)\b",
+      r'\bwhy (does|do) (this|everything) (always|keep)\b',
+    ];
+
+    return ventingPatterns.any((pattern) => 
+      RegExp(pattern).hasMatch(lowerText)
+    );
+  }
+  
+  /// Check for explicit help request (to distinguish processing from help-seeking)
+  static bool _containsExplicitHelpRequest(String lowerText) {
+    final helpPatterns = [
+      r'\bhelp me\b',
+      r'\bi need help\b',
+      r'\bcan you help\b',
+      r'\bwhat should i\b',
+      r'\badvice\b',
+      r'\bguidance\b',
+    ];
+
+    return helpPatterns.any((pattern) => 
+      RegExp(pattern).hasMatch(lowerText)
+    );
+  }
+  
+  /// Get human-readable description of seeking type
+  static String getSeekingDescription(SeekingType seeking) {
+    switch (seeking) {
+      case SeekingType.validation:
+        return 'Validation (needs acknowledgment)';
+      case SeekingType.exploration:
+        return 'Exploration (wants to think through)';
+      case SeekingType.direction:
+        return 'Direction (wants clear guidance)';
+      case SeekingType.reflection:
+        return 'Reflection (needs space to process)';
     }
   }
 }

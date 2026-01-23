@@ -1,18 +1,29 @@
 # Voice Mode Status & Architecture
 
-> Last Updated: January 22, 2026 (v3.3.8)
+> Last Updated: January 22, 2026 (v3.3.9)
 > 
-> **STATUS: IMPLEMENTED** - Master Unified Prompt integration with three-tier engagement system.
+> **STATUS: IMPLEMENTED** - Phase-specific prompts with seeking classification for improved response quality.
 > See [VOICE_MODE_IMPLEMENTATION_GUIDE.md](./VOICE_MODE_IMPLEMENTATION_GUIDE.md) for full details.
 
 ## Overview
 
 Voice mode allows users to have spoken conversations with LUMARA. The system captures speech via **Wispr Flow** (optional, user-provided API key) or **Apple On-Device** (default), processes it through PRISM (PII scrubbing), sends to LUMARA for response generation, and plays back via TTS.
 
-**Voice mode uses the same three-tier engagement system as written mode:**
-- **Reflect Mode** (default) - Casual conversation, 3-5 sentences, 175 words max (vs 200 in written)
-- **Explore Mode** (when asked) - Pattern analysis, 6-10 sentences, 350 words max (vs 400 in written)
-- **Integrate Mode** (when asked) - Cross-domain synthesis, 8-14 sentences, 450 words max (vs 500 in written)
+**Voice mode uses two classification systems:**
+
+### 1. Engagement Mode (Three-Tier System)
+- **Reflect Mode** (default) - Casual conversation, 3-5 sentences, 175 words max
+- **Explore Mode** (when asked) - Pattern analysis, 6-10 sentences, 350 words max
+- **Integrate Mode** (when asked) - Cross-domain synthesis, 8-14 sentences, 450 words max
+
+### 2. Seeking Classification (NEW in v3.3.9)
+Detects what the user wants from the interaction:
+| Seeking | User Intent | Response Style |
+|---------|-------------|----------------|
+| **Validation** | "Am I right to feel this way?" | Affirm, normalize, validate |
+| **Exploration** | "Help me think through this" | Ask deepening questions |
+| **Direction** | "Tell me what to do" | Clear recommendations |
+| **Reflection** | "I need to process this" | Space, brief acknowledgments |
 
 **Explicit Voice Commands:**
 - Explore: "Analyze", "Give me insight", "What patterns do you see?"
