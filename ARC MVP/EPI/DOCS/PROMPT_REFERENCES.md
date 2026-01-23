@@ -42,8 +42,9 @@ This document catalogs all prompts used throughout the ARC application, organize
 9. [Onboarding Prompts](#onboarding-prompts)
    - [Phase Quiz Questions](#phase-quiz-questions)
 10. [Voice Mode Prompts](#10-voice-mode-prompts)
-    - [Jarvis Mode (Transactional)](#jarvis-mode-transactional)
-    - [Samantha Mode (Reflective)](#samantha-mode-reflective)
+    - [Reflect Mode (Default)](#reflect-mode-default)
+    - [Explore Mode (When Asked)](#explore-mode-when-asked)
+    - [Integrate Mode (When Asked)](#integrate-mode-when-asked)
     - [Voice Depth Classification Triggers](#voice-depth-classification-triggers)
 
 ---
@@ -751,26 +752,27 @@ Voice mode uses the **same three-tier engagement system as written mode** (Refle
 
 **Location:** `lib/arc/chat/voice/prompts/voice_response_builders.dart`
 
-### Current Voice Response Limits (v3.3.8)
+### Current Voice Response Limits (v3.3.10)
 
 | Engagement Mode | Word Limit | Latency Target | Use Case |
 |-----------------|------------|----------------|----------|
-| **Reflect** (default) | 175 words | 7s | Casual conversation, brief updates, factual questions |
-| **Explore** (when asked) | 350 words | 12s | Pattern analysis, deeper discussion, processing |
-| **Integrate** (when asked) | 450 words | 18s | Cross-domain synthesis, connecting themes, deep reflection |
+| **Reflect** (default) | 100 words | 5s | Casual conversation, brief updates, factual questions |
+| **Explore** (when asked) | 200 words | 10s | Pattern analysis, deeper discussion, temporal queries |
+| **Integrate** (when asked) | 300 words | 15s | Cross-domain synthesis, connecting themes, deep reflection |
 
-**Update (2026-01-22):** Word limits increased from 100/200/300 to 175/350/450 to improve response quality. Previous limits were too restrictive, causing generic filler responses.
+**Update (2026-01-22 v3.3.10):** Word limits reverted to 100/200/300 after implementing phase-specific prompts with good/bad examples and seeking classification, which provide quality without needing longer responses.
 
 ### Reflect Mode (Default)
 
 Used for: factual questions, brief updates, casual conversation.
-Target: 175 words, 7 second latency.
+Target: 100 words, 5 second latency.
+Processing: `skipHeavyProcessing: true` (no memory retrieval)
 
 ```
 RESPONSE MODE: REFLECT (Surface Patterns & Stop)
 - Surface the pattern you notice, then stop
 - NO follow-up questions (except for clarification if absolutely needed)
-- Complete responses in 3-5 sentences
+- Complete responses in 1-3 sentences
 - Answer questions directly if asked
 - NO cross-domain synthesis
 - NEVER use formulaic phrases like "It sounds like", "It seems like"
@@ -779,8 +781,9 @@ RESPONSE MODE: REFLECT (Surface Patterns & Stop)
 
 ### Explore Mode (When Asked)
 
-Triggered by: "Analyze", "Give me insight", "What patterns do you see?"
-Target: 350 words, 12 second latency.
+Triggered by: "Analyze", "Give me insight", "What patterns do you see?", temporal queries ("how has my week been", "tell me about my month")
+Target: 200 words, 10 second latency.
+Processing: Full memory retrieval enabled
 
 ```
 RESPONSE MODE: EXPLORE (Pattern Analysis with One Engagement Move)
@@ -788,13 +791,15 @@ RESPONSE MODE: EXPLORE (Pattern Analysis with One Engagement Move)
 - May ask ONE connecting question OR make ONE additional observation
 - Surface patterns in current statement or recent conversation
 - Provide thoughtful analysis and insights
+- For temporal queries: Reference SPECIFIC activities and themes from journal entries
 - Questions should connect to trajectory, not probe emotions
 ```
 
 ### Integrate Mode (When Asked)
 
 Triggered by: "Deep analysis", "Go deeper", "Connect the dots"
-Target: 450 words, 18 second latency.
+Target: 300 words, 15 second latency.
+Processing: Full memory retrieval enabled
 
 ```
 RESPONSE MODE: INTEGRATE (Cross-Domain Synthesis)
@@ -817,35 +822,56 @@ RESPONSE MODE: INTEGRATE (Cross-Domain Synthesis)
 
 ### Voice Depth Classification Triggers
 
-**Location:** `lib/services/lumara/entry_classifier.dart` (`classifyVoiceDepth()`)
+**Location:** `lib/services/lumara/entry_classifier.dart` (`classifyVoiceDepth()`, `classifySeeking()`)
 
-Classification determines whether to use Jarvis or Samantha mode based on detected triggers:
+Classification determines engagement mode (Reflect/Explore/Integrate) based on detected triggers:
 
-| Trigger Category | Examples | Weight |
-|------------------|----------|--------|
-| Processing Language | "I need to process...", "Help me think through..." | 0.30 |
-| Struggle Language | "I'm struggling with...", "I can't..." | 0.25 |
-| Emotional States | "I'm feeling anxious...", "I feel overwhelmed..." | 0.25 |
-| Decision Support | "Should I...", "Help me decide..." | 0.25 |
-| Self-Reflective Questions | "Why do I...", "Am I being..." | 0.25 |
-| Relationship/Identity | "My relationship with...", "Who I am..." | 0.20 |
-| High Emotional Density | >15% emotional words | 0.20 |
-| Long Personal Utterance | >50 words + high first-person density | 0.15 |
+| Trigger Category | Examples | Mode |
+|------------------|----------|------|
+| No triggers | Brief statements, simple questions | Reflect |
+| Exploration Language | "Analyze", "Give me insight", "What patterns" | Explore |
+| **Temporal Queries** | "How has my week been", "Tell me about my month", "What have I done" | Explore |
+| Processing Language | "I need to process...", "Help me think through..." | Explore |
+| Deep Analysis | "Go deeper", "Connect the dots", "Integrate" | Integrate |
+| Cross-Domain | "How does X relate to Y", "Synthesize" | Integrate |
 
-**If any triggers detected → Samantha mode (reflective)**
-**No triggers → Jarvis mode (transactional)**
+**Temporal Query Triggers (v3.3.10):**
+Queries about past time periods now trigger Explore mode with full memory retrieval:
+- "How has my [day/week/month/year] been"
+- "Tell me about/how my [day/week/month/year]"
+- "What have I done/accomplished"
+- "Summary/summarize my..."
+- "Review/reflect on my..."
+- "Recommendations based on..."
+
+### Seeking Classification (v3.3.9)
+
+**Location:** `lib/services/lumara/entry_classifier.dart` (`classifySeeking()`)
+
+Additional classification for what the user wants from the interaction:
+
+| Seeking Type | Examples | Response Approach |
+|--------------|----------|-------------------|
+| Validation | "Am I right to...", "Is it okay that..." | Affirm, normalize, support |
+| Exploration | "What do you think about...", "Help me understand..." | Analyze, offer perspectives |
+| Direction | "What should I...", "Help me decide..." | Concrete next steps, options |
+| Reflection | Venting, processing, emotional expression | Mirror back, hold space |
 
 ### Voice Mode Configuration
 
 ```dart
-// Jarvis (Transactional)
-static const int jarvisMaxWords = 100;
-static const int jarvisTargetLatencyMs = 5000;
+// Reflect (Default - casual conversation)
+static const int reflectiveMaxWords = 100;
+static const int reflectiveTargetLatencyMs = 5000;
 
-// Samantha (Reflective)
-static const int samanthaMaxWords = 200;
-static const int samanthaTargetLatencyMs = 10000;
-static const int samanthaHardLimitMs = 10000; // Hard ceiling
+// Explore (When asked - pattern analysis)
+static const int exploreMaxWords = 200;
+static const int exploreTargetLatencyMs = 10000;
+
+// Integrate (When asked - synthesis)
+static const int integrateMaxWords = 300;
+static const int integrateTargetLatencyMs = 15000;
+static const int integrateHardLimitMs = 20000;
 ```
 
 **📄 Full Implementation Details:** See [VOICE_MODE_IMPLEMENTATION_GUIDE.md](VOICE_MODE_IMPLEMENTATION_GUIDE.md)
@@ -856,7 +882,9 @@ static const int samanthaHardLimitMs = 10000; // Hard ceiling
 
 | Version | Date | Changes |
 |---------|------|---------|
-| 1.2.0 | 2026-01-17 | Added Voice Mode prompts (Jarvis/Samantha dual-mode system) |
+| 1.4.0 | 2026-01-22 | Added temporal query triggers for Explore mode, reverted word limits to 100/200/300 |
+| 1.3.0 | 2026-01-22 | Phase-specific prompts with good/bad examples, Seeking classification |
+| 1.2.0 | 2026-01-17 | Added Voice Mode prompts (Three-tier engagement system) |
 | 1.1.0 | 2026-01-14 | Added Apple Health integration documentation |
 | 1.0.0 | 2026-01-14 | Initial documentation of all prompts |
 

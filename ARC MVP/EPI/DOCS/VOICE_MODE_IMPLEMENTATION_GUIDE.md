@@ -1,7 +1,7 @@
 # Voice Mode Implementation Guide
 ## Three-Tier Engagement System (Reflect/Explore/Integrate)
 
-> Last Updated: January 22, 2026 (v3.3.8)
+> Last Updated: January 22, 2026 (v3.3.10)
 
 ## Overview
 
@@ -9,11 +9,11 @@ Voice mode uses the **same three-tier engagement system as written mode**, with 
 
 | Mode | Response Style | Word Limit | Latency Target |
 |------|----------------|------------|----------------|
-| **Reflect** (default) | Casual conversation, surface patterns | 175 words | 7 seconds |
-| **Explore** (when asked) | Pattern analysis, deeper discussion | 350 words | 12 seconds |
-| **Integrate** (when asked) | Cross-domain synthesis, deep reflection | 450 words | 18 seconds |
+| **Reflect** (default) | Casual conversation, surface patterns | 100 words | 5 seconds |
+| **Explore** (when asked) | Pattern analysis, deeper discussion | 200 words | 10 seconds |
+| **Integrate** (when asked) | Cross-domain synthesis, deep reflection | 300 words | 15 seconds |
 
-**Note:** Word limits were increased in v3.3.8 from 100/200/300 to 175/350/450 to improve response quality.
+**Note:** Word limits were reverted to original values in v3.3.10 after implementing phase-specific prompts with good/bad examples, which provide quality without needing longer responses.
 
 ---
 
@@ -42,16 +42,16 @@ User speaks
 └─────────────────────────────────────────────────────────┘
     │
     ├─── No triggers ────────► REFLECT MODE (default)
-    │                           175 words max, 7 seconds
+    │                           100 words max, 5 seconds
     │                           skipHeavyProcessing: true
     │
     ├─── "Analyze"/"insight" ─► EXPLORE MODE
-    │                           350 words max, 12 seconds
-    │                           Full pattern analysis
+    │    "How has my week been"   200 words max, 10 seconds
+    │    Temporal queries          Full pattern analysis
     │
     └─── "Go deeper"/etc. ───► INTEGRATE MODE
-                                450 words max, 18 seconds
-                                Cross-domain synthesis
+                               300 words max, 15 seconds
+                               Cross-domain synthesis
     │
     ▼
 ┌─────────────────────────────────────────────────────────┐
