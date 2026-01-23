@@ -669,6 +669,22 @@ class EntryClassifier {
       r'\bswitch to explore\b',
       r'\bexplore mode\b',
       
+      // Temporal/retrospective queries (require memory retrieval)
+      r'\bhow (has|have) my (day|week|month|year|time|journey) been\b',
+      r'\bwhat (have|did) i (do|done|accomplish|work on)\b',
+      r'\bsummary of my\b',
+      r'\bsummarize my\b',
+      r'\breview my (day|week|month|year|entries|journal)\b',
+      r'\breflect on my (day|week|month|year|journey|progress)\b',
+      r'\blook at my (day|week|month|year|entries|journal)\b',
+      r'\bwhat (happened|did i do) (this|last) (day|week|month|year)\b',
+      r'\bwhat have i been (doing|working on|focused on)\b',
+      r'\btell me (about|how) my (day|week|month|year)\b',
+      r'\bmy (day|week|month|year) (has|have) been\b',
+      r'\bwhat (themes|patterns|trends) (have|do) (i|you see)\b',
+      r'\brecommendations? (for|based on)\b',
+      r'\bbased on (my|what i)\b',
+      
       // Natural exploration language
       r'\bwhat patterns?\b',
       r'\bwhat (patterns|themes) (do you see|have you noticed|are there)\b',

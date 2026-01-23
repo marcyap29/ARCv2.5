@@ -1,6 +1,6 @@
 # EPI ARC MVP - Changelog
 
-**Version:** 3.3.6
+**Version:** 3.3.10
 **Last Updated:** January 22, 2026
 
 ---
@@ -14,6 +14,188 @@ This changelog has been split into parts for easier navigation:
 | **[CHANGELOG_part1.md](CHANGELOG_part1.md)** | Dec 2025 | v2.1.43 - v2.1.87 (Current) |
 | **[CHANGELOG_part2.md](CHANGELOG_part2.md)** | Nov 2025 | v2.1.28 - v2.1.42 |
 | **[CHANGELOG_part3.md](CHANGELOG_part3.md)** | Jan-Oct 2025 | v2.0.0 - v2.1.27 & Earlier |
+
+---
+
+## [3.3.10] - January 22, 2026
+
+### 🎙️ Voice Mode Temporal Query Detection & Word Limit Revert
+
+#### Overview
+Added temporal/retrospective query triggers to properly route memory-dependent questions to Explore mode, and reverted word limits to original values now that phase-specific prompts provide structural quality.
+
+#### Changes
+
+**1. Temporal Query Triggers for Explore Mode**
+Added patterns to detect queries that require memory retrieval:
+- "how has my [day/week/month/year] been"
+- "what have I done/accomplished"
+- "summary of my / summarize my"
+- "review my / reflect on my [time period]"
+- "tell me about my month"
+- "recommendations based on"
+
+Previously, "Tell me how my month has been" stayed in Reflect mode with no memory context. Now it triggers Explore mode with full journal history retrieval.
+
+**2. Word Limits Reverted to Original Values**
+| Mode | Previous | Current | Rationale |
+|------|----------|---------|-----------|
+| Reflect | 175 words | 100 words | Phase prompts provide quality without length |
+| Explore | 350 words | 200 words | Temporal triggers ensure proper routing |
+| Integrate | 450 words | 300 words | Good/bad examples guide concise responses |
+
+#### Technical Details
+- `lib/services/lumara/entry_classifier.dart`: Added 13 new exploration patterns for temporal queries
+- `lib/arc/chat/voice/prompts/voice_response_builders.dart`: Reverted word limits to 100/200/300
+
+---
+
+## [3.3.9] - January 22, 2026
+
+### 🎙️ Voice Mode Phase-Specific Prompts & Seeking Classification
+
+#### Overview
+Major enhancement to voice mode response quality through phase-specific prompts with explicit good/bad examples, and a new "seeking" classification system that detects what the user actually wants from the interaction.
+
+#### New Features
+
+**1. Seeking Classification (PRISM)**
+Classifies user intent into four categories to calibrate response style:
+| Seeking | Description | Response Style |
+|---------|-------------|----------------|
+| **Validation** | "Am I right to feel this way?" | Affirm, normalize, validate |
+| **Exploration** | "Help me think through this" | Ask deepening questions |
+| **Direction** | "Tell me what to do" | Clear recommendations |
+| **Reflection** | "I need to process this" | Space to process, brief acknowledgments |
+
+**2. Phase-Specific Voice Prompts**
+Each ATLAS phase now has tailored voice prompts (~500 words vs 260KB master prompt):
+- **Recovery**: Validation without pressure, space not questions, honor processing time
+- **Breakthrough**: Challenge strategically, capitalize on clarity, match energy
+- **Transition**: Normalize uncertainty, ground in ambiguity, no premature decisions
+- **Discovery**: Encourage experimentation, pattern recognition without optimization
+- **Expansion**: Strategic direction, prioritization, appropriate challenge
+- **Consolidation**: Recognize sustainability work, analytical support, integration help
+
+**3. Good/Bad Response Examples**
+Each phase prompt includes explicit examples:
+```
+Bad: "I hear that you're struggling. How does that make you feel?"
+Good: "That sounds heavy. Sometimes the weight of it is just what it is."
+```
+
+#### Technical Changes
+
+**New Files:**
+- `lib/arc/chat/voice/prompts/phase_voice_prompts.dart`:
+  - `PhaseVoicePrompts.getPhasePrompt()` - Returns phase-specific prompt
+  - `SeekingType` enum (validation/exploration/direction/reflection)
+  - Phase word limit multipliers based on user capacity
+
+**Modified Files:**
+- `lib/services/lumara/entry_classifier.dart`:
+  - Added `SeekingType` enum and `SeekingResult` class
+  - Added `classifySeeking()` method with pattern matching
+  - Helper methods: `_containsDirectionSeeking()`, `_containsValidationSeeking()`, `_containsExplorationSeeking()`, `_containsVentingLanguage()`
+  
+- `lib/arc/chat/voice/services/voice_session_service.dart`:
+  - Integrated seeking classification into voice flow
+  - Updated `_buildVoiceModeInstructions()` to use phase-specific prompts
+  - Logs both engagement mode and seeking classification for debugging
+
+#### Benefits
+- **Targeted Prompts**: ~500 words phase-specific vs 260KB master prompt = faster latency
+- **No More "It Sounds Like"**: Explicit bad examples teach model what NOT to do
+- **Phase-Appropriate Tone**: Recovery gets gentleness, Breakthrough gets challenge
+- **User Intent Matching**: Response style matches what user is actually seeking
+
+#### Example Flow
+```
+User speaks: "I just don't know if I made the right decision..."
+
+Classifications:
+- Engagement: REFLECT (no explore/integrate triggers)
+- Seeking: VALIDATION (contains "right decision", uncertainty)
+- Phase: TRANSITION (liminal space)
+
+Prompt includes:
+- Transition phase guidance (normalize uncertainty)
+- Validation-specific instructions (affirm, don't analyze)
+- Good/bad examples for Transition phase
+```
+
+---
+
+## [3.3.8] - January 22, 2026
+
+### 🎙️ Voice Mode Word Limits Increased
+
+#### Overview
+Increased voice mode response word limits to improve response quality. Previous limits (100/200/300 words) were too restrictive, leading to generic filler responses and the model resorting to formulaic phrases like "It sounds like..." despite explicit instructions not to.
+
+#### Changes
+| Mode | Old Limit | New Limit | Latency Target |
+|------|-----------|-----------|----------------|
+| **Reflect** | 100 words | 175 words (+75%) | 5s → 7s |
+| **Explore** | 200 words | 350 words (+75%) | 10s → 12s |
+| **Integrate** | 300 words | 450 words (+50%) | 15s → 18s |
+
+#### Rationale
+- Previous brevity-focused limits left too little room for substantive answers
+- Model was filling responses with acknowledgment phrases instead of actual content
+- New limits are ~85-90% of written mode, allowing for substantive voice responses
+- Trade-off: Slightly longer latency for significantly improved response quality
+
+#### Technical Details
+- Updated `lib/arc/chat/voice/prompts/voice_response_builders.dart`:
+  - `reflectiveMaxWords`: 100 → 175
+  - `exploreMaxWords`: 200 → 350
+  - `integrateMaxWords`: 300 → 450
+  - Latency targets adjusted proportionally
+  - Hard limit for Integrate mode: 20s → 25s
+
+---
+
+## [3.3.7] - January 22, 2026
+
+### 🎨 UI Icon Standardization - LUMARA Icon Updates
+
+#### Overview
+Standardized all LUMARA icons across the application to use the consistent `Lumara_Icon_White.png` asset, replacing various inconsistent icon implementations including the head-with-gear icon.
+
+#### Icon Replacements
+- **Introduction Screen**: Replaced LUMARA sigil in "Hi, I'm LUMARA" intro screen with `Lumara_Icon_White.png`
+- **Chat Interface**: Updated LUMARA button/icon in chat screens to use `Lumara_Icon_White.png`
+- **Journal/Conversation**: Updated LUMARA button in journal and conversation screens to use `Lumara_Icon_White.png`
+- **Voice Mode**: Replaced LUMARA sigil in voice mode interface with `Lumara_Icon_White.png`
+- **Bottom Navigation Tab**: Updated LUMARA tab icon in bottom navigation bar to use `Lumara_Icon_White.png`
+- **Conversations Header**: Replaced zigzag icon next to "Conversations" title with chat bubble icon (`Icons.chat_bubble_outline`) for consistency
+
+#### Technical Changes
+- **Asset Registration**: Added `assets/icon/` directory to `pubspec.yaml` assets section
+- **LumaraPulsingSymbol Widget** (`lib/shared/ui/onboarding/widgets/lumara_pulsing_symbol.dart`):
+  - Updated to use `assets/icon/Lumara_Icon_White.png` instead of `LUMARA_Symbol-Final.png`
+- **LumaraIcon Widget** (`lib/shared/widgets/lumara_icon.dart`):
+  - Updated to use `assets/icon/Lumara_Icon_White.png` instead of `lumara_logo.png`
+- **Voice Sigil** (`lib/arc/chat/voice/ui/voice_sigil.dart`):
+  - Updated to use `assets/icon/Lumara_Icon_White.png` instead of `LUMARA_Symbol-Final.png`
+- **Tab Bar** (`lib/shared/tab_bar.dart`):
+  - Updated LUMARA tab to use `assets/icon/Lumara_Icon_White.png` directly
+- **Timeline View** (`lib/arc/ui/timeline/timeline_view.dart`):
+  - Replaced `Icons.timeline` with `Icons.chat_bubble_outline` for Conversations header icon
+
+#### Files Modified
+- `pubspec.yaml`: Added `assets/icon/` to assets section
+- `lib/shared/ui/onboarding/widgets/lumara_pulsing_symbol.dart`: Updated image asset path
+- `lib/shared/widgets/lumara_icon.dart`: Updated image asset path
+- `lib/arc/chat/voice/ui/voice_sigil.dart`: Updated image asset path
+- `lib/shared/tab_bar.dart`: Updated LUMARA tab icon implementation
+- `lib/arc/ui/timeline/timeline_view.dart`: Updated Conversations header icon
+
+#### User Experience
+- **Visual Consistency**: All LUMARA icons now use the same white geometric symbol throughout the app
+- **Better Recognition**: Consistent iconography helps users identify LUMARA features across different screens
+- **Improved Navigation**: Chat bubble icon in Conversations header matches the bottom navigation tab icon
 
 ---
 
