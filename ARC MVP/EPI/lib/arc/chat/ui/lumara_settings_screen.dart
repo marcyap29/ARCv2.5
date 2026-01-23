@@ -720,8 +720,10 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
     final availableProviders = _apiConfig.getAvailableProviders();
     final bestProvider = _apiConfig.getBestProvider();
     
-    // Get current provider display name
-    final currentProviderName = bestProvider?.name ?? 'None';
+    // Get current provider display name (show "Default" for Gemini)
+    final currentProviderName = bestProvider?.provider == LLMProvider.gemini 
+        ? 'Default' 
+        : (bestProvider?.name ?? 'None');
     final currentProviderType = bestProvider?.isInternal == true ? 'Internal' : 'Cloud API';
     
     return Card(
@@ -824,14 +826,17 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
 
   Widget _buildProviderSelection(ThemeData theme) {
     final allProviders = _apiConfig.getAllProviders();
-    // For paying users: Gemini, Anthropic, OpenAI (ChatGPT), Venice AI, and OpenRouter
+    // For paying users: Anthropic, OpenAI (ChatGPT), Venice AI, and OpenRouter
+    // Gemini is now "Default" and shown separately
     final externalProviders = allProviders
-        .where((p) => p.provider == LLMProvider.gemini || 
-                     p.provider == LLMProvider.anthropic || 
+        .where((p) => p.provider == LLMProvider.anthropic || 
                      p.provider == LLMProvider.openai ||
                      p.provider == LLMProvider.venice ||
                      p.provider == LLMProvider.openrouter)
         .toList();
+    
+    // Check if Default (Gemini) is currently selected
+    final isDefaultSelected = _selectedProvider == null || _selectedProvider == LLMProvider.gemini;
     
     return Card(
       child: Padding(
@@ -853,6 +858,10 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
             ),
             const SizedBox(height: 16),
             
+            // Default Provider Option (always available)
+            _buildDefaultProviderOption(theme, isDefaultSelected),
+            const SizedBox(height: 16),
+            
             // Cloud API Section
             _buildProviderCategory(
               theme: theme,
@@ -862,6 +871,137 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
               isInternal: false,
             ),
           ],
+        ),
+      ),
+    );
+  }
+  
+  Widget _buildDefaultProviderOption(ThemeData theme, bool isSelected) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        border: Border.all(
+          color: isSelected 
+              ? theme.colorScheme.primary
+              : theme.colorScheme.outline.withOpacity(0.3),
+          width: isSelected ? 2 : 1,
+        ),
+        borderRadius: BorderRadius.circular(12),
+        color: isSelected 
+            ? theme.colorScheme.primary.withOpacity(0.05)
+            : null,
+      ),
+      child: InkWell(
+        onTap: () async {
+          // Set Default (Gemini) as the manually selected provider
+          await _apiConfig.setManualProvider(LLMProvider.gemini);
+
+          // Reinitialize LUMARA API to use the default provider
+          await _lumaraApi.initialize();
+
+          // Update UI
+          setState(() {
+            _selectedProvider = LLMProvider.gemini;
+          });
+
+          // Show confirmation
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Row(
+                  children: [
+                    Icon(Icons.swap_horiz, color: Colors.white),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text('Switched to Default'),
+                    ),
+                  ],
+                ),
+                backgroundColor: Colors.green,
+                duration: const Duration(seconds: 2),
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+          }
+        },
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            children: [
+              // Status indicator (always green for Default)
+              Container(
+                width: 12,
+                height: 12,
+                decoration: BoxDecoration(
+                  color: Colors.green,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.green.withOpacity(0.3),
+                      blurRadius: 4,
+                      spreadRadius: 1,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              
+              // Provider info
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            'Default',
+                            style: theme.textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.w600,
+                              color: theme.colorScheme.onSurface,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.primary.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            'RECOMMENDED',
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              color: theme.colorScheme.primary,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Standard AI provider - No API key required',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: Colors.green,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              
+              // Selection indicator
+              if (isSelected)
+                Icon(
+                  Icons.check_circle,
+                  color: theme.colorScheme.primary,
+                  size: 20,
+                ),
+            ],
+          ),
         ),
       ),
     );
@@ -1201,7 +1341,8 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
             _selectedProvider = config.provider;
           });
 
-          // Show confirmation
+          // Show confirmation - use "Default" for Gemini provider
+          final displayName = config.provider == LLMProvider.gemini ? 'Default' : config.name;
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
@@ -1210,7 +1351,7 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
                     Icon(Icons.swap_horiz, color: Colors.white),
                     const SizedBox(width: 12),
                     Expanded(
-                      child: Text('Switched to ${config.name}'),
+                      child: Text('Switched to $displayName'),
                     ),
                   ],
                 ),
@@ -1657,10 +1798,10 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
 
 
   Widget _buildApiKeysCard(ThemeData theme) {
-    // For paying users: Gemini, Anthropic, OpenAI (ChatGPT), Venice AI, and OpenRouter
+    // For paying users: Anthropic, OpenAI (ChatGPT), Venice AI, and OpenRouter
+    // Gemini (Default) doesn't require an API key as it's the standard provider
     // Free users don't see this card at all (handled in build method)
     final externalProviders = [
-      LLMProvider.gemini,
       LLMProvider.anthropic,
       LLMProvider.openai,
       LLMProvider.venice,

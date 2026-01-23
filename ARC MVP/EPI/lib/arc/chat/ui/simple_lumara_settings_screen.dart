@@ -16,7 +16,6 @@ class SimpleLumaraSettingsScreen extends StatefulWidget {
 
 class _SimpleLumaraSettingsScreenState extends State<SimpleLumaraSettingsScreen> {
   final LumaraAPIConfig _apiConfig = LumaraAPIConfig.instance;
-  final TextEditingController _geminiController = TextEditingController();
   final LumaraNative _bridge = LumaraNative();
   final DownloadStateService _downloadStateService = DownloadStateService.instance;
   
@@ -31,7 +30,6 @@ class _SimpleLumaraSettingsScreenState extends State<SimpleLumaraSettingsScreen>
 
   @override
   void dispose() {
-    _geminiController.dispose();
     _downloadStateService.removeListener(_onDownloadStateChanged);
     super.dispose();
   }
@@ -46,52 +44,8 @@ class _SimpleLumaraSettingsScreenState extends State<SimpleLumaraSettingsScreen>
     await _apiConfig.initialize();
     
     setState(() {
-      _geminiController.text = _apiConfig.getApiKey(LLMProvider.gemini) ?? '';
+      // Default provider doesn't require manual API key configuration
     });
-  }
-
-  Future<void> _saveApiKey(LLMProvider provider, String key) async {
-    if (key.trim().isEmpty) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Please enter a valid API key'),
-            backgroundColor: Colors.orange,
-          ),
-        );
-      }
-      return;
-    }
-    
-    setState(() => _isLoading = true);
-    
-    try {
-      await _apiConfig.updateApiKey(provider, key.trim());
-      
-      // Force refresh to ensure the provider is detected as available
-      await _apiConfig.refreshProviderAvailability();
-      
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('${provider.name} API key saved successfully!'),
-            backgroundColor: Colors.green,
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error saving API key: $e'),
-            backgroundColor: Colors.red,
-            duration: Duration(seconds: 5),
-          ),
-        );
-      }
-    } finally {
-      setState(() => _isLoading = false);
-    }
   }
 
   Future<void> _startDownload(String modelId, String modelName, String modelUrl) async {
@@ -184,6 +138,10 @@ class _SimpleLumaraSettingsScreenState extends State<SimpleLumaraSettingsScreen>
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final bestProvider = _apiConfig.getBestProvider();
+    // Show "Default" for Gemini provider
+    final providerName = bestProvider?.provider == LLMProvider.gemini 
+        ? 'Default' 
+        : (bestProvider?.name ?? 'No AI provider configured');
     
     return Scaffold(
       appBar: AppBar(
@@ -219,26 +177,24 @@ class _SimpleLumaraSettingsScreenState extends State<SimpleLumaraSettingsScreen>
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: bestProvider != null
-                            ? Colors.green.withOpacity(0.1)
-                            : Colors.orange.withOpacity(0.1),
+                        color: Colors.green.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(
-                          color: bestProvider != null ? Colors.green : Colors.orange,
+                          color: Colors.green,
                         ),
                       ),
                       child: Row(
                         children: [
                           Icon(
-                            bestProvider != null ? Icons.check_circle : Icons.warning,
-                            color: bestProvider != null ? Colors.green : Colors.orange,
+                            Icons.check_circle,
+                            color: Colors.green,
                           ),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
-                              bestProvider?.name ?? 'No AI provider configured',
+                              providerName,
                               style: TextStyle(
-                                color: bestProvider != null ? Colors.green : Colors.orange,
+                                color: Colors.green,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
@@ -248,9 +204,7 @@ class _SimpleLumaraSettingsScreenState extends State<SimpleLumaraSettingsScreen>
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      bestProvider != null
-                          ? 'LUMARA is ready to provide intelligent reflections'
-                          : 'Add an API key below to enable AI features',
+                      'LUMARA is ready to provide intelligent reflections',
                       style: theme.textTheme.bodyMedium?.copyWith(
                         color: theme.colorScheme.onSurfaceVariant,
                       ),
@@ -262,7 +216,7 @@ class _SimpleLumaraSettingsScreenState extends State<SimpleLumaraSettingsScreen>
             
             const SizedBox(height: 24),
             
-            // API Keys Section
+            // Default Provider Info Card
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(16),
@@ -271,10 +225,10 @@ class _SimpleLumaraSettingsScreenState extends State<SimpleLumaraSettingsScreen>
                   children: [
                     Row(
                       children: [
-                        Icon(Icons.key, color: theme.colorScheme.primary),
+                        Icon(Icons.auto_awesome, color: theme.colorScheme.primary),
                         const SizedBox(width: 8),
                         Text(
-                          'API Keys',
+                          'AI Provider',
                           style: theme.textTheme.titleLarge?.copyWith(
                             fontWeight: FontWeight.bold,
                           ),
@@ -282,20 +236,45 @@ class _SimpleLumaraSettingsScreenState extends State<SimpleLumaraSettingsScreen>
                       ],
                     ),
                     const SizedBox(height: 16),
-                    Text(
-                      'Add your Gemini API key:',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.primary.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: theme.colorScheme.primary.withOpacity(0.3),
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 20),
-                    
-                    // Gemini API Key
-                    _buildApiKeyField(
-                      'Google Gemini',
-                      'Get your key from Google AI Studio',
-                      _geminiController,
-                      () => _saveApiKey(LLMProvider.gemini, _geminiController.text),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.check_circle,
+                            color: theme.colorScheme.primary,
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Default Provider Active',
+                                  style: theme.textTheme.titleSmall?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                    color: theme.colorScheme.primary,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'No API key required - LUMARA is ready to use!',
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: theme.colorScheme.onSurfaceVariant,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),
@@ -309,7 +288,7 @@ class _SimpleLumaraSettingsScreenState extends State<SimpleLumaraSettingsScreen>
             
             const SizedBox(height: 24),
             
-            // Help Text
+            // Info Text
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -324,7 +303,7 @@ class _SimpleLumaraSettingsScreenState extends State<SimpleLumaraSettingsScreen>
                       Icon(Icons.info_outline, color: theme.colorScheme.primary, size: 20),
                       const SizedBox(width: 8),
                       Text(
-                        'How to get API keys:',
+                        'About AI Providers',
                         style: theme.textTheme.titleSmall?.copyWith(
                           fontWeight: FontWeight.bold,
                         ),
@@ -333,7 +312,7 @@ class _SimpleLumaraSettingsScreenState extends State<SimpleLumaraSettingsScreen>
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    '• Gemini: Visit Google AI Studio (aistudio.google.com)',
+                    'The Default provider is automatically configured and ready to use. For advanced options, upgrade to Premium to use your own API keys.',
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: theme.colorScheme.onSurfaceVariant,
                     ),
@@ -587,88 +566,4 @@ class _SimpleLumaraSettingsScreenState extends State<SimpleLumaraSettingsScreen>
     );
   }
 
-  Widget _buildApiKeyField(
-    String title,
-    String hint,
-    TextEditingController controller,
-    VoidCallback onSave,
-  ) {
-    final theme = Theme.of(context);
-    final hasKey = controller.text.trim().isNotEmpty;
-    
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Text(
-              title,
-              style: theme.textTheme.titleSmall?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(width: 8),
-            if (hasKey)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: Colors.green.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.check_circle, color: Colors.green, size: 14),
-                    const SizedBox(width: 4),
-                    Text(
-                      'Saved',
-                      style: TextStyle(
-                        color: Colors.green,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        Row(
-          children: [
-            Expanded(
-              child: TextField(
-                controller: controller,
-                decoration: InputDecoration(
-                  hintText: hint,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                ),
-                obscureText: true,
-                onChanged: (value) => setState(() {}),
-              ),
-            ),
-            const SizedBox(width: 8),
-            ElevatedButton(
-              onPressed: hasKey && !_isLoading ? onSave : null,
-              child: _isLoading
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Text('Save'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: hasKey ? theme.colorScheme.primary : theme.colorScheme.surfaceVariant,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
 }
