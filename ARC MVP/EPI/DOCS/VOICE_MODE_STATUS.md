@@ -1,6 +1,6 @@
 # Voice Mode Status & Architecture
 
-> Last Updated: January 20, 2026 (v3.3.3)
+> Last Updated: January 22, 2026 (v3.3.8)
 > 
 > **STATUS: IMPLEMENTED** - Master Unified Prompt integration with three-tier engagement system.
 > See [VOICE_MODE_IMPLEMENTATION_GUIDE.md](./VOICE_MODE_IMPLEMENTATION_GUIDE.md) for full details.
@@ -10,9 +10,9 @@
 Voice mode allows users to have spoken conversations with LUMARA. The system captures speech via **Wispr Flow** (optional, user-provided API key) or **Apple On-Device** (default), processes it through PRISM (PII scrubbing), sends to LUMARA for response generation, and plays back via TTS.
 
 **Voice mode uses the same three-tier engagement system as written mode:**
-- **Reflect Mode** (default) - Casual conversation, 1-3 sentences, 100 words max (vs 200 in written)
-- **Explore Mode** (when asked) - Pattern analysis, 4-8 sentences, 200 words max (vs 400 in written)
-- **Integrate Mode** (when asked) - Cross-domain synthesis, 6-12 sentences, 300 words max (vs 500 in written)
+- **Reflect Mode** (default) - Casual conversation, 3-5 sentences, 175 words max (vs 200 in written)
+- **Explore Mode** (when asked) - Pattern analysis, 6-10 sentences, 350 words max (vs 400 in written)
+- **Integrate Mode** (when asked) - Cross-domain synthesis, 8-14 sentences, 450 words max (vs 500 in written)
 
 **Explicit Voice Commands:**
 - Explore: "Analyze", "Give me insight", "What patterns do you see?"
@@ -53,9 +53,9 @@ Voice mode now uses the **full Master Unified Prompt** (260KB) matching written 
 
 | Engagement Mode | Response Length | Latency Target | Processing |
 |-----------------|-----------------|----------------|------------|
-| Reflect (default) | 1-3 sentences, 100 words max | 5 sec | Lightweight (skips node matching) |
-| Explore (when asked) | 4-8 sentences, 200 words max | 10 sec | Full processing (pattern analysis) |
-| Integrate (when asked) | 6-12 sentences, 300 words max | 15 sec | Full processing (synthesis) |
+| Reflect (default) | 3-5 sentences, 175 words max | 7 sec | Lightweight (skips node matching) |
+| Explore (when asked) | 6-10 sentences, 350 words max | 12 sec | Full processing (pattern analysis) |
+| Integrate (when asked) | 8-14 sentences, 450 words max | 18 sec | Full processing (synthesis) |
 
 **Benefits:**
 - Full access to user's journal history

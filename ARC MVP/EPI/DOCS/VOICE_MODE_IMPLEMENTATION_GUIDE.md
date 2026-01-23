@@ -1,16 +1,19 @@
 # Voice Mode Implementation Guide
-## Jarvis/Samantha Dual-Mode System
+## Three-Tier Engagement System (Reflect/Explore/Integrate)
 
-> Last Updated: January 17, 2026
+> Last Updated: January 22, 2026 (v3.3.8)
 
 ## Overview
 
-Voice mode supports two conversation styles that are automatically detected per-turn:
+Voice mode uses the **same three-tier engagement system as written mode**, with automatic depth classification per-turn:
 
-| Mode | Inspiration | Response Style | Latency Target |
-|------|-------------|----------------|----------------|
-| **Jarvis** | Tony Stark's AI | Quick, efficient, 50-100 words | 3-5 seconds |
-| **Samantha** | "Her" (2013) | Deep, reflective, 150-200 words | 8-10 seconds |
+| Mode | Response Style | Word Limit | Latency Target |
+|------|----------------|------------|----------------|
+| **Reflect** (default) | Casual conversation, surface patterns | 175 words | 7 seconds |
+| **Explore** (when asked) | Pattern analysis, deeper discussion | 350 words | 12 seconds |
+| **Integrate** (when asked) | Cross-domain synthesis, deep reflection | 450 words | 18 seconds |
+
+**Note:** Word limits were increased in v3.3.8 from 100/200/300 to 175/350/450 to improve response quality.
 
 ---
 
@@ -22,7 +25,7 @@ User speaks
     ▼
 ┌─────────────────────────────────────────────────────────┐
 │  TRANSCRIPTION                                          │
-│  AssemblyAI (primary) or Apple On-Device (fallback)     │
+│  Wispr Flow (optional) or Apple On-Device (default)     │
 └─────────────────────────────────────────────────────────┘
     │
     ▼
@@ -35,22 +38,24 @@ User speaks
     ▼
 ┌─────────────────────────────────────────────────────────┐
 │  EntryClassifier.classifyVoiceDepth()                   │
-│  Analyzes scrubbed transcript for reflective triggers   │
+│  Analyzes scrubbed transcript for engagement triggers   │
 └─────────────────────────────────────────────────────────┘
     │
-    ├─── No triggers ────────► JARVIS MODE
-    │                           JarvisPromptBuilder.build()
-    │                           forceQuickResponse: true
-    │                           50-100 words, 3-5 seconds
+    ├─── No triggers ────────► REFLECT MODE (default)
+    │                           175 words max, 7 seconds
+    │                           skipHeavyProcessing: true
     │
-    └─── Triggers found ─────► SAMANTHA MODE
-                                SamanthaPromptBuilder.build()
-                                forceQuickResponse: false
-                                150-200 words, 8-10 seconds
+    ├─── "Analyze"/"insight" ─► EXPLORE MODE
+    │                           350 words max, 12 seconds
+    │                           Full pattern analysis
+    │
+    └─── "Go deeper"/etc. ───► INTEGRATE MODE
+                                450 words max, 18 seconds
+                                Cross-domain synthesis
     │
     ▼
 ┌─────────────────────────────────────────────────────────┐
-│  LUMARA API (Cloud)                                     │
+│  LUMARA API (Cloud) with Master Unified Prompt          │
 │  Only scrubbed text sent - PII never leaves device      │
 └─────────────────────────────────────────────────────────┘
     │
