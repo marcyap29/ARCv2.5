@@ -633,7 +633,7 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
                 mainAxisAlignment: MainAxisAlignment.start,
                 children: [
                   if (!_isSelectionMode) ...[
-                    const Icon(Icons.timeline, size: 21),
+                    const Icon(Icons.chat_bubble_outline, size: 21),
                     const SizedBox(width: 4),
                   ],
                   Flexible(

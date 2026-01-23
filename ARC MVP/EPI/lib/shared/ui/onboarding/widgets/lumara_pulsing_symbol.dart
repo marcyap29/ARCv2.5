@@ -69,7 +69,7 @@ class _LumaraPulsingSymbolState extends State<LumaraPulsingSymbol>
           child: Opacity(
             opacity: opacity,
             child: Image.asset(
-              'assets/images/LUMARA_Symbol-Final.png',
+              'assets/icon/Lumara_Icon_White.png',
               width: widget.size,
               height: widget.size,
               fit: BoxFit.contain,

@@ -141,8 +141,20 @@ class _CustomTabBarState extends State<CustomTabBar> {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           if (isLumara)
-            // Use custom LUMARA icon (same as chat bubbles)
-            const LumaraIcon(size: 28)
+            // Use Lumara_Icon_White.png for LUMARA tab
+            Image.asset(
+              'assets/icon/Lumara_Icon_White.png',
+              width: 28,
+              height: 28,
+              fit: BoxFit.contain,
+              errorBuilder: (context, error, stackTrace) {
+                return Icon(
+                  Icons.psychology,
+                  size: 28,
+                  color: textColor,
+                );
+              },
+            )
           else
           Icon(
             tab.icon,
@@ -164,7 +176,19 @@ class _CustomTabBarState extends State<CustomTabBar> {
       );
     } else if (tab.icon != null) {
       if (isLumara) {
-        return const LumaraIcon(size: 28);
+        return Image.asset(
+          'assets/icon/Lumara_Icon_White.png',
+          width: 28,
+          height: 28,
+          fit: BoxFit.contain,
+          errorBuilder: (context, error, stackTrace) {
+            return Icon(
+              Icons.psychology,
+              size: 28,
+              color: textColor,
+            );
+          },
+        );
       }
       return Icon(
         tab.icon,
