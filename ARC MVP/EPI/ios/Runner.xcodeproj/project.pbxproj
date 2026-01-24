@@ -160,7 +160,6 @@
 				1F3EEF822E9353BE009BFF74 /* Accelerate.framework in Frameworks */,
 				1F3EEF832E9353BE009BFF74 /* MetalKit.framework in Frameworks */,
 				1F3EEF842E9353BE009BFF74 /* Foundation.framework in Frameworks */,
-				1F3EEF732E9352C3009BFF74 /* llama.xcframework in Frameworks */,
 				266796707563BBDA73D93BA6 /* Pods_Runner.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -628,9 +627,13 @@
 				CURRENT_PROJECT_VERSION = 6;
 				DEVELOPMENT_TEAM = 87W73WQSPF;
 				ENABLE_BITCODE = NO;
-				FRAMEWORK_SEARCH_PATHS = "$(inherited)";
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)/Runner/Vendor",
+				);
 				"FRAMEWORK_SEARCH_PATHS[sdk=iphonesimulator*]" = "$(inherited)";
 				HEADER_SEARCH_PATHS = "$(PROJECT_DIR)/Runner/Vendor/llama.xcframework/ios-arm64/Headers";
+				"HEADER_SEARCH_PATHS[sdk=iphonesimulator*]" = "";
 				INFOPLIST_FILE = Runner/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = ARC;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
@@ -648,16 +651,27 @@
 					"-lpthread",
 					"-ldl",
 					"-lm",
+					"-framework",
+					"llama",
+					"-F$(PROJECT_DIR)/Runner/Vendor",
+				);
+				"OTHER_LDFLAGS[sdk=iphonesimulator*]" = (
+					"-lc++",
+					"-ObjC",
+					"-lpthread",
+					"-ldl",
+					"-lm",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.epi.arcmvp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SUPPORTED_PLATFORMS = "iphonesimulator iphoneos";
 				SWIFT_OBJC_BRIDGING_HEADER = "Runner/Runner-Bridging-Header.h";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
 				VERSIONING_SYSTEM = "apple-generic";
 			};
-			name = Profile;
+			name = Debug;
 		};
 		331C8088294A63A400263BE5 /* Debug */ = {
 			isa = XCBuildConfiguration;
@@ -839,9 +853,13 @@
 				CURRENT_PROJECT_VERSION = 6;
 				DEVELOPMENT_TEAM = 87W73WQSPF;
 				ENABLE_BITCODE = NO;
-				FRAMEWORK_SEARCH_PATHS = "$(inherited)";
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)/Runner/Vendor",
+				);
 				"FRAMEWORK_SEARCH_PATHS[sdk=iphonesimulator*]" = "$(inherited)";
 				HEADER_SEARCH_PATHS = "$(PROJECT_DIR)/Runner/Vendor/llama.xcframework/ios-arm64/Headers";
+				"HEADER_SEARCH_PATHS[sdk=iphonesimulator*]" = "";
 				INFOPLIST_FILE = Runner/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = ARC;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
@@ -859,14 +877,26 @@
 					"-lpthread",
 					"-ldl",
 					"-lm",
+					"-framework",
+					"llama",
+					"-F$(PROJECT_DIR)/Runner/Vendor",
+				);
+				"OTHER_LDFLAGS[sdk=iphonesimulator*]" = (
+					"-lc++",
+					"-ObjC",
+					"-lpthread",
+					"-ldl",
+					"-lm",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.epi.arcmvp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SUPPORTED_PLATFORMS = "iphonesimulator iphoneos";
 				SWIFT_OBJC_BRIDGING_HEADER = "Runner/Runner-Bridging-Header.h";
-				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
+				VERSIONING_SYSTEM = "apple-generic";
+			};
+			name = Release;
 				VERSIONING_SYSTEM = "apple-generic";
 			};
 			name = Debug;
@@ -887,6 +917,7 @@
 				FRAMEWORK_SEARCH_PATHS = "$(inherited)";
 				"FRAMEWORK_SEARCH_PATHS[sdk=iphonesimulator*]" = "$(inherited)";
 				HEADER_SEARCH_PATHS = "$(PROJECT_DIR)/Runner/Vendor/llama.xcframework/ios-arm64/Headers";
+				"HEADER_SEARCH_PATHS[sdk=iphonesimulator*]" = "";
 				INFOPLIST_FILE = Runner/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = ARC;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
@@ -899,6 +930,16 @@
 				LIBRARY_SEARCH_PATHS = "$(inherited)";
 				MARKETING_VERSION = 1.0;
 				OTHER_LDFLAGS = (
+					"-lc++",
+					"-ObjC",
+					"-lpthread",
+					"-ldl",
+					"-lm",
+					"-framework",
+					"llama",
+					"-F$(PROJECT_DIR)/Runner/Vendor",
+				);
+				"OTHER_LDFLAGS[sdk=iphonesimulator*]" = (
 					"-lc++",
 					"-ObjC",
 					"-lpthread",
