@@ -1,7 +1,7 @@
 # Voice Mode Implementation Guide
 ## Three-Tier Engagement System (Reflect/Explore/Integrate)
 
-> Last Updated: January 22, 2026 (v3.3.10)
+> Last Updated: January 23, 2026 (v3.3.10)
 
 ## Overview
 
@@ -86,12 +86,13 @@ User speaks
 
 ## Depth Classification
 
-### VoiceDepthMode Enum
+### EngagementMode Enum (Three-Tier System)
 
 ```dart
-enum VoiceDepthMode {
-  transactional,  // Jarvis: Quick, efficient
-  reflective,     // Samantha: Deep, engaged
+enum EngagementMode {
+  reflect,   // Default: Surface patterns and stop, no memory retrieval
+  explore,   // Pattern analysis with journal history retrieval
+  integrate  // Cross-domain synthesis with full memory access
 }
 ```
 
@@ -99,7 +100,7 @@ enum VoiceDepthMode {
 
 ```dart
 class VoiceDepthResult {
-  final VoiceDepthMode depth;
+  final EngagementMode depth;   // Uses EngagementMode, not VoiceDepthMode
   final double confidence;      // 0.0 to 1.0
   final List<String> triggers;  // What triggered the classification
 }
@@ -124,81 +125,79 @@ The classifier detects these categories of triggers:
 
 ## Prompt Builders
 
-### JarvisPromptBuilder (Transactional)
+### PhaseVoicePrompts (Current Implementation)
+
+The current implementation uses `PhaseVoicePrompts.getPhasePrompt()` which builds phase-specific prompts with:
 
 ```dart
-JarvisPromptBuilder.build(
-  userText: "What time is my meeting tomorrow?",
-  currentPhase: PhaseLabel.consolidation,
-  conversationHistory: ["User: Hi / LUMARA: Hello!"],
+PhaseVoicePrompts.getPhasePrompt(
+  phase: 'transition',
+  engagementMode: EngagementMode.explore,
+  seeking: SeekingType.exploration,
+  daysInPhase: 14,
+  emotionalDensity: 0.3,
 );
 ```
 
 **Output prompt characteristics:**
-- Phase affects tone only, not depth
-- 50-100 word response target
-- No pattern recognition or memory retrieval
-- Direct, efficient style
-
-### SamanthaPromptBuilder (Reflective)
-
-```dart
-SamanthaPromptBuilder.build(
-  userText: "I'm struggling with whether to take this new job...",
-  currentPhase: PhaseLabel.transition,
-  conversationHistory: [...],
-  detectedTriggers: ["struggle_language", "decision_support"],
-);
-```
-
-**Output prompt characteristics:**
-- Phase affects both tone AND depth guidance
-- 150-200 word response target
-- May include one connecting question
-- Warm, engaged, therapeutically-informed style
+- Phase-specific tone and guidance (Recovery, Breakthrough, Transition, etc.)
+- Engagement mode word limits (Reflect: 100, Explore: 200, Integrate: 300)
+- Seeking classification calibrates response style
+- Explicit good/bad examples for each phase
+- Voice-optimized (~500 words vs 260KB master prompt)
 
 ---
 
 ## Phase-Aware Styling
 
-Both modes adapt tone based on current phase:
+All engagement modes adapt tone and depth based on current phase:
 
-### Jarvis Mode (Tone Only)
+| Phase | Tone & Approach |
+|-------|-----------------|
+| **Recovery** | Extra validation. Slow pacing. No pressure. Honor processing needs. |
+| **Breakthrough** | Match energy. Challenge strategically. Capitalize on clarity. |
+| **Transition** | Normalize uncertainty. Ground. Navigate ambiguity without rushing. |
+| **Discovery** | Encourage exploration. Reflect patterns. Support experimentation. |
+| **Expansion** | Prioritize opportunities. Strategic guidance. Sustain momentum. |
+| **Consolidation** | Integrate. Recognize progress. Support sustainability. |
 
-| Phase | Tone |
-|-------|------|
-| Recovery | Gentle and supportive |
-| Breakthrough | Direct and confident |
-| Transition | Grounding and clear |
-| Discovery | Encouraging and curious |
-| Expansion | Energetic and focused |
-| Consolidation | Steady and affirming |
-
-### Samantha Mode (Tone + Depth)
-
-| Phase | Guidance |
-|-------|----------|
-| Recovery | Extra validation. Slow pacing. No pressure. Honor processing needs. |
-| Breakthrough | Match energy. Challenge strategically. Capitalize on clarity. |
-| Transition | Normalize uncertainty. Ground. Navigate ambiguity without rushing. |
-| Discovery | Encourage exploration. Reflect patterns. Support experimentation. |
-| Expansion | Prioritize opportunities. Strategic guidance. Sustain momentum. |
-| Consolidation | Integrate. Recognize progress. Support sustainability. |
+Each phase has explicit good/bad response examples in `PhaseVoicePrompts`.
 
 ---
 
 ## Design Decisions
 
-### 1. No Journal History in Voice Mode
+### 1. Memory Retrieval by Engagement Mode
 
-**Decision:** Voice mode does NOT retrieve semantic memory or journal history.
+**Decision:** Voice mode retrieves journal history based on engagement mode.
 
-**Rationale:**
-- Voice demands real-time responsiveness (<10s ceiling)
-- Most reflective voice moments are about current processing
-- Memory retrieval adds 3-7 seconds latency
+| Mode | Memory Retrieval | Rationale |
+|------|------------------|-----------|
+| **Reflect** (default) | No | Fast responses for casual conversation |
+| **Explore** | **Yes** | Temporal queries need history context |
+| **Integrate** | **Yes** | Synthesis requires cross-entry patterns |
 
-**Future:** Add explicit trigger "What did I say about this before?" for on-demand history.
+**How it works:**
+- Reflect mode sets `skipHeavyProcessing: true` → No memory retrieval
+- Explore/Integrate modes set `skipHeavyProcessing: false` → Full journal history retrieval
+
+**Temporal Query Triggers (v3.3.10):**
+Users can trigger memory retrieval by asking:
+- "How has my week/month/year been?"
+- "What have I been working on?"
+- "Summarize my progress"
+- "Review my entries"
+- "Based on what you know..."
+- "What patterns have you noticed?"
+
+These phrases automatically trigger **Explore mode** with full journal context.
+
+**Example:**
+```
+User: "What's up?" → REFLECT (no memory, fast)
+User: "How has my month been?" → EXPLORE (retrieves journal history)
+User: "Go deeper on that" → INTEGRATE (full synthesis with history)
+```
 
 ### 2. Per-Turn Classification
 
@@ -206,26 +205,27 @@ Both modes adapt tone based on current phase:
 
 **Example:**
 ```
-User: "I'm struggling with this decision..." → SAMANTHA (deep)
-User: "What time is it?" → JARVIS (quick)
-User: "Actually, let's go back to that decision..." → SAMANTHA (deep)
+User: "I'm struggling with this decision..." → REFLECT (processing)
+User: "How has my week been?" → EXPLORE (with memory retrieval)
+User: "What time is it?" → REFLECT (quick)
+User: "Go deeper on that" → INTEGRATE (synthesis)
 ```
 
 ### 3. No UI Mode Indicator
 
-**Decision:** No visible indicator showing Jarvis/Samantha mode.
+**Decision:** No visible indicator showing engagement mode.
 
 **Rationale:**
 - Adds cognitive load for zero user benefit
 - Response style IS the indicator
 - Keep interface clean
 
-### 4. Latency Ceiling: 10 Seconds
+### 4. Latency Targets
 
-**Targets:**
-- Jarvis: 3-5 seconds
-- Samantha: 8-10 seconds
-- Hard limit: 10 seconds (anything longer feels broken)
+**Targets by mode:**
+- Reflect: 5 seconds
+- Explore: 10 seconds
+- Integrate: 15 seconds
 
 ---
 
@@ -234,24 +234,26 @@ User: "Actually, let's go back to that decision..." → SAMANTHA (deep)
 ```dart
 // In _processTranscript():
 
-// 1. Classify depth
+// 1. Classify engagement mode (Reflect/Explore/Integrate)
 final depthResult = EntryClassifier.classifyVoiceDepth(transcript);
-final isReflective = depthResult.depth == VoiceDepthMode.reflective;
+final engagementMode = depthResult.depth; // Uses EngagementMode enum
 
-// 2. Build appropriate prompt
-String voicePrompt;
-if (isReflective) {
-  voicePrompt = SamanthaPromptBuilder.build(...);
-} else {
-  voicePrompt = JarvisPromptBuilder.build(...);
-}
+// 2. Classify what user is seeking (Validation/Exploration/Direction/Reflection)
+final seekingResult = EntryClassifier.classifySeeking(transcript);
 
-// 3. Call LUMARA API with mode-appropriate settings
+// 3. Build phase-specific voice prompt
+final voiceModeInstructions = _buildVoiceModeInstructions(
+  engagementMode: engagementMode,
+  currentPhase: _currentPhase,
+  conversationHistory: conversationHistory,
+  seeking: seekingResult.seeking,
+);
+
+// 4. Call LUMARA API - skipHeavyProcessing controls memory retrieval
 final result = await _lumaraApi.generatePromptedReflection(
   entryText: transcript,
-  intent: isReflective ? 'reflective' : 'conversational',
-  chatContext: voicePrompt,
-  forceQuickResponse: !isReflective,  // Only force quick for Jarvis
+  chatContext: voiceModeInstructions,
+  skipHeavyProcessing: engagementMode == EngagementMode.reflect,
   ...
 );
 ```
@@ -265,21 +267,23 @@ final result = await _lumaraApi.generatePromptedReflection(
 The voice session service logs classification results:
 
 ```
-VoiceSession: Depth classification: reflective (confidence: 0.75, triggers: struggle_language, decision_support)
-VoiceSession: Using SAMANTHA mode (reflective)
-VoiceSession: LUMARA API took 8234ms (Samantha mode, limit: 10000ms)
+VoiceSession: Engagement mode classification: explore (confidence: 0.85, triggers: exploration_request)
+VoiceSession: Seeking classification: exploration (confidence: 0.85, triggers: exploration_request)
+VoiceSession: Using EXPLORE mode with Master Unified Prompt (matches written mode)
+VoiceSession: LUMARA API took 8234ms (explore mode, target: 10000ms)
 ```
 
 ### Classification Examples
 
-| Input | Classification | Triggers |
-|-------|---------------|----------|
-| "What time is it?" | transactional | [] |
-| "Had a good lunch" | transactional | [] |
-| "I'm struggling with this decision" | reflective | [struggle_language] |
-| "Help me think through my career" | reflective | [processing_language] |
-| "Why do I always do this?" | reflective | [self_reflective_question] |
-| "I feel anxious about tomorrow" | reflective | [emotional_state] |
+| Input | Engagement Mode | Triggers |
+|-------|-----------------|----------|
+| "What time is it?" | reflect | [] |
+| "Had a good lunch" | reflect | [] |
+| "How has my week been?" | **explore** | [exploration_request] |
+| "What patterns do you see?" | **explore** | [exploration_request] |
+| "Go deeper" | **integrate** | [integration_request] |
+| "Connect the dots" | **integrate** | [integration_request] |
+| "I'm struggling with this" | reflect | [struggle_language] |
 
 ---
 
@@ -296,8 +300,8 @@ The following files were removed as orphaned (not imported by production code):
 - `test/services/lumara/lumara_pattern_recognition_test.dart`
 
 Their useful functionality was merged into:
-- `entry_classifier.dart` - Voice depth classification
-- `voice_response_builders.dart` - Jarvis/Samantha prompts
+- `entry_classifier.dart` - Voice depth classification (`classifyVoiceDepth`, `classifySeeking`)
+- `phase_voice_prompts.dart` - Phase-specific voice prompts with good/bad examples
 
 ---
 
@@ -477,6 +481,8 @@ This ensures voice mode displays the correct phase based on user activity patter
 
 ## Version History
 
+- v3.3.10 (2026-01-22): Added temporal query triggers for Explore mode with memory retrieval, reverted word limits to 100/200/300
+- v3.3.9 (2026-01-22): Added phase-specific prompts with good/bad examples, seeking classification system
 - v3.2 (2026-01-19): Fixed multi-turn voice conversations (speech_to_text state reset)
 - v3.1 (2026-01-19): Added voice usage limits (60 min/month free, unlimited premium), removed AssemblyAI
 - v3.0 (2026-01-19): Restored Wispr Flow as user-configurable option (personal API key)

@@ -1,8 +1,8 @@
 # Voice Mode Status & Architecture
 
-> Last Updated: January 22, 2026 (v3.3.10)
+> Last Updated: January 23, 2026 (v3.3.10)
 > 
-> **STATUS: IMPLEMENTED** - Phase-specific prompts with seeking classification for improved response quality.
+> **STATUS: IMPLEMENTED** - Phase-specific prompts with seeking classification and temporal query memory retrieval.
 > See [VOICE_MODE_IMPLEMENTATION_GUIDE.md](./VOICE_MODE_IMPLEMENTATION_GUIDE.md) for full details.
 
 ## Overview
@@ -12,9 +12,9 @@ Voice mode allows users to have spoken conversations with LUMARA. The system cap
 **Voice mode uses two classification systems:**
 
 ### 1. Engagement Mode (Three-Tier System)
-- **Reflect Mode** (default) - Casual conversation, 1-3 sentences, 100 words max
-- **Explore Mode** (when asked) - Pattern analysis, 4-8 sentences, 200 words max
-- **Integrate Mode** (when asked) - Cross-domain synthesis, 6-12 sentences, 300 words max
+- **Reflect Mode** (default) - Casual conversation, 1-3 sentences, 100 words max, no memory retrieval
+- **Explore Mode** (when asked) - Pattern analysis, 4-8 sentences, 200 words max, **with journal history**
+- **Integrate Mode** (when asked) - Cross-domain synthesis, 6-12 sentences, 300 words max, **with journal history**
 
 ### 2. Seeking Classification (NEW in v3.3.9)
 Detects what the user wants from the interaction:
@@ -28,6 +28,15 @@ Detects what the user wants from the interaction:
 **Explicit Voice Commands:**
 - Explore: "Analyze", "Give me insight", "What patterns do you see?"
 - Integrate: "Deep analysis", "Go deeper", "Connect the dots"
+
+**Temporal Query Triggers (v3.3.10):**
+These phrases automatically trigger **Explore mode with full journal history retrieval**:
+- "How has my week/month/year been?"
+- "What have I been working on?"
+- "Summarize my progress"
+- "Review my entries"
+- "Based on what you know..."
+- "Recommendations based on my journal"
 
 ---
 
@@ -62,19 +71,20 @@ Detects what the user wants from the interaction:
 ### Current Response Path
 Voice mode now uses the **full Master Unified Prompt** (260KB) matching written mode, ensuring consistent personality, tone, and capabilities:
 
-| Engagement Mode | Response Length | Latency Target | Processing |
-|-----------------|-----------------|----------------|------------|
-| Reflect (default) | 1-3 sentences, 100 words max | 5 sec | Lightweight (skips node matching) |
-| Explore (when asked) | 4-8 sentences, 200 words max | 10 sec | Full processing (pattern analysis) |
-| Integrate (when asked) | 6-12 sentences, 300 words max | 15 sec | Full processing (synthesis) |
+| Engagement Mode | Response Length | Latency Target | Processing | Memory Retrieval |
+|-----------------|-----------------|----------------|------------|------------------|
+| Reflect (default) | 1-3 sentences, 100 words max | 5 sec | Lightweight (skips node matching) | **No** |
+| Explore (when asked) | 4-8 sentences, 200 words max | 10 sec | Full processing (pattern analysis) | **Yes** |
+| Integrate (when asked) | 6-12 sentences, 300 words max | 15 sec | Full processing (synthesis) | **Yes** |
 
 **Benefits:**
-- Full access to user's journal history
-- Pattern recognition across entries
+- Explore/Integrate modes have full access to user's journal history
+- Pattern recognition across entries (when triggered)
 - Deep therapeutic engagement
 - Phase-specific guidance from the master prompt
 - Consistent personality and tone with written mode
 - Multi-turn conversation tracking
+- Temporal queries ("How has my month been?") now retrieve full context
 
 ---
 
@@ -97,15 +107,30 @@ Voice mode now uses the **full Master Unified Prompt** (260KB) matching written 
 
 ---
 
-## Proposed Enhancement: Dual-Mode Voice Conversations
+## Implemented: Three-Tier Voice Engagement System
 
-### Vision
-Support two conversation styles within voice mode:
+> **Note:** The original design used "Jarvis/Samantha" terminology (see historical section below). This evolved into the current three-tier Reflect/Explore/Integrate system to match written mode.
+
+### Current Implementation
+
+| Mode | Word Limit | Memory | Purpose |
+|------|------------|--------|---------|
+| **Reflect** (default) | 100 words | No | Casual conversation, quick responses |
+| **Explore** | 200 words | **Yes** | Pattern analysis, temporal queries |
+| **Integrate** | 300 words | **Yes** | Cross-domain synthesis |
+
+---
+
+## Historical: Original Jarvis/Samantha Design
+
+The original vision used "Jarvis/Samantha" terminology:
 
 | Mode | Inspiration | Character |
 |------|-------------|-----------|
 | **Jarvis Mode** | Tony Stark's AI | Quick, efficient, transactional |
 | **Samantha Mode** | "Her" (2013 film) | Deep, reflective, emotionally engaged |
+
+This evolved into the three-tier system (Reflect/Explore/Integrate) to provide better alignment with written mode's engagement system.
 
 ### Proposed Flow
 
@@ -287,27 +312,22 @@ I'm here to think through this with you, at whatever pace feels right."
 
 ---
 
-## Open Questions
+## Resolved Design Questions
 
-1. **Should Samantha mode access journal history?**
-   - Pro: More personalized, can reference past patterns
-   - Con: Adds latency (memory retrieval), increases prompt size
+1. **Should deeper modes access journal history?**
+   - **RESOLVED (v3.3.10):** Yes. Explore and Integrate modes now retrieve full journal history via `skipHeavyProcessing: false`. Temporal queries like "How has my month been?" automatically trigger this.
 
 2. **Should there be a "sticky" mode?**
-   - Once Samantha is triggered, stay in Samantha for the session?
-   - Or re-evaluate each turn independently?
+   - **RESOLVED:** No. Each utterance is evaluated independently for maximum flexibility.
 
 3. **Should the UI indicate which mode is active?**
-   - Subtle indicator showing "deep conversation" mode?
-   - Or keep it invisible/seamless?
+   - **RESOLVED:** No. Response style IS the indicator. Keeps interface clean.
 
-4. **What's the maximum acceptable latency for Samantha mode?**
-   - 8-10 seconds feels conversational
-   - 15+ seconds might feel like the app is broken
+4. **What's the maximum acceptable latency for deeper modes?**
+   - **RESOLVED:** Reflect: 5s, Explore: 10s, Integrate: 15s (hard limits)
 
-5. **Should certain phases default to Samantha?**
-   - Recovery phase users might need deeper engagement by default
-   - Discovery phase users might prefer quick exchanges
+5. **Should certain phases default to deeper engagement?**
+   - **RESOLVED:** No. Phase affects tone/content via phase-specific prompts, but engagement mode is determined by user's words.
 
 ---
 
@@ -331,14 +351,16 @@ I'm here to think through this with you, at whatever pace feels right."
 
 ---
 
-## Next Steps
+## Implementation Status (COMPLETED)
 
-1. Review this document and confirm approach
-2. Implement VoiceDepthDetector with trigger phrase list
-3. Create VoiceSamanthaPrompt (trimmed voice-optimized prompt)
-4. Update voice_session_service.dart routing logic
-5. Test with various conversation styles
-6. Tune trigger phrases based on real usage
+All items below have been implemented:
+
+1. ~~Review this document and confirm approach~~ ✅
+2. ~~Implement VoiceDepthDetector with trigger phrase list~~ ✅ → `EntryClassifier.classifyVoiceDepth()`
+3. ~~Create VoiceSamanthaPrompt (trimmed voice-optimized prompt)~~ ✅ → `PhaseVoicePrompts.getPhasePrompt()`
+4. ~~Update voice_session_service.dart routing logic~~ ✅ → Three-tier routing with `skipHeavyProcessing`
+5. ~~Test with various conversation styles~~ ✅
+6. ~~Tune trigger phrases based on real usage~~ ✅ → Added temporal query triggers in v3.3.10
 
 ---
 

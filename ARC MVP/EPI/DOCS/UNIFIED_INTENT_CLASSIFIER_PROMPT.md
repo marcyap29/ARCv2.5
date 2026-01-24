@@ -269,11 +269,14 @@ You must respond with ONLY a JSON object. No markdown formatting, no explanation
 
 ## Integration Notes
 
-### For Voice Mode (Wispr Flow)
+### For Voice Mode
 After transcript is received:
-1. Run classification
-2. If TRANSACTIONAL → Use Jarvis response path (fast, 50-100 words)
-3. If REFLECTIVE → Use Samantha response path (deep, 150-200 words)
+1. Run `classifyVoiceDepth()` for engagement mode (Reflect/Explore/Integrate)
+2. Run `classifySeeking()` for user intent (Validation/Exploration/Direction/Reflection)
+3. Route based on engagement mode:
+   - **Reflect** → Fast path, 100 words, no memory retrieval
+   - **Explore** → Pattern analysis, 200 words, with journal history
+   - **Integrate** → Cross-domain synthesis, 300 words, with journal history
 
 ### For Text Chat
 After message is received:

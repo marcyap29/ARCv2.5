@@ -180,37 +180,38 @@ enum ConversationMode {
 
 ---
 
-## Voice Mode: Special Handling
+## Voice Mode: Three-Tier Engagement System
 
-Voice conversations have different needs than written entries:
-- Responses must be **fast** (2-5 seconds, not 30-40 seconds)
-- Responses must be **short** (comfortable to listen to)
-- Back-and-forth flow matters more than depth
+Voice mode uses the **same three-tier engagement system as written mode** (Reflect/Explore/Integrate), with automatic depth classification per-turn:
 
-### Voice Mode Overrides
+| Mode | Word Limit | Latency | Memory Retrieval |
+|------|------------|---------|------------------|
+| **Reflect** (default) | 100 words | 5 sec | No |
+| **Explore** (when asked) | 200 words | 10 sec | **Yes** |
+| **Integrate** (when asked) | 300 words | 15 sec | **Yes** |
 
-When `forceQuickResponse: true` is set (voice mode):
+### How Voice Mode Routes Requests
 
-| Your Speech | Forced Type | Word Target |
-|-------------|-------------|-------------|
-| Contains a question | `factual` | ~100 words |
-| Statement/sharing | `conversational` | ~50 words |
+Voice mode uses `skipHeavyProcessing` to control memory retrieval:
+- **Reflect mode**: `skipHeavyProcessing: true` → Fast, no journal history
+- **Explore/Integrate modes**: `skipHeavyProcessing: false` → Full journal history retrieval
 
-This bypasses the normal EntryClassifier logic to ensure voice conversations stay snappy.
+### Temporal Query Triggers (v3.3.10)
+
+These phrases automatically trigger **Explore mode with memory retrieval**:
+- "How has my week/month/year been?"
+- "Summarize my progress"
+- "Review my entries"
+- "Based on what you know..."
+- "What patterns have you noticed?"
 
 ### Code Location
 
-`lib/arc/chat/services/enhanced_lumara_api.dart` — `forceQuickResponse` parameter
+`lib/arc/chat/voice/services/voice_session_service.dart` — Routes based on engagement mode
 
 ```dart
-if (forceQuickResponse) {
-  // VOICE MODE: Force fast paths regardless of content
-  final isQuestion = request.userText.contains('?') || 
-      RegExp(r'\b(what|how|why|when|where|who|which|can|could|would|should|is|are|do|does|did)\b')
-          .hasMatch(request.userText.split(' ').take(3).join(' '));
-  
-  entryType = isQuestion ? EntryType.factual : EntryType.conversational;
-}
+// Explore/Integrate get full journal history
+skipHeavyProcessing: engagementMode == EngagementMode.reflect,
 ```
 
 ---
@@ -246,8 +247,8 @@ LUMARA adjusts responses based on your current life phase:
 | Response too long | EntryClassifier detected `reflective`, `analytical`, or `metaAnalysis` |
 | No connections to past entries | EngagementMode set to `Reflect` instead of `Integrate` |
 | No follow-up questions | EngagementMode set to `Reflect` instead of `Explore` |
-| Voice mode slow (30+ seconds) | Samantha mode with high latency - check API response times |
-| Voice mode responses generic | Check depth classification - may be in Jarvis mode |
+| Voice mode slow (30+ seconds) | Explore/Integrate mode with high latency - check API response times |
+| Voice mode responses generic | Check depth classification - may be stuck in Reflect mode |
 
 ---
 
@@ -266,26 +267,31 @@ LUMARA adjusts responses based on your current life phase:
 
 ---
 
-## Voice Mode: Jarvis/Samantha Dual-Mode System
+## Voice Mode: Three-Tier Engagement Classification
 
-Voice mode uses a **separate classification system** optimized for spoken conversations:
+Voice mode classifies each utterance into one of three engagement modes:
 
-| Mode | Trigger | Response | Latency |
-|------|---------|----------|---------|
-| **Jarvis** | No reflective triggers | 50-100 words, efficient | 3-5 sec |
-| **Samantha** | Reflective triggers detected | 150-200 words, deep | 8-10 sec |
+| Mode | Triggers | Response | Memory |
+|------|----------|----------|--------|
+| **Reflect** (default) | No special triggers | 100 words, casual | No retrieval |
+| **Explore** | "Analyze", temporal queries, pattern requests | 200 words, analytical | **Journal history** |
+| **Integrate** | "Go deeper", "Connect the dots", synthesis requests | 300 words, synthesis | **Journal history** |
 
-### Reflective Triggers (→ Samantha Mode)
-- "I need to process...", "Help me think through..."
-- "I'm struggling with...", "I'm feeling anxious..."
-- "Should I...", "What do you think about..."
-- "Why do I...", "Am I being..."
-- High emotional word density
+### Explore Mode Triggers
+- "How has my week been?" (temporal query)
+- "Analyze this", "Give me insight"
+- "What patterns do you see?"
+- "Based on what you know..."
 
-### No Triggers (→ Jarvis Mode)
-- Factual questions, brief updates
-- Technical questions, calculations
-- Short utterances with no emotional content
+### Integrate Mode Triggers
+- "Go deeper", "Deep analysis"
+- "Connect the dots", "Synthesize"
+- "What's the bigger picture?"
+
+### Reflect Mode (No Triggers)
+- Casual conversation, factual questions
+- Brief updates, short utterances
+- No emotional or analytical content
 
 See [VOICE_MODE_IMPLEMENTATION_GUIDE.md](./VOICE_MODE_IMPLEMENTATION_GUIDE.md) for full details.
 
@@ -301,8 +307,9 @@ LUMARA's response behavior emerges from multiple control systems:
 3. **ConversationMode** (user-selected after response) → Follow-up style
 
 **For Voice:**
-4. **VoiceDepthClassifier** (automatic per-turn) → Jarvis vs Samantha mode
+4. **VoiceDepthClassifier** (automatic per-turn) → Reflect / Explore / Integrate mode
+5. **SeekingClassifier** (automatic) → Validation / Exploration / Direction / Reflection
 
 These systems are designed to be orthogonal — you can have a short (`conversational`) response with deep connections (`Integrate`), or a long (`reflective`) response without any connections (`Reflect`).
 
-Voice mode classifies each turn independently and routes to the appropriate response style based on detected triggers.
+Voice mode classifies each turn independently and routes to the appropriate response style. **Explore and Integrate modes retrieve journal history** for context-aware responses, while Reflect mode stays fast with no memory retrieval.
