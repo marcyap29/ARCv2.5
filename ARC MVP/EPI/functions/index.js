@@ -43,6 +43,7 @@ exports.getUserSubscription = onCall(
   // Founder/admin emails always get premium access
   const founderEmails = [
     'marcyap@orbitalai.net',
+    'tester1@tester1.com', // Apple TestFlight tester account
     // Add more founder/admin emails here
   ];
 
@@ -111,6 +112,7 @@ exports.getAssemblyAIToken = onCall(
   // Premium users get cloud transcription
   const premiumEmails = [
     'marcyap@orbitalai.net',
+    'tester1@tester1.com', // Apple TestFlight tester account
     // Add more premium emails here
   ];
 

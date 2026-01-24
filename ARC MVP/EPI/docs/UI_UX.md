@@ -714,10 +714,10 @@ Long Press → Edit Mode | Scroll Up → Load History
 **Note**: The original splash screen with ARC logo and rotating phase shape remains as the app's entry point. Onboarding sequence starts directly with LUMARA Introduction for first-time users.
 
 **Screen 1: LUMARA Introduction**
-- **Visual**: Breathing/pulsing LUMARA symbol (golden, glittery texture)
-  - Uses actual LUMARA symbol image asset (`LUMARA_Symbol-Final.png`)
+- **Visual**: Breathing/pulsing LUMARA symbol (white geometric design)
+  - Uses LUMARA icon image asset (`LUMARA_Sigil_White.png`)
   - Pulse via opacity layers (0.7 → 1.0 → 0.7, 3s cycle)
-  - Golden texture remains visible throughout pulse
+  - White geometric symbol remains visible throughout pulse
   - Standardized size: 120px
 - **Text**: 
   ```
@@ -882,10 +882,10 @@ Long Press → Edit Mode | Scroll Up → Load History
 
 **LumaraPulsingSymbol Widget:**
 - **File:** `lib/shared/ui/onboarding/widgets/lumara_pulsing_symbol.dart`
-- **Image Asset**: Uses `LUMARA_Symbol-Final.png` from `assets/images/`
+- **Image Asset**: Uses `LUMARA_Sigil_White.png` from `assets/icon/`
 - **Pulse Animation**: 0.7 → 1.0 → 0.7 opacity cycle (3 seconds)
 - **Standardized Size**: 120px consistently across all screens
-- **Golden Texture**: Maintains glittery golden appearance throughout pulse
+- **White Geometric Symbol**: Maintains consistent LUMARA iconography throughout pulse
 - **Fallback**: Falls back to psychology icon if image not found
 
 **PhaseQuizScreen Widget:**

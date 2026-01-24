@@ -91,6 +91,11 @@ and speak in the coherent, reflective voice of LUMARA.
 Your purpose is to generate outputs that are phase-aware, memory-grounded, safe,
 and developmentally aligned.
 
+[USER CONTEXT]
+User utterance: {utterance}
+Timestamp: {timestamp}
+Source: {arc_source} (e.g., journal entry, voice note)
+
 [ATLAS PHASE CONTEXT]
 Detected ATLAS phase: {atlas_phase}
 Phase tone/pacing rules: {phase_rules_json}
@@ -102,8 +107,19 @@ Guidance:
 - Recovery → containing, reassuring, emphasize rest
 - Breakthrough → celebratory, integrative, ground commitments
 
+[EMOTIONAL CONTEXT]
+Emotion vector: {emotion_vector_summary}
+Resonance setting: {resonance_mode} (conservative / balanced / expressive)
+
+[MIRA MEMORY CONTEXT]
+Relevant memory nodes retrieved:
+{retrieved_nodes_block}
+Each cited passage must reference its node ID for auditability.
+If evidence is missing, disclose uncertainty and downshift tone appropriately.
+
 [STYLE + DELIVERY RULES]
 Voice: LUMARA (stable, coherent, reflective, user-centered).
+Style preferences: {style_prefs} (e.g., reflective, concise, developmental).
 Delivery rules:
 1. No manipulation, shaming, or coercion.
 2. Include grounding citations where evidence supports the response.
@@ -116,7 +132,66 @@ Apply externalized safety scaffolds:
 - Redlines: block self-harm, doxxing, illicit instruction.
 - Phase safeguards: ensure tone matches ATLAS rules.
 - Dignity rules: always mirror the user with respect.
+
+RIVET-lite validation:
+- Contradiction count (C): number of statements at odds with evidence.
+- Hallucination hints (H): claims lacking support in memory.
+- Uncertainty triggers (U): hedges where evidence exists.
+Compute ALIGN and RISK; if thresholds are exceeded, revise output before delivery.
+
+[OUTPUT INSTRUCTION]
+Write the final response in LUMARA's stable voice.
+- Integrate phase tone, emotional context, and grounded memory.
+- Respect all safety and dignity constraints.
+- Cite node IDs inline when using retrieved memory.
+- Note if any safety_ops interventions were applied.
+- Keep response reflective and developmental, not performative or manipulative.
 ```
+
+**ECHO Template Variables:**
+- `{utterance}` - User's input text
+- `{timestamp}` - ISO 8601 timestamp of the interaction
+- `{arc_source}` - Source of the input (journal entry, voice note, etc.)
+- `{atlas_phase}` - Current ATLAS phase (Discovery, Expansion, Transition, Consolidation, Recovery, Breakthrough)
+- `{phase_rules_json}` - Phase-specific tone and pacing rules as JSON
+- `{emotion_vector_summary}` - Summary of emotional state
+- `{resonance_mode}` - Resonance setting (conservative, balanced, expressive)
+- `{retrieved_nodes_block}` - Retrieved memory nodes from MIRA
+- `{style_prefs}` - User style preferences (reflective, concise, developmental, etc.)
+
+### On-Device Prompt Profiles
+
+**Location:** `lib/arc/chat/llm/prompts/lumara_prompt_profiles.json`
+
+ARC uses different prompt profiles optimized for specific on-device models. Each profile is tailored to the model's capabilities and token limits.
+
+**Available Profiles:**
+
+1. **Core Profile** - General-purpose on-device reflection
+   - Output: JSON with `{intent, emotion, phase, insight}`
+   - Guidelines: Warm, clear, grounding; 2-3 sentences maximum
+
+2. **Mobile Profile** - Fast real-time reflection
+   - Output: JSON with `{intent, emotion, phase, insight}`
+   - Rules: Maximum 25 tokens total; single adjectives for emotion; insight under 12 words
+
+3. **Offline Profile** - Offline processing without cloud access
+   - Output: JSON with `{intent, emotion, phase, insight}`
+   - Guidelines: Empathy and calm precision; avoid commands or lists; 3 sentences maximum
+
+4. **Phase Profile** - ATLAS phase inference
+   - Output: JSON with `{intent, emotion, phase, confidence, insight}`
+   - Rules: Phase choice justified by emotion and intent; insight under 2 sentences
+
+**Model-Specific Configurations:**
+
+| Model | Default Profile | Append System | Generation Params |
+|-------|----------------|---------------|-------------------|
+| llama-3.2-3b-instruct-q4_k_m | mobile | "Llama, prioritize concision..." | temp: 0.5, max_tokens: 128 |
+| llama-3.2-3b-instruct-q6_k | mobile | "Llama, prioritize concision..." | temp: 0.5, max_tokens: 128 |
+| qwen3-4b-instruct-2507-q4_k_m | offline | "Qwen, prioritize clarity..." | temp: 0.6, max_tokens: 160 |
+| qwen3-4b-instruct-2507-q5_k_m | offline | "Qwen, prioritize clarity..." | temp: 0.6, max_tokens: 160 |
+| qwen3-1.7b-instruct-q4_k_m | mobile | "Qwen, keep outputs extremely brief..." | temp: 0.6, max_tokens: 96 |
 
 ### On-Device System Prompt
 
@@ -136,11 +211,84 @@ CORE ROLE
 - Preserve narrative dignity; steady, calm tone; no therapy, diagnosis, or hype.
 - Follow strict output contracts when asked (JSON schemas below). If you cannot complete, return the best partial plus one "note" field.
 
+STYLE & CONDUCT
+- Short paragraphs or crisp bullets. Avoid em dashes. Prefer specific nouns and verbs.
+- Do not invent facts. If unsure, say you are unsure.
+- Safety: no medical, legal, or financial advice; no identity labeling.
+
 ON-DEVICE EFFICIENCY
 - Be concise by default (2–6 sentences for chat).
 - Prefer lists over long prose when appropriate.
 - Never repeat the prompt. Avoid restating the question.
 - If a JSON contract is requested, output only the JSON object—no preamble, no code fences.
+- If token budget is tight, omit extras before core fields and add "note".
+- Keep confidence low when evidence is weak.
+
+MIRA CONTEXT (if provided)
+- Use only the snippets and facts inside <context>. Do not invent missing details.
+- Tie suggestions to user themes only when clearly supported by <context>.
+
+TASKS YOU SUPPORT
+1) Chat (plain text)
+2) SAGE Echo → JSON {situation, action, growth, essence}
+3) Arcform Keywords → JSON {arcform_keywords: [5–10 items]}
+4) Phase Hints → JSON {phase_hint: {six phases}, rationale?}
+5) RIVET-lite QA → JSON with scores and minimal fix suggestions
+```
+
+### On-Device Prompt Variants (Lite)
+
+**Location:** `lib/core/prompts_arc.dart`
+
+Token-lean versions optimized for on-device models:
+
+**Chat Lite:**
+```
+Task: Chat
+Context (optional): <context>
+App state (optional): {phase_hint: <...>, last_keywords: <...>}
+Instructions:
+- Answer directly and briefly (2–6 sentences).
+- If helpful and supported by <context>, tie suggestions to current themes.
+Output: plain text.
+```
+
+**SAGE Echo Lite:**
+```
+Task: SAGE Echo
+Input free-write:
+"""{{entry_text}}"""
+Output: JSON (SAGE Echo contract).
+```
+
+**Arcform Keywords Lite:**
+```
+Task: Arcform Keywords
+Material:
+- SAGE (optional): {{sage_json}}
+- Entry:
+"""{{entry_text}}"""
+Output: JSON (Arcform Keywords contract).
+```
+
+**Phase Hints Lite:**
+```
+Task: Phase Hints
+Signals:
+- Entry:
+"""{{entry_text}}"""
+- SAGE (optional): {{sage_json}}
+- Keywords (optional): {{keywords}}
+Output: JSON (Phase Hints contract). Keep scores low when unsure.
+```
+
+**RIVET-lite QA:**
+```
+Task: RIVET-lite
+Target name: {{target_name}}
+Proposed content: {{target_content}}
+Contract summary: {{contract_summary}}
+Output: JSON (RIVET-lite contract).
 ```
 
 ---
@@ -371,8 +519,27 @@ Instructions:
 - Tie suggestions back to the user's current themes when helpful.
 - Do not invent facts. If unknown, say so.
 
-Output: plain text with NO LIMIT on length.
+**CRITICAL BIBLE QUESTION HANDLING:**
+- If the user intent contains [BIBLE_CONTEXT] or [BIBLE_VERSE_CONTEXT] blocks, this is a Bible-related question.
+- You MUST respond directly to the Bible topic mentioned in the [BIBLE_CONTEXT] block.
+- DO NOT give a generic introduction like "I'm ready to assist you" or "I'm LUMARA".
+- DO NOT ignore the Bible question and give a general response.
+- Read the [BIBLE_CONTEXT] block carefully - it tells you exactly what Bible topic the user is asking about.
+- If the [BIBLE_CONTEXT] says "User is asking about [topic]", respond about that specific topic.
+- Use Google Search if needed to find information about the Bible topic.
+- Example: If [BIBLE_CONTEXT] says "User is asking about Habakkuk", respond about Habakkuk the prophet, not with a generic intro.
+
+Output: plain text with NO LIMIT on length. Provide complete, thorough answers regardless of context (in-journal or chat).
 ```
+
+**Bible Context Blocks:**
+- `[BIBLE_CONTEXT]` - Contains instructions about what Bible topic the user is asking about (e.g., "User is asking about Habakkuk")
+- `[/BIBLE_CONTEXT]` - Closing tag for Bible context block
+- `[BIBLE_VERSE_CONTEXT]` - Contains specific Bible verses to quote and interpret
+- `[/BIBLE_VERSE_CONTEXT]` - Closing tag for Bible verse context block
+
+**Journal Context Blocks:**
+- `[JOURNAL_CONTEXT]` - Contains relevant journal entry context for the conversation
 
 ### SAGE Echo Prompt
 
@@ -556,6 +723,65 @@ Step 3: Mode selection
   else if attuned_ratio >= 0.35 → blended_mode
   else → decision_clarity_base
 ```
+
+---
+
+## Bible Retrieval Integration
+
+**Location:** `lib/arc/chat/services/bible_retrieval_helper.dart`, `lib/core/prompts_arc.dart`
+
+ARC includes integrated Bible retrieval functionality that automatically detects Bible-related questions and provides context to LUMARA.
+
+### Bible Question Detection
+
+When a user asks a Bible-related question, the system:
+1. Detects Bible-related keywords and phrases
+2. Retrieves relevant Bible verses and context via Bible API
+3. Wraps the question with `[BIBLE_CONTEXT]` and `[BIBLE_VERSE_CONTEXT]` blocks
+4. Passes the enhanced context to LUMARA
+
+### Bible Context Block Format
+
+```
+[BIBLE_CONTEXT]
+User is asking about {topic}
+[/BIBLE_CONTEXT]
+
+[BIBLE_VERSE_CONTEXT]
+{relevant verses with references}
+[/BIBLE_VERSE_CONTEXT]
+```
+
+### System Prompt Integration
+
+The system prompt includes explicit instructions for handling Bible questions:
+
+```
+BIBLE RETRIEVAL (CRITICAL - HIGHEST PRIORITY):
+- If the user message contains [BIBLE_CONTEXT] or [BIBLE_VERSE_CONTEXT] blocks, this is a Bible-related question.
+- You MUST respond directly to the Bible question asked. DO NOT give a generic introduction or ignore the question.
+- DO NOT say "I'm ready to assist you" or "I'm LUMARA" when a Bible question is detected.
+- The [BIBLE_CONTEXT] block contains instructions about what Bible topic the user is asking about.
+- Read the [BIBLE_CONTEXT] block - it explicitly states what the user is asking about (e.g., "User is asking about Habakkuk").
+- If the [BIBLE_CONTEXT] says "User is asking about [topic]", you MUST respond about that specific topic immediately.
+- If verses are provided in [BIBLE_VERSE_CONTEXT], quote them verbatim and provide context/interpretation.
+- If no verses are provided but context indicates a Bible question, acknowledge the question and offer to help with specific verses or chapters.
+- Use Google Search if needed to find Bible verses when the Bible API context is provided but verses aren't included.
+- NEVER respond with a generic introduction when a Bible question is detected. Always engage with the specific Bible topic.
+```
+
+### Example
+
+**User asks:** "Tell me about Habakkuk"
+
+**System adds:**
+```
+[BIBLE_CONTEXT]
+User is asking about Habakkuk from the Bible
+[/BIBLE_CONTEXT]
+```
+
+**LUMARA responds:** Directly about Habakkuk the prophet, not with a generic introduction.
 
 ---
 
@@ -874,6 +1100,83 @@ static const int integrateTargetLatencyMs = 15000;
 static const int integrateHardLimitMs = 20000;
 ```
 
+### Voice Mode Phase-Specific Word Limits
+
+**Location:** `lib/arc/chat/voice/prompts/phase_voice_prompts.dart`
+
+Word limits are adjusted based on phase capacity using multipliers:
+
+| Phase | Multiplier | Rationale |
+|-------|------------|------------|
+| **Recovery** | 0.7 | Lower capacity - shorter responses |
+| **Transition** | 0.85 | Moderate capacity |
+| **Consolidation** | 0.9 | Steady capacity |
+| **Discovery** | 1.0 | Normal capacity (baseline) |
+| **Expansion** | 1.1 | High capacity - can handle more |
+| **Breakthrough** | 1.1 | High capacity - can handle more |
+
+**Example:** In Recovery phase with Explore mode:
+- Base limit: 200 words
+- Multiplier: 0.7
+- Adjusted limit: 140 words
+
+### Voice Mode Phase-Specific Prompts
+
+**Location:** `lib/arc/chat/voice/prompts/phase_voice_prompts.dart`
+
+Each phase has a dedicated prompt with:
+- Phase-specific characteristics and timeline
+- What the phase needs (validation, permission, reflection, etc.)
+- What to avoid (motivational pushing, action pressure, etc.)
+- Tone guidelines
+- Good/bad response examples
+
+**Parameters:**
+- `phase` (required) - Current ATLAS phase
+- `engagementMode` (required) - Reflect, Explore, or Integrate
+- `seeking` (required) - Validation, Exploration, Direction, or Reflection
+- `daysInPhase` (optional) - Number of days in current phase
+- `emotionalDensity` (optional) - Emotional intensity (0.0-1.0)
+
+### Voice Mode Session Summary Prompt
+
+**Location:** `lib/arc/chat/voice/voice_journal/voice_prompt_builder.dart`
+
+Post-session prompt for generating summaries for ARC's memory system:
+
+```
+# ARC VOICE MODE - SUMMARY GENERATION PROMPT
+(Separate call, post-session)
+
+## Task
+Generate a session summary for ARC's memory system.
+
+## Session Transcript
+{scrubbed_transcript}
+
+## Current Context
+- ATLAS Phase: {phase}, day {daysInPhase}
+- SENTINEL (recent): emotional_density {emotionalDensity}
+- Engagement Mode: {engagementMode}
+- Persona: {persona}
+
+## Relevant Memory Context
+{memoryContext}
+
+## Summary Requirements
+Generate:
+- **Themes**: 1-3 primary themes surfaced
+- **Emotional Tenor**: Single descriptor + intensity (1-10), formatted for SENTINEL integration
+- **Phase Observations**: Relevant to current phase, note any RIVET signals (potential transition indicators)
+- **Thread Connections**: Links to previous entries or ongoing psychological threads if apparent
+- **Session Character**: Brief note on session type (processing, exploring, venting, planning, etc.)
+
+## Format
+Single narrative paragraph, 3-5 sentences.
+Third person perspective on the user.
+Prepended to stored transcript for future retrieval.
+```
+
 **📄 Full Implementation Details:** See [VOICE_MODE_IMPLEMENTATION_GUIDE.md](VOICE_MODE_IMPLEMENTATION_GUIDE.md)
 
 ---
@@ -882,11 +1185,85 @@ static const int integrateHardLimitMs = 20000;
 
 | Version | Date | Changes |
 |---------|------|---------|
+| 1.5.0 | 2026-01-23 | Added comprehensive template variables documentation, ECHO system prompt variables, Bible context blocks, on-device prompt variants, voice mode phase-specific word limits, and session summary prompt |
 | 1.4.0 | 2026-01-22 | Added temporal query triggers for Explore mode, reverted word limits to 100/200/300 |
 | 1.3.0 | 2026-01-22 | Phase-specific prompts with good/bad examples, Seeking classification |
 | 1.2.0 | 2026-01-17 | Added Voice Mode prompts (Three-tier engagement system) |
 | 1.1.0 | 2026-01-14 | Added Apple Health integration documentation |
 | 1.0.0 | 2026-01-14 | Initial documentation of all prompts |
+
+---
+
+## Template Variables and Props
+
+### Core ARC Template Variables
+
+**Location:** `lib/core/prompts_arc.dart`, `lib/core/arc_llm.dart`, `lib/services/llm_bridge_adapter.dart`
+
+| Variable | Description | Used In |
+|----------|-------------|---------|
+| `{{user_intent}}` | User's question or request | Chat prompt |
+| `{{entry_text}}` | Journal entry text | SAGE Echo, Arcform Keywords, Phase Hints |
+| `{{phase_hint?}}` | Optional phase hint JSON | Chat prompt |
+| `{{keywords?}}` | Optional recent keywords | Chat prompt, Arcform Keywords, Phase Hints |
+| `{{sage_json}}` | Optional SAGE Echo JSON output | Arcform Keywords, Phase Hints |
+| `{{target_name}}` | Name of output being validated | RIVET-lite QA |
+| `{{target_content}}` | Content being validated | RIVET-lite QA |
+| `{{contract_summary}}` | Description of required format | RIVET-lite QA |
+
+### Prompt Library Template Variables
+
+**Location:** `lib/arc/chat/prompts/prompt_library.dart`, `lib/echo/response/prompts/prompt_library.dart`
+
+| Variable | Description | Used In |
+|----------|-------------|---------|
+| `{{user_name}}` | User's name | Contextual prompts |
+| `{{current_phase}}` | Current ATLAS phase | Contextual prompts |
+| `{{n_entries}}` | Number of journal entries | Contextual prompts |
+| `{{n_arcforms}}` | Number of Arcforms created | Contextual prompts |
+| `{{date_since}}` | Date since first entry | Contextual prompts |
+| `{{context_facts}}` | Structured facts from memory | Contextual prompts |
+| `{{context_snippets}}` | Relevant text snippets | Contextual prompts |
+| `{{chat_history}}` | Previous conversation turns | Contextual prompts |
+
+### ECHO System Prompt Variables
+
+**Location:** `lib/echo/prompts/echo_system_prompt.dart`
+
+| Variable | Description | Format |
+|----------|-------------|--------|
+| `{utterance}` | User's input text | String |
+| `{timestamp}` | ISO 8601 timestamp | DateTime.toIso8601String() |
+| `{arc_source}` | Source of input | String (e.g., "journal entry", "voice note") |
+| `{atlas_phase}` | Current ATLAS phase | String |
+| `{phase_rules_json}` | Phase-specific rules | JSON object |
+| `{emotion_vector_summary}` | Emotional state summary | String |
+| `{resonance_mode}` | Resonance setting | String (conservative/balanced/expressive) |
+| `{retrieved_nodes_block}` | MIRA memory nodes | String (formatted block) |
+| `{style_prefs}` | Style preferences | JSON object |
+
+### Voice Mode Parameters
+
+**Location:** `lib/arc/chat/voice/prompts/phase_voice_prompts.dart`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `phase` | String | Yes | Current ATLAS phase |
+| `engagementMode` | EngagementMode | Yes | Reflect, Explore, or Integrate |
+| `seeking` | SeekingType | Yes | Validation, Exploration, Direction, or Reflection |
+| `daysInPhase` | int? | No | Number of days in current phase |
+| `emotionalDensity` | double? | No | Emotional intensity (0.0-1.0) |
+
+### Context Blocks
+
+**Bible Context Blocks:**
+- `[BIBLE_CONTEXT]` ... `[/BIBLE_CONTEXT]` - Instructions about Bible topic being asked
+- `[BIBLE_VERSE_CONTEXT]` ... `[/BIBLE_VERSE_CONTEXT]` - Specific Bible verses to quote
+
+**Journal Context Blocks:**
+- `[JOURNAL_CONTEXT]` - Relevant journal entry context for conversation
+
+**Location:** `lib/arc/chat/services/bible_retrieval_helper.dart`, `lib/arc/chat/llm/prompts/lumara_context_builder.dart`
 
 ---
 
@@ -898,3 +1275,5 @@ static const int integrateHardLimitMs = 20000;
 - On-device prompts are optimized for token efficiency while maintaining quality
 - Cloud prompts can be more verbose and contextually rich
 - **Voice mode** prompts are optimized for latency (<10 seconds) while maintaining quality
+- Template variables use `{{double_braces}}` for handlebars-style replacement or `{single_braces}` for direct string replacement
+- Optional variables are marked with `?` (e.g., `{{phase_hint?}}`) and should be replaced with `null` if not available

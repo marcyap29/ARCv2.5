@@ -10,9 +10,8 @@ import 'package:flutter/foundation.dart';
 import '../../services/enhanced_lumara_api.dart';
 import 'prism_adapter.dart';
 import 'voice_journal_state.dart';
-import 'correlation_resistant_transformer.dart';
-import 'voice_prompt_builder.dart';
 import 'voice_mode.dart';
+import 'voice_prompt_builder.dart';
 
 /// Configuration for Gemini client
 class GeminiConfig {
@@ -63,31 +62,29 @@ class GeminiJournalClient {
 
   bool get isProcessing => _isProcessing;
 
-  /// Generate LUMARA response for journal entry
+  /// Generate LUMARA response for voice mode
   /// 
-  /// SECURITY: Input MUST be a correlation-resistant CloudPayloadBlock.
-  /// This ensures no raw PII, no verbatim text, and rotating aliases.
+  /// SECURITY: Input MUST be scrubbed by PRISM before calling this method.
   /// 
   /// Parameters:
-  /// - cloudPayload: Correlation-resistant structured payload (Block B)
-  /// - localAuditBlock: Local-only audit block (Block A) - for logging only
+  /// - scrubbedText: PII-scrubbed user text (safe to send)
   /// - conversationHistory: Optional previous turns for context
   /// - voiceContext: Voice prompt context for building unified prompt
   /// - onChunk: Callback for streaming response chunks (if supported)
   /// - onComplete: Callback when full response is ready
   /// - onError: Callback for errors
   Future<String> generateResponse({
-    required CloudPayloadBlock cloudPayload,
-    LocalAuditBlock? localAuditBlock,
+    required String scrubbedText,
     List<String>? conversationHistory,
     VoicePromptContext? voiceContext,
     OnGeminiChunk? onChunk,
     OnGeminiComplete? onComplete,
     OnGeminiError? onError,
   }) async {
-    // SECURITY: Validate payload structure
-    if (cloudPayload.ppVersion != 'PRISM+ROTATE-1.0') {
-      onError?.call('Invalid payload version');
+    // SECURITY: Validate input is scrubbed
+    final prismAdapter = PrismAdapter();
+    if (!prismAdapter.isSafeToSend(scrubbedText)) {
+      onError?.call('SECURITY: Unscrubbed PII detected');
       return '';
     }
     
@@ -100,46 +97,22 @@ class GeminiJournalClient {
     _metrics.geminiRequestStart = DateTime.now();
     
     try {
-      // Log local audit block (NEVER SEND TO SERVER)
-      if (localAuditBlock != null) {
-        debugPrint('LOCAL AUDIT: PRISM scrub passed: ${localAuditBlock.prismScrubPassed}');
-        debugPrint('LOCAL AUDIT: isSafeToSend passed: ${localAuditBlock.isSafeToSendPassed}');
-        debugPrint('LOCAL AUDIT: Token classes: ${localAuditBlock.tokenClassCounts}');
-        debugPrint('LOCAL AUDIT: Window ID: ${localAuditBlock.windowId}');
-        // NOTE: aliasDictionary is intentionally NOT logged
-      }
+      // Build voice mode instructions
+      final voiceModeInstructions = _buildVoiceModeInstructions();
       
-      // Build system prompt using unified voice prompt builder if context provided
-      String chatContext;
-      if (voiceContext != null) {
-        // Use unified voice prompt builder
-        chatContext = await VoicePromptBuilder.buildVoicePrompt(voiceContext);
-        debugPrint('Gemini: Using unified voice prompt with control state');
-      } else {
-        // Fallback to legacy prompt
-        chatContext = _config.systemPrompt;
-        if (conversationHistory != null && conversationHistory.isNotEmpty) {
-          chatContext += '\n\nPrevious conversation:\n${conversationHistory.join("\n")}';
-        }
-        debugPrint('Gemini: Using legacy prompt (no voice context provided)');
-      }
-      
-      // Convert cloud payload to JSON string for transmission
-      final payloadJson = cloudPayload.toJsonString();
-      debugPrint('Gemini: Sending correlation-resistant payload (${payloadJson.length} chars)');
-      debugPrint('Gemini: Payload version: ${cloudPayload.ppVersion}, Window: ${cloudPayload.windowId}');
+      debugPrint('Gemini: Using unified master prompt for voice mode');
+      debugPrint('Gemini: Sending scrubbed text (${scrubbedText.length} chars)');
       
       // Use EnhancedLumaraApi for the request
-      // Send the structured JSON payload instead of verbatim text
+      // Pass voice mode instructions as chatContext (will be detected as voice mode)
+      // Set skipHeavyProcessing: true to use master prompt but skip context retrieval
       final result = await _api.generatePromptedReflection(
-        entryText: payloadJson,  // Send structured JSON, not verbatim text
-        intent: cloudPayload.intent,
+        entryText: scrubbedText,
+        intent: 'voice_chat', // Voice mode intent
         phase: null, // Phase is now in control state
         userId: voiceContext?.userId,
-        chatContext: chatContext + (voiceContext == null 
-            ? '\n\nNote: Input is a structured privacy-preserving payload. '
-                'Respond naturally to the semantic summary and themes provided.'
-            : ''),
+        chatContext: voiceModeInstructions, // Voice mode instructions (contains 'VOICE MODE')
+        skipHeavyProcessing: true, // Skip context retrieval, use master prompt
         onProgress: (msg) {
           debugPrint('Gemini progress: $msg');
         },
@@ -172,6 +145,45 @@ class GeminiJournalClient {
       // Return a fallback response
       return "I'm here to listen. Could you tell me more about what's on your mind?";
     }
+  }
+  
+  /// Build voice mode specific instructions
+  String _buildVoiceModeInstructions() {
+    return '''
+═══════════════════════════════════════════════════════════
+VOICE MODE ADAPTATIONS
+═══════════════════════════════════════════════════════════
+
+**INTERACTION MODEL:**
+- User speaks by pressing and holding a button, releases to hear your response
+- This is spoken dialogue: responses should be natural, conversational, appropriately brief
+- Responses will be synthesized to speech - write for the ear, not the eye
+
+**RESPONSE LENGTH:**
+- Keep responses 1/3 to 1/2 shorter than text mode equivalents
+- Typical response length: 2-4 sentences for most interactions
+- Match the weight of what the user shared - light topics get brief responses, deep topics can be slightly longer
+
+**VOICE-SPECIFIC ADAPTATIONS:**
+- Use natural spoken transitions ("That connects to something you mentioned earlier..." not "Additionally,...")
+- Contractions are good. Sentence fragments are fine when natural.
+- Avoid lists, bullet points, numbered items—anything that sounds like written text
+- Avoid filler acknowledgments ("I hear you," "That makes sense")—just respond substantively
+- Match the user's pacing and energy
+- One question maximum per response, if any
+- Let the conversation breathe. Not every exchange needs a follow-up question.
+
+**CONVERSATION FLOW:**
+- Each turn is a discrete exchange. The user controls pacing via the push-to-talk button.
+- Don't summarize or wrap up prematurely—follow the user's lead
+- When the user seems to be winding down naturally, acknowledge that gently without forcing closure
+- If content seems sparse or fragmented, the user may still be formulating thoughts—respond to what's there
+
+**CRITICAL:**
+- Answer questions directly (no reflection like "It sounds like you're asking...")
+- If relevant connections exist, mention them briefly and ask permission (REFLECT mode)
+- All master prompt features apply: direct answers, connection permission, phase awareness, etc.
+''';
   }
 
   /// Generate LUMARA response (legacy method for backward compatibility)
@@ -338,9 +350,8 @@ class VoiceJournalConversation {
   /// 
   /// Handles:
   /// 1. Scrubbing PII from user input (PRISM)
-  /// 2. Transforming to correlation-resistant payload
-  /// 3. Sending structured payload to Gemini
-  /// 4. Restoring PII in the response for display
+  /// 2. Sending scrubbed text directly to Gemini (with master prompt)
+  /// 3. Restoring PII in the response for display
   Future<VoiceJournalTurnResult> processTurn({
     required String rawUserText,
     String intent = 'voice_journal',
@@ -359,24 +370,13 @@ class VoiceJournalConversation {
       );
     }
     
-    // Step 2: Transform to correlation-resistant payload
-    final transformationResult = await _prism.transformToCorrelationResistant(
-      prismScrubbedText: scrubResult.scrubbedText,
-      intent: intent,
-      prismResult: scrubResult,
-      rotationWindow: RotationWindow.session,  // Default: session rotation
-    );
-    
     // Store PII map for this turn (LOCAL ONLY)
     _piiMaps[_turnIndex] = scrubResult.reversibleMap;
     
-    // Store local audit block (NEVER TRANSMIT)
-    final localAudit = transformationResult.localAuditBlock;
+    // Add scrubbed text to history (not abstracted summary)
+    _scrubbedHistory.add('User: ${scrubResult.scrubbedText}');
     
-    // Add abstracted summary to history (not verbatim text)
-    _scrubbedHistory.add('User: ${transformationResult.cloudPayloadBlock.semanticSummary}');
-    
-    // Step 3: Get response from Gemini using structured payload
+    // Step 2: Get response from Gemini using scrubbed text and master prompt
     // Use provided voice context or fall back to stored context
     final effectiveContext = voiceContext ?? _voiceContext;
     
@@ -397,8 +397,7 @@ class VoiceJournalConversation {
         : null;
     
     final scrubbedResponse = await _client.generateResponse(
-      cloudPayload: transformationResult.cloudPayloadBlock,
-      localAuditBlock: localAudit,  // For local logging only
+      scrubbedText: scrubResult.scrubbedText,
       conversationHistory: _scrubbedHistory.length > 1 
           ? _scrubbedHistory.sublist(0, _scrubbedHistory.length - 1)
           : null,
@@ -411,7 +410,7 @@ class VoiceJournalConversation {
     // Add scrubbed response to history
     _scrubbedHistory.add('LUMARA: $scrubbedResponse');
     
-    // Step 4: Restore PII in response for display
+    // Step 3: Restore PII in response for display
     // Note: Response may contain PII tokens that need restoration
     final displayResponse = _prism.restore(
       scrubbedResponse,
@@ -426,7 +425,7 @@ class VoiceJournalConversation {
       scrubbedResponse: scrubbedResponse,
       displayResponse: displayResponse,
       prismResult: scrubResult,
-      transformationResult: transformationResult,
+      transformationResult: null, // No longer using correlation-resistant transformation
     );
   }
 
@@ -456,7 +455,9 @@ class VoiceJournalTurnResult {
   final PrismResult prismResult;
   
   /// Correlation-resistant transformation result (LOCAL ONLY)
-  final TransformationResult? transformationResult;
+  /// DEPRECATED: No longer used - voice mode uses simple PII scrubbing only
+  @Deprecated('Voice mode no longer uses correlation-resistant transformation')
+  final dynamic transformationResult; // Changed to dynamic since we're not using it anymore
 
   const VoiceJournalTurnResult({
     required this.rawUserText,

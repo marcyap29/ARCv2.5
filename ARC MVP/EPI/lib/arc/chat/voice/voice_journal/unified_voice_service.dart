@@ -37,6 +37,7 @@ import 'tts_client.dart';
 import 'journal_store.dart';
 import 'chat_store.dart';
 import 'voice_prompt_builder.dart';
+import '../../../../services/pending_conversation_service.dart';
 
 /// Configuration for unified voice service
 class UnifiedVoiceConfig {
@@ -354,6 +355,9 @@ class UnifiedVoiceService {
   Future<void> _processTranscript(String rawTranscript) async {
     _metrics.turnEndDetected = DateTime.now();
     
+    // Save pending input in case of interruption
+    await _savePendingInput(rawTranscript);
+    
     // === SCRUBBING ===
     if (!_stateNotifier.transitionTo(VoiceJournalState.scrubbing)) {
       return;
@@ -393,9 +397,12 @@ class UnifiedVoiceService {
       onComplete: (response) {
         _stateNotifier.setLumaraReply(response);
         onLumaraResponse?.call(response);
+        // Clear pending input when response completes successfully
+        PendingConversationService.clearPendingInput();
       },
       onError: (error) {
         _handleError('Gemini error: $error');
+        // Don't clear pending input on error - allow resubmission
       },
     );
     
@@ -433,6 +440,45 @@ class UnifiedVoiceService {
       },
       onError: (error) => _handleError('TTS error: $error'),
     );
+  }
+
+  /// Save pending input for resubmission if conversation is interrupted
+  Future<void> _savePendingInput(String rawTranscript) async {
+    try {
+      final voiceContext = await _buildVoiceContext();
+      final pendingInput = PendingInput(
+        userText: rawTranscript,
+        mode: 'voice',
+        timestamp: DateTime.now(),
+        context: {
+          'voiceMode': _mode == VoiceMode.journal ? 'journal' : 'chat',
+          'prismActivity': voiceContext.prismActivity,
+          'chronoContext': voiceContext.chronoContext,
+          'memoryContext': voiceContext.memoryContext,
+          'activeThreads': voiceContext.activeThreads,
+          'daysInPhase': voiceContext.daysInPhase,
+        },
+        sessionId: _mode == VoiceMode.chat ? _chatStore.currentSessionId : null,
+      );
+      await PendingConversationService.savePendingInput(pendingInput);
+    } catch (e) {
+      _log('Error saving pending input: $e');
+      // Don't fail the process if saving pending input fails
+    }
+  }
+
+  /// Resubmit a pending input (called when user wants to retry after interruption)
+  Future<void> resubmitPendingInput() async {
+    final pendingInput = await PendingConversationService.getPendingInput();
+    if (pendingInput == null || pendingInput.mode != 'voice') {
+      _log('No pending voice input to resubmit');
+      return;
+    }
+
+    _log('Resubmitting pending input: ${pendingInput.userText.substring(0, pendingInput.userText.length > 50 ? 50 : pendingInput.userText.length)}...');
+    
+    // Process the pending input as if it were just transcribed
+    await _processTranscript(pendingInput.userText);
   }
 
   /// Store turn based on current mode

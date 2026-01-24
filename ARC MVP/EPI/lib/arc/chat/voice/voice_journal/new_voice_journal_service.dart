@@ -11,14 +11,13 @@ import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 import '../../../../services/firebase_auth_service.dart';
 import '../../services/enhanced_lumara_api.dart';
-import '../../services/lumara_control_state_builder.dart';
 import '../../../core/journal_capture_cubit.dart';
 import '../../../core/journal_repository.dart';
 import '../../../../services/user_phase_service.dart';
 import '../transcription/ondevice_provider.dart';
 import '../transcription/transcription_provider.dart';
 import '../../../../arc/internal/echo/prism_adapter.dart';
-import '../../../../arc/internal/echo/correlation_resistant_transformer.dart';
+// Removed correlation_resistant_transformer - voice mode now uses simple PII scrubbing only
 import 'package:my_app/arc/chat/models/lumara_reflection_options.dart' as lumara_models;
 import 'package:my_app/models/journal_entry_model.dart';
 
@@ -41,7 +40,8 @@ class VoiceJournalTurn {
   final String? lumaraResponse;
   final DateTime timestamp;
   final Map<String, String>? reversibleMap; // For PII restoration
-  final CloudPayloadBlock? cloudPayload; // Correlation-resistant payload
+  @Deprecated('Voice mode no longer uses correlation-resistant transformation')
+  final dynamic cloudPayload; // DEPRECATED: No longer used (was CloudPayloadBlock)
 
   VoiceJournalTurn({
     required this.id,
@@ -270,7 +270,7 @@ class NewVoiceJournalService {
     try {
       _updateState(VoiceJournalState.transcribing);
       
-      // Step 1: PRISM Scrubbing
+      // Step 1: PRISM Scrubbing (simple PII scrubbing only - no correlation-resistant transformation)
       _updateState(VoiceJournalState.scrubbing);
       final prismResult = _prism.scrub(rawTranscript);
       
@@ -278,35 +278,26 @@ class NewVoiceJournalService {
         throw Exception('PII still detected after scrubbing');
       }
       
-      // Step 2: Correlation-Resistant Transformation
-      final transformationResult = await _prism.transformToCorrelationResistant(
-        prismScrubbedText: prismResult.scrubbedText,
-        intent: 'voice_journal',
-        prismResult: prismResult,
-        rotationWindow: RotationWindow.session,
-      );
-      
-      // Step 3: Generate LUMARA response using VOICE_JOURNAL_MODE prompt
+      // Step 2: Generate LUMARA response using master prompt (voice mode)
       _updateState(VoiceJournalState.thinking);
       final lumaraResponse = await _generateLumaraResponse(
-        transformationResult.cloudPayloadBlock,
-        transformationResult.localAuditBlock,
+        scrubbedText: prismResult.scrubbedText,
       );
       
-      // Step 4: Restore PII in response
+      // Step 3: Restore PII in response
       final restoredResponse = _prism.restore(
         lumaraResponse,
         prismResult.reversibleMap,
       );
       
-      // Step 5: Save turn
+      // Step 4: Save turn
       final turn = VoiceJournalTurn(
         id: const Uuid().v4(),
         userTranscript: rawTranscript,
         lumaraResponse: restoredResponse,
         timestamp: DateTime.now(),
         reversibleMap: prismResult.reversibleMap,
-        cloudPayload: transformationResult.cloudPayloadBlock,
+        cloudPayload: null, // No longer using correlation-resistant transformation
       );
       
       _currentSession = _currentSession!.copyWith(
@@ -326,51 +317,30 @@ class NewVoiceJournalService {
     }
   }
 
-  /// Generate LUMARA response using VOICE_JOURNAL_MODE prompt
-  Future<String> _generateLumaraResponse(
-    CloudPayloadBlock cloudPayload,
-    LocalAuditBlock localAudit,
-  ) async {
+  /// Generate LUMARA response using master prompt (voice mode)
+  Future<String> _generateLumaraResponse({
+    required String scrubbedText,
+  }) async {
     try {
       // Get user ID
       final userId = FirebaseAuthService().currentUser?.uid;
       
-      // Get current phase
-      final currentPhase = await UserPhaseService.getCurrentPhase();
+      // Build voice mode instructions
+      final voiceModeInstructions = _buildVoiceModeInstructions();
       
-      // Build control state
-      final controlStateJson = await LumaraControlStateBuilder.buildControlState(
-        userId: userId,
-        prismActivity: {
-          'journal_entries': [],
-          'chats': [],
-          'media': [],
-          'patterns': [],
-          'emotional_tone': 'neutral',
-          'cognitive_load': 'moderate',
-        },
-        chronoContext: null,
-        userMessage: cloudPayload.semanticSummary,
-      );
-      
-      // Build VOICE_JOURNAL_MODE system prompt
-      final systemPrompt = _buildVoiceJournalModePrompt(controlStateJson);
-      
-      // Build user prompt from cloud payload
-      final userPrompt = _buildUserPromptFromPayload(cloudPayload);
-      
-      // Generate response
+      // Generate response using master prompt (voice mode detected via skipHeavyProcessing)
       final result = await _lumaraApi.generatePromptedReflection(
-        entryText: userPrompt,
-        intent: 'voice_journal',
-        phase: currentPhase,
+        entryText: scrubbedText,
+        intent: 'voice_chat',
+        phase: null, // Phase is now in control state
         userId: userId,
         includeExpansionQuestions: false,
         mood: null,
         chronoContext: null,
-        chatContext: systemPrompt,
+        chatContext: voiceModeInstructions, // Voice mode instructions (contains 'VOICE MODE')
         mediaContext: null,
         entryId: null,
+        skipHeavyProcessing: true, // Skip context retrieval, use master prompt
         options: lumara_models.LumaraReflectionOptions(
           preferQuestionExpansion: false,
           toneMode: lumara_models.ToneMode.normal,
@@ -387,73 +357,60 @@ class NewVoiceJournalService {
       rethrow;
     }
   }
+  
+  /// Build voice mode specific instructions
+  String _buildVoiceModeInstructions() {
+    return '''
+═══════════════════════════════════════════════════════════
+VOICE MODE ADAPTATIONS
+═══════════════════════════════════════════════════════════
 
-  /// Build VOICE_JOURNAL_MODE system prompt
-  String _buildVoiceJournalModePrompt(String controlStateJson) {
-    return '''[VOICE_JOURNAL_MODE]
-
-You are LUMARA in Voice Journal mode—a real-time conversational interface for reflective journaling.
-
-INTERACTION MODEL:
+**INTERACTION MODEL:**
 - User speaks by pressing and holding a button, releases to hear your response
 - This is spoken dialogue: responses should be natural, conversational, appropriately brief
-- Typical response length: 2-4 sentences. Match the weight of what the user shared.
-- Let the conversation breathe. Not every exchange needs a follow-up question.
+- Responses will be synthesized to speech - write for the ear, not the eye
 
-VOICE-SPECIFIC ADAPTATIONS:
-- Your responses will be synthesized to speech. Write for the ear, not the eye.
-- Avoid lists, bullet points, numbered items—anything that sounds like written text
+**RESPONSE LENGTH:**
+- Keep responses 1/3 to 1/2 shorter than text mode equivalents
+- Typical response length: 2-4 sentences for most interactions
+- Match the weight of what the user shared - light topics get brief responses, deep topics can be slightly longer
+
+**VOICE-SPECIFIC ADAPTATIONS:**
 - Use natural spoken transitions ("That connects to something you mentioned earlier..." not "Additionally,...")
 - Contractions are good. Sentence fragments are fine when natural.
+- Avoid lists, bullet points, numbered items—anything that sounds like written text
 - Avoid filler acknowledgments ("I hear you," "That makes sense")—just respond substantively
+- Match the user's pacing and energy
+- One question maximum per response, if any
+- Let the conversation breathe. Not every exchange needs a follow-up question.
 
-CONVERSATION FLOW:
+**CONVERSATION FLOW:**
 - Each turn is a discrete exchange. The user controls pacing via the push-to-talk button.
 - Don't summarize or wrap up prematurely—follow the user's lead
 - When the user seems to be winding down naturally, acknowledge that gently without forcing closure
 - If content seems sparse or fragmented, the user may still be formulating thoughts—respond to what's there
 
-INPUT FORMAT:
-- You receive structured CloudPayloadBlock JSON, not verbatim transcription
-- Entities appear as rotating aliases: PERSON(H:xxx, S:symbol), ORG(H:xxx, S:symbol), LOC(H:xxx, S:symbol)
-- Work with the semantic_summary and themes fields for meaning
-- Reference entities by their alias naturally ("the person you mentioned," "that situation at work")
-
-RESPONSE GENERATION:
-- Apply current Engagement Mode (REFLECT/EXPLORE/INTEGRATE) from Control State
-- Apply current Persona from Control State  
-- Respect max_temporal_connections, max_explorative_questions, and language boundary settings
-- Honor protected domains—do not synthesize across them even if thematically relevant
-
-SESSION CONTEXT:
-- The user will end the session by pressing a stop button
-- The full conversation will then be processed into a journal entry with title and summary
-- Your role during conversation is presence and engagement, not documentation
-
-UNIFIED CONTROL STATE:
-$controlStateJson
+**CRITICAL:**
+- Answer questions directly (no reflection like "It sounds like you're asking...")
+- If relevant connections exist, mention them briefly and ask permission (REFLECT mode)
+- All master prompt features apply: direct answers, connection permission, phase awareness, etc.
 ''';
   }
 
+  /// Build VOICE_JOURNAL_MODE system prompt
+  /// DEPRECATED: Voice mode now uses LumaraMasterPrompt.getMasterPrompt() directly.
+  @Deprecated('Voice mode now uses master prompt. This method is kept for backward compatibility only.')
+  String _buildVoiceJournalModePrompt(String controlStateJson) {
+    // This method is no longer used but kept for backward compatibility
+    return '';
+  }
+
   /// Build user prompt from cloud payload
-  String _buildUserPromptFromPayload(CloudPayloadBlock payload) {
-    final buffer = StringBuffer();
-    
-    buffer.writeln('Semantic Summary: ${payload.semanticSummary}');
-    buffer.writeln('Themes: ${payload.themes.join(", ")}');
-    
-    if (payload.entities.isNotEmpty) {
-      buffer.writeln('Entities:');
-      payload.entities.forEach((type, entities) {
-        buffer.writeln('  $type: ${entities.join(", ")}');
-      });
-    }
-    
-    if (payload.constraints.isNotEmpty) {
-      buffer.writeln('Constraints: ${payload.constraints.join(", ")}');
-    }
-    
-    return buffer.toString();
+  /// DEPRECATED: Voice mode now uses simple PII scrubbing, not correlation-resistant transformation.
+  @Deprecated('Voice mode no longer uses correlation-resistant transformation')
+  String _buildUserPromptFromPayload(dynamic payload) {
+    // This method is no longer used but kept for backward compatibility
+    return '';
   }
 
   /// End session and generate summary

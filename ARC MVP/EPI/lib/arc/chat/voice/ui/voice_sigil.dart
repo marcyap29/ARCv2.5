@@ -348,7 +348,7 @@ class _VoiceSigilState extends State<VoiceSigil> with TickerProviderStateMixin {
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         image: const DecorationImage(
-          image: AssetImage('assets/icon/Lumara_Icon_White.png'),
+          image: AssetImage('assets/icon/LUMARA_Sigil_White.png'),
           fit: BoxFit.contain,
         ),
         boxShadow: [

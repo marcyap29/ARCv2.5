@@ -23,6 +23,7 @@ import '../chat/chat_models.dart';
 import 'package:my_app/arc/core/journal_repository.dart';
 import '../services/lumara_reflection_settings_service.dart';
 import 'package:my_app/models/journal_entry_model.dart';
+import '../../../services/pending_conversation_service.dart';
 import 'package:my_app/shared/ui/settings/voiceover_preference_service.dart';
 import '../voice/audio_io.dart';
 import '../llm/prompts/lumara_master_prompt.dart';
@@ -204,6 +205,78 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
     print('LUMARA Debug: Provider switch requested: $providerType');
   }
   
+  /// Save pending input for resubmission if conversation is interrupted
+  Future<void> _savePendingInput(
+    String text, {
+    models.ConversationMode? conversationMode,
+    String? persona,
+  }) async {
+    try {
+      final currentState = state;
+      String? sessionId;
+      if (currentState is LumaraAssistantLoaded) {
+        // Get session ID from chat repo if available
+        try {
+          final chatRepo = ChatRepoImpl.instance;
+          await chatRepo.initialize();
+          final sessions = await chatRepo.listAll();
+          if (sessions.isNotEmpty) {
+            sessionId = sessions.first.id;
+          }
+        } catch (e) {
+          // Session ID not critical for pending input
+        }
+      }
+
+      final pendingInput = PendingInput(
+        userText: text,
+        mode: 'chat',
+        timestamp: DateTime.now(),
+        context: {
+          'conversationMode': conversationMode?.name,
+          'persona': persona,
+        },
+        sessionId: sessionId,
+      );
+      await PendingConversationService.savePendingInput(pendingInput);
+    } catch (e) {
+      print('LUMARA Chat: Error saving pending input: $e');
+      // Don't fail the process if saving pending input fails
+    }
+  }
+
+  /// Resubmit a pending input (called when user wants to retry after interruption)
+  Future<void> resubmitPendingInput() async {
+    final pendingInput = await PendingConversationService.getPendingInput();
+    if (pendingInput == null || pendingInput.mode != 'chat') {
+      print('LUMARA Chat: No pending chat input to resubmit');
+      return;
+    }
+
+    print('LUMARA Chat: Resubmitting pending input: ${pendingInput.userText.substring(0, pendingInput.userText.length > 50 ? 50 : pendingInput.userText.length)}...');
+    
+    // Extract context if available
+    models.ConversationMode? conversationMode;
+    if (pendingInput.context?['conversationMode'] != null) {
+      try {
+        conversationMode = models.ConversationMode.values.firstWhere(
+          (m) => m.name == pendingInput.context!['conversationMode'],
+        );
+      } catch (e) {
+        // Use default if mode not found
+        conversationMode = null;
+      }
+    }
+    final persona = pendingInput.context?['persona'] as String?;
+    
+    // Resubmit the message
+    await sendMessage(
+      pendingInput.userText,
+      conversationMode: conversationMode,
+      persona: persona,
+    );
+  }
+
   /// Send a message to LUMARA
   /// 
   /// [conversationMode] - Optional conversation mode (from UI buttons)
@@ -302,6 +375,9 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
       print('LUMARA: Stack trace: $stackTrace');
     }
 
+
+    // Save pending input in case of interruption
+    await _savePendingInput(text, conversationMode: conversationMode, persona: effectivePersona);
 
     // Add user message to UI immediately and set isProcessing to show loading indicator
     final userMessage = LumaraMessage.user(content: text);
@@ -487,6 +563,9 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
                 apiErrorMessage: null,
               ));
               
+              // Clear pending input when response completes successfully
+              await PendingConversationService.clearPendingInput();
+              
               print('LUMARA Chat: Enhanced API complete');
               return; // Exit early - enhanced API succeeded
             } catch (e) {
@@ -552,6 +631,9 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
             isProcessing: false,
             apiErrorMessage: null, // Clear any previous error message
           ));
+          
+          // Clear pending input when response completes successfully
+          await PendingConversationService.clearPendingInput();
           
           print('LUMARA Debug: [Gemini] Complete - personalized response generated');
           return; // Exit early - Gemini succeeded

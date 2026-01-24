@@ -35,8 +35,12 @@ class VoicePromptContext {
 class VoicePromptBuilder {
   /// Build the unified voice mode system prompt
   /// 
+  /// DEPRECATED: Voice mode now uses LumaraMasterPrompt.getMasterPrompt() directly.
+  /// This method is kept for backward compatibility but should not be used for new code.
+  /// 
   /// This integrates the LUMARA Master Unified Prompt system with
   /// voice-specific behavioral adaptations.
+  @Deprecated('Voice mode now uses LumaraMasterPrompt.getMasterPrompt() directly. Use gemini_client.dart instead.')
   static Future<String> buildVoicePrompt(VoicePromptContext context) async {
     // Build unified control state
     final controlStateJson = await LumaraControlStateBuilder.buildControlState(

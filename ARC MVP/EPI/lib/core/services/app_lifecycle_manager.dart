@@ -4,6 +4,7 @@ import 'package:my_app/main/bootstrap.dart';
 import 'draft_cache_service.dart';
 import '../../services/firebase_auth_service.dart';
 import '../../services/health_data_refresh_service.dart';
+import '../../services/pending_conversation_service.dart';
 
 /// Manages app-level lifecycle events and recovery mechanisms
 class AppLifecycleManager with WidgetsBindingObserver {
@@ -46,6 +47,8 @@ class AppLifecycleManager with WidgetsBindingObserver {
         break;
       case AppLifecycleState.paused:
         _handleAppPaused();
+        // Mark clean shutdown when app goes to background (normal behavior)
+        PendingConversationService.markCleanShutdown();
         break;
       case AppLifecycleState.inactive:
         _handleAppInactive();

@@ -21,7 +21,7 @@ class LumaraIcon extends StatelessWidget {
     // Try to load the custom LUMARA logo image
     // If the image is not found, fall back to the psychology icon
     return Image.asset(
-      'assets/icon/Lumara_Icon_White.png',
+      'assets/icon/LUMARA_Sigil_White.png',
       width: iconSize,
       height: iconSize,
       fit: fit,

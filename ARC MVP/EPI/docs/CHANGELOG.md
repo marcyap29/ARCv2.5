@@ -17,6 +17,47 @@ This changelog has been split into parts for easier navigation:
 
 ---
 
+## [3.3.11] - January 23, 2026
+
+### 🎨 LUMARA Icon Replacement - LUMARA Sigil Integration
+
+#### Overview
+Replaced all instances of the head-with-gear icon with the LUMARA Sigil (`LUMARA_Sigil_White.png`) across all UI elements while preserving iOS app icons in Assets.xcassets.
+
+#### Icon Updates
+- **Bottom Navigation Bar**: LUMARA tab now uses `LUMARA_Sigil_White.png`
+- **Chat Message Bubbles**: LUMARA avatar in chat messages uses `LUMARA_Sigil_White.png`
+- **Voice Mode Sigil**: Voice interface sigil updated to `LUMARA_Sigil_White.png`
+- **Onboarding/Welcome Screens**: Pulsing symbol uses `LUMARA_Sigil_White.png`
+- **Settings Screens**: All LUMARA icons updated to `LUMARA_Sigil_White.png`
+- **Journal Screen**: LUMARA button uses `LUMARA_Sigil_White.png`
+
+#### Technical Changes
+- **LumaraIcon Widget** (`lib/shared/widgets/lumara_icon.dart`): Updated to use `LUMARA_Sigil_White.png`
+- **Chat Icon Widget** (`lib/arc/chat/ui/widgets/lumara_icon.dart`): Replaced CustomPainter with image asset
+- **Tab Bar** (`lib/shared/tab_bar.dart`): Updated LUMARA tab icon references
+- **Voice Sigil** (`lib/arc/chat/voice/ui/voice_sigil.dart`): Updated image asset path
+- **Pulsing Symbol** (`lib/shared/ui/onboarding/widgets/lumara_pulsing_symbol.dart`): Updated image asset
+
+#### iOS App Icons
+- **Preserved**: All iOS app icons in `Assets.xcassets/AppIcon.appiconset/` remain unchanged (generated from `app_icon.png` for home screen)
+- **Separation**: UI icons use `LUMARA_Sigil_White.png`, app icons use `app_icon.png`
+
+#### Files Modified
+- `lib/shared/widgets/lumara_icon.dart`
+- `lib/arc/chat/ui/widgets/lumara_icon.dart`
+- `lib/shared/tab_bar.dart`
+- `lib/shared/ui/onboarding/widgets/lumara_pulsing_symbol.dart`
+- `lib/arc/chat/voice/ui/voice_sigil.dart`
+
+#### Additional Updates
+- **Tester Account Setup**: Added `tester1@tester1.com` with premium access for Apple TestFlight
+- **HealthKit Integration**: Added `NSHealthShareUsageDescription` and `NSHealthUpdateUsageDescription` to Info.plist
+- **App Icons**: Generated all iOS app icon sizes from `app_icon.png` with alpha channels removed
+- **Documentation**: Updated PROMPT_REFERENCES.md with comprehensive template variables and props
+
+---
+
 ## [3.3.10] - January 22, 2026
 
 ### 🎙️ Voice Mode Temporal Query Detection & Word Limit Revert
@@ -161,26 +202,28 @@ Increased voice mode response word limits to improve response quality. Previous 
 ### 🎨 UI Icon Standardization - LUMARA Icon Updates
 
 #### Overview
-Standardized all LUMARA icons across the application to use the consistent `Lumara_Icon_White.png` asset, replacing various inconsistent icon implementations including the head-with-gear icon.
+Standardized all LUMARA icons across the application to use the consistent `LUMARA_Sigil_White.png` asset, replacing various inconsistent icon implementations including the head-with-gear icon.
 
 #### Icon Replacements
-- **Introduction Screen**: Replaced LUMARA sigil in "Hi, I'm LUMARA" intro screen with `Lumara_Icon_White.png`
-- **Chat Interface**: Updated LUMARA button/icon in chat screens to use `Lumara_Icon_White.png`
-- **Journal/Conversation**: Updated LUMARA button in journal and conversation screens to use `Lumara_Icon_White.png`
-- **Voice Mode**: Replaced LUMARA sigil in voice mode interface with `Lumara_Icon_White.png`
-- **Bottom Navigation Tab**: Updated LUMARA tab icon in bottom navigation bar to use `Lumara_Icon_White.png`
+- **Introduction Screen**: Replaced LUMARA sigil in "Hi, I'm LUMARA" intro screen with `LUMARA_Sigil_White.png`
+- **Chat Interface**: Updated LUMARA button/icon in chat screens to use `LUMARA_Sigil_White.png`
+- **Journal/Conversation**: Updated LUMARA button in journal and conversation screens to use `LUMARA_Sigil_White.png`
+- **Voice Mode**: Replaced LUMARA sigil in voice mode interface with `LUMARA_Sigil_White.png`
+- **Bottom Navigation Tab**: Updated LUMARA tab icon in bottom navigation bar to use `LUMARA_Sigil_White.png`
 - **Conversations Header**: Replaced zigzag icon next to "Conversations" title with chat bubble icon (`Icons.chat_bubble_outline`) for consistency
 
 #### Technical Changes
 - **Asset Registration**: Added `assets/icon/` directory to `pubspec.yaml` assets section
 - **LumaraPulsingSymbol Widget** (`lib/shared/ui/onboarding/widgets/lumara_pulsing_symbol.dart`):
-  - Updated to use `assets/icon/Lumara_Icon_White.png` instead of `LUMARA_Symbol-Final.png`
+  - Updated to use `assets/icon/LUMARA_Sigil_White.png` instead of `LUMARA_Symbol-Final.png`
 - **LumaraIcon Widget** (`lib/shared/widgets/lumara_icon.dart`):
-  - Updated to use `assets/icon/Lumara_Icon_White.png` instead of `lumara_logo.png`
+  - Updated to use `assets/icon/LUMARA_Sigil_White.png` instead of `lumara_logo.png`
 - **Voice Sigil** (`lib/arc/chat/voice/ui/voice_sigil.dart`):
-  - Updated to use `assets/icon/Lumara_Icon_White.png` instead of `LUMARA_Symbol-Final.png`
+  - Updated to use `assets/icon/LUMARA_Sigil_White.png` instead of `LUMARA_Symbol-Final.png`
 - **Tab Bar** (`lib/shared/tab_bar.dart`):
-  - Updated LUMARA tab to use `assets/icon/Lumara_Icon_White.png` directly
+  - Updated LUMARA tab to use `assets/icon/LUMARA_Sigil_White.png` directly
+- **Chat Icon Widget** (`lib/arc/chat/ui/widgets/lumara_icon.dart`):
+  - Replaced CustomPainter implementation with image asset using `LUMARA_Sigil_White.png`
 - **Timeline View** (`lib/arc/ui/timeline/timeline_view.dart`):
   - Replaced `Icons.timeline` with `Icons.chat_bubble_outline` for Conversations header icon
 

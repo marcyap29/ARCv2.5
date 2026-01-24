@@ -64,7 +64,7 @@ class TimelineCubit extends Cubit<TimelineState> {
     _isLoadingMore = true;
     _currentPage++;
     try {
-      await _loadEntries();
+    await _loadEntries();
     } finally {
       _isLoadingMore = false;
     }

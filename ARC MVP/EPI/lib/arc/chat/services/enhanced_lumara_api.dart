@@ -281,12 +281,12 @@ class EnhancedLumaraApi {
       // When skipHeavyProcessing is true, use Master Prompt for ALL entry types
       // Otherwise, use fast paths for factual/conversational
       if (!skipHeavyProcessing) {
-        if (entryType == EntryType.factual) {
-          // FACTUAL MODE: Direct answer without full LUMARA processing
-          return await _generateFactualResponse(request, responseMode, onProgress);
-        } else if (entryType == EntryType.conversational) {
-          // CONVERSATIONAL MODE: Brief acknowledgment
-          return await _generateConversationalResponse(request, responseMode, onProgress);
+      if (entryType == EntryType.factual) {
+        // FACTUAL MODE: Direct answer without full LUMARA processing
+        return await _generateFactualResponse(request, responseMode, onProgress);
+      } else if (entryType == EntryType.conversational) {
+        // CONVERSATIONAL MODE: Brief acknowledgment
+        return await _generateConversationalResponse(request, responseMode, onProgress);
         }
       }
 
@@ -311,38 +311,38 @@ class EnhancedLumaraApi {
       List<MatchedNode> matches = [];
       
       if (!skipHeavyProcessing) {
-        onProgress?.call('Preparing context...');
+      onProgress?.call('Preparing context...');
 
-        final allNodes = _storage.getAllNodes(
-          userId: userId ?? 'default',
-          maxYears: lookbackYears,
-        );
+      final allNodes = _storage.getAllNodes(
+        userId: userId ?? 'default',
+        maxYears: lookbackYears,
+      );
 
-        // 3. Score and rank by similarity
-        onProgress?.call('Analyzing your journal history...');
-        final scored = <({double score, ReflectiveNode node})>[];
+      // 3. Score and rank by similarity
+      onProgress?.call('Analyzing your journal history...');
+      final scored = <({double score, ReflectiveNode node})>[];
 
-        for (final node in allNodes) {
-          final score = _similarity.scoreNode(request.userText, node, currentPhase);
-          if (score >= similarityThreshold) {  // Use threshold from settings
-            scored.add((score: score, node: node));
-          }
+      for (final node in allNodes) {
+        final score = _similarity.scoreNode(request.userText, node, currentPhase);
+        if (score >= similarityThreshold) {  // Use threshold from settings
+          scored.add((score: score, node: node));
         }
+      }
 
-        scored.sort((a, b) => b.score.compareTo(a.score));
-        final topNodes = scored.take(maxMatches).toList();
-        
-        // 3. Convert to MatchedNode
+      scored.sort((a, b) => b.score.compareTo(a.score));
+      final topNodes = scored.take(maxMatches).toList();
+      
+      // 3. Convert to MatchedNode
         matches = topNodes.map((item) => MatchedNode(
-          id: item.node.id,
-          sourceType: item.node.type,
-          originalMcpId: item.node.mcpId,
-          approxDate: item.node.createdAt,
-          phaseHint: item.node.phaseHint,
-          mediaRefs: item.node.mediaRefs?.map((m) => m.id).toList(),
-          similarity: item.score,
-          excerpt: _similarity.gatherText(item.node).substring(0, min(200, _similarity.gatherText(item.node).length)),
-        )).toList();
+        id: item.node.id,
+        sourceType: item.node.type,
+        originalMcpId: item.node.mcpId,
+        approxDate: item.node.createdAt,
+        phaseHint: item.node.phaseHint,
+        mediaRefs: item.node.mediaRefs?.map((m) => m.id).toList(),
+        similarity: item.score,
+        excerpt: _similarity.gatherText(item.node).substring(0, min(200, _similarity.gatherText(item.node).length)),
+      )).toList();
       } else {
         print('LUMARA: Skipping node matching and context retrieval for voice mode');
       }
@@ -443,19 +443,19 @@ class EnhancedLumaraApi {
           EngagementMode? engagementMode;
           
           if (!skipHeavyProcessing) {
-            final memoryFocusPreset = await settingsService.getMemoryFocusPreset();
-            final engagementSettings = await settingsService.getEngagementSettings();
+          final memoryFocusPreset = await settingsService.getMemoryFocusPreset();
+          final engagementSettings = await settingsService.getEngagementSettings();
             engagementMode = engagementSettings.activeMode;
-            
-            // Use new context selector instead of hard-coded limits
-            final contextSelector = LumaraContextSelector();
+          
+          // Use new context selector instead of hard-coded limits
+          final contextSelector = LumaraContextSelector();
             recentJournalEntries = await contextSelector.selectContextEntries(
-              memoryFocus: memoryFocusPreset,
-              engagementMode: engagementMode,
-              currentEntryText: request.userText,
-              currentDate: DateTime.now(),
-              entryId: entryId, // Use entryId parameter from function signature
-            );
+            memoryFocus: memoryFocusPreset,
+            engagementMode: engagementMode,
+            currentEntryText: request.userText,
+            currentDate: DateTime.now(),
+            entryId: entryId, // Use entryId parameter from function signature
+          );
           } else {
             // Still need engagement mode for control state builder even if skipping context selection
             final engagementSettings = await settingsService.getEngagementSettings();
@@ -1343,28 +1343,12 @@ Respond now:''';
     bool isVoiceMode = false,
     EntryType? entryType,
   }) {
-    // Voice mode: Use voice-specific word limits
+    // Voice mode: Apply 0.6x multiplier to normal limits (1/3 to 1/2 reduction)
+    // This is more flexible than fixed limits - adapts to any persona/engagement mode
     if (isVoiceMode) {
-      // Determine if reflective (Samantha) or transactional (Jarvis) based on entry type
-      final isReflective = entryType == EntryType.reflective || 
-                           entryType == EntryType.analytical ||
-                           entryType == EntryType.metaAnalysis;
-      
-      final maxWords = isReflective ? 200 : 100;
-      final targetWords = isReflective ? 150 : 75;
-      final targetSentences = isReflective ? 6 : 4;
-      
-      return ResponseParameters(
-        maxWords: maxWords,
-        targetWords: targetWords,
-        targetSentences: targetSentences,
-        minPatternExamples: 0, // Voice mode: no pattern examples for speed
-        maxPatternExamples: 0,
-        useStructuredFormat: false, // Voice mode: no structured format
-        lengthGuidance: isReflective 
-            ? 'Voice mode (Samantha): Conversational, reflective response (~150-200 words, 4-6 sentences)'
-            : 'Voice mode (Jarvis): Brief, direct response (~50-100 words, 2-4 sentences)',
-      );
+      // Calculate normal limits first, then apply multiplier
+      // We'll calculate these after the normal flow, so continue to normal calculation
+      // and apply multiplier at the end
     }
     if (safetyOverride) {
       // Emergency therapist mode: shorter, no examples needed

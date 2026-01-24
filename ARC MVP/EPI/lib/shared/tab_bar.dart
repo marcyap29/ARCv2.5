@@ -141,9 +141,9 @@ class _CustomTabBarState extends State<CustomTabBar> {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           if (isLumara)
-            // Use Lumara_Icon_White.png for LUMARA tab
+            // Use LUMARA_Sigil_White.png for LUMARA tab
             Image.asset(
-              'assets/icon/Lumara_Icon_White.png',
+              'assets/icon/LUMARA_Sigil_White.png',
               width: 28,
               height: 28,
               fit: BoxFit.contain,
@@ -177,7 +177,7 @@ class _CustomTabBarState extends State<CustomTabBar> {
     } else if (tab.icon != null) {
       if (isLumara) {
         return Image.asset(
-          'assets/icon/Lumara_Icon_White.png',
+          'assets/icon/LUMARA_Sigil_White.png',
           width: 28,
           height: 28,
           fit: BoxFit.contain,

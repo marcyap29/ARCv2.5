@@ -30,6 +30,7 @@ class LumaraControlStateBuilder {
     String? userMessage, // NEW: User message for question intent detection
     int? maxWords, // NEW: Word limit from response mode
     UserIntent? userIntent, // NEW: User intent from conversation mode/button (from services/lumara/user_intent.dart)
+    bool isVoiceMode = false, // NEW: Flag for voice mode (applies length multiplier)
   }) async {
     final state = <String, dynamic>{};
     
@@ -417,15 +418,23 @@ class LumaraControlStateBuilder {
     
     // Add word limit if provided
     if (maxWords != null) {
+      // Apply voice mode multiplier (1/3 to 1/2 reduction) if in voice mode
+      int effectiveMaxWords = maxWords;
+      if (isVoiceMode) {
+        // Apply 0.6x multiplier (40% reduction, approximately 1/3 to 1/2 shorter)
+        effectiveMaxWords = (maxWords * 0.6).round();
+        print('LUMARA Control State: Voice mode - reducing word limit from $maxWords to $effectiveMaxWords (0.6x multiplier)');
+      }
+      
       // Override with Companion-first limits if persona is Companion
       final effectivePersona = state['persona']?['effective'] as String? ?? 'companion';
-      if (effectivePersona == 'companion' && maxWords > 250) {
+      if (effectivePersona == 'companion' && effectiveMaxWords > 250) {
         // Force Companion limit of 250 words for personal reflections
         responseMode['maxWords'] = 250;
-        print('LUMARA Control State: Overrode word limit to 250 for Companion persona (was $maxWords)');
+        print('LUMARA Control State: Overrode word limit to 250 for Companion persona (was $effectiveMaxWords)');
       } else {
-        responseMode['maxWords'] = maxWords;
-        print('LUMARA Control State: Word limit set to $maxWords words');
+        responseMode['maxWords'] = effectiveMaxWords;
+        print('LUMARA Control State: Word limit set to ${responseMode['maxWords']} words${isVoiceMode ? ' (voice mode)' : ''}');
       }
     } else {
       // Default word limits based on entry classification and persona
@@ -473,13 +482,28 @@ class LumaraControlStateBuilder {
                 break;
             }
           }
-          print('LUMARA Control State: Auto-set word limit to ${responseMode['maxWords']} for ${entryType.toString().split('.').last} (persona: $effectivePersona)');
+          int defaultMaxWords = responseMode['maxWords'] as int;
+          // Apply voice mode multiplier if in voice mode
+          if (isVoiceMode) {
+            defaultMaxWords = (defaultMaxWords * 0.6).round();
+            responseMode['maxWords'] = defaultMaxWords;
+            print('LUMARA Control State: Voice mode - reducing default word limit to $defaultMaxWords (0.6x multiplier)');
+          }
+          print('LUMARA Control State: Auto-set word limit to ${responseMode['maxWords']} for ${entryType.toString().split('.').last} (persona: $effectivePersona)${isVoiceMode ? ' [VOICE MODE]' : ''}');
         } catch (e) {
           print('LUMARA Control State: Error setting default word limit: $e');
-          responseMode['maxWords'] = 250; // Safe default
+          int defaultWords = 250;
+          if (isVoiceMode) {
+            defaultWords = (defaultWords * 0.6).round();
+          }
+          responseMode['maxWords'] = defaultWords; // Safe default
         }
       } else {
-        responseMode['maxWords'] = 250; // Default
+        int defaultWords = 250;
+        if (isVoiceMode) {
+          defaultWords = (defaultWords * 0.6).round();
+        }
+        responseMode['maxWords'] = defaultWords; // Default
       }
     }
     

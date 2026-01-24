@@ -22,6 +22,7 @@ import 'package:my_app/prism/atlas/rivet/rivet_provider.dart';
 import 'package:my_app/core/services/app_lifecycle_manager.dart';
 import 'package:my_app/echo/echo_module.dart';
 import 'package:my_app/shared/ui/settings/settings_cubit.dart';
+import 'package:my_app/services/pending_conversation_service.dart';
 import 'package:hive/hive.dart';
 
 // Global navigator key for deep linking from notifications
@@ -43,6 +44,8 @@ class _AppState extends State<App> {
     super.initState();
     _lifecycleManager.initialize();
     _setupARCXHandler();
+    // Initialize crash detection on app start
+    PendingConversationService.initialize();
   }
   
   /// Setup ARCX import handler for iOS open-in events
@@ -69,10 +72,6 @@ class _AppState extends State<App> {
   }
 
   @override
-  void dispose() {
-    _lifecycleManager.dispose();
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
