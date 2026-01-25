@@ -627,7 +627,10 @@
 				DEVELOPMENT_TEAM = 87W73WQSPF;
 				ENABLE_BITCODE = NO;
 				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = arm64;
-				FRAMEWORK_SEARCH_PATHS = "$(inherited)";
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)/Runner/Vendor",
+				);
 				"FRAMEWORK_SEARCH_PATHS[sdk=iphonesimulator*]" = "$(inherited)";
 				HEADER_SEARCH_PATHS = "$(PROJECT_DIR)/Runner/Vendor/llama.xcframework/ios-arm64/Headers";
 				INFOPLIST_FILE = Runner/Info.plist;
@@ -848,7 +851,10 @@
 				DEVELOPMENT_TEAM = 87W73WQSPF;
 				ENABLE_BITCODE = NO;
 				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = arm64;
-				FRAMEWORK_SEARCH_PATHS = "$(inherited)";
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)/Runner/Vendor",
+				);
 				"FRAMEWORK_SEARCH_PATHS[sdk=iphonesimulator*]" = "$(inherited)";
 				HEADER_SEARCH_PATHS = "$(PROJECT_DIR)/Runner/Vendor/llama.xcframework/ios-arm64/Headers";
 				INFOPLIST_FILE = Runner/Info.plist;
@@ -903,7 +909,10 @@
 				DEVELOPMENT_TEAM = 87W73WQSPF;
 				ENABLE_BITCODE = NO;
 				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = arm64;
-				FRAMEWORK_SEARCH_PATHS = "$(inherited)";
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)/Runner/Vendor",
+				);
 				"FRAMEWORK_SEARCH_PATHS[sdk=iphonesimulator*]" = "$(inherited)";
 				HEADER_SEARCH_PATHS = "$(PROJECT_DIR)/Runner/Vendor/llama.xcframework/ios-arm64/Headers";
 				INFOPLIST_FILE = Runner/Info.plist;
