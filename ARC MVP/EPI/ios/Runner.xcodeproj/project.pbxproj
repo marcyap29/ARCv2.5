@@ -650,8 +650,7 @@
 					"-lpthread",
 					"-ldl",
 					"-lm",
-					"-framework",
-					llama,
+					"$(PROJECT_DIR)/Runner/Vendor/llama.xcframework/ios-arm64/libllama_full.a",
 				);
 				"OTHER_LDFLAGS[sdk=iphonesimulator*]" = (
 					"-lc++",
@@ -874,8 +873,7 @@
 					"-lpthread",
 					"-ldl",
 					"-lm",
-					"-framework",
-					llama,
+					"$(PROJECT_DIR)/Runner/Vendor/llama.xcframework/ios-arm64/libllama_full.a",
 				);
 				"OTHER_LDFLAGS[sdk=iphonesimulator*]" = (
 					"-lc++",
@@ -932,8 +930,7 @@
 					"-lpthread",
 					"-ldl",
 					"-lm",
-					"-framework",
-					llama,
+					"$(PROJECT_DIR)/Runner/Vendor/llama.xcframework/ios-arm64/libllama_full.a",
 				);
 				"OTHER_LDFLAGS[sdk=iphonesimulator*]" = (
 					"-lc++",
