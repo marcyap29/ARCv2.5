@@ -1,5 +1,99 @@
 #include "llama_wrapper.h"
 #include "epi_logger.h"
+
+// Check for simulator build
+#if defined(__APPLE__)
+#include <TargetConditionals.h>
+#endif
+
+#if TARGET_OS_SIMULATOR
+// ============================================================================
+// SIMULATOR STUBS - llama.xcframework has no simulator slice
+// ============================================================================
+
+#include <cstdint>
+
+// RequestGate stubs
+extern "C" bool RequestGate_begin(uint64_t request_id) { return true; }
+extern "C" void RequestGate_end(uint64_t request_id) {}
+extern "C" uint64_t RequestGate_current(void) { return 0; }
+
+extern "C" {
+
+bool epi_llama_init(const char* model_path, int32_t n_ctx, int32_t n_gpu_layers) {
+    epi_logf(2, "SIMULATOR: epi_llama_init stub called - llama not available");
+    return false;
+}
+
+void epi_llama_free(void) {
+    epi_logf(2, "SIMULATOR: epi_llama_free stub called");
+}
+
+bool epi_llama_start(const char* prompt_utf8) {
+    epi_logf(2, "SIMULATOR: epi_llama_start stub called - llama not available");
+    return false;
+}
+
+bool epi_llama_start_with_fallback(const char* prompt_utf8) {
+    epi_logf(2, "SIMULATOR: epi_llama_start_with_fallback stub called - llama not available");
+    return false;
+}
+
+bool epi_start(const char* prompt_utf8, const epi_gen_params* p, epi_callbacks cbs, uint64_t request_id) {
+    epi_logf(2, "SIMULATOR: epi_start stub called - llama not available");
+    return false;
+}
+
+bool epi_feed(int n_prompt_tokens, uint64_t request_id) {
+    epi_logf(2, "SIMULATOR: epi_feed stub called - llama not available");
+    return false;
+}
+
+bool epi_stop(void) {
+    epi_logf(2, "SIMULATOR: epi_stop stub called");
+    return true;
+}
+
+bool epi_llama_generate_next(llama_token_callback_t on_token, void* user_data, bool* out_is_eos) {
+    if (out_is_eos) *out_is_eos = true;
+    return false;
+}
+
+void epi_llama_stop(void) {}
+void epi_set_top_k(int32_t top_k) {}
+void epi_set_top_p(float top_p) {}
+void epi_set_temp(float temp) {}
+void epi_set_n_predict(int32_t n_predict) {}
+
+const char* epi_generate_core_api(const char* prompt_utf8, const epi_gen_params* p, uint64_t request_id) {
+    epi_logf(2, "SIMULATOR: epi_generate_core_api stub called - llama not available");
+    return "";
+}
+
+bool epi_generate_core_api_impl_new(
+    void* model_ptr, void* ctx_ptr, const char *prompt_utf8,
+    int32_t n_predict, float temp, int32_t top_k, float top_p, float min_p,
+    void (*on_text)(const char *utf8, void *userdata), void *userdata,
+    bool *did_stop_n_predict, bool *did_hit_eot
+) {
+    epi_logf(2, "SIMULATOR: epi_generate_core_api_impl_new stub called - llama not available");
+    if (did_stop_n_predict) *did_stop_n_predict = false;
+    if (did_hit_eot) *did_hit_eot = true;
+    return false;
+}
+
+bool epi_decode(uint64_t request_id) { return false; }
+int32_t epi_take_token(uint64_t request_id) { return 0; }
+const char* epi_decode_to_text(int32_t token_id) { return ""; }
+bool epi_is_eos_token(int32_t token_id) { return true; }
+
+} // extern "C"
+
+#else
+// ============================================================================
+// DEVICE BUILD - Full llama implementation
+// ============================================================================
+
 #include <llama.h>
 #include "llama_compat_simple.hpp"
 #include <vector>
@@ -937,3 +1031,5 @@ bool epi_is_eos_token(int32_t token_id) {
 }
 
 } // extern "C"
+
+#endif // TARGET_OS_SIMULATOR

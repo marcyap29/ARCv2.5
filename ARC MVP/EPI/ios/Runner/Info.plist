@@ -54,6 +54,10 @@
 	<true/>
 	<key>NSCameraUsageDescription</key>
 	<string>This app needs access to camera to take photos for your journal entries.</string>
+	<key>NSHealthShareUsageDescription</key>
+	<string>ARC uses your health data (sleep, activity, heart rate) to enhance phase detection and provide insights into how your physical state aligns with your emotional patterns. This helps identify when your body and mind are in sync or when there may be misalignment.</string>
+	<key>NSHealthUpdateUsageDescription</key>
+	<string>ARC may record mindfulness sessions and wellness activities to help track your overall health patterns alongside your journal entries.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>This app needs access to your location to automatically set the location for your journal entries.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
@@ -64,12 +68,6 @@
 	<string>This app needs permission to save photos to your photo library for persistent storage.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>This app needs access to photo library to select photos for your journal entries.</string>
-	<key>NSHealthShareUsageDescription</key>
-	<string>ARC uses your health data (sleep, activity, heart rate) to enhance phase detection and provide insights into how your physical state aligns with your emotional patterns. This helps identify when your body and mind are in sync or when there may be misalignment.</string>
-	<key>NSHealthUpdateUsageDescription</key>
-	<string>ARC may record mindfulness sessions and wellness activities to help track your overall health patterns alongside your journal entries.</string>
-	<key>NSSpeechRecognitionUsageDescription</key>
-	<string></string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>UILaunchStoryboardName</key>

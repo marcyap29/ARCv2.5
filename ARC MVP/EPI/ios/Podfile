@@ -60,8 +60,8 @@ post_install do |installer|
 
       config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '16.0'
       config.build_settings['SUPPORTED_PLATFORMS'] = 'iphonesimulator iphoneos'
-      # Override for FFmpeg - exclude arm64 from simulator
-      if target.name.include?('ffmpeg_kit')
+      # Override for FFmpeg and health - exclude arm64 from simulator
+      if target.name.include?('ffmpeg_kit') || target.name.include?('health')
         config.build_settings['EXCLUDED_ARCHS[sdk=iphonesimulator*]'] = 'arm64'
       else
         config.build_settings['EXCLUDED_ARCHS[sdk=iphonesimulator*]'] = ''
