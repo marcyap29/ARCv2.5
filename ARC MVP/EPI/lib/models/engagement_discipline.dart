@@ -13,7 +13,7 @@ extension EngagementModeExtension on EngagementMode {
   String get displayName {
     switch (this) {
       case EngagementMode.reflect:
-        return 'Reflect';
+        return 'Default';
       case EngagementMode.explore:
         return 'Explore';
       case EngagementMode.integrate:

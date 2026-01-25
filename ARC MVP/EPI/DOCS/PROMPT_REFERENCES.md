@@ -42,10 +42,11 @@ This document catalogs all prompts used throughout the ARC application, organize
 9. [Onboarding Prompts](#onboarding-prompts)
    - [Phase Quiz Questions](#phase-quiz-questions)
 10. [Voice Mode Prompts](#10-voice-mode-prompts)
-    - [Reflect Mode (Default)](#reflect-mode-default)
-    - [Explore Mode (When Asked)](#explore-mode-when-asked)
-    - [Integrate Mode (When Asked)](#integrate-mode-when-asked)
+    - [DEFAULT Mode (Baseline)](#default-mode-baseline)
+    - [EXPLORE Mode (When Asked)](#explore-mode-when-asked)
+    - [INTEGRATE Mode (When Asked)](#integrate-mode-when-asked)
     - [Voice Depth Classification Triggers](#voice-depth-classification-triggers)
+    - [Mode Switching Commands](#mode-switching-commands)
 
 ---
 
@@ -974,66 +975,87 @@ Apple Health Data (last 7 days) → Biometric Analyzer
 
 ## 10. Voice Mode Prompts
 
-Voice mode uses the **same three-tier engagement system as written mode** (Reflect/Explore/Integrate) with automatic depth classification per utterance.
+Voice mode uses the **same three-tier engagement system as written mode** (DEFAULT/EXPLORE/INTEGRATE) with automatic depth classification per utterance and user-controlled mode switching.
 
-**Location:** `lib/arc/chat/voice/prompts/voice_response_builders.dart`
+**Location:** `lib/arc/chat/llm/prompts/lumara_master_prompt.dart` (Layers 2.5, 2.6, 2.7)
 
-### Current Voice Response Limits (v3.3.10)
+### Voice Mode Direct Answer Protocol (Layer 2.5)
 
-| Engagement Mode | Word Limit | Latency Target | Use Case |
-|-----------------|------------|----------------|----------|
-| **Reflect** (default) | 100 words | 5s | Casual conversation, brief updates, factual questions |
-| **Explore** (when asked) | 200 words | 10s | Pattern analysis, deeper discussion, temporal queries |
-| **Integrate** (when asked) | 300 words | 15s | Cross-domain synthesis, connecting themes, deep reflection |
+**Core Behavior:** Act like Claude in normal conversation
+- 60-80% of responses: Pure answers with NO historical references
+- 20-40% of responses: Natural answers with 1-3 brief historical references
+- Conversation, not therapy or life coaching
 
-**Update (2026-01-22 v3.3.10):** Word limits reverted to 100/200/300 after implementing phase-specific prompts with good/bad examples and seeking classification, which provide quality without needing longer responses.
+**Context Retrieval Triggers (Layer 2.6):**
+- "Tell me about my [week/month/day]" → Always retrieve context
+- "What have I been [doing/working on]" → Always retrieve context
+- Technical questions → No retrieval (direct answer)
 
-### Reflect Mode (Default)
+**User Override for Deeper Analysis:**
+- Explicit requests like "Give me your full thoughts" or "Show me the patterns" trigger comprehensive analysis with extensive context retrieval
+- Default 60-80% guideline applies only to unprompted responses
+
+### Current Voice Response Limits (v3.3.11)
+
+| Engagement Mode | Word Limit | Latency Target | Historical References | Use Case |
+|-----------------|------------|----------------|----------------------|----------|
+| **DEFAULT** (baseline) | 100 words | 5s | 20-40% of responses (1-3 refs) | Casual conversation, brief updates, factual questions |
+| **EXPLORE** (when asked) | 200 words | 10s | 50-70% of responses (2-5 refs) | Pattern analysis, deeper discussion, temporal queries |
+| **INTEGRATE** (when asked) | 300 words | 15s | 80-100% of responses (extensive refs) | Cross-domain synthesis, connecting themes, deep reflection |
+
+**Update (2026-01-24 v3.3.11):** Renamed REFLECT → DEFAULT mode. Added Layer 2.5 (Voice Mode Direct Answer Protocol), Layer 2.6 (Context Retrieval Triggers), and Layer 2.7 (Mode Switching Commands) to master prompt for natural conversational AI behavior with explicit user control.
+
+### DEFAULT Mode (Baseline)
 
 Used for: factual questions, brief updates, casual conversation.
 Target: 100 words, 5 second latency.
-Processing: `skipHeavyProcessing: true` (no memory retrieval)
+Processing: `skipHeavyProcessing: true` (no memory retrieval for general questions)
+Historical Reference Frequency: 20-40% of responses include 1-3 brief references
 
 ```
-RESPONSE MODE: REFLECT (Surface Patterns & Stop)
-- Surface the pattern you notice, then stop
-- NO follow-up questions (except for clarification if absolutely needed)
-- Complete responses in 1-3 sentences
-- Answer questions directly if asked
-- NO cross-domain synthesis
-- NEVER use formulaic phrases like "It sounds like", "It seems like"
-- Start with substance, not acknowledgment
+RESPONSE MODE: DEFAULT (Answer Naturally Like Claude)
+- 60-80% pure answers with NO historical references
+- 20-40% natural answers with 1-3 brief historical references
+- Answer questions directly and completely FIRST
+- Stay conversational and helpful, not performatively reflective
+- NO forced connections to unrelated past entries
+- NO therapy-speak for practical questions
+- Retrieve context when asked about recent activity
 ```
 
-### Explore Mode (When Asked)
+### EXPLORE Mode (When Asked)
 
-Triggered by: "Analyze", "Give me insight", "What patterns do you see?", temporal queries ("how has my week been", "tell me about my month")
+Triggered by: "Explore this more", "Show me patterns", "What patterns do you see?", temporal queries ("tell me about my week", "what have I been working on")
 Target: 200 words, 10 second latency.
 Processing: Full memory retrieval enabled
+Historical Reference Frequency: 50-70% of responses include 2-5 dated references
 
 ```
 RESPONSE MODE: EXPLORE (Pattern Analysis with One Engagement Move)
-- All REFLECT capabilities PLUS single engagement move
+- All DEFAULT capabilities PLUS single engagement move
 - May ask ONE connecting question OR make ONE additional observation
 - Surface patterns in current statement or recent conversation
 - Provide thoughtful analysis and insights
-- For temporal queries: Reference SPECIFIC activities and themes from journal entries
+- For temporal queries: Reference SPECIFIC activities and themes from journal entries with dates
 - Questions should connect to trajectory, not probe emotions
+- Proactive connections allowed (user opted into deeper engagement)
 ```
 
-### Integrate Mode (When Asked)
+### INTEGRATE Mode (When Asked)
 
-Triggered by: "Deep analysis", "Go deeper", "Connect the dots"
+Triggered by: "Full synthesis", "Connect across everything", "Big picture", "Comprehensive analysis"
 Target: 300 words, 15 second latency.
 Processing: Full memory retrieval enabled
+Historical Reference Frequency: 80-100% of responses include extensive cross-domain references
 
 ```
 RESPONSE MODE: INTEGRATE (Cross-Domain Synthesis)
-- All EXPLORE capabilities PLUS cross-domain synthesis
-- Surface patterns you notice across conversation AND previous entries
-- Reference relevant past entries and psychological threads
-- Synthesize themes for deeper understanding
-- May ask connecting questions to deepen integration
+- All EXPLORE capabilities PLUS full cross-domain synthesis
+- Surface patterns across conversation AND previous entries across all life domains
+- Reference relevant past entries and psychological threads with specific dates
+- Synthesize themes for holistic understanding
+- May ask 1-2 connecting questions that bridge domains
+- Connect work ↔ personal ↔ patterns ↔ identity
 ```
 
 **Phase Depth Guidance:**
@@ -1050,16 +1072,46 @@ RESPONSE MODE: INTEGRATE (Cross-Domain Synthesis)
 
 **Location:** `lib/services/lumara/entry_classifier.dart` (`classifyVoiceDepth()`, `classifySeeking()`)
 
-Classification determines engagement mode (Reflect/Explore/Integrate) based on detected triggers:
+Classification determines engagement mode (DEFAULT/EXPLORE/INTEGRATE) based on detected triggers:
 
 | Trigger Category | Examples | Mode |
 |------------------|----------|------|
-| No triggers | Brief statements, simple questions | Reflect |
-| Exploration Language | "Analyze", "Give me insight", "What patterns" | Explore |
-| **Temporal Queries** | "How has my week been", "Tell me about my month", "What have I done" | Explore |
-| Processing Language | "I need to process...", "Help me think through..." | Explore |
-| Deep Analysis | "Go deeper", "Connect the dots", "Integrate" | Integrate |
-| Cross-Domain | "How does X relate to Y", "Synthesize" | Integrate |
+| No triggers | Brief statements, simple questions | DEFAULT |
+| Exploration Language | "Explore this more", "Give me insight", "Show me patterns" | EXPLORE |
+| **Temporal Queries** | "Tell me about my week", "What have I been working on", "How am I doing with X" | EXPLORE |
+| Processing Language | "Help me think through...", "Walk me through this" | EXPLORE |
+| Deep Analysis | "Go deeper", "Connect the dots", "Full synthesis" | INTEGRATE |
+| Cross-Domain | "Connect across everything", "Big picture", "Comprehensive analysis" | INTEGRATE |
+
+### Mode Switching Commands (Layer 2.7)
+
+**Location:** `lib/arc/chat/llm/prompts/lumara_master_prompt.dart` (Layer 2.7)
+
+Users can switch engagement modes mid-conversation with explicit voice/text commands:
+
+**To Enter DEFAULT Mode:**
+- "Keep it simple", "Just answer briefly", "Quick response"
+- "Don't go too deep", "Surface level is fine", "Just the basics"
+
+**To Enter EXPLORE Mode:**
+- "Explore this more", "Go deeper on this", "Show me patterns"
+- "Connect this to other things", "Help me think through this"
+- "Examine this more closely"
+
+**To Enter INTEGRATE Mode:**
+- "Integrate across everything", "Full integration", "Synthesize this"
+- "Connect across domains", "Holistic view", "Big picture"
+- "Long-term view", "Comprehensive analysis"
+
+**Mode Persistence Rules:**
+- **Temporary Override** (default): Mode applies to THAT RESPONSE ONLY, then returns to control state default
+- **Sustained Override**: "Switch to [mode] for this conversation" → Apply to all subsequent responses
+- **Return to Default**: "Back to normal" → Return to control state default
+
+**Integration with Voice Mode:**
+- Mode determines reference frequency (20-40% vs 50-70% vs 80-100%)
+- Voice mode principles still apply (answer directly, stay conversational)
+- Mode switching should feel seamless with natural acknowledgments ("Okay, here's the deeper pattern...")
 
 **Temporal Query Triggers (v3.3.10):**
 Queries about past time periods now trigger Explore mode with full memory retrieval:
@@ -1185,6 +1237,7 @@ Prepended to stored transcript for future retrieval.
 
 | Version | Date | Changes |
 |---------|------|---------|
+| 1.6.0 | 2026-01-24 | **BREAKING**: Renamed REFLECT → DEFAULT mode. Added Layer 2.5 (Voice Mode Direct Answer Protocol), Layer 2.6 (Context Retrieval Triggers), Layer 2.7 (Mode Switching Commands). Updated temporal query classification to fix "Tell me about my week" routing. |
 | 1.5.0 | 2026-01-23 | Added comprehensive template variables documentation, ECHO system prompt variables, Bible context blocks, on-device prompt variants, voice mode phase-specific word limits, and session summary prompt |
 | 1.4.0 | 2026-01-22 | Added temporal query triggers for Explore mode, reverted word limits to 100/200/300 |
 | 1.3.0 | 2026-01-22 | Phase-specific prompts with good/bad examples, Seeking classification |

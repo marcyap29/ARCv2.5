@@ -8,7 +8,7 @@ LUMARA's responses are controlled by **three independent systems** that layer to
 
 | System | When It's Set | What It Controls |
 |--------|---------------|------------------|
-| **EngagementMode** | Before you write | Depth of engagement & cross-domain connections |
+| **EngagementMode** | Before you write (or via voice command) | Depth of engagement & cross-domain connections |
 | **EntryClassifier** | Automatic (content-based) | Response length based on message type |
 | **ConversationMode** | After LUMARA responds | Follow-up continuation style |
 
@@ -20,31 +20,53 @@ Understanding these systems helps explain why LUMARA responds differently in dif
 
 **Purpose:** Controls how deeply LUMARA engages with your content.
 
-**When set:** User selects before writing (Reflect / Explore / Integrate selector).
+**When set:** User selects before writing (DEFAULT / EXPLORE / INTEGRATE selector) OR uses voice commands to switch mid-conversation.
 
-**Location:** `lib/models/engagement_discipline.dart`
+**Location:** `lib/models/engagement_discipline.dart`, `lib/arc/chat/llm/prompts/lumara_master_prompt.dart` (Layers 2.5, 2.6, 2.7)
 
 ### Modes
 
-| Mode | Behavior | Best For |
-|------|----------|----------|
-| **Reflect** | Surface patterns and stop. Minimal follow-up questions. Just mirrors what you said. | Quick capture without wanting deep engagement |
-| **Explore** | Surface patterns + invite deeper examination. Asks follow-up questions. | Active sense-making, when you want to dig deeper |
-| **Integrate** | Synthesize across domains and time horizons. Connects to past entries, other life areas. | Holistic understanding, seeing the bigger picture |
+| Mode | Behavior | Historical References | Best For |
+|------|----------|----------------------|----------|
+| **DEFAULT** | Answer naturally like Claude. 60-80% pure answers with NO references, 20-40% with 1-3 brief references. | 20-40% of responses (1-3 refs) | Casual conversation, quick questions, factual queries |
+| **EXPLORE** | Surface patterns + invite deeper examination. Ask follow-up questions. Proactive connections. | 50-70% of responses (2-5 dated refs) | Active sense-making, pattern analysis, temporal queries |
+| **INTEGRATE** | Synthesize across domains and time horizons. Connect past entries, other life areas. Full synthesis. | 80-100% of responses (extensive refs) | Holistic understanding, big picture, comprehensive analysis |
+
+### Voice Commands for Mode Switching (Layer 2.7)
+
+Users can switch modes mid-conversation:
+
+**To DEFAULT:** "Keep it simple", "Just answer briefly", "Quick response"
+**To EXPLORE:** "Explore this more", "Show me patterns", "Go deeper on this"
+**To INTEGRATE:** "Full synthesis", "Connect across everything", "Big picture"
 
 ### How It Affects Responses
 
-- **Reflect:** LUMARA acknowledges your thoughts but doesn't push further
-- **Explore:** LUMARA asks 1-2 questions to help you examine what you wrote
-- **Integrate:** LUMARA references past entries, connects themes across life domains (work ↔ relationships ↔ health)
+- **DEFAULT:** LUMARA answers directly and naturally, with occasional brief historical references (1-3 when relevant)
+- **EXPLORE:** LUMARA asks 1 connecting question, surfaces patterns, includes 2-5 dated references to help you examine what you wrote
+- **INTEGRATE:** LUMARA provides comprehensive synthesis, references extensive past entries, connects themes across life domains (work ↔ relationships ↔ health)
 
 ### Code Reference
 
 ```dart
 enum EngagementMode {
-  reflect,   // Surface patterns and stop - minimal follow-up
+  reflect,   // Displayed as "Default" in UI - answer naturally with occasional references
   explore,   // Surface patterns and invite deeper examination
   integrate  // Synthesize across domains and time horizons
+}
+
+// Display names
+extension EngagementModeExtension on EngagementMode {
+  String get displayName {
+    switch (this) {
+      case EngagementMode.reflect:
+        return 'Default';  // Changed from 'Reflect' in v3.4.0
+      case EngagementMode.explore:
+        return 'Explore';
+      case EngagementMode.integrate:
+        return 'Integrate';
+    }
+  }
 }
 ```
 
@@ -182,28 +204,34 @@ enum ConversationMode {
 
 ## Voice Mode: Three-Tier Engagement System
 
-Voice mode uses the **same three-tier engagement system as written mode** (Reflect/Explore/Integrate), with automatic depth classification per-turn:
+Voice mode uses the **same three-tier engagement system as written mode** (DEFAULT/EXPLORE/INTEGRATE), with automatic depth classification per-turn and user-controlled mode switching:
 
-| Mode | Word Limit | Latency | Memory Retrieval |
-|------|------------|---------|------------------|
-| **Reflect** (default) | 100 words | 5 sec | No |
-| **Explore** (when asked) | 200 words | 10 sec | **Yes** |
-| **Integrate** (when asked) | 300 words | 15 sec | **Yes** |
+| Mode | Word Limit | Latency | Historical References | Memory Retrieval |
+|------|------------|---------|----------------------|------------------|
+| **DEFAULT** (baseline) | 100 words | 5 sec | 20-40% of responses (1-3 refs) | Conditional |
+| **EXPLORE** (when asked) | 200 words | 10 sec | 50-70% of responses (2-5 refs) | **Yes** |
+| **INTEGRATE** (when asked) | 300 words | 15 sec | 80-100% of responses (extensive refs) | **Yes** |
 
 ### How Voice Mode Routes Requests
 
 Voice mode uses `skipHeavyProcessing` to control memory retrieval:
-- **Reflect mode**: `skipHeavyProcessing: true` → Fast, no journal history
-- **Explore/Integrate modes**: `skipHeavyProcessing: false` → Full journal history retrieval
+- **DEFAULT mode**: `skipHeavyProcessing: true` for general questions → Fast, no journal history unless temporal query detected
+- **EXPLORE/INTEGRATE modes**: `skipHeavyProcessing: false` → Full journal history retrieval
 
-### Temporal Query Triggers (v3.3.10)
+**Layer 2.5 (Voice Mode Direct Answer Protocol):**
+- 60-80% of responses: Pure answers with NO historical references
+- 20-40% of responses: Natural answers with 1-3 brief historical references
+- User can override with explicit requests like "Give me your full thoughts"
 
-These phrases automatically trigger **Explore mode with memory retrieval**:
-- "How has my week/month/year been?"
+### Temporal Query Triggers (v3.3.11)
+
+These phrases automatically trigger **EXPLORE mode with memory retrieval** (Layer 2.6):
+- "Tell me about my [week/month/day]"
+- "What have I been [doing/working on]"
+- "How am I doing [with X]"
 - "Summarize my progress"
-- "Review my entries"
-- "Based on what you know..."
-- "What patterns have you noticed?"
+- "What's been going on [with me/lately]"
+- "Catch me up on [my work/my progress]"
 
 ### Code Location
 
@@ -245,10 +273,12 @@ LUMARA adjusts responses based on your current life phase:
 |---------|--------------|
 | Response too short | EntryClassifier detected `conversational` or `factual` |
 | Response too long | EntryClassifier detected `reflective`, `analytical`, or `metaAnalysis` |
-| No connections to past entries | EngagementMode set to `Reflect` instead of `Integrate` |
-| No follow-up questions | EngagementMode set to `Reflect` instead of `Explore` |
-| Voice mode slow (30+ seconds) | Explore/Integrate mode with high latency - check API response times |
-| Voice mode responses generic | Check depth classification - may be stuck in Reflect mode |
+| No connections to past entries | EngagementMode set to `DEFAULT` instead of `INTEGRATE` |
+| Very few historical references | DEFAULT mode (20-40% reference frequency) - say "Explore this more" for deeper analysis |
+| No follow-up questions | EngagementMode set to `DEFAULT` instead of `EXPLORE` |
+| Voice mode slow (30+ seconds) | EXPLORE/INTEGRATE mode with high latency - check API response times |
+| Voice mode responses generic | Check depth classification - may be in DEFAULT mode, try "Show me patterns" |
+| "Tell me about my week" not retrieving context | Check temporal query classification in `entry_classifier.dart` |
 
 ---
 
@@ -271,27 +301,32 @@ LUMARA adjusts responses based on your current life phase:
 
 Voice mode classifies each utterance into one of three engagement modes:
 
-| Mode | Triggers | Response | Memory |
-|------|----------|----------|--------|
-| **Reflect** (default) | No special triggers | 100 words, casual | No retrieval |
-| **Explore** | "Analyze", temporal queries, pattern requests | 200 words, analytical | **Journal history** |
-| **Integrate** | "Go deeper", "Connect the dots", synthesis requests | 300 words, synthesis | **Journal history** |
+| Mode | Triggers | Response | Historical References | Memory |
+|------|----------|----------|----------------------|--------|
+| **DEFAULT** (baseline) | No special triggers OR user command | 100 words, conversational | 20-40% (1-3 refs) | Conditional |
+| **EXPLORE** | "Explore this", temporal queries, pattern requests OR user command | 200 words, analytical | 50-70% (2-5 refs) | **Journal history** |
+| **INTEGRATE** | "Full synthesis", "Big picture", cross-domain requests OR user command | 300 words, comprehensive | 80-100% (extensive refs) | **Journal history** |
 
-### Explore Mode Triggers
-- "How has my week been?" (temporal query)
-- "Analyze this", "Give me insight"
+### Mode Switching Commands (Layer 2.7)
+
+**To DEFAULT Mode:**
+- "Keep it simple", "Just answer briefly", "Quick response"
+- "Don't go too deep", "Surface level is fine"
+
+**To EXPLORE Mode:**
+- "Explore this more", "Show me patterns", "Go deeper on this"
+- "Tell me about my [week/month]" (temporal queries)
 - "What patterns do you see?"
-- "Based on what you know..."
 
-### Integrate Mode Triggers
-- "Go deeper", "Deep analysis"
-- "Connect the dots", "Synthesize"
-- "What's the bigger picture?"
+**To INTEGRATE Mode:**
+- "Full synthesis", "Connect across everything", "Big picture"
+- "Comprehensive analysis", "Long-term view"
+- "Connect this across time"
 
-### Reflect Mode (No Triggers)
+### DEFAULT Mode (No Special Triggers)
 - Casual conversation, factual questions
 - Brief updates, short utterances
-- No emotional or analytical content
+- Technical how-to questions
 
 See [VOICE_MODE_IMPLEMENTATION_GUIDE.md](./VOICE_MODE_IMPLEMENTATION_GUIDE.md) for full details.
 
@@ -302,14 +337,15 @@ See [VOICE_MODE_IMPLEMENTATION_GUIDE.md](./VOICE_MODE_IMPLEMENTATION_GUIDE.md) f
 LUMARA's response behavior emerges from multiple control systems:
 
 **For Text/Journal:**
-1. **EngagementMode** (user-selected) → Depth of engagement
+1. **EngagementMode** (user-selected OR voice command) → Depth of engagement & reference frequency
 2. **EntryClassifier** (automatic) → Response length  
 3. **ConversationMode** (user-selected after response) → Follow-up style
 
 **For Voice:**
-4. **VoiceDepthClassifier** (automatic per-turn) → Reflect / Explore / Integrate mode
+4. **VoiceDepthClassifier** (automatic per-turn OR voice command) → DEFAULT / EXPLORE / INTEGRATE mode
 5. **SeekingClassifier** (automatic) → Validation / Exploration / Direction / Reflection
+6. **Mode Switching Commands** (Layer 2.7) → User can override mode mid-conversation
 
-These systems are designed to be orthogonal — you can have a short (`conversational`) response with deep connections (`Integrate`), or a long (`reflective`) response without any connections (`Reflect`).
+These systems are designed to be orthogonal — you can have a short (`conversational`) response with deep connections (`INTEGRATE`), or a long (`reflective`) response without any connections (`DEFAULT`).
 
-Voice mode classifies each turn independently and routes to the appropriate response style. **Explore and Integrate modes retrieve journal history** for context-aware responses, while Reflect mode stays fast with no memory retrieval.
+Voice mode classifies each turn independently and routes to the appropriate response style. **EXPLORE and INTEGRATE modes retrieve journal history** for context-aware responses, while DEFAULT mode conditionally retrieves only for temporal queries ("Tell me about my week").

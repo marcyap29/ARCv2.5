@@ -27,7 +27,7 @@ class EngagementModeSelector extends StatelessWidget {
       segments: [
         ButtonSegment(
           value: EngagementMode.reflect,
-          label: Text('Reflect'),
+          label: Text('Default'),
           icon: Icon(Icons.auto_awesome, size: 16),
         ),
         ButtonSegment(
@@ -63,7 +63,7 @@ class EngagementModeSelector extends StatelessWidget {
           segments: [
             ButtonSegment(
               value: EngagementMode.reflect,
-              label: Text('Reflect'),
+              label: Text('Default'),
               icon: Icon(Icons.auto_awesome),
             ),
             ButtonSegment(

@@ -129,6 +129,11 @@ class EntryClassifier {
       return EntryType.analytical;
     }
 
+    // PRIORITY 4.5: Temporal/retrospective queries (require memory retrieval)
+    if (_containsTemporalQueryLanguage(lowerText)) {
+      return EntryType.metaAnalysis;
+    }
+
     // PRIORITY 5: Conversational updates (short, low emotion, observational)
     if (wordCount < 150 &&
         emotionalDensity < 0.05 &&
@@ -269,6 +274,16 @@ class EntryClassifier {
       r'over (the past|time|these)',
       r'from .+ to .+',
       r'between .+ and .+',
+      
+      // Temporal retrospective queries (require memory retrieval)
+      r'tell me (about|how) (my|the) (work|progress|activities|week|month|day)',
+      r"(what|tell me).*(i'?ve|have i) been (doing|working on)",
+      r'(this|last) (week|month|day|year).*(detail|analysis|summary)',
+      r'go into (detail|depth|analysis)',
+      r'(detail|detailed) (and |)(analysis|summary)',
+      r'(summarize|review|analyze) (my|the|this) (week|month|work|day)',
+      r'what (have|did).*(been|i) (doing|working)',
+      r'catch me up on',
 
       // Meta-cognitive requests
       r"what am i (really|actually|truly)\s+(saying|trying to|working through)",
@@ -339,6 +354,29 @@ class EntryClassifier {
 
     return strugglePatterns.any((pattern) =>
       RegExp(pattern).hasMatch(lowerText)
+    );
+  }
+
+  /// Check for temporal/retrospective query language that requires memory retrieval
+  static bool _containsTemporalQueryLanguage(String lowerText) {
+    final temporalQueryPatterns = [
+      // Direct temporal queries (must be asking about activity, not making statements)
+      r'tell me (about|how) (my|the) (work|progress|activities|week|month|day)',
+      r"(what|tell me).*(i'?ve|have i) been (doing|working on)",
+      r'(this|last) (week|month|day|year).*(detail|analysis|summary)',
+      r'go into (detail|depth|analysis)',
+      r'(detail|detailed) (and |)(analysis|summary)',
+      r'(summarize|review|analyze) (my|the|this) (week|month|work|day)',
+      r'what (have|did).*(been|i) (doing|working)',
+      r'catch me up on',
+      r'how am i doing (with|on)',
+      r"what'?s been going on",
+      r'what have i been up to',
+      r'(my|the) recent (work|progress|activity|activities)',
+    ];
+
+    return temporalQueryPatterns.any((pattern) =>
+      RegExp(pattern, caseSensitive: false).hasMatch(lowerText)
     );
   }
 
@@ -726,7 +764,7 @@ class EntryClassifier {
   static String getVoiceDepthDescription(EngagementMode mode) {
     switch (mode) {
       case EngagementMode.reflect:
-        return 'Reflect (Casual Conversation)';
+        return 'Default (Casual Conversation)';
       case EngagementMode.explore:
         return 'Explore (Pattern Analysis)';
       case EngagementMode.integrate:

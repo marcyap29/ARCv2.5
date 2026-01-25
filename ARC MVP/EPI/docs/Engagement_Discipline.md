@@ -1,7 +1,7 @@
 # Engagement Discipline System
 
-**Version:** 3.3.0  
-**Last Updated:** January 22, 2026  
+**Version:** 3.4.0  
+**Last Updated:** January 24, 2026  
 **Status:** ✅ Production Ready
 
 ---
@@ -30,7 +30,7 @@ The Engagement Discipline system provides user-controlled boundaries for LUMARA'
 
 ## Engagement Modes
 
-### Reflect Mode (Default)
+### DEFAULT Mode (Baseline)
 
 **Purpose:** Answer directly, then optionally offer connections with permission
 
@@ -63,14 +63,14 @@ LUMARA: [Just continues with next topic, doesn't push]
 - Quick pattern recognition without deep engagement
 - Preventing connection fatigue from always pulling patterns
 
-### Explore Mode
+### EXPLORE Mode
 
-**Note:** Unlike REFLECT mode, EXPLORE mode makes proactive connections without asking permission (user has opted into deeper engagement).
+**Note:** Unlike DEFAULT mode, EXPLORE mode makes proactive connections without asking permission (user has opted into deeper engagement).
 
 **Purpose:** Surface patterns and invite deeper examination
 
 **Behavior:**
-- All REFLECT mode capabilities (including direct answers)
+- All DEFAULT mode capabilities (including direct answers)
 - **Proactive connections:** Can make connections directly without asking permission
 - May ask ONE connecting question per response
 - Can propose alternative framings
@@ -84,7 +84,7 @@ LUMARA: [Just continues with next topic, doesn't push]
 - Users who want guided exploration
 - Connecting current insights to past patterns
 
-### Integrate Mode
+### INTEGRATE Mode
 
 **Purpose:** Synthesize across domains and time horizons
 
@@ -152,7 +152,7 @@ Response length is determined by Engagement Mode, not Persona. This ensures that
 - Developmental synthesis (INTEGRATE) gets comprehensive analysis
 
 **Base Lengths by Engagement Mode:**
-- **REFLECT**: 200 words base (5 sentences) - Brief surface-level observations
+- **DEFAULT**: 200 words base (5 sentences) - Brief surface-level observations
 - **EXPLORE**: 400 words base (10 sentences) - Deeper investigation with follow-up questions
 - **INTEGRATE**: 500 words base (15 sentences) - Comprehensive cross-domain synthesis
 
@@ -199,7 +199,7 @@ Persona affects communication style/density, not base length:
 **Location:** `lib/models/engagement_discipline.dart`
 
 **Key Classes:**
-- `EngagementMode` enum: `reflect`, `explore`, `integrate`
+- `EngagementMode` enum: `reflect` (displayed as "Default"), `explore`, `integrate`
 - `SynthesisPreferences`: Domain synthesis permissions
 - `ResponseDiscipline`: Response boundaries and limits
 - `EngagementSettings`: Main settings container
@@ -214,7 +214,7 @@ The Engagement Discipline system integrates with LUMARA's Control State JSON sys
 ```dart
 {
   'engagement': {
-    'mode': 'reflect' | 'explore' | 'integrate',
+    'mode': 'reflect' | 'explore' | 'integrate',  // 'reflect' displays as 'Default' in UI
     'synthesis_allowed': {
       'faith_work': bool,
       'relationship_work': bool,
@@ -271,23 +271,26 @@ The Engagement Discipline settings are integrated into LUMARA's system prompt vi
 
 ### Mode-Specific Instructions
 
-**REFLECT MODE:**
-- Surface patterns and temporal connections
-- Name tensions without resolving them
-- Stop after achieving grounding
-- NO follow-up questions except for clarification
-- NO synthesis across domains
+**DEFAULT MODE:**
+- Answer naturally like Claude
+- 60-80% pure answers with NO historical references
+- 20-40% natural answers with 1-3 brief historical references  
+- Answer directly and completely FIRST
+- NO forced connections to unrelated past entries
+- NO therapy-speak for practical questions
 
 **EXPLORE MODE:**
-- All REFLECT mode capabilities
+- All DEFAULT mode capabilities
 - May ask ONE connecting question per response
-- Can propose alternative framings
+- Can make proactive connections (2-5 dated references)
+- Surface patterns within single domain
 - Questions should connect to trajectory, not probe emotions
 
 **INTEGRATE MODE:**
 - All EXPLORE mode capabilities
 - May synthesize across permitted domains
-- Connect long-term trajectory themes
+- Connect long-term trajectory themes (extensive cross-domain references)
+- Holistic understanding across work ↔ personal ↔ patterns ↔ identity
 - Synthesis must respect user's domain boundaries
 
 ---
@@ -307,7 +310,7 @@ These patterns are filtered at the response validation layer before presentation
 
 ## Default Settings
 
-**Default Engagement Mode:** `reflect`
+**Default Engagement Mode:** `reflect` (displayed as "Default" in UI)
 
 **Default Synthesis Preferences:**
 - Faith & Work: `false`
@@ -370,7 +373,17 @@ These patterns are filtered at the response validation layer before presentation
 
 ---
 
+## Changelog
+
+**Version 3.4.0 (January 24, 2026):**
+- **BREAKING**: Renamed REFLECT mode → DEFAULT mode (internal enum unchanged, UI display updated)
+- Added Layer 2.5 (Voice Mode Direct Answer Protocol) with 60-80% / 20-40% reference frequency guideline
+- Added Layer 2.6 (Context Retrieval Triggers) for explicit when-to-retrieve rules
+- Added Layer 2.7 (Mode Switching Commands) for user-controlled mid-conversation mode switching
+- Updated temporal query classification to route "Tell me about my week" queries correctly
+- Enhanced mode behaviors with specific reference frequency targets
+
 **Status**: ✅ Production Ready  
-**Last Updated**: January 17, 2026  
-**Version**: 3.2.7
+**Last Updated**: January 24, 2026  
+**Version**: 3.4.0
 
