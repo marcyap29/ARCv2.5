@@ -30,9 +30,16 @@ The Engagement Discipline system provides user-controlled boundaries for LUMARA'
 
 ## Engagement Modes
 
+**NOTE: These modes apply UNIVERSALLY to all interaction types - voice conversations, text chat, journal reflections, and all LUMARA interactions.**
+
 ### DEFAULT Mode (Baseline)
 
 **Purpose:** Answer directly, then optionally offer connections with permission
+
+**Universal Behavior (All Interaction Types):**
+- 60-80% of responses: Pure answers with NO historical references
+- 20-40% of responses: Natural answers with 1-3 brief historical references
+- Act like Claude in normal conversation, not therapy or life coaching
 
 **Behavior:**
 - **CRITICAL: Answers questions directly first** - Never reflects the question back
@@ -69,8 +76,9 @@ LUMARA: [Just continues with next topic, doesn't push]
 
 **Purpose:** Surface patterns and invite deeper examination
 
-**Behavior:**
+**Universal Behavior (All Interaction Types):**
 - All DEFAULT mode capabilities (including direct answers)
+- 50-70% of responses include 2-5 dated historical references
 - **Proactive connections:** Can make connections directly without asking permission
 - May ask ONE connecting question per response
 - Can propose alternative framings
@@ -83,23 +91,27 @@ LUMARA: [Just continues with next topic, doesn't push]
 - Active sense-making
 - Users who want guided exploration
 - Connecting current insights to past patterns
+- Temporal queries like "Tell me about my week"
 
 ### INTEGRATE Mode
 
 **Purpose:** Synthesize across domains and time horizons
 
-**Behavior:**
+**Universal Behavior (All Interaction Types):**
 - All EXPLORE mode capabilities
+- 80-100% of responses include extensive cross-domain historical references
 - May synthesize across permitted domains
 - Connect long-term trajectory themes
 - Most active engagement posture
 - Synthesis must respect user's domain boundaries
 - Focus on developmental continuity across life areas
+- Draw connections across work ↔ personal ↔ patterns ↔ identity
 
 **Best For:**
 - Holistic understanding
 - Users who want cross-domain insights
 - Long-term pattern recognition across life areas
+- Major decisions requiring comprehensive analysis
 
 ---
 
@@ -377,11 +389,15 @@ These patterns are filtered at the response validation layer before presentation
 
 **Version 3.4.0 (January 24, 2026):**
 - **BREAKING**: Renamed REFLECT mode → DEFAULT mode (internal enum unchanged, UI display updated)
-- Added Layer 2.5 (Voice Mode Direct Answer Protocol) with 60-80% / 20-40% reference frequency guideline
-- Added Layer 2.6 (Context Retrieval Triggers) for explicit when-to-retrieve rules
-- Added Layer 2.7 (Mode Switching Commands) for user-controlled mid-conversation mode switching
+- **UNIVERSAL APPLICATION**: All mode behaviors now apply to voice, text chat, journal, and all LUMARA interactions
+- Added Layer 2.5 (Direct Answer Protocol) with 60-80% / 20-40% reference frequency guideline (applies to all interaction types)
+- Added Layer 2.6 (Context Retrieval Triggers) for explicit when-to-retrieve rules (universal)
+- Added Layer 2.7 (Mode Switching Commands) for user-controlled mid-conversation mode switching (works in voice AND text)
 - Updated temporal query classification to route "Tell me about my week" queries correctly
-- Enhanced mode behaviors with specific reference frequency targets
+- Enhanced mode behaviors with specific reference frequency targets:
+  * DEFAULT: 20-40% of responses (1-3 brief references)
+  * EXPLORE: 50-70% of responses (2-5 dated references)
+  * INTEGRATE: 80-100% of responses (extensive cross-domain references)
 
 **Status**: ✅ Production Ready  
 **Last Updated**: January 24, 2026  

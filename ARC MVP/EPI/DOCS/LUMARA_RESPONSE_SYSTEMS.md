@@ -20,7 +20,9 @@ Understanding these systems helps explain why LUMARA responds differently in dif
 
 **Purpose:** Controls how deeply LUMARA engages with your content.
 
-**When set:** User selects before writing (DEFAULT / EXPLORE / INTEGRATE selector) OR uses voice commands to switch mid-conversation.
+**APPLIES TO:** ALL interaction types - voice conversations, text chat, journal reflections, and all LUMARA interactions.
+
+**When set:** User selects before writing (DEFAULT / EXPLORE / INTEGRATE selector) OR uses voice/text commands to switch mid-conversation.
 
 **Location:** `lib/models/engagement_discipline.dart`, `lib/arc/chat/llm/prompts/lumara_master_prompt.dart` (Layers 2.5, 2.6, 2.7)
 
@@ -32,13 +34,17 @@ Understanding these systems helps explain why LUMARA responds differently in dif
 | **EXPLORE** | Surface patterns + invite deeper examination. Ask follow-up questions. Proactive connections. | 50-70% of responses (2-5 dated refs) | Active sense-making, pattern analysis, temporal queries |
 | **INTEGRATE** | Synthesize across domains and time horizons. Connect past entries, other life areas. Full synthesis. | 80-100% of responses (extensive refs) | Holistic understanding, big picture, comprehensive analysis |
 
-### Voice Commands for Mode Switching (Layer 2.7)
+### Voice/Text Commands for Mode Switching (Layer 2.7)
+
+**UNIVERSAL:** Works in both voice conversations AND text chat.
 
 Users can switch modes mid-conversation:
 
 **To DEFAULT:** "Keep it simple", "Just answer briefly", "Quick response"
 **To EXPLORE:** "Explore this more", "Show me patterns", "Go deeper on this"
 **To INTEGRATE:** "Full synthesis", "Connect across everything", "Big picture"
+
+These commands work when speaking to LUMARA OR typing in the chat interface.
 
 ### How It Affects Responses
 
@@ -204,6 +210,8 @@ enum ConversationMode {
 
 ## Voice Mode: Three-Tier Engagement System
 
+**IMPORTANT: The DEFAULT/EXPLORE/INTEGRATE system is UNIVERSAL. These modes work identically in voice, text chat, and journal interactions. The table below shows voice-specific settings, but the engagement behaviors apply everywhere.**
+
 Voice mode uses the **same three-tier engagement system as written mode** (DEFAULT/EXPLORE/INTEGRATE), with automatic depth classification per-turn and user-controlled mode switching:
 
 | Mode | Word Limit | Latency | Historical References | Memory Retrieval |
@@ -218,12 +226,16 @@ Voice mode uses `skipHeavyProcessing` to control memory retrieval:
 - **DEFAULT mode**: `skipHeavyProcessing: true` for general questions → Fast, no journal history unless temporal query detected
 - **EXPLORE/INTEGRATE modes**: `skipHeavyProcessing: false` → Full journal history retrieval
 
-**Layer 2.5 (Voice Mode Direct Answer Protocol):**
-- 60-80% of responses: Pure answers with NO historical references
-- 20-40% of responses: Natural answers with 1-3 brief historical references
+**Layer 2.5 (Direct Answer Protocol - UNIVERSAL):**
+- Applies to ALL interaction types (voice, text chat, journal)
+- DEFAULT Mode: 60-80% of responses with NO historical references, 20-40% with 1-3 brief references
+- EXPLORE Mode: 50-70% of responses include 2-5 dated references
+- INTEGRATE Mode: 80-100% of responses include extensive cross-domain references
 - User can override with explicit requests like "Give me your full thoughts"
 
-### Temporal Query Triggers (v3.3.11)
+### Temporal Query Triggers (v3.3.11) - UNIVERSAL
+
+**APPLIES TO:** All interaction types (voice, text chat, journal)
 
 These phrases automatically trigger **EXPLORE mode with memory retrieval** (Layer 2.6):
 - "Tell me about my [week/month/day]"
@@ -232,6 +244,8 @@ These phrases automatically trigger **EXPLORE mode with memory retrieval** (Laye
 - "Summarize my progress"
 - "What's been going on [with me/lately]"
 - "Catch me up on [my work/my progress]"
+
+Works whether you're speaking or typing these queries.
 
 ### Code Location
 

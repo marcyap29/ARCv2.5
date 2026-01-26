@@ -975,25 +975,37 @@ Apple Health Data (last 7 days) → Biometric Analyzer
 
 ## 10. Voice Mode Prompts
 
+**NOTE: The DEFAULT/EXPLORE/INTEGRATE engagement system is UNIVERSAL across all interaction types (voice, text chat, journal conversation). The prompt updates below apply to voice mode specifically, but the engagement mode behaviors apply everywhere.**
+
 Voice mode uses the **same three-tier engagement system as written mode** (DEFAULT/EXPLORE/INTEGRATE) with automatic depth classification per utterance and user-controlled mode switching.
 
 **Location:** `lib/arc/chat/llm/prompts/lumara_master_prompt.dart` (Layers 2.5, 2.6, 2.7)
 
-### Voice Mode Direct Answer Protocol (Layer 2.5)
+### Universal Engagement Behaviors (All Interaction Types)
 
-**Core Behavior:** Act like Claude in normal conversation
-- 60-80% of responses: Pure answers with NO historical references
-- 20-40% of responses: Natural answers with 1-3 brief historical references
-- Conversation, not therapy or life coaching
+**APPLIES TO: Voice, Text Chat, Journal Conversation, All LUMARA Interactions**
 
-**Context Retrieval Triggers (Layer 2.6):**
+The following behaviors apply across ALL interaction types when using DEFAULT/EXPLORE/INTEGRATE modes:
+
+**Layer 2.5: Direct Answer Protocol**
+- **Core Behavior:** Act like Claude in normal conversation (not therapy or life coaching)
+- **DEFAULT Mode:** 60-80% pure answers with NO historical references, 20-40% with 1-3 brief references
+- **EXPLORE Mode:** 50-70% of responses include 2-5 dated historical references
+- **INTEGRATE Mode:** 80-100% of responses include extensive cross-domain historical references
+
+**Layer 2.6: Context Retrieval Triggers**
 - "Tell me about my [week/month/day]" → Always retrieve context
 - "What have I been [doing/working on]" → Always retrieve context
 - Technical questions → No retrieval (direct answer)
 
+**Layer 2.7: Mode Switching Commands**
+- Users can switch modes mid-conversation with voice/text commands
+- "Keep it simple" → DEFAULT, "Explore this more" → EXPLORE, "Full synthesis" → INTEGRATE
+- Works in voice AND text interactions
+
 **User Override for Deeper Analysis:**
 - Explicit requests like "Give me your full thoughts" or "Show me the patterns" trigger comprehensive analysis with extensive context retrieval
-- Default 60-80% guideline applies only to unprompted responses
+- Default percentages apply only to unprompted responses
 
 ### Current Voice Response Limits (v3.3.11)
 
@@ -1003,7 +1015,7 @@ Voice mode uses the **same three-tier engagement system as written mode** (DEFAU
 | **EXPLORE** (when asked) | 200 words | 10s | 50-70% of responses (2-5 refs) | Pattern analysis, deeper discussion, temporal queries |
 | **INTEGRATE** (when asked) | 300 words | 15s | 80-100% of responses (extensive refs) | Cross-domain synthesis, connecting themes, deep reflection |
 
-**Update (2026-01-24 v3.3.11):** Renamed REFLECT → DEFAULT mode. Added Layer 2.5 (Voice Mode Direct Answer Protocol), Layer 2.6 (Context Retrieval Triggers), and Layer 2.7 (Mode Switching Commands) to master prompt for natural conversational AI behavior with explicit user control.
+**Update (2026-01-24 v3.3.11):** Renamed REFLECT → DEFAULT mode across ALL interaction types (voice, text chat, journal). Added Layer 2.5 (Direct Answer Protocol), Layer 2.6 (Context Retrieval Triggers), and Layer 2.7 (Mode Switching Commands) to master prompt. These behaviors apply UNIVERSALLY to all LUMARA interactions, not just voice mode.
 
 ### DEFAULT Mode (Baseline)
 
