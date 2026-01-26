@@ -233,7 +233,7 @@ class _ArcIntroScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  "ARC learns your patterns locally, then helps me give you insights that understand your whole story.",
+                  "ARC learns your patterns locally, then provides insights that understand your whole story.",
                   style: bodyStyle(context).copyWith(
                     color: Colors.white.withOpacity(0.8),
                     fontSize: 16,

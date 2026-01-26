@@ -50,7 +50,7 @@ enum SttTier {
   /// Beta tier - cloud access during beta period
   beta,
   
-  /// Pro tier - full cloud access ($30/month)
+  /// Pro tier - full cloud access ($20/month)
   pro,
 }
 

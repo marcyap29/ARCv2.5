@@ -237,7 +237,7 @@ class _LumaraSubscriptionStatusState extends State<LumaraSubscriptionStatus> {
                     children: [
                       const Text('Monthly', style: TextStyle(fontWeight: FontWeight.bold)),
                       const SizedBox(height: 4),
-                      const Text('\$30/month'),
+                      const Text('\$20/month'),
                       ElevatedButton(
                         onPressed: () {
                           Navigator.of(context).pop();

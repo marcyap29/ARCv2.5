@@ -37,7 +37,7 @@ class _PricingSelectorState extends State<PricingSelector> {
 
         _buildSectionTitle('Premium'),
         const SizedBox(height: 8),
-        _buildParagraph('Monthly: \$30/month\nFull access. Cancel anytime.\n\nAnnual: \$200/year\n\$16.67/month. Save \$160.'),
+        _buildParagraph('Monthly: \$20/month\nFull access. Cancel anytime.\n\nAnnual: \$200/year\n\$16.67/month. Save \$40.'),
         const SizedBox(height: 16),
 
         // Toggle switch
@@ -53,9 +53,9 @@ class _PricingSelectorState extends State<PricingSelector> {
             children: [
               Expanded(
                 child: _buildToggleOption(
-                  label: 'Monthly\n\$30/mo',
+                  label: 'Monthly\n\$20/mo',
                   interval: BillingInterval.monthly,
-                  badge: 'Save \$160',
+                  badge: 'Save \$40',
                 ),
               ),
               Expanded(
@@ -76,14 +76,14 @@ class _PricingSelectorState extends State<PricingSelector> {
           duration: const Duration(milliseconds: 200),
           child: _selectedInterval == BillingInterval.monthly
               ? _buildPriceCard(
-                  price: '\$30',
+                  price: '\$20',
                   period: '/month',
                   description: 'Full access. Cancel anytime.',
                 )
               : _buildPriceCard(
                   price: '\$200',
                   period: '/year',
-                  description: '\$16.67/month • Save \$160',
+                  description: '\$16.67/month • Save \$40',
                   highlighted: true,
                 ),
         ),
@@ -120,7 +120,7 @@ class _PricingSelectorState extends State<PricingSelector> {
             child: Text(
               _selectedInterval == BillingInterval.annual
                   ? 'Continue with Annual (\$200/year)'
-                  : 'Continue with Monthly (\$30/month)',
+                  : 'Continue with Monthly (\$20/month)',
               style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
             ),
           ),

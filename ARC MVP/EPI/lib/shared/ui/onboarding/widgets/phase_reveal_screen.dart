@@ -173,6 +173,19 @@ class _PhaseRevealScreenState extends State<PhaseRevealScreen>
                                 ),
                                 const SizedBox(height: 16),
 
+                                // Phase evolution explanation
+                                Text(
+                                  "This is your starting assessment. As you journal, ARC refines your phase based on sustained patterns, not single entries.",
+                                  style: bodyStyle(context).copyWith(
+                                    color: Colors.white.withOpacity(0.85),
+                                    fontSize: 15,
+                                    height: 1.5,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                                const SizedBox(height: 16),
+
                                 Text(
                                   "Your phase constellation will fill with words and patterns as we talk. This is how ARC visualizes your narrative structure over time.",
                                   style: bodyStyle(context).copyWith(
