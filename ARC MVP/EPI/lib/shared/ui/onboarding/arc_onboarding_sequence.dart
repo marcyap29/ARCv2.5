@@ -9,6 +9,7 @@ import 'package:my_app/shared/ui/home/home_view.dart';
 import 'arc_onboarding_cubit.dart';
 import 'arc_onboarding_state.dart';
 import 'widgets/lumara_pulsing_symbol.dart';
+import 'widgets/phase_explanation_screen.dart';
 import 'widgets/phase_quiz_screen.dart';
 import 'widgets/phase_analysis_screen.dart';
 import 'widgets/phase_reveal_screen.dart';
@@ -70,6 +71,10 @@ class ArcOnboardingSequenceContent extends StatelessWidget {
               currentScreen = const _SentinelIntroScreen();
               screenKey = 'sentinel_intro';
               break;
+            case OnboardingScreen.phaseExplanation:
+              currentScreen = const PhaseExplanationScreen();
+              screenKey = 'phase_explanation';
+              break;
             case OnboardingScreen.phaseQuiz:
               currentScreen = const PhaseQuizScreen();
               screenKey = 'phase_quiz';
@@ -95,7 +100,8 @@ class ArcOnboardingSequenceContent extends StatelessWidget {
           if (state.currentScreen == OnboardingScreen.lumaraIntro ||
               state.currentScreen == OnboardingScreen.arcIntro ||
               state.currentScreen == OnboardingScreen.narrativeIntelligence ||
-              state.currentScreen == OnboardingScreen.sentinelIntro) {
+              state.currentScreen == OnboardingScreen.sentinelIntro ||
+              state.currentScreen == OnboardingScreen.phaseExplanation) {
             return AnimatedSwitcher(
               duration: const Duration(milliseconds: 1600),
               switchInCurve: const Cubic(0.25, 0.1, 0.25, 1.0), // Custom eased curve
@@ -381,12 +387,12 @@ class _SentinelIntroScreen extends StatelessWidget {
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 48),
-                // Primary button: Start Phase Quiz
+                // Primary button: Continue to Phase Explanation
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
                     onPressed: () {
-                      context.read<ArcOnboardingCubit>().startPhaseQuiz();
+                      context.read<ArcOnboardingCubit>().nextScreen();
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: kcPrimaryColor,
@@ -400,7 +406,7 @@ class _SentinelIntroScreen extends StatelessWidget {
                       ),
                     ),
                     child: Text(
-                      'Start Phase Quiz',
+                      'Continue',
                       style: buttonStyle(context).copyWith(
                         color: Colors.white,
                         fontWeight: FontWeight.w600,

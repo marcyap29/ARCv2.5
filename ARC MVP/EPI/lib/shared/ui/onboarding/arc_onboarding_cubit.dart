@@ -38,7 +38,10 @@ class ArcOnboardingCubit extends Cubit<ArcOnboardingState> {
         next = OnboardingScreen.sentinelIntro;
         break;
       case OnboardingScreen.sentinelIntro:
-        // SENTINEL screen doesn't use nextScreen - uses startPhaseQuiz or skipToMainPage
+        next = OnboardingScreen.phaseExplanation;
+        break;
+      case OnboardingScreen.phaseExplanation:
+        // Phase explanation screen doesn't use nextScreen - uses startPhaseQuiz or skipToMainPage
         return;
       case OnboardingScreen.phaseQuiz:
       case OnboardingScreen.phaseAnalysis:
