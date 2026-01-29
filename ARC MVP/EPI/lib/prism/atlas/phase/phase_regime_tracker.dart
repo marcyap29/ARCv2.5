@@ -28,6 +28,9 @@ class PhaseRegimeTracker {
   /// This wraps PhaseTracker.updatePhaseScores() and creates regimes
   /// when a phase change is approved.
   /// 
+  /// Optionally pass [operationalReadinessScore] and [healthData] so Health & Readiness
+  /// views (Rating History, Phase Transitions, Health Correlation) can display data.
+  /// 
   /// Returns the PhaseTrackingResult and the created/updated regime (if any)
   Future<PhaseRegimeUpdateResult> updatePhaseScoresAndRegimes({
     required Map<String, double> phaseScores,
@@ -36,14 +39,18 @@ class PhaseRegimeTracker {
     required String reason,
     required String text,
     List<String>? contributingEntryIds,
+    int? operationalReadinessScore,
+    Map<String, dynamic>? healthData,
   }) async {
-    // Update phase tracking
+    // Update phase tracking (with optional readiness and health for biometric UI)
     final result = await _phaseTracker.updatePhaseScores(
       phaseScores: phaseScores,
       journalEntryId: journalEntryId,
       emotion: emotion,
       reason: reason,
       text: text,
+      operationalReadinessScore: operationalReadinessScore,
+      healthData: healthData,
     );
 
     PhaseRegime? createdRegime;

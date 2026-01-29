@@ -518,6 +518,8 @@ class LumaraControlStateBuilder {
       final settingsService = LumaraReflectionSettingsService.instance;
       final engagementSettings = await settingsService.getEngagementSettings();
       final activeMode = engagementSettings.activeMode;
+      // Therapeutic language derived from Therapy Mode only (no separate toggle)
+      final therapeuticEnabled = await settingsService.isTherapeuticPresenceEnabled();
 
       // Build simplified engagement control state using derived properties
       engagement.addAll({
@@ -533,8 +535,8 @@ class LumaraControlStateBuilder {
           'health_emotional': engagementSettings.allowCrossDomainSynthesis,
           'creative_intellectual': engagementSettings.allowCrossDomainSynthesis,
         },
-        'allow_therapeutic_language': engagementSettings.responseDiscipline.allowTherapeuticLanguage,
-        'allow_prescriptive_guidance': engagementSettings.responseDiscipline.allowPrescriptiveGuidance,
+        'allow_therapeutic_language': therapeuticEnabled,
+        'allow_prescriptive_guidance': therapeuticEnabled,
         'response_length': engagementSettings.responseDiscipline.preferredLength.toString(),
         'synthesis_depth': engagementSettings.synthesisPreferences.synthesisDepth.toString(),
         'protected_domains': engagementSettings.synthesisPreferences.protectedDomains,

@@ -224,5 +224,56 @@ void main() {
       await PhaseHistoryRepository.clearAll();
       expect(await PhaseHistoryRepository.getEntryCount(), equals(0));
     });
+
+    test('PhaseHistoryRepository should update entry readiness and health (backfill)', () async {
+      await PhaseHistoryRepository.clearAll();
+
+      final entryWithoutReadiness = PhaseHistoryEntry(
+        id: 'backfill-1',
+        timestamp: DateTime(2024, 1, 5),
+        phaseScores: {'Discovery': 0.7, 'Expansion': 0.2, 'Transition': 0.1, 'Consolidation': 0.2, 'Recovery': 0.1, 'Breakthrough': 0.1},
+        journalEntryId: 'journal-backfill',
+        emotion: 'calm',
+        reason: 'reflection',
+        text: 'Feeling steady today',
+      );
+      await PhaseHistoryRepository.addEntry(entryWithoutReadiness);
+
+      final entriesBefore = await PhaseHistoryRepository.getAllEntries();
+      expect(entriesBefore.length, equals(1));
+      expect(entriesBefore.first.operationalReadinessScore, isNull);
+      expect(entriesBefore.first.healthData, isNull);
+
+      const score = 72;
+      final healthData = {'sleepQuality': 0.8, 'energyLevel': 0.75};
+      await PhaseHistoryRepository.updateEntryReadinessAndHealth(
+        'backfill-1',
+        score,
+        healthData,
+      );
+
+      final entriesAfter = await PhaseHistoryRepository.getAllEntries();
+      expect(entriesAfter.length, equals(1));
+      expect(entriesAfter.first.operationalReadinessScore, equals(score));
+      expect(entriesAfter.first.healthData, equals(healthData));
+      expect(entriesAfter.first.text, equals('Feeling steady today'));
+      expect(entriesAfter.first.phaseScores, equals(entryWithoutReadiness.phaseScores));
+    });
+
+    test('PhaseHistoryRepository updateEntryReadinessAndHealth is no-op for missing id', () async {
+      await PhaseHistoryRepository.clearAll();
+      await PhaseHistoryRepository.addEntry(testEntry1);
+
+      await PhaseHistoryRepository.updateEntryReadinessAndHealth(
+        'non-existent-id',
+        85,
+        {'sleepQuality': 0.9},
+      );
+
+      final entries = await PhaseHistoryRepository.getAllEntries();
+      expect(entries.length, equals(1));
+      expect(entries.first.id, equals(testEntry1.id));
+      expect(entries.first.operationalReadinessScore, isNull);
+    });
   });
 }

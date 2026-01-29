@@ -41,6 +41,8 @@ import 'package:my_app/models/phase_models.dart';
 import 'package:my_app/prism/atlas/phase/phase_inference_service.dart';
 import 'package:my_app/prism/atlas/phase/phase_regime_tracker.dart';
 import 'package:my_app/prism/atlas/phase/phase_scoring.dart';
+import 'package:my_app/services/health_data_service.dart';
+import 'package:my_app/services/phase_aware_analysis_service.dart';
 import 'package:my_app/arc/chat/services/enhanced_lumara_api.dart';
 import 'package:my_app/arc/chat/models/lumara_reflection_options.dart' as lumara_models;
 import 'package:my_app/services/assemblyai_service.dart';
@@ -1723,13 +1725,31 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
       print('DEBUG: Phase Stability Analysis - Entry: ${entry.id}');
       print('DEBUG: Phase scores: ${PhaseScoring.getScoringSummary(phaseScores)}');
       
-      // Update phase tracking and regimes
+      // Get health data and readiness score for Health & Readiness views (Rating History, Phase Transitions, Health Correlation)
+      int? operationalReadinessScore;
+      Map<String, dynamic>? healthDataMap;
+      try {
+        final healthData = await HealthDataService.instance.getEffectiveHealthData();
+        final phaseService = PhaseAwareAnalysisService();
+        final context = await phaseService.analyzePhase(
+          entry.content,
+          healthData: healthData,
+        );
+        operationalReadinessScore = context.operationalReadinessScore;
+        healthDataMap = context.healthData?.toJson();
+      } catch (e) {
+        print('DEBUG: Phase readiness/health snapshot skipped: $e');
+      }
+      
+      // Update phase tracking and regimes (with optional readiness and health for biometric UI)
       final result = await phaseRegimeTracker.updatePhaseScoresAndRegimes(
         phaseScores: phaseScores,
         journalEntryId: entry.id,
         emotion: emotion ?? '',
         reason: emotionReason ?? '',
         text: entry.content,
+        operationalReadinessScore: operationalReadinessScore,
+        healthData: healthDataMap,
       );
       
       print('DEBUG: Phase tracking result: ${result.phaseTrackingResult.reason}');

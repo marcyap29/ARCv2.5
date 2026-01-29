@@ -207,7 +207,7 @@ exports.proxyGemini = onCall(
 
       const genAI = new GoogleGenerativeAI(apiKey);
       const model = genAI.getGenerativeModel({
-        model: "gemini-2.0-flash-exp",
+        model: "gemini-3-flash-preview",
         tools: [{ googleSearch: {} }], // Enable Google Search for internet access
         generationConfig: jsonExpected
           ? { responseMimeType: "application/json" }
@@ -865,11 +865,10 @@ async function handlePaymentFailed(invoice) {
 /**
  * Health check function
  */
+// invoker left default (private) so deploy works without roles/functions.admin.
+// To allow public access: Cloud Console → Functions → healthCheck → Permissions → Add principal "allUsers" → Cloud Functions Invoker
 exports.healthCheck = onRequest(
-  {
-    cors: true,
-    invoker: "public", // Anyone can access health check
-  },
+  { cors: true },
   async (req, res) => {
     res.json({
       status: 'healthy',

@@ -22,7 +22,6 @@ import 'package:my_app/insights/widgets/aurora_card.dart';
 import 'package:my_app/insights/widgets/veil_card.dart';
 import 'package:my_app/ui/veil/veil_policy_card.dart';
 import 'package:my_app/ui/phase/sentinel_analysis_view.dart';
-import 'package:my_app/arc/ui/health/health_view.dart';
 import 'dart:math' as math;
 
 class CombinedAnalysisView extends StatefulWidget {
@@ -68,11 +67,6 @@ class _CombinedAnalysisViewState extends State<CombinedAnalysisView> {
       title: 'SENTINEL',
       icon: Icons.shield,
       subtitle: 'Emotional risk detection',
-    ),
-    _AnalysisTab(
-      title: 'Medical',
-      icon: Icons.medical_services,
-      subtitle: 'Health data tracking',
     ),
   ];
 
@@ -210,7 +204,6 @@ class _CombinedAnalysisViewState extends State<CombinedAnalysisView> {
                 _buildAuroraTab(),
                 _buildVeilTab(),
                 _buildSentinelTab(),
-                _buildMedicalTab(),
               ],
             ),
           ),
@@ -704,13 +697,6 @@ class _CombinedAnalysisViewState extends State<CombinedAnalysisView> {
         ],
       ),
     );
-  }
-
-  // ============================================================
-  // Medical Tab
-  // ============================================================
-  Widget _buildMedicalTab() {
-    return const HealthView();
   }
 
   // ============================================================

@@ -1,9 +1,7 @@
 import 'dart:convert';
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:my_app/arc/health/apple_health_service.dart';
-import 'package:my_app/ui/health/health_detail_screen.dart';
-import 'package:path_provider/path_provider.dart';
+import 'package:my_app/mira/store/mcp/mcp_fs.dart';
 
 class HealthDetailView extends StatelessWidget {
   final Map<String, dynamic> pointerJson;
@@ -36,13 +34,6 @@ class HealthSummaryBody extends StatefulWidget {
 class _HealthSummaryBodyState extends State<HealthSummaryBody> with WidgetsBindingObserver, RefreshableHealthSummary {
   Map<String, dynamic>? _importedSummary;
   bool _loadingSummary = true;
-
-  String _currentMonthKeyUtc() {
-    // Use local time for month key calculation - user's timezone
-    final now = DateTime.now();
-    return '${now.year}-${now.month.toString().padLeft(2, '0')}';
-  }
-
 
   @override
   void initState() {
@@ -119,10 +110,9 @@ class _HealthSummaryBodyState extends State<HealthSummaryBody> with WidgetsBindi
       debugPrint('🔍 Health Detail Debug - Date range (UTC): ${startUtc.toIso8601String()}Z to ${nowUtc.toIso8601String()}Z');
 
       final days = <Map<String, dynamic>>[];
-      final appDir = await getApplicationDocumentsDirectory();
       
       for (final monthKey in monthsToCheck) {
-        final file = File('${appDir.path}/mcp/streams/health/$monthKey.jsonl');
+        final file = await McpFs.healthMonth(monthKey);
         debugPrint('🔍 Health Detail Debug - Looking for file: ${file.path}');
 
         if (!await file.exists()) {
@@ -163,11 +153,40 @@ class _HealthSummaryBodyState extends State<HealthSummaryBody> with WidgetsBindi
       debugPrint('🔍 Health Detail Debug - Found ${days.length} valid health day objects');
 
       if (days.isEmpty) {
-        debugPrint('❌ Health Detail Debug - NO valid health days found after filtering!');
-        setState(() {
-          _importedSummary = null;
-          _loadingSummary = false;
-        });
+        debugPrint('❌ Health Detail Debug - NO valid health days in MCP stream; trying Apple Health fallback.');
+        // Fallback: build summary from Apple Health when MCP stream has no data
+        try {
+          final appleData = await AppleHealthService.instance.fetchBasicSummary();
+          if (appleData.isNotEmpty && mounted) {
+            final steps = appleData['steps7d']?.round() ?? 0;
+            final avgHr = appleData['avgHR']?.toDouble();
+            setState(() {
+              _importedSummary = {
+                'days_count': 7,
+                'total_steps': steps,
+                'avg_active_energy': null,
+                'avg_basal_energy': null,
+                'total_exercise_min': null,
+                'avg_sleep_min': null,
+                'workout_count': 0,
+                'avg_resting_hr': avgHr,
+                'avg_hr': avgHr,
+                'avg_hrv': null,
+                '_source': 'apple_health',
+              };
+              _loadingSummary = false;
+            });
+            return;
+          }
+        } catch (e) {
+          debugPrint('Apple Health fallback failed: $e');
+        }
+        if (mounted) {
+          setState(() {
+            _importedSummary = null;
+            _loadingSummary = false;
+          });
+        }
         return;
       }
 

@@ -30,6 +30,7 @@ import 'package:my_app/services/firebase_auth_service.dart';
 import 'package:my_app/services/scheduled_local_backup_service.dart';
 import 'package:my_app/services/local_backup_settings_service.dart';
 import 'package:my_app/services/health_data_refresh_service.dart';
+import 'package:my_app/services/phase_history_readiness_backfill_service.dart';
 import 'package:my_app/arc/core/journal_repository.dart';
 import 'package:my_app/arc/chat/chat/chat_repo_impl.dart';
 import 'package:my_app/services/phase_regime_service.dart';
@@ -427,6 +428,13 @@ Future<void> bootstrap({
       // Ensure runApp is called in the correct zone
       final app = await builder();
       runApp(app);
+
+      // One-time backfill of phase history with readiness/health (after crash/restore or upgrade)
+      if (hiveInitialized) {
+        Future.delayed(const Duration(seconds: 2), () async {
+          await runPhaseHistoryReadinessBackfillIfNeeded();
+        });
+      }
       } catch (e, stackTrace) {
         logger.e('Error during bootstrap initialization', e, stackTrace);
         // Don't call runApp from error handler to avoid zone issues

@@ -86,6 +86,13 @@ class VoiceSessionService {
   DateTime? _turnStartTime;
   bool _isProcessingTranscript = false; // Guard against double processing
   bool _usingOnDeviceFallback = false; // Track if using Apple On-Device fallback
+
+  /// User-selected engagement mode override for voice (null = use classifier)
+  EngagementMode? _engagementModeOverride;
+  EngagementMode? get engagementModeOverride => _engagementModeOverride;
+  void setEngagementModeOverride(EngagementMode? mode) {
+    _engagementModeOverride = mode;
+  }
   
   // Callbacks
   OnSessionStateChanged? onStateChanged;
@@ -446,10 +453,10 @@ class VoiceSessionService {
       
       // =========================================================
       // THREE-TIER VOICE MODE ROUTING (matches written mode)
-      // Classify engagement: Reflect (default), Explore (when asked), Integrate (when asked)
+      // Use user override if set, else classify from transcript
       // =========================================================
       final depthResult = EntryClassifier.classifyVoiceDepth(prismResult.scrubbedText);
-      final engagementMode = depthResult.depth; // Uses EngagementMode enum
+      final engagementMode = _engagementModeOverride ?? depthResult.depth;
       
       // Classify what the user is seeking (validation, exploration, direction, reflection)
       final seekingResult = EntryClassifier.classifySeeking(prismResult.scrubbedText);

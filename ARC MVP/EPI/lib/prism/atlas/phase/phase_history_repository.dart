@@ -111,6 +111,31 @@ class PhaseHistoryRepository {
     await _box!.put(entry.id, entry.toJson());
   }
 
+  /// Update an existing entry's operationalReadinessScore and healthData (e.g. for backfill).
+  /// No-op if the entry does not exist.
+  static Future<void> updateEntryReadinessAndHealth(
+    String entryId,
+    int operationalReadinessScore,
+    Map<String, dynamic>? healthData,
+  ) async {
+    await _ensureBoxOpen();
+    final json = _box!.get(entryId);
+    if (json == null) return;
+    final existing = PhaseHistoryEntry.fromJson(Map<String, dynamic>.from(json));
+    final updated = PhaseHistoryEntry(
+      id: existing.id,
+      timestamp: existing.timestamp,
+      phaseScores: existing.phaseScores,
+      journalEntryId: existing.journalEntryId,
+      emotion: existing.emotion,
+      reason: existing.reason,
+      text: existing.text,
+      operationalReadinessScore: operationalReadinessScore,
+      healthData: healthData,
+    );
+    await _box!.put(entryId, updated.toJson());
+  }
+
   /// Get all phase history entries, sorted by timestamp (oldest first)
   static Future<List<PhaseHistoryEntry>> getAllEntries() async {
     await _ensureBoxOpen();

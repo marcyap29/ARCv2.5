@@ -699,8 +699,6 @@ class _SettingsViewState extends State<SettingsView> {
                 _buildEngagementModeCard(),
                 // Cross-Domain Synthesis Toggle
                 _buildCrossDomainSynthesisToggle(),
-                // Therapeutic Language Toggle
-                _buildTherapeuticLanguageToggle(),
                 // Include Media Toggle
                 _buildIncludeMediaToggle(),
                 // Therapeutic Depth Slider
@@ -1271,65 +1269,6 @@ class _SettingsViewState extends State<SettingsView> {
       print('Error setting cross-domain synthesis: $e');
     }
   }
-
-  /// Build Therapeutic Language toggle
-  Widget _buildTherapeuticLanguageToggle() {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
-      ),
-      child: SwitchListTile(
-        title: Text(
-          'Therapeutic Language',
-          style: heading3Style(context).copyWith(
-            color: kcPrimaryTextColor,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-        subtitle: Text(
-          'Allow therapy-style phrasing and direct advice',
-          style: bodyStyle(context).copyWith(
-            color: kcSecondaryTextColor,
-          ),
-        ),
-        value: _engagementSettings.responseDiscipline.allowTherapeuticLanguage,
-        onChanged: _engagementSettingsLoading
-            ? null
-            : (value) => _setTherapeuticLanguage(value),
-        secondary: Icon(
-          Icons.healing,
-          color: kcAccentColor,
-          size: 24,
-        ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      ),
-    );
-  }
-
-  Future<void> _setTherapeuticLanguage(bool value) async {
-    try {
-      final settingsService = LumaraReflectionSettingsService.instance;
-      final updated = _engagementSettings.copyWith(
-        responseDiscipline: _engagementSettings.responseDiscipline.copyWith(
-          allowTherapeuticLanguage: value,
-        ),
-      );
-      await settingsService.saveAllSettingsWithEngagement(
-        engagementSettings: updated,
-      );
-      if (mounted) {
-        setState(() {
-          _engagementSettings = updated;
-        });
-      }
-    } catch (e) {
-      print('Error setting therapeutic language: $e');
-    }
-  }
-
 
   /// Build a persona option radio tile
   Widget _buildPersonaOption(LumaraPersona persona) {

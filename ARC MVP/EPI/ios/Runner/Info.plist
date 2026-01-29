@@ -63,7 +63,9 @@
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>This app needs access to your location to automatically set the location for your journal entries.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string></string>
+	<string>ARC needs access to your microphone to record voice notes and audio for your journal entries.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>ARC uses speech recognition to transcribe your voice notes and audio recordings into text for your journal entries.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>This app needs permission to save photos to your photo library for persistent storage.</string>
 	<key>NSPhotoLibraryUsageDescription</key>

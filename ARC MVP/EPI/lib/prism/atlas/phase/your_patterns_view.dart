@@ -1,12 +1,11 @@
 // lib/features/insights/your_patterns_view.dart
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
-import 'package:graphview/GraphView.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:my_app/arc/core/journal_repository.dart';
 import 'package:my_app/services/patterns_data_service.dart';
 
-enum PatternsView { wordCloud, network, timeline, radial }
+enum PatternsView { wordCloud, mindMap, timeline }
 
 class KeywordNode {
   final String id;
@@ -46,7 +45,7 @@ class YourPatternsView extends StatefulWidget {
 }
 
 class _YourPatternsViewState extends State<YourPatternsView> {
-  PatternsView current = PatternsView.network;
+  PatternsView current = PatternsView.wordCloud;
 
   // Filters
   String? emotionFilter; // null = all
@@ -181,9 +180,9 @@ class _YourPatternsViewState extends State<YourPatternsView> {
           nodes: filteredNodes,
           onTap: _showDetails,
         );
-      case PatternsView.network:
-        return NetworkGraphForceView(
-          key: const ValueKey('network'),
+      case PatternsView.mindMap:
+        return MindMapView(
+          key: const ValueKey('mindMap'),
           nodes: filteredNodes,
           edges: filteredEdges,
           onTapNode: _showDetails,
@@ -191,12 +190,6 @@ class _YourPatternsViewState extends State<YourPatternsView> {
       case PatternsView.timeline:
         return PatternsTimelineView(
           key: const ValueKey('timeline'),
-          nodes: filteredNodes,
-          onTap: _showDetails,
-        );
-      case PatternsView.radial:
-        return RadialView(
-          key: const ValueKey('radial'),
           nodes: filteredNodes,
           onTap: _showDetails,
         );
@@ -319,9 +312,8 @@ class _ViewSwitcher extends StatelessWidget {
     return SegmentedButton<PatternsView>(
       segments: const [
         ButtonSegment(value: PatternsView.wordCloud, label: Text('Word Cloud'), icon: Icon(Icons.cloud)),
-        ButtonSegment(value: PatternsView.network,   label: Text('Network'),    icon: Icon(Icons.hub)),
+        ButtonSegment(value: PatternsView.mindMap,   label: Text('Mind map'),   icon: Icon(Icons.account_tree)),
         ButtonSegment(value: PatternsView.timeline,  label: Text('Timeline'),   icon: Icon(Icons.timeline)),
-        ButtonSegment(value: PatternsView.radial,    label: Text('Radial'),     icon: Icon(Icons.radar)),
       ],
       selected: {current},
       onSelectionChanged: (set) => onChanged(set.first),
@@ -452,367 +444,199 @@ class WordCloudView extends StatelessWidget {
   }
 }
 
-/// NETWORK GRAPH FORCE LAYOUT with curved edges and enhanced visuals
-class NetworkGraphForceView extends StatefulWidget {
-  const NetworkGraphForceView({super.key, required this.nodes, required this.edges, required this.onTapNode});
+/// MIND MAP: pick a word from list, show center + associated words (from edges), tap branch to re-center.
+class MindMapView extends StatefulWidget {
+  const MindMapView({
+    super.key,
+    required this.nodes,
+    required this.edges,
+    required this.onTapNode,
+  });
   final List<KeywordNode> nodes;
   final List<KeywordEdge> edges;
   final ValueChanged<KeywordNode> onTapNode;
 
   @override
-  State<NetworkGraphForceView> createState() => _NetworkGraphForceViewState();
+  State<MindMapView> createState() => _MindMapViewState();
 }
 
-class _NetworkGraphForceViewState extends State<NetworkGraphForceView> {
-  late Graph graph;
-  late SugiyamaConfiguration builder;
-  String? selectedNodeId;
-  Map<String, Offset> nodePositions = {};
-  final GlobalKey _graphViewKey = GlobalKey();
+class _MindMapViewState extends State<MindMapView> {
+  static const int _maxBranches = 20;
+  String? _centerId;
 
-  @override
-  void initState() {
-    super.initState();
-    _buildGraph();
+  KeywordNode? get _centerNode {
+    if (_centerId == null) return null;
+    try {
+      return widget.nodes.firstWhere((n) => n.id == _centerId);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Neighbors of center from edges, sorted by weight descending, capped at _maxBranches.
+  List<KeywordNode> get _branchNodes {
+    final center = _centerNode;
+    if (center == null) return [];
+    final branchIds = <String, double>{};
+    for (final e in widget.edges) {
+      if (e.a == center.id) branchIds[e.b] = e.weight;
+      if (e.b == center.id) branchIds[e.a] = e.weight;
+    }
+    final sorted = branchIds.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    final ids = sorted.take(_maxBranches).map((e) => e.key).toSet();
+    return widget.nodes.where((n) => ids.contains(n.id)).toList();
   }
 
   @override
-  void didUpdateWidget(NetworkGraphForceView oldWidget) {
+  void didUpdateWidget(MindMapView oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.nodes != widget.nodes || oldWidget.edges != widget.edges) {
-      _buildGraph();
-    }
-  }
-
-  void _buildGraph() {
-    graph = Graph();
-
-    // Create graphview nodes from KeywordNode data
-    final nodeMap = <String, Node>{};
-    for (final kNode in widget.nodes) {
-      final gNode = Node.Id(kNode.id);
-      nodeMap[kNode.id] = gNode;
-      graph.addNode(gNode);
-    }
-
-    // Create edges with weights
-    for (final kEdge in widget.edges) {
-      final nodeA = nodeMap[kEdge.a];
-      final nodeB = nodeMap[kEdge.b];
-      if (nodeA != null && nodeB != null) {
-        graph.addEdge(nodeA, nodeB);
+      if (_centerId != null && !widget.nodes.any((n) => n.id == _centerId)) {
+        setState(() => _centerId = null);
       }
     }
-
-    // Configure force-directed layout
-    builder = SugiyamaConfiguration()
-      ..bendPointShape = CurvedBendPointShape(curveLength: 10)
-      ..orientation = SugiyamaConfiguration.ORIENTATION_TOP_BOTTOM;
   }
 
   @override
   Widget build(BuildContext context) {
-    if (widget.nodes.isEmpty) {
-      return const Center(child: Text('No network data available'));
+    if (widget.nodes.isEmpty) return const Center(child: Text('No data'));
+
+    final center = _centerNode ?? widget.nodes.first;
+    final centerId = _centerId ?? center.id;
+    if (_centerId == null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) setState(() => _centerId = centerId);
+      });
     }
 
-    return InteractiveViewer(
-      constrained: false,
-      boundaryMargin: const EdgeInsets.all(100),
-      minScale: 0.01,
-      maxScale: 5.6,
-      child: Stack(
-        children: [
-          // Base GraphView for layout calculation
-          GraphView(
-            key: _graphViewKey,
-            graph: graph,
-            algorithm: FruchtermanReingoldAlgorithm(iterations: 1000),
-            paint: Paint()
-              ..color = Colors.transparent
-              ..strokeWidth = 0
-              ..style = PaintingStyle.stroke,
-            builder: (Node node) {
-              // Find corresponding KeywordNode
-              final kNode = widget.nodes.firstWhere(
-                (n) => n.id == node.key!.value,
-                orElse: () => widget.nodes.first,
-              );
+    final branches = _branchNodes;
+    final wordList = [...widget.nodes]..sort((a, b) => b.frequency.compareTo(a.frequency));
 
-              final size = 32.0 + (kNode.frequency.clamp(0, 50) / 50.0) * 24.0;
-              final color = _emotionColor(kNode.emotion);
-              final isSelected = selectedNodeId == kNode.id;
-              final isNeighbor = selectedNodeId != null &&
-                widget.edges.any((e) =>
-                  (e.a == selectedNodeId && e.b == kNode.id) ||
-                  (e.b == selectedNodeId && e.a == kNode.id)
-                );
-
-              // Store position for curved edge rendering
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                final RenderBox? renderBox = context.findRenderObject() as RenderBox?;
-                if (renderBox != null) {
-                  final position = renderBox.localToGlobal(Offset.zero);
-                  setState(() {
-                    nodePositions[kNode.id] = position;
-                  });
-                }
-              });
-
-              return GestureDetector(
-                onTap: () {
-                  setState(() {
-                    selectedNodeId = selectedNodeId == kNode.id ? null : kNode.id;
-                  });
-                  widget.onTapNode(kNode);
-                },
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: color,
-                    borderRadius: BorderRadius.circular(size / 2),
-                    boxShadow: [
-                      BoxShadow(
-                        color: color.withOpacity(isSelected ? 1.0 : 0.6),
-                        blurRadius: isSelected ? 12 : 8,
-                        spreadRadius: isSelected ? 4 : 2,
-                      ),
-                    ],
-                  ),
-                  child: Opacity(
-                    opacity: selectedNodeId == null || isSelected || isNeighbor ? 1.0 : 0.3,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        // Phase icon overlay
-                        Stack(
-                          alignment: Alignment.center,
-                          children: [
-                            Container(
-                              width: size,
-                              height: size,
-                              decoration: BoxDecoration(
-                                color: color,
-                                shape: BoxShape.circle,
-                                border: isSelected
-                                  ? Border.all(color: Colors.white, width: 3)
-                                  : null,
-                              ),
-                            ),
-                            Icon(
-                              _phaseIcon(kNode.phase),
-                              color: Colors.white,
-                              size: size * 0.4,
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 4),
-                        ConstrainedBox(
-                          constraints: const BoxConstraints(maxWidth: 80),
-                          child: Text(
-                            kNode.label,
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: isSelected ? 11 : 10,
-                              fontWeight: isSelected ? FontWeight.w800 : FontWeight.bold,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          child: Text('Pick a word:', style: Theme.of(context).textTheme.labelLarge),
+        ),
+        SizedBox(
+          height: 44,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            itemCount: wordList.length,
+            itemBuilder: (_, i) {
+              final n = wordList[i];
+              final selected = n.id == _centerId;
+              return Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: FilterChip(
+                  label: Text(n.label),
+                  selected: selected,
+                  onSelected: (_) => setState(() => _centerId = n.id),
                 ),
               );
             },
           ),
-          // Curved edges overlay
-          Positioned.fill(
-            child: IgnorePointer(
-              child: CustomPaint(
-                painter: CurvedEdgesPainter(
-                  nodes: widget.nodes,
-                  edges: widget.edges,
-                  nodePositions: nodePositions,
-                  selectedNodeId: selectedNodeId,
-                ),
-              ),
-            ),
+        ),
+        const Divider(height: 1),
+        Expanded(
+          child: LayoutBuilder(
+            builder: (_, constraints) {
+              final centerPos = Offset(constraints.maxWidth / 2, constraints.maxHeight / 2);
+              return Stack(
+                fit: StackFit.expand,
+                children: [
+                  CustomPaint(
+                    painter: _MindMapLinesPainter(
+                      center: centerPos,
+                      centerNode: center,
+                      branchNodes: branches,
+                      edges: widget.edges,
+                      centerId: center.id,
+                    ),
+                  ),
+                  Positioned(
+                    left: centerPos.dx - 28,
+                    top: centerPos.dy - 28,
+                    child: GestureDetector(
+                      onTap: () => widget.onTapNode(center),
+                      child: _GlowDot(label: center.label, size: 56, color: _emotionColor(center.emotion)),
+                    ),
+                  ),
+                  ...branches.asMap().entries.map((e) {
+                    final idx = e.key;
+                    final n = e.value;
+                    final pos = _ringPosition(idx, branches.length, constraints.biggest, radiusFactor: 0.42);
+                    return Positioned(
+                      left: pos.dx - 18,
+                      top: pos.dy - 18,
+                      child: GestureDetector(
+                        onTap: () {
+                          setState(() => _centerId = n.id);
+                          widget.onTapNode(n);
+                        },
+                        child: _GlowDot(label: n.label, size: 36, color: _emotionColor(n.emotion)),
+                      ),
+                    );
+                  }),
+                ],
+              );
+            },
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
-  IconData _phaseIcon(String phase) {
-    switch (phase) {
-      case 'Discovery': return Icons.explore;
-      case 'Expansion': return Icons.trending_up;
-      case 'Transition': return Icons.swap_horiz;
-      case 'Consolidation': return Icons.compress;
-      case 'Recovery': return Icons.healing;
-      case 'Breakthrough': return Icons.lightbulb;
-      default: return Icons.circle;
-    }
+  Offset _ringPosition(int i, int total, Size size, {double radiusFactor = 0.42}) {
+    final r = size.shortestSide * radiusFactor;
+    final angle = (i / total) * 3.14159 * 2;
+    final cx = size.width / 2;
+    final cy = size.height / 2;
+    return Offset(cx + r * MathHelper.cos(angle), cy + r * MathHelper.sin(angle));
   }
 }
 
-/// Custom painter for curved edges with Bezier curves and arrowheads
-class CurvedEdgesPainter extends CustomPainter {
-  final List<KeywordNode> nodes;
-  final List<KeywordEdge> edges;
-  final Map<String, Offset> nodePositions;
-  final String? selectedNodeId;
-
-  CurvedEdgesPainter({
-    required this.nodes,
+class _MindMapLinesPainter extends CustomPainter {
+  _MindMapLinesPainter({
+    required this.center,
+    required this.centerNode,
+    required this.branchNodes,
     required this.edges,
-    required this.nodePositions,
-    this.selectedNodeId,
+    required this.centerId,
   });
+  final Offset center;
+  final KeywordNode centerNode;
+  final List<KeywordNode> branchNodes;
+  final List<KeywordEdge> edges;
+  final String centerId;
 
   @override
   void paint(Canvas canvas, Size size) {
-    if (nodePositions.isEmpty) return;
-
-    for (final edge in edges) {
-      final posA = nodePositions[edge.a];
-      final posB = nodePositions[edge.b];
-
-      if (posA == null || posB == null) continue;
-
-      // Check if edge should be highlighted
-      final isHighlighted = selectedNodeId != null &&
-        (edge.a == selectedNodeId || edge.b == selectedNodeId);
-
-      final opacity = selectedNodeId == null || isHighlighted ?
-        (0.2 + 0.6 * edge.weight) : 0.1;
-
-      final strokeWidth = isHighlighted ?
-        (2.0 + 4.0 * edge.weight) : (1.0 + 2.0 * edge.weight);
-
-      // Create curved path with control points
-      final controlOffset = _calculateControlPoint(posA, posB, edge.weight);
-      final path = Path();
-      path.moveTo(posA.dx, posA.dy);
-      path.quadraticBezierTo(
-        controlOffset.dx, controlOffset.dy,
-        posB.dx, posB.dy,
-      );
-
-      // Draw curved edge
-      final edgePaint = Paint()
-        ..color = Colors.white.withOpacity(opacity)
-        ..strokeWidth = strokeWidth
-        ..style = PaintingStyle.stroke
-        ..strokeCap = StrokeCap.round;
-
-      canvas.drawPath(path, edgePaint);
-
-      // Draw arrowhead at the end
-      if (isHighlighted || edge.weight > 0.5) {
-        _drawArrowhead(canvas, posA, posB, controlOffset, edgePaint);
-      }
-
-      // Draw weight indicator for strong connections
-      if (edge.weight > 0.7 && isHighlighted) {
-        _drawWeightIndicator(canvas, controlOffset, edge.weight);
-      }
+    final cx = size.width / 2;
+    final cy = size.height / 2;
+    final r = size.shortestSide * 0.42;
+    for (var i = 0; i < branchNodes.length; i++) {
+      final n = branchNodes[i];
+      final angle = (i / branchNodes.length) * 3.14159 * 2;
+      final end = Offset(cx + r * MathHelper.cos(angle), cy + r * MathHelper.sin(angle));
+      final weight = edges
+          .where((e) => (e.a == centerId && e.b == n.id) || (e.b == centerId && e.a == n.id))
+          .map((e) => e.weight)
+          .fold(0.0, (a, b) => a > b ? a : b);
+      final paint = Paint()
+        ..strokeWidth = 1.0 + 2.0 * weight
+        ..color = _emotionColor(n.emotion).withOpacity(0.4 + 0.4 * weight)
+        ..style = PaintingStyle.stroke;
+      canvas.drawLine(center, end, paint);
     }
   }
 
-  Offset _calculateControlPoint(Offset start, Offset end, double weight) {
-    final midpoint = Offset(
-      (start.dx + end.dx) / 2,
-      (start.dy + end.dy) / 2,
-    );
-
-    // Calculate perpendicular offset for curve
-    final direction = end - start;
-    final perpendicular = Offset(-direction.dy, direction.dx).normalize();
-    final curveIntensity = 60 + (weight * 80); // Stronger weights = more curve
-
-    return midpoint + perpendicular * curveIntensity;
-  }
-
-  void _drawArrowhead(Canvas canvas, Offset start, Offset end, Offset control, Paint paint) {
-    // Calculate direction at the end of the curve
-    const t = 0.9; // Position along curve for arrowhead
-    final curvePoint = _bezierPoint(start, control, end, t);
-    final nextPoint = _bezierPoint(start, control, end, t + 0.05);
-    final direction = (nextPoint - curvePoint).normalize();
-
-    const arrowSize = 8.0;
-    final arrowPoint1 = curvePoint + Offset(
-      -direction.dx * arrowSize + direction.dy * arrowSize * 0.5,
-      -direction.dy * arrowSize - direction.dx * arrowSize * 0.5,
-    );
-    final arrowPoint2 = curvePoint + Offset(
-      -direction.dx * arrowSize - direction.dy * arrowSize * 0.5,
-      -direction.dy * arrowSize + direction.dx * arrowSize * 0.5,
-    );
-
-    final arrowPath = Path()
-      ..moveTo(curvePoint.dx, curvePoint.dy)
-      ..lineTo(arrowPoint1.dx, arrowPoint1.dy)
-      ..lineTo(arrowPoint2.dx, arrowPoint2.dy)
-      ..close();
-
-    canvas.drawPath(arrowPath, paint..style = PaintingStyle.fill);
-    paint.style = PaintingStyle.stroke; // Reset style
-  }
-
-  void _drawWeightIndicator(Canvas canvas, Offset position, double weight) {
-    final radius = 4 + (weight * 6);
-    final indicatorPaint = Paint()
-      ..color = Colors.yellow.withOpacity(0.8)
-      ..style = PaintingStyle.fill;
-
-    canvas.drawCircle(position, radius, indicatorPaint);
-
-    // Draw weight text
-    final textPainter = TextPainter(
-      text: TextSpan(
-        text: (weight * 100).toInt().toString(),
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 8,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-      textDirection: TextDirection.ltr,
-    );
-    textPainter.layout();
-    textPainter.paint(
-      canvas,
-      position - Offset(textPainter.width / 2, textPainter.height / 2),
-    );
-  }
-
-  Offset _bezierPoint(Offset start, Offset control, Offset end, double t) {
-    final oneMinusT = 1.0 - t;
-    return start * (oneMinusT * oneMinusT) +
-           control * (2 * oneMinusT * t) +
-           end * (t * t);
-  }
-
   @override
-  bool shouldRepaint(covariant CurvedEdgesPainter oldDelegate) {
-    return oldDelegate.nodes != nodes ||
-           oldDelegate.edges != edges ||
-           oldDelegate.nodePositions != nodePositions ||
-           oldDelegate.selectedNodeId != selectedNodeId;
-  }
-}
-
-extension on Offset {
-  Offset normalize() {
-    final magnitude = distance;
-    if (magnitude == 0) return Offset.zero;
-    return this / magnitude;
-  }
+  bool shouldRepaint(covariant _MindMapLinesPainter old) =>
+      old.center != center || old.centerId != centerId || old.branchNodes != branchNodes;
 }
 
 /// Co-occurrence matrix adapter for MIRA semantic memory integration
@@ -1101,95 +925,6 @@ class PatternsTimelineView extends StatelessWidget {
       },
     );
   }
-}
-
-/// RADIAL (central theme + spokes; pick max-frequency as center)
-class RadialView extends StatelessWidget {
-  const RadialView({super.key, required this.nodes, required this.onTap});
-  final List<KeywordNode> nodes;
-  final ValueChanged<KeywordNode> onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    if (nodes.isEmpty) return const Center(child: Text('No data'));
-    final sorted = [...nodes]..sort((a,b) => b.frequency.compareTo(a.frequency));
-    final center = sorted.first;
-    final spokes = sorted.skip(1).toList();
-
-    return LayoutBuilder(
-      builder: (_, c) {
-        final centerPos = Offset(c.maxWidth/2, c.maxHeight/2);
-        return Stack(
-          fit: StackFit.expand,
-          children: [
-            // spokes
-            CustomPaint(
-              painter: _RadialSpokesPainter(center: centerPos, nodes: spokes),
-            ),
-            // center node
-            Positioned(
-              left: centerPos.dx - 28,
-              top: centerPos.dy - 28,
-              child: GestureDetector(
-                onTap: () => onTap(center),
-                child: _GlowDot(label: center.label, size: 56, color: _emotionColor(center.emotion)),
-              ),
-            ),
-            // spoke nodes
-            ...spokes.asMap().entries.map((e) {
-              final idx = e.key;
-              final n = e.value;
-              final pos = _ringPosition(idx, spokes.length, c.biggest, radiusFactor: 0.42);
-              return Positioned(
-                left: pos.dx - 18, top: pos.dy - 18,
-                child: GestureDetector(
-                  onTap: () => onTap(n),
-                  child: _GlowDot(label: n.label, size: 36, color: _emotionColor(n.emotion)),
-                ),
-              );
-            }),
-          ],
-        );
-      },
-    );
-  }
-
-  Offset _ringPosition(int i, int total, Size size, {double radiusFactor = 0.42}) {
-    final r = size.shortestSide * radiusFactor;
-    final angle = (i / total) * 3.14159 * 2;
-    final cx = size.width / 2;
-    final cy = size.height / 2;
-    return Offset(cx + r * MathHelper.cos(angle), cy + r * MathHelper.sin(angle));
-  }
-}
-
-class _RadialSpokesPainter extends CustomPainter {
-  _RadialSpokesPainter({required this.center, required this.nodes});
-  final Offset center;
-  final List<KeywordNode> nodes;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    for (var i = 0; i < nodes.length; i++) {
-      final n = nodes[i];
-      final p = _ring(i, nodes.length, size);
-      final paint = Paint()
-        ..strokeWidth = 1.5
-        ..color = _emotionColor(n.emotion).withOpacity(0.5);
-      canvas.drawLine(center, p, paint);
-    }
-  }
-
-  Offset _ring(int i, int total, Size size) {
-    final r = size.shortestSide * 0.42;
-    final angle = (i / total) * 3.14159 * 2;
-    final cx = size.width / 2;
-    final cy = size.height / 2;
-    return Offset(cx + r * MathHelper.cos(angle), cy + r * MathHelper.sin(angle));
-  }
-
-  @override
-  bool shouldRepaint(covariant _RadialSpokesPainter oldDelegate) => false;
 }
 
 class KeywordDetailsSheet extends StatelessWidget {

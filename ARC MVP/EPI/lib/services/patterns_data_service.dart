@@ -1,12 +1,13 @@
 // lib/services/patterns_data_service.dart
-// Service for extracting keyword patterns from journal entries
+// Service for extracting keyword patterns from journal entries.
+// Uses KeywordCorpusService as single source of truth for frequency and usage.
 
 import 'package:my_app/arc/core/journal_repository.dart';
 import 'package:my_app/models/journal_entry_model.dart';
 import 'package:my_app/prism/atlas/phase/your_patterns_view.dart';
 import 'package:my_app/utils/text_processing.dart';
 import 'package:my_app/utils/co_occurrence_calculator.dart';
-import 'package:my_app/services/user_phase_service.dart';
+import 'package:my_app/services/keyword_corpus_service.dart';
 import 'package:my_app/prism/extractors/enhanced_keyword_extractor.dart';
 
 /// Service for generating pattern analysis data from journal entries
@@ -26,7 +27,6 @@ class PatternsDataService {
   }) async {
     print('DEBUG: PatternsDataService - Getting patterns data...');
 
-    // 1. Get all journal entries
     final allEntries = _journalRepository.getAllJournalEntriesSync();
     print('DEBUG: Found ${allEntries.length} total entries');
 
@@ -35,7 +35,6 @@ class PatternsDataService {
       return (<KeywordNode>[], <KeywordEdge>[]);
     }
 
-    // 2. Filter by date range if specified
     final now = DateTime.now();
     final start = startDate ?? now.subtract(const Duration(days: 90));
     final end = endDate ?? now;
@@ -50,118 +49,71 @@ class PatternsDataService {
       return (<KeywordNode>[], <KeywordEdge>[]);
     }
 
-    // 3. Extract words from all entries and build word frequency map
-    final allDocuments = <List<String>>[];
-    final entryKeywords = <Set<String>>[];
-    final wordFrequencyAcrossEntries = <String, int>{};
+    final emotionKeywordSet =
+        EnhancedKeywordExtractor.emotionAmplitudeMap.keys.toSet();
 
-    for (final entry in filteredEntries) {
-      final words = TextProcessing.extractWords(entry.content);
-      allDocuments.add(words);
-      entryKeywords.add(words.toSet());
+    // Single pass via KeywordCorpusService (canonical source for frequency and usage)
+    KeywordCorpusStats stats = KeywordCorpusService.computeStats(
+      entries: filteredEntries,
+      keywordSet: emotionKeywordSet,
+    );
 
-      // Track frequency of each word across all entries
-      for (final word in words) {
-        wordFrequencyAcrossEntries[word] = (wordFrequencyAcrossEntries[word] ?? 0) + 1;
-      }
-    }
-
-    // 4. NEW APPROACH: Directly search for emotion keywords in the text
-    // Instead of relying on TF-IDF, we scan the journal text for emotion keywords
-    final emotionKeywordSet = EnhancedKeywordExtractor.emotionAmplitudeMap.keys.toSet();
-    final foundEmotionKeywords = <String, int>{};
-
-    print('DEBUG: Scanning ${filteredEntries.length} entries for ${emotionKeywordSet.length} emotion keywords');
-
-    // Count how many times each emotion keyword appears
-    for (final emotionKeyword in emotionKeywordSet) {
-      final frequency = wordFrequencyAcrossEntries[emotionKeyword] ?? 0;
-      if (frequency > 0) {
-        foundEmotionKeywords[emotionKeyword] = frequency;
-        print('DEBUG: ✓ Found emotion keyword: "$emotionKeyword" (frequency: $frequency)');
-      }
-    }
-
-    print('DEBUG: Found ${foundEmotionKeywords.length} emotion keywords in journal entries');
-
-    // If we found emotion keywords, use them
-    final Map<String, double> topKeywords;
-    if (foundEmotionKeywords.isNotEmpty) {
-      // Sort by frequency and take top N
-      final sortedByFrequency = foundEmotionKeywords.entries.toList()
+    List<String> finalKeywordList;
+    if (stats.frequencyByKeyword.isNotEmpty) {
+      final sorted = stats.frequencyByKeyword.entries.toList()
         ..sort((a, b) => b.value.compareTo(a.value));
-
-      // Convert to double scores for consistency
-      topKeywords = Map.fromEntries(
-        sortedByFrequency.take(maxNodes).map((e) => MapEntry(e.key, e.value.toDouble()))
-      );
+      finalKeywordList =
+          sorted.take(maxNodes).map((e) => e.key).toList();
+      print('DEBUG: Using ${finalKeywordList.length} emotion keywords from corpus');
     } else {
-      // Fallback: use TF-IDF on curated keywords
+      // Fallback: all words, then TF-IDF restricted to curated
       print('WARNING: No emotion keywords found in text, trying TF-IDF on curated keywords');
-      final allKeywordScores = TextProcessing.extractKeywordsWithTfidf(
+      final statsAll = KeywordCorpusService.computeStats(
+        entries: filteredEntries,
+        keywordSet: null,
+      );
+      final allDocuments = statsAll.documentKeywordSets
+          .map((s) => s.toList())
+          .toList();
+      final tfidfScores = TextProcessing.extractKeywordsWithTfidf(
         allDocuments,
         topN: maxNodes * 2,
         minScore: 0.01,
       );
-
-      final curatedKeywordSet = EnhancedKeywordExtractor.curatedKeywords.toSet();
-      final curatedFound = <String, double>{};
-
-      for (final entry in allKeywordScores.entries) {
-        if (curatedKeywordSet.contains(entry.key)) {
-          curatedFound[entry.key] = entry.value;
-        }
-      }
-
-      topKeywords = curatedFound;
+      final curatedSet = EnhancedKeywordExtractor.curatedKeywords.toSet();
+      final curatedList = tfidfScores.keys
+          .where((k) => curatedSet.contains(k))
+          .take(maxNodes)
+          .toList();
+      finalKeywordList = curatedList;
+      stats = statsAll;
+      print('DEBUG: Using ${finalKeywordList.length} curated keywords from TF-IDF');
     }
 
-    final finalKeywords = topKeywords;
-    print('DEBUG: Extracted ${finalKeywords.length} keywords total');
+    final targetKeywordSet = finalKeywordList.toSet();
 
-    // 5. Calculate additional metrics for each keyword
-    final keywordFrequency = TextProcessing.calculateWordFrequency(allDocuments);
+    // Build nodes from stats (no second pass over entries for frequency/phase/recency)
     final nodes = <KeywordNode>[];
+    for (final keyword in finalKeywordList) {
+      final frequency = stats.frequencyByKeyword[keyword] ?? 0;
+      if (frequency == 0) continue;
 
-    for (final entry in finalKeywords.entries) {
-      final keyword = entry.key;
-      // final tfidfScore = entry.value; // Reserved for future use
-      final frequency = keywordFrequency[keyword] ?? 0;
-
-      // Calculate recency score
-      DateTime? lastUsed;
-      for (final journalEntry in filteredEntries.reversed) {
-        if (journalEntry.content.toLowerCase().contains(keyword)) {
-          lastUsed = journalEntry.createdAt;
-          break;
-        }
-      }
-
+      final dates = stats.usageDatesByKeyword[keyword];
+      final lastUsed = dates != null && dates.isNotEmpty ? dates.last : null;
       final recencyScore = lastUsed != null
           ? TextProcessing.calculateRecencyScore(lastUsed, now)
           : 0.5;
 
-      // Extract excerpts
-      final excerpts = <String>[];
-      for (final journalEntry in filteredEntries) {
-        if (excerpts.length >= 5) break;
-        if (journalEntry.content.toLowerCase().contains(keyword)) {
-          final excerpt = TextProcessing.extractExcerpt(
-            journalEntry.content,
-            keyword,
-          );
-          if (excerpt.isNotEmpty) {
-            excerpts.add(excerpt);
-          }
-        }
-      }
-
-      // Determine phase and emotion associations
-      final phase = await _getPhaseForKeyword(keyword, filteredEntries);
+      final phase =
+          KeywordCorpusService.dominantPhaseForKeyword(
+              stats.phaseListByKeyword, keyword);
       final emotion = _getEmotionForKeyword(keyword);
 
-      // Generate time series (simplified - last 7 periods)
-      final series = _generateTimeSeries(keyword, filteredEntries, periods: 7);
+      final excerpts = _extractExcerptsForKeyword(
+          keyword, filteredEntries, maxExcerpts: 5);
+
+      final series = _seriesFromUsageDates(
+          stats.usageDatesByKeyword[keyword], periods: 7, now: now);
 
       print('DEBUG: Keyword "$keyword" -> emotion: $emotion, phase: $phase, freq: $frequency');
 
@@ -179,17 +131,16 @@ class PatternsDataService {
 
     print('DEBUG: Created ${nodes.length} keyword nodes');
 
-    // 6. Calculate co-occurrence relationships
+    // Co-occurrence from same corpus stats
     final coOccurrences = CoOccurrenceCalculator.calculate(
-      documentKeywords: entryKeywords,
-      targetKeywords: finalKeywords.keys.toSet(),
+      documentKeywords: stats.documentKeywordSets,
+      targetKeywords: targetKeywordSet,
       minLift: 1.2,
       minCount: 2,
     );
 
     print('DEBUG: Found ${coOccurrences.length} co-occurrence relationships');
 
-    // 7. Convert to edges
     final edges = coOccurrences
         .where((c) => c.weight >= minCoOccurrenceWeight)
         .map((c) => KeywordEdge(
@@ -204,107 +155,49 @@ class PatternsDataService {
     return (nodes, edges);
   }
 
-  /// Determine which phase a keyword is most associated with using EnhancedKeywordExtractor
-  Future<String> _getPhaseForKeyword(
-    String keyword,
-    List<JournalEntry> entries,
-  ) async {
-    // Use EnhancedKeywordExtractor's phaseKeywordMap for semantic matching
-    final keywordLower = keyword.toLowerCase();
-
-    // Check each phase to see if keyword matches
-    double bestMatch = 0.0;
-    String bestPhase = 'Discovery';
-
-    for (final phase in EnhancedKeywordExtractor.phaseKeywordMap.keys) {
-      final phaseKeywords = EnhancedKeywordExtractor.phaseKeywordMap[phase]!;
-
-      // Check for exact match
-      if (phaseKeywords.contains(keywordLower)) {
-        bestMatch = 1.0;
-        bestPhase = phase;
-        break;
-      }
-
-      // Check for partial match
-      for (final phaseKeyword in phaseKeywords) {
-        if (keywordLower.contains(phaseKeyword) || phaseKeyword.contains(keywordLower)) {
-          final matchStrength = 0.6;
-          if (matchStrength > bestMatch) {
-            bestMatch = matchStrength;
-            bestPhase = phase;
-          }
-        }
-      }
-    }
-
-    // If we found a good match, use it
-    if (bestMatch > 0.5) {
-      return bestPhase;
-    }
-
-    // Otherwise, try to use current phase for recent keywords
-    final keywordEntries = entries
-        .where((e) => e.content.toLowerCase().contains(keywordLower))
-        .toList();
-
-    if (keywordEntries.isNotEmpty) {
-      try {
-        final currentPhase = await UserPhaseService.getCurrentPhase();
-        if (currentPhase != null) {
-          final recentEntries = keywordEntries
-              .where((e) => e.createdAt.isAfter(DateTime.now().subtract(const Duration(days: 14))))
-              .toList();
-
-          if (recentEntries.length >= keywordEntries.length * 0.5) {
-            return currentPhase;
-          }
-        }
-      } catch (e) {
-        print('DEBUG: Error getting current phase: $e');
-      }
-    }
-
-    // Default fallback
-    return bestPhase;
-  }
-
-  /// Determine emotional tone for a keyword using EnhancedKeywordExtractor
-  String _getEmotionForKeyword(String keyword) {
-    final amplitude = EnhancedKeywordExtractor.emotionAmplitudeMap[keyword.toLowerCase()] ?? 0.0;
-
-    // Map amplitude to emotion categories that match the UI
-    if (amplitude > 0.7) {
-      return 'positive'; // High amplitude emotions
-    } else if (amplitude > 0.4) {
-      return 'reflective'; // Medium amplitude emotions
-    } else {
-      return 'neutral'; // Low or no amplitude
-    }
-  }
-
-  /// Generate time series data for a keyword
-  List<int> _generateTimeSeries(
+  List<String> _extractExcerptsForKeyword(
     String keyword,
     List<JournalEntry> entries, {
-    int periods = 7,
+    int maxExcerpts = 5,
   }) {
-    final now = DateTime.now();
-    final series = <int>[];
+    final excerpts = <String>[];
+    final keywordLower = keyword.toLowerCase();
+    for (final entry in entries) {
+      if (excerpts.length >= maxExcerpts) break;
+      if (!entry.content.toLowerCase().contains(keywordLower)) continue;
+      final excerpt = TextProcessing.extractExcerpt(entry.content, keyword);
+      if (excerpt.isNotEmpty) excerpts.add(excerpt);
+    }
+    return excerpts;
+  }
 
+  /// Time series: count of usages per period (last 7 weeks) from usage dates.
+  List<int> _seriesFromUsageDates(
+    List<DateTime>? usageDates, {
+    int periods = 7,
+    required DateTime now,
+  }) {
+    if (usageDates == null || usageDates.isEmpty) {
+      return List.filled(periods, 0);
+    }
+    final series = <int>[];
     for (int i = periods - 1; i >= 0; i--) {
       final periodEnd = now.subtract(Duration(days: i * 7));
       final periodStart = periodEnd.subtract(const Duration(days: 7));
-
-      final count = entries.where((entry) {
-        return entry.createdAt.isAfter(periodStart) &&
-            entry.createdAt.isBefore(periodEnd) &&
-            entry.content.toLowerCase().contains(keyword);
+      final count = usageDates.where((d) {
+        return !d.isBefore(periodStart) && d.isBefore(periodEnd);
       }).length;
-
       series.add(count);
     }
-
     return series;
+  }
+
+  String _getEmotionForKeyword(String keyword) {
+    final amplitude =
+        EnhancedKeywordExtractor.emotionAmplitudeMap[keyword.toLowerCase()] ??
+            0.0;
+    if (amplitude > 0.7) return 'positive';
+    if (amplitude > 0.4) return 'reflective';
+    return 'neutral';
   }
 }

@@ -347,17 +347,17 @@ class _SentinelIntroScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      body: SafeArea(
-        child: _LayeredScreenContent(
-          gradientColors: [
-            kcPrimaryColor.withOpacity(0.2),
-            Colors.black,
-          ],
-          child: SingleChildScrollView(
+      body: GestureDetector(
+        onTap: () => context.read<ArcOnboardingCubit>().nextScreen(),
+        child: SafeArea(
+          child: _LayeredScreenContent(
+            gradientColors: [
+              kcPrimaryColor.withOpacity(0.2),
+              Colors.black,
+            ],
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const SizedBox(height: 40),
                 Text(
                   "One more thing.",
                   style: heading1Style(context).copyWith(
@@ -387,65 +387,13 @@ class _SentinelIntroScreen extends StatelessWidget {
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 48),
-                // Primary button: Continue to Phase Explanation
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: () {
-                      context.read<ArcOnboardingCubit>().nextScreen();
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: kcPrimaryColor,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 32,
-                        vertical: 16,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    child: Text(
-                      'Continue',
-                      style: buttonStyle(context).copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
+                Text(
+                  'Tap to continue',
+                  style: bodyStyle(context).copyWith(
+                    color: Colors.white.withOpacity(0.5),
+                    fontSize: 14,
                   ),
                 ),
-                const SizedBox(height: 16),
-                // Secondary button: Skip Phase Quiz
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton(
-                    onPressed: () {
-                      context.read<ArcOnboardingCubit>().skipToMainPage();
-                    },
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.white,
-                      side: BorderSide(
-                        color: Colors.white.withOpacity(0.3),
-                        width: 1,
-                      ),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 32,
-                        vertical: 16,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    child: Text(
-                      'Skip Phase Quiz',
-                      style: buttonStyle(context).copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 40),
               ],
             ),
           ),

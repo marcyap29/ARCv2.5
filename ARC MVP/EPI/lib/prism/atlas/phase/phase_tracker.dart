@@ -104,14 +104,18 @@ class PhaseTracker {
   ///
   /// Returns PhaseTrackingResult with detailed information about the tracking decision,
   /// including whether phase changed, smoothed scores, and blocking reasons.
+  /// Optionally pass [operationalReadinessScore] and [healthData] to persist with the entry
+  /// for Health & Readiness views (Rating History, Phase Transitions, Health Correlation).
   Future<PhaseTrackingResult> updatePhaseScores({
     required Map<String, double> phaseScores,
     required String journalEntryId,
     required String emotion,
     required String reason,
     required String text,
+    int? operationalReadinessScore,
+    Map<String, dynamic>? healthData,
   }) async {
-    // 1. Store the new entry in history
+    // 1. Store the new entry in history (with optional readiness and health for biometric UI)
     final historyEntry = PhaseHistoryEntry(
       id: 'phase_${DateTime.now().millisecondsSinceEpoch}',
       timestamp: DateTime.now(),
@@ -120,6 +124,8 @@ class PhaseTracker {
       emotion: emotion,
       reason: reason,
       text: text,
+      operationalReadinessScore: operationalReadinessScore,
+      healthData: healthData,
     );
     
     await PhaseHistoryRepository.addEntry(historyEntry);

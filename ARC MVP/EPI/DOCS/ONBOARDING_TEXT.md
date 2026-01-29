@@ -57,9 +57,8 @@
 > 
 > If I detect sustained distress, sudden intensity, or language suggesting crisis, I'll check in directly. Not to judge, but because staying silent wouldn't be right.
 
-**Buttons:**
-- "Start Phase Quiz" (primary)
-- "Skip Phase Quiz" (secondary)
+**Instruction:**
+> Tap to continue
 
 ---
 

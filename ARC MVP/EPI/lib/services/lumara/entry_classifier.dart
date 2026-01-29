@@ -640,51 +640,38 @@ class EntryClassifier {
   }
 
   /// Check for integration/synthesis language
-  /// "Connect the dots", "How does this relate to...", "Synthesize..."
-  /// Also includes explicit voice commands: "Deep analysis", "Go deeper", etc.
+  /// Only explicit synthesis requests or clear cross-domain language.
+  /// Avoids broad single-word or casual phrases so default stays reflect.
   static bool _containsIntegrationLanguage(String lowerText) {
     final integrationPatterns = [
-      // Explicit voice commands for Integrate mode
-      r'\bdeep analysis\b',
-      r'\bgo deeper\b',
-      r'\b(do|give|provide) (a )?deep analysis\b',
-      r'\bdeep dive\b',
+      // Explicit voice commands for Integrate mode only
       r'\bgo into integrate (mode|mode)\b',
       r'\bswitch to integrate\b',
       r'\bintegrate mode\b',
       r'\bsynthesis mode\b',
-      r'\bcomprehensive analysis\b',
-      r'\bfull analysis\b',
-      r'\bcomplete analysis\b',
-      
-      // Natural integration/synthesis language
       r'\bsynthesize\b',
       r'\bsynthesis\b',
-      r'\bintegrate\b',
-      r'\bintegration\b',
+      // "integrate" / "integration" only when clearly requesting mode (e.g. "I want to integrate" as in synthesis)
+      r'\b(switch|go|want) .* (to )?integrate\b',
+      r'\b(do|give|provide) (a )?(full|complete|comprehensive) synthesis\b',
+      r'\b(do|give|provide) (a )?deep analysis\b',
+      r'\bdeep analysis\b',
+      r'\b(do|give|provide) (a )?deep dive\b',
+      r'\bdeep dive\b',
+      // Explicit cross-domain / synthesis phrases (not casual "put it together" or "bigger picture")
       r'\bconnect the dots\b',
-      r'\bconnect (all|everything|these)\b',
       r'\bhow does (this|that|it) (relate|connect|link) (to|with)\b',
       r'\bhow (are|do) (these|all) (relate|connect|link)\b',
-      r"what's the (bigger|overall) (picture|pattern|connection)\b",
-      r'\bsee the (bigger|overall) (picture|pattern|connection)\b',
-      r'\bput (it|this|everything) together\b',
       r'\bhow (does|do) (this|these|it|they) (fit|work) together\b',
       r'\bacross (domains|areas|topics|contexts)\b',
       r'\bhow (does|do) (my|this) .* (relate|connect|link) (to|with) (my|this) .*\b',
       r'\bwhat (are|is) the (connections|links|relationships) (between|across)\b',
-      r'\bunify\b',
-      r'\bunified\b',
-      r'\bunifying\b',
-      r'\bholistic\b',
-      r'\bcomprehensive\b',
-      r'\bconnect everything\b',
       r'\bsee how (this|it|everything) (connects|relates|fits)\b',
       r'\bhow (does|do) (this|it|everything) (all|all of this) (connect|relate|fit together)\b',
-      r"what's the (full|complete|whole) (picture|story|context)\b",
-      r'\b(show|give) (me )?the (bigger|full|complete) (picture|view|perspective)\b',
       r'\bweave (it|this|everything) together\b',
-      r'\bpiece (it|this|everything) together\b',
+      // Explicit "give me the full picture" type (synthesis request)
+      r'\b(show|give) (me )?the (full|complete|whole) (picture|view|perspective)\b',
+      r"what's the (full|complete|whole) (picture|story|context)\b",
     ];
 
     return integrationPatterns.any((pattern) => 
