@@ -124,7 +124,7 @@ class ARCXImportService {
             resolveLinks: true,
           ),
           password: password,
-          onProgress: (message) {
+          onProgress: (message, [fraction = 0.0]) {
             print('ARCX Import (V2): $message');
           },
         );

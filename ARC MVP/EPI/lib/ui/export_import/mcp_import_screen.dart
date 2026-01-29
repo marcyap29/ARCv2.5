@@ -20,8 +20,8 @@ import 'package:my_app/services/rivet_sweep_service.dart';
 import 'package:my_app/services/analytics_service.dart';
 import '../../utils/file_utils.dart';
 import 'package:my_app/arc/ui/timeline/timeline_cubit.dart';
-import 'package:my_app/mira/store/arcx/ui/arcx_import_progress_screen.dart';
 import 'package:my_app/mira/store/arcx/services/arcx_import_service_v2.dart';
+import 'package:my_app/mira/store/arcx/import_progress_cubit.dart';
 import 'package:my_app/mira/store/arcx/services/arcx_import_service.dart';
 import 'package:my_app/mira/store/arcx/models/arcx_result.dart';
 import 'package:my_app/shared/ui/home/home_view.dart';
@@ -219,119 +219,56 @@ class _McpImportScreenState extends State<McpImportScreen> {
         // Multiple .arcx files but not detected as separated - import them all
         await _importMultipleArcFiles(_selectedPaths);
       } else if (_selectedPath != null && _selectedPath!.endsWith('.arcx')) {
-        // Single .arcx import - navigate to progress screen
+        // Single .arcx import - run in background; mini status bar on HomeView shows progress
         final arcxFile = File(_selectedPath!);
         if (!await arcxFile.exists()) {
           _showErrorDialog('ARCX file not found');
           setState(() => _isImporting = false);
           return;
         }
-
-        // Find manifest file (sibling to .arcx)
-        final manifestPath = _selectedPath!.replaceAll('.arcx', '.manifest.json');
-        final manifestFile = File(manifestPath);
-        String? actualManifestPath;
-        
-        if (await manifestFile.exists()) {
-          actualManifestPath = manifestPath;
-        }
-
-        // Navigate to ARCX import progress screen
         if (!mounted) return;
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => ARCXImportProgressScreen(
-              arcxPath: _selectedPath!,
-              manifestPath: actualManifestPath,
-              parentContext: context, // Pass context for showing dialog after pop
-            ),
-            fullscreenDialog: false, // Ensure it's not a fullscreen dialog
-          ),
-        ).then((result) async {
-          print('🔍 MCP DEBUG: Import result received: ${result != null}');
-          print('🔍 MCP DEBUG: Result type: ${result.runtimeType}');
-          if (result != null) {
-            print('🔍 MCP DEBUG: Result is not null');
-            if (result is ARCXImportResultV2) {
-              print('🔍 MCP DEBUG: Result is V2 type');
-              print('🔍 MCP DEBUG: V2 entries: ${result.entriesImported}');
-              print('🔍 MCP DEBUG: V2 success: ${result.success}');
-            }
-          }
-
-          // Ensure we're still mounted and have a valid context
-          if (!mounted) {
-            print('⚠️ Component not mounted after import, skipping result handling');
-            return;
-          }
-
-          // Refresh timeline after import completes
-          print('🔍 MCP DEBUG: Component is mounted, processing result');
+        final progressCubit = context.read<ImportProgressCubit>();
+        final journalRepo = context.read<JournalRepository>();
+        final arcxPath = _selectedPath!;
+        setState(() => _isImporting = false);
+        progressCubit.start();
+        Navigator.of(context).pushNamedAndRemoveUntil('/home', (route) => false);
+        Future(() async {
           try {
-            context.read<TimelineCubit>().reloadAllEntries();
-          } catch (e) {
-            print('⚠️ Could not reload timeline: $e');
-          }
-          
-          setState(() => _isImporting = false);
-
-          // Show success dialog if import was successful
-          // Use post-frame callback to ensure navigation completes before showing dialog
-          if (result != null) {
-            print('🔍 MCP DEBUG: About to show success dialog');
-            // Add a small delay to ensure navigation stack is stable
-            Future.delayed(const Duration(milliseconds: 100), () {
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                if (mounted) {
-                  try {
-                    // Verify we have a valid navigator
-                    final navigator = Navigator.of(context, rootNavigator: false);
-                    if (!navigator.mounted) {
-                      print('⚠️ Navigator not mounted, using root navigator');
-                      // Try root navigator as fallback
-                      if (result is ARCXImportResultV2) {
-                        _showARCXImportSuccessDialogV2(result);
-                      } else if (result is ARCXImportResult) {
-                        _showARCXImportSuccessDialog(result);
-                      }
-                    } else {
-                      if (result is ARCXImportResultV2) {
-                        print('🔍 MCP DEBUG: Calling V2 success dialog');
-                        _showARCXImportSuccessDialogV2(result);
-                      } else if (result is ARCXImportResult) {
-                        print('🔍 MCP DEBUG: Calling legacy success dialog');
-                        _showARCXImportSuccessDialog(result);
-                      }
-                    }
-                  } catch (e) {
-                    print('⚠️ Error showing success dialog: $e');
-                    // Fallback: show a simple snackbar
-                    try {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Import completed successfully'),
-                          backgroundColor: Colors.green,
-                          duration: const Duration(seconds: 3),
-                        ),
-                      );
-                    } catch (snackbarError) {
-                      print('⚠️ Could not show snackbar either: $snackbarError');
-                    }
-                  }
-                }
-              });
-            });
-          }
-        }).catchError((error) {
-          print('⚠️ Error in import callback: $error');
-          if (mounted) {
-            setState(() => _isImporting = false);
+            final chatRepo = ChatRepoImpl.instance;
+            await chatRepo.initialize();
+            PhaseRegimeService? phaseRegimeService;
             try {
-              _showErrorDialog('Import failed: $error');
-            } catch (e) {
-              print('⚠️ Could not show error dialog: $e');
+              final analyticsService = AnalyticsService();
+              final rivetSweepService = RivetSweepService(analyticsService);
+              phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
+              await phaseRegimeService.initialize();
+            } catch (_) {}
+            final importService = ARCXImportServiceV2(
+              journalRepo: journalRepo,
+              chatRepo: chatRepo,
+              phaseRegimeService: phaseRegimeService,
+            );
+            final result = await importService.import(
+              arcxPath: arcxPath,
+              options: ARCXImportOptions(
+                validateChecksums: true,
+                dedupeMedia: true,
+                skipExisting: true,
+                resolveLinks: true,
+              ),
+              password: null,
+              onProgress: (message, [fraction = 0.0]) {
+                progressCubit.update(message, fraction);
+              },
+            );
+            if (result.success) {
+              progressCubit.complete();
+            } else {
+              progressCubit.fail(result.error);
             }
+          } catch (e) {
+            progressCubit.fail(e.toString());
           }
         });
       } else {
@@ -613,7 +550,7 @@ class _McpImportScreenState extends State<McpImportScreen> {
               resolveLinks: true, // Important for separated packages
             ),
             password: null, // TODO: Support password if needed
-            onProgress: (message) {
+            onProgress: (message, [fraction = 0.0]) {
               print('ARCX Import ($groupType): $message');
             },
           );
@@ -811,7 +748,7 @@ class _McpImportScreenState extends State<McpImportScreen> {
               resolveLinks: true,
             ),
             password: null,
-            onProgress: (message) {
+            onProgress: (message, [fraction = 0.0]) {
               print('ARCX Import: $message');
             },
           );

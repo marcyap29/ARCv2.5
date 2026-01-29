@@ -38,6 +38,7 @@ class ARCXImportProgressScreen extends StatefulWidget {
 
 class _ARCXImportProgressScreenState extends State<ARCXImportProgressScreen> {
   String _status = 'Verifying signature...';
+  double _progress = 0.0;
   bool _isLoading = true;
   String? _error;
   int? _entriesImported;
@@ -216,9 +217,12 @@ class _ARCXImportProgressScreenState extends State<ARCXImportProgressScreen> {
             resolveLinks: true,
           ),
           password: _password,
-          onProgress: (message) {
+          onProgress: (message, [fraction = 0.0]) {
             if (mounted) {
-              setState(() => _status = message);
+              setState(() {
+                _status = message;
+                _progress = fraction;
+              });
             }
           },
         );
@@ -374,15 +378,27 @@ class _ARCXImportProgressScreenState extends State<ARCXImportProgressScreen> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               if (_isLoading) ...[
-                const CircularProgressIndicator(
-                  strokeWidth: 3,
-                  valueColor: AlwaysStoppedAnimation<Color>(kcPrimaryColor),
+                SizedBox(
+                  width: double.infinity,
+                  child: LinearProgressIndicator(
+                    value: _progress > 0 ? _progress : null,
+                    backgroundColor: kcSurfaceAltColor,
+                    valueColor: const AlwaysStoppedAnimation<Color>(kcPrimaryColor),
+                  ),
                 ),
-                const SizedBox(height: 32),
+                const SizedBox(height: 24),
                 Text(
                   _status,
                   style: heading3Style(context).copyWith(
                     color: kcPrimaryTextColor,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  '${(_progress * 100).round()}%',
+                  style: bodyStyle(context).copyWith(
+                    color: kcSecondaryTextColor,
                   ),
                 ),
               ] else if (_error != null) ...[

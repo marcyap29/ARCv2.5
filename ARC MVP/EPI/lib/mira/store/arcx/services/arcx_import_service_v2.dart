@@ -35,6 +35,9 @@ import 'package:my_app/services/export_history_service.dart';
 
 const _uuid = Uuid();
 
+/// Callback for import progress: message and optional fraction [0.0, 1.0].
+typedef ImportProgressCallback = void Function(String message, [double fraction]);
+
 /// ARCX Import Options
 class ARCXImportOptions {
   final bool validateChecksums;
@@ -49,6 +52,19 @@ class ARCXImportOptions {
     this.resolveLinks = true,
   });
 }
+
+/// Phase weights for overall progress (0.0 to 1.0)
+const double _kPhaseLoad = 0.05;
+const double _kPhaseVerify = 0.10;
+const double _kPhaseDecrypt = 0.20;
+const double _kPhaseExtract = 0.25;
+const double _kPhaseMediaEnd = 0.50;
+const double _kPhaseRegimesEnd = 0.55;
+const double _kPhaseEntriesEnd = 0.90;
+const double _kPhaseChatsEnd = 0.95;
+const double _kPhaseResolveEnd = 1.0;
+const int _kYieldInterval = 5;
+const Duration _kYieldDuration = Duration(milliseconds: 100);
 
 /// ARCX Import Service V2
 class ARCXImportServiceV2 {
@@ -125,11 +141,11 @@ class ARCXImportServiceV2 {
     required String arcxPath,
     required ARCXImportOptions options,
     String? password,
-    Function(String)? onProgress,
+    ImportProgressCallback? onProgress,
   }) async {
     try {
       print('ARCX Import V2: Starting import from: $arcxPath');
-      onProgress?.call('Loading archive...');
+      onProgress?.call('Loading archive...', 0.0);
       
       clearCaches();
       
@@ -186,7 +202,7 @@ class ARCXImportServiceV2 {
       print('ARCX Import V2: ✓ Manifest validated (ARCX ${manifest.arcxVersion})');
       
       // Step 3: Verify signature
-      onProgress?.call('Verifying signature...');
+      onProgress?.call('Verifying signature...', _kPhaseLoad);
       
       // For ARCX 1.2, signature verification is optional (may not be present)
       if (manifest.signatureB64.isNotEmpty && manifest.signerPubkeyFpr.isNotEmpty) {
@@ -212,7 +228,7 @@ class ARCXImportServiceV2 {
       }
       
       // Step 4: Verify ciphertext hash (if present)
-      onProgress?.call('Verifying archive integrity...');
+      onProgress?.call('Verifying archive integrity...', _kPhaseVerify);
       final ciphertext = Uint8List.fromList(encryptedArchive.content as List<int>);
       
       if (manifest.sha256.isNotEmpty) {
@@ -230,7 +246,7 @@ class ARCXImportServiceV2 {
       }
       
       // Step 5: Decrypt
-      onProgress?.call('Decrypting...');
+      onProgress?.call('Decrypting...', _kPhaseVerify);
       Uint8List plaintextZip;
       
       if (manifest.isPasswordEncrypted) {
@@ -254,7 +270,7 @@ class ARCXImportServiceV2 {
       print('ARCX Import V2: ✓ Decrypted (${plaintextZip.length} bytes)');
       
       // Step 6: Extract payload
-      onProgress?.call('Extracting payload...');
+      onProgress?.call('Extracting payload...', _kPhaseDecrypt);
       final payloadArchive = ZipDecoder().decodeBytes(plaintextZip);
       
       final appDocDir = await getApplicationDocumentsDirectory();
@@ -275,7 +291,7 @@ class ARCXImportServiceV2 {
         
         // Step 7: Validate checksums if enabled
         if (options.validateChecksums && manifest.checksumsInfo?.enabled == true) {
-          onProgress?.call('Validating checksums...');
+          onProgress?.call('Validating checksums...', _kPhaseExtract);
           await _validateChecksums(payloadDir, manifest.checksumsInfo!.file);
         }
         
@@ -289,10 +305,12 @@ class ARCXImportServiceV2 {
         // Import Media
         final mediaDir = Directory(path.join(payloadDir.path, 'Media'));
         if (await mediaDir.exists()) {
-          onProgress?.call('Importing media...');
+          onProgress?.call('Importing media...', _kPhaseExtract);
           mediaImported = await _importMedia(
             mediaDir: mediaDir,
             options: options,
+            phaseStart: _kPhaseExtract,
+            phaseEnd: _kPhaseMediaEnd,
             onProgress: onProgress,
           );
         }
@@ -330,10 +348,12 @@ class ARCXImportServiceV2 {
         // Import Entries AFTER phase regimes so they can be tagged correctly
         final entriesDir = Directory(path.join(payloadDir.path, 'Entries'));
         if (await entriesDir.exists()) {
-          onProgress?.call('Importing entries...');
+          onProgress?.call('Importing entries...', _kPhaseRegimesEnd);
           entriesImported = await _importEntries(
             entriesDir: entriesDir,
             options: options,
+            phaseStart: _kPhaseRegimesEnd,
+            phaseEnd: _kPhaseEntriesEnd,
             onProgress: onProgress,
           );
           
@@ -347,17 +367,19 @@ class ARCXImportServiceV2 {
         // Import Chats
         final chatsDir = Directory(path.join(payloadDir.path, 'Chats'));
         if (await chatsDir.exists()) {
-          onProgress?.call('Importing chats...');
+          onProgress?.call('Importing chats...', _kPhaseEntriesEnd);
           chatsImported = await _importChats(
             chatsDir: chatsDir,
             options: options,
+            phaseStart: _kPhaseEntriesEnd,
+            phaseEnd: _kPhaseChatsEnd,
             onProgress: onProgress,
           );
         }
         
         // Step 9: Resolve links
         if (options.resolveLinks) {
-          onProgress?.call('Resolving links...');
+          onProgress?.call('Resolving links...', _kPhaseChatsEnd);
           await _resolveLinks();
         }
         
@@ -368,7 +390,7 @@ class ARCXImportServiceV2 {
           }
         }
         
-        onProgress?.call('Import complete!');
+        onProgress?.call('Import complete!', _kPhaseResolveEnd);
         
         // Create export record if app was empty before import and we imported data
         if (_wasAppEmptyBeforeImport && (entriesImported > 0 || chatsImported > 0)) {
@@ -471,7 +493,9 @@ class ARCXImportServiceV2 {
   Future<int> _importMedia({
     required Directory mediaDir,
     required ARCXImportOptions options,
-    Function(String)? onProgress,
+    required double phaseStart,
+    required double phaseEnd,
+    ImportProgressCallback? onProgress,
   }) async {
     // Read media index
     final mediaIndexFile = File(path.join(mediaDir.path, 'media_index.json'));
@@ -507,6 +531,8 @@ class ARCXImportServiceV2 {
       }
     }
     
+    final totalPacks = packs.length;
+    int packIndex = 0;
     // Process all packs
     while (currentPackName != null) {
       final packDir = Directory(path.join(packsDir.path, currentPackName));
@@ -514,8 +540,11 @@ class ARCXImportServiceV2 {
         print('ARCX Import V2: ⚠️ Pack directory not found: $currentPackName');
         break;
       }
-      
-      onProgress?.call('Importing media pack: $currentPackName...');
+      final frac = totalPacks > 0
+          ? phaseStart + (phaseEnd - phaseStart) * (packIndex + 1) / totalPacks
+          : phaseEnd;
+      onProgress?.call('Importing media pack: $currentPackName...', frac);
+      if (packIndex > 0) await Future.delayed(_kYieldDuration);
       
       // Process files in pack
       await for (final entity in packDir.list()) {
@@ -578,6 +607,7 @@ class ARCXImportServiceV2 {
         }
       }
       
+      packIndex++;
       // Find next pack
       final currentPack = packs.firstWhere(
         (pack) => (pack as Map<String, dynamic>)['name'] == currentPackName,
@@ -599,57 +629,68 @@ class ARCXImportServiceV2 {
   Future<int> _importEntries({
     required Directory entriesDir,
     required ARCXImportOptions options,
-    Function(String)? onProgress,
+    required double phaseStart,
+    required double phaseEnd,
+    ImportProgressCallback? onProgress,
   }) async {
     if (_journalRepo == null) {
       print('ARCX Import V2: ⚠️ No JournalRepository available, skipping entries');
       return 0;
     }
     
-    int imported = 0;
-    int processed = 0;
-    
-    // Recursively find all entry JSON files
+    // Collect all entry files first for progress and yielding
+    final entryFiles = <File>[];
     await for (final entity in entriesDir.list(recursive: true)) {
       if (entity is File && entity.path.endsWith('.arcx.json')) {
-        processed++;
-        try {
-          final entryJson = jsonDecode(await entity.readAsString()) as Map<String, dynamic>;
-          
-          final entryId = entryJson['id'] as String;
-          
-          // Check if already exists
-          if (options.skipExisting) {
-            final existing = await _journalRepo!.getJournalEntryById(entryId);
-            if (existing != null) {
-              print('ARCX Import V2: ⚠️ Entry $entryId already exists, skipping');
-              _entryIdMap[entryId] = entryId; // Map to itself
-              // Track skipped entry ID for export record
-              _importedEntryIds.add(entryId);
-              continue;
-            }
+        entryFiles.add(entity);
+      }
+    }
+    final total = entryFiles.length;
+    if (total == 0) {
+      print('ARCX Import V2: No entry files found');
+      return 0;
+    }
+    
+    int imported = 0;
+    int processed = 0;
+    for (int i = 0; i < entryFiles.length; i++) {
+      final entity = entryFiles[i];
+      processed++;
+      try {
+        final entryJson = jsonDecode(await entity.readAsString()) as Map<String, dynamic>;
+        
+        final entryId = entryJson['id'] as String;
+        
+        // Check if already exists
+        if (options.skipExisting) {
+          final existing = await _journalRepo!.getJournalEntryById(entryId);
+          if (existing != null) {
+            print('ARCX Import V2: ⚠️ Entry $entryId already exists, skipping');
+            _entryIdMap[entryId] = entryId;
+            _importedEntryIds.add(entryId);
+            continue;
           }
-          
-          onProgress?.call('Importing entry $processed...');
-          
-          // Convert to JournalEntry
-          final entry = await _convertEntryJsonToJournalEntry(entryJson);
-          if (entry != null) {
-            await _journalRepo!.createJournalEntry(entry);
-            _entryIdMap[entryId] = entry.id;
-            // Track imported entry ID for export record
-            _importedEntryIds.add(entry.id);
-            imported++;
-            
-            // If entry needs phase inference, run it after import
-            if (entry.phaseMigrationStatus == 'PENDING' && !entry.isPhaseLocked) {
-              _inferPhaseForImportedEntry(entry);
-            }
-          }
-          
-        } catch (e) {
-          print('ARCX Import V2: ✗ Error importing entry ${entity.path}: $e');
         }
+        
+        final frac = phaseStart + (phaseEnd - phaseStart) * (i + 1) / total;
+        onProgress?.call('Importing entry $processed/$total...', frac);
+        if ((i + 1) % _kYieldInterval == 0) await Future.delayed(_kYieldDuration);
+        
+        // Convert to JournalEntry
+        final entry = await _convertEntryJsonToJournalEntry(entryJson);
+        if (entry != null) {
+          await _journalRepo!.createJournalEntry(entry);
+          _entryIdMap[entryId] = entry.id;
+          _importedEntryIds.add(entry.id);
+          imported++;
+          
+          if (entry.phaseMigrationStatus == 'PENDING' && !entry.isPhaseLocked) {
+            _inferPhaseForImportedEntry(entry);
+          }
+        }
+        
+      } catch (e) {
+        print('ARCX Import V2: ✗ Error importing entry ${entity.path}: $e');
       }
     }
     
@@ -660,7 +701,7 @@ class ARCXImportServiceV2 {
   /// Import phase regimes from PhaseRegimes/phase_regimes.json
   Future<int> _importPhaseRegimes({
     required Directory payloadDir,
-    Function(String)? onProgress,
+    ImportProgressCallback? onProgress,
   }) async {
     if (_phaseRegimeService == null) {
       print('ARCX Import V2: ⚠️ No PhaseRegimeService available, skipping phase regimes');
@@ -703,7 +744,7 @@ class ARCXImportServiceV2 {
   /// Returns the number of user states imported
   Future<int> _importRivetState(
     Directory payloadDir, {
-    Function(String)? onProgress,
+    ImportProgressCallback? onProgress,
   }) async {
     try {
       // Try extensions/ first (new standard), fallback to PhaseRegimes/ for backward compatibility
@@ -773,7 +814,7 @@ class ARCXImportServiceV2 {
   /// Returns 1 if imported successfully, 0 otherwise
   Future<int> _importSentinelState(
     Directory payloadDir, {
-    Function(String)? onProgress,
+    ImportProgressCallback? onProgress,
   }) async {
     try {
       // Try extensions/ first (new standard), fallback to PhaseRegimes/ for backward compatibility
@@ -809,7 +850,7 @@ class ARCXImportServiceV2 {
   /// Returns the number of snapshots imported
   Future<int> _importArcFormTimeline(
     Directory payloadDir, {
-    Function(String)? onProgress,
+    ImportProgressCallback? onProgress,
   }) async {
     try {
       final phaseRegimesDir = Directory(path.join(payloadDir.path, 'PhaseRegimes'));
@@ -870,7 +911,7 @@ class ARCXImportServiceV2 {
   /// Imports with deduplication - checks for existing favorites by sourceId, sessionId, or entryId
   Future<Map<String, int>> _importLumaraFavorites(
     Directory payloadDir, {
-    Function(String)? onProgress,
+    ImportProgressCallback? onProgress,
   }) async {
     try {
       // Try extensions/ first (new standard), fallback to PhaseRegimes/ for backward compatibility
@@ -1034,16 +1075,30 @@ class ARCXImportServiceV2 {
   Future<int> _importChats({
     required Directory chatsDir,
     required ARCXImportOptions options,
-    Function(String)? onProgress,
+    required double phaseStart,
+    required double phaseEnd,
+    ImportProgressCallback? onProgress,
   }) async {
     if (_chatRepo == null) {
       print('ARCX Import V2: ⚠️ No ChatRepo available, skipping chats');
       return 0;
     }
     
-    // Check if Chats directory exists
     if (!await chatsDir.exists()) {
       print('ARCX Import V2: ⚠️ Chats directory does not exist: ${chatsDir.path}');
+      return 0;
+    }
+    
+    // Collect all chat files first for progress and yielding
+    final chatFiles = <File>[];
+    await for (final entity in chatsDir.list(recursive: true)) {
+      if (entity is File && entity.path.endsWith('.arcx.json')) {
+        chatFiles.add(entity);
+      }
+    }
+    final total = chatFiles.length;
+    if (total == 0) {
+      print('ARCX Import V2: No chat files found');
       return 0;
     }
     
@@ -1051,65 +1106,46 @@ class ARCXImportServiceV2 {
     int processed = 0;
     int skipped = 0;
     int errors = 0;
+    print('ARCX Import V2: 🔍 Importing ${chatFiles.length} chat files...');
     
-    print('ARCX Import V2: 🔍 Scanning for chat files in ${chatsDir.path}...');
-    
-    // Recursively find all chat JSON files
-    await for (final entity in chatsDir.list(recursive: true)) {
-      if (entity is File && entity.path.endsWith('.arcx.json')) {
-        processed++;
-        try {
-          print('ARCX Import V2: 📄 Found chat file: ${entity.path}');
-          final chatJson = jsonDecode(await entity.readAsString()) as Map<String, dynamic>;
-          
-          final chatId = chatJson['id'] as String? ?? 'unknown';
-          final subject = chatJson['subject'] as String? ?? 'Imported Chat';
-          final messages = chatJson['messages'] as List<dynamic>? ?? [];
-          final isArchived = chatJson['is_archived'] as bool? ?? false;
-          
-          print('ARCX Import V2: 📋 Chat details - ID: $chatId, Subject: "$subject", Messages: ${messages.length}, Archived: $isArchived');
-          
-          // Check if already exists
-          if (options.skipExisting) {
-            try {
-              final existing = await _chatRepo!.getSession(chatId);
-              if (existing != null) {
-                print('ARCX Import V2: ⚠️ Chat $chatId already exists, skipping');
-                _chatIdMap[chatId] = chatId; // Map to itself
-                // Track skipped chat ID for export record
-                _importedChatIds.add(chatId);
-                skipped++;
-                continue;
-              }
-            } catch (_) {
-              // Session doesn't exist, continue
+    for (int i = 0; i < chatFiles.length; i++) {
+      final entity = chatFiles[i];
+      processed++;
+      try {
+        final chatJson = jsonDecode(await entity.readAsString()) as Map<String, dynamic>;
+        
+        final chatId = chatJson['id'] as String? ?? 'unknown';
+        final subject = chatJson['subject'] as String? ?? 'Imported Chat';
+        final messages = chatJson['messages'] as List<dynamic>? ?? [];
+        
+        if (options.skipExisting) {
+          try {
+            final existing = await _chatRepo!.getSession(chatId);
+            if (existing != null) {
+              _chatIdMap[chatId] = chatId;
+              _importedChatIds.add(chatId);
+              skipped++;
+              continue;
             }
-          }
-          
-          onProgress?.call('Importing chat $processed: "$subject"...');
-          
-          // Convert and import chat
-          final chat = await _convertChatJsonToChatSession(chatJson);
-          if (chat != null) {
-            // Verify messages were imported
-            final importedMessages = await _chatRepo!.getMessages(chat.id);
-            print('ARCX Import V2: ✅ Imported chat "${chat.subject}" (${chat.id}) with ${importedMessages.length}/${messages.length} messages');
-            
-            // Map the ID
-            _chatIdMap[chatId] = chat.id;
-            // Track imported chat ID for export record
-            _importedChatIds.add(chat.id);
-            imported++;
-          } else {
-            print('ARCX Import V2: ✗ Failed to import chat $chatId');
-            errors++;
-          }
-          
-        } catch (e, stackTrace) {
-          print('ARCX Import V2: ✗ Error importing chat ${entity.path}: $e');
-          print('ARCX Import V2: Stack trace: $stackTrace');
+          } catch (_) {}
+        }
+        
+        final frac = phaseStart + (phaseEnd - phaseStart) * (i + 1) / total;
+        onProgress?.call('Importing chat $processed/$total: "$subject"...', frac);
+        if ((i + 1) % _kYieldInterval == 0) await Future.delayed(_kYieldDuration);
+        
+        final chat = await _convertChatJsonToChatSession(chatJson);
+        if (chat != null) {
+          _chatIdMap[chatId] = chat.id;
+          _importedChatIds.add(chat.id);
+          imported++;
+        } else {
           errors++;
         }
+        
+      } catch (e, stackTrace) {
+        print('ARCX Import V2: ✗ Error importing chat ${entity.path}: $e');
+        errors++;
       }
     }
     

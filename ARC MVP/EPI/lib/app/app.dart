@@ -5,8 +5,12 @@ import 'package:provider/provider.dart';
 
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/ui/home/home_view.dart';
-import 'package:my_app/mira/store/arcx/ui/arcx_import_progress_screen.dart';
 import 'package:my_app/arc/chat/ui/lumara_splash_screen.dart';
+import 'package:my_app/mira/store/arcx/services/arcx_import_service_v2.dart';
+import 'package:my_app/arc/chat/chat/chat_repo_impl.dart';
+import 'package:my_app/services/phase_regime_service.dart';
+import 'package:my_app/services/rivet_sweep_service.dart';
+import 'package:my_app/services/analytics_service.dart';
 import 'package:my_app/ui/auth/sign_in_screen.dart';
 
 // Global repo + cubit
@@ -23,6 +27,7 @@ import 'package:my_app/core/services/app_lifecycle_manager.dart';
 import 'package:my_app/echo/echo_module.dart';
 import 'package:my_app/shared/ui/settings/settings_cubit.dart';
 import 'package:my_app/services/pending_conversation_service.dart';
+import 'package:my_app/mira/store/arcx/import_progress_cubit.dart';
 import 'package:hive/hive.dart';
 
 // Global navigator key for deep linking from notifications
@@ -48,25 +53,57 @@ class _AppState extends State<App> {
     PendingConversationService.initialize();
   }
   
-  /// Setup ARCX import handler for iOS open-in events
+  /// Setup ARCX import handler for iOS open-in events.
+  /// Runs import in background and shows mini status bar on HomeView.
   void _setupARCXHandler() {
     _arcxChannel.setMethodCallHandler((call) async {
       if (call.method == 'onOpenARCX') {
         final String arcxPath = call.arguments['arcxPath'];
-        final String? manifestPath = call.arguments['manifestPath'];
-        
-        // Navigate to import screen
-        if (mounted) {
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              fullscreenDialog: true,
-              builder: (_) => ARCXImportProgressScreen(
-                arcxPath: arcxPath,
-                manifestPath: manifestPath,
+        final ctx = navigatorKey.currentContext;
+        if (!mounted || ctx == null) return;
+        final progressCubit = ctx.read<ImportProgressCubit>();
+        final journalRepo = ctx.read<JournalRepository>();
+        progressCubit.start();
+        Navigator.of(ctx).pushNamedAndRemoveUntil('/home', (route) => false);
+        // Run import in background; mini bar on HomeView shows progress
+        Future(() async {
+          try {
+            final chatRepo = ChatRepoImpl.instance;
+            await chatRepo.initialize();
+            PhaseRegimeService? phaseRegimeService;
+            try {
+              final analyticsService = AnalyticsService();
+              final rivetSweepService = RivetSweepService(analyticsService);
+              phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
+              await phaseRegimeService.initialize();
+            } catch (_) {}
+            final importService = ARCXImportServiceV2(
+              journalRepo: journalRepo,
+              chatRepo: chatRepo,
+              phaseRegimeService: phaseRegimeService,
+            );
+            final result = await importService.import(
+              arcxPath: arcxPath,
+              options: ARCXImportOptions(
+                validateChecksums: true,
+                dedupeMedia: true,
+                skipExisting: true,
+                resolveLinks: true,
               ),
-            ),
-          );
-        }
+              password: null,
+              onProgress: (message, [fraction = 0.0]) {
+                progressCubit.update(message, fraction);
+              },
+            );
+            if (result.success) {
+              progressCubit.complete();
+            } else {
+              progressCubit.fail(result.error);
+            }
+          } catch (e) {
+            progressCubit.fail(e.toString());
+          }
+        });
       }
     });
   }
@@ -122,6 +159,8 @@ class _AppState extends State<App> {
               )..initialize();
             },
           ),
+          // Global import progress (mini status bar in HomeView)
+          BlocProvider(create: (_) => ImportProgressCubit()),
         ],
         child: MaterialApp(
           debugShowCheckedModeBanner: false,

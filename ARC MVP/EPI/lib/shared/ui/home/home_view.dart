@@ -30,6 +30,8 @@ import 'package:my_app/arc/internal/echo/prism_adapter.dart';
 import 'package:my_app/services/firebase_auth_service.dart';
 import 'package:my_app/telemetry/analytics.dart';
 import 'package:my_app/models/phase_models.dart';
+import 'package:my_app/shared/widgets/import_status_bar.dart';
+import 'package:my_app/mira/store/arcx/import_progress_cubit.dart';
 
 // Debug flag for showing RIVET engineering labels
 const bool kShowRivetDebugLabels = false;
@@ -141,36 +143,68 @@ class _HomeViewState extends State<HomeView> {
             }
           }
         },
-        child: BlocBuilder<HomeCubit, HomeState>(
-          builder: (context, state) {
-            final selectedIndex = state is HomeLoaded ? state.selectedIndex : 0;
-            return Scaffold(
-              appBar: AppBar(
-                backgroundColor: kcBackgroundColor,
-                elevation: 0,
-                // Settings moved to TabBar as a tab
-              ),
-              body: SafeArea(
-                child: Stack(
+        child: BlocListener<ImportProgressCubit, ImportProgressState>(
+          listenWhen: (a, b) => a.completed != b.completed || a.error != b.error,
+          listener: (context, state) {
+            if (state.completed) {
+              try {
+                context.read<TimelineCubit>().reloadAllEntries();
+              } catch (_) {}
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Import complete'),
+                  backgroundColor: Colors.green,
+                  duration: Duration(seconds: 2),
+                ),
+              );
+              context.read<ImportProgressCubit>().clearCompleted();
+            } else if (state.error != null) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Import failed: ${state.error}'),
+                  backgroundColor: Colors.red,
+                  duration: const Duration(seconds: 4),
+                ),
+              );
+              context.read<ImportProgressCubit>().clearCompleted();
+            }
+          },
+          child: BlocBuilder<HomeCubit, HomeState>(
+            builder: (context, state) {
+              final selectedIndex = state is HomeLoaded ? state.selectedIndex : 0;
+              return Scaffold(
+                appBar: AppBar(
+                  backgroundColor: kcBackgroundColor,
+                  elevation: 0,
+                  // Settings moved to TabBar as a tab
+                ),
+                body: Column(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Main content - use Expanded or SizedBox.expand to prevent overflow
-                    Positioned.fill(
-                      child: _getPageForIndex(selectedIndex, context),
-                    ),
-                    // Status indicators at top right
-                    Positioned(
-                      top: 0,
-                      right: 0,
-                      child: ConstrainedBox(
-                        constraints: BoxConstraints(
-                          maxWidth: MediaQuery.of(context).size.width * 0.6,
+                    const ImportStatusBar(),
+                    Expanded(
+                      child: SafeArea(
+                        child: Stack(
+                          children: [
+                            Positioned.fill(
+                              child: _getPageForIndex(selectedIndex, context),
+                            ),
+                            Positioned(
+                              top: 0,
+                              right: 0,
+                              child: ConstrainedBox(
+                                constraints: BoxConstraints(
+                                  maxWidth: MediaQuery.of(context).size.width * 0.6,
+                                ),
+                                child: const SizedBox.shrink(),
+                              ),
+                            ),
+                          ],
                         ),
-                        child: const SizedBox.shrink(),
                       ),
                     ),
                   ],
                 ),
-              ),
               bottomNavigationBar: CustomTabBar(
                 tabs: _tabs,
                 selectedIndex: selectedIndex,
@@ -200,6 +234,7 @@ class _HomeViewState extends State<HomeView> {
               ),
             );
           },
+        ),
         ),
       ),
     );

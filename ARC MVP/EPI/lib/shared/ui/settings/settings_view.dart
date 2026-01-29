@@ -24,8 +24,8 @@ import 'package:my_app/arc/phase/share/phase_share_service.dart';
 import 'package:file_picker/file_picker.dart';
 import 'dart:io';
 import 'package:my_app/mira/store/mcp/import/mcp_pack_import_service.dart';
-import 'package:my_app/mira/store/arcx/ui/arcx_import_progress_screen.dart';
 import 'package:my_app/mira/store/arcx/services/arcx_import_service_v2.dart';
+import 'package:my_app/mira/store/arcx/import_progress_cubit.dart';
 import 'package:my_app/services/phase_regime_service.dart';
 import 'package:my_app/services/rivet_sweep_service.dart';
 import 'package:my_app/services/analytics_service.dart';
@@ -1566,47 +1566,49 @@ class _SettingsViewState extends State<SettingsView> {
             return;
           }
 
-          // Find manifest file (sibling to .arcx)
-          final manifestPath = arcxFiles.first.replaceAll('.arcx', '.manifest.json');
-          final manifestFile = File(manifestPath);
-          String? actualManifestPath;
-          
-          if (await manifestFile.exists()) {
-            actualManifestPath = manifestPath;
-          }
-
-          // Navigate to ARCX import progress screen
+          // Run import in background; mini status bar on HomeView shows progress
           if (!context.mounted) return;
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => ARCXImportProgressScreen(
-                arcxPath: arcxFiles.first,
-                manifestPath: actualManifestPath,
-                parentContext: context,
-              ),
-            ),
-          ).then((result) {
-            // Refresh timeline after ARCX import completes
-            if (context.mounted && result != null) {
+          final progressCubit = context.read<ImportProgressCubit>();
+          final journalRepo = context.read<JournalRepository>();
+          final arcxPath = arcxFiles.first;
+          progressCubit.start();
+          Navigator.of(context).pushNamedAndRemoveUntil('/home', (route) => false);
+          Future(() async {
+            try {
+              final chatRepo = ChatRepoImpl.instance;
+              await chatRepo.initialize();
+              PhaseRegimeService? phaseRegimeService;
               try {
-                context.read<TimelineCubit>().reloadAllEntries();
-                print('✅ Timeline refreshed after ARCX import');
-                
-                // Navigate to timeline (Journal tab in HomeView)
-                Future.delayed(const Duration(milliseconds: 300), () {
-                  if (context.mounted) {
-                    Navigator.of(context).pushAndRemoveUntil(
-                      MaterialPageRoute(
-                        builder: (context) => const HomeView(initialTab: 0), // Journal tab
-                      ),
-                      (route) => false, // Remove all previous routes
-                    );
-                  }
-                });
-              } catch (e) {
-                print('⚠️ Could not refresh timeline: $e');
+                final analyticsService = AnalyticsService();
+                final rivetSweepService = RivetSweepService(analyticsService);
+                phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
+                await phaseRegimeService.initialize();
+              } catch (_) {}
+              final importService = ARCXImportServiceV2(
+                journalRepo: journalRepo,
+                chatRepo: chatRepo,
+                phaseRegimeService: phaseRegimeService,
+              );
+              final result = await importService.import(
+                arcxPath: arcxPath,
+                options: ARCXImportOptions(
+                  validateChecksums: true,
+                  dedupeMedia: true,
+                  skipExisting: true,
+                  resolveLinks: true,
+                ),
+                password: null,
+                onProgress: (message, [fraction = 0.0]) {
+                  progressCubit.update(message, fraction);
+                },
+              );
+              if (result.success) {
+                progressCubit.complete();
+              } else {
+                progressCubit.fail(result.error);
               }
+            } catch (e) {
+              progressCubit.fail(e.toString());
             }
           });
         } else {
@@ -1854,7 +1856,7 @@ class _SettingsViewState extends State<SettingsView> {
               resolveLinks: true,
             ),
             password: null,
-            onProgress: (message) {
+            onProgress: (message, [fraction = 0.0]) {
               print('ARCX Import: $message');
             },
           );

@@ -1,7 +1,7 @@
 # EPI MVP - Comprehensive Features Guide
 
-**Version:** 3.2.6
-**Last Updated:** January 16, 2026
+**Version:** 3.3.13
+**Last Updated:** January 26, 2026
 
 ---
 
@@ -701,6 +701,7 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
   - **ZIP Import (Settings)**: Select multiple ZIP files from Settings → Import Data for batch processing
   - **Chat Import**: Select multiple JSON files to merge chat data from multiple exports
   - **Progress Feedback**: Real-time progress indicators showing "File X of Y" during import
+  - **Global Import Status Bar (v3.3.13)**: When an import runs in the background, a mini status bar appears below the app bar on the home screen so users can see progress without staying on the import screen; the bar disappears when the import completes
   - **Sequential Processing**: Files processed one at a time with clear status updates
   - **Chronological Sorting**: Files automatically sorted by creation date (oldest first) before import
     - Ensures data timeline consistency
