@@ -205,7 +205,7 @@ flutter run -d DEVICE_ID --dart-define=GEMINI_API_KEY=$GEMINI_API_KEY
 
 ## MCP Export/Import (Files app)
 - **Export**: Settings → MCP Export & Import → Export to MCP. Exports with high fidelity (maximum capability) - complete data with all details preserved. After export completes, a Files share sheet opens to save the `.zip` where you want.
-- **Import**: Settings → MCP qExport & Import → Import from MCP. Pick the `.zip` from Files; the app extracts it and imports automatically. If the ZIP has a top‑level folder, the app detects the bundle root.
+- **Import**: Settings → **Import Data** opens the Import screen. Tap “Choose files to import” and pick `.zip`, `.mcpkg`, or `.arcx` from Files; the app extracts and imports. While an import runs, you can use the app; a mini status bar on Home shows progress and percentage, and Settings → Import Data shows the Import Status screen with a list of files and their status (pending / in progress / completed / failed). If the ZIP has a top‑level folder, the app detects the bundle root.
 - **Quality**: Always exports at high fidelity for maximum data preservation and AI ecosystem compatibility.
 
 ## What’s in this MVP

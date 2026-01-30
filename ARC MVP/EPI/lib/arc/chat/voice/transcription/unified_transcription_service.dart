@@ -2,21 +2,25 @@
 /// 
 /// Provides seamless fallback between transcription backends:
 /// 1. Wispr Flow (optional) - if user has their own API key configured
-/// 2. Apple On-Device (default) - always available, no network required
+/// 2. Assembly AI (optional) - premium cloud streaming, high accuracy
+/// 3. Apple On-Device (default) - always available, no network required
 /// 
-/// Fallback chain: Wispr (if configured) → Apple On-Device
+/// Fallback chain: Wispr (if configured) → Assembly AI (if premium) → Apple On-Device
 
 import 'dart:async';
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'ondevice_provider.dart';
 import 'transcription_provider.dart';
+import 'assemblyai_provider.dart';
 import '../config/wispr_config_service.dart';
 import '../wispr/wispr_flow_service.dart';
+import '../../../../services/assemblyai_service.dart';
 
 /// Active transcription provider
 enum TranscriptionBackend {
   wisprFlow,
+  assemblyAI,
   appleOnDevice,
   none,
 }
@@ -60,15 +64,17 @@ class TranscriptionStartResult {
 
 /// Unified transcription service with automatic fallback
 /// 
-/// Fallback chain: Wispr (if configured) → Apple On-Device
+/// Fallback chain: Wispr (if configured) → Assembly AI (if premium) → Apple On-Device
 class UnifiedTranscriptionService {
   final WisprConfigService _wisprConfigService;
+  final AssemblyAIService _assemblyAIService;
   
   UnifiedTranscriptionStatus _status = UnifiedTranscriptionStatus.idle;
   TranscriptionBackend _activeBackend = TranscriptionBackend.none;
   
   // Providers
   WisprFlowService? _wisprService;
+  AssemblyAIProvider? _assemblyAIProvider;
   OnDeviceTranscriptionProvider? _onDeviceProvider;
   
   // Callbacks (unified interface)
@@ -79,7 +85,9 @@ class UnifiedTranscriptionService {
   
   UnifiedTranscriptionService({
     WisprConfigService? wisprConfigService,
-  }) : _wisprConfigService = wisprConfigService ?? WisprConfigService.instance;
+    AssemblyAIService? assemblyAIService,
+  }) : _wisprConfigService = wisprConfigService ?? WisprConfigService.instance,
+       _assemblyAIService = assemblyAIService ?? AssemblyAIService();
   
   /// Current status
   UnifiedTranscriptionStatus get status => _status;
@@ -95,6 +103,9 @@ class UnifiedTranscriptionService {
     switch (_activeBackend) {
       case TranscriptionBackend.wisprFlow:
         return _wisprService?.isConnected ?? false;
+      case TranscriptionBackend.assemblyAI:
+        return _assemblyAIProvider?.status == ProviderStatus.idle ||
+               _assemblyAIProvider?.status == ProviderStatus.listening;
       case TranscriptionBackend.appleOnDevice:
         return _onDeviceProvider?.status == ProviderStatus.idle ||
                _onDeviceProvider?.status == ProviderStatus.listening;
@@ -108,6 +119,8 @@ class UnifiedTranscriptionService {
     switch (_activeBackend) {
       case TranscriptionBackend.wisprFlow:
         return 'Wispr Flow';
+      case TranscriptionBackend.assemblyAI:
+        return 'Assembly AI';
       case TranscriptionBackend.appleOnDevice:
         return 'On-Device';
       case TranscriptionBackend.none:
@@ -119,10 +132,11 @@ class UnifiedTranscriptionService {
   /// 
   /// Priority (fallback chain):
   /// 1. Wispr Flow (if user has their own API key configured)
-  /// 2. Apple On-Device (default) - always available
+  /// 2. Assembly AI (if premium user) - cloud streaming backup
+  /// 3. Apple On-Device (default) - always available
   Future<TranscriptionStartResult> initialize() async {
     _status = UnifiedTranscriptionStatus.initializing;
-    debugPrint('UnifiedTranscription: Initializing (Wispr → Apple On-Device)...');
+    debugPrint('UnifiedTranscription: Initializing (Wispr → Assembly AI → Apple On-Device)...');
     
     // Step 1: Try Wispr Flow (if user has their own API key)
     final wisprAvailable = await _wisprConfigService.isAvailable();
@@ -155,7 +169,30 @@ class UnifiedTranscriptionService {
       debugPrint('UnifiedTranscription: No user Wispr API key configured');
     }
     
-    // Step 2: Use Apple On-Device transcription (default)
+    // Step 2: Try Assembly AI (premium users - backup cloud STT)
+    final assemblyAIAvailable = await _assemblyAIService.isAvailable();
+    if (assemblyAIAvailable) {
+      try {
+        final token = await _assemblyAIService.getToken();
+        if (token != null && token.isNotEmpty) {
+          _assemblyAIProvider = AssemblyAIProvider(token: token);
+          final assemblyAIInitialized = await _assemblyAIProvider!.initialize();
+          if (assemblyAIInitialized) {
+            _activeBackend = TranscriptionBackend.assemblyAI;
+            _status = UnifiedTranscriptionStatus.ready;
+            debugPrint('UnifiedTranscription: Using Assembly AI backend (premium)');
+            return TranscriptionStartResult.success(TranscriptionBackend.assemblyAI);
+          }
+        }
+      } catch (e) {
+        debugPrint('UnifiedTranscription: Assembly AI error: $e');
+      }
+      _assemblyAIProvider = null;
+    } else {
+      debugPrint('UnifiedTranscription: Assembly AI not available for user');
+    }
+    
+    // Step 3: Use Apple On-Device transcription (default)
     debugPrint('UnifiedTranscription: Using Apple On-Device transcription...');
     
     _onDeviceProvider = OnDeviceTranscriptionProvider();
@@ -171,7 +208,7 @@ class UnifiedTranscriptionService {
       debugPrint('UnifiedTranscription: Apple On-Device failed to initialize');
     }
     
-    // Step 3: No backend available (shouldn't happen - on-device should always work)
+    // Step 4: No backend available (shouldn't happen - on-device should always work)
     _status = UnifiedTranscriptionStatus.error;
     _activeBackend = TranscriptionBackend.none;
     
@@ -214,6 +251,22 @@ class UnifiedTranscriptionService {
         }
         _wisprService?.startSession();
         debugPrint('UnifiedTranscription: Started Wispr Flow session');
+        return true;
+        
+      case TranscriptionBackend.assemblyAI:
+        await _assemblyAIProvider?.startListening(
+          onPartialResult: (segment) {
+            onTranscript?.call(segment.text, false);
+          },
+          onFinalResult: (segment) {
+            onTranscript?.call(segment.text, true);
+          },
+          onError: (error) {
+            onError?.call(error);
+          },
+        );
+        onConnected?.call();
+        debugPrint('UnifiedTranscription: Started Assembly AI session');
         return true;
         
       case TranscriptionBackend.appleOnDevice:
@@ -266,7 +319,7 @@ class UnifiedTranscriptionService {
     if (_activeBackend == TranscriptionBackend.wisprFlow) {
       _wisprService?.sendAudio(audioData);
     }
-    // On-Device handles its own audio capture
+    // Assembly AI and On-Device handle their own audio capture
   }
   
   /// Commit session (for Wispr Flow)
@@ -283,6 +336,10 @@ class UnifiedTranscriptionService {
     switch (_activeBackend) {
       case TranscriptionBackend.wisprFlow:
         _wisprService?.commitSession();
+        break;
+        
+      case TranscriptionBackend.assemblyAI:
+        await _assemblyAIProvider?.stopListening();
         break;
         
       case TranscriptionBackend.appleOnDevice:
@@ -307,6 +364,12 @@ class UnifiedTranscriptionService {
         _wisprService = null;
         break;
         
+      case TranscriptionBackend.assemblyAI:
+        await _assemblyAIProvider?.stopListening();
+        await _assemblyAIProvider?.dispose();
+        _assemblyAIProvider = null;
+        break;
+        
       case TranscriptionBackend.appleOnDevice:
         await _onDeviceProvider?.stopListening();
         _onDeviceProvider = null;
@@ -329,6 +392,8 @@ class UnifiedTranscriptionService {
   /// Dispose of resources
   void dispose() {
     _wisprService?.dispose();
+    _assemblyAIProvider?.dispose();
+    _assemblyAIProvider = null;
     _onDeviceProvider = null;
   }
 }

@@ -36,6 +36,43 @@ import 'package:flutter/foundation.dart';
 
 const _uuid = Uuid();
 
+/// Index file written alongside exports so we can diff and "continue" into the same set.
+const String _kExportSetIndexFileName = 'arcx_export_set_index.json';
+
+/// Index of what's already in an export set (folder). Used to compute diff and continue exporting.
+class ExportSetIndex {
+  final Set<String> entryIds;
+  final Set<String> chatIds;
+  final Set<String> mediaHashes;
+  final String lastUpdatedIso;
+
+  const ExportSetIndex({
+    this.entryIds = const {},
+    this.chatIds = const {},
+    this.mediaHashes = const {},
+    required this.lastUpdatedIso,
+  });
+
+  Map<String, dynamic> toJson() => {
+        'entry_ids': entryIds.toList(),
+        'chat_ids': chatIds.toList(),
+        'media_hashes': mediaHashes.toList(),
+        'last_updated_iso': lastUpdatedIso,
+      };
+
+  static ExportSetIndex? fromJson(Map<String, dynamic>? json) {
+    if (json == null) return null;
+    final updated = json['last_updated_iso'] as String?;
+    if (updated == null) return null;
+    return ExportSetIndex(
+      entryIds: Set<String>.from((json['entry_ids'] as List<dynamic>?)?.cast<String>() ?? []),
+      chatIds: Set<String>.from((json['chat_ids'] as List<dynamic>?)?.cast<String>() ?? []),
+      mediaHashes: Set<String>.from((json['media_hashes'] as List<dynamic>?)?.cast<String>() ?? []),
+      lastUpdatedIso: updated,
+    );
+  }
+}
+
 /// ARCX Export Strategy
 enum ARCXExportStrategy {
   together, // All in one archive (default)
@@ -136,7 +173,10 @@ class ChunkedBackupResult {
   final int totalMedia;
   final DateTime timestamp;
   final String? error;
-  
+  /// Entries date range (YYYY-MM-DD) for UI: first and last entry date in this backup.
+  final String? entriesDateRangeStart;
+  final String? entriesDateRangeEnd;
+
   ChunkedBackupResult({
     required this.success,
     required this.folderPath,
@@ -147,8 +187,10 @@ class ChunkedBackupResult {
     required this.totalMedia,
     required this.timestamp,
     this.error,
+    this.entriesDateRangeStart,
+    this.entriesDateRangeEnd,
   });
-  
+
   factory ChunkedBackupResult.failure(String error) {
     return ChunkedBackupResult(
       success: false,
@@ -401,6 +443,14 @@ class ARCXExportServiceV2 {
         await _generateChecksums(payloadDir);
       }
       
+      // Date range for entries (for manifest and UI)
+      String? entriesDateStart;
+      String? entriesDateEnd;
+      if (entries.isNotEmpty) {
+        final dates = entries.map((e) => e.createdAt).toList()..sort();
+        entriesDateStart = _formatDateIso(dates.first);
+        entriesDateEnd = _formatDateIso(dates.last);
+      }
       // Create manifest
       final manifest = _createManifest(
         exportId: exportId,
@@ -415,6 +465,8 @@ class ARCXExportServiceV2 {
         lumaraFavoritesEntriesCount: lumaraFavoritesExported['entries'] ?? 0,
         separateGroups: false,
         options: options,
+        entriesDateRangeStart: entriesDateStart,
+        entriesDateRangeEnd: entriesDateEnd,
       );
       
       // Write manifest
@@ -975,7 +1027,11 @@ class ARCXExportServiceV2 {
     return slug.isEmpty ? 'untitled' : slug;
   }
   
-  /// Create manifest
+  static String _formatDateIso(DateTime d) {
+    return '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+  }
+  
+  /// Create manifest. [entriesDateRangeStart] / [entriesDateRangeEnd] are ISO date strings (YYYY-MM-DD) for UI/scan.
   ARCXManifest _createManifest({
     required String exportId,
     required String exportedAt,
@@ -989,7 +1045,15 @@ class ARCXExportServiceV2 {
     int lumaraFavoritesEntriesCount = 0,
     required bool separateGroups,
     required ARCXExportOptions options,
+    String? entriesDateRangeStart,
+    String? entriesDateRangeEnd,
   }) {
+    final Map<String, dynamic>? meta = (entriesDateRangeStart != null || entriesDateRangeEnd != null)
+        ? {
+            if (entriesDateRangeStart != null) 'entries_date_range_start': entriesDateRangeStart,
+            if (entriesDateRangeEnd != null) 'entries_date_range_end': entriesDateRangeEnd,
+          }
+        : null;
     return ARCXManifest(
       version: '1.0', // Legacy field
       algo: 'AES-256-GCM', // Legacy field
@@ -1030,6 +1094,7 @@ class ARCXExportServiceV2 {
               file: '/_checksums/sha256.txt',
             )
           : null,
+      metadata: meta,
     );
   }
   
@@ -2204,7 +2269,7 @@ class ARCXExportServiceV2 {
         final chunkedResult = await exportFullBackupChunked(
           outputDir: outputDir,
           password: password,
-          onProgress: onProgress,
+          onProgress: onProgress != null ? (msg, [frac]) => onProgress(msg) : null,
           chunkSizeMB: 200,
         );
         
@@ -2362,6 +2427,12 @@ class ARCXExportServiceV2 {
           isFullBackup: false,
           exportNumber: exportNumber,
         ));
+        await _saveExportSetIndex(
+          backupSetDir,
+          entriesToExport.map((e) => e.id).toSet(),
+          chatsToExport.map((c) => c.id).toSet(),
+          mediaHashes,
+        );
       }
       
       return ARCXExportResultV2.success(
@@ -2456,14 +2527,25 @@ class ARCXExportServiceV2 {
   ///   ├── ARC_Inc_004_2026-01-17.arcx  (incremental backup later)
   ///   └── ARC_Inc_005_2026-01-20.arcx  (another incremental)
   /// ```
+  /// Progress callback: message and optional fraction [0.0, 1.0].
+  static void _callProgress(void Function(String, [double?])? onProgress, String msg, [double? frac]) {
+    if (onProgress != null) {
+      if (frac != null) {
+        onProgress(msg, frac);
+      } else {
+        onProgress(msg);
+      }
+    }
+  }
+
   Future<ChunkedBackupResult> exportFullBackupChunked({
     required Directory outputDir,
     String? password,
-    Function(String)? onProgress,
+    void Function(String, [double?])? onProgress,
     int chunkSizeMB = 200,
   }) async {
     try {
-      onProgress?.call('Preparing chunked backup...');
+      _callProgress(onProgress, 'Preparing chunked backup...', 0.0);
       
       final timestamp = DateTime.now();
       final dateStr = '${timestamp.year}-${timestamp.month.toString().padLeft(2, '0')}-${timestamp.day.toString().padLeft(2, '0')}';
@@ -2482,26 +2564,27 @@ class ARCXExportServiceV2 {
       final allChats = await _chatRepo?.listAll(includeArchived: true) ?? [];
       allChats.sort((a, b) => a.createdAt.compareTo(b.createdAt));
       
-      onProgress?.call('Found ${allEntries.length} entries and ${allChats.length} chats');
+      _callProgress(onProgress, 'Found ${allEntries.length} entries and ${allChats.length} chats', 0.05);
       
       if (allEntries.isEmpty && allChats.isEmpty) {
         return ChunkedBackupResult.failure('No data to backup');
       }
       
       // Split into chunks based on ACTUAL media sizes (async version checks accessibility)
-      onProgress?.call('Analyzing data for optimal chunking...');
-      final chunks = await _splitDataIntoChunksAsync(allEntries, allChats, chunkSizeMB, onProgress);
-      onProgress?.call('Splitting into ${chunks.length} chunk(s) of ~${chunkSizeMB}MB each');
+      _callProgress(onProgress, 'Analyzing data for optimal chunking...', 0.1);
+      final chunks = await _splitDataIntoChunksAsync(allEntries, allChats, chunkSizeMB, (msg) => _callProgress(onProgress, msg));
+      _callProgress(onProgress, 'Splitting into ${chunks.length} chunk(s) of ~${chunkSizeMB}MB each', 0.15);
       
       final chunkPaths = <String>[];
       int totalMedia = 0;
+      final numChunks = chunks.length;
       
-      for (int i = 0; i < chunks.length; i++) {
+      for (int i = 0; i < numChunks; i++) {
         final chunk = chunks[i];
         final chunkNum = (i + 1).toString().padLeft(3, '0');
         final chunkFilename = 'ARC_Full_$chunkNum';
-        
-        onProgress?.call('Exporting chunk ${i + 1}/${chunks.length} (${chunk.entries.length} entries, ${chunk.chats.length} chats)...');
+        final frac = 0.2 + 0.7 * (i + 1) / numChunks;
+        _callProgress(onProgress, 'Exporting chunk ${i + 1}/$numChunks (${chunk.entries.length} entries, ${chunk.chats.length} chats)...', frac);
         
         // Collect media for this chunk's entries
         final chunkMedia = <MediaItem>[];
@@ -2541,7 +2624,7 @@ class ARCXExportServiceV2 {
         }
       }
       
-      onProgress?.call('Chunked backup complete: ${chunks.length} files created');
+      _callProgress(onProgress, 'Chunked backup complete: ${chunks.length} files created', 1.0);
       
       // Record in export history
       final historyService = ExportHistoryService.instance;
@@ -2568,6 +2651,21 @@ class ARCXExportServiceV2 {
         isFullBackup: true,
         exportNumber: await historyService.getNextExportNumber(),
       ));
+
+      await _saveExportSetIndex(
+        backupDir,
+        allEntries.map((e) => e.id).toSet(),
+        allChats.map((c) => c.id).toSet(),
+        mediaHashes,
+      );
+
+      String? entriesDateStart;
+      String? entriesDateEnd;
+      if (allEntries.isNotEmpty) {
+        final sorted = List<DateTime>.from(allEntries.map((e) => e.createdAt))..sort();
+        entriesDateStart = _formatDateIso(sorted.first);
+        entriesDateEnd = _formatDateIso(sorted.last);
+      }
       
       return ChunkedBackupResult(
         success: true,
@@ -2578,6 +2676,8 @@ class ARCXExportServiceV2 {
         totalChats: allChats.length,
         totalMedia: totalMedia,
         timestamp: timestamp,
+        entriesDateRangeStart: entriesDateStart,
+        entriesDateRangeEnd: entriesDateEnd,
       );
     } catch (e, stackTrace) {
       debugPrint('ARCX Chunked Backup: Failed: $e');
@@ -2818,8 +2918,354 @@ class ARCXExportServiceV2 {
     return 0;
   }
   
-  /// Find the latest backup set folder in the output directory
-  /// Returns null if no backup set exists
+  /// Load export set index from a folder (arcx_export_set_index.json).
+  /// Returns null if file missing or invalid.
+  Future<ExportSetIndex?> _loadExportSetIndex(Directory folder) async {
+    final file = File(path.join(folder.path, _kExportSetIndexFileName));
+    if (!await file.exists()) return null;
+    try {
+      final json = jsonDecode(await file.readAsString()) as Map<String, dynamic>?;
+      return ExportSetIndex.fromJson(json);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Build export set index by scanning existing .arcx files in the folder (for folders
+  /// created before we had index files). Decrypts each archive and lists entry/chat IDs
+  /// and media hashes. Password-encrypted files are skipped unless [password] is provided.
+  Future<ExportSetIndex?> _buildExportSetIndexFromExistingArcxFiles(
+    Directory folder, {
+    String? password,
+    Function(String)? onProgress,
+  }) async {
+    final arcxFiles = <File>[];
+    await for (final e in folder.list()) {
+      if (e is File && e.path.toLowerCase().endsWith('.arcx')) {
+        arcxFiles.add(e);
+      }
+    }
+    if (arcxFiles.isEmpty) return null;
+    final entryIds = <String>{};
+    final chatIds = <String>{};
+    final mediaHashes = <String>{};
+    for (int i = 0; i < arcxFiles.length; i++) {
+      final file = arcxFiles[i];
+      onProgress?.call('Scanning ${i + 1}/${arcxFiles.length}: ${path.basename(file.path)}...');
+      try {
+        final bytes = await file.readAsBytes();
+        final zipDecoder = ZipDecoder();
+        final archive = zipDecoder.decodeBytes(bytes);
+        ArchiveFile? manifestFile;
+        ArchiveFile? encryptedArchive;
+        for (final f in archive) {
+          if (f.name == 'manifest.json') manifestFile = f;
+          else if (f.name == 'archive.arcx') encryptedArchive = f;
+        }
+        if (manifestFile == null || encryptedArchive == null) continue;
+        final manifestJson = jsonDecode(utf8.decode(manifestFile.content as List<int>)) as Map<String, dynamic>;
+        final manifest = ARCXManifest.fromJson(manifestJson);
+        final ciphertext = Uint8List.fromList(encryptedArchive.content as List<int>);
+        Uint8List plaintextZip;
+        if (manifest.isPasswordEncrypted) {
+          if (password == null || password.isEmpty || manifest.saltB64 == null) continue;
+          final salt = Uint8List.fromList(base64Decode(manifest.saltB64!));
+          plaintextZip = await ARCXCryptoService.decryptWithPassword(ciphertext, password, salt);
+        } else {
+          try {
+            plaintextZip = await ARCXCryptoService.decryptAEAD(ciphertext);
+          } catch (_) {
+            continue;
+          }
+        }
+        final payloadArchive = ZipDecoder().decodeBytes(plaintextZip);
+        for (final f in payloadArchive) {
+          if (!f.isFile) continue;
+          final name = f.name;
+          if (name.startsWith('Entries/') && name.endsWith('.arcx.json')) {
+            final base = path.basename(name);
+            if (base.startsWith('entry-') && base.length >= 6 + 36) {
+              final entryId = base.substring(6, 6 + 36);
+              if (RegExp(r'^[a-fA-F0-9-]{36}$').hasMatch(entryId)) entryIds.add(entryId);
+            }
+          } else if (name.startsWith('Chats/') && name.endsWith('.arcx.json')) {
+            final base = path.basename(name);
+            if (base.startsWith('chat-')) {
+              final id = base.replaceFirst('chat-', '').replaceAll('.arcx.json', '');
+              if (id.isNotEmpty) chatIds.add(id);
+            }
+          } else if (name == 'Media/media_index.json') {
+            try {
+              final content = jsonDecode(utf8.decode(f.content as List<int>)) as Map<String, dynamic>?;
+              final items = content?['items'] as List<dynamic>? ?? [];
+              for (final item in items) {
+                final itemMap = item as Map<String, dynamic>?;
+                final hash = itemMap != null ? itemMap['sha256'] as String? : null;
+                if (hash != null && hash.isNotEmpty) mediaHashes.add(hash);
+              }
+            } catch (_) {}
+          }
+        }
+      } catch (_) {
+        continue;
+      }
+    }
+    if (entryIds.isEmpty && chatIds.isEmpty && mediaHashes.isEmpty) return null;
+    return ExportSetIndex(
+      entryIds: entryIds,
+      chatIds: chatIds,
+      mediaHashes: mediaHashes,
+      lastUpdatedIso: DateTime.now().toUtc().toIso8601String(),
+    );
+  }
+
+  /// Merge and save export set index to folder.
+  Future<void> _saveExportSetIndex(
+    Directory folder,
+    Set<String> entryIds,
+    Set<String> chatIds,
+    Set<String> mediaHashes,
+  ) async {
+    final existing = await _loadExportSetIndex(folder);
+    final merged = ExportSetIndex(
+      entryIds: {...?existing?.entryIds, ...entryIds},
+      chatIds: {...?existing?.chatIds, ...chatIds},
+      mediaHashes: {...?existing?.mediaHashes, ...mediaHashes},
+      lastUpdatedIso: DateTime.now().toUtc().toIso8601String(),
+    );
+    final file = File(path.join(folder.path, _kExportSetIndexFileName));
+    await file.writeAsString(jsonEncode(merged.toJson()));
+  }
+
+  /// Same as [getExportSetDiffPreview] but for a parent directory: finds the latest
+  /// ARC_BackupSet_* folder, or uses the folder itself if it contains .arcx files (supports pre-index exports).
+  /// [password] is used when building index from existing .arcx files (no index file).
+  Future<Map<String, dynamic>> getExportSetDiffPreviewForOutputDir(Directory outputDir, {String? password}) async {
+    final backupSetDir = await _findLatestBackupSet(outputDir);
+    final targetDir = backupSetDir ?? outputDir;
+    final hasArcx = await _hasArcxFiles(outputDir);
+    if (backupSetDir == null && !hasArcx) {
+      return {
+        'hasIndex': false,
+        'entriesInSet': 0,
+        'chatsInSet': 0,
+        'mediaInSet': 0,
+        'entriesToExport': 0,
+        'chatsToExport': 0,
+        'mediaToExport': 0,
+        'totalEntries': 0,
+        'totalChats': 0,
+        'hasDelta': false,
+        'noBackupSet': true,
+        'backupSetPath': outputDir.path,
+      };
+    }
+    final preview = await getExportSetDiffPreview(targetDir, password: password);
+    preview['backupSetPath'] = targetDir.path;
+    preview['noBackupSet'] = false;
+    return preview;
+  }
+
+  Future<bool> _hasArcxFiles(Directory dir) async {
+    await for (final e in dir.list()) {
+      if (e is File && e.path.toLowerCase().endsWith('.arcx')) return true;
+    }
+    return false;
+  }
+
+  /// Preview what would be exported if we "continue" into this folder (diff vs index).
+  /// If no index file exists, builds index from existing .arcx files (supports pre-record exports).
+  /// [password] is used when scanning password-encrypted .arcx files to build the index.
+  Future<Map<String, dynamic>> getExportSetDiffPreview(Directory folder, {String? password}) async {
+    final allEntries = await _journalRepo?.getAllJournalEntries() ?? [];
+    final allChats = await _chatRepo?.listAll(includeArchived: true) ?? [];
+    ExportSetIndex? index = await _loadExportSetIndex(folder);
+    if (index == null) {
+      index = await _buildExportSetIndexFromExistingArcxFiles(folder, password: password);
+      if (index != null) {
+        await _saveExportSetIndex(folder, index.entryIds, index.chatIds, index.mediaHashes);
+      }
+    }
+
+    final entryIdsInSet = index?.entryIds ?? {};
+    final chatIdsInSet = index?.chatIds ?? {};
+    final mediaHashesInSet = index?.mediaHashes ?? {};
+
+    final entriesToExport = allEntries.where((e) => !entryIdsInSet.contains(e.id)).toList();
+    final chatsToExport = allChats.where((c) => !chatIdsInSet.contains(c.id)).toList();
+    final mediaToExport = <MediaItem>[];
+    for (final entry in entriesToExport) {
+      for (final m in entry.media) {
+        if (m.sha256 == null || !mediaHashesInSet.contains(m.sha256)) {
+          mediaToExport.add(m);
+        }
+      }
+    }
+
+    return {
+      'hasIndex': index != null,
+      'entriesInSet': entryIdsInSet.length,
+      'chatsInSet': chatIdsInSet.length,
+      'mediaInSet': mediaHashesInSet.length,
+      'entriesToExport': entriesToExport.length,
+      'chatsToExport': chatsToExport.length,
+      'mediaToExport': mediaToExport.length,
+      'totalEntries': allEntries.length,
+      'totalChats': allChats.length,
+      'hasDelta': entriesToExport.isNotEmpty || chatsToExport.isNotEmpty,
+    };
+  }
+
+  /// Look at a folder of exported files (using arcx_export_set_index.json), compute diff
+  /// vs current app data, and export only the delta into that folder. Creates/updates
+  /// the index so future "continue" calls stay correct.
+  Future<ARCXExportResultV2> exportContinueToFolder({
+    required Directory folder,
+    String? password,
+    Function(String)? onProgress,
+    ARCXExportStrategy strategy = ARCXExportStrategy.together,
+    bool excludeMedia = false,
+  }) async {
+    try {
+      if (!await folder.exists()) {
+        return ARCXExportResultV2.failure('Folder does not exist');
+      }
+
+      onProgress?.call('Scanning export set...');
+      ExportSetIndex? index = await _loadExportSetIndex(folder);
+      if (index == null) {
+        onProgress?.call('No index file; building from existing .arcx files...');
+        index = await _buildExportSetIndexFromExistingArcxFiles(folder, password: password, onProgress: onProgress);
+        if (index != null) {
+          await _saveExportSetIndex(folder, index.entryIds, index.chatIds, index.mediaHashes);
+        }
+      }
+      final allEntries = await _journalRepo?.getAllJournalEntries() ?? [];
+      final allChats = await _chatRepo?.listAll(includeArchived: true) ?? [];
+
+      final entryIdsInSet = index?.entryIds ?? {};
+      final chatIdsInSet = index?.chatIds ?? {};
+      final mediaHashesInSet = index?.mediaHashes ?? {};
+
+      final entriesToExport = allEntries.where((e) => !entryIdsInSet.contains(e.id)).toList();
+      final chatsToExport = allChats.where((c) => !chatIdsInSet.contains(c.id)).toList();
+      final mediaToExport = <MediaItem>[];
+      if (!excludeMedia) {
+        for (final entry in entriesToExport) {
+          for (final m in entry.media) {
+            if (m.sha256 == null || !mediaHashesInSet.contains(m.sha256)) {
+              mediaToExport.add(m);
+            }
+          }
+        }
+      }
+
+      if (entriesToExport.isEmpty && chatsToExport.isEmpty) {
+        onProgress?.call('No new data to export; set is up to date.');
+        return ARCXExportResultV2.success(
+          arcxPath: folder.path,
+          entriesExported: 0,
+          chatsExported: 0,
+          mediaExported: 0,
+        );
+      }
+
+      final nextNum = await _getHighestFileNumber(folder) + 1;
+      final nextNumStr = nextNum.toString().padLeft(3, '0');
+      final dateStr = '${DateTime.now().year}-${DateTime.now().month.toString().padLeft(2, '0')}-${DateTime.now().day.toString().padLeft(2, '0')}';
+      final filename = 'ARC_Inc_${nextNumStr}_$dateStr';
+      onProgress?.call('Exporting $filename: ${entriesToExport.length} entries, ${chatsToExport.length} chats, ${mediaToExport.length} media');
+
+      final options = ARCXExportOptions(
+        strategy: strategy,
+        incrementalMode: true,
+        skipExportedMedia: !excludeMedia,
+        trackExportHistory: true,
+        excludeMediaFromIncremental: excludeMedia,
+      );
+      final exportId = _uuid.v4();
+      final exportedAt = DateTime.now().toUtc().toIso8601String();
+
+      final result = await _exportTogether(
+        entries: entriesToExport,
+        chats: chatsToExport,
+        media: mediaToExport,
+        options: options,
+        exportId: exportId,
+        exportedAt: exportedAt,
+        outputDir: folder,
+        password: password,
+        onProgress: onProgress,
+        exportNumber: nextNum,
+      );
+
+      if (!result.success) {
+        return result;
+      }
+
+      // Update export set index so future "continue" sees this data
+      final newEntryIds = entriesToExport.map((e) => e.id).toSet();
+      final newChatIds = chatsToExport.map((c) => c.id).toSet();
+      final newMediaHashes = mediaToExport.where((m) => m.sha256 != null).map((m) => m.sha256!).toSet();
+      await _saveExportSetIndex(folder, newEntryIds, newChatIds, newMediaHashes);
+
+      // Record in app export history as well
+      final historyService = ExportHistoryService.instance;
+      await historyService.recordExport(ExportRecord(
+        exportId: 'arcx-continue-${DateTime.now().millisecondsSinceEpoch}',
+        exportedAt: DateTime.now(),
+        exportPath: result.arcxPath,
+        entryIds: newEntryIds,
+        chatIds: newChatIds,
+        mediaHashes: newMediaHashes,
+        entriesCount: result.entriesExported,
+        chatsCount: result.chatsExported,
+        mediaCount: result.mediaExported,
+        archiveSizeBytes: await _getFileSize(result.arcxPath ?? ''),
+        isFullBackup: false,
+        exportNumber: await historyService.getNextExportNumber(),
+      ));
+
+      return result;
+    } catch (e, stackTrace) {
+      debugPrint('ARCX Export Continue: Failed: $e');
+      debugPrint('Stack trace: $stackTrace');
+      return ARCXExportResultV2.failure(e.toString());
+    }
+  }
+
+  /// Same as [exportContinueToFolder] but for a parent directory: finds the latest
+  /// ARC_BackupSet_* folder, or uses the folder itself if it contains .arcx files (supports pre-index exports).
+  Future<ARCXExportResultV2> exportContinueToOutputDir({
+    required Directory outputDir,
+    String? password,
+    Function(String)? onProgress,
+    ARCXExportStrategy strategy = ARCXExportStrategy.together,
+    bool excludeMedia = false,
+  }) async {
+    final backupSetDir = await _findLatestBackupSet(outputDir);
+    final targetDir = backupSetDir ?? outputDir;
+    final hasArcx = await _hasArcxFiles(outputDir);
+    if (backupSetDir == null && !hasArcx) {
+      return ARCXExportResultV2.failure(
+        'No backup set or .arcx files in this folder. Create a full backup first or select a folder that contains .arcx files.',
+      );
+    }
+    if (backupSetDir != null) {
+      onProgress?.call('Using backup set: ${path.basename(backupSetDir.path)}');
+    } else {
+      onProgress?.call('Using folder: ${path.basename(targetDir.path)}');
+    }
+    return exportContinueToFolder(
+      folder: targetDir,
+      password: password,
+      onProgress: onProgress,
+      strategy: strategy,
+      excludeMedia: excludeMedia,
+    );
+  }
+
+  /// Find the latest backup set folder in the output directory. Returns null if no backup set exists.
   Future<Directory?> _findLatestBackupSet(Directory outputDir) async {
     if (!await outputDir.exists()) return null;
     

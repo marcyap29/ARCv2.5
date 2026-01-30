@@ -32,6 +32,7 @@ import 'package:my_app/telemetry/analytics.dart';
 import 'package:my_app/models/phase_models.dart';
 import 'package:my_app/shared/widgets/import_status_bar.dart';
 import 'package:my_app/mira/store/arcx/import_progress_cubit.dart';
+import 'package:my_app/ui/export_import/mcp_import_screen.dart';
 
 // Debug flag for showing RIVET engineering labels
 const bool kShowRivetDebugLabels = false;
@@ -150,13 +151,17 @@ class _HomeViewState extends State<HomeView> {
               try {
                 context.read<TimelineCubit>().reloadAllEntries();
               } catch (_) {}
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Import complete'),
-                  backgroundColor: Colors.green,
-                  duration: Duration(seconds: 2),
-                ),
-              );
+              if (state.completedImportResult != null) {
+                McpImportScreen.showARCXImportSuccessDialog(context, state.completedImportResult!);
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Import complete'),
+                    backgroundColor: Colors.green,
+                    duration: Duration(seconds: 2),
+                  ),
+                );
+              }
               context.read<ImportProgressCubit>().clearCompleted();
             } else if (state.error != null) {
               ScaffoldMessenger.of(context).showSnackBar(

@@ -103,6 +103,7 @@ class ARCXManifest {
         'scope': scope?.toJson(),
         'encryption': encryptionInfo?.toJson(),
         'checksums': checksumsInfo?.toJson(),
+        if (metadata != null && metadata!.isNotEmpty) 'metadata': metadata,
         // Keep legacy fields for backward compatibility
         'version': version,
         'sha256': sha256,

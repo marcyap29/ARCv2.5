@@ -32,6 +32,88 @@ class McpImportScreen extends StatefulWidget {
 
   @override
   State<McpImportScreen> createState() => _McpImportScreenState();
+
+  /// Show ARCX import success dialog (e.g. from HomeView when background import completes).
+  static void showARCXImportSuccessDialog(BuildContext context, ARCXImportResultV2 result) {
+    Widget summaryRow(String label, String value) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 2),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(child: Text(label, style: bodyStyle(context), overflow: TextOverflow.ellipsis)),
+            const SizedBox(width: 8),
+            Text(value, style: bodyStyle(context).copyWith(fontWeight: FontWeight.bold)),
+          ],
+        ),
+      );
+    }
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (ctx) => Dialog(
+        child: SafeArea(
+          child: SizedBox(
+            width: 400,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.check_circle, color: Colors.green),
+                      const SizedBox(width: 8),
+                      Expanded(child: Text('Import Complete', style: heading2Style(ctx))),
+                    ],
+                  ),
+                ),
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxHeight: 380),
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Your data has been successfully restored!', style: bodyStyle(ctx)),
+                        const SizedBox(height: 16),
+                        summaryRow('Entries restored:', result.entriesTotalInArchive != null
+                            ? '${result.entriesImported} of ${result.entriesTotalInArchive}'
+                                + (result.entriesFailed != null && result.entriesFailed! > 0 ? ' (${result.entriesFailed} failed)' : '')
+                            : '${result.entriesImported}'),
+                        summaryRow('Media restored:', '${result.mediaImported}'),
+                        if (result.chatsImported > 0) summaryRow('Chat sessions:', '${result.chatsImported}'),
+                        summaryRow('LUMARA Favorites:', '${result.lumaraFavoritesImported}'),
+                        if (result.warnings != null && result.warnings!.isNotEmpty) ...[
+                          const SizedBox(height: 8),
+                          Text('Warnings:', style: bodyStyle(ctx).copyWith(fontWeight: FontWeight.bold, color: Colors.orange)),
+                          ...result.warnings!.map((w) => Padding(padding: const EdgeInsets.only(left: 8, top: 4), child: Text('• $w', style: bodyStyle(ctx).copyWith(fontSize: 12, color: Colors.orange)))),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TextButton(
+                        onPressed: () => Navigator.of(ctx).pop(),
+                        child: const Text('Done'),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _McpImportScreenState extends State<McpImportScreen> {
@@ -41,6 +123,124 @@ class _McpImportScreenState extends State<McpImportScreen> {
   String? _detectedFormat;
   bool _isSeparatedPackage = false;
   Map<String, String> _detectedGroups = {}; // groupType -> filePath
+
+  Future<void> _continueImportFromFolder() async {
+    if (_isImporting) return;
+    try {
+      final folderPath = await FilePicker.platform.getDirectoryPath();
+      if (folderPath == null || !mounted) return;
+      final folder = Directory(folderPath);
+      if (!await folder.exists()) {
+        _showErrorDialog('Folder does not exist');
+        return;
+      }
+      setState(() => _isImporting = true);
+      PhaseRegimeService? phaseRegimeService;
+      try {
+        final analyticsService = AnalyticsService();
+        final rivetSweepService = RivetSweepService(analyticsService);
+        phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
+        await phaseRegimeService.initialize();
+      } catch (_) {}
+      final journalRepo = context.read<JournalRepository>();
+      final chatRepo = ChatRepoImpl.instance;
+      await chatRepo.initialize();
+      final importService = ARCXImportServiceV2(
+        journalRepo: journalRepo,
+        chatRepo: chatRepo,
+        phaseRegimeService: phaseRegimeService,
+      );
+      final preview = await importService.getImportSetDiffPreview(folder);
+      final filesToImport = preview['filesToImport'] as int? ?? 0;
+      final filesAlreadyImported = preview['filesAlreadyImported'] as int? ?? 0;
+      final filesInFolder = preview['filesInFolder'] as int? ?? 0;
+      if (!mounted) return;
+      setState(() => _isImporting = false);
+      if (filesInFolder == 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No .arcx files found in this folder'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        return;
+      }
+      if (filesToImport == 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('All $filesAlreadyImported file(s) in this folder have already been imported.'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        return;
+      }
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Continue Import from Folder'),
+          content: Text(
+            'Found $filesInFolder .arcx file(s). $filesAlreadyImported already imported, $filesToImport to import.\n\nProceed?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Import'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true || !mounted) return;
+      setState(() => _isImporting = true);
+      _showProgressDialog();
+      final continueResult = await importService.importContinueFromFolder(
+        folder: folder,
+        options: ARCXImportOptions(
+          validateChecksums: true,
+          dedupeMedia: true,
+          skipExisting: true,
+          resolveLinks: true,
+        ),
+        password: null,
+        onProgress: (message, [fraction = 0.0]) {
+          if (mounted) {
+            // Progress dialog is already shown; could update message if needed
+          }
+        },
+      );
+      if (mounted) Navigator.of(context).pop();
+      setState(() => _isImporting = false);
+      if (continueResult.success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              continueResult.filesProcessed == 0
+                  ? 'Export set is up to date.'
+                  : 'Imported ${continueResult.filesProcessed} file(s): '
+                    '${continueResult.totalEntriesImported} entries, '
+                    '${continueResult.totalChatsImported} chats, '
+                    '${continueResult.totalMediaImported} media.',
+            ),
+            backgroundColor: Colors.green,
+          ),
+        );
+        context.read<TimelineCubit>().reloadAllEntries();
+      } else {
+        _showErrorDialog(
+          continueResult.errors?.join('\n') ?? 'Import failed',
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isImporting = false);
+        Navigator.of(context).pop();
+      }
+      _showErrorDialog('Continue import failed: $e');
+    }
+  }
 
   Future<void> _selectMcpFile() async {
     try {
@@ -263,7 +463,7 @@ class _McpImportScreenState extends State<McpImportScreen> {
               },
             );
             if (result.success) {
-              progressCubit.complete();
+              progressCubit.complete(result);
             } else {
               progressCubit.fail(result.error);
             }
@@ -1222,7 +1422,13 @@ class _McpImportScreenState extends State<McpImportScreen> {
                         style: bodyStyle(context),
                       ),
                       const SizedBox(height: 16),
-                      _buildSummaryRow('Entries restored:', '${result.entriesImported}'),
+                      _buildSummaryRow(
+                        'Entries restored:',
+                        result.entriesTotalInArchive != null
+                            ? '${result.entriesImported} of ${result.entriesTotalInArchive}'
+                                + (result.entriesFailed != null && result.entriesFailed! > 0 ? ' (${result.entriesFailed} failed)' : '')
+                            : '${result.entriesImported}',
+                      ),
                       _buildSummaryRow('Media restored:', '${result.mediaImported}'),
                       if (result.chatsImported > 0)
                         _buildSummaryRow('Chat sessions:', '${result.chatsImported}'),
@@ -1473,6 +1679,14 @@ class _McpImportScreenState extends State<McpImportScreen> {
               subtitle: 'Choose .zip (MCP) or .arcx (Secure Archive) files. Select multiple .arcx files for separated packages.',
               icon: Icons.file_present,
               onTap: _selectMcpFile,
+            ),
+            const SizedBox(height: 8),
+            // Continue import from folder (only .arcx files not yet in import set index)
+            _buildSelectionTile(
+              title: 'Continue Import from Folder',
+              subtitle: 'Pick a folder of .arcx files. Files not yet imported are imported; already-imported files are skipped. Works with folders created before import records (existing entries/chats are skipped).',
+              icon: Icons.folder_open,
+              onTap: _continueImportFromFolder,
             ),
 
             // Selected file info

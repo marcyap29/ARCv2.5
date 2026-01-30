@@ -701,7 +701,8 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
   - **ZIP Import (Settings)**: Select multiple ZIP files from Settings → Import Data for batch processing
   - **Chat Import**: Select multiple JSON files to merge chat data from multiple exports
   - **Progress Feedback**: Real-time progress indicators showing "File X of Y" during import
-  - **Global Import Status Bar (v3.3.13)**: When an import runs in the background, a mini status bar appears below the app bar on the home screen so users can see progress without staying on the import screen; the bar disappears when the import completes
+  - **Global Import Status Bar (v3.3.13)**: When an import runs in the background, a mini status bar appears below the app bar on the home screen showing message, progress bar, and **percentage (0%–100%)**; includes “You can keep using the app”; the bar disappears when the import completes
+  - **Import Status Screen (Settings → Import)**: Tapping **Settings → Import Data** opens the Import screen. When no import is active: “Choose files to import”. When an import is running: overall progress and a **list of files with status** (Pending / In progress / Completed / Failed). When completed or failed: result summary and Done / Import more. Users can navigate to Settings → Import at any time to view progress while the import runs in the background
   - **Sequential Processing**: Files processed one at a time with clear status updates
   - **Chronological Sorting**: Files automatically sorted by creation date (oldest first) before import
     - Ensures data timeline consistency
@@ -812,7 +813,7 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 
 **Import/Export UI Organization (v2.1.77)**
 - **Settings → Local Backup**: Regular automated backups with incremental tracking and scheduling
-- **Settings → Import Data**: Direct access to restore from backup files (.zip, .mcpkg, .arcx)
+- **Settings → Import Data**: Opens the Import screen: choose files to restore from backup (.zip, .mcpkg, .arcx), or view current import progress and per-file status (pending / in progress / completed / failed) while import runs in the background
 - **First Backup on Import (v3.2.4)**: When importing into an empty app, the system automatically creates an export record marking the imported data as the first save, ensuring future incremental backups correctly identify new vs. imported data
 
 ---

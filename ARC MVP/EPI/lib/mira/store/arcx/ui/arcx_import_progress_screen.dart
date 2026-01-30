@@ -17,6 +17,7 @@ import 'package:my_app/services/rivet_sweep_service.dart';
 import 'package:my_app/services/analytics_service.dart';
 import '../services/arcx_import_service.dart';
 import '../services/arcx_import_service_v2.dart';
+import '../services/arcx_import_set_index_service.dart';
 import '../models/arcx_result.dart';
 import 'package:my_app/shared/ui/home/home_view.dart';
 
@@ -234,6 +235,20 @@ class _ARCXImportProgressScreenState extends State<ARCXImportProgressScreen> {
           print('🎉 ARCX DEBUG: Media: ${v2Result.mediaImported}');
           print('🎉 ARCX DEBUG: Chats: ${v2Result.chatsImported}');
 
+          // Record in import set index so "continue import from folder" can skip this file
+          try {
+            final arcxFile = File(widget.arcxPath);
+            if (await arcxFile.exists()) {
+              final stat = await arcxFile.stat();
+              await ArcxImportSetIndexService.instance.recordImport(
+                sourcePath: widget.arcxPath,
+                lastModifiedMs: stat.modified.millisecondsSinceEpoch,
+                importedEntryIds: v2Result.importedEntryIds ?? {},
+                importedChatIds: v2Result.importedChatIds ?? {},
+              );
+            }
+          } catch (_) {}
+
           setState(() {
             _isLoading = false;
             _status = 'Done';
@@ -381,7 +396,7 @@ class _ARCXImportProgressScreenState extends State<ARCXImportProgressScreen> {
                 SizedBox(
                   width: double.infinity,
                   child: LinearProgressIndicator(
-                    value: _progress > 0 ? _progress : null,
+                    value: _progress.clamp(0.0, 1.0),
                     backgroundColor: kcSurfaceAltColor,
                     valueColor: const AlwaysStoppedAnimation<Color>(kcPrimaryColor),
                   ),
@@ -511,7 +526,13 @@ class _ARCXImportProgressScreenState extends State<ARCXImportProgressScreen> {
                   style: bodyStyle(context),
                 ),
                 const SizedBox(height: 16),
-                _buildSummaryRow('Entries restored:', '${result.entriesImported}'),
+                _buildSummaryRow(
+                  'Entries restored:',
+                  result.entriesTotalInArchive != null
+                      ? '${result.entriesImported} of ${result.entriesTotalInArchive}'
+                          + (result.entriesFailed != null && result.entriesFailed! > 0 ? ' (${result.entriesFailed} failed)' : '')
+                      : '${result.entriesImported}',
+                ),
                 _buildSummaryRow('Media restored:', '${result.mediaImported}'),
                 if (result.chatsImported > 0)
                   _buildSummaryRow('Chat sessions:', '${result.chatsImported}'),

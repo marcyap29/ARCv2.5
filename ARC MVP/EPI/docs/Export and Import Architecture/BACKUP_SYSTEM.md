@@ -4,6 +4,8 @@
 **Last Updated:** January 16, 2026  
 **Status:** Current Implementation with Backup Set Model, Enhanced Incremental Backups, Chunked Full Backup, First Export Full Backup, Sequential Export Numbering, and First Backup on Import
 
+**See also:** [IMPORT_EXPORT_UI_SPEC.md](IMPORT_EXPORT_UI_SPEC.md) — exact UI text and data format for Verify backup, Export/Import success dialogs, and Selective backup (for developers and Agent mode).
+
 ---
 
 ## Overview
@@ -406,6 +408,11 @@ ARCX supports importing two formats:
 - Files processed sequentially with progress feedback
 - Each file processed independently with error handling
 - Final status shows total success/failure counts
+
+**Import UX: Non-blocking and status visibility (v3.3.13):**
+- **Mini status bar on Home:** When an ARCX (or MCP) import runs in the background, a mini status bar appears below the app bar on the home screen. It shows the current message, a progress bar, and **percentage (0%–100%)**, plus “You can keep using the app”. The bar disappears when the import completes.
+- **Import Status screen (Settings → Import):** Tapping **Settings → Import Data** opens the Import screen. When no import is active, the user sees “Choose files to import”. When an import is running, the screen shows overall progress and a **list of files with status** (Pending / In progress / Completed / Failed). When completed or failed, the screen shows the result and Done / Import more. The user can navigate to Settings → Import at any time to view progress while the import runs in the background.
+- **Per-file status for multi-file imports:** Multi-ARCX imports use `ImportProgressCubit.startWithFiles` and `updateFileStatus` so the Import Status screen displays per-file status; the mini status bar still shows overall progress and percentage.
 
 **Format Detection:**
 - Automatically detects new vs. legacy structure

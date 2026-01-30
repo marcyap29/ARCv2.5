@@ -35,6 +35,7 @@ import '../../../services/lumara/classification_logger.dart';
 import '../../../services/sentinel/sentinel_analyzer.dart';
 import '../../../services/sentinel/crisis_mode.dart';
 import '../../../models/engagement_discipline.dart' show EngagementMode;
+import '../voice/prompts/voice_response_builders.dart';
 
 /// Result of generating a reflection with attribution traces
 class ReflectionResult {
@@ -177,6 +178,7 @@ class EnhancedLumaraApi {
     String? entryId, // For per-entry usage limit tracking
     bool forceQuickResponse = false, // For voice mode - use fast paths
     bool skipHeavyProcessing = false, // Skip node matching/context retrieval but still use Master Prompt
+    EngagementMode? voiceEngagementModeOverride, // When set (voice dropdown), use this for control state and prompt cap
     // New v2.3 options
     models.LumaraReflectionOptions? options,
     void Function(String message)? onProgress,
@@ -207,6 +209,7 @@ class EnhancedLumaraApi {
       entryId: entryId,
       forceQuickResponse: forceQuickResponse,
       skipHeavyProcessing: skipHeavyProcessing,
+      voiceEngagementModeOverride: voiceEngagementModeOverride,
       onProgress: onProgress,
     );
     
@@ -230,6 +233,7 @@ class EnhancedLumaraApi {
     String? entryId, // For per-entry usage limit tracking
     bool forceQuickResponse = false, // For voice mode - use fast paths
     bool skipHeavyProcessing = false, // Skip node matching/context retrieval but still use Master Prompt
+    EngagementMode? voiceEngagementModeOverride, // When set (voice dropdown), use for control state and prompt cap
     void Function(String message)? onProgress,
   }) async {
     try {
@@ -457,9 +461,14 @@ class EnhancedLumaraApi {
             entryId: entryId, // Use entryId parameter from function signature
           );
           } else {
-            // Still need engagement mode for control state builder even if skipping context selection
-            final engagementSettings = await settingsService.getEngagementSettings();
-            engagementMode = engagementSettings.activeMode;
+            // Voice mode: use dropdown choice if provided, else settings
+            if (voiceEngagementModeOverride != null) {
+              engagementMode = voiceEngagementModeOverride;
+              print('LUMARA: Voice mode using engagement override: ${engagementMode.name}');
+            } else {
+              final engagementSettings = await settingsService.getEngagementSettings();
+              engagementMode = engagementSettings.activeMode;
+            }
             print('LUMARA: Skipping context selection for voice mode');
           }
           
@@ -661,17 +670,7 @@ class EnhancedLumaraApi {
             }
           }
           
-          // Get unified master prompt (includes entry text, context, and all constraints)
-          String systemPrompt = LumaraMasterPrompt.getMasterPrompt(
-            simplifiedControlStateJson,
-            entryText: request.userText,
-            baseContext: baseContext.isNotEmpty ? baseContext : null,
-            modeSpecificInstructions: modeSpecificInstructions.isNotEmpty ? modeSpecificInstructions : null,
-          );
-          
-          // Inject current date/time and recent entries context for temporal grounding
-          // Context selector already excludes current entry and respects Memory Focus limits
-          // Use the same 'now' instance from above for consistency
+          // Get unified master prompt or voice-only trimmed prompt
           final recentEntries = recentJournalEntries
               .map((entry) {
                 final daysAgo = now.difference(entry.createdAt).inDays;
@@ -680,7 +679,6 @@ class EnhancedLumaraApi {
                     : daysAgo == 1 
                         ? 'yesterday' 
                         : '$daysAgo days ago';
-                
                 return {
                   'date': entry.createdAt,
                   'relativeDate': relativeDate,
@@ -693,13 +691,43 @@ class EnhancedLumaraApi {
               })
               .toList();
           
-          systemPrompt = LumaraMasterPrompt.injectDateContext(
-            systemPrompt,
-            recentEntries: recentEntries,
-            currentDate: now,
-          );
+          String systemPrompt;
+          if (skipHeavyProcessing) {
+            // Voice mode: use trimmed prompt (no full master, no journal history) for lower latency
+            systemPrompt = LumaraMasterPrompt.getVoicePrompt(
+              simplifiedControlStateJson,
+              entryText: request.userText,
+              modeSpecificInstructions: modeSpecificInstructions.isNotEmpty ? modeSpecificInstructions : null,
+            );
+            systemPrompt = LumaraMasterPrompt.injectDateContext(
+              systemPrompt,
+              recentEntries: null,
+              currentDate: now,
+            );
+            // Hard-cap voice prompt by mode: Default 8k, Explore 10k, Integrate 13k
+            final effectiveVoiceMode = voiceEngagementModeOverride ?? engagementMode ?? EngagementMode.reflect;
+            final maxChars = VoiceResponseConfig.getVoicePromptMaxChars(effectiveVoiceMode);
+            if (systemPrompt.length > maxChars) {
+              final wasLen = systemPrompt.length;
+              systemPrompt = systemPrompt.substring(0, maxChars);
+              print('🔵 LUMARA V23: Voice prompt truncated to $maxChars chars (was $wasLen; mode: ${effectiveVoiceMode.name})');
+            }
+            print('🔵 LUMARA V23: Using voice-only trimmed prompt (${systemPrompt.length} chars, ~${(systemPrompt.length / 4).round()} tokens, cap: $maxChars)');
+          } else {
+            systemPrompt = LumaraMasterPrompt.getMasterPrompt(
+              simplifiedControlStateJson,
+              entryText: request.userText,
+              baseContext: baseContext.isNotEmpty ? baseContext : null,
+              modeSpecificInstructions: modeSpecificInstructions.isNotEmpty ? modeSpecificInstructions : null,
+            );
+            systemPrompt = LumaraMasterPrompt.injectDateContext(
+              systemPrompt,
+              recentEntries: recentEntries,
+              currentDate: now,
+            );
+            print('🔵 LUMARA V23: Using unified master prompt');
+          }
           
-          print('🔵 LUMARA V23: Using unified master prompt');
           print('🔵 LUMARA V23: Unified prompt length: ${systemPrompt.length}');
           print('🔵 LUMARA V23: Persona=$selectedPersona, maxWords=$maxWords, patternExamples=$minPatternExamples-$maxPatternExamples');
           if (safetyOverride) {

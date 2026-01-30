@@ -32,6 +32,8 @@ import 'package:hive/hive.dart';
 import 'package:my_app/models/user_profile_model.dart';
 import 'package:my_app/prism/atlas/phase/phase_inference_service.dart';
 import 'package:my_app/services/export_history_service.dart';
+import 'arcx_checkpoint_service.dart';
+import 'arcx_import_set_index_service.dart';
 
 const _uuid = Uuid();
 
@@ -86,6 +88,10 @@ class ARCXImportServiceV2 {
   final Set<String> _importedEntryIds = {};
   final Set<String> _importedChatIds = {};
   final Set<String> _importedMediaHashes = {};
+  /// Total entry files in archive (for X of Y in result).
+  int _entriesTotalInArchive = 0;
+  /// Entry files that failed to import (parse/convert error).
+  int _entriesFailed = 0;
   
   ARCXImportServiceV2({
     JournalRepository? journalRepo,
@@ -106,6 +112,8 @@ class ARCXImportServiceV2 {
     _importedEntryIds.clear();
     _importedChatIds.clear();
     _importedMediaHashes.clear();
+    _entriesTotalInArchive = 0;
+    _entriesFailed = 0;
     print('ARCX Import V2: 🧹 Cleared caches for new import');
   }
   
@@ -136,13 +144,21 @@ class ARCXImportServiceV2 {
     }
   }
   
-  /// Import ARCX archive
+  /// Import ARCX archive.
+  /// If [resumeIfPossible] is true (default), checks for an interrupted import of the same file
+  /// and resumes from the extracted payload when possible.
   Future<ARCXImportResultV2> import({
     required String arcxPath,
     required ARCXImportOptions options,
     String? password,
     ImportProgressCallback? onProgress,
+    bool resumeIfPossible = true,
   }) async {
+    bool importSucceeded = false;
+    bool didWriteCheckpoint = false;
+    Directory? payloadDir;
+    ARCXManifest? manifest;
+
     try {
       print('ARCX Import V2: Starting import from: $arcxPath');
       onProgress?.call('Loading archive...', 0.0);
@@ -155,147 +171,169 @@ class ARCXImportServiceV2 {
         print('ARCX Import V2: 📋 App is empty - will create export record after successful import');
       }
       
-      // Step 1: Load and validate .arcx file
       final arcxFile = File(arcxPath);
       if (!await arcxFile.exists()) {
         throw Exception('ARCX file not found: $arcxPath');
       }
-      
-      // Extract .arcx ZIP
-      final arcxZip = await arcxFile.readAsBytes();
-      final zipDecoder = ZipDecoder();
-      final archive = zipDecoder.decodeBytes(arcxZip);
-      
-      ArchiveFile? manifestFile;
-      ArchiveFile? encryptedArchive;
-      
-      for (final file in archive) {
-        if (file.name == 'manifest.json') {
-          manifestFile = file;
-        } else if (file.name == 'archive.arcx') {
-          encryptedArchive = file;
+
+      // Resume: if we have a checkpoint for this file and payload dir exists, skip load/decrypt/extract
+      if (resumeIfPossible) {
+        final checkpoint = await ArcxCheckpointService.instance.getResumableImportCheckpoint();
+        if (checkpoint != null && checkpoint.matchesFile(arcxFile)) {
+          payloadDir = Directory(checkpoint.payloadDirPath);
+          if (await payloadDir.exists()) {
+            print('ARCX Import V2: 📂 Resuming from checkpoint (payload at ${payloadDir.path})');
+            onProgress?.call('Resuming import...', _kPhaseExtract);
+            // Parse manifest from payload for checksums/options
+            final manifestFile = File(path.join(payloadDir.path, 'manifest.json'));
+            if (await manifestFile.exists()) {
+              final manifestJson = jsonDecode(await manifestFile.readAsString()) as Map<String, dynamic>;
+              manifest = ARCXManifest.fromJson(manifestJson);
+            }
+          }
         }
       }
-      
-      if (manifestFile == null || encryptedArchive == null) {
-        throw Exception('Invalid ARCX archive: manifest or encrypted archive missing');
-      }
-      
-      print('ARCX Import V2: ✓ Files extracted from .arcx');
-      
-      // Step 2: Parse and validate manifest
-      final manifestJson = jsonDecode(utf8.decode(manifestFile.content as List<int>)) as Map<String, dynamic>;
-      final manifest = ARCXManifest.fromJson(manifestJson);
-      
-      // Check version FIRST, then validate appropriately
-      final isNewFormat = manifest.arcxVersion == '1.2';
-      
-      if (!isNewFormat) {
-        throw Exception('This import service only supports ARCX 1.2 format. Please use the legacy import service for older formats.');
-      }
-      
-      // Now validate using format-appropriate rules
-      if (!manifest.validate()) {
-        throw Exception('Invalid ARCX 1.2 manifest structure. This archive may be corrupted.');
-      }
-      
-      print('ARCX Import V2: ✓ Manifest validated (ARCX ${manifest.arcxVersion})');
-      
-      // Step 3: Verify signature
-      onProgress?.call('Verifying signature...', _kPhaseLoad);
-      
-      // For ARCX 1.2, signature verification is optional (may not be present)
-      if (manifest.signatureB64.isNotEmpty && manifest.signerPubkeyFpr.isNotEmpty) {
-        // Create unsigned manifest by copying and clearing signature
-        // Use toJson() to ensure we get the exact same structure that was signed
-        final manifestJson = manifest.toJson();
-        manifestJson['signature_b64'] = ''; // Clear signature for verification
+
+      if (payloadDir == null) {
+        // Step 1: Load and validate .arcx file
+        final arcxZip = await arcxFile.readAsBytes();
+        final zipDecoder = ZipDecoder();
+        final archive = zipDecoder.decodeBytes(arcxZip);
         
-        final manifestBytes = utf8.encode(jsonEncode(manifestJson));
-        final isValid = await ARCXCryptoService.verifySignature(
-          Uint8List.fromList(manifestBytes),
-          manifest.signatureB64,
-        );
+        ArchiveFile? manifestFile;
+        ArchiveFile? encryptedArchive;
         
-        if (!isValid) {
-          // Log warning but don't fail - signature verification is optional for 1.2
-          print('ARCX Import V2: ⚠️ Signature verification failed - continuing anyway (signature optional for ARCX 1.2)');
+        for (final file in archive) {
+          if (file.name == 'manifest.json') {
+            manifestFile = file;
+          } else if (file.name == 'archive.arcx') {
+            encryptedArchive = file;
+          }
+        }
+        
+        if (manifestFile == null || encryptedArchive == null) {
+          throw Exception('Invalid ARCX archive: manifest or encrypted archive missing');
+        }
+        
+        print('ARCX Import V2: ✓ Files extracted from .arcx');
+        
+        // Step 2: Parse and validate manifest
+        final manifestJson = jsonDecode(utf8.decode(manifestFile.content as List<int>)) as Map<String, dynamic>;
+        manifest = ARCXManifest.fromJson(manifestJson);
+        
+        final isNewFormat = manifest!.arcxVersion == '1.2';
+        
+        if (!isNewFormat) {
+          throw Exception('This import service only supports ARCX 1.2 format. Please use the legacy import service for older formats.');
+        }
+        
+        if (!manifest!.validate()) {
+          throw Exception('Invalid ARCX 1.2 manifest structure. This archive may be corrupted.');
+        }
+        
+        print('ARCX Import V2: ✓ Manifest validated (ARCX ${manifest!.arcxVersion})');
+        await Future.delayed(_kYieldDuration);
+        
+        // Step 3: Verify signature
+        onProgress?.call('Verifying signature...', _kPhaseLoad);
+        
+        if (manifest!.signatureB64.isNotEmpty && manifest!.signerPubkeyFpr.isNotEmpty) {
+          final mj = manifest!.toJson();
+          mj['signature_b64'] = '';
+          final manifestBytes = utf8.encode(jsonEncode(mj));
+          final isValid = await ARCXCryptoService.verifySignature(
+            Uint8List.fromList(manifestBytes),
+            manifest!.signatureB64,
+          );
+          if (!isValid) {
+            print('ARCX Import V2: ⚠️ Signature verification failed - continuing anyway (signature optional for ARCX 1.2)');
+          } else {
+            print('ARCX Import V2: ✓ Signature verified');
+          }
         } else {
-          print('ARCX Import V2: ✓ Signature verified');
+          print('ARCX Import V2: ⚠️ No signature present - skipping verification (optional for ARCX 1.2)');
         }
-      } else {
-        print('ARCX Import V2: ⚠️ No signature present - skipping verification (optional for ARCX 1.2)');
-      }
-      
-      // Step 4: Verify ciphertext hash (if present)
-      onProgress?.call('Verifying archive integrity...', _kPhaseVerify);
-      final ciphertext = Uint8List.fromList(encryptedArchive.content as List<int>);
-      
-      if (manifest.sha256.isNotEmpty) {
-        final ciphertextHash = sha256.convert(ciphertext);
-        final ciphertextHashB64 = base64Encode(ciphertextHash.bytes);
         
-        if (ciphertextHashB64 != manifest.sha256) {
-          // Log warning but continue - hash mismatch might be due to format differences
-          print('ARCX Import V2: ⚠️ Ciphertext hash mismatch (expected: ${manifest.sha256.substring(0, 16)}..., got: ${ciphertextHashB64.substring(0, 16)}...) - continuing anyway');
+        // Step 4: Verify ciphertext hash (if present)
+        onProgress?.call('Verifying archive integrity...', _kPhaseVerify);
+        final ciphertext = Uint8List.fromList(encryptedArchive.content as List<int>);
+        
+        if (manifest!.sha256.isNotEmpty) {
+          final ciphertextHash = sha256.convert(ciphertext);
+          final ciphertextHashB64 = base64Encode(ciphertextHash.bytes);
+          if (ciphertextHashB64 != manifest!.sha256) {
+            print('ARCX Import V2: ⚠️ Ciphertext hash mismatch - continuing anyway');
+          } else {
+            print('ARCX Import V2: ✓ Ciphertext hash verified');
+          }
         } else {
-          print('ARCX Import V2: ✓ Ciphertext hash verified');
-        }
-      } else {
-        print('ARCX Import V2: ⚠️ No hash present in manifest - skipping hash verification');
-      }
-      
-      // Step 5: Decrypt
-      onProgress?.call('Decrypting...', _kPhaseVerify);
-      Uint8List plaintextZip;
-      
-      if (manifest.isPasswordEncrypted) {
-        if (manifest.saltB64 == null || manifest.saltB64!.isEmpty) {
-          throw Exception('Password encryption requires salt but none provided');
+          print('ARCX Import V2: ⚠️ No hash present in manifest - skipping hash verification');
         }
         
-        if (password == null || password.isEmpty) {
-          throw Exception('This archive requires a password. Please provide a password to decrypt it.');
+        // Step 5: Decrypt
+        onProgress?.call('Decrypting...', _kPhaseVerify);
+        Uint8List plaintextZip;
+        
+        if (manifest!.isPasswordEncrypted) {
+          if (manifest!.saltB64 == null || manifest!.saltB64!.isEmpty) {
+            throw Exception('Password encryption requires salt but none provided');
+          }
+          if (password == null || password.isEmpty) {
+            throw Exception('This archive requires a password. Please provide a password to decrypt it.');
+          }
+          final saltBytes = base64Decode(manifest!.saltB64!);
+          final salt = Uint8List.fromList(saltBytes);
+          plaintextZip = await ARCXCryptoService.decryptWithPassword(ciphertext, password, salt);
+          print('ARCX Import V2: ✓ Decrypted with password');
+        } else {
+          plaintextZip = await ARCXCryptoService.decryptAEAD(ciphertext);
+          print('ARCX Import V2: ✓ Decrypted with device key');
         }
         
-        final saltBytes = base64Decode(manifest.saltB64!);
-        final salt = Uint8List.fromList(saltBytes);
-        plaintextZip = await ARCXCryptoService.decryptWithPassword(ciphertext, password, salt);
-        print('ARCX Import V2: ✓ Decrypted with password');
-      } else {
-        plaintextZip = await ARCXCryptoService.decryptAEAD(ciphertext);
-        print('ARCX Import V2: ✓ Decrypted with device key');
-      }
-      
-      print('ARCX Import V2: ✓ Decrypted (${plaintextZip.length} bytes)');
-      
-      // Step 6: Extract payload
-      onProgress?.call('Extracting payload...', _kPhaseDecrypt);
-      final payloadArchive = ZipDecoder().decodeBytes(plaintextZip);
-      
-      final appDocDir = await getApplicationDocumentsDirectory();
-      final payloadDir = Directory(path.join(appDocDir.path, 'arcx_import_v2_${DateTime.now().millisecondsSinceEpoch}'));
-      await payloadDir.create(recursive: true);
-      
-      try {
-        // Extract to temp directory
+        print('ARCX Import V2: ✓ Decrypted (${plaintextZip.length} bytes)');
+        await Future.delayed(_kYieldDuration);
+        
+        // Step 6: Extract payload
+        onProgress?.call('Extracting payload...', _kPhaseDecrypt);
+        final payloadArchive = ZipDecoder().decodeBytes(plaintextZip);
+        
+        final appDocDir = await getApplicationDocumentsDirectory();
+        payloadDir = Directory(path.join(appDocDir.path, 'arcx_import_v2_${DateTime.now().millisecondsSinceEpoch}'));
+        await payloadDir.create(recursive: true);
+        
         for (final file in payloadArchive) {
           if (file.isFile) {
-            final outFile = File(path.join(payloadDir.path, file.name));
+            final outFile = File(path.join(payloadDir!.path, file.name));
             await outFile.create(recursive: true);
             await outFile.writeAsBytes(file.content as List<int>);
           }
         }
         
         print('ARCX Import V2: ✓ Payload extracted');
+        await Future.delayed(_kYieldDuration);
+        
+        // Save checkpoint so we can resume if interrupted
+        final stat = await arcxFile.stat();
+        await ArcxCheckpointService.instance.saveImportCheckpoint(ArcxImportCheckpoint(
+          arcxPath: arcxPath,
+          arcxFileLastModifiedMs: stat.modified.millisecondsSinceEpoch,
+          arcxFileSize: stat.size,
+          payloadDirPath: payloadDir!.path,
+          createdAtIso: DateTime.now().toUtc().toIso8601String(),
+        ));
+        didWriteCheckpoint = true;
         
         // Step 7: Validate checksums if enabled
-        if (options.validateChecksums && manifest.checksumsInfo?.enabled == true) {
+        if (options.validateChecksums && manifest!.checksumsInfo?.enabled == true) {
           onProgress?.call('Validating checksums...', _kPhaseExtract);
-          await _validateChecksums(payloadDir, manifest.checksumsInfo!.file);
+          await _validateChecksums(payloadDir!, manifest!.checksumsInfo!.file);
         }
-        
-        // Step 8: Import in order: Media first, then Phase Regimes (for entry tagging), then Entries, then Chats
+      } else if (manifest != null && options.validateChecksums && manifest!.checksumsInfo?.enabled == true) {
+        onProgress?.call('Validating checksums...', _kPhaseExtract);
+        await _validateChecksums(payloadDir, manifest!.checksumsInfo!.file);
+      }
+      
+      // Step 8: Import in order: Media first, then Phase Regimes (for entry tagging), then Entries, then Chats
         int mediaImported = 0;
         int entriesImported = 0;
         int chatsImported = 0;
@@ -303,7 +341,7 @@ class ARCXImportServiceV2 {
         final warnings = <String>[];
         
         // Import Media
-        final mediaDir = Directory(path.join(payloadDir.path, 'Media'));
+        final mediaDir = Directory(path.join(payloadDir!.path, 'Media'));
         if (await mediaDir.exists()) {
           onProgress?.call('Importing media...', _kPhaseExtract);
           mediaImported = await _importMedia(
@@ -323,7 +361,7 @@ class ARCXImportServiceV2 {
         
         if (_phaseRegimeService != null) {
           phaseRegimesImported = await _importPhaseRegimes(
-            payloadDir: payloadDir,
+            payloadDir: payloadDir!,
             onProgress: onProgress,
           );
           
@@ -337,16 +375,16 @@ class ARCXImportServiceV2 {
           }
           
           // Import RIVET state, Sentinel state, ArcForm timeline, and LUMARA favorites alongside phase regimes
-          rivetStatesImported = await _importRivetState(payloadDir, onProgress: onProgress);
-          sentinelStatesImported = await _importSentinelState(payloadDir, onProgress: onProgress);
-          arcformSnapshotsImported = await _importArcFormTimeline(payloadDir, onProgress: onProgress);
+          rivetStatesImported = await _importRivetState(payloadDir!, onProgress: onProgress);
+          sentinelStatesImported = await _importSentinelState(payloadDir!, onProgress: onProgress);
+          arcformSnapshotsImported = await _importArcFormTimeline(payloadDir!, onProgress: onProgress);
         }
         
         // Import LUMARA favorites (doesn't require phaseRegimeService)
-        lumaraFavoritesImported = await _importLumaraFavorites(payloadDir, onProgress: onProgress);
+        lumaraFavoritesImported = await _importLumaraFavorites(payloadDir!, onProgress: onProgress);
         
         // Import Entries AFTER phase regimes so they can be tagged correctly
-        final entriesDir = Directory(path.join(payloadDir.path, 'Entries'));
+        final entriesDir = Directory(path.join(payloadDir!.path, 'Entries'));
         if (await entriesDir.exists()) {
           onProgress?.call('Importing entries...', _kPhaseRegimesEnd);
           entriesImported = await _importEntries(
@@ -365,7 +403,7 @@ class ARCXImportServiceV2 {
         }
         
         // Import Chats
-        final chatsDir = Directory(path.join(payloadDir.path, 'Chats'));
+        final chatsDir = Directory(path.join(payloadDir!.path, 'Chats'));
         if (await chatsDir.exists()) {
           onProgress?.call('Importing chats...', _kPhaseEntriesEnd);
           chatsImported = await _importChats(
@@ -417,22 +455,106 @@ class ARCXImportServiceV2 {
           arcformSnapshotsImported: arcformSnapshotsImported,
           lumaraFavoritesImported: lumaraFavoritesImported,
           warnings: warnings.isEmpty ? null : warnings,
+          importedEntryIds: Set<String>.from(_importedEntryIds),
+          importedChatIds: Set<String>.from(_importedChatIds),
+          entriesTotalInArchive: _entriesTotalInArchive > 0 ? _entriesTotalInArchive : null,
+          entriesFailed: _entriesFailed > 0 ? _entriesFailed : null,
         );
         
-      } finally {
-        // Clean up temp directory
-        try {
-          await payloadDir.delete(recursive: true);
-        } catch (e) {
-          print('Warning: Could not delete temp directory: $e');
-        }
-      }
-      
     } catch (e, stackTrace) {
       print('ARCX Import V2: ✗ Failed: $e');
       print('Stack trace: $stackTrace');
       return ARCXImportResultV2.failure(e.toString());
+    } finally {
+      // Clean up temp directory
+      try {
+        await payloadDir?.delete(recursive: true);
+      } catch (e) {
+        print('Warning: Could not delete temp directory: $e');
+      }
     }
+  }
+
+  /// Preview what would be imported if we "continue import from folder":
+  /// lists .arcx files and which are already in the import set index.
+  Future<Map<String, dynamic>> getImportSetDiffPreview(Directory folder) async {
+    return ArcxImportSetIndexService.instance.getImportSetDiffPreview(folder);
+  }
+
+  /// Look at a folder of .arcx files, skip ones already in the import set index,
+  /// and import only the rest (with skipExisting so duplicates are skipped).
+  /// After each successful import, records the source in the index.
+  Future<ARCXImportContinueResult> importContinueFromFolder({
+    required Directory folder,
+    required ARCXImportOptions options,
+    String? password,
+    ImportProgressCallback? onProgress,
+  }) async {
+    final indexService = ArcxImportSetIndexService.instance;
+    final preview = await indexService.getImportSetDiffPreview(folder);
+    final toImportPaths = preview['toImportPaths'] as List<dynamic>? ?? [];
+    if (toImportPaths.isEmpty) {
+      onProgress?.call('All files in this folder have already been imported.', 1.0);
+      return ARCXImportContinueResult(
+        success: true,
+        filesProcessed: 0,
+        filesSkipped: preview['filesAlreadyImported'] as int? ?? 0,
+        totalEntriesImported: 0,
+        totalChatsImported: 0,
+        totalMediaImported: 0,
+        errors: null,
+      );
+    }
+    int totalEntries = 0;
+    int totalChats = 0;
+    int totalMedia = 0;
+    final errors = <String>[];
+    final total = toImportPaths.length;
+    for (int i = 0; i < toImportPaths.length; i++) {
+      final arcxPath = toImportPaths[i] as String;
+      final file = File(arcxPath);
+      if (!await file.exists()) {
+        errors.add('File no longer exists: $arcxPath');
+        continue;
+      }
+      final frac = (i + 1) / total;
+      onProgress?.call('Importing ${i + 1}/$total: ${path.basename(arcxPath)}...', frac);
+      try {
+        final result = await this.import(
+          arcxPath: arcxPath,
+          options: options,
+          password: password,
+          onProgress: onProgress,
+          resumeIfPossible: true,
+        );
+        if (result.success) {
+          totalEntries += result.entriesImported;
+          totalChats += result.chatsImported;
+          totalMedia += result.mediaImported;
+          final stat = await file.stat();
+          await indexService.recordImport(
+            sourcePath: arcxPath,
+            lastModifiedMs: stat.modified.millisecondsSinceEpoch,
+            importedEntryIds: result.importedEntryIds ?? {},
+            importedChatIds: result.importedChatIds ?? {},
+          );
+        } else {
+          errors.add('${path.basename(arcxPath)}: ${result.error}');
+        }
+      } catch (e) {
+        errors.add('${path.basename(arcxPath)}: $e');
+      }
+    }
+    onProgress?.call('Continue import complete.', 1.0);
+    return ARCXImportContinueResult(
+      success: errors.isEmpty,
+      filesProcessed: toImportPaths.length,
+      filesSkipped: preview['filesAlreadyImported'] as int? ?? 0,
+      totalEntriesImported: totalEntries,
+      totalChatsImported: totalChats,
+      totalMediaImported: totalMedia,
+      errors: errors.isEmpty ? null : errors,
+    );
   }
   
   /// Validate checksums
@@ -652,6 +774,7 @@ class ARCXImportServiceV2 {
     }
     
     int imported = 0;
+    int failed = 0;
     int processed = 0;
     for (int i = 0; i < entryFiles.length; i++) {
       final entity = entryFiles[i];
@@ -687,14 +810,19 @@ class ARCXImportServiceV2 {
           if (entry.phaseMigrationStatus == 'PENDING' && !entry.isPhaseLocked) {
             _inferPhaseForImportedEntry(entry);
           }
+        } else {
+          failed++;
         }
         
       } catch (e) {
         print('ARCX Import V2: ✗ Error importing entry ${entity.path}: $e');
+        failed++;
       }
     }
     
-    print('ARCX Import V2: ✓ Imported $imported entries');
+    _entriesTotalInArchive = total;
+    _entriesFailed = failed;
+    print('ARCX Import V2: ✓ Imported $imported entries (total in archive: $total, failed: $failed)');
     return imported;
   }
   
@@ -1817,7 +1945,14 @@ class ARCXImportResultV2 {
   final Map<String, int> lumaraFavoritesImported;
   final List<String>? warnings;
   final String? error;
-  
+  /// IDs actually imported (for import set index / continue-import tracking).
+  final Set<String>? importedEntryIds;
+  final Set<String>? importedChatIds;
+  /// Total entry files in archive (for "X of Y" in UI).
+  final int? entriesTotalInArchive;
+  /// Entry files that failed to import.
+  final int? entriesFailed;
+
   ARCXImportResultV2({
     required this.success,
     this.entriesImported = 0,
@@ -1830,8 +1965,12 @@ class ARCXImportResultV2 {
     this.lumaraFavoritesImported = const {'answers': 0, 'chats': 0, 'entries': 0},
     this.warnings,
     this.error,
+    this.importedEntryIds,
+    this.importedChatIds,
+    this.entriesTotalInArchive,
+    this.entriesFailed,
   });
-  
+
   factory ARCXImportResultV2.success({
     int entriesImported = 0,
     int chatsImported = 0,
@@ -1842,6 +1981,10 @@ class ARCXImportResultV2 {
     int arcformSnapshotsImported = 0,
     Map<String, int>? lumaraFavoritesImported,
     List<String>? warnings,
+    Set<String>? importedEntryIds,
+    Set<String>? importedChatIds,
+    int? entriesTotalInArchive,
+    int? entriesFailed,
   }) {
     return ARCXImportResultV2(
       success: true,
@@ -1854,6 +1997,10 @@ class ARCXImportResultV2 {
       arcformSnapshotsImported: arcformSnapshotsImported,
       lumaraFavoritesImported: lumaraFavoritesImported ?? const {'answers': 0, 'chats': 0, 'entries': 0},
       warnings: warnings,
+      importedEntryIds: importedEntryIds,
+      importedChatIds: importedChatIds,
+      entriesTotalInArchive: entriesTotalInArchive,
+      entriesFailed: entriesFailed,
     );
   }
   
@@ -1863,4 +2010,25 @@ class ARCXImportResultV2 {
       error: error,
     );
   }
+}
+
+/// Result of "continue import from folder" (multiple .arcx files).
+class ARCXImportContinueResult {
+  final bool success;
+  final int filesProcessed;
+  final int filesSkipped;
+  final int totalEntriesImported;
+  final int totalChatsImported;
+  final int totalMediaImported;
+  final List<String>? errors;
+
+  const ARCXImportContinueResult({
+    required this.success,
+    required this.filesProcessed,
+    required this.filesSkipped,
+    required this.totalEntriesImported,
+    required this.totalChatsImported,
+    required this.totalMediaImported,
+    this.errors,
+  });
 }

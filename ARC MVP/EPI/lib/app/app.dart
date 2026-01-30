@@ -96,7 +96,7 @@ class _AppState extends State<App> {
               },
             );
             if (result.success) {
-              progressCubit.complete();
+              progressCubit.complete(result);
             } else {
               progressCubit.fail(result.error);
             }

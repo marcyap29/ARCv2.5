@@ -19,6 +19,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:my_app/ui/subscription/subscription_management_view.dart';
 import 'package:my_app/services/firebase_auth_service.dart';
 import 'package:my_app/shared/ui/settings/local_backup_settings_view.dart';
+import 'package:my_app/shared/ui/settings/import_status_screen.dart';
 import 'package:my_app/shared/ui/settings/temporal_notification_settings_view.dart';
 import 'package:my_app/arc/phase/share/phase_share_service.dart';
 import 'package:file_picker/file_picker.dart';
@@ -578,7 +579,14 @@ class _SettingsViewState extends State<SettingsView> {
                   subtitle: 'Restore from .zip, .mcpkg, or .arcx backup files',
                   icon: Icons.cloud_download,
                   onTap: () {
-                    _restoreDataFromSettings(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => ImportStatusScreen(
+                          onChooseFiles: () => _restoreDataFromSettings(context),
+                        ),
+                      ),
+                    );
                   },
                 ),
               ],
@@ -1612,8 +1620,17 @@ class _SettingsViewState extends State<SettingsView> {
             }
           });
         } else {
-          // Multiple ARCX files - import sequentially
-          await _importMultipleArcFiles(context, arcxFiles);
+          // Multiple ARCX files - run in background; status bar on Home, file list in Settings → Import
+          if (!context.mounted) return;
+          final progressCubit = context.read<ImportProgressCubit>();
+          final journalRepo = context.read<JournalRepository>();
+          progressCubit.startWithFiles(arcxFiles);
+          Navigator.of(context).pushNamedAndRemoveUntil('/home', (route) => false);
+          Future(() => _runMultipleArcImportInBackground(
+            progressCubit: progressCubit,
+            journalRepo: journalRepo,
+            filePaths: arcxFiles,
+          ));
         }
       } else if (hasZip) {
         // ZIP file(s) - use MCP pack import service
@@ -1747,13 +1764,14 @@ class _SettingsViewState extends State<SettingsView> {
     );
   }
   
-  /// Import multiple ARCX files sequentially
-  Future<void> _importMultipleArcFiles(BuildContext context, List<String> filePaths) async {
-    final journalRepo = context.read<JournalRepository>();
+  /// Run multiple ARCX import in background (no UI block). Call after navigating to home.
+  static Future<void> _runMultipleArcImportInBackground({
+    required ImportProgressCubit progressCubit,
+    required JournalRepository journalRepo,
+    required List<String> filePaths,
+  }) async {
     final chatRepo = ChatRepoImpl.instance;
     await chatRepo.initialize();
-    
-    // Initialize PhaseRegimeService for import
     PhaseRegimeService? phaseRegimeService;
     try {
       final analyticsService = AnalyticsService();
@@ -1763,89 +1781,40 @@ class _SettingsViewState extends State<SettingsView> {
     } catch (e) {
       print('Warning: Could not initialize PhaseRegimeService: $e');
     }
-    
     final importService = ARCXImportServiceV2(
       journalRepo: journalRepo,
       chatRepo: chatRepo,
       phaseRegimeService: phaseRegimeService,
     );
-    
-    // Sort files by creation date (oldest first)
     final sortedFiles = <String>[];
     final fileStats = <String, DateTime>{};
-    
     for (final filePath in filePaths) {
       try {
         final file = File(filePath);
         if (await file.exists()) {
           final stat = await file.stat();
-          // Use modified time as creation time indicator (most reliable across platforms)
-          final creationTime = stat.modified;
-          fileStats[filePath] = creationTime;
+          fileStats[filePath] = stat.modified;
           sortedFiles.add(filePath);
         }
       } catch (e) {
-        print('Warning: Could not get file stats for $filePath: $e');
-        // Add to end if we can't get stats
         sortedFiles.add(filePath);
         fileStats[filePath] = DateTime.now();
       }
     }
-    
-    // Sort by creation date (oldest first)
-    sortedFiles.sort((a, b) {
-      final dateA = fileStats[a] ?? DateTime.now();
-      final dateB = fileStats[b] ?? DateTime.now();
-      return dateA.compareTo(dateB);
-    });
-    
-    int totalEntries = 0;
-    int totalChats = 0;
-    int totalMedia = 0;
-    int totalFavorites = 0;
+    sortedFiles.sort((a, b) => (fileStats[a] ?? DateTime.now()).compareTo(fileStats[b] ?? DateTime.now()));
+    final total = sortedFiles.length;
     int successCount = 0;
     int failureCount = 0;
-    final warnings = <String>[];
-    final failedFiles = <String>[];
-    
-    // Show progress dialog
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        backgroundColor: kcBackgroundColor,
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const CircularProgressIndicator(),
-            const SizedBox(height: 16),
-            Text(
-              'Importing ${filePaths.length} Archives...',
-              style: const TextStyle(color: Colors.white),
-            ),
-          ],
-        ),
-      ),
-    );
-    
     try {
-      for (int i = 0; i < filePaths.length; i++) {
-        final filePath = filePaths[i];
+      for (int i = 0; i < sortedFiles.length; i++) {
+        final filePath = sortedFiles[i];
+        progressCubit.updateFileStatus(i, ImportFileStatus.importing);
+        progressCubit.update('Importing archive ${i + 1} of $total...', (i + 0.0) / total);
         if (!await File(filePath).exists()) {
-          warnings.add('File not found: ${path.basename(filePath)}');
-          failedFiles.add(path.basename(filePath));
+          progressCubit.updateFileStatus(i, ImportFileStatus.failed);
           failureCount++;
           continue;
         }
-        
-        if (!context.mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Importing file ${i + 1} of ${filePaths.length}: ${path.basename(filePath)}...'),
-            duration: const Duration(seconds: 2),
-          ),
-        );
-        
         try {
           final result = await importService.import(
             arcxPath: filePath,
@@ -1857,87 +1826,25 @@ class _SettingsViewState extends State<SettingsView> {
             ),
             password: null,
             onProgress: (message, [fraction = 0.0]) {
-              print('ARCX Import: $message');
+              progressCubit.update(message, (i + fraction.clamp(0.0, 1.0)) / total);
             },
           );
-          
           if (result.success) {
-            totalEntries += result.entriesImported;
-            totalChats += result.chatsImported;
-            totalMedia += result.mediaImported;
-            final favoritesMap = result.lumaraFavoritesImported;
-            totalFavorites += (favoritesMap['answers'] ?? 0) + (favoritesMap['chats'] ?? 0) + (favoritesMap['entries'] ?? 0);
-            if (result.warnings != null && result.warnings!.isNotEmpty) {
-              warnings.addAll(result.warnings!);
-            }
+            progressCubit.updateFileStatus(i, ImportFileStatus.completed);
             successCount++;
           } else {
-            warnings.add('Failed to import ${path.basename(filePath)}: ${result.error}');
-            failedFiles.add(path.basename(filePath));
+            progressCubit.updateFileStatus(i, ImportFileStatus.failed);
             failureCount++;
           }
         } catch (e) {
-          warnings.add('Failed to import ${path.basename(filePath)}: $e');
-          failedFiles.add(path.basename(filePath));
+          progressCubit.updateFileStatus(i, ImportFileStatus.failed);
           failureCount++;
         }
       }
-      
-      // Hide progress dialog
-      if (!context.mounted) return;
-      Navigator.pop(context);
-      
-      // Refresh timeline
-      try {
-        context.read<TimelineCubit>().reloadAllEntries();
-        print('✅ Timeline refreshed after ARCX import');
-      } catch (e) {
-        print('⚠️ Could not refresh timeline: $e');
-      }
-      
-      // Show success dialog with summary
-      final message = StringBuffer();
-      message.writeln('Successfully imported $successCount of ${sortedFiles.length} archives.');
-      message.writeln('\nImported:');
-      message.writeln('• $totalEntries entries');
-      message.writeln('• $totalChats chats');
-      message.writeln('• $totalMedia media items');
-      message.writeln('• $totalFavorites favorites');
-      
-      if (failureCount > 0) {
-        message.writeln('\nFailed: $failureCount files');
-        if (failedFiles.isNotEmpty) {
-          message.writeln('Failed files: ${failedFiles.join(", ")}');
-        }
-      }
-      
-      if (warnings.isNotEmpty) {
-        message.writeln('\nWarnings:');
-        for (final warning in warnings.take(5)) {
-          message.writeln('• $warning');
-        }
-        if (warnings.length > 5) {
-          message.writeln('... and ${warnings.length - 5} more');
-        }
-      }
-      
-      _showImportSuccess(context, 'Import Complete', message.toString());
-      
-      // Navigate to timeline after a short delay
-      Future.delayed(const Duration(milliseconds: 500), () {
-        if (context.mounted) {
-          Navigator.of(context).pushAndRemoveUntil(
-            MaterialPageRoute(
-              builder: (context) => const HomeView(initialTab: 0), // Journal tab
-            ),
-            (route) => false,
-          );
-        }
-      });
+      progressCubit.update('Import complete', 1.0);
+      progressCubit.complete();
     } catch (e) {
-      if (!context.mounted) return;
-      Navigator.pop(context);
-      _showImportError(context, 'Import failed: $e');
+      progressCubit.fail('Import failed: $e');
     }
   }
   

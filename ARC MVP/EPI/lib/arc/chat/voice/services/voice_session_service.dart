@@ -208,6 +208,11 @@ class VoiceSessionService {
             onBackendStatusMessage?.call('Using Wispr Flow');
             break;
             
+          case TranscriptionBackend.assemblyAI:
+            debugPrint('VoiceSession: Using Assembly AI (premium)');
+            onBackendStatusMessage?.call('Using Assembly AI');
+            break;
+            
           case TranscriptionBackend.appleOnDevice:
             debugPrint('VoiceSession: Using Apple On-Device');
             break;
@@ -452,17 +457,17 @@ class VoiceSessionService {
       debugPrint('VoiceSession: PRISM took ${DateTime.now().difference(prismStart).inMilliseconds}ms, scrubbed ${prismResult.redactionCount} items');
       
       // =========================================================
-      // THREE-TIER VOICE MODE ROUTING (matches written mode)
-      // Use user override if set, else classify from transcript
+      // VOICE ENGAGEMENT: Default = Reflect when not Explore/Integrate
+      // Only Explore/Integrate when user explicitly chooses them in dropdown
       // =========================================================
       final depthResult = EntryClassifier.classifyVoiceDepth(prismResult.scrubbedText);
-      final engagementMode = _engagementModeOverride ?? depthResult.depth;
+      final engagementMode = _engagementModeOverride ?? EngagementMode.reflect;
       
       // Classify what the user is seeking (validation, exploration, direction, reflection)
       final seekingResult = EntryClassifier.classifySeeking(prismResult.scrubbedText);
       
-      debugPrint('VoiceSession: Engagement mode classification: ${engagementMode.name} '
-          '(confidence: ${depthResult.confidence.toStringAsFixed(2)}, '
+      debugPrint('VoiceSession: Engagement mode: ${engagementMode.name} '
+          '(depth confidence: ${depthResult.confidence.toStringAsFixed(2)}, '
           'triggers: ${depthResult.triggers.join(", ")})');
       debugPrint('VoiceSession: Seeking classification: ${seekingResult.seeking.name} '
           '(confidence: ${seekingResult.confidence.toStringAsFixed(2)}, '
@@ -491,22 +496,36 @@ class VoiceSessionService {
       debugPrint('VoiceSession: Using $modeName mode with Master Unified Prompt (matches written mode)');
       debugPrint('VoiceSession: Max words: ${VoiceResponseConfig.getMaxWords(engagementMode)}');
       
-      // Call LUMARA API - it will build Master Prompt internally with control state
-      // Pass voice mode instructions via chatContext so they're included in mode-specific instructions
-      // For Explore and Integrate modes, allow heavier processing to surface patterns/synthesis
+      // Call LUMARA API - use trimmed voice prompt for ALL voice modes to avoid timeout
+      // (Full master prompt ~150k+ chars causes proxyGemini/timeouts; voice prompt ~3–8k chars.)
+      // Engagement mode (reflect/explore/integrate) is still passed in control state and instructions.
+      // Client-side timeout (55s) to surface clear error before Firebase function timeout (60s)
       final apiStart = DateTime.now();
-      final reflectionResult = await _lumaraApi.generatePromptedReflection(
-        entryText: prismResult.scrubbedText,
-        intent: engagementMode == EngagementMode.reflect ? 'conversational' : 'reflective',
-        phase: _currentPhase.name,
-        userId: _userId,
-        chatContext: voiceModeInstructions, // Voice-specific instructions (will be added to mode-specific instructions)
-        skipHeavyProcessing: engagementMode == EngagementMode.reflect, // Only skip for reflect mode
-        options: models.LumaraReflectionOptions(
-          conversationMode: models.ConversationMode.think,
-          toneMode: models.ToneMode.normal,
-        ),
-      );
+      ReflectionResult reflectionResult;
+      try {
+        reflectionResult = await _lumaraApi.generatePromptedReflection(
+          entryText: prismResult.scrubbedText,
+          intent: engagementMode == EngagementMode.reflect ? 'conversational' : 'reflective',
+          phase: _currentPhase.name,
+          userId: _userId,
+          chatContext: voiceModeInstructions,
+          skipHeavyProcessing: true, // Always use trimmed voice prompt in voice mode (all engagement modes)
+          voiceEngagementModeOverride: engagementMode, // Dropdown choice for control state and prompt cap (8k/10k/13k)
+          options: models.LumaraReflectionOptions(
+            conversationMode: models.ConversationMode.think,
+            toneMode: models.ToneMode.normal,
+          ),
+        ).timeout(
+          const Duration(seconds: 55),
+          onTimeout: () => throw TimeoutException('LUMARA request timed out'),
+        );
+      } on TimeoutException {
+        debugPrint('VoiceSession: LUMARA request timed out (55s)');
+        onError?.call('Request timed out. Please try again.');
+        _isProcessingTranscript = false;
+        _updateState(VoiceSessionState.error);
+        return;
+      }
       
       final apiDuration = DateTime.now().difference(apiStart).inMilliseconds;
       final maxLatency = VoiceResponseConfig.getTargetLatencyMs(engagementMode);
@@ -728,13 +747,19 @@ class VoiceSessionService {
     buffer.writeln();
     
     if (conversationHistory.isNotEmpty) {
+      // Cap to last 5 turns to keep voice prompt small and avoid timeout (~4 tokens per char)
+      const int maxTurnsForContext = 5;
+      final historyToInclude = conversationHistory.length > maxTurnsForContext
+          ? conversationHistory.sublist(conversationHistory.length - maxTurnsForContext)
+          : conversationHistory;
       buffer.writeln('═══════════════════════════════════════════════════════════');
       buffer.writeln('CONVERSATION HISTORY - CRITICAL FOR MULTI-TURN CONTEXT');
+      buffer.writeln('(Last $maxTurnsForContext turns only to keep response fast.)');
       buffer.writeln('═══════════════════════════════════════════════════════════');
       buffer.writeln();
       buffer.writeln('The following is the conversation history up to this point:');
       buffer.writeln();
-      buffer.writeln(conversationHistory.join('\n\n'));
+      buffer.writeln(historyToInclude.join('\n\n'));
       buffer.writeln();
       buffer.writeln('🚨 CRITICAL MULTI-TURN CONVERSATION RULES:');
       buffer.writeln();

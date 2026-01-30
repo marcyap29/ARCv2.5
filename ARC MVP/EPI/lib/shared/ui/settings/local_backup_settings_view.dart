@@ -18,6 +18,7 @@ import 'package:my_app/services/phase_regime_service.dart';
 import 'package:my_app/services/analytics_service.dart';
 import 'package:my_app/services/rivet_sweep_service.dart';
 import 'package:my_app/mira/store/arcx/services/arcx_export_service_v2.dart';
+import 'package:my_app/mira/store/arcx/services/arcx_scan_service.dart';
 import 'package:my_app/services/export_history_service.dart';
 import 'package:my_app/shared/ui/settings/selective_backup_entry_selector.dart';
 import 'package:my_app/models/journal_entry_model.dart';
@@ -57,6 +58,8 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
   bool _isLoadingPreview = false;
   Map<String, dynamic>? _incrementalPreview;
   Map<String, dynamic>? _historySummary;
+  // Export set diff (for "continue export to this folder")
+  Map<String, dynamic>? _exportSetDiffPreview;
 
   StreamSubscription<String>? _progressSubscription;
   StreamSubscription<int>? _percentageSubscription;
@@ -128,11 +131,20 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
       
       final preview = await exportService.getIncrementalExportPreview();
       final history = await ExportHistoryService.instance.getSummary();
-      
+      Map<String, dynamic>? exportSetDiff;
+      if (_backupPath != null && _backupPath!.isNotEmpty) {
+        try {
+          final dir = Directory(_backupPath!);
+          if (await dir.exists()) {
+            exportSetDiff = await exportService.getExportSetDiffPreviewForOutputDir(dir);
+          }
+        } catch (_) {}
+      }
       if (mounted) {
         setState(() {
           _incrementalPreview = preview;
           _historySummary = history;
+          _exportSetDiffPreview = exportSetDiff;
           _isLoadingPreview = false;
         });
       }
@@ -368,7 +380,7 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
     await _performIncrementalBackup();
   }
   
-  Future<void> _performIncrementalBackup({bool excludeMedia = false}) async {
+  Future<void> _performIncrementalBackup() async {
     if (_backupPath == null || _backupPath!.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -424,7 +436,7 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
       final result = await exportService.exportIncremental(
         outputDir: outputDir,
         password: null,
-        excludeMedia: excludeMedia,
+        excludeMedia: false,
         onProgress: (msg) {
           if (mounted) {
             setState(() {
@@ -522,10 +534,11 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
         outputDir: outputDir,
         password: null,
         chunkSizeMB: 200, // Split at 200MB per chunk
-        onProgress: (msg) {
+        onProgress: (msg, [fraction]) {
           if (mounted) {
             setState(() {
               _backupProgress = msg;
+              if (fraction != null) _backupPercentage = (fraction * 100).round();
             });
           }
         },
@@ -534,19 +547,7 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
       if (result.success) {
         await _loadSettings();
         await _loadBackupInfo();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Full backup complete: ${result.totalChunks} file(s), '
-              '${result.totalEntries} entries, ${result.totalChats} chats'
-            ),
-            backgroundColor: Colors.green,
-            duration: const Duration(seconds: 4),
-          ),
-        );
-        
-        // Show additional info dialog if multiple chunks were created
-        if (result.totalChunks > 1 && mounted) {
+        if (mounted) {
           _showChunkedBackupInfoDialog(result);
         }
       } else {
@@ -569,15 +570,104 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
       }
     }
   }
+
+  /// Continue export into the current backup folder: scan existing exports (via index),
+  /// diff against current app data, and export only the delta into that set.
+  Future<void> _performContinueExport() async {
+    if (_backupPath == null || _backupPath!.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please select a backup folder first'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _isBackingUp = true;
+      _backupProgress = 'Scanning export set...';
+      _backupPercentage = 0;
+    });
+
+    try {
+      final analyticsService = AnalyticsService();
+      final rivetSweepService = RivetSweepService(analyticsService);
+      final phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
+      await phaseRegimeService.initialize();
+
+      final chatRepo = ChatRepoImpl.instance;
+      await chatRepo.initialize();
+
+      final exportService = ARCXExportServiceV2(
+        journalRepo: widget.journalRepo,
+        chatRepo: chatRepo,
+        phaseRegimeService: phaseRegimeService,
+      );
+
+      final outputDir = Directory(_backupPath!.trim());
+      if (!await outputDir.exists()) {
+        if (mounted) {
+          setState(() { _isBackingUp = false; _backupProgress = ''; });
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Backup folder does not exist'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return;
+      }
+
+      final result = await exportService.exportContinueToOutputDir(
+        outputDir: outputDir,
+        password: null,
+        excludeMedia: false,
+        onProgress: (msg) {
+          if (mounted) setState(() { _backupProgress = msg; });
+        },
+      );
+
+      if (result.success) {
+        await _loadSettings();
+        await _loadBackupInfo();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              result.entriesExported == 0 && result.chatsExported == 0
+                  ? 'Export set is up to date.'
+                  : 'Continued export: ${result.entriesExported} entries, ${result.chatsExported} chats',
+            ),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } else {
+        if (mounted) _showBackupErrorDialog(result.error ?? 'Unknown error');
+      }
+    } catch (e) {
+      if (mounted) _showBackupErrorDialog(e.toString());
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isBackingUp = false;
+          _backupProgress = '';
+          _backupPercentage = 0;
+        });
+      }
+    }
+  }
   
   Future<void> _showChunkedBackupInfoDialog(ChunkedBackupResult result) async {
+    final dateRange = (result.entriesDateRangeStart != null && result.entriesDateRangeEnd != null)
+        ? '${result.entriesDateRangeStart} – ${result.entriesDateRangeEnd}'
+        : null;
     await showDialog(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: kcBackgroundColor,
         title: Row(
           children: [
-            Icon(Icons.folder, color: Colors.green[300], size: 24),
+            Icon(Icons.check_circle, color: Colors.green[300], size: 24),
             const SizedBox(width: 8),
             const Expanded(
               child: Text(
@@ -593,10 +683,28 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                'Your data has been split into ${result.totalChunks} files (~200MB each):',
+                'Your entire timeline has been exported: ${result.totalEntries} entries, ${result.totalChats} chats, ${result.totalMedia} media.',
                 style: const TextStyle(color: Colors.white70, fontSize: 14),
               ),
+              if (dateRange != null) ...[
+                const SizedBox(height: 8),
+                Text(
+                  'Entries date range: $dateRange',
+                  style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 13),
+                ),
+              ],
               const SizedBox(height: 12),
+              if (result.totalChunks > 1)
+                Text(
+                  'Saved as ${result.totalChunks} files (~200MB each):',
+                  style: const TextStyle(color: Colors.white70, fontSize: 14),
+                )
+              else
+                Text(
+                  'Saved as 1 file.',
+                  style: const TextStyle(color: Colors.white70, fontSize: 14),
+                ),
+              const SizedBox(height: 8),
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
@@ -628,11 +736,6 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
                     )),
                   ],
                 ),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                'Files are numbered sequentially. Future Quick Backups will continue the numbering (e.g., ARC_Inc_004_date.arcx).',
-                style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 12, fontStyle: FontStyle.italic),
               ),
             ],
           ),
@@ -1244,31 +1347,13 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
-                onPressed: !_isBackingUp ? () => _performIncrementalBackup(excludeMedia: false) : null,
+                onPressed: !_isBackingUp ? () => _performIncrementalBackup() : null,
                 icon: const Icon(Icons.update, size: 18),
                 label: const Text('Incremental Backup (Recommended)'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: kcAccentColor,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 8),
-            // Text-only option
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: !_isBackingUp ? () => _performIncrementalBackup(excludeMedia: true) : null,
-                icon: const Icon(Icons.text_fields, size: 18),
-                label: const Text('Text Only (Faster)'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: kcSecondaryTextColor,
-                  side: BorderSide(color: kcSecondaryTextColor.withOpacity(0.5)),
-                  padding: const EdgeInsets.symmetric(vertical: 12),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8),
                   ),
@@ -1313,6 +1398,244 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
                 ),
               ),
             ),
+          ),
+          const SizedBox(height: 8),
+          // Continue export into this folder (diff vs existing exports, then export only delta)
+          if (_exportSetDiffPreview != null) ...[
+              if (_exportSetDiffPreview!['noBackupSet'] == true)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Text(
+                  'No backup set in this folder yet. Create a full backup first. Existing .arcx folders (no index) are scanned so continue works.',
+                  style: bodyStyle(context).copyWith(
+                    color: kcSecondaryTextColor,
+                    fontSize: 12,
+                  ),
+                ),
+              )
+            else ...[
+              if ((_exportSetDiffPreview!['entriesToExport'] as int? ?? 0) > 0 ||
+                  (_exportSetDiffPreview!['chatsToExport'] as int? ?? 0) > 0)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: Text(
+                    '${_exportSetDiffPreview!['entriesToExport']} entries, '
+                    '${_exportSetDiffPreview!['chatsToExport']} chats not yet in this set.',
+                    style: bodyStyle(context).copyWith(
+                      color: kcSecondaryTextColor,
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
+              if (_exportSetDiffPreview!['hasIndex'] == true &&
+                  (_exportSetDiffPreview!['entriesToExport'] as int? ?? 0) == 0 &&
+                  (_exportSetDiffPreview!['chatsToExport'] as int? ?? 0) == 0)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: Text(
+                    'Export set is up to date.',
+                    style: bodyStyle(context).copyWith(
+                      color: kcSecondaryTextColor,
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: !_isBackingUp ? () => _performContinueExport() : null,
+                  icon: const Icon(Icons.add_circle_outline, size: 18),
+                  label: const Text('Continue Export to This Folder'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: kcAccentColor,
+                    side: BorderSide(color: kcAccentColor.withOpacity(0.7)),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: (_isBackingUp || _isScanning) ? null : _verifyBackup,
+                  icon: const Icon(Icons.folder_open, size: 18),
+                  label: const Text('Verify backup'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: kcSecondaryTextColor,
+                    side: BorderSide(color: kcSecondaryTextColor.withOpacity(0.5)),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ],
+      ),
+    );
+  }
+
+  bool _isScanning = false;
+
+  /// Returns (start, end) as YYYY-MM-DD for a group of entries, or (null, null) if empty.
+  static (String?, String?) _entriesDateRange(List<JournalEntry> entries) {
+    if (entries.isEmpty) return (null, null);
+    final dates = entries.map((e) => e.createdAt).toList()..sort();
+    final start = '${dates.first.year.toString().padLeft(4, '0')}-${dates.first.month.toString().padLeft(2, '0')}-${dates.first.day.toString().padLeft(2, '0')}';
+    final end = '${dates.last.year.toString().padLeft(4, '0')}-${dates.last.month.toString().padLeft(2, '0')}-${dates.last.day.toString().padLeft(2, '0')}';
+    return (start, end);
+  }
+
+  Future<void> _verifyBackup() async {
+    final folderPath = await FilePicker.platform.getDirectoryPath();
+    if (folderPath == null || !mounted) return;
+    setState(() => _isScanning = true);
+    try {
+      final dir = Directory(folderPath);
+      final results = await scanArcxFolder(
+        dir,
+        onProgress: (msg, frac) {
+          if (mounted) setState(() { _backupProgress = msg; _backupPercentage = (frac * 100).round(); });
+        },
+      );
+      if (!mounted) return;
+      setState(() { _isScanning = false; _backupProgress = ''; _backupPercentage = 0; });
+      _showVerifyBackupDialog(results, folderPath);
+    } catch (e) {
+      if (mounted) {
+        setState(() { _isScanning = false; _backupProgress = ''; _backupPercentage = 0; });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Scan failed: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  Future<void> _showVerifyBackupDialog(List<ARCXFileScanResult> results, String folderPath) async {
+    // Overall summary: only from successfully scanned files
+    final okResults = results.where((r) => r.isOk).toList();
+    String? overallSummary;
+    if (okResults.isNotEmpty) {
+      int totalEntries = 0;
+      int totalBytes = 0;
+      String? overallStart;
+      String? overallEnd;
+      for (final r in okResults) {
+        totalEntries += r.entriesCount;
+        totalBytes += r.fileSizeBytes;
+        if (r.entriesDateRangeStart != null && r.entriesDateRangeEnd != null) {
+          if (overallStart == null || r.entriesDateRangeStart!.compareTo(overallStart) < 0) overallStart = r.entriesDateRangeStart;
+          if (overallEnd == null || r.entriesDateRangeEnd!.compareTo(overallEnd) > 0) overallEnd = r.entriesDateRangeEnd;
+        }
+      }
+      final sizeStr = totalBytes >= 1024 * 1024 * 1024
+          ? '${(totalBytes / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB'
+          : '${(totalBytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+      if (overallStart != null && overallEnd != null) {
+        overallSummary = 'Overall: these ${okResults.length} files cover $overallStart – $overallEnd, $totalEntries entries, $sizeStr.';
+      } else {
+        overallSummary = 'Overall: these ${okResults.length} files, $totalEntries entries, $sizeStr.';
+      }
+    }
+    await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: kcBackgroundColor,
+        title: Row(
+          children: [
+            Icon(Icons.folder, color: Colors.green[300], size: 24),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Backup contents',
+                style: heading2Style(context).copyWith(color: Colors.white),
+              ),
+            ),
+          ],
+        ),
+        content: SizedBox(
+          width: 400,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Folder: ${path.basename(folderPath)}',
+                  style: bodyStyle(context).copyWith(color: kcSecondaryTextColor, fontSize: 12),
+                ),
+                if (overallSummary != null) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    overallSummary,
+                    style: bodyStyle(context).copyWith(fontWeight: FontWeight.w500, color: Colors.white),
+                  ),
+                ],
+                const SizedBox(height: 12),
+                if (results.isEmpty)
+                  Text('No .arcx files found.', style: bodyStyle(context))
+                else
+                  ...results.map((r) {
+                    final dateRange = (r.entriesDateRangeStart != null && r.entriesDateRangeEnd != null)
+                        ? ' ${r.entriesDateRangeStart} – ${r.entriesDateRangeEnd}'
+                        : '';
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: r.isOk ? Colors.green.withOpacity(0.1) : Colors.red.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(r.isOk ? Icons.check_circle : Icons.error, size: 18, color: r.isOk ? Colors.green : Colors.red),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    r.fileName,
+                                    style: bodyStyle(context).copyWith(fontSize: 13, fontWeight: FontWeight.w500),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            if (r.error != null)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 4),
+                                child: Text(r.error!, style: bodyStyle(context).copyWith(fontSize: 11, color: Colors.red)),
+                              )
+                            else ...[
+                              Text(
+                                '${r.entriesCount} entries, ${r.chatsCount} chats, ${r.mediaCount} media${dateRange}',
+                                style: bodyStyle(context).copyWith(fontSize: 12, color: kcSecondaryTextColor),
+                              ),
+                              Text(
+                                '${(r.fileSizeBytes / 1024 / 1024).toStringAsFixed(1)} MB',
+                                style: bodyStyle(context).copyWith(fontSize: 11, color: kcSecondaryTextColor),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    );
+                  }),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('OK', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -1458,47 +1781,21 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
           ],
           
           // Action buttons
-          Row(
-            children: [
-              // Text-only incremental backup (smaller, faster)
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: hasChanges && !_isBackingUp 
-                      ? () => _performIncrementalBackup(excludeMedia: true)
-                      : null,
-                  icon: const Icon(Icons.text_fields, size: 18),
-                  label: const Text('Text Only'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: kcSecondaryTextColor,
-                    side: BorderSide(color: kcSecondaryTextColor.withOpacity(0.5)),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: hasChanges && !_isBackingUp ? () => _performIncrementalBackup() : null,
+              icon: const Icon(Icons.backup, size: 18),
+              label: Text(hasChanges ? 'Backup All' : 'No New Data'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: kcAccentColor,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
                 ),
               ),
-              const SizedBox(width: 12),
-              // Full incremental backup (includes media)
-              Expanded(
-                flex: 2,
-                child: ElevatedButton.icon(
-                  onPressed: hasChanges && !_isBackingUp 
-                      ? () => _performIncrementalBackup(excludeMedia: false)
-                      : null,
-                  icon: const Icon(Icons.backup, size: 18),
-                  label: Text(hasChanges ? 'Backup All' : 'No New Data'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: kcAccentColor,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                ),
-              ),
-            ],
+            ),
           ),
           
           if (hasChanges && newMedia > 0) ...[
@@ -1947,13 +2244,17 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
           await sourceFile.copy(destFile.path);
           
           if (mounted) {
+            final (start, end) = _entriesDateRange(selectedEntries);
+            final dateCoverage = (start != null && end != null)
+                ? ' These ${selectedEntries.length} entries cover $start – $end.'
+                : '';
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(
-                  'Selective backup saved: ${result.entriesExported ?? 0} entries, ${result.chatsExported ?? 0} chats'
+                  'Selective backup saved: ${result.entriesExported ?? 0} entries, ${result.chatsExported ?? 0} chats.$dateCoverage'
                 ),
                 backgroundColor: Colors.green,
-                duration: const Duration(seconds: 4),
+                duration: const Duration(seconds: 5),
               ),
             );
           }
