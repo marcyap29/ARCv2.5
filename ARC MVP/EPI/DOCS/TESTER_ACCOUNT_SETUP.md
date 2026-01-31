@@ -10,6 +10,41 @@
 
 The tester account automatically receives premium access through the founder emails list in `functions/index.js`. No Stripe subscription is required.
 
+## Testing Capabilities
+
+### PII Scrubber Validation
+- Input field for raw journal entries containing deliberate PII (names, addresses, phone numbers, SSNs, locations, dates, medical info)
+- Side-by-side display: [Raw Input] → [Scrubbed Output]
+- Color-coded highlighting of what was scrubbed and what replacement tokens were used
+- Test cases library with progressively complex PII patterns (nested identifiers, contextual clues, international formats)
+
+### Crisis Detection Testing
+- Preset crisis scenarios with varying severity levels
+- Manual trigger to simulate journal entries containing crisis language
+- Dashboard showing RIVET/SENTINEL activation status, confidence scores, and timing
+- Verification that instant signals fire correctly and escalation paths trigger
+
+### Additional Testing Scenarios
+
+**Phase Transition Stress Tests**
+- Rapid-fire contradictory entries to test if ATLAS correctly ignores noise vs. detects genuine transitions
+- Entries designed to sit exactly on phase boundaries
+- Validation that phase changes require sustained signals, not single anomalies
+
+**Free Tier Constraint Testing**
+- Entry counter showing proximity to free tier limits
+- Test what happens at boundary conditions (exactly at limit, one over, etc.)
+- Verify graceful degradation vs. hard cutoffs
+
+**Emotional Density Edge Cases**
+- Entries with extreme emotional language but no actual crisis (hyperbole, creative writing, venting)
+- Entries with subtle distress markers that should trigger but might be missed
+- Mixed emotional signals (relief + sadness, excitement + anxiety)
+
+**Temporal Focus Manipulation**
+- Entries oscillating between past/present/future mid-paragraph
+- Testing if ATLAS correctly weights temporal orientation
+
 ## Creating the Account
 
 ### Option 1: Firebase Console (Easiest)

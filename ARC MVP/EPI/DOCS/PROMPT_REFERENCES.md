@@ -41,7 +41,16 @@ This document catalogs all prompts used throughout the ARC application, organize
    - [Phase Rationale](#phase-rationale)
 9. [Onboarding Prompts](#onboarding-prompts)
    - [Phase Quiz Questions](#phase-quiz-questions)
-10. [Voice Mode Prompts](#10-voice-mode-prompts)
+10. [CHRONICLE Prompts](#chronicle-prompts)
+    - [Query Classifier](#chronicle-query-classifier)
+    - [Monthly Theme Extraction (VEIL EXAMINE)](#chronicle-monthly-theme-extraction-veil-examine)
+11. [Voice Journal Entry Creation](#voice-journal-entry-creation)
+12. [Backend (Firebase) Prompts](#backend-firebase-prompts)
+    - [Send Chat Message](#send-chat-message)
+    - [Generate Journal Reflection](#generate-journal-reflection)
+    - [Generate Journal Prompts](#generate-journal-prompts)
+    - [Analyze Journal Entry](#analyze-journal-entry)
+13. [Voice Mode Prompts](#13-voice-mode-prompts)
     - [DEFAULT Mode (Baseline)](#default-mode-baseline)
     - [EXPLORE Mode (When Asked)](#explore-mode-when-asked)
     - [INTEGRATE Mode (When Asked)](#integrate-mode-when-asked)
@@ -971,9 +980,68 @@ Apple Health Data (last 7 days) → Biometric Analyzer
 
 ---
 
+## CHRONICLE Prompts
+
+### CHRONICLE Query Classifier
+
+**Location:** `lib/chronicle/query/query_router.dart`
+
+Classifies user queries for CHRONICLE routing (specific recall, patterns, trajectory, etc.).
+
+```
+You are a query classifier for a journaling AI system.
+Classify user queries into one of these intents:
+
+- specific_recall: Asking about a specific date, event, or entry (e.g., "What did I write last Tuesday?", "Tell me about my entry on January 15")
+- pattern_identification: Asking about recurring themes or patterns (e.g., "What themes keep recurring?", "What patterns do you see?")
+- developmental_trajectory: Asking about change/evolution over time (e.g., "How have I changed since 2020?", "How has my perspective evolved?")
+- historical_parallel: Asking if they've experienced something similar before (e.g., "Have I dealt with this before?", "When did I last feel this way?")
+- inflection_point: Asking when a shift or change began (e.g., "When did this shift start?", "When did I start feeling different?")
+- temporal_query: Asking about a time period (e.g., "Tell me about my month", "What happened in January?", "Summarize my year")
+
+Respond with ONLY the intent name (e.g., "specific_recall", "temporal_query").
+```
+
+### CHRONICLE Monthly Theme Extraction (VEIL EXAMINE)
+
+**Location:** `lib/chronicle/synthesis/monthly_synthesizer.dart`
+
+System and user prompts for the EXAMINE stage of the VEIL narrative integration cycle (monthly theme extraction from journal entries).
+
+**System prompt:** VEIL context (VERBALIZE → EXAMINE → INTEGRATE → LINK), role (extract patterns, preserve voice), output schema (theme name, confidence, entry IDs, pattern, emotional arc). **User prompt:** "EXAMINE these N journal entries and identify the top 3-5 dominant themes" with entry text. Output: JSON array of themes.
+
 ---
 
-## 10. Voice Mode Prompts
+## Voice Journal Entry Creation
+
+**Location:** `lib/arc/chat/voice/voice_journal/new_voice_journal_service.dart`
+
+Used when converting a completed Voice Journal conversation into a journal entry (title, summary, transcript). Distinct from the "Voice Mode Session Summary" prompt (memory-system summary).
+
+**Tag:** `[VOICE_JOURNAL_SUMMARIZATION]`
+
+**Output requirements:** TITLE (3-8 words), SUMMARY (1-3 sentences, third-person), TRANSCRIPT (detailed narrative, cleaned of speech artifacts). Format: `[TITLE]` / `[SUMMARY]` / `[ENTRY]`. Guidance: coherent reflection (not chat log), preserve emotional honesty, natural entity references.
+
+---
+
+## Backend (Firebase) Prompts
+
+**Location:** `functions/src/functions/`
+
+The Firebase Cloud Functions use LUMARA-style system prompts that are simplified variants of the main app prompts (no full Master Prompt; backend-specific safety and context).
+
+| Function | Purpose | Prompt type |
+|----------|---------|-------------|
+| **sendChatMessage.ts** | Chat with user (cloud) | LUMARA system prompt with web access and trigger-safety policy |
+| **generateJournalReflection.ts** | Journal reflection (cloud) | LUMARA system prompt (simplified, no web access); encourages gentle guidance when patterns suggest it |
+| **generateJournalPrompts.ts** | Journal prompt generation | LUMARA system prompt for generating 4 initial or 12-18 expanded prompts (33/33/33 mix: contextual, fun/playful, deep) |
+| **analyzeJournalEntry.ts** | Journal entry analysis | LUMARA system prompt for entry analysis |
+
+These are not duplicated in full in this document; they are derived from the LUMARA Core Identity and adapted for backend context. See the source files for exact text.
+
+---
+
+## 13. Voice Mode Prompts
 
 **NOTE: The DEFAULT/EXPLORE/INTEGRATE engagement system is UNIVERSAL across all interaction types (voice, text chat, journal conversation). The prompt updates below apply to voice mode specifically, but the engagement mode behaviors apply everywhere.**
 
@@ -1249,6 +1317,7 @@ Prepended to stored transcript for future retrieval.
 
 | Version | Date | Changes |
 |---------|------|---------|
+| 1.7.0 | 2026-01-30 | Added CHRONICLE prompts (Query Classifier, Monthly Theme Extraction / VEIL EXAMINE), Voice Journal Entry Creation ([VOICE_JOURNAL_SUMMARIZATION]), and Backend (Firebase) prompts (sendChatMessage, generateJournalReflection, generateJournalPrompts, analyzeJournalEntry). Renumbered Voice Mode to §13. |
 | 1.6.0 | 2026-01-24 | **BREAKING**: Renamed REFLECT → DEFAULT mode. Added Layer 2.5 (Voice Mode Direct Answer Protocol), Layer 2.6 (Context Retrieval Triggers), Layer 2.7 (Mode Switching Commands). Updated temporal query classification to fix "Tell me about my week" routing. |
 | 1.5.0 | 2026-01-23 | Added comprehensive template variables documentation, ECHO system prompt variables, Bible context blocks, on-device prompt variants, voice mode phase-specific word limits, and session summary prompt |
 | 1.4.0 | 2026-01-22 | Added temporal query triggers for Explore mode, reverted word limits to 100/200/300 |
