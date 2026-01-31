@@ -42,6 +42,7 @@ This document catalogs all prompts used throughout the ARC application, organize
 9. [Onboarding Prompts](#onboarding-prompts)
    - [Phase Quiz Questions](#phase-quiz-questions)
 10. [CHRONICLE Prompts](#chronicle-prompts)
+    - [Complete CHRONICLE Architecture Reference](#chronicle-complete-reference)
     - [Query Classifier](#chronicle-query-classifier)
     - [Monthly Theme Extraction (VEIL EXAMINE)](#chronicle-monthly-theme-extraction-veil-examine)
 11. [Voice Journal Entry Creation](#voice-journal-entry-creation)
@@ -981,6 +982,32 @@ Apple Health Data (last 7 days) → Biometric Analyzer
 ---
 
 ## CHRONICLE Prompts
+
+### Complete CHRONICLE Architecture Reference
+
+**Location:** `DOCS/CHRONICLE_PROMPT_REFERENCE.md`
+
+**Comprehensive guide** for future Claude instances working on CHRONICLE. Includes:
+- Architecture overview (4-layer hierarchy)
+- VEIL integration (EXAMINE → INTEGRATE → LINK)
+- Collaborative intelligence (user-editable aggregations)
+- Version control and edit propagation
+- Query intent classification
+- Master prompt modes
+- Synthesis scheduling
+- Rapid population strategies
+- Storage architecture
+- UI components
+- Guard rails and data sovereignty
+- Implementation philosophy (Phases 1-5)
+- Integration points
+- Success metrics
+- Common pitfalls
+- Future enhancements
+
+**This is the definitive reference** for understanding CHRONICLE's complete architecture, implementation details, and collaborative editing features.
+
+---
 
 ### CHRONICLE Query Classifier
 
