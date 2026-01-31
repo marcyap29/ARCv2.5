@@ -10,6 +10,14 @@ import '../llm/prompts/lumara_master_prompt.dart';
 import '../../../mira/memory/sentence_extraction_util.dart';
 import 'lumara_context_selector.dart';
 import 'package:my_app/telemetry/analytics.dart';
+import 'package:my_app/chronicle/query/query_router.dart';
+import 'package:my_app/chronicle/query/context_builder.dart';
+import 'package:my_app/chronicle/query/drill_down_handler.dart';
+import 'package:my_app/chronicle/storage/layer0_repository.dart';
+import 'package:my_app/chronicle/storage/aggregation_repository.dart';
+import 'package:my_app/chronicle/models/chronicle_layer.dart';
+import 'package:my_app/chronicle/models/chronicle_aggregation.dart';
+import 'package:my_app/chronicle/models/query_plan.dart';
 import '../models/reflective_node.dart';
 import '../models/lumara_reflection_options.dart' as models;
 import 'reflective_node_storage.dart';
@@ -97,6 +105,13 @@ class EnhancedLumaraApi {
   final JournalRepository _journalRepo = JournalRepository();
   final ChatRepo _chatRepo = ChatRepoImpl.instance;
 
+  // CHRONICLE components (lazy initialization)
+  ChronicleQueryRouter? _queryRouter;
+  ChronicleContextBuilder? _contextBuilder;
+  DrillDownHandler? _drillDownHandler;
+  Layer0Repository? _layer0Repo;
+  AggregationRepository? _aggregationRepo;
+  bool _chronicleInitialized = false;
   
   // LLM Provider tracking (for logging only - we use geminiSend directly)
   LLMProviderBase? _llmProvider;
@@ -131,11 +146,42 @@ class EnhancedLumaraApi {
         await indexMcpBundle(mcpBundlePath);
       }
       
+      // Initialize CHRONICLE components (non-blocking - graceful degradation if fails)
+      _initializeChronicle();
+      
       _initialized = true;
       print('LUMARA: Enhanced API initialized');
     } catch (e) {
       print('LUMARA: Initialization error: $e');
       // Continue with degraded mode
+    }
+  }
+
+  /// Initialize CHRONICLE components (lazy, non-blocking)
+  Future<void> _initializeChronicle() async {
+    if (_chronicleInitialized) return;
+
+    try {
+      _layer0Repo = Layer0Repository();
+      await _layer0Repo!.initialize();
+      
+      _aggregationRepo = AggregationRepository();
+      
+      _queryRouter = ChronicleQueryRouter();
+      _contextBuilder = ChronicleContextBuilder(
+        aggregationRepo: _aggregationRepo!,
+      );
+      _drillDownHandler = DrillDownHandler(
+        layer0Repo: _layer0Repo!,
+        aggregationRepo: _aggregationRepo!,
+        journalRepo: _journalRepo,
+      );
+      
+      _chronicleInitialized = true;
+      print('✅ LUMARA: CHRONICLE components initialized');
+    } catch (e) {
+      print('⚠️ LUMARA: CHRONICLE initialization failed (non-fatal): $e');
+      // Continue without CHRONICLE - will fallback to raw entries
     }
   }
 
@@ -480,20 +526,133 @@ class EnhancedLumaraApi {
           final dateFormat = DateFormat('EEEE, MMMM d, yyyy');
           final todayDateStr = dateFormat.format(now);
           
-          // Build base context with current entry explicitly labeled as TODAY
-          // Start with existing context parts, then add current entry with explicit TODAY labeling
-          final baseContextParts = <String>[];
-          baseContextParts.addAll(contextParts);
-          baseContextParts.add('');
-          baseContextParts.add('**CURRENT ENTRY (PRIMARY FOCUS - WRITTEN TODAY, $todayDateStr)**: ${request.userText}');
-          baseContextParts.add('');
-          baseContextParts.add('**HISTORICAL CONTEXT (Use for pattern recognition with dated examples)**:');
-          baseContextParts.add('**NOTE**: The journal entries listed below (with "-" bullets) are PAST entries from your journal history. The CURRENT ENTRY above (marked "PRIMARY FOCUS - WRITTEN TODAY") is being written TODAY ($todayDateStr) and is NOT a past entry.');
-          // Use all entries from context selector (already limited by Memory Focus preset)
-          baseContextParts.addAll(recentJournalEntries.map((e) => '- ${e.content}'));
+          // ═══════════════════════════════════════════════════════════
+          // STEP 0.5: ROUTE QUERY FOR CHRONICLE (if available)
+          // ═══════════════════════════════════════════════════════════
           
-          // Replace baseContext with updated version that includes current entry with explicit TODAY labeling
-          final baseContext = baseContextParts.join('\n\n');
+          QueryPlan? queryPlan;
+          String? chronicleContext;
+          List<String>? chronicleLayerNames;
+          String? chronicleMiniContext;
+          LumaraPromptMode promptMode = LumaraPromptMode.rawBacked;
+          
+          // Try to route query if CHRONICLE is available
+          if (_chronicleInitialized && _queryRouter != null && userId != null) {
+            try {
+              queryPlan = await _queryRouter!.route(
+                query: request.userText,
+                userContext: {
+                  'userId': userId,
+                  'currentPhase': request.phaseHint?.name,
+                },
+              );
+              
+              print('🔀 EnhancedLumaraApi: Query routed - intent: ${queryPlan.intent}, usesChronicle: ${queryPlan.usesChronicle}');
+              
+              if (queryPlan.usesChronicle && _contextBuilder != null) {
+                // Load CHRONICLE context
+                chronicleContext = await _contextBuilder!.buildContext(
+                  userId: userId!,
+                  queryPlan: queryPlan,
+                );
+                
+                if (chronicleContext != null && chronicleContext.isNotEmpty) {
+                  // CHRONICLE context available - use it
+                  promptMode = queryPlan.drillDown 
+                      ? LumaraPromptMode.hybrid 
+                      : LumaraPromptMode.chronicleBacked;
+                  
+                  chronicleLayerNames = queryPlan.layers
+                      .map((l) {
+                        switch (l) {
+                          case ChronicleLayer.monthly:
+                            return 'Monthly';
+                          case ChronicleLayer.yearly:
+                            return 'Yearly';
+                          case ChronicleLayer.multiyear:
+                            return 'Multi-Year';
+                          default:
+                            return l.name;
+                        }
+                      })
+                      .toList();
+                  
+                  print('✅ EnhancedLumaraApi: CHRONICLE context loaded (${queryPlan.layers.length} layers)');
+                  
+                  // Build mini-context for voice mode
+                  if (skipHeavyProcessing && queryPlan.layers.isNotEmpty) {
+                    final layer = queryPlan.layers.first;
+                    final period = _getPeriodForLayer(layer, queryPlan.dateFilter, now);
+                    if (period != null && _contextBuilder != null) {
+                      chronicleMiniContext = await _contextBuilder!.buildMiniContext(
+                        userId: userId!,
+                        layer: layer,
+                        period: period,
+                      );
+                    }
+                  }
+                } else {
+                  // CHRONICLE context not available - fallback to raw
+                  print('⚠️ EnhancedLumaraApi: CHRONICLE context not available, falling back to raw entries');
+                  promptMode = LumaraPromptMode.rawBacked;
+                }
+              }
+            } catch (e) {
+              print('⚠️ EnhancedLumaraApi: Query routing failed (non-fatal): $e');
+              // Fallback to raw mode
+              promptMode = LumaraPromptMode.rawBacked;
+            }
+          }
+          
+          // Build base context with current entry explicitly labeled as TODAY
+          // Only build if using raw mode or hybrid mode
+          String? baseContext;
+          if (promptMode == LumaraPromptMode.rawBacked || promptMode == LumaraPromptMode.hybrid) {
+            final baseContextParts = <String>[];
+            baseContextParts.addAll(contextParts);
+            baseContextParts.add('');
+            baseContextParts.add('**CURRENT ENTRY (PRIMARY FOCUS - WRITTEN TODAY, $todayDateStr)**: ${request.userText}');
+            baseContextParts.add('');
+            baseContextParts.add('**HISTORICAL CONTEXT (Use for pattern recognition with dated examples)**:');
+            baseContextParts.add('**NOTE**: The journal entries listed below (with "-" bullets) are PAST entries from your journal history. The CURRENT ENTRY above (marked "PRIMARY FOCUS - WRITTEN TODAY") is being written TODAY ($todayDateStr) and is NOT a past entry.');
+            // Use all entries from context selector (already limited by Memory Focus preset)
+            baseContextParts.addAll(recentJournalEntries.map((e) => '- ${e.content}'));
+            
+            baseContext = baseContextParts.join('\n\n');
+            
+            // Add supporting entries if drill-down needed
+            if (promptMode == LumaraPromptMode.hybrid && queryPlan != null && queryPlan.drillDown && _drillDownHandler != null) {
+              try {
+                // Get aggregations for drill-down
+                final aggregations = <ChronicleAggregation>[];
+                for (final layer in queryPlan.layers) {
+                  final period = _getPeriodForLayer(layer, queryPlan.dateFilter, now);
+                  if (period != null && _aggregationRepo != null) {
+                    final agg = await _aggregationRepo!.loadLayer(
+                      userId: userId!,
+                      layer: layer,
+                      period: period,
+                    );
+                    if (agg != null) aggregations.add(agg);
+                  }
+                }
+                
+                if (aggregations.isNotEmpty) {
+                  final supportingEntries = await _drillDownHandler!.loadSupportingEntries(
+                    aggregations: aggregations,
+                    maxEntries: 3,
+                  );
+                  
+                  if (supportingEntries.isNotEmpty) {
+                    final supportingContext = _drillDownHandler!.formatSupportingEntries(supportingEntries);
+                    baseContext = '$baseContext\n\n$supportingContext';
+                  }
+                }
+              } catch (e) {
+                print('⚠️ EnhancedLumaraApi: Drill-down failed (non-fatal): $e');
+              }
+            }
+          }
           
           // Combine provided chat context with recent chats
           final allChats = <String>[];
@@ -698,6 +857,7 @@ class EnhancedLumaraApi {
               simplifiedControlStateJson,
               entryText: request.userText,
               modeSpecificInstructions: modeSpecificInstructions.isNotEmpty ? modeSpecificInstructions : null,
+              chronicleMiniContext: chronicleMiniContext,
             );
             systemPrompt = LumaraMasterPrompt.injectDateContext(
               systemPrompt,
@@ -713,11 +873,17 @@ class EnhancedLumaraApi {
               print('🔵 LUMARA V23: Voice prompt truncated to $maxChars chars (was $wasLen; mode: ${effectiveVoiceMode.name})');
             }
             print('🔵 LUMARA V23: Using voice-only trimmed prompt (${systemPrompt.length} chars, ~${(systemPrompt.length / 4).round()} tokens, cap: $maxChars)');
+            if (chronicleMiniContext != null) {
+              print('🔵 LUMARA V23: CHRONICLE mini-context included in voice prompt');
+            }
           } else {
             systemPrompt = LumaraMasterPrompt.getMasterPrompt(
               simplifiedControlStateJson,
               entryText: request.userText,
-              baseContext: baseContext.isNotEmpty ? baseContext : null,
+              baseContext: baseContext,
+              chronicleContext: chronicleContext,
+              chronicleLayers: chronicleLayerNames,
+              mode: promptMode,
               modeSpecificInstructions: modeSpecificInstructions.isNotEmpty ? modeSpecificInstructions : null,
             );
             systemPrompt = LumaraMasterPrompt.injectDateContext(
@@ -725,7 +891,10 @@ class EnhancedLumaraApi {
               recentEntries: recentEntries,
               currentDate: now,
             );
-            print('🔵 LUMARA V23: Using unified master prompt');
+            print('🔵 LUMARA V23: Using unified master prompt (mode: ${promptMode.name})');
+            if (chronicleContext != null) {
+              print('🔵 LUMARA V23: CHRONICLE context included (${chronicleLayerNames?.join(', ') ?? 'unknown layers'})');
+            }
           }
           
           print('🔵 LUMARA V23: Unified prompt length: ${systemPrompt.length}');
@@ -1197,9 +1366,39 @@ class EnhancedLumaraApi {
           mediaRefs.add('$mediaDesc - OCR: ${media.ocrText}');
         } else {
           mediaRefs.add(mediaDesc);
-        }
+    }
+  }
+
+  /// Get period identifier for a layer based on date filter or current period
+  String? _getPeriodForLayer(ChronicleLayer layer, DateTimeRange? dateFilter, DateTime now) {
+    if (dateFilter != null) {
+      // Use date filter to determine period
+      switch (layer) {
+        case ChronicleLayer.monthly:
+          return '${dateFilter.start.year}-${dateFilter.start.month.toString().padLeft(2, '0')}';
+        case ChronicleLayer.yearly:
+          return '${dateFilter.start.year}';
+        case ChronicleLayer.multiyear:
+          return '${dateFilter.start.year}-${dateFilter.end.year}';
+        default:
+          return null;
       }
     }
+
+    // Default to current period
+    switch (layer) {
+      case ChronicleLayer.monthly:
+        return '${now.year}-${now.month.toString().padLeft(2, '0')}';
+      case ChronicleLayer.yearly:
+        return '${now.year}';
+      case ChronicleLayer.multiyear:
+        // Default to last 5 years
+        return '${now.year - 4}-${now.year}';
+      default:
+        return null;
+    }
+  }
+}
     return mediaRefs;
   }
 

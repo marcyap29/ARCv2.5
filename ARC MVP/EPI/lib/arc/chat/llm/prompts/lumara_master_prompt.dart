@@ -14,20 +14,47 @@
 import 'dart:convert';
 import 'package:intl/intl.dart';
 
+/// LUMARA Prompt Mode
+/// 
+/// Determines which context path to use for building prompts.
+enum LumaraPromptMode {
+  /// Uses CHRONICLE aggregations (primary path for temporal queries)
+  chronicleBacked,
+  
+  /// Uses raw journal entries (fallback for specific recall)
+  rawBacked,
+  
+  /// Uses both CHRONICLE and raw entries (for drill-down scenarios)
+  hybrid,
+}
+
 class LumaraMasterPrompt {
   /// Get the unified master prompt with control state and current task
   /// 
   /// [controlStateJson] - The unified control state JSON string containing
   /// all behavioral parameters from ATLAS, VEIL, FAVORITES, PRISM, THERAPY MODE, and ENGAGEMENT DISCIPLINE
   /// [entryText] - The current journal entry text to respond to
-  /// [baseContext] - Optional historical context (past entries, mood, phase)
+  /// [baseContext] - Optional historical context (past entries, mood, phase) - Required if mode = rawBacked
+  /// [chronicleContext] - Optional CHRONICLE aggregation context - Required if mode = chronicleBacked
+  /// [chronicleLayers] - Optional list of CHRONICLE layer names (for attribution)
+  /// [mode] - Prompt mode (defaults to rawBacked for backward compatibility)
   /// [modeSpecificInstructions] - Optional mode-specific instructions (conversation mode, regenerate, etc.)
   static String getMasterPrompt(
     String controlStateJson, {
     required String entryText,
     String? baseContext,
+    String? chronicleContext,
+    List<String>? chronicleLayers, // Layer display names for attribution
+    LumaraPromptMode mode = LumaraPromptMode.rawBacked, // Default to raw for backward compatibility
     String? modeSpecificInstructions,
   }) {
+    // Validate required parameters based on mode
+    if (mode == LumaraPromptMode.chronicleBacked && chronicleContext == null) {
+      throw ArgumentError('chronicleContext required for chronicleBacked mode');
+    }
+    if (mode == LumaraPromptMode.hybrid && (chronicleContext == null || baseContext == null)) {
+      throw ArgumentError('Both chronicleContext and baseContext required for hybrid mode');
+    }
     return '''You are LUMARA, the user's Evolving Personal Intelligence (EPI).  
 
 Your behavior is governed entirely by the unified control state below.  
@@ -56,6 +83,8 @@ Current date (human readable): {current_date_formatted}
 <recent_entries>
 {recent_entries_list}
 </recent_entries>
+
+${_buildContextSection(mode: mode, baseContext: baseContext, chronicleContext: chronicleContext, chronicleLayers: chronicleLayers)}
 
 **CRITICAL: TEMPORAL CONTEXT USAGE**
 - Use the current date above to calculate relative dates correctly
@@ -2880,10 +2909,13 @@ CHALLENGER MODE:
   /// Voice-only trimmed prompt for fast voice mode (skipHeavyProcessing).
   /// Keeps: control state, word limit, crisis protocol, engagement mode (reflect/explore/integrate), PRISM rule, Claude-style default.
   /// Omits: full conversational intelligence layers, recent_entries, long tone matrices.
+  /// 
+  /// [chronicleMiniContext] - Optional CHRONICLE mini-context (50-100 tokens) for temporal queries
   static String getVoicePrompt(
     String controlStateJson, {
     required String entryText,
     String? modeSpecificInstructions,
+    String? chronicleMiniContext,
   }) {
     return '''You are LUMARA, the user's Evolving Personal Intelligence (EPI). Voice mode: respond briefly and naturally.
 
@@ -2920,6 +2952,129 @@ CURRENT TASK
 ═══════════════════════════════════════════════════════════
 ${modeSpecificInstructions != null && modeSpecificInstructions.isNotEmpty ? '$modeSpecificInstructions\n\n' : ''}Current user input to respond to:
 $entryText''';
+  }
+
+  /// Build context section based on prompt mode
+  static String _buildContextSection({
+    required LumaraPromptMode mode,
+    String? baseContext,
+    String? chronicleContext,
+    List<String>? chronicleLayers,
+  }) {
+    switch (mode) {
+      case LumaraPromptMode.chronicleBacked:
+        if (chronicleContext == null || chronicleContext.isEmpty) return '';
+        return '''
+$chronicleContext
+
+**CHRONICLE Mode:** Using pre-synthesized temporal aggregations from ${chronicleLayers?.join(', ') ?? 'CHRONICLE'}.
+When citing information, reference the layer and period (e.g., "monthly aggregation for January 2025").
+Include specific entry IDs when CHRONICLE references them (e.g., "entries #001, #007, #015").
+''';
+
+      case LumaraPromptMode.rawBacked:
+        if (baseContext == null || baseContext.isEmpty) {
+          return '';
+        }
+        return '''
+<historical_context>
+The following raw journal entries provide context for this query:
+
+$baseContext
+</historical_context>
+
+**Raw Entry Mode:** Using raw journal entries for context.
+Extract patterns and themes from the provided entries.
+Reference specific entry dates or IDs when citing information.
+''';
+
+      case LumaraPromptMode.hybrid:
+        final parts = <String>[];
+        if (chronicleContext != null && chronicleContext.isNotEmpty) {
+          parts.add('''
+<chronicle_context>
+CHRONICLE aggregations:
+$chronicleContext
+</chronicle_context>
+''');
+        }
+        if (baseContext != null && baseContext.isNotEmpty) {
+          parts.add('''
+<supporting_entries>
+Specific supporting entries:
+$baseContext
+</supporting_entries>
+''');
+        }
+        if (parts.isEmpty) return '';
+        return parts.join('\n') + '\n**Hybrid Mode:** Using both CHRONICLE aggregations and specific supporting entries.';
+    }
+  }
+
+  /// Build CHRONICLE mini-context for voice mode
+  /// 
+  /// Extracts a 50-100 token summary from a CHRONICLE aggregation.
+  static String? buildChronicleMiniContext(String aggregationContent) {
+    if (aggregationContent.isEmpty) return null;
+
+    // Extract top themes (first 3)
+    final themes = _extractTopThemes(aggregationContent, maxThemes: 3);
+    
+    // Extract dominant phase
+    final phase = _extractDominantPhase(aggregationContent);
+    
+    // Extract significant events (first 2)
+    final events = _extractSignificantEvents(aggregationContent, maxEvents: 2);
+
+    final buffer = StringBuffer();
+    
+    if (themes.isNotEmpty) {
+      buffer.write('Themes: ${themes.join(', ')}. ');
+    }
+    
+    if (phase != null) {
+      buffer.write('Phase: $phase. ');
+    }
+    
+    if (events.isNotEmpty) {
+      buffer.write('Events: ${events.join('; ')}. ');
+    }
+
+    final result = buffer.toString().trim();
+    return result.isEmpty ? null : result;
+  }
+
+  /// Extract top themes from aggregation content
+  static List<String> _extractTopThemes(String content, {int maxThemes = 3}) {
+    final themeSection = RegExp(r'## Dominant Themes(.*?)##', dotAll: true)
+        .firstMatch(content);
+    if (themeSection == null) return [];
+
+    return RegExp(r'\*\*(\w+(?:\s+\w+)?)\*\*')
+        .allMatches(themeSection.group(1) ?? '')
+        .map((m) => m.group(1) ?? '')
+        .where((t) => t.isNotEmpty)
+        .take(maxThemes)
+        .toList();
+  }
+
+  /// Extract dominant phase from aggregation content
+  static String? _extractDominantPhase(String content) {
+    final match = RegExp(r'Primary phase[:\*]+ (\w+)').firstMatch(content);
+    return match?.group(1);
+  }
+
+  /// Extract significant events from aggregation content
+  static List<String> _extractSignificantEvents(String content, {int maxEvents = 2}) {
+    final eventsSection = RegExp(r'## Significant Events(.*?)##', dotAll: true)
+        .firstMatch(content);
+    if (eventsSection == null) return [];
+
+    return RegExp(r'- \*\*([^\*]+):\*\* ([^\n]+)')
+        .allMatches(eventsSection.group(1) ?? '')
+        .map((m) => '${m.group(1)}: ${m.group(2)}')
+        .take(maxEvents)
+        .toList();
   }
 
   /// Inject current date/time and recent entries into the prompt

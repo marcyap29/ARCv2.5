@@ -9,6 +9,8 @@ import 'package:my_app/mira/mira_service.dart';
 import 'package:my_app/mira/core/schema.dart';
 import 'package:my_app/data/models/media_item.dart';
 import 'package:my_app/state/journal_entry_state.dart';
+import 'package:my_app/chronicle/storage/layer0_repository.dart';
+import 'package:my_app/chronicle/storage/layer0_populator.dart';
 
 /// Self-initializing repository with consistent box name.
 /// No external init() needed.
@@ -16,6 +18,11 @@ class JournalRepository {
   static const String _boxName = 'journal_entries';
   Box<JournalEntry>? _box;
   bool _lumaraMigrationDone = false;
+  
+  // CHRONICLE Layer 0 population (lazy initialization)
+  Layer0Repository? _layer0Repo;
+  Layer0Populator? _layer0Populator;
+  bool _layer0Initialized = false;
 
   Future<Box<JournalEntry>> _openBoxSafely({int retries = 5}) async {
     for (var i = 0; i < retries; i++) {
@@ -179,6 +186,9 @@ class JournalRepository {
       final box = await _ensureBox();
       await box.put(entry.id, entry);
       print('🔍 JournalRepository: Successfully saved entry ${entry.id} to database');
+      
+      // Populate Layer 0 for CHRONICLE (if enabled)
+      _populateLayer0IfEnabled(entry);
       
       // Verify the entry was saved
       final savedEntry = box.get(entry.id);
@@ -874,10 +884,50 @@ class JournalRepository {
     return filtered.sublist(startIndex, endIndex);
   }
 
+  /// Populate Layer 0 for CHRONICLE (if enabled)
+  /// 
+  /// This is called after journal entry save to populate Layer 0.
+  /// Uses lazy initialization to avoid breaking if CHRONICLE isn't fully set up yet.
+  Future<void> _populateLayer0IfEnabled(JournalEntry entry) async {
+    try {
+      // Lazy initialization
+      if (!_layer0Initialized) {
+        try {
+          _layer0Repo = Layer0Repository();
+          await _layer0Repo!.initialize();
+          _layer0Populator = Layer0Populator(_layer0Repo!);
+          _layer0Initialized = true;
+          print('✅ JournalRepository: CHRONICLE Layer 0 initialized');
+        } catch (e) {
+          print('⚠️ JournalRepository: CHRONICLE Layer 0 initialization failed (non-fatal): $e');
+          // Don't set _layer0Initialized = true, so we don't keep trying
+          return;
+        }
+      }
+
+      if (_layer0Populator != null) {
+        // TODO: Get actual user ID - for now use a default
+        // In production, this should come from FirebaseAuthService or similar
+        const userId = 'default_user'; // Will be replaced with actual user ID
+        
+        await _layer0Populator!.populateFromJournalEntry(
+          journalEntry: entry,
+          userId: userId,
+        );
+      }
+    } catch (e) {
+      // Don't let Layer 0 population failure break journal save
+      print('⚠️ JournalRepository: Layer 0 population failed (non-fatal): $e');
+    }
+  }
+
   // Close the box
   Future<void> close() async {
     if (_box != null && _box!.isOpen) {
       await _box!.close();
+    }
+    if (_layer0Repo != null) {
+      await _layer0Repo!.close();
     }
   }
 }
