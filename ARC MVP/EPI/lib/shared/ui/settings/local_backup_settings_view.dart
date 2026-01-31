@@ -9,9 +9,10 @@ import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
-import 'package:my_app/services/local_backup_settings_service.dart';
-import 'package:my_app/services/local_backup_service.dart';
-import 'package:my_app/services/scheduled_local_backup_service.dart';
+// TODO: Backup services not yet implemented
+// import 'package:my_app/services/local_backup_settings_service.dart';
+// import 'package:my_app/services/local_backup_service.dart';
+// import 'package:my_app/services/scheduled_local_backup_service.dart';
 import 'package:my_app/arc/core/journal_repository.dart';
 import 'package:my_app/arc/chat/chat/chat_repo_impl.dart';
 import 'package:my_app/services/phase_regime_service.dart';
@@ -19,10 +20,12 @@ import 'package:my_app/services/analytics_service.dart';
 import 'package:my_app/services/rivet_sweep_service.dart';
 import 'package:my_app/mira/store/arcx/services/arcx_export_service_v2.dart';
 import 'package:my_app/services/export_history_service.dart';
-import 'package:my_app/shared/ui/settings/selective_backup_entry_selector.dart';
+// TODO: Selective backup entry selector not yet implemented
+// import 'package:my_app/shared/ui/settings/selective_backup_entry_selector.dart';
 import 'package:my_app/models/journal_entry_model.dart';
 import 'package:my_app/arc/chat/chat/chat_models.dart';
-import 'package:my_app/services/backup_file_scanner.dart';
+// TODO: Backup file scanner not yet implemented
+// import 'package:my_app/services/backup_file_scanner.dart';
 import 'package:intl/intl.dart';
 
 class LocalBackupSettingsView extends StatefulWidget {
@@ -38,8 +41,9 @@ class LocalBackupSettingsView extends StatefulWidget {
 }
 
 class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
-  final LocalBackupSettingsService _settingsService = LocalBackupSettingsService.instance;
-  final LocalBackupService _backupService = LocalBackupService.instance;
+  // TODO: Backup services not yet implemented - using null for now
+  // final LocalBackupSettingsService _settingsService = LocalBackupSettingsService.instance;
+  // final LocalBackupService _backupService = LocalBackupService.instance;
 
   bool _isLoading = false;
   bool _isEnabled = false;
@@ -82,15 +86,25 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
     setState(() => _isLoading = true);
 
     try {
-      await _settingsService.initialize();
+      // TODO: Backup services not yet implemented
+      // await _settingsService.initialize();
 
-      final isEnabled = await _settingsService.isEnabled();
-      final backupPath = await _settingsService.getBackupPath();
-      final backupFormat = await _settingsService.getBackupFormat();
-      final scheduleEnabled = await _settingsService.isScheduleEnabled();
-      final scheduleFrequency = await _settingsService.getScheduleFrequency();
-      final scheduleTime = await _settingsService.getScheduleTime();
-      final lastBackup = await _settingsService.getLastBackup();
+      // final isEnabled = await _settingsService.isEnabled();
+      // final backupPath = await _settingsService.getBackupPath();
+      // final backupFormat = await _settingsService.getBackupFormat();
+      // final scheduleEnabled = await _settingsService.isScheduleEnabled();
+      // final scheduleFrequency = await _settingsService.getScheduleFrequency();
+      // final scheduleTime = await _settingsService.getScheduleTime();
+      // final lastBackup = await _settingsService.getLastBackup();
+      
+      // Stub values for now
+      final isEnabled = false;
+      final backupPath = null;
+      final backupFormat = 'arcx';
+      final scheduleEnabled = false;
+      final scheduleFrequency = 'daily';
+      final scheduleTime = '02:00';
+      final lastBackup = null;
 
       setState(() {
         _isEnabled = isEnabled;
@@ -172,8 +186,9 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
   
     try {
       // Force rescan of backup folder
-      final backupDir = Directory(_backupPath!);
-      await BackupFileScanner.invalidateCache(backupDir);
+      // TODO: BackupFileScanner not yet implemented
+      // final backupDir = Directory(_backupPath!);
+      // await BackupFileScanner.invalidateCache(backupDir);
     
       // Reload preview (this will trigger a fresh scan)
       await _loadBackupInfo();
@@ -206,21 +221,23 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
   }
 
   void _setupBackupListeners() {
-    _progressSubscription = _backupService.progressStream.listen((progress) {
-      if (mounted) {
-        setState(() {
-          _backupProgress = progress;
-        });
-      }
-    });
+    // TODO: Backup service not yet implemented
+    // _progressSubscription = _backupService.progressStream.listen((progress) {
+    //   if (mounted) {
+    //     setState(() {
+    //       _backupProgress = progress;
+    //     });
+    //   }
+    // });
 
-    _percentageSubscription = _backupService.percentageStream.listen((percentage) {
-      if (mounted) {
-        setState(() {
-          _backupPercentage = percentage;
-        });
-      }
-    });
+    // TODO: Backup service not yet implemented
+    // _percentageSubscription = _backupService.percentageStream.listen((percentage) {
+    //   if (mounted) {
+    //     setState(() {
+    //       _backupPercentage = percentage;
+    //     });
+    //   }
+    // });
   }
 
   Future<void> _selectBackupFolder() async {
@@ -259,7 +276,8 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
           }
         }
         
-        await _settingsService.setBackupPath(selectedPath);
+        // TODO: Backup service not yet implemented
+        // await _settingsService.setBackupPath(selectedPath);
         setState(() {
           _backupPath = selectedPath;
         });
@@ -295,7 +313,8 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
         await backupDir.create(recursive: true);
       }
       
-      await _settingsService.setBackupPath(backupDir.path);
+      // TODO: Backup service not yet implemented
+      // await _settingsService.setBackupPath(backupDir.path);
       setState(() {
         _backupPath = backupDir.path;
       });
@@ -329,32 +348,39 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
   }
 
   Future<void> _setBackupFormat(String format) async {
-    await _settingsService.setBackupFormat(format);
+    // TODO: Backup service not yet implemented
+    // await _settingsService.setBackupFormat(format);
     setState(() => _backupFormat = format);
   }
 
   Future<void> _setScheduleEnabled(bool enabled) async {
-    await _settingsService.setScheduleEnabled(enabled);
+    // TODO: Backup services not yet implemented
+    // await _settingsService.setScheduleEnabled(enabled);
     setState(() => _scheduleEnabled = enabled);
 
     if (enabled && _isEnabled && _backupPath != null) {
       await _startScheduledBackups();
     } else {
-      ScheduledLocalBackupService.instance.stop();
+      // ScheduledLocalBackupService.instance.stop();
     }
   }
 
   Future<void> _setScheduleFrequency(String frequency) async {
-    await _settingsService.setScheduleFrequency(frequency);
+    // TODO: Backup service not yet implemented
+    // await _settingsService.setScheduleFrequency(frequency);
     setState(() => _scheduleFrequency = frequency);
   }
 
   Future<void> _setScheduleTime(String time) async {
-    await _settingsService.setScheduleTime(time);
+    // TODO: Backup service not yet implemented
+    // await _settingsService.setScheduleTime(time);
     setState(() => _scheduleTime = time);
   }
 
   Future<void> _startScheduledBackups() async {
+    // TODO: Backup services not yet implemented
+    return;
+    /*
     try {
       final analyticsService = AnalyticsService();
       final rivetSweepService = RivetSweepService(analyticsService);
@@ -372,6 +398,7 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
     } catch (e) {
       print('Local Backup Settings: Error starting scheduled backups: $e');
     }
+    */
   }
 
   Future<void> _triggerManualBackup() async {
@@ -837,7 +864,8 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
   }
 
   Future<void> _toggleEnabled(bool enabled) async {
-    await _settingsService.setEnabled(enabled);
+    // TODO: Backup services not yet implemented
+    // await _settingsService.setEnabled(enabled);
     setState(() => _isEnabled = enabled);
 
     if (enabled && _backupPath != null) {
@@ -845,7 +873,7 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
         await _startScheduledBackups();
       }
     } else {
-      ScheduledLocalBackupService.instance.stop();
+      // ScheduledLocalBackupService.instance.stop();
     }
   }
 
@@ -1959,18 +1987,14 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
         }
         
         // Show selective backup selector with filtered data
+        // TODO: SelectiveBackupEntrySelector not yet implemented
         if (mounted) {
-          await showDialog(
-            context: context,
-            builder: (context) => SelectiveBackupEntrySelector(
-              allEntries: entries,
-              allChats: chats,
-              onConfirm: (selectedEntries, selectedChats) async {
-                await _performSelectiveBackup(selectedEntries, selectedChats);
-              },
-            ),
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Selective backup not yet available')),
           );
+          return;
         }
+        // Note: SelectiveBackupEntrySelector implementation would go here when available
       } catch (e, stackTrace) {
         print('Error in _triggerSelectiveBackupLite: $e');
         print('Stack trace: $stackTrace');
@@ -2044,56 +2068,65 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
       await chatRepo.initialize();
       
       // Generate backup to temp location
-      final result = await _backupService.createBackupToTemp(
-        format: _backupFormat,
-        journalRepo: widget.journalRepo,
-        chatRepo: chatRepo,
-        phaseRegimeService: phaseRegimeService,
-        excludeMedia: false,
-        selectedEntries: selectedEntries,
-        selectedChats: selectedChats,
-      );
-
-      if (!result.success) {
-        if (mounted) {
-          _showBackupErrorDialog(result.error ?? 'Unknown error');
-        }
+      // TODO: Backup service not yet implemented
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Backup creation not yet available')),
+        );
         return;
       }
+      /*
+      // final result = await _backupService.createBackupToTemp(
+      //   format: _backupFormat,
+      //   journalRepo: widget.journalRepo,
+      //   chatRepo: chatRepo,
+      //   phaseRegimeService: phaseRegimeService,
+      //   excludeMedia: false,
+      //   selectedEntries: selectedEntries,
+      //   selectedChats: selectedChats,
+      // );
+
+      // if (!result.success) {
+      //   if (mounted) {
+      //     _showBackupErrorDialog(result.error ?? 'Unknown error');
+      //   }
+      //   return;
+      // }
 
       // Now prompt user to pick save location
-      if (result.filePath != null && mounted) {
-        final selectedPath = await FilePicker.platform.getDirectoryPath();
-        
-        if (selectedPath != null) {
-          final sourceFile = File(result.filePath!);
-          final fileName = result.fileName ?? 'backup.zip';
-          final destFile = File(path.join(selectedPath, fileName));
-          
-          await sourceFile.copy(destFile.path);
-          
-          if (mounted) {
-            final (start, end) = _entriesDateRange(selectedEntries);
-            final dateCoverage = (start != null && end != null)
-                ? ' These ${selectedEntries.length} entries cover $start – $end.'
-                : '';
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(
-                  'Selective backup saved: ${result.entriesExported ?? 0} entries, ${result.chatsExported ?? 0} chats.$dateCoverage'
-                ),
-                backgroundColor: Colors.green,
-                duration: const Duration(seconds: 5),
-              ),
-            );
-          }
-        } else {
-          // User cancelled - delete temp file
-          try {
-            await File(result.filePath!).delete();
-          } catch (_) {}
-        }
-      }
+      // if (result.filePath != null && mounted) {
+      //   final selectedPath = await FilePicker.platform.getDirectoryPath();
+      //   
+      //   if (selectedPath != null) {
+      //     final sourceFile = File(result.filePath!);
+      //     final fileName = result.fileName ?? 'backup.zip';
+      //     final destFile = File(path.join(selectedPath, fileName));
+      //     
+      //     await sourceFile.copy(destFile.path);
+      //     
+      //     if (mounted) {
+      //       final (start, end) = _entriesDateRange(selectedEntries);
+      //       final dateCoverage = (start != null && end != null)
+      //           ? ' These ${selectedEntries.length} entries cover $start – $end.'
+      //           : '';
+      //       ScaffoldMessenger.of(context).showSnackBar(
+      //         SnackBar(
+      //           content: Text(
+      //             'Selective backup saved: ${result.entriesExported ?? 0} entries, ${result.chatsExported ?? 0} chats.$dateCoverage'
+      //           ),
+      //           backgroundColor: Colors.green,
+      //           duration: const Duration(seconds: 5),
+      //         ),
+      //       );
+      //     }
+      //   } else {
+      //     // User cancelled - delete temp file
+      //     try {
+      //       await File(result.filePath!).delete();
+      //     } catch (_) {}
+      //   }
+      // }
+      */
     } catch (e) {
       if (mounted) {
         _showBackupErrorDialog(e.toString());

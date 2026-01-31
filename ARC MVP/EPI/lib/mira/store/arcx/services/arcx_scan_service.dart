@@ -7,6 +7,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 import 'package:archive/archive.dart';
 import 'package:path/path.dart' as path;
+import 'package:accessing_security_scoped_resource/accessing_security_scoped_resource.dart';
 import '../models/arcx_manifest.dart';
 import 'arcx_crypto_service.dart';
 
@@ -153,19 +154,67 @@ Future<List<ARCXFileScanResult>> scanArcxFiles({
 }
 
 /// Scan a folder for .arcx files and return one result per file.
+/// 
+/// On iOS, handles security-scoped resources automatically.
 Future<List<ARCXFileScanResult>> scanArcxFolder(
   Directory directory, {
   String? password,
   bool recursive = false,
   void Function(String message, double fraction)? onProgress,
 }) async {
-  final paths = <String>[];
-  await for (final e in directory.list(followLinks: false)) {
-    if (e is File && e.path.toLowerCase().endsWith('.arcx')) {
-      paths.add(e.path);
+  // On iOS, start accessing security-scoped resource if needed
+  bool isAccessing = false;
+  if (Platform.isIOS) {
+    try {
+      final plugin = AccessingSecurityScopedResource();
+      isAccessing = await plugin.startAccessingSecurityScopedResourceWithFilePath(directory.path);
+      if (!isAccessing) {
+        // If we can't access, try to list anyway - might work for some paths
+        // The error will be caught below
+      }
+    } catch (e) {
+      // If startAccessing fails, continue anyway - might work for non-security-scoped paths
     }
   }
-  paths.sort();
-  if (paths.isEmpty) return [];
-  return scanArcxFiles(arcxPaths: paths, password: password, onProgress: onProgress);
+
+  try {
+    final paths = <String>[];
+    try {
+      await for (final e in directory.list(followLinks: false)) {
+        if (e is File && e.path.toLowerCase().endsWith('.arcx')) {
+          paths.add(e.path);
+        }
+      }
+    } catch (e) {
+      // If listing fails, return error result
+      return [
+        ARCXFileScanResult(
+          filePath: directory.path,
+          fileSizeBytes: 0,
+          error: 'Failed to list directory: $e',
+        ),
+      ];
+    }
+    
+    paths.sort();
+    if (paths.isEmpty) return [];
+    
+    final results = await scanArcxFiles(
+      arcxPaths: paths,
+      password: password,
+      onProgress: onProgress,
+    );
+    
+    return results;
+  } finally {
+    // On iOS, stop accessing security-scoped resource
+    if (Platform.isIOS && isAccessing) {
+      try {
+        final plugin = AccessingSecurityScopedResource();
+        await plugin.stopAccessingSecurityScopedResourceWithFilePath(directory.path);
+      } catch (e) {
+        // Ignore errors when stopping access
+      }
+    }
+  }
 }

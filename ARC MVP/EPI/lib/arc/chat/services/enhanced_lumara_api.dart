@@ -1366,7 +1366,10 @@ class EnhancedLumaraApi {
           mediaRefs.add('$mediaDesc - OCR: ${media.ocrText}');
         } else {
           mediaRefs.add(mediaDesc);
+        }
+      }
     }
+    return mediaRefs;
   }
 
   /// Get period identifier for a layer based on date filter or current period
@@ -1397,9 +1400,6 @@ class EnhancedLumaraApi {
       default:
         return null;
     }
-  }
-}
-    return mediaRefs;
   }
 
   /// Fallback method to call local Gemini API when Firebase backend fails

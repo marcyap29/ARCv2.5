@@ -1,7 +1,7 @@
 # EPI MVP - Bug Tracker
 
 **Version:** 3.2.2  
-**Last Updated:** January 10, 2026
+**Last Updated:** January 31, 2026
 
 ---
 
@@ -40,6 +40,7 @@ Detailed bug reports are available in the [records/](records/) directory:
 ### Export/Import Issues
 - [arcx-export-photo-directory-mismatch.md](records/arcx-export-photo-directory-mismatch.md) - Photo directory structure
 - [arcx-import-date-preservation.md](records/arcx-import-date-preservation.md) - Date preservation during import
+- [ios-folder-verification-permission-error.md](records/ios-folder-verification-permission-error.md) - **HIGH:** iOS folder verification permission error (v3.2.2) ✅ RESOLVED
 - [mcp-repair-system-fixes.md](records/mcp-repair-system-fixes.md) - MCP repair system issues
 
 ### Data & Storage Issues

@@ -27,14 +27,9 @@ import 'package:my_app/arc/chat/chat/chat_category_models.dart';
 import 'package:my_app/arc/chat/data/models/lumara_favorite.dart';
 import 'package:my_app/services/firebase_service.dart';
 import 'package:my_app/services/firebase_auth_service.dart';
-import 'package:my_app/services/scheduled_local_backup_service.dart';
-import 'package:my_app/services/local_backup_settings_service.dart';
 import 'package:my_app/services/health_data_refresh_service.dart';
 import 'package:my_app/services/phase_history_readiness_backfill_service.dart';
 import 'package:my_app/arc/core/journal_repository.dart';
-import 'package:my_app/arc/chat/chat/chat_repo_impl.dart';
-import 'package:my_app/services/phase_regime_service.dart';
-import 'package:my_app/services/rivet_sweep_service.dart';
 import 'package:my_app/services/analytics_service.dart';
 import 'package:my_app/services/temporal_notification_service.dart';
 
@@ -364,15 +359,8 @@ Future<void> bootstrap({
       // Log results
       logger.d('Initialization completed: Hive=$hiveInitialized, ${initializationResults.where((r) => r).length}/3 additional services successful');
 
-      // Initialize local scheduled backups (if enabled)
+      // Initialize health data refresh service
       if (hiveInitialized) {
-        try {
-          await _initializeScheduledBackups();
-        } catch (e, st) {
-          logger.e('Failed to initialize scheduled backups', e, st);
-        }
-        
-        // Initialize health data refresh service
         try {
           await _initializeHealthDataRefresh();
         } catch (e, st) {
@@ -902,41 +890,8 @@ Future<void> _initializeTemporalNotifications() async {
   }
 }
 
-/// Initialize Scheduled Backup service
-Future<void> _initializeScheduledBackups() async {
-  try {
-    final settingsService = LocalBackupSettingsService.instance;
-    await settingsService.initialize();
-
-    final isEnabled = await settingsService.isEnabled();
-    final isScheduleEnabled = await settingsService.isScheduleEnabled();
-
-    if (isEnabled && isScheduleEnabled) {
-      // Get journal repository
-      final journalRepo = JournalRepository();
-      
-      // Initialize chat repo
-      final chatRepo = ChatRepoImpl.instance;
-      await chatRepo.initialize();
-
-      // Initialize phase regime service
-      final analyticsService = AnalyticsService();
-      final rivetSweepService = RivetSweepService(analyticsService);
-      final phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
-      await phaseRegimeService.initialize();
-
-      // Start scheduled backup service
-      await ScheduledLocalBackupService.instance.start(
-        journalRepo: journalRepo,
-        chatRepo: chatRepo,
-        phaseRegimeService: phaseRegimeService,
-      );
-      logger.d('Scheduled backup service initialized');
-    }
-  } catch (e, st) {
-    logger.e('Failed to initialize scheduled backups', e, st);
-  }
-}
+// Scheduled backup services removed - not implemented
+// Manual backups are available via ARCXExportServiceV2
 
 /// Initialize Health Data Refresh service
 Future<void> _initializeHealthDataRefresh() async {
