@@ -18,6 +18,7 @@ import 'package:my_app/models/memory_focus_preset.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:my_app/ui/subscription/subscription_management_view.dart';
 import 'package:my_app/services/firebase_auth_service.dart';
+import 'package:my_app/shared/ui/settings/verify_backup_screen.dart';
 import 'package:my_app/shared/ui/settings/local_backup_settings_view.dart';
 import 'package:my_app/shared/ui/settings/import_status_screen.dart';
 import 'package:my_app/shared/ui/settings/temporal_notification_settings_view.dart';
@@ -557,6 +558,20 @@ class _SettingsViewState extends State<SettingsView> {
               context,
               title: 'Import & Export',
               children: [
+                _buildSettingsTile(
+                  context,
+                  title: 'Verify',
+                  subtitle: 'Obtain detailed info on backup files',
+                  icon: Icons.folder,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const VerifyBackupScreen(),
+                      ),
+                    );
+                  },
+                ),
                 _buildSettingsTile(
                   context,
                   title: 'Local Backup',

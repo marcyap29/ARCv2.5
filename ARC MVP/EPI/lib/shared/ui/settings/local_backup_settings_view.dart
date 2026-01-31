@@ -18,7 +18,6 @@ import 'package:my_app/services/phase_regime_service.dart';
 import 'package:my_app/services/analytics_service.dart';
 import 'package:my_app/services/rivet_sweep_service.dart';
 import 'package:my_app/mira/store/arcx/services/arcx_export_service_v2.dart';
-import 'package:my_app/mira/store/arcx/services/arcx_scan_service.dart';
 import 'package:my_app/services/export_history_service.dart';
 import 'package:my_app/shared/ui/settings/selective_backup_entry_selector.dart';
 import 'package:my_app/models/journal_entry_model.dart';
@@ -1456,31 +1455,12 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
                   ),
                 ),
               ),
-              const SizedBox(height: 12),
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  onPressed: (_isBackingUp || _isScanning) ? null : _verifyBackup,
-                  icon: const Icon(Icons.folder_open, size: 18),
-                  label: const Text('Verify backup'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: kcSecondaryTextColor,
-                    side: BorderSide(color: kcSecondaryTextColor.withOpacity(0.5)),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                ),
-              ),
             ],
           ],
         ],
       ),
     );
   }
-
-  bool _isScanning = false;
 
   /// Returns (start, end) as YYYY-MM-DD for a group of entries, or (null, null) if empty.
   static (String?, String?) _entriesDateRange(List<JournalEntry> entries) {
@@ -1491,157 +1471,6 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
     return (start, end);
   }
 
-  Future<void> _verifyBackup() async {
-    final folderPath = await FilePicker.platform.getDirectoryPath();
-    if (folderPath == null || !mounted) return;
-    setState(() => _isScanning = true);
-    try {
-      final dir = Directory(folderPath);
-      final results = await scanArcxFolder(
-        dir,
-        onProgress: (msg, frac) {
-          if (mounted) setState(() { _backupProgress = msg; _backupPercentage = (frac * 100).round(); });
-        },
-      );
-      if (!mounted) return;
-      setState(() { _isScanning = false; _backupProgress = ''; _backupPercentage = 0; });
-      _showVerifyBackupDialog(results, folderPath);
-    } catch (e) {
-      if (mounted) {
-        setState(() { _isScanning = false; _backupProgress = ''; _backupPercentage = 0; });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Scan failed: $e'), backgroundColor: Colors.red),
-        );
-      }
-    }
-  }
-
-  Future<void> _showVerifyBackupDialog(List<ARCXFileScanResult> results, String folderPath) async {
-    // Overall summary: only from successfully scanned files
-    final okResults = results.where((r) => r.isOk).toList();
-    String? overallSummary;
-    if (okResults.isNotEmpty) {
-      int totalEntries = 0;
-      int totalBytes = 0;
-      String? overallStart;
-      String? overallEnd;
-      for (final r in okResults) {
-        totalEntries += r.entriesCount;
-        totalBytes += r.fileSizeBytes;
-        if (r.entriesDateRangeStart != null && r.entriesDateRangeEnd != null) {
-          if (overallStart == null || r.entriesDateRangeStart!.compareTo(overallStart) < 0) overallStart = r.entriesDateRangeStart;
-          if (overallEnd == null || r.entriesDateRangeEnd!.compareTo(overallEnd) > 0) overallEnd = r.entriesDateRangeEnd;
-        }
-      }
-      final sizeStr = totalBytes >= 1024 * 1024 * 1024
-          ? '${(totalBytes / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB'
-          : '${(totalBytes / (1024 * 1024)).toStringAsFixed(1)} MB';
-      if (overallStart != null && overallEnd != null) {
-        overallSummary = 'Overall: these ${okResults.length} files cover $overallStart – $overallEnd, $totalEntries entries, $sizeStr.';
-      } else {
-        overallSummary = 'Overall: these ${okResults.length} files, $totalEntries entries, $sizeStr.';
-      }
-    }
-    await showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: kcBackgroundColor,
-        title: Row(
-          children: [
-            Icon(Icons.folder, color: Colors.green[300], size: 24),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                'Backup contents',
-                style: heading2Style(context).copyWith(color: Colors.white),
-              ),
-            ),
-          ],
-        ),
-        content: SizedBox(
-          width: 400,
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Folder: ${path.basename(folderPath)}',
-                  style: bodyStyle(context).copyWith(color: kcSecondaryTextColor, fontSize: 12),
-                ),
-                if (overallSummary != null) ...[
-                  const SizedBox(height: 8),
-                  Text(
-                    overallSummary,
-                    style: bodyStyle(context).copyWith(fontWeight: FontWeight.w500, color: Colors.white),
-                  ),
-                ],
-                const SizedBox(height: 12),
-                if (results.isEmpty)
-                  Text('No .arcx files found.', style: bodyStyle(context))
-                else
-                  ...results.map((r) {
-                    final dateRange = (r.entriesDateRangeStart != null && r.entriesDateRangeEnd != null)
-                        ? ' ${r.entriesDateRangeStart} – ${r.entriesDateRangeEnd}'
-                        : '';
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: r.isOk ? Colors.green.withOpacity(0.1) : Colors.red.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Icon(r.isOk ? Icons.check_circle : Icons.error, size: 18, color: r.isOk ? Colors.green : Colors.red),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                    r.fileName,
-                                    style: bodyStyle(context).copyWith(fontSize: 13, fontWeight: FontWeight.w500),
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            if (r.error != null)
-                              Padding(
-                                padding: const EdgeInsets.only(top: 4),
-                                child: Text(r.error!, style: bodyStyle(context).copyWith(fontSize: 11, color: Colors.red)),
-                              )
-                            else ...[
-                              Text(
-                                '${r.entriesCount} entries, ${r.chatsCount} chats, ${r.mediaCount} media${dateRange}',
-                                style: bodyStyle(context).copyWith(fontSize: 12, color: kcSecondaryTextColor),
-                              ),
-                              Text(
-                                '${(r.fileSizeBytes / 1024 / 1024).toStringAsFixed(1)} MB',
-                                style: bodyStyle(context).copyWith(fontSize: 11, color: kcSecondaryTextColor),
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
-                    );
-                  }),
-              ],
-            ),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('OK', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
-    );
-  }
-  
   Widget _buildStatItem(IconData icon, String value, String label) {
     return Column(
       children: [

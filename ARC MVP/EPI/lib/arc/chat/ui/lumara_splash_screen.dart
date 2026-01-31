@@ -24,8 +24,11 @@ class LumaraSplashScreen extends StatefulWidget {
 class _LumaraSplashScreenState extends State<LumaraSplashScreen> 
     with SingleTickerProviderStateMixin {
   Timer? _timer;
-  String _currentPhase = 'Discovery'; // Default phase
+  String _currentPhase = 'Discovery';
   bool _phaseLoaded = false;
+  /// True only when the user has at least one phase regime (current or past).
+  /// When false, we show only the ARC logo—no phase shape or label.
+  bool _userHasPhase = false;
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
 
@@ -44,8 +47,7 @@ class _LumaraSplashScreenState extends State<LumaraSplashScreen>
     );
     _fadeController.forward();
     
-    _loadCurrentPhase();
-    _startTimer();
+    _loadCurrentPhase(); // starts timer with correct duration when done
   }
 
   Future<void> _loadCurrentPhase() async {
@@ -56,48 +58,47 @@ class _LumaraSplashScreenState extends State<LumaraSplashScreen>
       final phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
       await phaseRegimeService.initialize();
 
-      String phase = 'Discovery'; // Default
-      
-      // Check current regime first
       final currentRegime = phaseRegimeService.phaseIndex.currentRegime;
+      final allRegimes = phaseRegimeService.phaseIndex.allRegimes;
+      final hasAnyRegime = currentRegime != null || allRegimes.isNotEmpty;
+
+      String phase = 'Discovery';
       if (currentRegime != null) {
         phase = currentRegime.label.toString().split('.').last;
-        // Capitalize first letter
         phase = phase[0].toUpperCase() + phase.substring(1);
-        print('DEBUG: Splash using current regime phase: $phase');
-      } else {
-        // Fall back to most recent regime
-        final allRegimes = phaseRegimeService.phaseIndex.allRegimes;
-        if (allRegimes.isNotEmpty) {
-          final sortedRegimes = List.from(allRegimes)
-            ..sort((a, b) => b.start.compareTo(a.start));
-          final mostRecent = sortedRegimes.first;
-          phase = mostRecent.label.toString().split('.').last;
-          phase = phase[0].toUpperCase() + phase.substring(1);
-          print('DEBUG: Splash using most recent regime phase: $phase');
-        } else {
-          print('DEBUG: Splash - no regimes found, using default Discovery');
-        }
+      } else if (allRegimes.isNotEmpty) {
+        final sortedRegimes = List.from(allRegimes)
+          ..sort((a, b) => b.start.compareTo(a.start));
+        final mostRecent = sortedRegimes.first;
+        phase = mostRecent.label.toString().split('.').last;
+        phase = phase[0].toUpperCase() + phase.substring(1);
       }
 
       if (mounted) {
         setState(() {
+          _userHasPhase = hasAnyRegime;
           _currentPhase = phase;
           _phaseLoaded = true;
         });
-        print('DEBUG: Splash loaded phase: $_currentPhase');
+        _startTimer();
       }
     } catch (e) {
-      print('DEBUG: Error loading phase for splash: $e');
       if (mounted) {
-        setState(() => _phaseLoaded = true);
+        setState(() {
+          _userHasPhase = false;
+          _phaseLoaded = true;
+        });
+        _startTimer();
       }
     }
   }
 
   void _startTimer() {
-    // Navigate after 8 seconds to admire the animated phase shape
-    _timer = Timer(const Duration(seconds: 8), () {
+    // Logo-only: 3s. With phase shape: 8s to admire the animation.
+    final duration = _userHasPhase
+        ? const Duration(seconds: 8)
+        : const Duration(seconds: 3);
+    _timer = Timer(duration, () {
       if (mounted) {
         _checkAuthAndNavigate();
       }
@@ -192,27 +193,22 @@ class _LumaraSplashScreenState extends State<LumaraSplashScreen>
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      // ARC Logo
+                      // ARC Logo (always shown)
                       Image.asset(
                         'assets/images/ARC-Logo.png',
                         width: logoSize,
                         height: logoSize,
                         fit: BoxFit.contain,
                       ),
-                      
-                      const SizedBox(height: 24),
-                      
-                      // Animated Phase Shape
-                      AnimatedPhaseShape(
-                        phase: _currentPhase,
-                        size: shapeSize,
-                        rotationDuration: const Duration(seconds: 10),
-                      ),
-                      
-                      const SizedBox(height: 16),
-                      
-                      // Phase name label (subtle)
-                      if (_phaseLoaded)
+                      // Phase shape and label only when user has a phase (not first-time / no regime)
+                      if (_phaseLoaded && _userHasPhase) ...[
+                        const SizedBox(height: 24),
+                        AnimatedPhaseShape(
+                          phase: _currentPhase,
+                          size: shapeSize,
+                          rotationDuration: const Duration(seconds: 10),
+                        ),
+                        const SizedBox(height: 16),
                         Text(
                           _currentPhase,
                           style: TextStyle(
@@ -222,6 +218,7 @@ class _LumaraSplashScreenState extends State<LumaraSplashScreen>
                             letterSpacing: 2,
                           ),
                         ),
+                      ],
                     ],
                   ),
                 ),

@@ -1188,6 +1188,9 @@ PODS:
     - abseil/meta/type_traits
     - abseil/xcprivacy
   - abseil/xcprivacy (1.20240722.0)
+  - accessing_security_scoped_resource (0.0.1):
+    - Flutter
+    - FlutterMacOS
   - AppAuth (2.0.0):
     - AppAuth/Core (= 2.0.0)
     - AppAuth/ExternalUserAgent (= 2.0.0)
@@ -1516,6 +1519,7 @@ PODS:
     - FlutterMacOS
 
 DEPENDENCIES:
+  - accessing_security_scoped_resource (from `.symlinks/plugins/accessing_security_scoped_resource/darwin`)
   - audio_session (from `.symlinks/plugins/audio_session/ios`)
   - audioplayers_darwin (from `.symlinks/plugins/audioplayers_darwin/darwin`)
   - cloud_firestore (from `.symlinks/plugins/cloud_firestore/ios`)
@@ -1581,6 +1585,8 @@ SPEC REPOS:
     - SwiftyGif
 
 EXTERNAL SOURCES:
+  accessing_security_scoped_resource:
+    :path: ".symlinks/plugins/accessing_security_scoped_resource/darwin"
   audio_session:
     :path: ".symlinks/plugins/audio_session/ios"
   audioplayers_darwin:
@@ -1640,6 +1646,7 @@ EXTERNAL SOURCES:
 
 SPEC CHECKSUMS:
   abseil: a05cc83bf02079535e17169a73c5be5ba47f714b
+  accessing_security_scoped_resource: 4a87897646efbc3a4578e28ea4c08083d7bf3e67
   AppAuth: 1c1a8afa7e12f2ec3a294d9882dfa5ab7d3cb063
   AppCheckCore: cc8fd0a3a230ddd401f326489c99990b013f0c4f
   audio_session: 9bb7f6c970f21241b19f5a3658097ae459681ba0

@@ -1,5 +1,7 @@
 # Import/Export UI Text and Data Spec
 
+**Last Updated:** January 30, 2026
+
 **Purpose:** Spell out the exact UI text and data format for import/export features so a developer (or Agent mode) can implement or verify them without ambiguity.
 
 **Date format:** Use ISO date strings `YYYY-MM-DD` everywhere (e.g. `2023-01-15`, `2024-12-01`).

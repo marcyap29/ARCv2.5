@@ -1,7 +1,7 @@
 # EPI ARC MVP - Changelog
 
 **Version:** 3.3.13
-**Last Updated:** January 26, 2026
+**Last Updated:** January 30, 2026
 
 ---
 

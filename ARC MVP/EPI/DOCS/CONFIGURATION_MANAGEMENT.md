@@ -1,7 +1,7 @@
 # Configuration Management & Documentation Tracking
 
 **Lead Configuration Management Analyst:** Active  
-**Last Updated:** January 26, 2026  
+**Last Updated:** January 30, 2026  
 **Status:** ✅ All Documents Synced with Main Branch
 
 ---
@@ -19,10 +19,10 @@ This document tracks all changes between the repository codebase and documentati
 | Document | Location | Last Reviewed | Status | Notes |
 |----------|----------|---------------|--------|-------|
 | ARCHITECTURE.md | `/DOCS/ARCHITECTURE.md` | 2026-01-26 | ✅ Synced | v3.3.7 - Matches main branch |
-| CHANGELOG.md | `/DOCS/CHANGELOG.md` | 2026-01-26 | ✅ Synced | v3.3.10 - Matches main branch |
+| CHANGELOG.md | `/DOCS/CHANGELOG.md` | 2026-01-30 | ✅ Synced | v3.3.13 - Import status screen, mini bar, build fix |
 | PROMPT_REFERENCES.md | `/DOCS/PROMPT_REFERENCES.md` | 2026-01-26 | ✅ Current | v1.6.0 - Comprehensive prompt catalog |
 | bug_tracker.md | `/DOCS/bugtracker/bug_tracker.md` | 2026-01-26 | ✅ Synced | v3.2.2 - Matches main branch |
-| FEATURES.md | `/DOCS/FEATURES.md` | 2026-01-26 | ✅ Synced | v3.2.6 - Matches main branch |
+| FEATURES.md | `/DOCS/FEATURES.md` | 2026-01-30 | ✅ Synced | v3.3.13 - Import Status screen, Settings → Import |
 | README.md | `/DOCS/README.md` | 2026-01-26 | ✅ Synced | v3.2.9 - Matches main branch |
 
 ### White Papers & Specifications
@@ -36,6 +36,15 @@ This document tracks all changes between the repository codebase and documentati
 ---
 
 ## Change Tracking Log
+
+### 2026-01-30 - Documentation refresh and version sync
+
+**Action:** Updated Last Updated dates and configuration inventory for v3.3.13 (Import Status screen, mini bar, build fix).
+
+**Documents updated:**
+- CHANGELOG.md, FEATURES.md — Last Updated: January 30, 2026
+- CONFIGURATION_MANAGEMENT.md — Inventory: CHANGELOG v3.3.13, FEATURES v3.3.13
+- IMPORT_EXPORT_UI_SPEC.md — Added Last Updated: January 30, 2026
 
 ### 2026-01-26 - Documentation Sync with Main Branch
 

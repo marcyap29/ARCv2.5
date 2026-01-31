@@ -35,6 +35,7 @@ dependencies:
   share_plus: ^11.1.0
   archive: ^3.4.10
   file_picker: ^8.1.2
+  accessing_security_scoped_resource: ^3.4.0
   json_annotation: ^4.9.0
   image: ^4.1.7
   image_picker: ^1.0.4
