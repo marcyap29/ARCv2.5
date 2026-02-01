@@ -171,7 +171,11 @@ class PhaseRecommender {
         'clarity', 'insight', 'breakthrough', 'transformation', 'wisdom',
         'epiphany', 'suddenly', 'realized', 'understand', 'aha', 'purpose',
         'threshold', 'crossing', 'barrier', 'momentum', 'coherent', 'alive',
-        'unlock', 'path', 'crisp', 'landing'
+        'unlock', 'path', 'crisp', 'landing',
+        // Quiz-generated Breakthrough keywords
+        'shift', 'major shift', 'seeing', 'seeing things', 'through',
+        'realization', 'awakening', 'revelation', 'turning point', 'moment',
+        'clear', 'vision', 'perspective', 'new perspective'
       },
     };
     

@@ -1190,14 +1190,20 @@ class _CalendarWeekHeaderDelegate extends SliverPersistentHeaderDelegate {
   _CalendarWeekHeaderDelegate({required this.child});
 
   @override
-  double get minExtent => 108.0; // ~24 (month text) + 8 (spacing) + 60 (calendar) + 16 (padding)
+  double get minExtent => 114.0; // Constrain to safe size to avoid layoutExtent > paintExtent errors
 
   @override
-  double get maxExtent => 108.0; // ~24 (month text) + 8 (spacing) + 60 (calendar) + 16 (padding)
+  double get maxExtent => 114.0;
 
   @override
   Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
-    return child;
+    // Constrain child to fit within declared extent and clip overflow
+    return ClipRect(
+      child: SizedBox(
+        height: maxExtent,
+        child: child,
+      ),
+    );
   }
 
   @override

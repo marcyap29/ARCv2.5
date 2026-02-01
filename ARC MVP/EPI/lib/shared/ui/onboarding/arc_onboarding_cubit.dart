@@ -185,7 +185,8 @@ class ArcOnboardingCubit extends Cubit<ArcOnboardingState> {
     }
   }
 
-  void completeOnboarding() {
+  void completeOnboarding() async {
+    await UserPhaseService.setOnboardingCompleted(true);
     emit(state.copyWith(currentScreen: OnboardingScreen.complete));
   }
 
@@ -195,9 +196,9 @@ class ArcOnboardingCubit extends Cubit<ArcOnboardingState> {
     completeOnboarding();
   }
 
-  /// Skip quiz for returning users or users with existing phase data
+  /// Skip quiz: SOP2 - default to Discovery, show phase reveal, then continue until RIVET identifies new phase
   Future<void> skipQuiz() async {
-    _logger.d('Skipping quiz for returning user');
+    _logger.d('Skipping phase quiz - defaulting to Discovery');
     
     emit(state.copyWith(
       currentScreen: OnboardingScreen.phaseAnalysis,
@@ -205,10 +206,11 @@ class ArcOnboardingCubit extends Cubit<ArcOnboardingState> {
     ));
 
     try {
-      // Get existing phase or default to Discovery
+      // SOP2: When user skips, use Discovery as default (or existing phase for returning users)
       String phaseString = 'Discovery';
       try {
-        phaseString = await UserPhaseService.getCurrentPhase();
+        final existing = await UserPhaseService.getCurrentPhase();
+        if (existing.isNotEmpty) phaseString = existing;
       } catch (e) {
         _logger.w('Could not get existing phase, defaulting to Discovery: $e');
       }

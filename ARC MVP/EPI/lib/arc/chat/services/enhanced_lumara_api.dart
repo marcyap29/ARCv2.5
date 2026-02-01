@@ -536,8 +536,13 @@ class EnhancedLumaraApi {
           String? chronicleMiniContext;
           LumaraPromptMode promptMode = LumaraPromptMode.rawBacked;
           
-          // Try to route query if CHRONICLE is available
-          if (_chronicleInitialized && _queryRouter != null && userId != null) {
+          // Voice mode: skip query router to save one Gemini round-trip (~5–15s). Use default plan.
+          if (skipHeavyProcessing) {
+            queryPlan = QueryPlan.rawEntry(intent: QueryIntent.temporalQuery);
+            print('🔀 EnhancedLumaraApi: Voice mode - skipping query router (saves 1 Gemini call), using rawEntry plan');
+          }
+          // Try to route query if CHRONICLE is available (text mode only)
+          else if (_chronicleInitialized && _queryRouter != null && userId != null) {
             try {
               queryPlan = await _queryRouter!.route(
                 query: request.userText,
@@ -687,7 +692,11 @@ class EnhancedLumaraApi {
           bool safetyOverride = false;
           SentinelScore? sentinelScore;
           
-          if (userId != null) {
+          // Voice mode: skip crisis/Sentinel (Firestore) to reduce latency; use user-selected persona
+          if (skipHeavyProcessing) {
+            selectedPersona = _getPersonaFromConversationMode(request.options.conversationMode);
+            print('🎯 USER-SELECTED PERSONA: $selectedPersona (voice mode - skipped crisis/Sentinel check)');
+          } else if (userId != null) {
             // Check if already in crisis mode (within cooldown period)
             final alreadyInCrisis = await CrisisMode.isInCrisisMode(userId);
             

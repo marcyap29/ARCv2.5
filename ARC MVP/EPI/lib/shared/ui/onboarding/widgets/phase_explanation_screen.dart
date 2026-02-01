@@ -276,10 +276,10 @@ class _PhaseExplanationScreenState extends State<PhaseExplanationScreen>
                 
                 const SizedBox(height: 16),
                 
-                // Skip button
+                // Skip button: SOP2 - default to Discovery, show phase reveal, then continue until RIVET identifies new phase
                 TextButton(
                   onPressed: () {
-                    context.read<ArcOnboardingCubit>().skipToMainPage();
+                    context.read<ArcOnboardingCubit>().skipQuiz();
                   },
                   child: Text(
                     'Skip Phase Quiz',

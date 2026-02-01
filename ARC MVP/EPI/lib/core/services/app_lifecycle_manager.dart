@@ -15,6 +15,7 @@ class AppLifecycleManager with WidgetsBindingObserver {
   bool _isInitialized = false;
   DateTime? _lastPauseTime;
   DateTime? _lastResumeTime;
+  bool _pendingDraftSave = false;
   final DraftCacheService _draftCache = DraftCacheService.instance;
   
   /// Initialize the lifecycle manager
@@ -65,6 +66,14 @@ class AppLifecycleManager with WidgetsBindingObserver {
   void _handleAppResumed() {
     _lastResumeTime = DateTime.now();
     
+    // Save draft on resume if we skipped save on pause (avoids parentDataDirty assertion during pause)
+    if (_pendingDraftSave) {
+      _pendingDraftSave = false;
+      Future.delayed(const Duration(milliseconds: 300), () {
+        _saveCurrentDraft();
+      });
+    }
+    
     // Refresh authentication token on app resume to ensure it's fresh
     _refreshAuthToken();
     
@@ -114,9 +123,9 @@ class AppLifecycleManager with WidgetsBindingObserver {
   void _handleAppPaused() {
     _lastPauseTime = DateTime.now();
     logger.d('App paused at: $_lastPauseTime');
-    
-    // Save current draft immediately when app is paused
-    _saveCurrentDraft();
+    // Do not run save during pause — triggers parentDataDirty semantics assertion.
+    // Save will run on resume instead.
+    _pendingDraftSave = true;
   }
 
   void _handleAppInactive() {
@@ -125,9 +134,8 @@ class AppLifecycleManager with WidgetsBindingObserver {
 
   void _handleAppDetached() {
     logger.d('App detached from engine');
-    
-    // Save current draft when app is detached (force quit scenario)
-    _saveCurrentDraft();
+    // Do not run save during detach — save on next resume instead (avoids parentDataDirty assertion).
+    _pendingDraftSave = true;
   }
 
   void _handleAppHidden() {

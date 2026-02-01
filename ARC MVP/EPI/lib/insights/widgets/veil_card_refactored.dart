@@ -36,7 +36,10 @@ class _VeilCardRefactoredState extends State<VeilCardRefactored> with WidgetsBin
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      _loadPhaseInfo();
+      // Defer refresh to avoid parentDataDirty assertion during lifecycle transition
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _loadPhaseInfo();
+      });
     }
   }
 

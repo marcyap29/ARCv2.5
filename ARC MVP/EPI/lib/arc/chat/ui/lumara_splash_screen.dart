@@ -3,6 +3,8 @@
 
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:hive/hive.dart';
+import 'package:my_app/models/user_profile_model.dart';
 import 'package:my_app/shared/ui/home/home_view.dart';
 import 'package:my_app/services/firebase_auth_service.dart';
 import 'package:my_app/services/phase_regime_service.dart';
@@ -12,6 +14,8 @@ import 'package:my_app/ui/auth/sign_in_screen.dart';
 import 'package:my_app/ui/splash/animated_phase_shape.dart';
 import 'package:my_app/shared/ui/onboarding/arc_onboarding_sequence.dart';
 import 'package:my_app/arc/core/journal_repository.dart';
+import 'package:my_app/services/user_phase_service.dart';
+import 'package:my_app/prism/atlas/rivet/rivet_provider.dart';
 
 /// Splash screen with ARC logo and animated phase shape
 class LumaraSplashScreen extends StatefulWidget {
@@ -52,31 +56,58 @@ class _LumaraSplashScreenState extends State<LumaraSplashScreen>
 
   Future<void> _loadCurrentPhase() async {
     try {
-      // Use PhaseRegimeService - the authoritative source for current phase
+      // SOP: 1a RIVET (gate open + regime), else 1b quiz result, else Discovery
+      var profilePhase = await UserPhaseService.getCurrentPhase();
+      
+      // MIGRATION: If UserProfile has no phase, try to backfill from entries
+      if (profilePhase.isEmpty) {
+        final entryPhase = await _getPhaseFromEntries();
+        if (entryPhase != null && entryPhase.isNotEmpty) {
+          print('DEBUG: Backfilling UserProfile phase from entry: $entryPhase');
+          await UserPhaseService.forceUpdatePhase(entryPhase);
+          profilePhase = entryPhase;
+        }
+      }
+      
       final analyticsService = AnalyticsService();
       final rivetSweepService = RivetSweepService(analyticsService);
       final phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
       await phaseRegimeService.initialize();
 
+      bool rivetGateOpen = false;
+      try {
+        final rivetProvider = RivetProvider();
+        if (!rivetProvider.isAvailable) {
+          await rivetProvider.initialize('default_user');
+        }
+        rivetGateOpen = rivetProvider.service?.wouldGateOpen() ?? false;
+      } catch (_) {}
+
+      String? regimePhase;
       final currentRegime = phaseRegimeService.phaseIndex.currentRegime;
       final allRegimes = phaseRegimeService.phaseIndex.allRegimes;
-      final hasAnyRegime = currentRegime != null || allRegimes.isNotEmpty;
-
-      String phase = 'Discovery';
       if (currentRegime != null) {
-        phase = currentRegime.label.toString().split('.').last;
-        phase = phase[0].toUpperCase() + phase.substring(1);
+        regimePhase = currentRegime.label.toString().split('.').last;
       } else if (allRegimes.isNotEmpty) {
         final sortedRegimes = List.from(allRegimes)
           ..sort((a, b) => b.start.compareTo(a.start));
-        final mostRecent = sortedRegimes.first;
-        phase = mostRecent.label.toString().split('.').last;
-        phase = phase[0].toUpperCase() + phase.substring(1);
+        regimePhase = sortedRegimes.first.label.toString().split('.').last;
       }
+
+      final displayPhase = UserPhaseService.getDisplayPhase(
+        regimePhase: regimePhase,
+        rivetGateOpen: rivetGateOpen,
+        profilePhase: profilePhase,
+      );
+      final phase = displayPhase.isEmpty
+          ? 'Discovery'
+          : displayPhase[0].toUpperCase() + displayPhase.substring(1).toLowerCase();
+      // Show phase shape when we have regime, quiz, or default Discovery (SOP 3)
+      final hasPhase = (regimePhase != null && regimePhase.isNotEmpty) || profilePhase.isNotEmpty || displayPhase == 'Discovery';
 
       if (mounted) {
         setState(() {
-          _userHasPhase = hasAnyRegime;
+          _userHasPhase = hasPhase;
           _currentPhase = phase;
           _phaseLoaded = true;
         });
@@ -90,6 +121,38 @@ class _LumaraSplashScreenState extends State<LumaraSplashScreen>
         });
         _startTimer();
       }
+    }
+  }
+  
+  /// Get phase from existing journal entries (for migration/backfill)
+  Future<String?> _getPhaseFromEntries() async {
+    try {
+      final journalRepo = JournalRepository();
+      final entries = await journalRepo.getAllJournalEntries();
+      if (entries.isEmpty) return null;
+      
+      // Sort by most recent first
+      final sortedEntries = List.of(entries)
+        ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      
+      // Find the first entry with a valid phase
+      for (final entry in sortedEntries) {
+        // Use computedPhase (priority: userPhaseOverride > autoPhase > legacyPhaseTag)
+        final computed = entry.computedPhase;
+        if (computed != null && computed.isNotEmpty) {
+          // Capitalize properly
+          return computed[0].toUpperCase() + computed.substring(1).toLowerCase();
+        }
+        // Fallback to phase field
+        if (entry.phase != null && entry.phase!.isNotEmpty) {
+          final phase = entry.phase!;
+          return phase[0].toUpperCase() + phase.substring(1).toLowerCase();
+        }
+      }
+      return null;
+    } catch (e) {
+      print('DEBUG: Error getting phase from entries: $e');
+      return null;
     }
   }
 
@@ -112,24 +175,25 @@ class _LumaraSplashScreenState extends State<LumaraSplashScreen>
     final isSignedIn = FirebaseAuthService.instance.isSignedIn;
 
     if (isSignedIn) {
-      // Check if this is a first-time user (no journal entries)
-      final userEntryCount = await _getUserEntryCount();
-      
-      if (userEntryCount == 0) {
+      // Prefer UserProfile.onboardingCompleted so quiz/inaugural entry is not treated as "no entries"
+      final onboardingCompleted = await _getOnboardingCompleted();
+      final hasAnyJournalEntry = await _hasAnyJournalEntry();
+
+      if (onboardingCompleted || hasAnyJournalEntry) {
+        // Completed onboarding (profile flag) or has at least one entry (e.g. inaugural from phase quiz) → home
+        if (mounted) {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder: (context) => HomeView(),
+            ),
+          );
+        }
+      } else {
         // First-time user - show onboarding
         if (mounted) {
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(
               builder: (context) => const ArcOnboardingSequence(),
-            ),
-          );
-        }
-      } else {
-        // Returning user - go to home
-        if (mounted) {
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(
-              builder: (context) => HomeView(),
             ),
           );
         }
@@ -146,18 +210,30 @@ class _LumaraSplashScreenState extends State<LumaraSplashScreen>
     }
   }
 
-  Future<int> _getUserEntryCount() async {
+  /// True if UserProfile has onboardingCompleted set (quiz or skip path completed).
+  Future<bool> _getOnboardingCompleted() async {
+    try {
+      Box<UserProfile> userBox;
+      if (Hive.isBoxOpen('user_profile')) {
+        userBox = Hive.box<UserProfile>('user_profile');
+      } else {
+        userBox = await Hive.openBox<UserProfile>('user_profile');
+      }
+      final profile = userBox.get('profile');
+      return profile?.onboardingCompleted == true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /// True if user has at least one journal entry (including onboarding-tagged, e.g. inaugural from phase quiz).
+  Future<bool> _hasAnyJournalEntry() async {
     try {
       final journalRepo = JournalRepository();
       final entries = await journalRepo.getAllJournalEntries();
-      // Filter out onboarding entries (they have 'onboarding' tag)
-      final nonOnboardingEntries = entries.where((e) => 
-        !e.tags.contains('onboarding')
-      ).toList();
-      return nonOnboardingEntries.length;
+      return entries.isNotEmpty;
     } catch (e) {
-      print('Error getting user entry count: $e');
-      return 0; // Default to showing onboarding on error
+      return false;
     }
   }
 

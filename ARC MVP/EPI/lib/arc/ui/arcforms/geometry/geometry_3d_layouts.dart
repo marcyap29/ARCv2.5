@@ -30,8 +30,8 @@ class Geometry3DLayouts {
       case ArcformGeometry.glowCore: // Recovery - Spherical shell layers
         positions = _create3DGlowCore(nodeCount);
         break;
-      case ArcformGeometry.fractal: // Breakthrough - 3D fractal tree
-        positions = _create3DFractal(nodeCount);
+      case ArcformGeometry.fractal: // Breakthrough - 5-pointed star (not helix)
+        positions = _create3DStar(nodeCount);
         break;
     }
     
@@ -283,81 +283,74 @@ class Geometry3DLayouts {
     return nodes;
   }
 
-  /// 3D fractal tree for Breakthrough phase
-  static List<Node3D> _create3DFractal(int nodeCount) {
+  /// 5-pointed star for Breakthrough phase (center + outer points + inner valley points)
+  static List<Node3D> _create3DStar(int nodeCount) {
     final nodes = <Node3D>[];
-    
-    // Root node
+    const outerRadius = 100.0;
+    const innerRadius = 40.0;
+    // 5-pointed star: angles for outer points (top, then clockwise) — 90° is top, subtract 90 for math
+    const outerAngles = [0.0, 72.0, 144.0, 216.0, 288.0]; // degrees from top
+    const innerAngles = [36.0, 108.0, 180.0, 252.0, 324.0]; // valley points
+
+    // Center
     nodes.add(Node3D(
-      id: 'fractal_root',
-      label: 'Root',
+      id: 'star_center',
+      label: 'Center',
       x: 0,
       y: 0,
       z: 0,
       size: 25.0,
     ));
-    
-    if (nodeCount > 1) {
-      _addFractalBranches3D(
-        nodes,
-        center: nodes[0],
-        initialRadius: 80.0,
-        remainingNodes: nodeCount - 1,
-        depth: 0,
-      );
-    }
-    
-    return nodes;
-  }
+    int idx = 1;
 
-  static void _addFractalBranches3D(
-    List<Node3D> nodes,
-    {required Node3D center,
-    required double initialRadius,
-    required int remainingNodes,
-    required int depth,
-  }) {
-    if (remainingNodes <= 0 || depth > 3) return;
-    
-    const branchAngles = [
-      [0, math.pi/4], // Forward-up
-      [math.pi/2, math.pi/4], // Right-up
-      [math.pi, math.pi/4], // Back-up
-      [3*math.pi/2, math.pi/4], // Left-up
-      [math.pi/4, -math.pi/6], // Forward-right-down
-      [3*math.pi/4, -math.pi/6], // Back-right-down
-    ];
-    
-    final branchCount = math.min(branchAngles.length, remainingNodes);
-    final radius = initialRadius * math.pow(0.6, depth);
-    
-    for (int i = 0; i < branchCount; i++) {
-      final azimuth = branchAngles[i][0];
-      final elevation = branchAngles[i][1];
-      
-      final x = center.x + radius * math.cos(elevation) * math.cos(azimuth);
-      final y = center.y - radius * math.sin(elevation); // Negative Y for upward growth
-      final z = center.z + radius * math.cos(elevation) * math.sin(azimuth);
-      
-      final branchNode = Node3D(
-        id: 'fractal_${depth}_$i',
-        label: 'Fractal ${nodes.length}',
-        x: x,
-        y: y,
-        z: z,
-        size: 20.0 - depth * 2,
-      );
-      
-      nodes.add(branchNode);
-      
-      // Recursive fractal branching
-      _addFractalBranches3D(
-        nodes,
-        center: branchNode,
-        initialRadius: radius,
-        remainingNodes: remainingNodes - 1,
-        depth: depth + 1,
-      );
+    // Outer and inner points alternating for classic star
+    for (int i = 0; i < 5 && idx < nodeCount; i++) {
+      final outerDeg = outerAngles[i] * math.pi / 180;
+      final outerX = outerRadius * math.sin(outerDeg);
+      final outerZ = -outerRadius * math.cos(outerDeg); // - so top is 0°
+      nodes.add(Node3D(
+        id: 'star_outer_$i',
+        label: 'Point $idx',
+        x: outerX,
+        y: 0,
+        z: outerZ,
+        size: 20.0,
+      ));
+      idx++;
+      if (idx >= nodeCount) break;
+      final innerDeg = innerAngles[i] * math.pi / 180;
+      final innerX = innerRadius * math.sin(innerDeg);
+      final innerZ = -innerRadius * math.cos(innerDeg);
+      nodes.add(Node3D(
+        id: 'star_inner_$i',
+        label: 'Valley $idx',
+        x: innerX,
+        y: 0,
+        z: innerZ,
+        size: 18.0,
+      ));
+      idx++;
     }
+
+    // Extra nodes along rays if nodeCount > 11
+    while (idx < nodeCount) {
+      final i = (idx - 11) % 5;
+      final t = 0.3 + 0.5 * ((idx - 11) / 5).floor() / math.max(1, (nodeCount - 11) / 5);
+      final deg = (outerAngles[i] * (1 - t) + innerAngles[i] * t) * math.pi / 180;
+      final r = outerRadius * (1 - t) + innerRadius * t;
+      final x = r * math.sin(deg);
+      final z = -r * math.cos(deg);
+      nodes.add(Node3D(
+        id: 'star_ray_$idx',
+        label: 'Ray $idx',
+        x: x,
+        y: 0,
+        z: z,
+        size: 16.0,
+      ));
+      idx++;
+    }
+
+    return nodes;
   }
 }

@@ -36,6 +36,7 @@ Detailed bug reports are available in the [records/](records/) directory:
 - [timeline-overflow-empty-state.md](records/timeline-overflow-empty-state.md) - Empty state display
 - [ui-ux-critical-fixes-jan-08-2025.md](records/ui-ux-critical-fixes-jan-08-2025.md) - Critical UI/UX fixes
 - [ui-ux-fixes-jan-2025.md](records/ui-ux-fixes-jan-2025.md) - General UI/UX improvements
+- [lumara-ui-overlap-stripe-auth-fixes.md](records/lumara-ui-overlap-stripe-auth-fixes.md) - LUMARA UI overlap and Stripe auth fixes
 
 ### Export/Import Issues
 - [arcx-export-photo-directory-mismatch.md](records/arcx-export-photo-directory-mismatch.md) - Photo directory structure
@@ -54,6 +55,7 @@ Detailed bug reports are available in the [records/](records/) directory:
 
 ### Subscription & Payment Issues
 - [stripe-checkout-unauthenticated.md](records/stripe-checkout-unauthenticated.md) - **CRITICAL:** Cloud Run IAM blocking Stripe checkout ✅ RESOLVED
+- [stripe-subscription-critical-fixes.md](records/stripe-subscription-critical-fixes.md) - Stripe subscription critical fixes
 
 ### Feature-Specific Issues
 - [constellation-zero-stars-display.md](records/constellation-zero-stars-display.md) - Constellation visualization
@@ -62,6 +64,21 @@ Detailed bug reports are available in the [records/](records/) directory:
 - [phase-analysis-integration-bugs.md](records/phase-analysis-integration-bugs.md) - Phase analysis integration
 - [rivet-deterministic-recompute.md](records/rivet-deterministic-recompute.md) - RIVET computation issues
 - [vision-api-integration-ios.md](records/vision-api-integration-ios.md) - Vision API iOS integration
+
+---
+
+## Recent code changes (reference for bug tracker)
+
+This section is derived from the repo and [CHANGELOG.md](../CHANGELOG.md) to keep the bug tracker aligned with recent fixes. Use it for triage and to add new records when appropriate.
+
+| Fix / change | Version | Bug record | Notes |
+|--------------|---------|------------|--------|
+| iOS folder verification permission error | v3.3.13 | [ios-folder-verification-permission-error.md](records/ios-folder-verification-permission-error.md) ✅ | Security-scoped resource access on iOS for VerifyBackupScreen |
+| Phase Quiz result not persisting; Phase tab mismatch | v3.3.13 | — | Quiz result now persisted via UserPhaseService; Phase tab uses quiz phase when no regimes. See CHANGELOG [3.3.13] "Phase Quiz result matches Phase tab". |
+| llama.xcframework build / simulator | recent | — | Link llama static library directly; device build search paths; simulator stubs; exclude xcframework from simulator. Build/config fixes. |
+| Import status bar, mini bar, per-file status | v3.3.13 | — | Feature; not a bug. See CHANGELOG. |
+
+**Source:** `git log --oneline`, [CHANGELOG.md](../CHANGELOG.md). Last synced: 2026-01-31.
 
 ---
 

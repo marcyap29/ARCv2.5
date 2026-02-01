@@ -33,14 +33,17 @@ import 'package:my_app/models/phase_models.dart';
 import 'package:my_app/shared/widgets/import_status_bar.dart';
 import 'package:my_app/mira/store/arcx/import_progress_cubit.dart';
 import 'package:my_app/ui/export_import/mcp_import_screen.dart';
+import 'package:my_app/arc/core/journal_repository.dart';
 
 // Debug flag for showing RIVET engineering labels
 const bool kShowRivetDebugLabels = false;
 
 class HomeView extends StatefulWidget {
   final int initialTab;
-  
-  const HomeView({super.key, this.initialTab = 0}); // Default to Phase tab (index 0)
+  /// If set, after first frame open this entry in JournalScreen (e.g. from onboarding "Read Your Entry")
+  final String? entryIdToOpen;
+
+  const HomeView({super.key, this.initialTab = 0, this.entryIdToOpen}); // Default to Phase tab (index 0)
 
   @override
   State<HomeView> createState() => _HomeViewState();
@@ -81,6 +84,13 @@ class _HomeViewState extends State<HomeView> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _checkPhotoPermissionsAndRefresh();
     });
+
+    // Open a specific entry (e.g. inaugural entry from onboarding "Read Your Entry")
+    if (widget.entryIdToOpen != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _openEntryById(widget.entryIdToOpen!);
+      });
+    }
     
     // Initialize shake-to-report-bug detection
     _initializeShakeDetection();
@@ -103,6 +113,35 @@ class _HomeViewState extends State<HomeView> {
       print('DEBUG: Shake detection initialized and listening');
     } catch (e) {
       print('DEBUG: Error initializing shake detection: $e');
+    }
+  }
+
+  /// Open a specific entry by id (e.g. inaugural entry from onboarding "Read Your Entry")
+  Future<void> _openEntryById(String entryId) async {
+    if (!mounted) return;
+    try {
+      final repo = JournalRepository();
+      final entry = await repo.getJournalEntryById(entryId);
+      if (!mounted) return;
+      if (entry != null) {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (context) => JournalScreen(
+              existingEntry: entry,
+              isViewOnly: true,
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Could not open entry: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -518,8 +557,13 @@ class _InsightsPageState extends State<_InsightsPage> with WidgetsBindingObserve
     super.didChangeAppLifecycleState(state);
     // Refresh RIVET card when app becomes active (user might have added entries)
     if (state == AppLifecycleState.resumed) {
-      print('DEBUG: App resumed, refreshing RIVET card');
-      refreshRivetCard();
+      // Defer refresh to avoid parentDataDirty assertion during lifecycle transition
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          print('DEBUG: App resumed, refreshing RIVET card');
+          refreshRivetCard();
+        }
+      });
     }
   }
   

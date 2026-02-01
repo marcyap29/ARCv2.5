@@ -3,9 +3,31 @@ import 'package:my_app/core/models/arcform_snapshot.dart';
 import 'package:my_app/arc/ui/arcforms/arcform_mvp_implementation.dart';
 import 'package:my_app/models/user_profile_model.dart';
 
-/// Service to manage the user's current ATLAS phase
+/// Service to manage the user's current ATLAS phase.
+///
+/// **SOP – Phase determination (display):**
+/// 1. **RIVET activity (1a):** If RIVET gate is open and a phase regime exists, use that phase.
+/// 2. **Phase quiz result (1b):** If not from 1a, use UserProfile/quiz phase when set.
+/// 3. **Default (new user / skipped quiz):** If neither 1a nor 1b, use Discovery until RIVET has enough activity.
+/// Display this phase on startup (spin) and in the timeline phase preview.
 class UserPhaseService {
   static const String _snapshotsBoxName = 'arcform_snapshots';
+  
+  /// Returns the phase to display everywhere (splash, timeline preview).
+  /// SOP: 1a RIVET (when gate open + regime), else 1b quiz result, else Discovery.
+  static String getDisplayPhase({
+    String? regimePhase,
+    required bool rivetGateOpen,
+    required String profilePhase,
+  }) {
+    if (rivetGateOpen && regimePhase != null && regimePhase.trim().isNotEmpty) {
+      return regimePhase.trim();
+    }
+    if (profilePhase.trim().isNotEmpty) {
+      return profilePhase.trim();
+    }
+    return 'Discovery';
+  }
   
   /// Helper method to get user profile safely
   static Future<UserProfile?> _getUserProfile() async {
@@ -34,6 +56,11 @@ class UserPhaseService {
         print('DEBUG: Using phase from UserProfile: ${userProfile.onboardingCurrentSeason}');
         return userProfile.onboardingCurrentSeason!;
       }
+      // Fallback: currentPhase (set with onboardingCurrentSeason in forceUpdatePhase)
+      if (userProfile?.currentPhase != null && userProfile!.currentPhase.isNotEmpty) {
+        print('DEBUG: Using phase from UserProfile.currentPhase: ${userProfile.currentPhase}');
+        return userProfile.currentPhase;
+      }
       
       // Only fall back to snapshots if no UserProfile phase exists
       // AND the user has completed onboarding (to avoid using stale data)
@@ -58,15 +85,14 @@ class UserPhaseService {
         }
       }
       
-      // NEW RULE: Auto-default to Discovery if no phase is found
-      // This handles cases where user skipped quiz or system couldn't determine phase
-      print('DEBUG: No phase found, auto-defaulting to Discovery');
-      return 'Discovery';
+      // No default: quiz is the starting phase; if no phase is found, return empty.
+      // RIVET/regimes fill out over time; gate open determines a new phase after the starting one.
+      print('DEBUG: No phase found (quiz is starting phase; no phase set yet)');
+      return '';
       
     } catch (e) {
       print('DEBUG: Error getting current phase: $e');
-      // Fallback to Discovery if there's any error
-      return 'Discovery';
+      return '';
     }
   }
   
@@ -169,17 +195,6 @@ class UserPhaseService {
   /// Force update the user's phase (useful for debugging)
   static Future<bool> forceUpdatePhase(String newPhase) async {
     try {
-      final userProfile = await _getUserProfile();
-      if (userProfile == null) {
-        print('DEBUG: Cannot update phase - no user profile found');
-        return false;
-      }
-      
-      final updatedProfile = userProfile.copyWith(
-        onboardingCurrentSeason: newPhase,
-        currentPhase: newPhase,
-      );
-      
       Box<UserProfile> userBox;
       if (Hive.isBoxOpen('user_profile')) {
         userBox = Hive.box<UserProfile>('user_profile');
@@ -187,11 +202,56 @@ class UserPhaseService {
         userBox = await Hive.openBox<UserProfile>('user_profile');
       }
       
+      final userProfile = await _getUserProfile();
+      
+      UserProfile updatedProfile;
+      if (userProfile == null) {
+        // Create a new profile with the phase if none exists
+        print('DEBUG: No user profile found, creating one with phase: $newPhase');
+        updatedProfile = UserProfile(
+          id: 'default_user',
+          name: 'User',
+          email: '',
+          createdAt: DateTime.now(),
+          preferences: const {},
+          onboardingCurrentSeason: newPhase,
+          currentPhase: newPhase,
+          onboardingCompleted: false,
+          lastPhaseChangeAt: DateTime.now(),
+        );
+      } else {
+        updatedProfile = userProfile.copyWith(
+          onboardingCurrentSeason: newPhase,
+          currentPhase: newPhase,
+          lastPhaseChangeAt: DateTime.now(),
+        );
+      }
+      
       await userBox.put('profile', updatedProfile);
       print('DEBUG: Force updated phase to: $newPhase');
       return true;
     } catch (e) {
       print('DEBUG: Error force updating phase: $e');
+      return false;
+    }
+  }
+
+  /// Set onboarding as completed in UserProfile (so splash screen goes to HomeView on next launch).
+  static Future<bool> setOnboardingCompleted(bool value) async {
+    try {
+      final userProfile = await _getUserProfile();
+      if (userProfile == null) return false;
+      final updatedProfile = userProfile.copyWith(onboardingCompleted: value);
+      Box<UserProfile> userBox;
+      if (Hive.isBoxOpen('user_profile')) {
+        userBox = Hive.box<UserProfile>('user_profile');
+      } else {
+        userBox = await Hive.openBox<UserProfile>('user_profile');
+      }
+      await userBox.put('profile', updatedProfile);
+      return true;
+    } catch (e) {
+      print('DEBUG: Error setting onboardingCompleted: $e');
       return false;
     }
   }

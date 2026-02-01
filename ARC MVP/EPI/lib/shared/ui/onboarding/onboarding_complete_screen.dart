@@ -6,6 +6,7 @@ import 'package:my_app/models/journal_entry_model.dart';
 import 'package:my_app/arc/internal/echo/phase/quiz_models.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
+import 'package:my_app/shared/ui/home/home_view.dart';
 
 class OnboardingCompleteScreen extends StatelessWidget {
   final JournalEntry entry;
@@ -79,10 +80,13 @@ class OnboardingCompleteScreen extends StatelessWidget {
                             size: 20,
                           ),
                           const SizedBox(width: 8),
-                          Text(
-                            'Your Inaugural Entry',
-                            style: heading3Style(context).copyWith(
-                              color: Colors.white,
+                          Expanded(
+                            child: Text(
+                              'Your Inaugural Entry',
+                              style: heading3Style(context).copyWith(
+                                color: Colors.white,
+                              ),
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                         ],
@@ -273,13 +277,15 @@ class OnboardingCompleteScreen extends StatelessWidget {
   }
   
   void _viewEntry(BuildContext context) {
-    // TODO: Navigate to journal entry view
-    // For now, just show a snackbar
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Entry view coming soon'),
-        backgroundColor: kcPrimaryColor,
+    // Navigate to home (Conversation/Journal tab) and open this entry in the timeline
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(
+        builder: (_) => HomeView(
+          initialTab: 2, // Journal tab
+          entryIdToOpen: entry.id,
+        ),
       ),
+      (_) => false,
     );
   }
   

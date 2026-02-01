@@ -13,10 +13,14 @@ import 'package:my_app/shared/ui/onboarding/widgets/lumara_pulsing_symbol.dart';
 
 class PhaseRevealScreen extends StatefulWidget {
   final PhaseAnalysis phaseAnalysis;
+  /// When set (e.g. from PhaseQuizV2), "Enter ARC" calls this instead of cubit.
+  /// Use to push OnboardingCompleteScreen with entry/profile.
+  final VoidCallback? onContinue;
 
   const PhaseRevealScreen({
     super.key,
     required this.phaseAnalysis,
+    this.onContinue,
   });
 
   @override
@@ -237,7 +241,11 @@ class _PhaseRevealScreenState extends State<PhaseRevealScreen>
                                   width: double.infinity,
                                   child: ElevatedButton(
                                     onPressed: () {
-                                      context.read<ArcOnboardingCubit>().completeOnboarding();
+                                      if (widget.onContinue != null) {
+                                        widget.onContinue!();
+                                      } else {
+                                        context.read<ArcOnboardingCubit>().completeOnboarding();
+                                      }
                                     },
                                     style: ElevatedButton.styleFrom(
                                       backgroundColor: kcPrimaryColor,
@@ -275,7 +283,11 @@ class _PhaseRevealScreenState extends State<PhaseRevealScreen>
                 left: 16,
                 child: IconButton(
                   onPressed: () {
-                    context.read<ArcOnboardingCubit>().skipToMainPage();
+                    if (widget.onContinue != null) {
+                      Navigator.of(context).pop();
+                    } else {
+                      context.read<ArcOnboardingCubit>().skipToMainPage();
+                    }
                   },
                   icon: const Icon(
                     Icons.close,

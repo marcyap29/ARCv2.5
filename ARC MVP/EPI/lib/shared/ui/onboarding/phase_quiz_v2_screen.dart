@@ -14,6 +14,9 @@ import 'package:my_app/chronicle/models/chronicle_layer.dart';
 import 'package:my_app/services/firebase_auth_service.dart';
 import 'package:my_app/shared/ui/onboarding/widgets/quiz_question_card.dart';
 import 'package:my_app/shared/ui/onboarding/onboarding_complete_screen.dart';
+import 'package:my_app/shared/ui/onboarding/widgets/phase_reveal_screen.dart';
+import 'package:my_app/shared/ui/onboarding/arc_onboarding_state.dart';
+import 'package:my_app/models/phase_models.dart';
 import 'package:my_app/services/user_phase_service.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
@@ -238,10 +241,13 @@ class _PhaseQuizV2ScreenState extends State<PhaseQuizV2Screen> {
 
       // Persist quiz phase so main app and Phase tab show the same phase
       final phaseFromQuiz = result.profile.currentPhase;
+      final capitalizedPhase = (phaseFromQuiz != null && phaseFromQuiz.isNotEmpty)
+          ? phaseFromQuiz.substring(0, 1).toUpperCase() + phaseFromQuiz.substring(1).toLowerCase()
+          : 'Discovery';
       if (phaseFromQuiz != null && phaseFromQuiz.isNotEmpty) {
-        final capitalizedPhase = phaseFromQuiz.substring(0, 1).toUpperCase() + phaseFromQuiz.substring(1).toLowerCase();
         await UserPhaseService.forceUpdatePhase(capitalizedPhase);
       }
+      await UserPhaseService.setOnboardingCompleted(true);
 
       // Load CHRONICLE monthly aggregation preview so completion screen can show "LUMARA's Initial Understanding"
       String? lumaraPreview;
@@ -261,14 +267,33 @@ class _PhaseQuizV2ScreenState extends State<PhaseQuizV2Screen> {
         // Preview is optional; continue without it
       }
 
-      // Navigate to completion screen
+      // Show phase revelation (spinning phase) first, then completion screen
       if (mounted) {
-        Navigator.of(context).pushReplacement(
+        final phaseLabel = _phaseLabelFromString(capitalizedPhase);
+        final phaseAnalysis = PhaseAnalysis(
+          phase: phaseLabel,
+          confidence: ConfidenceLevel.high,
+          recognitionStatement: _recognitionStatementForPhase(phaseLabel),
+          trackingQuestion: _trackingQuestionForPhase(phaseLabel),
+          reasoning: 'Phase quiz result: $capitalizedPhase',
+        );
+        final entry = result.entry;
+        final profile = result.profile;
+        Navigator.of(context).push(
           MaterialPageRoute(
-            builder: (_) => OnboardingCompleteScreen(
-              entry: result.entry,
-              profile: result.profile,
-              lumaraSynthesisPreview: lumaraPreview,
+            builder: (_) => PhaseRevealScreen(
+              phaseAnalysis: phaseAnalysis,
+              onContinue: () {
+                Navigator.of(context).pushReplacement(
+                  MaterialPageRoute(
+                    builder: (_) => OnboardingCompleteScreen(
+                      entry: entry,
+                      profile: profile,
+                      lumaraSynthesisPreview: lumaraPreview,
+                    ),
+                  ),
+                );
+              },
             ),
           ),
         );
@@ -286,6 +311,48 @@ class _PhaseQuizV2ScreenState extends State<PhaseQuizV2Screen> {
           ),
         );
       }
+    }
+  }
+
+  PhaseLabel _phaseLabelFromString(String phaseName) {
+    final normalized = phaseName.toLowerCase().trim();
+    for (final p in PhaseLabel.values) {
+      if (p.name == normalized) return p;
+    }
+    return PhaseLabel.discovery;
+  }
+
+  String _recognitionStatementForPhase(PhaseLabel phase) {
+    switch (phase) {
+      case PhaseLabel.discovery:
+        return "You're in a season of discovery—exploring, learning, and opening to what's emerging.";
+      case PhaseLabel.expansion:
+        return "You're in a season of expansion—building momentum and growing into new possibilities.";
+      case PhaseLabel.transition:
+        return "You're in a season of transition—between what was and what's becoming.";
+      case PhaseLabel.consolidation:
+        return "You're in a season of consolidation—integrating and grounding what you've learned.";
+      case PhaseLabel.recovery:
+        return "You're in a season of recovery—restoring, healing, and regathering strength.";
+      case PhaseLabel.breakthrough:
+        return "You're in a season of breakthrough—clarity, insight, and new thresholds.";
+    }
+  }
+
+  String _trackingQuestionForPhase(PhaseLabel phase) {
+    switch (phase) {
+      case PhaseLabel.discovery:
+        return "What are you discovering?";
+      case PhaseLabel.expansion:
+        return "What are you building or growing toward?";
+      case PhaseLabel.transition:
+        return "What is shifting or changing for you?";
+      case PhaseLabel.consolidation:
+        return "What are you integrating or grounding?";
+      case PhaseLabel.recovery:
+        return "What are you restoring or healing?";
+      case PhaseLabel.breakthrough:
+        return "What is becoming clear or newly possible?";
     }
   }
 }

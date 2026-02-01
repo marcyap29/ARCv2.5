@@ -20,6 +20,7 @@ import 'package:hive/hive.dart';
 import 'package:my_app/models/user_profile_model.dart';
 import 'package:my_app/shared/ui/settings/settings_view.dart';
 import 'package:my_app/prism/atlas/rivet/rivet_models.dart';
+import 'package:my_app/prism/atlas/rivet/rivet_provider.dart';
 import 'package:my_app/prism/atlas/rivet/rivet_service.dart';
 import 'package:my_app/arc/ui/arcforms/phase_recommender.dart';
 import 'package:my_app/services/user_phase_service.dart';
@@ -45,8 +46,10 @@ class _PhaseAnalysisViewState extends State<PhaseAnalysisView> {
   String? _approachingPhase;
   int _trendPercent = 0;
 
-  /// When there are no phase regimes (e.g. right after onboarding), use phase from UserProfile/quiz
+  /// Quiz is the starting phase; when RIVET gate is closed we show this until gate opens.
   String? _phaseFromUserProfile;
+  /// RIVET gate open: when true, current regime can determine phase; when false, show quiz phase.
+  bool _rivetGateOpen = false;
 
   @override
   void initState() {
@@ -79,9 +82,35 @@ class _PhaseAnalysisViewState extends State<PhaseAnalysisView> {
       final rivetSweepService = RivetSweepService(analyticsService);
       final phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
       await phaseRegimeService.initialize();
-      
-      // Backfill Discovery regime if needed (for entries before first detected regime)
+
       final journalRepo = JournalRepository();
+      final hasEntries = journalRepo.getAllJournalEntriesSync().isNotEmpty;
+
+      // When user has deleted all journal entries, clear stored regimes so we show
+      // UserProfile/quiz phase (e.g. Breakthrough) instead of stale Discovery.
+      if (!hasEntries) {
+        await phaseRegimeService.clearAllRegimes();
+        await phaseRegimeService.initialize();
+      } else {
+        // When stored regimes would show Discovery but UserProfile/quiz says something else
+        // (e.g. Breakthrough), clear regimes so backfill creates the correct phase.
+        final regimes = phaseRegimeService.phaseIndex.allRegimes;
+        if (regimes.isNotEmpty) {
+          final currentRegime = phaseRegimeService.phaseIndex.currentRegime;
+          final effectiveRegime = currentRegime ?? (regimes.isNotEmpty
+              ? (List.from(regimes)..sort((a, b) => b.start.compareTo(a.start))).first
+              : null);
+          final displayedIsDiscovery = effectiveRegime?.label == PhaseLabel.discovery;
+          final profilePhase = await UserPhaseService.getCurrentPhase();
+          final profileSaysOther = profilePhase.isNotEmpty && profilePhase.toLowerCase() != 'discovery';
+          if (displayedIsDiscovery && profileSaysOther) {
+            await phaseRegimeService.clearAllRegimes();
+            await phaseRegimeService.initialize();
+          }
+        }
+      }
+
+      // Backfill Discovery regime if needed (for entries before first detected regime)
       await _backfillDiscoveryRegime(phaseRegimeService, journalRepo);
       
       // Reload phaseIndex after backfill to ensure it's up to date
@@ -92,16 +121,40 @@ class _PhaseAnalysisViewState extends State<PhaseAnalysisView> {
       for (final regime in _phaseIndex?.allRegimes ?? []) {
         print('DEBUG: _loadPhaseData - Regime: ${_getPhaseLabelName(regime.label)} from ${regime.start} to ${regime.end ?? 'ongoing'}');
       }
-      
+
+      // Quiz is starting phase; gate open determines when we show RIVET/regime phase instead
+      try {
+        final rivetProvider = RivetProvider();
+        if (!rivetProvider.isAvailable) {
+          await rivetProvider.initialize('default_user');
+        }
+        _rivetGateOpen = rivetProvider.service?.wouldGateOpen() ?? false;
+        print('DEBUG: _loadPhaseData - RIVET gate open: $_rivetGateOpen');
+      } catch (_) {
+        _rivetGateOpen = false;
+      }
+
       final currentRegime = _phaseIndex?.currentRegime;
-      final currentPhaseName = currentRegime != null ? _getPhaseLabelName(currentRegime.label) : 'none';
+      String effectivePhaseName = currentRegime != null ? _getPhaseLabelName(currentRegime.label) : 'none';
+      if (_phaseIndex?.allRegimes.isNotEmpty == true) {
+        effectivePhaseName = currentRegime != null
+            ? _getPhaseLabelName(currentRegime.label)
+            : _getPhaseLabelName((List.from(_phaseIndex!.allRegimes)..sort((a, b) => b.start.compareTo(a.start))).first.label);
+      }
+      final profilePhase = await UserPhaseService.getCurrentPhase();
       if (_phaseIndex?.allRegimes.isEmpty ?? true) {
-        _phaseFromUserProfile = await UserPhaseService.getCurrentPhase();
+        _phaseFromUserProfile = profilePhase.isNotEmpty ? profilePhase : null;
         print('DEBUG: _loadPhaseData - No regimes, phase from UserProfile/quiz: $_phaseFromUserProfile');
       } else {
-        _phaseFromUserProfile = null;
+        // When gate is closed, show quiz (starting) phase until gate opens
+        if (!_rivetGateOpen && profilePhase.isNotEmpty) {
+          _phaseFromUserProfile = profilePhase;
+          print('DEBUG: _loadPhaseData - Gate closed, showing quiz phase: $profilePhase');
+        } else {
+          _phaseFromUserProfile = null;
+        }
       }
-      print('DEBUG: _loadPhaseData - Current phase determined: $currentPhaseName (ID: ${currentRegime?.id})');
+      print('DEBUG: _loadPhaseData - Current phase determined: $effectivePhaseName (ID: ${currentRegime?.id})');
 
       // Check if there's a pending analysis result from ARCX import
       await _checkPendingAnalysis();
@@ -801,7 +854,8 @@ List<PhaseSegmentProposal> proposals,
       final sortedRegimes = List.from(_phaseIndex!.allRegimes)..sort((a, b) => b.start.compareTo(a.start));
       currentPhaseName = _getPhaseLabelName(sortedRegimes.first.label);
     } else {
-      currentPhaseName = 'Discovery'; // Default
+      // No regimes (e.g. after deleting all entries) - use UserProfile/quiz phase
+      currentPhaseName = _phaseFromUserProfile ?? 'Discovery';
     }
 
     // Get phase color
@@ -1331,7 +1385,8 @@ List<PhaseSegmentProposal> proposals,
     }
   }
 
-  /// Backfill Discovery regime for entries before the first detected regime
+  /// Backfill a phase regime for entries before the first detected regime.
+  /// When no regimes exist, uses the first entry's phase (quiz/inaugural) or UserProfile so the UI matches the user's quiz result (e.g. Breakthrough).
   Future<void> _backfillDiscoveryRegime(
     PhaseRegimeService phaseRegimeService,
     JournalRepository journalRepo,
@@ -1342,18 +1397,58 @@ List<PhaseSegmentProposal> proposals,
 
       final regimes = phaseRegimeService.phaseIndex.allRegimes;
       if (regimes.isEmpty) {
-        // No regimes at all - create Discovery regime from first entry to now
-        final firstEntry = allEntries.reduce((a, b) => 
-          a.createdAt.isBefore(b.createdAt) ? a : b);
-        
+        // Starting phase = quiz only. Create one initial regime only when we have a phase from quiz or entry.
+        // No default; RIVET/regimes fill out over time; gate open determines a new phase after the starting one.
+        final profilePhase = await UserPhaseService.getCurrentPhase();
+        final hasEntryPhase = allEntries.any((e) => (e.userPhaseOverride ?? e.autoPhase)?.trim().isNotEmpty == true);
+        if (profilePhase.isEmpty && !hasEntryPhase) {
+          print('DEBUG: Backfill skipped - no quiz/entry phase (starting phase is quiz only)');
+          return;
+        }
+
+        final firstEntry = allEntries.reduce((a, b) =>
+            a.createdAt.isBefore(b.createdAt) ? a : b);
+        PhaseLabel? backfillLabel;
+        // 1) Prefer UserProfile (quiz result)
+        if (profilePhase.isNotEmpty) {
+          backfillLabel = _phaseLabelFromString(profilePhase);
+          if (backfillLabel != null) {
+            print('DEBUG: Backfill using UserProfile/quiz phase: $profilePhase -> $backfillLabel');
+          }
+        }
+        // 2) Else use any entry that has phase set (inaugural/quiz entry)
+        if (backfillLabel == null) {
+          for (final entry in allEntries) {
+            final entryPhase = entry.userPhaseOverride ?? entry.autoPhase;
+            if (entryPhase != null && entryPhase.trim().isNotEmpty) {
+              backfillLabel = _phaseLabelFromString(entryPhase.trim());
+              if (backfillLabel != null) {
+                print('DEBUG: Backfill using entry phase: $entryPhase -> $backfillLabel');
+                break;
+              }
+            }
+          }
+        }
+        // 3) Else use chronologically first entry's phase
+        if (backfillLabel == null) {
+          final entryPhase = firstEntry.userPhaseOverride ?? firstEntry.autoPhase;
+          if (entryPhase != null && entryPhase.trim().isNotEmpty) {
+            backfillLabel = _phaseLabelFromString(entryPhase.trim());
+            if (backfillLabel != null) {
+              print('DEBUG: Backfill using first entry phase: $entryPhase -> $backfillLabel');
+            }
+          }
+        }
+        if (backfillLabel == null) return;
+
         await phaseRegimeService.createRegime(
-          label: PhaseLabel.discovery,
+          label: backfillLabel,
           start: firstEntry.createdAt,
-          end: null, // Ongoing until another phase is detected
+          end: null, // Ongoing until RIVET/regimes fill out; gate open determines new phase
           source: PhaseSource.rivet,
-          confidence: 0.5, // Lower confidence for backfilled Discovery
+          confidence: 0.5,
         );
-        print('DEBUG: Created backfilled Discovery regime from ${firstEntry.createdAt}');
+        print('DEBUG: Created backfilled ${_getPhaseLabelName(backfillLabel)} regime from ${firstEntry.createdAt}');
         return;
       }
 
@@ -1430,6 +1525,15 @@ List<PhaseSegmentProposal> proposals,
     // Use toString().split('.').last which works in all Dart versions
     // e.g., "PhaseLabel.discovery" -> "discovery"
     return label.toString().split('.').last;
+  }
+
+  /// Map phase string (e.g. from entry.autoPhase or UserProfile) to PhaseLabel
+  PhaseLabel? _phaseLabelFromString(String phaseName) {
+    final normalized = phaseName.toLowerCase().trim();
+    for (final p in PhaseLabel.values) {
+      if (p.name == normalized) return p;
+    }
+    return null;
   }
 
   /// Add phase hashtags to entries retroactively when phases are detected

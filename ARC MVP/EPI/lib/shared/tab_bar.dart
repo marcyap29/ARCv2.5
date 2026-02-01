@@ -139,18 +139,19 @@ class _CustomTabBarState extends State<CustomTabBar> {
     if (tab.icon != null && tab.text != null) {
       return Column(
         mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisSize: MainAxisSize.min, // Prevent overflow by not expanding
         children: [
           if (isLumara)
             // Use LUMARA_Sigil_White.png for LUMARA tab
             Image.asset(
               'assets/icon/LUMARA_Sigil_White.png',
-              width: 28,
-              height: 28,
+              width: 24, // Reduced from 28 to fit in 42px height
+              height: 24,
               fit: BoxFit.contain,
               errorBuilder: (context, error, stackTrace) {
                 return Icon(
                   Icons.psychology,
-                  size: 28,
+                  size: 24,
                   color: textColor,
                 );
               },
@@ -158,14 +159,14 @@ class _CustomTabBarState extends State<CustomTabBar> {
           else
           Icon(
             tab.icon,
-              size: 28,
+              size: 24, // Reduced from 28 to fit in 42px height
             color: textColor,
           ),
           const SizedBox(height: 2),
           Text(
             tab.text!,
             style: const TextStyle(
-              fontSize: 8.5,
+              fontSize: 8.0, // Slightly smaller to ensure fit
               fontWeight: FontWeight.w500,
               color: textColor,
             ),

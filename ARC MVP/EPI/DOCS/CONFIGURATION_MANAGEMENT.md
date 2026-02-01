@@ -40,7 +40,7 @@ Prompt/role definitions: **Documentation & Configuration Management Role** in [c
 | ARCHITECTURE.md | `/DOCS/ARCHITECTURE.md` | 2026-01-31 | ✅ Synced | v3.3.7 - Phase Quiz/Phase tab (v3.3.13) in Key Achievements |
 | CHANGELOG.md | `/DOCS/CHANGELOG.md` | 2026-01-31 | ✅ Synced | v3.3.13 - Phase Quiz/Phase tab sync, rotating phase; iOS folder verification |
 | PROMPT_REFERENCES.md | `/DOCS/PROMPT_REFERENCES.md` | 2026-01-31 | ✅ Current | v1.8.0 - Document scope and sources; prompt catalog |
-| bug_tracker.md | `/DOCS/bugtracker/bug_tracker.md` | 2026-01-31 | ✅ Synced | v3.2.2 - Matches main branch |
+| bug_tracker.md | `/DOCS/bugtracker/bug_tracker.md` | 2026-01-31 | ✅ Synced | v3.2.2 - Index + Recent code changes (repo/CHANGELOG) |
 | FEATURES.md | `/DOCS/FEATURES.md` | 2026-01-31 | ✅ Synced | v3.3.13 - Last Updated Jan 31 |
 | README.md | `/DOCS/README.md` | 2026-01-31 | ✅ Synced | Key docs table with purpose and when to read |
 | claude.md | `/DOCS/claude.md` | 2026-01-31 | ✅ Synced | Relative DOCS/ paths; Current Architecture v3.3.13 |
@@ -58,6 +58,17 @@ Prompt/role definitions: **Documentation & Configuration Management Role** in [c
 ---
 
 ## Change Tracking Log
+
+### 2026-01-31 - Update all documents; focus on bug_tracker
+
+**Action:** Full documentation update with focus on bug_tracker: index aligned with records/ directory; all key docs re-verified.
+
+**bug_tracker updates:**
+- **bug_tracker.md:** Added two missing records to index: [lumara-ui-overlap-stripe-auth-fixes.md](bugtracker/records/lumara-ui-overlap-stripe-auth-fixes.md) (Timeline & UI), [stripe-subscription-critical-fixes.md](bugtracker/records/stripe-subscription-critical-fixes.md) (Subscription & Payment). Index now matches all 27 files in records/. New **Recent code changes (reference for bug tracker)** section: derived from repo and CHANGELOG; lists iOS folder verification (linked to record), Phase Quiz/Phase tab fix, llama xcframework build fixes, import status (feature). Version 3.2.2; Last Updated Jan 31.
+
+**Other docs:** CONFIGURATION_MANAGEMENT inventory and change log; PROMPT_REFERENCES, backend, ARCHITECTURE, CHANGELOG, FEATURES, README, git, claude.md confirmed in sync.
+
+**Status:** ✅ All documents in sync; bug_tracker index complete.
 
 ### 2026-01-31 - Update all docs (PROMPT_REFERENCES, backend, etc.)
 

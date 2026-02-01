@@ -36,8 +36,10 @@ class _VeilCardState extends State<VeilCard> with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      // Refresh phase when app comes to foreground
-      _loadPhaseInfo();
+      // Defer refresh to avoid parentDataDirty assertion during lifecycle transition
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _loadPhaseInfo();
+      });
     }
   }
 

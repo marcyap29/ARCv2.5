@@ -51,7 +51,10 @@ class _HealthSummaryBodyState extends State<HealthSummaryBody> with WidgetsBindi
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      _loadImportedSummary();
+      // Defer refresh to avoid parentDataDirty assertion during lifecycle transition
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _loadImportedSummary();
+      });
     }
   }
 

@@ -16,8 +16,10 @@ import 'package:my_app/services/rivet_sweep_service.dart';
 import 'package:my_app/arc/core/journal_repository.dart';
 import 'package:my_app/arc/arcform/share/arcform_share_composition_screen.dart';
 import 'package:my_app/prism/atlas/rivet/rivet_models.dart';
+import 'package:my_app/prism/atlas/rivet/rivet_provider.dart';
 import 'package:my_app/prism/atlas/rivet/rivet_service.dart';
 import 'package:my_app/arc/ui/arcforms/phase_recommender.dart';
+import 'package:my_app/services/user_phase_service.dart';
 
 /// Compact preview widget showing current phase Arcform visualization
 /// Uses the same architecture as Insights->Phase->Arcform visualizations
@@ -69,39 +71,48 @@ class _CompactArcformPreviewState extends State<_CompactArcformPreview> {
     });
 
     try {
-      // Get current phase from phase regimes (same as SimplifiedArcformView3D)
+      // SOP: 1a RIVET (gate open + regime), else 1b quiz result, else Discovery
+      final profilePhase = await UserPhaseService.getCurrentPhase();
       final analyticsService = AnalyticsService();
       final rivetSweepService = RivetSweepService(analyticsService);
       final phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
       await phaseRegimeService.initialize();
 
+      bool rivetGateOpen = false;
+      try {
+        final rivetProvider = RivetProvider();
+        if (!rivetProvider.isAvailable) {
+          await rivetProvider.initialize('default_user');
+        }
+        rivetGateOpen = rivetProvider.service?.wouldGateOpen() ?? false;
+      } catch (_) {}
+
+      String? regimePhase;
       final currentRegime = phaseRegimeService.phaseIndex.currentRegime;
-      String currentPhase;
-      
+      final allRegimes = phaseRegimeService.phaseIndex.allRegimes;
       if (currentRegime != null) {
         final phaseName = currentRegime.label.toString().split('.').last;
-        currentPhase = phaseName.isEmpty 
-            ? 'Discovery' 
-            : phaseName[0].toUpperCase() + phaseName.substring(1).toLowerCase();
-      } else {
-        final allRegimes = phaseRegimeService.phaseIndex.allRegimes;
-        if (allRegimes.isNotEmpty) {
-          final sortedRegimes = List.from(allRegimes)..sort((a, b) => b.start.compareTo(a.start));
-          final phaseName = sortedRegimes.first.label.toString().split('.').last;
-          currentPhase = phaseName.isEmpty 
-              ? 'Discovery' 
-              : phaseName[0].toUpperCase() + phaseName.substring(1).toLowerCase();
-        } else {
-          currentPhase = 'Discovery';
-        }
+        regimePhase = phaseName.isEmpty ? 'Discovery' : phaseName[0].toUpperCase() + phaseName.substring(1).toLowerCase();
+      } else if (allRegimes.isNotEmpty) {
+        final sortedRegimes = List.from(allRegimes)..sort((a, b) => b.start.compareTo(a.start));
+        final phaseName = sortedRegimes.first.label.toString().split('.').last;
+        regimePhase = phaseName.isEmpty ? 'Discovery' : phaseName[0].toUpperCase() + phaseName.substring(1).toLowerCase();
       }
 
+      final currentPhase = UserPhaseService.getDisplayPhase(
+        regimePhase: regimePhase,
+        rivetGateOpen: rivetGateOpen,
+        profilePhase: profilePhase,
+      );
+      final currentPhaseCapitalized = currentPhase.isEmpty
+          ? 'Discovery'
+          : currentPhase[0].toUpperCase() + currentPhase.substring(1).toLowerCase();
+
       // Check if user has entries for this phase
-      final isUserPhase = await _hasEntriesForPhase(currentPhase);
+      final isUserPhase = await _hasEntriesForPhase(currentPhaseCapitalized);
 
       // Generate arcform using SimplifiedArcformView3D's method
-      // We need to access the private method, so we'll duplicate the logic
-      final arcform = await _generatePhaseConstellation(currentPhase, isUserPhase: isUserPhase);
+      final arcform = await _generatePhaseConstellation(currentPhaseCapitalized, isUserPhase: isUserPhase);
 
       // Calculate phase transition trend
       await _calculatePhaseTrend();
@@ -119,7 +130,7 @@ class _CompactArcformPreviewState extends State<_CompactArcformPreview> {
               'arcformData': arcform.toJson(),
             };
             _snapshots = [snapshot];
-            _currentPhase = currentPhase;
+            _currentPhase = currentPhaseCapitalized;
           } else {
             _snapshots = [];
           }
@@ -620,12 +631,9 @@ class _CompactArcformPreviewState extends State<_CompactArcformPreview> {
         : phaseHintRaw[0].toUpperCase() + phaseHintRaw.substring(1).toLowerCase();
     final arcformData = _generateArcformData(snapshot, phaseHint);
 
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        GestureDetector(
+    // Fixed height layout - no LayoutBuilder to avoid semantics/parentDataDirty issues
+    return GestureDetector(
       onTap: () {
-        // Navigate directly to full-screen 3D Arcform viewer (same as clicking in Arcform Visualizations)
         if (arcformData != null) {
           Navigator.of(context).push(
             MaterialPageRoute(
@@ -635,8 +643,8 @@ class _CompactArcformPreviewState extends State<_CompactArcformPreview> {
         }
       },
       child: Container(
-        height: 200, // Match Phase tab preview height
-        margin: const EdgeInsets.fromLTRB(16, 16, 16, 8), // Increased top margin to prevent clipping with pinned calendar
+        height: 200,
+        margin: const EdgeInsets.fromLTRB(16, 16, 16, 8),
         decoration: BoxDecoration(
           color: kcSurfaceColor,
           borderRadius: BorderRadius.circular(12),
@@ -652,89 +660,93 @@ class _CompactArcformPreviewState extends State<_CompactArcformPreview> {
             ),
           ],
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header - same as SimplifiedArcformView3D's card header
-            Padding(
-              padding: const EdgeInsets.all(12),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.auto_awesome,
-                    color: kcPrimaryColor,
-                    size: 18,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      _currentPhase ?? phaseHint,
-                      style: heading3Style(context).copyWith(
-                        color: kcPrimaryTextColor,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 16,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header
+              Padding(
+                padding: const EdgeInsets.all(12),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.auto_awesome,
+                      color: kcPrimaryColor,
+                      size: 18,
+                    ),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        _currentPhase ?? phaseHint,
+                        style: heading3Style(context).copyWith(
+                          color: kcPrimaryTextColor,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 16,
+                        ),
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                  ),
-                  Icon(
-                    Icons.open_in_full,
-                    size: 18,
-                    color: kcSecondaryTextColor,
-                  ),
-                ],
+                    const SizedBox(width: 8),
+                    Icon(
+                      Icons.open_in_full,
+                      size: 18,
+                      color: kcSecondaryTextColor,
+                    ),
+                  ],
+                ),
               ),
-            ),
-            // Arcform preview - fills remaining space
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: arcformData != null
-                      ? IgnorePointer(
-                          ignoring: true,
-                          child: Arcform3D(
-                            nodes: arcformData.nodes,
-                            edges: arcformData.edges,
-                            phase: arcformData.phase,
-                            skin: arcformData.skin,
-                            showNebula: true,
-                            enableLabels: false, // Disable labels for compact preview
-                            initialZoom: 0.5, // Compact zoom level (zoomed out further)
-                          ),
-                        )
-                      : Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.auto_awesome_outlined,
-                                color: kcPrimaryColor.withOpacity(0.7),
-                                size: 32,
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                'Generating constellation...',
-                                style: TextStyle(
+              // Arcform preview
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: arcformData != null
+                        ? IgnorePointer(
+                            ignoring: true,
+                            child: Arcform3D(
+                              nodes: arcformData.nodes,
+                              edges: arcformData.edges,
+                              phase: arcformData.phase,
+                              skin: arcformData.skin,
+                              showNebula: true,
+                              enableLabels: false,
+                              initialZoom: 0.5,
+                            ),
+                          )
+                        : Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.auto_awesome_outlined,
                                   color: kcPrimaryColor.withOpacity(0.7),
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w500,
+                                  size: 32,
                                 ),
-                              ),
-                            ],
+                                const SizedBox(height: 8),
+                                Text(
+                                  'Generating constellation...',
+                                  style: TextStyle(
+                                    color: kcPrimaryColor.withOpacity(0.7),
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
-                ),
+                  ),
                 ),
               ),
-          ],
-        ),
+            ],
           ),
         ),
-      ],
+      ),
     );
   }
 }
+
 
 /// Full-screen Phase viewer - shared across Journal and Phase screens
 class FullScreenPhaseViewer extends StatelessWidget {

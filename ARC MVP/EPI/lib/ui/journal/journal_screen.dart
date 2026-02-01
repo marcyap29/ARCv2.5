@@ -110,6 +110,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
   EnhancedMiraMemoryService? _memoryService;
   String? _currentDraftId;
   Timer? _autoSaveTimer;
+  bool _pendingDraftSaveOnResume = false; // Deferred save to avoid semantics assertion
   final ImagePicker _imagePicker = ImagePicker();
   
   /// Get the current entry ID for per-entry usage limit tracking
@@ -566,25 +567,40 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     super.didChangeAppLifecycleState(state);
     
     // Save draft when app goes to background, becomes inactive, or is detached (2, 2a requirement)
+    // NOTE: Deferred to resume to avoid parentDataDirty semantics assertion during pause/detach
     if (state == AppLifecycleState.paused || 
         state == AppLifecycleState.inactive || 
         state == AppLifecycleState.detached) {
-      // If editing existing entry and no draft exists yet, create one now
-      if (widget.existingEntry != null && _currentDraftId == null && (!widget.isViewOnly || _isEditMode)) {
-        _createDraftOnAppPause();
-      } else if (_currentDraftId != null && (!widget.isViewOnly || _isEditMode)) {
-        // Update existing draft with current content and media
-        final mediaItems = _entryState.attachments.isNotEmpty
-            ? MediaConversionUtils.attachmentsToMediaItems(_entryState.attachments)
-            : const <MediaItem>[];
-        
-        final blocksJson = _entryState.blocks.map((b) => b.toJson()).toList();
-        _draftCache.updateDraftContentAndMedia(_entryState.text, mediaItems, lumaraBlocks: blocksJson);
-        _draftCache.saveCurrentDraftImmediately();
-        debugPrint('JournalScreen: App lifecycle changed to $state - saved draft $_currentDraftId with ${blocksJson.length} blocks');
-      }
+      // Mark that we need to save on resume (avoids semantics assertion during pause)
+      _pendingDraftSaveOnResume = true;
+      debugPrint('JournalScreen: App lifecycle changed to $state - draft save pending for resume');
+    } else if (state == AppLifecycleState.resumed && _pendingDraftSaveOnResume) {
+      _pendingDraftSaveOnResume = false;
+      // Defer save to after frame to avoid any lingering semantics issues
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _saveDraftNow();
+      });
     } else {
       debugPrint('JournalScreen: App lifecycle changed to $state (no auto-save)');
+    }
+  }
+
+  /// Actually save the draft (called after lifecycle transition completes)
+  void _saveDraftNow() {
+    // If editing existing entry and no draft exists yet, create one now
+    if (widget.existingEntry != null && _currentDraftId == null && (!widget.isViewOnly || _isEditMode)) {
+      _createDraftOnAppPause();
+    } else if (_currentDraftId != null && (!widget.isViewOnly || _isEditMode)) {
+      // Update existing draft with current content and media
+      final mediaItems = _entryState.attachments.isNotEmpty
+          ? MediaConversionUtils.attachmentsToMediaItems(_entryState.attachments)
+          : const <MediaItem>[];
+      
+      final blocksJson = _entryState.blocks.map((b) => b.toJson()).toList();
+      _draftCache.updateDraftContentAndMedia(_entryState.text, mediaItems, lumaraBlocks: blocksJson);
+      _draftCache.saveCurrentDraftImmediately();
+      debugPrint('JournalScreen: Saved draft $_currentDraftId with ${blocksJson.length} blocks on resume');
     }
   }
 
