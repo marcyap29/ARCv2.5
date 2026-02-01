@@ -74,14 +74,14 @@ class QuizQuestionCard extends StatelessWidget {
   Widget _buildOptionCard(BuildContext context, QuizOption option, bool isSelected) {
     return Card(
       elevation: isSelected ? 4 : 1,
-      color: isSelected 
-          ? kcPrimaryColor.withOpacity(0.15) 
+      color: isSelected
+          ? kcPrimaryColor.withOpacity(0.15)
           : Colors.white.withOpacity(0.05),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
         side: BorderSide(
-          color: isSelected 
-              ? kcPrimaryColor 
+          color: isSelected
+              ? kcPrimaryColor
               : Colors.white.withOpacity(0.1),
           width: isSelected ? 2 : 1,
         ),
@@ -90,7 +90,7 @@ class QuizQuestionCard extends StatelessWidget {
         onTap: () => _selectOption(option),
         borderRadius: BorderRadius.circular(12),
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
           child: Row(
             children: [
               Icon(
@@ -102,12 +102,29 @@ class QuizQuestionCard extends StatelessWidget {
               ),
               const SizedBox(width: 16),
               Expanded(
-                child: Text(
-                  option.label,
-                  style: bodyStyle(context).copyWith(
-                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                    fontSize: 16,
-                  ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      option.label,
+                      style: bodyStyle(context).copyWith(
+                        fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                        fontSize: 16,
+                      ),
+                    ),
+                    if (_hasContext(option))
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text(
+                          _getContext(option),
+                          style: bodyStyle(context).copyWith(
+                            fontSize: 13,
+                            color: Colors.grey[500],
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
               ),
             ],
@@ -115,6 +132,18 @@ class QuizQuestionCard extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  bool _hasContext(QuizOption option) {
+    return option.value == 'numb' || option.value == 'mixed';
+  }
+
+  String _getContext(QuizOption option) {
+    const contexts = {
+      'numb': 'Like observing from the outside',
+      'mixed': 'Intense highs and lows',
+    };
+    return contexts[option.value] ?? '';
   }
   
   void _selectOption(QuizOption option) {

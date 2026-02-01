@@ -10,11 +10,14 @@ import 'package:my_app/shared/text_style.dart';
 class OnboardingCompleteScreen extends StatelessWidget {
   final JournalEntry entry;
   final UserProfile profile;
-  
+  /// Preview of CHRONICLE monthly synthesis (first few lines) when available
+  final String? lumaraSynthesisPreview;
+
   const OnboardingCompleteScreen({
     super.key,
     required this.entry,
     required this.profile,
+    this.lumaraSynthesisPreview,
   });
   
   @override
@@ -105,9 +108,45 @@ class OnboardingCompleteScreen extends StatelessWidget {
                   ),
                 ),
               ),
-              
+
+              if (lumaraSynthesisPreview != null && lumaraSynthesisPreview!.trim().isNotEmpty) ...[
+                const SizedBox(height: 16),
+                Card(
+                  color: Colors.white.withOpacity(0.08),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    side: BorderSide(color: kcPrimaryColor.withOpacity(0.3)),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'LUMARA\'s Initial Understanding',
+                          style: heading3Style(context).copyWith(
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          lumaraSynthesisPreview!,
+                          style: bodyStyle(context).copyWith(
+                            color: Colors.grey[200],
+                            fontStyle: FontStyle.italic,
+                            fontSize: 14,
+                          ),
+                          maxLines: 4,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+
               const SizedBox(height: 16),
-              
+
               // What's captured
               Card(
                 color: kcPrimaryColor.withOpacity(0.1),

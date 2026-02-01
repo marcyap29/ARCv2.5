@@ -10,6 +10,7 @@ import 'package:my_app/chronicle/synthesis/synthesis_engine.dart';
 import 'package:my_app/chronicle/storage/layer0_repository.dart';
 import 'package:my_app/chronicle/storage/aggregation_repository.dart';
 import 'package:my_app/chronicle/storage/changelog_repository.dart';
+import 'package:my_app/chronicle/models/chronicle_layer.dart';
 import 'package:my_app/services/firebase_auth_service.dart';
 import 'package:my_app/shared/ui/onboarding/widgets/quiz_question_card.dart';
 import 'package:my_app/shared/ui/onboarding/onboarding_complete_screen.dart';
@@ -242,6 +243,24 @@ class _PhaseQuizV2ScreenState extends State<PhaseQuizV2Screen> {
         await UserPhaseService.forceUpdatePhase(capitalizedPhase);
       }
 
+      // Load CHRONICLE monthly aggregation preview so completion screen can show "LUMARA's Initial Understanding"
+      String? lumaraPreview;
+      try {
+        final now = DateTime.now();
+        final currentMonth = '${now.year}-${now.month.toString().padLeft(2, '0')}';
+        final agg = await aggregationRepo.loadLayer(
+          userId: userId,
+          layer: ChronicleLayer.monthly,
+          period: currentMonth,
+        );
+        if (agg != null && agg.content.trim().isNotEmpty) {
+          final lines = agg.content.split('\n').where((l) => l.trim().isNotEmpty).take(3).toList();
+          lumaraPreview = lines.join('\n').trim();
+        }
+      } catch (_) {
+        // Preview is optional; continue without it
+      }
+
       // Navigate to completion screen
       if (mounted) {
         Navigator.of(context).pushReplacement(
@@ -249,6 +268,7 @@ class _PhaseQuizV2ScreenState extends State<PhaseQuizV2Screen> {
             builder: (_) => OnboardingCompleteScreen(
               entry: result.entry,
               profile: result.profile,
+              lumaraSynthesisPreview: lumaraPreview,
             ),
           ),
         );

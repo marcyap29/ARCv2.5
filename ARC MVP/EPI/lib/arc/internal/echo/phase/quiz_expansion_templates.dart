@@ -2,59 +2,58 @@
 // Natural language expansion templates for quiz answers
 
 class QuizExpansionTemplates {
-  /// Expand phase into paragraph
+  /// Expand phase into paragraph (conversational rhythm, emotional specificity)
   String expandPhase(String phase) {
     final expansions = {
-      'recovery': 'I\'m in a recovery phase right now. Something significant happened recently, and I\'m still processing it. There\'s a heaviness, but also the beginning of something new emerging from the difficulty.',
-      
-      'transition': 'I\'m between chapters. The old way doesn\'t fit anymore, but the new way isn\'t clear yet. I\'m figuring out what comes next, and it feels both unsettling and full of possibility.',
-      
-      'breakthrough': 'I recently had a major shift in perspective. Something clicked or changed fundamentally, and I\'m seeing things differently now. There\'s energy in this clarity, even if I\'m still figuring out what to do with it.',
-      
-      'discovery': 'I\'m in exploration mode - curious, open, trying new things. There\'s excitement in discovering what resonates and what doesn\'t. I don\'t need to have it all figured out yet.',
-      
-      'expansion': 'Things are building momentum right now. Multiple areas of my life are clicking into place, and I\'m riding that forward energy. It feels good to be making progress.',
-      
-      'consolidation': 'I\'m in a deepening phase - less about adding new things, more about refining and focusing on what truly matters. There\'s satisfaction in going deeper rather than broader.',
-      
-      'questioning': 'I\'m in a period of uncertainty and reevaluation. What I thought I wanted or believed is being questioned. It\'s uncomfortable, but feels necessary.',
+      'recovery': 'I\'m in recovery mode. Something happened—something significant—and I\'m still working through it. The heaviness is real, but so is the sense that something new might be emerging from this.',
+      'transition': 'I\'m between chapters. The old way doesn\'t fit anymore, but the new way isn\'t clear yet. It feels both unsettling and full of possibility.',
+      'breakthrough': 'I recently had a major shift. Something clicked—and I\'m seeing things differently now. There\'s energy in this clarity, even if I\'m still figuring out what to do with it.',
+      'discovery': 'I\'m in exploration mode—curious, open, trying new things. There\'s excitement in discovering what resonates. I don\'t need to have it all figured out yet.',
+      'expansion': 'Things are building momentum right now. Multiple areas are clicking into place, and I\'m riding that forward energy. It feels good to be making progress.',
+      'consolidation': 'I\'m in a deepening phase—less about adding new things, more about refining what truly matters. There\'s satisfaction in going deeper rather than broader.',
+      'questioning': 'I\'m in a period of uncertainty and reevaluation. What I thought I wanted is being questioned. It\'s uncomfortable, but it feels necessary.',
     };
-    
     return expansions[phase] ?? 'I\'m in a phase of change and growth.';
   }
   
-  /// Expand theme context based on theme combinations
+  /// Expand theme context with weighted connection detection (3-way first, then pairs)
   String expandThemeContext(List<String> themes) {
-    if (themes.length < 2) {
+    if (themes.isEmpty) {
       return 'This is where my attention keeps returning.';
     }
-    
-    // Check for specific theme pairs
-    if (themes.contains('career') && themes.contains('identity')) {
-      return 'These aren\'t separate concerns - they\'re deeply intertwined. Who I am at work affects how I see myself, and vice versa.';
+
+    final themeSet = themes.map((t) => t.toLowerCase()).toSet();
+
+    // Check for 3-way connections first
+    if (themeSet.contains('purpose') && themeSet.contains('career') && themeSet.contains('identity')) {
+      return 'This is the big one: what I do, who I am, and whether any of it matters—all tangled together.';
     }
-    
-    if (themes.contains('relationships') && themes.contains('identity')) {
-      return 'My relationships are forcing me to confront questions about who I am and what I need.';
+    if (themeSet.contains('health') && themeSet.contains('identity') && themeSet.contains('purpose')) {
+      return 'My wellbeing isn\'t separate from questions of meaning—they\'re the same question approached from different angles.';
     }
-    
-    if (themes.contains('purpose') && themes.contains('career')) {
+
+    // Then specific pairs
+    if (themeSet.contains('career') && themeSet.contains('identity')) {
+      return 'Work and self-concept are deeply intertwined here—who I am at work shapes how I see myself.';
+    }
+    if (themeSet.contains('relationships') && themeSet.contains('identity')) {
+      return 'My relationships are forcing me to look at who I actually am versus who I thought I was.';
+    }
+    if (themeSet.contains('purpose') && themeSet.contains('career')) {
       return 'I\'m questioning whether my work aligns with what actually matters to me.';
     }
-    
-    if (themes.contains('health') && themes.contains('identity')) {
+    if (themeSet.contains('health') && themeSet.contains('identity')) {
       return 'My physical or mental health is intimately connected to how I see myself and what I\'m capable of.';
     }
-    
-    if (themes.contains('creativity') && themes.contains('identity')) {
-      return 'Creative expression feels essential to who I am - it\'s not just a hobby, it\'s part of my core identity.';
+    if (themeSet.contains('creativity') && themeSet.contains('identity')) {
+      return 'Creative expression feels essential to who I am—it\'s not just a hobby, it\'s part of my core.';
     }
-    
+
     if (themes.length >= 3) {
-      return 'These areas feel connected, even if I can\'t fully articulate how yet. They\'re all part of the same larger question.';
+      return 'These concerns feel connected in ways I\'m still discovering. They\'re not separate issues—they\'re facets of the same larger question.';
     }
-    
-    return 'These concerns are interconnected in ways I\'m still discovering.';
+
+    return 'This is where my attention keeps returning.';
   }
   
   /// Expand inflection timing
@@ -97,26 +96,36 @@ class QuizExpansionTemplates {
     return expansions[state] ?? 'My emotional landscape is complex and still revealing itself.';
   }
   
-  /// Expand momentum direction
-  String expandMomentum(String momentum, String timing) {
+  /// Expand momentum with timing + emotional state for more nuanced narrative
+  String expandMomentum(String momentum, String timing, [String? emotionalState]) {
     final isRecent = timing == 'recent' || timing == 'this_month';
-    
+
+    // Momentum + timing + emotion combinations for more human voice
+    if (momentum == 'intensifying' && isRecent) {
+      if (emotionalState == 'uncertain') {
+        return 'This is new, but it\'s already escalating. The uncertainty itself seems to be growing, which makes it hard to get my bearings.';
+      }
+      if (emotionalState == 'energized') {
+        return 'Even though this just started, the momentum is building fast. There\'s energy in how quickly things are moving.';
+      }
+      if (emotionalState == 'mixed') {
+        return 'This is new and it\'s intensifying—the highs and lows are both getting louder. It demands more of my attention with each day.';
+      }
+      return 'Even though this is relatively new, it\'s already intensifying. It demands more of my attention with each passing day.';
+    }
+
+    if (momentum == 'intensifying' && !isRecent) {
+      return 'What started as a quiet concern has grown louder over time. It\'s harder to ignore now, and the urgency to address it is building.';
+    }
+
     final expansions = {
-      'intensifying': isRecent 
-          ? 'Even though this is relatively new, it\'s already intensifying. It demands more of my attention with each passing day.'
-          : 'What started as a quiet concern has grown louder over time. It\'s harder to ignore now, and the urgency to address it is building.',
-      
-      'resolving': 'I can feel this starting to shift. Not necessarily resolved, but moving toward clarity or resolution. There\'s a sense that the answer is emerging.',
-      
-      'shifting': 'This isn\'t staying static - it\'s evolving into something different. What I thought this was about is changing, and I\'m discovering new dimensions to the question.',
-      
+      'resolving': 'I can feel this starting to shift. Not necessarily resolved, but moving toward clarity. There\'s a sense that the answer is emerging.',
+      'shifting': 'This isn\'t staying static—it\'s evolving into something different. What I thought this was about is changing, and I\'m discovering new dimensions.',
       'stable': 'It\'s steady. Not getting worse, not resolving. Just... present. There\'s something to be said for the stability, even if resolution would be preferable.',
-      
       'quieting': 'The urgency is fading. Either I\'m finding peace with it, or it\'s genuinely mattering less. The intensity that was there before has softened.',
-      
       'cyclical': 'This comes in waves. Some days it\'s all-consuming, other days it fades to background noise. The cyclical nature makes it hard to get a handle on.',
     };
-    
+
     return expansions[momentum] ?? 'The pattern over time is still revealing itself.';
   }
   
