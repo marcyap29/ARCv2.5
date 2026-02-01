@@ -550,51 +550,55 @@ class EnhancedLumaraApi {
               print('🔀 EnhancedLumaraApi: Query routed - intent: ${queryPlan.intent}, usesChronicle: ${queryPlan.usesChronicle}');
               
               if (queryPlan.usesChronicle && _contextBuilder != null) {
-                // Load CHRONICLE context
-                chronicleContext = await _contextBuilder!.buildContext(
-                  userId: userId!,
-                  queryPlan: queryPlan,
-                );
-                
-                if (chronicleContext != null && chronicleContext.isNotEmpty) {
-                  // CHRONICLE context available - use it
-                  promptMode = queryPlan.drillDown 
-                      ? LumaraPromptMode.hybrid 
-                      : LumaraPromptMode.chronicleBacked;
-                  
-                  chronicleLayerNames = queryPlan.layers
-                      .map((l) {
-                        switch (l) {
-                          case ChronicleLayer.monthly:
-                            return 'Monthly';
-                          case ChronicleLayer.yearly:
-                            return 'Yearly';
-                          case ChronicleLayer.multiyear:
-                            return 'Multi-Year';
-                          default:
-                            return l.name;
-                        }
-                      })
-                      .toList();
-                  
-                  print('✅ EnhancedLumaraApi: CHRONICLE context loaded (${queryPlan.layers.length} layers)');
-                  
-                  // Build mini-context for voice mode
-                  if (skipHeavyProcessing && queryPlan.layers.isNotEmpty) {
+                if (skipHeavyProcessing) {
+                  // Voice mode: only build mini-context (one layer) to avoid latency/timeout.
+                  // Skip full buildContext() which loads all layers and can cause 55s timeout.
+                  if (queryPlan.layers.isNotEmpty) {
                     final layer = queryPlan.layers.first;
                     final period = _getPeriodForLayer(layer, queryPlan.dateFilter, now);
-                    if (period != null && _contextBuilder != null) {
+                    if (period != null) {
                       chronicleMiniContext = await _contextBuilder!.buildMiniContext(
-                        userId: userId!,
+                        userId: userId,
                         layer: layer,
                         period: period,
                       );
+                      if (chronicleMiniContext != null && chronicleMiniContext.isNotEmpty) {
+                        print('✅ EnhancedLumaraApi: CHRONICLE mini-context loaded for voice (${layer.name})');
+                      }
                     }
                   }
                 } else {
-                  // CHRONICLE context not available - fallback to raw
-                  print('⚠️ EnhancedLumaraApi: CHRONICLE context not available, falling back to raw entries');
-                  promptMode = LumaraPromptMode.rawBacked;
+                  // Text mode: load full CHRONICLE context
+                  chronicleContext = await _contextBuilder!.buildContext(
+                    userId: userId,
+                    queryPlan: queryPlan,
+                  );
+                  
+                  if (chronicleContext != null && chronicleContext.isNotEmpty) {
+                    promptMode = queryPlan.drillDown 
+                        ? LumaraPromptMode.hybrid 
+                        : LumaraPromptMode.chronicleBacked;
+                    
+                    chronicleLayerNames = queryPlan.layers
+                        .map((l) {
+                          switch (l) {
+                            case ChronicleLayer.monthly:
+                              return 'Monthly';
+                            case ChronicleLayer.yearly:
+                              return 'Yearly';
+                            case ChronicleLayer.multiyear:
+                              return 'Multi-Year';
+                            default:
+                              return l.name;
+                          }
+                        })
+                        .toList();
+                    
+                    print('✅ EnhancedLumaraApi: CHRONICLE context loaded (${queryPlan.layers.length} layers)');
+                  } else {
+                    print('⚠️ EnhancedLumaraApi: CHRONICLE context not available, falling back to raw entries');
+                    promptMode = LumaraPromptMode.rawBacked;
+                  }
                 }
               }
             } catch (e) {

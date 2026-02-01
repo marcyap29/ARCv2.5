@@ -22,6 +22,8 @@ import 'package:my_app/shared/ui/settings/verify_backup_screen.dart';
 import 'package:my_app/shared/ui/settings/local_backup_settings_view.dart';
 import 'package:my_app/shared/ui/settings/import_status_screen.dart';
 import 'package:my_app/shared/ui/settings/temporal_notification_settings_view.dart';
+import 'package:my_app/shared/ui/settings/chronicle_management_view.dart';
+import 'package:my_app/shared/ui/chronicle/chronicle_layers_viewer.dart';
 import 'package:my_app/arc/phase/share/phase_share_service.dart';
 import 'package:file_picker/file_picker.dart';
 import 'dart:io';
@@ -868,6 +870,44 @@ class _SettingsViewState extends State<SettingsView> {
                       context,
                       MaterialPageRoute(
                         builder: (context) => const TemporalNotificationSettingsView(),
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 32),
+
+            // CHRONICLE Section
+            _buildSection(
+              context,
+              title: 'CHRONICLE',
+              children: [
+                _buildSettingsTile(
+                  context,
+                  title: 'View CHRONICLE Layers',
+                  subtitle: 'Browse monthly, yearly, and multi-year temporal aggregations',
+                  icon: Icons.history,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const ChronicleLayersViewer(),
+                      ),
+                    );
+                  },
+                ),
+                _buildSettingsTile(
+                  context,
+                  title: 'CHRONICLE Management',
+                  subtitle: 'Manual synthesis, export, and temporal aggregation controls',
+                  icon: Icons.settings,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const ChronicleManagementView(),
                       ),
                     );
                   },

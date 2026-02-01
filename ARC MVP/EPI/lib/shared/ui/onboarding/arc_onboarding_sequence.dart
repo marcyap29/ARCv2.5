@@ -10,9 +10,11 @@ import 'arc_onboarding_cubit.dart';
 import 'arc_onboarding_state.dart';
 import 'widgets/lumara_pulsing_symbol.dart';
 import 'widgets/phase_explanation_screen.dart';
-import 'widgets/phase_quiz_screen.dart';
+// Old PhaseQuizScreen removed - replaced by PhaseQuizV2
+// import 'widgets/phase_quiz_screen.dart'; // DEPRECATED
 import 'widgets/phase_analysis_screen.dart';
 import 'widgets/phase_reveal_screen.dart';
+import 'phase_quiz_v2_screen.dart';
 
 /// Main onboarding sequence widget
 class ArcOnboardingSequence extends StatelessWidget {
@@ -76,8 +78,9 @@ class ArcOnboardingSequenceContent extends StatelessWidget {
               screenKey = 'phase_explanation';
               break;
             case OnboardingScreen.phaseQuiz:
-              currentScreen = const PhaseQuizScreen();
-              screenKey = 'phase_quiz';
+              // Use PhaseQuizV2 instead of old PhaseQuizScreen
+              currentScreen = const PhaseQuizV2Screen();
+              screenKey = 'phase_quiz_v2';
               break;
             case OnboardingScreen.phaseAnalysis:
               currentScreen = const PhaseAnalysisScreen();

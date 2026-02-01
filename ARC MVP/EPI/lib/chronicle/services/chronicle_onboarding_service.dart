@@ -1,0 +1,409 @@
+import 'dart:io';
+import 'dart:convert';
+import '../../models/journal_entry_model.dart';
+import '../../arc/internal/mira/journal_repository.dart';
+import '../storage/layer0_repository.dart';
+import '../storage/layer0_populator.dart';
+import '../storage/aggregation_repository.dart';
+import '../synthesis/synthesis_engine.dart';
+import '../models/chronicle_layer.dart';
+import '../scheduling/synthesis_scheduler.dart';
+
+/// CHRONICLE Onboarding Service
+/// 
+/// Handles onboarding of existing users into CHRONICLE:
+/// - Backfill Layer 0 from existing journal entries
+/// - Batch synthesize historical periods
+/// - Import from external formats
+class ChronicleOnboardingService {
+  final JournalRepository _journalRepo;
+  final Layer0Repository _layer0Repo;
+  final AggregationRepository _aggregationRepo;
+  final SynthesisEngine _synthesisEngine;
+
+  ChronicleOnboardingService({
+    required JournalRepository journalRepo,
+    required Layer0Repository layer0Repo,
+    required AggregationRepository aggregationRepo,
+    required SynthesisEngine synthesisEngine,
+  })  : _journalRepo = journalRepo,
+        _layer0Repo = layer0Repo,
+        _aggregationRepo = aggregationRepo,
+        _synthesisEngine = synthesisEngine;
+
+  /// Backfill Layer 0 from all existing journal entries
+  /// 
+  /// Processes entries in batches to avoid blocking the UI.
+  /// Returns progress updates via callback.
+  Future<OnboardingResult> backfillLayer0({
+    required String userId,
+    Function(int processed, int total)? onProgress,
+  }) async {
+    print('📥 ChronicleOnboardingService: Starting Layer 0 backfill...');
+    
+    final result = OnboardingResult();
+    
+    try {
+      // Get all journal entries
+      final entries = await _journalRepo.getAllJournalEntries();
+      result.totalEntries = entries.length;
+      
+      if (entries.isEmpty) {
+        result.success = true;
+        result.message = 'No entries to backfill';
+        return result;
+      }
+
+      // Initialize Layer 0 repository
+      await _layer0Repo.initialize();
+      
+      // Check which entries are already in Layer 0
+      // We'll check during processing to avoid loading all entries at once
+      final existingEntryIds = <String>{};
+      
+      // Process in batches, checking if entry already exists in Layer 0
+      final batchSize = 50;
+      final populator = Layer0Populator(_layer0Repo);
+      
+      for (int i = 0; i < entries.length; i += batchSize) {
+        final batch = entries.skip(i).take(batchSize).toList();
+        
+        // Check which entries in this batch are already in Layer 0
+        final batchToProcess = <JournalEntry>[];
+        for (final entry in batch) {
+          try {
+            // Check if entry exists in Layer 0 by trying to get it
+            final existing = await _layer0Repo.getEntry(entry.id);
+            if (existing == null) {
+              batchToProcess.add(entry);
+            } else {
+              existingEntryIds.add(entry.id);
+            }
+          } catch (e) {
+            // If check fails, assume entry doesn't exist and process it
+            batchToProcess.add(entry);
+          }
+        }
+        
+        if (batchToProcess.isNotEmpty) {
+          await populator.populateFromJournalEntries(
+            entries: batchToProcess,
+            userId: userId,
+          );
+          result.newEntries += batchToProcess.length;
+        }
+        
+        result.processedEntries += batch.length;
+        onProgress?.call(result.processedEntries, entries.length);
+        
+        // Yield to UI thread every batch
+        await Future.microtask(() {});
+      }
+      
+      if (result.newEntries == 0) {
+        result.success = true;
+        result.message = 'All entries already in Layer 0';
+        return result;
+      }
+      
+      result.success = true;
+      result.message = 'Backfilled ${result.newEntries} entries to Layer 0';
+      print('✅ ChronicleOnboardingService: Layer 0 backfill complete: ${result.newEntries} new entries');
+      
+      return result;
+    } catch (e) {
+      print('❌ ChronicleOnboardingService: Layer 0 backfill failed: $e');
+      result.success = false;
+      result.error = e.toString();
+      return result;
+    }
+  }
+
+  /// Batch synthesize historical periods
+  /// 
+  /// Synthesizes all months/years that have entries but no aggregations.
+  /// Processes in chronological order (oldest first).
+  Future<OnboardingResult> batchSynthesizeHistorical({
+    required String userId,
+    required SynthesisTier tier,
+    Function(int processed, int total, String currentPeriod)? onProgress,
+  }) async {
+    print('📥 ChronicleOnboardingService: Starting batch synthesis...');
+    
+    final result = OnboardingResult();
+    
+    try {
+      // Get all entries to determine date range
+      final entries = await _journalRepo.getAllJournalEntries();
+      if (entries.isEmpty) {
+        result.success = true;
+        result.message = 'No entries to synthesize';
+        return result;
+      }
+
+      // Determine date range
+      entries.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+      final startDate = entries.first.createdAt;
+      final endDate = entries.last.createdAt;
+      
+      // Generate periods to synthesize
+      final monthlyPeriods = <String>[];
+      final yearlyPeriods = <String>{};
+      
+      var currentDate = DateTime(startDate.year, startDate.month, 1);
+      while (currentDate.isBefore(endDate) || 
+             (currentDate.year == endDate.year && currentDate.month == endDate.month)) {
+        final period = '${currentDate.year}-${currentDate.month.toString().padLeft(2, '0')}';
+        
+        // Check if entries exist for this month
+        final monthEntries = entries.where((e) =>
+          e.createdAt.year == currentDate.year &&
+          e.createdAt.month == currentDate.month
+        ).toList();
+        
+        if (monthEntries.isNotEmpty) {
+          // Check if aggregation already exists
+          final existing = await _aggregationRepo.loadLayer(
+            userId: userId,
+            layer: ChronicleLayer.monthly,
+            period: period,
+          );
+          
+          if (existing == null) {
+            monthlyPeriods.add(period);
+          }
+        }
+        
+        yearlyPeriods.add(currentDate.year.toString());
+        currentDate = DateTime(currentDate.year, currentDate.month + 1, 1);
+      }
+      
+      // Filter yearly periods (only if tier supports it)
+      final cadence = SynthesisCadence.forTier(tier);
+      final yearlyPeriodsToSynthesize = <String>[];
+      if (cadence.enableYearly) {
+        for (final year in yearlyPeriods) {
+          // Check if aggregation already exists
+          final existing = await _aggregationRepo.loadLayer(
+            userId: userId,
+            layer: ChronicleLayer.yearly,
+            period: year,
+          );
+          
+          if (existing == null) {
+            // Check if we have at least 3 monthly aggregations for this year
+            final yearMonthlyAggs = monthlyPeriods.where((p) => p.startsWith(year)).toList();
+            if (yearMonthlyAggs.length >= 3) {
+              yearlyPeriodsToSynthesize.add(year);
+            }
+          }
+        }
+      }
+      
+      final totalPeriods = monthlyPeriods.length + yearlyPeriodsToSynthesize.length;
+      result.totalPeriods = totalPeriods;
+      
+      if (totalPeriods == 0) {
+        result.success = true;
+        result.message = 'All periods already synthesized';
+        return result;
+      }
+
+      // Synthesize monthly periods
+      for (int i = 0; i < monthlyPeriods.length; i++) {
+        final period = monthlyPeriods[i];
+        onProgress?.call(i + 1, totalPeriods, period);
+        
+        try {
+          await _synthesisEngine.synthesizeLayer(
+            userId: userId,
+            layer: ChronicleLayer.monthly,
+            period: period,
+          );
+          result.processedPeriods++;
+        } catch (e) {
+          result.errors++;
+          print('⚠️ ChronicleOnboardingService: Failed to synthesize month $period: $e');
+        }
+        
+        // Yield to UI thread every 5 periods
+        if (i % 5 == 0) {
+          await Future.microtask(() {});
+        }
+      }
+      
+      // Synthesize yearly periods
+      for (int i = 0; i < yearlyPeriodsToSynthesize.length; i++) {
+        final period = yearlyPeriodsToSynthesize[i];
+        final index = monthlyPeriods.length + i + 1;
+        onProgress?.call(index, totalPeriods, period);
+        
+        try {
+          await _synthesisEngine.synthesizeLayer(
+            userId: userId,
+            layer: ChronicleLayer.yearly,
+            period: period,
+          );
+          result.processedPeriods++;
+        } catch (e) {
+          result.errors++;
+          print('⚠️ ChronicleOnboardingService: Failed to synthesize year $period: $e');
+        }
+        
+        // Yield to UI thread every period
+        await Future.microtask(() {});
+      }
+      
+      result.success = true;
+      result.message = 'Synthesized ${result.processedPeriods} periods (${monthlyPeriods.length} monthly, ${yearlyPeriodsToSynthesize.length} yearly)';
+      print('✅ ChronicleOnboardingService: Batch synthesis complete: ${result.processedPeriods} periods');
+      
+      return result;
+    } catch (e) {
+      print('❌ ChronicleOnboardingService: Batch synthesis failed: $e');
+      result.success = false;
+      result.error = e.toString();
+      return result;
+    }
+  }
+
+  /// Full onboarding: backfill Layer 0 + batch synthesize
+  Future<OnboardingResult> fullOnboarding({
+    required String userId,
+    required SynthesisTier tier,
+    Function(String stage, int progress, int total)? onProgress,
+  }) async {
+    print('📥 ChronicleOnboardingService: Starting full onboarding...');
+    
+    final result = OnboardingResult();
+    
+    try {
+      // Stage 1: Backfill Layer 0
+      onProgress?.call('Backfilling Layer 0', 0, 2);
+      final layer0Result = await backfillLayer0(
+        userId: userId,
+        onProgress: (processed, total) {
+          onProgress?.call('Backfilling Layer 0', 0, 2);
+        },
+      );
+      
+      if (!layer0Result.success) {
+        result.success = false;
+        result.error = 'Layer 0 backfill failed: ${layer0Result.error}';
+        return result;
+      }
+      
+      result.processedEntries = layer0Result.processedEntries;
+      result.newEntries = layer0Result.newEntries;
+      
+      // Stage 2: Batch synthesize
+      onProgress?.call('Synthesizing historical periods', 1, 2);
+      final synthesisResult = await batchSynthesizeHistorical(
+        userId: userId,
+        tier: tier,
+        onProgress: (processed, total, period) {
+          onProgress?.call('Synthesizing historical periods', 1, 2);
+        },
+      );
+      
+      if (!synthesisResult.success) {
+        result.success = false;
+        result.error = 'Batch synthesis failed: ${synthesisResult.error}';
+        return result;
+      }
+      
+      result.processedPeriods = synthesisResult.processedPeriods;
+      result.totalPeriods = synthesisResult.totalPeriods;
+      result.errors = synthesisResult.errors;
+      
+      result.success = true;
+      result.message = 'Onboarding complete: ${result.newEntries} entries backfilled, ${result.processedPeriods} periods synthesized';
+      
+      return result;
+    } catch (e) {
+      print('❌ ChronicleOnboardingService: Full onboarding failed: $e');
+      result.success = false;
+      result.error = e.toString();
+      return result;
+    }
+  }
+
+  /// Import from JSON file (external format)
+  /// 
+  /// Supports importing journal entries from JSON format.
+  /// Expected format: List of entries with {id, content, createdAt, ...}
+  Future<OnboardingResult> importFromJson({
+    required String userId,
+    required File jsonFile,
+    Function(int processed, int total)? onProgress,
+  }) async {
+    print('📥 ChronicleOnboardingService: Importing from JSON: ${jsonFile.path}');
+    
+    final result = OnboardingResult();
+    
+    try {
+      final content = await jsonFile.readAsString();
+      final json = jsonDecode(content) as List<dynamic>;
+      
+      result.totalEntries = json.length;
+      
+      // Parse entries
+      final entries = <JournalEntry>[];
+      for (final entryJson in json) {
+        try {
+          final entry = JournalEntry.fromJson(entryJson as Map<String, dynamic>);
+          entries.add(entry);
+        } catch (e) {
+          result.errors++;
+          print('⚠️ ChronicleOnboardingService: Failed to parse entry: $e');
+        }
+      }
+      
+      // Save entries to journal repository
+      for (int i = 0; i < entries.length; i++) {
+        try {
+          await _journalRepo.createJournalEntry(entries[i]);
+          result.processedEntries++;
+          onProgress?.call(result.processedEntries, entries.length);
+        } catch (e) {
+          result.errors++;
+          print('⚠️ ChronicleOnboardingService: Failed to save entry ${entries[i].id}: $e');
+        }
+      }
+      
+      // Backfill Layer 0 for imported entries
+      await backfillLayer0(userId: userId);
+      
+      result.success = true;
+      result.message = 'Imported ${result.processedEntries} entries from JSON';
+      
+      return result;
+    } catch (e) {
+      print('❌ ChronicleOnboardingService: JSON import failed: $e');
+      result.success = false;
+      result.error = e.toString();
+      return result;
+    }
+  }
+}
+
+/// Result of onboarding operation
+class OnboardingResult {
+  int processedEntries = 0;
+  int newEntries = 0;
+  int totalEntries = 0;
+  int processedPeriods = 0;
+  int totalPeriods = 0;
+  int errors = 0;
+  bool success = false;
+  String? message;
+  String? error;
+  
+  @override
+  String toString() {
+    if (!success) {
+      return 'Onboarding failed: $error';
+    }
+    return message ?? 'Onboarding complete';
+  }
+}

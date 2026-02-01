@@ -34,6 +34,10 @@ import 'package:my_app/prism/atlas/phase/phase_inference_service.dart';
 import 'package:my_app/services/export_history_service.dart';
 import 'arcx_checkpoint_service.dart';
 import 'arcx_import_set_index_service.dart';
+import 'package:my_app/chronicle/storage/aggregation_repository.dart';
+import 'package:my_app/chronicle/storage/changelog_repository.dart';
+import 'package:my_app/chronicle/models/chronicle_layer.dart';
+import 'package:my_app/chronicle/models/chronicle_aggregation.dart';
 
 const _uuid = Uuid();
 
@@ -382,6 +386,10 @@ class ARCXImportServiceV2 {
         
         // Import LUMARA favorites (doesn't require phaseRegimeService)
         lumaraFavoritesImported = await _importLumaraFavorites(payloadDir!, onProgress: onProgress);
+        
+        // Import CHRONICLE aggregations (monthly/yearly/multiyear .md files + changelog)
+        onProgress?.call('Importing CHRONICLE aggregations...', _kPhaseRegimesEnd);
+        final chronicleImported = await _importChronicle(payloadDir!, onProgress: onProgress);
         
         // Import Entries AFTER phase regimes so they can be tagged correctly
         final entriesDir = Directory(path.join(payloadDir!.path, 'Entries'));
@@ -1196,6 +1204,223 @@ class ARCXImportServiceV2 {
       print('ARCX Import V2: Stack trace: $stackTrace');
       // Don't fail the entire import if favorites fail - just return empty map
       return {'answers': 0, 'chats': 0, 'entries': 0};
+    }
+  }
+
+  /// Import CHRONICLE aggregations from Chronicle/ directory
+  /// Returns map with counts: {'monthly': X, 'yearly': Y, 'multiyear': Z, 'changelog_entries': N}
+  Future<Map<String, int>> _importChronicle(
+    Directory payloadDir, {
+    ImportProgressCallback? onProgress,
+  }) async {
+    try {
+      final chronicleDir = Directory(path.join(payloadDir.path, 'Chronicle'));
+      if (!await chronicleDir.exists()) {
+        print('ARCX Import V2: ⚠️ Chronicle directory not found, skipping CHRONICLE import');
+        return {
+          'monthly': 0,
+          'yearly': 0,
+          'multiyear': 0,
+          'changelog_entries': 0,
+        };
+      }
+
+      final aggregationRepo = AggregationRepository();
+      final changelogRepo = ChangelogRepository();
+      
+      // Get current user ID (default to 'default_user' if not available)
+      // In production, this should come from FirebaseAuthService
+      const userId = 'default_user';
+      
+      int monthlyCount = 0;
+      int yearlyCount = 0;
+      int multiyearCount = 0;
+      
+      // Helper function to parse markdown with frontmatter
+      ChronicleAggregation _parseAggregationFile(
+        String content,
+        ChronicleLayer layer,
+        String period,
+      ) {
+        // Split frontmatter and markdown
+        if (!content.startsWith('---')) {
+          throw FormatException('Invalid aggregation format: missing frontmatter');
+        }
+
+        final parts = content.split('---');
+        if (parts.length < 3) {
+          throw FormatException('Invalid aggregation format: malformed frontmatter');
+        }
+
+        final frontmatter = parts[1].trim();
+        final markdown = parts.sublist(2).join('---').trim();
+
+        // Parse YAML frontmatter
+        final metadata = <String, dynamic>{};
+        for (final line in frontmatter.split('\n')) {
+          if (line.contains(':')) {
+            final parts = line.split(':');
+            if (parts.length >= 2) {
+              final key = parts[0].trim();
+              final value = parts.sublist(1).join(':').trim();
+              
+              if (key == 'entry_count' || key == 'version') {
+                metadata[key] = int.parse(value);
+              } else if (key == 'compression_ratio') {
+                metadata[key] = double.parse(value);
+              } else if (key == 'user_edited') {
+                metadata[key] = value.toLowerCase() == 'true';
+              } else if (key == 'synthesis_date') {
+                metadata[key] = DateTime.parse(value);
+              } else if (key == 'source_entry_ids') {
+                metadata[key] = value.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+              }
+            }
+          }
+        }
+
+        return ChronicleAggregation(
+          layer: layer,
+          period: period,
+          synthesisDate: metadata['synthesis_date'] as DateTime,
+          entryCount: metadata['entry_count'] as int,
+          compressionRatio: metadata['compression_ratio'] as double,
+          content: markdown,
+          sourceEntryIds: List<String>.from(metadata['source_entry_ids'] as List? ?? []),
+          userEdited: metadata['user_edited'] as bool? ?? false,
+          version: metadata['version'] as int? ?? 1,
+          userId: userId,
+        );
+      }
+      
+      // Import monthly aggregations
+      final monthlyDir = Directory(path.join(chronicleDir.path, 'monthly'));
+      if (await monthlyDir.exists()) {
+        onProgress?.call('Importing monthly aggregations...');
+        final monthlyFiles = monthlyDir.listSync()
+            .whereType<File>()
+            .where((f) => f.path.endsWith('.md'))
+            .toList();
+        
+        for (final file in monthlyFiles) {
+          try {
+            final content = await file.readAsString();
+            final period = path.basenameWithoutExtension(file.path);
+            
+            final aggregation = _parseAggregationFile(
+              content,
+              ChronicleLayer.monthly,
+              period,
+            );
+            
+            await aggregationRepo.saveMonthly(userId, aggregation);
+            monthlyCount++;
+          } catch (e) {
+            print('ARCX Import V2: ⚠️ Failed to import monthly aggregation ${file.path}: $e');
+          }
+        }
+      }
+      
+      // Import yearly aggregations
+      final yearlyDir = Directory(path.join(chronicleDir.path, 'yearly'));
+      if (await yearlyDir.exists()) {
+        onProgress?.call('Importing yearly aggregations...');
+        final yearlyFiles = yearlyDir.listSync()
+            .whereType<File>()
+            .where((f) => f.path.endsWith('.md'))
+            .toList();
+        
+        for (final file in yearlyFiles) {
+          try {
+            final content = await file.readAsString();
+            final period = path.basenameWithoutExtension(file.path);
+            
+            final aggregation = _parseAggregationFile(
+              content,
+              ChronicleLayer.yearly,
+              period,
+            );
+            
+            await aggregationRepo.saveYearly(userId, aggregation);
+            yearlyCount++;
+          } catch (e) {
+            print('ARCX Import V2: ⚠️ Failed to import yearly aggregation ${file.path}: $e');
+          }
+        }
+      }
+      
+      // Import multi-year aggregations
+      final multiyearDir = Directory(path.join(chronicleDir.path, 'multiyear'));
+      if (await multiyearDir.exists()) {
+        onProgress?.call('Importing multi-year aggregations...');
+        final multiyearFiles = multiyearDir.listSync()
+            .whereType<File>()
+            .where((f) => f.path.endsWith('.md'))
+            .toList();
+        
+        for (final file in multiyearFiles) {
+          try {
+            final content = await file.readAsString();
+            final period = path.basenameWithoutExtension(file.path);
+            
+            final aggregation = _parseAggregationFile(
+              content,
+              ChronicleLayer.multiyear,
+              period,
+            );
+            
+            await aggregationRepo.saveMultiYear(userId, aggregation);
+            multiyearCount++;
+          } catch (e) {
+            print('ARCX Import V2: ⚠️ Failed to import multi-year aggregation ${file.path}: $e');
+          }
+        }
+      }
+      
+      // Import changelog
+      final changelogFile = File(path.join(chronicleDir.path, 'changelog.jsonl'));
+      int changelogEntries = 0;
+      if (await changelogFile.exists()) {
+        onProgress?.call('Importing changelog...');
+        final content = await changelogFile.readAsString();
+        final lines = content.split('\n').where((line) => line.trim().isNotEmpty).toList();
+        
+        for (final line in lines) {
+          try {
+            final json = jsonDecode(line) as Map<String, dynamic>;
+            final entry = ChangelogEntry.fromJson(json);
+            
+            // Log the entry (this will append to the existing changelog)
+            await changelogRepo.log(
+              userId: entry.userId,
+              layer: entry.layer,
+              action: entry.action,
+              metadata: entry.metadata,
+              error: entry.error,
+            );
+            changelogEntries++;
+          } catch (e) {
+            print('ARCX Import V2: ⚠️ Failed to import changelog entry: $e');
+          }
+        }
+      }
+      
+      print('ARCX Import V2: ✓ Imported CHRONICLE: $monthlyCount monthly, $yearlyCount yearly, $multiyearCount multiyear, $changelogEntries changelog entries');
+      
+      return {
+        'monthly': monthlyCount,
+        'yearly': yearlyCount,
+        'multiyear': multiyearCount,
+        'changelog_entries': changelogEntries,
+      };
+    } catch (e) {
+      print('ARCX Import V2: ⚠️ Error importing CHRONICLE: $e');
+      return {
+        'monthly': 0,
+        'yearly': 0,
+        'multiyear': 0,
+        'changelog_entries': 0,
+      };
     }
   }
 

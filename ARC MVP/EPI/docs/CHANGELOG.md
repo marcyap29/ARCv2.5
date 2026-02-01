@@ -45,34 +45,6 @@ Fixed critical issue where folder verification in `VerifyBackupScreen` failed on
 
 ---
 
-## [3.3.13] - January 31, 2026
-
-### Fix: iOS Folder Verification Permission Error
-
-#### Overview
-Fixed critical issue where folder verification in `VerifyBackupScreen` failed on iOS with "Operation not permitted" error when attempting to scan `.arcx` backup files in user-selected folders.
-
-#### Changes
-- **iOS Security-Scoped Resource Access**: Added proper handling of security-scoped resources when accessing user-selected folders on iOS
-- **`arcx_scan_service.dart`**: Modified `scanArcxFolder()` to start accessing security-scoped resource before listing directory, with proper cleanup in `finally` block
-- **`verify_backup_screen.dart`**: Added security-scoped resource access handling in `_scanFolder()` method with user-friendly error messages
-- **Error Handling**: Improved error messages when folder access is denied on iOS
-
-#### Technical Details
-- On iOS, `FilePicker` returns security-scoped resource paths that require explicit access permissions
-- Added calls to `startAccessingSecurityScopedResourceWithFilePath()` before directory operations
-- Added proper cleanup with `stopAccessingSecurityScopedResourceWithFilePath()` in `finally` blocks
-- Uses existing `accessing_security_scoped_resource` package (v3.4.0)
-
-#### Files Modified
-- `lib/mira/store/arcx/services/arcx_scan_service.dart` - Added security-scoped resource handling
-- `lib/shared/ui/settings/verify_backup_screen.dart` - Added security-scoped resource handling and improved error messages
-
-#### Related
-- Bug Tracker: `DOCS/bugtracker/records/ios-folder-verification-permission-error.md`
-
----
-
 ## [3.3.13] - January 26, 2026
 
 ### Import: Global status bar, percentage, and Import Status screen

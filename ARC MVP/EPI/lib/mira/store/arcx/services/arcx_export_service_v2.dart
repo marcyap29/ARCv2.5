@@ -33,6 +33,10 @@ import 'package:my_app/arc/chat/data/models/lumara_favorite.dart';
 import 'package:hive/hive.dart';
 import 'package:my_app/services/export_history_service.dart';
 import 'package:flutter/foundation.dart';
+import 'package:my_app/chronicle/storage/aggregation_repository.dart';
+import 'package:my_app/chronicle/storage/changelog_repository.dart';
+import 'package:my_app/chronicle/models/chronicle_layer.dart';
+import 'package:my_app/chronicle/models/chronicle_aggregation.dart';
 
 const _uuid = Uuid();
 
@@ -431,6 +435,10 @@ class ARCXExportServiceV2 {
       onProgress?.call('Exporting LUMARA favorites...');
       lumaraFavoritesExported = await _exportLumaraFavorites(payloadDir);
       
+      // Export CHRONICLE aggregations (monthly/yearly/multiyear .md files + changelog)
+      onProgress?.call('Exporting CHRONICLE aggregations...');
+      final chronicleExported = await _exportChronicle(payloadDir);
+      
       // Export health streams (aligned with MCP format)
       if (entries.isNotEmpty) {
         onProgress?.call('Exporting health streams...');
@@ -463,6 +471,10 @@ class ARCXExportServiceV2 {
         lumaraFavoritesAnswersCount: lumaraFavoritesExported['answers'] ?? 0,
         lumaraFavoritesChatsCount: lumaraFavoritesExported['chats'] ?? 0,
         lumaraFavoritesEntriesCount: lumaraFavoritesExported['entries'] ?? 0,
+        chronicleMonthlyCount: chronicleExported['monthly'] ?? 0,
+        chronicleYearlyCount: chronicleExported['yearly'] ?? 0,
+        chronicleMultiyearCount: chronicleExported['multiyear'] ?? 0,
+        chronicleChangelogEntries: chronicleExported['changelog_entries'] ?? 0,
         separateGroups: false,
         options: options,
         entriesDateRangeStart: entriesDateStart,
@@ -695,6 +707,10 @@ class ARCXExportServiceV2 {
           lumaraFavoritesAnswersCount: lumaraFavoritesExported['answers'] ?? 0,
           lumaraFavoritesChatsCount: lumaraFavoritesExported['chats'] ?? 0,
           lumaraFavoritesEntriesCount: lumaraFavoritesExported['entries'] ?? 0,
+          chronicleMonthlyCount: 0, // CHRONICLE not included in entries-chats archive
+          chronicleYearlyCount: 0,
+          chronicleMultiyearCount: 0,
+          chronicleChangelogEntries: 0,
           separateGroups: true, // Indicates this is part of a separated export
           options: entriesChatsOptions,
         );
@@ -860,6 +876,10 @@ class ARCXExportServiceV2 {
         lumaraFavoritesAnswersCount: lumaraFavoritesExported['answers'] ?? 0,
         lumaraFavoritesChatsCount: lumaraFavoritesExported['chats'] ?? 0,
         lumaraFavoritesEntriesCount: lumaraFavoritesExported['entries'] ?? 0,
+        chronicleMonthlyCount: 0, // CHRONICLE not included in separate groups export
+        chronicleYearlyCount: 0,
+        chronicleMultiyearCount: 0,
+        chronicleChangelogEntries: 0,
         separateGroups: true,
         options: options,
       );
@@ -1043,6 +1063,10 @@ class ARCXExportServiceV2 {
     int lumaraFavoritesAnswersCount = 0,
     int lumaraFavoritesChatsCount = 0,
     int lumaraFavoritesEntriesCount = 0,
+    int chronicleMonthlyCount = 0,
+    int chronicleYearlyCount = 0,
+    int chronicleMultiyearCount = 0,
+    int chronicleChangelogEntries = 0,
     required bool separateGroups,
     required ARCXExportOptions options,
     String? entriesDateRangeStart,
@@ -1081,6 +1105,10 @@ class ARCXExportServiceV2 {
         lumaraFavoritesAnswersCount: lumaraFavoritesAnswersCount,
         lumaraFavoritesChatsCount: lumaraFavoritesChatsCount,
         lumaraFavoritesEntriesCount: lumaraFavoritesEntriesCount,
+        chronicleMonthlyCount: chronicleMonthlyCount,
+        chronicleYearlyCount: chronicleYearlyCount,
+        chronicleMultiyearCount: chronicleMultiyearCount,
+        chronicleChangelogEntries: chronicleChangelogEntries,
         separateGroups: separateGroups,
       ),
       encryptionInfo: ARCXEncryptionInfo(
@@ -1795,6 +1823,112 @@ class ARCXExportServiceV2 {
         'entries': 0,
       };
     }
+  }
+
+  /// Export CHRONICLE aggregations to Chronicle/ directory
+  /// Includes monthly/yearly/multiyear .md files and changelog.jsonl
+  /// Returns map with counts: {'monthly': X, 'yearly': Y, 'multiyear': Z, 'changelog_entries': N}
+  Future<Map<String, int>> _exportChronicle(Directory payloadDir) async {
+    try {
+      final chronicleDir = Directory(path.join(payloadDir.path, 'Chronicle'));
+      await chronicleDir.create(recursive: true);
+      
+      final aggregationRepo = AggregationRepository();
+      final changelogRepo = ChangelogRepository();
+      
+      // Get current user ID (default to 'default_user' if not available)
+      // In production, this should come from FirebaseAuthService
+      const userId = 'default_user';
+      
+      int monthlyCount = 0;
+      int yearlyCount = 0;
+      int multiyearCount = 0;
+      
+      // Export monthly aggregations
+      final monthlyDir = Directory(path.join(chronicleDir.path, 'monthly'));
+      await monthlyDir.create(recursive: true);
+      final monthlyAggs = await aggregationRepo.getAllForLayer(
+        userId: userId,
+        layer: ChronicleLayer.monthly,
+      );
+      for (final agg in monthlyAggs) {
+        final file = File(path.join(monthlyDir.path, '${agg.period}.md'));
+        final content = _buildMarkdownWithFrontmatter(agg);
+        await file.writeAsString(content);
+        monthlyCount++;
+      }
+      
+      // Export yearly aggregations
+      final yearlyDir = Directory(path.join(chronicleDir.path, 'yearly'));
+      await yearlyDir.create(recursive: true);
+      final yearlyAggs = await aggregationRepo.getAllForLayer(
+        userId: userId,
+        layer: ChronicleLayer.yearly,
+      );
+      for (final agg in yearlyAggs) {
+        final file = File(path.join(yearlyDir.path, '${agg.period}.md'));
+        final content = _buildMarkdownWithFrontmatter(agg);
+        await file.writeAsString(content);
+        yearlyCount++;
+      }
+      
+      // Export multi-year aggregations
+      final multiyearDir = Directory(path.join(chronicleDir.path, 'multiyear'));
+      await multiyearDir.create(recursive: true);
+      final multiyearAggs = await aggregationRepo.getAllForLayer(
+        userId: userId,
+        layer: ChronicleLayer.multiyear,
+      );
+      for (final agg in multiyearAggs) {
+        final file = File(path.join(multiyearDir.path, '${agg.period}.md'));
+        final content = _buildMarkdownWithFrontmatter(agg);
+        await file.writeAsString(content);
+        multiyearCount++;
+      }
+      
+      // Export changelog
+      final changelogEntries = await changelogRepo.getAllEntries();
+      final changelogFile = File(path.join(chronicleDir.path, 'changelog.jsonl'));
+      final changelogLines = changelogEntries.map((e) => jsonEncode(e.toJson())).join('\n');
+      await changelogFile.writeAsString(changelogLines);
+      
+      print('ARCX Export V2: Exported CHRONICLE: $monthlyCount monthly, $yearlyCount yearly, $multiyearCount multiyear, ${changelogEntries.length} changelog entries');
+      
+      return {
+        'monthly': monthlyCount,
+        'yearly': yearlyCount,
+        'multiyear': multiyearCount,
+        'changelog_entries': changelogEntries.length,
+      };
+    } catch (e) {
+      print('ARCX Export V2: Error exporting CHRONICLE: $e');
+      return {
+        'monthly': 0,
+        'yearly': 0,
+        'multiyear': 0,
+        'changelog_entries': 0,
+      };
+    }
+  }
+  
+  /// Build markdown content with YAML frontmatter for CHRONICLE aggregation
+  /// Note: AggregationRepository stores content without frontmatter, so we rebuild it here
+  String _buildMarkdownWithFrontmatter(ChronicleAggregation aggregation) {
+    final frontmatter = '''---
+type: ${aggregation.layer.name}_aggregation
+period: ${aggregation.period}
+synthesis_date: ${aggregation.synthesisDate.toIso8601String()}
+entry_count: ${aggregation.entryCount}
+compression_ratio: ${aggregation.compressionRatio.toStringAsFixed(3)}
+user_edited: ${aggregation.userEdited}
+version: ${aggregation.version}
+source_entry_ids: ${aggregation.sourceEntryIds.join(', ')}
+user_id: ${aggregation.userId}
+---
+
+''';
+    
+    return frontmatter + aggregation.content;
   }
 
   /// Enrich favorites with phase information from phase regimes

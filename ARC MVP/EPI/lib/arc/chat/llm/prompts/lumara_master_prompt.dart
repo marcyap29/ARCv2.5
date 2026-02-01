@@ -2946,6 +2946,13 @@ Then stop.
 PRISM: You receive sanitized input. Respond to the semantic meaning directly. Never say "it seems like" or "you're looking to". Answer directly.
 
 VOICE: Answer first. Stay conversational. Respect the word limit and engagement mode above.
+${chronicleMiniContext != null && chronicleMiniContext.isNotEmpty ? '''
+
+═══════════════════════════════════════════════════════════
+CHRONICLE CONTEXT (temporal summary – use for "how have I been" / patterns)
+═══════════════════════════════════════════════════════════
+$chronicleMiniContext
+''' : ''}
 
 ═══════════════════════════════════════════════════════════
 CURRENT TASK

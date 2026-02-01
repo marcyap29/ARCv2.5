@@ -203,6 +203,10 @@ class ARCXScope {
   final int lumaraFavoritesAnswersCount;
   final int lumaraFavoritesChatsCount;
   final int lumaraFavoritesEntriesCount;
+  final int chronicleMonthlyCount;
+  final int chronicleYearlyCount;
+  final int chronicleMultiyearCount;
+  final int chronicleChangelogEntries;
   final bool separateGroups;
   
   ARCXScope({
@@ -214,6 +218,10 @@ class ARCXScope {
     this.lumaraFavoritesAnswersCount = 0,
     this.lumaraFavoritesChatsCount = 0,
     this.lumaraFavoritesEntriesCount = 0,
+    this.chronicleMonthlyCount = 0,
+    this.chronicleYearlyCount = 0,
+    this.chronicleMultiyearCount = 0,
+    this.chronicleChangelogEntries = 0,
     required this.separateGroups,
   });
   
@@ -227,6 +235,10 @@ class ARCXScope {
       lumaraFavoritesAnswersCount: json['lumara_favorites_answers_count'] as int? ?? 0,
       lumaraFavoritesChatsCount: json['lumara_favorites_chats_count'] as int? ?? 0,
       lumaraFavoritesEntriesCount: json['lumara_favorites_entries_count'] as int? ?? 0,
+      chronicleMonthlyCount: json['chronicle_monthly_count'] as int? ?? 0,
+      chronicleYearlyCount: json['chronicle_yearly_count'] as int? ?? 0,
+      chronicleMultiyearCount: json['chronicle_multiyear_count'] as int? ?? 0,
+      chronicleChangelogEntries: json['chronicle_changelog_entries'] as int? ?? 0,
       separateGroups: json['separate_groups'] as bool? ?? false,
     );
   }
@@ -241,6 +253,10 @@ class ARCXScope {
       'lumara_favorites_answers_count': lumaraFavoritesAnswersCount,
       'lumara_favorites_chats_count': lumaraFavoritesChatsCount,
       'lumara_favorites_entries_count': lumaraFavoritesEntriesCount,
+      'chronicle_monthly_count': chronicleMonthlyCount,
+      'chronicle_yearly_count': chronicleYearlyCount,
+      'chronicle_multiyear_count': chronicleMultiyearCount,
+      'chronicle_changelog_entries': chronicleChangelogEntries,
       'separate_groups': separateGroups,
     };
   }

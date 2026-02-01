@@ -74,4 +74,4 @@ Historical bug tracker files are archived in [archive/](archive/):
 ---
 
 **Status**: ✅ Active - All resolved issues documented  
-**Last Updated**: January 10, 2026
+**Last Updated**: January 31, 2026

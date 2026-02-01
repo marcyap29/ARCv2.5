@@ -54,15 +54,22 @@ class ArcOnboardingCubit extends Cubit<ArcOnboardingState> {
   }
 
   void startPhaseQuiz() {
+    // Note: This now navigates to PhaseQuizV2Screen, not the old PhaseQuizScreen
     emit(state.copyWith(currentScreen: OnboardingScreen.phaseQuiz));
   }
 
+  /// @deprecated Replaced by PhaseQuizV2. This method is no longer used.
+  /// PhaseQuizV2 handles quiz state internally and doesn't use this cubit.
+  @Deprecated('Use PhaseQuizV2 instead. This method is for the old text-based quiz.')
   void submitQuizResponse(int questionIndex, String response) {
     final updatedResponses = Map<int, String>.from(state.quizResponses);
     updatedResponses[questionIndex] = response;
     emit(state.copyWith(quizResponses: updatedResponses));
   }
 
+  /// @deprecated Replaced by PhaseQuizV2. This method is no longer used.
+  /// PhaseQuizV2 creates the inaugural entry and triggers CHRONICLE synthesis directly.
+  @Deprecated('Use PhaseQuizV2 instead. This method is for the old text-based quiz.')
   Future<void> completeQuiz() async {
     emit(state.copyWith(
       currentScreen: OnboardingScreen.phaseAnalysis,
@@ -105,6 +112,9 @@ class ArcOnboardingCubit extends Cubit<ArcOnboardingState> {
     }
   }
 
+  /// @deprecated Replaced by PhaseQuizV2. This method is no longer used.
+  /// PhaseQuizV2 generates a comprehensive inaugural entry instead of saving quiz responses.
+  @Deprecated('Use PhaseQuizV2 instead. This method is for the old text-based quiz.')
   Future<void> _saveQuizResponsesAsEntries() async {
     try {
       final journalBox = Hive.box<JournalEntry>('journal_entries');

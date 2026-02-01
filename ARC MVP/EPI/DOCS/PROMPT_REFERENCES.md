@@ -2,9 +2,19 @@
 
 This document catalogs all prompts used throughout the ARC application, organized by category and purpose.
 
+## Document scope and sources
+
+- **Purpose:** This document reflects the prompts actually used in the ARC/EPI codebase. Each section cites the source file(s) that define or generate the prompt.
+- **Path baseline:** All paths are relative to the EPI app root (e.g. `ARC MVP/EPI/`). Example: `lib/arc/chat/prompts/lumara_profile.json` means `ARC MVP/EPI/lib/arc/chat/prompts/lumara_profile.json`.
+- **Content:** Quoted blocks are taken from or derived from the cited sources. Some sections show a subset or summary; the source file holds the full, authoritative text.
+- **Cloud vs on-device:** Cloud API uses the master prompt system (`lumara_master_prompt.dart`); on-device and legacy paths may use `lumara_system_prompt.dart` or profile JSON.
+- **Last synced with codebase:** 2026-01-31. Document version: 1.8.0.
+
 ---
 
 ## Table of Contents
+
+- [Document scope and sources](#document-scope-and-sources)
 
 1. [System Prompts](#system-prompts)
    - [LUMARA Core Identity](#lumara-core-identity)
@@ -64,7 +74,7 @@ This document catalogs all prompts used throughout the ARC application, organize
 
 ### LUMARA Core Identity
 
-**Location:** `lib/arc/chat/prompts/lumara_profile.json`, `lib/arc/chat/prompts/lumara_system_prompt.dart`
+**Location:** `lib/arc/chat/prompts/lumara_system_prompt.dart` (prose below; legacy/on-device). Cloud API uses `lib/arc/chat/llm/prompts/lumara_master_prompt.dart`. Structured config (personas, modes, therapeutic presence, decision clarity): `lib/arc/chat/prompts/lumara_profile.json`.
 
 ```
 You are LUMARA — the Life-aware Unified Memory & Reflection Assistant.
@@ -1344,6 +1354,7 @@ Prepended to stored transcript for future retrieval.
 
 | Version | Date | Changes |
 |---------|------|---------|
+| 1.8.0 | 2026-01-31 | Document scope and sources: added section explaining how this doc reflects codebase prompts; path baseline (EPI app root); LUMARA Core Identity source note (lumara_system_prompt.dart vs lumara_master_prompt.dart, lumara_profile.json). Aligned document with prompts used to generate it. |
 | 1.7.0 | 2026-01-30 | Added CHRONICLE prompts (Query Classifier, Monthly Theme Extraction / VEIL EXAMINE), Voice Journal Entry Creation ([VOICE_JOURNAL_SUMMARIZATION]), and Backend (Firebase) prompts (sendChatMessage, generateJournalReflection, generateJournalPrompts, analyzeJournalEntry). Renumbered Voice Mode to §13. |
 | 1.6.0 | 2026-01-24 | **BREAKING**: Renamed REFLECT → DEFAULT mode. Added Layer 2.5 (Voice Mode Direct Answer Protocol), Layer 2.6 (Context Retrieval Triggers), Layer 2.7 (Mode Switching Commands). Updated temporal query classification to fix "Tell me about my week" routing. |
 | 1.5.0 | 2026-01-23 | Added comprehensive template variables documentation, ECHO system prompt variables, Bible context blocks, on-device prompt variants, voice mode phase-specific word limits, and session summary prompt |
@@ -1430,6 +1441,7 @@ Prepended to stored transcript for future retrieval.
 
 ## Notes
 
+- **Source accuracy:** This document is derived from the source files cited in each section. When prompts in the codebase change, this document should be updated to match. Paths are relative to the EPI app root (see [Document scope and sources](#document-scope-and-sources)).
 - All prompts are designed to maintain **narrative dignity** and support **developmental growth**
 - **PRISM** guardrails apply to all prompts (privacy, safety, dignity)
 - **SENTINEL** monitoring is integrated into phase classification for wellbeing protection

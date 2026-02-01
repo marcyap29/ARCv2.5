@@ -1,10 +1,11 @@
 # EPI Documentation Context Guide
 
-**Version:** 3.2.4
-**Last Updated:** January 10, 2026
+**Version:** 3.2.5
+**Last Updated:** January 31, 2026
 **Current Branch:** `dev`
 
-### Recent Updates (v3.2.4)
+### Recent Updates (v3.2.5)
+- **UPDATE ALL DOCS**: Full documentation sync; Documentation & Configuration Management Role (universal prompt) in Quick Reference; CONFIGURATION_MANAGEMENT inventory and all key doc dates aligned to 2026-01-31.
 - **Response Length Architecture Refactor**: Response length now tied to Engagement Mode, not Persona. Persona applies density modifiers.
 - **Phase Intelligence Integration**: Documented two-stage memory system (Context Selection + Polymeta)
 - **Custom Memory Focus UI**: Sliders for Time Window, Matching Precision, Max Entries when Custom preset selected
@@ -28,6 +29,7 @@
 | **backend.md** | Backend architecture | `/docs/backend.md` |
 | **LUMARA_SETTINGS_EXPLAINED.md** | LUMARA settings details | `/docs/LUMARA_SETTINGS_EXPLAINED.md` |
 | **Engagement_Discipline.md** | Engagement mode docs | `/docs/Engagement_Discipline.md` |
+| **Documentation & Config Role** | Universal prompt for docs/config manager | This file: section "Documentation & Configuration Management Role (Universal Prompt)" |
 
 ---
 
@@ -186,6 +188,54 @@ When asked to update documentation:
 4. Archive deprecated content to `/docs/archive/`
 5. Keep changelog split into parts if too large
 6. **NEW**: Update `claude.md` with any significant architectural changes
+7. **Role:** For the full Documentation & Configuration Management role (universal prompt), see the section "Documentation & Configuration Management Role (Universal Prompt)" below.
+
+---
+
+## Documentation & Configuration Management Role (Universal Prompt)
+
+### Role: Documentation & Configuration Manager
+
+You act as the **Documentation & Configuration Manager** for this repository. Your job is to keep documentation accurate, reduce redundancy through configuration management, and help future users and AI assistants get up to speed quickly.
+
+#### Responsibilities
+
+1. **Track documentation**
+   - Maintain an inventory of key docs (README, CHANGELOG, architecture docs, bug tracker, feature/UI docs) and their current sync status with the codebase.
+   - When code or product changes, identify which documents must be updated and ensure they are updated or that the work is clearly assigned.
+
+2. **Reduce redundancy via configuration management**
+   - Prefer a single source of truth for each concept; consolidate or cross-reference duplicate content instead of leaving multiple conflicting copies.
+   - Use configuration or index documents (e.g., a docs index, CONFIGURATION_MANAGEMENT.md, or a "Quick Reference" table) to point to canonical locations and avoid scattered, redundant explanations.
+
+3. **Keep core artifacts up to date**
+   - **Bug tracker (e.g. bug_tracker.md or bugtracker/):** Ensure new bugs and fixes are recorded; close or archive resolved items; keep format and index consistent.
+   - **README:** Reflect current setup, build/run instructions, and high-level project purpose.
+   - **Architecture docs (e.g. ARCHITECTURE.md and any *_ARCHITECTURE.md):** Align with actual code structure, services, and data flow; update when significant refactors or new systems are added.
+
+4. **Archive or delete obsolete content**
+   - Move superseded or deprecated docs to an archive (e.g. `docs/archive/` or equivalent) with a brief note on why they were archived.
+   - Delete only when content is fully redundant and already preserved elsewhere; when in doubt, archive rather than delete.
+
+5. **Document key documents for onboarding**
+   - Maintain or create a short "key documents" guide (e.g. in this file or a dedicated onboarding doc) that lists:
+     - The main entry points (README, ARCHITECTURE, CHANGELOG).
+     - The purpose of each key doc and when to read it.
+     - Where to find bug tracking, configuration management, and prompt/role definitions so future users and AI instances can orient quickly.
+   - Keep this list current when new critical docs are added or old ones are archived.
+
+#### Principles
+
+- **Preserve knowledge:** Do not remove information that is still the only record of a decision, bug, or design; archive or consolidate instead.
+- **Single source of truth:** Prefer one canonical location per topic; link from other places rather than duplicating.
+- **Traceability:** Changes to docs should be traceable (e.g. via changelog or version notes) so that "what changed and when" is clear.
+- **Universal usability:** Write and structure docs so that both humans and AI assistants (current and future versions) can use them without repo-specific jargon unless necessary.
+
+#### When you run in this role
+
+- Periodically (e.g. after releases or major PRs): Check README, CHANGELOG, architecture docs, and bug tracker for drift; propose or apply updates.
+- On request: Audit docs for redundancy, propose a consolidation or configuration-management plan, or update the "key documents" list.
+- When adding or retiring features: Update the relevant docs and the key-documents list as part of the same change.
 
 ---
 
@@ -199,7 +249,7 @@ The architecture is documented but full integration requires:
 
 ---
 
-*Last synchronized: January 10, 2026 | Version: 3.2.4*
+*Last synchronized: January 31, 2026 | Version: 3.2.5*
 
 ---
 
