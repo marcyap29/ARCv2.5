@@ -12,18 +12,38 @@ This document tracks all changes between the repository codebase and documentati
 
 ---
 
+## Key documents for onboarding
+
+Per the **Documentation & Configuration Management Role** (see [claude.md](claude.md), section "Documentation & Configuration Management Role (Universal Prompt)"):
+
+| Entry point | Purpose | When to read |
+|-------------|---------|--------------|
+| **README.md** | Project overview and key documents list | First stop; orient to docs |
+| **ARCHITECTURE.md** | System architecture (5 modules, data flow) | System structure and design |
+| **CHANGELOG.md** | Version history and release notes | What changed and when |
+| **FEATURES.md** | Comprehensive feature list | Capability and integration details |
+| **UI_UX.md** | UI/UX patterns and components | Before making UI changes |
+| **bugtracker/** | Bug tracker (records and index) | Known issues, fixes, resolution status |
+| **CONFIGURATION_MANAGEMENT.md** (this file) | Docs inventory and change log | Sync status; what changed in docs |
+| **claude.md** | Context guide; Documentation & Config Role | Onboarding; adopting docs/config manager role |
+
+Prompt/role definitions: **Documentation & Configuration Management Role** in [claude.md](claude.md).
+
+---
+
 ## Documentation Inventory
 
 ### Core Documentation Files
 
 | Document | Location | Last Reviewed | Status | Notes |
 |----------|----------|---------------|--------|-------|
-| ARCHITECTURE.md | `/DOCS/ARCHITECTURE.md` | 2026-01-31 | ✅ Synced | v3.3.7 - Last Updated Jan 31 |
+| ARCHITECTURE.md | `/DOCS/ARCHITECTURE.md` | 2026-01-31 | ✅ Synced | v3.3.7 - Phase Quiz/Phase tab (v3.3.13) in Key Achievements |
 | CHANGELOG.md | `/DOCS/CHANGELOG.md` | 2026-01-31 | ✅ Synced | v3.3.13 - Phase Quiz/Phase tab sync, rotating phase; iOS folder verification |
 | PROMPT_REFERENCES.md | `/DOCS/PROMPT_REFERENCES.md` | 2026-01-31 | ✅ Current | v1.8.0 - Document scope and sources; prompt catalog |
 | bug_tracker.md | `/DOCS/bugtracker/bug_tracker.md` | 2026-01-31 | ✅ Synced | v3.2.2 - Matches main branch |
 | FEATURES.md | `/DOCS/FEATURES.md` | 2026-01-31 | ✅ Synced | v3.3.13 - Last Updated Jan 31 |
-| README.md | `/DOCS/README.md` | 2026-01-31 | ✅ Synced | Key docs and claude.md link |
+| README.md | `/DOCS/README.md` | 2026-01-31 | ✅ Synced | Key docs table with purpose and when to read |
+| claude.md | `/DOCS/claude.md` | 2026-01-31 | ✅ Synced | Relative DOCS/ paths; Current Architecture v3.3.13 |
 
 ### White Papers & Specifications
 
@@ -36,6 +56,18 @@ This document tracks all changes between the repository codebase and documentati
 ---
 
 ## Change Tracking Log
+
+### 2026-01-31 - Documentation & Configuration Manager role pass (universal prompt)
+
+**Action:** Applied the Documentation & Configuration Management Role (claude.md lines 196–242) across key docs: key documents guide with purpose and when to read, relative paths, onboarding alignment, traceability.
+
+**Updates:**
+- **README.md:** Key documents expanded to table with Purpose and When to read; added FEATURES.md, UI_UX.md; pointer to prompt/role definitions in claude.md.
+- **claude.md:** Quick Reference paths changed from absolute `/docs/` to relative `DOCS/`; added CONFIGURATION_MANAGEMENT.md and bugtracker/ to table; Core Documentation / Version Control / Backend / Bug Tracking locations changed from machine-specific paths to `DOCS/`; Current Architecture section version 3.2.4 → 3.3.13; backup-system paths made repo-relative.
+- **CONFIGURATION_MANAGEMENT.md:** New "Key documents for onboarding" subsection with entry points, purpose, when to read, and pointer to Documentation & Config Role in claude.md.
+- **ARCHITECTURE.md:** Key Achievements: added Phase Quiz/Phase Tab Consistency (v3.3.13).
+
+**Status:** ✅ Key docs aligned with role; onboarding and traceability improved.
 
 ### 2026-01-31 - Phase Quiz / Phase Tab sync (v3.3.13) – docs update
 

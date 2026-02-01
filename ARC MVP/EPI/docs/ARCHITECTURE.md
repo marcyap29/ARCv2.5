@@ -36,6 +36,7 @@ EPI (Evolving Personal Intelligence) is a Flutter-based intelligent journaling a
 - ✅ **LUMARA v3.2 Unified Prompt System (v3.2)**: Consolidated master prompt and user prompt into single unified prompt, eliminating duplication and override risk
 - ✅ **Adaptive Framework (v3.1)**: User-adaptive calibration system for SENTINEL and RIVET algorithms that automatically adjusts parameters based on journaling cadence (power user, frequent, weekly, sporadic)
 - ✅ **Export System Improvements (v3.2.3)**: Automatic first export (full backup of all files), sequential export numbering for clear tracking, and always-available full export option
+- ✅ **Phase Quiz/Phase Tab Consistency (v3.3.13)**: Quiz result persisted via UserPhaseService; Phase tab shows quiz phase when no regimes exist; rotating phase shape (AnimatedPhaseShape) alongside 3D constellation on Phase tab
 
 ### Current Version
 

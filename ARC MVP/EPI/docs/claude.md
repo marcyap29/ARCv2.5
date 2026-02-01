@@ -5,6 +5,7 @@
 **Current Branch:** `dev`
 
 ### Recent Updates (v3.3.13)
+- **Documentation & Configuration Manager role pass**: README key documents table (purpose, when to read); claude.md paths to relative DOCS/; CONFIGURATION_MANAGEMENT "Key documents for onboarding"; ARCHITECTURE Phase Quiz/Phase tab achievement; traceability via change log.
 - **Phase Quiz / Phase Tab Sync**: Phase Quiz V2 result now persisted via UserPhaseService; Phase tab shows quiz phase when no regimes exist; rotating phase shape (AnimatedPhaseShape) shown alongside 3D constellation on Phase tab. Docs updated (CHANGELOG, FEATURES, git, this file).
 - **UPDATE ALL DOCS**: Full documentation sync; Documentation & Configuration Management Role (universal prompt) in Quick Reference; CONFIGURATION_MANAGEMENT inventory and all key doc dates aligned to 2026-01-31.
 - **Response Length Architecture Refactor**: Response length now tied to Engagement Mode, not Persona. Persona applies density modifiers.
@@ -21,15 +22,15 @@
 
 | Document | Purpose | Path |
 |----------|---------|------|
-| **README.md** | Project overview | `/docs/README.md` |
-| **ARCHITECTURE.md** | System architecture | `/docs/ARCHITECTURE.md` |
-| **FEATURES.md** | Comprehensive features | `/docs/FEATURES.md` |
-| **UI_UX.md** | UI/UX documentation | `/docs/UI_UX.md` |
-| **CHANGELOG.md** | Version history | `/docs/CHANGELOG.md` |
-| **git.md** | Git history & commits | `/docs/git.md` |
-| **backend.md** | Backend architecture | `/docs/backend.md` |
-| **LUMARA_SETTINGS_EXPLAINED.md** | LUMARA settings details | `/docs/LUMARA_SETTINGS_EXPLAINED.md` |
-| **Engagement_Discipline.md** | Engagement mode docs | `/docs/Engagement_Discipline.md` |
+| **README.md** | Project overview and key documents | `DOCS/README.md` |
+| **ARCHITECTURE.md** | System architecture | `DOCS/ARCHITECTURE.md` |
+| **FEATURES.md** | Comprehensive features | `DOCS/FEATURES.md` |
+| **UI_UX.md** | UI/UX documentation | `DOCS/UI_UX.md` |
+| **CHANGELOG.md** | Version history | `DOCS/CHANGELOG.md` |
+| **git.md** | Git history & commits | `DOCS/git.md` |
+| **backend.md** | Backend architecture | `DOCS/backend.md` |
+| **CONFIGURATION_MANAGEMENT.md** | Docs inventory and change log | `DOCS/CONFIGURATION_MANAGEMENT.md` |
+| **bugtracker/** | Bug tracker (records and index) | `DOCS/bugtracker/` |
 | **Documentation & Config Role** | Universal prompt for docs/config manager | This file: section "Documentation & Configuration Management Role (Universal Prompt)" |
 
 ---
@@ -37,23 +38,22 @@
 ## Core Documentation
 
 ### 📖 EPI Documentation
-Main overview: `/Users/mymac/Software/Development/ARCv1.0/ARC MVP/EPI/docs/README.md`
-- Read to understand what the software does
+Main overview: `DOCS/README.md`
+- Read to understand what the software does and which docs to use when
 
 ### 🏗️ Architecture
-Adhere to: `/Users/mymac/Software/Development/ARCv1.0/ARC MVP/EPI/docs/ARCHITECTURE.md`
+Adhere to: `DOCS/ARCHITECTURE.md`
 - 5-module system (ARC, PRISM, MIRA, ECHO, AURORA)
 - Technical stack and data flow
-- **NEW**: Two-Stage Memory System (Context Selection + Polymeta)
+- Two-Stage Memory System (Context Selection + Polymeta)
 
 ### 📋 Features Guide
-Reference: `/Users/mymac/Software/Development/ARCv1.0/ARC MVP/EPI/docs/FEATURES.md`
+Reference: `DOCS/FEATURES.md`
 - All key features for context
 - Core capabilities and integrations
 
 ### 🎨 UI/UX Documentation
-Review before changes: `/Users/mymac/Software/Development/ARCv1.0/ARC MVP/EPI/docs/UI_UX.md`
-- Prevents reinventing the wheel
+Review before changes: `DOCS/UI_UX.md`
 - Current UI patterns and components
 
 ---
@@ -61,12 +61,12 @@ Review before changes: `/Users/mymac/Software/Development/ARCv1.0/ARC MVP/EPI/do
 ## Version Control
 
 ### 📝 Git History
-Location: `/Users/mymac/Software/Development/ARCv1.0/ARC MVP/EPI/docs/git.md`
+Location: `DOCS/git.md`
 - Key commits, pushes, merges
 - Branch structure and backup strategy
 
 ### 📜 Changelog
-Location: `/Users/mymac/Software/Development/ARCv1.0/ARC MVP/EPI/docs/CHANGELOG.md`
+Location: `DOCS/CHANGELOG.md`
 - Split into parts for manageability:
   - `CHANGELOG_part1.md` - December 2025 (v2.1.43 - v2.1.87)
   - `CHANGELOG_part2.md` - November 2025 (v2.1.28 - v2.1.42)
@@ -77,26 +77,25 @@ Location: `/Users/mymac/Software/Development/ARCv1.0/ARC MVP/EPI/docs/CHANGELOG.
 ## Backend & Infrastructure
 
 ### 🔧 Backend Documentation
-Location: `/Users/mymac/Software/Development/ARCv1.0/ARC MVP/EPI/docs/backend.md`
+Location: `DOCS/backend.md`
 
 ### Firebase Functions
-- Functions: `/Users/mymac/Software/Development/ARCv1.0/ARC MVP/EPI/functions`
-- Config: `/Users/mymac/Software/Development/ARCv1.0/.firebaserc`
-- Settings: `/Users/mymac/Software/Development/ARCv1.0/firebase.json`
+- Functions: repo root `functions/`
+- Config: `.firebaserc`; Settings: `firebase.json`
 
 ---
 
 ## Bug Tracking
 
 ### 🐛 Bugtracker
-Location: `/Users/mymac/Software/Development/ARCv1.0/ARC MVP/EPI/docs/bugtracker`
+Location: `DOCS/bugtracker/`
 - All bugs encountered and fixes
 - `bug_tracker.md` - Main tracker index
 - `records/` - Individual bug records (including recent fixes)
 
 ---
 
-## Current Architecture (v3.2.4)
+## Current Architecture (v3.3.13)
 
 ### Response Length System
 Response length is determined by **Engagement Mode** (primary driver), with **Persona** applying density modifiers:
@@ -1175,8 +1174,9 @@ The Git Backup & Change Intelligence System has been fully implemented and is no
 ### System Location
 
 ```
-/Users/mymac/Software/Development/ARCv1.0/.backup-system/
+<repo-root>/.backup-system/
 ```
+(Replace `<repo-root>` with the path to the EPI repository on your machine.)
 
 ### Core Components Delivered
 
@@ -1232,8 +1232,8 @@ The Git Backup & Change Intelligence System has been fully implemented and is no
 ### Quick Start
 
 ```bash
-# Navigate to repository
-cd "/Users/mymac/Software/Development/ARCv1.0"
+# Navigate to repository root
+cd /path/to/ARCv2.5  # or your EPI repo path
 
 # Run setup wizard (one-time)
 .backup-system/scripts/setup.sh
