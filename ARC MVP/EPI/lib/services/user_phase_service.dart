@@ -177,6 +177,7 @@ class UserPhaseService {
       
       final updatedProfile = userProfile.copyWith(
         onboardingCurrentSeason: newPhase,
+        currentPhase: newPhase,
       );
       
       Box<UserProfile> userBox;

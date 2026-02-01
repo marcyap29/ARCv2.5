@@ -20,6 +20,7 @@ import 'package:flutter/rendering.dart';
 import 'package:my_app/arc/arcform/share/arcform_share_composition_screen.dart';
 import 'package:my_app/arc/ui/timeline/widgets/current_phase_arcform_preview.dart';
 import 'package:my_app/models/phase_models.dart';
+import 'package:my_app/services/user_phase_service.dart';
 
 /// Simplified ARCForms view with 3D constellation renderer
 class SimplifiedArcformView3D extends StatefulWidget {
@@ -88,8 +89,9 @@ class _SimplifiedArcformView3DState extends State<SimplifiedArcformView3D> {
               currentPhase = mostRecentRegime.label.toString().split('.').last;
               print('DEBUG: No current ongoing regime, using most recent regime: $currentPhase');
             } else {
-              currentPhase = 'Discovery';
-              print('DEBUG: No regimes found, defaulting to Discovery');
+              // No regimes (e.g. right after phase quiz) - use UserProfile/quiz phase so display matches quiz result
+              currentPhase = await UserPhaseService.getCurrentPhase();
+              print('DEBUG: No regimes found, using phase from UserProfile/quiz: $currentPhase');
             }
           }
         } catch (e) {

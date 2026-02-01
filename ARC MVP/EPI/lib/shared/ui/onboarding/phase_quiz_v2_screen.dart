@@ -13,6 +13,7 @@ import 'package:my_app/chronicle/storage/changelog_repository.dart';
 import 'package:my_app/services/firebase_auth_service.dart';
 import 'package:my_app/shared/ui/onboarding/widgets/quiz_question_card.dart';
 import 'package:my_app/shared/ui/onboarding/onboarding_complete_screen.dart';
+import 'package:my_app/services/user_phase_service.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
 
@@ -233,7 +234,14 @@ class _PhaseQuizV2ScreenState extends State<PhaseQuizV2Screen> {
         userId: userId,
         answers: _answers,
       );
-      
+
+      // Persist quiz phase so main app and Phase tab show the same phase
+      final phaseFromQuiz = result.profile.currentPhase;
+      if (phaseFromQuiz != null && phaseFromQuiz.isNotEmpty) {
+        final capitalizedPhase = phaseFromQuiz.substring(0, 1).toUpperCase() + phaseFromQuiz.substring(1).toLowerCase();
+        await UserPhaseService.forceUpdatePhase(capitalizedPhase);
+      }
+
       // Navigate to completion screen
       if (mounted) {
         Navigator.of(context).pushReplacement(

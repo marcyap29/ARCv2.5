@@ -22,6 +22,8 @@ import 'package:my_app/shared/ui/settings/settings_view.dart';
 import 'package:my_app/prism/atlas/rivet/rivet_models.dart';
 import 'package:my_app/prism/atlas/rivet/rivet_service.dart';
 import 'package:my_app/arc/ui/arcforms/phase_recommender.dart';
+import 'package:my_app/services/user_phase_service.dart';
+import 'package:my_app/ui/splash/animated_phase_shape.dart';
 
 class PhaseAnalysisView extends StatefulWidget {
   const PhaseAnalysisView({super.key});
@@ -42,6 +44,9 @@ class _PhaseAnalysisViewState extends State<PhaseAnalysisView> {
   // Trend data - calculated during load, displayed in card
   String? _approachingPhase;
   int _trendPercent = 0;
+
+  /// When there are no phase regimes (e.g. right after onboarding), use phase from UserProfile/quiz
+  String? _phaseFromUserProfile;
 
   @override
   void initState() {
@@ -90,6 +95,12 @@ class _PhaseAnalysisViewState extends State<PhaseAnalysisView> {
       
       final currentRegime = _phaseIndex?.currentRegime;
       final currentPhaseName = currentRegime != null ? _getPhaseLabelName(currentRegime.label) : 'none';
+      if (_phaseIndex?.allRegimes.isEmpty ?? true) {
+        _phaseFromUserProfile = await UserPhaseService.getCurrentPhase();
+        print('DEBUG: _loadPhaseData - No regimes, phase from UserProfile/quiz: $_phaseFromUserProfile');
+      } else {
+        _phaseFromUserProfile = null;
+      }
       print('DEBUG: _loadPhaseData - Current phase determined: $currentPhaseName (ID: ${currentRegime?.id})');
 
       // Check if there's a pending analysis result from ARCX import
@@ -1567,7 +1578,7 @@ List<PhaseSegmentProposal> proposals,
 
   /// Build arcform content widget
   Widget _buildArcformContent() {
-    // Get current phase - prioritize currentRegime, fallback to most recent regime
+    // Get current phase - prioritize currentRegime, then most recent regime, then UserProfile/quiz (e.g. right after onboarding)
     String? currentPhaseName;
     if (_phaseIndex?.currentRegime != null) {
       currentPhaseName = _getPhaseLabelName(_phaseIndex!.currentRegime!.label);
@@ -1575,21 +1586,58 @@ List<PhaseSegmentProposal> proposals,
       // No current ongoing regime, use most recent one
       final sortedRegimes = List.from(_phaseIndex!.allRegimes)..sort((a, b) => b.start.compareTo(a.start));
       currentPhaseName = _getPhaseLabelName(sortedRegimes.first.label);
+    } else {
+      // No regimes at all (e.g. right after phase quiz) - use phase from UserProfile/quiz so Phase tab matches quiz result
+      currentPhaseName = _phaseFromUserProfile;
     }
-    
+
     // Create a unique key that includes both the regime ID and phase name
     final regimeId = _phaseIndex?.currentRegime?.id ?? 'none';
-    final phaseName = currentPhaseName ?? 'none';
+    final phaseName = currentPhaseName ?? 'Discovery';
     final uniqueKey = 'arcform_${regimeId}_$phaseName';
-    
-    return SimplifiedArcformView3D(
-      key: ValueKey(uniqueKey),
-      currentPhase: currentPhaseName,
-      footerWidgets: [
-        // Phase Transition Readiness card
-        _buildPhaseTransitionReadinessCard(currentPhaseName),
-        // Simpler Most Aligned Phase card - no async, no CustomPaint
-        _buildSimpleMostAlignedCard(currentPhaseName),
+
+    // Rotating phase shape (same as phase reveal) alongside the detailed 3D constellation
+    final rotatingPhaseWidget = Container(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          AnimatedPhaseShape(
+            phase: phaseName,
+            size: 100,
+            rotationDuration: const Duration(seconds: 15),
+          ),
+          const SizedBox(width: 16),
+          Flexible(
+            child: Text(
+              phaseName,
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                color: Theme.of(context).colorScheme.onSurface,
+                fontWeight: FontWeight.w600,
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
+    );
+
+    return Column(
+      key: const ValueKey('phase_tab_column'),
+      children: [
+        rotatingPhaseWidget,
+        Expanded(
+          child: SimplifiedArcformView3D(
+            key: ValueKey(uniqueKey),
+            currentPhase: currentPhaseName,
+            footerWidgets: [
+              // Phase Transition Readiness card
+              _buildPhaseTransitionReadinessCard(currentPhaseName),
+              // Simpler Most Aligned Phase card - no async, no CustomPaint
+              _buildSimpleMostAlignedCard(currentPhaseName),
+            ],
+          ),
+        ),
       ],
     );
   }

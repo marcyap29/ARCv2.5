@@ -396,6 +396,8 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 - **Past Phases Section**: Most recent past instance of each distinct phase
 - **Example Phases Section**: Demo phases for user exploration
 - **Scrollable Content**: Entire tab scrolls together
+- **Phase Quiz Consistency** (v3.3.13): Phase selected in onboarding Phase Quiz V2 is persisted and shown on the Phase tab when no phase regimes exist yet (e.g. right after onboarding); main app and Phase tab match the quiz result.
+- **Rotating Phase Shape**: The same rotating phase wireframe (AnimatedPhaseShape) from the phase reveal is shown alongside the detailed 3D constellation on the Phase tab, with phase name label.
 
 **Phase Analysis**
 - **RIVET Sweep**: Automated phase detection with sophisticated analysis

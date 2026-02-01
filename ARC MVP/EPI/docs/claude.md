@@ -1,10 +1,11 @@
 # EPI Documentation Context Guide
 
-**Version:** 3.2.5
+**Version:** 3.3.13
 **Last Updated:** January 31, 2026
 **Current Branch:** `dev`
 
-### Recent Updates (v3.2.5)
+### Recent Updates (v3.3.13)
+- **Phase Quiz / Phase Tab Sync**: Phase Quiz V2 result now persisted via UserPhaseService; Phase tab shows quiz phase when no regimes exist; rotating phase shape (AnimatedPhaseShape) shown alongside 3D constellation on Phase tab. Docs updated (CHANGELOG, FEATURES, git, this file).
 - **UPDATE ALL DOCS**: Full documentation sync; Documentation & Configuration Management Role (universal prompt) in Quick Reference; CONFIGURATION_MANAGEMENT inventory and all key doc dates aligned to 2026-01-31.
 - **Response Length Architecture Refactor**: Response length now tied to Engagement Mode, not Persona. Persona applies density modifiers.
 - **Phase Intelligence Integration**: Documented two-stage memory system (Context Selection + Polymeta)

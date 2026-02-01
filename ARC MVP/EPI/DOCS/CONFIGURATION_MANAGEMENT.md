@@ -19,7 +19,7 @@ This document tracks all changes between the repository codebase and documentati
 | Document | Location | Last Reviewed | Status | Notes |
 |----------|----------|---------------|--------|-------|
 | ARCHITECTURE.md | `/DOCS/ARCHITECTURE.md` | 2026-01-31 | ✅ Synced | v3.3.7 - Last Updated Jan 31 |
-| CHANGELOG.md | `/DOCS/CHANGELOG.md` | 2026-01-31 | ✅ Synced | v3.3.13 - iOS folder verification fix |
+| CHANGELOG.md | `/DOCS/CHANGELOG.md` | 2026-01-31 | ✅ Synced | v3.3.13 - Phase Quiz/Phase tab sync, rotating phase; iOS folder verification |
 | PROMPT_REFERENCES.md | `/DOCS/PROMPT_REFERENCES.md` | 2026-01-31 | ✅ Current | v1.8.0 - Document scope and sources; prompt catalog |
 | bug_tracker.md | `/DOCS/bugtracker/bug_tracker.md` | 2026-01-31 | ✅ Synced | v3.2.2 - Matches main branch |
 | FEATURES.md | `/DOCS/FEATURES.md` | 2026-01-31 | ✅ Synced | v3.3.13 - Last Updated Jan 31 |
@@ -36,6 +36,19 @@ This document tracks all changes between the repository codebase and documentati
 ---
 
 ## Change Tracking Log
+
+### 2026-01-31 - Phase Quiz / Phase Tab sync (v3.3.13) – docs update
+
+**Action:** Document Phase Quiz result persistence, Phase tab fallback to quiz phase when no regimes, and rotating phase shape on Phase tab.
+
+**Updates:**
+- **CHANGELOG.md:** New entry for Phase Quiz/Phase tab sync and rotating phase on Phase tab (files modified, methodology).
+- **FEATURES.md:** Phase Tab section: Phase Quiz Consistency and Rotating Phase Shape bullets.
+- **git.md:** Status and Key Development Phases (January 31, 2026) updated.
+- **claude.md:** Version 3.2.5 → 3.3.13; Recent Updates (v3.3.13) for Phase Quiz/Phase Tab sync.
+- **CONFIGURATION_MANAGEMENT.md:** CHANGELOG inventory note updated.
+
+**Status:** ✅ Docs reflect Phase Quiz persistence and Phase tab behavior.
 
 ### 2026-01-31 - UPDATE ALL DOCS
 
