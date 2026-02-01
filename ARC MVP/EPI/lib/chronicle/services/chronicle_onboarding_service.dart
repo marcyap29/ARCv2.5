@@ -359,10 +359,10 @@ class ChronicleOnboardingService {
         }
       }
       
-      // Save entries to journal repository
+      // Save entries to journal repository (pass userId so Layer 0 is keyed correctly)
       for (int i = 0; i < entries.length; i++) {
         try {
-          await _journalRepo.createJournalEntry(entries[i]);
+          await _journalRepo.createJournalEntry(entries[i], userId: userId);
           result.processedEntries++;
           onProgress?.call(result.processedEntries, entries.length);
         } catch (e) {

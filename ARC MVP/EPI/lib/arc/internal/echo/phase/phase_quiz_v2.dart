@@ -192,7 +192,7 @@ class PhaseQuizV2 {
     );
     
     // 4. Save entry (triggers Layer 0 population via JournalRepository)
-    await _journalRepo.createJournalEntry(entry);
+    await _journalRepo.createJournalEntry(entry, userId: userId);
     
     // 5. Trigger immediate CHRONICLE synthesis
     final currentMonth = '${now.year}-${now.month.toString().padLeft(2, '0')}';

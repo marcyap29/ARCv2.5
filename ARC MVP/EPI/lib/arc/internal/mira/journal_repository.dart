@@ -11,6 +11,7 @@ import 'package:my_app/data/models/media_item.dart';
 import 'package:my_app/state/journal_entry_state.dart';
 import 'package:my_app/chronicle/storage/layer0_repository.dart';
 import 'package:my_app/chronicle/storage/layer0_populator.dart';
+import 'package:my_app/services/firebase_auth_service.dart';
 
 /// Self-initializing repository with consistent box name.
 /// No external init() needed.
@@ -141,7 +142,9 @@ class JournalRepository {
   }
 
   // Create
-  Future<void> createJournalEntry(JournalEntry entry) async {
+  /// [userId] Optional. Used for CHRONICLE Layer 0 population. If omitted, uses
+  /// current Firebase user uid when available, otherwise 'default_user'.
+  Future<void> createJournalEntry(JournalEntry entry, {String? userId}) async {
     print('🔍 JournalRepository: Creating journal entry with ID: ${entry.id}');
     print('🔍 JournalRepository: Entry content: ${entry.content}');
     print('🔍 JournalRepository: Entry media count: ${entry.media.length}');
@@ -188,7 +191,7 @@ class JournalRepository {
       print('🔍 JournalRepository: Successfully saved entry ${entry.id} to database');
       
       // Populate Layer 0 for CHRONICLE (if enabled)
-      _populateLayer0IfEnabled(entry);
+      _populateLayer0IfEnabled(entry, userId);
       
       // Verify the entry was saved
       final savedEntry = box.get(entry.id);
@@ -887,8 +890,9 @@ class JournalRepository {
   /// Populate Layer 0 for CHRONICLE (if enabled)
   /// 
   /// This is called after journal entry save to populate Layer 0.
-  /// Uses lazy initialization to avoid breaking if CHRONICLE isn't fully set up yet.
-  Future<void> _populateLayer0IfEnabled(JournalEntry entry) async {
+  /// [userId] When provided (e.g. by PhaseQuizV2), used for Layer 0. Otherwise
+  /// uses current Firebase user uid or 'default_user' so synthesis finds entries.
+  Future<void> _populateLayer0IfEnabled(JournalEntry entry, String? userIdParam) async {
     try {
       // Lazy initialization
       if (!_layer0Initialized) {
@@ -906,10 +910,9 @@ class JournalRepository {
       }
 
       if (_layer0Populator != null) {
-        // TODO: Get actual user ID - for now use a default
-        // In production, this should come from FirebaseAuthService or similar
-        const userId = 'default_user'; // Will be replaced with actual user ID
-        
+        final userId = userIdParam ??
+            FirebaseAuthService.instance.currentUser?.uid ??
+            'default_user';
         await _layer0Populator!.populateFromJournalEntry(
           journalEntry: entry,
           userId: userId,
