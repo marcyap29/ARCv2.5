@@ -20,6 +20,7 @@ import 'package:my_app/ui/subscription/subscription_management_view.dart';
 import 'package:my_app/services/firebase_auth_service.dart';
 import 'package:my_app/shared/ui/settings/verify_backup_screen.dart';
 import 'package:my_app/shared/ui/settings/local_backup_settings_view.dart';
+import 'package:my_app/shared/ui/settings/google_drive_settings_view.dart';
 import 'package:my_app/shared/ui/settings/import_status_screen.dart';
 import 'package:my_app/shared/ui/settings/temporal_notification_settings_view.dart';
 import 'package:my_app/shared/ui/settings/chronicle_management_view.dart';
@@ -584,6 +585,22 @@ class _SettingsViewState extends State<SettingsView> {
                       context,
                       MaterialPageRoute(
                         builder: (context) => LocalBackupSettingsView(
+                          journalRepo: context.read<JournalRepository>(),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                _buildSettingsTile(
+                  context,
+                  title: 'Google Drive',
+                  subtitle: 'Connect with OAuth to export and import backups to your Drive',
+                  icon: Icons.cloud,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => GoogleDriveSettingsView(
                           journalRepo: context.read<JournalRepository>(),
                         ),
                       ),
