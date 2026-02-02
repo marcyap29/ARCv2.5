@@ -12,28 +12,26 @@
 This is the master index for the EPI MVP Bug Tracker system. The bugtracker has been consolidated from multiple historical sources into a standardized, versioned, multi-part documentation system.
 
 ### Consolidation Statistics
-- **Total Bug Entries**: 150+ bugs consolidated
-- **Historical Sources Processed**: 13 legacy bugtracker files
-- **Individual Records**: 27 detailed bug reports
-- **Changelog Integration**: 3 parts covering v2.0.0 - v2.1.86
-- **Total Lines Consolidated**: 7,809 lines
-- **Archive Depth**: January 2025 - December 2025
+- **Total Bug Entries**: 150+ bugs consolidated from historical sources
+- **Individual Records**: 28 detailed bug reports in [records/](records/)
+- **Primary Index**: [bug_tracker.md](bug_tracker.md) (category index + links to all records)
+- **Changelog-Style Parts**: bug_tracker_part1/2/3.md (by date range)
+- **Archive**: Legacy files in [archive/](archive/)
 
 ---
 
 ## Document Structure
 
-The consolidated bugtracker is organized into parts for optimal navigation and maintenance:
+The consolidated bugtracker is organized for navigation and maintenance. **Primary entry point:** [bug_tracker.md](bug_tracker.md) (index by category + links to individual records).
 
-| Document | Coverage | Line Est. | Status |
-|----------|----------|-----------|--------|
-| **[BUG_TRACKER_PART1_CRITICAL.md](BUG_TRACKER_PART1_CRITICAL.md)** | Critical & High Priority Bugs | ~800 | ✅ Active |
-| **[BUG_TRACKER_PART2_LUMARA.md](BUG_TRACKER_PART2_LUMARA.md)** | LUMARA System Bugs | ~700 | ✅ Active |
-| **[BUG_TRACKER_PART3_EXPORT_IMPORT.md](BUG_TRACKER_PART3_EXPORT_IMPORT.md)** | Export/Import System Bugs | ~600 | ✅ Active |
-| **[BUG_TRACKER_PART4_UI_UX.md](BUG_TRACKER_PART4_UI_UX.md)** | UI/UX & Timeline Bugs | ~650 | ✅ Active |
-| **[BUG_TRACKER_PART5_DATA_STORAGE.md](BUG_TRACKER_PART5_DATA_STORAGE.md)** | Data & Storage Bugs | ~550 | ✅ Active |
-| **[BUG_TRACKER_PART6_FEATURES.md](BUG_TRACKER_PART6_FEATURES.md)** | Feature-Specific Bugs | ~600 | ✅ Active |
-| **[BUG_TRACKER_PART7_INFRASTRUCTURE.md](BUG_TRACKER_PART7_INFRASTRUCTURE.md)** | Infrastructure & Build Bugs | ~650 | ✅ Active |
+| Document | Coverage | Description |
+|----------|----------|-------------|
+| **[bug_tracker.md](bug_tracker.md)** | Main index | Category index (LUMARA, Timeline & UI, Export/Import, etc.) and links to all records in `records/`. Use this first. |
+| **[bug_tracker_part1.md](bug_tracker_part1.md)** | Dec 2025 | v2.1.43 - v2.1.60 (Recent) |
+| **[bug_tracker_part2.md](bug_tracker_part2.md)** | Nov 2025 | v2.1.27 - v2.1.42 |
+| **[bug_tracker_part3.md](bug_tracker_part3.md)** | Jan-Oct 2025 | v2.0.0 - v2.1.26 & Earlier |
+| **[BUG_TRACKER_PART1_CRITICAL.md](BUG_TRACKER_PART1_CRITICAL.md)** | Critical & High | Critical & high-priority bugs (category view) |
+| **records/** | Individual bugs | 28+ detailed bug reports; linked from [bug_tracker.md](bug_tracker.md) |
 
 ---
 
@@ -79,17 +77,12 @@ All bugs are tagged with the following categories for easy filtering:
 - **Medium/Low**: All parts, filter by severity level
 
 ### By Component
-- **LUMARA Issues**: [BUG_TRACKER_PART2_LUMARA.md](BUG_TRACKER_PART2_LUMARA.md)
-- **Export/Import**: [BUG_TRACKER_PART3_EXPORT_IMPORT.md](BUG_TRACKER_PART3_EXPORT_IMPORT.md)
-- **UI/UX**: [BUG_TRACKER_PART4_UI_UX.md](BUG_TRACKER_PART4_UI_UX.md)
-- **Data/Storage**: [BUG_TRACKER_PART5_DATA_STORAGE.md](BUG_TRACKER_PART5_DATA_STORAGE.md)
-- **Features**: [BUG_TRACKER_PART6_FEATURES.md](BUG_TRACKER_PART6_FEATURES.md)
-- **Infrastructure**: [BUG_TRACKER_PART7_INFRASTRUCTURE.md](BUG_TRACKER_PART7_INFRASTRUCTURE.md)
+Use **[bug_tracker.md](bug_tracker.md)** — it lists all bugs by category (LUMARA, Timeline & UI, Export/Import, Data & Storage, API & Integration, Subscription, Feature-Specific) with direct links to each record in `records/`.
 
 ### By Date Range
-- **December 2025 - January 2026**: Part 1 Critical, Part 2 LUMARA (recent fixes)
-- **November 2025**: Parts 3-4 (export/import, UI/UX)
-- **January - October 2025**: Parts 5-7 (historical fixes)
+- **December 2025 - January 2026**: [bug_tracker_part1.md](bug_tracker_part1.md)
+- **November 2025**: [bug_tracker_part2.md](bug_tracker_part2.md)
+- **January - October 2025**: [bug_tracker_part3.md](bug_tracker_part3.md)
 
 ---
 
@@ -99,23 +92,23 @@ All bugs are tagged with the following categories for easy filtering:
 
 #### Memory Management
 - Search for: `#llama-cpp`, `#metal`, "memory crash", "malloc error"
-- Primary Location: [BUG_TRACKER_PART7_INFRASTRUCTURE.md](BUG_TRACKER_PART7_INFRASTRUCTURE.md)
+- Primary Location: [bug_tracker.md](bug_tracker.md) (Data & Storage / API & Integration) and [records/](records/)
 
 #### Permission Issues
 - Search for: `#ios`, "permission", "authorization", "Photos"
-- Primary Location: [BUG_TRACKER_PART1_CRITICAL.md](BUG_TRACKER_PART1_CRITICAL.md)
+- Primary Location: [BUG_TRACKER_PART1_CRITICAL.md](BUG_TRACKER_PART1_CRITICAL.md), [bug_tracker.md](bug_tracker.md) Export/Import & API sections
 
 #### Data Corruption
 - Search for: `#data-storage`, `#import`, "date preservation", "duplicate"
-- Primary Location: [BUG_TRACKER_PART5_DATA_STORAGE.md](BUG_TRACKER_PART5_DATA_STORAGE.md)
+- Primary Location: [bug_tracker.md](bug_tracker.md) (Data & Storage, Export/Import) and [records/](records/)
 
 #### API Integration
 - Search for: `#cloud-functions`, `#subscription`, "UNAUTHENTICATED", "Stripe"
-- Primary Locations: [BUG_TRACKER_PART1_CRITICAL.md](BUG_TRACKER_PART1_CRITICAL.md), [BUG_TRACKER_PART6_FEATURES.md](BUG_TRACKER_PART6_FEATURES.md)
+- Primary Locations: [BUG_TRACKER_PART1_CRITICAL.md](BUG_TRACKER_PART1_CRITICAL.md), [bug_tracker.md](bug_tracker.md) (API & Integration, Subscription)
 
 #### UI Rendering
 - Search for: `#ui-ux`, `#timeline`, "RenderFlex", "overflow", "NaN"
-- Primary Location: [BUG_TRACKER_PART4_UI_UX.md](BUG_TRACKER_PART4_UI_UX.md)
+- Primary Location: [bug_tracker.md](bug_tracker.md) (Timeline & UI) and [records/](records/)
 
 ---
 
@@ -158,10 +151,10 @@ All bugs are tagged with the following categories for easy filtering:
    - Use severity tags: `#critical`, `#high`, `#medium`, `#low`
    - Assign component tags (see category system above)
 
-2. **Select Target Document**
-   - Critical/High → Part 1 or relevant component part
-   - Component-specific → Relevant part 2-7
-   - General → Based on primary component affected
+2. **Select Target Location**
+   - Critical/High → BUG_TRACKER_PART1_CRITICAL.md or add a new record in `records/` and link from bug_tracker.md
+   - Component-specific → Add a new record in `records/` and add to the appropriate category in bug_tracker.md
+   - General → Add to bug_tracker.md index under the best-matching category and create record in `records/`
 
 3. **Apply Standardized Format**
    - Use mandatory BUG-[ID] structure (see format below)
