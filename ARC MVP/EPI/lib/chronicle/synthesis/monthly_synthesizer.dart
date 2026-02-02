@@ -40,6 +40,7 @@ class MonthlySynthesizer {
     final rawEntries = await _layer0Repo.getEntriesForMonth(userId, month);
     
     if (rawEntries.isEmpty) {
+      print('📊 MonthlySynthesizer: No entries for $month (run Backfill Layer 0 if you have journal entries)');
       throw Exception('No entries found for $month');
     }
 

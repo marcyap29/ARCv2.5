@@ -1,7 +1,7 @@
 # EPI ARC MVP - Changelog
 
-**Version:** 3.3.13
-**Last Updated:** January 31, 2026
+**Version:** 3.3.14
+**Last Updated:** February 2, 2026
 
 ---
 
@@ -14,6 +14,48 @@ This changelog has been split into parts for easier navigation:
 | **[CHANGELOG_part1.md](CHANGELOG_part1.md)** | Dec 2025 | v2.1.43 - v2.1.87 (Current) |
 | **[CHANGELOG_part2.md](CHANGELOG_part2.md)** | Nov 2025 | v2.1.28 - v2.1.42 |
 | **[CHANGELOG_part3.md](CHANGELOG_part3.md)** | Jan-Oct 2025 | v2.0.0 - v2.1.27 & Earlier |
+
+---
+
+## [3.3.14] - February 2, 2026
+
+### Settings & LUMARA
+
+- **LUMARA from chat:** Drawer "Settings" now opens **Settings → LUMARA** (LumaraFolderView) instead of the full LUMARA settings screen; users can tap "API & providers" for full setup.
+- **Settings structure:** Top-level **CHRONICLE** folder added (View CHRONICLE Layers, CHRONICLE Management). LUMARA and CHRONICLE folders moved above Health & Readiness. LUMARA folder includes new "API & providers" tile → LumaraSettingsScreen.
+- **Web access default:** LUMARA web access default changed from opt-in (false) to automatic (true) — LUMARA may use the web when needed.
+- **LUMARA settings screen:** Status card and Web Access card removed (settings simplified).
+
+### Voice notes (Ideas)
+
+- **VoiceNoteRepository:** Static broadcast added so any instance (e.g. saving from Voice Mode) notifies all `watch()` subscribers; Ideas list refreshes when saving from voice without reopening.
+
+### CHRONICLE
+
+- **Layer 0 backfill:** Re-populates entries when existing Layer 0 entry has different `userId` (e.g. `default_user`), not only when missing.
+- **MonthlySynthesizer:** Log when no entries for month: "No entries for … (run Backfill Layer 0 if you have journal entries)."
+
+### Google Drive backup & import
+
+- **GoogleDriveService:** `getOrCreateAppFolder()` now searches for existing "ARC Backups" folder to avoid duplicates. New `getOrCreateDatedSubfolder(date)` (yyyy-MM-dd) with in-memory cache so same-day uploads use one folder. New `listAllBackupFiles()` for Import from Drive (dated subfolders + root).
+- **GoogleDriveSettingsView:** Security-scoped access retained after folder pick so Upload works without re-picking (iOS/macOS). In-app sandbox detection (no security-scoped request for Documents/Support/Temp). Import backup list expandable; last upload-from-folder time persisted.
+
+### Local backup
+
+- **LocalBackupSettingsView:** iOS/macOS security-scoped access for backup folder when path is outside app sandbox; start/stop around backup and export operations. User message to re-select folder if access is needed. Helper `_isBackupPathInAppSandbox()`.
+
+#### Files modified
+
+- `lib/arc/chat/services/lumara_reflection_settings_service.dart` — Web access default true
+- `lib/arc/chat/ui/lumara_assistant_screen.dart` — Settings → LumaraFolderView; label "Settings"
+- `lib/arc/chat/ui/lumara_settings_screen.dart` — Remove Status card, Web Access card
+- `lib/arc/voice_notes/repositories/voice_note_repository.dart` — Static broadcast for watch() across instances
+- `lib/chronicle/services/chronicle_onboarding_service.dart` — Layer 0 re-populate when userId differs
+- `lib/chronicle/synthesis/monthly_synthesizer.dart` — Log when no entries for month
+- `lib/services/google_drive_service.dart` — Search app folder; dated subfolder + cache; listAllBackupFiles
+- `lib/shared/ui/settings/google_drive_settings_view.dart` — Retain security-scoped access; sandbox check; Import list; last upload time
+- `lib/shared/ui/settings/local_backup_settings_view.dart` — Security-scoped access for external backup path
+- `lib/shared/ui/settings/settings_view.dart` — CHRONICLE folder; LUMARA/CHRONICLE order; LumaraFolderView "API & providers"; ChronicleFolderView
 
 ---
 

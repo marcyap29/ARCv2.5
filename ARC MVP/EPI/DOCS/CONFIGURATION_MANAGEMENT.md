@@ -38,12 +38,12 @@ Prompt/role definitions: **Documentation & Configuration Management Role** in [c
 
 | Document | Location | Last Reviewed | Status | Notes |
 |----------|----------|---------------|--------|-------|
-| ARCHITECTURE.md | `/DOCS/ARCHITECTURE.md` | 2026-01-31 | ✅ Synced | v3.3.7 - Phase Quiz/Phase tab (v3.3.13) in Key Achievements |
-| CHANGELOG.md | `/DOCS/CHANGELOG.md` | 2026-01-31 | ✅ Synced | v3.3.13 - Phase Quiz/Phase tab; iOS folder verification; Wispr Flow cache fix |
+| ARCHITECTURE.md | `/DOCS/ARCHITECTURE.md` | 2026-02-02 | ✅ Synced | v3.3.14 - Settings & backup (Key Achievements); Last Updated Feb 2 |
+| CHANGELOG.md | `/DOCS/CHANGELOG.md` | 2026-02-02 | ✅ Synced | v3.3.14 - Settings/LUMARA, voice notes, CHRONICLE, Google Drive, local backup |
 | PROMPT_REFERENCES.md | `/DOCS/PROMPT_REFERENCES.md` | 2026-01-31 | ✅ Current | v1.8.0 - Document scope and sources; prompt catalog |
 | PROMPT_TRACKER.md | `/DOCS/PROMPT_TRACKER.md` | 2026-01-31 | ✅ Synced | v1.0.0 - Prompt change tracking; links to PROMPT_REFERENCES |
 | bug_tracker.md | `/DOCS/bugtracker/bug_tracker.md` | 2026-01-31 | ✅ Synced | v3.2.2 - 28 records; How to use; Recent code changes; Wispr Flow cache |
-| FEATURES.md | `/DOCS/FEATURES.md` | 2026-01-31 | ✅ Synced | v3.3.13 - Last Updated Jan 31 |
+| FEATURES.md | `/DOCS/FEATURES.md` | 2026-02-02 | ✅ Synced | v3.3.14 - Last Updated Feb 2 |
 | README.md | `/DOCS/README.md` | 2026-01-31 | ✅ Synced | Key docs table with purpose and when to read |
 | claude.md | `/DOCS/claude.md` | 2026-01-31 | ✅ Synced | Relative DOCS/ paths; Current Architecture v3.3.13 |
 | backend.md | `/DOCS/backend.md` | 2026-01-31 | ✅ Synced | v3.2 - Firebase, cloud functions, Last Updated Jan 31 |
@@ -60,6 +60,26 @@ Prompt/role definitions: **Documentation & Configuration Management Role** in [c
 ---
 
 ## Change Tracking Log
+
+### 2026-02-02 - Update docs for repo changes (v3.3.14); commit and push
+
+**Action:** Reviewed repo changes; updated CHANGELOG and CONFIGURATION_MANAGEMENT; commit all (code + docs) and push.
+
+**Repo changes documented:**
+- **LUMARA:** Web access default true; chat Settings → LumaraFolderView; Status/Web Access cards removed from LUMARA settings.
+- **Settings:** Top-level CHRONICLE folder; LUMARA/CHRONICLE order; LumaraFolderView "API & providers"; ChronicleFolderView.
+- **Voice notes:** VoiceNoteRepository static broadcast so Ideas list refreshes when saving from voice.
+- **CHRONICLE:** Layer 0 re-populate when userId differs; MonthlySynthesizer log when no entries.
+- **Google Drive:** Search app folder; dated subfolder + cache; listAllBackupFiles; security-scoped retention; Import list; last upload time.
+- **Local backup:** iOS/macOS security-scoped access for external backup path.
+
+**Doc updates:**
+- **CHANGELOG.md:** New [3.3.14] February 2, 2026 with all changes; Version/Last Updated set to 3.3.14 / Feb 2.
+- **CONFIGURATION_MANAGEMENT:** This change log entry; CHANGELOG and FEATURES Last Reviewed 2026-02-02.
+
+**Status:** ✅ Docs updated for v3.3.14; commit and push (code + docs).
+
+---
 
 ### 2026-02-02 - Documentation consolidation audit; fix bugtracker master index links
 

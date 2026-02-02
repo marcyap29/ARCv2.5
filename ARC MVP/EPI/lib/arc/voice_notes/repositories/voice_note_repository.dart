@@ -4,11 +4,17 @@ import '../models/voice_note.dart';
 
 /// Repository for managing voice notes (Ideas inbox).
 /// Provides CRUD operations and reactive streams for voice note data.
+/// Uses a static broadcast so that any instance (e.g. from VoiceModeScreen save)
+/// notifies all watch() subscribers (e.g. VoiceNotesView) when the box changes.
 class VoiceNoteRepository {
   final Box<VoiceNote> _box;
   
-  // Stream controller for reactive updates
+  // Stream controller for reactive updates (this instance)
   final _notesController = StreamController<List<VoiceNote>>.broadcast();
+
+  /// Static broadcast: when any repository instance modifies the box, all
+  /// watch() subscribers (from any instance) get an update so the list refreshes.
+  static final _boxChangeController = StreamController<void>.broadcast();
 
   VoiceNoteRepository(this._box);
 
@@ -19,12 +25,14 @@ class VoiceNoteRepository {
   Future<void> save(VoiceNote note) async {
     await _box.put(note.id, note);
     _notifyListeners();
+    _boxChangeController.add(null);
   }
 
   /// Update an existing voice note
   Future<void> update(VoiceNote note) async {
     await _box.put(note.id, note);
     _notifyListeners();
+    _boxChangeController.add(null);
   }
 
   /// Get a voice note by ID
@@ -56,6 +64,7 @@ class VoiceNoteRepository {
   Future<void> delete(String id) async {
     await _box.delete(id);
     _notifyListeners();
+    _boxChangeController.add(null);
   }
 
   /// Archive a voice note (soft delete)
@@ -64,6 +73,7 @@ class VoiceNoteRepository {
     if (note != null) {
       await _box.put(id, note.archive());
       _notifyListeners();
+      _boxChangeController.add(null);
     }
   }
 
@@ -73,6 +83,7 @@ class VoiceNoteRepository {
     if (note != null) {
       await _box.put(id, note.markConverted(entryId));
       _notifyListeners();
+      _boxChangeController.add(null);
     }
   }
 
@@ -83,6 +94,7 @@ class VoiceNoteRepository {
       final updatedTags = {...note.tags, ...newTags}.toList();
       await _box.put(id, note.copyWith(tags: updatedTags));
       _notifyListeners();
+      _boxChangeController.add(null);
     }
   }
 
@@ -93,6 +105,7 @@ class VoiceNoteRepository {
       final updatedTags = note.tags.where((t) => t != tag).toList();
       await _box.put(id, note.copyWith(tags: updatedTags));
       _notifyListeners();
+      _boxChangeController.add(null);
     }
   }
 
@@ -126,11 +139,27 @@ class VoiceNoteRepository {
     return _notesController.stream.map((_) => getAll(includeArchived: includeArchived));
   }
 
-  /// Stream that emits when any change occurs
+  /// Stream that emits when any change occurs (this instance or any other
+  /// instance writing to the same Hive box, e.g. VoiceModeScreen save).
   Stream<List<VoiceNote>> watch() {
     // Start with current data
     Future.microtask(() => _notifyListeners());
-    return _notesController.stream;
+    return Stream.multi((controller) {
+      final sub1 = _notesController.stream.listen(
+        controller.add,
+        onError: controller.addError,
+        onDone: () {},
+      );
+      final sub2 = _boxChangeController.stream.listen(
+        (_) => controller.add(getAll()),
+        onError: controller.addError,
+        onDone: () {},
+      );
+      controller.onCancel = () {
+        sub1.cancel();
+        sub2.cancel();
+      };
+    });
   }
 
   void _notifyListeners() {
@@ -146,6 +175,7 @@ class VoiceNoteRepository {
   Future<void> deleteAll() async {
     await _box.clear();
     _notifyListeners();
+    _boxChangeController.add(null);
   }
 
   /// Export all voice notes as a list of maps (for backup)

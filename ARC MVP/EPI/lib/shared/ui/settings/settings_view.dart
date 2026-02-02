@@ -14,6 +14,7 @@ import 'package:my_app/shared/ui/settings/health_readiness_view.dart';
 import 'package:my_app/arc/core/journal_repository.dart';
 import 'package:my_app/arc/chat/services/favorites_service.dart';
 import 'package:my_app/arc/chat/services/lumara_reflection_settings_service.dart';
+import 'package:my_app/arc/chat/ui/lumara_settings_screen.dart';
 import 'package:my_app/models/engagement_discipline.dart';
 import 'package:my_app/models/memory_focus_preset.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -98,7 +99,31 @@ class _SettingsViewState extends State<SettingsView> {
               ),
             ),
 
-            // 3. Advanced Settings (Admin only - marc.yap@orbitalai.net)
+            // 3. LUMARA Folder (above Health & Readiness)
+            _buildFolderTile(
+              context,
+              title: 'LUMARA',
+              subtitle: 'Customize your AI companion experience',
+              icon: Icons.auto_awesome,
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const LumaraFolderView()),
+              ),
+            ),
+
+            // 4. CHRONICLE Folder (top-level, outside LUMARA)
+            _buildFolderTile(
+              context,
+              title: 'CHRONICLE',
+              subtitle: 'Temporal layers, synthesis, and export',
+              icon: Icons.history,
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const ChronicleFolderView()),
+              ),
+            ),
+
+            // 5. Advanced Settings (Admin only - marc.yap@orbitalai.net)
             if (isAdmin)
               _buildFolderTile(
                 context,
@@ -111,7 +136,7 @@ class _SettingsViewState extends State<SettingsView> {
                 ),
               ),
 
-            // 3a. Health & Readiness (Available to everyone by default)
+            // 6. Health & Readiness (Available to everyone by default)
             _buildFolderTile(
               context,
               title: 'Health & Readiness',
@@ -123,19 +148,7 @@ class _SettingsViewState extends State<SettingsView> {
               ),
             ),
 
-            // 4. LUMARA Folder
-            _buildFolderTile(
-              context,
-              title: 'LUMARA',
-              subtitle: 'Customize your AI companion experience',
-              icon: Icons.auto_awesome,
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const LumaraFolderView()),
-              ),
-            ),
-
-            // 5. Bug Reporting Folder
+            // 7. Bug Reporting Folder
             _buildFolderTile(
               context,
               title: 'Bug Reporting',
@@ -147,7 +160,7 @@ class _SettingsViewState extends State<SettingsView> {
               ),
             ),
 
-            // 6. Privacy & Security Folder
+            // 8. Privacy & Security Folder
             _buildFolderTile(
               context,
               title: 'Privacy & Security',
@@ -746,6 +759,67 @@ class ImportExportFolderView extends StatelessWidget {
 }
 
 // ============================================================================
+// FOLDER: CHRONICLE (top-level, outside LUMARA)
+// ============================================================================
+class ChronicleFolderView extends StatelessWidget {
+  const ChronicleFolderView({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: kcBackgroundColor,
+      appBar: AppBar(
+        backgroundColor: kcBackgroundColor,
+        elevation: 0,
+        leading: const BackButton(color: kcPrimaryTextColor),
+        title: Text(
+          'CHRONICLE',
+          style: heading1Style(context).copyWith(
+            color: kcPrimaryTextColor,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        centerTitle: true,
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _SettingsTile(
+              title: 'View CHRONICLE Layers',
+              subtitle: 'Browse monthly, yearly, and multi-year temporal aggregations',
+              icon: Icons.history,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const ChronicleLayersViewer(),
+                  ),
+                );
+              },
+            ),
+            _SettingsTile(
+              title: 'CHRONICLE Management',
+              subtitle: 'Manual synthesis, export, and temporal aggregation controls',
+              icon: Icons.settings,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const ChronicleManagementView(),
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ============================================================================
 // FOLDER 3a: Health & Readiness (Available to everyone)
 // ============================================================================
 class HealthReadinessFolderView extends StatelessWidget {
@@ -1189,6 +1263,44 @@ class _LumaraFolderViewState extends State<LumaraFolderView> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Setup — AI provider, API keys, reflection, voice (one place for technical config)
+            Padding(
+              padding: const EdgeInsets.only(left: 4, bottom: 6),
+              child: Text(
+                'Setup',
+                style: bodyStyle(context).copyWith(
+                  color: kcSecondaryTextColor,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            _SettingsTile(
+              title: 'API & providers',
+              subtitle: 'AI provider, API keys, reflection, voice transcription',
+              icon: Icons.settings_applications,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const LumaraSettingsScreen(),
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 16),
+            // Preferences — how LUMARA behaves
+            Padding(
+              padding: const EdgeInsets.only(left: 4, bottom: 6),
+              child: Text(
+                'Preferences',
+                style: bodyStyle(context).copyWith(
+                  color: kcSecondaryTextColor,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
             _SettingsTile(
               title: 'LUMARA Favorites',
               subtitle: _favoritesCountLoaded
@@ -1235,44 +1347,6 @@ class _LumaraFolderViewState extends State<LumaraFolderView> {
                   context,
                   MaterialPageRoute(
                     builder: (context) => const TemporalNotificationSettingsView(),
-                  ),
-                );
-              },
-            ),
-            
-            const SizedBox(height: 24),
-            
-            // CHRONICLE Sub-section
-            Text(
-              'CHRONICLE',
-              style: heading2Style(context).copyWith(
-                color: kcPrimaryTextColor,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: 12),
-            _SettingsTile(
-              title: 'View CHRONICLE Layers',
-              subtitle: 'Browse monthly, yearly, and multi-year temporal aggregations',
-              icon: Icons.history,
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const ChronicleLayersViewer(),
-                  ),
-                );
-              },
-            ),
-            _SettingsTile(
-              title: 'CHRONICLE Management',
-              subtitle: 'Manual synthesis, export, and temporal aggregation controls',
-              icon: Icons.settings,
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const ChronicleManagementView(),
                   ),
                 );
               },

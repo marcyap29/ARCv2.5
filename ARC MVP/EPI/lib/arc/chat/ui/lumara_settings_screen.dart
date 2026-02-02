@@ -487,10 +487,6 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Status Overview
-            _buildStatusCard(theme),
-            const SizedBox(height: 24),
-
             // Context Scope Section
             _buildContextScopeCard(theme),
             const SizedBox(height: 24),
@@ -501,10 +497,6 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
 
             // Therapeutic Presence Section
             _buildTherapeuticPresenceCard(theme),
-            const SizedBox(height: 24),
-
-            // Web Access Section
-            _buildWebAccessCard(theme),
             const SizedBox(height: 24),
 
             // Provider Selection (includes download button) - Only for Pro/Paying users
@@ -712,114 +704,6 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
                 color: isActive 
                     ? theme.colorScheme.primary
                     : theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildStatusCard(ThemeData theme) {
-    final availableProviders = _apiConfig.getAvailableProviders();
-    final bestProvider = _apiConfig.getBestProvider();
-    
-    // Get current provider display name (show "Default" for Gemini)
-    final currentProviderName = bestProvider?.provider == LLMProvider.gemini 
-        ? 'Default' 
-        : (bestProvider?.name ?? 'None');
-    final currentProviderType = bestProvider?.isInternal == true ? 'Internal' : 'Cloud API';
-    
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.psychology, color: theme.colorScheme.primary),
-                const SizedBox(width: 8),
-                Text(
-                  'LUMARA Status',
-                  style: theme.textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Text('Current Provider: '),
-                const SizedBox(width: 4),
-                Expanded(
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Flexible(
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: bestProvider != null
-                                ? theme.colorScheme.primary.withOpacity(0.1)
-                                : theme.colorScheme.error.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: bestProvider != null
-                                  ? theme.colorScheme.primary
-                                  : theme.colorScheme.error,
-                              width: 1,
-                            ),
-                          ),
-                          child: Text(
-                            currentProviderName,
-                            style: TextStyle(
-                              color: bestProvider != null
-                                  ? theme.colorScheme.primary
-                                  : theme.colorScheme.error,
-                              fontWeight: FontWeight.bold,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: bestProvider != null
-                              ? theme.colorScheme.primary.withOpacity(0.1)
-                              : theme.colorScheme.error.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          currentProviderType,
-                          style: TextStyle(
-                            color: bestProvider != null
-                                ? theme.colorScheme.primary
-                                : theme.colorScheme.error,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text('Available Providers: ${availableProviders.length}'),
-            const SizedBox(height: 8),
-            Text(
-              bestProvider != null 
-                  ? 'LUMARA is ready to provide intelligent reflections on your journal entries.'
-                  : 'LUMARA is not available. Please configure a provider below.',
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: bestProvider != null 
-                    ? theme.colorScheme.onSurfaceVariant
-                    : theme.colorScheme.error,
               ),
             ),
           ],
@@ -2234,48 +2118,6 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
                 _saveReflectionSettings();
               },
             ),
-            _buildSliderTile(
-              theme,
-              title: 'Lookback Period',
-              subtitle: 'Years of history to search ($_lookbackYears years)',
-              value: _lookbackYears.toDouble(),
-              min: 1,
-              max: 10,
-              divisions: 9,
-              onChanged: (value) {
-                setState(() {
-                  _lookbackYears = value.round();
-                });
-                _saveReflectionSettings();
-              },
-            ),
-            _buildSliderTile(
-              theme,
-              title: 'Max Matches',
-              subtitle: 'Maximum number of similar entries to find ($_maxMatches)',
-              value: _maxMatches.toDouble(),
-              min: 1,
-              max: 20,
-              divisions: 19,
-              onChanged: (value) {
-                setState(() {
-                  _maxMatches = value.round();
-                });
-                _saveReflectionSettings();
-              },
-            ),
-            _buildSwitchTile(
-              theme,
-              title: 'Cross-Modal Awareness',
-              subtitle: 'Include photos, audio, and video in reflection analysis',
-              value: _crossModalEnabled,
-              onChanged: (value) {
-                setState(() {
-                  _crossModalEnabled = value;
-                });
-                _saveReflectionSettings();
-              },
-            ),
           ],
         ),
       ),
@@ -2459,94 +2301,6 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
                           ),
                         );
                       }).toList(),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildWebAccessCard(ThemeData theme) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(
-                  Icons.language,
-                  color: theme.colorScheme.primary,
-                  size: 24,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  'Web Access',
-                  style: theme.textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            _buildSwitchTile(
-              theme,
-              title: 'Enable Web Access',
-              subtitle: 'Allow LUMARA to search the web when information is not available in your personal data',
-              value: _webAccessEnabled,
-              onChanged: (value) {
-                setState(() {
-                  _webAccessEnabled = value;
-                });
-                _saveReflectionSettings();
-              },
-            ),
-            if (_webAccessEnabled) ...[
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.primaryContainer.withOpacity(0.3),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: theme.colorScheme.primaryContainer.withOpacity(0.5),
-                  ),
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Icon(
-                      Icons.info_outline,
-                      color: theme.colorScheme.primary,
-                      size: 18,
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Safety & Privacy',
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              fontWeight: FontWeight.w600,
-                              color: theme.colorScheme.primary,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'All web searches are filtered for safety and relevance. Sensitive content is automatically filtered. LUMARA prioritizes your personal data and only uses web access when necessary.',
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: theme.colorScheme.onSurfaceVariant,
-                              fontSize: 12,
-                            ),
                           ),
                         ],
                       ),

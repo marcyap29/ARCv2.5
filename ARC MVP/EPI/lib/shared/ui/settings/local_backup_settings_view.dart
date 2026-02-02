@@ -8,6 +8,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:accessing_security_scoped_resource/accessing_security_scoped_resource.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
 // TODO: Backup services not yet implemented
@@ -347,12 +348,35 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
     }
   }
   
-  bool _isRestrictedPath(String path) {
+  bool _isRestrictedPath(String pathStr) {
     // Check for iCloud Drive or other restricted paths
-    final lowerPath = path.toLowerCase();
-    return lowerPath.contains('icloud') || 
+    final lowerPath = pathStr.toLowerCase();
+    return lowerPath.contains('icloud') ||
            lowerPath.contains('clouddocs') ||
            lowerPath.contains('mobile documents');
+  }
+
+  /// True if [folderPath] is inside the app sandbox (Documents, Support, Temp).
+  /// External folders need security-scoped access on iOS/macOS.
+  Future<bool> _isBackupPathInAppSandbox(String folderPath) async {
+    try {
+      final normalizedPath = path.normalize(folderPath);
+      final appDoc = await getApplicationDocumentsDirectory();
+      final appSupport = await getApplicationSupportDirectory();
+      final temp = await getTemporaryDirectory();
+      final dirs = [
+        path.normalize(appDoc.path),
+        path.normalize(appSupport.path),
+        path.normalize(temp.path),
+      ];
+      for (final base in dirs) {
+        if (normalizedPath == base ||
+            normalizedPath.startsWith('$base${path.separator}')) {
+          return true;
+        }
+      }
+    } catch (_) {}
+    return false;
   }
 
   Future<void> _setBackupFormat(String format) async {
@@ -431,6 +455,50 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
       _backupPercentage = 0;
     });
 
+    // On iOS/macOS, acquire security-scoped access for folders outside the app sandbox
+    bool isAccessing = false;
+    if (Platform.isIOS || Platform.isMacOS) {
+      final inSandbox = await _isBackupPathInAppSandbox(_backupPath!);
+      if (!inSandbox) {
+        try {
+          final plugin = AccessingSecurityScopedResource();
+          isAccessing = await plugin.startAccessingSecurityScopedResourceWithFilePath(_backupPath!);
+          if (!isAccessing && mounted) {
+            setState(() {
+              _isBackingUp = false;
+              _backupProgress = '';
+              _backupPercentage = 0;
+            });
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                  'To use this folder, tap "Select Folder" to choose it again (grants access), then run the backup.',
+                ),
+                backgroundColor: Colors.orange,
+                duration: Duration(seconds: 5),
+              ),
+            );
+            return;
+          }
+        } catch (e) {
+          if (mounted) {
+            setState(() {
+              _isBackingUp = false;
+              _backupProgress = '';
+              _backupPercentage = 0;
+            });
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Could not access folder: $e'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+          return;
+        }
+      }
+    }
+
     try {
       final analyticsService = AnalyticsService();
       final rivetSweepService = RivetSweepService(analyticsService);
@@ -504,6 +572,12 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
         _showBackupErrorDialog(e.toString());
       }
     } finally {
+      if ((Platform.isIOS || Platform.isMacOS) && isAccessing) {
+        try {
+          final plugin = AccessingSecurityScopedResource();
+          await plugin.stopAccessingSecurityScopedResourceWithFilePath(_backupPath!);
+        } catch (_) {}
+      }
       if (mounted) {
         setState(() {
           _isBackingUp = false;
@@ -530,6 +604,50 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
       _backupProgress = 'Starting full backup...';
       _backupPercentage = 0;
     });
+
+    // On iOS/macOS, acquire security-scoped access for folders outside the app sandbox
+    bool isAccessing = false;
+    if (Platform.isIOS || Platform.isMacOS) {
+      final inSandbox = await _isBackupPathInAppSandbox(_backupPath!);
+      if (!inSandbox) {
+        try {
+          final plugin = AccessingSecurityScopedResource();
+          isAccessing = await plugin.startAccessingSecurityScopedResourceWithFilePath(_backupPath!);
+          if (!isAccessing && mounted) {
+            setState(() {
+              _isBackingUp = false;
+              _backupProgress = '';
+              _backupPercentage = 0;
+            });
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                  'To use this folder, tap "Select Folder" to choose it again (grants access), then run the backup.',
+                ),
+                backgroundColor: Colors.orange,
+                duration: Duration(seconds: 5),
+              ),
+            );
+            return;
+          }
+        } catch (e) {
+          if (mounted) {
+            setState(() {
+              _isBackingUp = false;
+              _backupProgress = '';
+              _backupPercentage = 0;
+            });
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Could not access folder: $e'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+          return;
+        }
+      }
+    }
 
     try {
       final analyticsService = AnalyticsService();
@@ -603,6 +721,12 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
         _showBackupErrorDialog(e.toString());
       }
     } finally {
+      if ((Platform.isIOS || Platform.isMacOS) && isAccessing) {
+        try {
+          final plugin = AccessingSecurityScopedResource();
+          await plugin.stopAccessingSecurityScopedResourceWithFilePath(_backupPath!);
+        } catch (_) {}
+      }
       if (mounted) {
         setState(() {
           _isBackingUp = false;
@@ -631,6 +755,50 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
       _backupProgress = 'Scanning export set...';
       _backupPercentage = 0;
     });
+
+    // On iOS/macOS, acquire security-scoped access for folders outside the app sandbox
+    bool isAccessing = false;
+    if (Platform.isIOS || Platform.isMacOS) {
+      final inSandbox = await _isBackupPathInAppSandbox(_backupPath!);
+      if (!inSandbox) {
+        try {
+          final plugin = AccessingSecurityScopedResource();
+          isAccessing = await plugin.startAccessingSecurityScopedResourceWithFilePath(_backupPath!);
+          if (!isAccessing && mounted) {
+            setState(() {
+              _isBackingUp = false;
+              _backupProgress = '';
+              _backupPercentage = 0;
+            });
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                  'To use this folder, tap "Select Folder" to choose it again (grants access), then run the backup.',
+                ),
+                backgroundColor: Colors.orange,
+                duration: Duration(seconds: 5),
+              ),
+            );
+            return;
+          }
+        } catch (e) {
+          if (mounted) {
+            setState(() {
+              _isBackingUp = false;
+              _backupProgress = '';
+              _backupPercentage = 0;
+            });
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Could not access folder: $e'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+          return;
+        }
+      }
+    }
 
     try {
       final analyticsService = AnalyticsService();
@@ -693,6 +861,12 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
     } catch (e) {
       if (mounted) _showBackupErrorDialog(e.toString());
     } finally {
+      if ((Platform.isIOS || Platform.isMacOS) && isAccessing) {
+        try {
+          final plugin = AccessingSecurityScopedResource();
+          await plugin.stopAccessingSecurityScopedResourceWithFilePath(_backupPath!);
+        } catch (_) {}
+      }
       if (mounted) {
         setState(() {
           _isBackingUp = false;
@@ -995,9 +1169,10 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
                           ),
                           const SizedBox(height: 12),
                           Text(
+                            'You can use a folder inside the app (below) or choose a folder elsewhere (e.g. On My iPhone) for storage.\n\n'
                             'Recommended: Use "On My iPhone" → "ARC" or "Documents" folder.\n\n'
                             'Avoid: iCloud Drive folders (they have restricted write permissions).\n\n'
-                            'Tip: Create a new folder in Files app first, then select it here.',
+                            'Tip: Create a new folder in Files app first, then select it here. If you use an external folder and the app was closed, select it again before backing up.',
                             style: bodyStyle(context).copyWith(
                               color: Colors.blue[100],
                               fontSize: 13,

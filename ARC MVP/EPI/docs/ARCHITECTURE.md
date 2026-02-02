@@ -1,7 +1,7 @@
 # EPI MVP - Architecture Overview
 
 **Version:** 3.3.7
-**Last Updated:** January 31, 2026
+**Last Updated:** February 2, 2026
 **Status:** ✅ Production Ready - MVP Fully Operational with Companion-First LUMARA, Simplified Settings, Health Integration, AssemblyAI v3, Web Access Safety, Correlation-Resistant PII Protection, Bible Reference Retrieval, Google Drive Backup, Temporal Notifications, Enhanced Incremental Backups, Automatic First Export, Sequential Export Numbering, Local Backup Services, and Timeline Pagination
 
 ---
@@ -37,6 +37,7 @@ EPI (Evolving Personal Intelligence) is a Flutter-based intelligent journaling a
 - ✅ **Adaptive Framework (v3.1)**: User-adaptive calibration system for SENTINEL and RIVET algorithms that automatically adjusts parameters based on journaling cadence (power user, frequent, weekly, sporadic)
 - ✅ **Export System Improvements (v3.2.3)**: Automatic first export (full backup of all files), sequential export numbering for clear tracking, and always-available full export option
 - ✅ **Phase Quiz/Phase Tab Consistency (v3.3.13)**: Quiz result persisted via UserPhaseService; Phase tab shows quiz phase when no regimes exist; rotating phase shape (AnimatedPhaseShape) alongside 3D constellation on Phase tab
+- ✅ **Settings & backup (v3.3.14)**: Top-level CHRONICLE folder; LUMARA from chat → Settings → LUMARA; web access default on; Google Drive dated subfolders and Import from Drive; local backup security-scoped access (iOS/macOS); voice notes Ideas list refresh across instances
 
 ### Current Version
 

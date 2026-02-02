@@ -83,7 +83,7 @@ class LumaraReflectionSettingsService {
   static const bool _defaultTherapeuticPresenceEnabled = true;
   static const int _defaultTherapeuticDepthLevel = 2;
   static const bool _defaultTherapeuticAutomaticMode = false;
-  static const bool _defaultWebAccessEnabled = false; // Opt-in by default
+  static const bool _defaultWebAccessEnabled = true; // Automatic by default — LUMARA may use the web when needed
   static const String _defaultLumaraPersona = 'auto'; // Auto-adapt by default
   
   // Response length defaults (simplified modes)
@@ -246,7 +246,7 @@ class LumaraReflectionSettingsService {
     await _prefs!.setBool(_keyTherapeuticAutomaticMode, value);
   }
 
-  /// Check if web access is enabled (default: false, opt-in)
+  /// Check if web access is enabled (default: true — LUMARA may use the web when needed)
   Future<bool> isWebAccessEnabled() async {
     await initialize();
     return _prefs!.getBool(_keyWebAccessEnabled) ?? _defaultWebAccessEnabled;

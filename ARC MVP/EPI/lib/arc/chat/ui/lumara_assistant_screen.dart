@@ -30,6 +30,7 @@ import '../services/favorites_service.dart';
 import 'package:my_app/shared/widgets/lumara_icon.dart';
 import '../data/models/lumara_favorite.dart';
 import 'package:my_app/shared/ui/settings/favorites_management_view.dart';
+import 'package:my_app/shared/ui/settings/settings_view.dart';
 import '../voice/audio_io.dart';
 import '../chat/chat_models.dart';
 import 'widgets/chat_navigation_drawer.dart';
@@ -426,7 +427,7 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
                   children: [
                     Icon(Icons.settings, size: 20),
                     SizedBox(width: 12),
-                    Text('LUMARA Settings'),
+                    Text('Settings'),
                   ],
                 ),
               ),
@@ -2032,16 +2033,10 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
     // Dismiss keyboard first
     _dismissKeyboard();
     
-    // Get the cubit instance to pass to settings
-    final cubit = context.read<LumaraAssistantCubit>();
-    
-    // Navigate directly to settings screen with the same cubit instance
+    // Open Settings → LUMARA (same as main Settings folder); user can tap "API & providers" for full setup
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (context) => BlocProvider<LumaraAssistantCubit>.value(
-          value: cubit,
-          child: const LumaraSettingsScreen(),
-        ),
+        builder: (context) => const LumaraFolderView(),
       ),
     );
   }

@@ -25,6 +25,10 @@ class GoogleDriveService {
   String? _currentAccountEmail;
   bool _initialized = false;
 
+  /// Cache of dated subfolder ID by date name (yyyy-MM-dd) so multiple uploads the same day
+  /// always use the same folder without relying on list eventual consistency.
+  final Map<String, String> _datedSubfolderIdByDateName = {};
+
   /// Drive API scope: only files the app creates or opens.
   static const String driveFileScope = 'https://www.googleapis.com/auth/drive.file';
 
@@ -70,6 +74,7 @@ class GoogleDriveService {
     await _googleSignIn?.signOut();
     _driveApi = null;
     _currentAccountEmail = null;
+    _datedSubfolderIdByDateName.clear();
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_kPrefSelectedFolderId);
   }
@@ -116,7 +121,8 @@ class GoogleDriveService {
     }
   }
 
-  /// Create or get the app backup folder. Returns folder ID.
+  /// Create or get the single "ARC Backups" folder. Looks for an existing folder by name first to avoid creating duplicates.
+  /// Returns folder ID.
   Future<String> getOrCreateAppFolder() async {
     _requireDriveApi();
     final existingId = await getSelectedFolderId();
@@ -125,15 +131,78 @@ class GoogleDriveService {
         await _driveApi!.files.get(existingId);
         return existingId;
       } catch (_) {
-        // Folder may have been deleted; fall through to create.
+        // Folder may have been deleted; fall through to search then create.
       }
     }
+    // Search for an existing "ARC Backups" folder (avoids duplicate folders).
+    try {
+      final response = await _driveApi!.files.list(
+        q: "name = '$_kDriveAppFolderName' and mimeType = 'application/vnd.google-apps.folder' and trashed = false",
+        pageSize: 10,
+        $fields: 'files(id,name)',
+      );
+      final files = response.files ?? [];
+      if (files.isNotEmpty) {
+        final id = files.first.id;
+        if (id != null && id.isNotEmpty) {
+          await setSelectedFolderId(id);
+          return id;
+        }
+      }
+    } catch (e) {
+      debugPrint('GoogleDriveService: search for ARC Backups folder: $e');
+    }
+    // No existing folder found; create one.
     final file = drive.File();
     file.name = _kDriveAppFolderName;
     file.mimeType = 'application/vnd.google-apps.folder';
     final created = await _driveApi!.files.create(file);
     await setSelectedFolderId(created.id);
     return created.id!;
+  }
+
+  /// Get or create a dated subfolder (yyyy-MM-dd) inside "ARC Backups". Returns the dated folder ID.
+  /// Always looks for an existing folder for that date first so multiple uploads the same day
+  /// go into the same folder (no duplicate same-day folders). Uses an in-memory cache so a
+  /// second upload in the same session reuses the folder even if Drive list hasn't updated yet.
+  Future<String> getOrCreateDatedSubfolder(DateTime date) async {
+    _requireDriveApi();
+    final dateName = _formatDateFolderName(date);
+    final cached = _datedSubfolderIdByDateName[dateName];
+    if (cached != null && cached.isNotEmpty) {
+      return cached;
+    }
+    final arcBackupsId = await getOrCreateAppFolder();
+    // Look for a folder created earlier today (or on this date) so we reuse it.
+    final response = await _driveApi!.files.list(
+      q: "'$arcBackupsId' in parents and name = '$dateName' and mimeType = 'application/vnd.google-apps.folder' and trashed = false",
+      pageSize: 5,
+      $fields: 'files(id,name)',
+    );
+    final files = response.files ?? [];
+    if (files.isNotEmpty) {
+      final id = files.first.id;
+      if (id != null && id.isNotEmpty) {
+        _datedSubfolderIdByDateName[dateName] = id;
+        return id;
+      }
+    }
+    // None found for this date; create one.
+    final folder = drive.File();
+    folder.name = dateName;
+    folder.mimeType = 'application/vnd.google-apps.folder';
+    folder.parents = [arcBackupsId];
+    final created = await _driveApi!.files.create(folder);
+    final createdId = created.id!;
+    _datedSubfolderIdByDateName[dateName] = createdId;
+    return createdId;
+  }
+
+  static String _formatDateFolderName(DateTime date) {
+    final y = date.year;
+    final m = date.month.toString().padLeft(2, '0');
+    final d = date.day.toString().padLeft(2, '0');
+    return '$y-$m-$d';
   }
 
   /// List files in the given folder (or app folder if [folderId] is null).
@@ -147,6 +216,49 @@ class GoogleDriveService {
       $fields: 'files(id,name,mimeType,size,modifiedTime,webContentLink)',
     );
     return response.files ?? [];
+  }
+
+  /// List all backup files (manifests, .arcx, .zip) from ARC Backups: from dated subfolders and any at root.
+  /// Used by Import from Drive so backups in dated folders (e.g. 2026-02-02) are shown.
+  Future<List<drive.File>> listAllBackupFiles({int pageSize = 200}) async {
+    _requireDriveApi();
+    final arcBackupsId = await getOrCreateAppFolder();
+    final allFiles = <drive.File>[];
+    final children = await listFiles(folderId: arcBackupsId, pageSize: 100);
+    for (final item in children) {
+      final mime = item.mimeType;
+      final name = item.name ?? '';
+      if (mime == 'application/vnd.google-apps.folder') {
+        // Dated subfolder: list its contents.
+        final id = item.id;
+        if (id != null) {
+          final subFiles = await listFiles(folderId: id, pageSize: 100);
+          for (final f in subFiles) {
+            final n = f.name ?? '';
+            if (n.endsWith('.arcx') || n.endsWith('.zip') ||
+                (n.startsWith('arc_backup_manifest_') && n.endsWith('.json'))) {
+              allFiles.add(f);
+            }
+          }
+        }
+      } else {
+        // File at root (e.g. old uploads before dated subfolders).
+        if (name.endsWith('.arcx') || name.endsWith('.zip') ||
+            (name.startsWith('arc_backup_manifest_') && name.endsWith('.json'))) {
+          allFiles.add(item);
+        }
+      }
+    }
+    // Sort by modifiedTime desc so newest first.
+    allFiles.sort((a, b) {
+      final aTime = a.modifiedTime;
+      final bTime = b.modifiedTime;
+      if (aTime == null && bTime == null) return 0;
+      if (aTime == null) return 1;
+      if (bTime == null) return -1;
+      return bTime.compareTo(aTime);
+    });
+    return allFiles;
   }
 
   /// Upload a local file to Drive in the given folder (or app folder if null).
@@ -190,6 +302,7 @@ class GoogleDriveService {
   }
 
   /// Upload arcx files in size order (smallest first), then upload a manifest.
+  /// Files are placed in a dated subfolder (yyyy-MM-dd) inside "ARC Backups".
   /// [arcxPaths] = paths to .arcx files; [manifestTimestamp] = ISO timestamp for manifest name.
   /// [onProgress] is called with (current, total, phase) after each upload.
   Future<void> uploadChunkedBackup({
@@ -199,6 +312,9 @@ class GoogleDriveService {
   }) async {
     _requireDriveApi();
     if (arcxPaths.isEmpty) return;
+
+    // Use today's dated subfolder inside ARC Backups (e.g. 2026-02-02).
+    final datedFolderId = await getOrCreateDatedSubfolder(DateTime.now());
 
     // Sort by file size ascending so smaller arcx files upload first.
     final pathsWithSize = <MapEntry<String, int>>[];
@@ -219,7 +335,7 @@ class GoogleDriveService {
       onProgress?.call(current, total, 'Uploading arcx ${current + 1}/$total');
       final file = File(p);
       final name = path.basename(p);
-      final fileId = await uploadFile(localFile: file, nameOverride: name);
+      final fileId = await uploadFile(localFile: file, folderId: datedFolderId, nameOverride: name);
       basenameToFileId[name] = fileId;
       current++;
       await Future.delayed(Duration.zero);
@@ -244,6 +360,7 @@ class GoogleDriveService {
       onProgress?.call(total, total, 'Uploading manifest');
       await uploadFile(
         localFile: File(manifestPath),
+        folderId: datedFolderId,
         nameOverride: manifestName,
       );
     } finally {

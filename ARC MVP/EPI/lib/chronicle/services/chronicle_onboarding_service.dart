@@ -68,13 +68,13 @@ class ChronicleOnboardingService {
       for (int i = 0; i < entries.length; i += batchSize) {
         final batch = entries.skip(i).take(batchSize).toList();
         
-        // Check which entries in this batch are already in Layer 0
+        // Check which entries need to be in Layer 0 (missing or wrong userId)
+        // Re-populate when existing entry has different userId (e.g. 'default_user')
         final batchToProcess = <JournalEntry>[];
         for (final entry in batch) {
           try {
-            // Check if entry exists in Layer 0 by trying to get it
             final existing = await _layer0Repo.getEntry(entry.id);
-            if (existing == null) {
+            if (existing == null || existing.userId != userId) {
               batchToProcess.add(entry);
             } else {
               existingEntryIds.add(entry.id);

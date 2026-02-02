@@ -23,6 +23,7 @@ import 'package:my_app/mira/store/mcp/import/mcp_pack_import_service.dart';
 import 'package:my_app/arc/ui/timeline/timeline_cubit.dart';
 import 'package:my_app/shared/ui/home/home_view.dart';
 import 'package:googleapis/drive/v3.dart' as drive;
+import 'package:intl/intl.dart';
 
 class GoogleDriveSettingsView extends StatefulWidget {
   final JournalRepository journalRepo;
@@ -41,6 +42,7 @@ class _GoogleDriveSettingsViewState extends State<GoogleDriveSettingsView> {
 
   // SharedPreferences key for persisting selected backup folder
   static const String _keyGoogleDriveSourceFolder = 'google_drive_source_folder';
+  static const String _keyLastUploadFromFolderAt = 'google_drive_last_upload_from_folder_at';
 
   bool _loading = true;
   bool _connecting = false;
@@ -50,18 +52,44 @@ class _GoogleDriveSettingsViewState extends State<GoogleDriveSettingsView> {
   bool _importing = false;
   List<drive.File> _driveFiles = [];
   bool _loadingFiles = false;
+
+  /// Whether the Import from Drive backup list is expanded (true) or collapsed (false).
+  bool _importListExpanded = false;
   
   // Upload from folder state
   String? _sourceFolder;
   List<FileSystemEntity> _sourceFiles = [];
   bool _uploadingFromFolder = false;
   String _uploadFolderProgress = '';
+  DateTime? _lastUploadFromFolderAt;
+
+  /// Path we're currently holding security-scoped access for (iOS/macOS only).
+  /// Retained after folder pick so Upload works without re-picking.
+  String? _securityScopedPath;
 
   @override
   void initState() {
     super.initState();
     _refreshConnection();
     _loadSourceFolder();
+  }
+
+  @override
+  void dispose() {
+    _releaseSecurityScopedAccess();
+    super.dispose();
+  }
+
+  /// Release security-scoped access for the path we're holding (iOS/macOS).
+  Future<void> _releaseSecurityScopedAccess() async {
+    if (_securityScopedPath == null) return;
+    if (Platform.isIOS || Platform.isMacOS) {
+      try {
+        final plugin = AccessingSecurityScopedResource();
+        await plugin.stopAccessingSecurityScopedResourceWithFilePath(_securityScopedPath!);
+      } catch (_) {}
+    }
+    _securityScopedPath = null;
   }
 
   Future<void> _loadSourceFolder() async {
@@ -72,6 +100,13 @@ class _GoogleDriveSettingsViewState extends State<GoogleDriveSettingsView> {
         final dir = Directory(savedPath);
         if (await dir.exists()) {
           await _scanSourceFolder(savedPath);
+        }
+      }
+      final lastUploadMs = prefs.getString(_keyLastUploadFromFolderAt);
+      if (lastUploadMs != null) {
+        final ms = int.tryParse(lastUploadMs);
+        if (ms != null && mounted) {
+          setState(() => _lastUploadFromFolderAt = DateTime.fromMillisecondsSinceEpoch(ms));
         }
       }
     } catch (e) {
@@ -86,8 +121,8 @@ class _GoogleDriveSettingsViewState extends State<GoogleDriveSettingsView> {
         // Persist the selected folder
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString(_keyGoogleDriveSourceFolder, selectedPath);
-        
-        await _scanSourceFolder(selectedPath);
+        // Retain security-scoped access so Upload works without re-picking (iOS/macOS)
+        await _scanSourceFolder(selectedPath, retainAccessForUpload: true);
         
         if (mounted && _sourceFiles.isNotEmpty) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -120,18 +155,53 @@ class _GoogleDriveSettingsViewState extends State<GoogleDriveSettingsView> {
     }
   }
 
-  Future<void> _scanSourceFolder(String folderPath) async {
-    // On iOS/macOS, sandbox requires security-scoped access to list a picked folder
+  /// True if [folderPath] is inside the app's sandbox (Documents, Support, Caches, Temp).
+  /// For in-app paths we already have access and must not use security-scoped resource.
+  Future<bool> _isPathInAppSandbox(String folderPath) async {
+    try {
+      final normalizedPath = path.normalize(folderPath);
+      final appDoc = await getApplicationDocumentsDirectory();
+      final appSupport = await getApplicationSupportDirectory();
+      final temp = await getTemporaryDirectory();
+      final dirs = [
+        path.normalize(appDoc.path),
+        path.normalize(appSupport.path),
+        path.normalize(temp.path),
+      ];
+      for (final base in dirs) {
+        if (normalizedPath == base ||
+            normalizedPath.startsWith('$base${path.separator}')) {
+          return true;
+        }
+      }
+    } catch (_) {}
+    return false;
+  }
+
+  /// [retainAccessForUpload] When true (e.g. after user picks folder), we keep
+  /// security-scoped access so Upload works without re-picking (iOS/macOS).
+  Future<void> _scanSourceFolder(String folderPath, {bool retainAccessForUpload = false}) async {
+    // On iOS/macOS, only request security-scoped access for paths *outside* the app sandbox.
+    // Paths inside app Documents/Support/Temp already have normal access.
     bool isAccessing = false;
     if (Platform.isIOS || Platform.isMacOS) {
-      try {
-        final plugin = AccessingSecurityScopedResource();
-        isAccessing = await plugin.startAccessingSecurityScopedResourceWithFilePath(folderPath);
-        if (!isAccessing) {
-          debugPrint('GoogleDriveSettingsView: Could not get security-scoped access to $folderPath');
+      final inSandbox = await _isPathInAppSandbox(folderPath);
+      if (!inSandbox) {
+        // Release previous path if we're selecting a different folder
+        if (_securityScopedPath != null && _securityScopedPath != folderPath) {
+          await _releaseSecurityScopedAccess();
         }
-      } catch (e) {
-        debugPrint('GoogleDriveSettingsView: startAccessingSecurityScopedResource error: $e');
+        try {
+          final plugin = AccessingSecurityScopedResource();
+          isAccessing = await plugin.startAccessingSecurityScopedResourceWithFilePath(folderPath);
+          if (!isAccessing) {
+            debugPrint('GoogleDriveSettingsView: Could not get security-scoped access to $folderPath');
+          } else if (retainAccessForUpload) {
+            _securityScopedPath = folderPath;
+          }
+        } catch (e) {
+          debugPrint('GoogleDriveSettingsView: startAccessingSecurityScopedResource error: $e');
+        }
       }
     }
 
@@ -188,7 +258,8 @@ class _GoogleDriveSettingsViewState extends State<GoogleDriveSettingsView> {
         });
       }
     } finally {
-      if ((Platform.isIOS || Platform.isMacOS) && isAccessing) {
+      // Only release access if we're not retaining it for upload (iOS/macOS).
+      if ((Platform.isIOS || Platform.isMacOS) && isAccessing && !retainAccessForUpload) {
         try {
           final plugin = AccessingSecurityScopedResource();
           await plugin.stopAccessingSecurityScopedResourceWithFilePath(folderPath);
@@ -233,47 +304,60 @@ class _GoogleDriveSettingsViewState extends State<GoogleDriveSettingsView> {
       _uploadFolderProgress = 'Preparing upload...';
     });
 
-    // On iOS/macOS, re-acquire security-scoped access so we can read the files during upload
+    // On iOS/macOS, use retained security-scoped access from folder pick, or request it if we don't have it (e.g. app restarted).
     bool isAccessing = false;
+    bool releaseAccessAfterUpload = false; // Only release when we started access in this method
     if (Platform.isIOS || Platform.isMacOS) {
-      try {
-        final plugin = AccessingSecurityScopedResource();
-        isAccessing = await plugin.startAccessingSecurityScopedResourceWithFilePath(_sourceFolder!);
-        if (!isAccessing) {
-          if (mounted) {
-            setState(() {
-              _uploadingFromFolder = false;
-              _uploadFolderProgress = '';
-            });
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text(
-                  'This folder needs permission to access. Tap "Browse" to select the folder again (this grants access), then tap Upload.',
+      final inSandbox = await _isPathInAppSandbox(_sourceFolder!);
+      if (!inSandbox) {
+        if (_securityScopedPath == _sourceFolder) {
+          // We already have access from when the user picked the folder; no need to start again.
+          isAccessing = true;
+        } else {
+          try {
+            final plugin = AccessingSecurityScopedResource();
+            isAccessing = await plugin.startAccessingSecurityScopedResourceWithFilePath(_sourceFolder!);
+            if (isAccessing) {
+              _securityScopedPath = _sourceFolder;
+              releaseAccessAfterUpload = true; // We started here; release after upload
+            }
+            if (!isAccessing) {
+              if (mounted) {
+                setState(() {
+                  _uploadingFromFolder = false;
+                  _uploadFolderProgress = '';
+                });
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text(
+                      'This folder needs permission to access. Tap "Browse" to select the folder again (this grants access), then tap Upload.',
+                    ),
+                    backgroundColor: Colors.orange,
+                    duration: Duration(seconds: 5),
+                  ),
+                );
+              }
+              return;
+            }
+          } catch (e) {
+            if (mounted) {
+              setState(() {
+                _uploadingFromFolder = false;
+                _uploadFolderProgress = '';
+              });
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: const Text(
+                    'Folder access was denied (system privacy). Tap "Browse" to select the folder again, then Upload.',
+                  ),
+                  backgroundColor: Colors.orange,
+                  duration: const Duration(seconds: 5),
                 ),
-                backgroundColor: Colors.orange,
-                duration: Duration(seconds: 5),
-              ),
-            );
+              );
+            }
+            return;
           }
-          return;
         }
-      } catch (e) {
-        if (mounted) {
-          setState(() {
-            _uploadingFromFolder = false;
-            _uploadFolderProgress = '';
-          });
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Text(
-                'Folder access was denied (system privacy). Tap "Browse" to select the folder again, then Upload.',
-              ),
-              backgroundColor: Colors.orange,
-              duration: const Duration(seconds: 5),
-            ),
-          );
-        }
-        return;
       }
     }
 
@@ -297,9 +381,13 @@ class _GoogleDriveSettingsViewState extends State<GoogleDriveSettingsView> {
       );
 
       if (mounted) {
+        final now = DateTime.now();
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString(_keyLastUploadFromFolderAt, '${now.millisecondsSinceEpoch}');
         setState(() {
           _uploadingFromFolder = false;
           _uploadFolderProgress = '';
+          _lastUploadFromFolderAt = now;
         });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -322,11 +410,9 @@ class _GoogleDriveSettingsViewState extends State<GoogleDriveSettingsView> {
         );
       }
     } finally {
-      if ((Platform.isIOS || Platform.isMacOS) && isAccessing) {
-        try {
-          final plugin = AccessingSecurityScopedResource();
-          await plugin.stopAccessingSecurityScopedResourceWithFilePath(_sourceFolder!);
-        } catch (_) {}
+      // Only release when we started access in this method (e.g. after app restart). Keep access when we had it from folder pick so user can upload again without re-picking.
+      if (releaseAccessAfterUpload) {
+        await _releaseSecurityScopedAccess();
       }
     }
   }
@@ -523,16 +609,10 @@ class _GoogleDriveSettingsViewState extends State<GoogleDriveSettingsView> {
     if (!_driveService.isSignedIn) return;
     setState(() => _loadingFiles = true);
     try {
-      final files = await _driveService.listFiles(pageSize: 50);
+      final files = await _driveService.listAllBackupFiles(pageSize: 200);
       if (mounted) {
         setState(() {
-          _driveFiles = files.where((f) {
-            final n = f.name;
-            if (n == null) return false;
-            return n.endsWith('.zip') ||
-                n.endsWith('.arcx') ||
-                (n.startsWith('arc_backup_manifest_') && n.endsWith('.json'));
-          }).toList();
+          _driveFiles = files;
           _loadingFiles = false;
         });
       }
@@ -792,6 +872,17 @@ class _GoogleDriveSettingsViewState extends State<GoogleDriveSettingsView> {
             'Select a local folder with existing backup files to upload to Google Drive.',
             style: bodyStyle(context).copyWith(color: kcSecondaryTextColor, fontSize: 12),
           ),
+          if (_lastUploadFromFolderAt != null) ...[
+            const SizedBox(height: 6),
+            Text(
+              'Last upload: ${DateFormat('MMM d, y • h:mm a').format(_lastUploadFromFolderAt!)}',
+              style: bodyStyle(context).copyWith(
+                color: kcSecondaryTextColor,
+                fontSize: 12,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ],
           const SizedBox(height: 8),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -807,7 +898,7 @@ class _GoogleDriveSettingsViewState extends State<GoogleDriveSettingsView> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'When you choose a folder outside the app, the system may require you to select it again before uploading. If you see an access message, tap "Browse" to re-select the folder, then Upload.',
+                    'For folders outside the app, access is kept after you pick the folder so Upload works. If you see an access message (e.g. after restarting the app), tap "Browse" to select the folder again, then Upload.',
                     style: bodyStyle(context).copyWith(
                       color: kcSecondaryTextColor,
                       fontSize: 11,
@@ -989,22 +1080,67 @@ class _GoogleDriveSettingsViewState extends State<GoogleDriveSettingsView> {
           ),
           if (_driveFiles.isNotEmpty) ...[
             const SizedBox(height: 12),
-            ..._driveFiles.map((f) {
-              final displayName = _displayNameForBackup(f);
-              final modified = f.modifiedTime != null ? _formatModifiedTime(f.modifiedTime!) : '';
-              final fid = f.id;
-              return ListTile(
-                contentPadding: EdgeInsets.zero,
-                title: Text(displayName, style: bodyStyle(context).copyWith(color: kcPrimaryTextColor)),
-                subtitle: modified.isNotEmpty ? Text(modified, style: bodyStyle(context).copyWith(color: kcSecondaryTextColor, fontSize: 12)) : null,
-                trailing: _importing
-                    ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2))
-                    : IconButton(
-                        icon: const Icon(Icons.download),
-                        onPressed: fid == null ? null : () => _importFromDrive(f),
+            // Collapsible header: folder row with caret and newest backup date
+            InkWell(
+              onTap: () => setState(() => _importListExpanded = !_importListExpanded),
+              borderRadius: BorderRadius.circular(8),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Row(
+                  children: [
+                    Icon(
+                      _importListExpanded ? Icons.expand_more : Icons.chevron_right,
+                      color: kcSecondaryTextColor,
+                      size: 24,
+                    ),
+                    const SizedBox(width: 4),
+                    Icon(Icons.folder, color: Colors.amber[700], size: 22),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Backups (${_driveFiles.length})',
+                            style: bodyStyle(context).copyWith(
+                              color: kcPrimaryTextColor,
+                              fontWeight: FontWeight.w500,
+                              fontSize: 14,
+                            ),
+                          ),
+                          Text(
+                            _newestBackupDateString(),
+                            style: bodyStyle(context).copyWith(
+                              color: kcSecondaryTextColor,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
                       ),
-              );
-            }),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            if (_importListExpanded) ...[
+              const SizedBox(height: 4),
+              ..._driveFiles.map((f) {
+                final displayName = _displayNameForBackup(f);
+                final modified = f.modifiedTime != null ? _formatModifiedTime(f.modifiedTime!) : '';
+                final fid = f.id;
+                return ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(displayName, style: bodyStyle(context).copyWith(color: kcPrimaryTextColor)),
+                  subtitle: modified.isNotEmpty ? Text(modified, style: bodyStyle(context).copyWith(color: kcSecondaryTextColor, fontSize: 12)) : null,
+                  trailing: _importing
+                      ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2))
+                      : IconButton(
+                          icon: const Icon(Icons.download),
+                          onPressed: fid == null ? null : () => _importFromDrive(f),
+                        ),
+                );
+              }),
+            ],
           ] else if (!_loadingFiles && _driveFiles.isEmpty && _accountEmail != null) ...[
             const SizedBox(height: 8),
             Text(
@@ -1031,5 +1167,15 @@ class _GoogleDriveSettingsViewState extends State<GoogleDriveSettingsView> {
     }
     if (modifiedTime is String) return modifiedTime.length > 10 ? modifiedTime.substring(0, 10) : modifiedTime;
     return '';
+  }
+
+  /// Formatted date for the newest backup in the list (list is ordered by modifiedTime desc).
+  String _newestBackupDateString() {
+    if (_driveFiles.isEmpty) return '';
+    final mt = _driveFiles.first.modifiedTime;
+    if (mt == null) return '';
+    final formatted = _formatModifiedTime(mt);
+    if (formatted.isEmpty) return '';
+    return 'Newest: $formatted';
   }
 }
