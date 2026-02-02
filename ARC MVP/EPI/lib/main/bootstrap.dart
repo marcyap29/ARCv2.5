@@ -25,6 +25,7 @@ import 'package:my_app/arc/chat/llm/bridge.pigeon.dart' as pigeon;
 import 'package:my_app/arc/chat/chat/chat_models.dart';
 import 'package:my_app/arc/chat/chat/chat_category_models.dart';
 import 'package:my_app/arc/chat/data/models/lumara_favorite.dart';
+import 'package:my_app/arc/voice_notes/models/voice_note.dart';
 import 'package:my_app/services/firebase_service.dart';
 import 'package:my_app/services/firebase_auth_service.dart';
 import 'package:my_app/services/health_data_refresh_service.dart';
@@ -257,6 +258,12 @@ Future<void> _registerHiveAdapters() async {
     if (!Hive.isAdapterRegistered(103)) {
       Hive.registerAdapter(InlineBlockAdapter());
       logger.d('✅ Registered InlineBlockAdapter (ID: 103)');
+    }
+    
+    // Voice notes for Ideas inbox (Progressive Voice Capture)
+    if (!Hive.isAdapterRegistered(120)) {
+      Hive.registerAdapter(VoiceNoteAdapter());
+      logger.d('✅ Registered VoiceNoteAdapter (ID: 120)');
     }
 
     // Run a one-time migration to persist legacy LUMARA blocks into the dedicated field

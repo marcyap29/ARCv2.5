@@ -21,6 +21,7 @@ import 'package:my_app/arc/arcform/share/arcform_share_composition_screen.dart';
 import 'package:my_app/arc/ui/timeline/widgets/current_phase_arcform_preview.dart';
 import 'package:my_app/models/phase_models.dart';
 import 'package:my_app/services/user_phase_service.dart';
+import 'package:my_app/shared/ui/onboarding/phase_quiz_v2_screen.dart';
 
 /// Simplified ARCForms view with 3D constellation renderer
 class SimplifiedArcformView3D extends StatefulWidget {
@@ -1019,28 +1020,60 @@ class _SimplifiedArcformView3DState extends State<SimplifiedArcformView3D> {
     }
   }
 
-  /// Build the Change Phase button
+  /// Build the Phase action buttons (Take Phase Quiz + Change Phase)
   Widget _buildChangePhaseButton(String currentPhase) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
-      child: OutlinedButton(
-        onPressed: () => _showChangePhaseDialog(currentPhase),
-        style: OutlinedButton.styleFrom(
-          foregroundColor: kcPrimaryColor,
-          backgroundColor: Colors.black,
-          side: BorderSide(color: kcPrimaryColor, width: 1.5),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          // Take Phase Quiz button
+          OutlinedButton.icon(
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const PhaseQuizV2Screen()),
+              );
+            },
+            icon: const Icon(Icons.quiz_outlined, size: 18),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: Colors.purple,
+              backgroundColor: Colors.black,
+              side: const BorderSide(color: Colors.purple, width: 1.5),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            ),
+            label: const Text(
+              'Phase Quiz',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
           ),
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-        ),
-        child: const Text(
-          'Change Phase',
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
+          const SizedBox(width: 12),
+          // Change Phase button
+          OutlinedButton(
+            onPressed: () => _showChangePhaseDialog(currentPhase),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: kcPrimaryColor,
+              backgroundColor: Colors.black,
+              side: BorderSide(color: kcPrimaryColor, width: 1.5),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            ),
+            child: const Text(
+              'Change Phase',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
           ),
-        ),
+        ],
       ),
     );
   }

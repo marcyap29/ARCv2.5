@@ -49,6 +49,16 @@ class WisprConfigService {
     return await _loadApiKey();
   }
 
+  /// True if the stored value looks like instructions instead of an API key
+  static bool _looksLikeInstructions(String key) {
+    if (key.length < 20) return true;
+    final lower = key.toLowerCase();
+    if (lower.contains('lumara') && lower.contains('settings')) return true;
+    if (lower.contains('tab') && lower.contains('->')) return true;
+    if (key.contains('"')) return true;
+    return false;
+  }
+
   /// Load API key from SharedPreferences
   Future<String?> _loadApiKey() async {
     try {
@@ -60,6 +70,12 @@ class WisprConfigService {
       if (apiKey == null || apiKey.isEmpty) {
         debugPrint('WisprConfigService: No user API key configured');
         debugPrint('WisprConfigService: Users can add their key in LUMARA Settings → External Services');
+        _cachedApiKey = null;
+        return null;
+      }
+      
+      if (_looksLikeInstructions(apiKey)) {
+        debugPrint('WisprConfigService: Stored value looks like instructions, not an API key — using On-Device');
         _cachedApiKey = null;
         return null;
       }

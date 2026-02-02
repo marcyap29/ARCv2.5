@@ -43,6 +43,7 @@ import '../../../services/lumara/classification_logger.dart';
 import '../../../services/sentinel/sentinel_analyzer.dart';
 import '../../../services/sentinel/crisis_mode.dart';
 import '../../../models/engagement_discipline.dart' show EngagementMode;
+import '../../../models/memory_focus_preset.dart' show MemoryFocusPreset;
 import '../voice/prompts/voice_response_builders.dart';
 
 /// Result of generating a reflection with attribution traces
@@ -314,8 +315,8 @@ class EnhancedLumaraApi {
 
       onProgress?.call('Entry classified as: ${EntryClassifier.getTypeDescription(entryType)}');
 
-      // Log classification for monitoring
-      if (userId != null) {
+      // Log classification for monitoring (skip in voice mode to avoid Firestore permission-denied)
+      if (userId != null && !skipHeavyProcessing) {
         await ClassificationLogger.logClassification(
           userId: userId,
           entryText: request.userText,
@@ -348,11 +349,8 @@ class EnhancedLumaraApi {
       // ===========================================================
       final currentPhase = _convertFromV23PhaseHint(request.phaseHint);
       
-      // 1. Get settings from service
+      // 1. Get settings from service (skip for voice mode to reduce latency)
       final settingsService = LumaraReflectionSettingsService.instance;
-      final similarityThreshold = await settingsService.getSimilarityThreshold();
-      final lookbackYears = await settingsService.getEffectiveLookbackYears(); // Legacy: still used for node storage
-      final maxMatches = await settingsService.getEffectiveMaxEntries(); // Updated to use maxEntries
       
       // Therapeutic mode is now handled by control state builder
       // No need to determine depth level here - it's in the control state JSON
@@ -361,6 +359,11 @@ class EnhancedLumaraApi {
       List<MatchedNode> matches = [];
       
       if (!skipHeavyProcessing) {
+      // Only load these settings when needed (not voice mode)
+      final similarityThreshold = await settingsService.getSimilarityThreshold();
+      final lookbackYears = await settingsService.getEffectiveLookbackYears(); // Legacy: still used for node storage
+      final maxMatches = await settingsService.getEffectiveMaxEntries(); // Updated to use maxEntries
+      
       onProgress?.call('Preparing context...');
 
       final allNodes = _storage.getAllNodes(
@@ -515,11 +518,52 @@ class EnhancedLumaraApi {
               final engagementSettings = await settingsService.getEngagementSettings();
               engagementMode = engagementSettings.activeMode;
             }
-            print('LUMARA: Skipping context selection for voice mode');
+            
+            // Voice mode: Detect if user is asking about history/past to load more context
+            final userQuery = request.userText.toLowerCase();
+            final isHistoricalQuery = userQuery.contains('last week') ||
+                userQuery.contains('last month') ||
+                userQuery.contains('recently') ||
+                userQuery.contains('been writing') ||
+                userQuery.contains('been talking') ||
+                userQuery.contains('have i') ||
+                userQuery.contains('did i') ||
+                userQuery.contains('what was') ||
+                userQuery.contains('remember when') ||
+                userQuery.contains('earlier') ||
+                userQuery.contains('before') ||
+                userQuery.contains('history') ||
+                userQuery.contains('past') ||
+                RegExp(r'\b(january|february|march|april|may|june|july|august|september|october|november|december)\b').hasMatch(userQuery) ||
+                RegExp(r'\b(yesterday|ago|previous)\b').hasMatch(userQuery);
+            
+            // Voice mode: Load 0 journal entries by default for speed; only load when user asks about history
+            // (Context selector + Hive can add 2–5s; skipping gives much faster first response.)
+            final voiceEntryLimit = isHistoricalQuery ? 10 : 0;
+            if (voiceEntryLimit > 0) {
+              final contextSelector = LumaraContextSelector();
+              recentJournalEntries = await contextSelector.selectContextEntries(
+                memoryFocus: MemoryFocusPreset.focused,
+                engagementMode: engagementMode ?? EngagementMode.reflect,
+                currentEntryText: request.userText,
+                currentDate: DateTime.now(),
+                entryId: entryId,
+                customMaxEntries: voiceEntryLimit,
+              );
+              print('LUMARA: Voice mode loaded $voiceEntryLimit journal entries (historical query)');
+            } else {
+              print('LUMARA: Voice mode skipping journal context for speed (0 entries)');
+            }
           }
           
-          final recentChats = await _getRecentChats(limit: 10);
-          final mediaFromEntries = await _extractMediaFromEntries(recentJournalEntries);
+          // Voice mode: skip chat history for speed (avoids Firestore init + permission issues)
+          // Non-voice mode still loads up to 10 sessions
+          final voiceChatLimit = skipHeavyProcessing ? 0 : 10;
+          final recentChats = voiceChatLimit > 0
+              ? await _getRecentChats(limit: voiceChatLimit)
+              : <String>[];
+          // Voice mode: skip media extraction (not supported in voice mode yet)
+          final mediaFromEntries = skipHeavyProcessing ? <String>[] : await _extractMediaFromEntries(recentJournalEntries);
           
           // Get current date/time for consistent use throughout
           final now = DateTime.now();
@@ -762,11 +806,12 @@ class EnhancedLumaraApi {
               chatContext != null &&
               chatContext.contains('VOICE MODE');
           
+          // Voice mode: pass conversationMode null so we don't use think/ideas length override
           final responseParams = _getResponseParameters(
             selectedPersona, 
             safetyOverride,
             engagementMode: engagementMode,
-            conversationMode: request.options.conversationMode,
+            conversationMode: skipHeavyProcessing ? null : request.options.conversationMode,
             isVoiceMode: isVoiceMode,
             entryType: entryType,
           );
@@ -864,49 +909,57 @@ class EnhancedLumaraApi {
               .toList();
           
           String systemPrompt;
+          String userPromptForApi = ''; // Voice (split payload) sets this; non-voice keeps empty
           if (skipHeavyProcessing) {
-            // Voice mode: use trimmed prompt (no full master, no journal history) for lower latency
-            systemPrompt = LumaraMasterPrompt.getVoicePrompt(
-              simplifiedControlStateJson,
-              entryText: request.userText,
-              modeSpecificInstructions: modeSpecificInstructions.isNotEmpty ? modeSpecificInstructions : null,
-              chronicleMiniContext: chronicleMiniContext,
-            );
+            // Voice mode: split payload for lower latency — short system + user = context + transcript
+            const int voiceModeInstructionsMaxChars = 2500;
+            String voiceModeInstructions = modeSpecificInstructions.isNotEmpty ? modeSpecificInstructions : '';
+            if (voiceModeInstructions.length > voiceModeInstructionsMaxChars) {
+              voiceModeInstructions = '${voiceModeInstructions.substring(0, voiceModeInstructionsMaxChars)}\n\n[instructions truncated for latency]';
+              print('🔵 LUMARA V23: Voice mode instructions truncated to $voiceModeInstructionsMaxChars chars (was ${modeSpecificInstructions.length})');
+            }
+            final effectiveVoiceMode = voiceEngagementModeOverride ?? engagementMode ?? EngagementMode.reflect;
+            final maxChars = VoiceResponseConfig.getVoicePromptMaxChars(effectiveVoiceMode);
+            // System: short static instructions only (control state, word limit, crisis, PRISM, VOICE)
+            systemPrompt = LumaraMasterPrompt.getVoicePromptSystemOnly(simplifiedControlStateJson);
             systemPrompt = LumaraMasterPrompt.injectDateContext(
               systemPrompt,
               recentEntries: null,
               currentDate: now,
             );
-            // Hard-cap voice prompt by mode: Default 8k, Explore 10k, Integrate 13k
-            final effectiveVoiceMode = voiceEngagementModeOverride ?? engagementMode ?? EngagementMode.reflect;
-            final maxChars = VoiceResponseConfig.getVoicePromptMaxChars(effectiveVoiceMode);
-            if (systemPrompt.length > maxChars) {
-              final wasLen = systemPrompt.length;
-              systemPrompt = systemPrompt.substring(0, maxChars);
-              print('🔵 LUMARA V23: Voice prompt truncated to $maxChars chars (was $wasLen; mode: ${effectiveVoiceMode.name})');
-            }
-            print('🔵 LUMARA V23: Using voice-only trimmed prompt (${systemPrompt.length} chars, ~${(systemPrompt.length / 4).round()} tokens, cap: $maxChars)');
-            if (chronicleMiniContext != null) {
-              print('🔵 LUMARA V23: CHRONICLE mini-context included in voice prompt');
-            }
-          } else {
-            systemPrompt = LumaraMasterPrompt.getMasterPrompt(
-              simplifiedControlStateJson,
+            // User: turn-specific context (mode instructions + chronicle + transcript)
+            String userMessage = LumaraMasterPrompt.buildVoiceUserMessage(
               entryText: request.userText,
+              modeSpecificInstructions: voiceModeInstructions.isNotEmpty ? voiceModeInstructions : null,
+              chronicleMiniContext: chronicleMiniContext,
+            );
+            // Cap combined size so system + user stay under maxChars
+            final maxUserChars = (maxChars - systemPrompt.length).clamp(100, maxChars);
+            if (userMessage.length > maxUserChars) {
+              userMessage = '${userMessage.substring(0, maxUserChars)}\n\n[context truncated for latency]';
+              print('🔵 LUMARA V23: Voice user message truncated to $maxUserChars chars (mode: ${effectiveVoiceMode.name})');
+            }
+            print('🔵 LUMARA V23: Voice split payload: system=${systemPrompt.length} chars, user=${userMessage.length} chars (cap: $maxChars)');
+            if (chronicleMiniContext != null) {
+              print('🔵 LUMARA V23: CHRONICLE mini-context included in user message');
+            }
+            userPromptForApi = userMessage;
+          } else {
+            // Non-voice: split payload for lower latency — short system + user = context + entry
+            systemPrompt = LumaraMasterPrompt.getMasterPromptSystemOnly(simplifiedControlStateJson, now);
+            userPromptForApi = LumaraMasterPrompt.buildMasterUserMessage(
+              entryText: request.userText,
+              recentEntries: recentEntries,
               baseContext: baseContext,
               chronicleContext: chronicleContext,
               chronicleLayers: chronicleLayerNames,
               mode: promptMode,
+              currentDate: now,
               modeSpecificInstructions: modeSpecificInstructions.isNotEmpty ? modeSpecificInstructions : null,
             );
-            systemPrompt = LumaraMasterPrompt.injectDateContext(
-              systemPrompt,
-              recentEntries: recentEntries,
-              currentDate: now,
-            );
-            print('🔵 LUMARA V23: Using unified master prompt (mode: ${promptMode.name})');
+            print('🔵 LUMARA V23: Non-voice split payload: system=${systemPrompt.length} chars, user=${userPromptForApi.length} chars');
             if (chronicleContext != null) {
-              print('🔵 LUMARA V23: CHRONICLE context included (${chronicleLayerNames?.join(', ') ?? 'unknown layers'})');
+              print('🔵 LUMARA V23: CHRONICLE context included in user message (${chronicleLayerNames?.join(', ') ?? 'unknown layers'})');
             }
           }
           
@@ -927,11 +980,11 @@ class EnhancedLumaraApi {
             try {
               // Direct Gemini API call - same protocol as main LUMARA chat
               // Pass entryId for per-entry usage limit tracking (free tier: 5 per entry)
-              // NOTE: Unified prompt contains abstracted entry description, not verbatim text
+              // NOTE: Voice uses split payload (user = context + transcript); non-voice has everything in system, user empty
               // Skip transformation since we've already abstracted the entry text in the prompt
               geminiResponse = await geminiSend(
                 system: systemPrompt,
-                user: '', // Empty user prompt - everything is in the unified system prompt
+                user: userPromptForApi,
                 jsonExpected: false,
                 entryId: entryId,
                 intent: 'journal_reflection', // Specify intent for journal entries
@@ -1583,12 +1636,22 @@ Respond now:''';
     bool isVoiceMode = false,
     EntryType? entryType,
   }) {
-    // Voice mode: Apply 0.6x multiplier to normal limits (1/3 to 1/2 reduction)
-    // This is more flexible than fixed limits - adapts to any persona/engagement mode
+    // Voice mode: use VoiceResponseConfig word limits (reflect 100, explore 200, integrate 300)
+    // and skip conversationMode override so we get brief responses, not think/ideas length.
     if (isVoiceMode) {
-      // Calculate normal limits first, then apply multiplier
-      // We'll calculate these after the normal flow, so continue to normal calculation
-      // and apply multiplier at the end
+      final mode = engagementMode ?? EngagementMode.reflect;
+      final maxWords = VoiceResponseConfig.getMaxWords(mode);
+      final targetWords = maxWords;
+      final sentences = mode == EngagementMode.reflect ? 4 : mode == EngagementMode.explore ? 6 : 8;
+      return ResponseParameters(
+        maxWords: maxWords,
+        targetWords: targetWords,
+        targetSentences: sentences,
+        minPatternExamples: 0,
+        maxPatternExamples: 2,
+        useStructuredFormat: false,
+        lengthGuidance: 'Voice mode: Stay at or under $maxWords words. Brief, conversational. No lists or markdown.',
+      );
     }
     if (safetyOverride) {
       // Emergency therapist mode: shorter, no examples needed

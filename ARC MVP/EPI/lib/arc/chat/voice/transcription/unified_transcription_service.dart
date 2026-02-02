@@ -1,26 +1,24 @@
 /// Unified Transcription Service
 /// 
 /// Provides seamless fallback between transcription backends:
-/// 1. Wispr Flow (optional) - if user has their own API key configured
-/// 2. Assembly AI (optional) - premium cloud streaming, high accuracy
-/// 3. Apple On-Device (default) - always available, no network required
+/// 1. Wispr Flow (admin only) - if marcyap@orbitalai.net has API key configured
+/// 2. Apple On-Device (default) - always available for all users, no network required
 /// 
-/// Fallback chain: Wispr (if configured) → Assembly AI (if premium) → Apple On-Device
+/// Note: Assembly AI has been removed. Wispr Flow is restricted to admin for testing.
+/// All other users get Apple On-Device transcription by default.
 
 import 'dart:async';
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'ondevice_provider.dart';
 import 'transcription_provider.dart';
-import 'assemblyai_provider.dart';
 import '../config/wispr_config_service.dart';
 import '../wispr/wispr_flow_service.dart';
-import '../../../../services/assemblyai_service.dart';
+import '../../../../services/firebase_auth_service.dart';
 
 /// Active transcription provider
 enum TranscriptionBackend {
   wisprFlow,
-  assemblyAI,
   appleOnDevice,
   none,
 }
@@ -64,17 +62,15 @@ class TranscriptionStartResult {
 
 /// Unified transcription service with automatic fallback
 /// 
-/// Fallback chain: Wispr (if configured) → Assembly AI (if premium) → Apple On-Device
+/// Fallback chain: Wispr (if admin + configured) → Apple On-Device
 class UnifiedTranscriptionService {
   final WisprConfigService _wisprConfigService;
-  final AssemblyAIService _assemblyAIService;
   
   UnifiedTranscriptionStatus _status = UnifiedTranscriptionStatus.idle;
   TranscriptionBackend _activeBackend = TranscriptionBackend.none;
   
   // Providers
   WisprFlowService? _wisprService;
-  AssemblyAIProvider? _assemblyAIProvider;
   OnDeviceTranscriptionProvider? _onDeviceProvider;
   
   // Callbacks (unified interface)
@@ -85,9 +81,7 @@ class UnifiedTranscriptionService {
   
   UnifiedTranscriptionService({
     WisprConfigService? wisprConfigService,
-    AssemblyAIService? assemblyAIService,
-  }) : _wisprConfigService = wisprConfigService ?? WisprConfigService.instance,
-       _assemblyAIService = assemblyAIService ?? AssemblyAIService();
+  }) : _wisprConfigService = wisprConfigService ?? WisprConfigService.instance;
   
   /// Current status
   UnifiedTranscriptionStatus get status => _status;
@@ -103,9 +97,6 @@ class UnifiedTranscriptionService {
     switch (_activeBackend) {
       case TranscriptionBackend.wisprFlow:
         return _wisprService?.isConnected ?? false;
-      case TranscriptionBackend.assemblyAI:
-        return _assemblyAIProvider?.status == ProviderStatus.idle ||
-               _assemblyAIProvider?.status == ProviderStatus.listening;
       case TranscriptionBackend.appleOnDevice:
         return _onDeviceProvider?.status == ProviderStatus.idle ||
                _onDeviceProvider?.status == ProviderStatus.listening;
@@ -119,8 +110,6 @@ class UnifiedTranscriptionService {
     switch (_activeBackend) {
       case TranscriptionBackend.wisprFlow:
         return 'Wispr Flow';
-      case TranscriptionBackend.assemblyAI:
-        return 'Assembly AI';
       case TranscriptionBackend.appleOnDevice:
         return 'On-Device';
       case TranscriptionBackend.none:
@@ -131,68 +120,70 @@ class UnifiedTranscriptionService {
   /// Initialize the service and determine best available backend
   /// 
   /// Priority (fallback chain):
-  /// 1. Wispr Flow (if user has their own API key configured)
-  /// 2. Assembly AI (if premium user) - cloud streaming backup
-  /// 3. Apple On-Device (default) - always available
+  /// 1. Wispr Flow (admin only - marcyap@orbitalai.net with API key configured)
+  /// 2. Apple On-Device (default) - always available for all users
   Future<TranscriptionStartResult> initialize() async {
     _status = UnifiedTranscriptionStatus.initializing;
-    debugPrint('UnifiedTranscription: Initializing (Wispr → Assembly AI → Apple On-Device)...');
+    debugPrint('UnifiedTranscription: Initializing (Wispr admin-only → Apple On-Device)...');
     
-    // Step 1: Try Wispr Flow (if user has their own API key)
-    final wisprAvailable = await _wisprConfigService.isAvailable();
-    if (wisprAvailable) {
-      debugPrint('UnifiedTranscription: User has Wispr API key configured');
+    // Check if current user is admin (Wispr is restricted to admin for testing)
+    final currentUserEmail = FirebaseAuthService.instance.currentUser?.email?.toLowerCase();
+    const adminEmail = 'marcyap@orbitalai.net';
+    final isAdmin = currentUserEmail == adminEmail;
+    
+    debugPrint('UnifiedTranscription: Current user: $currentUserEmail, isAdmin: $isAdmin');
+    
+    // Step 1: Try Wispr Flow (ADMIN ONLY - if admin has their own API key)
+    if (isAdmin) {
+      final wisprAvailable = await _wisprConfigService.isAvailable();
+      debugPrint('UnifiedTranscription: Wispr config check - available: $wisprAvailable');
       
-      final apiKey = await _wisprConfigService.getApiKey();
-      if (apiKey != null && apiKey.isNotEmpty) {
-        final config = WisprFlowConfig(apiKey: apiKey);
-        _wisprService = WisprFlowService(config: config);
+      if (wisprAvailable) {
+        debugPrint('UnifiedTranscription: Admin has Wispr API key configured');
         
-        try {
-          debugPrint('UnifiedTranscription: Attempting Wispr Flow connection...');
-          await _wisprService!.connect();
+        final apiKey = await _wisprConfigService.getApiKey();
+        final keyLength = apiKey?.length ?? 0;
+        final keyPreview = keyLength > 8 ? '${apiKey!.substring(0, 4)}...${apiKey.substring(keyLength - 4)}' : '(too short)';
+        debugPrint('UnifiedTranscription: API key retrieved - length: $keyLength, preview: $keyPreview');
+        
+        if (apiKey != null && apiKey.isNotEmpty) {
+          final config = WisprFlowConfig(apiKey: apiKey);
+          _wisprService = WisprFlowService(config: config);
           
-          if (_wisprService!.isConnected && _wisprService!.isAuthenticated) {
-            _activeBackend = TranscriptionBackend.wisprFlow;
-            _status = UnifiedTranscriptionStatus.ready;
+          try {
+            debugPrint('UnifiedTranscription: Attempting Wispr Flow connection...');
+            final connected = await _wisprService!.connect();
+            debugPrint('UnifiedTranscription: Wispr connect() returned: $connected');
+            debugPrint('UnifiedTranscription: Wispr state - connected: ${_wisprService!.isConnected}, authenticated: ${_wisprService!.isAuthenticated}');
             
-            debugPrint('UnifiedTranscription: Using Wispr Flow backend (user API key)');
-            return TranscriptionStartResult.success(TranscriptionBackend.wisprFlow);
-          } else {
-            debugPrint('UnifiedTranscription: Wispr Flow connection failed');
+            if (_wisprService!.isConnected && _wisprService!.isAuthenticated) {
+              _activeBackend = TranscriptionBackend.wisprFlow;
+              _status = UnifiedTranscriptionStatus.ready;
+              
+              debugPrint('UnifiedTranscription: ✓ Using Wispr Flow backend (admin API key)');
+              return TranscriptionStartResult.success(TranscriptionBackend.wisprFlow);
+            } else {
+              debugPrint('UnifiedTranscription: ✗ Wispr Flow connection failed - connected: ${_wisprService!.isConnected}, authenticated: ${_wisprService!.isAuthenticated}');
+              _wisprService?.dispose();
+              _wisprService = null;
+            }
+          } catch (e, stackTrace) {
+            debugPrint('UnifiedTranscription: ✗ Wispr Flow error: $e');
+            debugPrint('UnifiedTranscription: Stack trace: $stackTrace');
+            _wisprService?.dispose();
+            _wisprService = null;
           }
-        } catch (e) {
-          debugPrint('UnifiedTranscription: Wispr Flow error: $e');
+        } else {
+          debugPrint('UnifiedTranscription: API key is null or empty');
         }
+      } else {
+        debugPrint('UnifiedTranscription: No admin Wispr API key configured in Settings → External Services');
       }
     } else {
-      debugPrint('UnifiedTranscription: No user Wispr API key configured');
+      debugPrint('UnifiedTranscription: Wispr Flow skipped (not admin user)');
     }
     
-    // Step 2: Try Assembly AI (premium users - backup cloud STT)
-    final assemblyAIAvailable = await _assemblyAIService.isAvailable();
-    if (assemblyAIAvailable) {
-      try {
-        final token = await _assemblyAIService.getToken();
-        if (token != null && token.isNotEmpty) {
-          _assemblyAIProvider = AssemblyAIProvider(token: token);
-          final assemblyAIInitialized = await _assemblyAIProvider!.initialize();
-          if (assemblyAIInitialized) {
-            _activeBackend = TranscriptionBackend.assemblyAI;
-            _status = UnifiedTranscriptionStatus.ready;
-            debugPrint('UnifiedTranscription: Using Assembly AI backend (premium)');
-            return TranscriptionStartResult.success(TranscriptionBackend.assemblyAI);
-          }
-        }
-      } catch (e) {
-        debugPrint('UnifiedTranscription: Assembly AI error: $e');
-      }
-      _assemblyAIProvider = null;
-    } else {
-      debugPrint('UnifiedTranscription: Assembly AI not available for user');
-    }
-    
-    // Step 3: Use Apple On-Device transcription (default)
+    // Step 2: Use Apple On-Device transcription (default for all users)
     debugPrint('UnifiedTranscription: Using Apple On-Device transcription...');
     
     _onDeviceProvider = OnDeviceTranscriptionProvider();
@@ -251,22 +242,6 @@ class UnifiedTranscriptionService {
         }
         _wisprService?.startSession();
         debugPrint('UnifiedTranscription: Started Wispr Flow session');
-        return true;
-        
-      case TranscriptionBackend.assemblyAI:
-        await _assemblyAIProvider?.startListening(
-          onPartialResult: (segment) {
-            onTranscript?.call(segment.text, false);
-          },
-          onFinalResult: (segment) {
-            onTranscript?.call(segment.text, true);
-          },
-          onError: (error) {
-            onError?.call(error);
-          },
-        );
-        onConnected?.call();
-        debugPrint('UnifiedTranscription: Started Assembly AI session');
         return true;
         
       case TranscriptionBackend.appleOnDevice:
@@ -338,10 +313,6 @@ class UnifiedTranscriptionService {
         _wisprService?.commitSession();
         break;
         
-      case TranscriptionBackend.assemblyAI:
-        await _assemblyAIProvider?.stopListening();
-        break;
-        
       case TranscriptionBackend.appleOnDevice:
         await _onDeviceProvider?.stopListening();
         break;
@@ -362,12 +333,6 @@ class UnifiedTranscriptionService {
       case TranscriptionBackend.wisprFlow:
         _wisprService?.dispose();
         _wisprService = null;
-        break;
-        
-      case TranscriptionBackend.assemblyAI:
-        await _assemblyAIProvider?.stopListening();
-        await _assemblyAIProvider?.dispose();
-        _assemblyAIProvider = null;
         break;
         
       case TranscriptionBackend.appleOnDevice:
@@ -392,8 +357,6 @@ class UnifiedTranscriptionService {
   /// Dispose of resources
   void dispose() {
     _wisprService?.dispose();
-    _assemblyAIProvider?.dispose();
-    _assemblyAIProvider = null;
     _onDeviceProvider = null;
   }
 }

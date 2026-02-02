@@ -49,6 +49,25 @@ typedef OnTurnComplete = void Function(VoiceConversationTurn turn);
 typedef OnSessionComplete = void Function(VoiceSession session);
 typedef OnSessionError = void Function(String error);
 
+/// Processing choice for voice capture (save as note vs talk with LUMARA vs add to timeline vs cancel)
+enum VoiceProcessingChoice {
+  saveAsVoiceNote,
+  talkWithLumara,
+  addToTimeline,
+  cancel,
+}
+
+/// Callback to request processing choice from UI (returns Future)
+/// Called after transcription with the scrubbed text
+/// UI shows modal and returns user's choice
+typedef OnRequestProcessingChoice = Future<VoiceProcessingChoice> Function(String transcription);
+
+/// Callback when user chooses to save as voice note
+typedef OnSaveAsVoiceNote = Future<void> Function(String transcription);
+
+/// Callback when user chooses to add transcription to the normal timeline (as journal entry)
+typedef OnAddToTimeline = Future<void> Function(String transcription);
+
 /// Transcript data class (for unified interface)
 class TranscriptData {
   final String text;
@@ -104,6 +123,18 @@ class VoiceSessionService {
   
   /// Callback for backend status messages
   Function(String message)? onBackendStatusMessage;
+  
+  /// Callback to request processing choice from UI (voice note vs LUMARA)
+  /// If set, shows modal after transcription to let user choose
+  /// If null, always continues to LUMARA (original behavior)
+  OnRequestProcessingChoice? onRequestProcessingChoice;
+  
+  /// Callback when user chooses to save as voice note
+  /// Called with the raw (unscrubbed) transcription for local storage
+  OnSaveAsVoiceNote? onSaveAsVoiceNote;
+  
+  /// Callback when user chooses to add transcription to the normal timeline (journal entry)
+  OnAddToTimeline? onAddToTimeline;
   
   // Public getter for endpoint detector (for UI tap handling)
   SmartEndpointDetector get endpointDetector => _endpointDetector;
@@ -206,11 +237,6 @@ class VoiceSessionService {
           case TranscriptionBackend.wisprFlow:
             debugPrint('VoiceSession: Using Wispr Flow (user API key)');
             onBackendStatusMessage?.call('Using Wispr Flow');
-            break;
-            
-          case TranscriptionBackend.assemblyAI:
-            debugPrint('VoiceSession: Using Assembly AI (premium)');
-            onBackendStatusMessage?.call('Using Assembly AI');
             break;
             
           case TranscriptionBackend.appleOnDevice:
@@ -379,6 +405,12 @@ class VoiceSessionService {
     // IMMEDIATE visual feedback - change state right away so UI responds
     _updateState(VoiceSessionState.processingTranscript);
     
+    // When using Wispr: allow a brief moment for any buffered audio to be sent
+    // (recorder may emit in chunks; stopping too soon can yield 0 packets and empty transcript)
+    if (_unifiedTranscription.activeBackend == TranscriptionBackend.wisprFlow) {
+      await Future.delayed(const Duration(milliseconds: 400));
+    }
+    
     // Stop audio capture
     await _audioCapture.stopRecording();
     
@@ -439,15 +471,89 @@ class VoiceSessionService {
     _isProcessingTranscript = true;
     
     final processStart = DateTime.now();
+    final isEmpty = _currentTranscript.trim().isEmpty;
+    if (isEmpty) {
+      debugPrint('VoiceSession: Empty transcript — still showing modal so user gets feedback');
+    }
     
-    if (_currentTranscript.trim().isEmpty) {
-      debugPrint('VoiceSession: Empty transcript, skipping');
+    _updateState(VoiceSessionState.processingTranscript);
+    
+    // =========================================================
+    // PROGRESSIVE VOICE CAPTURE: Ask user what to do only on FIRST transcript
+    // After user chooses "Talk with LUMARA", subsequent turns go straight to LUMARA
+    // (no modal). Finish button saves the full conversation to the timeline.
+    // =========================================================
+    final isFirstTranscript = _currentSession == null || _currentSession!.build().turnCount == 0;
+    VoiceProcessingChoice choice;
+    if (onRequestProcessingChoice != null && isFirstTranscript) {
+      try {
+        debugPrint('VoiceSession: First transcript — requesting processing choice from UI');
+        choice = await onRequestProcessingChoice!(_currentTranscript);
+      } catch (e) {
+        debugPrint('VoiceSession: Error getting processing choice: $e, defaulting to LUMARA');
+        choice = VoiceProcessingChoice.talkWithLumara;
+      }
+    } else {
+      // Already in conversation: skip modal, send straight to LUMARA
+      choice = VoiceProcessingChoice.talkWithLumara;
+      if (!isEmpty) {
+        debugPrint('VoiceSession: Conversation turn ${_currentSession?.build().turnCount ?? 0} — sending to LUMARA (no modal)');
+      }
+    }
+
+    if (choice == VoiceProcessingChoice.saveAsVoiceNote) {
+          debugPrint('VoiceSession: User chose to save as voice note');
+          
+          // Save as voice note via callback (UI may skip if empty)
+          if (onSaveAsVoiceNote != null) {
+            await onSaveAsVoiceNote!(_currentTranscript);
+          }
+          
+          // Reset state and exit voice mode
+          _isProcessingTranscript = false;
+          _currentTranscript = '';
+          _updateState(VoiceSessionState.idle);
+          return;
+        }
+        
+        if (choice == VoiceProcessingChoice.addToTimeline) {
+          debugPrint('VoiceSession: User chose to add to timeline');
+          
+          if (onAddToTimeline != null) {
+            await onAddToTimeline!(_currentTranscript);
+          }
+          
+          _isProcessingTranscript = false;
+          _currentTranscript = '';
+          _updateState(VoiceSessionState.idle);
+          return;
+        }
+        
+        if (choice == VoiceProcessingChoice.cancel) {
+          debugPrint('VoiceSession: User cancelled (dismissed modal)');
+          _isProcessingTranscript = false;
+          _currentTranscript = '';
+          _updateState(VoiceSessionState.idle);
+          return;
+        }
+        
+        // Talk with LUMARA chosen but no speech — don't send empty to LUMARA
+        if (isEmpty) {
+          debugPrint('VoiceSession: No speech detected, cannot start LUMARA conversation');
+          onError?.call('No speech detected. Try speaking and then tapping the orb again.');
+          _isProcessingTranscript = false;
+          _updateState(VoiceSessionState.idle);
+          return;
+        }
+        
+        debugPrint('VoiceSession: User chose to talk with LUMARA, continuing...');
+    
+    // Empty transcript and no modal (or user chose LUMARA but we already handled empty above)
+    if (isEmpty) {
       _isProcessingTranscript = false;
       _updateState(VoiceSessionState.idle);
       return;
     }
-    
-    _updateState(VoiceSessionState.processingTranscript);
     
     try {
       // Scrub PII through PRISM
@@ -499,7 +605,7 @@ class VoiceSessionService {
       // Call LUMARA API - use trimmed voice prompt for ALL voice modes to avoid timeout
       // (Full master prompt ~150k+ chars causes proxyGemini/timeouts; voice prompt ~3–8k chars.)
       // Engagement mode (reflect/explore/integrate) is still passed in control state and instructions.
-      // Client-side timeout (55s) to surface clear error before Firebase function timeout (60s)
+      // Client-side timeout (120s) so slow Firebase/Gemini responses (e.g. 90–100s) still succeed
       final apiStart = DateTime.now();
       ReflectionResult reflectionResult;
       try {
@@ -510,17 +616,17 @@ class VoiceSessionService {
           userId: _userId,
           chatContext: voiceModeInstructions,
           skipHeavyProcessing: true, // Always use trimmed voice prompt in voice mode (all engagement modes)
-          voiceEngagementModeOverride: engagementMode, // Dropdown choice for control state and prompt cap (8k/10k/13k)
+          voiceEngagementModeOverride: engagementMode, // Dropdown choice for control state and prompt cap (6k/10k/13k)
           options: models.LumaraReflectionOptions(
-            conversationMode: models.ConversationMode.think,
+            conversationMode: models.ConversationMode.continueThought,
             toneMode: models.ToneMode.normal,
           ),
         ).timeout(
-          const Duration(seconds: 55),
+          const Duration(seconds: 120),
           onTimeout: () => throw TimeoutException('LUMARA request timed out'),
         );
       } on TimeoutException {
-        debugPrint('VoiceSession: LUMARA request timed out (55s)');
+        debugPrint('VoiceSession: LUMARA request timed out (120s)');
         onError?.call('Request timed out. Please try again.');
         _isProcessingTranscript = false;
         _updateState(VoiceSessionState.error);

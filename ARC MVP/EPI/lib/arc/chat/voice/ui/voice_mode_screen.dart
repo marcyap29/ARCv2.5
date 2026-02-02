@@ -10,6 +10,7 @@
 /// - Haptic feedback on interactions
 /// - Real-time transcript display
 
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../services/voice_session_service.dart';
@@ -18,9 +19,17 @@ import '../models/voice_session.dart';
 import '../storage/voice_timeline_storage.dart';
 import '../../../../models/phase_models.dart';
 import '../../../../models/engagement_discipline.dart';
+import 'package:hive/hive.dart';
+import 'package:uuid/uuid.dart';
 import '../../../../arc/internal/mira/journal_repository.dart';
+import '../../../../models/journal_entry_model.dart';
+import '../../../../arc/voice_notes/models/voice_note.dart' hide VoiceProcessingChoice;
+import '../../../../arc/voice_notes/repositories/voice_note_repository.dart';
 import 'voice_sigil.dart';
 import '../endpoint/smart_endpoint_detector.dart';
+
+// Re-export VoiceProcessingChoice for use in callbacks
+export '../services/voice_session_service.dart' show VoiceProcessingChoice;
 
 /// Voice Mode Screen
 class VoiceModeScreen extends StatefulWidget {
@@ -49,6 +58,10 @@ class _VoiceModeScreenState extends State<VoiceModeScreen> {
 
   /// User-selected engagement mode override (null = auto from transcript)
   EngagementMode? _voiceEngagementOverride;
+  
+  /// Whether user has committed to a voice conversation with LUMARA
+  /// The Finish button only appears after this is true
+  bool _hasChosenVoiceConversation = false;
 
   // Transition: delay showing "Recording" by 1s after tap
   bool _showRecordingUI = false;
@@ -120,6 +133,154 @@ class _VoiceModeScreenState extends State<VoiceModeScreen> {
       if (!mounted) return;
       _onSessionComplete(session);
     };
+    
+    // Progressive Voice Capture: Request processing choice from UI
+    widget.sessionService.onRequestProcessingChoice = (transcription) async {
+      if (!mounted) return VoiceProcessingChoice.talkWithLumara;
+      
+      // Show modal and get user's choice
+      final choice = await _showProcessingChoiceModal(transcription);
+      
+      // If user chose to talk with LUMARA, enable the Finish button
+      if (choice == VoiceProcessingChoice.talkWithLumara) {
+        setState(() {
+          _hasChosenVoiceConversation = true;
+        });
+      }
+      
+      return choice ?? VoiceProcessingChoice.cancel; // Dismiss (tap outside / slide down) = cancel
+    };
+    
+    // Handle saving as voice note
+    widget.sessionService.onSaveAsVoiceNote = (transcription) async {
+      await _saveAsVoiceNote(transcription);
+    };
+    
+    // Handle add to timeline (create journal entry from transcription)
+    widget.sessionService.onAddToTimeline = (transcription) async {
+      await _addTranscriptionToTimeline(transcription);
+    };
+  }
+  
+  /// Show modal to let user choose between voice note and LUMARA conversation.
+  /// User can cancel by tapping outside or sliding the sheet down.
+  Future<VoiceProcessingChoice?> _showProcessingChoiceModal(String transcription) async {
+    final choice = await showModalBottomSheet<VoiceProcessingChoice>(
+      context: context,
+      isScrollControlled: true,
+      isDismissible: true,
+      enableDrag: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => _VoiceProcessingModalWidget(
+        transcription: transcription,
+        autoSelectDelay: const Duration(seconds: 2),
+      ),
+    );
+    return choice;
+  }
+  
+  /// Save transcription as a voice note (persisted to Hive so it shows in Voice Notes tab)
+  Future<void> _saveAsVoiceNote(String transcription) async {
+    if (transcription.trim().isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No speech to save. Try speaking, then tap the orb to finish.'),
+            duration: Duration(seconds: 3),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        widget.onComplete?.call();
+      }
+      return;
+    }
+    try {
+      final note = VoiceNote.create(transcription: transcription.trim());
+      final box = Hive.isBoxOpen(VoiceNoteRepository.boxName)
+          ? Hive.box<VoiceNote>(VoiceNoteRepository.boxName)
+          : await Hive.openBox<VoiceNote>(VoiceNoteRepository.boxName);
+      final repository = VoiceNoteRepository(box);
+      await repository.save(note);
+      debugPrint('VoiceModeScreen: Saved voice note to Hive: ${note.id}');
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Voice note saved to Voice Notes'),
+            duration: Duration(seconds: 2),
+            backgroundColor: Colors.green,
+          ),
+        );
+        widget.onComplete?.call();
+      }
+    } catch (e) {
+      debugPrint('VoiceModeScreen: Error saving voice note: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to save voice note: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+  
+  /// Add transcription as a journal entry on the normal timeline (Conversations)
+  Future<void> _addTranscriptionToTimeline(String transcription) async {
+    if (transcription.trim().isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No speech to add. Try speaking, then tap the orb to finish.'),
+            duration: Duration(seconds: 3),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        widget.onComplete?.call();
+      }
+      return;
+    }
+    try {
+      final journalRepository = JournalRepository();
+      final entryId = const Uuid().v4();
+      final now = DateTime.now();
+      final title = transcription.length > 50
+          ? '${transcription.substring(0, 47).trim()}...'
+          : transcription.trim();
+      final entry = JournalEntry(
+        id: entryId,
+        title: title.isEmpty ? 'Voice note' : title,
+        content: transcription.trim(),
+        createdAt: now,
+        updatedAt: now,
+        tags: ['voice', 'timeline'],
+        mood: '',
+        metadata: {'fromVoiceNote': true},
+      );
+      await journalRepository.createJournalEntry(entry);
+      debugPrint('VoiceModeScreen: Added to timeline (entry ID: $entryId)');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Added to Conversations timeline'),
+            duration: Duration(seconds: 2),
+            backgroundColor: Colors.green,
+          ),
+        );
+        widget.onComplete?.call();
+      }
+    } catch (e) {
+      debugPrint('VoiceModeScreen: Error adding to timeline: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to add to timeline: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
   
   /// Handle haptic feedback based on state transitions
@@ -575,7 +736,7 @@ class _VoiceModeScreenState extends State<VoiceModeScreen> {
       return const SizedBox(); // Instructions are now shown below sigil via VoiceSigilStateLabel
     }
 
-    // Show listening state with real-time transcript (1s transition: "Preparing..." then "Recording")
+    // Show listening state with 2s transition then fade-in: "Preparing..." then "Recording"
     if (_state == VoiceSessionState.listening) {
       final showRecordingPill = _showRecordingUI;
       final isLongTranscript = _currentTranscript.length > _longTranscriptChars;
@@ -586,88 +747,92 @@ class _VoiceModeScreenState extends State<VoiceModeScreen> {
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Recording / Preparing indicator (Recording after 1s transition)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: showRecordingPill
-                      ? Colors.red.withOpacity(0.2)
-                      : Colors.white.withOpacity(0.08),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 8,
-                      height: 8,
-                      decoration: BoxDecoration(
-                        color: showRecordingPill ? Colors.red : Colors.white54,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      showRecordingPill ? 'Recording' : 'Preparing...',
-                      style: TextStyle(
-                        color: showRecordingPill ? Colors.red.shade300 : Colors.white54,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 12),
-              // Real-time transcript in a distinct "You" container (not LUMARA purple)
-              if (_currentTranscript.isNotEmpty) ...[
+          child: AnimatedOpacity(
+            duration: const Duration(milliseconds: 400),
+            opacity: showRecordingPill ? 1.0 : 0.5,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Recording / Preparing indicator (Recording after 2s, then fade in)
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.07),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.white.withOpacity(0.18)),
+                    color: showRecordingPill
+                        ? Colors.red.withOpacity(0.2)
+                        : Colors.white.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(20),
                   ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text(
-                        'YOU',
-                        style: TextStyle(
-                          color: Colors.white.withOpacity(0.55),
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 1.1,
+                      Container(
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          color: showRecordingPill ? Colors.red : Colors.white54,
+                          shape: BoxShape.circle,
                         ),
                       ),
-                      const SizedBox(height: 6),
+                      const SizedBox(width: 8),
                       Text(
-                        _currentTranscript,
+                        showRecordingPill ? 'Recording' : 'Preparing...',
                         style: TextStyle(
-                          color: Colors.white.withOpacity(0.95),
-                          fontSize: transcriptFontSize,
-                          height: 1.45,
+                          color: showRecordingPill ? Colors.red.shade300 : Colors.white54,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
                         ),
-                        textAlign: TextAlign.left,
-                        maxLines: isLongTranscript ? 8 : 4,
-                        overflow: TextOverflow.ellipsis,
                       ),
                     ],
                   ),
                 ),
-              ] else ...[
-                Text(
-                  'Listening...',
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.35),
-                    fontSize: 15,
+                const SizedBox(height: 12),
+                // Real-time transcript in a distinct "You" container (not LUMARA purple)
+                if (_currentTranscript.isNotEmpty) ...[
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.07),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.white.withOpacity(0.18)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'YOU',
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.55),
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 1.1,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          _currentTranscript,
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.95),
+                            fontSize: transcriptFontSize,
+                            height: 1.45,
+                          ),
+                          textAlign: TextAlign.left,
+                          maxLines: isLongTranscript ? 8 : 4,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
                   ),
-                ),
+                ] else ...[
+                  Text(
+                    'Listening...',
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.35),
+                      fontSize: 15,
+                    ),
+                  ),
+                ],
               ],
-            ],
+            ),
           ),
         ),
       );
@@ -940,28 +1105,245 @@ class _VoiceModeScreenState extends State<VoiceModeScreen> {
   }
   
   Widget _buildControls() {
+    // Finish button only appears after user has chosen "Talk with LUMARA"
+    // This is the key UX change: no Finish button on initial voice capture
+    if (!_hasChosenVoiceConversation) {
+      return const SizedBox(height: 48); // Placeholder space
+    }
+    
     // Finish button should be enabled when:
-    // 1. At least one turn has completed (_turnCount > 0)
-    // 2. We're in a state where finishing makes sense (idle after turn, or error)
-    // 3. NOT during active processing (listening, scrubbing, waitingForLumara, speaking)
-    final canFinish = _turnCount > 0 && 
+    // 1. User has chosen voice conversation
+    // 2. At least one turn has completed (_turnCount > 0)
+    // 3. We're in a state where finishing makes sense (idle after turn, or error)
+    // 4. NOT during active processing (listening, scrubbing, waitingForLumara, speaking)
+    final canFinish = _hasChosenVoiceConversation && _turnCount > 0 && 
         (_state == VoiceSessionState.idle || _state == VoiceSessionState.error);
     
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        // Finish button
-        OutlinedButton.icon(
-          onPressed: canFinish ? _endSession : null,
-          icon: const Icon(Icons.check),
-          label: const Text('Finish'),
-          style: OutlinedButton.styleFrom(
-            foregroundColor: canFinish ? Colors.white : Colors.white38,
-            side: BorderSide(color: canFinish ? Colors.white : Colors.white38),
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+    // Fade in the Finish button when it first appears
+    return AnimatedOpacity(
+      duration: const Duration(milliseconds: 800),
+      opacity: _hasChosenVoiceConversation ? 1.0 : 0.0,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          // Finish button
+          OutlinedButton.icon(
+            onPressed: canFinish ? _endSession : null,
+            icon: const Icon(Icons.check),
+            label: const Text('Finish'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: canFinish ? Colors.white : Colors.white38,
+              side: BorderSide(color: canFinish ? Colors.white : Colors.white38),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Inline modal widget for voice processing choice
+/// Shows after transcription to let user choose:
+/// - Save as Voice Note
+/// - Talk with LUMARA (continue to conversation)
+/// 
+/// NOTE: No auto-select timer - user must explicitly choose
+class _VoiceProcessingModalWidget extends StatelessWidget {
+  final String transcription;
+  final Duration autoSelectDelay; // Kept for API compatibility but not used
+
+  const _VoiceProcessingModalWidget({
+    required this.transcription,
+    this.autoSelectDelay = const Duration(seconds: 2), // Not used
+  });
+
+  void _selectOption(BuildContext context, VoiceProcessingChoice choice) {
+    Navigator.of(context).pop(choice);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final primaryColor = theme.primaryColor;
+
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      child: SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Handle bar
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey.withOpacity(0.3),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 20),
+            
+            // Title
+            Text(
+              'What would you like to do?',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: isDark ? Colors.white : Colors.black87,
+              ),
+              textAlign: TextAlign.center,
+            ),
+
+            const SizedBox(height: 16),
+
+            // Transcription preview (show "No speech detected." when empty)
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: isDark
+                    ? Colors.grey.withOpacity(0.1)
+                    : Colors.grey.withOpacity(0.05),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.grey.withOpacity(0.2)),
+              ),
+              constraints: const BoxConstraints(maxHeight: 120),
+              child: SingleChildScrollView(
+                child: Text(
+                  transcription.trim().isEmpty
+                      ? 'No speech detected. You may have stopped too quickly—try speaking longer, then tap the orb to finish.'
+                      : transcription,
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: transcription.trim().isEmpty
+                        ? (isDark ? Colors.grey[500] : Colors.grey[600])
+                        : (isDark ? Colors.white : Colors.black87),
+                    height: 1.4,
+                    fontStyle: transcription.trim().isEmpty ? FontStyle.italic : FontStyle.normal,
+                  ),
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 24),
+
+            // Option 1 - Save as Voice Note
+            _buildOption(
+              context: context,
+              icon: Icons.mic,
+              label: 'Save as Voice Note',
+              subtitle: 'Save to Voice Notes',
+              primaryColor: primaryColor,
+              isDark: isDark,
+              isPrimary: true,
+              onTap: () => _selectOption(context, VoiceProcessingChoice.saveAsVoiceNote),
+            ),
+
+            const SizedBox(height: 12),
+
+            // Option 2 - Talk with LUMARA
+            _buildOption(
+              context: context,
+              icon: Icons.record_voice_over,
+              label: 'Talk with LUMARA',
+              subtitle: 'Start voice conversation',
+              primaryColor: primaryColor,
+              isDark: isDark,
+              isPrimary: false,
+              onTap: () => _selectOption(context, VoiceProcessingChoice.talkWithLumara),
+            ),
+
+            const SizedBox(height: 12),
+
+            // Option 3 - Add to Timeline
+            _buildOption(
+              context: context,
+              icon: Icons.timeline,
+              label: 'Add to Timeline',
+              subtitle: 'Add to Conversations timeline',
+              primaryColor: primaryColor,
+              isDark: isDark,
+              isPrimary: false,
+              onTap: () => _selectOption(context, VoiceProcessingChoice.addToTimeline),
+            ),
+
+            const SizedBox(height: 8),
+          ],
         ),
-      ],
+      ),
+    );
+  }
+
+  Widget _buildOption({
+    required BuildContext context,
+    required IconData icon,
+    required String label,
+    required String subtitle,
+    required Color primaryColor,
+    required bool isDark,
+    required bool isPrimary,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          border: Border.all(
+            color: isPrimary ? primaryColor : Colors.grey.withOpacity(isDark ? 0.3 : 0.2),
+            width: isPrimary ? 2 : 1,
+          ),
+          borderRadius: BorderRadius.circular(12),
+          color: isPrimary ? primaryColor.withOpacity(0.1) : null,
+        ),
+        child: Row(
+          children: [
+            Icon(
+              icon, 
+              color: isPrimary ? primaryColor : (isDark ? Colors.grey[400] : Colors.grey[700]),
+              size: 28,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: isPrimary ? FontWeight.bold : FontWeight.w500,
+                      color: isPrimary ? primaryColor : (isDark ? Colors.white : Colors.black87),
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: isDark ? Colors.grey[400] : Colors.grey[600],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              Icons.chevron_right, 
+              color: isPrimary ? primaryColor.withOpacity(0.7) : Colors.grey.withOpacity(0.5),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

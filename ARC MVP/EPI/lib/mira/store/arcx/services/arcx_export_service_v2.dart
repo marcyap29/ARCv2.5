@@ -37,6 +37,8 @@ import 'package:my_app/chronicle/storage/aggregation_repository.dart';
 import 'package:my_app/chronicle/storage/changelog_repository.dart';
 import 'package:my_app/chronicle/models/chronicle_layer.dart';
 import 'package:my_app/chronicle/models/chronicle_aggregation.dart';
+import 'package:my_app/arc/voice_notes/models/voice_note.dart';
+import 'package:my_app/arc/voice_notes/repositories/voice_note_repository.dart';
 
 const _uuid = Uuid();
 
@@ -439,6 +441,11 @@ class ARCXExportServiceV2 {
       onProgress?.call('Exporting CHRONICLE aggregations...');
       final chronicleExported = await _exportChronicle(payloadDir);
       
+      // Export voice notes (Voice Notes tab)
+      int voiceNotesExported = 0;
+      onProgress?.call('Exporting voice notes...');
+      voiceNotesExported = await _exportVoiceNotes(payloadDir);
+      
       // Export health streams (aligned with MCP format)
       if (entries.isNotEmpty) {
         onProgress?.call('Exporting health streams...');
@@ -475,6 +482,7 @@ class ARCXExportServiceV2 {
         chronicleYearlyCount: chronicleExported['yearly'] ?? 0,
         chronicleMultiyearCount: chronicleExported['multiyear'] ?? 0,
         chronicleChangelogEntries: chronicleExported['changelog_entries'] ?? 0,
+        voiceNotesCount: voiceNotesExported,
         separateGroups: false,
         options: options,
         entriesDateRangeStart: entriesDateStart,
@@ -679,6 +687,11 @@ class ARCXExportServiceV2 {
         onProgress?.call('Exporting LUMARA favorites...');
         lumaraFavoritesExported = await _exportLumaraFavorites(payloadDir);
         
+        // Export voice notes (Voice Notes tab)
+        int voiceNotesExported = 0;
+        onProgress?.call('Exporting voice notes...');
+        voiceNotesExported = await _exportVoiceNotes(payloadDir);
+        
         // Generate checksums
         if (options.includeChecksums) {
           await _generateChecksums(payloadDir);
@@ -711,6 +724,7 @@ class ARCXExportServiceV2 {
           chronicleYearlyCount: 0,
           chronicleMultiyearCount: 0,
           chronicleChangelogEntries: 0,
+          voiceNotesCount: voiceNotesExported,
           separateGroups: true, // Indicates this is part of a separated export
           options: entriesChatsOptions,
         );
@@ -859,6 +873,13 @@ class ARCXExportServiceV2 {
       onProgress?.call('Exporting LUMARA favorites...');
       lumaraFavoritesExported = await _exportLumaraFavorites(payloadDir);
       
+      // Export voice notes (when exporting Entries group)
+      int voiceNotesExported = 0;
+      if (groupType == 'Entries') {
+        onProgress?.call('Exporting voice notes...');
+        voiceNotesExported = await _exportVoiceNotes(payloadDir);
+      }
+      
       // Generate checksums
       if (options.includeChecksums) {
         await _generateChecksums(payloadDir);
@@ -880,6 +901,7 @@ class ARCXExportServiceV2 {
         chronicleYearlyCount: 0,
         chronicleMultiyearCount: 0,
         chronicleChangelogEntries: 0,
+        voiceNotesCount: voiceNotesExported,
         separateGroups: true,
         options: options,
       );
@@ -1067,6 +1089,7 @@ class ARCXExportServiceV2 {
     int chronicleYearlyCount = 0,
     int chronicleMultiyearCount = 0,
     int chronicleChangelogEntries = 0,
+    int voiceNotesCount = 0,
     required bool separateGroups,
     required ARCXExportOptions options,
     String? entriesDateRangeStart,
@@ -1109,6 +1132,7 @@ class ARCXExportServiceV2 {
         chronicleYearlyCount: chronicleYearlyCount,
         chronicleMultiyearCount: chronicleMultiyearCount,
         chronicleChangelogEntries: chronicleChangelogEntries,
+        voiceNotesCount: voiceNotesCount,
         separateGroups: separateGroups,
       ),
       encryptionInfo: ARCXEncryptionInfo(
@@ -1822,6 +1846,55 @@ class ARCXExportServiceV2 {
         'chats': 0,
         'entries': 0,
       };
+    }
+  }
+
+  /// Export voice notes to extensions/voice_notes.json
+  /// Returns count of notes exported
+  Future<int> _exportVoiceNotes(Directory payloadDir) async {
+    try {
+      final extensionsDir = Directory(path.join(payloadDir.path, 'extensions'));
+      await extensionsDir.create(recursive: true);
+
+      Box<VoiceNote> box;
+      if (Hive.isBoxOpen(VoiceNoteRepository.boxName)) {
+        box = Hive.box<VoiceNote>(VoiceNoteRepository.boxName);
+      } else {
+        box = await Hive.openBox<VoiceNote>(VoiceNoteRepository.boxName);
+      }
+
+      final notes = box.values.toList();
+      if (notes.isEmpty) {
+        debugPrint('ARCX Export V2: No voice notes to export');
+        return 0;
+      }
+
+      final list = notes.map((note) => {
+        'id': note.id,
+        'timestamp': note.timestamp.toIso8601String(),
+        'transcription': note.transcription,
+        'tags': note.tags,
+        'archived': note.archived,
+        'convertedToJournal': note.convertedToJournal,
+        'convertedEntryId': note.convertedEntryId,
+        'durationMs': note.durationMs,
+      }).toList();
+
+      final file = File(path.join(extensionsDir.path, 'voice_notes.json'));
+      await file.writeAsString(
+        JsonEncoder.withIndent('  ').convert({
+          'voice_notes': list,
+          'exported_at': DateTime.now().toUtc().toIso8601String(),
+          'version': '1.0',
+          'count': list.length,
+        }),
+      );
+
+      debugPrint('ARCX Export V2: Exported ${notes.length} voice notes');
+      return notes.length;
+    } catch (e) {
+      debugPrint('ARCX Export V2: Error exporting voice notes: $e');
+      return 0;
     }
   }
 

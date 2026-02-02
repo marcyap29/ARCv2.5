@@ -1,8 +1,8 @@
 // lib/shared/ui/journal/unified_journal_view.dart
-// Unified Journal View - Combines Timeline and LUMARA into a single section
+// Unified Journal View - Combines Timeline and Voice Notes into a single section
 
 import 'package:flutter/material.dart';
-import 'package:my_app/arc/ui/timeline/timeline_view.dart';
+import 'package:my_app/arc/ui/timeline/timeline_with_ideas_view.dart';
 
 class UnifiedJournalView extends StatefulWidget {
   const UnifiedJournalView({super.key});
@@ -19,7 +19,7 @@ class _UnifiedJournalViewState extends State<UnifiedJournalView> {
       body: SafeArea(
         top: false,
         bottom: true,
-        child: const TimelineView(), // Directly show TimelineView without tab bar
+        child: const TimelineWithIdeasView(), // Shows Timeline + Voice Notes tabs
       ),
     );
   }

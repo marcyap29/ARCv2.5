@@ -14,6 +14,8 @@ import '../bloc/lumara_assistant_cubit.dart';
 import '../data/context_scope.dart';
 import '../services/lumara_reflection_settings_service.dart';
 import 'package:my_app/services/subscription_service.dart';
+import 'package:my_app/arc/chat/voice/config/wispr_config_service.dart';
+import 'package:my_app/services/firebase_auth_service.dart';
 
 /// LUMARA settings screen for API key management and provider selection
 class LumaraSettingsScreen extends StatefulWidget {
@@ -517,8 +519,10 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
               const SizedBox(height: 24),
             ],
 
-            // External Services Card (Wispr Flow) - Only for Pro/Paying users
-            if (_subscriptionTier == SubscriptionTier.premium) ...[
+            // External Services Card (Wispr Flow) - Only for admin user (marcyap@orbitalai.net)
+            // Wispr Flow is restricted to admin for testing; other users get Apple On-Device
+            if (_subscriptionTier == SubscriptionTier.premium &&
+                FirebaseAuthService.instance.currentUser?.email?.toLowerCase() == 'marcyap@orbitalai.net') ...[
               _buildExternalServicesCard(theme),
               const SizedBox(height: 24),
             ],
@@ -1687,13 +1691,11 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
               ),
               const SizedBox(width: 8),
               ElevatedButton.icon(
-                onPressed: controller.text.trim().isEmpty
-                    ? null
-                    : () async {
-                        await _saveSpecificApiKey(provider);
-                      },
+                onPressed: () async {
+                  await _saveSpecificApiKey(provider);
+                },
                 icon: Icon(Icons.save, size: 18),
-                label: Text('Save'),
+                label: Text(controller.text.trim().isEmpty ? 'Clear' : 'Save'),
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                   backgroundColor: controller.text.trim().isEmpty
@@ -1714,18 +1716,21 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
 
   Future<void> _saveSpecificApiKey(LLMProvider provider) async {
     final controller = _apiKeyControllers[provider];
-    if (controller == null || controller.text.trim().isEmpty) {
-      return;
-    }
+    if (controller == null) return;
+
+    final key = controller.text.trim();
+    final isClearing = key.isEmpty;
 
     try {
-      await _apiConfig.updateApiKey(provider, controller.text.trim());
+      await _apiConfig.updateApiKey(provider, key);
 
-      // Force refresh provider availability
+      // Force refresh provider availability (clears in-memory state when key removed)
       await _apiConfig.refreshProviderAvailability();
 
-      // Reinitialize LUMARA API to pick up the new key
-      await _lumaraApi.initialize();
+      if (!isClearing) {
+        // Reinitialize LUMARA API to pick up the new key
+        await _lumaraApi.initialize();
+      }
 
       // Get display name for success message
       final config = _apiConfig.getConfig(provider);
@@ -1752,14 +1757,16 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
           SnackBar(
             content: Row(
               children: [
-                Icon(Icons.check_circle, color: Colors.white),
+                Icon(isClearing ? Icons.info_outline : Icons.check_circle, color: Colors.white),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: Text('$displayName API key saved and activated!'),
+                  child: Text(isClearing
+                      ? '$displayName API key cleared.'
+                      : '$displayName API key saved and activated!'),
                 ),
               ],
             ),
-            backgroundColor: Colors.green,
+            backgroundColor: isClearing ? Colors.orange : Colors.green,
             duration: const Duration(seconds: 2),
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(
@@ -1969,7 +1976,7 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
                 child: TextField(
                   controller: _wisprApiKeyController,
                   decoration: InputDecoration(
-                    hintText: 'Enter Wispr Flow API key',
+                    hintText: 'Paste API key from wisprflow.ai (only the key, no instructions)',
                     suffixIcon: _wisprApiKeyConfigured
                         ? Icon(Icons.check_circle, color: Colors.green, size: 20)
                         : Icon(Icons.key, color: theme.colorScheme.onSurfaceVariant.withOpacity(0.5), size: 20),
@@ -1986,13 +1993,11 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
               ),
               const SizedBox(width: 8),
               ElevatedButton.icon(
-                onPressed: _wisprApiKeyController.text.trim().isEmpty
-                    ? null
-                    : () async {
-                        await _saveWisprApiKey();
-                      },
+                onPressed: () async {
+                  await _saveWisprApiKey();
+                },
                 icon: Icon(Icons.save, size: 18),
-                label: Text('Save'),
+                label: Text(_wisprApiKeyController.text.trim().isEmpty ? 'Clear' : 'Save'),
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                   backgroundColor: _wisprApiKeyController.text.trim().isEmpty
@@ -2008,7 +2013,7 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Get your API key at wisprflow.ai (personal use only)',
+            'Get your API key at wisprflow.ai — paste only the key (no quotes or "LUMARA tab" text). Personal use only.',
             style: theme.textTheme.bodySmall?.copyWith(
               color: theme.colorScheme.onSurfaceVariant.withOpacity(0.7),
               fontStyle: FontStyle.italic,
@@ -2019,14 +2024,78 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
     );
   }
 
-  /// Save Wispr Flow API key
+  /// Save Wispr Flow API key (or clear if field is empty)
   Future<void> _saveWisprApiKey() async {
     final key = _wisprApiKeyController.text.trim();
-    if (key.isEmpty) return;
+
+    // Allow saving empty to clear the key — always clear cache so next voice session uses current storage
+    if (key.isEmpty) {
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString(_wisprApiKeyPrefKey, '');
+        WisprConfigService.instance.clearCache();
+        setState(() {
+          _wisprApiKeyConfigured = false;
+        });
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Wispr Flow API key cleared. Voice mode will use on-device transcription.'),
+              backgroundColor: Colors.orange,
+              duration: Duration(seconds: 2),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error clearing Wispr API key: $e'), backgroundColor: Colors.red),
+          );
+        }
+      }
+      return;
+    }
+
+    // Validate: reject values that look like instructions instead of an API key
+    final keyLower = key.toLowerCase();
+    final looksLikeInstructions = keyLower.contains('lumara') && keyLower.contains('settings') ||
+        (keyLower.contains('tab') && keyLower.contains('->')) ||
+        key.contains('"') ||
+        key.length < 20;
+    if (looksLikeInstructions && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Row(
+            children: [
+              Icon(Icons.warning_amber_rounded, color: Colors.white),
+              SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'That doesn\'t look like an API key. In LUMARA Settings, go to External Services and paste only your key from wisprflow.ai (no quotes or instructions).',
+                ),
+              ),
+            ],
+          ),
+          backgroundColor: Colors.orange.shade800,
+          duration: const Duration(seconds: 5),
+          behavior: SnackBarBehavior.floating,
+          action: SnackBarAction(
+            label: 'OK',
+            textColor: Colors.white,
+            onPressed: () {},
+          ),
+        ),
+      );
+      return;
+    }
 
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_wisprApiKeyPrefKey, key);
+      
+      // Clear the WisprConfigService cache so new key is used on next voice mode session
+      WisprConfigService.instance.clearCache();
 
       setState(() {
         _wisprApiKeyConfigured = true;
@@ -2105,6 +2174,11 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
     if (confirmed != true) return;
 
     await _apiConfig.clearAllApiKeys();
+
+    // Remove Wispr key from storage too (it lives in SharedPreferences, not LumaraAPIConfig)
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_wisprApiKeyPrefKey, '');
+    WisprConfigService.instance.clearCache();
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(

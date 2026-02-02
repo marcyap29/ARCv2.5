@@ -10,6 +10,7 @@ import '../services/voice_session_service.dart';
 import '../../../services/enhanced_lumara_api.dart';
 import '../../voice_journal/prism_adapter.dart';
 import 'voice_mode_screen.dart';
+import 'package:my_app/services/firebase_auth_service.dart';
 
 /// Voice Mode Launcher Button
 /// 
@@ -31,7 +32,22 @@ class VoiceModeLauncher extends StatelessWidget {
   });
   
   /// Launch voice mode
+  /// NOTE: Voice mode is currently in beta - restricted to marcyap@orbitalai.net only
   Future<void> _launchVoiceMode(BuildContext context) async {
+    // BETA CHECK: Voice mode is in beta testing - only allow for specific tester
+    final currentUserEmail = FirebaseAuthService.instance.currentUser?.email?.toLowerCase();
+    const betaTesterEmail = 'marcyap@orbitalai.net';
+    
+    if (currentUserEmail != betaTesterEmail) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Voice mode is currently in beta testing. Coming soon!'),
+          duration: Duration(seconds: 3),
+        ),
+      );
+      return;
+    }
+    
     // Show loading
     showDialog(
       context: context,

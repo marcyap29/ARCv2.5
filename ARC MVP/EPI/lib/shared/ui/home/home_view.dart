@@ -24,7 +24,9 @@ import 'package:my_app/arc/chat/data/context_scope.dart';
 import 'package:my_app/services/shake_detector_service.dart';
 import 'package:my_app/ui/feedback/bug_report_dialog.dart';
 import 'package:my_app/arc/chat/voice/ui/voice_mode_screen.dart';
+import 'package:my_app/arc/chat/voice/ui/voice_transition_screen.dart';
 import 'package:my_app/arc/chat/voice/config/voice_system_initializer.dart';
+import 'package:my_app/arc/chat/voice/services/voice_session_service.dart';
 import 'package:my_app/arc/chat/services/enhanced_lumara_api.dart';
 import 'package:my_app/arc/internal/echo/prism_adapter.dart';
 import 'package:my_app/services/firebase_auth_service.dart';
@@ -336,105 +338,97 @@ class _HomeViewState extends State<HomeView> {
   }
 
   /// Open Voice Mode UI with LUMARA sigil
+  /// NOTE: Voice mode is currently in beta - restricted to marcyap@orbitalai.net only
+  ///
+  /// Uses a 4-second transition screen so Wispr (and other services) have time to
+  /// connect before the user sees the talk button; a fast transition caused users
+  /// to tap talk before the service was ready.
   void _openVoiceJournal(BuildContext context) async {
-    try {
-      // Get current user ID
-      final userId = FirebaseAuthService.instance.currentUser?.uid;
-      if (userId == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Please sign in to use voice mode'),
-            duration: Duration(seconds: 3),
-          ),
-        );
-        return;
-      }
-      
-      // Show loading indicator
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => const Center(
-          child: CircularProgressIndicator(),
+    // BETA CHECK: Voice mode is in beta testing - only allow for specific tester
+    final currentUserEmail = FirebaseAuthService.instance.currentUser?.email?.toLowerCase();
+    const betaTesterEmail = 'marcyap@orbitalai.net';
+
+    if (currentUserEmail != betaTesterEmail) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Voice mode is currently in beta testing. Coming soon!'),
+          duration: Duration(seconds: 3),
         ),
       );
-      
-      // Create required services
-      final analytics = Analytics();
-      final lumaraApi = EnhancedLumaraApi(analytics);
-      await lumaraApi.initialize();
-      
-      final prism = PrismAdapter();
-      
-      // Initialize voice system with all required parameters
-      final voiceInitializer = VoiceSystemInitializer(
-        userId: userId,
-        lumaraApi: lumaraApi,
-        prism: prism,
-      );
-      final sessionService = await voiceInitializer.initialize();
-      
-      // Set the user's actual phase using PhaseRegimeService (same as Phase tab)
-      if (sessionService != null) {
-        final currentPhase = await _getCurrentPhaseFromRegimeService();
-        sessionService.updatePhase(currentPhase);
-        debugPrint('Voice Mode: Set phase to ${currentPhase.name}');
-      }
-      
-      // Dismiss loading indicator
-      if (mounted) {
-        Navigator.pop(context);
-      }
-      
-      if (sessionService == null) {
-        debugPrint('Voice Mode: Failed to initialize voice session service');
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Failed to initialize voice mode. Please try again.'),
-              duration: Duration(seconds: 3),
-            ),
-          );
-        }
-        return;
-      }
-      
-      // Navigate to voice mode screen with sigil
-      if (mounted) {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => VoiceModeScreen(
-              sessionService: sessionService,
-              onComplete: () {
-                Navigator.pop(context);
-                // Refresh timeline to show new voice entry
-                try {
-                  context.read<TimelineCubit>().refreshEntries();
-                } catch (e) {
-                  debugPrint('Voice Mode: Could not refresh timeline: $e');
-                }
-              },
-            ),
-          ),
-        );
-      }
-    } catch (e) {
-      // Dismiss loading indicator if showing
-      if (mounted && Navigator.canPop(context)) {
-        Navigator.pop(context);
-      }
-      
-      debugPrint('Error opening voice mode: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error opening voice mode: $e'),
-            duration: const Duration(seconds: 3),
-          ),
-        );
-      }
+      return;
     }
+
+    final userId = FirebaseAuthService.instance.currentUser?.uid;
+    if (userId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please sign in to use voice mode'),
+          duration: Duration(seconds: 3),
+        ),
+      );
+      return;
+    }
+
+    if (!mounted) return;
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => VoiceTransitionScreen(
+          minTransitionDuration: const Duration(seconds: 4),
+          initFuture: _initializeVoiceSession,
+          onSuccess: (sessionService) {
+            if (!context.mounted) return;
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => VoiceModeScreen(
+                  sessionService: sessionService,
+                  onComplete: () {
+                    Navigator.pop(context);
+                    try {
+                      context.read<TimelineCubit>().refreshEntries();
+                    } catch (e) {
+                      debugPrint('Voice Mode: Could not refresh timeline: $e');
+                    }
+                  },
+                ),
+              ),
+            );
+          },
+          onError: (message) {
+            if (!context.mounted) return;
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(message),
+                duration: const Duration(seconds: 3),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  /// Initialize voice session (LUMARA API, Wispr, phase). Used during the 2s transition.
+  Future<VoiceSessionService?> _initializeVoiceSession() async {
+    final analytics = Analytics();
+    final lumaraApi = EnhancedLumaraApi(analytics);
+    await lumaraApi.initialize();
+
+    final prism = PrismAdapter();
+    final voiceInitializer = VoiceSystemInitializer(
+      userId: FirebaseAuthService.instance.currentUser!.uid,
+      lumaraApi: lumaraApi,
+      prism: prism,
+    );
+    final sessionService = await voiceInitializer.initialize();
+
+    if (sessionService != null) {
+      final currentPhase = await _getCurrentPhaseFromRegimeService();
+      sessionService.updatePhase(currentPhase);
+      debugPrint('Voice Mode: Set phase to ${currentPhase.name}');
+    }
+    return sessionService;
   }
   
   /// Get current phase using PhaseRegimeService (same approach as Phase tab)

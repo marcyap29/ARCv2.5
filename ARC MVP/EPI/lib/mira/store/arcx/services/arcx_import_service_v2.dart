@@ -38,6 +38,8 @@ import 'package:my_app/chronicle/storage/aggregation_repository.dart';
 import 'package:my_app/chronicle/storage/changelog_repository.dart';
 import 'package:my_app/chronicle/models/chronicle_layer.dart';
 import 'package:my_app/chronicle/models/chronicle_aggregation.dart';
+import 'package:my_app/arc/voice_notes/models/voice_note.dart';
+import 'package:my_app/arc/voice_notes/repositories/voice_note_repository.dart';
 
 const _uuid = Uuid();
 
@@ -390,6 +392,10 @@ class ARCXImportServiceV2 {
         // Import CHRONICLE aggregations (monthly/yearly/multiyear .md files + changelog)
         onProgress?.call('Importing CHRONICLE aggregations...', _kPhaseRegimesEnd);
         final chronicleImported = await _importChronicle(payloadDir!, onProgress: onProgress);
+        
+        // Import voice notes (Voice Notes tab)
+        onProgress?.call('Importing voice notes...', _kPhaseRegimesEnd);
+        await _importVoiceNotes(payloadDir!, onProgress: onProgress);
         
         // Import Entries AFTER phase regimes so they can be tagged correctly
         final entriesDir = Directory(path.join(payloadDir!.path, 'Entries'));
@@ -1421,6 +1427,65 @@ class ARCXImportServiceV2 {
         'multiyear': 0,
         'changelog_entries': 0,
       };
+    }
+  }
+
+  /// Import voice notes from extensions/voice_notes.json
+  Future<int> _importVoiceNotes(
+    Directory payloadDir, {
+    ImportProgressCallback? onProgress,
+  }) async {
+    try {
+      Directory extensionsDir = Directory(path.join(payloadDir.path, 'extensions'));
+      if (!await extensionsDir.exists()) {
+        print('ARCX Import V2: ⚠️ extensions directory not found, skipping voice notes');
+        return 0;
+      }
+
+      final voiceNotesFile = File(path.join(extensionsDir.path, 'voice_notes.json'));
+      if (!await voiceNotesFile.exists()) {
+        print('ARCX Import V2: ⚠️ voice_notes.json not found, skipping voice notes');
+        return 0;
+      }
+
+      onProgress?.call('Importing voice notes...');
+      final content = await voiceNotesFile.readAsString();
+      final data = jsonDecode(content) as Map<String, dynamic>;
+      final notesJson = data['voice_notes'] as List<dynamic>? ?? [];
+
+      Box<VoiceNote> box;
+      if (Hive.isBoxOpen(VoiceNoteRepository.boxName)) {
+        box = Hive.box<VoiceNote>(VoiceNoteRepository.boxName);
+      } else {
+        box = await Hive.openBox<VoiceNote>(VoiceNoteRepository.boxName);
+      }
+
+      int imported = 0;
+      for (final noteJson in notesJson) {
+        try {
+          final m = noteJson as Map<String, dynamic>;
+          final note = VoiceNote(
+            id: m['id'] as String,
+            timestamp: DateTime.parse(m['timestamp'] as String),
+            transcription: m['transcription'] as String? ?? '',
+            tags: (m['tags'] as List<dynamic>?)?.cast<String>() ?? [],
+            archived: m['archived'] as bool? ?? false,
+            convertedToJournal: m['convertedToJournal'] as bool? ?? false,
+            convertedEntryId: m['convertedEntryId'] as String?,
+            durationMs: m['durationMs'] as int?,
+          );
+          await box.put(note.id, note);
+          imported++;
+        } catch (e) {
+          print('ARCX Import V2: ⚠️ Failed to import voice note: $e');
+        }
+      }
+
+      print('ARCX Import V2: ✓ Imported $imported voice notes');
+      return imported;
+    } catch (e) {
+      print('ARCX Import V2: ⚠️ Error importing voice notes: $e');
+      return 0;
     }
   }
 

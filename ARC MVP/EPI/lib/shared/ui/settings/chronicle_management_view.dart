@@ -3,12 +3,14 @@ import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
 import 'package:my_app/chronicle/services/chronicle_manual_service.dart';
 import 'package:my_app/chronicle/services/chronicle_export_service.dart';
+import 'package:my_app/chronicle/services/chronicle_onboarding_service.dart';
 import 'package:my_app/chronicle/storage/aggregation_repository.dart';
 import 'package:my_app/chronicle/storage/changelog_repository.dart';
 import 'package:my_app/chronicle/synthesis/synthesis_engine.dart';
 import 'package:my_app/chronicle/storage/layer0_repository.dart';
 import 'package:my_app/chronicle/models/chronicle_layer.dart';
 import 'package:my_app/chronicle/scheduling/synthesis_scheduler.dart';
+import 'package:my_app/arc/internal/mira/journal_repository.dart';
 import 'package:my_app/services/firebase_auth_service.dart';
 import 'package:my_app/shared/ui/chronicle/chronicle_layers_viewer.dart';
 import 'package:file_picker/file_picker.dart';
@@ -251,6 +253,110 @@ class _ChronicleManagementViewState extends State<ChronicleManagementView> {
     );
   }
 
+  Future<ChronicleOnboardingService> _createOnboardingService() async {
+    final journalRepo = JournalRepository();
+    final layer0Repo = Layer0Repository();
+    await layer0Repo.initialize();
+    final aggregationRepo = AggregationRepository();
+    final changelogRepo = ChangelogRepository();
+    final synthesisEngine = SynthesisEngine(
+      layer0Repo: layer0Repo,
+      aggregationRepo: aggregationRepo,
+      changelogRepo: changelogRepo,
+    );
+    return ChronicleOnboardingService(
+      journalRepo: journalRepo,
+      layer0Repo: layer0Repo,
+      aggregationRepo: aggregationRepo,
+      synthesisEngine: synthesisEngine,
+    );
+  }
+
+  Future<void> _backfillLayer0() async {
+    setState(() {
+      _isLoading = true;
+      _statusMessage = null;
+    });
+
+    try {
+      final userId = FirebaseAuthService.instance.currentUser?.uid ?? 'default_user';
+      final service = await _createOnboardingService();
+
+      final result = await service.backfillLayer0(
+        userId: userId,
+        onProgress: (processed, total) {
+          if (mounted) {
+            setState(() {
+              _statusMessage = 'Backfilling... $processed / $total entries';
+            });
+          }
+        },
+      );
+
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _statusMessage = result.success
+              ? (result.message ?? 'Backfill complete')
+              : 'Backfill failed: ${result.error}';
+          _statusIsError = !result.success;
+        });
+        if (result.success) await _loadAggregationCounts();
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _statusMessage = 'Error: $e';
+          _statusIsError = true;
+        });
+      }
+    }
+  }
+
+  Future<void> _backfillAndSynthesize() async {
+    setState(() {
+      _isLoading = true;
+      _statusMessage = null;
+    });
+
+    try {
+      final userId = FirebaseAuthService.instance.currentUser?.uid ?? 'default_user';
+      final service = await _createOnboardingService();
+
+      final result = await service.fullOnboarding(
+        userId: userId,
+        tier: SynthesisTier.premium,
+        onProgress: (stage, progress, total) {
+          if (mounted) {
+            setState(() {
+              _statusMessage = '$stage ($progress / $total)';
+            });
+          }
+        },
+      );
+
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _statusMessage = result.success
+              ? (result.message ?? 'Backfill and synthesis complete')
+              : 'Failed: ${result.error}';
+          _statusIsError = !result.success;
+        });
+        if (result.success) await _loadAggregationCounts();
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _statusMessage = 'Error: $e';
+          _statusIsError = true;
+        });
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -329,6 +435,28 @@ class _ChronicleManagementViewState extends State<ChronicleManagementView> {
                         'Multi-Year Aggregations',
                         _countsLoaded ? '$_multiyearCount files' : 'Loading...',
                         Icons.calendar_view_month,
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 32),
+
+                  // Backfill
+                  _buildSection(
+                    title: 'Backfill',
+                    children: [
+                      _buildActionButton(
+                        'Backfill Layer 0',
+                        'Copy all journal entries into CHRONICLE so they can be synthesized',
+                        Icons.sync,
+                        _backfillLayer0,
+                      ),
+                      const SizedBox(height: 12),
+                      _buildActionButton(
+                        'Backfill & Synthesize All',
+                        'Backfill Layer 0 and synthesize all months/years with entries',
+                        Icons.sync_alt,
+                        _backfillAndSynthesize,
                       ),
                     ],
                   ),

@@ -4,8 +4,11 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:accessing_security_scoped_resource/accessing_security_scoped_resource.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
 import 'package:my_app/arc/core/journal_repository.dart';
@@ -36,6 +39,9 @@ class GoogleDriveSettingsView extends StatefulWidget {
 class _GoogleDriveSettingsViewState extends State<GoogleDriveSettingsView> {
   final GoogleDriveService _driveService = GoogleDriveService.instance;
 
+  // SharedPreferences key for persisting selected backup folder
+  static const String _keyGoogleDriveSourceFolder = 'google_drive_source_folder';
+
   bool _loading = true;
   bool _connecting = false;
   String? _accountEmail;
@@ -44,11 +50,285 @@ class _GoogleDriveSettingsViewState extends State<GoogleDriveSettingsView> {
   bool _importing = false;
   List<drive.File> _driveFiles = [];
   bool _loadingFiles = false;
+  
+  // Upload from folder state
+  String? _sourceFolder;
+  List<FileSystemEntity> _sourceFiles = [];
+  bool _uploadingFromFolder = false;
+  String _uploadFolderProgress = '';
 
   @override
   void initState() {
     super.initState();
     _refreshConnection();
+    _loadSourceFolder();
+  }
+
+  Future<void> _loadSourceFolder() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final savedPath = prefs.getString(_keyGoogleDriveSourceFolder);
+      if (savedPath != null && savedPath.isNotEmpty) {
+        final dir = Directory(savedPath);
+        if (await dir.exists()) {
+          await _scanSourceFolder(savedPath);
+        }
+      }
+    } catch (e) {
+      debugPrint('GoogleDriveSettingsView: Error loading source folder: $e');
+    }
+  }
+
+  Future<void> _selectSourceFolder() async {
+    try {
+      final selectedPath = await FilePicker.platform.getDirectoryPath();
+      if (selectedPath != null) {
+        // Persist the selected folder
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString(_keyGoogleDriveSourceFolder, selectedPath);
+        
+        await _scanSourceFolder(selectedPath);
+        
+        if (mounted && _sourceFiles.isNotEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Found ${_sourceFiles.length} backup file(s)'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        } else if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text(
+                'No .arcx or .zip files found here. If the folder has backup files, try selecting it again (the system may need to grant access).',
+              ),
+              backgroundColor: Colors.orange,
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error selecting folder: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _scanSourceFolder(String folderPath) async {
+    // On iOS/macOS, sandbox requires security-scoped access to list a picked folder
+    bool isAccessing = false;
+    if (Platform.isIOS || Platform.isMacOS) {
+      try {
+        final plugin = AccessingSecurityScopedResource();
+        isAccessing = await plugin.startAccessingSecurityScopedResourceWithFilePath(folderPath);
+        if (!isAccessing) {
+          debugPrint('GoogleDriveSettingsView: Could not get security-scoped access to $folderPath');
+        }
+      } catch (e) {
+        debugPrint('GoogleDriveSettingsView: startAccessingSecurityScopedResource error: $e');
+      }
+    }
+
+    try {
+      final dir = Directory(folderPath);
+      if (!await dir.exists()) {
+        if (mounted) {
+          setState(() {
+            _sourceFolder = null;
+            _sourceFiles = [];
+          });
+        }
+        return;
+      }
+
+      // List files: use stream + path check so we catch .arcx/.zip whether reported as File or not
+      final backupPaths = <String>[];
+      await for (final entity in dir.list(followLinks: false)) {
+        final p = entity.path;
+        final nameLower = path.basename(p).toLowerCase();
+        if (!nameLower.endsWith('.arcx') && !nameLower.endsWith('.zip')) continue;
+        try {
+          if (await FileSystemEntity.isFile(p)) {
+            backupPaths.add(p);
+          }
+        } catch (_) {}
+      }
+
+      final backupFiles = backupPaths.map((p) => File(p)).toList();
+
+      // Sort by modification time (newest first)
+      backupFiles.sort((a, b) {
+        try {
+          final aStat = a.statSync();
+          final bStat = b.statSync();
+          return bStat.modified.compareTo(aStat.modified);
+        } catch (_) {
+          return 0;
+        }
+      });
+
+      if (mounted) {
+        setState(() {
+          _sourceFolder = folderPath;
+          _sourceFiles = backupFiles;
+        });
+      }
+    } catch (e) {
+      debugPrint('GoogleDriveSettingsView: Error scanning folder: $e');
+      if (mounted) {
+        setState(() {
+          _sourceFolder = folderPath;
+          _sourceFiles = [];
+        });
+      }
+    } finally {
+      if ((Platform.isIOS || Platform.isMacOS) && isAccessing) {
+        try {
+          final plugin = AccessingSecurityScopedResource();
+          await plugin.stopAccessingSecurityScopedResourceWithFilePath(folderPath);
+        } catch (_) {}
+      }
+    }
+  }
+
+  Future<void> _uploadFromFolder() async {
+    if (!_driveService.isSignedIn) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Connect Google Drive first'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    if (_sourceFiles.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No backup files to upload'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    if (_sourceFolder == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No source folder selected'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _uploadingFromFolder = true;
+      _uploadFolderProgress = 'Preparing upload...';
+    });
+
+    // On iOS/macOS, re-acquire security-scoped access so we can read the files during upload
+    bool isAccessing = false;
+    if (Platform.isIOS || Platform.isMacOS) {
+      try {
+        final plugin = AccessingSecurityScopedResource();
+        isAccessing = await plugin.startAccessingSecurityScopedResourceWithFilePath(_sourceFolder!);
+        if (!isAccessing) {
+          if (mounted) {
+            setState(() {
+              _uploadingFromFolder = false;
+              _uploadFolderProgress = '';
+            });
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                  'This folder needs permission to access. Tap "Browse" to select the folder again (this grants access), then tap Upload.',
+                ),
+                backgroundColor: Colors.orange,
+                duration: Duration(seconds: 5),
+              ),
+            );
+          }
+          return;
+        }
+      } catch (e) {
+        if (mounted) {
+          setState(() {
+            _uploadingFromFolder = false;
+            _uploadFolderProgress = '';
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text(
+                'Folder access was denied (system privacy). Tap "Browse" to select the folder again, then Upload.',
+              ),
+              backgroundColor: Colors.orange,
+              duration: const Duration(seconds: 5),
+            ),
+          );
+        }
+        return;
+      }
+    }
+
+    try {
+      await _ensureFolder();
+
+      final arcxPaths = _sourceFiles.map((f) => f.path).toList();
+      final manifestTimestamp = DateTime.now().toUtc().toIso8601String();
+
+      if (!mounted) return;
+      setState(() => _uploadFolderProgress = 'Uploading ${arcxPaths.length} file(s)...');
+
+      await _driveService.uploadChunkedBackup(
+        arcxPaths: arcxPaths,
+        manifestTimestamp: manifestTimestamp,
+        onProgress: (current, total, phase) {
+          if (mounted) {
+            setState(() => _uploadFolderProgress = phase);
+          }
+        },
+      );
+
+      if (mounted) {
+        setState(() {
+          _uploadingFromFolder = false;
+          _uploadFolderProgress = '';
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Uploaded ${arcxPaths.length} file(s) to Google Drive'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _uploadingFromFolder = false;
+          _uploadFolderProgress = '';
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Upload failed: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if ((Platform.isIOS || Platform.isMacOS) && isAccessing) {
+        try {
+          final plugin = AccessingSecurityScopedResource();
+          await plugin.stopAccessingSecurityScopedResourceWithFilePath(_sourceFolder!);
+        } catch (_) {}
+      }
+    }
   }
 
   Future<void> _refreshConnection() async {
@@ -385,6 +665,8 @@ class _GoogleDriveSettingsViewState extends State<GoogleDriveSettingsView> {
                   if (_accountEmail != null) ...[
                     _buildExportCard(),
                     const SizedBox(height: 24),
+                    _buildUploadFromFolderCard(),
+                    const SizedBox(height: 24),
                     _buildImportCard(),
                   ],
                 ],
@@ -484,6 +766,194 @@ class _GoogleDriveSettingsViewState extends State<GoogleDriveSettingsView> {
             icon: _exporting ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) : const Icon(Icons.upload, size: 18),
             label: Text(_exporting ? 'Exporting...' : 'Export backup to Drive'),
             style: FilledButton.styleFrom(backgroundColor: kcAccentColor, foregroundColor: Colors.white),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildUploadFromFolderCard() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Upload from Folder',
+            style: heading3Style(context).copyWith(color: kcPrimaryTextColor),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Select a local folder with existing backup files to upload to Google Drive.',
+            style: bodyStyle(context).copyWith(color: kcSecondaryTextColor, fontSize: 12),
+          ),
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.orange.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.orange.withValues(alpha: 0.3)),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.info_outline, size: 18, color: Colors.orange[300]),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'When you choose a folder outside the app, the system may require you to select it again before uploading. If you see an access message, tap "Browse" to re-select the folder, then Upload.',
+                    style: bodyStyle(context).copyWith(
+                      color: kcSecondaryTextColor,
+                      fontSize: 11,
+                      height: 1.3,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          
+          // Folder selection row
+          Row(
+            children: [
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                  ),
+                  child: Text(
+                    _sourceFolder != null 
+                        ? path.basename(_sourceFolder!)
+                        : 'No folder selected',
+                    style: bodyStyle(context).copyWith(
+                      color: _sourceFolder != null ? kcPrimaryTextColor : kcSecondaryTextColor,
+                      fontSize: 13,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              OutlinedButton.icon(
+                onPressed: (_uploadingFromFolder || _exporting) ? null : _selectSourceFolder,
+                icon: const Icon(Icons.folder_open, size: 18),
+                label: const Text('Browse'),
+                style: OutlinedButton.styleFrom(foregroundColor: kcAccentColor),
+              ),
+            ],
+          ),
+          
+          // Show selected files
+          if (_sourceFiles.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '${_sourceFiles.length} backup file(s) found:',
+                    style: bodyStyle(context).copyWith(
+                      color: kcSecondaryTextColor,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  ..._sourceFiles.take(5).map((file) {
+                    final fileName = path.basename(file.path);
+                    final stat = (file as File).statSync();
+                    final sizeKb = (stat.size / 1024).round();
+                    final sizeMb = (stat.size / (1024 * 1024)).toStringAsFixed(1);
+                    final sizeStr = stat.size > 1024 * 1024 ? '${sizeMb}MB' : '${sizeKb}KB';
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 4),
+                      child: Row(
+                        children: [
+                          Icon(
+                            fileName.endsWith('.arcx') ? Icons.archive : Icons.folder_zip,
+                            size: 16,
+                            color: kcSecondaryTextColor,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              fileName,
+                              style: bodyStyle(context).copyWith(
+                                color: kcPrimaryTextColor,
+                                fontSize: 12,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          Text(
+                            sizeStr,
+                            style: bodyStyle(context).copyWith(
+                              color: kcSecondaryTextColor,
+                              fontSize: 11,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }),
+                  if (_sourceFiles.length > 5)
+                    Text(
+                      '...and ${_sourceFiles.length - 5} more',
+                      style: bodyStyle(context).copyWith(
+                        color: kcSecondaryTextColor,
+                        fontSize: 11,
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ],
+          
+          // Upload progress
+          if (_uploadFolderProgress.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(
+              _uploadFolderProgress,
+              style: bodyStyle(context).copyWith(color: kcAccentColor, fontSize: 12),
+            ),
+          ],
+          
+          // Upload button
+          const SizedBox(height: 12),
+          FilledButton.icon(
+            onPressed: (_uploadingFromFolder || _exporting || _sourceFiles.isEmpty) 
+                ? null 
+                : _uploadFromFolder,
+            icon: _uploadingFromFolder 
+                ? const SizedBox(
+                    width: 18, 
+                    height: 18, 
+                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                  ) 
+                : const Icon(Icons.cloud_upload, size: 18),
+            label: Text(_uploadingFromFolder 
+                ? 'Uploading...' 
+                : 'Upload ${_sourceFiles.length} file(s) to Drive'),
+            style: FilledButton.styleFrom(
+              backgroundColor: _sourceFiles.isEmpty ? kcSecondaryTextColor : kcAccentColor, 
+              foregroundColor: Colors.white,
+            ),
           ),
         ],
       ),

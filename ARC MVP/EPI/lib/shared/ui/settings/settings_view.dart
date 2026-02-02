@@ -10,6 +10,7 @@ import 'package:my_app/shared/ui/settings/favorites_management_view.dart';
 import 'package:my_app/shared/ui/settings/advanced_settings_view.dart';
 import 'package:my_app/shared/ui/settings/voiceover_preference_service.dart';
 import 'package:my_app/shared/ui/settings/throttle_settings_view.dart';
+import 'package:my_app/shared/ui/settings/health_readiness_view.dart';
 import 'package:my_app/arc/core/journal_repository.dart';
 import 'package:my_app/arc/chat/services/favorites_service.dart';
 import 'package:my_app/arc/chat/services/lumara_reflection_settings_service.dart';
@@ -26,6 +27,7 @@ import 'package:my_app/shared/ui/settings/temporal_notification_settings_view.da
 import 'package:my_app/shared/ui/settings/chronicle_management_view.dart';
 import 'package:my_app/shared/ui/chronicle/chronicle_layers_viewer.dart';
 import 'package:my_app/arc/phase/share/phase_share_service.dart';
+import 'package:my_app/arc/ui/health/health_view.dart';
 import 'package:file_picker/file_picker.dart';
 import 'dart:io';
 import 'package:my_app/mira/store/mcp/import/mcp_pack_import_service.dart';
@@ -38,7 +40,6 @@ import 'package:my_app/utils/file_utils.dart';
 import 'package:my_app/arc/ui/timeline/timeline_cubit.dart';
 import 'package:my_app/shared/ui/home/home_view.dart';
 import 'package:my_app/arc/chat/chat/chat_repo_impl.dart';
-import 'package:path/path.dart' as path;
 
 class SettingsView extends StatefulWidget {
   const SettingsView({super.key});
@@ -48,6 +49,770 @@ class SettingsView extends StatefulWidget {
 }
 
 class _SettingsViewState extends State<SettingsView> {
+  @override
+  Widget build(BuildContext context) {
+    final userEmail = FirebaseAuthService.instance.currentUser?.email?.toLowerCase();
+    final isAdmin = userEmail == 'marc.yap@orbitalai.net';
+
+    return Scaffold(
+      backgroundColor: kcBackgroundColor,
+      appBar: AppBar(
+        backgroundColor: kcBackgroundColor,
+        elevation: 0,
+        title: Text(
+          'Settings',
+          style: heading1Style(context).copyWith(
+            color: kcPrimaryTextColor,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        centerTitle: true,
+        iconTheme: const IconThemeData(color: kcPrimaryTextColor),
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // 1. Subscription & Account Folder
+            _buildFolderTile(
+              context,
+              title: 'Subscription & Account',
+              subtitle: 'Manage your account and subscription',
+              icon: Icons.account_circle,
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const SubscriptionAccountFolderView()),
+              ),
+            ),
+
+            // 2. Import & Export Folder
+            _buildFolderTile(
+              context,
+              title: 'Import & Export',
+              subtitle: 'Backup, restore, and sync your data',
+              icon: Icons.sync_alt,
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const ImportExportFolderView()),
+              ),
+            ),
+
+            // 3. Advanced Settings (Admin only - marc.yap@orbitalai.net)
+            if (isAdmin)
+              _buildFolderTile(
+                context,
+                title: 'Advanced Settings',
+                subtitle: 'Analysis, memory lookback, debug options',
+                icon: Icons.settings_applications,
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const AdvancedSettingsView()),
+                ),
+              ),
+
+            // 3a. Health & Readiness (Available to everyone by default)
+            _buildFolderTile(
+              context,
+              title: 'Health & Readiness',
+              subtitle: 'Operational readiness and health tracking',
+              icon: Icons.assessment,
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const HealthReadinessFolderView()),
+              ),
+            ),
+
+            // 4. LUMARA Folder
+            _buildFolderTile(
+              context,
+              title: 'LUMARA',
+              subtitle: 'Customize your AI companion experience',
+              icon: Icons.auto_awesome,
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const LumaraFolderView()),
+              ),
+            ),
+
+            // 5. Bug Reporting Folder
+            _buildFolderTile(
+              context,
+              title: 'Bug Reporting',
+              subtitle: 'Report issues and provide feedback',
+              icon: Icons.bug_report,
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const BugReportingFolderView()),
+              ),
+            ),
+
+            // 6. Privacy & Security Folder
+            _buildFolderTile(
+              context,
+              title: 'Privacy & Security',
+              subtitle: 'Control your data and privacy settings',
+              icon: Icons.security,
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const PrivacySecurityFolderView()),
+              ),
+            ),
+
+            const SizedBox(height: 32),
+
+            // About Section (always visible)
+            _buildSection(
+              context,
+              title: 'About',
+              children: [
+                _buildSettingsTile(
+                  context,
+                  title: 'Version',
+                  subtitle: '1.0.5',
+                  icon: Icons.info,
+                  onTap: null,
+                ),
+                _buildSettingsTile(
+                  context,
+                  title: 'Privacy Policy',
+                  subtitle: 'Read our privacy policy',
+                  icon: Icons.privacy_tip,
+                  onTap: () {
+                    // TODO: Implement privacy policy
+                  },
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFolderTile(
+    BuildContext context, {
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required VoidCallback onTap,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.1),
+        ),
+      ),
+      child: ListTile(
+        leading: Container(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            color: kcAccentColor.withValues(alpha: 0.15),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(
+            icon,
+            color: kcAccentColor,
+            size: 24,
+          ),
+        ),
+        title: Text(
+          title,
+          style: heading3Style(context).copyWith(
+            color: kcPrimaryTextColor,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        subtitle: Text(
+          subtitle,
+          style: bodyStyle(context).copyWith(
+            color: kcSecondaryTextColor,
+            fontSize: 12,
+          ),
+        ),
+        trailing: const Icon(
+          Icons.arrow_forward_ios,
+          color: kcSecondaryTextColor,
+          size: 16,
+        ),
+        onTap: onTap,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 12,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSection(BuildContext context, {
+    required String title,
+    required List<Widget> children,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: heading2Style(context).copyWith(
+            color: kcPrimaryTextColor,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 12),
+        ...children,
+      ],
+    );
+  }
+
+  Widget _buildSettingsTile(
+    BuildContext context, {
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    VoidCallback? onTap,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.1),
+        ),
+      ),
+      child: ListTile(
+        leading: Icon(
+          icon,
+          color: kcAccentColor,
+          size: 24,
+        ),
+        title: Text(
+          title,
+          style: heading3Style(context).copyWith(
+            color: kcPrimaryTextColor,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        subtitle: Text(
+          subtitle,
+          style: bodyStyle(context).copyWith(
+            color: kcSecondaryTextColor,
+          ),
+        ),
+        trailing: onTap != null
+            ? const Icon(
+                Icons.arrow_forward_ios,
+                color: kcSecondaryTextColor,
+                size: 16,
+              )
+            : null,
+        onTap: onTap,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 8,
+        ),
+      ),
+    );
+  }
+}
+
+// ============================================================================
+// FOLDER 1: Subscription & Account
+// ============================================================================
+class SubscriptionAccountFolderView extends StatelessWidget {
+  const SubscriptionAccountFolderView({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: kcBackgroundColor,
+      appBar: AppBar(
+        backgroundColor: kcBackgroundColor,
+        elevation: 0,
+        leading: const BackButton(color: kcPrimaryTextColor),
+        title: Text(
+          'Subscription & Account',
+          style: heading1Style(context).copyWith(
+            color: kcPrimaryTextColor,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        centerTitle: true,
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _AccountTile(),
+            const SizedBox(height: 8),
+            _SettingsTile(
+              title: 'Subscription Management',
+              subtitle: 'Manage your subscription tier and billing',
+              icon: Icons.workspace_premium,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const SubscriptionManagementView(),
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ============================================================================
+// FOLDER 2: Import & Export
+// ============================================================================
+class ImportExportFolderView extends StatelessWidget {
+  const ImportExportFolderView({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: kcBackgroundColor,
+      appBar: AppBar(
+        backgroundColor: kcBackgroundColor,
+        elevation: 0,
+        leading: const BackButton(color: kcPrimaryTextColor),
+        title: Text(
+          'Import & Export',
+          style: heading1Style(context).copyWith(
+            color: kcPrimaryTextColor,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        centerTitle: true,
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _SettingsTile(
+              title: 'Verify',
+              subtitle: 'Obtain detailed info on backup files',
+              icon: Icons.folder,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const VerifyBackupScreen(),
+                  ),
+                );
+              },
+            ),
+            _SettingsTile(
+              title: 'Local Backup',
+              subtitle: 'Regular backups with incremental tracking and scheduling',
+              icon: Icons.folder,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => LocalBackupSettingsView(
+                      journalRepo: context.read<JournalRepository>(),
+                    ),
+                  ),
+                );
+              },
+            ),
+            _SettingsTile(
+              title: 'Google Drive',
+              subtitle: 'Connect with OAuth to export and import backups to your Drive',
+              icon: Icons.cloud,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => GoogleDriveSettingsView(
+                      journalRepo: context.read<JournalRepository>(),
+                    ),
+                  ),
+                );
+              },
+            ),
+            _SettingsTile(
+              title: 'Import Data',
+              subtitle: 'Restore from .zip, .mcpkg, or .arcx backup files',
+              icon: Icons.cloud_download,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => ImportStatusScreen(
+                      onChooseFiles: () => _restoreDataFromSettings(context),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _restoreDataFromSettings(BuildContext context) async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['zip', 'mcpkg', 'arcx'],
+        allowMultiple: true,
+      );
+
+      if (result == null || result.files.isEmpty) {
+        return;
+      }
+
+      final files = result.files.where((f) => f.path != null).map((f) => f.path!).toList();
+      
+      if (files.isEmpty) {
+        return;
+      }
+
+      final hasArcx = files.any((p) => p.endsWith('.arcx'));
+      final hasZip = files.any((p) => p.endsWith('.zip') || p.endsWith('.mcpkg') || FileUtils.isMcpPackage(p));
+
+      if (hasArcx) {
+        final arcxFiles = files.where((p) => p.endsWith('.arcx')).toList();
+        
+        if (arcxFiles.length == 1) {
+          final arcxFile = File(arcxFiles.first);
+          if (!await arcxFile.exists()) {
+            _showImportError(context, 'File not found');
+            return;
+          }
+
+          if (!context.mounted) return;
+          final progressCubit = context.read<ImportProgressCubit>();
+          final journalRepo = context.read<JournalRepository>();
+          final arcxPath = arcxFiles.first;
+          progressCubit.start();
+          Navigator.of(context).pushNamedAndRemoveUntil('/home', (route) => false);
+          Future(() async {
+            try {
+              final chatRepo = ChatRepoImpl.instance;
+              await chatRepo.initialize();
+              PhaseRegimeService? phaseRegimeService;
+              try {
+                final analyticsService = AnalyticsService();
+                final rivetSweepService = RivetSweepService(analyticsService);
+                phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
+                await phaseRegimeService.initialize();
+              } catch (_) {}
+              final importService = ARCXImportServiceV2(
+                journalRepo: journalRepo,
+                chatRepo: chatRepo,
+                phaseRegimeService: phaseRegimeService,
+              );
+              final importResult = await importService.import(
+                arcxPath: arcxPath,
+                options: ARCXImportOptions(
+                  validateChecksums: true,
+                  dedupeMedia: true,
+                  skipExisting: true,
+                  resolveLinks: true,
+                ),
+                password: null,
+                onProgress: (message, [fraction = 0.0]) {
+                  progressCubit.update(message, fraction);
+                },
+              );
+              if (importResult.success) {
+                progressCubit.complete();
+              } else {
+                progressCubit.fail(importResult.error);
+              }
+            } catch (e) {
+              progressCubit.fail(e.toString());
+            }
+          });
+        } else {
+          if (!context.mounted) return;
+          final progressCubit = context.read<ImportProgressCubit>();
+          final journalRepo = context.read<JournalRepository>();
+          progressCubit.startWithFiles(arcxFiles);
+          Navigator.of(context).pushNamedAndRemoveUntil('/home', (route) => false);
+          Future(() => _runMultipleArcImportInBackground(
+            progressCubit: progressCubit,
+            journalRepo: journalRepo,
+            filePaths: arcxFiles,
+          ));
+        }
+      } else if (hasZip) {
+        final zipFiles = files.where((p) => p.endsWith('.zip') || p.endsWith('.mcpkg') || FileUtils.isMcpPackage(p)).toList();
+        
+        if (zipFiles.length == 1) {
+          final zipFile = File(zipFiles.first);
+          if (!await zipFile.exists()) {
+            _showImportError(context, 'File not found');
+            return;
+          }
+
+          showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (context) => const Center(
+              child: CircularProgressIndicator(),
+            ),
+          );
+
+          try {
+            PhaseRegimeService? phaseRegimeService;
+            try {
+              final analyticsService = AnalyticsService();
+              final rivetSweepService = RivetSweepService(analyticsService);
+              phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
+              await phaseRegimeService.initialize();
+            } catch (e) {
+              print('Warning: Could not initialize PhaseRegimeService: $e');
+            }
+
+            final chatRepo = ChatRepoImpl.instance;
+            await chatRepo.initialize();
+            
+            final journalRepo = context.read<JournalRepository>();
+            final importService = McpPackImportService(
+              journalRepo: journalRepo,
+              phaseRegimeService: phaseRegimeService,
+              chatRepo: chatRepo,
+            );
+
+            final importResult = await importService.importFromPath(zipFiles.first);
+
+            if (!context.mounted) return;
+            Navigator.pop(context);
+
+            if (importResult.success) {
+              try {
+                context.read<TimelineCubit>().reloadAllEntries();
+              } catch (e) {
+                print('Could not refresh timeline: $e');
+              }
+              
+              _showImportSuccess(
+                context,
+                'Import Complete',
+                'Imported ${importResult.totalEntries} entries and ${importResult.totalPhotos} media items.',
+              );
+              
+              Future.delayed(const Duration(milliseconds: 500), () {
+                if (context.mounted) {
+                  Navigator.of(context).pushAndRemoveUntil(
+                    MaterialPageRoute(
+                      builder: (context) => const HomeView(initialTab: 0),
+                    ),
+                    (route) => false,
+                  );
+                }
+              });
+            } else {
+              _showImportError(context, importResult.error ?? 'Import failed');
+            }
+          } catch (e) {
+            if (!context.mounted) return;
+            Navigator.pop(context);
+            _showImportError(context, 'Import failed: $e');
+          }
+        }
+      } else {
+        _showImportError(context, 'Unsupported file format');
+      }
+    } catch (e) {
+      _showImportError(context, 'Failed to select file: $e');
+    }
+  }
+
+  static Future<void> _runMultipleArcImportInBackground({
+    required ImportProgressCubit progressCubit,
+    required JournalRepository journalRepo,
+    required List<String> filePaths,
+  }) async {
+    final chatRepo = ChatRepoImpl.instance;
+    await chatRepo.initialize();
+    PhaseRegimeService? phaseRegimeService;
+    try {
+      final analyticsService = AnalyticsService();
+      final rivetSweepService = RivetSweepService(analyticsService);
+      phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
+      await phaseRegimeService.initialize();
+    } catch (e) {
+      print('Warning: Could not initialize PhaseRegimeService: $e');
+    }
+    final importService = ARCXImportServiceV2(
+      journalRepo: journalRepo,
+      chatRepo: chatRepo,
+      phaseRegimeService: phaseRegimeService,
+    );
+    final sortedFiles = <String>[];
+    final fileStats = <String, DateTime>{};
+    for (final filePath in filePaths) {
+      try {
+        final file = File(filePath);
+        if (await file.exists()) {
+          final stat = await file.stat();
+          fileStats[filePath] = stat.modified;
+          sortedFiles.add(filePath);
+        }
+      } catch (e) {
+        sortedFiles.add(filePath);
+        fileStats[filePath] = DateTime.now();
+      }
+    }
+    sortedFiles.sort((a, b) => (fileStats[a] ?? DateTime.now()).compareTo(fileStats[b] ?? DateTime.now()));
+    final total = sortedFiles.length;
+    try {
+      for (int i = 0; i < sortedFiles.length; i++) {
+        final filePath = sortedFiles[i];
+        progressCubit.updateFileStatus(i, ImportFileStatus.importing);
+        progressCubit.update('Importing archive ${i + 1} of $total...', (i + 0.0) / total);
+        if (!await File(filePath).exists()) {
+          progressCubit.updateFileStatus(i, ImportFileStatus.failed);
+          continue;
+        }
+        try {
+          final result = await importService.import(
+            arcxPath: filePath,
+            options: ARCXImportOptions(
+              validateChecksums: true,
+              dedupeMedia: true,
+              skipExisting: true,
+              resolveLinks: true,
+            ),
+            password: null,
+            onProgress: (message, [fraction = 0.0]) {
+              progressCubit.update(message, (i + fraction.clamp(0.0, 1.0)) / total);
+            },
+          );
+          if (result.success) {
+            progressCubit.updateFileStatus(i, ImportFileStatus.completed);
+          } else {
+            progressCubit.updateFileStatus(i, ImportFileStatus.failed);
+          }
+        } catch (e) {
+          progressCubit.updateFileStatus(i, ImportFileStatus.failed);
+        }
+      }
+      progressCubit.update('Import complete', 1.0);
+      progressCubit.complete();
+    } catch (e) {
+      progressCubit.fail('Import failed: $e');
+    }
+  }
+
+  void _showImportError(BuildContext context, String message) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: kcBackgroundColor,
+        title: const Text('Error', style: TextStyle(color: Colors.white)),
+        content: Text(message, style: const TextStyle(color: Colors.white70)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showImportSuccess(BuildContext context, String title, String message) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: kcBackgroundColor,
+        title: Text(title, style: const TextStyle(color: Colors.white)),
+        content: Text(message, style: const TextStyle(color: Colors.white70)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ============================================================================
+// FOLDER 3a: Health & Readiness (Available to everyone)
+// ============================================================================
+class HealthReadinessFolderView extends StatelessWidget {
+  const HealthReadinessFolderView({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: kcBackgroundColor,
+      appBar: AppBar(
+        backgroundColor: kcBackgroundColor,
+        elevation: 0,
+        leading: const BackButton(color: kcPrimaryTextColor),
+        title: Text(
+          'Health & Readiness',
+          style: heading1Style(context).copyWith(
+            color: kcPrimaryTextColor,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        centerTitle: true,
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _SettingsTile(
+              title: 'Health & Readiness',
+              subtitle: 'Operational readiness and phase ratings',
+              icon: Icons.assessment,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const HealthReadinessView()),
+                );
+              },
+            ),
+            _SettingsTile(
+              title: 'Medical',
+              subtitle: 'Health data tracking and summary',
+              icon: Icons.medical_services,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const HealthView()),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ============================================================================
+// FOLDER 4: LUMARA
+// ============================================================================
+class LumaraFolderView extends StatefulWidget {
+  const LumaraFolderView({super.key});
+
+  @override
+  State<LumaraFolderView> createState() => _LumaraFolderViewState();
+}
+
+class _LumaraFolderViewState extends State<LumaraFolderView> {
   int _favoritesCount = 0;
   int _savedChatsCount = 0;
   int _favoriteEntriesCount = 0;
@@ -57,8 +822,6 @@ class _SettingsViewState extends State<SettingsView> {
   bool _favoritesCountLoaded = false;
   bool _voiceoverEnabled = false;
   bool _voiceoverLoading = true;
-  bool _shakeToReportEnabled = true;
-  bool _shakeToReportLoading = true;
   
   // LUMARA Persona state
   LumaraPersona _selectedPersona = LumaraPersona.auto;
@@ -97,7 +860,6 @@ class _SettingsViewState extends State<SettingsView> {
     super.initState();
     _loadFavoritesCount();
     _loadVoiceoverPreference();
-    _loadShakeToReportPreference();
     _loadPersonaPreference();
     _loadLumaraSettings();
     _loadMemoryFocusPreset();
@@ -157,55 +919,6 @@ class _SettingsViewState extends State<SettingsView> {
       }
     }
   }
-
-  /// Build phase share toggle
-  Widget _buildPhaseShareToggle() {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.1),
-        ),
-      ),
-      child: SwitchListTile(
-        title: Text(
-          'Phase Share Prompts',
-          style: heading3Style(context).copyWith(
-            color: kcPrimaryTextColor,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-        subtitle: Text(
-          'Show prompts to share phase transitions',
-          style: bodyStyle(context).copyWith(
-            color: kcSecondaryTextColor,
-            fontSize: 12,
-          ),
-        ),
-        value: _phaseSharePromptsEnabled,
-        onChanged: _phaseShareSettingsLoading
-            ? null
-            : (value) => _togglePhaseSharePrompts(value),
-        secondary: _phaseShareSettingsLoading
-            ? const SizedBox(
-                width: 24,
-                height: 24,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              )
-            : Icon(
-                Icons.share,
-                color: kcAccentColor,
-                size: 24,
-              ),
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 8,
-        ),
-      ),
-    );
-  }
   
   Future<void> _loadLumaraSettings() async {
     try {
@@ -235,7 +948,6 @@ class _SettingsViewState extends State<SettingsView> {
       await settingsService.initialize();
       final preset = await settingsService.getMemoryFocusPreset();
       
-      // Load custom values if Custom preset is selected
       if (preset == MemoryFocusPreset.custom) {
         final settings = await settingsService.loadAllSettings();
         if (mounted) {
@@ -376,7 +1088,6 @@ class _SettingsViewState extends State<SettingsView> {
     try {
       await FavoritesService.instance.initialize();
       
-      // Load subscription-based limits
       final answersLimit = await FavoritesService.instance.getCategoryLimit('answer');
       final chatsLimit = await FavoritesService.instance.getCategoryLimit('chat');
       final entriesLimit = await FavoritesService.instance.getCategoryLimit('journal_entry');
@@ -456,58 +1167,6 @@ class _SettingsViewState extends State<SettingsView> {
     }
   }
 
-  Future<void> _loadShakeToReportPreference() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final enabled = prefs.getBool('shake_to_report_enabled') ?? true;
-      if (mounted) {
-        setState(() {
-          _shakeToReportEnabled = enabled;
-          _shakeToReportLoading = false;
-        });
-      }
-    } catch (e) {
-      print('Error loading shake-to-report preference: $e');
-      if (mounted) {
-        setState(() {
-          _shakeToReportLoading = false;
-        });
-      }
-    }
-  }
-
-  Future<void> _toggleShakeToReport(bool value) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool('shake_to_report_enabled', value);
-      if (mounted) {
-        setState(() {
-          _shakeToReportEnabled = value;
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              value
-                  ? 'Shake to report enabled - shake your device to report bugs'
-                  : 'Shake to report disabled',
-            ),
-            duration: const Duration(seconds: 2),
-            backgroundColor: value ? Colors.green : Colors.grey,
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error toggling shake-to-report: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -515,517 +1174,108 @@ class _SettingsViewState extends State<SettingsView> {
       appBar: AppBar(
         backgroundColor: kcBackgroundColor,
         elevation: 0,
+        leading: const BackButton(color: kcPrimaryTextColor),
         title: Text(
-          'Settings',
+          'LUMARA',
           style: heading1Style(context).copyWith(
             color: kcPrimaryTextColor,
             fontWeight: FontWeight.bold,
           ),
         ),
         centerTitle: true,
-        iconTheme: const IconThemeData(color: kcPrimaryTextColor),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-
-            // Subscription & Account Section (Top Priority)
-            _buildSection(
-              context,
-              title: 'Subscription & Account',
-              children: [
-                _buildAccountTile(context),
-                _buildSettingsTile(
+            _SettingsTile(
+              title: 'LUMARA Favorites',
+              subtitle: _favoritesCountLoaded
+                  ? 'Answers ($_favoritesCount/$_answersLimit), Chats ($_savedChatsCount/$_chatsLimit), Entries ($_favoriteEntriesCount/$_entriesLimit)'
+                  : 'Manage your favorites',
+              icon: Icons.star,
+              onTap: () async {
+                final result = await Navigator.push(
                   context,
-                  title: 'Subscription Management',
-                  subtitle: 'Manage your subscription tier and billing',
-                  icon: Icons.workspace_premium,
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const SubscriptionManagementView(),
-                      ),
-                    );
-                  },
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 32),
-
-            // Import & Export Section
-            _buildSection(
-              context,
-              title: 'Import & Export',
-              children: [
-                _buildSettingsTile(
-                  context,
-                  title: 'Verify',
-                  subtitle: 'Obtain detailed info on backup files',
-                  icon: Icons.folder,
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const VerifyBackupScreen(),
-                      ),
-                    );
-                  },
-                ),
-                _buildSettingsTile(
-                  context,
-                  title: 'Local Backup',
-                  subtitle: 'Regular backups with incremental tracking and scheduling',
-                  icon: Icons.folder,
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => LocalBackupSettingsView(
-                          journalRepo: context.read<JournalRepository>(),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-                _buildSettingsTile(
-                  context,
-                  title: 'Google Drive',
-                  subtitle: 'Connect with OAuth to export and import backups to your Drive',
-                  icon: Icons.cloud,
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => GoogleDriveSettingsView(
-                          journalRepo: context.read<JournalRepository>(),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-                _buildSettingsTile(
-                  context,
-                  title: 'Import Data',
-                  subtitle: 'Restore from .zip, .mcpkg, or .arcx backup files',
-                  icon: Icons.cloud_download,
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => ImportStatusScreen(
-                          onChooseFiles: () => _restoreDataFromSettings(context),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 32),
-
-            // Advanced Settings Section - Admin only (marcyap@orbitalai.net)
-            if (FirebaseAuthService.instance.currentUser?.email?.toLowerCase() == 'marcyap@orbitalai.net') ...[
-              _buildSection(
-                context,
-                title: 'Advanced Settings',
-                children: [
-                  _buildSettingsTile(
-                    context,
-                    title: 'Advanced Settings',
-                    subtitle: 'Analysis, memory lookback, matching precision',
-                    icon: Icons.settings_applications,
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => const AdvancedSettingsView()),
-                      );
-                    },
+                  MaterialPageRoute(
+                    builder: (context) => const FavoritesManagementView(),
                   ),
-                ],
+                );
+                if (result == true || mounted) {
+                  _loadFavoritesCount();
+                }
+              },
+            ),
+            // LUMARA Persona Card
+            _buildPersonaCard(),
+            // Memory Focus Preset Card
+            _buildMemoryFocusCard(),
+            // Engagement Mode Card
+            _buildEngagementModeCard(),
+            // Cross-Domain Synthesis Toggle
+            _buildCrossDomainSynthesisToggle(),
+            // Include Media Toggle
+            _buildIncludeMediaToggle(),
+            // Therapeutic Depth Slider
+            _buildTherapeuticDepthCard(),
+            // Web Search Toggle
+            _buildWebSearchToggle(),
+            // Voice Responses Toggle
+            _buildVoiceResponsesToggle(),
+            // Phase Share Settings
+            _buildPhaseShareToggle(),
+            // Temporal Notifications
+            _SettingsTile(
+              title: 'Temporal Notifications',
+              subtitle: 'Daily prompts, monthly reviews, arc views, and summaries',
+              icon: Icons.notifications_active,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const TemporalNotificationSettingsView(),
+                  ),
+                );
+              },
+            ),
+            
+            const SizedBox(height: 24),
+            
+            // CHRONICLE Sub-section
+            Text(
+              'CHRONICLE',
+              style: heading2Style(context).copyWith(
+                color: kcPrimaryTextColor,
+                fontWeight: FontWeight.w600,
               ),
-              const SizedBox(height: 32),
-            ],
-
-            // LUMARA Section
-            _buildSection(
-              context,
-              title: 'LUMARA',
-              children: [
-                _buildSettingsTile(
-                  context,
-                  title: 'LUMARA Favorites',
-                  subtitle: _favoritesCountLoaded
-                      ? 'Answers ($_favoritesCount/$_answersLimit), Chats ($_savedChatsCount/$_chatsLimit), Entries ($_favoriteEntriesCount/$_entriesLimit)'
-                      : 'Manage your favorites',
-                  icon: Icons.star,
-                  onTap: () async {
-                    final result = await Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const FavoritesManagementView(),
-                      ),
-                    );
-                    // Reload count when returning from favorites screen
-                    if (result == true || mounted) {
-                      _loadFavoritesCount();
-                    }
-                  },
-                ),
-                // LUMARA Persona Card
-                Container(
-                  margin: const EdgeInsets.only(bottom: 8),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.05),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.1),
-                    ),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.theater_comedy,
-                              color: kcAccentColor,
-                              size: 24,
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'LUMARA Persona',
-                                    style: heading3Style(context).copyWith(
-                                      color: kcPrimaryTextColor,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    'Choose how LUMARA responds to you',
-                                    style: bodyStyle(context).copyWith(
-                                      color: kcSecondaryTextColor,
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            if (_personaLoading)
-                              const SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(strokeWidth: 2),
-                              ),
-                          ],
-                        ),
-                      ),
-                      const Divider(height: 1, color: Colors.white12),
-                      ...LumaraPersona.values.map((persona) => _buildPersonaOption(persona)),
-                    ],
-                  ),
-                ),
-                // Memory Focus Preset Card
-                _buildMemoryFocusCard(),
-                // Engagement Mode Card
-                _buildEngagementModeCard(),
-                // Cross-Domain Synthesis Toggle
-                _buildCrossDomainSynthesisToggle(),
-                // Include Media Toggle
-                _buildIncludeMediaToggle(),
-                // Therapeutic Depth Slider
-                _buildTherapeuticDepthCard(),
-                // Web Search Toggle
-                Container(
-                  margin: const EdgeInsets.only(bottom: 8),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.05),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.1),
-                    ),
-                  ),
-                  child: SwitchListTile(
-                    title: Text(
-                      'Web Search',
-                      style: heading3Style(context).copyWith(
-                        color: kcPrimaryTextColor,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    subtitle: Text(
-                      'Allow web lookups for external info',
-                      style: bodyStyle(context).copyWith(
-                        color: kcSecondaryTextColor,
-                      ),
-                    ),
-                    value: _webAccessEnabled,
-                    onChanged: _lumaraSettingsLoading
-                        ? null
-                        : (value) => _setWebAccessEnabled(value),
-                    secondary: Icon(
-                      Icons.language,
-                      color: kcAccentColor,
-                      size: 24,
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 8,
-                    ),
-                  ),
-                ),
-                // Voice Responses Toggle
-                Container(
-                  margin: const EdgeInsets.only(bottom: 8),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.05),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.1),
-                    ),
-                  ),
-                  child: SwitchListTile(
-                    title: Text(
-                      'Voice Responses',
-                      style: heading3Style(context).copyWith(
-                        color: kcPrimaryTextColor,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    subtitle: Text(
-                      'Speak LUMARA\'s responses aloud',
-                      style: bodyStyle(context).copyWith(
-                        color: kcSecondaryTextColor,
-                      ),
-                    ),
-                    value: _voiceoverEnabled,
-                    onChanged: _voiceoverLoading
-                        ? null
-                        : (value) => _toggleVoiceover(value),
-                    secondary: _voiceoverLoading
-                        ? const SizedBox(
-                            width: 24,
-                            height: 24,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : Icon(
-                            Icons.volume_up,
-                            color: kcAccentColor,
-                            size: 24,
-                          ),
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 8,
-                    ),
-                  ),
-                ),
-                // Shake to Report Toggle
-                Container(
-                  margin: const EdgeInsets.only(bottom: 8),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.05),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.1),
-                    ),
-                  ),
-                  child: SwitchListTile(
-                    title: Text(
-                      'Shake to Report',
-                      style: heading3Style(context).copyWith(
-                        color: kcPrimaryTextColor,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    subtitle: Text(
-                      'Shake device to report bugs',
-                      style: bodyStyle(context).copyWith(
-                        color: kcSecondaryTextColor,
-                      ),
-                    ),
-                    value: _shakeToReportEnabled,
-                    onChanged: _shakeToReportLoading
-                        ? null
-                        : (value) => _toggleShakeToReport(value),
-                    secondary: _shakeToReportLoading
-                        ? const SizedBox(
-                            width: 24,
-                            height: 24,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : Icon(
-                            Icons.vibration,
-                            color: kcAccentColor,
-                            size: 24,
-                          ),
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 8,
-                    ),
-                  ),
-                ),
-                // Phase Share Settings
-                _buildPhaseShareToggle(),
-                // Temporal Notifications
-                _buildSettingsTile(
-                  context,
-                  title: 'Temporal Notifications',
-                  subtitle: 'Daily prompts, monthly reviews, arc views, and summaries',
-                  icon: Icons.notifications_active,
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const TemporalNotificationSettingsView(),
-                      ),
-                    );
-                  },
-                ),
-              ],
             ),
-
-            const SizedBox(height: 32),
-
-            // CHRONICLE Section
-            _buildSection(
-              context,
-              title: 'CHRONICLE',
-              children: [
-                _buildSettingsTile(
+            const SizedBox(height: 12),
+            _SettingsTile(
+              title: 'View CHRONICLE Layers',
+              subtitle: 'Browse monthly, yearly, and multi-year temporal aggregations',
+              icon: Icons.history,
+              onTap: () {
+                Navigator.push(
                   context,
-                  title: 'View CHRONICLE Layers',
-                  subtitle: 'Browse monthly, yearly, and multi-year temporal aggregations',
-                  icon: Icons.history,
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const ChronicleLayersViewer(),
-                      ),
-                    );
-                  },
-                ),
-                _buildSettingsTile(
-                  context,
-                  title: 'CHRONICLE Management',
-                  subtitle: 'Manual synthesis, export, and temporal aggregation controls',
-                  icon: Icons.settings,
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const ChronicleManagementView(),
-                      ),
-                    );
-                  },
-                ),
-              ],
+                  MaterialPageRoute(
+                    builder: (context) => const ChronicleLayersViewer(),
+                  ),
+                );
+              },
             ),
-
-            const SizedBox(height: 32),
-
-            // Privacy & Security Section
-            _buildSection(
-              context,
-              title: 'Privacy & Security',
-              children: [
-                _buildSettingsTile(
+            _SettingsTile(
+              title: 'CHRONICLE Management',
+              subtitle: 'Manual synthesis, export, and temporal aggregation controls',
+              icon: Icons.settings,
+              onTap: () {
+                Navigator.push(
                   context,
-                  title: 'Throttle',
-                  subtitle: 'Manage rate limiting settings',
-                  icon: Icons.speed,
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const ThrottleSettingsView()),
-                    );
-                  },
-                ),
-                _buildSettingsTile(
-                  context,
-                  title: 'Privacy Protection',
-                  subtitle: 'Configure PII detection and masking settings',
-                  icon: Icons.security,
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const PrivacySettingsView()),
-                    );
-                  },
-                ),
-                _buildSettingsTile(
-                  context,
-                  title: 'Memory Modes',
-                  subtitle: 'Control how LUMARA uses your memories',
-                  icon: Icons.memory,
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const MemoryModeSettingsView()),
-                    );
-                  },
-                ),
-                _buildSettingsTile(
-                  context,
-                  title: 'Memory Snapshots',
-                  subtitle: 'Backup and restore your memories',
-                  icon: Icons.backup,
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const MemorySnapshotManagementView()),
-                    );
-                  },
-                ),
-                _buildSettingsTile(
-                  context,
-                  title: 'Memory Conflicts',
-                  subtitle: 'Resolve memory contradictions',
-                  icon: Icons.psychology,
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const ConflictManagementView()),
-                    );
-                  },
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 32),
-
-            // About Section
-            _buildSection(
-              context,
-              title: 'About',
-              children: [
-                _buildSettingsTile(
-                  context,
-                  title: 'Version',
-                  subtitle: '1.0.5',
-                  icon: Icons.info,
-                  onTap: null,
-                ),
-                _buildSettingsTile(
-                  context,
-                  title: 'Privacy Policy',
-                  subtitle: 'Read our privacy policy',
-                  icon: Icons.privacy_tip,
-                  onTap: () {
-                    // TODO: Implement privacy policy
-                  },
-                ),
-              ],
+                  MaterialPageRoute(
+                    builder: (context) => const ChronicleManagementView(),
+                  ),
+                );
+              },
             ),
           ],
         ),
@@ -1033,38 +1283,9 @@ class _SettingsViewState extends State<SettingsView> {
     );
   }
 
-  Widget _buildSection(BuildContext context, {
-    required String title,
-    required List<Widget> children,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          title,
-          style: heading2Style(context).copyWith(
-            color: kcPrimaryTextColor,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        const SizedBox(height: 12),
-        ...children,
-      ],
-    );
-  }
-  
-  /// Build therapeutic depth card with slider
-  Widget _buildTherapeuticDepthCard() {
-    final depthLabels = ['Light', 'Moderate', 'Deep'];
-    final depthDescriptions = [
-      'Supportive and encouraging',
-      'Reflective and insight-oriented',
-      'Exploratory and emotionally resonant',
-    ];
-    
+  Widget _buildPersonaCard() {
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(12),
@@ -1075,91 +1296,460 @@ class _SettingsViewState extends State<SettingsView> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.theater_comedy,
+                  color: kcAccentColor,
+                  size: 24,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'LUMARA Persona',
+                        style: heading3Style(context).copyWith(
+                          color: kcPrimaryTextColor,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Choose how LUMARA responds to you',
+                        style: bodyStyle(context).copyWith(
+                          color: kcSecondaryTextColor,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (_personaLoading)
+                  const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+              ],
+            ),
+          ),
+          const Divider(height: 1, color: Colors.white12),
+          ...LumaraPersona.values.map((persona) => _buildPersonaOption(persona)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPersonaOption(LumaraPersona persona) {
+    final isSelected = _selectedPersona == persona;
+    return InkWell(
+      onTap: _personaLoading ? null : () => _setPersona(persona),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
+          children: [
+            Container(
+              width: 20,
+              height: 20,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: isSelected ? kcAccentColor : Colors.white38,
+                  width: 2,
+                ),
+              ),
+              child: isSelected
+                  ? Center(
+                      child: Container(
+                        width: 10,
+                        height: 10,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: kcAccentColor,
+                        ),
+                      ),
+                    )
+                  : null,
+            ),
+            const SizedBox(width: 12),
+            Text(
+              persona.icon,
+              style: const TextStyle(fontSize: 20),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    persona.displayName,
+                    style: heading3Style(context).copyWith(
+                      color: isSelected ? kcAccentColor : kcPrimaryTextColor,
+                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                      fontSize: 14,
+                    ),
+                  ),
+                  Text(
+                    persona.description,
+                    style: bodyStyle(context).copyWith(
+                      color: kcSecondaryTextColor,
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMemoryFocusCard() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            child: Row(
+              children: [
+                Icon(Icons.memory, color: kcAccentColor, size: 24),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Memory Focus',
+                        style: heading3Style(context).copyWith(
+                          color: kcPrimaryTextColor,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'How much context LUMARA uses from your history',
+                        style: bodyStyle(context).copyWith(
+                          color: kcSecondaryTextColor,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (_memoryFocusLoading)
+                  const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+              ],
+            ),
+          ),
+          const Divider(height: 1, color: Colors.white12),
+          ...MemoryFocusPreset.values.map((preset) => _buildMemoryFocusOption(preset)),
+          if (_showCustomMemorySettings) ..._buildCustomMemorySettings(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMemoryFocusOption(MemoryFocusPreset preset) {
+    final isSelected = _memoryFocusPreset == preset;
+    return InkWell(
+      onTap: _memoryFocusLoading ? null : () => _setMemoryFocusPreset(preset),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
+          children: [
+            Container(
+              width: 20,
+              height: 20,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: isSelected ? kcAccentColor : Colors.white38,
+                  width: 2,
+                ),
+              ),
+              child: isSelected
+                  ? Center(
+                      child: Container(
+                        width: 10,
+                        height: 10,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: kcAccentColor,
+                        ),
+                      ),
+                    )
+                  : null,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    preset.displayName,
+                    style: bodyStyle(context).copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: isSelected ? kcAccentColor : kcPrimaryTextColor,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    preset.description,
+                    style: bodyStyle(context).copyWith(
+                      fontSize: 11,
+                      color: kcSecondaryTextColor,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _setMemoryFocusPreset(MemoryFocusPreset preset) async {
+    try {
+      final settingsService = LumaraReflectionSettingsService.instance;
+      await settingsService.setMemoryFocusPreset(preset);
+      if (mounted) {
+        setState(() {
+          _memoryFocusPreset = preset;
+          _showCustomMemorySettings = preset == MemoryFocusPreset.custom;
+          
+          if (preset == MemoryFocusPreset.custom) {
+            _loadCustomMemorySettings();
+          }
+        });
+      }
+    } catch (e) {
+      print('Error setting memory focus preset: $e');
+    }
+  }
+
+  Future<void> _loadCustomMemorySettings() async {
+    try {
+      final settingsService = LumaraReflectionSettingsService.instance;
+      await settingsService.initialize();
+      final settings = await settingsService.loadAllSettings();
+      if (mounted) {
+        setState(() {
+          _customTimeWindowDays = settings['timeWindowDays'] as int? ?? (settings['lookbackYears'] as int? ?? 5) * 365;
+          _customSimilarityThreshold = settings['similarityThreshold'] as double? ?? 0.55;
+          _customMaxEntries = settings['maxMatches'] as int? ?? 20;
+          _customMemorySettingsLoading = false;
+        });
+      }
+    } catch (e) {
+      print('Error loading custom memory settings: $e');
+      if (mounted) {
+        setState(() {
+          _customMemorySettingsLoading = false;
+        });
+      }
+    }
+  }
+
+  List<Widget> _buildCustomMemorySettings() {
+    return [
+      const Divider(height: 1, color: Colors.white12),
+      Padding(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+        child: Text(
+          'Custom Settings',
+          style: heading3Style(context).copyWith(
+            color: kcPrimaryTextColor,
+            fontWeight: FontWeight.w500,
+            fontSize: 14,
+          ),
+        ),
+      ),
+      _buildCustomSliderCard(
+        title: 'Time Window',
+        subtitle: 'How far back LUMARA searches your history',
+        icon: Icons.history,
+        value: _customTimeWindowDays.toDouble(),
+        min: 1,
+        max: 365,
+        divisions: 36,
+        loading: _customMemorySettingsLoading,
+        onChanged: (value) => _setCustomTimeWindowDays(value.round()),
+        labels: const ['1 day', '30 days', '90 days', '180 days', '365 days'],
+      ),
+      _buildCustomSliderCard(
+        title: 'Matching Precision',
+        subtitle: 'How similar memories must be to include them',
+        icon: Icons.tune,
+        value: _customSimilarityThreshold,
+        min: 0.3,
+        max: 0.9,
+        divisions: 12,
+        loading: _customMemorySettingsLoading,
+        onChanged: _setCustomSimilarityThreshold,
+        labels: const ['Loose', 'Balanced', 'Strict'],
+      ),
+      _buildCustomSliderCard(
+        title: 'Maximum Entries',
+        subtitle: 'Maximum number of past entries to include',
+        icon: Icons.format_list_numbered,
+        value: _customMaxEntries.toDouble(),
+        min: 1,
+        max: 50,
+        divisions: 49,
+        loading: _customMemorySettingsLoading,
+        onChanged: (value) => _setCustomMaxEntries(value.round()),
+        labels: const ['1', '10', '20', '30', '50'],
+      ),
+    ];
+  }
+
+  Widget _buildCustomSliderCard({
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required double value,
+    required double min,
+    required double max,
+    required int divisions,
+    required bool loading,
+    required Function(double) onChanged,
+    required List<String> labels,
+  }) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.03),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.1),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
           Row(
             children: [
-              Icon(
-                Icons.psychology,
-                color: kcAccentColor,
-                size: 24,
-              ),
+              Icon(icon, color: kcAccentColor, size: 20),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Therapeutic Depth',
+                      title,
                       style: heading3Style(context).copyWith(
                         color: kcPrimaryTextColor,
                         fontWeight: FontWeight.w500,
+                        fontSize: 14,
                       ),
                     ),
                     Text(
-                      depthDescriptions[_therapeuticDepthLevel - 1],
+                      subtitle,
                       style: bodyStyle(context).copyWith(
                         color: kcSecondaryTextColor,
-                        fontSize: 12,
+                        fontSize: 11,
                       ),
                     ),
                   ],
                 ),
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: kcAccentColor.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(12),
+              if (loading)
+                const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
                 ),
-                child: Text(
-                  depthLabels[_therapeuticDepthLevel - 1],
-                  style: bodyStyle(context).copyWith(
-                    color: kcAccentColor,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 12,
-                  ),
-                ),
-              ),
             ],
           ),
           const SizedBox(height: 12),
           Slider(
-            value: _therapeuticDepthLevel.toDouble(),
-            min: 1,
-            max: 3,
-            divisions: 2,
+            value: value,
+            min: min,
+            max: max,
+            divisions: divisions,
             activeColor: kcAccentColor,
             inactiveColor: Colors.grey.withValues(alpha: 0.3),
-            onChanged: _lumaraSettingsLoading
-                ? null
-                : (value) => _setTherapeuticDepthLevel(value.round()),
+            onChanged: loading ? null : onChanged,
           ),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: depthLabels.asMap().entries.map((entry) {
-              final index = entry.key;
-              final label = entry.value;
-              final isSelected = _therapeuticDepthLevel == index + 1;
-              return GestureDetector(
-                onTap: _lumaraSettingsLoading
-                    ? null
-                    : () => _setTherapeuticDepthLevel(index + 1),
-                child: Text(
+          if (labels.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: labels.map((label) => Text(
                   label,
                   style: bodyStyle(context).copyWith(
-                    color: isSelected ? kcAccentColor : kcSecondaryTextColor,
-                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                    fontSize: 11,
+                    color: kcSecondaryTextColor,
+                    fontSize: 9,
                   ),
-                ),
-              );
-            }).toList(),
-          ),
+                )).toList(),
+              ),
+            ),
         ],
       ),
     );
   }
 
-  /// Build Engagement Mode card
+  Future<void> _setCustomTimeWindowDays(int days) async {
+    try {
+      final settingsService = LumaraReflectionSettingsService.instance;
+      await settingsService.setTimeWindowDays(days);
+      if (mounted) {
+        setState(() {
+          _customTimeWindowDays = days;
+        });
+      }
+    } catch (e) {
+      print('Error setting custom time window days: $e');
+    }
+  }
+
+  Future<void> _setCustomSimilarityThreshold(double threshold) async {
+    try {
+      final settingsService = LumaraReflectionSettingsService.instance;
+      await settingsService.setSimilarityThreshold(threshold);
+      if (mounted) {
+        setState(() {
+          _customSimilarityThreshold = threshold;
+        });
+      }
+    } catch (e) {
+      print('Error setting custom similarity threshold: $e');
+    }
+  }
+
+  Future<void> _setCustomMaxEntries(int entries) async {
+    try {
+      final settingsService = LumaraReflectionSettingsService.instance;
+      await settingsService.setMaxMatches(entries);
+      if (mounted) {
+        setState(() {
+          _customMaxEntries = entries;
+        });
+      }
+    } catch (e) {
+      print('Error setting custom max entries: $e');
+    }
+  }
+
   Widget _buildEngagementModeCard() {
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
@@ -1292,7 +1882,6 @@ class _SettingsViewState extends State<SettingsView> {
     }
   }
 
-  /// Build Cross-Domain Synthesis toggle
   Widget _buildCrossDomainSynthesisToggle() {
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
@@ -1350,61 +1939,470 @@ class _SettingsViewState extends State<SettingsView> {
     }
   }
 
-  /// Build a persona option radio tile
-  Widget _buildPersonaOption(LumaraPersona persona) {
-    final isSelected = _selectedPersona == persona;
-    return InkWell(
-      onTap: _personaLoading ? null : () => _setPersona(persona),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        child: Row(
-          children: [
-            Container(
-              width: 20,
-              height: 20,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: isSelected ? kcAccentColor : Colors.white38,
-                  width: 2,
+  Widget _buildIncludeMediaToggle() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+      ),
+      child: SwitchListTile(
+        title: Text(
+          'Include Media',
+          style: heading3Style(context).copyWith(
+            color: kcPrimaryTextColor,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        subtitle: Text(
+          'Analyze photos, audio, and video in reflections',
+          style: bodyStyle(context).copyWith(
+            color: kcSecondaryTextColor,
+          ),
+        ),
+        value: _crossModalEnabled,
+        onChanged: _crossModalLoading
+            ? null
+            : (value) => _setCrossModalEnabled(value),
+        secondary: Icon(
+          Icons.perm_media,
+          color: kcAccentColor,
+          size: 24,
+        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      ),
+    );
+  }
+
+  Future<void> _setCrossModalEnabled(bool value) async {
+    try {
+      final settingsService = LumaraReflectionSettingsService.instance;
+      await settingsService.setCrossModalEnabled(value);
+      if (mounted) {
+        setState(() {
+          _crossModalEnabled = value;
+        });
+      }
+    } catch (e) {
+      print('Error setting cross-modal enabled: $e');
+    }
+  }
+
+  Widget _buildTherapeuticDepthCard() {
+    final depthLabels = ['Light', 'Moderate', 'Deep'];
+    final depthDescriptions = [
+      'Supportive and encouraging',
+      'Reflective and insight-oriented',
+      'Exploratory and emotionally resonant',
+    ];
+    
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.1),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.psychology,
+                color: kcAccentColor,
+                size: 24,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Therapeutic Depth',
+                      style: heading3Style(context).copyWith(
+                        color: kcPrimaryTextColor,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    Text(
+                      depthDescriptions[_therapeuticDepthLevel - 1],
+                      style: bodyStyle(context).copyWith(
+                        color: kcSecondaryTextColor,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              child: isSelected
-                  ? Center(
-                      child: Container(
-                        width: 10,
-                        height: 10,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: kcAccentColor,
-                        ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: kcAccentColor.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  depthLabels[_therapeuticDepthLevel - 1],
+                  style: bodyStyle(context).copyWith(
+                    color: kcAccentColor,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Slider(
+            value: _therapeuticDepthLevel.toDouble(),
+            min: 1,
+            max: 3,
+            divisions: 2,
+            activeColor: kcAccentColor,
+            inactiveColor: Colors.grey.withValues(alpha: 0.3),
+            onChanged: _lumaraSettingsLoading
+                ? null
+                : (value) => _setTherapeuticDepthLevel(value.round()),
+          ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: depthLabels.asMap().entries.map((entry) {
+              final index = entry.key;
+              final label = entry.value;
+              final isSelected = _therapeuticDepthLevel == index + 1;
+              return GestureDetector(
+                onTap: _lumaraSettingsLoading
+                    ? null
+                    : () => _setTherapeuticDepthLevel(index + 1),
+                child: Text(
+                  label,
+                  style: bodyStyle(context).copyWith(
+                    color: isSelected ? kcAccentColor : kcSecondaryTextColor,
+                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                    fontSize: 11,
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildWebSearchToggle() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.1),
+        ),
+      ),
+      child: SwitchListTile(
+        title: Text(
+          'Web Search',
+          style: heading3Style(context).copyWith(
+            color: kcPrimaryTextColor,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        subtitle: Text(
+          'Allow web lookups for external info',
+          style: bodyStyle(context).copyWith(
+            color: kcSecondaryTextColor,
+          ),
+        ),
+        value: _webAccessEnabled,
+        onChanged: _lumaraSettingsLoading
+            ? null
+            : (value) => _setWebAccessEnabled(value),
+        secondary: Icon(
+          Icons.language,
+          color: kcAccentColor,
+          size: 24,
+        ),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 8,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildVoiceResponsesToggle() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.1),
+        ),
+      ),
+      child: SwitchListTile(
+        title: Text(
+          'Voice Responses',
+          style: heading3Style(context).copyWith(
+            color: kcPrimaryTextColor,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        subtitle: Text(
+          'Speak LUMARA\'s responses aloud',
+          style: bodyStyle(context).copyWith(
+            color: kcSecondaryTextColor,
+          ),
+        ),
+        value: _voiceoverEnabled,
+        onChanged: _voiceoverLoading
+            ? null
+            : (value) => _toggleVoiceover(value),
+        secondary: _voiceoverLoading
+            ? const SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : Icon(
+                Icons.volume_up,
+                color: kcAccentColor,
+                size: 24,
+              ),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 8,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPhaseShareToggle() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.1),
+        ),
+      ),
+      child: SwitchListTile(
+        title: Text(
+          'Phase Share Prompts',
+          style: heading3Style(context).copyWith(
+            color: kcPrimaryTextColor,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        subtitle: Text(
+          'Show prompts to share phase transitions',
+          style: bodyStyle(context).copyWith(
+            color: kcSecondaryTextColor,
+            fontSize: 12,
+          ),
+        ),
+        value: _phaseSharePromptsEnabled,
+        onChanged: _phaseShareSettingsLoading
+            ? null
+            : (value) => _togglePhaseSharePrompts(value),
+        secondary: _phaseShareSettingsLoading
+            ? const SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : Icon(
+                Icons.share,
+                color: kcAccentColor,
+                size: 24,
+              ),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 8,
+        ),
+      ),
+    );
+  }
+}
+
+// ============================================================================
+// FOLDER 5: Bug Reporting
+// ============================================================================
+class BugReportingFolderView extends StatefulWidget {
+  const BugReportingFolderView({super.key});
+
+  @override
+  State<BugReportingFolderView> createState() => _BugReportingFolderViewState();
+}
+
+class _BugReportingFolderViewState extends State<BugReportingFolderView> {
+  bool _shakeToReportEnabled = true;
+  bool _shakeToReportLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadShakeToReportPreference();
+  }
+
+  Future<void> _loadShakeToReportPreference() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final enabled = prefs.getBool('shake_to_report_enabled') ?? true;
+      if (mounted) {
+        setState(() {
+          _shakeToReportEnabled = enabled;
+          _shakeToReportLoading = false;
+        });
+      }
+    } catch (e) {
+      print('Error loading shake-to-report preference: $e');
+      if (mounted) {
+        setState(() {
+          _shakeToReportLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _toggleShakeToReport(bool value) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('shake_to_report_enabled', value);
+      if (mounted) {
+        setState(() {
+          _shakeToReportEnabled = value;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              value
+                  ? 'Shake to report enabled - shake your device to report bugs'
+                  : 'Shake to report disabled',
+            ),
+            duration: const Duration(seconds: 2),
+            backgroundColor: value ? Colors.green : Colors.grey,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error toggling shake-to-report: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: kcBackgroundColor,
+      appBar: AppBar(
+        backgroundColor: kcBackgroundColor,
+        elevation: 0,
+        leading: const BackButton(color: kcPrimaryTextColor),
+        title: Text(
+          'Bug Reporting',
+          style: heading1Style(context).copyWith(
+            color: kcPrimaryTextColor,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        centerTitle: true,
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Shake to Report Toggle
+            Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.05),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: Colors.white.withValues(alpha: 0.1),
+                ),
+              ),
+              child: SwitchListTile(
+                title: Text(
+                  'Shake to Report',
+                  style: heading3Style(context).copyWith(
+                    color: kcPrimaryTextColor,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                subtitle: Text(
+                  'Shake your device to quickly report a bug or issue',
+                  style: bodyStyle(context).copyWith(
+                    color: kcSecondaryTextColor,
+                  ),
+                ),
+                value: _shakeToReportEnabled,
+                onChanged: _shakeToReportLoading
+                    ? null
+                    : (value) => _toggleShakeToReport(value),
+                secondary: _shakeToReportLoading
+                    ? const SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : Icon(
+                        Icons.vibration,
+                        color: kcAccentColor,
+                        size: 24,
                       ),
-                    )
-                  : null,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
+              ),
             ),
-            const SizedBox(width: 12),
-            Text(
-              persona.icon,
-              style: const TextStyle(fontSize: 20),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
+            
+            const SizedBox(height: 16),
+            
+            // Info card about bug reporting
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.blue.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.blue.withValues(alpha: 0.3)),
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    persona.displayName,
-                    style: heading3Style(context).copyWith(
-                      color: isSelected ? kcAccentColor : kcPrimaryTextColor,
-                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                      fontSize: 14,
-                    ),
+                  Row(
+                    children: [
+                      const Icon(Icons.info_outline, color: Colors.blue, size: 20),
+                      const SizedBox(width: 8),
+                      Text(
+                        'How to Report Bugs',
+                        style: heading3Style(context).copyWith(
+                          color: kcPrimaryTextColor,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
                   ),
+                  const SizedBox(height: 8),
                   Text(
-                    persona.description,
+                    'When Shake to Report is enabled, simply shake your device at any time to capture a bug report. This will include a screenshot and relevant diagnostic information to help us fix the issue faster.',
                     style: bodyStyle(context).copyWith(
                       color: kcSecondaryTextColor,
-                      fontSize: 11,
+                      fontSize: 12,
                     ),
                   ),
                 ],
@@ -1415,67 +2413,112 @@ class _SettingsViewState extends State<SettingsView> {
       ),
     );
   }
+}
 
-  Widget _buildSettingsTile(
-    BuildContext context, {
-    required String title,
-    required String subtitle,
-    required IconData icon,
-    VoidCallback? onTap,
-  }) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.1),
-        ),
-      ),
-      child: ListTile(
-        leading: Icon(
-          icon,
-          color: kcAccentColor,
-          size: 24,
-        ),
+// ============================================================================
+// FOLDER 6: Privacy & Security
+// ============================================================================
+class PrivacySecurityFolderView extends StatelessWidget {
+  const PrivacySecurityFolderView({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: kcBackgroundColor,
+      appBar: AppBar(
+        backgroundColor: kcBackgroundColor,
+        elevation: 0,
+        leading: const BackButton(color: kcPrimaryTextColor),
         title: Text(
-          title,
-          style: heading3Style(context).copyWith(
+          'Privacy & Security',
+          style: heading1Style(context).copyWith(
             color: kcPrimaryTextColor,
-            fontWeight: FontWeight.w500,
+            fontWeight: FontWeight.bold,
           ),
         ),
-        subtitle: Text(
-          subtitle,
-          style: bodyStyle(context).copyWith(
-            color: kcSecondaryTextColor,
-          ),
-        ),
-        trailing: onTap != null
-            ? const Icon(
-                Icons.arrow_forward_ios,
-                color: kcSecondaryTextColor,
-                size: 16,
-              )
-            : null,
-        onTap: onTap,
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 8,
+        centerTitle: true,
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _SettingsTile(
+              title: 'Throttle',
+              subtitle: 'Manage rate limiting settings',
+              icon: Icons.speed,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const ThrottleSettingsView()),
+                );
+              },
+            ),
+            _SettingsTile(
+              title: 'Privacy Protection',
+              subtitle: 'Configure PII detection and masking settings',
+              icon: Icons.security,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const PrivacySettingsView()),
+                );
+              },
+            ),
+            _SettingsTile(
+              title: 'Memory Modes',
+              subtitle: 'Control how LUMARA uses your memories',
+              icon: Icons.memory,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const MemoryModeSettingsView()),
+                );
+              },
+            ),
+            _SettingsTile(
+              title: 'Memory Snapshots',
+              subtitle: 'Backup and restore your memories',
+              icon: Icons.backup,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const MemorySnapshotManagementView()),
+                );
+              },
+            ),
+            _SettingsTile(
+              title: 'Memory Conflicts',
+              subtitle: 'Resolve memory contradictions',
+              icon: Icons.psychology,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const ConflictManagementView()),
+                );
+              },
+            ),
+          ],
         ),
       ),
     );
   }
+}
 
-  /// Build account tile showing sign in/out status
-  Widget _buildAccountTile(BuildContext context) {
+// ============================================================================
+// SHARED WIDGETS
+// ============================================================================
+
+/// Account tile widget showing sign in/out status
+class _AccountTile extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
     final authService = FirebaseAuthService.instance;
     final isSignedIn = authService.isSignedIn;
     final isAnonymous = authService.isAnonymous;
     final userEmail = authService.userEmail;
     final displayName = authService.userDisplayName;
 
-    // Determine what to show
     String title;
     String subtitle;
     IconData icon;
@@ -1546,7 +2589,6 @@ class _SettingsViewState extends State<SettingsView> {
     );
   }
 
-  /// Show sign out confirmation dialog
   Future<void> _showSignOutDialog(BuildContext context) async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -1575,19 +2617,17 @@ class _SettingsViewState extends State<SettingsView> {
       ),
     );
 
-    if (confirmed == true && mounted) {
+    if (confirmed == true && context.mounted) {
       try {
         await FirebaseAuthService.instance.signOut();
-        if (mounted) {
-          // Navigate to sign-in screen and clear all navigation stack
+        if (context.mounted) {
           Navigator.of(context).pushNamedAndRemoveUntil(
             '/sign-in',
-            (route) => false, // Remove all previous routes
+            (route) => false,
           );
 
-          // Show success message on the sign-in screen
           Future.delayed(const Duration(milliseconds: 500), () {
-            if (mounted) {
+            if (context.mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
                   content: Text('Signed out successfully'),
@@ -1598,7 +2638,7 @@ class _SettingsViewState extends State<SettingsView> {
           });
         }
       } catch (e) {
-        if (mounted) {
+        if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('Sign out failed: $e'),
@@ -1609,882 +2649,65 @@ class _SettingsViewState extends State<SettingsView> {
       }
     }
   }
-  
-  /// Restore data - directly open file picker and import
-  Future<void> _restoreDataFromSettings(BuildContext context) async {
-    try {
-      // Open file picker directly
-      final result = await FilePicker.platform.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: ['zip', 'mcpkg', 'arcx'],
-        allowMultiple: true, // Allow multiple files for separated packages
-      );
+}
 
-      if (result == null || result.files.isEmpty) {
-        return; // User cancelled
-      }
+/// Reusable settings tile widget
+class _SettingsTile extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final VoidCallback? onTap;
 
-      final files = result.files.where((f) => f.path != null).map((f) => f.path!).toList();
-      
-      if (files.isEmpty) {
-        return;
-      }
+  const _SettingsTile({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    this.onTap,
+  });
 
-      // Check file type and import accordingly
-      final hasArcx = files.any((p) => p.endsWith('.arcx'));
-      final hasZip = files.any((p) => p.endsWith('.zip') || p.endsWith('.mcpkg') || FileUtils.isMcpPackage(p));
-
-      if (hasArcx) {
-        // ARCX file(s) - handle single or multiple files
-        final arcxFiles = files.where((p) => p.endsWith('.arcx')).toList();
-        
-        if (arcxFiles.length == 1) {
-          // Single ARCX file - navigate to ARCX import progress screen
-          final arcxFile = File(arcxFiles.first);
-          if (!await arcxFile.exists()) {
-            _showImportError(context, 'File not found');
-            return;
-          }
-
-          // Run import in background; mini status bar on HomeView shows progress
-          if (!context.mounted) return;
-          final progressCubit = context.read<ImportProgressCubit>();
-          final journalRepo = context.read<JournalRepository>();
-          final arcxPath = arcxFiles.first;
-          progressCubit.start();
-          Navigator.of(context).pushNamedAndRemoveUntil('/home', (route) => false);
-          Future(() async {
-            try {
-              final chatRepo = ChatRepoImpl.instance;
-              await chatRepo.initialize();
-              PhaseRegimeService? phaseRegimeService;
-              try {
-                final analyticsService = AnalyticsService();
-                final rivetSweepService = RivetSweepService(analyticsService);
-                phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
-                await phaseRegimeService.initialize();
-              } catch (_) {}
-              final importService = ARCXImportServiceV2(
-                journalRepo: journalRepo,
-                chatRepo: chatRepo,
-                phaseRegimeService: phaseRegimeService,
-              );
-              final result = await importService.import(
-                arcxPath: arcxPath,
-                options: ARCXImportOptions(
-                  validateChecksums: true,
-                  dedupeMedia: true,
-                  skipExisting: true,
-                  resolveLinks: true,
-                ),
-                password: null,
-                onProgress: (message, [fraction = 0.0]) {
-                  progressCubit.update(message, fraction);
-                },
-              );
-              if (result.success) {
-                progressCubit.complete();
-              } else {
-                progressCubit.fail(result.error);
-              }
-            } catch (e) {
-              progressCubit.fail(e.toString());
-            }
-          });
-        } else {
-          // Multiple ARCX files - run in background; status bar on Home, file list in Settings → Import
-          if (!context.mounted) return;
-          final progressCubit = context.read<ImportProgressCubit>();
-          final journalRepo = context.read<JournalRepository>();
-          progressCubit.startWithFiles(arcxFiles);
-          Navigator.of(context).pushNamedAndRemoveUntil('/home', (route) => false);
-          Future(() => _runMultipleArcImportInBackground(
-            progressCubit: progressCubit,
-            journalRepo: journalRepo,
-            filePaths: arcxFiles,
-          ));
-        }
-      } else if (hasZip) {
-        // ZIP file(s) - use MCP pack import service
-        final zipFiles = files.where((p) => p.endsWith('.zip') || p.endsWith('.mcpkg') || FileUtils.isMcpPackage(p)).toList();
-        
-        if (zipFiles.length == 1) {
-          // Single ZIP file
-          final zipFile = File(zipFiles.first);
-          if (!await zipFile.exists()) {
-            _showImportError(context, 'File not found');
-            return;
-          }
-
-          // Show loading indicator
-          showDialog(
-            context: context,
-            barrierDismissible: false,
-            builder: (context) => const Center(
-              child: CircularProgressIndicator(),
-            ),
-          );
-
-          try {
-            // Initialize PhaseRegimeService for extended data import
-            PhaseRegimeService? phaseRegimeService;
-            try {
-              final analyticsService = AnalyticsService();
-              final rivetSweepService = RivetSweepService(analyticsService);
-              phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
-              await phaseRegimeService.initialize();
-            } catch (e) {
-              print('Warning: Could not initialize PhaseRegimeService: $e');
-            }
-
-            // Initialize ChatRepo for chat import
-            final chatRepo = ChatRepoImpl.instance;
-            await chatRepo.initialize();
-            
-            final journalRepo = context.read<JournalRepository>();
-            final importService = McpPackImportService(
-              journalRepo: journalRepo,
-              phaseRegimeService: phaseRegimeService,
-              chatRepo: chatRepo,
-            );
-
-            final importResult = await importService.importFromPath(zipFiles.first);
-
-            if (!context.mounted) return;
-            Navigator.pop(context); // Close loading dialog
-
-            if (importResult.success) {
-              // Refresh timeline before showing success dialog
-              try {
-                context.read<TimelineCubit>().reloadAllEntries();
-                print('✅ Timeline refreshed after import');
-              } catch (e) {
-                print('⚠️ Could not refresh timeline: $e');
-              }
-              
-              // Show success dialog briefly, then navigate to timeline
-              _showImportSuccess(
-                context,
-                'Import Complete',
-                'Imported ${importResult.totalEntries} entries and ${importResult.totalPhotos} media items.',
-              );
-              
-              // Navigate to timeline after a short delay (allows dialog to show)
-              Future.delayed(const Duration(milliseconds: 500), () {
-                if (context.mounted) {
-                  Navigator.of(context).pushAndRemoveUntil(
-                    MaterialPageRoute(
-                      builder: (context) => const HomeView(initialTab: 0), // Journal tab
-                    ),
-                    (route) => false, // Remove all previous routes
-                  );
-                }
-              });
-            } else {
-              _showImportError(context, importResult.error ?? 'Import failed');
-            }
-          } catch (e) {
-            if (!context.mounted) return;
-            Navigator.pop(context); // Close loading dialog
-            _showImportError(context, 'Import failed: $e');
-          }
-        } else {
-          // Multiple ZIP files - import sequentially
-          await _importMultipleZipFiles(context, zipFiles);
-        }
-      } else {
-        _showImportError(context, 'Unsupported file format');
-      }
-    } catch (e) {
-      _showImportError(context, 'Failed to select file: $e');
-    }
-  }
-  
-  /// Show import error dialog
-  void _showImportError(BuildContext context, String message) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: kcBackgroundColor,
-        title: const Text('Error', style: TextStyle(color: Colors.white)),
-        content: Text(message, style: const TextStyle(color: Colors.white70)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('OK'),
-          ),
-        ],
-      ),
-    );
-  }
-  
-  /// Show import success dialog
-  void _showImportSuccess(BuildContext context, String title, String message) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: kcBackgroundColor,
-        title: Text(title, style: const TextStyle(color: Colors.white)),
-        content: Text(message, style: const TextStyle(color: Colors.white70)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('OK'),
-          ),
-        ],
-      ),
-    );
-  }
-  
-  /// Run multiple ARCX import in background (no UI block). Call after navigating to home.
-  static Future<void> _runMultipleArcImportInBackground({
-    required ImportProgressCubit progressCubit,
-    required JournalRepository journalRepo,
-    required List<String> filePaths,
-  }) async {
-    final chatRepo = ChatRepoImpl.instance;
-    await chatRepo.initialize();
-    PhaseRegimeService? phaseRegimeService;
-    try {
-      final analyticsService = AnalyticsService();
-      final rivetSweepService = RivetSweepService(analyticsService);
-      phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
-      await phaseRegimeService.initialize();
-    } catch (e) {
-      print('Warning: Could not initialize PhaseRegimeService: $e');
-    }
-    final importService = ARCXImportServiceV2(
-      journalRepo: journalRepo,
-      chatRepo: chatRepo,
-      phaseRegimeService: phaseRegimeService,
-    );
-    final sortedFiles = <String>[];
-    final fileStats = <String, DateTime>{};
-    for (final filePath in filePaths) {
-      try {
-        final file = File(filePath);
-        if (await file.exists()) {
-          final stat = await file.stat();
-          fileStats[filePath] = stat.modified;
-          sortedFiles.add(filePath);
-        }
-      } catch (e) {
-        sortedFiles.add(filePath);
-        fileStats[filePath] = DateTime.now();
-      }
-    }
-    sortedFiles.sort((a, b) => (fileStats[a] ?? DateTime.now()).compareTo(fileStats[b] ?? DateTime.now()));
-    final total = sortedFiles.length;
-    int successCount = 0;
-    int failureCount = 0;
-    try {
-      for (int i = 0; i < sortedFiles.length; i++) {
-        final filePath = sortedFiles[i];
-        progressCubit.updateFileStatus(i, ImportFileStatus.importing);
-        progressCubit.update('Importing archive ${i + 1} of $total...', (i + 0.0) / total);
-        if (!await File(filePath).exists()) {
-          progressCubit.updateFileStatus(i, ImportFileStatus.failed);
-          failureCount++;
-          continue;
-        }
-        try {
-          final result = await importService.import(
-            arcxPath: filePath,
-            options: ARCXImportOptions(
-              validateChecksums: true,
-              dedupeMedia: true,
-              skipExisting: true,
-              resolveLinks: true,
-            ),
-            password: null,
-            onProgress: (message, [fraction = 0.0]) {
-              progressCubit.update(message, (i + fraction.clamp(0.0, 1.0)) / total);
-            },
-          );
-          if (result.success) {
-            progressCubit.updateFileStatus(i, ImportFileStatus.completed);
-            successCount++;
-          } else {
-            progressCubit.updateFileStatus(i, ImportFileStatus.failed);
-            failureCount++;
-          }
-        } catch (e) {
-          progressCubit.updateFileStatus(i, ImportFileStatus.failed);
-          failureCount++;
-        }
-      }
-      progressCubit.update('Import complete', 1.0);
-      progressCubit.complete();
-    } catch (e) {
-      progressCubit.fail('Import failed: $e');
-    }
-  }
-  
-  /// Import multiple ZIP files sequentially
-  Future<void> _importMultipleZipFiles(BuildContext context, List<String> filePaths) async {
-    // Initialize PhaseRegimeService for extended data import
-    PhaseRegimeService? phaseRegimeService;
-    try {
-      final analyticsService = AnalyticsService();
-      final rivetSweepService = RivetSweepService(analyticsService);
-      phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
-      await phaseRegimeService.initialize();
-    } catch (e) {
-      print('Warning: Could not initialize PhaseRegimeService: $e');
-    }
-
-    // Initialize ChatRepo for chat import
-    final chatRepo = ChatRepoImpl.instance;
-    await chatRepo.initialize();
-    
-    final journalRepo = context.read<JournalRepository>();
-    final importService = McpPackImportService(
-      journalRepo: journalRepo,
-      phaseRegimeService: phaseRegimeService,
-      chatRepo: chatRepo,
-    );
-    
-    // Sort files by creation date (oldest first)
-    final sortedFiles = <String>[];
-    final fileStats = <String, DateTime>{};
-    
-    for (final filePath in filePaths) {
-      try {
-        final file = File(filePath);
-        if (await file.exists()) {
-          final stat = await file.stat();
-          // Use modified time as creation time indicator (most reliable across platforms)
-          final creationTime = stat.modified;
-          fileStats[filePath] = creationTime;
-          sortedFiles.add(filePath);
-        }
-      } catch (e) {
-        print('Warning: Could not get file stats for $filePath: $e');
-        // Add to end if we can't get stats
-        sortedFiles.add(filePath);
-        fileStats[filePath] = DateTime.now();
-      }
-    }
-    
-    // Sort by creation date (oldest first)
-    sortedFiles.sort((a, b) {
-      final dateA = fileStats[a] ?? DateTime.now();
-      final dateB = fileStats[b] ?? DateTime.now();
-      return dateA.compareTo(dateB);
-    });
-    
-    int totalEntries = 0;
-    int totalPhotos = 0;
-    int successCount = 0;
-    int failureCount = 0;
-    final warnings = <String>[];
-    final failedFiles = <String>[];
-    
-    // Show progress dialog
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        backgroundColor: kcBackgroundColor,
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const CircularProgressIndicator(),
-            const SizedBox(height: 16),
-            Text(
-              'Importing ${sortedFiles.length} Archives...',
-              style: const TextStyle(color: Colors.white),
-            ),
-          ],
-        ),
-      ),
-    );
-    
-    try {
-      for (int i = 0; i < sortedFiles.length; i++) {
-        final filePath = sortedFiles[i];
-        if (!await File(filePath).exists()) {
-          warnings.add('File not found: ${path.basename(filePath)}');
-          failedFiles.add(path.basename(filePath));
-          failureCount++;
-          continue;
-        }
-        
-        if (!context.mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Importing file ${i + 1} of ${sortedFiles.length}: ${path.basename(filePath)}...'),
-            duration: const Duration(seconds: 2),
-          ),
-        );
-        
-        try {
-          final importResult = await importService.importFromPath(filePath);
-          
-          if (importResult.success) {
-            totalEntries += importResult.totalEntries;
-            totalPhotos += importResult.totalPhotos;
-            successCount++;
-          } else {
-            warnings.add('Failed to import ${path.basename(filePath)}: ${importResult.error ?? "Unknown error"}');
-            failedFiles.add(path.basename(filePath));
-            failureCount++;
-          }
-        } catch (e) {
-          warnings.add('Failed to import ${path.basename(filePath)}: $e');
-          failedFiles.add(path.basename(filePath));
-          failureCount++;
-        }
-      }
-      
-      // Hide progress dialog
-      if (!context.mounted) return;
-      Navigator.pop(context);
-      
-      // Refresh timeline
-      try {
-        context.read<TimelineCubit>().reloadAllEntries();
-        print('✅ Timeline refreshed after ZIP import');
-      } catch (e) {
-        print('⚠️ Could not refresh timeline: $e');
-      }
-      
-      // Show success dialog with summary
-      final message = StringBuffer();
-      message.writeln('Successfully imported $successCount of ${sortedFiles.length} archives.');
-      message.writeln('\nImported:');
-      message.writeln('• $totalEntries entries');
-      message.writeln('• $totalPhotos media items');
-      
-      if (failureCount > 0) {
-        message.writeln('\nFailed: $failureCount files');
-        if (failedFiles.isNotEmpty) {
-          message.writeln('Failed files: ${failedFiles.join(", ")}');
-        }
-      }
-      
-      if (warnings.isNotEmpty) {
-        message.writeln('\nWarnings:');
-        for (final warning in warnings.take(5)) {
-          message.writeln('• $warning');
-        }
-        if (warnings.length > 5) {
-          message.writeln('... and ${warnings.length - 5} more');
-        }
-      }
-      
-      _showImportSuccess(context, 'Import Complete', message.toString());
-      
-      // Navigate to timeline after a short delay
-      Future.delayed(const Duration(milliseconds: 500), () {
-        if (context.mounted) {
-          Navigator.of(context).pushAndRemoveUntil(
-            MaterialPageRoute(
-              builder: (context) => const HomeView(initialTab: 0), // Journal tab
-            ),
-            (route) => false,
-          );
-        }
-      });
-    } catch (e) {
-      if (!context.mounted) return;
-      Navigator.pop(context);
-      _showImportError(context, 'Import failed: $e');
-    }
-  }
-  
-  /// Build Memory Focus preset card
-  Widget _buildMemoryFocusCard() {
+  @override
+  Widget build(BuildContext context) {
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-            child: Row(
-              children: [
-                Icon(Icons.memory, color: kcAccentColor, size: 24),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Memory Focus',
-                        style: heading3Style(context).copyWith(
-                          color: kcPrimaryTextColor,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        'How much context LUMARA uses from your history',
-                        style: bodyStyle(context).copyWith(
-                          color: kcSecondaryTextColor,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                if (_memoryFocusLoading)
-                  const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  ),
-              ],
-            ),
-          ),
-          const Divider(height: 1, color: Colors.white12),
-          ...MemoryFocusPreset.values.map((preset) => _buildMemoryFocusOption(preset)),
-          // Show custom sliders when Custom is selected
-          if (_showCustomMemorySettings) ..._buildCustomMemorySettings(),
-        ],
-      ),
-    );
-  }
-  
-  List<Widget> _buildCustomMemorySettings() {
-    return [
-      const Divider(height: 1, color: Colors.white12),
-      Padding(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-        child: Text(
-          'Custom Settings',
-          style: heading3Style(context).copyWith(
-            color: kcPrimaryTextColor,
-            fontWeight: FontWeight.w500,
-            fontSize: 14,
-          ),
-        ),
-      ),
-      _buildCustomSliderCard(
-        title: 'Time Window',
-        subtitle: 'How far back LUMARA searches your history',
-        icon: Icons.history,
-        value: _customTimeWindowDays.toDouble(),
-        min: 1,
-        max: 365,
-        divisions: 36, // Every 10 days
-        loading: _customMemorySettingsLoading,
-        onChanged: (value) => _setCustomTimeWindowDays(value.round()),
-        labels: const ['1 day', '30 days', '90 days', '180 days', '365 days'],
-      ),
-      _buildCustomSliderCard(
-        title: 'Matching Precision',
-        subtitle: 'How similar memories must be to include them',
-        icon: Icons.tune,
-        value: _customSimilarityThreshold,
-        min: 0.3,
-        max: 0.9,
-        divisions: 12,
-        loading: _customMemorySettingsLoading,
-        onChanged: _setCustomSimilarityThreshold,
-        labels: const ['Loose', 'Balanced', 'Strict'],
-      ),
-      _buildCustomSliderCard(
-        title: 'Maximum Entries',
-        subtitle: 'Maximum number of past entries to include',
-        icon: Icons.format_list_numbered,
-        value: _customMaxEntries.toDouble(),
-        min: 1,
-        max: 50,
-        divisions: 49,
-        loading: _customMemorySettingsLoading,
-        onChanged: (value) => _setCustomMaxEntries(value.round()),
-        labels: const ['1', '10', '20', '30', '50'],
-      ),
-    ];
-  }
-  
-  Widget _buildCustomSliderCard({
-    required String title,
-    required String subtitle,
-    required IconData icon,
-    required double value,
-    required double min,
-    required double max,
-    required int divisions,
-    required bool loading,
-    required Function(double) onChanged,
-    required List<String> labels,
-  }) {
-    return Container(
-      margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.03),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: Colors.white.withValues(alpha: 0.1),
         ),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(icon, color: kcAccentColor, size: 20),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: heading3Style(context).copyWith(
-                        color: kcPrimaryTextColor,
-                        fontWeight: FontWeight.w500,
-                        fontSize: 14,
-                      ),
-                    ),
-                    Text(
-                      subtitle,
-                      style: bodyStyle(context).copyWith(
-                        color: kcSecondaryTextColor,
-                        fontSize: 11,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              if (loading)
-                const SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Slider(
-            value: value,
-            min: min,
-            max: max,
-            divisions: divisions,
-            activeColor: kcAccentColor,
-            inactiveColor: Colors.grey.withValues(alpha: 0.3),
-            onChanged: loading ? null : onChanged,
-          ),
-          if (labels.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(top: 4),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: labels.map((label) => Text(
-                  label,
-                  style: bodyStyle(context).copyWith(
-                    color: kcSecondaryTextColor,
-                    fontSize: 9,
-                  ),
-                )).toList(),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-  
-  Widget _buildMemoryFocusOption(MemoryFocusPreset preset) {
-    final isSelected = _memoryFocusPreset == preset;
-    return InkWell(
-      onTap: _memoryFocusLoading ? null : () => _setMemoryFocusPreset(preset),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        child: Row(
-          children: [
-            Container(
-              width: 20,
-              height: 20,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: isSelected ? kcAccentColor : Colors.white38,
-                  width: 2,
-                ),
-              ),
-              child: isSelected
-                  ? Center(
-                      child: Container(
-                        width: 10,
-                        height: 10,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: kcAccentColor,
-                        ),
-                      ),
-                    )
-                  : null,
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    preset.displayName,
-                    style: bodyStyle(context).copyWith(
-                      fontWeight: FontWeight.w600,
-                      color: isSelected ? kcAccentColor : kcPrimaryTextColor,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    preset.description,
-                    style: bodyStyle(context).copyWith(
-                      fontSize: 11,
-                      color: kcSecondaryTextColor,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
+      child: ListTile(
+        leading: Icon(
+          icon,
+          color: kcAccentColor,
+          size: 24,
         ),
-      ),
-    );
-  }
-  
-  Future<void> _setMemoryFocusPreset(MemoryFocusPreset preset) async {
-    try {
-      final settingsService = LumaraReflectionSettingsService.instance;
-      await settingsService.setMemoryFocusPreset(preset);
-      if (mounted) {
-        setState(() {
-          _memoryFocusPreset = preset;
-          _showCustomMemorySettings = preset == MemoryFocusPreset.custom;
-          
-          // Load custom values if switching to Custom
-          if (preset == MemoryFocusPreset.custom) {
-            _loadCustomMemorySettings();
-          }
-        });
-      }
-    } catch (e) {
-      print('Error setting memory focus preset: $e');
-    }
-  }
-  
-  Future<void> _loadCustomMemorySettings() async {
-    try {
-      final settingsService = LumaraReflectionSettingsService.instance;
-      await settingsService.initialize();
-      final settings = await settingsService.loadAllSettings();
-      if (mounted) {
-        setState(() {
-          _customTimeWindowDays = settings['timeWindowDays'] as int? ?? (settings['lookbackYears'] as int? ?? 5) * 365;
-          _customSimilarityThreshold = settings['similarityThreshold'] as double? ?? 0.55;
-          _customMaxEntries = settings['maxMatches'] as int? ?? 20;
-          _customMemorySettingsLoading = false;
-        });
-      }
-    } catch (e) {
-      print('Error loading custom memory settings: $e');
-      if (mounted) {
-        setState(() {
-          _customMemorySettingsLoading = false;
-        });
-      }
-    }
-  }
-  
-  Future<void> _setCustomTimeWindowDays(int days) async {
-    try {
-      final settingsService = LumaraReflectionSettingsService.instance;
-      await settingsService.setTimeWindowDays(days);
-      if (mounted) {
-        setState(() {
-          _customTimeWindowDays = days;
-        });
-      }
-    } catch (e) {
-      print('Error setting custom time window days: $e');
-    }
-  }
-  
-  Future<void> _setCustomSimilarityThreshold(double threshold) async {
-    try {
-      final settingsService = LumaraReflectionSettingsService.instance;
-      await settingsService.setSimilarityThreshold(threshold);
-      if (mounted) {
-        setState(() {
-          _customSimilarityThreshold = threshold;
-        });
-      }
-    } catch (e) {
-      print('Error setting custom similarity threshold: $e');
-    }
-  }
-  
-  Future<void> _setCustomMaxEntries(int entries) async {
-    try {
-      final settingsService = LumaraReflectionSettingsService.instance;
-      await settingsService.setMaxMatches(entries);
-      if (mounted) {
-        setState(() {
-          _customMaxEntries = entries;
-        });
-      }
-    } catch (e) {
-      print('Error setting custom max entries: $e');
-    }
-  }
-  
-  /// Build Include Media toggle
-  Widget _buildIncludeMediaToggle() {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
-      ),
-      child: SwitchListTile(
         title: Text(
-          'Include Media',
+          title,
           style: heading3Style(context).copyWith(
             color: kcPrimaryTextColor,
             fontWeight: FontWeight.w500,
           ),
         ),
         subtitle: Text(
-          'Analyze photos, audio, and video in reflections',
+          subtitle,
           style: bodyStyle(context).copyWith(
             color: kcSecondaryTextColor,
           ),
         ),
-        value: _crossModalEnabled,
-        onChanged: _crossModalLoading
-            ? null
-            : (value) => _setCrossModalEnabled(value),
-        secondary: Icon(
-          Icons.perm_media,
-          color: kcAccentColor,
-          size: 24,
+        trailing: onTap != null
+            ? const Icon(
+                Icons.arrow_forward_ios,
+                color: kcSecondaryTextColor,
+                size: 16,
+              )
+            : null,
+        onTap: onTap,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 8,
         ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       ),
     );
-  }
-  
-  Future<void> _setCrossModalEnabled(bool value) async {
-    try {
-      final settingsService = LumaraReflectionSettingsService.instance;
-      await settingsService.setCrossModalEnabled(value);
-      if (mounted) {
-        setState(() {
-          _crossModalEnabled = value;
-        });
-      }
-    } catch (e) {
-      print('Error setting cross-modal enabled: $e');
-    }
   }
 }

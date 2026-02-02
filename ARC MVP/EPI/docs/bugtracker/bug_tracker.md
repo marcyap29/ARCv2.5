@@ -1,7 +1,16 @@
 # EPI MVP - Bug Tracker
 
 **Version:** 3.2.2  
-**Last Updated:** January 31, 2026
+**Last Updated:** January 31, 2026  
+**Record count:** 28 individual bug records in [records/](records/). Index below matches all files in records/.
+
+---
+
+## How to use this tracker
+
+- **Index:** Use the sections below to find bugs by category (LUMARA, Timeline & UI, Export/Import, etc.). Each entry links to a detailed record in `records/`.
+- **Recent code changes:** Table derived from repo and [CHANGELOG.md](../CHANGELOG.md) – use it to see which fixes have bug records and which might need new records.
+- **Archive:** Legacy bug tracker files (Bug_Tracker-1.md through Bug_Tracker-9.md) are in [archive/](archive/).
 
 ---
 
@@ -52,6 +61,7 @@ Detailed bug reports are available in the [records/](records/) directory:
 ### API & Integration Issues
 - [gemini-api-empty-user-string.md](records/gemini-api-empty-user-string.md) - **CRITICAL:** Empty user string rejection in journal reflections ✅ RESOLVED
 - [vision-api-integration-ios.md](records/vision-api-integration-ios.md) - Vision API iOS integration
+- [wispr-flow-cache-issue.md](records/wispr-flow-cache-issue.md) - **MEDIUM:** Wispr Flow API key cached; new key not used until restart ✅ RESOLVED
 
 ### Subscription & Payment Issues
 - [stripe-checkout-unauthenticated.md](records/stripe-checkout-unauthenticated.md) - **CRITICAL:** Cloud Run IAM blocking Stripe checkout ✅ RESOLVED
@@ -77,6 +87,7 @@ This section is derived from the repo and [CHANGELOG.md](../CHANGELOG.md) to kee
 | Phase Quiz result not persisting; Phase tab mismatch | v3.3.13 | — | Quiz result now persisted via UserPhaseService; Phase tab uses quiz phase when no regimes. See CHANGELOG [3.3.13] "Phase Quiz result matches Phase tab". |
 | llama.xcframework build / simulator | recent | — | Link llama static library directly; device build search paths; simulator stubs; exclude xcframework from simulator. Build/config fixes. |
 | Import status bar, mini bar, per-file status | v3.3.13 | — | Feature; not a bug. See CHANGELOG. |
+| Wispr Flow cache – new API key not used until restart | v3.3.13 | [wispr-flow-cache-issue.md](records/wispr-flow-cache-issue.md) ✅ | WisprConfigService cached key; fix: clearCache() on save in Settings. |
 
 **Source:** `git log --oneline`, [CHANGELOG.md](../CHANGELOG.md). Last synced: 2026-01-31.
 
@@ -87,6 +98,8 @@ This section is derived from the repo and [CHANGELOG.md](../CHANGELOG.md) to kee
 Historical bug tracker files are archived in [archive/](archive/):
 - Legacy bug tracker files (Bug_Tracker-1.md through Bug_Tracker-9.md)
 - Older bug tracker versions
+
+Individual bug records stay in [records/](records/); only the legacy multi-part tracker files are in archive.
 
 ---
 

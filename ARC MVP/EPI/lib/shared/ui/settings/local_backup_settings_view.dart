@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
 // TODO: Backup services not yet implemented
@@ -82,29 +83,32 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
     super.dispose();
   }
 
+  // SharedPreferences keys for local backup settings persistence
+  static const String _keyBackupEnabled = 'local_backup_enabled';
+  static const String _keyBackupPath = 'local_backup_path';
+  static const String _keyBackupFormat = 'local_backup_format';
+  static const String _keyScheduleEnabled = 'local_backup_schedule_enabled';
+  static const String _keyScheduleFrequency = 'local_backup_schedule_frequency';
+  static const String _keyScheduleTime = 'local_backup_schedule_time';
+  static const String _keyLastBackup = 'local_backup_last_backup';
+
   Future<void> _loadSettings() async {
     setState(() => _isLoading = true);
 
     try {
-      // TODO: Backup services not yet implemented
-      // await _settingsService.initialize();
-
-      // final isEnabled = await _settingsService.isEnabled();
-      // final backupPath = await _settingsService.getBackupPath();
-      // final backupFormat = await _settingsService.getBackupFormat();
-      // final scheduleEnabled = await _settingsService.isScheduleEnabled();
-      // final scheduleFrequency = await _settingsService.getScheduleFrequency();
-      // final scheduleTime = await _settingsService.getScheduleTime();
-      // final lastBackup = await _settingsService.getLastBackup();
+      final prefs = await SharedPreferences.getInstance();
       
-      // Stub values for now
-      final isEnabled = false;
-      final backupPath = null;
-      final backupFormat = 'arcx';
-      final scheduleEnabled = false;
-      final scheduleFrequency = 'daily';
-      final scheduleTime = '02:00';
-      final lastBackup = null;
+      // Load persisted settings from SharedPreferences
+      final isEnabled = prefs.getBool(_keyBackupEnabled) ?? false;
+      final backupPath = prefs.getString(_keyBackupPath);
+      final backupFormat = prefs.getString(_keyBackupFormat) ?? 'arcx';
+      final scheduleEnabled = prefs.getBool(_keyScheduleEnabled) ?? false;
+      final scheduleFrequency = prefs.getString(_keyScheduleFrequency) ?? 'daily';
+      final scheduleTime = prefs.getString(_keyScheduleTime) ?? '02:00';
+      final lastBackupMillis = prefs.getInt(_keyLastBackup);
+      final lastBackup = lastBackupMillis != null 
+          ? DateTime.fromMillisecondsSinceEpoch(lastBackupMillis) 
+          : null;
 
       setState(() {
         _isEnabled = isEnabled;
@@ -276,8 +280,10 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
           }
         }
         
-        // TODO: Backup service not yet implemented
-        // await _settingsService.setBackupPath(selectedPath);
+        // Persist backup path to SharedPreferences
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString(_keyBackupPath, selectedPath);
+        
         setState(() {
           _backupPath = selectedPath;
         });
@@ -313,8 +319,10 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
         await backupDir.create(recursive: true);
       }
       
-      // TODO: Backup service not yet implemented
-      // await _settingsService.setBackupPath(backupDir.path);
+      // Persist backup path to SharedPreferences
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_keyBackupPath, backupDir.path);
+      
       setState(() {
         _backupPath = backupDir.path;
       });
@@ -348,14 +356,14 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
   }
 
   Future<void> _setBackupFormat(String format) async {
-    // TODO: Backup service not yet implemented
-    // await _settingsService.setBackupFormat(format);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keyBackupFormat, format);
     setState(() => _backupFormat = format);
   }
 
   Future<void> _setScheduleEnabled(bool enabled) async {
-    // TODO: Backup services not yet implemented
-    // await _settingsService.setScheduleEnabled(enabled);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_keyScheduleEnabled, enabled);
     setState(() => _scheduleEnabled = enabled);
 
     if (enabled && _isEnabled && _backupPath != null) {
@@ -366,14 +374,14 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
   }
 
   Future<void> _setScheduleFrequency(String frequency) async {
-    // TODO: Backup service not yet implemented
-    // await _settingsService.setScheduleFrequency(frequency);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keyScheduleFrequency, frequency);
     setState(() => _scheduleFrequency = frequency);
   }
 
   Future<void> _setScheduleTime(String time) async {
-    // TODO: Backup service not yet implemented
-    // await _settingsService.setScheduleTime(time);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keyScheduleTime, time);
     setState(() => _scheduleTime = time);
   }
 
@@ -473,6 +481,10 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
       );
 
       if (result.success) {
+        // Save last backup timestamp
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setInt(_keyLastBackup, DateTime.now().millisecondsSinceEpoch);
+        
         await _loadSettings();
         await _loadBackupInfo();
         ScaffoldMessenger.of(context).showSnackBar(
@@ -571,6 +583,10 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
       );
 
       if (result.success) {
+        // Save last backup timestamp
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setInt(_keyLastBackup, DateTime.now().millisecondsSinceEpoch);
+        
         await _loadSettings();
         await _loadBackupInfo();
         if (mounted) {
@@ -655,6 +671,10 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
       );
 
       if (result.success) {
+        // Save last backup timestamp
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setInt(_keyLastBackup, DateTime.now().millisecondsSinceEpoch);
+        
         await _loadSettings();
         await _loadBackupInfo();
         ScaffoldMessenger.of(context).showSnackBar(
@@ -864,8 +884,8 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
   }
 
   Future<void> _toggleEnabled(bool enabled) async {
-    // TODO: Backup services not yet implemented
-    // await _settingsService.setEnabled(enabled);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_keyBackupEnabled, enabled);
     setState(() => _isEnabled = enabled);
 
     if (enabled && _backupPath != null) {

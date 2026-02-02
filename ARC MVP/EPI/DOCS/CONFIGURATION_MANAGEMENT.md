@@ -24,6 +24,7 @@ Per the **Documentation & Configuration Management Role** (see [claude.md](claud
 | **FEATURES.md** | Comprehensive feature list | Capability and integration details |
 | **UI_UX.md** | UI/UX patterns and components | Before making UI changes |
 | **bugtracker/** | Bug tracker (records and index) | Known issues, fixes, resolution status |
+| **PROMPT_TRACKER.md** | Prompt change tracking; quick reference | Recent prompt changes; links to PROMPT_REFERENCES |
 | **CONFIGURATION_MANAGEMENT.md** (this file) | Docs inventory and change log | Sync status; what changed in docs |
 | **claude.md** | Context guide; Documentation & Config Role | Onboarding; adopting docs/config manager role |
 
@@ -38,9 +39,10 @@ Prompt/role definitions: **Documentation & Configuration Management Role** in [c
 | Document | Location | Last Reviewed | Status | Notes |
 |----------|----------|---------------|--------|-------|
 | ARCHITECTURE.md | `/DOCS/ARCHITECTURE.md` | 2026-01-31 | ✅ Synced | v3.3.7 - Phase Quiz/Phase tab (v3.3.13) in Key Achievements |
-| CHANGELOG.md | `/DOCS/CHANGELOG.md` | 2026-01-31 | ✅ Synced | v3.3.13 - Phase Quiz/Phase tab sync, rotating phase; iOS folder verification |
+| CHANGELOG.md | `/DOCS/CHANGELOG.md` | 2026-01-31 | ✅ Synced | v3.3.13 - Phase Quiz/Phase tab; iOS folder verification; Wispr Flow cache fix |
 | PROMPT_REFERENCES.md | `/DOCS/PROMPT_REFERENCES.md` | 2026-01-31 | ✅ Current | v1.8.0 - Document scope and sources; prompt catalog |
-| bug_tracker.md | `/DOCS/bugtracker/bug_tracker.md` | 2026-01-31 | ✅ Synced | v3.2.2 - Index + Recent code changes (repo/CHANGELOG) |
+| PROMPT_TRACKER.md | `/DOCS/PROMPT_TRACKER.md` | 2026-01-31 | ✅ Synced | v1.0.0 - Prompt change tracking; links to PROMPT_REFERENCES |
+| bug_tracker.md | `/DOCS/bugtracker/bug_tracker.md` | 2026-01-31 | ✅ Synced | v3.2.2 - 28 records; How to use; Recent code changes; Wispr Flow cache |
 | FEATURES.md | `/DOCS/FEATURES.md` | 2026-01-31 | ✅ Synced | v3.3.13 - Last Updated Jan 31 |
 | README.md | `/DOCS/README.md` | 2026-01-31 | ✅ Synced | Key docs table with purpose and when to read |
 | claude.md | `/DOCS/claude.md` | 2026-01-31 | ✅ Synced | Relative DOCS/ paths; Current Architecture v3.3.13 |
@@ -59,12 +61,65 @@ Prompt/role definitions: **Documentation & Configuration Management Role** in [c
 
 ## Change Tracking Log
 
+### 2026-01-31 - Update all documents (bug_tracker, prompt_tracker); commit and push
+
+**Action:** Full documentation update including bug_tracker and prompt_tracker; metadata and inventory confirmed; commit and push.
+
+**Updates:**
+- **bug_tracker.md:** Confirmed current – 28 records in records/; index and Recent code changes table in sync; Last Updated Jan 31, 2026.
+- **PROMPT_TRACKER.md:** Confirmed current – quick reference and recent prompt changes table; links to PROMPT_REFERENCES.md; Last Updated Jan 31, 2026.
+- **CONFIGURATION_MANAGEMENT:** This change log entry; Core Documentation Files inventory and Last Reviewed dates confirmed (2026-01-31).
+- **Other docs:** README, CHANGELOG, ARCHITECTURE, FEATURES, backend, git, claude.md, PROMPT_REFERENCES confirmed in sync.
+
+**Status:** ✅ All documents updated; bug_tracker and prompt_tracker current; changes committed and pushed.
+
+---
+
+### 2026-01-31 - Update all documents including bug_tracker and prompt_tracker
+
+**Action:** Full documentation update: bug_tracker, prompt_tracker (PROMPT_TRACKER.md), and all other relevant docs.
+
+**Updates:**
+- **PROMPT_TRACKER.md:** Created (was referenced in CONFIGURATION_MANAGEMENT but file was missing). v1.0.0 – prompt change tracking; quick reference for recent prompt changes; links to PROMPT_REFERENCES.md for full catalog and version history. Last Updated Jan 31.
+- **CONFIGURATION_MANAGEMENT:** Added PROMPT_TRACKER.md to Key documents for onboarding and to Core Documentation Files inventory (Last Reviewed 2026-01-31). This change log entry.
+- **bug_tracker.md:** Confirmed current (28 records, How to use, Recent code changes, Wispr Flow cache). No content change.
+- **Other docs:** PROMPT_REFERENCES, CHANGELOG, README, ARCHITECTURE, FEATURES, backend, git, claude.md confirmed in sync.
+
+**Status:** ✅ All documents updated; bug_tracker and prompt_tracker in sync.
+
+### 2026-01-31 - Update bugtracker and all relevant docs; archive old/useless documents
+
+**Action:** Updated bug tracker doc; updated all relevant docs; archived old or one-off documents per Documentation & Configuration Management role.
+
+**bug_tracker updates:**
+- **bug_tracker.md:** Added "How to use this tracker" (index, Recent code changes, archive). Added record count (28 records in records/). Clarified Archive section (individual records stay in records/; only legacy tracker files in archive). Last Updated Jan 31.
+
+**Archived (moved to DOCS/archive/):**
+- **code_simplifier_improvements.diff** – Historical diff; superseded by current code.
+- **ultimate_consolidation_improvements.diff** – Historical diff; superseded by current code.
+- **DOCS_ROOT_REVIEW_AND_CLEANUP.md** – One-time review (Jan 2025); ongoing doc tracking is in CONFIGURATION_MANAGEMENT.
+
+**Other docs:** CONFIGURATION_MANAGEMENT inventory and change log; CHANGELOG, README, claude.md, PROMPT_REFERENCES, backend, ARCHITECTURE, FEATURES, git.md confirmed in sync. Fixed earlier change log entry: "27 files" → "28 files" in records/ for bug_tracker.
+
+**Status:** ✅ Bug tracker updated; old docs archived; all relevant docs in sync.
+
+### 2026-01-31 - Update all documentation; add Wispr Flow cache issue
+
+**Action:** Full documentation update; added Wispr Flow cache issue to bug tracker and CHANGELOG.
+
+**Updates:**
+- **bug_tracker:** New record [wispr-flow-cache-issue.md](bugtracker/records/wispr-flow-cache-issue.md) – Wispr Flow API key cached in WisprConfigService; new key not used until restart. Fix: clearCache() on save in Settings. Added to index (API & Integration) and to Recent code changes table.
+- **CHANGELOG.md:** New entry [3.3.13] "Fix: Wispr Flow cache – new API key used after save without restart" with overview, changes, and link to bug record.
+- **CONFIGURATION_MANAGEMENT:** This change log entry; inventory re-verified (bug_tracker now includes Wispr Flow cache record).
+
+**Status:** ✅ All documentation updated; Wispr Flow cache issue documented and linked.
+
 ### 2026-01-31 - Update all documents; focus on bug_tracker
 
 **Action:** Full documentation update with focus on bug_tracker: index aligned with records/ directory; all key docs re-verified.
 
 **bug_tracker updates:**
-- **bug_tracker.md:** Added two missing records to index: [lumara-ui-overlap-stripe-auth-fixes.md](bugtracker/records/lumara-ui-overlap-stripe-auth-fixes.md) (Timeline & UI), [stripe-subscription-critical-fixes.md](bugtracker/records/stripe-subscription-critical-fixes.md) (Subscription & Payment). Index now matches all 27 files in records/. New **Recent code changes (reference for bug tracker)** section: derived from repo and CHANGELOG; lists iOS folder verification (linked to record), Phase Quiz/Phase tab fix, llama xcframework build fixes, import status (feature). Version 3.2.2; Last Updated Jan 31.
+- **bug_tracker.md:** Added two missing records to index: [lumara-ui-overlap-stripe-auth-fixes.md](bugtracker/records/lumara-ui-overlap-stripe-auth-fixes.md) (Timeline & UI), [stripe-subscription-critical-fixes.md](bugtracker/records/stripe-subscription-critical-fixes.md) (Subscription & Payment). Index now matches all 28 files in records/. New **Recent code changes (reference for bug tracker)** section: derived from repo and CHANGELOG; lists iOS folder verification (linked to record), Phase Quiz/Phase tab fix, llama xcframework build fixes, import status (feature). Version 3.2.2; Last Updated Jan 31.
 
 **Other docs:** CONFIGURATION_MANAGEMENT inventory and change log; PROMPT_REFERENCES, backend, ARCHITECTURE, CHANGELOG, FEATURES, README, git, claude.md confirmed in sync.
 

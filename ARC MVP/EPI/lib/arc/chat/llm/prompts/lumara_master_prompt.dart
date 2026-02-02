@@ -2930,35 +2930,165 @@ Current date and time: {current_datetime_iso}
 Current date (human readable): {current_date_formatted}
 </current_context>
 
-═══════════════════════════════════════════════════════════
-WORD LIMIT: Check responseMode.maxWords in the control state. You MUST stay at or under this limit. Count words; stop at the limit.
-═══════════════════════════════════════════════════════════
+WORD LIMIT: Stay at or under responseMode.maxWords in the control state. Count words; stop at the limit.
 
-ENGAGEMENT MODE (from engagement.mode in control state):
-- reflect (default): Answer like Claude 80–90% of the time. Supportive, not sycophantic. Give credit when due. No need to end with open-ended questions; a statement can be a statement.
-- explore: Surface patterns from context. One clarifying question if helpful. Do not synthesize across domains.
-- integrate: Synthesize across context; offer a short integrative take. Connect themes; do not just list patterns.
+ENGAGEMENT MODE (engagement.mode): reflect = answer supportively, no forced questions; explore = surface patterns, one clarifying question if helpful; integrate = short integrative take, connect themes.
 
-CRISIS: If the user mentions self-harm, suicide, harm to others, medical emergency, abuse, or acute crisis, respond only with:
-"I can't help with this, but these people can: 988 Suicide & Crisis Lifeline (call or text), Crisis Text Line: Text HOME to 741741, International: findahelpline.com. If this is a medical emergency, call 911 or go to your nearest emergency room."
-Then stop.
+CRISIS: If the user mentions self-harm, suicide, harm to others, medical emergency, abuse, or acute crisis, respond only with: "I can't help with this, but these people can: 988 Suicide & Crisis Lifeline (call or text), Crisis Text Line: Text HOME to 741741, International: findahelpline.com. If this is a medical emergency, call 911 or go to your nearest emergency room." Then stop.
 
 PRISM: You receive sanitized input. Respond to the semantic meaning directly. Never say "it seems like" or "you're looking to". Answer directly.
 
 VOICE: Answer first. Stay conversational. Respect the word limit and engagement mode above.
 ${chronicleMiniContext != null && chronicleMiniContext.isNotEmpty ? '''
 
-═══════════════════════════════════════════════════════════
-CHRONICLE CONTEXT (temporal summary – use for "how have I been" / patterns)
-═══════════════════════════════════════════════════════════
+CHRONICLE CONTEXT (temporal summary – "how have I been" / patterns):
 $chronicleMiniContext
 ''' : ''}
 
-═══════════════════════════════════════════════════════════
 CURRENT TASK
-═══════════════════════════════════════════════════════════
 ${modeSpecificInstructions != null && modeSpecificInstructions.isNotEmpty ? '$modeSpecificInstructions\n\n' : ''}Current user input to respond to:
 $entryText''';
+  }
+
+  /// Voice system-only prompt for split payload (lower latency).
+  /// Short static instructions only; turn-specific context goes in the user message.
+  /// Use with buildVoiceUserMessage() for the user part.
+  static String getVoicePromptSystemOnly(String controlStateJson) {
+    return '''You are LUMARA, the user's Evolving Personal Intelligence (EPI). Voice mode: respond briefly and naturally.
+
+[LUMARA_CONTROL_STATE]
+$controlStateJson
+[/LUMARA_CONTROL_STATE]
+
+Follow the control state exactly. Do not modify it.
+
+<current_context>
+Current date and time: {current_datetime_iso}
+Current date (human readable): {current_date_formatted}
+</current_context>
+
+WORD LIMIT: Stay at or under responseMode.maxWords in the control state. Count words; stop at the limit.
+
+ENGAGEMENT MODE (engagement.mode): reflect = answer supportively, no forced questions; explore = surface patterns, one clarifying question if helpful; integrate = short integrative take, connect themes.
+
+CRISIS: If the user mentions self-harm, suicide, harm to others, medical emergency, abuse, or acute crisis, respond only with: "I can't help with this, but these people can: 988 Suicide & Crisis Lifeline (call or text), Crisis Text Line: Text HOME to 741741, International: findahelpline.com. If this is a medical emergency, call 911 or go to your nearest emergency room." Then stop.
+
+PRISM: You receive sanitized input. Respond to the semantic meaning directly. Never say "it seems like" or "you're looking to". Answer directly.
+
+VOICE: Answer first. Stay conversational. Respect the word limit and engagement mode above. Use the context in the user message below.''';
+  }
+
+  /// Build the user message for voice (split payload): mode instructions + chronicle + current transcript.
+  static String buildVoiceUserMessage({
+    required String entryText,
+    String? modeSpecificInstructions,
+    String? chronicleMiniContext,
+  }) {
+    final parts = <String>[];
+    if (modeSpecificInstructions != null && modeSpecificInstructions.isNotEmpty) {
+      parts.add(modeSpecificInstructions);
+    }
+    if (chronicleMiniContext != null && chronicleMiniContext.isNotEmpty) {
+      parts.add('CHRONICLE CONTEXT (temporal summary – "how have I been" / patterns):\n$chronicleMiniContext');
+    }
+    parts.add('Current user input to respond to:\n$entryText');
+    return parts.join('\n\n');
+  }
+
+  /// Master prompt system-only for split payload (lower latency, non-voice).
+  /// Returns static instructions; turn-specific context goes in the user message via buildMasterUserMessage.
+  static String getMasterPromptSystemOnly(String controlStateJson, DateTime currentDate) {
+    String prompt = getMasterPrompt(
+      controlStateJson,
+      entryText: '',
+      baseContext: null,
+      chronicleContext: null,
+      chronicleLayers: null,
+      mode: LumaraPromptMode.rawBacked,
+      modeSpecificInstructions: null,
+    );
+    prompt = injectDateContext(prompt, recentEntries: null, currentDate: currentDate);
+    const currentTaskDelimiter = '═══════════════════════════════════════════════════════════\nCURRENT TASK\n═══════════════════════════════════════════════════════════';
+    final idx = prompt.indexOf(currentTaskDelimiter);
+    if (idx >= 0) {
+      prompt = prompt.substring(0, idx);
+    }
+    prompt = prompt.replaceAll('(No recent entries available)', 'See user message below for: recent entries list, historical context, and current entry (PRIMARY FOCUS). Respond using that context.');
+    return prompt.trimRight() + '\n\nThe user message below contains: recent entries list, historical context, and the current entry (PRIMARY FOCUS). Respond using that context.';
+  }
+
+  /// Build the user message for master (non-voice) split payload: recent entries + context + current entry.
+  static String buildMasterUserMessage({
+    required String entryText,
+    required List<Map<String, dynamic>> recentEntries,
+    String? baseContext,
+    String? chronicleContext,
+    List<String>? chronicleLayers,
+    required LumaraPromptMode mode,
+    required DateTime currentDate,
+    String? modeSpecificInstructions,
+  }) {
+    final dateFormat = DateFormat('EEEE, MMMM d, yyyy');
+    String recentEntriesList;
+    if (recentEntries.isNotEmpty) {
+      recentEntriesList = recentEntries.map((entry) {
+        final entryDate = entry['date'] as DateTime?;
+        final entryTitle = entry['title'] as String? ?? '';
+        final entryId = entry['id'] as String? ?? '';
+        final relativeDate = entry['relativeDate'] as String?;
+        final daysAgo = entry['daysAgo'] as int?;
+        if (entryDate != null) {
+          final formattedDate = dateFormat.format(entryDate);
+          if (relativeDate != null && daysAgo != null) {
+            return '$formattedDate ($relativeDate) - $entryTitle (entry_id: $entryId)';
+          }
+          return '$formattedDate - $entryTitle (entry_id: $entryId)';
+        }
+        return entryTitle.isNotEmpty ? entryTitle : 'Untitled entry';
+      }).join('\n');
+    } else {
+      recentEntriesList = '(No recent entries available)';
+    }
+    final contextSection = _buildContextSection(
+      mode: mode,
+      baseContext: baseContext,
+      chronicleContext: chronicleContext,
+      chronicleLayers: chronicleLayers,
+    );
+    final dateStr = currentDate.toIso8601String().split('T')[0];
+    final buffer = StringBuffer();
+    buffer.writeln('<recent_entries>');
+    buffer.writeln(recentEntriesList);
+    buffer.writeln('</recent_entries>');
+    if (contextSection.isNotEmpty) {
+      buffer.writeln();
+      buffer.write(contextSection);
+      buffer.writeln();
+    }
+    buffer.writeln('═══════════════════════════════════════════════════════════');
+    buffer.writeln('CURRENT TASK');
+    buffer.writeln('═══════════════════════════════════════════════════════════');
+    buffer.writeln();
+    if (baseContext != null && baseContext.isNotEmpty) {
+      buffer.writeln('HISTORICAL CONTEXT:');
+      buffer.writeln(baseContext);
+      buffer.writeln();
+    }
+    buffer.writeln('CURRENT ENTRY TO RESPOND TO (WRITTEN TODAY - $dateStr):');
+    buffer.writeln();
+    buffer.writeln(entryText);
+    buffer.writeln();
+    buffer.writeln('**REMINDER**: The entry above is being written TODAY ($dateStr). Do NOT reference it as if it were written in the past. It is the current entry being written right now.');
+    if (modeSpecificInstructions != null && modeSpecificInstructions.isNotEmpty) {
+      buffer.writeln();
+      buffer.writeln('MODE-SPECIFIC INSTRUCTION:');
+      buffer.writeln(modeSpecificInstructions);
+    }
+    buffer.writeln('═══════════════════════════════════════════════════════════');
+    buffer.writeln('RESPOND NOW');
+    buffer.writeln('═══════════════════════════════════════════════════════════');
+    buffer.write('Follow ALL constraints and requirements above. Respond to the current entry following your persona, word limits, pattern requirements, and all other constraints specified in the control state.');
+    return buffer.toString();
   }
 
   /// Build context section based on prompt mode

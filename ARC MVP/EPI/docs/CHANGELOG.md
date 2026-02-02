@@ -19,6 +19,20 @@ This changelog has been split into parts for easier navigation:
 
 ## [3.3.13] - January 31, 2026
 
+### Fix: Wispr Flow cache – new API key used after save without restart
+
+#### Overview
+Wispr Flow API key was cached in `WisprConfigService`. After saving a new or updated API key in **LUMARA Settings → External Services**, voice mode could still use the previous key until the app was restarted. Fix: call `WisprConfigService.instance.clearCache()` after saving the API key so the next voice session uses the new key.
+
+#### Changes
+- **lumara_settings_screen.dart**: In `_saveWisprApiKey()`, after writing the key to SharedPreferences, call `WisprConfigService.instance.clearCache()` so the new key is used on the next voice mode session without restart.
+- **WisprConfigService**: Already had `clearCache()` (clears `_cachedApiKey`, `_hasCheckedPrefs`); settings screen now invokes it on save.
+
+#### Related
+- Bug Tracker: `DOCS/bugtracker/records/wispr-flow-cache-issue.md`
+
+---
+
 ### Fix: Phase Quiz result matches Phase tab; rotating phase on Phase tab
 
 #### Overview

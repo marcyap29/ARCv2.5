@@ -88,6 +88,69 @@ class _PhaseExplanationScreenState extends State<PhaseExplanationScreen>
     return UserPhaseService.getPhaseDescription(_getPhaseName(phase));
   }
 
+  /// Show confirmation dialog when user wants to skip the quiz
+  void _showSkipConfirmationDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: kcSurfaceColor,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        title: Text(
+          'Skip Phase Quiz?',
+          style: heading2Style(context).copyWith(color: kcPrimaryTextColor),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Would you like to start with a default phase (Discovery)?',
+              style: bodyStyle(context).copyWith(color: kcSecondaryTextColor),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'You can always take the Phase Quiz later from the Phase tab.',
+              style: captionStyle(context).copyWith(
+                color: kcSecondaryTextColor.withOpacity(0.7),
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          // NO - Stay phaseless, go back to onboarding
+          TextButton(
+            onPressed: () {
+              Navigator.of(dialogContext).pop();
+              // Skip without setting phase - user stays phaseless
+              context.read<ArcOnboardingCubit>().skipQuizWithoutPhase();
+            },
+            child: Text(
+              'No, I\'ll take the quiz later',
+              style: bodyStyle(context).copyWith(color: kcSecondaryTextColor),
+            ),
+          ),
+          // YES - Assign Discovery and continue
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(dialogContext).pop();
+              // Skip with Discovery phase assigned
+              context.read<ArcOnboardingCubit>().skipQuiz();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: kcPrimaryColor,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Yes, use Discovery'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final currentPhase = _phases[_currentPhaseIndex];
@@ -276,17 +339,28 @@ class _PhaseExplanationScreenState extends State<PhaseExplanationScreen>
                 
                 const SizedBox(height: 16),
                 
-                // Skip button: SOP2 - default to Discovery, show phase reveal, then continue until RIVET identifies new phase
+                // Skip button: Show confirmation dialog
                 TextButton(
-                  onPressed: () {
-                    context.read<ArcOnboardingCubit>().skipQuiz();
-                  },
+                  onPressed: () => _showSkipConfirmationDialog(context),
                   child: Text(
                     'Skip Phase Quiz',
                     style: bodyStyle(context).copyWith(
                       color: Colors.white.withOpacity(0.6),
                       fontSize: 16,
                     ),
+                  ),
+                ),
+                
+                // Hint about retaking later
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Text(
+                    'You can take the Phase Quiz anytime from the Phase tab.',
+                    style: captionStyle(context).copyWith(
+                      color: Colors.white.withOpacity(0.4),
+                      fontSize: 12,
+                    ),
+                    textAlign: TextAlign.center,
                   ),
                 ),
                 

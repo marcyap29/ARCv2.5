@@ -81,11 +81,24 @@ class GoogleDriveService {
   String? get currentUserEmail => _currentAccountEmail;
 
   /// Ensure we have a valid Drive API client (e.g. after app restart, restore from cached account).
-  /// In 7.x we do not persist the account across restarts; user must connect again.
+  /// Attempts to restore the last signed-in account via attemptLightweightAuthentication (7.x), then authorizes Drive scope.
   Future<bool> restoreSession() async {
     await _ensureInitialized();
     if (_driveApi != null && _currentAccountEmail != null) return true;
-    return false;
+    try {
+      final future = _googleSignIn!.attemptLightweightAuthentication(reportAllExceptions: false);
+      if (future == null) return false;
+      final account = await future;
+      if (account == null) return false;
+      final auth = await account.authorizationClient.authorizeScopes([driveFileScope]);
+      final client = auth.authClient(scopes: [driveFileScope]);
+      _driveApi = drive.DriveApi(client);
+      _currentAccountEmail = account.email;
+      return true;
+    } on Exception catch (e) {
+      debugPrint('GoogleDriveService: restoreSession failed: $e');
+      return false;
+    }
   }
 
   /// Selected backup folder ID (persisted).

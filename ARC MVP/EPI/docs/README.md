@@ -15,5 +15,7 @@ Use this list to orient quickly. For full inventory and sync status, see [CONFIG
 | **[FEATURES.md](FEATURES.md)** | Comprehensive feature list and capabilities. | Capability and integration details. |
 | **[UI_UX.md](UI_UX.md)** | UI/UX patterns and components. | Before making UI changes. |
 | **[bugtracker/](bugtracker/)** | Bug tracker (records and index). | Known issues, fixes, and resolution status. |
+| **[PROMPT_REFERENCES.md](PROMPT_REFERENCES.md)** | Full prompt catalog and version history. | Prompt content and source files. |
+| **[PROMPT_TRACKER.md](PROMPT_TRACKER.md)** | Prompt change tracking; quick reference. | Recent prompt changes; links to PROMPT_REFERENCES. |
 
 Prompt/role definitions: see **Documentation & Configuration Management Role** in [claude.md](claude.md).

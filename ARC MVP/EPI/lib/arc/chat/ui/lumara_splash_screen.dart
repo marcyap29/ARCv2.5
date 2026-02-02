@@ -58,13 +58,17 @@ class _LumaraSplashScreenState extends State<LumaraSplashScreen>
     try {
       // SOP: 1a RIVET (gate open + regime), else 1b quiz result, else Discovery
       var profilePhase = await UserPhaseService.getCurrentPhase();
+      print('DEBUG: _loadCurrentPhase - getCurrentPhase returned: "$profilePhase"');
       
       // MIGRATION: If UserProfile has no phase, try to backfill from entries
       if (profilePhase.isEmpty) {
+        print('DEBUG: Profile phase is empty, attempting backfill from entries...');
         final entryPhase = await _getPhaseFromEntries();
+        print('DEBUG: _getPhaseFromEntries returned: "$entryPhase"');
         if (entryPhase != null && entryPhase.isNotEmpty) {
           print('DEBUG: Backfilling UserProfile phase from entry: $entryPhase');
-          await UserPhaseService.forceUpdatePhase(entryPhase);
+          final success = await UserPhaseService.forceUpdatePhase(entryPhase);
+          print('DEBUG: forceUpdatePhase returned: $success');
           profilePhase = entryPhase;
         }
       }
@@ -99,11 +103,13 @@ class _LumaraSplashScreenState extends State<LumaraSplashScreen>
         rivetGateOpen: rivetGateOpen,
         profilePhase: profilePhase,
       );
-      final phase = displayPhase.isEmpty
-          ? 'Discovery'
-          : displayPhase[0].toUpperCase() + displayPhase.substring(1).toLowerCase();
-      // Show phase shape when we have regime, quiz, or default Discovery (SOP 3)
-      final hasPhase = (regimePhase != null && regimePhase.isNotEmpty) || profilePhase.isNotEmpty || displayPhase == 'Discovery';
+      
+      // Brand new users with no phase see NO phase shape (empty displayPhase)
+      // Only show phase shape when we have an actual phase from regime or profile
+      final hasPhase = displayPhase.isNotEmpty;
+      final phase = hasPhase
+          ? displayPhase[0].toUpperCase() + displayPhase.substring(1).toLowerCase()
+          : ''; // No default - brand new users see ARC logo only
 
       if (mounted) {
         setState(() {
@@ -129,6 +135,7 @@ class _LumaraSplashScreenState extends State<LumaraSplashScreen>
     try {
       final journalRepo = JournalRepository();
       final entries = await journalRepo.getAllJournalEntries();
+      print('DEBUG: _getPhaseFromEntries - found ${entries.length} entries');
       if (entries.isEmpty) return null;
       
       // Sort by most recent first
@@ -137,18 +144,24 @@ class _LumaraSplashScreenState extends State<LumaraSplashScreen>
       
       // Find the first entry with a valid phase
       for (final entry in sortedEntries) {
+        print('DEBUG: Checking entry ${entry.id}: autoPhase=${entry.autoPhase}, computedPhase=${entry.computedPhase}, phase=${entry.phase}');
         // Use computedPhase (priority: userPhaseOverride > autoPhase > legacyPhaseTag)
         final computed = entry.computedPhase;
         if (computed != null && computed.isNotEmpty) {
           // Capitalize properly
-          return computed[0].toUpperCase() + computed.substring(1).toLowerCase();
+          final result = computed[0].toUpperCase() + computed.substring(1).toLowerCase();
+          print('DEBUG: Found phase from computedPhase: $result');
+          return result;
         }
         // Fallback to phase field
         if (entry.phase != null && entry.phase!.isNotEmpty) {
           final phase = entry.phase!;
-          return phase[0].toUpperCase() + phase.substring(1).toLowerCase();
+          final result = phase[0].toUpperCase() + phase.substring(1).toLowerCase();
+          print('DEBUG: Found phase from phase field: $result');
+          return result;
         }
       }
+      print('DEBUG: No entries with valid phase found');
       return null;
     } catch (e) {
       print('DEBUG: Error getting phase from entries: $e');

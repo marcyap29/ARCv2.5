@@ -196,9 +196,9 @@ class ArcOnboardingCubit extends Cubit<ArcOnboardingState> {
     completeOnboarding();
   }
 
-  /// Skip quiz: SOP2 - default to Discovery, show phase reveal, then continue until RIVET identifies new phase
+  /// Skip quiz with Discovery phase assigned (user chose "Yes" in confirmation dialog)
   Future<void> skipQuiz() async {
-    _logger.d('Skipping phase quiz - defaulting to Discovery');
+    _logger.d('Skipping phase quiz - assigning Discovery phase');
     
     emit(state.copyWith(
       currentScreen: OnboardingScreen.phaseAnalysis,
@@ -206,37 +206,21 @@ class ArcOnboardingCubit extends Cubit<ArcOnboardingState> {
     ));
 
     try {
-      // SOP2: When user skips, use Discovery as default (or existing phase for returning users)
-      String phaseString = 'Discovery';
-      try {
-        final existing = await UserPhaseService.getCurrentPhase();
-        if (existing.isNotEmpty) phaseString = existing;
-      } catch (e) {
-        _logger.w('Could not get existing phase, defaulting to Discovery: $e');
-      }
+      // User chose to accept Discovery as default phase
+      const PhaseLabel phase = PhaseLabel.discovery;
 
-      // Convert to PhaseLabel
-      PhaseLabel phase = PhaseLabel.discovery;
-      try {
-        phase = PhaseLabel.values.firstWhere(
-          (p) => p.name == phaseString.toLowerCase(),
-          orElse: () => PhaseLabel.discovery,
-        );
-      } catch (e) {
-        _logger.w('Could not parse phase, defaulting to Discovery: $e');
-      }
-
-      // Create default analysis for skipped quiz
+      // Create analysis for Discovery phase
       final defaultAnalysis = PhaseAnalysis(
         phase: phase,
         confidence: ConfidenceLevel.low,
-        recognitionStatement: "Welcome back. Your phase constellation will fill with words and patterns as we talk.",
+        recognitionStatement: "Welcome. Your phase constellation will fill with words and patterns as you journal.",
         trackingQuestion: "What are you exploring?",
-        reasoning: "Quiz skipped - using existing phase: $phaseString",
+        reasoning: "Quiz skipped - user accepted Discovery as default phase",
       );
 
-      // Set user phase if not already set
+      // Set Discovery phase and mark onboarding complete
       await _setUserPhase(phase);
+      await UserPhaseService.setOnboardingCompleted(true);
 
       emit(state.copyWith(
         phaseAnalysis: defaultAnalysis,
@@ -244,12 +228,12 @@ class ArcOnboardingCubit extends Cubit<ArcOnboardingState> {
         isLoading: false,
       ));
     } catch (e, stackTrace) {
-      _logger.e('Error skipping quiz: $e\nStackTrace: $stackTrace');
-      // Default to Discovery phase on error
+      _logger.e('Error skipping quiz with phase: $e\nStackTrace: $stackTrace');
+      // Still try to set Discovery on error
       final defaultAnalysis = PhaseAnalysis(
         phase: PhaseLabel.discovery,
         confidence: ConfidenceLevel.low,
-        recognitionStatement: "Welcome back. Let's begin your journey.",
+        recognitionStatement: "Welcome. Let's begin your journey.",
         trackingQuestion: "What are you discovering?",
         reasoning: "Error during skip, defaulting to Discovery",
       );
@@ -259,5 +243,16 @@ class ArcOnboardingCubit extends Cubit<ArcOnboardingState> {
         isLoading: false,
       ));
     }
+  }
+
+  /// Skip quiz WITHOUT setting a phase (user chose "No" in confirmation dialog)
+  /// User stays phaseless and will see onboarding again on next app launch
+  void skipQuizWithoutPhase() {
+    _logger.d('Skipping phase quiz without setting phase - user will see onboarding again');
+    
+    // Do NOT set a phase
+    // Do NOT mark onboarding as completed
+    // Just go directly to the home screen for this session
+    emit(state.copyWith(currentScreen: OnboardingScreen.complete));
   }
 }

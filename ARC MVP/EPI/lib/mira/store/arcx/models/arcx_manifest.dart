@@ -207,6 +207,7 @@ class ARCXScope {
   final int chronicleYearlyCount;
   final int chronicleMultiyearCount;
   final int chronicleChangelogEntries;
+  final int voiceNotesCount;
   final bool separateGroups;
   
   ARCXScope({
@@ -222,6 +223,7 @@ class ARCXScope {
     this.chronicleYearlyCount = 0,
     this.chronicleMultiyearCount = 0,
     this.chronicleChangelogEntries = 0,
+    this.voiceNotesCount = 0,
     required this.separateGroups,
   });
   
@@ -239,6 +241,7 @@ class ARCXScope {
       chronicleYearlyCount: json['chronicle_yearly_count'] as int? ?? 0,
       chronicleMultiyearCount: json['chronicle_multiyear_count'] as int? ?? 0,
       chronicleChangelogEntries: json['chronicle_changelog_entries'] as int? ?? 0,
+      voiceNotesCount: json['voice_notes_count'] as int? ?? 0,
       separateGroups: json['separate_groups'] as bool? ?? false,
     );
   }
@@ -257,6 +260,7 @@ class ARCXScope {
       'chronicle_yearly_count': chronicleYearlyCount,
       'chronicle_multiyear_count': chronicleMultiyearCount,
       'chronicle_changelog_entries': chronicleChangelogEntries,
+      'voice_notes_count': voiceNotesCount,
       'separate_groups': separateGroups,
     };
   }

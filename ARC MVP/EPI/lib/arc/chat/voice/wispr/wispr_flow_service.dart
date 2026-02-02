@@ -142,7 +142,15 @@ class WisprFlowService {
       
       // Wispr Flow API requires Bearer prefix in URL per documentation:
       // wss://platform-api.wisprflow.ai/api/v1/dash/ws?api_key=Bearer%20<API_KEY>
-      final uri = Uri.parse('wss://platform-api.wisprflow.ai/api/v1/dash/ws?api_key=Bearer ${_config.apiKey}');
+      // Use Uri constructor with queryParameters to ensure proper URL encoding
+      final uri = Uri(
+        scheme: 'wss',
+        host: 'platform-api.wisprflow.ai',
+        path: '/api/v1/dash/ws',
+        queryParameters: {
+          'api_key': 'Bearer ${_config.apiKey}',
+        },
+      );
       
       debugPrint('WisprFlow: Connecting to ${uri.toString().replaceAll(_config.apiKey, '***')}');
       
@@ -176,10 +184,25 @@ class WisprFlowService {
       _reconnectAttempts = 0;
       return true;
       
-    } catch (e) {
+    } catch (e, stackTrace) {
       debugPrint('WisprFlow: Connection failed: $e');
+      debugPrint('WisprFlow: Stack trace: $stackTrace');
+      
+      // Provide specific error diagnostics
+      String errorDetail = 'Connection failed';
+      if (e.toString().contains('timeout') || e.toString().contains('Timeout')) {
+        errorDetail = 'Connection timeout - check network connectivity';
+      } else if (e.toString().contains('401') || e.toString().contains('unauthorized')) {
+        errorDetail = 'Authentication failed - check your Wispr Flow API key';
+      } else if (e.toString().contains('403') || e.toString().contains('forbidden')) {
+        errorDetail = 'Access denied - your API key may be invalid or expired';
+      } else if (e.toString().contains('WebSocket') || e.toString().contains('socket')) {
+        errorDetail = 'WebSocket connection failed - check network/firewall settings';
+      }
+      
+      debugPrint('WisprFlow: Error diagnosis: $errorDetail');
       _isConnected = false;
-      onError?.call('Connection failed: $e');
+      onError?.call('$errorDetail: $e');
       
       // Attempt reconnect
       if (_reconnectAttempts < _config.maxReconnectAttempts) {
@@ -189,6 +212,7 @@ class WisprFlowService {
         return await connect();
       }
       
+      debugPrint('WisprFlow: Max reconnect attempts reached, giving up');
       return false;
     }
   }
@@ -249,6 +273,20 @@ class WisprFlowService {
     // The session begins with the auth message (already sent during connect)
     // Audio is sent via "append" messages, session ends with "commit"
     debugPrint('WisprFlow: Session started (ready for audio packets, index: $_audioPacketIndex)');
+    
+    // Send a small silence packet so the server receives at least one append and doesn't
+    // close the connection (first-tap empty transcript fix: server may timeout if no audio).
+    _sendKeepaliveSilence();
+  }
+  
+  /// Send ~100ms of silence (16 kHz, mono, s16) so server gets at least one append and doesn't disconnect.
+  void _sendKeepaliveSilence() {
+    if (!_sessionActive || _channel == null || !_isConnected) return;
+    // 100ms at 16kHz * 2 bytes/sample * 1 channel = 3200 bytes
+    const int silenceSamples = 1600; // 100ms at 16kHz
+    final silence = Uint8List(silenceSamples * 2); // s16 = 2 bytes per sample, already zeroed
+    sendAudio(silence);
+    debugPrint('WisprFlow: Sent keepalive silence packet (${silence.length} bytes)');
   }
   
   /// Send audio chunk (16 kHz PCM audio)

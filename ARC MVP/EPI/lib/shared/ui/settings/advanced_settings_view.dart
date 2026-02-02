@@ -5,8 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
 import 'package:my_app/shared/ui/settings/combined_analysis_view.dart';
-import 'package:my_app/shared/ui/settings/health_readiness_view.dart';
-import 'package:my_app/arc/ui/health/health_view.dart';
 import 'package:my_app/arc/chat/voice/transcription/transcription_provider.dart';
 import 'package:my_app/arc/chat/voice/models/voice_input_mode.dart';
 import 'package:my_app/services/assemblyai_service.dart';
@@ -350,37 +348,6 @@ class _AdvancedSettingsViewState extends State<AdvancedSettingsView> {
                           Navigator.push(
                             context,
                             MaterialPageRoute(builder: (context) => const CombinedAnalysisView()),
-                          );
-                        },
-                      ),
-                    ],
-                  ),
-                  
-                  const SizedBox(height: 32),
-
-                  // Health & Readiness Section
-                  _buildSection(
-                    title: 'Health & Readiness',
-                    children: [
-                      _buildNavigationTile(
-                        title: 'Health & Readiness',
-                        subtitle: 'Operational readiness and phase ratings',
-                        icon: Icons.assessment,
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (context) => const HealthReadinessView()),
-                          );
-                        },
-                      ),
-                      _buildNavigationTile(
-                        title: 'Medical',
-                        subtitle: 'Health data tracking and summary',
-                        icon: Icons.medical_services,
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (context) => const HealthView()),
                           );
                         },
                       ),

@@ -25,14 +25,14 @@ import '../../../../models/engagement_discipline.dart';
 /// - Integrate: 500 words
 /// 
 /// Contains latency targets, word limits, and system-prompt character caps for voice mode.
-/// Prompt caps prevent timeouts: Default 8k, Explore 10k, Integrate 13k.
+/// Prompt caps prevent timeouts: Default 6k, Explore 10k, Integrate 13k.
 class VoiceResponseConfig {
   /// Reflect mode configuration (casual conversation, default)
   /// Voice: 100 words (Written: 200 words) - 50% of written mode for brevity
   static const int reflectiveMaxWords = 100;
   static const int reflectiveTargetLatencyMs = 5000;
-  /// Hard cap for voice system+context prompt (chars). Target 3–8k.
-  static const int reflectiveMaxPromptChars = 8000;
+  /// Hard cap for voice system+context prompt (chars). Target 3–6k for latency.
+  static const int reflectiveMaxPromptChars = 6000;
   
   /// Explore mode configuration (pattern analysis, when asked)
   /// Voice: 200 words (Written: 400 words) - 50% of written mode
@@ -86,7 +86,7 @@ class VoiceResponseConfig {
   }
 
   /// Get hard cap (chars) for voice system+context prompt. Truncate if over.
-  /// Default 8k, Explore 10k, Integrate 13k.
+  /// Default 6k, Explore 10k, Integrate 13k.
   static int getVoicePromptMaxChars(EngagementMode mode) {
     switch (mode) {
       case EngagementMode.reflect:
