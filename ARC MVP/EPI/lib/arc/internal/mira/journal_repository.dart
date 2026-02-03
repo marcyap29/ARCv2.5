@@ -261,32 +261,35 @@ class JournalRepository {
       final entries = <JournalEntry>[];
       final entriesToPersist = <JournalEntry>[];
       
-      // Process entries in batches to avoid blocking UI thread
+      // Process entries in batches to avoid blocking UI thread.
+      // Per-entry try/catch so one bad or legacy entry doesn't cause entire list to be dropped.
       for (int i = 0; i < rawEntries.length; i++) {
         final rawEntry = rawEntries[i];
-        final normalized = _normalize(rawEntry);
-        
-        // If migration occurred (entry had blocks in metadata but not in lumaraBlocks, and now it does),
-        // persist immediately to ensure blocks are saved
-        if (rawEntry.lumaraBlocks.isEmpty && 
-            normalized.lumaraBlocks.isNotEmpty && 
-            rawEntry.metadata?.containsKey('inlineBlocks') == true) {
+        try {
+          final normalized = _normalize(rawEntry);
+          // If migration occurred (entry had blocks in metadata but not in lumaraBlocks, and now it does),
+          // persist immediately to ensure blocks are saved
+          if (rawEntry.lumaraBlocks.isEmpty &&
+              normalized.lumaraBlocks.isNotEmpty &&
+              rawEntry.metadata?.containsKey('inlineBlocks') == true) {
+            try {
+              await box.put(normalized.id, normalized);
+            } catch (e) {
+              print('❌ JournalRepository: Error persisting migration for entry ${normalized.id}: $e');
+            }
+          }
+          entries.add(normalized);
+        } catch (e) {
           try {
-            // Persist immediately to ensure migration is saved
-            await box.put(normalized.id, normalized);
-          } catch (e) {
-            print('❌ JournalRepository: Error persisting migration for entry ${normalized.id}: $e');
+            print('⚠️ JournalRepository: Skipping entry ${rawEntry.id} (normalize failed): $e');
+          } catch (_) {
+            print('⚠️ JournalRepository: Skipping entry at index $i (normalize failed): $e');
           }
         }
-        
-        entries.add(normalized);
-        
-        // Yield to UI thread every 20 entries to prevent blocking
         if (i % 20 == 0 && i > 0) {
           await Future.microtask(() {});
         }
       }
-      
       return entries;
     } catch (e) {
       print('🔍 JournalRepository: ERROR in getAllJournalEntries: $e');

@@ -137,6 +137,21 @@ class Layer0Repository {
     return _box!.get(entryId);
   }
 
+  /// Get distinct month strings (e.g. "2025-01") that have at least one entry for [userId].
+  /// Used by batch synthesis so we only synthesize months that have Layer 0 data.
+  Future<List<String>> getMonthsWithEntries(String userId) async {
+    await _ensureBox();
+    final months = <String>{};
+    for (final entry in _box!.values) {
+      if (entry.userId == userId) {
+        final month = '${entry.timestamp.year}-${entry.timestamp.month.toString().padLeft(2, '0')}';
+        months.add(month);
+      }
+    }
+    final list = months.toList()..sort();
+    return list;
+  }
+
   /// Get all entries for a specific month
   /// 
   /// [month] Format: "2025-01"

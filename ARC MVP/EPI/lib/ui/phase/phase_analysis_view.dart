@@ -162,6 +162,9 @@ class _PhaseAnalysisViewState extends State<PhaseAnalysisView> {
       // Calculate trend toward next phase (synchronous calculation from entries)
       await _calculatePhaseTrend(journalRepo);
 
+      // Sync Phase tab phase to UserProfile so timeline/Conversations phase preview uses same phase
+      await _updateUserPhaseFromRegimes();
+
       setState(() {
         _isLoading = false;
       });

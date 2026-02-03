@@ -1,6 +1,6 @@
 # EPI ARC MVP - Changelog
 
-**Version:** 3.3.14
+**Version:** 3.3.15
 **Last Updated:** February 2, 2026
 
 ---
@@ -14,6 +14,33 @@ This changelog has been split into parts for easier navigation:
 | **[CHANGELOG_part1.md](CHANGELOG_part1.md)** | Dec 2025 | v2.1.43 - v2.1.87 (Current) |
 | **[CHANGELOG_part2.md](CHANGELOG_part2.md)** | Nov 2025 | v2.1.28 - v2.1.42 |
 | **[CHANGELOG_part3.md](CHANGELOG_part3.md)** | Jan-Oct 2025 | v2.0.0 - v2.1.27 & Earlier |
+
+---
+
+## [3.3.15] - February 2, 2026
+
+### Journal & CHRONICLE robustness
+
+- **JournalRepository:** Per-entry try/catch in `getAllJournalEntries` so one bad or legacy entry does not drop the entire list; skip and log on normalize failure.
+- **Layer0Populator:** Backwards compatibility for legacy Hive entries: `_safeContent()` and `_safeKeywords()` handle null content/keywords. `populateFromJournalEntry` returns `bool` (true if saved); `populateFromJournalEntries` returns `(succeeded, failed)` counts.
+- **Layer0Repository:** New `getMonthsWithEntries(userId)` — distinct months with Layer 0 data for batch synthesis.
+- **ChronicleOnboardingService:** Layer 0 backfill uses populator’s succeeded/failed counts; clearer messages (e.g. "X of Y entries", "Z failed"). Batch synthesis builds months from Layer 0 via `getMonthsWithEntries` (not journal date range); message "No Layer 0 entries for this user. Run Backfill Layer 0 first." when none.
+
+### Phase consistency (timeline / Conversations)
+
+- **Phase tab → UserProfile:** After loading Phase tab, call `_updateUserPhaseFromRegimes()` so UserProfile current phase is in sync; timeline and Conversations phase preview then match Phase tab.
+- **Current phase preview:** Prefer `UserPhaseService.getCurrentPhase()` (UserProfile) when set, so Conversations/timeline preview matches Phase tab; fallback to RIVET + regime logic when profile phase empty.
+- **Home tab label:** "Conversation" → "Conversations" (plural).
+
+#### Files modified
+
+- `lib/arc/internal/mira/journal_repository.dart` — Per-entry try/catch in getAllJournalEntries; skip bad entries
+- `lib/chronicle/services/chronicle_onboarding_service.dart` — Backfill counts; synthesis from Layer 0 months; messages
+- `lib/chronicle/storage/layer0_populator.dart` — _safeContent/_safeKeywords; return succeeded/failed
+- `lib/chronicle/storage/layer0_repository.dart` — getMonthsWithEntries(userId)
+- `lib/arc/ui/timeline/widgets/current_phase_arcform_preview.dart` — Prefer profile phase for preview
+- `lib/shared/ui/home/home_view.dart` — Tab label "Conversations"
+- `lib/ui/phase/phase_analysis_view.dart` — _updateUserPhaseFromRegimes() after load
 
 ---
 

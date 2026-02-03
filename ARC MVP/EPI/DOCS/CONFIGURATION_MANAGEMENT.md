@@ -38,12 +38,12 @@ Prompt/role definitions: **Documentation & Configuration Management Role** in [c
 
 | Document | Location | Last Reviewed | Status | Notes |
 |----------|----------|---------------|--------|-------|
-| ARCHITECTURE.md | `/DOCS/ARCHITECTURE.md` | 2026-02-02 | ✅ Synced | v3.3.14 - Settings & backup (Key Achievements); Last Updated Feb 2 |
-| CHANGELOG.md | `/DOCS/CHANGELOG.md` | 2026-02-02 | ✅ Synced | v3.3.14 - Settings/LUMARA, voice notes, CHRONICLE, Google Drive, local backup |
+| ARCHITECTURE.md | `/DOCS/ARCHITECTURE.md` | 2026-02-02 | ✅ Synced | v3.3.15 - Journal/CHRONICLE robustness, phase consistency (Key Achievements) |
+| CHANGELOG.md | `/DOCS/CHANGELOG.md` | 2026-02-02 | ✅ Synced | v3.3.15 - Journal/CHRONICLE robustness, phase consistency, Conversations label |
 | PROMPT_REFERENCES.md | `/DOCS/PROMPT_REFERENCES.md` | 2026-01-31 | ✅ Current | v1.8.0 - Document scope and sources; prompt catalog |
 | PROMPT_TRACKER.md | `/DOCS/PROMPT_TRACKER.md` | 2026-01-31 | ✅ Synced | v1.0.0 - Prompt change tracking; links to PROMPT_REFERENCES |
 | bug_tracker.md | `/DOCS/bugtracker/bug_tracker.md` | 2026-01-31 | ✅ Synced | v3.2.2 - 28 records; How to use; Recent code changes; Wispr Flow cache |
-| FEATURES.md | `/DOCS/FEATURES.md` | 2026-02-02 | ✅ Synced | v3.3.14 - Last Updated Feb 2 |
+| FEATURES.md | `/DOCS/FEATURES.md` | 2026-02-02 | ✅ Synced | v3.3.15 - Last Updated Feb 2 |
 | README.md | `/DOCS/README.md` | 2026-01-31 | ✅ Synced | Key docs table with purpose and when to read |
 | claude.md | `/DOCS/claude.md` | 2026-01-31 | ✅ Synced | Relative DOCS/ paths; Current Architecture v3.3.13 |
 | backend.md | `/DOCS/backend.md` | 2026-01-31 | ✅ Synced | v3.2 - Firebase, cloud functions, Last Updated Jan 31 |
@@ -60,6 +60,21 @@ Prompt/role definitions: **Documentation & Configuration Management Role** in [c
 ---
 
 ## Change Tracking Log
+
+### 2026-02-02 - Update docs for repo changes (v3.3.15); merge test→main; backup-main-2026-02-02
+
+**Action:** Document new code changes; commit and push test; merge test into main; create branch backup-main-2026-02-02 from main.
+
+**Repo changes documented (v3.3.15):**
+- **Journal:** JournalRepository per-entry try/catch so one bad entry does not drop list.
+- **CHRONICLE:** Layer0Populator safe content/keywords; succeeded/failed counts; Layer0Repository getMonthsWithEntries; onboarding synthesis from Layer 0 months; clearer backfill messages.
+- **Phase:** Phase tab syncs to UserProfile; timeline/Conversations preview prefer profile phase; Home tab "Conversations" (plural).
+
+**Doc updates:** CHANGELOG [3.3.15]; CONFIGURATION_MANAGEMENT, ARCHITECTURE, FEATURES (v3.3.15 / Last Reviewed).
+
+**Status:** ✅ Docs updated; test merged to main; backup-main-2026-02-02 created and pushed.
+
+---
 
 ### 2026-02-02 - Update docs for repo changes (v3.3.14); commit and push
 

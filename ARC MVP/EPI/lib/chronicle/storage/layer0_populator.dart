@@ -18,41 +18,46 @@ class Layer0Populator {
 
   /// Populate Layer 0 from a journal entry
   /// 
-  /// This should be called after a journal entry is saved.
-  Future<void> populateFromJournalEntry({
+  /// Backwards compatible: tolerates null/empty content and null keywords from legacy entries.
+  /// Returns true if saved, false if failed (e.g. legacy/corrupt entry).
+  Future<bool> populateFromJournalEntry({
     required JournalEntry journalEntry,
     required String userId,
   }) async {
     try {
+      // Backwards compatibility: safe content and keywords (legacy Hive entries may have null)
+      final content = _safeContent(journalEntry);
+      final keywords = _safeKeywords(journalEntry);
+
       // 1. Get phase history entry if available
       final phaseHistory = await PhaseHistoryRepository.getEntryByJournalId(journalEntry.id);
 
       // 2. Extract metadata
+      final wordCount = content.isEmpty ? 0 : content.split(RegExp(r'\s+')).where((s) => s.isNotEmpty).length;
+      final mediaList = journalEntry.media;
+      final mediaIds = mediaList.isNotEmpty
+          ? mediaList.map((m) => m.id).whereType<String>().where((id) => id.isNotEmpty).toList()
+          : <String>[];
+
       final metadata = RawEntryMetadata(
-        wordCount: journalEntry.content.split(RegExp(r'\s+')).length,
+        wordCount: wordCount,
         voiceTranscribed: journalEntry.audioUri != null,
-        mediaAttachments: journalEntry.media
-            .map((m) => m.id)
-            .whereType<String>()
-            .where((id) => id.isNotEmpty)
-            .toList(),
+        mediaAttachments: mediaIds,
       );
 
       // 3. Extract analysis data
       final analysis = RawEntryAnalysis(
         atlasPhase: _getEffectivePhase(journalEntry, phaseHistory),
         atlasScores: phaseHistory?.phaseScores,
-        extractedThemes: journalEntry.keywords, // TODO: Enhance with theme extraction
-        keywords: journalEntry.keywords,
-        // TODO: Add SENTINEL score calculation when available
-        // TODO: Add RIVET transitions when available
+        extractedThemes: keywords,
+        keywords: keywords,
       );
 
       // 4. Create raw entry schema
       final schema = RawEntrySchema(
         entryId: journalEntry.id,
         timestamp: journalEntry.createdAt,
-        content: journalEntry.content,
+        content: content,
         metadata: metadata,
         analysis: analysis,
       );
@@ -62,9 +67,34 @@ class Layer0Populator {
       await _layer0Repo.saveEntry(rawEntry);
 
       print('✅ Layer0Populator: Populated Layer 0 for entry ${journalEntry.id}');
+      return true;
     } catch (e) {
       print('❌ Layer0Populator: Failed to populate Layer 0 for entry ${journalEntry.id}: $e');
-      // Don't rethrow - Layer 0 population failure shouldn't break journal save
+      return false;
+    }
+  }
+
+  /// Backwards compatibility: content may be null on legacy Hive entries
+  String _safeContent(JournalEntry entry) {
+    try {
+      final c = (entry as dynamic).content;
+      if (c == null) return '';
+      if (c is String) return c;
+      return c.toString();
+    } catch (_) {
+      return '';
+    }
+  }
+
+  /// Backwards compatibility: keywords may be null on legacy Hive entries
+  List<String> _safeKeywords(JournalEntry entry) {
+    try {
+      final k = (entry as dynamic).keywords;
+      if (k == null) return const [];
+      if (k is List) return List<String>.from(k.whereType<String>());
+      return const [];
+    } catch (_) {
+      return const [];
     }
   }
 
@@ -98,12 +128,15 @@ class Layer0Populator {
   }
 
   /// Populate Layer 0 for multiple entries (batch operation)
-  Future<void> populateFromJournalEntries({
+  Future<({int succeeded, int failed})> populateFromJournalEntries({
     required List<JournalEntry> entries,
     required String userId,
   }) async {
+    int succeeded = 0, failed = 0;
     for (final entry in entries) {
-      await populateFromJournalEntry(journalEntry: entry, userId: userId);
+      final ok = await populateFromJournalEntry(journalEntry: entry, userId: userId);
+      if (ok) succeeded++; else failed++;
     }
+    return (succeeded: succeeded, failed: failed);
   }
 }

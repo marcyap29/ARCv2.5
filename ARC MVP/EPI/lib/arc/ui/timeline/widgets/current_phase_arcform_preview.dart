@@ -71,42 +71,49 @@ class _CompactArcformPreviewState extends State<_CompactArcformPreview> {
     });
 
     try {
-      // SOP: 1a RIVET (gate open + regime), else 1b quiz result, else Discovery
+      // Prefer phase from Phase tab (UserProfile) when set, so Conversations/timeline preview matches Phase tab
       final profilePhase = await UserPhaseService.getCurrentPhase();
-      final analyticsService = AnalyticsService();
-      final rivetSweepService = RivetSweepService(analyticsService);
-      final phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
-      await phaseRegimeService.initialize();
+      String currentPhaseCapitalized;
+      if (profilePhase.trim().isNotEmpty) {
+        final p = profilePhase.trim();
+        currentPhaseCapitalized = p[0].toUpperCase() + p.substring(1).toLowerCase();
+      } else {
+        // Fallback: SOP 1a RIVET (gate open + regime), else 1b quiz result, else Discovery
+        final analyticsService = AnalyticsService();
+        final rivetSweepService = RivetSweepService(analyticsService);
+        final phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
+        await phaseRegimeService.initialize();
 
-      bool rivetGateOpen = false;
-      try {
-        final rivetProvider = RivetProvider();
-        if (!rivetProvider.isAvailable) {
-          await rivetProvider.initialize('default_user');
+        bool rivetGateOpen = false;
+        try {
+          final rivetProvider = RivetProvider();
+          if (!rivetProvider.isAvailable) {
+            await rivetProvider.initialize('default_user');
+          }
+          rivetGateOpen = rivetProvider.service?.wouldGateOpen() ?? false;
+        } catch (_) {}
+
+        String? regimePhase;
+        final currentRegime = phaseRegimeService.phaseIndex.currentRegime;
+        final allRegimes = phaseRegimeService.phaseIndex.allRegimes;
+        if (currentRegime != null) {
+          final phaseName = currentRegime.label.toString().split('.').last;
+          regimePhase = phaseName.isEmpty ? 'Discovery' : phaseName[0].toUpperCase() + phaseName.substring(1).toLowerCase();
+        } else if (allRegimes.isNotEmpty) {
+          final sortedRegimes = List.from(allRegimes)..sort((a, b) => b.start.compareTo(a.start));
+          final phaseName = sortedRegimes.first.label.toString().split('.').last;
+          regimePhase = phaseName.isEmpty ? 'Discovery' : phaseName[0].toUpperCase() + phaseName.substring(1).toLowerCase();
         }
-        rivetGateOpen = rivetProvider.service?.wouldGateOpen() ?? false;
-      } catch (_) {}
 
-      String? regimePhase;
-      final currentRegime = phaseRegimeService.phaseIndex.currentRegime;
-      final allRegimes = phaseRegimeService.phaseIndex.allRegimes;
-      if (currentRegime != null) {
-        final phaseName = currentRegime.label.toString().split('.').last;
-        regimePhase = phaseName.isEmpty ? 'Discovery' : phaseName[0].toUpperCase() + phaseName.substring(1).toLowerCase();
-      } else if (allRegimes.isNotEmpty) {
-        final sortedRegimes = List.from(allRegimes)..sort((a, b) => b.start.compareTo(a.start));
-        final phaseName = sortedRegimes.first.label.toString().split('.').last;
-        regimePhase = phaseName.isEmpty ? 'Discovery' : phaseName[0].toUpperCase() + phaseName.substring(1).toLowerCase();
+        final currentPhase = UserPhaseService.getDisplayPhase(
+          regimePhase: regimePhase,
+          rivetGateOpen: rivetGateOpen,
+          profilePhase: profilePhase,
+        );
+        currentPhaseCapitalized = currentPhase.isEmpty
+            ? 'Discovery'
+            : currentPhase[0].toUpperCase() + currentPhase.substring(1).toLowerCase();
       }
-
-      final currentPhase = UserPhaseService.getDisplayPhase(
-        regimePhase: regimePhase,
-        rivetGateOpen: rivetGateOpen,
-        profilePhase: profilePhase,
-      );
-      final currentPhaseCapitalized = currentPhase.isEmpty
-          ? 'Discovery'
-          : currentPhase[0].toUpperCase() + currentPhase.substring(1).toLowerCase();
 
       // Check if user has entries for this phase
       final isUserPhase = await _hasEntriesForPhase(currentPhaseCapitalized);

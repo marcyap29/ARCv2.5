@@ -39,14 +39,15 @@ class ChronicleOnboardingService {
     required String userId,
     Function(int processed, int total)? onProgress,
   }) async {
-    print('📥 ChronicleOnboardingService: Starting Layer 0 backfill...');
+    print('📥 ChronicleOnboardingService: Starting Layer 0 backfill (userId: $userId)');
     
     final result = OnboardingResult();
     
     try {
-      // Get all journal entries
+      // Get all journal entries (same store Chronicle reads from)
       final entries = await _journalRepo.getAllJournalEntries();
       result.totalEntries = entries.length;
+      print('📥 ChronicleOnboardingService: Journal has ${entries.length} entries to consider');
       
       if (entries.isEmpty) {
         result.success = true;
@@ -86,11 +87,12 @@ class ChronicleOnboardingService {
         }
         
         if (batchToProcess.isNotEmpty) {
-          await populator.populateFromJournalEntries(
+          final counts = await populator.populateFromJournalEntries(
             entries: batchToProcess,
             userId: userId,
           );
-          result.newEntries += batchToProcess.length;
+          result.newEntries += counts.succeeded;
+          result.errors += counts.failed;
         }
         
         result.processedEntries += batch.length;
@@ -100,15 +102,23 @@ class ChronicleOnboardingService {
         await Future.microtask(() {});
       }
       
-      if (result.newEntries == 0) {
+      if (result.newEntries == 0 && result.errors == 0) {
         result.success = true;
         result.message = 'All entries already in Layer 0';
         return result;
       }
       
       result.success = true;
-      result.message = 'Backfilled ${result.newEntries} entries to Layer 0';
-      print('✅ ChronicleOnboardingService: Layer 0 backfill complete: ${result.newEntries} new entries');
+      if (result.errors > 0) {
+        result.message = 'Backfilled ${result.newEntries} entries to Layer 0, ${result.errors} failed (see log)';
+        print('✅ ChronicleOnboardingService: Layer 0 backfill complete: ${result.newEntries} new, ${result.errors} failed');
+      } else if (result.totalEntries > result.newEntries && result.newEntries > 0) {
+        result.message = 'Backfilled ${result.newEntries} of ${result.totalEntries} entries (rest already in Layer 0)';
+        print('✅ ChronicleOnboardingService: Layer 0 backfill complete: ${result.newEntries} new of ${result.totalEntries} total');
+      } else {
+        result.message = 'Backfilled ${result.newEntries} entries to Layer 0';
+        print('✅ ChronicleOnboardingService: Layer 0 backfill complete: ${result.newEntries} new entries');
+      }
       
       return result;
     } catch (e) {
@@ -128,90 +138,69 @@ class ChronicleOnboardingService {
     required SynthesisTier tier,
     Function(int processed, int total, String currentPeriod)? onProgress,
   }) async {
-    print('📥 ChronicleOnboardingService: Starting batch synthesis...');
+    print('📥 ChronicleOnboardingService: Starting batch synthesis (userId: $userId)');
     
     final result = OnboardingResult();
     
     try {
-      // Get all entries to determine date range
-      final entries = await _journalRepo.getAllJournalEntries();
-      if (entries.isEmpty) {
+      await _layer0Repo.initialize();
+
+      // Build list of months from Layer 0 for this userId (not journal)
+      // So we only synthesize months that actually have Layer 0 data for this user
+      final monthlyPeriods = await _layer0Repo.getMonthsWithEntries(userId);
+      if (monthlyPeriods.isEmpty) {
         result.success = true;
-        result.message = 'No entries to synthesize';
+        result.message = 'No Layer 0 entries for this user. Run Backfill Layer 0 first.';
+        print('⚠️ ChronicleOnboardingService: No Layer 0 entries for userId $userId');
         return result;
       }
+      print('📥 ChronicleOnboardingService: Found ${monthlyPeriods.length} months with Layer 0 data: $monthlyPeriods');
 
-      // Determine date range
-      entries.sort((a, b) => a.createdAt.compareTo(b.createdAt));
-      final startDate = entries.first.createdAt;
-      final endDate = entries.last.createdAt;
-      
-      // Generate periods to synthesize
-      final monthlyPeriods = <String>[];
-      final yearlyPeriods = <String>{};
-      
-      var currentDate = DateTime(startDate.year, startDate.month, 1);
-      while (currentDate.isBefore(endDate) || 
-             (currentDate.year == endDate.year && currentDate.month == endDate.month)) {
-        final period = '${currentDate.year}-${currentDate.month.toString().padLeft(2, '0')}';
-        
-        // Check if entries exist for this month
-        final monthEntries = entries.where((e) =>
-          e.createdAt.year == currentDate.year &&
-          e.createdAt.month == currentDate.month
-        ).toList();
-        
-        if (monthEntries.isNotEmpty) {
-          // Check if aggregation already exists
-          final existing = await _aggregationRepo.loadLayer(
-            userId: userId,
-            layer: ChronicleLayer.monthly,
-            period: period,
-          );
-          
-          if (existing == null) {
-            monthlyPeriods.add(period);
-          }
+      // Filter to months that don't already have an aggregation
+      final monthlyToSynthesize = <String>[];
+      for (final period in monthlyPeriods) {
+        final existing = await _aggregationRepo.loadLayer(
+          userId: userId,
+          layer: ChronicleLayer.monthly,
+          period: period,
+        );
+        if (existing == null) {
+          monthlyToSynthesize.add(period);
         }
-        
-        yearlyPeriods.add(currentDate.year.toString());
-        currentDate = DateTime(currentDate.year, currentDate.month + 1, 1);
       }
-      
-      // Filter yearly periods (only if tier supports it)
+
+      // Yearly: only if tier supports and we have enough months in Layer 0 for that year
       final cadence = SynthesisCadence.forTier(tier);
+      final yearlyPeriods = monthlyPeriods.map((p) => p.split('-').first).toSet();
       final yearlyPeriodsToSynthesize = <String>[];
       if (cadence.enableYearly) {
         for (final year in yearlyPeriods) {
-          // Check if aggregation already exists
           final existing = await _aggregationRepo.loadLayer(
             userId: userId,
             layer: ChronicleLayer.yearly,
             period: year,
           );
-          
           if (existing == null) {
-            // Check if we have at least 3 monthly aggregations for this year
-            final yearMonthlyAggs = monthlyPeriods.where((p) => p.startsWith(year)).toList();
-            if (yearMonthlyAggs.length >= 3) {
+            final yearMonths = monthlyPeriods.where((p) => p.startsWith(year)).toList();
+            if (yearMonths.length >= 3) {
               yearlyPeriodsToSynthesize.add(year);
             }
           }
         }
       }
-      
-      final totalPeriods = monthlyPeriods.length + yearlyPeriodsToSynthesize.length;
+
+      final totalPeriods = monthlyToSynthesize.length + yearlyPeriodsToSynthesize.length;
       result.totalPeriods = totalPeriods;
-      
+
       if (totalPeriods == 0) {
         result.success = true;
         result.message = 'All periods already synthesized';
         return result;
       }
 
-      // Synthesize monthly periods
-      for (int i = 0; i < monthlyPeriods.length; i++) {
-        final period = monthlyPeriods[i];
+      // Synthesize monthly periods (only months that have Layer 0 data and no aggregation yet)
+      for (int i = 0; i < monthlyToSynthesize.length; i++) {
+        final period = monthlyToSynthesize[i];
         onProgress?.call(i + 1, totalPeriods, period);
         
         try {
@@ -226,16 +215,15 @@ class ChronicleOnboardingService {
           print('⚠️ ChronicleOnboardingService: Failed to synthesize month $period: $e');
         }
         
-        // Yield to UI thread every 5 periods
         if (i % 5 == 0) {
           await Future.microtask(() {});
         }
       }
-      
+
       // Synthesize yearly periods
       for (int i = 0; i < yearlyPeriodsToSynthesize.length; i++) {
         final period = yearlyPeriodsToSynthesize[i];
-        final index = monthlyPeriods.length + i + 1;
+        final index = monthlyToSynthesize.length + i + 1;
         onProgress?.call(index, totalPeriods, period);
         
         try {
@@ -255,7 +243,7 @@ class ChronicleOnboardingService {
       }
       
       result.success = true;
-      result.message = 'Synthesized ${result.processedPeriods} periods (${monthlyPeriods.length} monthly, ${yearlyPeriodsToSynthesize.length} yearly)';
+      result.message = 'Synthesized ${result.processedPeriods} periods (${monthlyToSynthesize.length} monthly, ${yearlyPeriodsToSynthesize.length} yearly)';
       print('✅ ChronicleOnboardingService: Batch synthesis complete: ${result.processedPeriods} periods');
       
       return result;

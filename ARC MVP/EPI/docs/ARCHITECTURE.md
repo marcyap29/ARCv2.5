@@ -38,6 +38,7 @@ EPI (Evolving Personal Intelligence) is a Flutter-based intelligent journaling a
 - ✅ **Export System Improvements (v3.2.3)**: Automatic first export (full backup of all files), sequential export numbering for clear tracking, and always-available full export option
 - ✅ **Phase Quiz/Phase Tab Consistency (v3.3.13)**: Quiz result persisted via UserPhaseService; Phase tab shows quiz phase when no regimes exist; rotating phase shape (AnimatedPhaseShape) alongside 3D constellation on Phase tab
 - ✅ **Settings & backup (v3.3.14)**: Top-level CHRONICLE folder; LUMARA from chat → Settings → LUMARA; web access default on; Google Drive dated subfolders and Import from Drive; local backup security-scoped access (iOS/macOS); voice notes Ideas list refresh across instances
+- ✅ **Journal & CHRONICLE robustness (v3.3.15)**: JournalRepository per-entry try/catch; Layer0Populator safe content/keywords and succeeded/failed counts; Layer0Repository getMonthsWithEntries; batch synthesis from Layer 0 months. **Phase consistency**: Phase tab syncs to UserProfile; timeline/Conversations preview prefer profile phase; Home tab "Conversations"
 
 ### Current Version
 
