@@ -151,6 +151,16 @@ This guide will walk you through setting up all Stripe secrets in Firebase Secre
 6. Copy the webhook secret (starts with `whsec_...`)
 7. **Save this** - you'll need it in Step 4
 
+### 3.4 Configure Customer Portal
+1. Go to **Settings → Billing → Customer portal**
+2. Enable:
+   - Update payment methods
+   - View billing history
+   - Cancel subscriptions
+   - **Switch plans** (allows monthly ↔ annual switching)
+3. Add your products to the portal product list
+4. Set return URL to: `arc://settings`
+
 ---
 
 ## Step 4: Add Secrets to Firebase (5 minutes)
@@ -259,14 +269,13 @@ Wait for the deployment to complete. You should see:
 4. Click **"Subscribe"** (either Monthly or Annual)
 5. You should now be redirected to Stripe Checkout (no more UNAUTHENTICATED error!)
 
-### 6.2 Use Test Card
+### 6.2 Use Test Cards (Test Mode Only)
 In the Stripe Checkout page:
-- **Card Number:** `4242 4242 4242 4242`
-- **Expiry:** Any future date (e.g., `12/25`)
-- **CVC:** Any 3 digits (e.g., `123`)
-- **ZIP:** Any 5 digits (e.g., `12345`)
+- **Success:** `4242 4242 4242 4242`
+- **Decline:** `4000 0000 0000 0002`
+- **Requires authentication:** `4000 0025 0000 3155`
 
-Click **"Subscribe"** to complete the test payment.
+For success flow: use **4242 4242 4242 4242**, any future expiry (e.g., `12/25`), any CVC (e.g., `123`), any ZIP (e.g., `12345`). Click **"Subscribe"** to complete the test payment.
 
 ### 6.3 Verify Subscription
 1. After payment, you should be redirected back to the app
@@ -328,11 +337,55 @@ firebase deploy --only functions:createCheckoutSession,functions:createPortalSes
 - Check Stripe Dashboard → Webhooks → Your endpoint → Events tab
 - Make sure webhook secret matches what you set in Firebase
 
+### "Function not found" or Checkout URL doesn't open
+- Run `firebase deploy --only functions` again
+- Ensure `url_launcher` is in pubspec.yaml
+- Check `firebase functions:log` for errors
+
+### User not upgrading after payment
+- Check Firebase Functions logs
+- Verify webhook events are being received
+- Check Firestore rules allow function writes
+
 ### Can't find Price IDs
 - Go to Stripe Dashboard → Products
 - Click on your "ARC Premium" product
 - Click on each price to see its details
 - The Price ID is shown at the top of the price details page
+
+---
+
+## Step 7: Local Webhook Testing (Optional)
+
+To test webhooks against a local function:
+
+```bash
+# Install Stripe CLI
+brew install stripe/stripe-cli/stripe
+
+# Login to Stripe
+stripe login
+
+# Forward webhooks to local function
+stripe listen --forward-to localhost:5001/arc-epi/us-central1/stripeWebhook
+
+# Trigger test events
+stripe trigger checkout.session.completed
+```
+
+---
+
+## Monitoring
+
+### Check Function Logs
+```bash
+firebase functions:log
+```
+
+### Verify Webhooks
+1. Go to Stripe Dashboard → Developers → Webhooks
+2. Click on your webhook endpoint
+3. Check the "Events" tab for successful deliveries
 
 ---
 
@@ -345,12 +398,14 @@ Once everything is set up:
 4. ✅ Monitor webhook events in Stripe Dashboard
 5. ✅ Check Firebase Functions logs for any errors
 
-When ready for production:
-1. Switch Stripe Dashboard to **Live Mode**
-2. Get live API keys
-3. Create new webhook endpoint for live mode
-4. Update all secrets with live keys
-5. Test with real cards (small amounts first!)
+### Production checklist (when going live)
+- [ ] Switch to Live Mode in Stripe Dashboard
+- [ ] Get live API keys
+- [ ] Create new webhook endpoint for live mode
+- [ ] Update Firebase secrets with live keys
+- [ ] Test with real cards (small amounts first)
+- [ ] Set up monitoring alerts
+- [ ] Test Customer Portal functionality
 
 ---
 
@@ -363,5 +418,5 @@ When ready for production:
 
 ---
 
-**Need Help?** Check the main setup guide: `STRIPE_SETUP_GUIDE.md`
+**Related:** [STRIPE_TEST_VS_LIVE.md](STRIPE_TEST_VS_LIVE.md) for Test vs Live mode; [stripe/README.md](README.md) for full Stripe doc index.
 

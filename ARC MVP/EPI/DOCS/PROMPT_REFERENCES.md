@@ -1015,7 +1015,7 @@ Apple Health Data (last 7 days) → Biometric Analyzer
 - Common pitfalls
 - Future enhancements
 
-**This is the definitive reference** for understanding CHRONICLE's complete architecture, implementation details, and collaborative editing features.
+**This is the definitive reference** for understanding CHRONICLE's complete architecture, implementation details, and collaborative editing features. For full CHRONICLE prompt and architecture detail, see [CHRONICLE_PROMPT_REFERENCE.md](CHRONICLE_PROMPT_REFERENCE.md).
 
 ---
 

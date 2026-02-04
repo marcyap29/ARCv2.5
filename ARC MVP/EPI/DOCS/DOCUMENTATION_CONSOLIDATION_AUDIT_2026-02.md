@@ -140,14 +140,15 @@ Merge STRIPE_SETUP_GUIDE.md content into STRIPE_SECRETS_SETUP.md (or a single ST
 
 ## 3. EFFICIENCY METRICS PROJECTION
 
-| Metric | Before | After (Phase 1 only) | After (Phase 1+2 optional) |
+| Metric | Before | After (Phase 1) | After (Phase 1+2 executed) |
 |--------|--------|----------------------|-----------------------------|
 | Broken links | 6 | 0 | 0 |
-| Stripe setup narratives | 2 | 1 (if merged) | 1 |
+| Stripe setup narratives | 2 | 1 | 1 |
 | Bugtracker index systems | 2 (one broken) | 1 canonical, 1 fixed | 1 canonical |
-| Documents removed | – | 0 | 0–2 (Stripe merge + optional archive of BUG_TRACKER_MASTER_INDEX / PART1_CRITICAL) |
+| Documents removed | – | 0 | 1 (STRIPE_SETUP_GUIDE merged) |
 | Redundancy (Stripe setup) | ~60% overlap | 0% (single guide) | 0% |
 | Maintenance burden | Duplicate Stripe + broken links | Lower (no broken links, single Stripe path) | Lower |
+| PROMPT_REFERENCES ↔ CHRONICLE | – | – | Cross-reference added |
 
 Targets (per prompt):  
 - **Zero loss** of critical information: met (no deletion of unique content without merge).  
@@ -177,4 +178,8 @@ Targets (per prompt):
 
 **Executed (2026-02-02):** Phase 1.1 applied — BUG_TRACKER_MASTER_INDEX.md updated to reference only existing files (bug_tracker.md, bug_tracker_part1/2/3.md, BUG_TRACKER_PART1_CRITICAL.md, records/). All previous broken links to PART2–PART7 removed.
 
-**Next step (optional):** Phase 1.2 (merge Stripe setup guides); Phase 2 (cross-reference PROMPT_REFERENCES ↔ CHRONICLE_PROMPT_REFERENCE).
+**Executed (2026-02-03):** Phase 1.2 and Phase 2.2 applied.
+- **Phase 1.2 (Stripe):** STRIPE_SETUP_GUIDE.md merged into STRIPE_SECRETS_SETUP.md. Unique content (Customer Portal config, extra test cards, local webhook testing with Stripe CLI, monitoring, production checklist, additional troubleshooting) added to STRIPE_SECRETS_SETUP. STRIPE_SETUP_GUIDE.md removed. stripe/README.md updated to single setup guide (STRIPE_SECRETS_SETUP.md). **Document count reduced by 1; single Stripe setup path.**
+- **Phase 2.2 (Prompts):** In PROMPT_REFERENCES.md § CHRONICLE Prompts, added explicit cross-reference: “For full CHRONICLE prompt and architecture detail, see CHRONICLE_PROMPT_REFERENCE.md.”
+
+**Next step (optional):** Phase 2.1 (archive BUG_TRACKER_MASTER_INDEX / BUG_TRACKER_PART1_CRITICAL if time-based index alone is sufficient).
