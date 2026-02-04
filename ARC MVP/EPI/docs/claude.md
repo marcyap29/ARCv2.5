@@ -9,7 +9,7 @@
 - **Phase Quiz / Phase Tab Sync**: Phase Quiz V2 result now persisted via UserPhaseService; Phase tab shows quiz phase when no regimes exist; rotating phase shape (AnimatedPhaseShape) shown alongside 3D constellation on Phase tab. Docs updated (CHANGELOG, FEATURES, git, this file).
 - **UPDATE ALL DOCS**: Full documentation sync; Documentation & Configuration Management Role (universal prompt) in Quick Reference; CONFIGURATION_MANAGEMENT inventory and all key doc dates aligned to 2026-01-31.
 - **Response Length Architecture Refactor**: Response length now tied to Engagement Mode, not Persona. Persona applies density modifiers.
-- **Phase Intelligence Integration**: Documented two-stage memory system (Context Selection + Polymeta)
+- **Phase Intelligence Integration**: Documented two-stage memory system (Context Selection + CHRONICLE). LUMARA Enterprise Architecture: four-subsystem spine (ARC, ATLAS, CHRONICLE, AURORA) coordinated by LUMARA Orchestrator; see DOCS/LUMARA_ORCHESTRATOR.md, SUBSYSTEMS.md, LUMARA_ENTERPRISE_ARCHITECTURE_GUIDE.md.
 - **Custom Memory Focus UI**: Sliders for Time Window, Matching Precision, Max Entries when Custom preset selected
 - **LUMARA Context Selector**: New service for sophisticated context selection based on Memory Focus, Engagement Mode, and Phase Intelligence
 - **Temporal Context Accuracy Fix**: Current entry excluded from recent entries, relative dates added (e.g., "3 days ago")
@@ -45,7 +45,7 @@ Main overview: `DOCS/README.md`
 Adhere to: `DOCS/ARCHITECTURE.md`
 - 5-module system (ARC, PRISM, MIRA, ECHO, AURORA)
 - Technical stack and data flow
-- Two-Stage Memory System (Context Selection + Polymeta)
+- Two-Stage Memory System (Context Selection + CHRONICLE). LUMARA four-subsystem spine (ARC, ATLAS, CHRONICLE, AURORA) and Orchestrator (see LUMARA_ORCHESTRATOR.md)
 
 ### 📋 Features Guide
 Reference: `DOCS/FEATURES.md`
@@ -120,10 +120,7 @@ Response length is determined by **Engagement Mode** (primary driver), with **Pe
    - Semantic relevance
    - Phase intelligence (RIVET/SENTINEL/ATLAS)
    
-2. **Polymeta** (`MemoryModeService`): Domain-based semantic memory filtering
-   - Domain modes (Always On/Suggestive/High Confidence Only)
-   - Decay/reinforcement rates
-   - Confidence thresholds
+2. **CHRONICLE** (longitudinal memory): Aggregated synthesis across time; exposed via `ChronicleSubsystem` in the LUMARA Orchestrator. The four-subsystem spine (ARC, ATLAS, CHRONICLE, AURORA) is coordinated by the Orchestrator when `FeatureFlags.useOrchestrator` is true. Legacy: **MemoryModeService** (Polymeta) still provides domain-based semantic memory filtering (Always On/Suggestive/High Confidence Only); see CHRONICLE_CONTEXT_FOR_CLAUDE.md for Polymeta→CHRONICLE relationship.
 
 ### Memory Focus Presets
 | Preset | Time Window | Max Entries | Similarity |
@@ -146,7 +143,7 @@ Response length is determined by **Engagement Mode** (primary driver), with **Pe
 
 ### LUMARA Settings UI
 - **Main Settings**: `lib/shared/ui/settings/settings_view.dart` - Memory Focus, Persona, Engagement Mode
-- **Memory Mode Settings**: `lib/mira/memory/ui/memory_mode_settings_view.dart` - Polymeta domain modes
+- **Memory Mode Settings**: `lib/mira/memory/ui/memory_mode_settings_view.dart` - Memory mode domain settings (see CHRONICLE_CONTEXT_FOR_CLAUDE.md for Polymeta→CHRONICLE)
 
 ### Export System
 - **Export Service V2**: `lib/mira/store/arcx/services/arcx_export_service_v2.dart` - Full/incremental exports

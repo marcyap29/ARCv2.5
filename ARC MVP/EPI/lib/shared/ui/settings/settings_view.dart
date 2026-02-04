@@ -52,9 +52,6 @@ class SettingsView extends StatefulWidget {
 class _SettingsViewState extends State<SettingsView> {
   @override
   Widget build(BuildContext context) {
-    final userEmail = FirebaseAuthService.instance.currentUser?.email?.toLowerCase();
-    final isAdmin = userEmail == 'marc.yap@orbitalai.net';
-
     return Scaffold(
       backgroundColor: kcBackgroundColor,
       appBar: AppBar(
@@ -123,18 +120,8 @@ class _SettingsViewState extends State<SettingsView> {
               ),
             ),
 
-            // 5. Advanced Settings (Admin only - marc.yap@orbitalai.net)
-            if (isAdmin)
-              _buildFolderTile(
-                context,
-                title: 'Advanced Settings',
-                subtitle: 'Analysis, memory lookback, debug options',
-                icon: Icons.settings_applications,
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const AdvancedSettingsView()),
-                ),
-              ),
+            // 5. Advanced Settings (own card, below CHRONICLE, above Health & Readiness)
+            _buildAdvancedSettingsCard(context),
 
             // 6. Health & Readiness (Available to everyone by default)
             _buildFolderTile(
@@ -257,6 +244,79 @@ class _SettingsViewState extends State<SettingsView> {
           horizontal: 16,
           vertical: 12,
         ),
+      ),
+    );
+  }
+
+  /// Advanced Settings in its own card: below CHRONICLE, above Health & Readiness.
+  Widget _buildAdvancedSettingsCard(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.1),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 6),
+            child: Text(
+              'Advanced Settings',
+              style: heading3Style(context).copyWith(
+                color: kcPrimaryTextColor,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          ListTile(
+            leading: Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: kcAccentColor.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(
+                Icons.settings_applications,
+                color: kcAccentColor,
+                size: 24,
+              ),
+            ),
+            title: Text(
+              'Analysis, memory & debug',
+              style: heading3Style(context).copyWith(
+                color: kcPrimaryTextColor,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            subtitle: Text(
+              'Memory lookback, response behavior, debug options',
+              style: bodyStyle(context).copyWith(
+                color: kcSecondaryTextColor,
+                fontSize: 12,
+              ),
+            ),
+            trailing: const Icon(
+              Icons.arrow_forward_ios,
+              color: kcSecondaryTextColor,
+              size: 16,
+            ),
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const AdvancedSettingsView()),
+            ),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 8,
+            ),
+          ),
+          const SizedBox(height: 8),
+        ],
       ),
     );
   }

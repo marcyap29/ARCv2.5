@@ -25,7 +25,7 @@ LUMARA (Lifelong Unified Memory and Adaptive Response Architecture) is ARC's ada
 **Key Features:**
 - Phase-based persona adaptation
 - Three-tier engagement system (Reflect/Explore/Integrate)
-- Two-stage memory system (Context Selection + Polymeta)
+- Two-stage memory system (Context Selection + CHRONICLE). LUMARA Enterprise Architecture: four-subsystem spine (ARC, ATLAS, CHRONICLE, AURORA) coordinated by the LUMARA Orchestrator when `FeatureFlags.useOrchestrator` is true; see DOCS/LUMARA_ORCHESTRATOR.md, SUBSYSTEMS.md.
 - Firebase-only API architecture
 - Unified prompt system
 
@@ -268,7 +268,7 @@ The unified control state JSON includes:
 LUMARA uses a two-stage memory system for context building:
 
 1. **Context Selection**: Retrieves relevant entries based on time window and semantic similarity
-2. **Polymeta**: Synthesizes patterns across retrieved entries
+2. **CHRONICLE**: Longitudinal aggregated memory; synthesizes patterns across retrieved entries. Part of the four-subsystem spine (ARC, ATLAS, CHRONICLE, AURORA) coordinated by the LUMARA Orchestrator (see DOCS/LUMARA_ORCHESTRATOR.md).
 
 **Memory Context Building:**
 

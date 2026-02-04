@@ -817,6 +817,20 @@ class TimelineCubit extends Cubit<TimelineState> {
       prevPhase: prevPhase,
     );
 
-    return decidedPhase != null ? _phaseLabelToString(decidedPhase) : null;
+    if (decidedPhase != null) {
+      return _phaseLabelToString(decidedPhase);
+    }
+
+    // Display fallback: when signal is below ATLAS threshold (e.g. top score < 0.35),
+    // still show the highest-scoring phase so entries are never shown as "No Phase"
+    if (scores.isNotEmpty) {
+      final sorted = scores.entries.toList()
+        ..sort((a, b) => b.value.compareTo(a.value));
+      final fallbackPhase = _phaseLabelToString(sorted.first.key);
+      print('DEBUG: Entry ${entry.id} - ATLAS below threshold, using display fallback: $fallbackPhase');
+      return fallbackPhase;
+    }
+
+    return null;
   }
 }

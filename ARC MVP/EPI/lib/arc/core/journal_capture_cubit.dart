@@ -1336,6 +1336,11 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
       
       await _journalRepository.updateJournalEntry(updatedEntry);
       
+      // Backfill phase for entries that don't have autoPhase (e.g. legacy or missed inference)
+      if (updatedEntry.autoPhase == null || updatedEntry.autoPhase!.trim().isEmpty) {
+        await _inferAndSetPhaseForEntry(updatedEntry);
+      }
+      
       // Verify entry was saved correctly
       final savedEntry = await _journalRepository.getJournalEntryById(updatedEntry.id);
       if (savedEntry != null) {
@@ -1668,8 +1673,9 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
       
       // Run phase stability analysis for regime aggregation
       _performPhaseStabilityAnalysis(updatedEntry, entry.emotion, entry.emotionReason, null);
-    } catch (e) {
+    } catch (e, stackTrace) {
       print('ERROR: Phase inference failed for entry ${entry.id}: $e');
+      print('ERROR: Phase inference stack: $stackTrace');
     }
   }
 

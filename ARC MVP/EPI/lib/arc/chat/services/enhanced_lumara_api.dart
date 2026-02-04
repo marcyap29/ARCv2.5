@@ -45,6 +45,14 @@ import '../../../services/sentinel/crisis_mode.dart';
 import '../../../models/engagement_discipline.dart' show EngagementMode;
 import '../../../models/memory_focus_preset.dart' show MemoryFocusPreset;
 import '../voice/prompts/voice_response_builders.dart';
+import 'package:my_app/state/feature_flags.dart';
+import 'package:my_app/lumara/orchestrator/lumara_orchestrator.dart';
+import 'package:my_app/lumara/subsystems/chronicle_subsystem.dart';
+import 'package:my_app/lumara/orchestrator/command_parser.dart';
+import 'package:my_app/lumara/orchestrator/result_aggregator.dart';
+import 'arc_subsystem.dart';
+import 'atlas_subsystem.dart';
+import 'aurora_subsystem.dart';
 
 /// Result of generating a reflection with attribution traces
 class ReflectionResult {
@@ -113,6 +121,9 @@ class EnhancedLumaraApi {
   Layer0Repository? _layer0Repo;
   AggregationRepository? _aggregationRepo;
   bool _chronicleInitialized = false;
+
+  /// Lazy-built when [FeatureFlags.useOrchestrator] is true and CHRONICLE is initialized.
+  LumaraOrchestrator? _orchestrator;
   
   // LLM Provider tracking (for logging only - we use geminiSend directly)
   LLMProviderBase? _llmProvider;
@@ -184,6 +195,26 @@ class EnhancedLumaraApi {
       print('⚠️ LUMARA: CHRONICLE initialization failed (non-fatal): $e');
       // Continue without CHRONICLE - will fallback to raw entries
     }
+  }
+
+  /// Build orchestrator once when [FeatureFlags.useOrchestrator] is true and CHRONICLE is ready.
+  void _ensureOrchestrator() {
+    if (_orchestrator != null || !FeatureFlags.useOrchestrator) return;
+    if (!_chronicleInitialized || _queryRouter == null || _contextBuilder == null) return;
+    _orchestrator = LumaraOrchestrator(
+      subsystems: [
+        ChronicleSubsystem(
+          router: _queryRouter!,
+          contextBuilder: _contextBuilder!,
+        ),
+        ArcSubsystem(),
+        AtlasSubsystem(),
+        AuroraSubsystem(),
+      ],
+      parser: CommandParser(),
+      aggregator: ResultAggregator(),
+    );
+    print('✅ LUMARA: Orchestrator initialized (CHRONICLE + ARC + ATLAS + AURORA)');
   }
 
   /// Index MCP bundle for reflection
@@ -491,16 +522,18 @@ class EnhancedLumaraApi {
           print('LUMARA Enhanced API v2.3: Calling Gemini API directly (same as main chat)');
           
           // Get Memory Focus preset and Engagement Mode for context selection
-          // Skip context selection if skipHeavyProcessing is true
+          // Skip context selection if skipHeavyProcessing is true (or when ARC from orchestrator)
           List<JournalEntry> recentJournalEntries = [];
           EngagementMode? engagementMode;
+          List<Map<String, dynamic>>? recentEntriesFromArc;
+          List<String>? entryContentsFromArc;
           
           if (!skipHeavyProcessing) {
           final memoryFocusPreset = await settingsService.getMemoryFocusPreset();
           final engagementSettings = await settingsService.getEngagementSettings();
             engagementMode = engagementSettings.activeMode;
           
-          // Use new context selector instead of hard-coded limits
+          // Use new context selector instead of hard-coded limits (orchestrator may override with ARC data later)
           final contextSelector = LumaraContextSelector();
             recentJournalEntries = await contextSelector.selectContextEntries(
             memoryFocus: memoryFocusPreset,
@@ -578,6 +611,8 @@ class EnhancedLumaraApi {
           String? chronicleContext;
           List<String>? chronicleLayerNames;
           String? chronicleMiniContext;
+          String? atlasContext;
+          String? auroraContext;
           LumaraPromptMode promptMode = LumaraPromptMode.rawBacked;
           
           // Voice mode: skip query router to save one Gemini round-trip (~5–15s). Use default plan.
@@ -585,7 +620,48 @@ class EnhancedLumaraApi {
             queryPlan = QueryPlan.rawEntry(intent: QueryIntent.temporalQuery);
             print('🔀 EnhancedLumaraApi: Voice mode - skipping query router (saves 1 Gemini call), using rawEntry plan');
           }
-          // Try to route query if CHRONICLE is available (text mode only)
+          // Orchestrator path: CHRONICLE + ARC via LumaraOrchestrator (when feature flag enabled)
+          else if (FeatureFlags.useOrchestrator && _chronicleInitialized && _queryRouter != null && _contextBuilder != null && userId != null) {
+            _ensureOrchestrator();
+            try {
+              final orchResult = await _orchestrator!.execute(request.userText, userId: userId, entryId: entryId);
+              if (!orchResult.isError) {
+                final ctxMap = orchResult.toContextMap();
+                chronicleContext = ctxMap['CHRONICLE'];
+                final chronData = orchResult.getSubsystemData('CHRONICLE');
+                if (chronData != null && chronData['layers'] != null) {
+                  chronicleLayerNames = List<String>.from(chronData['layers'] as List);
+                }
+                if (chronicleContext != null && chronicleContext.isNotEmpty) {
+                  promptMode = LumaraPromptMode.chronicleBacked;
+                  print('✅ EnhancedLumaraApi: CHRONICLE context from orchestrator (${chronicleLayerNames?.length ?? 0} layers)');
+                } else {
+                  print('🔀 EnhancedLumaraApi: Orchestrator ran but CHRONICLE had no context, using rawBacked');
+                }
+                final arcData = orchResult.getSubsystemData('ARC');
+                if (arcData != null && arcData['recentEntries'] != null && arcData['entryContents'] != null) {
+                  recentEntriesFromArc = List<Map<String, dynamic>>.from(arcData['recentEntries'] as List);
+                  entryContentsFromArc = List<String>.from(arcData['entryContents'] as List);
+                  print('✅ EnhancedLumaraApi: ARC context from orchestrator (${entryContentsFromArc.length} entries)');
+                }
+                atlasContext = ctxMap['ATLAS'];
+                auroraContext = ctxMap['AURORA'];
+                if (atlasContext != null && atlasContext.isNotEmpty) {
+                  print('✅ EnhancedLumaraApi: ATLAS context from orchestrator');
+                }
+                if (auroraContext != null && auroraContext.isNotEmpty) {
+                  print('✅ EnhancedLumaraApi: AURORA context from orchestrator');
+                }
+              } else {
+                final first = orchResult.subsystemResults.isNotEmpty ? orchResult.subsystemResults.first : null;
+                final msg = first?.errorMessage ?? 'unknown';
+                print('⚠️ EnhancedLumaraApi: Orchestrator error (non-fatal): $msg');
+              }
+            } catch (e) {
+              print('⚠️ EnhancedLumaraApi: Orchestrator failed (non-fatal): $e');
+            }
+          }
+          // Legacy: route query if CHRONICLE is available (text mode only)
           else if (_chronicleInitialized && _queryRouter != null && userId != null) {
             try {
               queryPlan = await _queryRouter!.route(
@@ -668,8 +744,12 @@ class EnhancedLumaraApi {
             baseContextParts.add('');
             baseContextParts.add('**HISTORICAL CONTEXT (Use for pattern recognition with dated examples)**:');
             baseContextParts.add('**NOTE**: The journal entries listed below (with "-" bullets) are PAST entries from your journal history. The CURRENT ENTRY above (marked "PRIMARY FOCUS - WRITTEN TODAY") is being written TODAY ($todayDateStr) and is NOT a past entry.');
-            // Use all entries from context selector (already limited by Memory Focus preset)
-            baseContextParts.addAll(recentJournalEntries.map((e) => '- ${e.content}'));
+            // Use ARC from orchestrator when present, else context selector entries
+            if (entryContentsFromArc != null) {
+              baseContextParts.addAll(entryContentsFromArc.map((s) => '- $s'));
+            } else {
+              baseContextParts.addAll(recentJournalEntries.map((e) => '- ${e.content}'));
+            }
             
             baseContext = baseContextParts.join('\n\n');
             
@@ -886,27 +966,44 @@ class EnhancedLumaraApi {
               modeSpecificInstructions = chatContext;
             }
           }
+          // Prepend ATLAS (phase) and AURORA (rhythm) context from orchestrator when present
+          if ((atlasContext != null && atlasContext.isNotEmpty) || (auroraContext != null && auroraContext.isNotEmpty)) {
+            final parts = <String>[];
+            if (atlasContext != null && atlasContext.isNotEmpty) {
+              parts.add('ATLAS (developmental phase): $atlasContext');
+            }
+            if (auroraContext != null && auroraContext.isNotEmpty) {
+              parts.add('AURORA (rhythm/regulation): $auroraContext');
+            }
+            if (parts.isNotEmpty) {
+              final enterpriseBlock = 'SUBSYSTEM CONTEXT (use to tailor response):\n${parts.join('\n')}';
+              modeSpecificInstructions = modeSpecificInstructions.isEmpty
+                  ? enterpriseBlock
+                  : '$enterpriseBlock\n\n═══════════════════════════════════════════════════════════\n\n$modeSpecificInstructions';
+            }
+          }
           
-          // Get unified master prompt or voice-only trimmed prompt
-          final recentEntries = recentJournalEntries
-              .map((entry) {
-                final daysAgo = now.difference(entry.createdAt).inDays;
-                final relativeDate = daysAgo == 0 
-                    ? 'today' 
-                    : daysAgo == 1 
-                        ? 'yesterday' 
-                        : '$daysAgo days ago';
-                return {
-                  'date': entry.createdAt,
-                  'relativeDate': relativeDate,
-                  'daysAgo': daysAgo,
-                  'title': entry.content.split('\n').first.trim().isEmpty 
-                      ? 'Untitled entry' 
-                      : entry.content.split('\n').first.trim(),
-                  'id': entry.id,
-                };
-              })
-              .toList();
+          // Get unified master prompt or voice-only trimmed prompt (use ARC data when from orchestrator)
+          final recentEntries = recentEntriesFromArc ??
+              recentJournalEntries
+                  .map((entry) {
+                    final daysAgo = now.difference(entry.createdAt).inDays;
+                    final relativeDate = daysAgo == 0
+                        ? 'today'
+                        : daysAgo == 1
+                            ? 'yesterday'
+                            : '$daysAgo days ago';
+                    return {
+                      'date': entry.createdAt,
+                      'relativeDate': relativeDate,
+                      'daysAgo': daysAgo,
+                      'title': entry.content.split('\n').first.trim().isEmpty
+                          ? 'Untitled entry'
+                          : entry.content.split('\n').first.trim(),
+                      'id': entry.id,
+                    };
+                  })
+                  .toList();
           
           String systemPrompt;
           String userPromptForApi = ''; // Voice (split payload) sets this; non-voice keeps empty

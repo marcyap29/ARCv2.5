@@ -17,4 +17,7 @@ class FeatureFlags {
   
   /// Enable reduced motion for accessibility
   static bool get reducedMotion => false; // This should check MediaQuery.disableAnimations
+
+  /// Use LUMARA Orchestrator for context (CHRONICLE via subsystem); when false, uses legacy query router + context builder.
+  static const bool useOrchestrator = false;
 }

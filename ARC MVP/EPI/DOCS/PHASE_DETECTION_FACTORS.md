@@ -1,5 +1,15 @@
 # Phase Detection Factors - Comprehensive Breakdown
 
+**When phase is set on individual entries:** Phase for each journal entry is determined by **PhaseInferenceService** (which uses **PhaseScoring**). It runs in **JournalCaptureCubit**:
+- **New entries:** After `createJournalEntry(entry)`, `_inferAndSetPhaseForEntry(entry)` runs and updates the entry with `autoPhase`, `autoPhaseConfidence`, and `phaseInferenceVersion` via `updateJournalEntry(updatedEntry)` (see `saveEntry()` and `saveEntryWithKeywords()`).
+- **Existing entries:** When saving an existing entry via `updateEntryWithKeywords()`, if the entry has no `autoPhase` (e.g. legacy or a previous inference failure), phase inference is run as a backfill and the entry is updated.
+
+So phase is determined at save time (new or update); display uses `entry.computedPhase` (userPhaseOverride > autoPhase > legacyPhaseTag). If phase is missing, check console for `ERROR: Phase inference failed for entry ...` and stack trace.
+
+**Code:** `lib/prism/atlas/phase/phase_inference_service.dart` (PhaseInferenceService), `lib/prism/atlas/phase/phase_scoring.dart` (PhaseScoring), `lib/arc/core/journal_capture_cubit.dart` (_inferAndSetPhaseForEntry, saveEntry, saveEntryWithKeywords, updateEntryWithKeywords backfill).
+
+---
+
 ## Current Factors (Excluding Text Length)
 
 ### 1. **Selected Keywords** (Highest Priority - 70% weight when available)

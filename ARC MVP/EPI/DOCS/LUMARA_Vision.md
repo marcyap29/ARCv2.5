@@ -335,7 +335,7 @@ Over 5 weeks, LUMARA:
 
 **Components:**
 
-**Polymeta Memory**
+**CHRONICLE Memory** (longitudinal; four-subsystem spine: ARC, ATLAS, CHRONICLE, AURORA — see DOCS/LUMARA_ORCHESTRATOR.md)
 - Structured storage of journal entries with temporal indexing
 - Semantic embeddings enable retrieval across time
 - Provenance tracking (what came from where, when)
