@@ -282,7 +282,6 @@ The EPI system is organized into 5 core modules:
 - `lib/services/lumara/entry_classifier.dart` - Core classification logic
 - `lib/services/lumara/response_mode.dart` - Response mode configuration
 - `lib/services/lumara/classification_logger.dart` - Analytics and monitoring
-- `lib/services/lumara/lumara_classifier_integration.dart` - Integration helper
 - `test/services/lumara/entry_classifier_test.dart` - Comprehensive test suite
 
 **Key Features:**
@@ -313,9 +312,9 @@ The EPI system is organized into 5 core modules:
 - Subscription status caching (5-minute TTL)
 
 **Documentation:**
-- Setup guides: `docs/stripe/README.md`
-- Complete setup: `docs/stripe/STRIPE_SECRETS_SETUP.md`
-- Webhook setup: `docs/stripe/STRIPE_WEBHOOK_SETUP_VISUAL.md`
+- Setup guides: `DOCS/stripe/README.md`
+- Complete setup: `DOCS/stripe/STRIPE_SECRETS_SETUP.md`
+- Webhook setup: `DOCS/stripe/STRIPE_WEBHOOK_SETUP_VISUAL.md`
 
 ---
 

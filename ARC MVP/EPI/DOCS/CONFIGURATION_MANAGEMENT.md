@@ -1,8 +1,8 @@
 # Configuration Management & Documentation Tracking
 
 **Lead Configuration Management Analyst:** Active  
-**Last Updated:** February 2, 2026  
-**Status:** ✅ All Documents Synced with Main Branch
+**Last Updated:** February 3, 2026  
+**Status:** ✅ All Documents Synced with Repo
 
 ---
 
@@ -38,7 +38,7 @@ Prompt/role definitions: **Documentation & Configuration Management Role** in [c
 
 | Document | Location | Last Reviewed | Status | Notes |
 |----------|----------|---------------|--------|-------|
-| ARCHITECTURE.md | `/DOCS/ARCHITECTURE.md` | 2026-02-02 | ✅ Synced | v3.3.15 - Journal/CHRONICLE robustness, phase consistency (Key Achievements) |
+| ARCHITECTURE.md | `/DOCS/ARCHITECTURE.md` | 2026-02-03 | ✅ Synced | v3.3.7 - Removed non-existent lumara_classifier_integration; DOCS/stripe paths |
 | CHANGELOG.md | `/DOCS/CHANGELOG.md` | 2026-02-02 | ✅ Synced | v3.3.15 - Journal/CHRONICLE robustness, phase consistency, Conversations label |
 | PROMPT_REFERENCES.md | `/DOCS/PROMPT_REFERENCES.md` | 2026-01-31 | ✅ Current | v1.8.0 - Document scope and sources; prompt catalog |
 | PROMPT_TRACKER.md | `/DOCS/PROMPT_TRACKER.md` | 2026-01-31 | ✅ Synced | v1.0.0 - Prompt change tracking; links to PROMPT_REFERENCES |
@@ -57,9 +57,42 @@ Prompt/role definitions: **Documentation & Configuration Management Role** in [c
 | RIVET_ARCHITECTURE.md | `/DOCS/RIVET_ARCHITECTURE.md` | Pending | ⚠️ Needs Review | RIVET algorithm spec |
 | SENTINEL_ARCHITECTURE.md | `/DOCS/SENTINEL_ARCHITECTURE.md` | Pending | ⚠️ Needs Review | SENTINEL algorithm spec |
 
+### Additional DOCS (reference / context)
+
+| Document | Location | Notes |
+|----------|----------|-------|
+| CHRONICLE_CONTEXT_FOR_CLAUDE.md | DOCS/ | CHRONICLE context for AI assistants |
+| CHRONICLE_COMPLETE.md | DOCS/ | CHRONICLE feature spec |
+| CHRONICLE_PROMPT_REFERENCE.md | DOCS/ | CHRONICLE prompt reference |
+| ENTERPRISE_VOICE.md | DOCS/ | Enterprise voice mode |
+| LUMARA_COMPLETE.md | DOCS/ | LUMARA feature spec |
+| LUMARA_ENTERPRISE_ARCHITECTURE_GUIDE.md | DOCS/ | LUMARA orchestrator/subsystems guide |
+| LUMARA_ORCHESTRATOR.md | DOCS/ | LUMARA orchestrator |
+| LUMARA_ORCHESTRATOR_ROADMAP.md | DOCS/ | Orchestrator roadmap |
+| MASTER_PROMPT_CONTEXT.md | DOCS/ | Master prompt context |
+| SUBSYSTEMS.md | DOCS/ | Subsystems (ARC, ATLAS, CHRONICLE, AURORA) |
+| PHASE_DETECTION_FACTORS.md | DOCS/ | Phase detection code reference |
+| SENTINEL_DETECTION_FACTORS.md | DOCS/ | SENTINEL detection factors |
+| TIMELINE_LEGACY_ENTRIES.md | DOCS/ | Timeline legacy entries |
+| MVP_Install.md | DOCS/ | MVP installation |
+| TESTER_ACCOUNT_SETUP.md | DOCS/ | Tester account setup |
+| DOCUMENTATION_CONSOLIDATION_AUDIT_2026-02.md | DOCS/ | Doc consolidation audit |
+
 ---
 
 ## Change Tracking Log
+
+### 2026-02-03 - Repo review; DOCS aligned with codebase
+
+**Action:** Reviewed repo against DOCS; updated ARCHITECTURE and CONFIGURATION_MANAGEMENT so docs reflect current code.
+
+**Repo review findings:**
+- **ARCHITECTURE:** Removed reference to non-existent `lib/services/lumara/lumara_classifier_integration.dart`. Stripe documentation paths updated from `docs/stripe/` to `DOCS/stripe/` for consistency.
+- **CONFIGURATION_MANAGEMENT:** Last Updated set to Feb 3, 2026. Added "Additional DOCS" inventory for CHRONICLE_CONTEXT_FOR_CLAUDE, ENTERPRISE_VOICE, LUMARA_* (orchestrator, roadmap, enterprise guide), MASTER_PROMPT_CONTEXT, SUBSYSTEMS, PHASE_DETECTION_FACTORS, SENTINEL_DETECTION_FACTORS, TIMELINE_LEGACY_ENTRIES, MVP_Install, TESTER_ACCOUNT_SETUP, DOCUMENTATION_CONSOLIDATION_AUDIT. ARCHITECTURE Last Reviewed 2026-02-03.
+
+**Status:** ✅ DOCS updated to reflect repo; ready to commit and push.
+
+---
 
 ### 2026-02-02 - Update docs for repo changes (v3.3.15); merge test→main; backup-main-2026-02-02
 
@@ -386,7 +419,7 @@ Prompt/role definitions: **Documentation & Configuration Management Role** in [c
 | Architecture | 3.3.7 | 3.3.7 (ARCHITECTURE.md) | ✅ Synced | Matches main branch |
 | Changelog | 3.3.10 | 3.3.10 (CHANGELOG.md) | ✅ Synced | Matches main branch |
 | Bug Tracker | 3.2.2 | 3.2.2 (bug_tracker.md) | ✅ Synced | Matches main branch |
-| Prompt References | 1.6.0 | 1.6.0 (PROMPT_REFERENCES.md) | ✅ Synced | Last updated: Jan 24, 2026 |
+| Prompt References | 1.8.0 | 1.8.0 (PROMPT_REFERENCES.md) | ✅ Synced | Last updated: Jan 31, 2026 |
 | Prompt Tracker | 1.0.0 | 1.0.0 (PROMPT_TRACKER.md) | ✅ Synced | Configuration tracking only |
 
 ---
@@ -465,8 +498,8 @@ Prompt/role definitions: **Documentation & Configuration Management Role** in [c
 
 ---
 
-**Last Updated:** January 26, 2026  
-**Next Review:** January 27, 2026 (Daily check)
+**Last Updated:** February 3, 2026  
+**Next Review:** Per review schedule (weekly CHANGELOG/bugtracker; monthly full inventory)
 
 ---
 

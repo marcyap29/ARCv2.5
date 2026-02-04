@@ -1346,7 +1346,7 @@ Third person perspective on the user.
 Prepended to stored transcript for future retrieval.
 ```
 
-**📄 Full Implementation Details:** See [VOICE_MODE_IMPLEMENTATION_GUIDE.md](VOICE_MODE_IMPLEMENTATION_GUIDE.md)
+**📄 Full Implementation Details:** See [VOICE_MODE_COMPLETE.md](VOICE_MODE_COMPLETE.md) (current spec). Historical: [archive/VOICE_MODE_IMPLEMENTATION_GUIDE.md](archive/VOICE_MODE_IMPLEMENTATION_GUIDE.md).
 
 ---
 
