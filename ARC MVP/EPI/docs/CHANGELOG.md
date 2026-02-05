@@ -1,7 +1,7 @@
 # EPI ARC MVP - Changelog
 
 **Version:** 3.3.15
-**Last Updated:** February 2, 2026
+**Last Updated:** February 3, 2026
 
 ---
 
@@ -17,7 +17,9 @@ This changelog has been split into parts for easier navigation:
 
 ---
 
-## [3.3.15] - February 2, 2026
+## [3.3.15] - February 2, 2026 (merge & backup 2026-02-03)
+
+**2026-02-03:** Branch `test` merged into `main`; backup branch `backup-main-2026-02-03` created from `main`.
 
 ### Journal & CHRONICLE robustness
 

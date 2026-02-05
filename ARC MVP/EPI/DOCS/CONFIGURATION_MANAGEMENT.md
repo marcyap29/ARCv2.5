@@ -39,7 +39,7 @@ Prompt/role definitions: **Documentation & Configuration Management Role** in [c
 | Document | Location | Last Reviewed | Status | Notes |
 |----------|----------|---------------|--------|-------|
 | ARCHITECTURE.md | `/DOCS/ARCHITECTURE.md` | 2026-02-03 | ✅ Synced | v3.3.7 - Removed non-existent lumara_classifier_integration; DOCS/stripe paths |
-| CHANGELOG.md | `/DOCS/CHANGELOG.md` | 2026-02-02 | ✅ Synced | v3.3.15 - Journal/CHRONICLE robustness, phase consistency, Conversations label |
+| CHANGELOG.md | `/DOCS/CHANGELOG.md` | 2026-02-03 | ✅ Synced | v3.3.15 - Last Updated Feb 3; merge/backup note |
 | PROMPT_REFERENCES.md | `/DOCS/PROMPT_REFERENCES.md` | 2026-01-31 | ✅ Current | v1.8.0 - Document scope and sources; prompt catalog |
 | PROMPT_TRACKER.md | `/DOCS/PROMPT_TRACKER.md` | 2026-01-31 | ✅ Synced | v1.0.0 - Prompt change tracking; links to PROMPT_REFERENCES |
 | bug_tracker.md | `/DOCS/bugtracker/bug_tracker.md` | 2026-01-31 | ✅ Synced | v3.2.2 - 28 records; How to use; Recent code changes; Wispr Flow cache |
@@ -81,6 +81,16 @@ Prompt/role definitions: **Documentation & Configuration Management Role** in [c
 ---
 
 ## Change Tracking Log
+
+### 2026-02-03 - Merge test → main; backup branch created
+
+**Action:** Merged `test` into `main`; created backup branch `backup-main-2026-02-03` from `main` and pushed.
+
+**Doc updates:** CHANGELOG Last Updated Feb 3, 2026; note added for merge and backup. CONFIGURATION_MANAGEMENT (this entry).
+
+**Status:** ✅ Merge and backup complete.
+
+---
 
 ### 2026-02-03 - Repo review; DOCS aligned with codebase
 
