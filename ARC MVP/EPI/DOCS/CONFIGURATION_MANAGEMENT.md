@@ -40,14 +40,14 @@ Prompt/role definitions: **Documentation & Configuration Management Role** in [c
 |----------|----------|---------------|--------|-------|
 | ARCHITECTURE.md | `/DOCS/ARCHITECTURE.md` | 2026-02-03 | ✅ Synced | v3.3.7 - Removed non-existent lumara_classifier_integration; DOCS/stripe paths |
 | CHANGELOG.md | `/DOCS/CHANGELOG.md` | 2026-02-03 | ✅ Synced | v3.3.15 - Last Updated Feb 3; merge/backup note |
-| PROMPT_REFERENCES.md | `/DOCS/PROMPT_REFERENCES.md` | 2026-01-31 | ✅ Current | v1.8.0 - Document scope and sources; prompt catalog |
-| PROMPT_TRACKER.md | `/DOCS/PROMPT_TRACKER.md` | 2026-01-31 | ✅ Synced | v1.0.0 - Prompt change tracking; links to PROMPT_REFERENCES |
-| bug_tracker.md | `/DOCS/bugtracker/bug_tracker.md` | 2026-01-31 | ✅ Synced | v3.2.2 - 28 records; How to use; Recent code changes; Wispr Flow cache |
-| FEATURES.md | `/DOCS/FEATURES.md` | 2026-02-02 | ✅ Synced | v3.3.15 - Last Updated Feb 2 |
-| README.md | `/DOCS/README.md` | 2026-01-31 | ✅ Synced | Key docs table with purpose and when to read |
-| claude.md | `/DOCS/claude.md` | 2026-01-31 | ✅ Synced | Relative DOCS/ paths; Current Architecture v3.3.13 |
-| backend.md | `/DOCS/backend.md` | 2026-01-31 | ✅ Synced | v3.2 - Firebase, cloud functions, Last Updated Jan 31 |
-| git.md | `/DOCS/git.md` | 2026-01-31 | ✅ Synced | Git history and key phases; Last Updated Jan 31 |
+| PROMPT_REFERENCES.md | `/DOCS/PROMPT_REFERENCES.md` | 2026-02-03 | ✅ Current | v1.8.0 - Document scope and sources; prompt catalog |
+| PROMPT_TRACKER.md | `/DOCS/PROMPT_TRACKER.md` | 2026-02-03 | ✅ Synced | v1.0.0 - Prompt change tracking; links to PROMPT_REFERENCES |
+| bug_tracker.md | `/DOCS/bugtracker/bug_tracker.md` | 2026-02-03 | ✅ Synced | v3.2.2 - 28 records; How to use; Recent code changes |
+| FEATURES.md | `/DOCS/FEATURES.md` | 2026-02-03 | ✅ Synced | v3.3.15 - Last Updated Feb 2 |
+| README.md | `/DOCS/README.md` | 2026-02-03 | ✅ Synced | Key docs table with purpose and when to read |
+| claude.md | `/DOCS/claude.md` | 2026-02-03 | ✅ Synced | Relative DOCS/ paths; Current Architecture |
+| backend.md | `/DOCS/backend.md` | 2026-02-03 | ✅ Synced | v3.2 - Firebase, cloud functions |
+| git.md | `/DOCS/git.md` | 2026-02-03 | ✅ Synced | Git history and key phases |
 
 ### White Papers & Specifications
 
@@ -81,6 +81,16 @@ Prompt/role definitions: **Documentation & Configuration Management Role** in [c
 ---
 
 ## Change Tracking Log
+
+### 2026-02-03 - Update all documentation; commit, push, merge
+
+**Action:** Full documentation update pass; commit DOCS changes; push test; merge test into main.
+
+**Doc updates:** CONFIGURATION_MANAGEMENT (this entry); core inventory Last Reviewed dates confirmed. All DOCS aligned with repo state.
+
+**Status:** ✅ Documentation updated; commit, push, and merge to main complete.
+
+---
 
 ### 2026-02-03 - Merge test → main; backup branch created
 

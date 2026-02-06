@@ -1,6 +1,6 @@
-# Enterprise Voice Mode
+# Enterprise Voice and LUMARA Default Behavior
 
-**Purpose:** Specification and roadmap for the Enterprise voice interface: command-driven voice, session limits, cooldowns, and AURORA usage tracking. This doc describes the **target** design; implementation (lib/arc/voice, EnterpriseVoiceMode, etc.) is not yet complete.
+**Purpose:** Specification and roadmap for (1) the Enterprise voice interface—command-driven voice, session limits, cooldowns, AURORA usage tracking—and (2) LUMARA default behavior (Claude-like) vs advanced modes (Explore | Integrate). This doc describes the **target** design and **current** LUMARA/voice wiring.
 
 **Related:** [LUMARA_ENTERPRISE_ARCHITECTURE_GUIDE.md](LUMARA_ENTERPRISE_ARCHITECTURE_GUIDE.md); [SUBSYSTEMS.md](SUBSYSTEMS.md) (AURORA); [MASTER_PROMPT_CONTEXT.md](MASTER_PROMPT_CONTEXT.md) (voice payload and LAYER 2.5).
 
@@ -44,14 +44,27 @@
 
 ---
 
-## 4. Current State
+## 4. LUMARA Default: Claude-like; Explore | Integrate = Rich
 
-- **Voice today:** Handled in EnhancedLumaraApi with `skipHeavyProcessing = true`; short system prompt (`getVoicePromptSystemOnly`) and user message (`buildVoiceUserMessage`); truncation by `VoiceResponseConfig.getVoicePromptMaxChars`. No orchestrator call; no enterprise command syntax or session limits.
-- **AURORA subsystem:** Stub in `lib/arc/chat/services/aurora_subsystem.dart`; returns empty aggregations. No usage_tracker or VoiceSessionLog in the guide’s form yet; `lib/aurora/` exists with different layout (circadian, VEIL).
+**Design:** LUMARA’s default behavior is **Claude-like** (direct, concise answers; no automatic cross-entry dumps). The **advanced** engagement modes **Explore** and **Integrate** are the ones that “pour out” information and link to other entries, CHRONICLE, and chats.
+
+- **Default (Reflect):** Engagement mode `reflect`. Short responses (~4 sentences, ~120 words), no question expansion by default, minimal cross-entry context. Described in UI as: “Like Claude: direct, concise answers. No cross-entry links or long context unless you switch to Explore or Integrate.”
+- **Explore:** Surface patterns and invite deeper examination; links to other entries and CHRONICLE. Longer responses (~10 sentences, ~400 words).
+- **Integrate:** Synthesize across domains and time; “pours out” connections and links. Longest responses (~15 sentences, ~500 words).
+
+**Implementation:** `EngagementMode` and `engagementLengthTargets` in `lib/arc/chat/services/enhanced_lumara_api.dart`; `LumaraReflectionOptions.preferQuestionExpansion` defaults to `false`; engagement descriptions in `lib/models/engagement_discipline.dart`. Voice and written LUMARA both respect the selected engagement mode (reflect/explore/integrate).
 
 ---
 
-## 5. Implementation Order (when pursued)
+## 5. Current State (Voice and Reflection Handler)
+
+- **Voice today:** Handled in EnhancedLumaraApi with `skipHeavyProcessing = true`; short system prompt and user message; truncation by `VoiceResponseConfig.getVoicePromptMaxChars`. No orchestrator call; no enterprise command syntax or session limits.
+- **Reflection handler:** All LUMARA reflection entry points route through `ReflectionHandler` (`lib/arc/chat/services/reflection_handler.dart`). When `entryId` is set, session tracking and AURORA reflection monitoring apply; when `entryId` is null (e.g. voice, overview generation), handler passes through to LUMARA only. Wired in: `journal_screen.dart`, `lumara_assistant_cubit.dart`, `journal_capture_cubit.dart` (overview), `voice_session_service.dart`.
+- **AURORA subsystem:** Stub in `lib/arc/chat/services/aurora_subsystem.dart`; returns empty aggregations. AURORA reflection monitoring (rumination, validation-seeking, avoidance, pause/notice) lives in `lib/aurora/reflection/aurora_reflection_service.dart` and is used by ReflectionHandler when `entryId` is present. No usage_tracker or VoiceSessionLog in the guide’s form yet; `lib/aurora/` exists with different layout (circadian, VEIL).
+
+---
+
+## 6. Implementation Order (when pursued)
 
 1. Define **command set** and **command_syntax_validator** (allowed phrases/patterns, rejection message).
 2. Add **EnterpriseVoiceMode** (or equivalent) that enforces 3 min session, 15 min cooldown, 3/day; integrate with AURORA usage tracking when available.
@@ -62,7 +75,7 @@
 
 ---
 
-## 6. Docs and Code References
+## 7. Docs and Code References
 
 - **Master Prompt (voice):** [MASTER_PROMPT_CONTEXT.md](MASTER_PROMPT_CONTEXT.md) §8 – getVoicePromptSystemOnly, buildVoiceUserMessage, LAYER 2.5.
 - **File and doc summary:** [LUMARA_ENTERPRISE_ARCHITECTURE_GUIDE.md](LUMARA_ENTERPRISE_ARCHITECTURE_GUIDE.md) §2 – lib/arc/voice, EnterpriseVoiceMode, voice entry point status.

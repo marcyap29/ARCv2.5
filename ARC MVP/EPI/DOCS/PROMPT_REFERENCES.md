@@ -1051,9 +1051,9 @@ System and user prompts for the EXAMINE stage of the VEIL narrative integration 
 
 ## Voice Journal Entry Creation
 
-**Location:** `lib/arc/chat/voice/voice_journal/new_voice_journal_service.dart`
+**Location:** `lib/arc/chat/voice/voice_journal/unified_voice_service.dart`
 
-Used when converting a completed Voice Journal conversation into a journal entry (title, summary, transcript). Distinct from the "Voice Mode Session Summary" prompt (memory-system summary).
+Used when converting a completed voice conversation into a journal entry (title, summary, transcript). Distinct from the "Voice Mode Session Summary" prompt (memory-system summary).
 
 **Tag:** `[VOICE_JOURNAL_SUMMARIZATION]`
 
