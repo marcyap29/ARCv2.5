@@ -7,7 +7,7 @@
 
 ## Overview
 
-This directory contains all documentation related to Stripe payment integration for ARC's subscription system. The integration enables premium subscriptions (monthly/annual) and a Founders upfront commitment option.
+This directory contains all documentation related to **Stripe** payment integration for ARC's subscription system. Stripe is used for **web** purchases (Checkout and Customer Portal). **In-app purchases** (Apple/Google) are handled by RevenueCat—see [PAYMENTS_CLARIFICATION.md](../PAYMENTS_CLARIFICATION.md) and [revenuecat/README.md](../revenuecat/README.md). This Stripe integration enables premium subscriptions (monthly/annual) and a Founders upfront commitment option on the web.
 
 ---
 

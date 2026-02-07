@@ -1,14 +1,14 @@
 # Backend Architecture & Setup
 
 **Version:** 3.2
-**Last Updated:** January 31, 2026
-**Status:** ✅ Production Ready with Adaptive Framework, Companion-First LUMARA, Validation & Logging, Health Integration, AssemblyAI v3, Internet Access, Enhanced Classification-Aware PRISM Privacy Protection, Stripe Integration, and Local Backup Services
+**Last Updated:** February 7, 2026
+**Status:** ✅ Production Ready with Adaptive Framework, Companion-First LUMARA, Validation & Logging, Health Integration, AssemblyAI v3, Internet Access, Enhanced Classification-Aware PRISM Privacy Protection, Stripe Integration (web), RevenueCat (in-app purchases), and Local Backup Services
 
 ---
 
 ## Overview
 
-EPI MVP uses Firebase as its backend infrastructure for authentication, cloud functions, and subscription management. This document covers the complete backend setup, architecture, and deployment procedures.
+EPI MVP uses Firebase as its backend infrastructure for authentication, cloud functions, and subscription management. **Stripe** is used for web-based subscription/payments; **RevenueCat** powers in-app purchases (iOS/Android). See [PAYMENTS_CLARIFICATION.md](PAYMENTS_CLARIFICATION.md) and [revenuecat/README.md](revenuecat/README.md) for how the two fit together. This document covers Firebase backend setup, architecture, and deployment procedures.
 
 ---
 

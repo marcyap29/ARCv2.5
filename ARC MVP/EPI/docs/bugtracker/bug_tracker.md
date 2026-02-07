@@ -1,7 +1,7 @@
 # EPI MVP - Bug Tracker
 
 **Version:** 3.2.2  
-**Last Updated:** January 31, 2026  
+**Last Updated:** February 7, 2026  
 **Record count:** 28 individual bug records in [records/](records/). Index below matches all files in records/.
 
 ---
@@ -89,7 +89,7 @@ This section is derived from the repo and [CHANGELOG.md](../CHANGELOG.md) to kee
 | Import status bar, mini bar, per-file status | v3.3.13 | — | Feature; not a bug. See CHANGELOG. |
 | Wispr Flow cache – new API key not used until restart | v3.3.13 | [wispr-flow-cache-issue.md](records/wispr-flow-cache-issue.md) ✅ | WisprConfigService cached key; fix: clearCache() on save in Settings. |
 
-**Source:** `git log --oneline`, [CHANGELOG.md](../CHANGELOG.md). Last synced: 2026-01-31.
+**Source:** `git log --oneline`, [CHANGELOG.md](../CHANGELOG.md). Last synced: 2026-02-07.
 
 ---
 
@@ -104,4 +104,4 @@ Individual bug records stay in [records/](records/); only the legacy multi-part 
 ---
 
 **Status**: ✅ Active - All resolved issues documented  
-**Last Updated**: January 31, 2026
+**Last Updated**: February 7, 2026
