@@ -172,8 +172,8 @@ class _McpExportScreenState extends State<McpExportScreen> {
       // Show progress dialog
       _showProgressDialog(progressNotifier);
 
-      // Always use ARCX secure format (per spec - .zip option removed)
-      if (_exportFormat == 'arcx') {
+      // ARCX for secure format or when password is set (ZIP + password => .arcx for compatibility)
+      if (_exportFormat == 'arcx' || (_exportFormat == 'zip' && _usePasswordEncryption)) {
         // Secure .arcx export
         final outputDir = await getApplicationDocumentsDirectory();
         final exportsDir = Directory(path.join(outputDir.path, 'Exports'));
@@ -809,8 +809,8 @@ class _McpExportScreenState extends State<McpExportScreen> {
           children: [
             // Description
 
-            // Redaction settings (ARCX format only)
-            if (_exportFormat == 'arcx') ...[
+            // Security (ARCX and ZIP: with password, ZIP is saved as .arcx for compatibility)
+            if (_exportFormat == 'arcx' || _exportFormat == 'zip') ...[
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
@@ -837,20 +837,23 @@ class _McpExportScreenState extends State<McpExportScreen> {
                       ],
                     ),
                     const SizedBox(height: 8),
-                  // Password encryption temporarily disabled - causes hangs with large files
-                  // _buildOptionTile(
-                  //   title: 'Use password encryption',
-                  //   subtitle: 'Create portable archives that work on any device (requires password)',
-                  //   value: _usePasswordEncryption,
-                  //   onChanged: (value) {
-                  //     setState(() {
-                  //       _usePasswordEncryption = value;
-                  //       if (value && _exportPassword == null) {
-                  //         _showPasswordDialog();
-                  //       }
-                  //     });
-                  //   },
-                  // ),
+                  _buildOptionTile(
+                    title: 'Encrypt with password',
+                    subtitle: _exportFormat == 'zip'
+                        ? 'Saves as .arcx so you can open on any device (you’ll need the password to restore)'
+                        : 'Portable backup you can open on any device (you’ll need the password to restore)',
+                    value: _usePasswordEncryption,
+                    onChanged: (value) {
+                      setState(() {
+                        _usePasswordEncryption = value;
+                        if (!value) {
+                          _exportPassword = null;
+                        } else if (_exportPassword == null) {
+                          _showPasswordDialog();
+                        }
+                      });
+                    },
+                  ),
                     if (_usePasswordEncryption && _exportPassword != null)
                       Padding(
                         padding: const EdgeInsets.only(top: 8, left: 16),

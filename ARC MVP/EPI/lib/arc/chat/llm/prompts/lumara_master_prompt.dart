@@ -103,7 +103,9 @@ ${_buildContextSection(mode: mode, baseContext: baseContext, chronicleContext: c
 CRITICAL: WORD LIMIT ENFORCEMENT
 ═══════════════════════════════════════════════════════════
 
-Check `responseMode.maxWords` in the control state above.
+**EXCEPTION - Written chat and journal (Reflect, Explore, Integrate):** If `responseMode.noWordLimit` is `true` OR `responseLength.max_sentences` is `-1`, there is NO word or sentence limit. Respond at natural length like a full conversation assistant. Skip the rest of this section.
+
+Otherwise: Check `responseMode.maxWords` in the control state above.
 
 **YOU MUST RESPECT THIS WORD LIMIT ABSOLUTELY.**
 
@@ -2640,7 +2642,7 @@ Only use ending questions when they:
 
 **FINAL CHECK BEFORE RESPONDING**:
 
-0. **WORD LIMIT CHECK**: Check `responseMode.maxWords` in the control state. Count your words. If you exceed the limit, REWRITE to be shorter. This is ABSOLUTE and NON-NEGOTIABLE.
+0. **WORD LIMIT CHECK**: If `responseMode.noWordLimit` is `true` OR `responseLength.max_sentences` is `-1`, SKIP this step (no length limit). Otherwise: Check `responseMode.maxWords` in the control state. Count your words. If you exceed the limit, REWRITE to be shorter. This is ABSOLUTE and NON-NEGOTIABLE.
 
 0.5. **VOICE MODE CHECK** (CRITICAL - DO THIS FIRST):
    - Check `responseMode.interactionType` in control state

@@ -228,7 +228,7 @@ class _KeywordAnalysisViewState extends State<KeywordAnalysisView>
       final journalCaptureCubit = context.read<JournalCaptureCubit>();
       final timelineCubit = context.read<TimelineCubit>();
       
-      journalCaptureCubit.updateEntryWithKeywords(
+      await journalCaptureCubit.updateEntryWithKeywords(
         existingEntry: widget.existingEntry!,
         content: widget.content,
         mood: widget.mood,
@@ -245,32 +245,28 @@ class _KeywordAnalysisViewState extends State<KeywordAnalysisView>
         allowTimestampEditing: widget.isTimelineEditing, // Allow timestamp editing only when editing from timeline
         enableAutoSummary: _generateSummaryForEdit,
       );
-      
+
+      if (!mounted) return;
       // Show success message with keyword count
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Entry updated successfully with ${uniqueKeywords.length} keywords'
-            ),
-            backgroundColor: kcSuccessColor,
-            duration: const Duration(seconds: 3),
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Entry updated successfully with ${uniqueKeywords.length} keywords'
           ),
-        );
-        
-        // Reload all entries to handle date changes properly
-        timelineCubit.reloadAllEntries();
-        
-        // Return result to previous screen instead of navigating directly to home
-        Navigator.of(context).pop({'save': true});
-      }
+          backgroundColor: kcSuccessColor,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+      // Reload timeline after save so the updated entry (including video) is visible
+      timelineCubit.reloadAllEntries();
+      Navigator.of(context).pop({'save': true});
     } else {
       // Save new entry - check if mounted before using context
       if (!mounted) return;
       final journalCaptureCubit = context.read<JournalCaptureCubit>();
       final timelineCubit = context.read<TimelineCubit>();
       
-      journalCaptureCubit.saveEntryWithKeywords(
+      await journalCaptureCubit.saveEntryWithKeywords(
         content: widget.content,
         mood: widget.mood,
         selectedKeywords: uniqueKeywords,
@@ -281,24 +277,19 @@ class _KeywordAnalysisViewState extends State<KeywordAnalysisView>
         blocks: widget.lumaraBlocks, // Pass LUMARA blocks
         title: _titleController.text.trim(),
       );
-    
-    // Show success message with keyword count
-    if (mounted) {
+
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-              'Entry saved successfully with ${uniqueKeywords.length} keywords'
+            'Entry saved successfully with ${uniqueKeywords.length} keywords'
           ),
           backgroundColor: kcSuccessColor,
           duration: const Duration(seconds: 3),
         ),
       );
-      
-        timelineCubit.refreshEntries();
-      
-      // Return result to previous screen instead of navigating directly to home
+      timelineCubit.refreshEntries();
       Navigator.of(context).pop({'save': true});
-      }
     }
   }
 

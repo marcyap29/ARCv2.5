@@ -79,17 +79,31 @@ class InlineBlock {
   }
 
   factory InlineBlock.fromJson(Map<String, dynamic> json) {
-    final traces = json['attributionTraces'] != null
-        ? (json['attributionTraces'] as List)
-            .map((t) => AttributionTrace.fromJson(t as Map<String, dynamic>))
-            .toList()
-        : null;
-    
+    List<AttributionTrace>? traces;
+    if (json['attributionTraces'] != null && json['attributionTraces'] is List) {
+      try {
+        traces = (json['attributionTraces'] as List)
+            .map((t) => t is Map<String, dynamic> ? AttributionTrace.fromJson(t) : null)
+            .whereType<AttributionTrace>()
+            .toList();
+        if (traces.isEmpty) traces = null;
+      } catch (_) {
+        traces = null;
+      }
+    }
+    // Legacy entries may have missing or wrong-typed fields; use safe defaults so entries are not skipped.
+    final type = json['type'] is String ? json['type'] as String : 'inline_reflection';
+    final intent = json['intent'] is String ? json['intent'] as String : 'ideas';
+    final content = json['content'] is String ? json['content'] as String : '';
+    final rawTimestamp = json['timestamp'];
+    final timestamp = rawTimestamp is int
+        ? rawTimestamp
+        : (rawTimestamp is num ? rawTimestamp.toInt() : 0);
     return InlineBlock(
-      type: json['type'] as String,
-      intent: json['intent'] as String,
-      content: json['content'] as String,
-      timestamp: json['timestamp'] as int,
+      type: type,
+      intent: intent,
+      content: content,
+      timestamp: timestamp,
       phase: json['phase'] as String?,
       userComment: json['userComment'] as String?,
       attributionTraces: traces,
@@ -128,7 +142,7 @@ class JournalEntryState {
   String text = '';
   String? phase; // Discovery, Recovery, Breakthrough, Consolidation
   final List<InlineBlock> blocks = [];
-  final List<dynamic> attachments = []; // Can contain ScanAttachment, PhotoAttachment, or VideoAttachment
+  final List<dynamic> attachments = []; // Can contain ScanAttachment, PhotoAttachment, VideoAttachment, or FileAttachment
 
   /// Whether to show LUMARA nudge animation
   bool get showLumaraNudge => text.trim().length >= 30;
@@ -152,6 +166,11 @@ class JournalEntryState {
 
   /// Add a video attachment
   void addVideoAttachment(VideoAttachment attachment) {
+    attachments.add(attachment);
+  }
+
+  /// Add a file attachment (PDF, .md, Doc, etc.)
+  void addFileAttachment(FileAttachment attachment) {
     attachments.add(attachment);
   }
 
@@ -345,6 +364,67 @@ class VideoAttachment {
       duration: duration ?? this.duration,
       sizeBytes: sizeBytes ?? this.sizeBytes,
       thumbnailPath: thumbnailPath ?? this.thumbnailPath,
+    );
+  }
+}
+
+/// File attachment for PDF, Markdown, Word documents
+class FileAttachment {
+  final String type; // 'file'
+  final String filePath;
+  final String fileName;
+  final String mimeType; // e.g. application/pdf, text/markdown
+  final int timestamp;
+  final String? fileId;
+  final String? extractedText; // For keyword extraction (OCR/text extraction)
+
+  FileAttachment({
+    required this.type,
+    required this.filePath,
+    required this.fileName,
+    required this.mimeType,
+    required this.timestamp,
+    this.fileId,
+    this.extractedText,
+  });
+
+  Map<String, dynamic> toJson() => {
+    'type': type,
+    'filePath': filePath,
+    'fileName': fileName,
+    'mimeType': mimeType,
+    'timestamp': timestamp,
+    'fileId': fileId,
+    'extractedText': extractedText,
+  };
+
+  factory FileAttachment.fromJson(Map<String, dynamic> json) => FileAttachment(
+    type: json['type'] as String,
+    filePath: json['filePath'] as String,
+    fileName: json['fileName'] as String,
+    mimeType: json['mimeType'] as String,
+    timestamp: json['timestamp'] as int,
+    fileId: json['fileId'] as String?,
+    extractedText: json['extractedText'] as String?,
+  );
+
+  FileAttachment copyWith({
+    String? type,
+    String? filePath,
+    String? fileName,
+    String? mimeType,
+    int? timestamp,
+    String? fileId,
+    String? extractedText,
+  }) {
+    return FileAttachment(
+      type: type ?? this.type,
+      filePath: filePath ?? this.filePath,
+      fileName: fileName ?? this.fileName,
+      mimeType: mimeType ?? this.mimeType,
+      timestamp: timestamp ?? this.timestamp,
+      fileId: fileId ?? this.fileId,
+      extractedText: extractedText ?? this.extractedText,
     );
   }
 }

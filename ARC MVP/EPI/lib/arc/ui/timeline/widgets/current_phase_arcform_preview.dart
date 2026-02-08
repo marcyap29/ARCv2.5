@@ -16,7 +16,6 @@ import 'package:my_app/services/rivet_sweep_service.dart';
 import 'package:my_app/arc/core/journal_repository.dart';
 import 'package:my_app/arc/arcform/share/arcform_share_composition_screen.dart';
 import 'package:my_app/prism/atlas/rivet/rivet_models.dart';
-import 'package:my_app/prism/atlas/rivet/rivet_provider.dart';
 import 'package:my_app/prism/atlas/rivet/rivet_service.dart';
 import 'package:my_app/arc/ui/arcforms/phase_recommender.dart';
 import 'package:my_app/services/user_phase_service.dart';
@@ -64,55 +63,43 @@ class _CompactArcformPreviewState extends State<_CompactArcformPreview> {
     _loadSnapshots();
   }
 
-  // Copy the exact same loading logic from SimplifiedArcformView3D
+  // Resolve phase using the same order as the Phase tab so Conversations preview stays in sync.
+  // Order: 1) current regime, 2) most recent regime, 3) UserProfile/quiz.
+  String _capitalizePhase(String raw) {
+    if (raw.trim().isEmpty) return 'Discovery';
+    final p = raw.trim();
+    return p[0].toUpperCase() + p.substring(1).toLowerCase();
+  }
+
   Future<void> _loadSnapshots() async {
     setState(() {
       _isLoading = true;
     });
 
     try {
-      // Prefer phase from Phase tab (UserProfile) when set, so Conversations/timeline preview matches Phase tab
-      final profilePhase = await UserPhaseService.getCurrentPhase();
+      // Same resolution as Phase tab: regime first, then UserProfile
+      final analyticsService = AnalyticsService();
+      final rivetSweepService = RivetSweepService(analyticsService);
+      final phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
+      await phaseRegimeService.initialize();
+
       String currentPhaseCapitalized;
-      if (profilePhase.trim().isNotEmpty) {
-        final p = profilePhase.trim();
-        currentPhaseCapitalized = p[0].toUpperCase() + p.substring(1).toLowerCase();
+      final currentRegime = phaseRegimeService.phaseIndex.currentRegime;
+      final allRegimes = phaseRegimeService.phaseIndex.allRegimes;
+
+      if (currentRegime != null) {
+        final phaseName = currentRegime.label.toString().split('.').last;
+        currentPhaseCapitalized = _capitalizePhase(phaseName.isEmpty ? 'Discovery' : phaseName);
+      } else if (allRegimes.isNotEmpty) {
+        final sortedRegimes = List.from(allRegimes)..sort((a, b) => b.start.compareTo(a.start));
+        final phaseName = sortedRegimes.first.label.toString().split('.').last;
+        currentPhaseCapitalized = _capitalizePhase(phaseName.isEmpty ? 'Discovery' : phaseName);
       } else {
-        // Fallback: SOP 1a RIVET (gate open + regime), else 1b quiz result, else Discovery
-        final analyticsService = AnalyticsService();
-        final rivetSweepService = RivetSweepService(analyticsService);
-        final phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
-        await phaseRegimeService.initialize();
-
-        bool rivetGateOpen = false;
-        try {
-          final rivetProvider = RivetProvider();
-          if (!rivetProvider.isAvailable) {
-            await rivetProvider.initialize('default_user');
-          }
-          rivetGateOpen = rivetProvider.service?.wouldGateOpen() ?? false;
-        } catch (_) {}
-
-        String? regimePhase;
-        final currentRegime = phaseRegimeService.phaseIndex.currentRegime;
-        final allRegimes = phaseRegimeService.phaseIndex.allRegimes;
-        if (currentRegime != null) {
-          final phaseName = currentRegime.label.toString().split('.').last;
-          regimePhase = phaseName.isEmpty ? 'Discovery' : phaseName[0].toUpperCase() + phaseName.substring(1).toLowerCase();
-        } else if (allRegimes.isNotEmpty) {
-          final sortedRegimes = List.from(allRegimes)..sort((a, b) => b.start.compareTo(a.start));
-          final phaseName = sortedRegimes.first.label.toString().split('.').last;
-          regimePhase = phaseName.isEmpty ? 'Discovery' : phaseName[0].toUpperCase() + phaseName.substring(1).toLowerCase();
-        }
-
-        final currentPhase = UserPhaseService.getDisplayPhase(
-          regimePhase: regimePhase,
-          rivetGateOpen: rivetGateOpen,
-          profilePhase: profilePhase,
-        );
-        currentPhaseCapitalized = currentPhase.isEmpty
-            ? 'Discovery'
-            : currentPhase[0].toUpperCase() + currentPhase.substring(1).toLowerCase();
+        // No regimes (e.g. right after phase quiz) - use Phase tab source: UserProfile/quiz
+        final profilePhase = await UserPhaseService.getCurrentPhase();
+        currentPhaseCapitalized = profilePhase.trim().isNotEmpty
+            ? _capitalizePhase(profilePhase)
+            : 'Discovery';
       }
 
       // Check if user has entries for this phase

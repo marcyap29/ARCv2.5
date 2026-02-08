@@ -24,11 +24,11 @@ extension EngagementModeExtension on EngagementMode {
   String get description {
     switch (this) {
       case EngagementMode.reflect:
-        return 'Surface patterns and stop. Best for journaling without exploration.';
+        return 'Like Claude: direct, concise answers. No cross-entry links or long context unless you switch to Explore or Integrate.';
       case EngagementMode.explore:
-        return 'Surface patterns and invite deeper examination. Best for active sense-making.';
+        return 'Surface patterns and invite deeper examination. Links to other entries and CHRONICLE. Best for active sense-making.';
       case EngagementMode.integrate:
-        return 'Synthesize across domains and time horizons. Best for holistic understanding.';
+        return 'Synthesize across domains and time horizons. Pours out connections and links. Best for holistic understanding.';
     }
   }
 

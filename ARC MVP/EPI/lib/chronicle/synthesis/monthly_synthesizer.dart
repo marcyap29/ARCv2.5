@@ -8,6 +8,17 @@ import '../models/chronicle_aggregation.dart';
 import '../models/chronicle_layer.dart';
 import 'pattern_detector.dart';
 
+/// Words that must not be used as theme names (pronouns, articles, fillers, generic verbs).
+const _nonThemeWords = {
+  'that', 'what', 'this', 'it', 'the', 'a', 'an', 'and', 'or', 'but',
+  'is', 'are', 'was', 'were', 'have', 'has', 'had', 'do', 'does', 'did',
+  'will', 'would', 'could', 'should', 'may', 'might', 'can', 'something',
+  'things', 'how', 'when', 'why', 'where', 'which', 'who', 'them', 'their',
+  'there', 'then', 'than', 'just', 'only', 'even', 'also', 'very', 'really',
+  'over', 'makes', 'processing', 'slower', 'okay', 'make', 'made', 'getting',
+  'being', 'going', 'like', 'into', 'with', 'from', 'for', 'about', 'some',
+};
+
 /// Monthly Synthesizer (Layer 1)
 /// 
 /// Synthesizes raw entries from a month into a monthly aggregation.
@@ -67,20 +78,25 @@ class MonthlySynthesizer {
     // 6. Extract themes using LLM for richer descriptions
     final llmThemes = await _extractThemesWithLLM(entrySchemas);
 
+    // 6b. Generate narrative summary: "What happened this month"
+    final monthNarrative = await _generateMonthNarrative(month: month, entrySchemas: entrySchemas);
+
     // 7. Calculate original token count (before markdown generation)
     final originalTokens = entrySchemas
         .map((e) => e.content.split(RegExp(r'\s+')).length)
         .reduce((a, b) => a + b);
 
-    // 8. Generate markdown content
+    // 8. Generate markdown content (with linked entries for LUMARA drill-down)
     final markdown = await _generateMonthlyMarkdown(
       month: month,
       entryCount: entrySchemas.length,
+      entrySchemas: entrySchemas,
       themes: llmThemes.isNotEmpty ? llmThemes : themes,
       phaseDistribution: phaseDistribution,
       sentinelTrend: sentinelTrend,
       events: events,
       originalTokens: originalTokens,
+      monthNarrative: monthNarrative,
     );
 
     // 9. Calculate compression ratio
@@ -129,10 +145,10 @@ class MonthlySynthesizer {
     if (entries.isEmpty) return [];
 
     try {
-      // Build prompt for theme extraction
+      // Build prompt for theme extraction (more entries and chars for richer detail; compatible with PII scrub/restore)
       final entriesText = entries
-          .take(10) // Limit to first 10 entries to avoid token limits
-          .map((e) => 'ID: ${e.entryId}\n${e.content.substring(0, e.content.length > 500 ? 500 : e.content.length)}')
+          .take(40)
+          .map((e) => 'ID: ${e.entryId}\n${e.content.substring(0, e.content.length > 1000 ? 1000 : e.content.length)}')
           .join('\n\n---\n\n');
 
       final systemPrompt = '''You are performing the EXAMINE stage of the VEIL narrative integration cycle.
@@ -149,11 +165,11 @@ developmental trajectory. This is not summarization - it's pattern recognition
 that reveals what the user was experiencing and becoming this month.
 
 For each theme, provide:
-- Theme name (concise, 1-3 words)
+- Theme name: a meaningful topic or concept (1-3 words). Use nouns or noun phrases (e.g. "career transition", "family boundaries", "sleep routine"). Do NOT use pronouns, articles, verbs, or filler words as themes (never: "that", "what", "this", "over", "makes", "processing", "slower", "okay", "how", "when", "why", "something", "things", "like", "getting", "being", "going").
 - Confidence level (high/medium/low) - mark as high only if pattern appeared 3+ times
 - Entry IDs that support this theme
-- Brief pattern description
-- Emotional arc if applicable
+- Brief pattern description: include specific details from the entries when relevant (names, places, projects, events)—not generic summaries. This feeds temporal memory that may be scrubbed for cloud; specifics are preserved on device and restored in responses.
+- Emotional arc if applicable (can reference concrete situations from entries)
 
 Output as JSON array:
 [
@@ -183,27 +199,86 @@ Output JSON array of themes:''';
         jsonExpected: true,
       );
 
-      // Parse JSON response
+      // Parse JSON response and filter out non-themes (e.g. "That", "What")
       final json = jsonDecode(response) as List;
-      return json.map((item) {
+      final themes = <DetectedTheme>[];
+      for (final item in json) {
         final map = item as Map<String, dynamic>;
+        final name = (map['name'] as String? ?? '').trim();
+        if (name.isEmpty || _isNonTheme(name)) continue;
         final confidenceStr = (map['confidence'] as String? ?? 'medium').toLowerCase();
         double confidence = 0.5;
         if (confidenceStr == 'high') confidence = 0.9;
         else if (confidenceStr == 'medium') confidence = 0.7;
         else confidence = 0.5;
+        final entryIds = List<String>.from(map['entry_ids'] as List? ?? []);
 
-        return DetectedTheme(
-          name: map['name'] as String,
+        themes.add(DetectedTheme(
+          name: name,
           confidence: confidence,
-          entryIds: List<String>.from(map['entry_ids'] as List),
-          frequency: (map['entry_ids'] as List).length / entries.length,
-        );
-      }).toList();
+          entryIds: entryIds,
+          frequency: entries.isEmpty ? 0.0 : entryIds.length / entries.length,
+          patternDescription: map['pattern'] as String?,
+          emotionalArc: map['emotional_arc'] as String?,
+        ));
+      }
+      return themes;
     } catch (e) {
       print('⚠️ MonthlySynthesizer: LLM theme extraction failed: $e');
-      // Fallback to pattern detector
-      return await _patternDetector.extractThemes(entries: entries, maxThemes: 5);
+      // Fallback to pattern detector (filter non-themes there too)
+      final fallback = await _patternDetector.extractThemes(entries: entries, maxThemes: 8);
+      return fallback.where((t) => !_isNonTheme(t.name)).toList();
+    }
+  }
+
+  /// True if [name] is a non-theme (pronoun, article, or common word).
+  static bool _isNonTheme(String name) {
+    final lower = name.trim().toLowerCase();
+    if (lower.isEmpty || lower.length < 2) return true;
+    if (_nonThemeWords.contains(lower)) return true;
+    // Single "word" that is just digits or punctuation
+    if (RegExp(r'^[\d\s\W]+$').hasMatch(lower)) return true;
+    return false;
+  }
+
+  /// Generate a narrative summary of what happened this month (1–2 paragraphs).
+  Future<String> _generateMonthNarrative({
+    required String month,
+    required List<RawEntrySchema> entrySchemas,
+  }) async {
+    if (entrySchemas.isEmpty) return '';
+
+    final monthName = _formatMonthName(month);
+    try {
+      // More entries and longer snippets for full detail on device; same content is scrubbed when sent to cloud and restored in responses
+      final entriesText = entrySchemas
+          .take(80)
+          .map((e) => e.content.substring(0, e.content.length > 1200 ? 1200 : e.content.length))
+          .join('\n\n---\n\n');
+
+      final systemPrompt = '''You write detailed month-in-review summaries for a personal journaling app (memory files the owner will read).
+Based only on the journal entry content provided, write a detailed narrative in third person that:
+- Preserves concrete details: specific names, places, events, dates, and projects from the entries. Pull out and include specific details, not generic summaries.
+- Covers what actually happened this month (events, routines, changes), what the person was focused on or struggling with, multiple themes (work, family, health, projects), and notable emotional or relational themes.
+Write in clear, narrative prose: flowing paragraphs, no bullet points. Weave specifics from the entries; avoid generic tags like "Personal" or "Family" by themselves. Length: several paragraphs if the month has rich content; be concise only when entries are sparse or vague. Do not mention "References" or entry IDs.
+Target readability: Flesch-Kincaid grade level 8. Use clear sentences and common words. Full detail is kept on device; this text may be privacy-scrubbed when sent to cloud and restored in responses.''';
+
+      final userPrompt = '''Journal entries from $monthName:
+
+$entriesText
+
+Write a detailed narrative of what happened and what mattered this month, preserving specific names, places, events, and projects from the entries:''';
+
+      final response = await geminiSend(
+        system: systemPrompt,
+        user: userPrompt,
+        jsonExpected: false,
+      );
+      final trimmed = response.trim();
+      return trimmed.isNotEmpty ? trimmed : '';
+    } catch (e) {
+      print('⚠️ MonthlySynthesizer: Month narrative failed: $e');
+      return '';
     }
   }
 
@@ -211,25 +286,43 @@ Output JSON array of themes:''';
   Future<String> _generateMonthlyMarkdown({
     required String month,
     required int entryCount,
+    required List<RawEntrySchema> entrySchemas,
     required List<DetectedTheme> themes,
     required Map<String, double> phaseDistribution,
     required SentinelTrend sentinelTrend,
     required List<SignificantEvent> events,
     required int originalTokens,
+    String monthNarrative = '',
   }) async {
     final monthName = _formatMonthName(month);
     final synthesisDate = DateTime.now();
 
-    // Build themes section
+    // Linked entries: date | entry_id so LUMARA can retrieve specific dated entries from this month
+    final sortedByDate = List<RawEntrySchema>.from(entrySchemas)
+      ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
+    final linkedEntriesSection = sortedByDate
+        .map((e) {
+          final d = e.timestamp;
+          final dateStr = '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+          return '$dateStr | ${e.entryId}';
+        })
+        .join('\n');
+
+    // Build themes section: lead with narrative (pattern/emotional arc), not references or raw keywords
     final themesSection = themes.map((theme) {
       final confidenceLabel = theme.confidence >= 0.8
           ? 'high'
           : theme.confidence >= 0.6
               ? 'medium'
               : 'low';
-      return '''**${theme.name}** (confidence: $confidenceLabel)
-- References: entries ${theme.entryIds.take(5).map((id) => '#$id').join(', ')}${theme.entryIds.length > 5 ? '...' : ''}
-- Pattern: Appears in ${(theme.frequency * 100).toStringAsFixed(0)}% of entries''';
+      final hasDescription = theme.patternDescription != null && theme.patternDescription!.trim().isNotEmpty;
+      final parts = <String>[
+        '**${theme.name}** (confidence: $confidenceLabel)',
+        if (hasDescription) theme.patternDescription!.trim(),
+        if (theme.emotionalArc != null && theme.emotionalArc!.trim().isNotEmpty) 'Emotional arc: ${theme.emotionalArc!.trim()}',
+        if (!hasDescription) 'Recurred across ${(theme.frequency * 100).toStringAsFixed(0)}% of entries.',
+      ];
+      return parts.join('\n\n');
     }).join('\n\n');
 
     // Build phase section
@@ -272,7 +365,17 @@ source_entry_ids: ${themes.expand((t) => t.entryIds).toSet().join(', ')}
 **Synthesis date:** ${synthesisDate.toIso8601String()}  
 **Entry count:** $entryCount entries
 
-## Dominant Themes
+## What happened this month
+
+${monthNarrative.isNotEmpty ? monthNarrative : '*No narrative summary generated.*'}
+
+## Linked entries (this month)
+
+Each line links this summary to a specific journal entry. LUMARA can use these to retrieve or cite the dated entry.
+
+$linkedEntriesSection
+
+## Dominant themes
 
 $themesSection
 

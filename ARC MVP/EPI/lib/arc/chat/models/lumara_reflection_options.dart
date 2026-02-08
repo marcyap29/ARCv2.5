@@ -96,7 +96,7 @@ class LumaraReflectionOptions {
   final ConversationMode? conversationMode;
 
   LumaraReflectionOptions({
-    this.preferQuestionExpansion = true, // Default to More Depth enabled
+    this.preferQuestionExpansion = false, // Default = Claude-like; use Explore/Integrate for rich context
     this.toneMode = ToneMode.normal,
     this.regenerate = false,
     this.conversationMode,

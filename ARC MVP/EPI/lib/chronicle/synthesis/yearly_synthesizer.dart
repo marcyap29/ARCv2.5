@@ -1,3 +1,4 @@
+import '../../services/gemini_send.dart';
 import '../storage/aggregation_repository.dart';
 import '../storage/changelog_repository.dart';
 import '../models/chronicle_aggregation.dart';
@@ -56,6 +57,9 @@ class YearlySynthesizer {
         .map((agg) => agg.entryCount)
         .reduce((a, b) => a + b);
 
+    // 6b. Generate narrative year-in-review (memory-style, Flesch-Kincaid ~8)
+    final yearNarrative = await _generateYearNarrative(year: year, monthlyAggs: monthlyAggs);
+
     // 7. Generate yearly markdown
     final markdown = await _generateYearlyMarkdown(
       year: year,
@@ -66,6 +70,7 @@ class YearlySynthesizer {
       inflectionPoints: inflectionPoints,
       comparison: comparison,
       monthlyAggs: monthlyAggs,
+      yearNarrative: yearNarrative,
     );
 
     // 8. Calculate compression ratio
@@ -349,6 +354,42 @@ class YearlySynthesizer {
     return 'Compared to $prevYear: ${prevChapters} chapters, ${prevThemes.length} major themes';
   }
 
+  /// Generate narrative year-in-review from monthly summaries (memory-style, readable by owner).
+  Future<String> _generateYearNarrative({
+    required String year,
+    required List<ChronicleAggregation> monthlyAggs,
+  }) async {
+    if (monthlyAggs.isEmpty) return '';
+    try {
+      // Use full "What happened this month" section from each monthly (richer detail); same content is scrubbed when sent to cloud
+      final monthlySummaries = monthlyAggs.map((agg) {
+        final match = RegExp(r'## What happened this month\s*\n([\s\S]*?)(?=\n## |\n---|\z)', caseSensitive: false).firstMatch(agg.content);
+        final narrative = match?.group(1)?.trim() ?? agg.content.substring(0, agg.content.length > 1200 ? 1200 : agg.content.length);
+        return '**${_formatMonthName(agg.period)}:**\n$narrative';
+      }).join('\n\n');
+
+      final systemPrompt = '''You write year-in-review memory summaries for a personal journaling app. The owner will read these like "Purpose & context" memory.
+Given the monthly summaries below, synthesize the year while preserving important specifics from the monthly aggregations: people, projects, events, and throughlines. Write 3–5 flowing paragraphs (or more if the year is dense) that integrate what happened, what the person was becoming or struggling with, and key themes—include concrete details and names/events where the monthly text provides them, not only high-level summary. Write in third person. No bullet lists in the main narrative—use prose only.
+Target readability: Flesch-Kincaid grade level 8. Use clear sentences and common words. Do not mention "References," entry IDs, or internal metadata. This text may be privacy-scrubbed when sent to cloud and restored in responses.''';
+
+      final userPrompt = '''Monthly summaries for $year:
+
+$monthlySummaries
+
+Write a narrative year-in-review for $year that preserves important specifics (people, projects, events) from the monthly summaries:''';
+
+      final response = await geminiSend(
+        system: systemPrompt,
+        user: userPrompt,
+        jsonExpected: false,
+      );
+      return response.trim();
+    } catch (e) {
+      print('⚠️ YearlySynthesizer: Year narrative failed: $e');
+      return '';
+    }
+  }
+
   /// Generate yearly markdown content (INTEGRATE stage of VEIL cycle)
   /// 
   /// This is the INTEGRATE stage: synthesizing monthly examinations into
@@ -362,6 +403,7 @@ class YearlySynthesizer {
     required List<InflectionPoint> inflectionPoints,
     String? comparison,
     required List<ChronicleAggregation> monthlyAggs,
+    String yearNarrative = '',
   }) async {
     final synthesisDate = DateTime.now();
 
@@ -428,6 +470,10 @@ source_monthly_periods: ${monthlyAggs.map((m) => m.period).join(', ')}
 **Synthesis date:** ${synthesisDate.toIso8601String()}  
 **Monthly aggregations:** $monthlyCount  
 **Total entries:** $entryCount
+
+## Year in review
+
+${yearNarrative.isNotEmpty ? yearNarrative : '*No narrative summary generated.*'}
 
 ## Chapters
 

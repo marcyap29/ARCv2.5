@@ -13,6 +13,7 @@ import 'package:my_app/chronicle/scheduling/synthesis_scheduler.dart';
 import 'package:my_app/arc/internal/mira/journal_repository.dart';
 import 'package:my_app/services/firebase_auth_service.dart';
 import 'package:my_app/shared/ui/chronicle/chronicle_layers_viewer.dart';
+import 'package:my_app/shared/ui/settings/privacy_settings_view.dart';
 import 'package:file_picker/file_picker.dart';
 import 'dart:io';
 
@@ -74,95 +75,93 @@ class _ChronicleManagementViewState extends State<ChronicleManagementView> {
     }
   }
 
-  Future<void> _synthesizeCurrentMonth() async {
+  Future<void> _backfillAndSynthesizeCurrentMonth() async {
     setState(() {
       _isLoading = true;
       _statusMessage = null;
     });
-
     try {
       final userId = FirebaseAuthService.instance.currentUser?.uid ?? 'default_user';
-      final service = await _createManualService();
-      
-      final aggregation = await service.synthesizeCurrentMonth(userId: userId);
-      
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-          _statusMessage = aggregation != null
-              ? 'Successfully synthesized current month'
-              : 'No entries found for current month';
-          _statusIsError = false;
-        });
-        await _loadAggregationCounts();
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-          _statusMessage = 'Error: $e';
-          _statusIsError = true;
-        });
-      }
-    }
-  }
-
-  Future<void> _synthesizeCurrentYear() async {
-    setState(() {
-      _isLoading = true;
-      _statusMessage = null;
-    });
-
-    try {
-      final userId = FirebaseAuthService.instance.currentUser?.uid ?? 'default_user';
-      final service = await _createManualService();
-      
-      final aggregation = await service.synthesizeCurrentYear(userId: userId);
-      
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-          _statusMessage = aggregation != null
-              ? 'Successfully synthesized current year'
-              : 'No entries found for current year';
-          _statusIsError = false;
-        });
-        await _loadAggregationCounts();
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-          _statusMessage = 'Error: $e';
-          _statusIsError = true;
-        });
-      }
-    }
-  }
-
-  Future<void> _synthesizeAllPending() async {
-    setState(() {
-      _isLoading = true;
-      _statusMessage = null;
-    });
-
-    try {
-      final userId = FirebaseAuthService.instance.currentUser?.uid ?? 'default_user';
-      final service = await _createManualService();
-      
-      // Default to premium tier for manual synthesis
-      final results = await service.synthesizeAllPending(
+      final service = await _createOnboardingService();
+      final result = await service.backfillAndSynthesizeCurrentMonth(
         userId: userId,
-        tier: SynthesisTier.premium,
+        onProgress: (processed, total) {
+          if (mounted) setState(() => _statusMessage = 'Backfilling... $processed / $total entries');
+        },
       );
-      
       if (mounted) {
         setState(() {
           _isLoading = false;
-          _statusMessage = 'Synthesized ${results['monthly']} monthly, ${results['yearly']} yearly, ${results['multiyear']} multi-year aggregations';
-          _statusIsError = false;
+          _statusMessage = result.success ? (result.message ?? 'Done') : 'Failed: ${result.error}';
+          _statusIsError = !result.success;
         });
-        await _loadAggregationCounts();
+        if (result.success) await _loadAggregationCounts();
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _statusMessage = 'Error: $e';
+          _statusIsError = true;
+        });
+      }
+    }
+  }
+
+  Future<void> _backfillAndSynthesizeCurrentYear() async {
+    setState(() {
+      _isLoading = true;
+      _statusMessage = null;
+    });
+    try {
+      final userId = FirebaseAuthService.instance.currentUser?.uid ?? 'default_user';
+      final service = await _createOnboardingService();
+      final result = await service.backfillAndSynthesizeCurrentYear(
+        userId: userId,
+        onProgress: (processed, total) {
+          if (mounted) setState(() => _statusMessage = 'Backfilling... $processed / $total entries');
+        },
+      );
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _statusMessage = result.success ? (result.message ?? 'Done') : 'Failed: ${result.error}';
+          _statusIsError = !result.success;
+        });
+        if (result.success) await _loadAggregationCounts();
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _statusMessage = 'Error: $e';
+          _statusIsError = true;
+        });
+      }
+    }
+  }
+
+  Future<void> _backfillAndSynthesizeMultiYear() async {
+    setState(() {
+      _isLoading = true;
+      _statusMessage = null;
+    });
+    try {
+      final userId = FirebaseAuthService.instance.currentUser?.uid ?? 'default_user';
+      final service = await _createOnboardingService();
+      final result = await service.backfillAndSynthesizeMultiYear(
+        userId: userId,
+        onProgress: (processed, total) {
+          if (mounted) setState(() => _statusMessage = 'Backfilling... $processed / $total entries');
+        },
+      );
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _statusMessage = result.success ? (result.message ?? 'Done') : 'Failed: ${result.error}';
+          _statusIsError = !result.success;
+        });
+        if (result.success) await _loadAggregationCounts();
       }
     } catch (e) {
       if (mounted) {
@@ -272,49 +271,16 @@ class _ChronicleManagementViewState extends State<ChronicleManagementView> {
     );
   }
 
-  Future<void> _backfillLayer0() async {
-    setState(() {
-      _isLoading = true;
-      _statusMessage = null;
-    });
-
-    try {
-      final userId = FirebaseAuthService.instance.currentUser?.uid ?? 'default_user';
-      final service = await _createOnboardingService();
-
-      final result = await service.backfillLayer0(
-        userId: userId,
-        onProgress: (processed, total) {
-          if (mounted) {
-            setState(() {
-              _statusMessage = 'Backfilling... $processed / $total entries';
-            });
-          }
-        },
-      );
-
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-          _statusMessage = result.success
-              ? (result.message ?? 'Backfill complete')
-              : 'Backfill failed: ${result.error}';
-          _statusIsError = !result.success;
-        });
-        if (result.success) await _loadAggregationCounts();
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-          _statusMessage = 'Error: $e';
-          _statusIsError = true;
-        });
-      }
-    }
+  void _openLayersViewer({required int initialTabIndex}) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ChronicleLayersViewer(initialTabIndex: initialTabIndex),
+      ),
+    );
   }
 
-  Future<void> _backfillAndSynthesize() async {
+  Future<void> _backfillAndSynthesizeAll() async {
     setState(() {
       _isLoading = true;
       _statusMessage = null;
@@ -415,7 +381,7 @@ class _ChronicleManagementViewState extends State<ChronicleManagementView> {
                       ),
                     ),
 
-                  // Aggregation Status
+                  // Aggregation Status (tiles open CHRONICLE Layers at the corresponding tab)
                   _buildSection(
                     title: 'Aggregation Status',
                     children: [
@@ -423,69 +389,57 @@ class _ChronicleManagementViewState extends State<ChronicleManagementView> {
                         'Monthly Aggregations',
                         _countsLoaded ? '$_monthlyCount files' : 'Loading...',
                         Icons.calendar_month,
+                        onTap: () => _openLayersViewer(initialTabIndex: 0),
                       ),
                       const SizedBox(height: 8),
                       _buildStatusTile(
                         'Yearly Aggregations',
                         _countsLoaded ? '$_yearlyCount files' : 'Loading...',
                         Icons.calendar_today,
+                        onTap: () => _openLayersViewer(initialTabIndex: 1),
                       ),
                       const SizedBox(height: 8),
                       _buildStatusTile(
                         'Multi-Year Aggregations',
                         _countsLoaded ? '$_multiyearCount files' : 'Loading...',
                         Icons.calendar_view_month,
+                        onTap: () => _openLayersViewer(initialTabIndex: 2),
                       ),
                     ],
                   ),
 
                   const SizedBox(height: 32),
 
-                  // Backfill
+                  // Backfill and Synthesize (single section with 4 options)
                   _buildSection(
-                    title: 'Backfill',
+                    title: 'Backfill and Synthesize',
                     children: [
                       _buildActionButton(
-                        'Backfill Layer 0',
-                        'Copy all journal entries into CHRONICLE so they can be synthesized',
-                        Icons.sync,
-                        _backfillLayer0,
+                        'Backfill and Synthesize Current Month',
+                        'Update Layer 0 and create monthly aggregation for this month',
+                        Icons.calendar_month,
+                        _backfillAndSynthesizeCurrentMonth,
                       ),
                       const SizedBox(height: 12),
                       _buildActionButton(
-                        'Backfill & Synthesize All',
-                        'Backfill Layer 0 and synthesize all months/years with entries',
+                        'Backfill and Synthesize Current Year',
+                        'Update Layer 0 and create yearly aggregation for this year',
+                        Icons.calendar_today,
+                        _backfillAndSynthesizeCurrentYear,
+                      ),
+                      const SizedBox(height: 12),
+                      _buildActionButton(
+                        'Backfill and Synthesize Multi-Year',
+                        'Update Layer 0 and create multi-year aggregation for current 5-year block',
+                        Icons.calendar_view_month,
+                        _backfillAndSynthesizeMultiYear,
+                      ),
+                      const SizedBox(height: 12),
+                      _buildActionButton(
+                        'Backfill and Synthesize All',
+                        'Update Layer 0 and synthesize all months/years with entries',
                         Icons.sync_alt,
-                        _backfillAndSynthesize,
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 32),
-
-                  // Manual Synthesis
-                  _buildSection(
-                    title: 'Manual Synthesis',
-                    children: [
-                      _buildActionButton(
-                        'Synthesize Current Month',
-                        'Create monthly aggregation for current month',
-                        Icons.auto_fix_high,
-                        _synthesizeCurrentMonth,
-                      ),
-                      const SizedBox(height: 12),
-                      _buildActionButton(
-                        'Synthesize Current Year',
-                        'Create yearly aggregation for current year',
-                        Icons.auto_fix_high,
-                        _synthesizeCurrentYear,
-                      ),
-                      const SizedBox(height: 12),
-                      _buildActionButton(
-                        'Synthesize All Pending',
-                        'Synthesize all months/years with entries but no aggregations',
-                        Icons.playlist_add_check,
-                        _synthesizeAllPending,
+                        _backfillAndSynthesizeAll,
                       ),
                     ],
                   ),
@@ -526,6 +480,28 @@ class _ChronicleManagementViewState extends State<ChronicleManagementView> {
                       ),
                     ],
                   ),
+
+                  const SizedBox(height: 32),
+
+                  // Privacy Protection (links to same screen as Settings → Privacy & Security)
+                  _buildSection(
+                    title: 'Privacy',
+                    children: [
+                      _buildActionButton(
+                        'Privacy Protection',
+                        'Configure PII detection and masking for CHRONICLE and LUMARA',
+                        Icons.security,
+                        () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const PrivacySettingsView(),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ),
@@ -552,8 +528,13 @@ class _ChronicleManagementViewState extends State<ChronicleManagementView> {
     );
   }
 
-  Widget _buildStatusTile(String title, String subtitle, IconData icon) {
-    return Container(
+  Widget _buildStatusTile(
+    String title,
+    String subtitle,
+    IconData icon, {
+    VoidCallback? onTap,
+  }) {
+    final content = Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: kcBackgroundColor.withOpacity(0.5),
@@ -585,9 +566,19 @@ class _ChronicleManagementViewState extends State<ChronicleManagementView> {
               ],
             ),
           ),
+          if (onTap != null)
+            Icon(Icons.chevron_right, color: kcSecondaryTextColor),
         ],
       ),
     );
+    if (onTap != null) {
+      return InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: content,
+      );
+    }
+    return content;
   }
 
   Widget _buildActionButton(

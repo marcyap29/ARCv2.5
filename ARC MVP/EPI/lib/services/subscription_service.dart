@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'firebase_auth_service.dart';
 import 'firebase_service.dart';
+import 'revenuecat_service.dart';
 
 // Enum for billing interval
 enum BillingInterval {
@@ -190,17 +191,33 @@ class SubscriptionService {
       final tierString = data['tier'] as String?;
       debugPrint('SubscriptionService: 🎯 Tier from Firebase: $tierString');
 
+      SubscriptionTier tier;
       switch (tierString?.toLowerCase()) {
         case 'premium':
-          debugPrint('SubscriptionService: ✅ Premium tier confirmed!');
+          debugPrint('SubscriptionService: ✅ Premium tier confirmed (Stripe)!');
           return SubscriptionTier.premium;
         case 'free':
-          debugPrint('SubscriptionService: ℹ️ Free tier confirmed');
-          return SubscriptionTier.free;
+          debugPrint('SubscriptionService: ℹ️ Free tier from Stripe');
+          tier = SubscriptionTier.free;
+          break;
         default:
           debugPrint('SubscriptionService: ⚠️ Unknown tier "$tierString", defaulting to free');
-          return SubscriptionTier.free;
+          tier = SubscriptionTier.free;
       }
+
+      // If Stripe says free, also check in-app purchases (RevenueCat). Either source = premium (see DOCS/PAYMENTS_CLARIFICATION.md).
+      if (tier == SubscriptionTier.free && !kIsWeb) {
+        try {
+          final hasIapPro = await RevenueCatService.instance.hasArcProAccess();
+          if (hasIapPro) {
+            debugPrint('SubscriptionService: ✅ Premium via in-app purchase (ARC Pro)');
+            return SubscriptionTier.premium;
+          }
+        } catch (e) {
+          debugPrint('SubscriptionService: RevenueCat check (non-fatal): $e');
+        }
+      }
+      return tier;
     } catch (e) {
       debugPrint('SubscriptionService: ❌ Firebase Functions call failed: $e');
       debugPrint('SubscriptionService: 🔍 Error type: ${e.runtimeType}');

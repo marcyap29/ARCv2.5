@@ -857,13 +857,11 @@ List<ArcEdge3D> _generateSupernovaEdges(List<ArcNode3D> nodes) {
   }
   // Close the star (connect last point back to first)
   if (nodes.length > 10) {
-    addEdgeIfValid(nodes[9], nodes[1], 0.9);
+    addEdgeIfValid(nodes[10], nodes[1], 0.9);
   }
   
-  // 3. Connect center to valleys as well (creates full star structure)
-  for (int i = 2; i <= 10 && i < nodes.length; i += 2) { // Valleys are at even indices (2, 4, 6, 8, 10)
-    addEdgeIfValid(center, nodes[i], 0.8);
-  }
+  // 3. Center only connects to outer points (step 1 above) -- valleys are
+  //    reached through the star outline, keeping the star shape clean.
   
   // 4. Connect circled area node (index 11) to center and nearby star points
   if (nodes.length > 11) {

@@ -1,7 +1,7 @@
 # Configuration Management & Documentation Tracking
 
 **Lead Configuration Management Analyst:** Active  
-**Last Updated:** February 7, 2026  
+**Last Updated:** February 8, 2026  
 **Status:** ✅ All Documents Synced with Repo
 
 ---
@@ -38,14 +38,14 @@ Prompt/role definitions: **Documentation & Configuration Management Role** in [c
 
 | Document | Location | Last Reviewed | Status | Notes |
 |----------|----------|---------------|--------|-------|
-| ARCHITECTURE.md | `/DOCS/ARCHITECTURE.md` | 2026-02-07 | ✅ Synced | v3.3.7 - 5 modules; DOCS/stripe paths |
-| CHANGELOG.md | `/DOCS/CHANGELOG.md` | 2026-02-07 | ✅ Synced | v3.3.15 - Last Updated Feb 7 |
+| ARCHITECTURE.md | `/DOCS/ARCHITECTURE.md` | 2026-02-08 | ✅ Synced | v3.3.16 - Reflection System, RevenueCat, Voice Sigil, ARCX Clean |
+| CHANGELOG.md | `/DOCS/CHANGELOG.md` | 2026-02-08 | ✅ Synced | v3.3.16 - Last Updated Feb 8 |
 | PROMPT_REFERENCES.md | `/DOCS/PROMPT_REFERENCES.md` | 2026-02-07 | ✅ Current | v1.8.0 - Document scope and sources; prompt catalog |
 | PROMPT_TRACKER.md | `/DOCS/PROMPT_TRACKER.md` | 2026-02-07 | ✅ Synced | v1.0.0 - Prompt change tracking; links to PROMPT_REFERENCES |
-| bug_tracker.md | `/DOCS/bugtracker/bug_tracker.md` | 2026-02-07 | ✅ Synced | v3.2.2 - 28 records; How to use; Recent code changes |
-| FEATURES.md | `/DOCS/FEATURES.md` | 2026-02-07 | ✅ Synced | v3.3.15 - Last Updated Feb 7 |
+| bug_tracker.md | `/DOCS/bugtracker/bug_tracker.md` | 2026-02-08 | ✅ Synced | v3.2.2 - 29 records; How to use; Recent code changes |
+| FEATURES.md | `/DOCS/FEATURES.md` | 2026-02-08 | ✅ Synced | v3.3.16 - Reflection System, RevenueCat, Voice Sigil, PDF Preview |
 | README.md | `/DOCS/README.md` | 2026-02-07 | ✅ Synced | Key docs table with purpose and when to read |
-| claude.md | `/DOCS/claude.md` | 2026-02-07 | ✅ Synced | Relative DOCS/ paths; Current Architecture |
+| claude.md | `/DOCS/claude.md` | 2026-02-08 | ✅ Synced | Replaced backup-intelligence prompt with git-backup-docsync (systems engineer config mgr) |
 | backend.md | `/DOCS/backend.md` | 2026-02-07 | ✅ Synced | v3.2 - Firebase, Stripe; RevenueCat see revenuecat/ |
 | git.md | `/DOCS/git.md` | 2026-02-07 | ✅ Synced | Git history and key phases |
 
@@ -61,6 +61,7 @@ Prompt/role definitions: **Documentation & Configuration Management Role** in [c
 
 | Document | Location | Notes |
 |----------|----------|-------|
+| ARC_AND_LUMARA_OVERVIEW.md | DOCS/ | ARC + LUMARA capabilities overview; pipeline; onboarding context |
 | CHRONICLE_CONTEXT_FOR_CLAUDE.md | DOCS/ | CHRONICLE context for AI assistants |
 | CHRONICLE_COMPLETE.md | DOCS/ | CHRONICLE feature spec |
 | CHRONICLE_PROMPT_REFERENCE.md | DOCS/ | CHRONICLE prompt reference |
@@ -85,6 +86,34 @@ Prompt/role definitions: **Documentation & Configuration Management Role** in [c
 ---
 
 ## Change Tracking Log
+
+### 2026-02-08 - Replace backup-intelligence prompt in claude.md; commit all v3.3.16 changes
+
+**Action:** Replaced the "Ultimate Git Backup & Change Intelligence System" prompt (~370 lines) in claude.md with a focused "Git Backup & Documentation Sync" prompt (~75 lines). New prompt defines a systems engineer / configuration manager role with a simple 3-step procedure: (1) identify repo changes since last documented update, (2) update relevant docs, (3) commit and push. All other docs already updated for v3.3.16 in prior session.
+
+**Doc updates:**
+- **claude.md:** Removed backup-intelligence prompt (lines 935–1301); replaced with git-backup-docsync prompt. No other sections changed.
+- **CONFIGURATION_MANAGEMENT.md:** Updated claude.md inventory entry to 2026-02-08; this change log entry.
+
+**Status:** ✅ All docs current; committing all working changes (code + docs) for v3.3.16.
+
+---
+
+### 2026-02-08 - Full repo audit; document all uncommitted changes (Reflection System, RevenueCat, Voice Sigil, etc.)
+
+**Action:** Comprehensive repo-vs-docs audit using doc-consolidator and bugtracker-consolidator methodology. Identified 12 new files, 2 deleted files, and numerous modified files not reflected in documentation. Executed documentation upkeep across all core docs.
+
+**Discrepancies found and fixed:**
+- **ARCHITECTURE.md:** Footer said v2.1.76 / Jan 1, 2026 while header said v3.3.7 / Feb 7 — fixed to v3.3.16 / Feb 8. Broken link `BUGTRACKER.md` → `bugtracker/bug_tracker.md`. Duplicate section "5" for both Subscription and AURORA → renumbered AURORA to "6". Added Reflection Session Safety System, RevenueCat, Voice Sigil State Machine, ARCX Clean, PDF Preview, Drive Folder Picker sections.
+- **FEATURES.md:** Footer said v3.3.13 / Jan 31 while header said v3.3.15 / Feb 7 — fixed to v3.3.16 / Feb 8. Added Reflection Session Safety, Voice Sigil upgrade (6-state), RevenueCat in-app, PDF Preview, Drive Folder Picker, ARCX Clean Service sections. Stripe docs paths corrected from `docs/` to `DOCS/`.
+- **CHANGELOG.md:** Added [3.3.16] entry documenting all uncommitted changes (12 new files, 2 deletions, CHRONICLE synthesis mods, infrastructure).
+- **CONFIGURATION_MANAGEMENT.md:** Fixed footer date. Added ARC_AND_LUMARA_OVERVIEW.md to inventory. Updated record count (28→29). Inventory dates set to Feb 8.
+- **bug_tracker.md:** Record count 28→29 (wispr-flow-cache-issue was 29th file). Recent code changes table updated with Reflection Session System, RevenueCat, Voice Sigil, ARCX Clean Service, PDF Preview, Duration Adapter entries.
+- **BUG_TRACKER_MASTER_INDEX.md:** Last Synchronized date updated to Feb 8; record count 28→29.
+
+**Status:** ✅ All core docs updated to reflect current codebase state.
+
+---
 
 ### 2026-02-07 - Repo review; update all documentation (architecture, prompt tracker, bug tracker, backend, etc.)
 
@@ -448,8 +477,8 @@ Prompt/role definitions: **Documentation & Configuration Management Role** in [c
 | Component | Documented Version | Code Version | Status | Notes |
 |-----------|-------------------|--------------|--------|-------|
 | Application | 1.0.0+1 | 1.0.0+1 (pubspec.yaml) | ✅ Synced | - |
-| Architecture | 3.3.7 | 3.3.7 (ARCHITECTURE.md) | ✅ Synced | Matches main branch |
-| Changelog | 3.3.10 | 3.3.10 (CHANGELOG.md) | ✅ Synced | Matches main branch |
+| Architecture | 3.3.16 | 3.3.16 (ARCHITECTURE.md) | ✅ Synced | Updated Feb 8, 2026 |
+| Changelog | 3.3.16 | 3.3.16 (CHANGELOG.md) | ✅ Synced | Updated Feb 8, 2026 |
 | Bug Tracker | 3.2.2 | 3.2.2 (bug_tracker.md) | ✅ Synced | Matches main branch |
 | Prompt References | 1.8.0 | 1.8.0 (PROMPT_REFERENCES.md) | ✅ Synced | Last updated: Jan 31, 2026 |
 | Prompt Tracker | 1.0.0 | 1.0.0 (PROMPT_TRACKER.md) | ✅ Synced | Configuration tracking only |
@@ -530,7 +559,7 @@ Prompt/role definitions: **Documentation & Configuration Management Role** in [c
 
 ---
 
-**Last Updated:** February 3, 2026  
+**Last Updated:** February 8, 2026  
 **Next Review:** Per review schedule (weekly CHANGELOG/bugtracker; monthly full inventory)
 
 ---

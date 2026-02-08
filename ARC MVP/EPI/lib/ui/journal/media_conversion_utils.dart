@@ -40,6 +40,8 @@ class MediaConversionUtils {
         mediaItems.add(scanAttachmentToMediaItem(attachment));
       } else if (attachment is VideoAttachment) {
         mediaItems.add(videoAttachmentToMediaItem(attachment));
+      } else if (attachment is FileAttachment) {
+        mediaItems.add(fileAttachmentToMediaItem(attachment));
       }
     }
     
@@ -75,11 +77,49 @@ class MediaConversionUtils {
     );
   }
 
-  /// Convert MediaItem to appropriate attachment (PhotoAttachment, ScanAttachment, or VideoAttachment)
+  /// Convert FileAttachment to MediaItem
+  static MediaItem fileAttachmentToMediaItem(FileAttachment attachment) {
+    return MediaItem(
+      id: attachment.fileId ?? DateTime.fromMillisecondsSinceEpoch(attachment.timestamp).millisecondsSinceEpoch.toString(),
+      uri: attachment.filePath,
+      type: MediaType.file,
+      createdAt: DateTime.fromMillisecondsSinceEpoch(attachment.timestamp),
+      ocrText: attachment.extractedText,
+      altText: attachment.fileName,
+    );
+  }
+
+  /// Convert MediaItem back to FileAttachment
+  static FileAttachment mediaItemToFileAttachment(MediaItem mediaItem) {
+    return FileAttachment(
+      type: 'file',
+      filePath: mediaItem.uri,
+      fileName: mediaItem.altText ?? mediaItem.uri.split('/').last,
+      mimeType: _mimeFromExtension(mediaItem.uri),
+      timestamp: mediaItem.createdAt.millisecondsSinceEpoch,
+      fileId: mediaItem.id,
+      extractedText: mediaItem.ocrText,
+    );
+  }
+
+  static String _mimeFromExtension(String path) {
+    final ext = path.split('.').last.toLowerCase();
+    switch (ext) {
+      case 'pdf': return 'application/pdf';
+      case 'md': return 'text/markdown';
+      case 'doc': return 'application/msword';
+      case 'docx': return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+      default: return 'application/octet-stream';
+    }
+  }
+
+  /// Convert MediaItem to appropriate attachment (PhotoAttachment, ScanAttachment, VideoAttachment, or FileAttachment)
   /// Returns null if the media type is not supported
   static dynamic mediaItemToAttachment(MediaItem mediaItem) {
     if (mediaItem.type == MediaType.video) {
       return mediaItemToVideoAttachment(mediaItem);
+    } else if (mediaItem.type == MediaType.file) {
+      return mediaItemToFileAttachment(mediaItem);
     } else if (mediaItem.type == MediaType.image) {
       // Convert all images to PhotoAttachment, even if they don't have analysisData
       // This ensures imported media without analysis data still displays correctly
@@ -125,6 +165,8 @@ class MediaConversionUtils {
     for (final mediaItem in mediaItems) {
       if (mediaItem.type == MediaType.video) {
         attachments.add(mediaItemToVideoAttachment(mediaItem));
+      } else if (mediaItem.type == MediaType.file) {
+        attachments.add(mediaItemToFileAttachment(mediaItem));
       } else if (mediaItem.type == MediaType.image) {
         // Convert all images to PhotoAttachment, even if they don't have analysisData
         // This ensures imported media without analysis data still displays correctly
@@ -147,6 +189,8 @@ class MediaConversionUtils {
   static String getDisplayText(MediaItem mediaItem) {
     if (mediaItem.type == MediaType.video) {
       return '*Click to view video*';
+    } else if (mediaItem.type == MediaType.file) {
+      return '*Click to open file*';
     } else if (isPhotoMediaItem(mediaItem)) {
       return '*Click to view photo*';
     } else if (isScanMediaItem(mediaItem)) {
@@ -166,6 +210,8 @@ class MediaConversionUtils {
           ? 'Size: ${_formatFileSize(mediaItem.sizeBytes!)}' 
           : '';
       return 'Video ${duration.isNotEmpty && size.isNotEmpty ? '$duration, $size' : duration.isNotEmpty ? duration : size.isNotEmpty ? size : ''}'.trim();
+    } else if (mediaItem.type == MediaType.file) {
+      return 'File: ${mediaItem.altText ?? mediaItem.uri.split('/').last}';
     } else if (isPhotoMediaItem(mediaItem)) {
       return mediaItem.analysisData?['summary'] as String? ?? 'Photo analyzed';
     } else if (isScanMediaItem(mediaItem)) {

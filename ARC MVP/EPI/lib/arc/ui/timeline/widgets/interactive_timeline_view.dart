@@ -16,6 +16,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import 'package:my_app/arc/ui/arcforms/arcform_renderer_state.dart';
 import 'package:my_app/shared/app_colors.dart';
+import 'package:my_app/shared/widgets/lumara_icon.dart';
 import 'package:my_app/shared/text_style.dart';
 import 'package:my_app/prism/atlas/rivet/rivet_provider.dart';
 import 'package:my_app/prism/atlas/rivet/rivet_models.dart';
@@ -745,8 +746,7 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
                                     child: Row(
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
-                                        Icon(
-                                          Icons.auto_awesome,
+                                        LumaraIcon(
                                           size: 14,
                                           color: Colors.purple[700],
                                         ),
@@ -765,9 +765,63 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
                                   ),
                                   const SizedBox(width: 8),
                                 ],
-                                if (entry.media.isNotEmpty) ...[
+                                if (entry.keywords.contains('googledrive')) ...[
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: Colors.blue.withOpacity(0.15),
+                                      borderRadius: BorderRadius.circular(6),
+                                      border: Border.all(
+                                        color: Colors.blue.withOpacity(0.3),
+                                        width: 1,
+                                      ),
+                                    ),
+                                    child: Text(
+                                      '#googledrive',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.blue[700],
+                                      ),
+                                    ),
+                                  ),
+                                  ...entry.keywords
+                                      .where((k) => k != 'googledrive')
+                                      .map((folderTag) => Padding(
+                                            padding: const EdgeInsets.only(left: 6),
+                                            child: Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                                              decoration: BoxDecoration(
+                                                color: Colors.blue.withOpacity(0.12),
+                                                borderRadius: BorderRadius.circular(6),
+                                                border: Border.all(
+                                                  color: Colors.blue.withOpacity(0.25),
+                                                  width: 1,
+                                                ),
+                                              ),
+                                              child: Text(
+                                                '#$folderTag',
+                                                style: TextStyle(
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: Colors.blue[800],
+                                                ),
+                                              ),
+                                            ),
+                                          )),
+                                  const SizedBox(width: 8),
+                                ],
+                                if (entry.media.any((m) => m.type == MediaType.image)) ...[
                                   Icon(
                                     Icons.photo,
+                                    size: 14,
+                                    color: kcSecondaryTextColor,
+                                  ),
+                                  const SizedBox(width: 4),
+                                ],
+                                if (entry.media.any((m) => m.type == MediaType.video)) ...[
+                                  Icon(
+                                    Icons.videocam,
                                     size: 14,
                                     color: kcSecondaryTextColor,
                                   ),
@@ -2653,8 +2707,7 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
                   color: Colors.purple.withOpacity(0.15),
                   borderRadius: BorderRadius.circular(6),
                 ),
-                child: Icon(
-                  Icons.auto_awesome,
+                child: LumaraIcon(
                   size: 14,
                   color: Colors.purple[700],
                 ),

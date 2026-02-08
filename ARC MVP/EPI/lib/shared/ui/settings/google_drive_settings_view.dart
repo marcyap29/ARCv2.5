@@ -1,5 +1,5 @@
 // Google Drive settings for export/import backup via OAuth.
-// Connect with Google (drive.file scope), then export backups to Drive or import from Drive.
+// Connect with Google (drive.file + drive.readonly), then export backups or browse/import from any folder.
 
 import 'dart:io';
 import 'package:flutter/material.dart';
@@ -18,10 +18,12 @@ import 'package:my_app/services/analytics_service.dart';
 import 'package:my_app/services/rivet_sweep_service.dart';
 import 'package:my_app/services/google_drive_service.dart';
 import 'package:my_app/mira/store/arcx/services/arcx_export_service_v2.dart';
+import 'package:my_app/mira/store/mcp/export/mcp_pack_export_service.dart';
 import 'package:my_app/mira/store/mcp/export/zip_utils.dart';
 import 'package:my_app/mira/store/mcp/import/mcp_pack_import_service.dart';
 import 'package:my_app/arc/ui/timeline/timeline_cubit.dart';
 import 'package:my_app/shared/ui/home/home_view.dart';
+import 'package:my_app/shared/ui/settings/drive_folder_picker_screen.dart';
 import 'package:googleapis/drive/v3.dart' as drive;
 import 'package:intl/intl.dart';
 
@@ -43,6 +45,7 @@ class _GoogleDriveSettingsViewState extends State<GoogleDriveSettingsView> {
   // SharedPreferences key for persisting selected backup folder
   static const String _keyGoogleDriveSourceFolder = 'google_drive_source_folder';
   static const String _keyLastUploadFromFolderAt = 'google_drive_last_upload_from_folder_at';
+  static const String _keyDriveBackupFormat = 'google_drive_backup_format';
 
   bool _loading = true;
   bool _connecting = false;
@@ -55,6 +58,10 @@ class _GoogleDriveSettingsViewState extends State<GoogleDriveSettingsView> {
 
   /// Whether the Import from Drive backup list is expanded (true) or collapsed (false).
   bool _importListExpanded = false;
+
+  /// Backup file format for Google Drive exports: 'arcx' (default) or 'zip'.
+  /// ZIP keeps backups accessible even when the app's security key changes after reinstall.
+  String _driveBackupFormat = 'arcx';
   
   // Upload from folder state
   String? _sourceFolder;
@@ -67,11 +74,36 @@ class _GoogleDriveSettingsViewState extends State<GoogleDriveSettingsView> {
   /// Retained after folder pick so Upload works without re-picking.
   String? _securityScopedPath;
 
+  /// Sync folder: chosen Drive folder for .txt import. Name shown in UI.
+  String? _syncFolderName;
+  bool _syncingTxt = false;
+
   @override
   void initState() {
     super.initState();
     _refreshConnection();
     _loadSourceFolder();
+    _loadSyncFolderName();
+    _loadDriveBackupFormat();
+  }
+
+  Future<void> _loadSyncFolderName() async {
+    final name = await _driveService.getSyncFolderName();
+    if (mounted && name != null && name.isNotEmpty) {
+      setState(() => _syncFolderName = name);
+    }
+  }
+
+  Future<void> _loadDriveBackupFormat() async {
+    final prefs = await SharedPreferences.getInstance();
+    final format = prefs.getString(_keyDriveBackupFormat) ?? 'arcx';
+    if (mounted) setState(() => _driveBackupFormat = format);
+  }
+
+  Future<void> _setDriveBackupFormat(String format) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keyDriveBackupFormat, format);
+    setState(() => _driveBackupFormat = format);
   }
 
   @override
@@ -521,67 +553,139 @@ class _GoogleDriveSettingsViewState extends State<GoogleDriveSettingsView> {
       final chatRepo = ChatRepoImpl.instance;
       await chatRepo.initialize();
 
-      final exportService = ARCXExportServiceV2(
-        journalRepo: widget.journalRepo,
-        chatRepo: chatRepo,
-        phaseRegimeService: phaseRegimeService,
-      );
-
       final appDocDir = await getApplicationDocumentsDirectory();
       final outputDir = Directory(path.join(appDocDir.path, 'arcx_drive_export_${DateTime.now().millisecondsSinceEpoch}'));
       await outputDir.create(recursive: true);
       tempDir = outputDir;
 
-      if (!mounted) return;
-      setState(() => _exportProgress = 'Exporting backup...');
+      if (_driveBackupFormat == 'zip') {
+        // ZIP format: single file, standard ZIP — survives app reinstall / device change
+        if (!mounted) return;
+        setState(() => _exportProgress = 'Loading entries...');
 
-      final result = await exportService.exportFullBackupChunked(
-        outputDir: outputDir,
-        password: null,
-        chunkSizeMB: 200,
-        onProgress: (msg, [fraction]) {
+        final entries = await widget.journalRepo.getAllJournalEntries();
+        if (entries.isEmpty) {
           if (mounted) {
-            setState(() => _exportProgress = msg);
+            setState(() { _exporting = false; _exportProgress = ''; });
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('No entries to backup'), backgroundColor: Colors.orange),
+            );
           }
-        },
-      );
+          return;
+        }
 
-      if (!result.success) {
+        final timestamp = DateFormat('yyyy-MM-dd_HH-mm').format(DateTime.now());
+        final zipFileName = 'ARC_Full_$timestamp.zip';
+        final zipPath = path.join(outputDir.path, zipFileName);
+
+        final mcpService = McpPackExportService(
+          bundleId: 'ARC_Full_$timestamp',
+          outputPath: zipPath,
+          chatRepo: chatRepo,
+          phaseRegimeService: phaseRegimeService,
+        );
+
+        if (!mounted) return;
+        setState(() => _exportProgress = 'Creating ZIP backup...');
+
+        final zipResult = await mcpService.exportJournal(
+          entries: entries,
+          includePhotos: true,
+          reducePhotoSize: false,
+          includeChats: true,
+          includeArchivedChats: true,
+          mediaPackTargetSizeMB: 200,
+        );
+
+        if (!zipResult.success) {
+          if (mounted) {
+            setState(() { _exporting = false; _exportProgress = ''; });
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(zipResult.error ?? 'ZIP export failed'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+          return;
+        }
+
+        if (!mounted) return;
+        setState(() => _exportProgress = 'Uploading ZIP to Drive...');
+
+        await _ensureFolder();
+        final datedFolderId = await _driveService.getOrCreateDatedSubfolder(DateTime.now());
+        await _driveService.uploadFile(
+          localFile: File(zipPath),
+          folderId: datedFolderId,
+          nameOverride: zipFileName,
+        );
+
         if (mounted) {
-          setState(() => _exporting = false);
+          setState(() { _exporting = false; _exportProgress = ''; });
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(result.error ?? 'Export failed'),
-              backgroundColor: Colors.red,
+              content: Text('ZIP backup uploaded to Google Drive ($zipFileName)'),
+              backgroundColor: Colors.green,
             ),
           );
         }
-        return;
-      }
-
-      if (!mounted) return;
-      setState(() => _exportProgress = 'Uploading arcx files (smallest first)...');
-
-      final manifestTimestamp = DateTime.now().toUtc().toIso8601String();
-      await _driveService.uploadChunkedBackup(
-        arcxPaths: result.chunkPaths,
-        manifestTimestamp: manifestTimestamp,
-        onProgress: (current, total, phase) {
-          if (mounted) setState(() => _exportProgress = phase);
-        },
-      );
-
-      if (mounted) {
-        setState(() {
-          _exporting = false;
-          _exportProgress = '';
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Backup uploaded to Google Drive'),
-            backgroundColor: Colors.green,
-          ),
+      } else {
+        // ARCX format: chunked encrypted backup (default)
+        final exportService = ARCXExportServiceV2(
+          journalRepo: widget.journalRepo,
+          chatRepo: chatRepo,
+          phaseRegimeService: phaseRegimeService,
         );
+
+        if (!mounted) return;
+        setState(() => _exportProgress = 'Exporting backup...');
+
+        final result = await exportService.exportFullBackupChunked(
+          outputDir: outputDir,
+          password: null,
+          chunkSizeMB: 200,
+          onProgress: (msg, [fraction]) {
+            if (mounted) {
+              setState(() => _exportProgress = msg);
+            }
+          },
+        );
+
+        if (!result.success) {
+          if (mounted) {
+            setState(() { _exporting = false; _exportProgress = ''; });
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(result.error ?? 'Export failed'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+          return;
+        }
+
+        if (!mounted) return;
+        setState(() => _exportProgress = 'Uploading arcx files (smallest first)...');
+
+        final manifestTimestamp = DateTime.now().toUtc().toIso8601String();
+        await _driveService.uploadChunkedBackup(
+          arcxPaths: result.chunkPaths,
+          manifestTimestamp: manifestTimestamp,
+          onProgress: (current, total, phase) {
+            if (mounted) setState(() => _exportProgress = phase);
+          },
+        );
+
+        if (mounted) {
+          setState(() { _exporting = false; _exportProgress = ''; });
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Backup uploaded to Google Drive'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -629,18 +733,189 @@ class _GoogleDriveSettingsViewState extends State<GoogleDriveSettingsView> {
     }
   }
 
-  Future<void> _importFromDrive(drive.File file) async {
-    if (file.id == null) return;
+  /// Choose a single Drive folder as the sync folder (source for .txt import).
+  Future<void> _chooseSyncFolder() async {
+    if (!_driveService.isSignedIn) return;
+    final result = await Navigator.of(context).push<DriveSyncFolderResult>(
+      MaterialPageRoute(
+        builder: (context) => const DriveFolderPickerScreen(useAsSyncFolder: true),
+      ),
+    );
+    if (result == null || !mounted) return;
+    await _driveService.setSyncFolder(result.folderId, result.folderName);
+    setState(() => _syncFolderName = result.folderName);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Sync folder set to "${result.folderName}"'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    }
+  }
+
+  /// Import .txt files from the sync folder into the Timeline with #googledrive and #FolderName.
+  Future<void> _syncTxtFromDrive() async {
+    final folderId = await _driveService.getSyncFolderId();
+    if (folderId == null || folderId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Choose a sync folder first'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+    setState(() => _syncingTxt = true);
+    try {
+      final created = await _driveService.syncTxtFromDriveToTimeline(widget.journalRepo);
+      if (mounted) {
+        setState(() => _syncingTxt = false);
+        try {
+          if (context.mounted) context.read<TimelineCubit>().reloadAllEntries();
+        } catch (_) {}
+        if (created > 0) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Imported $created .txt file(s) into Timeline with #googledrive and folder hashtag'),
+              backgroundColor: Colors.green,
+            ),
+          );
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(builder: (context) => const HomeView(initialTab: 0)),
+            (route) => false,
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('No new .txt files in sync folder'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _syncingTxt = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Sync failed: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  /// Opens the Drive folder picker; on confirm, imports backup and text files from selected folders.
+  Future<void> _openDriveFolderPicker() async {
+    if (!_driveService.isSignedIn) return;
+    final result = await Navigator.of(context).push<DriveFolderPickerResult>(
+      MaterialPageRoute(
+        builder: (context) => const DriveFolderPickerScreen(),
+      ),
+    );
+    if (result == null || result.selectedFolderIds.isEmpty || !mounted) return;
+
+    setState(() => _importing = true);
+    try {
+      final allFiles = <drive.File>[];
+      final seenIds = <String>{};
+      for (final folderId in result.selectedFolderIds) {
+        final files = await _driveService.listImportableFilesInFolder(folderId, maxFiles: 500);
+        for (final f in files) {
+          final id = f.id;
+          if (id != null && !seenIds.contains(id)) {
+            seenIds.add(id);
+            allFiles.add(f);
+          }
+        }
+      }
+
+      // Prefer manifest backups (full restore); then .arcx/.zip; then .txt.
+      final manifests = allFiles.where((f) {
+        final n = f.name ?? '';
+        return n.startsWith('arc_backup_manifest_') && n.endsWith('.json');
+      }).toList();
+      final backups = allFiles.where((f) {
+        final n = f.name ?? '';
+        return n.endsWith('.arcx') || n.endsWith('.zip');
+      }).toList();
+      final textFiles = allFiles.where((f) => (f.name ?? '').endsWith('.txt')).toList();
+
+      int imported = 0;
+      String? lastError;
+
+      for (final file in manifests) {
+        if (!mounted) break;
+        try {
+          final r = await _performImportFromDriveFile(file);
+          if (r.success) imported++;
+          else lastError = r.error;
+        } catch (e) {
+          lastError = e.toString();
+        }
+      }
+      for (final file in backups) {
+        if (!mounted) break;
+        if (manifests.any((m) => m.id == file.id)) continue;
+        try {
+          final r = await _performImportFromDriveFile(file);
+          if (r.success) imported++;
+          else lastError = r.error;
+        } catch (e) {
+          lastError = e.toString();
+        }
+      }
+
+      if (mounted) {
+        setState(() => _importing = false);
+        final buf = StringBuffer();
+        if (imported > 0) buf.write('Imported $imported backup(s). ');
+        if (textFiles.isNotEmpty) buf.write('${textFiles.length} text file(s) found (open in Drive to use). ');
+        if (lastError != null && imported == 0) buf.write(lastError);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(buf.isEmpty ? 'No importable files in selected folders.' : buf.toString().trim()),
+            backgroundColor: imported > 0 ? Colors.green : Colors.orange,
+          ),
+        );
+        if (imported > 0) {
+          try {
+            if (context.mounted) context.read<TimelineCubit>().reloadAllEntries();
+          } catch (_) {}
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(builder: (context) => const HomeView(initialTab: 0)),
+            (route) => false,
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _importing = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Import failed: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  /// Performs download and import for one Drive file. Does not update UI or navigate.
+  /// Returns (success, error message, totalEntries, totalPhotos).
+  Future<({bool success, String? error, int totalEntries, int totalPhotos})> _performImportFromDriveFile(drive.File file) async {
+    if (file.id == null) return (success: false, error: 'No file id', totalEntries: 0, totalPhotos: 0);
     final fileId = file.id!;
     final isManifestBackup = file.name != null &&
         file.name!.startsWith('arc_backup_manifest_') &&
         file.name!.endsWith('.json');
 
-    setState(() => _importing = true);
-    try {
-      String zipPath;
-      Directory? tempDirToDelete;
+    String zipPath;
+    Directory? tempDirToDelete;
 
+    try {
       if (isManifestBackup) {
         final folderPath = await _driveService.downloadChunkedBackup(fileId);
         tempDirToDelete = Directory(folderPath);
@@ -655,7 +930,7 @@ class _GoogleDriveSettingsViewState extends State<GoogleDriveSettingsView> {
 
       final fileObj = File(zipPath);
       if (!await fileObj.exists()) {
-        throw Exception('Downloaded file not found');
+        return (success: false, error: 'Downloaded file not found', totalEntries: 0, totalPhotos: 0);
       }
 
       final analyticsService = AnalyticsService();
@@ -686,30 +961,44 @@ class _GoogleDriveSettingsViewState extends State<GoogleDriveSettingsView> {
         if (isManifestBackup) await File(zipPath).delete();
       } catch (_) {}
 
-      if (mounted) {
-        setState(() => _importing = false);
-        try {
-          if (context.mounted) context.read<TimelineCubit>().reloadAllEntries();
-        } catch (_) {}
-        if (importResult.success) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Imported ${importResult.totalEntries} entries, ${importResult.totalPhotos} media'),
-              backgroundColor: Colors.green,
-            ),
-          );
-          Navigator.of(context).pushAndRemoveUntil(
-            MaterialPageRoute(builder: (context) => const HomeView(initialTab: 0)),
-            (route) => false,
-          );
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(importResult.error ?? 'Import failed'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
+      return (
+        success: importResult.success,
+        error: importResult.error,
+        totalEntries: importResult.totalEntries,
+        totalPhotos: importResult.totalPhotos,
+      );
+    } catch (e) {
+      return (success: false, error: e.toString(), totalEntries: 0, totalPhotos: 0);
+    }
+  }
+
+  Future<void> _importFromDrive(drive.File file) async {
+    setState(() => _importing = true);
+    try {
+      final result = await _performImportFromDriveFile(file);
+      if (!mounted) return;
+      setState(() => _importing = false);
+      try {
+        if (context.mounted) context.read<TimelineCubit>().reloadAllEntries();
+      } catch (_) {}
+      if (result.success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Imported ${result.totalEntries} entries, ${result.totalPhotos} media'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (context) => const HomeView(initialTab: 0)),
+          (route) => false,
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result.error ?? 'Import failed'),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
     } catch (e) {
       if (mounted) {
@@ -746,6 +1035,8 @@ class _GoogleDriveSettingsViewState extends State<GoogleDriveSettingsView> {
                     _buildExportCard(),
                     const SizedBox(height: 24),
                     _buildUploadFromFolderCard(),
+                    const SizedBox(height: 24),
+                    _buildSyncFolderCard(),
                     const SizedBox(height: 24),
                     _buildImportCard(),
                   ],
@@ -798,7 +1089,7 @@ class _GoogleDriveSettingsViewState extends State<GoogleDriveSettingsView> {
             ),
           ] else ...[
             Text(
-              'Connect with your Google account to export and import backups. We only request access to files this app creates (drive.file scope).',
+              'Connect with your Google account to export and import backups. We request access to save backups (drive.file) and to browse and import from folders you choose (drive.readonly).',
               style: bodyStyle(context).copyWith(color: kcSecondaryTextColor, fontSize: 13),
             ),
             const SizedBox(height: 12),
@@ -836,6 +1127,47 @@ class _GoogleDriveSettingsViewState extends State<GoogleDriveSettingsView> {
             'Create a full backup and upload it to your ARC Backups folder.',
             style: bodyStyle(context).copyWith(color: kcSecondaryTextColor, fontSize: 12),
           ),
+          const SizedBox(height: 12),
+
+          // Backup format selector
+          Text(
+            'Backup Format',
+            style: bodyStyle(context).copyWith(
+              color: kcPrimaryTextColor,
+              fontWeight: FontWeight.w500,
+              fontSize: 13,
+            ),
+          ),
+          const SizedBox(height: 4),
+          RadioListTile<String>(
+            title: const Text('ARCX Format', style: TextStyle(color: Colors.white, fontSize: 14)),
+            subtitle: const Text(
+              'Encrypted ARC archive (tied to this app install)',
+              style: TextStyle(color: Colors.grey, fontSize: 12),
+            ),
+            value: 'arcx',
+            groupValue: _driveBackupFormat,
+            onChanged: _exporting ? null : (value) => _setDriveBackupFormat(value!),
+            activeColor: kcAccentColor,
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+            visualDensity: VisualDensity.compact,
+          ),
+          RadioListTile<String>(
+            title: const Text('ZIP Format', style: TextStyle(color: Colors.white, fontSize: 14)),
+            subtitle: const Text(
+              'Standard ZIP — survives app reinstall / device change',
+              style: TextStyle(color: Colors.grey, fontSize: 12),
+            ),
+            value: 'zip',
+            groupValue: _driveBackupFormat,
+            onChanged: _exporting ? null : (value) => _setDriveBackupFormat(value!),
+            activeColor: kcAccentColor,
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+            visualDensity: VisualDensity.compact,
+          ),
+
           if (_exportProgress.isNotEmpty) ...[
             const SizedBox(height: 8),
             Text(_exportProgress, style: bodyStyle(context).copyWith(color: kcAccentColor, fontSize: 12)),
@@ -1051,6 +1383,64 @@ class _GoogleDriveSettingsViewState extends State<GoogleDriveSettingsView> {
     );
   }
 
+  Widget _buildSyncFolderCard() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Sync folder',
+            style: heading3Style(context).copyWith(color: kcPrimaryTextColor),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Choose a Google Drive folder. Add .txt files there, then tap Sync to import them into the Timeline with #googledrive and a hashtag from the folder name (e.g. #BYOK).',
+            style: bodyStyle(context).copyWith(color: kcSecondaryTextColor, fontSize: 12),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Icon(Icons.folder, color: Colors.amber[700], size: 22),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  _syncFolderName ?? 'Not set',
+                  style: bodyStyle(context).copyWith(
+                    color: _syncFolderName != null ? kcPrimaryTextColor : kcSecondaryTextColor,
+                    fontSize: 14,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: 8),
+              OutlinedButton.icon(
+                onPressed: _syncingTxt ? null : _chooseSyncFolder,
+                icon: const Icon(Icons.folder_open, size: 18),
+                label: const Text('Choose folder'),
+                style: OutlinedButton.styleFrom(foregroundColor: kcAccentColor),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          FilledButton.icon(
+            onPressed: (_syncingTxt || _syncFolderName == null) ? null : _syncTxtFromDrive,
+            icon: _syncingTxt
+                ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                : const Icon(Icons.sync, size: 18),
+            label: Text(_syncingTxt ? 'Syncing...' : 'Sync'),
+            style: FilledButton.styleFrom(backgroundColor: kcAccentColor, foregroundColor: Colors.white),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildImportCard() {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -1068,15 +1458,30 @@ class _GoogleDriveSettingsViewState extends State<GoogleDriveSettingsView> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Download and restore a backup from your ARC Backups folder.',
+            'Restore from ARC Backups, or browse Drive to pick other folders and import backup or text files from them.',
             style: bodyStyle(context).copyWith(color: kcSecondaryTextColor, fontSize: 12),
           ),
           const SizedBox(height: 12),
-          OutlinedButton.icon(
-            onPressed: (_loadingFiles || _importing) ? null : _loadDriveFiles,
-            icon: _loadingFiles ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.refresh, size: 18),
-            label: Text(_loadingFiles ? 'Loading...' : 'Refresh backup list'),
-            style: OutlinedButton.styleFrom(foregroundColor: kcSecondaryTextColor),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: (_loadingFiles || _importing) ? null : _loadDriveFiles,
+                  icon: _loadingFiles ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.refresh, size: 18),
+                  label: Text(_loadingFiles ? 'Loading...' : 'ARC Backups'),
+                  style: OutlinedButton.styleFrom(foregroundColor: kcSecondaryTextColor),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: FilledButton.icon(
+                  onPressed: (_loadingFiles || _importing) ? null : _openDriveFolderPicker,
+                  icon: const Icon(Icons.folder_open, size: 18),
+                  label: const Text('Browse Drive'),
+                  style: FilledButton.styleFrom(backgroundColor: kcAccentColor, foregroundColor: Colors.white),
+                ),
+              ),
+            ],
           ),
           if (_driveFiles.isNotEmpty) ...[
             const SizedBox(height: 12),

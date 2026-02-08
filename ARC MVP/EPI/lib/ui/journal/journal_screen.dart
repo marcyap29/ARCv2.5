@@ -21,7 +21,14 @@ import '../../telemetry/analytics.dart';
 import '../../services/periodic_discovery_service.dart';
 import 'package:my_app/services/lumara/lumara_inline_api.dart';
 import 'package:my_app/arc/chat/services/enhanced_lumara_api.dart';
+import 'package:my_app/arc/chat/services/reflection_handler.dart';
 import 'package:my_app/services/firebase_service.dart';
+import 'package:my_app/repositories/reflection_session_repository.dart';
+import 'package:my_app/aurora/reflection/aurora_reflection_service.dart';
+import 'package:my_app/arc/chat/reflection/reflection_pattern_analyzer.dart';
+import 'package:my_app/arc/chat/reflection/reflection_emotional_analyzer.dart';
+import 'package:my_app/services/adaptive/adaptive_sentinel_calculator.dart';
+import 'package:my_app/services/sentinel/sentinel_config.dart';
 import 'package:my_app/arc/chat/models/lumara_reflection_options.dart' as lumara_models;
 import 'package:my_app/arc/internal/mira/memory_loader.dart';
 import 'package:my_app/arc/chat/ui/lumara_settings_screen.dart';
@@ -48,9 +55,11 @@ import 'widgets/lumara_suggestion_sheet.dart';
 import 'widgets/inline_reflection_block.dart';
 // import '../../features/timeline/widgets/entry_content_renderer.dart'; // TODO: EntryContentRenderer not yet implemented
 import 'widgets/full_screen_photo_viewer.dart' show FullScreenPhotoViewer, PhotoData;
+import 'widgets/pdf_preview_screen.dart';
 import '../../ui/widgets/location_picker_dialog.dart';
 import 'drafts_screen.dart';
 import 'package:my_app/models/journal_entry_model.dart';
+import 'package:my_app/models/reflection_session.dart';
 import 'package:my_app/arc/chat/chat/chat_repo_impl.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -65,7 +74,9 @@ import 'package:my_app/services/user_phase_service.dart';
 import 'package:my_app/shared/widgets/lumara_icon.dart';
 import 'package:my_app/arc/ui/widgets/attachment_menu_button.dart';
 import 'package:my_app/arc/ui/widgets/private_notes_panel.dart';
+import 'package:my_app/arc/ui/media/media_preview_dialog.dart';
 import 'package:my_app/models/engagement_discipline.dart';
+import 'package:file_picker/file_picker.dart';
 
 /// Main journal screen with integrated LUMARA companion and OCR scanning
 class JournalScreen extends StatefulWidget {
@@ -116,6 +127,31 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
   /// Get the current entry ID for per-entry usage limit tracking
   /// Uses existing entry ID if editing, or draft ID for new entries
   String? get _currentEntryId => widget.existingEntry?.id ?? _currentDraftId;
+
+  /// Reflection session ID for AURORA monitoring (persists across follow-ups).
+  String? _currentReflectionSessionId;
+
+  /// Lazy-initialized reflection handler (session + AURORA).
+  ReflectionHandler? _reflectionHandler;
+
+  Future<ReflectionHandler> _getReflectionHandler() async {
+    if (_reflectionHandler != null) return _reflectionHandler!;
+    final box = Hive.isBoxOpen('reflection_sessions')
+        ? Hive.box<ReflectionSession>('reflection_sessions')
+        : await Hive.openBox<ReflectionSession>('reflection_sessions');
+    _reflectionHandler = ReflectionHandler(
+      sessionRepo: ReflectionSessionRepository(box),
+      journalRepo: _journalRepository,
+      aurora: AuroraReflectionService(
+        patternAnalyzer: ReflectionPatternAnalyzer(),
+        emotionalAnalyzer: ReflectionEmotionalAnalyzer(
+          AdaptiveSentinelCalculator(SentinelConfig.weekly()),
+        ),
+      ),
+      lumaraApi: _enhancedLumaraApi,
+    );
+    return _reflectionHandler!;
+  }
   
   // Enhanced OCP/PRISM orchestrator
   late final IOSVisionOrchestrator _ocpOrchestrator;
@@ -331,7 +367,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
             scanCount++;
           }
         }
-        print('DEBUG: Attachment breakdown - Photos: $photoCount, Videos: $videoCount, Scans: $scanCount');
+        print('DEBUG: Attachment breakdown - Photos: $photoCount, Videos: $videoCount, Scans: $scanCount, Files: ${attachments.whereType<FileAttachment>().length}');
         
         _entryState.attachments.addAll(attachments);
         print('DEBUG: Total attachments in state: ${_entryState.attachments.length}');
@@ -1228,6 +1264,26 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     );
   }
 
+  void _showReflectionPauseDialog(String message, DateTime? pausedUntil) {
+    if (!mounted) return;
+    final resumeText = pausedUntil != null
+        ? 'You can reflect again after ${pausedUntil.toLocal().toString().split('.').first}.'
+        : '';
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Reflection paused'),
+        content: Text([message.trim(), resumeText].join('\n\n')),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _generateLumaraReflection() async {
     // Declare newBlockIndex outside try block so it's accessible in catch
     int? newBlockIndex;
@@ -1372,83 +1428,50 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
       
       String reflection;
       List<AttributionTrace>? attributionTraces;
-      
-      if (isFirstActivation) {
-        // For first activation, use EnhancedLumaraApi with More Depth option to ensure
-        // decisive, thorough responses that answer questions properly
-        final result = await _enhancedLumaraApi.generatePromptedReflection(
-          entryText: richContext['entryText'] ?? '',
-          intent: 'journal',
-          phase: phaseHint,
-          userId: userProfile?.id,
-          includeExpansionQuestions: true,
-          mood: richContext['mood'],
-          chronoContext: richContext['chronoContext'],
-          chatContext: richContext['chatContext'],
-          mediaContext: richContext['mediaContext'],
-          entryId: _currentEntryId, // For per-entry usage limit tracking
-          options: lumara_models.LumaraReflectionOptions(
-            preferQuestionExpansion: true, // Use More Depth by default for first activation
-            toneMode: lumara_models.ToneMode.normal,
-            regenerate: false,
-          ),
-          onProgress: (message) {
-            if (mounted) {
-              setState(() {
-                _lumaraLoadingMessages[blockIndex] = message;
-              });
-            }
-          },
-        );
-        
-        reflection = result.reflection;
-        attributionTraces = result.attributionTraces;
-        
-        print('Journal: Retrieved ${attributionTraces.length} attribution traces from EnhancedLumaraApi');
-        
-        // Enrich attribution traces with actual journal entry content
-        if (attributionTraces.isNotEmpty) {
-          attributionTraces = await _enrichAttributionTraces(attributionTraces);
-          print('Journal: Enriched ${attributionTraces.length} attribution traces with journal entry content');
+
+      final entryId = _currentEntryId;
+      final userId = userProfile?.id ?? '';
+      final userQuery = richContext['entryText'] ?? '';
+      final options = lumara_models.LumaraReflectionOptions(
+        preferQuestionExpansion: false, // Default = Claude-like; use Explore/Integrate for rich context
+        toneMode: lumara_models.ToneMode.normal,
+        regenerate: false,
+      );
+      void onProgressMsg(String message) {
+        if (mounted) {
+          setState(() => _lumaraLoadingMessages[blockIndex] = message);
         }
-      } else {
-        // For subsequent activations, also use EnhancedLumaraApi with More Depth
-        // to ensure thorough responses that answer questions properly
-        final result = await _enhancedLumaraApi.generatePromptedReflection(
-          entryText: richContext['entryText'] ?? '',
-          intent: 'journal',
-          phase: phaseHint,
-          userId: userProfile?.id,
-          includeExpansionQuestions: true,
-          mood: richContext['mood'],
-          chronoContext: richContext['chronoContext'],
-          chatContext: richContext['chatContext'],
-          mediaContext: richContext['mediaContext'],
-          entryId: _currentEntryId, // For per-entry usage limit tracking
-          options: lumara_models.LumaraReflectionOptions(
-            preferQuestionExpansion: true, // Use More Depth for all activations
-            toneMode: lumara_models.ToneMode.normal,
-            regenerate: false,
-          ),
-          onProgress: (message) {
-            if (mounted) {
-              setState(() {
-                _lumaraLoadingMessages[blockIndex] = message;
-              });
-            }
-          },
-        );
-        
-        reflection = result.reflection;
-        attributionTraces = result.attributionTraces;
-        
-        print('Journal: Retrieved ${attributionTraces.length} attribution traces from EnhancedLumaraApi');
-        
-        // Enrich attribution traces with actual journal entry content
-        if (attributionTraces.isNotEmpty) {
-          attributionTraces = await _enrichAttributionTraces(attributionTraces);
-          print('Journal: Enriched ${attributionTraces.length} attribution traces with journal entry content');
+      }
+
+      final handler = await _getReflectionHandler();
+      final response = await handler.handleReflectionRequest(
+        userQuery: userQuery,
+        entryId: entryId,
+        userId: userId.isEmpty ? null : userId,
+        sessionId: _currentReflectionSessionId,
+        options: options,
+        onProgress: onProgressMsg,
+      );
+
+      if (response.isPaused) {
+        if (mounted) {
+          setState(() => _lumaraLoadingStates[blockIndex] = false);
+          _showReflectionPauseDialog(response.text, response.pausedUntil);
         }
+        return;
+      }
+
+      _currentReflectionSessionId = response.sessionId;
+      if (response.notice != null && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(response.notice!.trim())),
+        );
+      }
+
+      reflection = response.text;
+      attributionTraces = response.attributionTraces ?? [];
+      if (attributionTraces.isNotEmpty) {
+        attributionTraces = await _enrichAttributionTraces(attributionTraces);
       }
 
       // Update the placeholder block with actual content, attributions, and clear loading state
@@ -2306,6 +2329,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
                                 onPhotoGallery: _handlePhotoGallery,
                                 onCamera: _handleCamera,
                                 onVideoGallery: _handleVideoGallery,
+                                onFile: _handleFile,
                               ),
                               
                               // Private Notes button
@@ -2995,6 +3019,13 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
       widgets.add(const SizedBox(height: 16));
     }
 
+    // Show file attachments (PDF, .md, Doc)
+    final fileAttachments = _entryState.attachments.whereType<FileAttachment>().toList();
+    if (fileAttachments.isNotEmpty) {
+      widgets.add(_buildFileAttachmentList(fileAttachments, theme));
+      widgets.add(const SizedBox(height: 16));
+    }
+
     // Add inline reflection blocks with continuation field after each
     for (int index = 0; index < _entryState.blocks.length; index++) {
       final block = _entryState.blocks[index];
@@ -3114,6 +3145,210 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
         ),
       ],
     );
+  }
+
+  /// Build list of file attachments (PDF, .md, Doc)
+  Widget _buildFileAttachmentList(List<FileAttachment> files, ThemeData theme) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.3),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: theme.colorScheme.outline.withOpacity(0.2),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.attach_file,
+                size: 18,
+                color: theme.colorScheme.primary,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Files (${files.length})',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: files.map((file) {
+              final index = _entryState.attachments.indexOf(file);
+              return _buildFileAttachmentChip(file, index, theme);
+            }).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFileAttachmentChip(FileAttachment file, int index, ThemeData theme) {
+    IconData icon = Icons.insert_drive_file;
+    if (file.fileName.toLowerCase().endsWith('.pdf')) icon = Icons.picture_as_pdf;
+    else if (file.fileName.toLowerCase().endsWith('.md')) icon = Icons.description;
+    return GestureDetector(
+      onTap: () async {
+        final path = file.filePath.replaceFirst(RegExp(r'^file://'), '');
+        final f = File(path);
+        if (!await f.exists()) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('File not found: ${file.fileName}')),
+            );
+          }
+          return;
+        }
+        final isPdf = file.fileName.toLowerCase().endsWith('.pdf');
+        if (isPdf) {
+          _showFileOpenOptions(file, path);
+        } else {
+          _openFileInSystem(path, file.fileName);
+        }
+      },
+      onLongPress: () => _showFileContextMenu(file, index),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: theme.colorScheme.outline.withOpacity(0.3)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 20, color: theme.colorScheme.primary),
+            const SizedBox(width: 8),
+            Flexible(
+              child: Text(
+                file.fileName,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.bodySmall,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showFileContextMenu(FileAttachment file, int fileIndex) {
+    final path = file.filePath.replaceFirst(RegExp(r'^file://'), '');
+    final isPdf = file.fileName.toLowerCase().endsWith('.pdf');
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.open_in_new),
+              title: Text(isPdf ? 'Preview or open in app' : 'Open in default app'),
+              onTap: () {
+                Navigator.of(context).pop();
+                if (isPdf) {
+                  _showFileOpenOptions(file, path);
+                } else {
+                  _openFileInSystem(path, file.fileName);
+                }
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.delete_outline),
+              title: const Text('Remove file'),
+              onTap: () {
+                Navigator.of(context).pop();
+                if (fileIndex >= 0 && fileIndex < _entryState.attachments.length &&
+                    _entryState.attachments[fileIndex] is FileAttachment) {
+                  setState(() {
+                    _entryState.attachments.removeAt(fileIndex);
+                  });
+                  _updateDraftContent(_entryState.text);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('File removed')),
+                  );
+                }
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Show options for PDF: in-app preview or open in system app/browser.
+  void _showFileOpenOptions(FileAttachment file, String normalizedPath) {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.picture_as_pdf),
+              title: const Text('Preview'),
+              subtitle: const Text('View in app'),
+              onTap: () {
+                Navigator.of(context).pop();
+                Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (context) => PdfPreviewScreen(
+                      filePath: normalizedPath,
+                      fileName: file.fileName,
+                    ),
+                  ),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.open_in_new),
+              title: const Text('Open in default app'),
+              subtitle: const Text('Browser or system PDF viewer'),
+              onTap: () {
+                Navigator.of(context).pop();
+                _openFileInSystem(normalizedPath, file.fileName);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Open file with system default app (browser or document viewer).
+  Future<void> _openFileInSystem(String path, String fileName) async {
+    try {
+      final uri = Uri.file(path);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Cannot open $fileName in external app'),
+              backgroundColor: Theme.of(context).colorScheme.error,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to open file: $e'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      }
+    }
   }
 
   /// Build a grid of video thumbnails
@@ -3315,12 +3550,11 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     }
   }
 
-  /// Play video using native iOS Photos framework or fallback methods
+  /// Play video: in-app preview for local files (avoids crash from external launch). ph:// only tries external.
   Future<void> _playVideo(String videoPath) async {
     try {
       print('DEBUG: Attempting to play video: $videoPath');
       
-      // Check if file exists
       final videoFile = File(videoPath);
       if (!await videoFile.exists()) {
         if (mounted) {
@@ -3335,9 +3569,19 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
         return;
       }
 
-      // Try native iOS Photos framework first, then fallback methods
+      // Prefer in-app preview for local files (image_picker tmp, app sandbox) — avoids MethodChannel/launchUrl crashes
+      final isLocalFile = !videoPath.startsWith('ph://');
+      if (isLocalFile && mounted) {
+        Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (context) => FullScreenVideoPlayerScreen(videoPath: videoPath),
+          ),
+        );
+        return;
+      }
+
+      // Only for ph:// (photo library) try external app
       final success = await _tryOpenSpecificVideo(videoPath);
-      
       if (!success && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -3347,8 +3591,9 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
           ),
         );
       }
-    } catch (e) {
+    } catch (e, stack) {
       print('ERROR: Failed to play video: $e');
+      print('Stack: $stack');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -5717,36 +5962,116 @@ $originalEntryTextToInclude
     }
   }
 
+  /// Handle file selection (PDF, .md, Doc, Docx) — explicitly enabled for conversations/entries
+  Future<void> _handleFile() async {
+    try {
+      _analytics.logJournalEvent('file_button_pressed');
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['pdf', 'md', 'doc', 'docx'],
+        allowMultiple: true,
+      );
+      if (result != null && result.files.isNotEmpty) {
+        for (final platformFile in result.files) {
+          final path = platformFile.path;
+          if (path == null || path.isEmpty) continue;
+          final fileName = platformFile.name;
+          final ext = fileName.split('.').last.toLowerCase();
+          String mimeType = 'application/octet-stream';
+          if (ext == 'pdf') mimeType = 'application/pdf';
+          else if (ext == 'md') mimeType = 'text/markdown';
+          else if (ext == 'doc') mimeType = 'application/msword';
+          else if (ext == 'docx') mimeType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+          final fileAttachment = FileAttachment(
+            type: 'file',
+            filePath: path,
+            fileName: fileName,
+            mimeType: mimeType,
+            timestamp: DateTime.now().millisecondsSinceEpoch,
+            fileId: 'file_${DateTime.now().millisecondsSinceEpoch}_${fileName.hashCode}',
+          );
+          setState(() {
+            _entryState.addFileAttachment(fileAttachment);
+          });
+        }
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Added ${result.files.length} file(s)'),
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      print('DEBUG: File picker error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to add file: $e'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      }
+    }
+  }
+
   /// Handle video selection from gallery
   Future<void> _handleVideoGallery() async {
     try {
       _analytics.logJournalEvent('video_button_pressed');
+      // Show loading feedback immediately; user may wait through permissions, picker, and processing
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Theme.of(context).colorScheme.onInverseSurface,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                const Text('Video is loading…'),
+              ],
+            ),
+            duration: const Duration(seconds: 60),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
       print('DEBUG: Requesting photo library permissions for video...');
-      
-      // Request permissions first
       final hasPermissions = await PhotoLibraryService.requestPermissions();
       if (!hasPermissions) {
         print('DEBUG: Photo library permissions denied');
+        if (mounted) ScaffoldMessenger.of(context).hideCurrentSnackBar();
         _showPermissionDeniedDialog();
         return;
       }
-      
       print('DEBUG: Photo library permissions granted, opening video picker');
       final XFile? video = await _imagePicker.pickVideo(source: ImageSource.gallery);
       if (video != null) {
         print('DEBUG: Selected video: ${video.path}');
         await _processVideo(video.path);
+        // Success SnackBar is shown by _processVideo and replaces the loading one
       } else {
         print('DEBUG: No video selected');
+        if (mounted) ScaffoldMessenger.of(context).hideCurrentSnackBar();
       }
     } catch (e) {
       print('DEBUG: Video picker error: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to select video: $e'),
-          backgroundColor: Theme.of(context).colorScheme.error,
-        ),
-      );
+      if (mounted) ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to select video: $e'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      }
     }
   }
 

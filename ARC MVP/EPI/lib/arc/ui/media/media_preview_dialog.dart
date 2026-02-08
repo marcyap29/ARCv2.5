@@ -423,7 +423,7 @@ class MediaPreviewDialog extends StatelessWidget {
     // Navigate to a full-screen video player
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (context) => _VideoPlayerScreen(videoPath: mediaItem.uri),
+        builder: (context) => FullScreenVideoPlayerScreen(videoPath: mediaItem.uri),
       ),
     );
   }
@@ -439,17 +439,18 @@ class MediaPreviewDialog extends StatelessWidget {
   }
 }
 
-/// Fullscreen video player widget
-class _VideoPlayerScreen extends StatefulWidget {
+/// Fullscreen in-app video player. Use for local file paths (e.g. image_picker tmp files)
+/// when external launch (file://, Photos app) is not available on iOS.
+class FullScreenVideoPlayerScreen extends StatefulWidget {
   final String videoPath;
 
-  const _VideoPlayerScreen({required this.videoPath});
+  const FullScreenVideoPlayerScreen({super.key, required this.videoPath});
 
   @override
-  State<_VideoPlayerScreen> createState() => _VideoPlayerScreenState();
+  State<FullScreenVideoPlayerScreen> createState() => _FullScreenVideoPlayerScreenState();
 }
 
-class _VideoPlayerScreenState extends State<_VideoPlayerScreen> {
+class _FullScreenVideoPlayerScreenState extends State<FullScreenVideoPlayerScreen> {
   VideoPlayerController? _controller;
   bool _isPlaying = false;
   bool _isInitialized = false;
@@ -486,30 +487,37 @@ class _VideoPlayerScreenState extends State<_VideoPlayerScreen> {
         return;
       }
 
-      // Create controller for local file
+      // Create controller for local file (in-app preview only — no external launch)
       _controller = VideoPlayerController.file(File(widget.videoPath));
 
-      // Initialize the controller with timeout to prevent hanging
+      // Initialize with timeout; don't rethrow — show error in UI to avoid crash
       try {
         await _controller!.initialize().timeout(
-          const Duration(seconds: 3),
+          const Duration(seconds: 15),
           onTimeout: () {
-            print('Video initialization timeout after 3 seconds');
-            throw TimeoutException('Video initialization timed out', const Duration(seconds: 3));
+            throw TimeoutException('Video initialization timed out', const Duration(seconds: 15));
           },
         );
       } catch (e) {
-        // Clean up controller on timeout or error
         await _controller?.dispose();
         _controller = null;
-        throw e;
+        if (mounted) {
+          setState(() {
+            _errorMessage = e is TimeoutException
+                ? 'Video took too long to load. Try a shorter clip.'
+                : 'Could not load video: ${e.toString()}';
+          });
+        }
+        return;
       }
 
-      // Verify controller is initialized
+      if (!mounted) return;
       if (_controller == null || !_controller!.value.isInitialized) {
         setState(() {
           _errorMessage = 'Failed to initialize video player';
         });
+        await _controller?.dispose();
+        _controller = null;
         return;
       }
 
@@ -517,31 +525,30 @@ class _VideoPlayerScreenState extends State<_VideoPlayerScreen> {
         _isInitialized = true;
       });
 
-      // Auto-play the video
+      // Auto-play; ignore play() errors so we still show the first frame
       try {
         await _controller!.play();
-        setState(() {
+        if (mounted) setState(() {
           _isPlaying = true;
         });
       } catch (e) {
         print('Error playing video: $e');
-        setState(() {
-          _errorMessage = 'Failed to play video: $e';
-        });
-        return;
+        // Still show frame; user can tap play
       }
 
-      // Listen for video completion
-      _controller!.addListener(_videoListener);
+      if (_controller != null) {
+        _controller!.addListener(_videoListener);
+      }
     } catch (e, stackTrace) {
       print('Error initializing video: $e');
       print('Stack trace: $stackTrace');
-      setState(() {
-        _errorMessage = 'Failed to load video: ${e.toString()}';
-      });
-      // Clean up on error
       await _controller?.dispose();
       _controller = null;
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'Failed to load video: ${e.toString()}';
+        });
+      }
     }
   }
 

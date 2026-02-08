@@ -21,6 +21,8 @@ import 'package:my_app/services/phase_regime_service.dart';
 import 'package:my_app/services/analytics_service.dart';
 import 'package:my_app/services/rivet_sweep_service.dart';
 import 'package:my_app/mira/store/arcx/services/arcx_export_service_v2.dart';
+import 'package:my_app/mira/store/arcx/services/arcx_clean_service.dart';
+import 'package:my_app/mira/store/mcp/export/mcp_pack_export_service.dart';
 import 'package:my_app/services/export_history_service.dart';
 // TODO: Selective backup entry selector not yet implemented
 // import 'package:my_app/shared/ui/settings/selective_backup_entry_selector.dart';
@@ -66,6 +68,14 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
   // Export set diff (for "continue export to this folder")
   Map<String, dynamic>? _exportSetDiffPreview;
 
+  // Password protection for local .arcx backups (portable across devices/reinstalls)
+  bool _usePasswordEncryption = false;
+  String? _exportPassword;
+
+  // Clean ARCX
+  bool _isCleaningArcx = false;
+  String _cleanArcxProgress = '';
+
   StreamSubscription<String>? _progressSubscription;
   StreamSubscription<int>? _percentageSubscription;
 
@@ -92,6 +102,7 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
   static const String _keyScheduleFrequency = 'local_backup_schedule_frequency';
   static const String _keyScheduleTime = 'local_backup_schedule_time';
   static const String _keyLastBackup = 'local_backup_last_backup';
+  static const String _keyUsePasswordEncryption = 'local_backup_use_password_encryption';
 
   Future<void> _loadSettings() async {
     setState(() => _isLoading = true);
@@ -110,6 +121,7 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
       final lastBackup = lastBackupMillis != null 
           ? DateTime.fromMillisecondsSinceEpoch(lastBackupMillis) 
           : null;
+      final usePasswordEncryption = prefs.getBool(_keyUsePasswordEncryption) ?? false;
 
       setState(() {
         _isEnabled = isEnabled;
@@ -119,6 +131,7 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
         _scheduleFrequency = scheduleFrequency;
         _scheduleTime = scheduleTime;
         _lastBackup = lastBackup;
+        _usePasswordEncryption = usePasswordEncryption;
         _isLoading = false;
       });
     } catch (e) {
@@ -154,7 +167,8 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
         try {
           final dir = Directory(_backupPath!);
           if (await dir.exists()) {
-            exportSetDiff = await exportService.getExportSetDiffPreviewForOutputDir(dir);
+            final pwd = _usePasswordEncryption && _exportPassword != null && _exportPassword!.isNotEmpty ? _exportPassword : null;
+            exportSetDiff = await exportService.getExportSetDiffPreviewForOutputDir(dir, password: pwd);
           }
         } catch (_) {}
       }
@@ -448,6 +462,19 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
       );
       return;
     }
+    if (_usePasswordEncryption && (_exportPassword == null || _exportPassword!.isEmpty)) {
+      await _showPasswordDialog();
+      if (!mounted) return;
+      if (_exportPassword == null || _exportPassword!.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please set a password (Encrypt with password → Change) or turn off password encryption to backup.'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        return;
+      }
+    }
 
     setState(() {
       _isBackingUp = true;
@@ -534,10 +561,65 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
           return;
         }
       }
+
+      if (_backupFormat == 'zip') {
+        // ZIP incremental: full MCP bundle with dated filename (same data as ARCX incremental scope)
+        if (mounted) setState(() => _backupProgress = 'Loading entries...');
+        final entries = await widget.journalRepo.getAllJournalEntries();
+        if (entries.isEmpty) {
+          if (mounted) {
+            setState(() { _isBackingUp = false; _backupProgress = ''; _backupPercentage = 0; });
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('No entries to backup'), backgroundColor: Colors.orange),
+            );
+          }
+          return;
+        }
+        final timestamp = DateFormat('yyyy-MM-dd_HH-mm').format(DateTime.now());
+        final zipPath = path.join(cleanBackupPath, 'ARC_Inc_$timestamp.zip');
+        PhaseRegimeService? phaseRegimeService;
+        try {
+          phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
+          await phaseRegimeService.initialize();
+        } catch (_) {}
+        final mcpService = McpPackExportService(
+          bundleId: 'ARC_Inc_$timestamp',
+          outputPath: zipPath,
+          chatRepo: chatRepo,
+          phaseRegimeService: phaseRegimeService,
+        );
+        if (mounted) setState(() => _backupProgress = 'Creating ZIP backup...');
+        final zipResult = await mcpService.exportJournal(
+          entries: entries,
+          includePhotos: true,
+          reducePhotoSize: false,
+          includeChats: true,
+          includeArchivedChats: true,
+          mediaPackTargetSizeMB: 200,
+        );
+        if (zipResult.success) {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setInt(_keyLastBackup, DateTime.now().millisecondsSinceEpoch);
+          await _loadSettings();
+          await _loadBackupInfo();
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('ZIP backup complete: ${zipResult.totalEntries} entries, ${zipResult.totalChatSessions} chats'),
+                backgroundColor: Colors.green,
+              ),
+            );
+          }
+        } else {
+          if (mounted) _showBackupErrorDialog(zipResult.error ?? 'ZIP backup failed');
+        }
+        return;
+      }
       
+      final backupPassword = _usePasswordEncryption && _exportPassword != null && _exportPassword!.isNotEmpty ? _exportPassword! : null;
       final result = await exportService.exportIncremental(
         outputDir: outputDir,
-        password: null,
+        password: backupPassword,
         excludeMedia: false,
         onProgress: (msg) {
           if (mounted) {
@@ -597,6 +679,19 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
         ),
       );
       return;
+    }
+    if (_usePasswordEncryption && (_exportPassword == null || _exportPassword!.isEmpty)) {
+      await _showPasswordDialog();
+      if (!mounted) return;
+      if (_exportPassword == null || _exportPassword!.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please set a password (Encrypt with password → Change) or turn off password encryption to backup.'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        return;
+      }
     }
 
     setState(() {
@@ -684,11 +779,67 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
           return;
         }
       }
+
+      if (_backupFormat == 'zip') {
+        // ZIP format: full MCP bundle (same data as ARCX, standard ZIP)
+        if (mounted) setState(() => _backupProgress = 'Loading entries...');
+        final entries = await widget.journalRepo.getAllJournalEntries();
+        if (entries.isEmpty) {
+          if (mounted) {
+            setState(() { _isBackingUp = false; _backupProgress = ''; _backupPercentage = 0; });
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('No entries to backup'), backgroundColor: Colors.orange),
+            );
+          }
+          return;
+        }
+        final timestamp = DateFormat('yyyy-MM-dd_HH-mm').format(DateTime.now());
+        final zipPath = path.join(cleanBackupPath, 'ARC_Full_$timestamp.zip');
+        PhaseRegimeService? phaseRegimeService;
+        try {
+          phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
+          await phaseRegimeService.initialize();
+        } catch (_) {}
+        final mcpService = McpPackExportService(
+          bundleId: 'ARC_Full_$timestamp',
+          outputPath: zipPath,
+          chatRepo: chatRepo,
+          phaseRegimeService: phaseRegimeService,
+        );
+        if (mounted) setState(() => _backupProgress = 'Creating ZIP backup...');
+        final zipResult = await mcpService.exportJournal(
+          entries: entries,
+          includePhotos: true,
+          reducePhotoSize: false,
+          includeChats: true,
+          includeArchivedChats: true,
+          mediaPackTargetSizeMB: 200,
+        );
+        if (zipResult.success) {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setInt(_keyLastBackup, DateTime.now().millisecondsSinceEpoch);
+          await _loadSettings();
+          await _loadBackupInfo();
+          if (mounted) {
+            setState(() { _isBackingUp = false; _backupProgress = ''; _backupPercentage = 0; });
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('ZIP backup complete: ${zipResult.totalEntries} entries, ${zipResult.totalChatSessions} chats'),
+                backgroundColor: Colors.green,
+              ),
+            );
+          }
+        } else {
+          if (mounted) _showBackupErrorDialog(zipResult.error ?? 'ZIP backup failed');
+        }
+        return;
+      }
       
-      // Use chunked backup (splits into ~200MB files)
+      // ARCX format: chunked backup (splits into ~200MB files)
+      final backupPassword = _usePasswordEncryption && _exportPassword != null && _exportPassword!.isNotEmpty ? _exportPassword! : null;
       final result = await exportService.exportFullBackupChunked(
         outputDir: outputDir,
-        password: null,
+        password: backupPassword,
         chunkSizeMB: 200, // Split at 200MB per chunk
         onProgress: (msg, [fraction]) {
           if (mounted) {
@@ -744,6 +895,29 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Please select a backup folder first'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+    if (_usePasswordEncryption && (_exportPassword == null || _exportPassword!.isEmpty)) {
+      await _showPasswordDialog();
+      if (!mounted) return;
+      if (_exportPassword == null || _exportPassword!.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please set a password (Encrypt with password → Change) or turn off password encryption to backup.'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        return;
+      }
+    }
+
+    if (_backupFormat == 'zip') {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Continue export is only available for ARCX format. Create a full ZIP backup instead.'),
           backgroundColor: Colors.orange,
         ),
       );
@@ -829,9 +1003,10 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
         return;
       }
 
+      final backupPassword = _usePasswordEncryption && _exportPassword != null && _exportPassword!.isNotEmpty ? _exportPassword! : null;
       final result = await exportService.exportContinueToOutputDir(
         outputDir: outputDir,
-        password: null,
+        password: backupPassword,
         excludeMedia: false,
         onProgress: (msg) {
           if (mounted) setState(() { _backupProgress = msg; });
@@ -970,6 +1145,87 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
     );
   }
   
+  /// Show dialog to set or change backup password (for portable, device-independent encryption).
+  Future<void> _showPasswordDialog() async {
+    final controller = TextEditingController();
+    final confirmController = TextEditingController();
+    bool showError = false;
+    final result = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          backgroundColor: kcBackgroundColor,
+          title: Text(
+            'Backup password',
+            style: heading2Style(context).copyWith(color: Colors.white),
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Use a password so this backup can be opened on any device (e.g. after reinstall). You’ll need this password to restore.',
+                  style: bodyStyle(context).copyWith(color: Colors.white70),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: controller,
+                  obscureText: true,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: const InputDecoration(
+                    labelText: 'Password',
+                    hintText: 'Enter a strong password',
+                  ),
+                  onChanged: (_) {
+                    if (showError) setDialogState(() => showError = false);
+                  },
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: confirmController,
+                  obscureText: true,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: InputDecoration(
+                    labelText: 'Confirm password',
+                    hintText: 'Re-enter the password',
+                    errorText: showError ? 'Passwords do not match' : null,
+                  ),
+                  onChanged: (_) {
+                    if (showError) setDialogState(() => showError = false);
+                  },
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                if (controller.text.isEmpty) {
+                  setDialogState(() => showError = true);
+                  return;
+                }
+                if (controller.text != confirmController.text) {
+                  setDialogState(() => showError = true);
+                  return;
+                }
+                Navigator.of(dialogContext).pop(controller.text);
+              },
+              child: const Text('Confirm'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (result != null && result.isNotEmpty && mounted) {
+      setState(() => _exportPassword = result);
+    }
+  }
+
   Future<void> _showBackupErrorDialog(String error) async {
     await showDialog(
       context: context,
@@ -1042,6 +1298,236 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
     }
   }
   
+  /// Choose source (files or folder), then clean: open → decrypt → remove chats with fewer than 3 LUMARA → re-encrypt. Saves as *_cleaned.arcx.
+  Future<void> _runCleanArcx() async {
+    final choice = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: kcBackgroundColor,
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                'Clean ARCX',
+                style: heading3Style(context).copyWith(color: Colors.white),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Remove chat sessions with fewer than 3 LUMARA replies. Device-key-encrypted ARCX 1.2 only.',
+                style: bodyStyle(context).copyWith(
+                  color: kcSecondaryTextColor,
+                  fontSize: 12,
+                ),
+              ),
+              const SizedBox(height: 16),
+              ElevatedButton.icon(
+                onPressed: () => Navigator.of(context).pop('files'),
+                icon: const Icon(Icons.attach_file),
+                label: const Text('Select ARCX file(s)'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: kcAccentColor,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                ),
+              ),
+              const SizedBox(height: 10),
+              OutlinedButton.icon(
+                onPressed: () => Navigator.of(context).pop('folder'),
+                icon: const Icon(Icons.folder_open),
+                label: const Text('Select folder (clean all .arcx inside)'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: kcSecondaryTextColor,
+                  side: BorderSide(color: kcSecondaryTextColor.withOpacity(0.5)),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                ),
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (choice == null || !mounted) return;
+
+    List<String> paths;
+    if (choice == 'files') {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['arcx'],
+        allowMultiple: true,
+        withData: false,
+      );
+      if (result == null || result.files.isEmpty) return;
+      paths = result.files
+          .map((f) => f.path)
+          .where((p) => p != null && p.isNotEmpty)
+          .cast<String>()
+          .toList();
+    } else {
+      final dirPath = await FilePicker.platform.getDirectoryPath();
+      if (dirPath == null || dirPath.isEmpty) return;
+      paths = listArcxFilesInDirectory(dirPath);
+      if (paths.isEmpty && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No .arcx files found in that folder'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        return;
+      }
+    }
+    if (paths.isEmpty || !mounted) return;
+
+    setState(() {
+      _isCleaningArcx = true;
+      _cleanArcxProgress = 'Starting…';
+    });
+
+    ARCXCleanBatchResult batchResult;
+    try {
+      batchResult = await cleanArcxPaths(
+        arcxPaths: paths,
+        onFileStart: (index, total, filePath) {
+          if (mounted) {
+            setState(() {
+              _cleanArcxProgress = 'File $index of $total: ${path.basename(filePath)}';
+            });
+          }
+        },
+        onProgress: (index, total, filePath, message) {
+          if (mounted) {
+            setState(() {
+              _cleanArcxProgress = 'File $index of $total: ${path.basename(filePath)} — $message';
+            });
+          }
+        },
+      );
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isCleaningArcx = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Clean failed: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return;
+    }
+
+    if (!mounted) return;
+    setState(() => _isCleaningArcx = false);
+
+    await _showCleanArcxBatchResultDialog(batchResult);
+    if (mounted && batchResult.successCount > 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Cleaned ${batchResult.successCount} of ${batchResult.totalCount} file(s). '
+            '${batchResult.failCount} failed.',
+          ),
+          backgroundColor: batchResult.failCount > 0 ? Colors.orange : Colors.green,
+        ),
+      );
+    }
+  }
+
+  Future<void> _showCleanArcxBatchResultDialog(ARCXCleanBatchResult batch) async {
+    await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: kcBackgroundColor,
+        title: Row(
+          children: [
+            Icon(
+              batch.failCount == 0 ? Icons.check_circle : Icons.info_outline,
+              color: batch.failCount == 0 ? Colors.green[300] : Colors.orange[300],
+              size: 24,
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Clean complete',
+                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '${batch.successCount} of ${batch.totalCount} file(s) cleaned. '
+                '${batch.failCount} failed.',
+                style: const TextStyle(color: Colors.white70, fontSize: 14),
+              ),
+              if (batch.failCount > 0) ...[
+                const SizedBox(height: 12),
+                Text(
+                  'Failed:',
+                  style: TextStyle(color: Colors.grey[400], fontSize: 12, fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 4),
+                ...batch.results.asMap().entries.where((e) => !e.value.success).map((e) {
+                  final i = e.key;
+                  final r = e.value;
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          path.basename(batch.paths[i]),
+                          style: const TextStyle(color: Colors.white70, fontSize: 12),
+                        ),
+                        Text(
+                          r.error ?? 'Unknown error',
+                          style: TextStyle(color: Colors.red[300], fontSize: 11),
+                        ),
+                      ],
+                    ),
+                  );
+                }),
+              ],
+              if (batch.successCount > 0) ...[
+                const SizedBox(height: 12),
+                Text(
+                  'Cleaned (saved as *_cleaned.arcx):',
+                  style: TextStyle(color: Colors.grey[400], fontSize: 12, fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 4),
+                ...batch.results.asMap().entries.where((e) => e.value.success).map((e) {
+                  final r = e.value;
+                  final removed = r.removedCount;
+                  final kept = r.keptCount;
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 4),
+                    child: Text(
+                      '${path.basename(r.outputPath ?? '')} — removed $removed, kept $kept chat(s)',
+                      style: TextStyle(color: Colors.grey[300], fontSize: 11),
+                    ),
+                  );
+                }),
+              ],
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('OK', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
   String _formatDate(DateTime date) {
     final now = DateTime.now();
     final diff = now.difference(date);
@@ -1278,6 +1764,52 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
                       ],
                     ),
 
+                    // Password protection (ARCX only) — portable backup survives app delete/reinstall
+                    if (_backupFormat == 'arcx')
+                      _buildSection(
+                        title: 'Password protection',
+                        children: [
+                          SwitchListTile(
+                            title: const Text(
+                              'Encrypt with password',
+                              style: TextStyle(color: Colors.white),
+                            ),
+                            subtitle: const Text(
+                              'Portable backup you can open on any device or after reinstall (you’ll need the password to restore)',
+                              style: TextStyle(color: Colors.grey),
+                            ),
+                            value: _usePasswordEncryption,
+                            onChanged: (value) async {
+                              setState(() => _usePasswordEncryption = value);
+                              if (value) {
+                                await _showPasswordDialog();
+                              } else {
+                                setState(() => _exportPassword = null);
+                              }
+                              final prefs = await SharedPreferences.getInstance();
+                              await prefs.setBool(_keyUsePasswordEncryption, _usePasswordEncryption);
+                            },
+                            activeColor: kcAccentColor,
+                          ),
+                          if (_usePasswordEncryption && _exportPassword != null)
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                              child: Row(
+                                children: [
+                                  Icon(Icons.lock, size: 18, color: Colors.green[300]),
+                                  const SizedBox(width: 8),
+                                  Text('Password set', style: bodyStyle(context).copyWith(color: Colors.white70)),
+                                  const Spacer(),
+                                  TextButton(
+                                    onPressed: _showPasswordDialog,
+                                    child: const Text('Change'),
+                                  ),
+                                ],
+                              ),
+                            ),
+                        ],
+                      ),
+
                     if (_backupPath != null) const SizedBox(height: 24),
 
                     // Scheduled Backups
@@ -1362,6 +1894,12 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
                       _buildBackupHistoryCard(),
                       
                       const SizedBox(height: 24),
+                    ],
+
+                    // ARCX Tools (visible when backup enabled; no folder required)
+                    if (_isEnabled) ...[
+                      const SizedBox(height: 16),
+                      _buildArcxToolsCard(),
                     ],
 
                     // Manual Backup (Legacy - kept for compatibility)
@@ -2337,6 +2875,73 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
     }
   }
   
+  Widget _buildArcxToolsCard() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.03),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white.withOpacity(0.08)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'ARCX Tools',
+            style: heading3Style(context).copyWith(
+              color: kcPrimaryTextColor,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Clean ARCX file(s) or a whole folder: open, decrypt, remove chats with fewer than 3 LUMARA replies, re-encrypt. Device-key-encrypted ARCX 1.2 only. Output: *_cleaned.arcx.',
+            style: bodyStyle(context).copyWith(
+              color: kcSecondaryTextColor,
+              fontSize: 12,
+            ),
+          ),
+          const SizedBox(height: 12),
+          if (_isCleaningArcx)
+            Row(
+              children: [
+                const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    _cleanArcxProgress,
+                    style: bodyStyle(context).copyWith(
+                      color: kcSecondaryTextColor,
+                      fontSize: 13,
+                    ),
+                  ),
+                ),
+              ],
+            )
+          else
+            OutlinedButton.icon(
+              onPressed: _runCleanArcx,
+              icon: const Icon(Icons.cleaning_services, size: 18),
+              label: const Text('Clean ARCX file(s) or folder...'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: kcSecondaryTextColor,
+                side: BorderSide(color: kcSecondaryTextColor.withOpacity(0.5)),
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildBackupHistoryCard() {
     final history = _historySummary;
     if (history == null) return const SizedBox.shrink();

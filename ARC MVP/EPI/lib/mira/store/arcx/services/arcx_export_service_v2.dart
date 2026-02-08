@@ -965,7 +965,8 @@ class ARCXExportServiceV2 {
     return entries;
   }
   
-  /// Load chats by thread IDs with optional date filtering
+  /// Load chats by thread IDs with optional date filtering.
+  /// Only includes chats where LUMARA (assistant) answered at least twice.
   Future<List<ChatSession>> _loadChats(List<String> chatThreadIds, DateTime? startDate, DateTime? endDate) async {
     if (_chatRepo == null || chatThreadIds.isEmpty) return [];
     
@@ -983,9 +984,31 @@ class ARCXExportServiceV2 {
         print('Warning: Could not load chat $id: $e');
       }
     }
-    return chats;
+    return _filterChatsWithMinLumaraResponses(chats);
   }
-  
+
+  /// Minimum number of LUMARA (assistant) responses required to include a chat in export.
+  /// Chats with fewer are excluded so short sessions don't clutter backups.
+  static const int _kMinLumaraResponsesToExport = 3;
+
+  /// Returns only chats that have at least [minAssistantMessages] assistant messages.
+  Future<List<ChatSession>> _filterChatsWithMinLumaraResponses(
+    List<ChatSession> chats, {
+    int minAssistantMessages = _kMinLumaraResponsesToExport,
+  }) async {
+    if (_chatRepo == null || chats.isEmpty) return chats;
+    final kept = <ChatSession>[];
+    for (final chat in chats) {
+      try {
+        final messages = await _chatRepo!.getMessages(chat.id, lazy: false);
+        final assistantCount =
+            messages.where((m) => m.role == MessageRole.assistant).length;
+        if (assistantCount >= minAssistantMessages) kept.add(chat);
+      } catch (_) {}
+    }
+    return kept;
+  }
+
   /// Load media by IDs with optional date filtering
   Future<List<MediaItem>> _loadMedia(List<String> mediaIds, DateTime? startDate, DateTime? endDate) async {
     if (mediaIds.isEmpty) return [];
@@ -2512,7 +2535,7 @@ user_id: ${aggregation.userId}
                e.updatedAt.isAfter(lastExportDate);
       }).toList();
         
-      final chatsToExport = allChats.where((c) {
+      var chatsToExport = allChats.where((c) {
         // Skip if already exported (CRITICAL: prevents exponential duplication)
         if (history.allExportedChatIds.contains(c.id)) {
           return false;
@@ -2521,6 +2544,7 @@ user_id: ${aggregation.userId}
         return c.createdAt.isAfter(lastExportDate) ||
                c.updatedAt.isAfter(lastExportDate);
       }).toList();
+      chatsToExport = await _filterChatsWithMinLumaraResponses(chatsToExport);
       
       // Collect media from entries to export (unless excluded)
       final mediaToExport = <MediaItem>[];
@@ -2664,9 +2688,10 @@ user_id: ${aggregation.userId}
   }) async {
     onProgress?.call('Creating full backup...');
     
-    // Get all data
+    // Get all data (only include chats where LUMARA answered at least twice)
     final allEntries = await _journalRepo?.getAllJournalEntries() ?? [];
-    final allChats = await _chatRepo?.listAll(includeArchived: true) ?? [];
+    var allChats = await _chatRepo?.listAll(includeArchived: true) ?? [];
+    allChats = await _filterChatsWithMinLumaraResponses(allChats);
     
     final selection = ARCXExportSelection(
       entryIds: allEntries.map((e) => e.id).toList(),
@@ -3299,7 +3324,8 @@ user_id: ${aggregation.userId}
     final mediaHashesInSet = index?.mediaHashes ?? {};
 
     final entriesToExport = allEntries.where((e) => !entryIdsInSet.contains(e.id)).toList();
-    final chatsToExport = allChats.where((c) => !chatIdsInSet.contains(c.id)).toList();
+    var chatsToExport = allChats.where((c) => !chatIdsInSet.contains(c.id)).toList();
+    chatsToExport = await _filterChatsWithMinLumaraResponses(chatsToExport);
     final mediaToExport = <MediaItem>[];
     for (final entry in entriesToExport) {
       for (final m in entry.media) {
@@ -3355,7 +3381,8 @@ user_id: ${aggregation.userId}
       final mediaHashesInSet = index?.mediaHashes ?? {};
 
       final entriesToExport = allEntries.where((e) => !entryIdsInSet.contains(e.id)).toList();
-      final chatsToExport = allChats.where((c) => !chatIdsInSet.contains(c.id)).toList();
+      var chatsToExport = allChats.where((c) => !chatIdsInSet.contains(c.id)).toList();
+      chatsToExport = await _filterChatsWithMinLumaraResponses(chatsToExport);
       final mediaToExport = <MediaItem>[];
       if (!excludeMedia) {
         for (final entry in entriesToExport) {

@@ -11,7 +11,10 @@ import 'package:my_app/services/firebase_auth_service.dart';
 /// Visual UI/UX for displaying CHRONICLE layers (monthly, yearly, multi-year)
 /// to ensure transparency with users about what has been synthesized.
 class ChronicleLayersViewer extends StatefulWidget {
-  const ChronicleLayersViewer({super.key});
+  /// Which tab to show first: 0 = Monthly, 1 = Yearly, 2 = Multi-Year.
+  final int initialTabIndex;
+
+  const ChronicleLayersViewer({super.key, this.initialTabIndex = 0});
 
   @override
   State<ChronicleLayersViewer> createState() => _ChronicleLayersViewerState();
@@ -30,7 +33,8 @@ class _ChronicleLayersViewerState extends State<ChronicleLayersViewer>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    final index = widget.initialTabIndex.clamp(0, 2);
+    _tabController = TabController(length: 3, vsync: this, initialIndex: index);
     _loadAggregations();
   }
 
@@ -506,72 +510,13 @@ class _ChronicleLayersViewerState extends State<ChronicleLayersViewer>
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (context) => DraggableScrollableSheet(
-        initialChildSize: 0.9,
-        minChildSize: 0.5,
-        maxChildSize: 0.95,
-        expand: false,
-        builder: (context, scrollController) => Column(
-          children: [
-            // Header
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                border: Border(
-                  bottom: BorderSide(
-                    color: kcPrimaryTextColor.withOpacity(0.1),
-                    width: 1,
-                  ),
-                ),
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          period,
-                          style: heading2Style(context).copyWith(
-                            color: kcPrimaryTextColor,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          aggregation.layer.displayName,
-                          style: captionStyle(context).copyWith(
-                            color: kcSecondaryTextColor,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close),
-                    color: kcPrimaryTextColor,
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                ],
-              ),
-            ),
-            // Content
-            Expanded(
-              child: SingleChildScrollView(
-                controller: scrollController,
-                padding: const EdgeInsets.all(20),
-                child: Text(
-                  aggregation.content,
-                  style: bodyStyle(context).copyWith(
-                    color: kcPrimaryTextColor,
-                    height: 1.8,
-                    fontSize: 15,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
+      builder: (context) => _ChronicleContentSheet(
+        aggregation: aggregation,
+        period: period,
+        onSaved: () {
+          Navigator.pop(context);
+          _loadAggregations();
+        },
       ),
     );
   }
@@ -642,5 +587,193 @@ class _ChronicleLayersViewerState extends State<ChronicleLayersViewer>
       'July', 'August', 'September', 'October', 'November', 'December'
     ];
     return '${monthNames[date.month]} ${date.day}, ${date.year}';
+  }
+}
+
+/// Full-content sheet with view/edit and save for CHRONICLE aggregations.
+class _ChronicleContentSheet extends StatefulWidget {
+  final ChronicleAggregation aggregation;
+  final String period;
+  final VoidCallback onSaved;
+
+  const _ChronicleContentSheet({
+    required this.aggregation,
+    required this.period,
+    required this.onSaved,
+  });
+
+  @override
+  State<_ChronicleContentSheet> createState() => _ChronicleContentSheetState();
+}
+
+class _ChronicleContentSheetState extends State<_ChronicleContentSheet> {
+  late TextEditingController _controller;
+  bool _isEditing = false;
+  bool _isSaving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.aggregation.content);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    if (_controller.text.trim() == widget.aggregation.content) {
+      setState(() => _isEditing = false);
+      return;
+    }
+    setState(() => _isSaving = true);
+    try {
+      final userId = FirebaseAuthService.instance.currentUser?.uid ?? 'default_user';
+      final repo = AggregationRepository();
+      final updated = widget.aggregation.copyWith(
+        content: _controller.text.trim(),
+        userEdited: true,
+        version: widget.aggregation.version + 1,
+      );
+      switch (updated.layer) {
+        case ChronicleLayer.monthly:
+          await repo.saveMonthly(userId, updated);
+          break;
+        case ChronicleLayer.yearly:
+          await repo.saveYearly(userId, updated);
+          break;
+        case ChronicleLayer.multiyear:
+          await repo.saveMultiYear(userId, updated);
+          break;
+        default:
+          break;
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('CHRONICLE summary saved. Your edits will be used in future synthesis.')),
+        );
+        setState(() {
+          _isEditing = false;
+          _isSaving = false;
+        });
+        widget.onSaved();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not save: $e')),
+        );
+        setState(() => _isSaving = false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return DraggableScrollableSheet(
+      initialChildSize: 0.9,
+      minChildSize: 0.5,
+      maxChildSize: 0.95,
+      expand: false,
+      builder: (context, scrollController) => Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              border: Border(
+                bottom: BorderSide(
+                  color: kcPrimaryTextColor.withOpacity(0.1),
+                  width: 1,
+                ),
+              ),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        widget.period,
+                        style: heading2Style(context).copyWith(
+                          color: kcPrimaryTextColor,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        widget.aggregation.layer.displayName,
+                        style: captionStyle(context).copyWith(
+                          color: kcSecondaryTextColor,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (_isEditing) ...[
+                  TextButton(
+                    onPressed: _isSaving ? null : () => setState(() => _isEditing = false),
+                    child: Text('Cancel', style: TextStyle(color: kcSecondaryTextColor)),
+                  ),
+                  const SizedBox(width: 8),
+                  FilledButton(
+                    onPressed: _isSaving ? null : _save,
+                    child: _isSaving
+                        ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                        : const Text('Save'),
+                  ),
+                ] else
+                  IconButton(
+                    icon: const Icon(Icons.edit_outlined),
+                    color: kcPrimaryTextColor,
+                    tooltip: 'Edit summary',
+                    onPressed: () => setState(() => _isEditing = true),
+                  ),
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  color: kcPrimaryTextColor,
+                  onPressed: () => Navigator.pop(context),
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: _isEditing
+                ? SingleChildScrollView(
+                    controller: scrollController,
+                    padding: const EdgeInsets.all(20),
+                    child: TextField(
+                      controller: _controller,
+                      maxLines: null,
+                      style: bodyStyle(context).copyWith(
+                        color: kcPrimaryTextColor,
+                        height: 1.8,
+                        fontSize: 15,
+                      ),
+                      decoration: InputDecoration(
+                        hintText: 'Edit your CHRONICLE summary...',
+                        border: InputBorder.none,
+                        alignLabelWithHint: true,
+                      ),
+                    ),
+                  )
+                : SingleChildScrollView(
+                    controller: scrollController,
+                    padding: const EdgeInsets.all(20),
+                    child: Text(
+                      widget.aggregation.content,
+                      style: bodyStyle(context).copyWith(
+                        color: kcPrimaryTextColor,
+                        height: 1.8,
+                        fontSize: 15,
+                      ),
+                    ),
+                  ),
+          ),
+        ],
+      ),
+    );
   }
 }

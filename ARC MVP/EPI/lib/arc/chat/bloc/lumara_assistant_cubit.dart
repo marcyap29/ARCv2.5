@@ -37,6 +37,15 @@ import 'package:my_app/services/sentinel/sentinel_analyzer.dart';
 import 'package:my_app/services/sentinel/crisis_mode.dart';
 import 'package:my_app/services/firebase_auth_service.dart';
 import 'package:my_app/arc/chat/models/lumara_reflection_options.dart' as models;
+import '../services/reflection_handler.dart';
+import 'package:my_app/repositories/reflection_session_repository.dart';
+import 'package:my_app/aurora/reflection/aurora_reflection_service.dart';
+import 'package:my_app/arc/chat/reflection/reflection_pattern_analyzer.dart';
+import 'package:my_app/arc/chat/reflection/reflection_emotional_analyzer.dart';
+import 'package:my_app/services/adaptive/adaptive_sentinel_calculator.dart';
+import 'package:my_app/services/sentinel/sentinel_config.dart';
+import 'package:hive/hive.dart';
+import 'package:my_app/models/reflection_session.dart';
 
 /// LUMARA Assistant Cubit State
 abstract class LumaraAssistantState {}
@@ -51,6 +60,7 @@ class LumaraAssistantLoaded extends LumaraAssistantState {
   final bool isProcessing;
   final String? currentSessionId;
   final String? apiErrorMessage; // Message to show in snackbar after retries fail
+  final String? notice; // AURORA level-1 notice (non-blocking)
 
   LumaraAssistantLoaded({
     required this.messages,
@@ -58,6 +68,7 @@ class LumaraAssistantLoaded extends LumaraAssistantState {
     this.isProcessing = false,
     this.currentSessionId,
     this.apiErrorMessage,
+    this.notice,
   });
 
   LumaraAssistantLoaded copyWith({
@@ -66,6 +77,7 @@ class LumaraAssistantLoaded extends LumaraAssistantState {
     bool? isProcessing,
     String? currentSessionId,
     String? apiErrorMessage,
+    String? notice,
   }) {
     return LumaraAssistantLoaded(
       messages: messages ?? this.messages,
@@ -73,6 +85,7 @@ class LumaraAssistantLoaded extends LumaraAssistantState {
       isProcessing: isProcessing ?? this.isProcessing,
       currentSessionId: currentSessionId ?? this.currentSessionId,
       apiErrorMessage: apiErrorMessage,
+      notice: notice,
     );
   }
 }
@@ -81,6 +94,16 @@ class LumaraAssistantError extends LumaraAssistantState {
   final String message;
   
   LumaraAssistantError(this.message);
+}
+
+/// Emitted when AURORA reflection monitoring pauses the session.
+class LumaraAssistantPaused extends LumaraAssistantState {
+  final String message;
+  final DateTime? pausedUntil;
+  final List<LumaraMessage> previousMessages;
+  final LumaraScope scope;
+
+  LumaraAssistantPaused(this.message, this.pausedUntil, this.previousMessages, this.scope);
 }
 
 /// LUMARA Assistant Cubit
@@ -116,6 +139,29 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
   static const int _maxMessagesBeforeCompaction = 25;
   static const int _compactionThreshold = 150; // Summarize after 150 messages
   bool _isCompacting = false;
+
+  // AURORA reflection session monitoring
+  ReflectionHandler? _reflectionHandler;
+  String? _currentReflectionSessionId;
+
+  Future<ReflectionHandler> _getReflectionHandler() async {
+    if (_reflectionHandler != null) return _reflectionHandler!;
+    final box = Hive.isBoxOpen('reflection_sessions')
+        ? Hive.box<ReflectionSession>('reflection_sessions')
+        : await Hive.openBox<ReflectionSession>('reflection_sessions');
+    _reflectionHandler = ReflectionHandler(
+      sessionRepo: ReflectionSessionRepository(box),
+      journalRepo: _journalRepository,
+      aurora: AuroraReflectionService(
+        patternAnalyzer: ReflectionPatternAnalyzer(),
+        emotionalAnalyzer: ReflectionEmotionalAnalyzer(
+          AdaptiveSentinelCalculator(SentinelConfig.weekly()),
+        ),
+      ),
+      lumaraApi: _enhancedApi,
+    );
+    return _reflectionHandler!;
+  }
   
   // Voiceover/TTS for AI responses
   AudioIO? _audioIO;
@@ -242,6 +288,18 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
     } catch (e) {
       print('LUMARA Chat: Error saving pending input: $e');
       // Don't fail the process if saving pending input fails
+    }
+  }
+
+  /// Dismiss AURORA pause and return to chat with previous messages.
+  void dismissPause() {
+    final currentState = state;
+    if (currentState is LumaraAssistantPaused) {
+      emit(LumaraAssistantLoaded(
+        messages: currentState.previousMessages,
+        scope: currentState.scope,
+        isProcessing: false,
+      ));
     }
   }
 
@@ -388,6 +446,7 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
       messages: updatedMessages,
       isProcessing: true,
       apiErrorMessage: null, // Clear any previous error message when starting new message
+      notice: null, // Clear AURORA notice when starting new message
     ));
 
     // Ensure we have an active chat session (auto-create if needed)
@@ -514,37 +573,64 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
               final authService = FirebaseAuthService.instance;
               final user = authService.currentUser;
               final userId = user?.uid;
+
+              String reflectionText;
+              var attributionTraces = <AttributionTrace>[];
+              String? notice;
+
+              if (currentEntry != null && userId != null && userId.isNotEmpty) {
+                final handler = await _getReflectionHandler();
+                final response = await handler.handleReflectionRequest(
+                  userQuery: userIntent,
+                  entryId: currentEntry.id,
+                  userId: userId,
+                  sessionId: _currentReflectionSessionId,
+                  options: models.LumaraReflectionOptions(
+                    conversationMode: detectedMode,
+                    toneMode: models.ToneMode.normal,
+                    regenerate: false,
+                    preferQuestionExpansion: false,
+                  ),
+                );
+
+                if (response.isPaused) {
+                  emit(LumaraAssistantPaused(
+                    response.text,
+                    response.pausedUntil,
+                    currentState.messages,
+                    currentState.scope,
+                  ));
+                  return;
+                }
+
+                _currentReflectionSessionId = response.sessionId;
+                notice = response.notice;
+                reflectionText = response.text;
+                attributionTraces = response.attributionTraces ?? [];
+              } else {
+                final result = await _enhancedApi.generatePromptedReflectionV23(
+                  request: request,
+                  userId: userId,
+                );
+                reflectionText = result.reflection;
+                attributionTraces = result.attributionTraces;
+              }
               
-              // Generate reflection using enhanced API
-              final result = await _enhancedApi.generatePromptedReflectionV23(
-                request: request,
-                userId: userId,
-              );
+              print('LUMARA Chat: Enhanced API response received (${reflectionText.length} chars)');
               
-              print('LUMARA Chat: Enhanced API response received (${result.reflection.length} chars)');
-              
-              // Use attribution traces from enhanced API
-              var attributionTraces = result.attributionTraces;
-              print('LUMARA Chat: Using ${attributionTraces.length} attribution traces from enhanced API');
-              
-              // Enrich attribution traces
               if (attributionTraces.isNotEmpty) {
                 attributionTraces = await _enrichAttributionTraces(attributionTraces);
               }
               
-              // Record assistant response
-              await _recordAssistantMessage(result.reflection);
+              await _recordAssistantMessage(reflectionText);
               
-              // Create assistant message
               final assistantMessage = LumaraMessage.assistant(
-                content: result.reflection,
+                content: reflectionText,
                 attributionTraces: attributionTraces,
               );
               
-              // Add to chat session
-              await _addToChatSession(result.reflection, 'assistant', messageId: assistantMessage.id, timestamp: assistantMessage.timestamp);
+              await _addToChatSession(reflectionText, 'assistant', messageId: assistantMessage.id, timestamp: assistantMessage.timestamp);
               
-              // Check for more history suggestion
               var finalMessages = [...updatedMessages, assistantMessage];
               if (hasMoreHistory() && _queryNeedsMoreHistory(text)) {
                 final suggestionMsg = _generateLoadMoreSuggestionMessage();
@@ -554,20 +640,19 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
                 }
               }
               
-              // Speak response if enabled
-              _speakResponseIfEnabled(result.reflection);
+              _speakResponseIfEnabled(reflectionText);
               
               emit(currentState.copyWith(
                 messages: finalMessages,
                 isProcessing: false,
                 apiErrorMessage: null,
+                notice: notice,
               ));
               
-              // Clear pending input when response completes successfully
               await PendingConversationService.clearPendingInput();
               
               print('LUMARA Chat: Enhanced API complete');
-              return; // Exit early - enhanced API succeeded
+              return;
             } catch (e) {
               print('LUMARA Chat: Enhanced API failed: $e');
               // Fall through to ArcLLM chat as fallback
@@ -1097,11 +1182,13 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
     };
     
     // Build unified control state JSON (pass user message for dynamic persona/response mode detection)
+    // Written chat: no length limit for Reflect, Explore, Integrate (Claude-style)
     final controlStateJson = await LumaraControlStateBuilder.buildControlState(
       userId: _userId,
       prismActivity: prismActivity,
       chronoContext: chronoContext,
       userMessage: userMessage, // Pass user message for question intent detection
+      isWrittenConversation: true, // Chat UI → no sentence/word cap
     );
     
     // Build context string if entry text or keywords provided
@@ -1403,7 +1490,11 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
     return newSessionId;
   }
 
-  /// Start a new chat (saves current chat to history, then clears UI)
+  /// Minimum number of LUMARA (assistant) responses required to keep a chat in history or export.
+  /// Chats with fewer are discarded so short sessions don't clutter history/backups.
+  static const int minLumaraResponsesToKeep = 3;
+
+  /// Start a new chat (saves current chat to history only if LUMARA answered at least twice, then clears UI)
   Future<void> startNewChat() async {
     final currentState = state;
     if (currentState is! LumaraAssistantLoaded) {
@@ -1412,17 +1503,22 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
       return;
     }
     
-    // Save current chat session to history if it exists and has messages
+    // Save current chat session to history only if it has enough LUMARA responses; otherwise delete it
     if (currentChatSessionId != null && currentState.messages.isNotEmpty) {
       try {
         await _chatRepo.initialize();
         final session = await _chatRepo.getSession(currentChatSessionId!);
         if (session != null) {
-          // Ensure session is up-to-date (messages are already saved via _addToChatSession)
-          // Update timestamp one final time to mark session as complete
-          // Using renameSession with same subject updates the timestamp
-          await _chatRepo.renameSession(currentChatSessionId!, session.subject);
-          print('LUMARA Chat: Finalized session $currentChatSessionId before starting new chat');
+          final messages = await _chatRepo.getMessages(currentChatSessionId!, lazy: false);
+          final assistantCount = messages.where((m) => m.role == 'assistant').length;
+          if (assistantCount < minLumaraResponsesToKeep) {
+            await _chatRepo.deleteSession(currentChatSessionId!);
+            print('LUMARA Chat: Discarded session $currentChatSessionId (only $assistantCount LUMARA response(s), need $minLumaraResponsesToKeep)');
+          } else {
+            // Ensure session is up-to-date (messages are already saved via _addToChatSession)
+            await _chatRepo.renameSession(currentChatSessionId!, session.subject);
+            print('LUMARA Chat: Finalized session $currentChatSessionId before starting new chat');
+          }
         }
       } catch (e) {
         print('LUMARA Chat: Error finalizing session: $e');

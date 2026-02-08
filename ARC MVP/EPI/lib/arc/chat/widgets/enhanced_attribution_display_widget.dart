@@ -2,6 +2,7 @@
 // Enhanced attribution display widget supporting multiple source types and filtering
 
 import 'package:flutter/material.dart';
+import 'package:my_app/shared/widgets/lumara_icon.dart';
 import '../../../mira/memory/enhanced_attribution_schema.dart';
 
 /// Enhanced widget for displaying multi-source memory attributions
@@ -85,8 +86,7 @@ class _EnhancedAttributionDisplayWidgetState
         child: Row(
           children: [
             // LUMARA icon for attribution
-            Icon(
-              Icons.auto_awesome,
+            LumaraIcon(
               size: 16,
               color: Theme.of(context).colorScheme.primary,
             ),

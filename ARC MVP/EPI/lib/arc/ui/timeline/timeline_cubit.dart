@@ -56,7 +56,13 @@ class TimelineCubit extends Cubit<TimelineState> {
     _currentPage = 0;
     _hasMore = true;
     _isLoadingMore = false;
-    await _loadEntries(); // Use pagination instead of loading all
+    try {
+      await _journalRepository.ensureBoxOpen();
+      await _loadEntries();
+    } catch (e) {
+      print('DEBUG: Timeline load error: $e');
+      emit(TimelineError(message: 'Failed to load entries: $e'));
+    }
   }
 
   Future<void> loadMoreEntries() async {
@@ -73,15 +79,23 @@ class TimelineCubit extends Cubit<TimelineState> {
   Future<void> refreshEntries() async {
     print('DEBUG: TimelineCubit.refreshEntries() called');
     print('DEBUG: Refreshing timeline to show updated entries...');
+    emit(const TimelineLoading());
     _currentPage = 0;
     _hasMore = true;
     _isLoadingMore = false;
-    await _loadEntries(); // Use pagination instead of loading all
-    print('DEBUG: Timeline refresh completed');
+    try {
+      await _journalRepository.ensureBoxOpen();
+      await _loadEntries();
+      print('DEBUG: Timeline refresh completed');
+    } catch (e) {
+      print('DEBUG: Timeline refresh error: $e');
+      emit(TimelineError(message: 'Failed to refresh: $e'));
+    }
   }
 
   /// Reload all entries (used when an entry's date changes and might move pages)
-  /// Uses pagination for performance - resets to page 0 and reloads
+  /// Uses pagination for performance - resets to page 0 and reloads.
+  /// Ensures journal box is open so imported entries are visible (e.g. after ARCX import).
   Future<void> reloadAllEntries() async {
     print('DEBUG: TimelineCubit.reloadAllEntries() called');
     print('DEBUG: Reloading entries to handle date changes (using pagination)...');
@@ -89,8 +103,14 @@ class TimelineCubit extends Cubit<TimelineState> {
     _currentPage = 0;
     _hasMore = true;
     _isLoadingMore = false;
-    await _loadEntries(); // Use pagination for performance
-    print('DEBUG: Entries reload completed');
+    try {
+      await _journalRepository.ensureBoxOpen();
+      await _loadEntries(); // Use pagination for performance
+      print('DEBUG: Entries reload completed');
+    } catch (e) {
+      print('DEBUG: Timeline reload error: $e');
+      emit(TimelineError(message: 'Failed to reload: $e'));
+    }
   }
 
   /// Check if all entries have been deleted and emit a special state

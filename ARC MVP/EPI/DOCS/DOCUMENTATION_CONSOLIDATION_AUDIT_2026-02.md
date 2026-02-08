@@ -182,4 +182,6 @@ Targets (per prompt):
 - **Phase 1.2 (Stripe):** STRIPE_SETUP_GUIDE.md merged into STRIPE_SECRETS_SETUP.md. Unique content (Customer Portal config, extra test cards, local webhook testing with Stripe CLI, monitoring, production checklist, additional troubleshooting) added to STRIPE_SECRETS_SETUP. STRIPE_SETUP_GUIDE.md removed. stripe/README.md updated to single setup guide (STRIPE_SECRETS_SETUP.md). **Document count reduced by 1; single Stripe setup path.**
 - **Phase 2.2 (Prompts):** In PROMPT_REFERENCES.md § CHRONICLE Prompts, added explicit cross-reference: “For full CHRONICLE prompt and architecture detail, see CHRONICLE_PROMPT_REFERENCE.md.”
 
+**Executed (2026-02-08):** Full repo-vs-docs audit. Fixed ARCHITECTURE footer (v2.1.76→v3.3.16), broken `BUGTRACKER.md` link, duplicate section numbering. Fixed FEATURES footer. Added Reflection Session Safety System, RevenueCat, Voice Sigil, ARCX Clean, PDF Preview, Drive Folder Picker to ARCHITECTURE, FEATURES, and CHANGELOG. Fixed bug_tracker record count (28→29). Updated CONFIGURATION_MANAGEMENT inventory and change log. All core docs now reflect current codebase.
+
 **Next step (optional):** Phase 2.1 (archive BUG_TRACKER_MASTER_INDEX / BUG_TRACKER_PART1_CRITICAL if time-based index alone is sufficient).

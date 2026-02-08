@@ -80,6 +80,36 @@ class ChronicleRawEntry extends HiveObject {
   }
 }
 
+/// Manual Hive TypeAdapter for ChronicleRawEntry (typeId 110).
+/// Required for Layer 0 backfill; register in bootstrap before opening the box.
+class ChronicleRawEntryAdapter extends TypeAdapter<ChronicleRawEntry> {
+  @override
+  final int typeId = 110;
+
+  @override
+  ChronicleRawEntry read(BinaryReader reader) {
+    return ChronicleRawEntry(
+      entryId: reader.read() as String,
+      timestamp: reader.read() as DateTime,
+      content: reader.read() as String,
+      metadata: Map<String, dynamic>.from(reader.read() as Map),
+      analysis: Map<String, dynamic>.from(reader.read() as Map),
+      userId: reader.read() as String,
+    );
+  }
+
+  @override
+  void write(BinaryWriter writer, ChronicleRawEntry obj) {
+    writer
+      ..write(obj.entryId)
+      ..write(obj.timestamp)
+      ..write(obj.content)
+      ..write(obj.metadata)
+      ..write(obj.analysis)
+      ..write(obj.userId);
+  }
+}
+
 /// Repository for Layer 0 (Raw Entries) storage
 /// 
 /// Uses Hive box for fast indexed queries.
@@ -94,20 +124,10 @@ class Layer0Repository {
     if (_initialized && _box != null && _box!.isOpen) return;
 
     try {
-      // Adapter will be auto-registered when .g.dart file is imported
-      // Just ensure it's registered before opening box
       if (!Hive.isAdapterRegistered(110)) {
-        // Try to import the generated adapter
-        // If build_runner hasn't run yet, this will fail gracefully
-        try {
-          // The adapter will be registered when the .g.dart file is imported
-          // For now, we'll handle the case where it's not generated yet
-          print('⚠️ Layer0Repository: Adapter not registered. Run build_runner to generate adapter.');
-        } catch (e) {
-          print('⚠️ Layer0Repository: Adapter registration issue: $e');
-        }
+        print('❌ Layer0Repository: ChronicleRawEntry adapter (110) not registered. Register it in bootstrap.dart.');
+        return;
       }
-
       _box = await Hive.openBox<ChronicleRawEntry>(boxName);
       _initialized = true;
       print('✅ Layer0Repository: Initialized Hive box $boxName');
@@ -128,6 +148,9 @@ class Layer0Repository {
   /// Save a raw entry to Layer 0
   Future<void> saveEntry(ChronicleRawEntry entry) async {
     await _ensureBox();
+    if (_box == null) {
+      throw StateError('Layer0Repository: box not initialized. Is ChronicleRawEntryAdapter (110) registered in bootstrap?');
+    }
     await _box!.put(entry.entryId, entry);
   }
 

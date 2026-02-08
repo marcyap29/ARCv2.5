@@ -1,8 +1,8 @@
 # EPI MVP - Bug Tracker Master Index
 
-**Document Version:** 1.0.0
-**Last Updated:** 2026-01-11 09:00
-**Change Summary:** Initial consolidated bugtracker master index creation
+**Document Version:** 1.1.0
+**Last Updated:** 2026-02-08
+**Change Summary:** Updated record counts (28→29), sync date, CHANGELOG integration, review due date
 **Editor:** Claude (Ultimate Bugtracker Consolidation)
 
 ---
@@ -13,7 +13,7 @@ This is the master index for the EPI MVP Bug Tracker system. The bugtracker has 
 
 ### Consolidation Statistics
 - **Total Bug Entries**: 150+ bugs consolidated from historical sources
-- **Individual Records**: 28 detailed bug reports in [records/](records/)
+- **Individual Records**: 29 detailed bug reports in [records/](records/)
 - **Primary Index**: [bug_tracker.md](bug_tracker.md) (category index + links to all records)
 - **Changelog-Style Parts**: bug_tracker_part1/2/3.md (by date range)
 - **Archive**: Legacy files in [archive/](archive/)
@@ -232,10 +232,11 @@ ALL bugs MUST use this format:
 ### Archived Documents
 - `archive/Bug_Tracker.md` - Original legacy bugtracker
 - `archive/Bug_Tracker Files/Bug_Tracker-1.md` through `Bug_Tracker-9.md` - Historical parts
-- `records/` directory - 27 individual detailed bug reports
+- `records/` directory - 29 individual detailed bug reports
 
 ### CHANGELOG Integration
-- `CHANGELOG_part1.md` - December 2025 (v2.1.43 - v2.1.86)
+- `CHANGELOG.md` - Main index with recent entries (v3.3.13 - v3.3.16+)
+- `CHANGELOG_part1.md` - December 2025 (v2.1.43 - v2.1.62)
 - `CHANGELOG_part2.md` - November 2025 (v2.1.27 - v2.1.42)
 - `CHANGELOG_part3.md` - January - October 2025 (v2.0.0 - v2.1.26)
 
@@ -285,6 +286,6 @@ For new bugs or updates:
 
 ---
 
-**Last Synchronized**: January 11, 2026
-**Next Review Due**: February 11, 2026
-**Master Index Version**: 1.0.0
+**Last Synchronized**: February 8, 2026
+**Next Review Due**: March 8, 2026
+**Master Index Version**: 1.1.0

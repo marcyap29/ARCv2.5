@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:my_app/arc/chat/chat/content_parts.dart';
 import 'package:my_app/arc/chat/chat/chat_models.dart';
 import 'ocp_services.dart';
@@ -16,9 +18,10 @@ import 'ocp_services.dart';
 /// Previously located in `core/mcp/`, moved to `polymeta/store/mcp/` during consolidation.
 ///
 /// ## Supported Media Types
-/// - **Images**: OCR text extraction, object detection, EXIF/GPS metadata
-/// - **Video**: Keyframe extraction, scene detection, aggregate OCR
+/// - **Images**: OCR text extraction, object detection, EXIF/GPS metadata; keywords from labels/objects/OCR
+/// - **Video**: Keyframe extraction, scene detection, aggregate OCR; keywords from transcript/scenes
 /// - **Audio**: Speech-to-text transcription, prosody analysis, sentiment detection
+/// - **PDF / .md / Doc**: Text extraction; metadata and extracted keywords merged into conversation/entry
 ///
 /// ## Data Flow
 /// ```
@@ -150,8 +153,57 @@ class ChatMultimodalProcessor {
           'analysisTimestamp': result.analysisTimestamp.toIso8601String(),
         },
       );
+    } else if (mime == 'application/pdf' ||
+        mime == 'text/markdown' ||
+        mime == 'application/msword' ||
+        mime == 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+      // Document types: extract text for keywords; metadata and text merged into conversation/entry
+      final docResult = await _extractDocumentText(uri, mime);
+      return OcpAnalysisResult(
+        mediaType: 'document',
+        ocrText: docResult.extractedText,
+        objects: docResult.keywords,
+        emotions: <String, double>{},
+        metadata: docResult.metadata,
+      );
     } else {
       throw UnsupportedError('Unsupported media type: $mime');
+    }
+  }
+
+  /// Extract text and keywords from PDF, .md, Doc for analysis and entry keywords
+  Future<({String extractedText, List<String> keywords, Map<String, dynamic> metadata})> _extractDocumentText(String uri, String mime) async {
+    final metadata = <String, dynamic>{
+      'mime': mime,
+      'analysisTimestamp': DateTime.now().toIso8601String(),
+    };
+    try {
+      final file = File(uri);
+      if (!await file.exists()) {
+        return (extractedText: '', keywords: <String>[], metadata: {...metadata, 'error': 'File not found'});
+      }
+      final bytes = await file.readAsBytes();
+      metadata['sizeBytes'] = bytes.length;
+      String raw = '';
+      if (mime == 'text/markdown' || uri.toLowerCase().endsWith('.md')) {
+        raw = String.fromCharCodes(bytes);
+      }
+      // PDF and Word would require packages (e.g. pdf_text, docx); for now capture filename as keyword
+      final fileName = uri.split('/').last;
+      final List<String> keywords = [];
+      if (fileName.isNotEmpty) {
+        final stem = fileName.replaceAll(RegExp(r'\.(pdf|md|docx?)$', caseSensitive: false), '');
+        if (stem.length > 1) keywords.add(stem);
+      }
+      if (raw.trim().isNotEmpty) {
+        final words = raw.split(RegExp(r'\s+')).where((w) => w.length > 2).take(100);
+        for (final w in words) {
+          if (w.length > 3 && keywords.length < 20) keywords.add(w);
+        }
+      }
+      return (extractedText: raw, keywords: keywords, metadata: metadata);
+    } catch (e) {
+      return (extractedText: '', keywords: <String>[], metadata: {...metadata, 'error': e.toString()});
     }
   }
 

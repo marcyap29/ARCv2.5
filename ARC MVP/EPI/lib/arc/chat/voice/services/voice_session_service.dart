@@ -23,8 +23,18 @@ import '../voice_journal/tts_client.dart';
 import '../prompts/voice_response_builders.dart'; // For VoiceResponseConfig only
 import '../prompts/phase_voice_prompts.dart'; // Phase-specific voice prompts
 import '../../services/enhanced_lumara_api.dart';
+import '../../services/reflection_handler.dart';
 import '../../models/lumara_reflection_options.dart' as models;
 import '../models/voice_session.dart';
+import 'package:hive/hive.dart';
+import 'package:my_app/models/reflection_session.dart';
+import 'package:my_app/repositories/reflection_session_repository.dart';
+import 'package:my_app/aurora/reflection/aurora_reflection_service.dart';
+import 'package:my_app/arc/chat/reflection/reflection_pattern_analyzer.dart';
+import 'package:my_app/arc/chat/reflection/reflection_emotional_analyzer.dart';
+import 'package:my_app/services/adaptive/adaptive_sentinel_calculator.dart';
+import 'package:my_app/services/sentinel/sentinel_config.dart';
+import 'package:my_app/arc/core/journal_repository.dart';
 import '../../../../models/phase_models.dart';
 import '../../../../models/engagement_discipline.dart';
 import '../../../../services/lumara/entry_classifier.dart';
@@ -96,6 +106,28 @@ class VoiceSessionService {
   final EnhancedLumaraApi _lumaraApi;
   final String _userId;
   final UnifiedTranscriptionService _unifiedTranscription;
+
+  ReflectionHandler? _reflectionHandler;
+  static final JournalRepository _journalRepo = JournalRepository();
+
+  Future<ReflectionHandler> _getReflectionHandler() async {
+    if (_reflectionHandler != null) return _reflectionHandler!;
+    final box = Hive.isBoxOpen('reflection_sessions')
+        ? Hive.box<ReflectionSession>('reflection_sessions')
+        : await Hive.openBox<ReflectionSession>('reflection_sessions');
+    _reflectionHandler = ReflectionHandler(
+      sessionRepo: ReflectionSessionRepository(box),
+      journalRepo: _journalRepo,
+      aurora: AuroraReflectionService(
+        patternAnalyzer: ReflectionPatternAnalyzer(),
+        emotionalAnalyzer: ReflectionEmotionalAnalyzer(
+          AdaptiveSentinelCalculator(SentinelConfig.weekly()),
+        ),
+      ),
+      lumaraApi: _lumaraApi,
+    );
+    return _reflectionHandler!;
+  }
   
   VoiceSessionState _state = VoiceSessionState.idle;
   VoiceSessionBuilder? _currentSession;
@@ -607,16 +639,16 @@ class VoiceSessionService {
       // Engagement mode (reflect/explore/integrate) is still passed in control state and instructions.
       // Client-side timeout (120s) so slow Firebase/Gemini responses (e.g. 90–100s) still succeed
       final apiStart = DateTime.now();
-      ReflectionResult reflectionResult;
+      String response;
       try {
-        reflectionResult = await _lumaraApi.generatePromptedReflection(
-          entryText: prismResult.scrubbedText,
-          intent: engagementMode == EngagementMode.reflect ? 'conversational' : 'reflective',
-          phase: _currentPhase.name,
+        final handler = await _getReflectionHandler();
+        final reflectionResponse = await handler.handleReflectionRequest(
+          userQuery: prismResult.scrubbedText,
+          entryId: null,
           userId: _userId,
           chatContext: voiceModeInstructions,
-          skipHeavyProcessing: true, // Always use trimmed voice prompt in voice mode (all engagement modes)
-          voiceEngagementModeOverride: engagementMode, // Dropdown choice for control state and prompt cap (6k/10k/13k)
+          skipHeavyProcessing: true,
+          voiceEngagementModeOverride: engagementMode,
           options: models.LumaraReflectionOptions(
             conversationMode: models.ConversationMode.continueThought,
             toneMode: models.ToneMode.normal,
@@ -625,6 +657,16 @@ class VoiceSessionService {
           const Duration(seconds: 120),
           onTimeout: () => throw TimeoutException('LUMARA request timed out'),
         );
+        if (reflectionResponse.isPaused) {
+          onError?.call(reflectionResponse.text);
+          _isProcessingTranscript = false;
+          _updateState(VoiceSessionState.error);
+          return;
+        }
+        if (reflectionResponse.notice != null && reflectionResponse.notice!.isNotEmpty) {
+          debugPrint('VoiceSession: AURORA notice: ${reflectionResponse.notice}');
+        }
+        response = reflectionResponse.text;
       } on TimeoutException {
         debugPrint('VoiceSession: LUMARA request timed out (120s)');
         onError?.call('Request timed out. Please try again.');
@@ -640,19 +682,14 @@ class VoiceSessionService {
       debugPrint('VoiceSession: LUMARA API took ${apiDuration}ms '
           '(${engagementMode.name} mode, target: ${maxLatency}ms, hard limit: ${hardLimit}ms)');
       
-      // Warn if latency exceeds target
       if (apiDuration > maxLatency) {
         debugPrint('VoiceSession: WARNING - Latency exceeded target! '
             '${apiDuration}ms > ${maxLatency}ms');
       }
-      
-      // Error if latency exceeds hard limit
       if (apiDuration > hardLimit) {
         debugPrint('VoiceSession: ERROR - Latency exceeded hard limit! '
             '${apiDuration}ms > ${hardLimit}ms');
       }
-      
-      final response = reflectionResult.reflection;
       
       // Restore PII in response for TTS
       final restoredResponse = _prism.restore(response, prismResult.reversibleMap);

@@ -8,6 +8,7 @@ import 'package:my_app/arc/core/sage_annotation_model.dart';
 import 'package:my_app/mira/mira_service.dart';
 import 'package:my_app/mira/core/schema.dart';
 import 'package:my_app/data/models/media_item.dart';
+import 'package:my_app/data/hive/duration_adapter.dart';
 import 'package:my_app/state/journal_entry_state.dart';
 import 'package:my_app/chronicle/storage/layer0_repository.dart';
 import 'package:my_app/chronicle/storage/layer0_populator.dart';
@@ -61,6 +62,12 @@ class JournalRepository {
     if (_lumaraMigrationDone) return;
     await _migrateLumaraBlocks();
     _lumaraMigrationDone = true;
+  }
+
+  /// Ensure the journal entries box is open. Call before sync reads (e.g. timeline refresh)
+  /// so that getEntriesPaginatedSync/getAllJournalEntriesSync do not return [] when box was closed.
+  Future<void> ensureBoxOpen() async {
+    await _ensureBox();
   }
 
   /// Convert legacy metadata.inlineBlocks into the lumaraBlocks field and persist.
@@ -134,6 +141,10 @@ class JournalRepository {
     if (!Hive.isAdapterRegistered(11)) {
       Hive.registerAdapter(MediaItemAdapter());
       print('🔍 JournalRepository: Registered MediaItemAdapter (ID: 11)');
+    }
+    if (!Hive.isAdapterRegistered(105)) {
+      Hive.registerAdapter(DurationAdapter());
+      print('🔍 JournalRepository: Registered DurationAdapter (ID: 105)');
     }
     if (!Hive.isAdapterRegistered(103)) {
       Hive.registerAdapter(InlineBlockAdapter());
@@ -314,27 +325,42 @@ class JournalRepository {
     final entries = <JournalEntry>[];
     final entriesToPersist = <JournalEntry>[]; // Track entries that need migration persistence
     
+    // Per-entry try/catch so one bad or legacy entry (e.g. from older ARCX backup) doesn't
+    // crash the timeline or drop the entire list. Matches async getAllJournalEntries behavior.
+    int skippedCount = 0;
     for (final key in box.keys) {
       final e = box.get(key);
       if (e == null) continue;
-      
-      final normalized = _normalize(e);
-      
-      // If migration occurred (entry had blocks in metadata but not in lumaraBlocks, and now it does),
-      // mark it for persistence
-      if (e.lumaraBlocks.isEmpty && 
-          normalized.lumaraBlocks.isNotEmpty && 
-          e.metadata?.containsKey('inlineBlocks') == true) {
-        print('🔄 JournalRepository: Entry ${e.id} was migrated in memory - will persist migration');
-        entriesToPersist.add(normalized);
+      try {
+        final normalized = _normalize(e);
+        // If migration occurred (entry had blocks in metadata but not in lumaraBlocks, and now it does),
+        // mark it for persistence
+        if (e.lumaraBlocks.isEmpty &&
+            normalized.lumaraBlocks.isNotEmpty &&
+            e.metadata?.containsKey('inlineBlocks') == true) {
+          print('🔄 JournalRepository: Entry ${e.id} was migrated in memory - will persist migration');
+          entriesToPersist.add(normalized);
+        }
+        // Debug: Check media after normalization (only log errors)
+        if (normalized.media.length != e.media.length) {
+          print('❌ JournalRepository: CRITICAL - Media count changed during normalization! Before: ${e.media.length}, After: ${normalized.media.length}');
+        }
+        entries.add(normalized);
+      } catch (err) {
+        skippedCount++;
+        try {
+          final dateStr = e.createdAt.toIso8601String();
+          print('⚠️ JournalRepository: Skipping entry ${e.id} (createdAt: $dateStr, normalize failed in sync load): $err');
+        } catch (_) {
+          print('⚠️ JournalRepository: Skipping entry at key $key (normalize failed in sync load): $err');
+        }
       }
-      
-      // Debug: Check media after normalization (only log errors)
-      if (normalized.media.length != e.media.length) {
-        print('❌ JournalRepository: CRITICAL - Media count changed during normalization! Before: ${e.media.length}, After: ${normalized.media.length}');
-      }
-      
-      entries.add(normalized);
+    }
+    if (skippedCount > 0 || entries.isNotEmpty) {
+      final range = entries.isEmpty
+          ? 'none loaded'
+          : '${(entries.map((e) => e.createdAt)).reduce((a, b) => a.isBefore(b) ? a : b).toIso8601String().split('T').first} .. ${(entries.map((e) => e.createdAt)).reduce((a, b) => a.isAfter(b) ? a : b).toIso8601String().split('T').first}';
+      print('📋 JournalRepository: getAllJournalEntriesSync: ${entries.length} loaded, $skippedCount skipped; date range: $range');
     }
     
     // Persist migrations asynchronously (don't block the sync call)
@@ -367,8 +393,10 @@ class JournalRepository {
       // Check if we need to migrate legacy metadata to SAGE annotation
       SAGEAnnotation? sageAnnotation = e.sageAnnotation;
       if (sageAnnotation == null && e.metadata?['narrative'] != null) {
-        final n = e.metadata!['narrative'] as Map?;
-        if (n != null) {
+        final raw = e.metadata!['narrative'];
+        // Legacy entries may have narrative as Map or other type; only migrate when it's a Map
+        if (raw is Map) {
+          final n = raw;
           sageAnnotation = SAGEAnnotation(
             situation: (n['situation'] ?? '').toString(),
             action: (n['action'] ?? '').toString(),
@@ -403,11 +431,21 @@ class JournalRepository {
               List<InlineBlock> convertedBlocks = [];
 
               if (inlineBlocksData is String) {
-                // JSON string format
+                // JSON string format; per-block try so one bad block doesn't drop the rest (legacy)
                 final decoded = jsonDecode(inlineBlocksData);
                 if (decoded is List) {
                   convertedBlocks = decoded
-                      .map((blockJson) => InlineBlock.fromJson(Map<String, dynamic>.from(blockJson)))
+                      .map((blockJson) {
+                        if (blockJson is Map) {
+                          try {
+                            return InlineBlock.fromJson(Map<String, dynamic>.from(blockJson));
+                          } catch (_) {
+                            return null;
+                          }
+                        }
+                        return null;
+                      })
+                      .whereType<InlineBlock>()
                       .toList();
                 }
               } else if (inlineBlocksData is List) {

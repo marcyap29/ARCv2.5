@@ -44,7 +44,15 @@ import 'package:my_app/prism/atlas/phase/phase_scoring.dart';
 import 'package:my_app/services/health_data_service.dart';
 import 'package:my_app/services/phase_aware_analysis_service.dart';
 import 'package:my_app/arc/chat/services/enhanced_lumara_api.dart';
+import 'package:my_app/arc/chat/services/reflection_handler.dart';
 import 'package:my_app/arc/chat/models/lumara_reflection_options.dart' as lumara_models;
+import 'package:my_app/repositories/reflection_session_repository.dart';
+import 'package:my_app/aurora/reflection/aurora_reflection_service.dart';
+import 'package:my_app/arc/chat/reflection/reflection_pattern_analyzer.dart';
+import 'package:my_app/arc/chat/reflection/reflection_emotional_analyzer.dart';
+import 'package:my_app/services/adaptive/adaptive_sentinel_calculator.dart';
+import 'package:my_app/services/sentinel/sentinel_config.dart';
+import 'package:my_app/models/reflection_session.dart';
 import 'package:my_app/services/assemblyai_service.dart';
 import 'package:my_app/arc/chat/voice/transcription/assemblyai_provider.dart';
 import 'package:my_app/arc/chat/voice/transcription/transcription_provider.dart';
@@ -56,6 +64,28 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
   final DraftCacheService _draftCache = DraftCacheService.instance;
   final JournalVersionService _versionService = JournalVersionService.instance;
   EnhancedLumaraApi? _lumaraApi; // LUMARA API for summary generation
+  ReflectionHandler? _reflectionHandler;
+
+  Future<ReflectionHandler?> _getReflectionHandler() async {
+    if (_lumaraApi == null) return null;
+    if (_reflectionHandler != null) return _reflectionHandler;
+    final box = Hive.isBoxOpen('reflection_sessions')
+        ? Hive.box<ReflectionSession>('reflection_sessions')
+        : await Hive.openBox<ReflectionSession>('reflection_sessions');
+    _reflectionHandler = ReflectionHandler(
+      sessionRepo: ReflectionSessionRepository(box),
+      journalRepo: _journalRepository,
+      aurora: AuroraReflectionService(
+        patternAnalyzer: ReflectionPatternAnalyzer(),
+        emotionalAnalyzer: ReflectionEmotionalAnalyzer(
+          AdaptiveSentinelCalculator(SentinelConfig.weekly()),
+        ),
+      ),
+      lumaraApi: _lumaraApi!,
+    );
+    return _reflectionHandler;
+  }
+
   final AssemblyAIService _assemblyAIService = AssemblyAIService();
   AssemblyAIProvider? _transcriptionProvider;
   String _draftContent = '';
@@ -116,8 +146,22 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
         print('⚠️ JournalCaptureCubit: Could not get current phase: $e');
       }
       
-      // Generate overview using EnhancedLumaraApi
-      final result = await _lumaraApi!.generatePromptedReflection(
+      // Generate overview via ReflectionHandler (pass-through when entryId is null)
+      final handler = await _getReflectionHandler();
+      final response = handler != null
+          ? await handler.handleReflectionRequest(
+              userQuery: content,
+              entryId: null,
+              userId: userProfile?.id,
+              options: lumara_models.LumaraReflectionOptions(
+                preferQuestionExpansion: false,
+                toneMode: lumara_models.ToneMode.normal,
+                regenerate: false,
+              ),
+              chatContext: 'Generate a concise 1-3 sentence overview of this journal entry. The overview should capture the main themes, key insights, and important points. Write it as a clear, coherent summary that helps the user quickly understand what this entry is about when they return to it later. Keep it brief - exactly 1 to 3 sentences.',
+            )
+          : null;
+      final reflectionText = response?.text ?? (await _lumaraApi!.generatePromptedReflection(
         entryText: content,
         intent: 'journal',
         phase: currentPhase,
@@ -133,13 +177,11 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
           toneMode: lumara_models.ToneMode.normal,
           regenerate: false,
         ),
-        onProgress: (message) {
-          // Silent progress - overview generation happens in background
-        },
-      );
-      
+        onProgress: (_) {},
+      )).reflection;
+
       // Extract overview text (remove any prefixes like "✨ Reflection")
-      String overviewText = result.reflection.trim();
+      String overviewText = reflectionText.trim();
       if (overviewText.startsWith('✨ Reflection\n\n')) {
         overviewText = overviewText.substring('✨ Reflection\n\n'.length);
       }
@@ -462,10 +504,17 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
       );
 
       // Use selected keywords if provided, otherwise extract from content using curated library
-      final keywords = selectedKeywords?.isNotEmpty == true 
-          ? selectedKeywords! 
+      List<String> keywords = selectedKeywords?.isNotEmpty == true
+          ? List<String>.from(selectedKeywords!)
           : await _extractKeywordsFromLibrary(contentWithSummary, mood);
-      
+
+      // Explicitly merge keywords from media: metadata, image recognition, OCR, transcript, extracted doc text
+      final mediaKeywords = _extractKeywordsFromMedia(media);
+      if (mediaKeywords.isNotEmpty) {
+        final set = keywords.toSet()..addAll(mediaKeywords);
+        keywords = set.toList();
+      }
+
       // Generate overview for the entry
       String? overview;
       try {
@@ -560,10 +609,17 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
       );
       
       // Use selected keywords if provided, otherwise extract from content using curated library
-      final keywords = selectedKeywords?.isNotEmpty == true 
-          ? selectedKeywords! 
+      List<String> keywords = selectedKeywords?.isNotEmpty == true
+          ? List<String>.from(selectedKeywords!)
           : await _extractKeywordsFromLibrary(contentWithSummary, mood);
-      
+
+      // Explicitly merge keywords from media: metadata, image recognition, OCR, transcript, extracted doc text
+      final mediaKeywords = _extractKeywordsFromMedia(media);
+      if (mediaKeywords.isNotEmpty) {
+        final set = keywords.toSet()..addAll(mediaKeywords);
+        keywords = set.toList();
+      }
+
       // Phase hashtag auto-addition DISABLED - using autoPhase/userPhaseOverride/regimes instead
       // Keep content clean, phase is tracked via proper fields
       
@@ -637,7 +693,7 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
     }
   }
 
-  void saveEntryWithKeywords({
+  Future<void> saveEntryWithKeywords({
     required String content,
     required String mood,
     required List<String> selectedKeywords,
@@ -717,45 +773,34 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
               processedMedia.add(mediaItem);
             }
           } 
-          // Process videos
+          // Process videos: copy to permanent storage without loading into memory.
+          // (Reading entire video with readAsBytes() causes OOM/timeouts on large files and can prevent the entry from saving.)
           else if (mediaItem.type == MediaType.video && !mediaItem.uri.contains('/videos/')) {
             try {
               final videoFile = File(mediaItem.uri);
               if (await videoFile.exists()) {
-                // Compute hash of video file
-                final bytes = await videoFile.readAsBytes();
-                final digest = sha256.convert(bytes);
-                final hash = digest.toString();
-                
-                // Determine file extension from original file
+                final sizeBytes = await videoFile.length();
                 final extension = mediaItem.uri.split('.').last.toLowerCase();
                 final videoExtension = ['mp4', 'mov', 'avi', 'mkv'].contains(extension) ? extension : 'mp4';
-                
                 final appDir = await getApplicationDocumentsDirectory();
-                final fileName = '$hash.$videoExtension';
                 final permanentDir = '${appDir.path}/videos';
                 await Directory(permanentDir).create(recursive: true);
-                final permanentPath = '$permanentDir/$fileName';
-                
-                // Copy video file to permanent storage
+                // Unique name without full-file hash to avoid loading large videos into memory
+                final uniqueName = 'video_${DateTime.now().millisecondsSinceEpoch}_$sizeBytes.$videoExtension';
+                final permanentPath = '$permanentDir/$uniqueName';
                 await videoFile.copy(permanentPath);
-                
-                // Create new MediaItem with permanent path
                 final processedItem = mediaItem.copyWith(
                   uri: permanentPath,
-                  sha256: hash,
+                  sha256: null, // Not computed for video to avoid readAsBytes() on large files
                 );
-                
                 processedMedia.add(processedItem);
                 print('DEBUG: Saved video to permanent storage: $permanentPath');
               } else {
                 print('ERROR: Video file does not exist: ${mediaItem.uri}');
-                // Keep original media item if file doesn't exist
                 processedMedia.add(mediaItem);
               }
             } catch (e) {
               print('ERROR: Failed to save video to permanent storage: $e');
-              // Keep original media item if saving fails
               processedMedia.add(mediaItem);
             }
           } else {
@@ -1163,7 +1208,7 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
   }
 
   /// Update existing entry with new data
-  void updateEntryWithKeywords({
+  Future<void> updateEntryWithKeywords({
     required JournalEntry existingEntry,
     required String content,
     required String mood,
@@ -2396,6 +2441,45 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
 
   /// Extract keywords using the curated keyword library with intensities
   /// Falls back to empty list if extraction fails
+  /// Extract keywords from media (pictures, videos, PDF, .md, Doc): metadata, image recognition,
+  /// OCR text, transcripts, and extracted document text. Used to merge into entry/conversation keywords.
+  List<String> _extractKeywordsFromMedia(List<MediaItem>? media) {
+    if (media == null || media.isEmpty) return [];
+    final keywords = <String>{};
+    for (final item in media) {
+      // From OCR / extracted text: take significant words (length > 2, limit per item)
+      final text = item.ocrText ?? item.transcript ?? item.altText;
+      if (text != null && text.trim().isNotEmpty) {
+        final words = text.split(RegExp(r'\s+'))
+            .where((w) => w.length > 2 && w.length < 30)
+            .take(15);
+        for (final w in words) {
+          final cleaned = w.replaceAll(RegExp(r'[^\w\-]'), '');
+          if (cleaned.length > 2) keywords.add(cleaned);
+        }
+      }
+      // From image recognition: labels and objects in analysisData
+      final analysis = item.analysisData;
+      if (analysis != null) {
+        for (final key in ['labels', 'objects']) {
+          final list = analysis[key];
+          if (list is List) {
+            for (final e in list.take(10)) {
+              final label = e is String ? e : (e is Map ? e['label']?.toString() : null);
+              if (label != null && label.length > 1) keywords.add(label);
+            }
+          }
+        }
+      }
+      // File name stem for file attachments (e.g. "report" from report.pdf)
+      if (item.type == MediaType.file && item.altText != null) {
+        final stem = item.altText!.replaceAll(RegExp(r'\.(pdf|md|docx?)$', caseSensitive: false), '');
+        if (stem.length > 1) keywords.add(stem);
+      }
+    }
+    return keywords.take(30).toList();
+  }
+
   Future<List<String>> _extractKeywordsFromLibrary(String content, String mood) async {
     try {
       // Determine current phase for context

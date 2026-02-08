@@ -20,7 +20,12 @@ abstract class ContentPart extends Equatable {
       case 'application/x-prism+json':
         return PrismContentPart.fromJson(json);
       default:
-        if (mime.startsWith('image/') || mime.startsWith('audio/') || mime.startsWith('video/')) {
+        // Explicitly allow: images, audio, video, PDF, .md, Word docs (conversation media)
+        if (mime.startsWith('image/') || mime.startsWith('audio/') || mime.startsWith('video/') ||
+            mime == 'application/pdf' ||
+            mime == 'text/markdown' ||
+            mime == 'application/msword' ||
+            mime == 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
           return MediaContentPart.fromJson(json);
         }
         throw ArgumentError('Unknown content part type: $mime');

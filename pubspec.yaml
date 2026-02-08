@@ -27,17 +27,10 @@ dependencies:
   args: ^2.5.0
   path: ^1.9.0
   
-  # Firebase Dependencies
-  # Uncomment these lines when you need Firebase functionality
-  # To use Firebase, you'll also need to:
-  # 1. Create a Firebase project at https://console.firebase.google.com/
-  # 2. Add your app to the Firebase project
-  # 3. Download google-services.json and place it in android/app/
-  # 4. Run 'flutterfire configure' to generate firebase_options.dart
-  # 5. Uncomment the Firebase initialization in lib/main/bootstrap.dart
-  # firebase_core: ^3.11.0
-  # cloud_firestore: ^5.6.3
-  # firebase_auth: ^5.4.2
+  # Firebase Dependencies (see ARC MVP/EPI/DOCS/FIREBASE.md for setup and commands)
+  firebase_core: ^3.11.0
+  cloud_firestore: ^5.6.3
+  firebase_auth: ^5.4.2
 
 dev_dependencies:
   build_runner: ^2.4.5

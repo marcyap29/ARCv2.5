@@ -1,8 +1,8 @@
 # EPI MVP - Architecture Overview
 
-**Version:** 3.3.7
-**Last Updated:** February 7, 2026
-**Status:** ✅ Production Ready - MVP Fully Operational with Companion-First LUMARA, Simplified Settings, Health Integration, AssemblyAI v3, Web Access Safety, Correlation-Resistant PII Protection, Bible Reference Retrieval, Google Drive Backup, Temporal Notifications, Enhanced Incremental Backups, Automatic First Export, Sequential Export Numbering, Local Backup Services, and Timeline Pagination
+**Version:** 3.3.16
+**Last Updated:** February 8, 2026
+**Status:** ✅ Production Ready - MVP Fully Operational with Companion-First LUMARA, Reflection Session Safety System, RevenueCat In-App Purchases, Voice Sigil State Machine, Simplified Settings, Health Integration, AssemblyAI v3, Web Access Safety, Correlation-Resistant PII Protection, Bible Reference Retrieval, Google Drive Backup, Temporal Notifications, Enhanced Incremental Backups, Automatic First Export, Sequential Export Numbering, Local Backup Services, and Timeline Pagination
 
 ---
 
@@ -39,6 +39,12 @@ EPI (Evolving Personal Intelligence) is a Flutter-based intelligent journaling a
 - ✅ **Phase Quiz/Phase Tab Consistency (v3.3.13)**: Quiz result persisted via UserPhaseService; Phase tab shows quiz phase when no regimes exist; rotating phase shape (AnimatedPhaseShape) alongside 3D constellation on Phase tab
 - ✅ **Settings & backup (v3.3.14)**: Top-level CHRONICLE folder; LUMARA from chat → Settings → LUMARA; web access default on; Google Drive dated subfolders and Import from Drive; local backup security-scoped access (iOS/macOS); voice notes Ideas list refresh across instances
 - ✅ **Journal & CHRONICLE robustness (v3.3.15)**: JournalRepository per-entry try/catch; Layer0Populator safe content/keywords and succeeded/failed counts; Layer0Repository getMonthsWithEntries; batch synthesis from Layer 0 months. **Phase consistency**: Phase tab syncs to UserProfile; timeline/Conversations preview prefer profile phase; Home tab "Conversations"
+- ✅ **Reflection Session Safety System (v3.3.16)**: AURORA-based risk monitoring for reflection sessions with rumination detection, validation-seeking analysis, and tiered interventions (notice → redirect → pause). Persistent Hive-backed session tracking.
+- ✅ **RevenueCat In-App Purchases (v3.3.16)**: In-app subscription management via RevenueCat (iOS App Store / Google Play) complementing web-based Stripe; dual-channel premium access.
+- ✅ **Voice Sigil State Machine (v3.3.16)**: Upgraded voice UI with 6-state animation system (Idle, Listening, Commitment, Accelerating, Thinking, Speaking), particle effects, shimmer, and constellation points.
+- ✅ **PDF Preview (v3.3.16)**: In-app PDF viewer for journal media attachments.
+- ✅ **Google Drive Folder Picker (v3.3.16)**: Browse and select Google Drive folders for import and sync.
+- ✅ **ARCX Clean Service (v3.3.16)**: Utility to remove low-content chat sessions from ARCX archives.
 
 ### Current Version
 
@@ -292,33 +298,37 @@ The EPI system is organized into 5 core modules:
 - Prompt engineering
 - **Engagement Discipline System** (v2.1.75): User-controlled engagement modes (Reflect/Explore/Integrate) with synthesis boundaries and response discipline settings
 
-### 5. Subscription & Payment Module (v2.1.76)
+### 5. Subscription & Payment Module (v2.1.76+)
 
-**Purpose:** Premium subscription management via Stripe
+**Purpose:** Premium subscription management via Stripe (web) and RevenueCat (in-app)
 
 **Components:**
-- `lib/services/subscription_service.dart` - Subscription management with caching
+- `lib/services/subscription_service.dart` - Subscription management with caching; checks both Stripe and RevenueCat
+- `lib/services/revenuecat_service.dart` - RevenueCat in-app purchase SDK integration (iOS/Android)
 - `lib/ui/subscription/subscription_management_view.dart` - Subscription UI
 - `lib/ui/subscription/lumara_subscription_status.dart` - Status display widget
 - `functions/index.js` - Stripe Cloud Functions (checkout, portal, webhooks)
 
 **Key Features:**
-- Stripe Checkout integration for secure payments
-- Monthly ($30) and Annual ($200) subscription options
-- Customer Portal for subscription management
-- Webhook-based subscription status updates
+- **Dual Payment Channels**: Stripe (web checkout) and RevenueCat (iOS App Store / Google Play in-app)
+- Monthly and Annual subscription options; Founders upfront (3-year) option
+- Customer Portal for subscription management (Stripe web)
+- Webhook-based subscription status updates (Stripe)
+- RevenueCat entitlement sync with Firebase UID for cross-device access
 - Firebase Secret Manager for secure key storage
 - Authentication and token refresh for Stripe functions
 - Subscription status caching (5-minute TTL)
 
 **Documentation:**
-- Setup guides: `DOCS/stripe/README.md`
-- Complete setup: `DOCS/stripe/STRIPE_SECRETS_SETUP.md`
+- Stripe (web): `DOCS/stripe/README.md`
+- RevenueCat (in-app): `DOCS/revenuecat/README.md`
+- Payments clarification: `DOCS/PAYMENTS_CLARIFICATION.md`
+- Complete Stripe setup: `DOCS/stripe/STRIPE_SECRETS_SETUP.md`
 - Webhook setup: `DOCS/stripe/STRIPE_WEBHOOK_SETUP_VISUAL.md`
 
 ---
 
-### 5. AURORA Module (`lib/aurora/`)
+### 6. AURORA Module (`lib/aurora/`)
 
 **Purpose:** Circadian orchestration
 
@@ -625,16 +635,82 @@ When user cadence changes (e.g., power user → weekly), the system smoothly tra
 
 ---
 
+## Reflection Session Safety System (v3.3.16)
+
+### Overview
+
+The Reflection Session Safety System monitors LUMARA reflection sessions for patterns that indicate unhealthy engagement — rumination, validation-seeking, or avoidance — and intervenes with a tiered response system.
+
+### Architecture
+
+```
+User ↔ LUMARA Reflection
+       ↓
+ReflectionHandler (orchestrator)
+  ├─ ReflectionSessionRepository  (Hive persistence)
+  ├─ ReflectionPatternAnalyzer    (rumination/progression)
+  ├─ ReflectionEmotionalAnalyzer  (validation-seeking)
+  └─ AuroraReflectionService      (risk assessment → interventions)
+       ↓
+InterventionResponse  (notice | redirect | pause)
+```
+
+### Components
+
+| File | Purpose |
+|------|---------|
+| `lib/models/reflection_session.dart` | Hive model (typeId 125/126) — session and exchange records |
+| `lib/repositories/reflection_session_repository.dart` | Hive-backed CRUD for sessions |
+| `lib/arc/chat/reflection/reflection_pattern_analyzer.dart` | Detects rumination (repeating themes without progression) |
+| `lib/arc/chat/reflection/reflection_emotional_analyzer.dart` | Measures validation-seeking vs analytical query ratio |
+| `lib/aurora/reflection/aurora_reflection_service.dart` | Risk assessment (4 signals → 4 levels); generates interventions |
+| `lib/arc/chat/services/reflection_handler.dart` | Orchestrates reflection flow with safety monitoring |
+| `lib/data/hive/duration_adapter.dart` | Hive TypeAdapter for `Duration` (typeId 105) — required for video entries |
+
+### Risk Signal Detection
+
+- **Prolonged Session**: >5 exchanges in a single session
+- **Rumination**: Same themes repeated across 3+ consecutive queries without CHRONICLE usage
+- **Emotional Dependence**: High validation-seeking query ratio (>60%)
+- **Avoidance Pattern**: Low emotional density despite reflective content
+
+### Tiered Intervention
+
+| Risk Level | Signals | Action |
+|------------|---------|--------|
+| **None** | 0 | Continue normally |
+| **Low** | 1 | Notice (shown but non-blocking) |
+| **Moderate** | 2 | Redirect (suggest alternative engagement) |
+| **High** | 3+ | Pause (session paused for configurable duration) |
+
+---
+
+## Voice Sigil State Machine (v3.3.16)
+
+The voice chat UI has been upgraded from a simple glowing indicator to a 6-state animation system:
+
+| State | Visual | Description |
+|-------|--------|-------------|
+| **Idle** | Gentle pulse + orbital particles | Ready to listen |
+| **Listening** | Breathing animation + inward particles | Recording user voice |
+| **Commitment** | Inner ring contracting + particles compressing | Processing commit |
+| **Accelerating** | Shimmer intensifies + particles accelerating | Building response |
+| **Thinking** | Constellation points + compressed particles | LUMARA processing |
+| **Speaking** | Outward-flowing particles | LUMARA responding |
+
+**Location**: `lib/arc/chat/voice/ui/voice_sigil.dart`  
+**Deleted**: `lib/arc/chat/voice/voice_journal/new_voice_journal_service.dart`, `new_voice_journal_ui.dart` (legacy voice journal removed)
+
+---
+
 ## Related Documentation
 
 For detailed information on specific modules and features, see:
 - [Features Guide](FEATURES.md)
 - [Changelog](CHANGELOG.md)
-- [Bug Tracker](BUGTRACKER.md)
+- [Bug Tracker](bugtracker/bug_tracker.md)
 - [RIVET Architecture](RIVET_ARCHITECTURE.md) - Phase detection and validation
 - [Sentinel Architecture](SENTINEL_ARCHITECTURE.md) - Crisis detection system
-
----
 
 ---
 
@@ -669,6 +745,6 @@ User Launch → Anonymous Auth (Auto) → 5 Free Requests → Sign-In Prompt
 ---
 
 **Status**: ✅ Production Ready
-**Last Updated**: January 1, 2026
-**Version**: 2.1.76
+**Last Updated**: February 8, 2026
+**Version**: 3.3.16
 

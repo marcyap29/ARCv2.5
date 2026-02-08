@@ -36,6 +36,7 @@ import 'package:my_app/shared/widgets/import_status_bar.dart';
 import 'package:my_app/mira/store/arcx/import_progress_cubit.dart';
 import 'package:my_app/ui/export_import/mcp_import_screen.dart';
 import 'package:my_app/arc/core/journal_repository.dart';
+import 'package:my_app/services/google_drive_service.dart';
 
 // Debug flag for showing RIVET engineering labels
 const bool kShowRivetDebugLabels = false;
@@ -85,6 +86,27 @@ class _HomeViewState extends State<HomeView> {
     // Check photo permissions and refresh timeline if granted
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _checkPhotoPermissionsAndRefresh();
+    });
+
+    // Sync .txt from Google Drive sync folder on app open (runs once after a short delay)
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Future.delayed(const Duration(milliseconds: 2500), () async {
+        if (!mounted) return;
+        try {
+          final journalRepo = context.read<JournalRepository>();
+          final count = await GoogleDriveService.instance.syncTxtFromDriveToTimeline(journalRepo);
+          if (!mounted) return;
+          if (count > 0) {
+            context.read<TimelineCubit>().reloadAllEntries();
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Synced $count file(s) from Google Drive'),
+                backgroundColor: Colors.green,
+              ),
+            );
+          }
+        } catch (_) {}
+      });
     });
 
     // Open a specific entry (e.g. inaugural entry from onboarding "Read Your Entry")
@@ -189,21 +211,32 @@ class _HomeViewState extends State<HomeView> {
           listenWhen: (a, b) => a.completed != b.completed || a.error != b.error,
           listener: (context, state) {
             if (state.completed) {
-              try {
-                context.read<TimelineCubit>().reloadAllEntries();
-              } catch (_) {}
-              if (state.completedImportResult != null) {
-                McpImportScreen.showARCXImportSuccessDialog(context, state.completedImportResult!);
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Import complete'),
-                    backgroundColor: Colors.green,
-                    duration: Duration(seconds: 2),
-                  ),
-                );
-              }
-              context.read<ImportProgressCubit>().clearCompleted();
+              final result = state.completedImportResult;
+              final timelineCubit = context.read<TimelineCubit>();
+              Future(() async {
+                // Brief delay so Hive/journal box writes from import are committed (timeline reads from JournalRepository; CHRONICLE is separate).
+                await Future.delayed(const Duration(milliseconds: 150));
+                try {
+                  await timelineCubit.reloadAllEntries();
+                } catch (e) {
+                  debugPrint('Timeline refresh after ARCX import failed: $e');
+                }
+                if (!context.mounted) return;
+                if (result != null) {
+                  McpImportScreen.showARCXImportSuccessDialog(context, result);
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Import complete'),
+                      backgroundColor: Colors.green,
+                      duration: Duration(seconds: 2),
+                    ),
+                  );
+                }
+                if (context.mounted) {
+                  context.read<ImportProgressCubit>().clearCompleted();
+                }
+              });
             } else if (state.error != null) {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
@@ -219,6 +252,7 @@ class _HomeViewState extends State<HomeView> {
             builder: (context, state) {
               final selectedIndex = state is HomeLoaded ? state.selectedIndex : 0;
               return Scaffold(
+                backgroundColor: kcBackgroundColor,
                 appBar: AppBar(
                   backgroundColor: kcBackgroundColor,
                   elevation: 0,

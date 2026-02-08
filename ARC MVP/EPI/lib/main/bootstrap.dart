@@ -12,10 +12,12 @@ import 'package:my_app/utils/flavors.dart';
 
 import 'package:my_app/models/user_profile_model.dart';
 import 'package:my_app/models/journal_entry_model.dart';
+import 'package:my_app/models/reflection_session.dart';
 import 'package:my_app/models/arcform_snapshot_model.dart';
 import 'package:my_app/state/journal_entry_state.dart';
 import 'package:my_app/arc/core/sage_annotation_model.dart';
 import 'package:my_app/data/models/media_item.dart';
+import 'package:my_app/data/hive/duration_adapter.dart';
 import 'package:my_app/prism/atlas/rivet/rivet_storage.dart';
 import 'package:my_app/services/media_pack_tracking_service.dart';
 import 'package:my_app/data/hive/insight_snapshot.dart';
@@ -26,8 +28,10 @@ import 'package:my_app/arc/chat/chat/chat_models.dart';
 import 'package:my_app/arc/chat/chat/chat_category_models.dart';
 import 'package:my_app/arc/chat/data/models/lumara_favorite.dart';
 import 'package:my_app/arc/voice_notes/models/voice_note.dart';
+import 'package:my_app/chronicle/storage/layer0_repository.dart';
 import 'package:my_app/services/firebase_service.dart';
 import 'package:my_app/services/firebase_auth_service.dart';
+import 'package:my_app/services/revenuecat_service.dart';
 import 'package:my_app/services/health_data_refresh_service.dart';
 import 'package:my_app/services/phase_history_readiness_backfill_service.dart';
 import 'package:my_app/arc/core/journal_repository.dart';
@@ -201,7 +205,10 @@ Future<void> _registerHiveAdapters() async {
     } else {
       logger.d('⚠️ MediaItemAdapter (ID: 11) already registered');
     }
-    
+    if (!Hive.isAdapterRegistered(105)) {
+      Hive.registerAdapter(DurationAdapter());
+      logger.d('✅ Registered DurationAdapter (ID: 105) - required for video entries');
+    }
     // Register other adapters
     if (!Hive.isAdapterRegistered(0)) {
       Hive.registerAdapter(UserProfileAdapter());
@@ -265,6 +272,20 @@ Future<void> _registerHiveAdapters() async {
       Hive.registerAdapter(VoiceNoteAdapter());
       logger.d('✅ Registered VoiceNoteAdapter (ID: 120)');
     }
+    // CHRONICLE Layer 0 (raw entries) – required for Backfill Layer 0 to work
+    if (!Hive.isAdapterRegistered(110)) {
+      Hive.registerAdapter(ChronicleRawEntryAdapter());
+      logger.d('✅ Registered ChronicleRawEntryAdapter (ID: 110)');
+    }
+    // Reflection session monitoring (AURORA)
+    if (!Hive.isAdapterRegistered(125)) {
+      Hive.registerAdapter(ReflectionSessionAdapter());
+      logger.d('✅ Registered ReflectionSessionAdapter (ID: 125)');
+    }
+    if (!Hive.isAdapterRegistered(126)) {
+      Hive.registerAdapter(ReflectionExchangeAdapter());
+      logger.d('✅ Registered ReflectionExchangeAdapter (ID: 126)');
+    }
 
     // Run a one-time migration to persist legacy LUMARA blocks into the dedicated field
     try {
@@ -293,6 +314,7 @@ class Boxes {
   static const userProfile = 'user_profile';
   static const journalEntries = 'journal_entries';
   static const arcformSnapshots = 'arcform_snapshots';
+  static const reflectionSessions = 'reflection_sessions';
   static const insights = 'insights';
   static const syncQueue = 'sync_queue';
   static const coachDropletTemplates = 'coach_droplet_templates';
@@ -347,6 +369,14 @@ Future<void> bootstrap({
           try {
             await FirebaseAuthService.instance.initialize();
             logger.d('Firebase Auth initialized successfully');
+            // RevenueCat for in-app purchases (iOS). Stripe = web (see DOCS/PAYMENTS_CLARIFICATION.md).
+            try {
+              await RevenueCatService.instance.configure(
+                appUserId: FirebaseAuthService.instance.currentUser?.uid,
+              );
+            } catch (rcErr, rcSt) {
+              logger.w('RevenueCat configure failed (non-fatal)', rcErr, rcSt);
+            }
           } catch (authError, authSt) {
             logger.e('Failed to initialize Firebase Auth', authError, authSt);
           }
@@ -454,6 +484,7 @@ Future<void> _openHiveBoxes() async {
     Boxes.userProfile: UserProfile,
     Boxes.journalEntries: JournalEntry,
     Boxes.arcformSnapshots: ArcformSnapshot,
+    Boxes.reflectionSessions: ReflectionSession,
     Boxes.insights: dynamic, // InsightSnapshot if it exists
     Boxes.coachDropletTemplates: dynamic,
     Boxes.coachDropletResponses: dynamic,
@@ -489,6 +520,8 @@ Future<void> _openTypedBox(String boxName, Type boxType) async {
       await Hive.openBox<JournalEntry>(boxName);
     } else if (boxType == ArcformSnapshot) {
       await Hive.openBox<ArcformSnapshot>(boxName);
+    } else if (boxType == ReflectionSession) {
+      await Hive.openBox<ReflectionSession>(boxName);
     } else {
       await Hive.openBox(boxName); // Generic box
     }

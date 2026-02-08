@@ -9,9 +9,48 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:extension_google_sign_in_as_googleapis_auth/extension_google_sign_in_as_googleapis_auth.dart';
 import 'package:googleapis/drive/v3.dart' as drive;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:uuid/uuid.dart';
+import 'package:my_app/arc/core/journal_repository.dart';
+import 'package:my_app/models/journal_entry_model.dart';
 
 const String _kPrefSelectedFolderId = 'google_drive_backup_folder_id';
+const String _kPrefSyncFolderId = 'google_drive_sync_folder_id';
+const String _kPrefSyncFolderName = 'google_drive_sync_folder_name';
+const String _kPrefSyncedTxtIds = 'google_drive_synced_txt_ids';
+const String _kPrefSyncedTxtRecords = 'google_drive_synced_txt_records';
+const int _kMaxSyncedTxtRecords = 500;
 const String _kDriveAppFolderName = 'ARC Backups';
+
+/// One synced .txt file: maps Drive file ID to ARC entry and last known Drive modified time.
+class SyncedTxtRecord {
+  final String driveFileId;
+  final String journalEntryId;
+  final String? modifiedTimeIso; // Drive file modifiedTime when we last synced
+
+  SyncedTxtRecord({
+    required this.driveFileId,
+    required this.journalEntryId,
+    this.modifiedTimeIso,
+  });
+
+  Map<String, dynamic> toJson() => {
+        'driveFileId': driveFileId,
+        'journalEntryId': journalEntryId,
+        'modifiedTimeIso': modifiedTimeIso,
+      };
+
+  static SyncedTxtRecord? fromJson(dynamic map) {
+    if (map is! Map) return null;
+    final driveFileId = map['driveFileId']?.toString();
+    final journalEntryId = map['journalEntryId']?.toString();
+    if (driveFileId == null || driveFileId.isEmpty) return null;
+    return SyncedTxtRecord(
+      driveFileId: driveFileId,
+      journalEntryId: journalEntryId ?? '',
+      modifiedTimeIso: map['modifiedTimeIso']?.toString(),
+    );
+  }
+}
 
 class GoogleDriveService {
   static final GoogleDriveService _instance = GoogleDriveService._internal();
@@ -31,6 +70,10 @@ class GoogleDriveService {
 
   /// Drive API scope: only files the app creates or opens.
   static const String driveFileScope = 'https://www.googleapis.com/auth/drive.file';
+  /// Read-only scope: list and download files from any folder (for folder picker / import from Drive).
+  static const String driveReadOnlyScope = 'https://www.googleapis.com/auth/drive.readonly';
+  /// All Drive scopes used for sign-in (file + readonly for browse/import).
+  static const List<String> driveScopes = [driveFileScope, driveReadOnlyScope];
 
   Future<void> _ensureInitialized() async {
     if (_initialized) return;
@@ -46,16 +89,16 @@ class GoogleDriveService {
     }
   }
 
-  /// Sign in with Google and request Drive (drive.file) scope.
+  /// Sign in with Google and request Drive (drive.file + drive.readonly) scope.
   /// Returns the signed-in account email or null if user cancelled.
   Future<String?> signIn() async {
     await _ensureInitialized();
     try {
       final account = await _googleSignIn!.authenticate(
-        scopeHint: [driveFileScope],
+        scopeHint: driveScopes,
       );
-      final auth = await account.authorizationClient.authorizeScopes([driveFileScope]);
-      final client = auth.authClient(scopes: [driveFileScope]);
+      final auth = await account.authorizationClient.authorizeScopes(driveScopes);
+      final client = auth.authClient(scopes: driveScopes);
       _driveApi = drive.DriveApi(client);
       _currentAccountEmail = account.email;
       return account.email;
@@ -95,8 +138,8 @@ class GoogleDriveService {
       if (future == null) return false;
       final account = await future;
       if (account == null) return false;
-      final auth = await account.authorizationClient.authorizeScopes([driveFileScope]);
-      final client = auth.authClient(scopes: [driveFileScope]);
+      final auth = await account.authorizationClient.authorizeScopes(driveScopes);
+      final client = auth.authClient(scopes: driveScopes);
       _driveApi = drive.DriveApi(client);
       _currentAccountEmail = account.email;
       return true;
@@ -206,16 +249,270 @@ class GoogleDriveService {
   }
 
   /// List files in the given folder (or app folder if [folderId] is null).
-  Future<List<drive.File>> listFiles({String? folderId, int pageSize = 50}) async {
+  /// Use [folderId] of [rootFolderId] to list the top-level "My Drive" contents.
+  static const String rootFolderId = 'root';
+
+  Future<List<drive.File>> listFiles({String? folderId, int pageSize = 100}) async {
     _requireDriveApi();
     final parentId = folderId ?? await getOrCreateAppFolder();
     final response = await _driveApi!.files.list(
       q: "'$parentId' in parents and trashed = false",
       pageSize: pageSize,
-      orderBy: 'modifiedTime desc',
-      $fields: 'files(id,name,mimeType,size,modifiedTime,webContentLink)',
+      orderBy: 'folder asc, modifiedTime desc',
+      $fields: 'files(id,name,mimeType,size,modifiedTime,webContentLink,parents)',
     );
     return response.files ?? [];
+  }
+
+  /// Get file or folder metadata (e.g. for parent ID when navigating back).
+  Future<drive.File?> getFileMetadata(String fileId, {String fields = 'id,name,parents,mimeType'}) async {
+    _requireDriveApi();
+    try {
+      final f = await _driveApi!.files.get(fileId, $fields: fields);
+      return f is drive.File ? f : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Recursively collect all backup and text file IDs under the given folder.
+  /// Returns list of Drive files (.arcx, .zip, manifest .json, .txt).
+  Future<List<drive.File>> listImportableFilesInFolder(String folderId, {int maxFiles = 500}) async {
+    _requireDriveApi();
+    final result = <drive.File>[];
+    await _listImportableFilesRecursive(folderId, result, maxFiles);
+    return result;
+  }
+
+  Future<void> _listImportableFilesRecursive(String folderId, List<drive.File> out, int maxFiles) async {
+    if (out.length >= maxFiles) return;
+    final items = await listFiles(folderId: folderId, pageSize: 100);
+    for (final item in items) {
+      if (out.length >= maxFiles) return;
+      final name = item.name ?? '';
+      final mime = item.mimeType ?? '';
+      if (mime == 'application/vnd.google-apps.folder') {
+        final id = item.id;
+        if (id != null) await _listImportableFilesRecursive(id, out, maxFiles);
+      } else {
+        final isBackup = name.endsWith('.arcx') || name.endsWith('.zip') ||
+            (name.startsWith('arc_backup_manifest_') && name.endsWith('.json'));
+        final isText = name.endsWith('.txt');
+        if (isBackup || isText) out.add(item);
+      }
+    }
+  }
+
+  // --- Sync folder (for .txt auto-import) ---
+
+  Future<String?> getSyncFolderId() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_kPrefSyncFolderId);
+  }
+
+  Future<String?> getSyncFolderName() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_kPrefSyncFolderName);
+  }
+
+  Future<void> setSyncFolder(String? folderId, String? folderName) async {
+    final prefs = await SharedPreferences.getInstance();
+    if (folderId == null) {
+      await prefs.remove(_kPrefSyncFolderId);
+      await prefs.remove(_kPrefSyncFolderName);
+    } else {
+      await prefs.setString(_kPrefSyncFolderId, folderId);
+      await prefs.setString(_kPrefSyncFolderName, folderName ?? '');
+    }
+  }
+
+  /// Records of synced .txt files (driveFileId → journalEntryId + modifiedTime) for create/update.
+  Future<List<SyncedTxtRecord>> getSyncedTxtRecords() async {
+    final prefs = await SharedPreferences.getInstance();
+    final json = prefs.getString(_kPrefSyncedTxtRecords);
+    if (json != null && json.isNotEmpty) {
+      try {
+        final list = jsonDecode(json) as List<dynamic>?;
+        if (list != null) {
+          final records = list.map((e) => SyncedTxtRecord.fromJson(e)).whereType<SyncedTxtRecord>().toList();
+          if (records.isNotEmpty) return records;
+        }
+      } catch (_) {}
+    }
+    // Migration: old format was just list of file IDs; treat those as "synced but no entry id" so we don't re-import.
+    final oldJson = prefs.getString(_kPrefSyncedTxtIds);
+    if (oldJson != null && oldJson.isNotEmpty) {
+      try {
+        final list = jsonDecode(oldJson) as List<dynamic>?;
+        if (list != null && list.isNotEmpty) {
+          return list.map((e) => SyncedTxtRecord(driveFileId: e.toString(), journalEntryId: '', modifiedTimeIso: null)).toList();
+        }
+      } catch (_) {}
+    }
+    return [];
+  }
+
+  Future<void> _saveSyncedTxtRecords(List<SyncedTxtRecord> records) async {
+    var list = records;
+    if (list.length > _kMaxSyncedTxtRecords) {
+      list = list.sublist(list.length - _kMaxSyncedTxtRecords);
+    }
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_kPrefSyncedTxtRecords, jsonEncode(list.map((r) => r.toJson()).toList()));
+  }
+
+  static String _folderNameToHashtag(String name) {
+    final s = name.replaceAll(RegExp(r'\s+'), '').replaceAll(RegExp(r'[^a-zA-Z0-9_]'), '');
+    return s.isEmpty ? 'Drive' : s;
+  }
+
+  static DateTime? _parseDriveModifiedTime(dynamic modifiedTime) {
+    if (modifiedTime == null) return null;
+    if (modifiedTime is DateTime) return modifiedTime;
+    if (modifiedTime is String) {
+      try {
+        return DateTime.parse(modifiedTime);
+      } catch (_) {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  /// Sync .txt files from the chosen sync folder: create new entries or update existing if the file was edited on Drive.
+  /// Returns the number of entries created or updated. Call on app open or when user taps Sync.
+  Future<int> syncTxtFromDriveToTimeline(JournalRepository journalRepo) async {
+    final folderId = await getSyncFolderId();
+    if (folderId == null || folderId.isEmpty) return 0;
+    final restored = await restoreSession();
+    if (!restored) return 0;
+
+    final records = await getSyncedTxtRecords();
+    final byDriveId = <String, SyncedTxtRecord>{};
+    for (final r in records) {
+      byDriveId[r.driveFileId] = r;
+    }
+
+    final pairs = await listTxtFilesInFolderWithParent(folderId, maxFiles: 200);
+    int createdOrUpdated = 0;
+    final updatedRecords = <String, SyncedTxtRecord>{...byDriveId};
+
+    for (final pair in pairs) {
+      final fileId = pair.file.id;
+      if (fileId == null || fileId.isEmpty) continue;
+
+      final driveModified = _parseDriveModifiedTime(pair.file.modifiedTime);
+      final record = byDriveId[fileId];
+
+      // Already synced: update entry if Drive file is newer.
+      if (record != null) {
+        if (record.journalEntryId.isEmpty) continue; // Legacy: no entry id, skip to avoid duplicate.
+        final lastModified = record.modifiedTimeIso != null ? DateTime.tryParse(record.modifiedTimeIso!) : null;
+        final driveIsNewer = driveModified != null &&
+            (lastModified == null || driveModified.isAfter(lastModified));
+        if (!driveIsNewer) continue;
+
+        try {
+          final existing = await journalRepo.getJournalEntryById(record.journalEntryId);
+          if (existing == null) {
+            // Entry was deleted in ARC; remove record and fall through to create new.
+            updatedRecords.remove(fileId);
+          } else {
+            final path = await downloadToTempFile(fileId, suggestedName: pair.file.name);
+            final content = await File(path).readAsString();
+            try {
+              await File(path).delete();
+            } catch (_) {}
+            final parentMeta = await getFileMetadata(pair.parentFolderId, fields: 'name');
+            final folderName = parentMeta?.name ?? 'Drive';
+            final folderTag = _folderNameToHashtag(folderName);
+            final hashtags = ' #googledrive #$folderTag';
+            final title = (pair.file.name ?? 'Note').replaceAll(RegExp(r'\.txt$'), '').trim();
+            final updated = existing.copyWith(
+              content: content.trim() + hashtags,
+              title: title.isEmpty ? 'Imported from Drive' : title,
+              updatedAt: DateTime.now(),
+              keywords: ['googledrive', folderTag],
+            );
+            await journalRepo.updateJournalEntry(updated);
+            updatedRecords[fileId] = SyncedTxtRecord(
+              driveFileId: fileId,
+              journalEntryId: record.journalEntryId,
+              modifiedTimeIso: driveModified.toIso8601String(),
+            );
+            createdOrUpdated++;
+            continue;
+          }
+        } catch (e) {
+          debugPrint('GoogleDriveService: update .txt $fileId failed: $e');
+          continue;
+        }
+      }
+
+      // New file: create entry and add record.
+      try {
+        final path = await downloadToTempFile(fileId, suggestedName: pair.file.name);
+        final content = await File(path).readAsString();
+        try {
+          await File(path).delete();
+        } catch (_) {}
+        final parentMeta = await getFileMetadata(pair.parentFolderId, fields: 'name');
+        final folderName = parentMeta?.name ?? 'Drive';
+        final folderTag = _folderNameToHashtag(folderName);
+        final hashtags = ' #googledrive #$folderTag';
+        final now = DateTime.now();
+        final title = (pair.file.name ?? 'Note').replaceAll(RegExp(r'\.txt$'), '').trim();
+        final entry = JournalEntry(
+          id: const Uuid().v4(),
+          title: title.isEmpty ? 'Imported from Drive' : title,
+          content: content.trim() + hashtags,
+          createdAt: now,
+          updatedAt: now,
+          tags: const [],
+          mood: '',
+          keywords: ['googledrive', folderTag],
+          importSource: 'GOOGLE_DRIVE',
+        );
+        await journalRepo.createJournalEntry(entry);
+        updatedRecords[fileId] = SyncedTxtRecord(
+          driveFileId: fileId,
+          journalEntryId: entry.id,
+          modifiedTimeIso: driveModified != null ? driveModified.toIso8601String() : null,
+        );
+        createdOrUpdated++;
+      } catch (e) {
+        debugPrint('GoogleDriveService: sync .txt $fileId failed: $e');
+      }
+    }
+
+    await _saveSyncedTxtRecords(updatedRecords.values.toList());
+    return createdOrUpdated;
+  }
+
+  /// List .txt files under [folderId] with each file's direct parent folder id (for folder-name hashtag).
+  Future<List<({drive.File file, String parentFolderId})>> listTxtFilesInFolderWithParent(String folderId, {int maxFiles = 200}) async {
+    _requireDriveApi();
+    final result = <({drive.File file, String parentFolderId})>[];
+    await _listTxtWithParentRecursive(folderId, folderId, result, maxFiles);
+    return result;
+  }
+
+  Future<void> _listTxtWithParentRecursive(String folderId, String parentId, List<({drive.File file, String parentFolderId})> out, int maxFiles) async {
+    if (out.length >= maxFiles) return;
+    final items = await listFiles(folderId: folderId, pageSize: 100);
+    for (final item in items) {
+      if (out.length >= maxFiles) return;
+      final name = item.name ?? '';
+      final mime = item.mimeType ?? '';
+      if (mime == 'application/vnd.google-apps.folder') {
+        final id = item.id;
+        if (id != null) await _listTxtWithParentRecursive(id, id, out, maxFiles);
+      } else if (name.endsWith('.txt')) {
+        final parents = item.parents;
+        final pid = (parents != null && parents.isNotEmpty) ? parents.first : parentId;
+        out.add((file: item, parentFolderId: pid));
+      }
+    }
   }
 
   /// List all backup files (manifests, .arcx, .zip) from ARC Backups: from dated subfolders and any at root.

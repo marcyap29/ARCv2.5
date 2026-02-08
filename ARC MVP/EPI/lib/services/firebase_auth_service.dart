@@ -1,10 +1,15 @@
-// Firebase Auth service with Google Sign-In integration and account linking
+// Firebase Auth service with Google Sign-In, Apple Sign-In, and account linking
 import 'dart:async';
+import 'dart:convert';
+import 'dart:math';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
+import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 import 'firebase_service.dart';
 import 'subscription_service.dart';
+import 'revenuecat_service.dart';
 import 'assemblyai_service.dart';
 
 /// Error codes from the backend auth guard
@@ -233,6 +238,101 @@ class FirebaseAuthService {
     }
   }
 
+  /// Generate a raw nonce for Sign in with Apple (cryptographically secure).
+  /// Apple expects the SHA256-hashed nonce; Firebase expects the raw nonce.
+  static String _generateNonce([int length = 32]) {
+    final secureRandom = _secureRandomBytes(length);
+    return base64Url.encode(secureRandom);
+  }
+
+  static List<int> _secureRandomBytes(int length) {
+    final random = Random.secure();
+    return List<int>.generate(length, (_) => random.nextInt(256));
+  }
+
+  static String _sha256ofString(String input) {
+    final bytes = utf8.encode(input);
+    final digest = sha256.convert(bytes);
+    return base64Url.encode(digest.bytes);
+  }
+
+  /// Sign in with Apple (iOS 13+, macOS 10.15+).
+  /// If user is currently anonymous, links the Apple credential to preserve data.
+  Future<UserCredential?> signInWithApple() async {
+    try {
+      final isAvailable = await SignInWithApple.isAvailable();
+      if (!isAvailable) {
+        throw Exception('Sign in with Apple is not available on this device.');
+      }
+
+      debugPrint('FirebaseAuthService: Starting Sign in with Apple...');
+
+      final rawNonce = _generateNonce();
+      final hashedNonce = _sha256ofString(rawNonce);
+
+      final appleCredential = await SignInWithApple.getAppleIDCredential(
+        scopes: [
+          AppleIDAuthorizationScopes.email,
+          AppleIDAuthorizationScopes.fullName,
+        ],
+        nonce: hashedNonce,
+      );
+
+      final idToken = appleCredential.identityToken;
+      if (idToken == null || idToken.isEmpty) {
+        throw Exception('Failed to get Apple identity token. Please try again or use another sign-in method.');
+      }
+
+      final fullName = AppleFullPersonName(
+        givenName: appleCredential.givenName,
+        familyName: appleCredential.familyName,
+      );
+      final credential = AppleAuthProvider.credentialWithIDToken(
+        idToken,
+        rawNonce,
+        fullName,
+      );
+
+      if (isAnonymous) {
+        return await linkAnonymousWithCredential(credential);
+      }
+
+      final userCredential = await auth.signInWithCredential(credential);
+
+      debugPrint('FirebaseAuthService: Successfully signed in with Apple: ${userCredential.user?.email}');
+
+      if (userCredential.user != null) {
+        try {
+          await userCredential.user!.reload();
+        } catch (e) {
+          debugPrint('FirebaseAuthService: ⚠️ User reload failed (non-critical): $e');
+        }
+      }
+
+      await _refreshAuthState(userCredential.user);
+      await Future.delayed(const Duration(milliseconds: 300));
+
+      return userCredential;
+    } on SignInWithAppleAuthorizationException catch (e) {
+      if (e.code == AuthorizationErrorCode.canceled) {
+        debugPrint('FirebaseAuthService: User canceled Sign in with Apple');
+        return null;
+      }
+      debugPrint('FirebaseAuthService: Apple Sign-In authorization error: ${e.code} - ${e.message}');
+      rethrow;
+    } catch (e) {
+      if (e is FirebaseAuthException) {
+        debugPrint('FirebaseAuthService: Apple Sign-In Firebase error: ${e.code} - ${e.message}');
+      } else {
+        debugPrint('FirebaseAuthService: Apple Sign-In failed: $e');
+      }
+      rethrow;
+    }
+  }
+
+  /// Check if Sign in with Apple is available (e.g. iOS 13+, macOS 10.15+).
+  Future<bool> get isAppleSignInAvailable => SignInWithApple.isAvailable();
+
   /// Link anonymous account with a credential (Google, Email, etc.)
   /// This preserves all user data from the anonymous session
   Future<UserCredential?> linkAnonymousWithCredential(AuthCredential credential) async {
@@ -401,6 +501,13 @@ class FirebaseAuthService {
       // Force refresh the ID token
       await user.getIdToken(true);
       debugPrint('✅ FirebaseAuthService: Auth token refreshed successfully');
+
+      // RevenueCat: sync user ID for cross-device entitlement (in-app purchases)
+      try {
+        await RevenueCatService.instance.logIn(user.uid);
+      } catch (e) {
+        debugPrint('⚠️ FirebaseAuthService: RevenueCat logIn (non-fatal): $e');
+      }
 
       // Clear any cached subscription data so it re-fetches with new auth
       try {

@@ -23,6 +23,9 @@ class LumaraControlStateBuilder {
   /// 
   /// This combines all behavioral signals into a single JSON structure
   /// that the master prompt uses to govern LUMARA's behavior.
+  /// Written chat/journal use no length cap (Reflect, Explore, Integrate) — same as API.
+  static const int writtenUnlimitedMaxWords = 4096;
+
   static Future<String> buildControlState({
     String? userId,
     Map<String, dynamic>? prismActivity,
@@ -31,6 +34,7 @@ class LumaraControlStateBuilder {
     int? maxWords, // NEW: Word limit from response mode
     UserIntent? userIntent, // NEW: User intent from conversation mode/button (from services/lumara/user_intent.dart)
     bool isVoiceMode = false, // NEW: Flag for voice mode (applies length multiplier)
+    bool isWrittenConversation = false, // NEW: Written chat or journal → no length limit (Reflect/Explore/Integrate)
   }) async {
     final state = <String, dynamic>{};
     
@@ -416,8 +420,12 @@ class LumaraControlStateBuilder {
       responseMode['isAuto'] = true;
     }
     
-    // Add word limit if provided
-    if (maxWords != null) {
+    // Written conversation (chat or journal, not voice): no length limit for Reflect/Explore/Integrate
+    if (isWrittenConversation && !isVoiceMode) {
+      responseMode['maxWords'] = writtenUnlimitedMaxWords;
+      responseMode['noWordLimit'] = true;
+      print('LUMARA Control State: Written conversation - no word limit (chat/journal, Reflect/Explore/Integrate)');
+    } else if (maxWords != null) {
       // Apply voice mode multiplier (1/3 to 1/2 reduction) if in voice mode
       int effectiveMaxWords = maxWords;
       if (isVoiceMode) {
@@ -572,25 +580,32 @@ class LumaraControlStateBuilder {
     // ============================================================
     final responseLength = <String, dynamic>{};
     try {
-      final settingsService = LumaraReflectionSettingsService.instance;
-      await settingsService.initialize();
+      if (isWrittenConversation && !isVoiceMode) {
+        responseLength['auto'] = true;
+        responseLength['max_sentences'] = -1;
+        responseLength['sentences_per_paragraph'] = 4;
+        responseLength['mode'] = 'unlimited';
+      } else {
+        final settingsService = LumaraReflectionSettingsService.instance;
+        await settingsService.initialize();
 
-      final mode = await settingsService.getResponseLengthMode(); // short|medium|long
-      final mapping = {
-        'short': 5,
-        'medium': 12,
-        'long': 20,
-      };
-      final maxSentences = mapping[mode] ?? 12;
-      responseLength['auto'] = false;
-      responseLength['max_sentences'] = maxSentences;
-      responseLength['sentences_per_paragraph'] = 3;
-      responseLength['mode'] = mode;
+        final mode = await settingsService.getResponseLengthMode(); // short|medium|long
+        final mapping = {
+          'short': 5,
+          'medium': 12,
+          'long': 20,
+        };
+        final maxSentences = mapping[mode] ?? 12;
+        responseLength['auto'] = false;
+        responseLength['max_sentences'] = maxSentences;
+        responseLength['sentences_per_paragraph'] = 3;
+        responseLength['mode'] = mode;
+      }
     } catch (e) {
-      responseLength['auto'] = false;
-      responseLength['max_sentences'] = 12;
-      responseLength['sentences_per_paragraph'] = 3;
-      responseLength['mode'] = 'medium';
+      responseLength['auto'] = isWrittenConversation && !isVoiceMode;
+      responseLength['max_sentences'] = (isWrittenConversation && !isVoiceMode) ? -1 : 12;
+      responseLength['sentences_per_paragraph'] = (isWrittenConversation && !isVoiceMode) ? 4 : 3;
+      responseLength['mode'] = (isWrittenConversation && !isVoiceMode) ? 'unlimited' : 'medium';
     }
     state['responseLength'] = responseLength;
 

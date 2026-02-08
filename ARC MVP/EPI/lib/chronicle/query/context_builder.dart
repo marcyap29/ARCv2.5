@@ -95,6 +95,8 @@ class ChronicleContextBuilder {
     buffer.writeln('CHRONICLE provides pre-synthesized temporal intelligence from journal history.');
     buffer.writeln('The following aggregation(s) have been selected as most relevant to this query:');
     buffer.writeln('');
+    buffer.writeln('To link from a monthly summary to specific dated journal entries: use the "Linked entries (this month)" section in monthly aggregations (format: YYYY-MM-DD | entry_id), or use source_entry_ids in the aggregation metadata. You can retrieve or cite the exact entry by date or entry_id when the user asks for evidence or detail.');
+    buffer.writeln('');
 
     for (final agg in aggregations) {
       buffer.writeln('## ${agg.layer.displayName}: ${agg.period}');
@@ -150,7 +152,7 @@ class ChronicleContextBuilder {
 
   /// Extract top themes from aggregation content
   List<String> _extractTopThemes(String content, {int maxThemes = 3}) {
-    final themeSection = RegExp(r'## Dominant Themes(.*?)##', dotAll: true)
+    final themeSection = RegExp(r'## Dominant [Tt]hemes(.*?)##', dotAll: true)
         .firstMatch(content);
     if (themeSection == null) return [];
 

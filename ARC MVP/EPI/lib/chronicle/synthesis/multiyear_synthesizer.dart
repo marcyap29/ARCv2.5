@@ -1,3 +1,4 @@
+import '../../services/gemini_send.dart';
 import '../storage/aggregation_repository.dart';
 import '../storage/changelog_repository.dart';
 import '../models/chronicle_aggregation.dart';
@@ -53,6 +54,13 @@ class MultiYearSynthesizer {
         .map((agg) => agg.entryCount)
         .reduce((a, b) => a + b);
 
+    // 5b. Generate narrative summary for this period (memory-style, Flesch-Kincaid ~8)
+    final periodNarrative = await _generateMultiYearNarrative(
+      startYear: startYear,
+      endYear: endYear,
+      yearlyAggs: yearlyAggs,
+    );
+
     // 6. Generate multi-year markdown
     final markdown = _generateMultiYearMarkdown(
       startYear: startYear,
@@ -63,6 +71,7 @@ class MultiYearSynthesizer {
       metaPatterns: metaPatterns,
       developmentalArcs: developmentalArcs,
       yearlyAggs: yearlyAggs,
+      periodNarrative: periodNarrative,
     );
 
     // 7. Calculate compression ratio
@@ -308,6 +317,45 @@ class MultiYearSynthesizer {
     return double.tryParse(match.group(1) ?? '');
   }
 
+  /// Generate narrative summary for multi-year period (memory-style, readable by owner).
+  Future<String> _generateMultiYearNarrative({
+    required String startYear,
+    required String endYear,
+    required List<ChronicleAggregation> yearlyAggs,
+  }) async {
+    if (yearlyAggs.isEmpty) return '';
+    try {
+      final period = '$startYear-$endYear';
+      final yearCount = yearlyAggs.length;
+      // Use full "Year in review" section from each yearly (or up to 1200 chars fallback) for key specifics; same content is scrubbed when sent to cloud
+      final yearlySummaries = yearlyAggs.map((agg) {
+        final match = RegExp(r'## Year in review\s*\n([\s\S]*?)(?=\n## |\n---|\z)', caseSensitive: false).firstMatch(agg.content);
+        final narrative = match?.group(1)?.trim() ?? agg.content.substring(0, agg.content.length > 1200 ? 1200 : agg.content.length);
+        return '**${agg.period}:**\n$narrative';
+      }).join('\n\n');
+
+      final systemPrompt = '''You write multi-year memory summaries for a personal journaling app. The owner will read these like "Purpose & context" memory.
+Given the yearly summaries below (for $yearCount years), integrate the period $period while preserving key specifics and concrete details across years: important people, projects, turning points, and life chapters. Write 3–5 flowing paragraphs (or more if the period is dense) that cover major throughlines, how the person evolved, recurring themes, and turning points—include concrete details and names/events where the yearly text provides them, not only high-level life themes. Write in third person. No bullet lists in the main narrative—use prose only.
+Target readability: Flesch-Kincaid grade level 8. Use clear sentences and common words. Do not mention "References," entry IDs, or internal metadata. This text may be privacy-scrubbed when sent to cloud and restored in responses.''';
+
+      final userPrompt = '''Yearly summaries for $period:
+
+$yearlySummaries
+
+Write a narrative summary for this $yearCount-year period ($period) that preserves key specifics (people, projects, turning points) from the yearly summaries:''';
+
+      final response = await geminiSend(
+        system: systemPrompt,
+        user: userPrompt,
+        jsonExpected: false,
+      );
+      return response.trim();
+    } catch (e) {
+      print('⚠️ MultiYearSynthesizer: Period narrative failed: $e');
+      return '';
+    }
+  }
+
   /// Generate multi-year markdown content
   String _generateMultiYearMarkdown({
     required String startYear,
@@ -318,6 +366,7 @@ class MultiYearSynthesizer {
     required List<MetaPattern> metaPatterns,
     required List<DevelopmentalArc> developmentalArcs,
     required List<ChronicleAggregation> yearlyAggs,
+    String periodNarrative = '',
   }) {
     final period = '$startYear-$endYear';
     final synthesisDate = DateTime.now();
@@ -382,6 +431,10 @@ source_year_periods: ${yearlyAggs.map((y) => y.period).join(', ')}
 **Synthesis date:** ${synthesisDate.toIso8601String()}  
 **Years covered:** $yearCount  
 **Total entries:** $entryCount
+
+## Period in review
+
+${periodNarrative.isNotEmpty ? periodNarrative : '*No narrative summary generated.*'}
 
 ## Life Chapters
 

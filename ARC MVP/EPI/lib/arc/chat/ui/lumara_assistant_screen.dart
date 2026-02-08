@@ -487,6 +487,38 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
                             },
                             child: BlocConsumer<LumaraAssistantCubit, LumaraAssistantState>(
                               listener: (context, state) {
+                // AURORA reflection pause: show dialog
+                if (state is LumaraAssistantPaused) {
+                  showDialog(
+                    context: context,
+                    builder: (ctx) => AlertDialog(
+                      title: const Text('Reflection paused'),
+                      content: Text(state.message),
+                      actions: [
+                        TextButton(
+                          onPressed: () {
+                            Navigator.of(ctx).pop();
+                            context.read<LumaraAssistantCubit>().dismissPause();
+                          },
+                          child: const Text('OK'),
+                        ),
+                      ],
+                    ),
+                  );
+                  return;
+                }
+
+                // AURORA level-1 notice (non-blocking)
+                if (state is LumaraAssistantLoaded && state.notice != null && state.notice!.isNotEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(state.notice!),
+                      duration: const Duration(seconds: 5),
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                }
+
                 // Show input when LUMARA finishes responding
                 if (state is LumaraAssistantLoaded && !state.isProcessing) {
                   setState(() {
@@ -615,6 +647,45 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
                                 child: Text(isConfigError ? 'Set Up AI' : 'Settings'),
                               ),
                             ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }
+
+                if (state is LumaraAssistantPaused) {
+                  return Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24.0),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.pause_circle_outline, size: 48, color: Colors.orange[700]),
+                          const Gap(16),
+                          Text(
+                            'Reflection paused',
+                            style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                            textAlign: TextAlign.center,
+                          ),
+                          const Gap(12),
+                          Text(
+                            state.message,
+                            style: Theme.of(context).textTheme.bodyMedium,
+                            textAlign: TextAlign.center,
+                          ),
+                          if (state.pausedUntil != null) ...[
+                            const Gap(8),
+                            Text(
+                              'You can reflect again after ${state.pausedUntil!.toLocal().toString().split('.').first}.',
+                              style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
+                          const Gap(24),
+                          ElevatedButton(
+                            onPressed: () => context.read<LumaraAssistantCubit>().dismissPause(),
+                            child: const Text('OK'),
                           ),
                         ],
                       ),

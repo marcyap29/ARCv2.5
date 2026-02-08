@@ -280,20 +280,39 @@ class ARCXImportServiceV2 {
         onProgress?.call('Decrypting...', _kPhaseVerify);
         Uint8List plaintextZip;
         
-        if (manifest!.isPasswordEncrypted) {
-          if (manifest!.saltB64 == null || manifest!.saltB64!.isEmpty) {
-            throw Exception('Password encryption requires salt but none provided');
+        try {
+          if (manifest!.isPasswordEncrypted) {
+            if (manifest!.saltB64 == null || manifest!.saltB64!.isEmpty) {
+              throw Exception('Password encryption requires salt but none provided');
+            }
+            if (password == null || password.isEmpty) {
+              throw Exception('This archive requires a password. Please provide a password to decrypt it.');
+            }
+            final saltBytes = base64Decode(manifest!.saltB64!);
+            final salt = Uint8List.fromList(saltBytes);
+            plaintextZip = await ARCXCryptoService.decryptWithPassword(ciphertext, password, salt);
+            print('ARCX Import V2: ✓ Decrypted with password');
+          } else {
+            plaintextZip = await ARCXCryptoService.decryptAEAD(ciphertext);
+            print('ARCX Import V2: ✓ Decrypted with device key');
           }
-          if (password == null || password.isEmpty) {
-            throw Exception('This archive requires a password. Please provide a password to decrypt it.');
+        } catch (e) {
+          final msg = e.toString().toLowerCase();
+          // CryptoKit Error 3 = authentication failure (wrong key or corrupted)
+          if (msg.contains('decrypt') && (msg.contains('cryptokit') || msg.contains('crytptokit') || msg.contains('error 3') || msg.contains('authentication'))) {
+            if (manifest!.isPasswordEncrypted) {
+              throw Exception(
+                'Could not decrypt this backup. The password may be wrong, or the file may be damaged.\n\n'
+                'Try the password you used when creating the backup. If you don’t remember it, you’ll need a backup that was created with a password you know.',
+              );
+            } else {
+              throw Exception(
+                'This backup was encrypted with this device\'s secure key, but decryption failed. That can happen on the same device if the app was reinstalled or the key was reset (e.g. after an OS update).\n\n'
+                'This backup cannot be opened without the original key. For backups you might need to open later (even on this device), create a new backup and choose “Encrypt with password” when exporting.',
+              );
+            }
           }
-          final saltBytes = base64Decode(manifest!.saltB64!);
-          final salt = Uint8List.fromList(saltBytes);
-          plaintextZip = await ARCXCryptoService.decryptWithPassword(ciphertext, password, salt);
-          print('ARCX Import V2: ✓ Decrypted with password');
-        } else {
-          plaintextZip = await ARCXCryptoService.decryptAEAD(ciphertext);
-          print('ARCX Import V2: ✓ Decrypted with device key');
+          rethrow;
         }
         
         print('ARCX Import V2: ✓ Decrypted (${plaintextZip.length} bytes)');
@@ -867,7 +886,7 @@ class ARCXImportServiceV2 {
     }
     
     try {
-      onProgress?.call('Importing phase regimes...');
+      onProgress?.call('Importing phase regimes...', _kPhaseRegimesEnd);
       final content = await phaseRegimesFile.readAsString();
       final data = jsonDecode(content) as Map<String, dynamic>;
       
@@ -905,7 +924,7 @@ class ARCXImportServiceV2 {
         return 0;
       }
 
-      onProgress?.call('Importing RIVET state...');
+      onProgress?.call('Importing RIVET state...', _kPhaseRegimesEnd);
       final content = await rivetStateFile.readAsString();
       final data = jsonDecode(content) as Map<String, dynamic>;
       
@@ -975,7 +994,7 @@ class ARCXImportServiceV2 {
         return 0;
       }
 
-      onProgress?.call('Importing Sentinel state...');
+      onProgress?.call('Importing Sentinel state...', _kPhaseRegimesEnd);
       await sentinelStateFile.readAsString(); // Read to validate file exists
       
       // Sentinel state is computed dynamically, so we just log that it was imported
@@ -1007,7 +1026,7 @@ class ARCXImportServiceV2 {
         return 0;
       }
 
-      onProgress?.call('Importing ArcForm timeline...');
+      onProgress?.call('Importing ArcForm timeline...', _kPhaseRegimesEnd);
       final content = await arcformTimelineFile.readAsString();
       final data = jsonDecode(content) as Map<String, dynamic>;
       
@@ -1072,7 +1091,7 @@ class ARCXImportServiceV2 {
         return {'answers': 0, 'chats': 0, 'entries': 0};
       }
 
-      onProgress?.call('Importing LUMARA favorites...');
+      onProgress?.call('Importing LUMARA favorites...', _kPhaseRegimesEnd);
       final content = await favoritesFile.readAsString();
       final data = jsonDecode(content) as Map<String, dynamic>;
       
@@ -1302,7 +1321,7 @@ class ARCXImportServiceV2 {
       // Import monthly aggregations
       final monthlyDir = Directory(path.join(chronicleDir.path, 'monthly'));
       if (await monthlyDir.exists()) {
-        onProgress?.call('Importing monthly aggregations...');
+        onProgress?.call('Importing monthly aggregations...', _kPhaseRegimesEnd);
         final monthlyFiles = monthlyDir.listSync()
             .whereType<File>()
             .where((f) => f.path.endsWith('.md'))
@@ -1330,7 +1349,7 @@ class ARCXImportServiceV2 {
       // Import yearly aggregations
       final yearlyDir = Directory(path.join(chronicleDir.path, 'yearly'));
       if (await yearlyDir.exists()) {
-        onProgress?.call('Importing yearly aggregations...');
+        onProgress?.call('Importing yearly aggregations...', _kPhaseRegimesEnd);
         final yearlyFiles = yearlyDir.listSync()
             .whereType<File>()
             .where((f) => f.path.endsWith('.md'))
@@ -1358,7 +1377,7 @@ class ARCXImportServiceV2 {
       // Import multi-year aggregations
       final multiyearDir = Directory(path.join(chronicleDir.path, 'multiyear'));
       if (await multiyearDir.exists()) {
-        onProgress?.call('Importing multi-year aggregations...');
+        onProgress?.call('Importing multi-year aggregations...', _kPhaseRegimesEnd);
         final multiyearFiles = multiyearDir.listSync()
             .whereType<File>()
             .where((f) => f.path.endsWith('.md'))
@@ -1387,7 +1406,7 @@ class ARCXImportServiceV2 {
       final changelogFile = File(path.join(chronicleDir.path, 'changelog.jsonl'));
       int changelogEntries = 0;
       if (await changelogFile.exists()) {
-        onProgress?.call('Importing changelog...');
+        onProgress?.call('Importing changelog...', _kPhaseRegimesEnd);
         final content = await changelogFile.readAsString();
         final lines = content.split('\n').where((line) => line.trim().isNotEmpty).toList();
         
@@ -1448,7 +1467,7 @@ class ARCXImportServiceV2 {
         return 0;
       }
 
-      onProgress?.call('Importing voice notes...');
+      onProgress?.call('Importing voice notes...', _kPhaseRegimesEnd);
       final content = await voiceNotesFile.readAsString();
       final data = jsonDecode(content) as Map<String, dynamic>;
       final notesJson = data['voice_notes'] as List<dynamic>? ?? [];

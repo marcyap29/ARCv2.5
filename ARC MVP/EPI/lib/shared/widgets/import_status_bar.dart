@@ -9,7 +9,8 @@ import 'package:my_app/shared/app_colors.dart';
 class ImportStatusBar extends StatelessWidget {
   const ImportStatusBar({super.key});
 
-  static const double _height = 52;
+  /// Height tuned so message + subtitle + progress bar fit without overflow (was 52, overflowed by 7px).
+  static const double _height = 60;
 
   @override
   Widget build(BuildContext context) {
@@ -32,6 +33,7 @@ class ImportStatusBar extends StatelessWidget {
                   Expanded(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
+                      mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(

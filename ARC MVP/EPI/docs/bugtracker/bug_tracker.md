@@ -2,7 +2,7 @@
 
 **Version:** 3.2.2  
 **Last Updated:** February 7, 2026  
-**Record count:** 28 individual bug records in [records/](records/). Index below matches all files in records/.
+**Record count:** 29 individual bug records in [records/](records/). Index below matches all files in records/.
 
 ---
 
@@ -83,13 +83,21 @@ This section is derived from the repo and [CHANGELOG.md](../CHANGELOG.md) to kee
 
 | Fix / change | Version | Bug record | Notes |
 |--------------|---------|------------|--------|
+| Reflection Session Safety System | v3.3.16 | — | Feature: AURORA-based risk monitoring with rumination/validation-seeking detection and tiered interventions. 6 new files. |
+| RevenueCat In-App Purchases | v3.3.16 | — | Feature: In-app subscription via RevenueCat SDK; dual-channel premium (Stripe web + RevenueCat in-app). |
+| Voice Sigil state machine upgrade | v3.3.16 | — | Feature: 6-state animation system replacing old glowing indicator; legacy voice journal files deleted. |
+| PDF Preview screen | v3.3.16 | — | Feature: In-app PDF viewer for journal media. |
+| Google Drive Folder Picker | v3.3.16 | — | Feature: In-app Google Drive folder browser for import/sync. |
+| ARCX Clean Service | v3.3.16 | — | Utility: Remove low-content chats from ARCX archives. |
+| DurationAdapter (Hive typeId 105) | v3.3.16 | — | Infrastructure: Required for video entries; fixes serialization of Duration fields. |
+| CHRONICLE synthesis improvements | v3.3.16 | — | PatternDetector, Monthly/Yearly/MultiYear synthesizers modified for improved theme filtering. |
 | iOS folder verification permission error | v3.3.13 | [ios-folder-verification-permission-error.md](records/ios-folder-verification-permission-error.md) ✅ | Security-scoped resource access on iOS for VerifyBackupScreen |
 | Phase Quiz result not persisting; Phase tab mismatch | v3.3.13 | — | Quiz result now persisted via UserPhaseService; Phase tab uses quiz phase when no regimes. See CHANGELOG [3.3.13] "Phase Quiz result matches Phase tab". |
 | llama.xcframework build / simulator | recent | — | Link llama static library directly; device build search paths; simulator stubs; exclude xcframework from simulator. Build/config fixes. |
 | Import status bar, mini bar, per-file status | v3.3.13 | — | Feature; not a bug. See CHANGELOG. |
 | Wispr Flow cache – new API key not used until restart | v3.3.13 | [wispr-flow-cache-issue.md](records/wispr-flow-cache-issue.md) ✅ | WisprConfigService cached key; fix: clearCache() on save in Settings. |
 
-**Source:** `git log --oneline`, [CHANGELOG.md](../CHANGELOG.md). Last synced: 2026-02-07.
+**Source:** `git log --oneline`, [CHANGELOG.md](../CHANGELOG.md). Last synced: 2026-02-08.
 
 ---
 
@@ -104,4 +112,4 @@ Individual bug records stay in [records/](records/); only the legacy multi-part 
 ---
 
 **Status**: ✅ Active - All resolved issues documented  
-**Last Updated**: February 7, 2026
+**Last Updated**: February 8, 2026

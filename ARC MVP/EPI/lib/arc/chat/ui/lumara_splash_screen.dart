@@ -28,11 +28,14 @@ class LumaraSplashScreen extends StatefulWidget {
 class _LumaraSplashScreenState extends State<LumaraSplashScreen> 
     with SingleTickerProviderStateMixin {
   Timer? _timer;
+  /// Safeguard: if phase load hangs, still navigate after this delay so app never sticks on splash/white.
+  Timer? _safeguardTimer;
   String _currentPhase = 'Discovery';
   bool _phaseLoaded = false;
   /// True only when the user has at least one phase regime (current or past).
   /// When false, we show only the ARC logo—no phase shape or label.
   bool _userHasPhase = false;
+  bool _hasNavigated = false;
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
 
@@ -52,6 +55,13 @@ class _LumaraSplashScreenState extends State<LumaraSplashScreen>
     _fadeController.forward();
     
     _loadCurrentPhase(); // starts timer with correct duration when done
+
+    // Ensure we never stick on splash (e.g. if _loadCurrentPhase or phase init hangs)
+    _safeguardTimer = Timer(const Duration(seconds: 14), () {
+      if (mounted && !_hasNavigated) {
+        _checkAuthAndNavigate();
+      }
+    });
   }
 
   Future<void> _loadCurrentPhase() async {
@@ -182,7 +192,9 @@ class _LumaraSplashScreenState extends State<LumaraSplashScreen>
   }
 
   Future<void> _checkAuthAndNavigate() async {
+    if (_hasNavigated) return;
     _timer?.cancel();
+    _safeguardTimer?.cancel();
 
     // Check if user is authenticated
     final isSignedIn = FirebaseAuthService.instance.isSignedIn;
@@ -194,7 +206,8 @@ class _LumaraSplashScreenState extends State<LumaraSplashScreen>
 
       if (onboardingCompleted || hasAnyJournalEntry) {
         // Completed onboarding (profile flag) or has at least one entry (e.g. inaugural from phase quiz) → home
-        if (mounted) {
+        if (mounted && !_hasNavigated) {
+          _hasNavigated = true;
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(
               builder: (context) => HomeView(),
@@ -203,7 +216,8 @@ class _LumaraSplashScreenState extends State<LumaraSplashScreen>
         }
       } else {
         // First-time user - show onboarding
-        if (mounted) {
+        if (mounted && !_hasNavigated) {
+          _hasNavigated = true;
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(
               builder: (context) => const ArcOnboardingSequence(),
@@ -213,7 +227,8 @@ class _LumaraSplashScreenState extends State<LumaraSplashScreen>
       }
     } else {
       // User is not signed in, go to sign-in screen
-      if (mounted) {
+      if (mounted && !_hasNavigated) {
+        _hasNavigated = true;
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(
             builder: (context) => const SignInScreen(),
@@ -258,6 +273,7 @@ class _LumaraSplashScreenState extends State<LumaraSplashScreen>
   @override
   void dispose() {
     _timer?.cancel();
+    _safeguardTimer?.cancel();
     _fadeController.dispose();
     super.dispose();
   }

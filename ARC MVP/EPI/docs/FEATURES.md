@@ -1,7 +1,7 @@
 # EPI MVP - Comprehensive Features Guide
 
-**Version:** 3.3.15
-**Last Updated:** February 7, 2026
+**Version:** 3.3.16
+**Last Updated:** February 8, 2026
 
 ---
 
@@ -56,6 +56,10 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
   - Auto-play functionality and proper aspect ratio handling
   - Error handling for corrupted or unsupported video files
 - **Location Tagging**: Automatic and manual location
+- **PDF Preview (v3.3.16)**: Full-screen in-app PDF viewer for attached documents
+  - Pinch-to-zoom with `PdfControllerPinch`
+  - "Open in app" option to launch system PDF viewer
+  - File existence validation with user-friendly error handling
 
 **Entry Management**
 - **Timeline View**: Chronological organization
@@ -122,14 +126,16 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 - Phase-aware reflections
 - Multimodal understanding
 
-**Voice Chat - Jarvis Mode (v2.1.53)**
-- **Glowing Voice Indicator**: ChatGPT-style pulsing animation with multi-layer glow
-- **State-Based Colors**: 
-  - Red (Listening) - Recording your voice
-  - Orange (Thinking) - Processing with LUMARA
-  - Green (Speaking) - LUMARA is responding
-  - Gray (Idle) - Ready to listen
-- **Microphone Button**: Tap 🎤 in LUMARA chat AppBar to activate
+**Voice Chat - Voice Sigil (v3.3.16, upgraded from Jarvis Mode v2.1.53)**
+- **Voice Sigil UI**: Sophisticated 6-state animation system replacing the original glowing indicator
+  - **Idle**: Gentle pulsing with orbital particles — ready to listen
+  - **Listening**: Breathing animation with inward-flowing particles — recording voice
+  - **Commitment**: Inner ring contracting with particles compressing — processing commit
+  - **Accelerating**: Shimmer intensifies, particles accelerating inward — building response
+  - **Thinking**: Constellation points appear, particles compressed — LUMARA processing
+  - **Speaking**: Outward-flowing particles — LUMARA responding
+- **LUMARA Sigil Center**: Uses the white LUMARA sigil image as the center element
+- **Microphone Button**: Tap mic in LUMARA chat AppBar to activate
 - **Speech-to-Text**: On-device transcription (no audio sent to cloud)
 - **Text-to-Speech**: Natural voice responses from LUMARA
 - **Intent Routing**: Automatically handles journal creation, chat queries, and file operations
@@ -137,11 +143,11 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 - **Auto-Resume Loop**: LUMARA speaks → automatically listens for your response
 - **Context Memory**: Maintains conversation state across voice turns
 - **How to Use**:
-  1. Tap 🎤 mic button in LUMARA chat
+  1. Tap mic button in LUMARA chat
   2. Grant microphone permission (first time)
-  3. Tap the glowing orb to start talking
+  3. Tap the voice sigil to start talking
   4. Say: "Create a new journal" / "How am I feeling?" / "Summarize my week"
-  5. Tap orb again to stop and process
+  5. Tap sigil again to stop and process
   6. LUMARA responds with voice + text
 
 **Companion-First LUMARA System (v2.1.87)**
@@ -198,6 +204,18 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 - **Query Detection**: Automatic recognition of reflective query patterns
 - **Safety Filtering**: VEIL integration, trauma detection, night mode handling
 - **Saved Chats Navigation**: Direct navigation from favorites, automatic session restoration
+
+**Reflection Session Safety System (v3.3.16)**
+- **Session Monitoring**: Tracks exchanges within reflection sessions with Hive persistence
+- **Rumination Detection**: Identifies repeated themes across consecutive queries without progression or CHRONICLE usage
+- **Validation-Seeking Analysis**: Measures ratio of validation-seeking queries ("Am I...", "Do you think...") vs analytical queries ("Pattern", "Compare", "Analyze")
+- **Avoidance Pattern Detection**: Flags low emotional density in reflective content
+- **Tiered Interventions**:
+  - **Notice** (1 signal): Shown but non-blocking
+  - **Redirect** (2 signals): Suggest alternative engagement (e.g., journaling, walking)
+  - **Pause** (3+ signals): Session paused for configurable duration
+- **Session Lifecycle**: Persistent Hive-backed sessions per journal entry with pause/resume capability
+- **Integration**: Uses AdaptiveSentinelCalculator for emotional density; AURORA module for risk assessment
 
 **Memory System**
 - **Automatic Persistence**: Chat history automatically saved
@@ -591,14 +609,16 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 - **Sign Out**: Confirmation dialog with data preservation notice
 - **Sign-In Prompt**: Navigate to sign-in when not authenticated
 
-### Subscription & Payment System (v2.1.76)
+### Subscription & Payment System (v2.1.76+)
 
 **Subscription Tiers:**
 - **Free Tier**: 20 LUMARA requests/day, 3 requests/minute rate limit, limited phase history
 - **Premium Tier**: Unlimited LUMARA requests, no rate limits, full phase history, $30/month or $200/year
 - **Founders Commit**: $1,500 upfront for 3 years (one-time payment), premium access plus early access + founder benefits
 
-**Stripe Integration:**
+**Dual Payment Channels:**
+
+*Stripe (Web):*
 - Secure payment processing via Stripe Checkout
 - Monthly and annual subscription options, plus Founders upfront (3-year) option
 - Customer Portal for subscription management
@@ -609,6 +629,15 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
   - Forces real Google accounts using `hasRealAccount` check
   - Comprehensive debug logging for troubleshooting authentication issues
   - Progress feedback with SnackBar notifications during sign-in process
+
+*RevenueCat (In-App, v3.3.16):*
+- In-app purchases via Apple App Store and Google Play
+- RevenueCat SDK integration (`lib/services/revenuecat_service.dart`)
+- Entitlement sync with Firebase UID for cross-device access
+- Automatic configuration at app startup (iOS; Android planned)
+- Login/logout sync with Firebase Auth for consistent user identity
+- Paywall presentation via RevenueCat UI
+- User treated as premium if **either** Stripe or RevenueCat entitlement is active
 
 **Subscription Management UI:**
 - Subscription status display with tier badges
@@ -621,10 +650,12 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 - **Authentication UX**: Clear messaging when Google sign-in is required for subscription access
 
 **Setup Documentation:**
-- Complete setup guide: `docs/stripe/STRIPE_SECRETS_SETUP.md`
-- Webhook configuration: `docs/stripe/STRIPE_WEBHOOK_SETUP_VISUAL.md`
-- Test vs Live mode: `docs/stripe/STRIPE_TEST_VS_LIVE.md`
-- See `docs/stripe/README.md` for full documentation index
+- Stripe (web): `DOCS/stripe/README.md`
+- RevenueCat (in-app): `DOCS/revenuecat/README.md`
+- Payments clarification: `DOCS/PAYMENTS_CLARIFICATION.md`
+- Complete Stripe setup: `DOCS/stripe/STRIPE_SECRETS_SETUP.md`
+- Webhook configuration: `DOCS/stripe/STRIPE_WEBHOOK_SETUP_VISUAL.md`
+- Test vs Live mode: `DOCS/stripe/STRIPE_TEST_VS_LIVE.md`
 
 ### Per-Feature Rate Limiting
 
@@ -799,6 +830,15 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 - **User Guidance**: Clear instructions on where to save backups
 - **First Backup Tracking**: Imported backups are automatically tracked for proper incremental backup behavior
 
+### ARCX Clean Service (v3.3.16)
+
+**Purpose:** Utility to clean ARCX archives by removing low-content chat sessions (fewer than 3 LUMARA responses).
+
+- **Device-Key Encrypted**: Works on archives encrypted with the current device key
+- **Chat Filtering**: Removes chats with fewer than `kMinLumaraResponsesToKeep` (3) assistant messages
+- **Output**: Creates cleaned archive with `_cleaned` suffix (original preserved)
+- **Script**: Companion Python script `scripts/clean_arcx_chats.py` for batch processing
+
 ### Data Portability
 
 **Export Formats**
@@ -877,6 +917,11 @@ All core features are production-ready and fully operational:
 **Backup Management**
 - **Connection Status**: View connected Google account email
 - **Folder Selection**: Browse and select backup folder from Google Drive
+- **Drive Folder Picker (v3.3.16)**: In-app Google Drive folder browser for selecting import and sync folders
+  - Browse folder hierarchy within Google Drive
+  - Multi-folder selection for batch import
+  - Single-folder selection for sync target
+  - Navigation breadcrumb with back navigation
 - **Last Backup Display**: See timestamp of last successful backup
 - **Progress Tracking**: Real-time progress updates during backup creation and upload
 - **Error Handling**: Automatic retry with exponential backoff on upload failures
@@ -892,6 +937,6 @@ All core features are production-ready and fully operational:
 ---
 
 **Features Guide Status:** ✅ Complete
-**Last Updated:** January 31, 2026
-**Version:** 3.3.13
+**Last Updated:** February 8, 2026
+**Version:** 3.3.16
 

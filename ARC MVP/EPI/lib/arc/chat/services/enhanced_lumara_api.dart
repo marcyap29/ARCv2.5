@@ -614,6 +614,8 @@ class EnhancedLumaraApi {
           String? atlasContext;
           String? auroraContext;
           LumaraPromptMode promptMode = LumaraPromptMode.rawBacked;
+          // Reversible map for CHRONICLE PII restore after cloud response (device-only)
+          Map<String, String> chronicleReversibleMap = {};
           
           // Voice mode: skip query router to save one Gemini round-trip (~5–15s). Use default plan.
           if (skipHeavyProcessing) {
@@ -731,6 +733,21 @@ class EnhancedLumaraApi {
               // Fallback to raw mode
               promptMode = LumaraPromptMode.rawBacked;
             }
+          }
+
+          // Scrub CHRONICLE context before sending to cloud (PiiScrubber/PrismAdapter); restore PII when response returns
+          final chroniclePrism = PrismAdapter();
+          final chronicleContextChecked = chronicleContext;
+          if (chronicleContextChecked != null && chronicleContextChecked.isNotEmpty) {
+            final r = chroniclePrism.scrub(chronicleContextChecked);
+            chronicleContext = r.scrubbedText;
+            chronicleReversibleMap.addAll(r.reversibleMap);
+          }
+          final chronicleMiniContextChecked = chronicleMiniContext;
+          if (chronicleMiniContextChecked != null && chronicleMiniContextChecked.isNotEmpty) {
+            final r = chroniclePrism.scrub(chronicleMiniContextChecked);
+            chronicleMiniContext = r.scrubbedText;
+            chronicleReversibleMap.addAll(r.reversibleMap);
           }
           
           // Build base context with current entry explicitly labeled as TODAY
@@ -918,6 +935,7 @@ class EnhancedLumaraApi {
           final useStructuredFormat = responseParams.useStructuredFormat;
           final entryClassification = entryType.toString().split('.').last;
           final effectivePersona = selectedPersona;
+          final isWrittenUnlimited = maxWords >= _writtenUnlimitedMaxWords;
           
           // Build simplified control state for master prompt
           final simplifiedControlState = {
@@ -935,6 +953,7 @@ class EnhancedLumaraApi {
               'useStructuredFormat': useStructuredFormat,
               'isPersonalContent': isPersonalContent,
               'lengthGuidance': responseParams.lengthGuidance,
+              if (isWrittenUnlimited) 'noWordLimit': true,
             },
             'engagement': {
               'mode': engagementMode != null ? engagementMode.name : 'reflect',
@@ -945,6 +964,11 @@ class EnhancedLumaraApi {
               'alert': sentinelScore.alert,
               'reason': sentinelScore.reason,
             } : null,
+            if (isWrittenUnlimited) 'responseLength': {
+              'auto': true,
+              'max_sentences': -1,
+              'sentences_per_paragraph': 4,
+            },
           };
           
           final simplifiedControlStateJson = jsonEncode(simplifiedControlState);
@@ -1114,6 +1138,11 @@ class EnhancedLumaraApi {
 
           if (geminiResponse == null) {
             throw Exception('Failed to generate response from Gemini API');
+          }
+
+          // Restore PII in response when CHRONICLE context was scrubbed before send
+          if (chronicleReversibleMap.isNotEmpty) {
+            geminiResponse = chroniclePrism.restore(geminiResponse, chronicleReversibleMap);
           }
           
           onProgress?.call('Finalizing insights...');
@@ -1697,21 +1726,22 @@ Respond now:''';
   }
 
   // Base response lengths by Engagement Mode (primary driver)
+  // Default (reflect) = Claude-like: direct, concise. Explore/Integrate = pour out links and context.
   static final Map<EngagementMode, ResponseLengthTarget> engagementLengthTargets = {
     EngagementMode.reflect: const ResponseLengthTarget(
-      sentences: 5,
-      words: 200,
-      description: 'Brief surface-level observations',
+      sentences: 4,
+      words: 120,
+      description: 'Claude-like: direct, concise answer. No cross-entry dump.',
     ),
     EngagementMode.explore: const ResponseLengthTarget(
       sentences: 10,
       words: 400,
-      description: 'Deeper investigation with follow-up questions',
+      description: 'Deeper investigation with follow-up questions and entry links',
     ),
     EngagementMode.integrate: const ResponseLengthTarget(
       sentences: 15,
       words: 500,
-      description: 'Comprehensive cross-domain synthesis',
+      description: 'Comprehensive cross-domain synthesis with full context',
     ),
   };
 
@@ -1723,8 +1753,12 @@ Respond now:''';
     'challenger': 0.85,   // Sharp and direct (-15%)
   };
 
+  /// Written (chat/journal) text uses no length cap for Reflect, Explore, and Integrate (Claude-style).
+  static const int _writtenUnlimitedMaxWords = 4096;
+
   /// Get response parameters based on engagement mode (primary) and persona (density modifier)
-  /// Conversation modes can override engagement mode lengths for specific analysis types
+  /// Conversation modes can override engagement mode lengths for specific analysis types.
+  /// Written chat and journal (non-voice) get unlimited length for Reflect, Explore, and Integrate.
   ResponseParameters _getResponseParameters(
     String persona, 
     bool safetyOverride, {
@@ -1748,6 +1782,18 @@ Respond now:''';
         maxPatternExamples: 2,
         useStructuredFormat: false,
         lengthGuidance: 'Voice mode: Stay at or under $maxWords words. Brief, conversational. No lists or markdown.',
+      );
+    }
+    // Written text (chat or journal): no length limit for Reflect, Explore, or Integrate — Claude-style.
+    if (!safetyOverride) {
+      return ResponseParameters(
+        maxWords: _writtenUnlimitedMaxWords,
+        targetWords: _writtenUnlimitedMaxWords,
+        targetSentences: 0, // 0 = no sentence cap
+        minPatternExamples: 2,
+        maxPatternExamples: 6,
+        useStructuredFormat: false,
+        lengthGuidance: 'Written conversation (chat or journal): No length limit. Respond at natural length like a full conversation assistant. Complete your thought fully. Use verbosity and engagement mode (reflect/explore/integrate) as guides for depth and style, not as caps.',
       );
     }
     if (safetyOverride) {

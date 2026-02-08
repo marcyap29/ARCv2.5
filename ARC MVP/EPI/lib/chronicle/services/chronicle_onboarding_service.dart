@@ -255,6 +255,97 @@ class ChronicleOnboardingService {
     }
   }
 
+  /// Backfill Layer 0 then synthesize current month only.
+  Future<OnboardingResult> backfillAndSynthesizeCurrentMonth({
+    required String userId,
+    Function(int processed, int total)? onProgress,
+  }) async {
+    final result = OnboardingResult();
+    try {
+      final layer0Result = await backfillLayer0(userId: userId, onProgress: onProgress);
+      if (!layer0Result.success) {
+        result.success = false;
+        result.error = layer0Result.error;
+        return result;
+      }
+      final now = DateTime.now();
+      final period = '${now.year}-${now.month.toString().padLeft(2, '0')}';
+      await _synthesisEngine.synthesizeLayer(
+        userId: userId,
+        layer: ChronicleLayer.monthly,
+        period: period,
+      );
+      result.success = true;
+      result.message = 'Backfill complete; current month ($period) synthesized';
+      return result;
+    } catch (e) {
+      result.success = false;
+      result.error = e.toString();
+      return result;
+    }
+  }
+
+  /// Backfill Layer 0 then synthesize current year only.
+  Future<OnboardingResult> backfillAndSynthesizeCurrentYear({
+    required String userId,
+    Function(int processed, int total)? onProgress,
+  }) async {
+    final result = OnboardingResult();
+    try {
+      final layer0Result = await backfillLayer0(userId: userId, onProgress: onProgress);
+      if (!layer0Result.success) {
+        result.success = false;
+        result.error = layer0Result.error;
+        return result;
+      }
+      final period = DateTime.now().year.toString();
+      await _synthesisEngine.synthesizeLayer(
+        userId: userId,
+        layer: ChronicleLayer.yearly,
+        period: period,
+      );
+      result.success = true;
+      result.message = 'Backfill complete; current year ($period) synthesized';
+      return result;
+    } catch (e) {
+      result.success = false;
+      result.error = e.toString();
+      return result;
+    }
+  }
+
+  /// Backfill Layer 0 then synthesize current multi-year block (5-year period containing current year).
+  Future<OnboardingResult> backfillAndSynthesizeMultiYear({
+    required String userId,
+    Function(int processed, int total)? onProgress,
+  }) async {
+    final result = OnboardingResult();
+    try {
+      final layer0Result = await backfillLayer0(userId: userId, onProgress: onProgress);
+      if (!layer0Result.success) {
+        result.success = false;
+        result.error = layer0Result.error;
+        return result;
+      }
+      final now = DateTime.now().year;
+      final startYear = (now ~/ 5) * 5;
+      final endYear = startYear + 4;
+      final period = '$startYear-$endYear';
+      await _synthesisEngine.synthesizeLayer(
+        userId: userId,
+        layer: ChronicleLayer.multiyear,
+        period: period,
+      );
+      result.success = true;
+      result.message = 'Backfill complete; multi-year ($period) synthesized';
+      return result;
+    } catch (e) {
+      result.success = false;
+      result.error = e.toString();
+      return result;
+    }
+  }
+
   /// Full onboarding: backfill Layer 0 + batch synthesize
   Future<OnboardingResult> fullOnboarding({
     required String userId,

@@ -1,5 +1,16 @@
 import '../storage/raw_entry_schema.dart';
 
+/// Words that must not be treated as themes (pronouns, articles, fillers, generic verbs).
+const _nonThemeWords = {
+  'that', 'what', 'this', 'it', 'the', 'a', 'an', 'and', 'or', 'but',
+  'is', 'are', 'was', 'were', 'have', 'has', 'had', 'do', 'does', 'did',
+  'will', 'would', 'could', 'should', 'may', 'might', 'can', 'something',
+  'things', 'how', 'when', 'why', 'where', 'which', 'who', 'them', 'their',
+  'there', 'then', 'than', 'just', 'only', 'even', 'also', 'very', 'really',
+  'over', 'makes', 'processing', 'slower', 'okay', 'make', 'made', 'getting',
+  'being', 'going', 'like', 'into', 'with', 'from', 'for', 'about', 'some',
+};
+
 /// Pattern Detector for CHRONICLE synthesis
 /// 
 /// Detects themes, clusters entries, and identifies patterns
@@ -8,21 +19,24 @@ import '../storage/raw_entry_schema.dart';
 class PatternDetector {
   /// Extract dominant themes from a list of raw entries
   /// 
-  /// Returns themes with confidence scores and supporting entry IDs
+  /// Returns themes with confidence scores and supporting entry IDs.
+  /// Skips non-themes (e.g. "That", "What", pronouns, articles).
   Future<List<DetectedTheme>> extractThemes({
     required List<RawEntrySchema> entries,
     int maxThemes = 5,
   }) async {
     if (entries.isEmpty) return [];
 
-    // Count theme frequencies
+    // Count theme frequencies (ignore non-theme words)
     final themeCounts = <String, int>{};
     final themeEntries = <String, List<String>>{};
 
     for (final entry in entries) {
       for (final theme in entry.analysis.extractedThemes) {
-        themeCounts[theme] = (themeCounts[theme] ?? 0) + 1;
-        themeEntries.putIfAbsent(theme, () => []).add(entry.entryId);
+        final t = theme.trim();
+        if (t.isEmpty || _isNonTheme(t)) continue;
+        themeCounts[t] = (themeCounts[t] ?? 0) + 1;
+        themeEntries.putIfAbsent(t, () => []).add(entry.entryId);
       }
     }
 
@@ -44,6 +58,14 @@ class PatternDetector {
     }
 
     return themes;
+  }
+
+  static bool _isNonTheme(String name) {
+    final lower = name.trim().toLowerCase();
+    if (lower.isEmpty || lower.length < 2) return true;
+    if (_nonThemeWords.contains(lower)) return true;
+    if (RegExp(r'^[\d\s\W]+$').hasMatch(lower)) return true;
+    return false;
   }
 
   /// Calculate confidence score based on frequency and count
@@ -183,12 +205,18 @@ class DetectedTheme {
   final double confidence; // 0.0-1.0
   final List<String> entryIds;
   final double frequency; // 0.0-1.0 (percentage of entries)
+  /// Optional narrative description from LLM (what this theme actually represents)
+  final String? patternDescription;
+  /// Optional emotional arc from LLM
+  final String? emotionalArc;
 
   const DetectedTheme({
     required this.name,
     required this.confidence,
     required this.entryIds,
     required this.frequency,
+    this.patternDescription,
+    this.emotionalArc,
   });
 }
 

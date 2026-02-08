@@ -1,7 +1,7 @@
 # EPI ARC MVP - Changelog
 
-**Version:** 3.3.15
-**Last Updated:** February 7, 2026
+**Version:** 3.3.16
+**Last Updated:** February 8, 2026
 
 ---
 
@@ -14,6 +14,68 @@ This changelog has been split into parts for easier navigation:
 | **[CHANGELOG_part1.md](CHANGELOG_part1.md)** | Dec 2025 | v2.1.43 - v2.1.87 (Current) |
 | **[CHANGELOG_part2.md](CHANGELOG_part2.md)** | Nov 2025 | v2.1.28 - v2.1.42 |
 | **[CHANGELOG_part3.md](CHANGELOG_part3.md)** | Jan-Oct 2025 | v2.0.0 - v2.1.27 & Earlier |
+
+---
+
+## [3.3.16] - February 8, 2026 (working changes)
+
+### Reflection Session Safety System (NEW)
+
+- **ReflectionSession model** (`lib/models/reflection_session.dart`): Hive model (typeId 125/126) tracking reflection exchanges per journal entry with pause capability.
+- **ReflectionSessionRepository** (`lib/repositories/reflection_session_repository.dart`): Hive-backed CRUD for active, paused, and recent sessions.
+- **ReflectionPatternAnalyzer** (`lib/arc/chat/reflection/reflection_pattern_analyzer.dart`): Detects rumination (same themes repeated across 3+ queries without CHRONICLE usage).
+- **ReflectionEmotionalAnalyzer** (`lib/arc/chat/reflection/reflection_emotional_analyzer.dart`): Measures validation-seeking ratio; detects avoidance patterns via emotional density.
+- **AuroraReflectionService** (`lib/aurora/reflection/aurora_reflection_service.dart`): Risk assessment with 4 signals (prolonged session, rumination, emotional dependence, avoidance); tiered interventions (notice, redirect, pause).
+- **ReflectionHandler** (`lib/arc/chat/services/reflection_handler.dart`): Orchestrates reflection flow — creates/retrieves sessions, appends exchanges, runs safety checks, issues interventions.
+
+### RevenueCat In-App Purchases (NEW)
+
+- **RevenueCatService** (`lib/services/revenuecat_service.dart`): In-app purchase management via RevenueCat SDK. Configures at app startup with Firebase UID sync. Login/logout with auth flow. Checks `ARC Pro` entitlement for premium access. Paywall presentation via RevenueCat UI.
+- **SubscriptionService** (`lib/services/subscription_service.dart`): Updated to check both Stripe (web) and RevenueCat (in-app) for premium status.
+- **Bootstrap** (`lib/main/bootstrap.dart`): RevenueCat configured during app initialization.
+
+### Voice Sigil State Machine
+
+- **VoiceSigil** (`lib/arc/chat/voice/ui/voice_sigil.dart`): Upgraded from simple glowing indicator to 6-state animation system (Idle, Listening, Commitment, Accelerating, Thinking, Speaking) with particle effects, shimmer, and constellation points. LUMARA sigil image as center element.
+- **Deleted**: `lib/arc/chat/voice/voice_journal/new_voice_journal_service.dart`, `new_voice_journal_ui.dart` (legacy voice journal files removed).
+
+### PDF Preview
+
+- **PdfPreviewScreen** (`lib/ui/journal/widgets/pdf_preview_screen.dart`): Full-screen in-app PDF viewer with pinch-to-zoom, "Open in app" system action, and file existence validation.
+
+### Google Drive Folder Picker
+
+- **DriveFolderPickerScreen** (`lib/shared/ui/settings/drive_folder_picker_screen.dart`): Browse Google Drive folder hierarchy for import (multi-folder) and sync (single-folder) selection.
+
+### ARCX Clean Service
+
+- **ARCXCleanService** (`lib/mira/store/arcx/services/arcx_clean_service.dart`): Removes chat sessions with fewer than 3 LUMARA responses from device-key-encrypted ARCX archives.
+- **clean_arcx_chats.py** (`scripts/clean_arcx_chats.py`): Companion Python script for batch ARCX cleaning.
+
+### Data & Infrastructure
+
+- **DurationAdapter** (`lib/data/hive/duration_adapter.dart`): Hive TypeAdapter for `Duration` (typeId 105) — required for video entries with duration fields.
+- **CHRONICLE synthesis**: PatternDetector, MonthlySynthesizer, YearlySynthesizer, MultiYearSynthesizer modified for improved theme extraction and non-theme word filtering.
+- **LumaraReflectionOptions** (`lib/arc/chat/models/lumara_reflection_options.dart`): Updated with conversation modes and tone configuration.
+
+#### Files added
+- `lib/models/reflection_session.dart`, `lib/models/reflection_session.g.dart`
+- `lib/repositories/reflection_session_repository.dart`
+- `lib/arc/chat/reflection/reflection_emotional_analyzer.dart`
+- `lib/arc/chat/reflection/reflection_pattern_analyzer.dart`
+- `lib/arc/chat/services/reflection_handler.dart`
+- `lib/aurora/reflection/aurora_reflection_service.dart`
+- `lib/data/hive/duration_adapter.dart`
+- `lib/services/revenuecat_service.dart`
+- `lib/shared/ui/settings/drive_folder_picker_screen.dart`
+- `lib/ui/journal/widgets/pdf_preview_screen.dart`
+- `lib/mira/store/arcx/services/arcx_clean_service.dart`
+- `scripts/clean_arcx_chats.py`
+- `DOCS/ARC_AND_LUMARA_OVERVIEW.md`
+
+#### Files deleted
+- `lib/arc/chat/voice/voice_journal/new_voice_journal_service.dart`
+- `lib/arc/chat/voice/voice_journal/new_voice_journal_ui.dart`
 
 ---
 

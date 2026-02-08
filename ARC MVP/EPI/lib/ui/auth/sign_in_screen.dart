@@ -90,6 +90,49 @@ class _SignInScreenState extends State<SignInScreen> {
     }
   }
 
+  Future<void> _signInWithApple() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final userCredential = await FirebaseAuthService.instance.signInWithApple();
+
+      if (userCredential != null && mounted) {
+        if (widget.returnOnSignIn && Navigator.of(context).canPop()) {
+          debugPrint('SignInScreen: Apple sign-in successful, returning to previous screen');
+          Navigator.of(context).pop(true);
+        } else {
+          Navigator.of(context).pushReplacementNamed('/home');
+        }
+      } else if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    } on FirebaseAuthException catch (e) {
+      if (mounted) {
+        setState(() {
+          _errorMessage = _getFirebaseErrorMessage(e.code);
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          final message = e.toString();
+          if (message.contains('Exception:')) {
+            _errorMessage = message.replaceAll('Exception:', '').trim();
+          } else {
+            _errorMessage = 'Sign in with Apple failed. Please try another method.';
+          }
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
   Future<void> _submitForm() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -273,7 +316,29 @@ class _SignInScreenState extends State<SignInScreen> {
               ),
                 const SizedBox(height: 40),
 
-                // Google Sign-In Button
+                // Apple Sign-In Button (shown when available, e.g. iOS/macOS)
+              FutureBuilder<bool>(
+                future: FirebaseAuthService.instance.isAppleSignInAvailable,
+                builder: (context, snapshot) {
+                  if (snapshot.data != true) return const SizedBox.shrink();
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: OutlinedButton.icon(
+                      onPressed: _isLoading ? null : _signInWithApple,
+                      icon: const Icon(Icons.apple, size: 24, color: Colors.white),
+                      label: Text(_isSignUp ? 'Sign up with Apple' : 'Sign in with Apple'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.white,
+                        side: BorderSide(color: kcSecondaryTextColor.withOpacity(0.5)),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                    ),
+                  );
+                },
+              ),
+
+              // Google Sign-In Button
                 OutlinedButton.icon(
                   onPressed: _isLoading ? null : _signInWithGoogle,
                   icon: Image.network(

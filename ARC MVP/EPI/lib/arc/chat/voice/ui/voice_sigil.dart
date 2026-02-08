@@ -8,7 +8,7 @@
 /// - THINKING: Constellation points appear, particles compressed
 /// - SPEAKING: LUMARA speaking with outward-flowing particles
 /// 
-/// Uses the gold LUMARA sigil image as the center element
+/// Uses the white LUMARA sigil image as the center element
 
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
@@ -341,7 +341,7 @@ class _VoiceSigilState extends State<VoiceSigil> with TickerProviderStateMixin {
   Widget _buildMainSigil(Color phaseColor) {
     Widget sigilContent;
     
-    // Use the gold LUMARA sigil image
+    // Use the white LUMARA sigil image
     sigilContent = Container(
       width: widget.size * 0.5,
       height: widget.size * 0.5,

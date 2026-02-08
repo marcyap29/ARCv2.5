@@ -602,7 +602,7 @@ class ImportExportFolderView extends StatelessWidget {
                 },
               );
               if (importResult.success) {
-                progressCubit.complete();
+                progressCubit.complete(importResult);
               } else {
                 progressCubit.fail(importResult.error);
               }
@@ -868,6 +868,19 @@ class ChronicleFolderView extends StatelessWidget {
                   context,
                   MaterialPageRoute(
                     builder: (context) => const ChronicleManagementView(),
+                  ),
+                );
+              },
+            ),
+            _SettingsTile(
+              title: 'Privacy protection',
+              subtitle: 'PII detection and masking for CHRONICLE and LUMARA',
+              icon: Icons.security,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const PrivacySettingsView(),
                   ),
                 );
               },

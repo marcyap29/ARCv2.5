@@ -78,6 +78,7 @@ class ARCXCrypto {
   }
   
   /// Generate AES-256-GCM key for AEAD encryption
+  /// If key already exists (errSecDuplicateItem), returns the existing key so we never encrypt with a key we didn't store.
   private static func generateAEADKey() throws -> SymmetricKey {
     let newKey = SymmetricKey(size: .bits256)
     
@@ -91,30 +92,39 @@ class ARCXCrypto {
     ]
     
     let storeStatus = SecItemAdd(storeQuery as CFDictionary, nil)
-    if storeStatus != errSecSuccess && storeStatus != errSecDuplicateItem {
+    if storeStatus == errSecSuccess {
+      return newKey
+    }
+    if storeStatus == errSecDuplicateItem {
+      // Key already exists (e.g. race or keychain found it under a different query). Use the existing key so encrypt/decrypt stay in sync.
+      if let existing = getAEADKeyFromKeychain() {
+        return existing
+      }
       throw ARCXCryptoError.keyStorageFailed
     }
-    
-    return newKey
+    throw ARCXCryptoError.keyStorageFailed
   }
   
-  /// Get or generate AES-256-GCM key
-  private static func getAEADKey() throws -> SymmetricKey {
+  /// Read the AEAD key from Keychain only (no generate). Returns nil if not found.
+  private static func getAEADKeyFromKeychain() -> SymmetricKey? {
     let query: [String: Any] = [
       kSecClass as String: kSecClassGenericPassword,
       kSecAttrAccount as String: aeadKeyIdentifier,
       kSecReturnData as String: true,
     ]
-    
     var item: CFTypeRef?
     let status = SecItemCopyMatching(query as CFDictionary, &item)
-    
-    if status == errSecSuccess {
-      guard let keyData = item as? Data else { throw ARCXCryptoError.keyRetrievalFailed }
+    if status == errSecSuccess, let keyData = item as? Data {
       return SymmetricKey(data: keyData)
     }
-    
-    // Generate new key if not found
+    return nil
+  }
+  
+  /// Get or generate AES-256-GCM key
+  private static func getAEADKey() throws -> SymmetricKey {
+    if let key = getAEADKeyFromKeychain() {
+      return key
+    }
     return try generateAEADKey()
   }
   

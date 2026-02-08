@@ -1490,15 +1490,31 @@ PODS:
   - path_provider_foundation (0.0.1):
     - Flutter
     - FlutterMacOS
+  - pdfx (1.0.0):
+    - Flutter
   - permission_handler_apple (9.3.0):
     - Flutter
   - photo_manager (3.7.1):
     - Flutter
     - FlutterMacOS
   - PromisesObjC (2.4.0)
+  - purchases_flutter (8.11.0):
+    - Flutter
+    - PurchasesHybridCommon (= 14.3.0)
+  - purchases_ui_flutter (8.11.0):
+    - Flutter
+    - PurchasesHybridCommonUI (= 14.3.0)
+  - PurchasesHybridCommon (14.3.0):
+    - RevenueCat (= 5.32.0)
+  - PurchasesHybridCommonUI (14.3.0):
+    - PurchasesHybridCommon (= 14.3.0)
+    - RevenueCatUI (= 5.32.0)
   - RecaptchaInterop (101.0.0)
   - record_ios (1.1.0):
     - Flutter
+  - RevenueCat (5.32.0)
+  - RevenueCatUI (5.32.0):
+    - RevenueCat (= 5.32.0)
   - SDWebImage (5.21.5):
     - SDWebImage/Core (= 5.21.5)
   - SDWebImage/Core (5.21.5)
@@ -1507,6 +1523,8 @@ PODS:
   - shared_preferences_foundation (0.0.1):
     - Flutter
     - FlutterMacOS
+  - sign_in_with_apple (0.0.1):
+    - Flutter
   - speech_to_text (7.2.0):
     - CwlCatchException
     - Flutter
@@ -1540,11 +1558,15 @@ DEPENDENCIES:
   - just_audio (from `.symlinks/plugins/just_audio/darwin`)
   - package_info_plus (from `.symlinks/plugins/package_info_plus/ios`)
   - path_provider_foundation (from `.symlinks/plugins/path_provider_foundation/darwin`)
+  - pdfx (from `.symlinks/plugins/pdfx/ios`)
   - permission_handler_apple (from `.symlinks/plugins/permission_handler_apple/ios`)
   - photo_manager (from `.symlinks/plugins/photo_manager/ios`)
+  - purchases_flutter (from `.symlinks/plugins/purchases_flutter/ios`)
+  - purchases_ui_flutter (from `.symlinks/plugins/purchases_ui_flutter/ios`)
   - record_ios (from `.symlinks/plugins/record_ios/ios`)
   - share_plus (from `.symlinks/plugins/share_plus/ios`)
   - shared_preferences_foundation (from `.symlinks/plugins/shared_preferences_foundation/darwin`)
+  - sign_in_with_apple (from `.symlinks/plugins/sign_in_with_apple/ios`)
   - speech_to_text (from `.symlinks/plugins/speech_to_text/darwin`)
   - url_launcher_ios (from `.symlinks/plugins/url_launcher_ios/ios`)
   - video_player_avfoundation (from `.symlinks/plugins/video_player_avfoundation/darwin`)
@@ -1580,7 +1602,11 @@ SPEC REPOS:
     - leveldb-library
     - nanopb
     - PromisesObjC
+    - PurchasesHybridCommon
+    - PurchasesHybridCommonUI
     - RecaptchaInterop
+    - RevenueCat
+    - RevenueCatUI
     - SDWebImage
     - SwiftyGif
 
@@ -1627,16 +1653,24 @@ EXTERNAL SOURCES:
     :path: ".symlinks/plugins/package_info_plus/ios"
   path_provider_foundation:
     :path: ".symlinks/plugins/path_provider_foundation/darwin"
+  pdfx:
+    :path: ".symlinks/plugins/pdfx/ios"
   permission_handler_apple:
     :path: ".symlinks/plugins/permission_handler_apple/ios"
   photo_manager:
     :path: ".symlinks/plugins/photo_manager/ios"
+  purchases_flutter:
+    :path: ".symlinks/plugins/purchases_flutter/ios"
+  purchases_ui_flutter:
+    :path: ".symlinks/plugins/purchases_ui_flutter/ios"
   record_ios:
     :path: ".symlinks/plugins/record_ios/ios"
   share_plus:
     :path: ".symlinks/plugins/share_plus/ios"
   shared_preferences_foundation:
     :path: ".symlinks/plugins/shared_preferences_foundation/darwin"
+  sign_in_with_apple:
+    :path: ".symlinks/plugins/sign_in_with_apple/ios"
   speech_to_text:
     :path: ".symlinks/plugins/speech_to_text/darwin"
   url_launcher_ios:
@@ -1694,14 +1728,22 @@ SPEC CHECKSUMS:
   nanopb: fad817b59e0457d11a5dfbde799381cd727c1275
   package_info_plus: af8e2ca6888548050f16fa2f1938db7b5a5df499
   path_provider_foundation: 080d55be775b7414fd5a5ef3ac137b97b097e564
+  pdfx: 77f4dddc48361fbb01486fa2bdee4532cbb97ef3
   permission_handler_apple: 4ed2196e43d0651e8ff7ca3483a069d469701f2d
   photo_manager: 1d80ae07a89a67dfbcae95953a1e5a24af7c3e62
   PromisesObjC: f5707f49cb48b9636751c5b2e7d227e43fba9f47
+  purchases_flutter: 3570127ba41583a75e553d68a763367007830eff
+  purchases_ui_flutter: 4f73ee267b1f50f72f71ece0d918fc5d0cb7f97f
+  PurchasesHybridCommon: 7f0944cc5411bdcd1ea5d69affa6a6f9aaf87b13
+  PurchasesHybridCommonUI: 8149f983d0d5fcc6d2536900c934d3dfb7cbed45
   RecaptchaInterop: 11e0b637842dfb48308d242afc3f448062325aba
   record_ios: f75fa1d57f840012775c0e93a38a7f3ceea1a374
+  RevenueCat: 7e1d0768fb287c9983173c9b28e39ccbeeb828a9
+  RevenueCatUI: 61ddba6f94803f9b79c470ffe1e8b81d807c11ce
   SDWebImage: e9c98383c7572d713c1a0d7dd2783b10599b9838
   share_plus: 50da8cb520a8f0f65671c6c6a99b3617ed10a58a
   shared_preferences_foundation: 9e1978ff2562383bd5676f64ec4e9aa8fa06a6f7
+  sign_in_with_apple: c5dcc141574c8c54d5ac99dd2163c0c72ad22418
   speech_to_text: 3b313d98516d3d0406cea424782ec25470c59d19
   SwiftyGif: 706c60cf65fa2bc5ee0313beece843c8eb8194d4
   url_launcher_ios: 694010445543906933d732453a59da0a173ae33d
