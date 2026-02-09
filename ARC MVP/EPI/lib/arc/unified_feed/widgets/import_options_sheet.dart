@@ -1,17 +1,15 @@
 /// Import Options Sheet
 ///
 /// Bottom sheet presented from the welcome screen for users who already have
-/// journal data elsewhere. Offers LUMARA backup restore, Day One, Journey,
-/// plain text, and CSV/Excel import paths.
-///
-/// Uses existing infrastructure:
-/// - file_picker for file selection
-/// - ARCXImportService for LUMARA/ARCX backup format
-/// - UniversalImporterService for third-party journal formats
+/// journal data. For LUMARA/ARCX/zip backups, delegates to the existing
+/// proven import architecture (ARCXImportServiceV2 / McpPackImportService
+/// via ImportExportFolderView). For third-party formats (Day One, Journey,
+/// text, CSV), uses UniversalImporterService.
 
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:my_app/shared/app_colors.dart';
+import 'package:my_app/shared/ui/settings/settings_view.dart';
 import 'package:my_app/arc/unified_feed/services/universal_importer_service.dart';
 
 class ImportOptionsSheet extends StatefulWidget {
@@ -63,7 +61,8 @@ class _ImportOptionsSheetState extends State<ImportOptionsSheet> {
                   ),
                 ),
                 IconButton(
-                  icon: Icon(Icons.close, color: kcSecondaryTextColor.withOpacity(0.6)),
+                  icon: Icon(Icons.close,
+                      color: kcSecondaryTextColor.withOpacity(0.6)),
                   onPressed: () => Navigator.pop(context),
                 ),
               ],
@@ -73,7 +72,7 @@ class _ImportOptionsSheetState extends State<ImportOptionsSheet> {
           Divider(color: kcBorderColor.withOpacity(0.3)),
 
           if (_importing) ...[
-            // Progress view
+            // Progress view (for third-party imports only)
             Expanded(
               child: Center(
                 child: Column(
@@ -84,8 +83,8 @@ class _ImportOptionsSheetState extends State<ImportOptionsSheet> {
                       height: 64,
                       child: CircularProgressIndicator(
                         value: _progress > 0 ? _progress : null,
-                        valueColor:
-                            const AlwaysStoppedAnimation<Color>(kcPrimaryColor),
+                        valueColor: const AlwaysStoppedAnimation<Color>(
+                            kcPrimaryColor),
                         strokeWidth: 3,
                       ),
                     ),
@@ -124,15 +123,13 @@ class _ImportOptionsSheetState extends State<ImportOptionsSheet> {
                   ),
                   const SizedBox(height: 20),
 
-                  // LUMARA / ARCX backup
+                  // LUMARA / ARCX backup — delegates to existing import infra
                   _buildImportOption(
                     icon: Icons.backup_outlined,
                     title: 'LUMARA Backup',
-                    subtitle: 'Restore from a previous LUMARA / ARCX export (.json, .arcx, .zip)',
-                    onTap: () => _pickAndImport(
-                      extensions: ['json', 'arcx', 'zip'],
-                      importType: ImportType.lumaraBackup,
-                    ),
+                    subtitle:
+                        'Restore from .zip, .arcx, or .mcpkg backup files',
+                    onTap: _openLumaraImport,
                   ),
                   const SizedBox(height: 12),
 
@@ -195,21 +192,21 @@ class _ImportOptionsSheetState extends State<ImportOptionsSheet> {
                         color: const Color(0xFF3B82F6).withOpacity(0.25),
                       ),
                     ),
-                    child: Row(
+                    child: const Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Icon(
                           Icons.info_outline,
-                          color: const Color(0xFF60A5FA),
+                          color: Color(0xFF60A5FA),
                           size: 20,
                         ),
-                        const SizedBox(width: 12),
+                        SizedBox(width: 12),
                         Expanded(
                           child: Text(
                             'Your entries will be imported and CHRONICLE will '
                             'automatically build your temporal intelligence from them.',
                             style: TextStyle(
-                              color: const Color(0xFF93C5FD),
+                              color: Color(0xFF93C5FD),
                               fontSize: 13,
                               height: 1.4,
                             ),
@@ -288,6 +285,23 @@ class _ImportOptionsSheetState extends State<ImportOptionsSheet> {
       ),
     );
   }
+
+  // ─── LUMARA Backup: delegate to existing proven import architecture ──
+
+  /// Opens the existing Import & Export folder view which handles
+  /// .zip, .arcx, and .mcpkg files via ARCXImportServiceV2 and
+  /// McpPackImportService — the same flow as Settings → Import & Export.
+  void _openLumaraImport() {
+    Navigator.pop(context); // Close this sheet first
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const ImportExportFolderView(),
+      ),
+    );
+  }
+
+  // ─── Third-party formats: use UniversalImporterService ──────────────
 
   Future<void> _pickAndImport({
     required List<String> extensions,
