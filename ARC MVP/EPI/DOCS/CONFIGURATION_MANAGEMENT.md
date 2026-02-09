@@ -88,6 +88,20 @@ Prompt/role definitions: **Documentation & Configuration Management Role** in [c
 
 ## Change Tracking Log
 
+### 2026-02-09 - Welcome Screen: Phase Quiz, Settings Gear, Data Import (v3.3.18 continued)
+
+**Action:** Redesigned welcome screen empty state with settings gear (top-right), "Discover Your Phase" gradient button launching PhaseQuizV2Screen, Chat/Reflect/Voice quick-start buttons moved below quiz button, and "Import your data" link opening ImportOptionsSheet. Created UniversalImporterService supporting 5 import formats (LUMARA, Day One, Journey, text, CSV) with deduplication and progress callbacks.
+
+**Doc updates:**
+- **CHANGELOG.md:** Appended "Welcome Screen: Phase Quiz, Settings Gear, Data Import" section to [3.3.18].
+- **UNIFIED_FEED.md:** Updated directory structure (import_options_sheet, universal_importer_service), widgets section, Phase 1.5 roadmap.
+- **FEATURES.md:** Updated welcome screen description.
+- **CONFIGURATION_MANAGEMENT.md:** This entry.
+
+**Status:** ✅ All docs updated.
+
+---
+
 ### 2026-02-09 - Welcome Screen UX & Settings Tab (v3.3.18 continued)
 
 **Action:** Documented welcome/first-use UX enhancements and Settings tab addition. UnifiedFeedScreen gains `onEmptyStateChanged` callback, hides input bar during empty state. HomeView hides bottom nav on empty feed for clean onboarding. Tab layout changed to LUMARA + Settings (2 tabs). Center "+" button hidden in unified mode. `tab_bar.dart` conditionally renders center button.

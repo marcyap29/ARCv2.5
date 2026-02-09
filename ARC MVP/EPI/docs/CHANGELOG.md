@@ -108,6 +108,34 @@ Building on Phase 1 (`v3.3.17`), this update significantly evolves the Unified F
 - `lib/shared/tab_bar.dart` — Center button conditional rendering
 - `lib/shared/ui/home/home_view.dart` — `_feedIsEmpty` state, nav hidden on empty, Settings tab, showCenterButton logic
 
+### Welcome Screen: Phase Quiz, Settings Gear, Data Import
+
+**Welcome screen redesign (`_buildEmptyState`):**
+- **Settings gear** (top-right) — opens SettingsView directly from the welcome screen, giving first-time users access to account/preferences before creating any entries.
+- **"Discover Your Phase" button** — prominent gradient button (using `kcPrimaryGradient`) placed between the subtitle and quick-start actions. Launches `PhaseQuizV2Screen` so new users can immediately identify their life phase, which seeds ATLAS phase detection for all future entries.
+- **Chat / Reflect / Voice buttons** moved down one row below the Phase Quiz button.
+- **"Import your data" link** at the bottom — separated by a divider. Opens `ImportOptionsSheet` bottom sheet for users with existing journal data.
+- Welcome content wrapped in `SingleChildScrollView` for small screens and `SafeArea`.
+
+**ImportOptionsSheet** (`widgets/import_options_sheet.dart`):
+- Full-height bottom sheet with 5 import source options: LUMARA Backup, Day One, Journey, Text Files, CSV/Excel.
+- Each option uses `file_picker` to select files.
+- Progress view with circular indicator, percentage, and status messages during import.
+- Info card explaining CHRONICLE temporal intelligence will be built from imported data.
+
+**UniversalImporterService** (`services/universal_importer_service.dart`):
+- Format-specific importers for each source: LUMARA/ARCX JSON, Day One JSON, Journey JSON, plain text/Markdown (auto-split by date patterns), CSV (column auto-detection).
+- Deduplication against existing entries (timestamp + content hash).
+- Progress callbacks throughout the pipeline.
+- Robust error handling per-entry (bad entries skipped, not blocking).
+
+#### Files added
+- `lib/arc/unified_feed/widgets/import_options_sheet.dart`
+- `lib/arc/unified_feed/services/universal_importer_service.dart`
+
+#### Files modified
+- `lib/arc/unified_feed/widgets/unified_feed_screen.dart` — Redesigned `_buildEmptyState` with settings gear, phase quiz, import link; added `_buildPhaseQuizButton`, `_showImportOptions`
+
 ---
 
 ## [3.3.17] - February 8, 2026

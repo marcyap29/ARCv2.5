@@ -66,14 +66,16 @@ lib/arc/unified_feed/
 ├── repositories/
 │   └── feed_repository.dart    # Aggregates journal, chat, voice data; pagination; phase colors
 ├── services/
-│   ├── conversation_manager.dart   # Active conversation lifecycle + auto-save
-│   ├── auto_save_service.dart      # App lifecycle-aware save triggers
-│   └── contextual_greeting.dart    # Time/recency-based greeting generation
+│   ├── conversation_manager.dart       # Active conversation lifecycle + auto-save
+│   ├── auto_save_service.dart          # App lifecycle-aware save triggers
+│   ├── contextual_greeting.dart        # Time/recency-based greeting generation
+│   └── universal_importer_service.dart # Multi-format journal data import
 ├── utils/
 │   └── feed_helpers.dart       # Date grouping, icons, colors, text utilities
 └── widgets/
     ├── unified_feed_screen.dart    # Main feed screen (pagination, date nav, initial mode)
     ├── expanded_entry_view.dart    # Full-screen entry detail view
+    ├── import_options_sheet.dart   # Data import bottom sheet (5 sources)
     ├── input_bar.dart              # Bottom input bar
     ├── feed_entry_cards/
     │   ├── base_feed_card.dart         # Shared card wrapper with phase-colored left border
@@ -274,7 +276,13 @@ The main screen. Replaces both `LumaraAssistantScreen` (chat) and `UnifiedJourna
 - Submit text in input bar → add user message to active conversation
 - Tap "+" in input bar → open new journal entry screen
 - Timeline button → opens **TimelineModal** for date-based navigation; jump to any date
-- Empty state with Chat / Write / Voice quick-start actions; input bar and bottom nav hidden during empty state for clean welcome screen
+- **Welcome screen (empty state):**
+  - Settings gear (top-right) — direct access to SettingsView
+  - LUMARA logo + title + subtitle
+  - "Discover Your Phase" gradient button — launches PhaseQuizV2Screen
+  - Chat / Reflect / Voice quick-start action buttons
+  - "Import your data" link at bottom — opens ImportOptionsSheet (5 import sources)
+  - Input bar and bottom nav hidden during empty state for clean first-use experience
 - `initialMode` parameter: activates chat (focus input), reflect (open journal), or voice (launch voice mode) on first frame
 - `onEmptyStateChanged` callback: reports empty/non-empty state to HomeView for nav visibility
 - `GestureDetector` wrapper dismisses keyboard on outside tap
@@ -328,6 +336,8 @@ All cards extend **BaseFeedCard**, which provides a consistent wrapper with a ph
 - EntryMode (chat/reflect/voice) from welcome screen
 - PhaseColors constants
 - Single-tab home layout (Phase moved inside feed)
+- Welcome screen: settings gear, Phase Quiz CTA, data import flow (5 sources)
+- UniversalImporterService for multi-format journal import with deduplication
 
 ### Phase 2 (planned) — LLM integration and full conversation flow
 

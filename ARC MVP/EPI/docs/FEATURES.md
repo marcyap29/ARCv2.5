@@ -126,7 +126,7 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 - Entries grouped by date (Today, Yesterday, This Week, Earlier) with date dividers
 - Pull-to-refresh and infinite scroll (loads 20 entries at a time)
 - Timeline modal (calendar icon) for date-based navigation; jump to any date
-- Empty state with Chat / Write / Voice quick-start actions; bottom nav and input bar hidden during empty state for clean welcome/onboarding screen
+- **Welcome screen (empty/first-use):** Settings gear top-right, "Discover Your Phase" gradient button (Phase Quiz), Chat / Reflect / Voice quick-start buttons, "Import your data" link (5 import sources: LUMARA, Day One, Journey, Text, CSV). Bottom nav and input bar hidden for clean onboarding
 - App bar: Timeline, Voice memo, Settings actions
 - Settings accessible as a dedicated tab (index 1) in the bottom nav
 

@@ -37,6 +37,8 @@ import 'package:my_app/ui/journal/journal_screen.dart';
 import 'package:my_app/services/journal_session_cache.dart';
 import 'package:my_app/shared/ui/settings/settings_view.dart';
 import 'package:my_app/core/models/entry_mode.dart';
+import 'package:my_app/shared/ui/onboarding/phase_quiz_v2_screen.dart';
+import 'package:my_app/arc/unified_feed/widgets/import_options_sheet.dart';
 
 /// The main unified feed screen that merges LUMARA chat and Conversations.
 class UnifiedFeedScreen extends StatefulWidget {
@@ -703,67 +705,191 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
   }
 
   Widget _buildEmptyState() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(40),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Image.asset(
-              'assets/icon/LUMARA_Sigil_White.png',
-              width: 64,
-              height: 64,
-              fit: BoxFit.contain,
-              errorBuilder: (context, error, stackTrace) {
-                return const Icon(Icons.psychology, size: 64,
-                    color: kcPrimaryColor);
+    return SafeArea(
+      child: Stack(
+        children: [
+          // Settings gear — top right
+          Positioned(
+            top: 8,
+            right: 8,
+            child: IconButton(
+              icon: Icon(
+                Icons.settings_outlined,
+                color: kcSecondaryTextColor.withOpacity(0.5),
+                size: 24,
+              ),
+              tooltip: 'Settings',
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (context) => const SettingsView()),
+                );
               },
             ),
-            const SizedBox(height: 24),
-            const Text(
-              'Welcome to LUMARA',
-              style: TextStyle(
-                color: kcPrimaryTextColor,
-                fontSize: 20,
-                fontWeight: FontWeight.w600,
+          ),
+
+          // Main welcome content — centered
+          Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 40),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // LUMARA logo
+                  Image.asset(
+                    'assets/icon/LUMARA_Sigil_White.png',
+                    width: 72,
+                    height: 72,
+                    fit: BoxFit.contain,
+                    errorBuilder: (context, error, stackTrace) {
+                      return const Icon(Icons.psychology,
+                          size: 72, color: kcPrimaryColor);
+                    },
+                  ),
+                  const SizedBox(height: 28),
+
+                  // Title
+                  const Text(
+                    'Welcome to LUMARA',
+                    style: TextStyle(
+                      color: kcPrimaryTextColor,
+                      fontSize: 24,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+
+                  // Subtitle
+                  Text(
+                    'Chat with LUMARA, reflect on your journey,\nor capture your thoughts by voice.',
+                    style: TextStyle(
+                      color: kcSecondaryTextColor.withOpacity(0.7),
+                      fontSize: 15,
+                      height: 1.5,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 32),
+
+                  // Phase Quiz button — prominent, centered
+                  _buildPhaseQuizButton(),
+                  const SizedBox(height: 24),
+
+                  // Chat | Reflect | Voice — quick-start actions
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      _buildEmptyStateAction(
+                        icon: Icons.chat_bubble_outline,
+                        label: 'Chat',
+                        onTap: _focusInputBar,
+                      ),
+                      const SizedBox(width: 16),
+                      _buildEmptyStateAction(
+                        icon: Icons.edit_note,
+                        label: 'Reflect',
+                        onTap: _onNewEntryTap,
+                      ),
+                      const SizedBox(width: 16),
+                      _buildEmptyStateAction(
+                        icon: Icons.mic,
+                        label: 'Voice',
+                        onTap: _startVoiceMemo,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 48),
+
+                  // Import section
+                  Divider(
+                    color: kcBorderColor.withOpacity(0.3),
+                    thickness: 1,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Already have journal entries?',
+                    style: TextStyle(
+                      color: kcSecondaryTextColor.withOpacity(0.5),
+                      fontSize: 14,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  TextButton.icon(
+                    onPressed: () => _showImportOptions(),
+                    icon: const Icon(
+                      Icons.upload_outlined,
+                      color: kcPrimaryColor,
+                      size: 20,
+                    ),
+                    label: const Text(
+                      'Import your data',
+                      style: TextStyle(
+                        color: kcPrimaryColor,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 8),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Prominent Phase Quiz button for the welcome screen.
+  Widget _buildPhaseQuizButton() {
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+              builder: (context) => const PhaseQuizV2Screen()),
+        );
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
+        decoration: BoxDecoration(
+          gradient: kcPrimaryGradient,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: kcPrimaryColor.withOpacity(0.3),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.insights, color: Colors.white, size: 22),
+            SizedBox(width: 10),
             Text(
-              'Chat with LUMARA, reflect on your journey,\nor capture your thoughts by voice.',
+              'Discover Your Phase',
               style: TextStyle(
-                color: kcSecondaryTextColor.withOpacity(0.7),
-                fontSize: 14,
-                height: 1.5,
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.3,
               ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 24),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                _buildEmptyStateAction(
-                  icon: Icons.chat_bubble_outline,
-                  label: 'Chat',
-                  onTap: _focusInputBar,
-                ),
-                const SizedBox(width: 16),
-                _buildEmptyStateAction(
-                  icon: Icons.edit_note,
-                  label: 'Reflect',
-                  onTap: _onNewEntryTap,
-                ),
-                const SizedBox(width: 16),
-                _buildEmptyStateAction(
-                  icon: Icons.mic,
-                  label: 'Voice',
-                  onTap: _startVoiceMemo,
-                ),
-              ],
             ),
           ],
         ),
       ),
+    );
+  }
+
+  /// Show the import options bottom sheet.
+  void _showImportOptions() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) => const ImportOptionsSheet(),
     );
   }
 
