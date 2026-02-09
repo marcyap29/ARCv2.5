@@ -37,6 +37,8 @@ import 'package:my_app/mira/store/arcx/import_progress_cubit.dart';
 import 'package:my_app/ui/export_import/mcp_import_screen.dart';
 import 'package:my_app/arc/core/journal_repository.dart';
 import 'package:my_app/services/google_drive_service.dart';
+import 'package:my_app/core/feature_flags.dart' as core_flags;
+import 'package:my_app/arc/unified_feed/widgets/unified_feed_screen.dart';
 
 // Debug flag for showing RIVET engineering labels
 const bool kShowRivetDebugLabels = false;
@@ -59,8 +61,14 @@ class _HomeViewState extends State<HomeView> {
   // Shake to report bug
   StreamSubscription? _shakeSubscription;
   
-  // Navigation: 4 buttons (LUMARA + Phase + Conversations + New)
+  // Navigation tabs: unified feed mode or legacy 3-tab mode
   List<TabItem> get _tabs {
+    if (core_flags.FeatureFlags.USE_UNIFIED_FEED) {
+      return const [
+        TabItem(icon: Icons.auto_awesome, text: 'LUMARA'),
+        TabItem(icon: Icons.insights, text: 'Phase'),
+      ];
+    }
     return const [
       TabItem(icon: Icons.psychology, text: 'LUMARA'),
       TabItem(icon: Icons.insights, text: 'Phase'),
@@ -69,6 +77,9 @@ class _HomeViewState extends State<HomeView> {
   }
 
   List<String> get _tabNames {
+    if (core_flags.FeatureFlags.USE_UNIFIED_FEED) {
+      return const ['LUMARA', 'Phase'];
+    }
     return const ['LUMARA', 'Phase', 'Conversations'];
   }
 
@@ -79,8 +90,10 @@ class _HomeViewState extends State<HomeView> {
     _homeCubit.initialize();
       if (widget.initialTab != 0) {
         _homeCubit.changeTab(widget.initialTab);
+      } else if (core_flags.FeatureFlags.USE_UNIFIED_FEED) {
+        _homeCubit.changeTab(0); // Unified feed is the default in new mode
       } else {
-        _homeCubit.changeTab(2); // Set Journal tab as default (index 2 in new order)
+        _homeCubit.changeTab(2); // Set Journal tab as default (index 2 in legacy mode)
       }
 
     // Check photo permissions and refresh timeline if granted
@@ -196,8 +209,8 @@ class _HomeViewState extends State<HomeView> {
             // Track tab navigation
             AnalyticsService.trackTabNavigation(_tabNames[state.selectedIndex]);
             
-            // Refresh timeline when switching to Journal tab (index 0)
-            if (state.selectedIndex == 0) {
+            // Refresh timeline when switching to Journal tab (only in legacy mode)
+            if (!core_flags.FeatureFlags.USE_UNIFIED_FEED && state.selectedIndex == 0) {
               context.read<TimelineCubit>().refreshEntries();
             }
             
@@ -320,9 +333,23 @@ class _HomeViewState extends State<HomeView> {
     );
   }
 
-  /// Get the appropriate page widget for the given index
-  /// Order: LUMARA (0) | Phase (1) | Journal (2)
+  /// Get the appropriate page widget for the given index.
+  ///
+  /// Unified feed mode: LUMARA (0) | Phase (1)
+  /// Legacy mode:       LUMARA (0) | Phase (1) | Journal (2)
   Widget _getPageForIndex(int index, BuildContext context) {
+    if (core_flags.FeatureFlags.USE_UNIFIED_FEED) {
+      switch (index) {
+        case 0:
+          return const UnifiedFeedScreen();
+        case 1:
+          return const UnifiedInsightsView();
+        default:
+          return const UnifiedFeedScreen();
+      }
+    }
+
+    // Legacy 3-tab mode
     switch (index) {
       case 0:
         // LUMARA - use Builder to get context with provider access

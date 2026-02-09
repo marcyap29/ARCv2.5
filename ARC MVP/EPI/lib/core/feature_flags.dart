@@ -28,6 +28,15 @@ class FeatureFlags {
   static const bool ENABLE_ON_DEVICE_LLM = false;
   
   // ============================================================
+  // UNIFIED FEED (LUMARA + Conversations merge)
+  // ============================================================
+  
+  /// Unified Feed replaces separate LUMARA chat + Conversations tabs
+  /// with a single merged feed. Set to true to enable.
+  /// Status: Phase 1 - Core models and feed display
+  static const bool USE_UNIFIED_FEED = false;
+  
+  // ============================================================
   // EXPERIMENTAL FEATURES
   // ============================================================
   
@@ -70,6 +79,9 @@ class FeatureFlags {
       case 'MCP_UI_COMPONENTS': return ENABLE_MCP_UI_COMPONENTS;
       case 'ON_DEVICE_LLM': return ENABLE_ON_DEVICE_LLM;
       
+      // Unified feed
+      case 'USE_UNIFIED_FEED': return USE_UNIFIED_FEED;
+      
       // Experimental features
       case 'ENHANCED_ENCRYPTION': return ENABLE_ENHANCED_ENCRYPTION;
       case 'PARALLEL_STARTUP': return ENABLE_PARALLEL_STARTUP;
@@ -92,6 +104,7 @@ class FeatureFlags {
       'SQLITE_MIRA_REPO': ENABLE_SQLITE_MIRA_REPO,
       'MCP_UI_COMPONENTS': ENABLE_MCP_UI_COMPONENTS,
       'ON_DEVICE_LLM': ENABLE_ON_DEVICE_LLM,
+      'USE_UNIFIED_FEED': USE_UNIFIED_FEED,
       'ENHANCED_ENCRYPTION': ENABLE_ENHANCED_ENCRYPTION,
       'PARALLEL_STARTUP': ENABLE_PARALLEL_STARTUP,
       'LAZY_LOADING': ENABLE_LAZY_LOADING,

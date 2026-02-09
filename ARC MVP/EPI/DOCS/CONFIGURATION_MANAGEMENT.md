@@ -38,12 +38,12 @@ Prompt/role definitions: **Documentation & Configuration Management Role** in [c
 
 | Document | Location | Last Reviewed | Status | Notes |
 |----------|----------|---------------|--------|-------|
-| ARCHITECTURE.md | `/DOCS/ARCHITECTURE.md` | 2026-02-08 | ✅ Synced | v3.3.16 - Reflection System, RevenueCat, Voice Sigil, ARCX Clean |
-| CHANGELOG.md | `/DOCS/CHANGELOG.md` | 2026-02-08 | ✅ Synced | v3.3.16 - Last Updated Feb 8 |
+| ARCHITECTURE.md | `/DOCS/ARCHITECTURE.md` | 2026-02-08 | ✅ Synced | v3.3.17 - Unified Feed Phase 1, Drive export progress UI |
+| CHANGELOG.md | `/DOCS/CHANGELOG.md` | 2026-02-08 | ✅ Synced | v3.3.17 - Last Updated Feb 8 |
 | PROMPT_REFERENCES.md | `/DOCS/PROMPT_REFERENCES.md` | 2026-02-07 | ✅ Current | v1.8.0 - Document scope and sources; prompt catalog |
 | PROMPT_TRACKER.md | `/DOCS/PROMPT_TRACKER.md` | 2026-02-07 | ✅ Synced | v1.0.0 - Prompt change tracking; links to PROMPT_REFERENCES |
 | bug_tracker.md | `/DOCS/bugtracker/bug_tracker.md` | 2026-02-08 | ✅ Synced | v3.2.2 - 29 records; How to use; Recent code changes |
-| FEATURES.md | `/DOCS/FEATURES.md` | 2026-02-08 | ✅ Synced | v3.3.16 - Reflection System, RevenueCat, Voice Sigil, PDF Preview |
+| FEATURES.md | `/DOCS/FEATURES.md` | 2026-02-08 | ✅ Synced | v3.3.17 - Unified Feed Phase 1, Drive export progress UI |
 | README.md | `/DOCS/README.md` | 2026-02-07 | ✅ Synced | Key docs table with purpose and when to read |
 | claude.md | `/DOCS/claude.md` | 2026-02-08 | ✅ Synced | Replaced backup-intelligence prompt with git-backup-docsync (systems engineer config mgr) |
 | backend.md | `/DOCS/backend.md` | 2026-02-07 | ✅ Synced | v3.2 - Firebase, Stripe; RevenueCat see revenuecat/ |
@@ -86,6 +86,20 @@ Prompt/role definitions: **Documentation & Configuration Management Role** in [c
 ---
 
 ## Change Tracking Log
+
+### 2026-02-08 - Document Unified Feed Phase 1 and Google Drive export progress UI (v3.3.17)
+
+**Action:** Documented new uncommitted changes on top of v3.3.16. 13 new files in `lib/arc/unified_feed/` (feature-flagged). Google Drive export progress UI enhancement.
+
+**Doc updates:**
+- **CHANGELOG.md:** New [3.3.17] entry — Unified Feed Phase 1 (models, repository, services, widgets, feature flag) and Google Drive Export Progress UI.
+- **ARCHITECTURE.md:** v3.3.17; Unified Feed and Drive export progress in Key Achievements; `unified_feed/` submodule added to ARC Module.
+- **FEATURES.md:** v3.3.17; new "Unified Feed (v3.3.17, feature-flagged)" section; Drive backup Progress Tracking updated.
+- **CONFIGURATION_MANAGEMENT.md:** Inventory notes updated; this change log entry.
+
+**Status:** ✅ All docs updated for v3.3.17 working changes.
+
+---
 
 ### 2026-02-08 - Replace backup-intelligence prompt in claude.md; commit all v3.3.16 changes
 
@@ -477,8 +491,8 @@ Prompt/role definitions: **Documentation & Configuration Management Role** in [c
 | Component | Documented Version | Code Version | Status | Notes |
 |-----------|-------------------|--------------|--------|-------|
 | Application | 1.0.0+1 | 1.0.0+1 (pubspec.yaml) | ✅ Synced | - |
-| Architecture | 3.3.16 | 3.3.16 (ARCHITECTURE.md) | ✅ Synced | Updated Feb 8, 2026 |
-| Changelog | 3.3.16 | 3.3.16 (CHANGELOG.md) | ✅ Synced | Updated Feb 8, 2026 |
+| Architecture | 3.3.17 | 3.3.17 (ARCHITECTURE.md) | ✅ Synced | Updated Feb 8, 2026 |
+| Changelog | 3.3.17 | 3.3.17 (CHANGELOG.md) | ✅ Synced | Updated Feb 8, 2026 |
 | Bug Tracker | 3.2.2 | 3.2.2 (bug_tracker.md) | ✅ Synced | Matches main branch |
 | Prompt References | 1.8.0 | 1.8.0 (PROMPT_REFERENCES.md) | ✅ Synced | Last updated: Jan 31, 2026 |
 | Prompt Tracker | 1.0.0 | 1.0.0 (PROMPT_TRACKER.md) | ✅ Synced | Configuration tracking only |

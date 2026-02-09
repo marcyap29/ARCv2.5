@@ -1,6 +1,6 @@
 # EPI MVP - Comprehensive Features Guide
 
-**Version:** 3.3.16
+**Version:** 3.3.17
 **Last Updated:** February 8, 2026
 
 ---
@@ -113,6 +113,36 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
   - Gray background with white icons
   - Smooth 300ms animation with easeOut curve
 - **Available In**: LUMARA Chat, Journal Timeline, Journal Entry Editor
+
+### Unified Feed (v3.3.17, feature-flagged)
+
+**Status:** Phase 1 — core models and feed display. Behind `USE_UNIFIED_FEED` feature flag (default off).
+
+**Concept:** Merges the separate LUMARA chat and Conversations (journal timeline) tabs into a single scrollable feed. When enabled, the home screen switches from 3 tabs (LUMARA / Phase / Conversations) to 2 tabs (LUMARA / Phase), where the LUMARA tab is the unified feed.
+
+**Feed Display**
+- Contextual greeting header with LUMARA sigil (time-of-day and recency-based)
+- Entries grouped by date (Today, Yesterday, This Week, Earlier)
+- Pull-to-refresh to reload feed
+- Empty state with Chat / Write / Voice quick-start actions
+- Settings access from feed header
+
+**Feed Entry Types**
+- **Active Conversation**: Ongoing LUMARA chat (not yet saved), shown with live message count
+- **Saved Conversation**: Auto-saved or manually saved conversations persisted as journal entries
+- **Voice Memo**: Quick voice captures
+- **Written Entry**: Traditional text journal entries
+
+**Conversation Management**
+- Auto-save after 5 minutes of inactivity (configurable)
+- App lifecycle-aware saves (background/pause triggers save)
+- Conversations persist as journal entries with LUMARA inline blocks
+- Manual save and discard options
+
+**Input Bar**
+- Bottom text input for starting or continuing conversations
+- New journal entry (+) button
+- Voice and attachment buttons (Phase 2)
 
 ---
 
@@ -923,7 +953,7 @@ All core features are production-ready and fully operational:
   - Single-folder selection for sync target
   - Navigation breadcrumb with back navigation
 - **Last Backup Display**: See timestamp of last successful backup
-- **Progress Tracking**: Real-time progress updates during backup creation and upload
+- **Progress Tracking (v3.3.17)**: Visual progress bar with percentage during export and upload to Google Drive. Granular stage messages (initializing, loading entries, creating ZIP, connecting to Drive, uploading). Spinner and accent-colored bar. Brief 100% display before clearing
 - **Error Handling**: Automatic retry with exponential backoff on upload failures
 - **Notifications**: Success and error notifications for backup operations
 
@@ -938,5 +968,5 @@ All core features are production-ready and fully operational:
 
 **Features Guide Status:** ✅ Complete
 **Last Updated:** February 8, 2026
-**Version:** 3.3.16
+**Version:** 3.3.17
 

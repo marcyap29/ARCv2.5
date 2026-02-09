@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:my_app/shared/app_colors.dart';
-import 'package:my_app/shared/widgets/lumara_icon.dart';
 
 class CustomTabBar extends StatefulWidget {
   final List<TabItem> tabs;
@@ -51,55 +50,28 @@ class _CustomTabBarState extends State<CustomTabBar> {
       ),
       child: Row(
         children: [
-          // First tab (LUMARA) - index 0
-          Expanded(
-            child: GestureDetector(
-              onTap: () => widget.onTabSelected(0),
-              child: Container(
-                margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF2D3748), // Gray background
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Center(
-                  child: _buildTabContent(widget.tabs[0], widget.selectedIndex == 0, isLumara: true),
-                ),
-              ),
-            ),
-          ),
-          // Second tab (Phase) - index 1
-          Expanded(
-            child: GestureDetector(
-              onTap: () => widget.onTabSelected(1),
-              child: Container(
-                margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF2D3748), // Gray background
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Center(
-                  child: _buildTabContent(widget.tabs[1], widget.selectedIndex == 1),
-                ),
-              ),
-            ),
-          ),
-          // Third tab (Conversation) - index 2
-          Expanded(
-            child: GestureDetector(
-              onTap: () => widget.onTabSelected(2),
-              child: Container(
-                margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF2D3748), // Gray background
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Center(
-                  child: _buildTabContent(widget.tabs[2], widget.selectedIndex == 2),
-                ),
-              ),
+          // Dynamic tab buttons
+          for (int i = 0; i < widget.tabs.length; i++)
+            Expanded(
+              child: GestureDetector(
+                onTap: () => widget.onTabSelected(i),
+                child: Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF2D3748), // Gray background
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Center(
+                    child: _buildTabContent(
+                      widget.tabs[i],
+                      widget.selectedIndex == i,
+                      isLumara: i == 0, // First tab is always LUMARA
+                    ),
                   ),
                 ),
-          // Fourth button (+) - New Journal
+              ),
+            ),
+          // New Journal button (+)
           Expanded(
             child: GestureDetector(
               onTap: widget.onNewJournalPressed,

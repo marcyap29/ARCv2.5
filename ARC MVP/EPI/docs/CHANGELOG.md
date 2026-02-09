@@ -1,6 +1,6 @@
 # EPI ARC MVP - Changelog
 
-**Version:** 3.3.16
+**Version:** 3.3.17
 **Last Updated:** February 8, 2026
 
 ---
@@ -17,7 +17,51 @@ This changelog has been split into parts for easier navigation:
 
 ---
 
-## [3.3.16] - February 8, 2026 (working changes)
+## [3.3.17] - February 8, 2026 (working changes)
+
+### Unified Feed — Phase 1 (NEW, feature-flagged)
+
+- **Feature flag:** `USE_UNIFIED_FEED` in `lib/core/feature_flags.dart` (default: `false`). When enabled, replaces the 3-tab layout (LUMARA / Phase / Conversations) with a 2-tab layout (LUMARA / Phase) where the LUMARA tab is a unified scrollable feed merging chat and journal entries.
+- **FeedEntry model** (`lib/arc/unified_feed/models/feed_entry.dart`): View-layer model aggregating journal entries, chat sessions, and voice memos into a single `FeedEntry` with 4 types (`activeConversation`, `savedConversation`, `voiceMemo`, `writtenEntry`).
+- **EntryState** (`lib/arc/unified_feed/models/entry_state.dart`): State tracking (draft, saving, saved, error).
+- **FeedRepository** (`lib/arc/unified_feed/repositories/feed_repository.dart`): Aggregates data from JournalRepository, ChatRepo, and VoiceNoteRepository into a unified feed stream.
+- **ConversationManager** (`lib/arc/unified_feed/services/conversation_manager.dart`): Active conversation lifecycle — message tracking, auto-save after inactivity (5 min default, configurable), conversation→journal entry persistence with LUMARA inline blocks.
+- **AutoSaveService** (`lib/arc/unified_feed/services/auto_save_service.dart`): App lifecycle-aware auto-save triggers (saves on background/pause).
+- **ContextualGreetingService** (`lib/arc/unified_feed/services/contextual_greeting.dart`): Time-of-day and recency-based greeting generation for the feed header.
+- **FeedHelpers** (`lib/arc/unified_feed/utils/feed_helpers.dart`): Date grouping and sorting utilities.
+- **UnifiedFeedScreen** (`lib/arc/unified_feed/widgets/unified_feed_screen.dart`): Main feed screen — LUMARA sigil header with contextual greeting, date-grouped entry cards, pull-to-refresh, empty state with Chat/Write/Voice actions.
+- **FeedInputBar** (`lib/arc/unified_feed/widgets/input_bar.dart`): Bottom input bar with text field, voice, attachment, and new entry buttons.
+- **Feed entry cards** (`lib/arc/unified_feed/widgets/feed_entry_cards/`): 4 card widgets — `ActiveConversationCard`, `SavedConversationCard`, `VoiceMemoCard`, `WrittenEntryCard`.
+- **CustomTabBar** (`lib/shared/tab_bar.dart`): Refactored from hardcoded 3 tabs to dynamic loop over `tabs` list; removed unused `LumaraIcon` import.
+- **HomeView** (`lib/shared/ui/home/home_view.dart`): Conditional tab layout — 2 tabs + UnifiedFeedScreen in unified mode, 3 tabs in legacy mode.
+
+#### Files added
+- `lib/arc/unified_feed/models/feed_entry.dart`
+- `lib/arc/unified_feed/models/entry_state.dart`
+- `lib/arc/unified_feed/repositories/feed_repository.dart`
+- `lib/arc/unified_feed/services/conversation_manager.dart`
+- `lib/arc/unified_feed/services/auto_save_service.dart`
+- `lib/arc/unified_feed/services/contextual_greeting.dart`
+- `lib/arc/unified_feed/utils/feed_helpers.dart`
+- `lib/arc/unified_feed/widgets/unified_feed_screen.dart`
+- `lib/arc/unified_feed/widgets/input_bar.dart`
+- `lib/arc/unified_feed/widgets/feed_entry_cards/active_conversation_card.dart`
+- `lib/arc/unified_feed/widgets/feed_entry_cards/saved_conversation_card.dart`
+- `lib/arc/unified_feed/widgets/feed_entry_cards/voice_memo_card.dart`
+- `lib/arc/unified_feed/widgets/feed_entry_cards/written_entry_card.dart`
+
+#### Files modified
+- `lib/core/feature_flags.dart` — Added `USE_UNIFIED_FEED` flag
+- `lib/shared/tab_bar.dart` — Dynamic tab generation
+- `lib/shared/ui/home/home_view.dart` — Conditional unified/legacy routing
+
+### Google Drive Export Progress UI
+
+- **GoogleDriveSettingsView** (`lib/shared/ui/settings/google_drive_settings_view.dart`): Added visual progress bar with percentage during export/upload to Google Drive. Granular stage-by-stage progress messages (initializing, loading entries, creating ZIP, connecting to Drive, uploading, complete). `LinearProgressIndicator` with accent color, `CircularProgressIndicator` spinner, and percentage text. Brief 100% pause before clearing. New `_setExportProgress()` helper and `_exportPercentage` tracking (0.0–1.0).
+
+---
+
+## [3.3.16] - February 8, 2026
 
 ### Reflection Session Safety System (NEW)
 
