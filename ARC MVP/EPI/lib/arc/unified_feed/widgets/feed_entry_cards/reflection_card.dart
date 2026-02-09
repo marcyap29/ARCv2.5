@@ -1,7 +1,7 @@
-/// Saved Conversation Card
+/// Reflection Card
 ///
-/// Displays a saved conversation in the feed using BaseFeedCard.
-/// Shows first exchange preview, exchange count, phase indicator, and expand chevron.
+/// Displays a text-based reflection in the unified feed using BaseFeedCard.
+/// Shows content preview, phase indicator (via left border), mood, media, themes on expand.
 
 import 'package:flutter/material.dart';
 import 'package:my_app/shared/app_colors.dart';
@@ -9,11 +9,11 @@ import 'package:my_app/arc/unified_feed/models/feed_entry.dart';
 import 'package:my_app/arc/unified_feed/utils/feed_helpers.dart';
 import 'base_feed_card.dart';
 
-class SavedConversationCard extends StatelessWidget {
+class ReflectionCard extends StatelessWidget {
   final FeedEntry entry;
   final VoidCallback? onTap;
 
-  const SavedConversationCard({
+  const ReflectionCard({
     super.key,
     required this.entry,
     this.onTap,
@@ -27,14 +27,14 @@ class SavedConversationCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header row: icon + title + expand chevron
+          // Header: icon + title + expand chevron
           Row(
             children: [
-              const Icon(Icons.chat_bubble, size: 20, color: kcSecondaryTextColor),
+              const Icon(Icons.edit_note, size: 20, color: kcSecondaryTextColor),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  entry.title ?? 'Conversation',
+                  entry.title ?? 'Reflection',
                   style: const TextStyle(
                     color: kcPrimaryTextColor,
                     fontSize: 15,
@@ -47,36 +47,26 @@ class SavedConversationCard extends StatelessWidget {
               Icon(Icons.expand_more, size: 20, color: kcSecondaryTextColor.withOpacity(0.5)),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
 
-          // Preview of first exchange
+          // Content preview
           if (entry.preview.isNotEmpty)
             Text(
               entry.preview,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
               style: TextStyle(
                 color: kcPrimaryTextColor.withOpacity(0.65),
                 fontSize: 13,
-                height: 1.4,
+                height: 1.5,
               ),
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
             ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
 
-          // Metadata row: exchanges · phase · timestamp
+          // Metadata row: phase · mood · media · timestamp
           Row(
             children: [
-              Text(
-                '${entry.exchangeCount ?? 0} exchanges',
-                style: TextStyle(
-                  color: kcSecondaryTextColor.withOpacity(0.6),
-                  fontSize: 12,
-                ),
-              ),
               if (entry.phase != null) ...[
-                const SizedBox(width: 8),
-                Text('·', style: TextStyle(color: kcSecondaryTextColor.withOpacity(0.4))),
-                const SizedBox(width: 8),
                 Text(
                   entry.phase!,
                   style: TextStyle(
@@ -84,7 +74,34 @@ class SavedConversationCard extends StatelessWidget {
                     fontSize: 12,
                   ),
                 ),
+                const SizedBox(width: 8),
+                Text('·', style: TextStyle(color: kcSecondaryTextColor.withOpacity(0.4))),
+                const SizedBox(width: 8),
               ],
+              if (entry.mood != null && entry.mood!.isNotEmpty) ...[
+                Text(
+                  entry.mood!,
+                  style: TextStyle(
+                    color: kcSecondaryTextColor.withOpacity(0.7),
+                    fontSize: 12,
+                  ),
+                ),
+                const SizedBox(width: 8),
+              ],
+              if (entry.hasMedia) ...[
+                Icon(Icons.photo_library, size: 14, color: kcSecondaryTextColor.withOpacity(0.5)),
+                const SizedBox(width: 4),
+                Text(
+                  '${entry.mediaCount}',
+                  style: TextStyle(
+                    color: kcSecondaryTextColor.withOpacity(0.5),
+                    fontSize: 12,
+                  ),
+                ),
+                const SizedBox(width: 8),
+              ],
+              if (entry.hasLumaraReflections)
+                Icon(Icons.auto_awesome, size: 14, color: kcPrimaryColor.withOpacity(0.6)),
               const Spacer(),
               Text(
                 FeedHelpers.formatFeedDate(entry.timestamp),

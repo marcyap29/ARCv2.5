@@ -20,6 +20,9 @@ class FeedInputBar extends StatefulWidget {
   /// Called when the user taps the new entry button (pen icon).
   final VoidCallback? onNewEntryTap;
 
+  /// Optional external FocusNode so the parent can programmatically focus.
+  final FocusNode? focusNode;
+
   /// Placeholder text when input is empty.
   final String hintText;
 
@@ -35,6 +38,7 @@ class FeedInputBar extends StatefulWidget {
     this.onVoiceTap,
     this.onAttachmentTap,
     this.onNewEntryTap,
+    this.focusNode,
     this.hintText = 'Talk to LUMARA...',
     this.enabled = true,
     this.showVoiceButton = true,
@@ -46,8 +50,10 @@ class FeedInputBar extends StatefulWidget {
 
 class _FeedInputBarState extends State<FeedInputBar> {
   final TextEditingController _controller = TextEditingController();
-  final FocusNode _focusNode = FocusNode();
+  FocusNode? _internalFocusNode;
   bool _hasText = false;
+
+  FocusNode get _focusNode => widget.focusNode ?? (_internalFocusNode ??= FocusNode());
 
   @override
   void initState() {
@@ -63,7 +69,7 @@ class _FeedInputBarState extends State<FeedInputBar> {
   @override
   void dispose() {
     _controller.dispose();
-    _focusNode.dispose();
+    _internalFocusNode?.dispose();
     super.dispose();
   }
 

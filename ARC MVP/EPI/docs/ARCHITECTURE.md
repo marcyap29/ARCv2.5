@@ -1,7 +1,7 @@
 # EPI MVP - Architecture Overview
 
-**Version:** 3.3.17
-**Last Updated:** February 8, 2026
+**Version:** 3.3.18
+**Last Updated:** February 9, 2026
 **Status:** ✅ Production Ready - MVP Fully Operational with Companion-First LUMARA, Reflection Session Safety System, RevenueCat In-App Purchases, Voice Sigil State Machine, Simplified Settings, Health Integration, AssemblyAI v3, Web Access Safety, Correlation-Resistant PII Protection, Bible Reference Retrieval, Google Drive Backup, Temporal Notifications, Enhanced Incremental Backups, Automatic First Export, Sequential Export Numbering, Local Backup Services, and Timeline Pagination
 
 ---
@@ -45,7 +45,7 @@ EPI (Evolving Personal Intelligence) is a Flutter-based intelligent journaling a
 - ✅ **PDF Preview (v3.3.16)**: In-app PDF viewer for journal media attachments.
 - ✅ **Google Drive Folder Picker (v3.3.16)**: Browse and select Google Drive folders for import and sync.
 - ✅ **ARCX Clean Service (v3.3.16)**: Utility to remove low-content chat sessions from ARCX archives.
-- ✅ **Unified Feed Phase 1 (v3.3.17, feature-flagged)**: Merged LUMARA chat + Conversations into a single scrollable feed with `FeedEntry` model, `FeedRepository`, `ConversationManager` (auto-save), contextual greetings, and 4 entry card types. Behind `USE_UNIFIED_FEED` flag (default off).
+- ✅ **Unified Feed Phase 1.5 (v3.3.18, feature-flagged)**: Merged LUMARA chat + Conversations into a single scrollable feed. Phase 1.5 adds: refactored `FeedEntry` (5 types incl. `reflection`, `lumaraInitiative`), `FeedMessage` model, pagination, `ExpandedEntryView`, `BaseFeedCard` with phase-colored borders, `ReflectionCard`, `LumaraPromptCard`, `TimelineModal` for date navigation, infinite scroll, `EntryMode` initial mode from welcome screen, `PhaseColors` constants. Behind `USE_UNIFIED_FEED` flag (default off).
 - ✅ **Google Drive Export Progress UI (v3.3.17)**: Visual progress bar with percentage, granular stage messages, and spinner during Google Drive backup export.
 
 ### Current Version
@@ -188,11 +188,11 @@ The EPI system is organized into 5 core modules:
 - `core/` - Journal entry processing and state management
 - `ui/` - Journaling interface components
 - `privacy/` - Privacy demonstration UI
-- `unified_feed/` - **(v3.3.17, feature-flagged)** Merged LUMARA chat + Conversations feed
-  - `models/` - `FeedEntry` (4 types: active/saved conversation, voice memo, written entry), `EntryState`
-  - `repositories/feed_repository.dart` - Aggregates journal, chat, voice note data into unified stream
+- `unified_feed/` - **(v3.3.18, feature-flagged)** Merged LUMARA chat + Conversations feed
+  - `models/` - `FeedEntry` (5 types: active/saved conversation, voice memo, reflection, lumaraInitiative), `FeedMessage`, `EntryState`
+  - `repositories/feed_repository.dart` - Aggregates journal, chat, voice note data; pagination; phase colors
   - `services/` - `ConversationManager` (lifecycle + auto-save), `AutoSaveService`, `ContextualGreetingService`
-  - `widgets/` - `UnifiedFeedScreen`, `FeedInputBar`, 4 entry card types
+  - `widgets/` - `UnifiedFeedScreen` (pagination, date nav, initial mode), `ExpandedEntryView`, `FeedInputBar`, `BaseFeedCard`, 5 card types, `timeline/` (TimelineModal, TimelineView)
 
 **Key Features:**
 - Journal entry capture and editing

@@ -1,7 +1,7 @@
 # EPI ARC MVP - Changelog
 
-**Version:** 3.3.17
-**Last Updated:** February 8, 2026
+**Version:** 3.3.18
+**Last Updated:** February 9, 2026
 
 ---
 
@@ -17,7 +17,81 @@ This changelog has been split into parts for easier navigation:
 
 ---
 
-## [3.3.17] - February 8, 2026 (working changes)
+## [3.3.18] - February 9, 2026 (working changes)
+
+### Unified Feed — Phase 1.5: Model refactor, pagination, expanded views, timeline navigation
+
+Building on Phase 1 (`v3.3.17`), this update significantly evolves the Unified Feed architecture:
+
+**Model Refactor:**
+- **FeedEntry**: `writtenEntry` type renamed to `reflection`; new `lumaraInitiative` type for LUMARA-initiated observations/prompts. Replaced `createdAt`/`updatedAt` with single `timestamp`. Added `FeedMessage` class for in-model conversation messages. Added `themes`, `phaseColor`, `messages`, `isActive`, `audioPath`, `transcriptPath`. Content is now `dynamic` (string or structured). `preview` is a computed getter. Removed Equatable dependency.
+- **EntryState**: Simplified from full lifecycle class to streamlined enum-based state.
+
+**FeedRepository Enhancements:**
+- Pagination via `getFeed(before, after, limit, types)`.
+- `getActiveConversation()` with 20-minute staleness check.
+- Robust error handling: journal and chat repos initialize independently; errors don't block feed.
+- Phase color extraction via `PhaseColors.getPhaseColor()`.
+- Theme extraction from entry metadata.
+- Search now includes themes.
+
+**New Widgets:**
+- **ExpandedEntryView** (`widgets/expanded_entry_view.dart`): Full-screen detail view for any entry — phase indicator, full content, themes, CHRONICLE-related entries, LUMARA notes, edit/share/delete actions.
+- **BaseFeedCard** (`widgets/feed_entry_cards/base_feed_card.dart`): Shared card wrapper with phase-colored left border indicator. All cards extend this.
+- **ReflectionCard** (`widgets/feed_entry_cards/reflection_card.dart`): Replaces `WrittenEntryCard` for text-based reflections.
+- **LumaraPromptCard** (`widgets/feed_entry_cards/lumara_prompt_card.dart`): LUMARA-initiated observations, check-ins, and prompts detected by CHRONICLE/VEIL/SENTINEL.
+- **TimelineModal** (`widgets/timeline/timeline_modal.dart`): Bottom sheet for date-based feed navigation.
+- **TimelineView** (`widgets/timeline/timeline_view.dart`): Calendar/timeline view within the modal.
+
+**Infrastructure:**
+- **PhaseColors** (`lib/core/constants/phase_colors.dart`): Phase color constants for card borders and indicators.
+- **EntryMode** (`lib/core/models/entry_mode.dart`): Enum (`chat`, `reflect`, `voice`) for initial screen state from welcome screen or deep links.
+- **app.dart**: Switched from named routes to `onGenerateRoute` to pass `EntryMode` arguments to HomeView.
+
+**UnifiedFeedScreen Enhancements:**
+- Infinite scroll / load-more pagination (loads 20 entries at a time).
+- Timeline modal accessible from app bar (calendar icon) for date navigation.
+- Date filter: jump to specific date, clear filter to return to feed.
+- Voice mode launch via callback from HomeView.
+- `initialMode` parameter: feed activates chat/reflect/voice mode on first frame (from welcome screen).
+- LUMARA observation banner.
+- Card taps navigate to ExpandedEntryView.
+
+**HomeView:**
+- Simplified from 2 tabs (LUMARA + Phase) to single LUMARA tab in unified mode. Phase accessible via Timeline button inside the feed.
+- Passes `onVoiceTap` and `initialMode` to UnifiedFeedScreen.
+
+#### Files added
+- `lib/arc/unified_feed/widgets/expanded_entry_view.dart`
+- `lib/arc/unified_feed/widgets/feed_entry_cards/base_feed_card.dart`
+- `lib/arc/unified_feed/widgets/feed_entry_cards/reflection_card.dart`
+- `lib/arc/unified_feed/widgets/feed_entry_cards/lumara_prompt_card.dart`
+- `lib/arc/unified_feed/widgets/timeline/timeline_modal.dart`
+- `lib/arc/unified_feed/widgets/timeline/timeline_view.dart`
+- `lib/core/constants/phase_colors.dart`
+- `lib/core/models/entry_mode.dart`
+
+#### Files modified
+- `lib/arc/unified_feed/models/feed_entry.dart` — Major refactor (see above)
+- `lib/arc/unified_feed/models/entry_state.dart` — Simplified
+- `lib/arc/unified_feed/repositories/feed_repository.dart` — Pagination, error handling, phase colors
+- `lib/arc/unified_feed/services/conversation_manager.dart` — Adapted to new FeedEntry shape
+- `lib/arc/unified_feed/services/auto_save_service.dart` — Minor update
+- `lib/arc/unified_feed/utils/feed_helpers.dart` — Extended helpers
+- `lib/arc/unified_feed/widgets/unified_feed_screen.dart` — Timeline, pagination, modes, expanded view
+- `lib/arc/unified_feed/widgets/input_bar.dart` — Minor update
+- `lib/arc/unified_feed/widgets/feed_entry_cards/active_conversation_card.dart` — Uses BaseFeedCard
+- `lib/arc/unified_feed/widgets/feed_entry_cards/saved_conversation_card.dart` — Uses BaseFeedCard
+- `lib/arc/unified_feed/widgets/feed_entry_cards/voice_memo_card.dart` — Uses BaseFeedCard
+- `lib/shared/ui/home/home_view.dart` — Single tab, passes onVoiceTap/initialMode
+- `lib/app/app.dart` — onGenerateRoute for EntryMode
+
+#### Files deleted
+- `lib/arc/unified_feed/widgets/feed_entry_cards/written_entry_card.dart` — Replaced by ReflectionCard
+
+---
+
+## [3.3.17] - February 8, 2026
 
 ### Unified Feed — Phase 1 (NEW, feature-flagged)
 

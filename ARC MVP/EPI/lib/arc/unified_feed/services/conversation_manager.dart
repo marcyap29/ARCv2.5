@@ -85,11 +85,10 @@ class ConversationManager {
     final entry = FeedEntry(
       id: 'active_$id',
       type: FeedEntryType.activeConversation,
+      timestamp: DateTime.now(),
+      state: EntryState.active,
       title: 'New Conversation',
-      preview: '',
-      createdAt: DateTime.now(),
-      updatedAt: DateTime.now(),
-      state: const EntryState.draft(),
+      isActive: true,
     );
 
     _feedRepo.setActiveConversation(entry);
@@ -137,19 +136,23 @@ class ConversationManager {
         ? _generateConversationTitle(userMessages.first.text)
         : 'New Conversation';
 
-    final preview = _messages.isNotEmpty ? _messages.last.text : '';
-    final truncatedPreview =
-        preview.length > 200 ? '${preview.substring(0, 197)}...' : preview;
+    final feedMessages = _messages.map((m) => FeedMessage(
+      id: '${_activeConversationId}_${_messages.indexOf(m)}',
+      role: m.role,
+      content: m.text,
+      timestamp: m.timestamp,
+    )).toList();
 
     final entry = FeedEntry(
       id: 'active_$_activeConversationId',
       type: FeedEntryType.activeConversation,
+      timestamp: _messages.last.timestamp,
+      state: EntryState.active,
       title: title,
-      preview: truncatedPreview,
-      createdAt: _messages.first.timestamp,
-      updatedAt: _messages.last.timestamp,
-      state: const EntryState.draft(),
-      messageCount: _messages.length,
+      content: _messages.isNotEmpty ? _messages.last.text : '',
+      exchangeCount: userMessages.length,
+      messages: feedMessages,
+      isActive: true,
     );
 
     _feedRepo.setActiveConversation(entry);
@@ -261,7 +264,6 @@ class ConversationManager {
     final clean = firstMessage.trim();
     if (clean.isEmpty) return 'New Conversation';
     if (clean.length <= 50) return clean;
-    // Find a natural break point
     final breakIdx = clean.lastIndexOf(' ', 47);
     if (breakIdx > 20) return '${clean.substring(0, breakIdx)}...';
     return '${clean.substring(0, 47)}...';

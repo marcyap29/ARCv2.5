@@ -4,14 +4,18 @@
 /// Replaces both the old LumaraAssistantScreen (chat) and UnifiedJournalView
 /// (timeline) with a single, scrollable feed that shows:
 /// - Contextual greeting header
+/// - LUMARA observation banner (if available)
 /// - Active conversation (if any)
 /// - Recent journal entries, saved conversations, voice memos
+/// - Date dividers between groups
 /// - Input bar at the bottom
 ///
+/// App bar actions: Timeline (calendar), Voice memo, Settings
 /// Behind feature flag: FeatureFlags.USE_UNIFIED_FEED
 
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/arc/unified_feed/models/feed_entry.dart';
 import 'package:my_app/arc/unified_feed/repositories/feed_repository.dart';
@@ -23,16 +27,27 @@ import 'package:my_app/arc/unified_feed/widgets/input_bar.dart';
 import 'package:my_app/arc/unified_feed/widgets/feed_entry_cards/active_conversation_card.dart';
 import 'package:my_app/arc/unified_feed/widgets/feed_entry_cards/saved_conversation_card.dart';
 import 'package:my_app/arc/unified_feed/widgets/feed_entry_cards/voice_memo_card.dart';
-import 'package:my_app/arc/unified_feed/widgets/feed_entry_cards/written_entry_card.dart';
+import 'package:my_app/arc/unified_feed/widgets/feed_entry_cards/reflection_card.dart';
+import 'package:my_app/arc/unified_feed/widgets/feed_entry_cards/lumara_prompt_card.dart';
+import 'package:my_app/arc/unified_feed/widgets/expanded_entry_view.dart';
+import 'package:my_app/arc/unified_feed/widgets/timeline/timeline_modal.dart';
 import 'package:my_app/arc/internal/mira/journal_repository.dart';
 import 'package:my_app/arc/chat/chat/chat_repo_impl.dart';
 import 'package:my_app/ui/journal/journal_screen.dart';
 import 'package:my_app/services/journal_session_cache.dart';
 import 'package:my_app/shared/ui/settings/settings_view.dart';
+import 'package:my_app/core/models/entry_mode.dart';
 
 /// The main unified feed screen that merges LUMARA chat and Conversations.
 class UnifiedFeedScreen extends StatefulWidget {
-  const UnifiedFeedScreen({super.key});
+  /// Callback to launch voice mode (passed from HomeView which owns the
+  /// voice session initialization logic).
+  final VoidCallback? onVoiceTap;
+
+  /// Optional initial mode to activate on first frame (from welcome screen).
+  final EntryMode? initialMode;
+
+  const UnifiedFeedScreen({super.key, this.onVoiceTap, this.initialMode});
 
   @override
   State<UnifiedFeedScreen> createState() => _UnifiedFeedScreenState();
@@ -47,10 +62,15 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
       ContextualGreetingService();
 
   final ScrollController _scrollController = ScrollController();
+  final FocusNode _inputFocusNode = FocusNode();
 
   List<FeedEntry> _entries = [];
   bool _isLoading = true;
+  bool _isLoadingMore = false;
   String? _errorMessage;
+
+  /// If non-null, the feed is showing entries from a specific date
+  DateTime? _currentViewingDate;
 
   StreamSubscription<List<FeedEntry>>? _feedSubscription;
 
@@ -58,7 +78,29 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _scrollController.addListener(_onScroll);
     _initializeServices();
+
+    // If an initial mode was passed (e.g. from welcome screen), trigger it
+    if (widget.initialMode != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _handleInitialMode(widget.initialMode!);
+      });
+    }
+  }
+
+  void _handleInitialMode(EntryMode mode) {
+    switch (mode) {
+      case EntryMode.chat:
+        _focusInputBar();
+        break;
+      case EntryMode.reflect:
+        _onNewEntryTap();
+        break;
+      case EntryMode.voice:
+        _startVoiceMemo();
+        break;
+    }
   }
 
   Future<void> _initializeServices() async {
@@ -111,6 +153,40 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
     _autoSaveService.handleAppLifecycleChange(state);
   }
 
+  void _onScroll() {
+    // Load more when near the bottom
+    if (_scrollController.position.pixels >=
+            _scrollController.position.maxScrollExtent - 200 &&
+        !_isLoadingMore) {
+      _loadOlderEntries();
+    }
+  }
+
+  Future<void> _loadOlderEntries() async {
+    if (_entries.isEmpty || _isLoadingMore) return;
+
+    setState(() => _isLoadingMore = true);
+
+    final oldest = _entries.last;
+    final olderEntries = await _feedRepo.getFeed(
+      before: oldest.timestamp,
+      limit: 20,
+    );
+
+    if (mounted) {
+      setState(() {
+        if (olderEntries.isNotEmpty) {
+          // Add only entries not already present
+          final existingIds = _entries.map((e) => e.id).toSet();
+          final newEntries =
+              olderEntries.where((e) => !existingIds.contains(e.id));
+          _entries.addAll(newEntries);
+        }
+        _isLoadingMore = false;
+      });
+    }
+  }
+
   void _handleAutoSaveEvent(AutoSaveEvent event) {
     if (!mounted) return;
 
@@ -138,11 +214,54 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
     }
   }
 
+  void _jumpToDate(DateTime date) {
+    setState(() {
+      _currentViewingDate = date;
+      _entries.clear();
+      _isLoading = true;
+    });
+
+    _feedRepo.getFeed(
+      after: DateTime(date.year, date.month, date.day),
+      before: DateTime(date.year, date.month, date.day, 23, 59, 59),
+      limit: 50,
+    ).then((entries) {
+      if (mounted) {
+        setState(() {
+          _entries = entries;
+          _isLoading = false;
+        });
+      }
+    });
+  }
+
+  void _clearDateFilter() {
+    setState(() {
+      _currentViewingDate = null;
+      _isLoading = true;
+    });
+    _feedRepo.refresh();
+  }
+
+  void _openTimelineModal() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => TimelineModal(
+        currentDate: _currentViewingDate ?? DateTime.now(),
+        onDateSelected: (date) {
+          Navigator.pop(context);
+          _jumpToDate(date);
+        },
+      ),
+    );
+  }
+
   void _onMessageSubmit(String text) {
     _conversationManager.addUserMessage(text);
-    // In Phase 2, this will trigger the LLM call via EnhancedLumaraAPI.
-    // For now, just record the message in the conversation tracker.
-    debugPrint('UnifiedFeedScreen: User message recorded: ${text.substring(0, text.length > 50 ? 50 : text.length)}');
+    debugPrint(
+        'UnifiedFeedScreen: User message recorded: ${text.substring(0, text.length > 50 ? 50 : text.length)}');
   }
 
   void _onNewEntryTap() async {
@@ -150,50 +269,54 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
     if (!mounted) return;
     await Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (context) => const JournalScreen(),
-      ),
+      MaterialPageRoute(builder: (context) => const JournalScreen()),
     );
-    // Refresh feed after returning from journal
     _feedRepo.refresh();
   }
 
   void _onEntryTap(FeedEntry entry) {
-    if (entry.journalEntryId != null) {
-      _openJournalEntry(entry.journalEntryId!);
-    } else if (entry.chatSessionId != null) {
-      // TODO: Open chat session in conversation view
-      debugPrint('UnifiedFeedScreen: Open chat session ${entry.chatSessionId}');
-    } else if (entry.voiceNoteId != null) {
-      // TODO: Open voice note detail
-      debugPrint('UnifiedFeedScreen: Open voice note ${entry.voiceNoteId}');
-    }
-  }
-
-  Future<void> _openJournalEntry(String entryId) async {
-    try {
-      final repo = JournalRepository();
-      final entry = await repo.getJournalEntryById(entryId);
-      if (!mounted) return;
-      if (entry != null) {
-        await Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => JournalScreen(
-              existingEntry: entry,
-              isViewOnly: true,
-            ),
-          ),
-        );
-        _feedRepo.refresh();
-      }
-    } catch (e) {
-      debugPrint('UnifiedFeedScreen: Error opening journal entry: $e');
-    }
+    // Navigate to expanded entry view
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ExpandedEntryView(entry: entry),
+      ),
+    ).then((result) {
+      // If a theme filter was returned, apply it
+      // (Future: implement theme-based filtering)
+      _feedRepo.refresh();
+    });
   }
 
   void _onSaveActiveConversation() {
     _conversationManager.saveConversation();
+  }
+
+  void _startVoiceMemo() {
+    if (widget.onVoiceTap != null) {
+      widget.onVoiceTap!();
+    } else {
+      debugPrint('UnifiedFeedScreen: No voice callback provided');
+    }
+  }
+
+  /// Focus the input bar (triggered by the "Chat" button in the empty state).
+  void _focusInputBar() {
+    _inputFocusNode.requestFocus();
+  }
+
+  String _getViewingContextTitle() {
+    if (_currentViewingDate == null) return 'Your Journey';
+
+    final now = DateTime.now();
+    final diff = now.difference(_currentViewingDate!);
+
+    if (diff.inDays == 0) return 'Today';
+    if (diff.inDays == 1) return 'Yesterday';
+    if (diff.inDays < 7) return 'This Week';
+    if (diff.inDays < 30) return 'This Month';
+
+    return DateFormat('MMMM yyyy').format(_currentViewingDate!);
   }
 
   @override
@@ -215,12 +338,9 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
           FeedInputBar(
             onSubmit: _onMessageSubmit,
             onNewEntryTap: _onNewEntryTap,
-            onVoiceTap: () {
-              // TODO: Phase 2 - voice recording
-              debugPrint('UnifiedFeedScreen: Voice tap');
-            },
+            onVoiceTap: _startVoiceMemo,
+            focusNode: _inputFocusNode,
             onAttachmentTap: () {
-              // TODO: Phase 2 - attachments
               debugPrint('UnifiedFeedScreen: Attachment tap');
             },
           ),
@@ -234,17 +354,11 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          CircularProgressIndicator(
-            color: kcPrimaryColor,
-            strokeWidth: 2,
-          ),
+          CircularProgressIndicator(color: kcPrimaryColor, strokeWidth: 2),
           SizedBox(height: 16),
           Text(
             'Loading your feed...',
-            style: TextStyle(
-              color: kcSecondaryTextColor,
-              fontSize: 14,
-            ),
+            style: TextStyle(color: kcSecondaryTextColor, fontSize: 14),
           ),
         ],
       ),
@@ -258,18 +372,11 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(
-              Icons.error_outline,
-              color: kcDangerColor,
-              size: 48,
-            ),
+            const Icon(Icons.error_outline, color: kcDangerColor, size: 48),
             const SizedBox(height: 16),
             Text(
               _errorMessage ?? 'Something went wrong',
-              style: const TextStyle(
-                color: kcPrimaryTextColor,
-                fontSize: 16,
-              ),
+              style: const TextStyle(color: kcPrimaryTextColor, fontSize: 16),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 16),
@@ -290,11 +397,8 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
   }
 
   Widget _buildFeedContent() {
-    if (_entries.isEmpty) {
-      return _buildEmptyState();
-    }
+    if (_entries.isEmpty) return _buildEmptyState();
 
-    // Group entries by date
     final grouped = FeedHelpers.groupByDate(_entries);
 
     return RefreshIndicator(
@@ -308,28 +412,54 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
           // Greeting header
           SliverToBoxAdapter(child: _buildGreetingHeader()),
 
-          // Settings button row
+          // Action buttons row (Timeline, Voice, Settings)
           SliverToBoxAdapter(child: _buildHeaderActions()),
 
-          const SliverToBoxAdapter(child: SizedBox(height: 8)),
+          // Date context banner (when viewing a specific date)
+          if (_currentViewingDate != null)
+            SliverToBoxAdapter(child: _buildDateContextBanner()),
+
+          // LUMARA observation banner
+          SliverToBoxAdapter(child: _buildLumaraObservationBanner()),
+
+          const SliverToBoxAdapter(child: SizedBox(height: 4)),
 
           // Feed entries grouped by date
           for (final entry in grouped.entries) ...[
-            // Section header
+            // Date divider
             SliverToBoxAdapter(
-              child: _buildSectionHeader(entry.key),
+              child: FeedHelpers.buildDateDivider(
+                entry.key,
+                entryCount: entry.value.length,
+              ),
             ),
 
             // Entry cards
             SliverList(
               delegate: SliverChildBuilderDelegate(
-                (context, index) {
-                  return _buildEntryCard(entry.value[index]);
-                },
+                (context, index) => _buildEntryCard(entry.value[index]),
                 childCount: entry.value.length,
               ),
             ),
           ],
+
+          // Loading more indicator
+          if (_isLoadingMore)
+            const SliverToBoxAdapter(
+              child: Padding(
+                padding: EdgeInsets.all(16),
+                child: Center(
+                  child: SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(
+                      color: kcPrimaryColor,
+                      strokeWidth: 2,
+                    ),
+                  ),
+                ),
+              ),
+            ),
 
           // Bottom padding
           const SliverToBoxAdapter(child: SizedBox(height: 16)),
@@ -344,12 +474,12 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
     int todayCount = 0;
 
     for (final entry in _entries) {
-      if (lastEntryAt == null || entry.updatedAt.isAfter(lastEntryAt)) {
-        lastEntryAt = entry.updatedAt;
+      if (lastEntryAt == null || entry.timestamp.isAfter(lastEntryAt)) {
+        lastEntryAt = entry.timestamp;
       }
-      if (entry.createdAt.year == now.year &&
-          entry.createdAt.month == now.month &&
-          entry.createdAt.day == now.day) {
+      if (entry.timestamp.year == now.year &&
+          entry.timestamp.month == now.month &&
+          entry.timestamp.day == now.day) {
         todayCount++;
       }
     }
@@ -372,18 +502,14 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
         children: [
           Row(
             children: [
-              // LUMARA sigil
               Image.asset(
                 'assets/icon/LUMARA_Sigil_White.png',
                 width: 28,
                 height: 28,
                 fit: BoxFit.contain,
                 errorBuilder: (context, error, stackTrace) {
-                  return const Icon(
-                    Icons.psychology,
-                    size: 28,
-                    color: kcPrimaryTextColor,
-                  );
+                  return const Icon(Icons.psychology, size: 28,
+                      color: kcPrimaryTextColor);
                 },
               ),
               const SizedBox(width: 10),
@@ -422,10 +548,30 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
 
   Widget _buildHeaderActions() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
+          // Timeline
+          IconButton(
+            icon: Icon(
+              Icons.calendar_month,
+              color: kcSecondaryTextColor.withOpacity(0.6),
+              size: 22,
+            ),
+            tooltip: 'Timeline',
+            onPressed: _openTimelineModal,
+          ),
+          // Voice memo
+          IconButton(
+            icon: Icon(
+              Icons.mic,
+              color: kcSecondaryTextColor.withOpacity(0.6),
+              size: 22,
+            ),
+            tooltip: 'Voice memo',
+            onPressed: _startVoiceMemo,
+          ),
           // Settings
           IconButton(
             icon: Icon(
@@ -433,12 +579,12 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
               color: kcSecondaryTextColor.withOpacity(0.6),
               size: 20,
             ),
+            tooltip: 'Settings',
             onPressed: () {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => const SettingsView(),
-                ),
+                    builder: (context) => const SettingsView()),
               );
             },
           ),
@@ -447,19 +593,57 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
     );
   }
 
-  Widget _buildSectionHeader(String title) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
-      child: Text(
-        title,
-        style: TextStyle(
-          color: kcSecondaryTextColor.withOpacity(0.6),
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-          letterSpacing: 0.5,
-        ),
+  Widget _buildDateContextBanner() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: kcPrimaryColor.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: kcPrimaryColor.withOpacity(0.2)),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.calendar_today, size: 16, color: kcPrimaryColor),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'Viewing: ${_getViewingContextTitle()}',
+              style: TextStyle(
+                color: kcPrimaryColor,
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+          GestureDetector(
+            onTap: _clearDateFilter,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: kcPrimaryColor.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: const Text(
+                'Back to Now',
+                style: TextStyle(
+                  color: kcPrimaryColor,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
+  }
+
+  Widget _buildLumaraObservationBanner() {
+    // TODO: Integrate with CHRONICLE/VEIL/SENTINEL for real observations
+    // For now, returns empty. When observation data is available,
+    // this will display a subtle banner users can tap to engage with.
+    return const SizedBox.shrink();
   }
 
   Widget _buildEntryCard(FeedEntry entry) {
@@ -480,8 +664,13 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
           entry: entry,
           onTap: () => _onEntryTap(entry),
         );
-      case FeedEntryType.writtenEntry:
-        return WrittenEntryCard(
+      case FeedEntryType.reflection:
+        return ReflectionCard(
+          entry: entry,
+          onTap: () => _onEntryTap(entry),
+        );
+      case FeedEntryType.lumaraInitiative:
+        return LumaraPromptCard(
           entry: entry,
           onTap: () => _onEntryTap(entry),
         );
@@ -501,11 +690,8 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
               height: 64,
               fit: BoxFit.contain,
               errorBuilder: (context, error, stackTrace) {
-                return const Icon(
-                  Icons.psychology,
-                  size: 64,
-                  color: kcPrimaryColor,
-                );
+                return const Icon(Icons.psychology, size: 64,
+                    color: kcPrimaryColor);
               },
             ),
             const SizedBox(height: 24),
@@ -519,7 +705,7 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
             ),
             const SizedBox(height: 8),
             Text(
-              'Start a conversation, write a journal entry,\nor record a voice memo.',
+              'Chat with LUMARA, reflect on your journey,\nor capture your thoughts by voice.',
               style: TextStyle(
                 color: kcSecondaryTextColor.withOpacity(0.7),
                 fontSize: 14,
@@ -534,23 +720,19 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
                 _buildEmptyStateAction(
                   icon: Icons.chat_bubble_outline,
                   label: 'Chat',
-                  onTap: () {
-                    // Focus the input bar
-                  },
+                  onTap: _focusInputBar,
                 ),
                 const SizedBox(width: 16),
                 _buildEmptyStateAction(
                   icon: Icons.edit_note,
-                  label: 'Write',
+                  label: 'Reflect',
                   onTap: _onNewEntryTap,
                 ),
                 const SizedBox(width: 16),
                 _buildEmptyStateAction(
                   icon: Icons.mic,
                   label: 'Voice',
-                  onTap: () {
-                    // TODO: Voice recording
-                  },
+                  onTap: _startVoiceMemo,
                 ),
               ],
             ),
@@ -572,9 +754,7 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
         decoration: BoxDecoration(
           color: kcSurfaceAltColor,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: kcBorderColor.withOpacity(0.3),
-          ),
+          border: Border.all(color: kcBorderColor.withOpacity(0.3)),
         ),
         child: Column(
           children: [
@@ -599,6 +779,7 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
     WidgetsBinding.instance.removeObserver(this);
     _feedSubscription?.cancel();
     _scrollController.dispose();
+    _inputFocusNode.dispose();
     _conversationManager.dispose();
     _autoSaveService.dispose();
     _feedRepo.dispose();

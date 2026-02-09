@@ -2,9 +2,9 @@
 ///
 /// Represents a single item in the unified LUMARA feed.
 /// Can represent: active conversations, saved conversations,
-/// voice memos, or written journal entries.
+/// voice memos, written journal entries, or LUMARA-initiated prompts.
 
-import 'package:equatable/equatable.dart';
+import 'package:flutter/material.dart';
 import 'entry_state.dart';
 
 /// The type of feed entry
@@ -18,8 +18,26 @@ enum FeedEntryType {
   /// Voice memo (quick voice capture)
   voiceMemo,
 
-  /// Written journal entry (text-based)
-  writtenEntry,
+  /// Reflection / thoughtful text capture
+  reflection,
+
+  /// LUMARA-initiated observation, prompt, or check-in
+  lumaraInitiative,
+}
+
+/// A single message within a conversation-type feed entry.
+class FeedMessage {
+  final String id;
+  final String role; // 'user' or 'assistant'
+  final String content;
+  final DateTime timestamp;
+
+  const FeedMessage({
+    required this.id,
+    required this.role,
+    required this.content,
+    required this.timestamp,
+  });
 }
 
 /// Unified feed entry that wraps all entry types into a single model.
@@ -27,42 +45,73 @@ enum FeedEntryType {
 /// This is a view-layer model that aggregates data from multiple sources
 /// (JournalRepository, ChatRepo, VoiceNoteRepository) into a consistent
 /// shape for display in the unified feed.
-class FeedEntry extends Equatable {
+class FeedEntry {
   /// Unique identifier (maps to source ID: journal entry ID, chat session ID, etc.)
   final String id;
 
   /// The type of this feed entry
   final FeedEntryType type;
 
-  /// Display title (auto-generated or user-provided)
-  final String title;
+  /// Primary timestamp (creation or last activity)
+  final DateTime timestamp;
 
-  /// Preview text shown in the feed card
-  final String preview;
-
-  /// When this entry was created
-  final DateTime createdAt;
-
-  /// When this entry was last updated
-  final DateTime updatedAt;
-
-  /// Current state of this entry (draft, saving, saved, error)
+  /// Current lifecycle state
   final EntryState state;
 
-  /// Number of messages in conversation (for conversation types)
-  final int messageCount;
+  /// Display title (auto-generated or user-provided)
+  final String? title;
 
-  /// Duration of voice memo in seconds (for voice memo type)
-  final Duration? audioDuration;
+  /// Content preview or body (type-dependent)
+  final dynamic content;
 
-  /// Tags associated with this entry
-  final List<String> tags;
+  /// Theme tags extracted by LUMARA analysis (shown on expanded view)
+  final List<String> themes;
+
+  /// Number of user-assistant exchanges (for conversation types)
+  final int? exchangeCount;
+
+  /// Duration of voice memo or conversation
+  final Duration? duration;
+
+  // --- Phase information (from ATLAS) ---
+
+  /// Phase label (e.g., "Expansion", "Transition")
+  final String? phase;
+
+  /// Phase accent color for card border
+  final Color? phaseColor;
+
+  // --- Conversation data ---
+
+  /// Messages in this conversation (for active/saved conversations)
+  final List<FeedMessage>? messages;
+
+  /// Whether this is an active (ongoing) conversation
+  final bool isActive;
+
+  // --- Voice memo data ---
+
+  /// Path to audio file
+  final String? audioPath;
+
+  /// Path to transcript file
+  final String? transcriptPath;
+
+  // --- Source IDs for linking back to original repositories ---
+
+  /// Source chat session ID (for conversation types)
+  final String? chatSessionId;
+
+  /// Source journal entry ID (for saved entries)
+  final String? journalEntryId;
+
+  /// Source voice note ID (for voice memos)
+  final String? voiceNoteId;
+
+  // --- Display metadata ---
 
   /// Mood/emotion label if available
   final String? mood;
-
-  /// Phase label at time of entry (e.g., 'discovery', 'expansion')
-  final String? phase;
 
   /// Whether this entry is pinned/favorited
   final bool isPinned;
@@ -76,61 +125,51 @@ class FeedEntry extends Equatable {
   /// Number of media attachments
   final int mediaCount;
 
-  /// Source chat session ID (for conversation types, links back to ChatRepo)
-  final String? chatSessionId;
-
-  /// Source journal entry ID (for saved entries, links to JournalRepository)
-  final String? journalEntryId;
-
-  /// Source voice note ID (for voice memos)
-  final String? voiceNoteId;
+  /// Tags from the original entry
+  final List<String> tags;
 
   /// Additional metadata
-  final Map<String, dynamic>? metadata;
+  final Map<String, dynamic> metadata;
 
-  const FeedEntry({
+  FeedEntry({
     required this.id,
     required this.type,
-    required this.title,
-    required this.preview,
-    required this.createdAt,
-    required this.updatedAt,
-    this.state = const EntryState.saved(),
-    this.messageCount = 0,
-    this.audioDuration,
-    this.tags = const [],
-    this.mood,
+    required this.timestamp,
+    required this.state,
+    this.title,
+    this.content,
+    this.themes = const [],
+    this.exchangeCount,
+    this.duration,
     this.phase,
+    this.phaseColor,
+    this.messages,
+    this.isActive = false,
+    this.audioPath,
+    this.transcriptPath,
+    this.chatSessionId,
+    this.journalEntryId,
+    this.voiceNoteId,
+    this.mood,
     this.isPinned = false,
     this.hasLumaraReflections = false,
     this.hasMedia = false,
     this.mediaCount = 0,
-    this.chatSessionId,
-    this.journalEntryId,
-    this.voiceNoteId,
-    this.metadata,
+    this.tags = const [],
+    this.metadata = const {},
   });
-
-  /// Whether this entry represents an ongoing (unsaved) conversation
-  bool get isActive => type == FeedEntryType.activeConversation;
-
-  /// Whether this entry has been persisted to journal storage
-  bool get isSaved =>
-      type == FeedEntryType.savedConversation ||
-      type == FeedEntryType.writtenEntry ||
-      type == FeedEntryType.voiceMemo;
 
   /// Human-readable age string (e.g., "2h ago", "Yesterday", "3 days ago")
   String get ageLabel {
     final now = DateTime.now();
-    final diff = now.difference(updatedAt);
+    final diff = now.difference(timestamp);
     if (diff.inMinutes < 1) return 'Just now';
     if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
     if (diff.inHours < 24) return '${diff.inHours}h ago';
     if (diff.inDays == 1) return 'Yesterday';
     if (diff.inDays < 7) return '${diff.inDays} days ago';
     if (diff.inDays < 30) return '${(diff.inDays / 7).floor()} weeks ago';
-    return '${updatedAt.month}/${updatedAt.day}/${updatedAt.year}';
+    return '${timestamp.month}/${timestamp.day}/${timestamp.year}';
   }
 
   /// Short type label for display
@@ -142,77 +181,79 @@ class FeedEntry extends Equatable {
         return 'Conversation';
       case FeedEntryType.voiceMemo:
         return 'Voice';
-      case FeedEntryType.writtenEntry:
-        return 'Entry';
+      case FeedEntryType.reflection:
+        return 'Reflection';
+      case FeedEntryType.lumaraInitiative:
+        return 'LUMARA';
     }
+  }
+
+  /// Preview text (first line of content or first message)
+  String get preview {
+    if (content is String && (content as String).isNotEmpty) {
+      final text = content as String;
+      return text.length > 200 ? '${text.substring(0, 197)}...' : text;
+    }
+    if (messages != null && messages!.isNotEmpty) {
+      final first = messages!.first.content;
+      return first.length > 200 ? '${first.substring(0, 197)}...' : first;
+    }
+    return '';
   }
 
   FeedEntry copyWith({
     String? id,
     FeedEntryType? type,
-    String? title,
-    String? preview,
-    DateTime? createdAt,
-    DateTime? updatedAt,
+    DateTime? timestamp,
     EntryState? state,
-    int? messageCount,
-    Duration? audioDuration,
-    List<String>? tags,
-    String? mood,
+    String? title,
+    dynamic content,
+    List<String>? themes,
+    int? exchangeCount,
+    Duration? duration,
     String? phase,
+    Color? phaseColor,
+    List<FeedMessage>? messages,
+    bool? isActive,
+    String? audioPath,
+    String? transcriptPath,
+    String? chatSessionId,
+    String? journalEntryId,
+    String? voiceNoteId,
+    String? mood,
     bool? isPinned,
     bool? hasLumaraReflections,
     bool? hasMedia,
     int? mediaCount,
-    String? chatSessionId,
-    String? journalEntryId,
-    String? voiceNoteId,
+    List<String>? tags,
     Map<String, dynamic>? metadata,
   }) {
     return FeedEntry(
       id: id ?? this.id,
       type: type ?? this.type,
-      title: title ?? this.title,
-      preview: preview ?? this.preview,
-      createdAt: createdAt ?? this.createdAt,
-      updatedAt: updatedAt ?? this.updatedAt,
+      timestamp: timestamp ?? this.timestamp,
       state: state ?? this.state,
-      messageCount: messageCount ?? this.messageCount,
-      audioDuration: audioDuration ?? this.audioDuration,
-      tags: tags ?? this.tags,
-      mood: mood ?? this.mood,
+      title: title ?? this.title,
+      content: content ?? this.content,
+      themes: themes ?? this.themes,
+      exchangeCount: exchangeCount ?? this.exchangeCount,
+      duration: duration ?? this.duration,
       phase: phase ?? this.phase,
+      phaseColor: phaseColor ?? this.phaseColor,
+      messages: messages ?? this.messages,
+      isActive: isActive ?? this.isActive,
+      audioPath: audioPath ?? this.audioPath,
+      transcriptPath: transcriptPath ?? this.transcriptPath,
+      chatSessionId: chatSessionId ?? this.chatSessionId,
+      journalEntryId: journalEntryId ?? this.journalEntryId,
+      voiceNoteId: voiceNoteId ?? this.voiceNoteId,
+      mood: mood ?? this.mood,
       isPinned: isPinned ?? this.isPinned,
       hasLumaraReflections: hasLumaraReflections ?? this.hasLumaraReflections,
       hasMedia: hasMedia ?? this.hasMedia,
       mediaCount: mediaCount ?? this.mediaCount,
-      chatSessionId: chatSessionId ?? this.chatSessionId,
-      journalEntryId: journalEntryId ?? this.journalEntryId,
-      voiceNoteId: voiceNoteId ?? this.voiceNoteId,
+      tags: tags ?? this.tags,
       metadata: metadata ?? this.metadata,
     );
   }
-
-  @override
-  List<Object?> get props => [
-        id,
-        type,
-        title,
-        preview,
-        createdAt,
-        updatedAt,
-        state,
-        messageCount,
-        audioDuration,
-        tags,
-        mood,
-        phase,
-        isPinned,
-        hasLumaraReflections,
-        hasMedia,
-        mediaCount,
-        chatSessionId,
-        journalEntryId,
-        voiceNoteId,
-      ];
 }

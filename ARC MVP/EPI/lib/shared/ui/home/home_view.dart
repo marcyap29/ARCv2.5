@@ -39,6 +39,7 @@ import 'package:my_app/arc/core/journal_repository.dart';
 import 'package:my_app/services/google_drive_service.dart';
 import 'package:my_app/core/feature_flags.dart' as core_flags;
 import 'package:my_app/arc/unified_feed/widgets/unified_feed_screen.dart';
+import 'package:my_app/core/models/entry_mode.dart';
 
 // Debug flag for showing RIVET engineering labels
 const bool kShowRivetDebugLabels = false;
@@ -47,8 +48,10 @@ class HomeView extends StatefulWidget {
   final int initialTab;
   /// If set, after first frame open this entry in JournalScreen (e.g. from onboarding "Read Your Entry")
   final String? entryIdToOpen;
+  /// Optional initial entry mode for the unified feed (from welcome screen)
+  final EntryMode? initialMode;
 
-  const HomeView({super.key, this.initialTab = 0, this.entryIdToOpen}); // Default to Phase tab (index 0)
+  const HomeView({super.key, this.initialTab = 0, this.entryIdToOpen, this.initialMode});
 
   @override
   State<HomeView> createState() => _HomeViewState();
@@ -61,12 +64,12 @@ class _HomeViewState extends State<HomeView> {
   // Shake to report bug
   StreamSubscription? _shakeSubscription;
   
-  // Navigation tabs: unified feed mode or legacy 3-tab mode
+  // Navigation tabs: unified feed mode has just LUMARA; legacy has 3 tabs
   List<TabItem> get _tabs {
     if (core_flags.FeatureFlags.USE_UNIFIED_FEED) {
+      // Single LUMARA tab only - Phase is accessible via Timeline button inside the feed
       return const [
         TabItem(icon: Icons.auto_awesome, text: 'LUMARA'),
-        TabItem(icon: Icons.insights, text: 'Phase'),
       ];
     }
     return const [
@@ -78,7 +81,7 @@ class _HomeViewState extends State<HomeView> {
 
   List<String> get _tabNames {
     if (core_flags.FeatureFlags.USE_UNIFIED_FEED) {
-      return const ['LUMARA', 'Phase'];
+      return const ['LUMARA'];
     }
     return const ['LUMARA', 'Phase', 'Conversations'];
   }
@@ -339,14 +342,11 @@ class _HomeViewState extends State<HomeView> {
   /// Legacy mode:       LUMARA (0) | Phase (1) | Journal (2)
   Widget _getPageForIndex(int index, BuildContext context) {
     if (core_flags.FeatureFlags.USE_UNIFIED_FEED) {
-      switch (index) {
-        case 0:
-          return const UnifiedFeedScreen();
-        case 1:
-          return const UnifiedInsightsView();
-        default:
-          return const UnifiedFeedScreen();
-      }
+      // Single tab: always LUMARA unified feed
+      return UnifiedFeedScreen(
+        onVoiceTap: () => _openVoiceJournal(context),
+        initialMode: widget.initialMode,
+      );
     }
 
     // Legacy 3-tab mode

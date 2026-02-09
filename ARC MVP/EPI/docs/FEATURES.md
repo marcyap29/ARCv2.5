@@ -1,7 +1,7 @@
 # EPI MVP - Comprehensive Features Guide
 
-**Version:** 3.3.17
-**Last Updated:** February 8, 2026
+**Version:** 3.3.18
+**Last Updated:** February 9, 2026
 
 ---
 
@@ -114,24 +114,32 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
   - Smooth 300ms animation with easeOut curve
 - **Available In**: LUMARA Chat, Journal Timeline, Journal Entry Editor
 
-### Unified Feed (v3.3.17, feature-flagged)
+### Unified Feed (v3.3.18, feature-flagged)
 
-**Status:** Phase 1 — core models and feed display. Behind `USE_UNIFIED_FEED` feature flag (default off).
+**Status:** Phase 1.5 — models, pagination, expanded views, timeline navigation. Behind `USE_UNIFIED_FEED` feature flag (default off).
 
-**Concept:** Merges the separate LUMARA chat and Conversations (journal timeline) tabs into a single scrollable feed. When enabled, the home screen switches from 3 tabs (LUMARA / Phase / Conversations) to 2 tabs (LUMARA / Phase), where the LUMARA tab is the unified feed.
+**Concept:** Merges the separate LUMARA chat and Conversations (journal timeline) tabs into a single scrollable feed. When enabled, the home screen switches from 3 tabs to a single LUMARA tab with the unified feed. Phase is accessible via the Timeline button inside the feed.
 
 **Feed Display**
 - Contextual greeting header with LUMARA sigil (time-of-day and recency-based)
-- Entries grouped by date (Today, Yesterday, This Week, Earlier)
-- Pull-to-refresh to reload feed
+- LUMARA observation banner (proactive check-ins from CHRONICLE/SENTINEL)
+- Entries grouped by date (Today, Yesterday, This Week, Earlier) with date dividers
+- Pull-to-refresh and infinite scroll (loads 20 entries at a time)
+- Timeline modal (calendar icon) for date-based navigation; jump to any date
 - Empty state with Chat / Write / Voice quick-start actions
-- Settings access from feed header
+- App bar: Timeline, Voice memo, Settings actions
 
 **Feed Entry Types**
-- **Active Conversation**: Ongoing LUMARA chat (not yet saved), shown with live message count
-- **Saved Conversation**: Auto-saved or manually saved conversations persisted as journal entries
-- **Voice Memo**: Quick voice captures
-- **Written Entry**: Traditional text journal entries
+- **Active Conversation**: Ongoing LUMARA chat (not yet saved), pulsing phase-colored border
+- **Saved Conversation**: Auto-saved or manually saved conversations with exchange count
+- **Reflection**: Text-based journal reflections with content preview and mood indicator
+- **Voice Memo**: Quick voice captures with duration and transcript snippet
+- **LUMARA Initiative**: Proactive LUMARA observations, check-ins, and prompts
+
+**Visual Design**
+- All cards use BaseFeedCard with phase-colored left border
+- Phase colors flow from ATLAS detection through to visual indicators
+- Expanded entry view: full-screen detail with phase, themes, CHRONICLE context, LUMARA notes
 
 **Conversation Management**
 - Auto-save after 5 minutes of inactivity (configurable)
@@ -142,7 +150,8 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 **Input Bar**
 - Bottom text input for starting or continuing conversations
 - New journal entry (+) button
-- Voice and attachment buttons (Phase 2)
+- Voice and attachment buttons
+- Initial mode support (chat/reflect/voice from welcome screen or deep link)
 
 ---
 
@@ -967,6 +976,6 @@ All core features are production-ready and fully operational:
 ---
 
 **Features Guide Status:** ✅ Complete
-**Last Updated:** February 8, 2026
-**Version:** 3.3.17
+**Last Updated:** February 9, 2026
+**Version:** 3.3.18
 

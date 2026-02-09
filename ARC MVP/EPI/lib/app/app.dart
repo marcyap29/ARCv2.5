@@ -15,6 +15,7 @@ import 'package:my_app/ui/auth/sign_in_screen.dart';
 
 // Global repo + cubit
 import 'package:my_app/arc/core/journal_repository.dart';
+import 'package:my_app/core/models/entry_mode.dart';
 import 'package:my_app/arc/chat/data/context_scope.dart' as arc_scope;
 import 'package:my_app/arc/chat/data/context_provider.dart' as arc_context;
 import 'package:my_app/arc/chat/bloc/lumara_assistant_cubit.dart' as arc_cubit;
@@ -184,9 +185,26 @@ class _AppState extends State<App> {
           ),
           themeMode: ThemeMode.dark,
           home: const LumaraSplashScreen(),
-          routes: {
-            '/home': (context) => HomeView(),
-            '/sign-in': (context) => const SignInScreen(),
+          onGenerateRoute: (settings) {
+            switch (settings.name) {
+              case '/home':
+                final args = settings.arguments;
+                final EntryMode? mode = args is EntryMode ? args : null;
+                return MaterialPageRoute(
+                  builder: (context) => HomeView(initialMode: mode),
+                  settings: settings,
+                );
+              case '/sign-in':
+                return MaterialPageRoute(
+                  builder: (context) => const SignInScreen(),
+                  settings: settings,
+                );
+              default:
+                return MaterialPageRoute(
+                  builder: (context) => HomeView(),
+                  settings: settings,
+                );
+            }
           },
         ),
       ),

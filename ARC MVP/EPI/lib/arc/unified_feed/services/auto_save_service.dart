@@ -9,7 +9,7 @@
 /// and provides a clean API for the UI layer.
 
 import 'dart:async';
-import 'dart:ui' show AppLifecycleState;
+import 'package:flutter/widgets.dart' show AppLifecycleState;
 import 'package:flutter/foundation.dart';
 import 'package:my_app/arc/unified_feed/services/conversation_manager.dart';
 

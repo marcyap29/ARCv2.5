@@ -20,8 +20,10 @@ class FeedHelpers {
         return Icons.chat_bubble_outline;
       case FeedEntryType.voiceMemo:
         return Icons.mic;
-      case FeedEntryType.writtenEntry:
+      case FeedEntryType.reflection:
         return Icons.edit_note;
+      case FeedEntryType.lumaraInitiative:
+        return Icons.auto_awesome;
     }
   }
 
@@ -34,8 +36,10 @@ class FeedHelpers {
         return const Color(0xFF7C3AED); // Purple
       case FeedEntryType.voiceMemo:
         return const Color(0xFF059669); // Emerald
-      case FeedEntryType.writtenEntry:
+      case FeedEntryType.reflection:
         return const Color(0xFF2563EB); // Blue
+      case FeedEntryType.lumaraInitiative:
+        return const Color(0xFF9B59B6); // Purple/violet
     }
   }
 
@@ -95,12 +99,13 @@ class FeedHelpers {
   }
 
   /// Group feed entries by date for section headers.
+  /// Uses [timestamp] field from the new FeedEntry model.
   static Map<String, List<FeedEntry>> groupByDate(List<FeedEntry> entries) {
     final grouped = <String, List<FeedEntry>>{};
     final now = DateTime.now();
 
     for (final entry in entries) {
-      final key = _dateGroupKey(entry.updatedAt, now);
+      final key = _dateGroupKey(entry.timestamp, now);
       grouped.putIfAbsent(key, () => []);
       grouped[key]!.add(entry);
     }
@@ -145,6 +150,55 @@ class FeedHelpers {
     }
 
     return '${date.year}';
+  }
+
+  /// Build a date divider widget for the feed.
+  static Widget buildDateDivider(String label, {int entryCount = 0}) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+      child: Row(
+        children: [
+          Expanded(
+            child: Container(
+              height: 1,
+              color: const Color(0xFF2D3748).withOpacity(0.4),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Row(
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(
+                    color: const Color(0xFFA0AEC0).withOpacity(0.6),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+                if (entryCount > 0) ...[
+                  const SizedBox(width: 6),
+                  Text(
+                    '($entryCount)',
+                    style: TextStyle(
+                      color: const Color(0xFFA0AEC0).withOpacity(0.4),
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          Expanded(
+            child: Container(
+              height: 1,
+              color: const Color(0xFF2D3748).withOpacity(0.4),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   /// Detect if content appears to be a conversation vs. a written entry.

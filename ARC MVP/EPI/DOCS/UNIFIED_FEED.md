@@ -1,8 +1,8 @@
 # Unified Feed: LUMARA + Conversations Merge
 
-**Version:** 1.0 (Phase 1)  
-**Last Updated:** February 8, 2026  
-**Status:** Phase 1 complete. Behind feature flag (`USE_UNIFIED_FEED`, default off).  
+**Version:** 1.5 (Phase 1.5)  
+**Last Updated:** February 9, 2026  
+**Status:** Phase 1.5 complete. Behind feature flag (`USE_UNIFIED_FEED`, default off).  
 **Location:** `lib/arc/unified_feed/`
 
 ---
@@ -27,11 +27,11 @@ Users had to mentally separate "talking to LUMARA" from "writing in my journal."
 
 | Aspect | Legacy (3-tab) | Unified (2-tab) |
 |--------|----------------|-----------------|
-| Tab bar | LUMARA / Phase / Conversations | LUMARA / Phase |
+| Tab bar | LUMARA / Phase / Conversations | LUMARA (single tab) |
 | LUMARA tab | Full-screen chat | Scrollable feed with greeting, entries, input bar |
 | Conversations tab | Journal timeline | Removed (entries appear in feed) |
 | New journal entry | Tab bar "+" button | Tab bar "+" button (unchanged) |
-| Phase tab | Phase constellation | Phase constellation (unchanged) |
+| Phase tab | Phase constellation | Removed from tab bar; accessible via Timeline button in feed |
 
 ---
 
@@ -58,10 +58,10 @@ The flag is checked in:
 ```
 lib/arc/unified_feed/
 ├── models/
-│   ├── feed_entry.dart         # FeedEntry model (4 entry types)
-│   └── entry_state.dart        # EntryState lifecycle (draft → saving → saved → error)
+│   ├── feed_entry.dart         # FeedEntry model (5 entry types), FeedMessage
+│   └── entry_state.dart        # EntryState lifecycle
 ├── repositories/
-│   └── feed_repository.dart    # Aggregates journal, chat, voice data into unified stream
+│   └── feed_repository.dart    # Aggregates journal, chat, voice data; pagination; phase colors
 ├── services/
 │   ├── conversation_manager.dart   # Active conversation lifecycle + auto-save
 │   ├── auto_save_service.dart      # App lifecycle-aware save triggers
@@ -69,13 +69,23 @@ lib/arc/unified_feed/
 ├── utils/
 │   └── feed_helpers.dart       # Date grouping, icons, colors, text utilities
 └── widgets/
-    ├── unified_feed_screen.dart    # Main feed screen
+    ├── unified_feed_screen.dart    # Main feed screen (pagination, date nav, initial mode)
+    ├── expanded_entry_view.dart    # Full-screen entry detail view
     ├── input_bar.dart              # Bottom input bar
-    └── feed_entry_cards/
-        ├── active_conversation_card.dart
-        ├── saved_conversation_card.dart
-        ├── voice_memo_card.dart
-        └── written_entry_card.dart
+    ├── feed_entry_cards/
+    │   ├── base_feed_card.dart         # Shared card wrapper with phase-colored left border
+    │   ├── active_conversation_card.dart
+    │   ├── saved_conversation_card.dart
+    │   ├── reflection_card.dart        # Text-based reflections (replaces written_entry_card)
+    │   ├── lumara_prompt_card.dart      # LUMARA-initiated observations/prompts
+    │   └── voice_memo_card.dart
+    └── timeline/
+        ├── timeline_modal.dart     # Bottom sheet for date navigation
+        └── timeline_view.dart      # Calendar/timeline view
+
+Supporting files (outside unified_feed/):
+lib/core/constants/phase_colors.dart    # Phase color constants
+lib/core/models/entry_mode.dart         # EntryMode enum (chat, reflect, voice)
 ```
 
 ### Data Flow
@@ -113,9 +123,9 @@ lib/arc/unified_feed/
 
 ### Key Design Decisions
 
-1. **FeedRepository is read-through.** It queries existing repositories (JournalRepository, ChatRepoImpl) and merges results. All writes go through the original repositories. This avoids data duplication and keeps the existing persistence layer untouched.
+1. **FeedRepository is read-through with pagination.** It queries existing repositories (JournalRepository, ChatRepoImpl) and merges results. Supports `getFeed(before, after, limit, types)` for pagination and filtering. All writes go through the original repositories. Journal and chat repos initialize independently so one failing doesn't block the feed.
 
-2. **FeedEntry is a view model.** It does not inherit from JournalEntry or ChatSession. It's a lightweight, presentation-layer object that wraps data from any source into a consistent shape.
+2. **FeedEntry is a view model.** It does not inherit from JournalEntry or ChatSession. It's a lightweight, presentation-layer object that wraps data from any source into a consistent shape. Phase colors and themes are extracted at the repository level.
 
 3. **ConversationManager handles lifecycle, not the screen.** The screen just calls `addUserMessage(text)` and the manager handles everything: creating the conversation, tracking messages, resetting inactivity timers, and persisting to journal storage when auto-save fires.
 
@@ -123,6 +133,8 @@ lib/arc/unified_feed/
    - 5 minutes pass with no new messages (inactivity timeout, configurable)
    - The app goes to background/pauses
    - The user explicitly taps "Save"
+
+5. **Phase colors thread through everything.** `PhaseColors.getPhaseColor()` maps phase labels to colors. The color flows from repository → FeedEntry → BaseFeedCard left border, giving every entry a visual phase indicator.
 
 ---
 
@@ -135,44 +147,53 @@ The core view model. Represents any item in the feed.
 | Field | Type | Description |
 |-------|------|-------------|
 | `id` | `String` | Unique ID (prefixed: `journal_`, `chat_`, `active_`) |
-| `type` | `FeedEntryType` | One of 4 types (see below) |
-| `title` | `String` | Display title |
-| `preview` | `String` | Truncated content preview (max 200 chars) |
-| `createdAt` | `DateTime` | When created |
-| `updatedAt` | `DateTime` | When last modified |
-| `state` | `EntryState` | Lifecycle state (draft, saving, saved, error) |
-| `messageCount` | `int` | Number of messages (conversations) |
-| `audioDuration` | `Duration?` | Voice memo length |
-| `tags` | `List<String>` | Tags |
+| `type` | `FeedEntryType` | One of 5 types (see below) |
+| `timestamp` | `DateTime` | Primary timestamp (creation or last activity) |
+| `state` | `EntryState` | Lifecycle state (active, saving, saved, error) |
+| `title` | `String?` | Display title (optional) |
+| `content` | `dynamic` | Content body (string or structured data) |
+| `themes` | `List<String>` | Theme tags from LUMARA analysis |
+| `exchangeCount` | `int?` | Number of user-assistant exchanges (conversations) |
+| `duration` | `Duration?` | Voice memo or conversation duration |
+| `phase` | `String?` | Life phase label (e.g., "Expansion") |
+| `phaseColor` | `Color?` | Phase accent color for card left border |
+| `messages` | `List<FeedMessage>?` | Conversation messages (for conversation types) |
+| `isActive` | `bool` | Whether this is an ongoing conversation |
+| `audioPath` | `String?` | Path to audio file (voice memos) |
+| `transcriptPath` | `String?` | Path to transcript file |
+| `chatSessionId` | `String?` | Source chat session ID |
+| `journalEntryId` | `String?` | Source journal entry ID |
+| `voiceNoteId` | `String?` | Source voice note ID |
 | `mood` | `String?` | Emotion label |
-| `phase` | `String?` | Life phase at time of entry |
 | `isPinned` | `bool` | Pinned/favorited |
 | `hasLumaraReflections` | `bool` | Has LUMARA inline blocks |
 | `hasMedia` | `bool` | Has media attachments |
 | `mediaCount` | `int` | Number of media attachments |
-| `chatSessionId` | `String?` | Source chat session ID |
-| `journalEntryId` | `String?` | Source journal entry ID |
-| `voiceNoteId` | `String?` | Source voice note ID |
+| `tags` | `List<String>` | Tags from original entry |
+| `metadata` | `Map<String, dynamic>` | Additional metadata |
+
+`preview` is a computed getter (first 200 chars of content or first message).
 
 ### FeedEntryType
 
 | Type | Source | Visual | Description |
 |------|--------|--------|-------------|
-| `activeConversation` | ConversationManager | Indigo accent, pulsing border | Ongoing chat, not yet saved |
-| `savedConversation` | JournalRepository (has LUMARA blocks) | Purple accent | Chat saved as journal entry |
-| `voiceMemo` | JournalRepository (has audioUri) | Emerald accent | Voice recording |
-| `writtenEntry` | JournalRepository (text only) | Blue accent | Traditional journal entry |
+| `activeConversation` | ConversationManager | Phase-colored left border, pulsing | Ongoing chat, not yet saved |
+| `savedConversation` | JournalRepository (has LUMARA blocks) or ChatRepo | Phase-colored left border | Chat saved as journal entry |
+| `voiceMemo` | JournalRepository (has audioUri) | Phase-colored left border | Voice recording |
+| `reflection` | JournalRepository (text only) | Phase-colored left border | Text-based journal reflection (was `writtenEntry`) |
+| `lumaraInitiative` | LUMARA/CHRONICLE/SENTINEL | Phase-colored left border, LUMARA sigil | LUMARA-initiated observation, check-in, or prompt |
 
 ### EntryState
 
-Tracks the lifecycle of a feed entry:
+Tracks the lifecycle of a feed entry (simplified enum-based):
 
 | State | Meaning |
 |-------|---------|
-| `draft` | Being composed, not yet saved |
+| `active` | Ongoing conversation or draft |
 | `saving` | Currently being persisted |
 | `saved` | Successfully persisted to storage |
-| `error` | Save failed (includes error message and retry count) |
+| `error` | Save failed |
 
 ---
 
@@ -236,18 +257,22 @@ Sub-greeting examples: "You have an active conversation", "3 entries today", "La
 The main screen. Replaces both `LumaraAssistantScreen` (chat) and `UnifiedJournalView` (timeline).
 
 **Layout (top to bottom):**
-1. **Greeting header** — LUMARA sigil + contextual greeting + sub-greeting
-2. **Header actions** — Settings icon
-3. **Date-grouped entry cards** — Today, Yesterday, This Week, This Month, etc.
-4. **Input bar** — Fixed at bottom
+1. **App bar** — Timeline (calendar icon), Voice memo, Settings actions
+2. **Greeting header** — LUMARA sigil + contextual greeting + sub-greeting
+3. **LUMARA observation banner** — If LUMARA has a proactive observation
+4. **Date-grouped entry cards** — Today, Yesterday, This Week, This Month, etc. with date dividers
+5. **Input bar** — Fixed at bottom
 
 **Interactions:**
 - Pull-to-refresh to reload feed
-- Tap entry card → open journal entry or chat session
+- Infinite scroll: loads 20 entries at a time, loads more when near bottom
+- Tap entry card → opens **ExpandedEntryView** (full-screen detail with phase, themes, CHRONICLE context)
 - Tap "Save" on active conversation card → persist as journal entry
 - Submit text in input bar → add user message to active conversation
 - Tap "+" in input bar → open new journal entry screen
+- Timeline button → opens **TimelineModal** for date-based navigation; jump to any date
 - Empty state with Chat / Write / Voice quick-start actions
+- `initialMode` parameter: activates chat (focus input), reflect (open journal), or voice (launch voice mode) on first frame
 
 ### FeedInputBar
 
@@ -262,20 +287,21 @@ Bottom input bar replacing the separate input areas from old chat and journal sc
 
 ### Entry Cards
 
-Four card types with consistent layout (type icon + title + timestamp + preview) but distinct visual treatments:
+All cards extend **BaseFeedCard**, which provides a consistent wrapper with a phase-colored left border indicator and tap/long-press handling.
 
-| Card | Border | Accent | Extra UI |
-|------|--------|--------|----------|
-| ActiveConversationCard | Primary color border + shadow | Indigo | "Active" badge, message count, "Save" button |
-| SavedConversationCard | Subtle border | Purple | Message count, "LUMARA" tag if has reflections |
-| VoiceMemoCard | Subtle border | Emerald | Duration display, play icon |
-| WrittenEntryCard | Subtle border | Blue | Mood indicator, media count, tags |
+| Card | Left Border | Extra UI |
+|------|-------------|----------|
+| ActiveConversationCard | Phase color, pulsing | "Active" badge, exchange count, "Save" button |
+| SavedConversationCard | Phase color | Exchange count, "LUMARA" tag if has reflections |
+| ReflectionCard | Phase color | Content preview, mood, media count, themes on expand |
+| LumaraPromptCard | Phase color + LUMARA sigil | Observation text, respond/dismiss actions |
+| VoiceMemoCard | Phase color | Duration display, play icon, transcript snippet |
 
 ---
 
 ## Phases
 
-### Phase 1 (current) — Core models and feed display
+### Phase 1 (v3.3.17) — Core models and feed display
 
 - FeedEntry model and EntryState
 - FeedRepository aggregation
@@ -283,6 +309,20 @@ Four card types with consistent layout (type icon + title + timestamp + preview)
 - UnifiedFeedScreen with greeting, cards, input bar
 - Feature flag and home view routing
 - Dynamic tab bar
+
+### Phase 1.5 (v3.3.18, current) — Model refactor, pagination, expanded views, timeline
+
+- FeedEntry refactored: `reflection` + `lumaraInitiative` types, `FeedMessage`, phase colors, themes, computed preview
+- EntryState simplified
+- FeedRepository pagination (`getFeed`), robust error handling, phase color extraction
+- ExpandedEntryView for full-screen entry detail
+- BaseFeedCard with phase-colored left border
+- ReflectionCard and LumaraPromptCard
+- TimelineModal / TimelineView for date navigation
+- Infinite scroll and date filtering
+- EntryMode (chat/reflect/voice) from welcome screen
+- PhaseColors constants
+- Single-tab home layout (Phase moved inside feed)
 
 ### Phase 2 (planned) — LLM integration and full conversation flow
 
@@ -307,8 +347,11 @@ Four card types with consistent layout (type icon + title + timestamp + preview)
 | File | Change |
 |------|--------|
 | `lib/core/feature_flags.dart` | Added `USE_UNIFIED_FEED` flag |
+| `lib/core/constants/phase_colors.dart` | Phase color constants for card borders |
+| `lib/core/models/entry_mode.dart` | EntryMode enum (chat, reflect, voice) |
 | `lib/shared/tab_bar.dart` | Refactored from hardcoded 3 tabs to dynamic loop |
-| `lib/shared/ui/home/home_view.dart` | Conditional 2-tab/3-tab routing based on flag |
+| `lib/shared/ui/home/home_view.dart` | Single LUMARA tab in unified mode; passes onVoiceTap/initialMode |
+| `lib/app/app.dart` | `onGenerateRoute` to pass EntryMode to HomeView |
 
 ---
 

@@ -38,12 +38,12 @@ Prompt/role definitions: **Documentation & Configuration Management Role** in [c
 
 | Document | Location | Last Reviewed | Status | Notes |
 |----------|----------|---------------|--------|-------|
-| ARCHITECTURE.md | `/DOCS/ARCHITECTURE.md` | 2026-02-08 | ✅ Synced | v3.3.17 - Unified Feed Phase 1, Drive export progress UI |
-| CHANGELOG.md | `/DOCS/CHANGELOG.md` | 2026-02-08 | ✅ Synced | v3.3.17 - Last Updated Feb 8 |
+| ARCHITECTURE.md | `/DOCS/ARCHITECTURE.md` | 2026-02-09 | ✅ Synced | v3.3.18 - Unified Feed Phase 1.5 |
+| CHANGELOG.md | `/DOCS/CHANGELOG.md` | 2026-02-09 | ✅ Synced | v3.3.18 - Last Updated Feb 9 |
 | PROMPT_REFERENCES.md | `/DOCS/PROMPT_REFERENCES.md` | 2026-02-07 | ✅ Current | v1.8.0 - Document scope and sources; prompt catalog |
 | PROMPT_TRACKER.md | `/DOCS/PROMPT_TRACKER.md` | 2026-02-07 | ✅ Synced | v1.0.0 - Prompt change tracking; links to PROMPT_REFERENCES |
 | bug_tracker.md | `/DOCS/bugtracker/bug_tracker.md` | 2026-02-08 | ✅ Synced | v3.2.2 - 29 records; How to use; Recent code changes |
-| FEATURES.md | `/DOCS/FEATURES.md` | 2026-02-08 | ✅ Synced | v3.3.17 - Unified Feed Phase 1, Drive export progress UI |
+| FEATURES.md | `/DOCS/FEATURES.md` | 2026-02-09 | ✅ Synced | v3.3.18 - Unified Feed Phase 1.5 |
 | README.md | `/DOCS/README.md` | 2026-02-07 | ✅ Synced | Key docs table with purpose and when to read |
 | claude.md | `/DOCS/claude.md` | 2026-02-08 | ✅ Synced | Replaced backup-intelligence prompt with git-backup-docsync (systems engineer config mgr) |
 | backend.md | `/DOCS/backend.md` | 2026-02-07 | ✅ Synced | v3.2 - Firebase, Stripe; RevenueCat see revenuecat/ |
@@ -80,13 +80,28 @@ Prompt/role definitions: **Documentation & Configuration Management Role** in [c
 | DOCUMENTATION_CONSOLIDATION_AUDIT_2026-02.md | DOCS/ | Doc consolidation audit |
 | NARRATIVE_INTELLIGENCE.md | DOCS/ | Narrative intelligence |
 | PAYMENTS_CLARIFICATION.md | DOCS/ | Stripe vs RevenueCat; web vs in-app |
-| UNIFIED_FEED.md | DOCS/ | Unified Feed architecture, models, services, phases |
+| UNIFIED_FEED.md | DOCS/ | Unified Feed v1.5: architecture, models, pagination, expanded views, timeline |
 | revenuecat/README.md | DOCS/revenuecat/ | RevenueCat (in-app) doc index |
 | revenuecat/REVENUECAT_INTEGRATION.md | DOCS/revenuecat/ | RevenueCat integration guide |
 
 ---
 
 ## Change Tracking Log
+
+### 2026-02-09 - Document Unified Feed Phase 1.5 evolution (v3.3.18)
+
+**Action:** Documented significant evolution of Unified Feed from Phase 1 to Phase 1.5. FeedEntry model refactored (5 types, FeedMessage, phase colors, themes). FeedRepository gained pagination and robust error handling. New widgets: ExpandedEntryView, BaseFeedCard, ReflectionCard, LumaraPromptCard, TimelineModal/View. Single-tab home layout. EntryMode + PhaseColors infra.
+
+**Doc updates:**
+- **CHANGELOG.md:** New [3.3.18] entry with full Phase 1.5 details (8 files added, 13 modified, 1 deleted).
+- **UNIFIED_FEED.md:** Updated to v1.5 — directory structure, FeedEntryType table (5 types), FeedEntry fields, EntryState, card table, phases roadmap, files-modified table.
+- **ARCHITECTURE.md:** v3.3.18; key achievements and unified_feed submodule updated.
+- **FEATURES.md:** v3.3.18; Unified Feed section rewritten for Phase 1.5.
+- **CONFIGURATION_MANAGEMENT.md:** Inventory and version sync updated; this entry.
+
+**Status:** ✅ All docs updated for v3.3.18 working changes.
+
+---
 
 ### 2026-02-08 - Document Unified Feed Phase 1 and Google Drive export progress UI (v3.3.17)
 
@@ -492,8 +507,8 @@ Prompt/role definitions: **Documentation & Configuration Management Role** in [c
 | Component | Documented Version | Code Version | Status | Notes |
 |-----------|-------------------|--------------|--------|-------|
 | Application | 1.0.0+1 | 1.0.0+1 (pubspec.yaml) | ✅ Synced | - |
-| Architecture | 3.3.17 | 3.3.17 (ARCHITECTURE.md) | ✅ Synced | Updated Feb 8, 2026 |
-| Changelog | 3.3.17 | 3.3.17 (CHANGELOG.md) | ✅ Synced | Updated Feb 8, 2026 |
+| Architecture | 3.3.18 | 3.3.18 (ARCHITECTURE.md) | ✅ Synced | Updated Feb 9, 2026 |
+| Changelog | 3.3.18 | 3.3.18 (CHANGELOG.md) | ✅ Synced | Updated Feb 9, 2026 |
 | Bug Tracker | 3.2.2 | 3.2.2 (bug_tracker.md) | ✅ Synced | Matches main branch |
 | Prompt References | 1.8.0 | 1.8.0 (PROMPT_REFERENCES.md) | ✅ Synced | Last updated: Jan 31, 2026 |
 | Prompt Tracker | 1.0.0 | 1.0.0 (PROMPT_TRACKER.md) | ✅ Synced | Configuration tracking only |
@@ -574,7 +589,7 @@ Prompt/role definitions: **Documentation & Configuration Management Role** in [c
 
 ---
 
-**Last Updated:** February 8, 2026  
+**Last Updated:** February 9, 2026  
 **Next Review:** Per review schedule (weekly CHANGELOG/bugtracker; monthly full inventory)
 
 ---
