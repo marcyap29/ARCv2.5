@@ -12,6 +12,7 @@
 
 import 'dart:io';
 import 'dart:convert';
+import 'package:archive/archive.dart';
 import 'package:flutter/foundation.dart';
 import 'package:my_app/arc/internal/mira/journal_repository.dart';
 import 'package:my_app/models/journal_entry_model.dart';
@@ -113,6 +114,11 @@ class UniversalImporterService {
     File file,
     ImportProgressCallback? onProgress,
   ) async {
+    // Handle .zip archives — extract then find JSON inside
+    if (file.path.toLowerCase().endsWith('.zip')) {
+      return _importLumaraZip(file, onProgress);
+    }
+
     onProgress?.call(0.1, 'Parsing LUMARA backup...');
     try {
       final content = await file.readAsString();
@@ -133,6 +139,65 @@ class UniversalImporterService {
       debugPrint('UniversalImporter: Error parsing LUMARA backup: $e');
     }
     return [];
+  }
+
+  /// Extract a .zip LUMARA/ARCX backup and import the JSON entries inside.
+  Future<List<JournalEntry>> _importLumaraZip(
+    File zipFile,
+    ImportProgressCallback? onProgress,
+  ) async {
+    onProgress?.call(0.05, 'Extracting zip archive...');
+    try {
+      final bytes = await zipFile.readAsBytes();
+      final archive = ZipDecoder().decodeBytes(bytes);
+
+      // Look for JSON files containing entries
+      final allEntries = <JournalEntry>[];
+
+      final jsonFiles = archive.files
+          .where((f) =>
+              !f.isFile ? false :
+              f.name.toLowerCase().endsWith('.json') ||
+              f.name.toLowerCase().endsWith('.arcx'))
+          .toList();
+
+      if (jsonFiles.isEmpty) {
+        onProgress?.call(1.0, 'No JSON/ARCX files found in zip.');
+        return [];
+      }
+
+      onProgress?.call(0.15, 'Found ${jsonFiles.length} data file(s)...');
+
+      for (var i = 0; i < jsonFiles.length; i++) {
+        final archiveFile = jsonFiles[i];
+        final content = utf8.decode(archiveFile.content as List<int>);
+
+        try {
+          final json = jsonDecode(content);
+
+          if (json is Map && json.containsKey('entries')) {
+            final rawEntries = json['entries'] as List;
+            allEntries.addAll(_parseRawEntries(rawEntries));
+          } else if (json is List) {
+            allEntries.addAll(_parseRawEntries(json));
+          }
+        } catch (e) {
+          debugPrint(
+              'UniversalImporter: Error parsing ${archiveFile.name}: $e');
+        }
+
+        onProgress?.call(
+          0.15 + (0.25 * ((i + 1) / jsonFiles.length)),
+          'Parsed ${archiveFile.name}...',
+        );
+      }
+
+      onProgress?.call(0.4, 'Extracted ${allEntries.length} entries from zip.');
+      return allEntries;
+    } catch (e) {
+      debugPrint('UniversalImporter: Error extracting zip: $e');
+      rethrow;
+    }
   }
 
   Future<List<JournalEntry>> _importDayOne(

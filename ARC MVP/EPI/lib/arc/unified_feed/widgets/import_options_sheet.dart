@@ -128,9 +128,9 @@ class _ImportOptionsSheetState extends State<ImportOptionsSheet> {
                   _buildImportOption(
                     icon: Icons.backup_outlined,
                     title: 'LUMARA Backup',
-                    subtitle: 'Restore from a previous LUMARA / ARCX export',
+                    subtitle: 'Restore from a previous LUMARA / ARCX export (.json, .arcx, .zip)',
                     onTap: () => _pickAndImport(
-                      extensions: ['json', 'arcx'],
+                      extensions: ['json', 'arcx', 'zip'],
                       importType: ImportType.lumaraBackup,
                     ),
                   ),
