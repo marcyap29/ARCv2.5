@@ -5,6 +5,7 @@
 /// voice memos, written journal entries, or LUMARA-initiated prompts.
 
 import 'package:flutter/material.dart';
+import 'package:my_app/data/models/media_item.dart';
 import 'entry_state.dart';
 
 /// The type of feed entry
@@ -125,6 +126,9 @@ class FeedEntry {
   /// Number of media attachments
   final int mediaCount;
 
+  /// Media items (photos, videos, files) for display
+  final List<MediaItem> mediaItems;
+
   /// Tags from the original entry
   final List<String> tags;
 
@@ -155,6 +159,7 @@ class FeedEntry {
     this.hasLumaraReflections = false,
     this.hasMedia = false,
     this.mediaCount = 0,
+    this.mediaItems = const [],
     this.tags = const [],
     this.metadata = const {},
   });
@@ -225,6 +230,7 @@ class FeedEntry {
     bool? hasLumaraReflections,
     bool? hasMedia,
     int? mediaCount,
+    List<MediaItem>? mediaItems,
     List<String>? tags,
     Map<String, dynamic>? metadata,
   }) {
@@ -252,6 +258,7 @@ class FeedEntry {
       hasLumaraReflections: hasLumaraReflections ?? this.hasLumaraReflections,
       hasMedia: hasMedia ?? this.hasMedia,
       mediaCount: mediaCount ?? this.mediaCount,
+      mediaItems: mediaItems ?? this.mediaItems,
       tags: tags ?? this.tags,
       metadata: metadata ?? this.metadata,
     );

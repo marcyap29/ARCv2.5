@@ -14,20 +14,21 @@ class UserPhaseService {
   static const String _snapshotsBoxName = 'arcform_snapshots';
   
   /// Returns the phase to display everywhere (splash, timeline preview).
-  /// SOP: 1a RIVET (when gate open + regime), else 1b quiz result, else empty (no default).
-  /// Brand new users with no phase see no phase shape until they complete quiz or accept default.
+  /// User's explicit choice (quiz or manual "set overall phase") takes priority so it stays visible.
+  /// Then RIVET/regime if gate open; else empty (no default).
   static String getDisplayPhase({
     String? regimePhase,
     required bool rivetGateOpen,
     required String profilePhase,
   }) {
-    if (rivetGateOpen && regimePhase != null && regimePhase.trim().isNotEmpty) {
-      return regimePhase.trim();
-    }
+    // 1. User's explicit phase (quiz or manual) always takes priority so "set to Breakthrough" sticks
     if (profilePhase.trim().isNotEmpty) {
       return profilePhase.trim();
     }
-    // No default - brand new users see no phase until they complete quiz or accept default
+    // 2. RIVET/regime when gate open and no user choice
+    if (rivetGateOpen && regimePhase != null && regimePhase.trim().isNotEmpty) {
+      return regimePhase.trim();
+    }
     return '';
   }
   

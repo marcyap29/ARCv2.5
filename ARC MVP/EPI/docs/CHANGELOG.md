@@ -1,6 +1,6 @@
 # EPI ARC MVP - Changelog
 
-**Version:** 3.3.18
+**Version:** 3.3.19
 **Last Updated:** February 9, 2026
 
 ---
@@ -14,6 +14,103 @@ This changelog has been split into parts for easier navigation:
 | **[CHANGELOG_part1.md](CHANGELOG_part1.md)** | Dec 2025 | v2.1.43 - v2.1.87 (Current) |
 | **[CHANGELOG_part2.md](CHANGELOG_part2.md)** | Nov 2025 | v2.1.28 - v2.1.42 |
 | **[CHANGELOG_part3.md](CHANGELOG_part3.md)** | Jan-Oct 2025 | v2.0.0 - v2.1.27 & Earlier |
+
+---
+
+## [3.3.19] - February 9, 2026 (working changes)
+
+### Unified Feed — Phase 2.0: Entry Management, Media, LUMARA Chat Integration, Phase Priority
+
+Building on Phase 1.5 (`v3.3.18`), this update evolves the Unified Feed from read-only browsing into a full entry-management hub with deletion, media display, direct LUMARA chat, and phase-priority fixes across the application.
+
+**Entry Deletion (swipe + batch):**
+- Swipe-to-delete on any card that has a `journalEntryId` — `Dismissible` with confirmation dialog, calls `JournalRepository.deleteJournalEntry()`, refreshes feed.
+- **Batch selection mode**: "Select entries" (checklist icon) in header actions enters multi-select. Selection overlay with checkboxes on each card. "Delete (N)" button with confirmation dialog deletes all selected entries, then refreshes feed.
+- **ExpandedEntryView delete**: Options menu "Delete" is now fully wired — confirmation dialog, actual deletion via `JournalRepository`, calls `onEntryDeleted` callback, pops view, shows snackbar.
+
+**Media Support:**
+- `FeedEntry.mediaItems` (`List<MediaItem>`) added to model and populated by `FeedRepository` from journal entry media.
+- **ReflectionCard**: Shows `FeedMediaThumbnails` strip (up to 4 thumbnails) beneath content preview.
+- **ExpandedEntryView**: Full media section with grid of thumbnail tiles; resolves `ph://`, `file://`, and MCP-style URIs via `MediaResolverService`/`PhotoLibraryService`. Tapping an image opens `FullImageViewer`.
+- **New widget**: `FeedMediaThumbnailTile` and `FeedMediaThumbnails` (`widgets/feed_media_thumbnails.dart`) — reusable media thumbnail components.
+
+**LUMARA Chat Integration:**
+- "Chat" button in feed now opens `LumaraAssistantScreen` directly (replaces focusing input bar).
+- `_buildEntryMessageForLumara()` finds the most recent entry with content and sends it to LUMARA as "Please reflect on this entry" — enabling one-tap reflection on any recent entry.
+- `LumaraAssistantScreen` gains `initialMessage` parameter; auto-sends via `addPostFrameCallback` on first frame.
+- Removed `ChatNavigationDrawer` — AppBar leading is now a back arrow (when navigable) instead of hamburger menu. "New Chat" removed from popup menu.
+
+**Input Bar Removed:**
+- `FeedInputBar` entirely removed from `UnifiedFeedScreen` (import, widget, `_inputFocusNode`, `_onMessageSubmit` all deleted). Chat, Reflect, and Voice are now dedicated action buttons.
+
+**Communication Actions in Populated Feed:**
+- Chat / Reflect / Voice row (`_buildCommunicationActions()`) added to the populated feed (above "Today" section, below phase preview), replacing the input bar for quick-start actions.
+- Previously these actions only existed in the welcome/empty state.
+
+**Phase Arcform Preview in Feed:**
+- `CurrentPhaseArcformPreview` widget embedded in the feed (below header actions, above communication row). Tap opens `PhaseAnalysisView`.
+- `onTapOverride` callback added to `CurrentPhaseArcformPreview` for customizable navigation.
+- Phase resolution now uses `UserPhaseService.getDisplayPhase()` (profile-first priority) with RIVET gate check via `RivetProvider`.
+
+**Phase Hashtag Stripping:**
+- New `FeedHelpers.contentWithoutPhaseHashtags()` strips `#discovery`, `#expansion`, `#transition`, `#consolidation`, `#recovery`, `#breakthrough` from display content. Phase information shows only in card metadata/header, not in body text.
+- Applied in: `ReflectionCard`, `ExpandedEntryView` (all content renderers: conversation, reflection, voice memo, LUMARA initiative).
+
+**ExpandedEntryView Edit:**
+- Edit button now loads full `JournalEntry` via `JournalRepository.getJournalEntryById()` and opens `JournalScreen` in edit mode.
+
+**Header Actions Rearranged:**
+- Voice memo icon replaced by "Select entries" (checklist icon) for batch delete.
+- Remaining: Select, Timeline (calendar), Settings gear.
+
+**Phase Priority Fix (UserPhaseService):**
+- `getDisplayPhase()` reordered: user's explicit phase (quiz or manual "set overall phase") takes priority over RIVET/regime. This ensures a user who sets "Breakthrough" via the Phase Timeline keeps that phase visible everywhere.
+- `PhaseTimelineView`: Changing phase now persists to `UserPhaseService.forceUpdatePhase()`.
+- `JournalScreen`: User profile creation preserves existing phase from quiz/snapshots instead of defaulting to "Discovery".
+
+**Auto Phase Analysis After Import:**
+- `runAutoPhaseAnalysis()` top-level function added to `rivet_sweep_service.dart` — headless RIVET Sweep that auto-creates phase regimes from all entries (no user navigation required).
+- `RivetSweepResult.approvableProposals` getter — combines auto-assign + review proposals, sorted by start date.
+- `HomeView`: After successful ARCX/ZIP import, automatically runs phase analysis in background with snackbar notification ("Phase analysis complete — N phases detected").
+
+**Phase Analysis Refactored:**
+- `PhaseAnalysisView`: Removed pending analysis approval flow (`_hasUnapprovedAnalysis`, `_lastSweepResult`). Analysis now auto-applies. `_checkPendingAnalysis` clears stale flags (no-op).
+- `CombinedAnalysisView`: Removed entire Phase Analysis tab (~564 lines). Now contains only Advanced Analytics.
+- **New**: `PhaseAnalysisSettingsView` (`lib/shared/ui/settings/phase_analysis_settings_view.dart`) — dedicated Settings screen for Phase Analysis with run-analysis button and phase statistics cards.
+- `SettingsView`: Added "Phase Analysis" menu item linking to `PhaseAnalysisSettingsView`. Renumbered subsequent items.
+
+**CHRONICLE Management Progress UI:**
+- `ChronicleManagementView`: Rich progress view replacing generic spinner — circular progress indicator with percentage overlay, stage label ("Backfilling Layer 0..."), entry count ("12 / 340 entries"), and linear progress bar.
+
+**Journal Screen Cleanup:**
+- Removed `_trackJournalModeEntry()` and `_showPromptNotice()` (prompt notice dialog was interruptive UX).
+
+**FeedRepository:**
+- Phase extraction now uses `entry.computedPhase` (manual user override takes priority over auto-detected).
+- Empty-string phase check prevents passing blank phases to `PhaseColors.getPhaseColor()`.
+
+#### Files added
+- `lib/arc/unified_feed/widgets/feed_media_thumbnails.dart`
+- `lib/shared/ui/settings/phase_analysis_settings_view.dart`
+
+#### Files modified
+- `lib/arc/unified_feed/models/feed_entry.dart` — Added `mediaItems` field
+- `lib/arc/unified_feed/repositories/feed_repository.dart` — `computedPhase`, empty check, `mediaItems`
+- `lib/arc/unified_feed/utils/feed_helpers.dart` — `contentWithoutPhaseHashtags()`
+- `lib/arc/unified_feed/widgets/unified_feed_screen.dart` — Removed input bar; added batch select, swipe-to-delete, communication actions, phase preview, LUMARA chat integration
+- `lib/arc/unified_feed/widgets/expanded_entry_view.dart` — Media section, working edit/delete, phase hashtag stripping, `onEntryDeleted` callback
+- `lib/arc/unified_feed/widgets/feed_entry_cards/reflection_card.dart` — Phase hashtag stripping, media thumbnails
+- `lib/arc/chat/ui/lumara_assistant_screen.dart` — `initialMessage`, removed drawer, back arrow navigation
+- `lib/services/rivet_sweep_service.dart` — `approvableProposals`, `runAutoPhaseAnalysis()`
+- `lib/services/user_phase_service.dart` — Phase priority reordered (profile first)
+- `lib/shared/ui/home/home_view.dart` — Auto phase analysis after import
+- `lib/shared/ui/settings/chronicle_management_view.dart` — Rich progress UI
+- `lib/shared/ui/settings/combined_analysis_view.dart` — Removed Phase Analysis tab
+- `lib/shared/ui/settings/settings_view.dart` — Phase Analysis menu item
+- `lib/ui/journal/journal_screen.dart` — Removed prompt notice, phase-preserving profile creation
+- `lib/ui/phase/phase_analysis_view.dart` — Auto-apply analysis, removed approval flow
+- `lib/ui/phase/phase_timeline_view.dart` — `forceUpdatePhase` on phase change
+- `lib/arc/ui/timeline/widgets/current_phase_arcform_preview.dart` — `onTapOverride`, profile-first phase resolution
 
 ---
 

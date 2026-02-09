@@ -10,9 +10,7 @@ import '../../services/analytics_service.dart';
 import 'package:my_app/arc/core/journal_repository.dart';
 import 'package:my_app/models/journal_entry_model.dart';
 import 'package:my_app/ui/journal/journal_screen.dart';
-import 'rivet_sweep_wizard.dart';
 import 'phase_help_screen.dart';
-import 'phase_change_readiness_card.dart';
 import 'phase_timeline_view.dart';
 import 'simplified_arcform_view_3d.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -38,8 +36,7 @@ class _PhaseAnalysisViewState extends State<PhaseAnalysisView> {
   PhaseIndex? _phaseIndex;
   bool _isLoading = true;
   String? _error;
-  RivetSweepResult? _lastSweepResult;
-  bool _hasUnapprovedAnalysis = false;
+  // _lastSweepResult and _hasUnapprovedAnalysis removed — analysis auto-applies now
   bool _isLoadingPhaseData = false; // Guard to prevent loop
   
   // Trend data - calculated during load, displayed in card
@@ -311,31 +308,14 @@ class _PhaseAnalysisViewState extends State<PhaseAnalysisView> {
   }
 
   /// Check if there's a pending analysis result from ARCX import
+  /// (Now a no-op since analysis auto-applies; kept for future use)
   Future<void> _checkPendingAnalysis() async {
+    // Auto-apply means nothing is pending; clear any stale flag
     try {
       final prefs = await SharedPreferences.getInstance();
-      final hasPendingAnalysis = prefs.getBool('phase_analysis_pending') ?? false;
-      
-      if (hasPendingAnalysis) {
-        // Set flag to show placard and gray out button
-        // The actual analysis will be re-run when Review is clicked
-        setState(() {
-          _hasUnapprovedAnalysis = true;
-        });
-      }
-    } catch (e) {
-      print('Error checking pending analysis: $e');
-    }
-  }
-
-  /// Get segment count from preferences (for display in placard)
-  Future<int> _getSegmentCountFromPrefs() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      return prefs.getInt('phase_analysis_segments') ?? 0;
-    } catch (e) {
-      return 0;
-    }
+      await prefs.remove('phase_analysis_pending');
+      await prefs.remove('phase_analysis_segments');
+    } catch (_) {}
   }
 
   Future<void> _runRivetSweep() async {
@@ -350,27 +330,82 @@ class _PhaseAnalysisViewState extends State<PhaseAnalysisView> {
 
       // Check if there are enough entries for analysis
       if (journalEntries.length < 5) {
-        // Progress card is already shown in the UI, no need for snackbar
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Need at least 5 entries to run phase analysis'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
         return;
       }
 
+      // Run analysis
       final analyticsService = AnalyticsService();
       final rivetSweepService = RivetSweepService(analyticsService);
       final result = await rivetSweepService.analyzeEntries(journalEntries);
 
-      if (mounted) {
-        // Store result and show unapproved analysis state
-        setState(() {
-          _lastSweepResult = result;
-          _hasUnapprovedAnalysis = true;
-        });
-        
-        // Show RIVET Sweep wizard
-        await _showRivetSweepWizard(result);
-        
-        // After wizard completion, refresh all phase components
-        await _refreshAllPhaseComponents();
+      // Auto-apply all approvable proposals (no wizard needed)
+      final proposals = result.approvableProposals;
+
+      if (proposals.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Analysis complete — no distinct phases detected yet. Keep journaling!'),
+              backgroundColor: Colors.blue,
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
+        return;
       }
+
+      // Create phase regimes from proposals
+      final phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
+      await phaseRegimeService.initialize();
+
+      // Clear existing regimes before applying new analysis
+      await phaseRegimeService.clearAllRegimes();
+      await phaseRegimeService.initialize();
+
+      int created = 0;
+      for (int i = 0; i < proposals.length; i++) {
+        final proposal = proposals[i];
+        final isLast = i == proposals.length - 1;
+
+        DateTime? regimeEnd = proposal.end;
+        if (isLast) {
+          final daysSinceEnd = DateTime.now().difference(proposal.end).inDays;
+          if (daysSinceEnd <= 2) regimeEnd = null; // ongoing
+        }
+
+        await phaseRegimeService.createRegime(
+          label: proposal.proposedLabel,
+          start: proposal.start,
+          end: regimeEnd,
+          source: PhaseSource.rivet,
+          confidence: proposal.confidence,
+          anchors: proposal.entryIds,
+        );
+
+        // Add phase hashtags to entries
+        await _addPhaseHashtagsToEntries(proposal.entryIds, proposal.proposedLabel);
+        created++;
+      }
+
+      // Backfill + save analysis date
+      await _backfillDiscoveryRegime(phaseRegimeService, journalRepo);
+      await phaseRegimeService.setLastAnalysisDate(DateTime.now());
+
+      // Show results summary
+      if (mounted) {
+        _showAnalysisResultsDialog(result, created);
+      }
+
+      // Refresh phase data
+      await _refreshAllPhaseComponents();
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -382,134 +417,94 @@ class _PhaseAnalysisViewState extends State<PhaseAnalysisView> {
         );
       }
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
-  Future<void> _showRivetSweepWizard(RivetSweepResult result) async {
-    await showDialog(
+  /// Show a clean summary dialog after phase analysis completes.
+  void _showAnalysisResultsDialog(RivetSweepResult result, int regimesCreated) {
+    final proposals = result.approvableProposals;
+
+    showDialog(
       context: context,
-      builder: (context) => RivetSweepWizard(
-        sweepResult: result,
-        onApprove: (approvedProposals, overrides) async {
-          Navigator.of(context).pop();
-          await _createPhaseRegimes(approvedProposals, overrides);
-          // Clear unapproved analysis state
-          if (mounted) {
-            setState(() {
-              _hasUnapprovedAnalysis = false;
-              _lastSweepResult = null;
-            });
-          }
-          // ARCForms will be refreshed by the calling function
-        },
-        onSkip: () {
-          Navigator.of(context).pop();
-        },
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            const Icon(Icons.check_circle, color: Colors.green),
+            const SizedBox(width: 8),
+            const Expanded(child: Text('Phase Analysis Complete')),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '$regimesCreated phase${regimesCreated == 1 ? '' : 's'} detected and applied:',
+                style: const TextStyle(fontWeight: FontWeight.w500),
+              ),
+              const SizedBox(height: 12),
+              // Phase timeline summary
+              for (final p in proposals) ...[
+                _buildPhaseResultRow(p),
+                const SizedBox(height: 8),
+              ],
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Done'),
+          ),
+        ],
       ),
     );
   }
 
-  Future<void> _createPhaseRegimes(
-List<PhaseSegmentProposal> proposals,
-    Map<String, PhaseLabel> overrides,
-  ) async {
-    try {
-      setState(() {
-        _isLoading = true;
-      });
+  Widget _buildPhaseResultRow(PhaseSegmentProposal p) {
+    final colors = {
+      PhaseLabel.discovery: Colors.blue,
+      PhaseLabel.expansion: Colors.green,
+      PhaseLabel.transition: Colors.orange,
+      PhaseLabel.consolidation: Colors.purple,
+      PhaseLabel.recovery: Colors.red,
+      PhaseLabel.breakthrough: Colors.amber,
+    };
+    final color = colors[p.proposedLabel] ?? Colors.grey;
+    final name = _getPhaseLabelName(p.proposedLabel);
+    final pct = (p.confidence * 100).round();
 
-      final analyticsService = AnalyticsService();
-      final rivetSweepService = RivetSweepService(analyticsService);
-      final phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
-      await phaseRegimeService.initialize();
-
-      // Apply manual overrides to proposals
-      final finalProposals = proposals.map((proposal) {
-        final segmentId = '${proposal.start.millisecondsSinceEpoch}';
-        if (overrides.containsKey(segmentId)) {
-          return PhaseSegmentProposal(
-            start: proposal.start,
-            end: proposal.end,
-            proposedLabel: overrides[segmentId]!,
-            confidence: proposal.confidence,
-            signals: proposal.signals,
-            entryIds: proposal.entryIds,
-            summary: proposal.summary,
-            topKeywords: proposal.topKeywords,
-          );
-        }
-        return proposal;
-      }).toList()
-        ..sort((a, b) => a.start.compareTo(b.start)); // Sort chronologically
-
-      // Create phase regimes from approved proposals (in chronological order)
-      for (int i = 0; i < finalProposals.length; i++) {
-        final proposal = finalProposals[i];
-        final isLastProposal = i == finalProposals.length - 1;
-        
-        // If this is the last proposal and it ends today (or very recently), make it ongoing
-        // This handles the case where Transition (or any phase) starts today
-        DateTime? regimeEnd = proposal.end;
-        if (isLastProposal) {
-          final now = DateTime.now();
-          final daysSinceEnd = now.difference(proposal.end).inDays;
-          // If the proposal ends within the last 2 days, consider it ongoing
-          if (daysSinceEnd <= 2) {
-            regimeEnd = null; // Ongoing
-            print('DEBUG: Making last proposal (${_getPhaseLabelName(proposal.proposedLabel)}) ongoing - ended ${daysSinceEnd} days ago');
-          }
-        }
-        
-        await phaseRegimeService.createRegime(
-          label: proposal.proposedLabel,
-          start: proposal.start,
-          end: regimeEnd,
-          source: PhaseSource.rivet,
-          confidence: proposal.confidence,
-          anchors: proposal.entryIds,
-        );
-        
-        // Add phase hashtags to entries in this regime for future reconstruction
-        await _addPhaseHashtagsToEntries(proposal.entryIds, proposal.proposedLabel);
-      }
-
-      // Backfill Discovery regime for any unphased entries before the first regime
-      final journalRepo = JournalRepository();
-      await _backfillDiscoveryRegime(phaseRegimeService, journalRepo);
-
-      // Save the analysis date
-      await phaseRegimeService.setLastAnalysisDate(DateTime.now());
-
-      // Reload phase data to show new regimes
-      await _loadPhaseData();
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Created ${finalProposals.length} phase regimes'),
-            backgroundColor: Colors.green,
-            duration: const Duration(seconds: 3),
+    return Row(
+      children: [
+        Container(
+          width: 12,
+          height: 12,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            '$name  (${_formatDateShort(p.start)} – ${_formatDateShort(p.end)})',
+            style: const TextStyle(fontSize: 13),
           ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to create phase regimes: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    } finally {
-      setState(() {
-        _isLoading = false;
-      });
-    }
+        ),
+        Text('$pct%', style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+      ],
+    );
   }
+
+  String _formatDateShort(DateTime d) {
+    return '${d.month}/${d.day}/${d.year.toString().substring(2)}';
+  }
+
+  // _showRivetSweepWizard, _createPhaseRegimes, _openReviewWizard removed —
+  // analysis now auto-applies results via _runRivetSweep and shows a summary dialog
 
 
   @override
@@ -559,17 +554,23 @@ List<PhaseSegmentProposal> proposals,
 
     return Scaffold(
       appBar: AppBar(
-        leading: IconButton(
-            icon: const Icon(Icons.help_outline),
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (context) => const PhaseHelpScreen(),
-                ),
-              );
-            },
-            tooltip: 'Phase Help',
-          ),
+        leading: Navigator.canPop(context)
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back),
+                tooltip: 'Back',
+                onPressed: () => Navigator.of(context).pop(),
+              )
+            : IconButton(
+                icon: const Icon(Icons.help_outline),
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => const PhaseHelpScreen(),
+                    ),
+                  );
+                },
+                tooltip: 'Phase Help',
+              ),
         title: const Text('Phase'),
         centerTitle: true,
         actions: [
@@ -674,355 +675,10 @@ List<PhaseSegmentProposal> proposals,
     }
   }
 
-  Widget _buildAnalysisTab() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Phase Analysis Card - restored
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(Icons.auto_awesome, color: Colors.blue),
-                      const SizedBox(width: 8),
-                      const Expanded(
-                        child: Text(
-                          'Phase Analysis',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                      // Refresh button
-                      Container(
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Colors.grey[200],
-                        ),
-                        child: IconButton(
-                          icon: _isLoading
-                              ? SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    valueColor: AlwaysStoppedAnimation<Color>(
-                                      Colors.blue,
-                                    ),
-                                  ),
-                                )
-                              : const Icon(
-                                  Icons.refresh,
-                                  size: 20,
-                                ),
-                          onPressed: _isLoading ? null : () async {
-                            await _runRivetSweep();
-                          },
-                          tooltip: 'Refresh Phase Analysis',
-                          padding: const EdgeInsets.all(8),
-                          constraints: const BoxConstraints(
-                            minWidth: 36,
-                            minHeight: 36,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  const Text(
-                    'Automatically detect phase transitions in your journal entries using advanced pattern recognition.',
-                  ),
-                  const SizedBox(height: 12),
-                  FutureBuilder<DateTime?>(
-                    future: _getLastAnalysisDate(),
-                    builder: (context, snapshot) {
-                      if (snapshot.hasData && snapshot.data != null) {
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 12.0),
-                          child: Row(
-                            children: [
-                              Icon(Icons.schedule, size: 16, color: Colors.grey[600]),
-                              const SizedBox(width: 6),
-                              Text(
-                                'Last analysis: ${_formatDateTime(snapshot.data!)}',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.grey[600],
-                                ),
-                              ),
-                            ],
-                          ),
-                        );
-                      }
-                      return const SizedBox.shrink();
-                    },
-                  ),
-                  _buildRivetActionSection(),
-                  // Show Phase Analysis Complete placard if analysis is pending approval
-                  if (_hasUnapprovedAnalysis && _lastSweepResult != null)
-                    _buildAnalysisCompletePlacard(),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          
-          // Phase Statistics Card
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(Icons.timeline, color: Colors.green),
-                      const SizedBox(width: 8),
-                      const Text(
-                        'Phase Statistics',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  _buildPhaseStats(),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          // Current Phase Detection Card
-          _buildCurrentPhaseCard(),
-          const SizedBox(height: 16),
-          const PhaseChangeReadinessCard(),
-          const SizedBox(height: 16),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(Icons.quiz, color: Colors.purple),
-                      const SizedBox(width: 8),
-                      const Text(
-                        'Phase Self-Assessment',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  const Text(
-                    'Take a quick self-assessment to help identify your current developmental phase. This can provide an initial baseline while you build journaling data.',
-                  ),
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: _startPhaseQuiz,
-                      icon: const Icon(Icons.play_arrow),
-                      label: const Text('Start Self-Assessment'),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  // _buildAnalysisTab and _buildCurrentPhaseCard removed —
+  // Run Phase Analysis is now a card in the arcforms footer
 
-  /// Build Current Phase Detection Card
-  Widget _buildCurrentPhaseCard() {
-    String? currentPhaseName;
-    if (_phaseIndex?.currentRegime != null) {
-      currentPhaseName = _getPhaseLabelName(_phaseIndex!.currentRegime!.label);
-    } else if (_phaseIndex?.allRegimes.isNotEmpty == true) {
-      // No current ongoing regime, use most recent one
-      final sortedRegimes = List.from(_phaseIndex!.allRegimes)..sort((a, b) => b.start.compareTo(a.start));
-      currentPhaseName = _getPhaseLabelName(sortedRegimes.first.label);
-    } else {
-      // No regimes (e.g. after deleting all entries) - use UserProfile/quiz phase
-      currentPhaseName = _phaseFromUserProfile ?? 'Discovery';
-    }
-
-    // Get phase color
-    Color phaseColor;
-    switch (currentPhaseName.toLowerCase()) {
-      case 'discovery':
-        phaseColor = Colors.blue;
-        break;
-      case 'expansion':
-        phaseColor = Colors.green;
-        break;
-      case 'transition':
-        phaseColor = Colors.orange;
-        break;
-      case 'consolidation':
-        phaseColor = Colors.purple;
-        break;
-      case 'recovery':
-        phaseColor = Colors.teal;
-        break;
-      case 'breakthrough':
-        phaseColor = Colors.pink;
-        break;
-      default:
-        phaseColor = Colors.blue;
-    }
-
-    return Card(
-      elevation: 2,
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.auto_awesome, color: phaseColor),
-                const SizedBox(width: 8),
-                const Text(
-                  'Phase Transition Detection',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(16.0),
-              decoration: BoxDecoration(
-                color: phaseColor.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: phaseColor.withOpacity(0.3)),
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Current Phase:',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          currentPhaseName,
-                          style: TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            color: phaseColor,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: phaseColor,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Icon(
-                      Icons.check_circle,
-                      color: Colors.white,
-                      size: 32,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            if (_phaseIndex?.currentRegime != null) ...[
-              const SizedBox(height: 8),
-              Text(
-                'Started: ${_formatDateTime(_phaseIndex!.currentRegime!.start)}',
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey,
-                ),
-              ),
-            ] else if (_phaseIndex?.allRegimes.isNotEmpty == true) ...[
-              const SizedBox(height: 8),
-              Text(
-                'Most recent phase (no current ongoing phase)',
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey,
-                  fontStyle: FontStyle.italic,
-                ),
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPhaseStats() {
-    if (_phaseIndex == null) {
-      return const Text('No phase data available');
-    }
-
-    final regimes = _phaseIndex!.allRegimes;
-    final phaseCounts = <PhaseLabel, int>{};
-
-    for (final regime in regimes) {
-      phaseCounts[regime.label] = (phaseCounts[regime.label] ?? 0) + 1;
-    }
-
-    return Column(
-      children: [
-        Text('Total Phase Regimes: ${regimes.length}'),
-        const SizedBox(height: 8),
-        ...phaseCounts.entries.map((entry) {
-          final phase = entry.key;
-          final count = entry.value;
-          return Padding(
-            padding: const EdgeInsets.symmetric(vertical: 2.0),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    '${phase.name.toUpperCase()}:',
-                    style: const TextStyle(fontSize: 12),
-                  ),
-                ),
-                Text(
-                  '$count regimes',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-          );
-        }),
-      ],
-    );
-  }
+  // _buildPhaseStats removed — old analysis tab content
 
   /// Build Timeline content (function kept for potential future use)
   Widget _buildTimelineContent() {
@@ -1167,226 +823,8 @@ List<PhaseSegmentProposal> proposals,
     }
   }
 
-  /// Build RIVET action section with Run Phase Analysis button
-  Widget _buildRivetActionSection() {
-    return FutureBuilder<int>(
-      future: _getJournalEntryCount(),
-      builder: (context, snapshot) {
-        if (snapshot.hasData) {
-          final entryCount = snapshot.data!;
-          
-          if (entryCount < 5) {
-            return _buildInsufficientEntriesCard(entryCount);
-          } else {
-            // Gray out button if analysis is already pending/complete
-            final isDisabled = _hasUnapprovedAnalysis;
-            
-            return Container(
-              width: double.infinity,
-              margin: const EdgeInsets.symmetric(vertical: 8.0),
-              child: ElevatedButton.icon(
-                onPressed: isDisabled ? null : _runRivetSweep,
-                icon: const Icon(Icons.play_arrow, size: 24),
-                label: const Text(
-                  'Run Phase Analysis',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: isDisabled ? Colors.grey : Colors.blue,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
-                  elevation: isDisabled ? 2 : 4,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-              ),
-            );
-          }
-        }
-        
-        return Container(
-          width: double.infinity,
-          margin: const EdgeInsets.symmetric(vertical: 8.0),
-          child: ElevatedButton.icon(
-            onPressed: null,
-            icon: const Icon(Icons.play_arrow, size: 24),
-            label: const Text(
-              'Run Phase Analysis',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.grey,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
-              elevation: 2,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  /// Build Phase Analysis Complete placard
-  Widget _buildAnalysisCompletePlacard() {
-    if (!_hasUnapprovedAnalysis) return const SizedBox.shrink();
-    
-    // Get segment count from stored result or preferences
-    int totalSegments = 0;
-    if (_lastSweepResult != null) {
-      totalSegments = _lastSweepResult!.autoAssign.length + 
-                     _lastSweepResult!.review.length + 
-                     _lastSweepResult!.lowConfidence.length;
-    }
-    
-    return FutureBuilder<int>(
-      future: totalSegments > 0 ? Future.value(totalSegments) : _getSegmentCountFromPrefs(),
-      builder: (context, snapshot) {
-        final segmentCount = snapshot.data ?? totalSegments;
-        
-        return Container(
-          margin: const EdgeInsets.only(top: 12.0),
-          padding: const EdgeInsets.all(16.0),
-          decoration: BoxDecoration(
-            color: Colors.blue[50],
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.blue[200]!),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Icon(Icons.auto_awesome, color: Colors.blue[700], size: 24),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Phase Analysis Complete',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.blue[900],
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          segmentCount > 0
-                              ? 'Rivet found $segmentCount segments in your journal timeline. '
-                                'Review and approve them below.'
-                              : 'Phase analysis has been completed. Review the results below.',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.blue[800],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              // Review button
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  onPressed: _openReviewWizard,
-                  icon: const Icon(Icons.reviews, size: 20),
-                  label: const Text(
-                    'Review',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.blue[700],
-                    side: BorderSide(color: Colors.blue[300]!),
-                    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  /// Open review wizard (re-run analysis and show wizard)
-  Future<void> _openReviewWizard() async {
-    try {
-      setState(() {
-        _isLoading = true;
-      });
-
-      // Get journal entries for analysis
-      final journalRepo = JournalRepository();
-      final journalEntries = journalRepo.getAllJournalEntriesSync();
-
-      // Check if there are enough entries for analysis
-      if (journalEntries.length < 5) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Need at least 5 journal entries to run phase analysis'),
-              backgroundColor: Colors.orange,
-            ),
-          );
-        }
-        setState(() {
-          _isLoading = false;
-        });
-        return;
-      }
-
-      final analyticsService = AnalyticsService();
-      final rivetSweepService = RivetSweepService(analyticsService);
-      final result = await rivetSweepService.analyzeEntries(journalEntries);
-
-      if (mounted) {
-        // Store result and show unapproved analysis state
-        setState(() {
-          _lastSweepResult = result;
-          _hasUnapprovedAnalysis = true;
-        });
-        
-        // Show RIVET Sweep wizard
-        await _showRivetSweepWizard(result);
-        
-        // After wizard completion, refresh all phase components
-        await _refreshAllPhaseComponents();
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Phase Analysis failed: $e'),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 4),
-          ),
-        );
-      }
-    } finally {
-      setState(() {
-        _isLoading = false;
-      });
-    }
-  }
+  // _buildRivetActionSection, _buildAnalysisCompletePlacard, _openReviewWizard removed —
+  // Run Phase Analysis is now _buildRunAnalysisCard in the arcforms footer
 
   /// Backfill a phase regime for entries before the first detected regime.
   /// When no regimes exist, uses the first entry's phase (quiz/inaugural) or UserProfile so the UI matches the user's quiz result (e.g. Breakthrough).
@@ -1585,91 +1023,7 @@ List<PhaseSegmentProposal> proposals,
     }
   }
 
-  /// Get journal entry count
-  Future<int> _getJournalEntryCount() async {
-    try {
-      final journalRepo = JournalRepository();
-      final entries = journalRepo.getAllJournalEntriesSync();
-      return entries.length;
-    } catch (e) {
-      return 0;
-    }
-  }
-
-  /// Build insufficient entries card
-  Widget _buildInsufficientEntriesCard(int entryCount) {
-    return Card(
-      color: Colors.blue[50],
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.auto_awesome, color: Colors.blue[700]),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Building Your Phase Timeline',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.blue[700],
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'RIVET needs at least 5 entries to detect phase patterns',
-              style: TextStyle(color: Colors.blue[600]),
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: LinearProgressIndicator(
-                    value: entryCount / 5.0,
-                    backgroundColor: Colors.blue[200],
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.blue[600]!),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  '$entryCount/5 entries',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.blue[700],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Keep journaling and your phase timeline will emerge naturally',
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.blue[600],
-                fontStyle: FontStyle.italic,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Or import an MCP bundle to analyze past entries',
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.blue[600],
-                fontStyle: FontStyle.italic,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  // _getJournalEntryCount, _buildInsufficientEntriesCard removed — integrated into _buildRunAnalysisCard
 
   Widget _buildArcformsTab() {
     return Column(
@@ -1682,6 +1036,87 @@ List<PhaseSegmentProposal> proposals,
     );
   }
 
+  /// Simplified "Run Phase Analysis" card shown at the bottom of the arcforms view.
+  Widget _buildRunAnalysisCard() {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.blue.withOpacity(0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.auto_awesome, color: Colors.blue, size: 20),
+              const SizedBox(width: 8),
+              const Expanded(
+                child: Text(
+                  'Phase Analysis',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+              FutureBuilder<DateTime?>(
+                future: _getLastAnalysisDate(),
+                builder: (context, snapshot) {
+                  if (snapshot.hasData && snapshot.data != null) {
+                    return Text(
+                      'Last: ${_formatDateTime(snapshot.data!)}',
+                      style: TextStyle(fontSize: 11, color: Colors.grey[500]),
+                    );
+                  }
+                  return const SizedBox.shrink();
+                },
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Detect phase transitions from your entries using pattern recognition.',
+            style: TextStyle(color: Colors.grey[400], fontSize: 12),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: _isLoading ? null : _runRivetSweep,
+              icon: _isLoading
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      ),
+                    )
+                  : const Icon(Icons.play_arrow, size: 20),
+              label: Text(
+                _isLoading ? 'Analyzing...' : 'Run Phase Analysis',
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue,
+                foregroundColor: Colors.white,
+                disabledBackgroundColor: Colors.blue.withOpacity(0.6),
+                disabledForegroundColor: Colors.white70,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   /// Build arcform content widget
   Widget _buildArcformContent() {
@@ -1742,6 +1177,8 @@ List<PhaseSegmentProposal> proposals,
               _buildPhaseTransitionReadinessCard(currentPhaseName),
               // Simpler Most Aligned Phase card - no async, no CustomPaint
               _buildSimpleMostAlignedCard(currentPhaseName),
+              // Run Phase Analysis card
+              _buildRunAnalysisCard(),
             ],
           ),
         ),
@@ -2867,22 +2304,25 @@ List<PhaseSegmentProposal> proposals,
         }
       }
 
-      // Update user profile
+      // Update user profile only when they have not set a phase (quiz/manual).
+      // Do not overwrite user's explicit choice (e.g. Breakthrough) with regime (e.g. Discovery).
       final userBox = await Hive.openBox<UserProfile>('user_profile');
       final userProfile = userBox.get('profile');
       
       if (userProfile != null) {
         final oldPhase = userProfile.onboardingCurrentSeason ?? userProfile.currentPhase;
-        
-        // Only update if phase actually changed
-        if (oldPhase != currentPhaseName) {
+        final userHasSetPhase = oldPhase.trim().isNotEmpty;
+        if (!userHasSetPhase) {
+          // No phase set yet (e.g. new user) – fill from regimes
           final updatedProfile = userProfile.copyWith(
             onboardingCurrentSeason: currentPhaseName,
             currentPhase: currentPhaseName,
             lastPhaseChangeAt: DateTime.now(),
           );
           await userBox.put('profile', updatedProfile);
-          print('Phase Analysis: ✓ Updated user profile phase from $oldPhase to $currentPhaseName');
+          print('Phase Analysis: ✓ Set user profile phase to $currentPhaseName (was empty)');
+        } else if (oldPhase != currentPhaseName) {
+          print('Phase Analysis: Keeping user-chosen phase "$oldPhase" (not overwriting with regime $currentPhaseName)');
         } else {
           print('Phase Analysis: Phase unchanged ($currentPhaseName), skipping profile update');
         }
@@ -2897,60 +2337,7 @@ List<PhaseSegmentProposal> proposals,
 
 
 
-  void _startPhaseQuiz() {
-    // For now, show a simple dialog with phase options
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Select Your Phase'),
-        content: const Text(
-          'Based on your current state, which phase best describes you?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              _setPhaseFromQuiz('Discovery');
-            },
-            child: const Text('Discovery'),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              _setPhaseFromQuiz('Exploration');
-            },
-            child: const Text('Exploration'),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              _setPhaseFromQuiz('Integration');
-            },
-            child: const Text('Integration'),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              _setPhaseFromQuiz('Mastery');
-            },
-            child: const Text('Mastery'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _setPhaseFromQuiz(String phase) {
-    // Set the phase and refresh the data
-    // This is a simplified implementation - in practice you'd want to save this properly
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Phase set to $phase. This will be refined as you journal.'),
-        backgroundColor: Colors.green,
-      ),
-    );
-    _loadPhaseData(); // Refresh the phase data
-  }
+  // _startPhaseQuiz and _setPhaseFromQuiz removed — old analysis tab content
 
   // Most Aligned Phase card temporarily disabled to fix rendering loop
   // TODO: Re-implement with proper state isolation

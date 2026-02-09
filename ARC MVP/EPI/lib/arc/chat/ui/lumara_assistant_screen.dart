@@ -33,7 +33,6 @@ import 'package:my_app/shared/ui/settings/favorites_management_view.dart';
 import 'package:my_app/shared/ui/settings/settings_view.dart';
 import '../voice/audio_io.dart';
 import '../chat/chat_models.dart';
-import 'widgets/chat_navigation_drawer.dart';
 import 'package:my_app/ui/subscription/lumara_subscription_status.dart';
 import 'package:my_app/services/firebase_auth_service.dart';
 import 'package:my_app/arc/chat/services/lumara_reflection_settings_service.dart';
@@ -45,10 +44,13 @@ import 'package:my_app/models/engagement_discipline.dart';
 /// Main LUMARA Assistant screen
 class LumaraAssistantScreen extends StatefulWidget {
   final JournalEntry? currentEntry; // Optional current journal entry for weighted context
-  
+  /// When set, the message is pre-filled and sent automatically (e.g. from unified feed input bar).
+  final String? initialMessage;
+
   const LumaraAssistantScreen({
     super.key,
     this.currentEntry,
+    this.initialMessage,
   });
 
   @override
@@ -62,7 +64,6 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
   String? _editingMessageId; // Track which message is being edited
   bool _isInputVisible = true; // Track input visibility
   JournalEntry? _currentEntry; // Store current entry for context
-  bool _isDrawerOpen = false; // Track drawer state
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   final GlobalKey _modeMenuKey = GlobalKey();
   
@@ -98,6 +99,13 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
     _initializeAudioIO();
     _initializeVoiceChat();
     _checkCrisisMode();
+    // If opened from unified feed with a message, send it after first frame
+    if (widget.initialMessage != null && widget.initialMessage!.trim().isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _sendMessage(widget.initialMessage!.trim());
+      });
+    }
   }
 
   /// Check if user is in crisis mode (Sentinel override)
@@ -371,13 +379,14 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
             const LumaraSubscriptionStatus(compact: true),
           ],
         ),
-        automaticallyImplyLeading: false, // Remove back button since this is a tab
-        leading: IconButton(
-          icon: const Icon(Icons.menu),
-          onPressed: () {
-            setState(() => _isDrawerOpen = !_isDrawerOpen);
-          },
-        ),
+        automaticallyImplyLeading: false,
+        leading: Navigator.canPop(context)
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back),
+                tooltip: 'Back',
+                onPressed: () => Navigator.of(context).pop(),
+              )
+            : null,
         actions: [
           // Voice chat button
           IconButton(
@@ -389,9 +398,6 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
             icon: const Icon(Icons.more_vert),
             onSelected: (value) {
               switch (value) {
-                case 'new_chat':
-                  _startNewChat();
-                  break;
                 case 'settings':
                   _showEnhancedSettings();
                   break;
@@ -411,16 +417,6 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
               }
             },
             itemBuilder: (BuildContext context) => [
-              const PopupMenuItem<String>(
-                value: 'new_chat',
-                child: Row(
-                  children: [
-                    Icon(Icons.edit, size: 20),
-                    SizedBox(width: 12),
-                    Text('New Chat'),
-                  ],
-          ),
-              ),
               const PopupMenuItem<String>(
                 value: 'settings',
                 child: Row(
@@ -461,11 +457,7 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
           GestureDetector(
                     onTap: () {
                       // Dismiss keyboard and hide input when tapping conversation area
-                      // Like ChatGPT - auto minimize when clicking outside
                       _dismissKeyboard();
-                      if (_isDrawerOpen) {
-                        setState(() => _isDrawerOpen = false);
-                      }
                     },
                     behavior: HitTestBehavior.opaque,
                     child: Column(
@@ -781,51 +773,6 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
                     ),
                         ),
 
-          // Navigation drawer overlay - slides in from left
-          AnimatedPositioned(
-            duration: const Duration(milliseconds: 250),
-            curve: Curves.easeInOut,
-            left: _isDrawerOpen ? 0 : -MediaQuery.of(context).size.width * 0.75,
-            top: 0,
-            bottom: 0,
-            child: GestureDetector(
-              onTap: () {}, // Prevent taps from closing drawer
-              child: ChatNavigationDrawer(
-                chatRepo: EnhancedChatRepoImpl(ChatRepoImpl.instance),
-                currentSessionId: context.read<LumaraAssistantCubit>().currentChatSessionId,
-                onSessionSelected: (sessionId) async {
-                  // Load the selected session
-                  await _loadSession(sessionId);
-                  setState(() => _isDrawerOpen = false);
-                },
-                onNewChat: () {
-                  _startNewChat();
-                  setState(() => _isDrawerOpen = false);
-                },
-                onScratchpad: () {
-                  // Create or load scratchpad session
-                  _loadScratchpad();
-                  setState(() => _isDrawerOpen = false);
-                },
-                onSandbox: () {
-                  // Create or load sandbox session
-                  _loadSandbox();
-                  setState(() => _isDrawerOpen = false);
-                },
-              ),
-            ),
-          ),
-
-          // Backdrop overlay when drawer is open
-          if (_isDrawerOpen)
-            Positioned.fill(
-              child: GestureDetector(
-                onTap: () => setState(() => _isDrawerOpen = false),
-                child: Container(
-                  color: Colors.black.withOpacity(0.3),
-                ),
-              ),
-            ),
         ],
       ),
     );
@@ -2027,15 +1974,6 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
     );
   }
 
-  void _startNewChat() async {
-    // Dismiss keyboard and clear input
-    _dismissKeyboard();
-    _messageController.clear();
-    
-    // Start new chat (saves old chat to history)
-    await context.read<LumaraAssistantCubit>().startNewChat();
-  }
-
   void _clearChat() async {
     // First confirmation
     final firstConfirm = await showDialog<bool>(
@@ -2836,32 +2774,6 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
     }
   }
 
-  /// Load a specific chat session
-  Future<void> _loadSession(String sessionId) async {
-    final cubit = context.read<LumaraAssistantCubit>();
-    // TODO: Implement session loading in cubit
-    // For now, we'll need to add a method to load a session
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Session loading not yet implemented')),
-    );
-  }
-
-  /// Load or create scratchpad session
-  Future<void> _loadScratchpad() async {
-    // TODO: Implement scratchpad - a special session for quick notes
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Scratchpad not yet implemented')),
-    );
-  }
-
-  /// Load or create sandbox session
-  Future<void> _loadSandbox() async {
-    // TODO: Implement sandbox - a special session for experimentation
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Sandbox not yet implemented')),
-    );
-  }
-
   /// Build breadcrumb widget for forked chats
   Widget _buildForkBreadcrumb(BuildContext context, String sessionId) {
     return FutureBuilder<ChatSession?>(
@@ -2948,9 +2860,12 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
     }
   }
 
-  /// Navigate to original chat session
+  /// Navigate to original chat session (used by forked-chat breadcrumb)
   Future<void> _navigateToOriginalChat(String originalSessionId) async {
-    // Load the original session
-    await _loadSession(originalSessionId);
+    // TODO: Load session in cubit when implemented
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Session loading not yet implemented')),
+    );
   }
 }

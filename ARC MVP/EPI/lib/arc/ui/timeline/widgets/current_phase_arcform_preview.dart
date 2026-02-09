@@ -19,12 +19,16 @@ import 'package:my_app/prism/atlas/rivet/rivet_models.dart';
 import 'package:my_app/prism/atlas/rivet/rivet_service.dart';
 import 'package:my_app/arc/ui/arcforms/phase_recommender.dart';
 import 'package:my_app/services/user_phase_service.dart';
+import 'package:my_app/prism/atlas/rivet/rivet_provider.dart';
 
 /// Compact preview widget showing current phase Arcform visualization
 /// Uses the same architecture as Insights->Phase->Arcform visualizations
 /// Displays above timeline icons in the Timeline view
 class CurrentPhaseArcformPreview extends StatefulWidget {
-  const CurrentPhaseArcformPreview({super.key});
+  /// When set, tap opens this instead of FullScreenPhaseViewer (e.g. main Phase menu).
+  final VoidCallback? onTapOverride;
+
+  const CurrentPhaseArcformPreview({super.key, this.onTapOverride});
 
   @override
   State<CurrentPhaseArcformPreview> createState() => _CurrentPhaseArcformPreviewState();
@@ -35,13 +39,15 @@ class _CurrentPhaseArcformPreviewState extends State<CurrentPhaseArcformPreview>
   Widget build(BuildContext context) {
     // Use the same SimplifiedArcformView3D component but extract just the first snapshot card
     // and display it in a compact format
-    return _CompactArcformPreview();
+    return _CompactArcformPreview(onTapOverride: widget.onTapOverride);
   }
 }
 
 /// Compact preview that uses the same data loading as SimplifiedArcformView3D
 class _CompactArcformPreview extends StatefulWidget {
-  const _CompactArcformPreview();
+  final VoidCallback? onTapOverride;
+
+  const _CompactArcformPreview({this.onTapOverride});
 
   @override
   State<_CompactArcformPreview> createState() => _CompactArcformPreviewState();
@@ -77,30 +83,36 @@ class _CompactArcformPreviewState extends State<_CompactArcformPreview> {
     });
 
     try {
-      // Same resolution as Phase tab: regime first, then UserProfile
+      // Use getDisplayPhase so user's chosen phase (quiz or manual) takes priority over regime
       final analyticsService = AnalyticsService();
       final rivetSweepService = RivetSweepService(analyticsService);
       final phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
       await phaseRegimeService.initialize();
 
-      String currentPhaseCapitalized;
+      String? regimePhase;
       final currentRegime = phaseRegimeService.phaseIndex.currentRegime;
       final allRegimes = phaseRegimeService.phaseIndex.allRegimes;
-
       if (currentRegime != null) {
-        final phaseName = currentRegime.label.toString().split('.').last;
-        currentPhaseCapitalized = _capitalizePhase(phaseName.isEmpty ? 'Discovery' : phaseName);
+        regimePhase = currentRegime.label.toString().split('.').last;
       } else if (allRegimes.isNotEmpty) {
         final sortedRegimes = List.from(allRegimes)..sort((a, b) => b.start.compareTo(a.start));
-        final phaseName = sortedRegimes.first.label.toString().split('.').last;
-        currentPhaseCapitalized = _capitalizePhase(phaseName.isEmpty ? 'Discovery' : phaseName);
-      } else {
-        // No regimes (e.g. right after phase quiz) - use Phase tab source: UserProfile/quiz
-        final profilePhase = await UserPhaseService.getCurrentPhase();
-        currentPhaseCapitalized = profilePhase.trim().isNotEmpty
-            ? _capitalizePhase(profilePhase)
-            : 'Discovery';
+        regimePhase = sortedRegimes.first.label.toString().split('.').last;
       }
+      bool rivetGateOpen = false;
+      try {
+        final rivetProvider = RivetProvider();
+        if (!rivetProvider.isAvailable) await rivetProvider.initialize('default_user');
+        rivetGateOpen = rivetProvider.service?.wouldGateOpen() ?? false;
+      } catch (_) {}
+      final profilePhase = await UserPhaseService.getCurrentPhase();
+      final displayPhase = UserPhaseService.getDisplayPhase(
+        regimePhase: regimePhase?.trim().isEmpty == true ? null : regimePhase,
+        rivetGateOpen: rivetGateOpen,
+        profilePhase: profilePhase,
+      );
+      final currentPhaseCapitalized = displayPhase.trim().isNotEmpty
+          ? _capitalizePhase(displayPhase)
+          : 'Discovery';
 
       // Check if user has entries for this phase
       final isUserPhase = await _hasEntriesForPhase(currentPhaseCapitalized);
@@ -628,7 +640,9 @@ class _CompactArcformPreviewState extends State<_CompactArcformPreview> {
     // Fixed height layout - no LayoutBuilder to avoid semantics/parentDataDirty issues
     return GestureDetector(
       onTap: () {
-        if (arcformData != null) {
+        if (widget.onTapOverride != null) {
+          widget.onTapOverride!();
+        } else if (arcformData != null) {
           Navigator.of(context).push(
             MaterialPageRoute(
               builder: (context) => FullScreenPhaseViewer(arcform: arcformData),

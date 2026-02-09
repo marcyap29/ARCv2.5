@@ -41,6 +41,7 @@ import 'package:my_app/core/feature_flags.dart' as core_flags;
 import 'package:my_app/arc/unified_feed/widgets/unified_feed_screen.dart';
 import 'package:my_app/core/models/entry_mode.dart';
 import 'package:my_app/shared/ui/settings/settings_view.dart';
+import 'package:my_app/services/rivet_sweep_service.dart' show runAutoPhaseAnalysis;
 
 // Debug flag for showing RIVET engineering labels
 const bool kShowRivetDebugLabels = false;
@@ -256,6 +257,22 @@ class _HomeViewState extends State<HomeView> {
                 }
                 if (context.mounted) {
                   context.read<ImportProgressCubit>().clearCompleted();
+                }
+
+                // Auto-run Phase Analysis on imported entries (background)
+                try {
+                  final regimesCreated = await runAutoPhaseAnalysis();
+                  if (regimesCreated > 0 && context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Phase analysis complete — $regimesCreated phases detected'),
+                        backgroundColor: Colors.green,
+                        duration: const Duration(seconds: 3),
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  debugPrint('Auto phase analysis after import failed: $e');
                 }
               });
             } else if (state.error != null) {

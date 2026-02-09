@@ -23,7 +23,6 @@ import 'package:my_app/arc/unified_feed/services/contextual_greeting.dart';
 import 'package:my_app/arc/unified_feed/services/conversation_manager.dart';
 import 'package:my_app/arc/unified_feed/services/auto_save_service.dart';
 import 'package:my_app/arc/unified_feed/utils/feed_helpers.dart';
-import 'package:my_app/arc/unified_feed/widgets/input_bar.dart';
 import 'package:my_app/arc/unified_feed/widgets/feed_entry_cards/active_conversation_card.dart';
 import 'package:my_app/arc/unified_feed/widgets/feed_entry_cards/saved_conversation_card.dart';
 import 'package:my_app/arc/unified_feed/widgets/feed_entry_cards/voice_memo_card.dart';
@@ -39,6 +38,9 @@ import 'package:my_app/shared/ui/settings/settings_view.dart';
 import 'package:my_app/core/models/entry_mode.dart';
 import 'package:my_app/shared/ui/onboarding/phase_quiz_v2_screen.dart';
 import 'package:my_app/arc/unified_feed/widgets/import_options_sheet.dart';
+import 'package:my_app/arc/chat/ui/lumara_assistant_screen.dart';
+import 'package:my_app/arc/ui/timeline/widgets/current_phase_arcform_preview.dart';
+import 'package:my_app/ui/phase/phase_analysis_view.dart';
 
 /// The main unified feed screen that merges LUMARA chat and Conversations.
 class UnifiedFeedScreen extends StatefulWidget {
@@ -73,7 +75,6 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
       ContextualGreetingService();
 
   final ScrollController _scrollController = ScrollController();
-  final FocusNode _inputFocusNode = FocusNode();
 
   List<FeedEntry> _entries = [];
   bool _isLoading = true;
@@ -82,6 +83,10 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
 
   /// If non-null, the feed is showing entries from a specific date
   DateTime? _currentViewingDate;
+
+  /// Batch selection: when true, user can select entries to delete.
+  bool _selectionModeEnabled = false;
+  final Set<String> _selectedEntryIds = {};
 
   StreamSubscription<List<FeedEntry>>? _feedSubscription;
 
@@ -103,7 +108,7 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
   void _handleInitialMode(EntryMode mode) {
     switch (mode) {
       case EntryMode.chat:
-        _focusInputBar();
+        _openLumaraChat();
         break;
       case EntryMode.reflect:
         _onNewEntryTap();
@@ -281,12 +286,6 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
     );
   }
 
-  void _onMessageSubmit(String text) {
-    _conversationManager.addUserMessage(text);
-    debugPrint(
-        'UnifiedFeedScreen: User message recorded: ${text.substring(0, text.length > 50 ? 50 : text.length)}');
-  }
-
   void _onNewEntryTap() async {
     await JournalSessionCache.clearSession();
     if (!mounted) return;
@@ -302,7 +301,10 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => ExpandedEntryView(entry: entry),
+        builder: (context) => ExpandedEntryView(
+          entry: entry,
+          onEntryDeleted: () => _feedRepo.refresh(),
+        ),
       ),
     ).then((result) {
       // If a theme filter was returned, apply it
@@ -321,11 +323,6 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
     } else {
       debugPrint('UnifiedFeedScreen: No voice callback provided');
     }
-  }
-
-  /// Focus the input bar (triggered by the "Chat" button in the empty state).
-  void _focusInputBar() {
-    _inputFocusNode.requestFocus();
   }
 
   String _getViewingContextTitle() {
@@ -359,17 +356,6 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
                     : _buildFeedContent(),
           ),
 
-          // Input bar — hidden during empty/welcome state
-          if (!_isLoading && _errorMessage == null && _entries.isNotEmpty)
-            FeedInputBar(
-              onSubmit: _onMessageSubmit,
-              onNewEntryTap: _onNewEntryTap,
-              onVoiceTap: _startVoiceMemo,
-              focusNode: _inputFocusNode,
-              onAttachmentTap: () {
-                debugPrint('UnifiedFeedScreen: Attachment tap');
-              },
-            ),
         ],
       ),
       ),
@@ -439,8 +425,28 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
           // Greeting header
           SliverToBoxAdapter(child: _buildGreetingHeader()),
 
-          // Action buttons row (Timeline, Voice, Settings)
+          // Calendar + Settings row
           SliverToBoxAdapter(child: _buildHeaderActions()),
+
+          // Selection mode bar (Cancel / Delete selected)
+          SliverToBoxAdapter(child: _buildSelectionModeBar()),
+
+          // Phase preview (tap opens main Phase menu)
+          SliverToBoxAdapter(
+            child: CurrentPhaseArcformPreview(
+              onTapOverride: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const PhaseAnalysisView(),
+                  ),
+                );
+              },
+            ),
+          ),
+
+          // Chat | Reflect | Voice — above "Today", below phase preview
+          SliverToBoxAdapter(child: _buildCommunicationActions()),
 
           // Date context banner (when viewing a specific date)
           if (_currentViewingDate != null)
@@ -461,10 +467,24 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
               ),
             ),
 
-            // Entry cards
+            // Entry cards (swipe left to delete when entry has journalEntryId)
             SliverList(
               delegate: SliverChildBuilderDelegate(
-                (context, index) => _buildEntryCard(entry.value[index]),
+                (context, index) {
+                  final e = entry.value[index];
+                  return _buildEntryCardWithSwipe(
+                    e,
+                    isSelectionMode: _selectionModeEnabled,
+                    isSelected: _selectedEntryIds.contains(e.id),
+                    onToggleSelect: () => setState(() {
+                      if (_selectedEntryIds.contains(e.id)) {
+                        _selectedEntryIds.remove(e.id);
+                      } else {
+                        _selectedEntryIds.add(e.id);
+                      }
+                    }),
+                  );
+                },
                 childCount: entry.value.length,
               ),
             ),
@@ -579,7 +599,20 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
       child: Row(
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
-          // Timeline
+          // Select (batch delete)
+          IconButton(
+            icon: Icon(
+              Icons.checklist,
+              color: kcSecondaryTextColor.withOpacity(0.6),
+              size: 22,
+            ),
+            tooltip: 'Select entries',
+            onPressed: () => setState(() {
+              _selectionModeEnabled = true;
+              _selectedEntryIds.clear();
+            }),
+          ),
+          // Timeline (calendar)
           IconButton(
             icon: Icon(
               Icons.calendar_month,
@@ -588,16 +621,6 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
             ),
             tooltip: 'Timeline',
             onPressed: _openTimelineModal,
-          ),
-          // Voice memo
-          IconButton(
-            icon: Icon(
-              Icons.mic,
-              color: kcSecondaryTextColor.withOpacity(0.6),
-              size: 22,
-            ),
-            tooltip: 'Voice memo',
-            onPressed: _startVoiceMemo,
           ),
           // Settings
           IconButton(
@@ -618,6 +641,146 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
         ],
       ),
     );
+  }
+
+  /// Bar shown when in selection mode: Cancel and Delete selected.
+  Widget _buildSelectionModeBar() {
+    if (!_selectionModeEnabled) return const SizedBox.shrink();
+    final n = _selectedEntryIds.length;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        color: kcSurfaceAltColor,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: kcBorderColor.withOpacity(0.3)),
+      ),
+      child: Row(
+        children: [
+          TextButton.icon(
+            onPressed: () => setState(() {
+              _selectionModeEnabled = false;
+              _selectedEntryIds.clear();
+            }),
+            icon: const Icon(Icons.close, size: 20),
+            label: const Text('Cancel'),
+          ),
+          const Spacer(),
+          if (n > 0)
+            TextButton.icon(
+              onPressed: () => _deleteSelectedEntries(),
+              icon: Icon(Icons.delete_outline, size: 20, color: Colors.red[400]),
+              label: Text('Delete ($n)', style: TextStyle(color: Colors.red[400], fontWeight: FontWeight.w600)),
+            )
+          else
+            Text(
+              'Tap entries to select',
+              style: TextStyle(color: kcSecondaryTextColor.withOpacity(0.7), fontSize: 13),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _deleteSelectedEntries() async {
+    final toDelete = _entries.where((e) => _selectedEntryIds.contains(e.id)).toList();
+    if (toDelete.isEmpty) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete selected entries?'),
+        content: Text(
+          '${toDelete.length} journal ${toDelete.length == 1 ? 'entry' : 'entries'} will be permanently deleted. This cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    final journalRepo = JournalRepository();
+    for (final entry in toDelete) {
+      final id = entry.journalEntryId;
+      if (id != null && id.isNotEmpty) {
+        try {
+          await journalRepo.deleteJournalEntry(id);
+        } catch (_) {}
+      }
+    }
+    setState(() {
+      _selectionModeEnabled = false;
+      _selectedEntryIds.clear();
+    });
+    await _feedRepo.refresh();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('${toDelete.length} ${toDelete.length == 1 ? 'entry' : 'entries'} deleted')),
+    );
+  }
+
+  /// Chat | Reflect | Voice row — above "Today", below calendar and gear.
+  Widget _buildCommunicationActions() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          _buildEmptyStateAction(
+            icon: Icons.chat_bubble_outline,
+            label: 'Chat',
+            onTap: _openLumaraChat,
+          ),
+          const SizedBox(width: 16),
+          _buildEmptyStateAction(
+            icon: Icons.edit_note,
+            label: 'Reflect',
+            onTap: _onNewEntryTap,
+          ),
+          const SizedBox(width: 16),
+          _buildEmptyStateAction(
+            icon: Icons.mic,
+            label: 'Voice',
+            onTap: _startVoiceMemo,
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Open LUMARA chat and send the most recent entry for reply (so LUMARA can reflect on it).
+  void _openLumaraChat() {
+    final String? initialMessage = _buildEntryMessageForLumara();
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => LumaraAssistantScreen(initialMessage: initialMessage),
+      ),
+    );
+  }
+
+  /// Build a message from the most recent entry with content so LUMARA can reply to it.
+  String? _buildEntryMessageForLumara() {
+    if (_entries.isEmpty) return null;
+    for (final entry in _entries) {
+      final content = entry.content?.toString() ?? entry.preview;
+      if (content.trim().isEmpty) continue;
+      final cleanContent = FeedHelpers.contentWithoutPhaseHashtags(content);
+      if (cleanContent.trim().isEmpty) continue;
+      final title = entry.title?.trim() ?? '';
+      if (title.isNotEmpty) {
+        return 'Please reflect on this entry:\n\n$title\n\n$cleanContent';
+      }
+      return 'Please reflect on this entry:\n\n$cleanContent';
+    }
+    return null;
   }
 
   Widget _buildDateContextBanner() {
@@ -704,6 +867,110 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
     }
   }
 
+  /// Wraps the card in Dismissible (swipe left to delete) and/or selection overlay when applicable.
+  Widget _buildEntryCardWithSwipe(
+    FeedEntry entry, {
+    bool isSelectionMode = false,
+    bool isSelected = false,
+    VoidCallback? onToggleSelect,
+  }) {
+    final card = _buildEntryCard(entry);
+    final journalEntryId = entry.journalEntryId;
+    final canDelete = journalEntryId != null && journalEntryId.isNotEmpty;
+
+    Widget wrapped = card;
+    if (canDelete) {
+      wrapped = Dismissible(
+        key: ValueKey(entry.id),
+        direction: DismissDirection.endToStart,
+        background: Container(
+          alignment: Alignment.centerRight,
+          padding: const EdgeInsets.only(right: 20),
+          margin: const EdgeInsets.only(bottom: 8),
+          decoration: BoxDecoration(
+            color: Colors.red.shade400,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: const Icon(Icons.delete_outline, color: Colors.white, size: 28),
+        ),
+        confirmDismiss: (direction) async {
+          final confirmed = await showDialog<bool>(
+            context: context,
+            builder: (ctx) => AlertDialog(
+              title: const Text('Delete entry?'),
+              content: const Text(
+                'This journal entry will be permanently deleted. This action cannot be undone.',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx, false),
+                  child: const Text('Cancel'),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx, true),
+                  style: TextButton.styleFrom(foregroundColor: Colors.red),
+                  child: const Text('Delete'),
+                ),
+              ],
+            ),
+          );
+          return confirmed == true;
+        },
+        onDismissed: (_) => _deleteFeedEntry(entry),
+        child: card,
+      );
+    }
+
+    if (isSelectionMode && canDelete && onToggleSelect != null) {
+      wrapped = GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onToggleSelect,
+        child: Stack(
+          children: [
+            wrapped,
+            Positioned(
+              top: 12,
+              left: 12,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: isSelected ? kcPrimaryColor : kcSurfaceColor,
+                  border: Border.all(color: kcBorderColor),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  isSelected ? Icons.check : Icons.circle_outlined,
+                  size: 24,
+                  color: isSelected ? Colors.white : kcSecondaryTextColor,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+    return wrapped;
+  }
+
+  Future<void> _deleteFeedEntry(FeedEntry entry) async {
+    final id = entry.journalEntryId;
+    if (id == null || id.isEmpty) return;
+    try {
+      final journalRepo = JournalRepository();
+      await journalRepo.deleteJournalEntry(id);
+      await _feedRepo.refresh();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Entry deleted')),
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to delete: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
   Widget _buildEmptyState() {
     return SafeArea(
       child: Stack(
@@ -774,31 +1041,6 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
 
                   // Phase Quiz button — prominent, centered
                   _buildPhaseQuizButton(),
-                  const SizedBox(height: 24),
-
-                  // Chat | Reflect | Voice — quick-start actions
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      _buildEmptyStateAction(
-                        icon: Icons.chat_bubble_outline,
-                        label: 'Chat',
-                        onTap: _focusInputBar,
-                      ),
-                      const SizedBox(width: 16),
-                      _buildEmptyStateAction(
-                        icon: Icons.edit_note,
-                        label: 'Reflect',
-                        onTap: _onNewEntryTap,
-                      ),
-                      const SizedBox(width: 16),
-                      _buildEmptyStateAction(
-                        icon: Icons.mic,
-                        label: 'Voice',
-                        onTap: _startVoiceMemo,
-                      ),
-                    ],
-                  ),
                   const SizedBox(height: 48),
 
                   // Import section
@@ -935,7 +1177,6 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
     WidgetsBinding.instance.removeObserver(this);
     _feedSubscription?.cancel();
     _scrollController.dispose();
-    _inputFocusNode.dispose();
     _conversationManager.dispose();
     _autoSaveService.dispose();
     _feedRepo.dispose();

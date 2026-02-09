@@ -7,6 +7,7 @@ import 'package:my_app/services/phase_index.dart';
 import 'package:my_app/services/phase_regime_service.dart';
 import 'package:my_app/services/analytics_service.dart';
 import 'package:my_app/services/rivet_sweep_service.dart';
+import 'package:my_app/services/user_phase_service.dart';
 import 'arcform_timeline_view.dart';
 
 class PhaseTimelineView extends StatefulWidget {
@@ -1032,6 +1033,11 @@ class _PhaseTimelineViewState extends State<PhaseTimelineView> {
       
       // Change phase (no need to update hashtags since new regime starts now with no entries yet)
       await phaseRegimeService.changeCurrentPhase(newLabel, updateHashtags: false);
+      
+      // Persist to UserProfile so "set overall phase" sticks (display uses profile when set)
+      final raw = _getPhaseLabelName(newLabel);
+      final phaseString = raw.isEmpty ? raw : raw[0].toUpperCase() + raw.substring(1).toLowerCase();
+      await UserPhaseService.forceUpdatePhase(phaseString);
       
       // Refresh UI
       if (mounted) {

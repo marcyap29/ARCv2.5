@@ -8,6 +8,7 @@ import 'package:my_app/arc/core/journal_repository.dart';
 import 'phase_index.dart';
 // import 'semantic_similarity_service.dart'; // TODO: Implement or use existing
 import 'analytics_service.dart';
+import 'phase_regime_service.dart';
 import 'package:my_app/arc/ui/arcforms/phase_recommender.dart';
 import 'atlas_phase_decision_service.dart';
 
@@ -877,4 +878,71 @@ class RivetSweepResult {
     required this.changePoints,
     required this.dailySignals,
   });
+
+  /// All proposals that should be auto-applied (auto + review, skipping low).
+  List<PhaseSegmentProposal> get approvableProposals =>
+      [...autoAssign, ...review]..sort((a, b) => a.start.compareTo(b.start));
+}
+
+/// Runs RIVET Sweep analysis on all entries and auto-creates phase regimes.
+///
+/// This is a headless convenience wrapper used after ARCX import to
+/// automatically detect phases without requiring the user to navigate to
+/// Settings > Phase Analysis.
+///
+/// Returns the number of regimes created, or -1 on error.
+Future<int> runAutoPhaseAnalysis() async {
+  try {
+    final journalRepo = JournalRepository();
+    final entries = journalRepo.getAllJournalEntriesSync();
+
+    if (entries.length < 5) {
+      print('AutoPhaseAnalysis: Not enough entries (${entries.length}) — need at least 5');
+      return 0;
+    }
+
+    final analyticsService = AnalyticsService();
+    final rivetSweepService = RivetSweepService(analyticsService);
+    final result = await rivetSweepService.analyzeEntries(entries);
+
+    final proposals = result.approvableProposals;
+    if (proposals.isEmpty) {
+      print('AutoPhaseAnalysis: No proposals to apply');
+      return 0;
+    }
+
+    // Initialize phase regime service
+    final phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
+    await phaseRegimeService.initialize();
+
+    // Create regimes from proposals
+    int created = 0;
+    for (int i = 0; i < proposals.length; i++) {
+      final proposal = proposals[i];
+      final isLast = i == proposals.length - 1;
+
+      DateTime? regimeEnd = proposal.end;
+      if (isLast) {
+        final daysSinceEnd = DateTime.now().difference(proposal.end).inDays;
+        if (daysSinceEnd <= 2) regimeEnd = null; // ongoing
+      }
+
+      await phaseRegimeService.createRegime(
+        label: proposal.proposedLabel,
+        start: proposal.start,
+        end: regimeEnd,
+        source: PhaseSource.rivet,
+        confidence: proposal.confidence,
+        anchors: proposal.entryIds,
+      );
+      created++;
+    }
+
+    await phaseRegimeService.setLastAnalysisDate(DateTime.now());
+    print('AutoPhaseAnalysis: Created $created phase regimes from ${entries.length} entries');
+    return created;
+  } catch (e) {
+    print('AutoPhaseAnalysis: Failed — $e');
+    return -1;
+  }
 }

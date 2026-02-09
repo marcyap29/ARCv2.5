@@ -43,6 +43,24 @@ class FeedHelpers {
     }
   }
 
+  /// Phase hashtags added by phase analysis (#discovery, #consolidation, etc.).
+  /// Strip these from content when displaying so the phase shows only in the card/header, not in the body.
+  static const List<String> _phaseHashtags = [
+    '#discovery', '#expansion', '#transition',
+    '#consolidation', '#recovery', '#breakthrough',
+  ];
+
+  /// Returns content with phase hashtags removed (for display only).
+  static String contentWithoutPhaseHashtags(String? content) {
+    if (content == null || content.isEmpty) return '';
+    String out = content;
+    for (final tag in _phaseHashtags) {
+      final regex = RegExp(RegExp.escape(tag), caseSensitive: false);
+      out = out.replaceAll(regex, '').trim();
+    }
+    return out.replaceAll(RegExp(r'\s+'), ' ').trim();
+  }
+
   /// Format a date for display in the feed.
   static String formatFeedDate(DateTime date) {
     final now = DateTime.now();

@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/arc/unified_feed/models/feed_entry.dart';
 import 'package:my_app/arc/unified_feed/utils/feed_helpers.dart';
+import 'package:my_app/arc/unified_feed/widgets/feed_media_thumbnails.dart';
 import 'base_feed_card.dart';
 
 class ReflectionCard extends StatelessWidget {
@@ -49,10 +50,10 @@ class ReflectionCard extends StatelessWidget {
           ),
           const SizedBox(height: 8),
 
-          // Content preview
+          // Content preview (strip phase hashtags so they only show in the metadata row)
           if (entry.preview.isNotEmpty)
             Text(
-              entry.preview,
+              FeedHelpers.contentWithoutPhaseHashtags(entry.preview),
               style: TextStyle(
                 color: kcPrimaryTextColor.withOpacity(0.65),
                 fontSize: 13,
@@ -61,6 +62,14 @@ class ReflectionCard extends StatelessWidget {
               maxLines: 3,
               overflow: TextOverflow.ellipsis,
             ),
+          if (entry.mediaItems.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            FeedMediaThumbnails(
+              mediaItems: entry.mediaItems,
+              size: 48,
+              maxCount: 4,
+            ),
+          ],
           const SizedBox(height: 8),
 
           // Metadata row: phase · mood · media · timestamp

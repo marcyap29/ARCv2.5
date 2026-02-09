@@ -1,8 +1,8 @@
 # Unified Feed: LUMARA + Conversations Merge
 
-**Version:** 1.5 (Phase 1.5)  
+**Version:** 2.0 (Phase 2.0)  
 **Last Updated:** February 9, 2026  
-**Status:** Phase 1.5 complete. Behind feature flag (`USE_UNIFIED_FEED`, default off).  
+**Status:** Phase 2.0 complete. Behind feature flag (`USE_UNIFIED_FEED`, default off).  
 **Location:** `lib/arc/unified_feed/`
 
 ---
@@ -28,9 +28,9 @@ Users had to mentally separate "talking to LUMARA" from "writing in my journal."
 | Aspect | Legacy (3-tab) | Unified (2-tab) |
 |--------|----------------|-----------------|
 | Tab bar | LUMARA / Phase / Conversations | LUMARA / Settings (2 tabs) |
-| LUMARA tab | Full-screen chat | Scrollable feed with greeting, entries, input bar |
+| LUMARA tab | Full-screen chat | Scrollable feed with greeting, phase preview, action buttons, entries |
 | Conversations tab | Journal timeline | Removed (entries appear in feed) |
-| New journal entry | Tab bar "+" button | Removed — input bar + quick-start actions replace it |
+| New journal entry | Tab bar "+" button | Removed — Chat/Reflect/Voice action buttons replace it |
 | Phase tab | Phase constellation | Removed from tab bar; accessible via Timeline button in feed |
 | Settings | Gear icon in app bar | Dedicated Settings tab (index 1) |
 | First-use (empty feed) | N/A | Welcome screen shown alone — bottom nav + input bar hidden |
@@ -50,7 +50,7 @@ When `true`: the app switches to the 2-tab unified layout (LUMARA + Settings).
 The flag is checked in:
 - `home_view.dart` — tab list (LUMARA + Settings), tab names, page routing, `_feedIsEmpty` state to hide bottom nav during welcome screen, `showCenterButton` (hidden in unified mode)
 - `tab_bar.dart` — dynamic tab rendering; center "+" button conditionally rendered via `showCenterButton`
-- `unified_feed_screen.dart` — `onEmptyStateChanged` callback to report empty state to HomeView; input bar hidden when feed is empty
+- `unified_feed_screen.dart` — `onEmptyStateChanged` callback to report empty state to HomeView
 
 ---
 
@@ -73,10 +73,11 @@ lib/arc/unified_feed/
 ├── utils/
 │   └── feed_helpers.dart       # Date grouping, icons, colors, text utilities
 └── widgets/
-    ├── unified_feed_screen.dart    # Main feed screen (pagination, date nav, initial mode)
-    ├── expanded_entry_view.dart    # Full-screen entry detail view
+    ├── unified_feed_screen.dart    # Main feed screen (pagination, date nav, deletion, LUMARA chat)
+    ├── expanded_entry_view.dart    # Full-screen entry detail view (media, edit, delete)
     ├── import_options_sheet.dart   # Data import bottom sheet (5 sources)
-    ├── input_bar.dart              # Bottom input bar
+    ├── feed_media_thumbnails.dart  # Compact media thumbnail strip (photos, video, files)
+    ├── input_bar.dart              # Bottom input bar (unused in v2.0; kept for reference)
     ├── feed_entry_cards/
     │   ├── base_feed_card.dart         # Shared card wrapper with phase-colored left border
     │   ├── active_conversation_card.dart
@@ -115,13 +116,19 @@ lib/core/models/entry_mode.dart         # EntryMode enum (chat, reflect, voice)
        │  ┌──────────────────────┐ │
        │  │  Greeting Header     │ │
        │  ├──────────────────────┤ │
+       │  │  Header Actions      │ │
+       │  │  (Select/Timeline/⚙) │ │
+       │  ├──────────────────────┤ │
+       │  │  Phase Arcform       │ │
+       │  ├──────────────────────┤ │
+       │  │  Chat|Reflect|Voice  │ │
+       │  ├──────────────────────┤ │
        │  │  Date-grouped cards  │ │
        │  │   • Active convo     │ │
        │  │   • Saved convo      │ │
        │  │   • Voice memo       │ │
-       │  │   • Written entry    │ │
-       │  ├──────────────────────┤ │
-       │  │  FeedInputBar        │ │
+       │  │   • Reflection       │ │
+       │  │   (swipe/select/del) │ │
        │  └──────────────────────┘ │
        └───────────────────────────┘
 ```
@@ -174,6 +181,7 @@ The core view model. Represents any item in the feed.
 | `hasLumaraReflections` | `bool` | Has LUMARA inline blocks |
 | `hasMedia` | `bool` | Has media attachments |
 | `mediaCount` | `int` | Number of media attachments |
+| `mediaItems` | `List<MediaItem>` | Media items (photos, videos, files) for display |
 | `tags` | `List<String>` | Tags from original entry |
 | `metadata` | `Map<String, dynamic>` | Additional metadata |
 
@@ -261,42 +269,51 @@ Sub-greeting examples: "You have an active conversation", "3 entries today", "La
 
 The main screen. Replaces both `LumaraAssistantScreen` (chat) and `UnifiedJournalView` (timeline).
 
-**Layout (top to bottom):**
-1. **App bar** — Timeline (calendar icon), Voice memo, Settings actions
-2. **Greeting header** — LUMARA sigil + contextual greeting + sub-greeting
-3. **LUMARA observation banner** — If LUMARA has a proactive observation
-4. **Date-grouped entry cards** — Today, Yesterday, This Week, This Month, etc. with date dividers
-5. **Input bar** — Fixed at bottom
+**Layout — populated feed (top to bottom):**
+1. **Greeting header** — LUMARA sigil + contextual greeting + sub-greeting
+2. **Header actions** — Select (batch delete), Timeline (calendar), Settings gear
+3. **Selection mode bar** — Cancel / Delete (N) — visible only when in selection mode
+4. **Phase Arcform preview** — `CurrentPhaseArcformPreview` widget; tap opens `PhaseAnalysisView`
+5. **Communication actions** — Chat / Reflect / Voice buttons (above "Today" section)
+6. **LUMARA observation banner** — If LUMARA has a proactive observation
+7. **Date-grouped entry cards** — Today, Yesterday, This Week, This Month, etc. with date dividers
+
+**Entry Management:**
+- **Swipe-to-delete**: Swipe any card left to delete (with confirmation dialog). Uses `Dismissible` + `JournalRepository.deleteJournalEntry()`.
+- **Batch selection**: Tap "Select entries" (checklist icon) → multi-select mode with checkbox overlays → "Delete (N)" button with confirmation.
+- **ExpandedEntryView actions**: Edit opens `JournalScreen` in edit mode. Delete permanently removes entry with confirmation dialog and `onEntryDeleted` callback to refresh feed.
+
+**LUMARA Chat:**
+- "Chat" button opens `LumaraAssistantScreen` directly. If the feed has entries, the most recent entry with content is sent as `initialMessage` ("Please reflect on this entry...") so LUMARA can immediately engage.
+- `LumaraAssistantScreen` auto-sends `initialMessage` on first frame via `addPostFrameCallback`.
 
 **Interactions:**
 - Pull-to-refresh to reload feed
 - Infinite scroll: loads 20 entries at a time, loads more when near bottom
-- Tap entry card → opens **ExpandedEntryView** (full-screen detail with phase, themes, CHRONICLE context)
+- Tap entry card → opens **ExpandedEntryView** (full-screen detail with phase, themes, media, CHRONICLE context)
 - Tap "Save" on active conversation card → persist as journal entry
-- Submit text in input bar → add user message to active conversation
-- Tap "+" in input bar → open new journal entry screen
 - Timeline button → opens **TimelineModal** for date-based navigation; jump to any date
 - **Welcome screen (empty state):**
   - Settings gear (top-right) — direct access to SettingsView
   - LUMARA logo + title + subtitle
   - "Discover Your Phase" gradient button — launches PhaseQuizV2Screen
-  - Chat / Reflect / Voice quick-start action buttons
   - "Import your data" link at bottom — opens ImportOptionsSheet (5 import sources)
-  - Input bar and bottom nav hidden during empty state for clean first-use experience
-- `initialMode` parameter: activates chat (focus input), reflect (open journal), or voice (launch voice mode) on first frame
+  - Bottom nav hidden during empty state for clean first-use experience
+- `initialMode` parameter: activates chat (open LUMARA), reflect (open journal), or voice (launch voice mode) on first frame
 - `onEmptyStateChanged` callback: reports empty/non-empty state to HomeView for nav visibility
 - `GestureDetector` wrapper dismisses keyboard on outside tap
 
-### FeedInputBar
+**Phase Hashtag Stripping:**
+- `FeedHelpers.contentWithoutPhaseHashtags()` strips `#discovery`, `#expansion`, `#transition`, `#consolidation`, `#recovery`, `#breakthrough` from display content. Phase shows only in card metadata/header.
 
-Bottom input bar replacing the separate input areas from old chat and journal screens.
+### FeedMediaThumbnails
 
-| Element | Behavior |
-|---------|----------|
-| Pen icon (left) | Opens new journal entry |
-| Text field | Expands up to 4 lines; placeholder "Talk to LUMARA..." |
-| Attachment icon | Appears when text field is empty (Phase 2) |
-| Send / Voice (right) | Animated switch: shows send arrow when text entered, microphone when empty |
+Compact horizontal thumbnail strip for feed cards and expanded entry view.
+
+| Component | Description |
+|-----------|-------------|
+| `FeedMediaThumbnails` | Horizontal `ListView` of thumbnails (configurable size and max count) |
+| `FeedMediaThumbnailTile` | Single tile resolving `ph://`, `file://`, MCP, and raw path URIs via `MediaResolverService` / `PhotoLibraryService`. Tap opens `FullImageViewer` for images. |
 
 ### Entry Cards
 
@@ -306,7 +323,7 @@ All cards extend **BaseFeedCard**, which provides a consistent wrapper with a ph
 |------|-------------|----------|
 | ActiveConversationCard | Phase color, pulsing | "Active" badge, exchange count, "Save" button |
 | SavedConversationCard | Phase color | Exchange count, "LUMARA" tag if has reflections |
-| ReflectionCard | Phase color | Content preview, mood, media count, themes on expand |
+| ReflectionCard | Phase color | Content preview (phase hashtags stripped), mood, media thumbnails, themes on expand |
 | LumaraPromptCard | Phase color + LUMARA sigil | Observation text, respond/dismiss actions |
 | VoiceMemoCard | Phase color | Duration display, play icon, transcript snippet |
 
@@ -323,7 +340,7 @@ All cards extend **BaseFeedCard**, which provides a consistent wrapper with a ph
 - Feature flag and home view routing
 - Dynamic tab bar
 
-### Phase 1.5 (v3.3.18, current) — Model refactor, pagination, expanded views, timeline
+### Phase 1.5 (v3.3.18) — Model refactor, pagination, expanded views, timeline
 
 - FeedEntry refactored: `reflection` + `lumaraInitiative` types, `FeedMessage`, phase colors, themes, computed preview
 - EntryState simplified
@@ -339,20 +356,32 @@ All cards extend **BaseFeedCard**, which provides a consistent wrapper with a ph
 - Welcome screen: settings gear, Phase Quiz CTA, data import flow (5 sources)
 - UniversalImporterService for multi-format journal import with deduplication
 
-### Phase 2 (planned) — LLM integration and full conversation flow
+### Phase 2.0 (v3.3.19, current) — Entry management, media, LUMARA chat, phase priority
 
-- Input bar text submission triggers LUMARA LLM call via `EnhancedLumaraAPI`
+- **Entry deletion**: Swipe-to-delete (`Dismissible`) and batch selection mode (multi-select + bulk delete)
+- **Media support**: `FeedEntry.mediaItems`, `FeedMediaThumbnails` widget, media grid in ExpandedEntryView with URI resolution (`ph://`, `file://`, MCP)
+- **LUMARA chat integration**: Chat button opens `LumaraAssistantScreen` directly with `initialMessage` from most recent entry
+- **Input bar removed**: `FeedInputBar` removed from feed; Chat/Reflect/Voice action buttons serve as quick-start actions in both empty and populated states
+- **Phase Arcform preview**: `CurrentPhaseArcformPreview` embedded in feed, tap opens `PhaseAnalysisView`
+- **Phase hashtag stripping**: `FeedHelpers.contentWithoutPhaseHashtags()` strips phase tags from display content everywhere
+- **ExpandedEntryView enhanced**: Media section, working edit (opens `JournalScreen`), working delete with `onEntryDeleted` callback
+- **Phase priority fix**: `UserPhaseService.getDisplayPhase()` reordered — user's explicit phase (quiz/manual) takes priority over RIVET/regime
+- **Auto phase analysis**: `runAutoPhaseAnalysis()` headless function auto-creates phase regimes after ARCX import
+- **Phase Analysis refactored**: Removed pending approval flow; analysis auto-applies; new `PhaseAnalysisSettingsView` in Settings
+- **Header actions rearranged**: Select (batch), Timeline, Settings (Voice memo icon removed)
+- **CHRONICLE progress UI**: Rich progress view in `ChronicleManagementView` with percentage, stage label, linear bar
+- **LumaraAssistantScreen**: `initialMessage` param, back arrow navigation, removed drawer and "New Chat" menu item
+- **JournalScreen cleanup**: Removed prompt notice dialog, phase-preserving profile creation
+
+### Phase 3 (planned) — LLM-powered conversation and advanced features
+
+- Input bar or chat submission triggers LUMARA LLM call via `EnhancedLumaraAPI`
 - Assistant responses stream into the active conversation card
-- Voice recording from input bar
+- Voice recording from feed
 - Attachment support (photos, documents)
-- Active conversation card shows live message exchange
-
-### Phase 3 (planned) — Advanced features
-
 - Search and filter within the feed
 - Pinning and archiving entries
 - Inline LUMARA reflection requests on any entry
-- Drag-to-reorder pinned entries
 - Feed-level analytics (writing streaks, patterns)
 
 ---
@@ -365,14 +394,25 @@ All cards extend **BaseFeedCard**, which provides a consistent wrapper with a ph
 | `lib/core/constants/phase_colors.dart` | Phase color constants for card borders |
 | `lib/core/models/entry_mode.dart` | EntryMode enum (chat, reflect, voice) |
 | `lib/shared/tab_bar.dart` | Dynamic tab loop; center "+" button conditionally rendered via `showCenterButton` |
-| `lib/shared/ui/home/home_view.dart` | 2-tab layout (LUMARA + Settings); `_feedIsEmpty` state hides nav during welcome; `showCenterButton` off in unified mode |
+| `lib/shared/ui/home/home_view.dart` | 2-tab layout; `_feedIsEmpty` hides nav; auto phase analysis after import |
 | `lib/app/app.dart` | `onGenerateRoute` to pass EntryMode to HomeView |
+| `lib/arc/chat/ui/lumara_assistant_screen.dart` | `initialMessage` param; removed drawer; back arrow nav |
+| `lib/services/rivet_sweep_service.dart` | `approvableProposals` getter; `runAutoPhaseAnalysis()` |
+| `lib/services/user_phase_service.dart` | Phase priority reordered (profile first) |
+| `lib/shared/ui/settings/settings_view.dart` | Phase Analysis menu item |
+| `lib/shared/ui/settings/phase_analysis_settings_view.dart` | New: Phase Analysis settings screen |
+| `lib/shared/ui/settings/combined_analysis_view.dart` | Removed Phase Analysis tab |
+| `lib/shared/ui/settings/chronicle_management_view.dart` | Rich progress UI |
+| `lib/ui/journal/journal_screen.dart` | Removed prompt notice; phase-preserving profile creation |
+| `lib/ui/phase/phase_analysis_view.dart` | Auto-apply analysis; removed approval flow |
+| `lib/ui/phase/phase_timeline_view.dart` | `forceUpdatePhase` on phase change |
+| `lib/arc/ui/timeline/widgets/current_phase_arcform_preview.dart` | `onTapOverride`; profile-first phase resolution |
 
 ---
 
 ## Related Documents
 
 - [ARCHITECTURE.md](ARCHITECTURE.md) — ARC Module → `unified_feed/` submodule
-- [FEATURES.md](FEATURES.md) — "Unified Feed (v3.3.17, feature-flagged)" section
-- [CHANGELOG.md](CHANGELOG.md) — [3.3.17] entry
+- [FEATURES.md](FEATURES.md) — "Unified Feed (v3.3.19, feature-flagged)" section
+- [CHANGELOG.md](CHANGELOG.md) — [3.3.19] entry
 - [UI_UX.md](UI_UX.md) — UI patterns and components

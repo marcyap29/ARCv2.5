@@ -208,9 +208,9 @@ class FeedRepository {
       type = FeedEntryType.reflection;
     }
 
-    // Extract phase and phase color
-    final phase = entry.autoPhase ?? entry.phase;
-    final phaseColor = phase != null ? PhaseColors.getPhaseColor(phase) : null;
+    // Extract phase and phase color (manual user override takes priority over auto/detected)
+    final phase = entry.computedPhase;
+    final phaseColor = phase != null && phase.isNotEmpty ? PhaseColors.getPhaseColor(phase) : null;
 
     // Extract themes from metadata if available
     final themes = <String>[];
@@ -243,6 +243,7 @@ class FeedRepository {
       hasLumaraReflections: entry.lumaraBlocks.isNotEmpty,
       hasMedia: entry.media.isNotEmpty,
       mediaCount: entry.media.length,
+      mediaItems: entry.media,
       tags: entry.tags,
       journalEntryId: entry.id,
       audioPath: isVoiceMemo ? entry.audioUri : null,

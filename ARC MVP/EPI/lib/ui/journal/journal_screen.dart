@@ -240,9 +240,6 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     
     _analytics.logJournalEvent('opened');
     
-    // Track journal mode entry and show prompt notice every 3-5 times
-    _trackJournalModeEntry();
-    
     // Add lifecycle observer for app state changes
     WidgetsBinding.instance.addObserver(this);
 
@@ -1211,27 +1208,6 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     }
   }
   
-  /// Track when user enters journaling mode
-  Future<void> _trackJournalModeEntry() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final entryCount = prefs.getInt('journal_mode_entry_count') ?? 0;
-      final newCount = entryCount + 1;
-      await prefs.setInt('journal_mode_entry_count', newCount);
-      
-      // Show prompt notice every 3-5 times (randomized between 3-5)
-      if (newCount % 4 == 0 || (newCount >= 3 && newCount <= 5 && newCount % 3 == 0)) {
-        if (mounted) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            _showPromptNotice();
-          });
-        }
-      }
-    } catch (e) {
-      print('Error tracking journal mode entry: $e');
-    }
-  }
-  
   /// Increment journal entry count when entry is saved
   Future<void> _incrementJournalEntryCount() async {
     try {
@@ -1243,27 +1219,6 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     }
   }
   
-  /// Show notice about writing prompts
-  void _showPromptNotice() {
-    if (!mounted) return;
-    
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Need a Writing Prompt?'),
-        content: const Text(
-          'Press the LUMARA icon (🧠) to get personalized journaling prompts based on your entries, chats, drafts, media, and current phase.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Got it'),
-          ),
-        ],
-      ),
-    );
-  }
-
   void _showReflectionPauseDialog(String message, DateTime? pausedUntil) {
     if (!mounted) return;
     final resumeText = pausedUntil != null
@@ -1353,8 +1308,10 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
       }
       final userProfile = userBox.get('profile');
       
-      // If no user profile exists, create a default one
+      // If no user profile exists, create one. Preserve any phase from quiz/snapshots so we never overwrite with Discovery.
       if (userProfile == null) {
+        final existingPhase = await UserPhaseService.getCurrentPhase();
+        final phaseToUse = existingPhase.trim().isNotEmpty ? existingPhase : 'Discovery';
         final defaultProfile = UserProfile(
           id: 'user_${DateTime.now().millisecondsSinceEpoch}',
           name: 'User',
@@ -1362,12 +1319,12 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
           createdAt: DateTime.now(),
           preferences: const {},
           onboardingCompleted: false,
-          onboardingCurrentSeason: 'Discovery',
-          currentPhase: 'Discovery',
+          onboardingCurrentSeason: phaseToUse,
+          currentPhase: phaseToUse,
           lastPhaseChangeAt: DateTime.now(),
         );
         await userBox.put('profile', defaultProfile);
-        print('DEBUG: Created default user profile with ID: ${defaultProfile.id}');
+        print('DEBUG: Created default user profile with ID: ${defaultProfile.id}, phase: $phaseToUse');
       }
       
       // Build context from progressive memory loader (current year only)

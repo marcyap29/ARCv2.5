@@ -32,6 +32,11 @@ class _ChronicleManagementViewState extends State<ChronicleManagementView> {
   String? _statusMessage;
   bool _statusIsError = false;
   
+  // Progress tracking
+  int _progressCurrent = 0;
+  int _progressTotal = 0;
+  String? _progressStage;
+  
   // Aggregation counts
   int _monthlyCount = 0;
   int _yearlyCount = 0;
@@ -79,6 +84,9 @@ class _ChronicleManagementViewState extends State<ChronicleManagementView> {
     setState(() {
       _isLoading = true;
       _statusMessage = null;
+      _progressCurrent = 0;
+      _progressTotal = 0;
+      _progressStage = 'Backfilling Layer 0...';
     });
     try {
       final userId = FirebaseAuthService.instance.currentUser?.uid ?? 'default_user';
@@ -86,7 +94,11 @@ class _ChronicleManagementViewState extends State<ChronicleManagementView> {
       final result = await service.backfillAndSynthesizeCurrentMonth(
         userId: userId,
         onProgress: (processed, total) {
-          if (mounted) setState(() => _statusMessage = 'Backfilling... $processed / $total entries');
+          if (mounted) setState(() {
+            _progressCurrent = processed;
+            _progressTotal = total;
+            _progressStage = 'Backfilling Layer 0...';
+          });
         },
       );
       if (mounted) {
@@ -112,6 +124,9 @@ class _ChronicleManagementViewState extends State<ChronicleManagementView> {
     setState(() {
       _isLoading = true;
       _statusMessage = null;
+      _progressCurrent = 0;
+      _progressTotal = 0;
+      _progressStage = 'Backfilling Layer 0...';
     });
     try {
       final userId = FirebaseAuthService.instance.currentUser?.uid ?? 'default_user';
@@ -119,7 +134,11 @@ class _ChronicleManagementViewState extends State<ChronicleManagementView> {
       final result = await service.backfillAndSynthesizeCurrentYear(
         userId: userId,
         onProgress: (processed, total) {
-          if (mounted) setState(() => _statusMessage = 'Backfilling... $processed / $total entries');
+          if (mounted) setState(() {
+            _progressCurrent = processed;
+            _progressTotal = total;
+            _progressStage = 'Backfilling Layer 0...';
+          });
         },
       );
       if (mounted) {
@@ -145,6 +164,9 @@ class _ChronicleManagementViewState extends State<ChronicleManagementView> {
     setState(() {
       _isLoading = true;
       _statusMessage = null;
+      _progressCurrent = 0;
+      _progressTotal = 0;
+      _progressStage = 'Backfilling Layer 0...';
     });
     try {
       final userId = FirebaseAuthService.instance.currentUser?.uid ?? 'default_user';
@@ -152,7 +174,11 @@ class _ChronicleManagementViewState extends State<ChronicleManagementView> {
       final result = await service.backfillAndSynthesizeMultiYear(
         userId: userId,
         onProgress: (processed, total) {
-          if (mounted) setState(() => _statusMessage = 'Backfilling... $processed / $total entries');
+          if (mounted) setState(() {
+            _progressCurrent = processed;
+            _progressTotal = total;
+            _progressStage = 'Backfilling Layer 0...';
+          });
         },
       );
       if (mounted) {
@@ -284,6 +310,9 @@ class _ChronicleManagementViewState extends State<ChronicleManagementView> {
     setState(() {
       _isLoading = true;
       _statusMessage = null;
+      _progressCurrent = 0;
+      _progressTotal = 0;
+      _progressStage = 'Initializing...';
     });
 
     try {
@@ -296,7 +325,9 @@ class _ChronicleManagementViewState extends State<ChronicleManagementView> {
         onProgress: (stage, progress, total) {
           if (mounted) {
             setState(() {
-              _statusMessage = '$stage ($progress / $total)';
+              _progressStage = stage;
+              _progressCurrent = progress;
+              _progressTotal = total;
             });
           }
         },
@@ -341,7 +372,7 @@ class _ChronicleManagementViewState extends State<ChronicleManagementView> {
         centerTitle: true,
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? _buildProgressView()
           : SingleChildScrollView(
               padding: const EdgeInsets.all(20),
               child: Column(
@@ -505,6 +536,79 @@ class _ChronicleManagementViewState extends State<ChronicleManagementView> {
                 ],
               ),
             ),
+    );
+  }
+
+  Widget _buildProgressView() {
+    final fraction = _progressTotal > 0
+        ? (_progressCurrent / _progressTotal).clamp(0.0, 1.0)
+        : null; // null = indeterminate
+    final percent = fraction != null ? (fraction * 100).round() : null;
+
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 40),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // Circular progress with percentage in the center
+            SizedBox(
+              width: 120,
+              height: 120,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  SizedBox(
+                    width: 120,
+                    height: 120,
+                    child: CircularProgressIndicator(
+                      value: fraction,
+                      strokeWidth: 6,
+                      backgroundColor: kcSurfaceAltColor,
+                      valueColor: const AlwaysStoppedAnimation<Color>(kcPrimaryColor),
+                    ),
+                  ),
+                  if (percent != null)
+                    Text(
+                      '$percent%',
+                      style: heading1Style(context).copyWith(
+                        color: kcPrimaryTextColor,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 32),
+            // Stage label
+            if (_progressStage != null)
+              Text(
+                _progressStage!,
+                style: heading3Style(context).copyWith(color: kcPrimaryTextColor),
+                textAlign: TextAlign.center,
+              ),
+            const SizedBox(height: 8),
+            // x / y entries
+            if (_progressTotal > 0)
+              Text(
+                '$_progressCurrent / $_progressTotal entries',
+                style: bodyStyle(context).copyWith(color: kcSecondaryTextColor),
+              ),
+            const SizedBox(height: 24),
+            // Linear progress bar
+            SizedBox(
+              width: double.infinity,
+              child: LinearProgressIndicator(
+                value: fraction,
+                minHeight: 4,
+                backgroundColor: kcSurfaceAltColor,
+                valueColor: const AlwaysStoppedAnimation<Color>(kcPrimaryColor),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 

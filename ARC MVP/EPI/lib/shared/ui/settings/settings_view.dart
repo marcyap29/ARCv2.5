@@ -8,6 +8,7 @@ import 'package:my_app/shared/ui/settings/memory_snapshot_management_view.dart';
 import 'package:my_app/shared/ui/settings/conflict_management_view.dart';
 import 'package:my_app/shared/ui/settings/favorites_management_view.dart';
 import 'package:my_app/shared/ui/settings/advanced_settings_view.dart';
+import 'package:my_app/shared/ui/settings/phase_analysis_settings_view.dart';
 import 'package:my_app/shared/ui/settings/voiceover_preference_service.dart';
 import 'package:my_app/shared/ui/settings/throttle_settings_view.dart';
 import 'package:my_app/shared/ui/settings/health_readiness_view.dart';
@@ -120,10 +121,22 @@ class _SettingsViewState extends State<SettingsView> {
               ),
             ),
 
-            // 5. Advanced Settings (own card, below CHRONICLE, above Health & Readiness)
+            // 5. Phase Analysis (Phase Analysis card + Phase Statistics card)
+            _buildFolderTile(
+              context,
+              title: 'Phase Analysis',
+              subtitle: 'Phase detection and statistics',
+              icon: Icons.auto_awesome,
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const PhaseAnalysisSettingsView()),
+              ),
+            ),
+
+            // 6. Advanced Settings (own card, below Phase Analysis)
             _buildAdvancedSettingsCard(context),
 
-            // 6. Health & Readiness (Available to everyone by default)
+            // 7. Health & Readiness (Available to everyone by default)
             _buildFolderTile(
               context,
               title: 'Health & Readiness',
@@ -135,7 +148,7 @@ class _SettingsViewState extends State<SettingsView> {
               ),
             ),
 
-            // 7. Bug Reporting Folder
+            // 8. Bug Reporting Folder
             _buildFolderTile(
               context,
               title: 'Bug Reporting',
@@ -147,7 +160,7 @@ class _SettingsViewState extends State<SettingsView> {
               ),
             ),
 
-            // 8. Privacy & Security Folder
+            // 9. Privacy & Security Folder
             _buildFolderTile(
               context,
               title: 'Privacy & Security',

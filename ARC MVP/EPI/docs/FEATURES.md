@@ -1,6 +1,6 @@
 # EPI MVP - Comprehensive Features Guide
 
-**Version:** 3.3.18
+**Version:** 3.3.19
 **Last Updated:** February 9, 2026
 
 ---
@@ -114,33 +114,54 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
   - Smooth 300ms animation with easeOut curve
 - **Available In**: LUMARA Chat, Journal Timeline, Journal Entry Editor
 
-### Unified Feed (v3.3.18, feature-flagged)
+### Unified Feed (v3.3.19, feature-flagged)
 
-**Status:** Phase 1.5 — models, pagination, expanded views, timeline navigation. Behind `USE_UNIFIED_FEED` feature flag (default off).
+**Status:** Phase 2.0 — entry management, media, LUMARA chat integration, phase priority. Behind `USE_UNIFIED_FEED` feature flag (default off).
 
-**Concept:** Merges the separate LUMARA chat and Conversations (journal timeline) tabs into a single scrollable feed. When enabled, the home screen switches from 3 tabs to 2 tabs (LUMARA + Settings). Phase is accessible via the Timeline button inside the feed. On first use (empty feed), bottom nav and input bar are hidden for a clean welcome experience.
+**Concept:** Merges the separate LUMARA chat and Conversations (journal timeline) tabs into a single scrollable feed. When enabled, the home screen switches from 3 tabs to 2 tabs (LUMARA + Settings). Phase is accessible via the Phase Arcform preview embedded in the feed and via the Timeline button. On first use (empty feed), bottom nav is hidden for a clean welcome experience.
 
 **Feed Display**
 - Contextual greeting header with LUMARA sigil (time-of-day and recency-based)
+- Header actions: Select (batch delete), Timeline (calendar), Settings gear
+- Phase Arcform preview — tap opens `PhaseAnalysisView`
+- Chat / Reflect / Voice action buttons (above "Today" section in populated feed; also in welcome screen)
 - LUMARA observation banner (proactive check-ins from CHRONICLE/SENTINEL)
 - Entries grouped by date (Today, Yesterday, This Week, Earlier) with date dividers
 - Pull-to-refresh and infinite scroll (loads 20 entries at a time)
 - Timeline modal (calendar icon) for date-based navigation; jump to any date
-- **Welcome screen (empty/first-use):** Settings gear top-right, "Discover Your Phase" gradient button (Phase Quiz), Chat / Reflect / Voice quick-start buttons, "Import your data" link (5 import sources: LUMARA, Day One, Journey, Text, CSV). Bottom nav and input bar hidden for clean onboarding
-- App bar: Timeline, Voice memo, Settings actions
+- **Welcome screen (empty/first-use):** Settings gear top-right, "Discover Your Phase" gradient button (Phase Quiz), "Import your data" link (5 import sources: LUMARA, Day One, Journey, Text, CSV). Bottom nav hidden for clean onboarding
 - Settings accessible as a dedicated tab (index 1) in the bottom nav
+- Phase hashtags (`#discovery`, `#expansion`, etc.) stripped from display content — phase shown only in card metadata
+
+**Entry Management**
+- **Swipe-to-delete**: Swipe any card left → confirmation dialog → permanent deletion via `JournalRepository`
+- **Batch selection**: Select (checklist) icon → multi-select mode with checkbox overlays → bulk delete with confirmation
+- **Expanded entry delete**: Options menu "Delete" fully wired with confirmation and feed refresh
+- **Expanded entry edit**: Opens `JournalScreen` in edit mode with full `JournalEntry` loaded
+
+**Media Support**
+- `FeedEntry.mediaItems` carries media (photos, videos, files) from journal entries
+- `ReflectionCard` shows compact thumbnail strip (up to 4 thumbnails)
+- `ExpandedEntryView` shows full media grid with URI resolution (`ph://`, `file://`, MCP-style). Tap images to open `FullImageViewer`
+- `FeedMediaThumbnails` / `FeedMediaThumbnailTile` — reusable thumbnail components
+
+**LUMARA Chat Integration**
+- "Chat" button opens `LumaraAssistantScreen` directly from the feed
+- Most recent entry with content auto-sent as `initialMessage` ("Please reflect on this entry...")
+- `LumaraAssistantScreen` auto-sends initial message on first frame; back arrow navigation; drawer removed
 
 **Feed Entry Types**
 - **Active Conversation**: Ongoing LUMARA chat (not yet saved), pulsing phase-colored border
 - **Saved Conversation**: Auto-saved or manually saved conversations with exchange count
-- **Reflection**: Text-based journal reflections with content preview and mood indicator
+- **Reflection**: Text-based journal reflections with content preview, media thumbnails, and mood indicator
 - **Voice Memo**: Quick voice captures with duration and transcript snippet
 - **LUMARA Initiative**: Proactive LUMARA observations, check-ins, and prompts
 
 **Visual Design**
 - All cards use BaseFeedCard with phase-colored left border
 - Phase colors flow from ATLAS detection through to visual indicators
-- Expanded entry view: full-screen detail with phase, themes, CHRONICLE context, LUMARA notes
+- Phase Arcform preview embedded in feed between header actions and entry cards
+- Expanded entry view: full-screen detail with phase, themes, media grid, CHRONICLE context, LUMARA notes
 
 **Conversation Management**
 - Auto-save after 5 minutes of inactivity (configurable)
@@ -148,10 +169,9 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 - Conversations persist as journal entries with LUMARA inline blocks
 - Manual save and discard options
 
-**Input Bar**
-- Bottom text input for starting or continuing conversations
-- New journal entry (+) button
-- Voice and attachment buttons
+**Quick Actions**
+- Chat / Reflect / Voice buttons replace the old input bar
+- Chat opens LUMARA assistant; Reflect opens journal editor; Voice starts voice memo
 - Initial mode support (chat/reflect/voice from welcome screen or deep link)
 
 ---
@@ -165,6 +185,7 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 - Context-aware responses
 - Phase-aware reflections
 - Multimodal understanding
+- **Unified Feed integration (v3.3.19)**: `initialMessage` parameter auto-sends most recent journal entry to LUMARA for reflection when opened from feed. Back-arrow navigation (replaces drawer). "New Chat" removed from popup menu.
 
 **Voice Chat - Voice Sigil (v3.3.16, upgraded from Jarvis Mode v2.1.53)**
 - **Voice Sigil UI**: Sophisticated 6-state animation system replacing the original glowing indicator
@@ -459,6 +480,10 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 
 **Phase Analysis**
 - **RIVET Sweep**: Automated phase detection with sophisticated analysis
+- **Auto-apply (v3.3.19)**: Analysis results auto-create phase regimes — no manual approval step
+- **Auto Phase Analysis after Import (v3.3.19)**: `runAutoPhaseAnalysis()` runs headless RIVET Sweep after ARCX/ZIP import, creates regimes, shows snackbar notification
+- **Phase Priority (v3.3.19)**: User's explicit phase (quiz or manual "set overall phase") takes priority over RIVET/regime. `UserPhaseService.getDisplayPhase()` reordered.
+- **Phase Analysis Settings (v3.3.19)**: Dedicated `PhaseAnalysisSettingsView` accessible from main Settings menu. Phase statistics cards.
 - **SENTINEL Analysis**: Risk monitoring
 - **Phase Recommendations**: Change readiness with RIVET-based trends
 - **Phase Statistics**: Phase distribution and trends

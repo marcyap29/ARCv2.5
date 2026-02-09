@@ -8,13 +8,23 @@ import 'package:flutter/material.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/core/constants/phase_colors.dart';
 import 'package:my_app/arc/unified_feed/models/feed_entry.dart';
+import 'package:my_app/arc/unified_feed/utils/feed_helpers.dart';
+import 'package:my_app/arc/unified_feed/widgets/feed_media_thumbnails.dart';
+import 'package:my_app/arc/internal/mira/journal_repository.dart';
+import 'package:my_app/data/models/media_item.dart';
+import 'package:my_app/models/journal_entry_model.dart';
+import 'package:my_app/ui/journal/journal_screen.dart';
+import 'package:my_app/ui/widgets/full_image_viewer.dart';
 
 class ExpandedEntryView extends StatelessWidget {
   final FeedEntry entry;
+  /// Called after the entry is deleted so the feed can refresh.
+  final VoidCallback? onEntryDeleted;
 
   const ExpandedEntryView({
     super.key,
     required this.entry,
+    this.onEntryDeleted,
   });
 
   @override
@@ -58,6 +68,21 @@ class ExpandedEntryView extends StatelessWidget {
           _buildContent(context),
           const SizedBox(height: 24),
 
+          // Media (photos, videos, files) — load from journal when possible for correct URIs
+          if (entry.mediaItems.isNotEmpty) ...[
+            Text(
+              'Media',
+              style: TextStyle(
+                color: kcPrimaryTextColor,
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 8),
+            _buildMediaSection(context),
+            const SizedBox(height: 24),
+          ],
+
           // Themes section
           if (entry.themes.isNotEmpty) _buildThemesSection(context),
           if (entry.themes.isNotEmpty) const SizedBox(height: 24),
@@ -71,6 +96,62 @@ class ExpandedEntryView extends StatelessWidget {
           const SizedBox(height: 32),
         ],
       ),
+    );
+  }
+
+  /// Load media from journal entry when available so thumbnails resolve (same source as journal).
+  Widget _buildMediaSection(BuildContext context) {
+    final journalEntryId = entry.journalEntryId;
+    if (journalEntryId == null || journalEntryId.isEmpty) {
+      return _buildMediaGrid(context, entry.mediaItems);
+    }
+    return FutureBuilder<JournalEntry?>(
+      future: JournalRepository().getJournalEntryById(journalEntryId),
+      builder: (context, snapshot) {
+        final items = snapshot.hasData && snapshot.data!.media.isNotEmpty
+            ? snapshot.data!.media
+            : entry.mediaItems;
+        if (snapshot.connectionState == ConnectionState.waiting && items.isEmpty) {
+          return SizedBox(
+            height: 100,
+            child: Center(
+              child: SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: kcPrimaryTextColor.withOpacity(0.5),
+                ),
+              ),
+            ),
+          );
+        }
+        return _buildMediaGrid(context, items);
+      },
+    );
+  }
+
+  /// Media grid using same thumbnail resolution as timeline/journal (ph://, file://, MCP, raw path).
+  Widget _buildMediaGrid(BuildContext context, List<MediaItem> mediaItems) {
+    const double tileSize = 100.0;
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: mediaItems.map((item) {
+        return FeedMediaThumbnailTile(
+          mediaItem: item,
+          size: tileSize,
+          onTap: () {
+            if (item.type == MediaType.image) {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => FullImageViewer(mediaItem: item),
+                ),
+              );
+            }
+          },
+        );
+      }).toList(),
     );
   }
 
@@ -183,8 +264,10 @@ class ExpandedEntryView extends StatelessWidget {
 
   Widget _buildConversationContent(BuildContext context) {
     if (entry.messages == null || entry.messages!.isEmpty) {
+      final raw = entry.content?.toString() ?? entry.preview;
+      final displayContent = FeedHelpers.contentWithoutPhaseHashtags(raw);
       return Text(
-        entry.content?.toString() ?? entry.preview,
+        displayContent,
         style: TextStyle(
           color: kcPrimaryTextColor.withOpacity(0.85),
           fontSize: 15,
@@ -224,9 +307,9 @@ class ExpandedEntryView extends StatelessWidget {
                         : kcSurfaceAltColor,
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: Text(
-                    msg.content,
-                    style: TextStyle(
+                child: Text(
+                  FeedHelpers.contentWithoutPhaseHashtags(msg.content),
+                  style: TextStyle(
                       color: kcPrimaryTextColor.withOpacity(0.85),
                       fontSize: 14,
                       height: 1.5,
@@ -302,7 +385,7 @@ class ExpandedEntryView extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         Text(
-          entry.content?.toString() ?? entry.preview,
+          FeedHelpers.contentWithoutPhaseHashtags(entry.content?.toString() ?? entry.preview),
           style: TextStyle(
             color: kcPrimaryTextColor.withOpacity(0.85),
             fontSize: 15,
@@ -315,8 +398,10 @@ class ExpandedEntryView extends StatelessWidget {
   }
 
   Widget _buildWrittenContent(BuildContext context) {
+    final raw = entry.content?.toString() ?? entry.preview;
+    final displayContent = FeedHelpers.contentWithoutPhaseHashtags(raw);
     return Text(
-      entry.content?.toString() ?? entry.preview,
+      displayContent,
       style: TextStyle(
         color: kcPrimaryTextColor.withOpacity(0.85),
         fontSize: 15,
@@ -326,6 +411,8 @@ class ExpandedEntryView extends StatelessWidget {
   }
 
   Widget _buildLumaraInitiativeContent(BuildContext context) {
+    final raw = entry.content?.toString() ?? entry.preview;
+    final displayContent = FeedHelpers.contentWithoutPhaseHashtags(raw);
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -334,7 +421,7 @@ class ExpandedEntryView extends StatelessWidget {
         border: Border.all(color: kcPrimaryColor.withOpacity(0.12)),
       ),
       child: Text(
-        entry.content?.toString() ?? entry.preview,
+        displayContent,
         style: TextStyle(
           color: kcPrimaryTextColor.withOpacity(0.85),
           fontSize: 15,
@@ -394,20 +481,26 @@ class ExpandedEntryView extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         Container(
+          width: double.infinity,
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: kcSurfaceAltColor,
             borderRadius: BorderRadius.circular(12),
           ),
           child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Icon(Icons.link, size: 20, color: kcSecondaryTextColor.withOpacity(0.4)),
               const SizedBox(width: 12),
-              Text(
-                'Related entries from CHRONICLE will appear here',
-                style: TextStyle(
-                  color: kcSecondaryTextColor.withOpacity(0.5),
-                  fontSize: 13,
+              Expanded(
+                child: Text(
+                  'Related entries from CHRONICLE will appear here',
+                  style: TextStyle(
+                    color: kcSecondaryTextColor.withOpacity(0.5),
+                    fontSize: 13,
+                  ),
+                  softWrap: true,
+                  overflow: TextOverflow.visible,
                 ),
               ),
             ],
@@ -486,8 +579,89 @@ class ExpandedEntryView extends StatelessWidget {
     return '$minutes:${seconds.toString().padLeft(2, '0')}';
   }
 
-  void _editEntry(BuildContext context) {
-    // TODO: Navigate to edit view
+  Future<void> _editEntry(BuildContext context) async {
+    final journalEntryId = entry.journalEntryId;
+    if (journalEntryId == null || journalEntryId.isEmpty) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('This entry cannot be edited from here.'),
+          ),
+        );
+      }
+      return;
+    }
+    final journalRepo = JournalRepository();
+    final JournalEntry? fullEntry = await journalRepo.getJournalEntryById(journalEntryId);
+    if (!context.mounted) return;
+    if (fullEntry == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Entry could not be loaded.'),
+        ),
+      );
+      return;
+    }
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (context) => JournalScreen(
+          existingEntry: fullEntry,
+          isViewOnly: false,
+          openAsEdit: true,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _onDeleteTapped(BuildContext context) async {
+    Navigator.pop(context); // close the bottom sheet
+    final journalEntryId = entry.journalEntryId;
+    if (journalEntryId == null || journalEntryId.isEmpty) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('This entry cannot be deleted from here.')),
+        );
+      }
+      return;
+    }
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: kcSurfaceColor,
+        title: const Text('Delete entry?'),
+        content: const Text(
+          'This journal entry will be permanently deleted. This action cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (!context.mounted || confirmed != true) return;
+    try {
+      final journalRepo = JournalRepository();
+      await journalRepo.deleteJournalEntry(journalEntryId);
+      if (!context.mounted) return;
+      onEntryDeleted?.call();
+      Navigator.pop(context); // close expanded view and return to feed
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Entry deleted')),
+      );
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to delete: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
   }
 
   void _showOptions(BuildContext context) {
@@ -519,7 +693,7 @@ class ExpandedEntryView extends StatelessWidget {
             ListTile(
               leading: Icon(Icons.delete_outline, color: Colors.red[400]),
               title: Text('Delete', style: TextStyle(color: Colors.red[400])),
-              onTap: () => Navigator.pop(context),
+              onTap: () => _onDeleteTapped(context),
             ),
           ],
         ),
