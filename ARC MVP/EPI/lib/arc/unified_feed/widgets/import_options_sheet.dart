@@ -1,15 +1,25 @@
 /// Import Options Sheet
 ///
 /// Bottom sheet presented from the welcome screen for users who already have
-/// journal data. For LUMARA/ARCX/zip backups, delegates to the existing
-/// proven import architecture (ARCXImportServiceV2 / McpPackImportService
-/// via ImportExportFolderView). For third-party formats (Day One, Journey,
-/// text, CSV), uses UniversalImporterService.
+/// journal data. For LUMARA/ARCX/zip backups, directly triggers the same
+/// import logic that Settings → Import & Export → Import Data uses
+/// (ARCXImportServiceV2 / McpPackImportService). For third-party formats
+/// (Day One, Journey, text, CSV), uses UniversalImporterService.
 
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:my_app/shared/app_colors.dart';
-import 'package:my_app/shared/ui/settings/settings_view.dart';
+import 'package:my_app/arc/core/journal_repository.dart';
+import 'package:my_app/arc/chat/chat/chat_repo_impl.dart';
+import 'package:my_app/mira/store/arcx/services/arcx_import_service_v2.dart';
+import 'package:my_app/mira/store/arcx/import_progress_cubit.dart';
+import 'package:my_app/mira/store/mcp/import/mcp_pack_import_service.dart';
+import 'package:my_app/services/phase_regime_service.dart';
+import 'package:my_app/services/rivet_sweep_service.dart';
+import 'package:my_app/services/analytics_service.dart';
+import 'package:my_app/utils/file_utils.dart';
 import 'package:my_app/arc/unified_feed/services/universal_importer_service.dart';
 
 class ImportOptionsSheet extends StatefulWidget {
@@ -72,7 +82,7 @@ class _ImportOptionsSheetState extends State<ImportOptionsSheet> {
           Divider(color: kcBorderColor.withOpacity(0.3)),
 
           if (_importing) ...[
-            // Progress view (for third-party imports only)
+            // Progress view
             Expanded(
               child: Center(
                 child: Column(
@@ -90,20 +100,23 @@ class _ImportOptionsSheetState extends State<ImportOptionsSheet> {
                     ),
                     const SizedBox(height: 24),
                     Text(
-                      _statusMessage ?? 'Importing entries...',
+                      _statusMessage ?? 'Importing...',
                       style: const TextStyle(
                         color: kcPrimaryTextColor,
                         fontSize: 16,
                       ),
+                      textAlign: TextAlign.center,
                     ),
-                    const SizedBox(height: 8),
-                    Text(
-                      '${(_progress * 100).toInt()}%',
-                      style: TextStyle(
-                        color: kcSecondaryTextColor.withOpacity(0.6),
-                        fontSize: 14,
+                    if (_progress > 0) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        '${(_progress * 100).toInt()}%',
+                        style: TextStyle(
+                          color: kcSecondaryTextColor.withOpacity(0.6),
+                          fontSize: 14,
+                        ),
                       ),
-                    ),
+                    ],
                   ],
                 ),
               ),
@@ -123,13 +136,12 @@ class _ImportOptionsSheetState extends State<ImportOptionsSheet> {
                   ),
                   const SizedBox(height: 20),
 
-                  // LUMARA / ARCX backup — delegates to existing import infra
+                  // LUMARA / ARCX backup — uses existing import infra directly
                   _buildImportOption(
                     icon: Icons.backup_outlined,
                     title: 'LUMARA Backup',
-                    subtitle:
-                        'Restore from .zip or .arcx backup files',
-                    onTap: _openLumaraImport,
+                    subtitle: 'Restore from .zip or .arcx backup files',
+                    onTap: _importLumaraBackup,
                   ),
                   const SizedBox(height: 12),
 
@@ -138,7 +150,7 @@ class _ImportOptionsSheetState extends State<ImportOptionsSheet> {
                     icon: Icons.book_outlined,
                     title: 'Day One',
                     subtitle: 'Import from Day One JSON export',
-                    onTap: () => _pickAndImport(
+                    onTap: () => _pickAndImportThirdParty(
                       extensions: ['json'],
                       importType: ImportType.dayOne,
                     ),
@@ -150,7 +162,7 @@ class _ImportOptionsSheetState extends State<ImportOptionsSheet> {
                     icon: Icons.explore_outlined,
                     title: 'Journey',
                     subtitle: 'Import from Journey backup',
-                    onTap: () => _pickAndImport(
+                    onTap: () => _pickAndImportThirdParty(
                       extensions: ['json'],
                       importType: ImportType.journey,
                     ),
@@ -162,7 +174,7 @@ class _ImportOptionsSheetState extends State<ImportOptionsSheet> {
                     icon: Icons.text_snippet_outlined,
                     title: 'Text Files',
                     subtitle: 'Import from plain text or markdown files',
-                    onTap: () => _pickAndImport(
+                    onTap: () => _pickAndImportThirdParty(
                       extensions: ['txt', 'md'],
                       importType: ImportType.plainText,
                       allowMultiple: true,
@@ -175,7 +187,7 @@ class _ImportOptionsSheetState extends State<ImportOptionsSheet> {
                     icon: Icons.table_chart_outlined,
                     title: 'CSV / Excel',
                     subtitle: 'Import from spreadsheet exports',
-                    onTap: () => _pickAndImport(
+                    onTap: () => _pickAndImportThirdParty(
                       extensions: ['csv', 'xlsx', 'xls'],
                       importType: ImportType.spreadsheet,
                     ),
@@ -286,24 +298,229 @@ class _ImportOptionsSheetState extends State<ImportOptionsSheet> {
     );
   }
 
-  // ─── LUMARA Backup: delegate to existing proven import architecture ──
+  // ─── LUMARA Backup: same logic as Settings → Import & Export ─────────
 
-  /// Opens the existing Import & Export folder view which handles
-  /// .zip, .arcx, and .mcpkg files via ARCXImportServiceV2 and
-  /// McpPackImportService — the same flow as Settings → Import & Export.
-  void _openLumaraImport() {
-    Navigator.pop(context); // Close this sheet first
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => const ImportExportFolderView(),
-      ),
-    );
+  /// Directly runs the same import logic that Settings uses:
+  /// file picker → detect .arcx or .zip → ARCXImportServiceV2 or
+  /// McpPackImportService. No intermediate navigation screens.
+  Future<void> _importLumaraBackup() async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['zip', 'arcx'],
+        allowMultiple: true,
+      );
+
+      if (result == null || result.files.isEmpty) return;
+
+      final files = result.files
+          .where((f) => f.path != null)
+          .map((f) => f.path!)
+          .toList();
+
+      if (files.isEmpty) return;
+
+      final hasArcx = files.any((p) => p.endsWith('.arcx'));
+      final hasZip = files.any((p) =>
+          p.endsWith('.zip') || FileUtils.isMcpPackage(p));
+
+      if (hasArcx) {
+        await _runArcxImport(files.where((p) => p.endsWith('.arcx')).toList());
+      } else if (hasZip) {
+        await _runZipImport(
+            files.where((p) => p.endsWith('.zip')).toList());
+      } else {
+        _showError('Unsupported file format');
+      }
+    } catch (e) {
+      _showError('Failed to select file: $e');
+    }
+  }
+
+  /// Run ARCX import via ARCXImportServiceV2 (same as settings_view.dart).
+  Future<void> _runArcxImport(List<String> arcxFiles) async {
+    if (arcxFiles.isEmpty) return;
+
+    setState(() {
+      _importing = true;
+      _progress = 0.0;
+      _statusMessage = 'Preparing ARCX import...';
+    });
+
+    try {
+      final journalRepo = context.read<JournalRepository>();
+      final progressCubit = context.read<ImportProgressCubit>();
+
+      final chatRepo = ChatRepoImpl.instance;
+      await chatRepo.initialize();
+
+      PhaseRegimeService? phaseRegimeService;
+      try {
+        final analyticsService = AnalyticsService();
+        final rivetSweepService = RivetSweepService(analyticsService);
+        phaseRegimeService =
+            PhaseRegimeService(analyticsService, rivetSweepService);
+        await phaseRegimeService.initialize();
+      } catch (_) {}
+
+      final importService = ARCXImportServiceV2(
+        journalRepo: journalRepo,
+        chatRepo: chatRepo,
+        phaseRegimeService: phaseRegimeService,
+      );
+
+      // Also update the global progress cubit so HomeView status bar shows
+      progressCubit.start();
+
+      for (var i = 0; i < arcxFiles.length; i++) {
+        final arcxPath = arcxFiles[i];
+        if (mounted) {
+          setState(() {
+            _statusMessage = arcxFiles.length > 1
+                ? 'Importing file ${i + 1} of ${arcxFiles.length}...'
+                : 'Importing ARCX backup...';
+          });
+        }
+
+        final importResult = await importService.import(
+          arcxPath: arcxPath,
+          options: ARCXImportOptions(
+            validateChecksums: true,
+            dedupeMedia: true,
+            skipExisting: true,
+            resolveLinks: true,
+          ),
+          password: null,
+          onProgress: (message, [fraction = 0.0]) {
+            if (mounted) {
+              final base = i / arcxFiles.length;
+              final slice = 1.0 / arcxFiles.length;
+              setState(() {
+                _progress = base + (fraction * slice);
+                _statusMessage = message;
+              });
+            }
+            progressCubit.update(message, fraction);
+          },
+        );
+
+        if (importResult.success) {
+          progressCubit.complete(importResult);
+        } else {
+          progressCubit.fail(importResult.error);
+          _showError(importResult.error ?? 'Import failed');
+          return;
+        }
+      }
+
+      if (mounted) {
+        setState(() {
+          _progress = 1.0;
+          _statusMessage = 'Import complete!';
+        });
+        await Future.delayed(const Duration(milliseconds: 800));
+        if (mounted) Navigator.pop(context);
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _importing = false;
+          _statusMessage = null;
+        });
+        _showError('ARCX import failed: $e');
+      }
+    }
+  }
+
+  /// Run ZIP/MCP import via McpPackImportService (same as settings_view.dart).
+  Future<void> _runZipImport(List<String> zipFiles) async {
+    if (zipFiles.isEmpty) return;
+
+    setState(() {
+      _importing = true;
+      _progress = 0.0;
+      _statusMessage = 'Preparing ZIP import...';
+    });
+
+    try {
+      final journalRepo = context.read<JournalRepository>();
+
+      final chatRepo = ChatRepoImpl.instance;
+      await chatRepo.initialize();
+
+      PhaseRegimeService? phaseRegimeService;
+      try {
+        final analyticsService = AnalyticsService();
+        final rivetSweepService = RivetSweepService(analyticsService);
+        phaseRegimeService =
+            PhaseRegimeService(analyticsService, rivetSweepService);
+        await phaseRegimeService.initialize();
+      } catch (e) {
+        debugPrint('Warning: Could not initialize PhaseRegimeService: $e');
+      }
+
+      final importService = McpPackImportService(
+        journalRepo: journalRepo,
+        phaseRegimeService: phaseRegimeService,
+        chatRepo: chatRepo,
+      );
+
+      for (var i = 0; i < zipFiles.length; i++) {
+        final zipPath = zipFiles[i];
+        final zipFile = File(zipPath);
+
+        if (!await zipFile.exists()) {
+          _showError('File not found: ${zipPath.split('/').last}');
+          return;
+        }
+
+        if (mounted) {
+          setState(() {
+            _statusMessage = zipFiles.length > 1
+                ? 'Importing file ${i + 1} of ${zipFiles.length}...'
+                : 'Importing ZIP backup...';
+          });
+        }
+
+        final importResult = await importService.importFromPath(zipPath);
+
+        if (importResult.success) {
+          if (mounted) {
+            setState(() {
+              _progress = (i + 1) / zipFiles.length;
+              _statusMessage =
+                  'Imported ${importResult.totalEntries} entries and '
+                  '${importResult.totalPhotos} media items.';
+            });
+          }
+        } else {
+          _showError(importResult.error ?? 'Import failed');
+          return;
+        }
+      }
+
+      if (mounted) {
+        setState(() {
+          _progress = 1.0;
+          _statusMessage = 'Import complete!';
+        });
+        await Future.delayed(const Duration(milliseconds: 800));
+        if (mounted) Navigator.pop(context);
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _importing = false;
+          _statusMessage = null;
+        });
+        _showError('ZIP import failed: $e');
+      }
+    }
   }
 
   // ─── Third-party formats: use UniversalImporterService ──────────────
 
-  Future<void> _pickAndImport({
+  Future<void> _pickAndImportThirdParty({
     required List<String> extensions,
     required ImportType importType,
     bool allowMultiple = false,
@@ -343,8 +560,6 @@ class _ImportOptionsSheetState extends State<ImportOptionsSheet> {
           _progress = 1.0;
           _statusMessage = 'Import complete!';
         });
-
-        // Brief pause to show completion, then close
         await Future.delayed(const Duration(seconds: 1));
         if (mounted) Navigator.pop(context);
       }
@@ -354,13 +569,18 @@ class _ImportOptionsSheetState extends State<ImportOptionsSheet> {
           _importing = false;
           _statusMessage = null;
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Import failed: $e'),
-            backgroundColor: kcDangerColor,
-          ),
-        );
+        _showError('Import failed: $e');
       }
     }
+  }
+
+  void _showError(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: kcDangerColor,
+      ),
+    );
   }
 }
