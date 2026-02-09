@@ -884,13 +884,18 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
   }
 
   /// Show the import options bottom sheet.
-  void _showImportOptions() {
-    showModalBottomSheet(
+  Future<void> _showImportOptions() async {
+    await showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
       builder: (context) => const ImportOptionsSheet(),
     );
+    // Refresh the feed after the import sheet closes so newly imported
+    // entries appear and the welcome screen transitions to the feed.
+    if (mounted) {
+      await _feedRepo.refresh();
+    }
   }
 
   Widget _buildEmptyStateAction({
