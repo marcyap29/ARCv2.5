@@ -118,7 +118,7 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 
 **Status:** Phase 1.5 — models, pagination, expanded views, timeline navigation. Behind `USE_UNIFIED_FEED` feature flag (default off).
 
-**Concept:** Merges the separate LUMARA chat and Conversations (journal timeline) tabs into a single scrollable feed. When enabled, the home screen switches from 3 tabs to a single LUMARA tab with the unified feed. Phase is accessible via the Timeline button inside the feed.
+**Concept:** Merges the separate LUMARA chat and Conversations (journal timeline) tabs into a single scrollable feed. When enabled, the home screen switches from 3 tabs to 2 tabs (LUMARA + Settings). Phase is accessible via the Timeline button inside the feed. On first use (empty feed), bottom nav and input bar are hidden for a clean welcome experience.
 
 **Feed Display**
 - Contextual greeting header with LUMARA sigil (time-of-day and recency-based)
@@ -126,8 +126,9 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 - Entries grouped by date (Today, Yesterday, This Week, Earlier) with date dividers
 - Pull-to-refresh and infinite scroll (loads 20 entries at a time)
 - Timeline modal (calendar icon) for date-based navigation; jump to any date
-- Empty state with Chat / Write / Voice quick-start actions
+- Empty state with Chat / Write / Voice quick-start actions; bottom nav and input bar hidden during empty state for clean welcome/onboarding screen
 - App bar: Timeline, Voice memo, Settings actions
+- Settings accessible as a dedicated tab (index 1) in the bottom nav
 
 **Feed Entry Types**
 - **Active Conversation**: Ongoing LUMARA chat (not yet saved), pulsing phase-colored border

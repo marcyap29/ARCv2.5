@@ -89,6 +89,25 @@ Building on Phase 1 (`v3.3.17`), this update significantly evolves the Unified F
 #### Files deleted
 - `lib/arc/unified_feed/widgets/feed_entry_cards/written_entry_card.dart` — Replaced by ReflectionCard
 
+### Welcome Screen / First-Use UX & Settings Tab
+
+**Empty state awareness:**
+- **UnifiedFeedScreen**: New `onEmptyStateChanged` callback reports whether the feed has entries. Input bar is hidden when the feed is empty so the welcome screen stands alone. Wrapped in `GestureDetector` to dismiss keyboard on outside tap.
+- **HomeView**: Tracks `_feedIsEmpty` state. Bottom navigation bar is hidden when the unified feed is in the empty/welcome state, providing a clean first-use onboarding experience. Once entries exist, the full nav appears.
+
+**Tab layout change (unified mode):**
+- Restored 2-tab layout: **LUMARA** (index 0) + **Settings** (index 1).
+- `_getPageForIndex` routes Settings tab to `SettingsView`.
+- Center "+" journal button hidden in unified feed mode (`showCenterButton: false`) since the input bar and quick-start actions replace it.
+
+**tab_bar.dart:**
+- The center "+" button is now conditionally rendered based on `showCenterButton` property (previously always rendered regardless of the flag value).
+
+#### Files modified
+- `lib/arc/unified_feed/widgets/unified_feed_screen.dart` — `onEmptyStateChanged` callback, input bar hidden in empty state, GestureDetector wrapper
+- `lib/shared/tab_bar.dart` — Center button conditional rendering
+- `lib/shared/ui/home/home_view.dart` — `_feedIsEmpty` state, nav hidden on empty, Settings tab, showCenterButton logic
+
 ---
 
 ## [3.3.17] - February 8, 2026

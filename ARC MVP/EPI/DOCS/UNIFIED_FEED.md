@@ -27,11 +27,13 @@ Users had to mentally separate "talking to LUMARA" from "writing in my journal."
 
 | Aspect | Legacy (3-tab) | Unified (2-tab) |
 |--------|----------------|-----------------|
-| Tab bar | LUMARA / Phase / Conversations | LUMARA (single tab) |
+| Tab bar | LUMARA / Phase / Conversations | LUMARA / Settings (2 tabs) |
 | LUMARA tab | Full-screen chat | Scrollable feed with greeting, entries, input bar |
 | Conversations tab | Journal timeline | Removed (entries appear in feed) |
-| New journal entry | Tab bar "+" button | Tab bar "+" button (unchanged) |
+| New journal entry | Tab bar "+" button | Removed — input bar + quick-start actions replace it |
 | Phase tab | Phase constellation | Removed from tab bar; accessible via Timeline button in feed |
+| Settings | Gear icon in app bar | Dedicated Settings tab (index 1) |
+| First-use (empty feed) | N/A | Welcome screen shown alone — bottom nav + input bar hidden |
 
 ---
 
@@ -43,11 +45,12 @@ static const bool USE_UNIFIED_FEED = false;
 ```
 
 When `false` (default): the app uses the legacy 3-tab layout. Nothing changes.  
-When `true`: the app switches to the 2-tab unified layout.
+When `true`: the app switches to the 2-tab unified layout (LUMARA + Settings).
 
 The flag is checked in:
-- `home_view.dart` — tab list, tab names, page routing, default tab index
-- `tab_bar.dart` — dynamic tab rendering (already refactored from hardcoded 3 tabs to a loop)
+- `home_view.dart` — tab list (LUMARA + Settings), tab names, page routing, `_feedIsEmpty` state to hide bottom nav during welcome screen, `showCenterButton` (hidden in unified mode)
+- `tab_bar.dart` — dynamic tab rendering; center "+" button conditionally rendered via `showCenterButton`
+- `unified_feed_screen.dart` — `onEmptyStateChanged` callback to report empty state to HomeView; input bar hidden when feed is empty
 
 ---
 
@@ -271,8 +274,10 @@ The main screen. Replaces both `LumaraAssistantScreen` (chat) and `UnifiedJourna
 - Submit text in input bar → add user message to active conversation
 - Tap "+" in input bar → open new journal entry screen
 - Timeline button → opens **TimelineModal** for date-based navigation; jump to any date
-- Empty state with Chat / Write / Voice quick-start actions
+- Empty state with Chat / Write / Voice quick-start actions; input bar and bottom nav hidden during empty state for clean welcome screen
 - `initialMode` parameter: activates chat (focus input), reflect (open journal), or voice (launch voice mode) on first frame
+- `onEmptyStateChanged` callback: reports empty/non-empty state to HomeView for nav visibility
+- `GestureDetector` wrapper dismisses keyboard on outside tap
 
 ### FeedInputBar
 
@@ -349,8 +354,8 @@ All cards extend **BaseFeedCard**, which provides a consistent wrapper with a ph
 | `lib/core/feature_flags.dart` | Added `USE_UNIFIED_FEED` flag |
 | `lib/core/constants/phase_colors.dart` | Phase color constants for card borders |
 | `lib/core/models/entry_mode.dart` | EntryMode enum (chat, reflect, voice) |
-| `lib/shared/tab_bar.dart` | Refactored from hardcoded 3 tabs to dynamic loop |
-| `lib/shared/ui/home/home_view.dart` | Single LUMARA tab in unified mode; passes onVoiceTap/initialMode |
+| `lib/shared/tab_bar.dart` | Dynamic tab loop; center "+" button conditionally rendered via `showCenterButton` |
+| `lib/shared/ui/home/home_view.dart` | 2-tab layout (LUMARA + Settings); `_feedIsEmpty` state hides nav during welcome; `showCenterButton` off in unified mode |
 | `lib/app/app.dart` | `onGenerateRoute` to pass EntryMode to HomeView |
 
 ---

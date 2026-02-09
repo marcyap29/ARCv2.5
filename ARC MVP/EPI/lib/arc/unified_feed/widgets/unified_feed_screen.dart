@@ -47,7 +47,16 @@ class UnifiedFeedScreen extends StatefulWidget {
   /// Optional initial mode to activate on first frame (from welcome screen).
   final EntryMode? initialMode;
 
-  const UnifiedFeedScreen({super.key, this.onVoiceTap, this.initialMode});
+  /// Called when the feed transitions between empty (welcome) and non-empty.
+  /// HomeView uses this to hide/show the bottom navigation bar.
+  final ValueChanged<bool>? onEmptyStateChanged;
+
+  const UnifiedFeedScreen({
+    super.key,
+    this.onVoiceTap,
+    this.initialMode,
+    this.onEmptyStateChanged,
+  });
 
   @override
   State<UnifiedFeedScreen> createState() => _UnifiedFeedScreenState();
@@ -128,15 +137,25 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
       // Subscribe to feed updates
       _feedSubscription = _feedRepo.feedStream.listen((entries) {
         if (mounted) {
+          final wasEmpty = _entries.isEmpty;
           setState(() {
             _entries = entries;
             _isLoading = false;
           });
+          // Notify parent when empty state changes
+          if (wasEmpty != entries.isEmpty) {
+            widget.onEmptyStateChanged?.call(entries.isEmpty);
+          }
         }
       });
 
       // Initialize and load data
       await _feedRepo.initialize();
+
+      // Report initial empty state to parent
+      if (mounted) {
+        widget.onEmptyStateChanged?.call(_entries.isEmpty);
+      }
     } catch (e) {
       debugPrint('UnifiedFeedScreen: Error initializing: $e');
       if (mounted) {
@@ -144,6 +163,8 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
           _isLoading = false;
           _errorMessage = 'Failed to load feed: $e';
         });
+        // On error, report as empty so welcome screen shows without nav
+        widget.onEmptyStateChanged?.call(true);
       }
     }
   }
@@ -321,9 +342,11 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: kcBackgroundColor,
-      body: Column(
+    return GestureDetector(
+      onTap: () => FocusScope.of(context).unfocus(),
+      child: Scaffold(
+        backgroundColor: kcBackgroundColor,
+        body: Column(
         children: [
           // Feed content
           Expanded(
@@ -334,17 +357,19 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
                     : _buildFeedContent(),
           ),
 
-          // Input bar
-          FeedInputBar(
-            onSubmit: _onMessageSubmit,
-            onNewEntryTap: _onNewEntryTap,
-            onVoiceTap: _startVoiceMemo,
-            focusNode: _inputFocusNode,
-            onAttachmentTap: () {
-              debugPrint('UnifiedFeedScreen: Attachment tap');
-            },
-          ),
+          // Input bar — hidden during empty/welcome state
+          if (!_isLoading && _errorMessage == null && _entries.isNotEmpty)
+            FeedInputBar(
+              onSubmit: _onMessageSubmit,
+              onNewEntryTap: _onNewEntryTap,
+              onVoiceTap: _startVoiceMemo,
+              focusNode: _inputFocusNode,
+              onAttachmentTap: () {
+                debugPrint('UnifiedFeedScreen: Attachment tap');
+              },
+            ),
         ],
+      ),
       ),
     );
   }

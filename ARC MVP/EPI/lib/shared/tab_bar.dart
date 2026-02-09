@@ -71,34 +71,35 @@ class _CustomTabBarState extends State<CustomTabBar> {
                 ),
               ),
             ),
-          // New Journal button (+)
-          Expanded(
-            child: GestureDetector(
-              onTap: widget.onNewJournalPressed,
-              onLongPress: widget.onVoiceJournalPressed,
-              child: Container(
-                margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-                decoration: BoxDecoration(
-                  color: kcPrimaryColor,
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: kcPrimaryColor.withOpacity(0.3),
-                      blurRadius: 4,
-                      offset: const Offset(0, 2),
+          // New Journal button (+) — only shown when showCenterButton is true
+          if (widget.showCenterButton)
+            Expanded(
+              child: GestureDetector(
+                onTap: widget.onNewJournalPressed,
+                onLongPress: widget.onVoiceJournalPressed,
+                child: Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: kcPrimaryColor,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: kcPrimaryColor.withOpacity(0.3),
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: const Center(
+                    child: Icon(
+                      Icons.add,
+                      size: 32,
+                      color: Colors.white,
                     ),
-                  ],
-                ),
-                child: const Center(
-                  child: Icon(
-                    Icons.add,
-                    size: 32,
-                    color: Colors.white,
                   ),
                 ),
               ),
             ),
-          ),
         ],
       ),
     );

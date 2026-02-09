@@ -40,6 +40,7 @@ import 'package:my_app/services/google_drive_service.dart';
 import 'package:my_app/core/feature_flags.dart' as core_flags;
 import 'package:my_app/arc/unified_feed/widgets/unified_feed_screen.dart';
 import 'package:my_app/core/models/entry_mode.dart';
+import 'package:my_app/shared/ui/settings/settings_view.dart';
 
 // Debug flag for showing RIVET engineering labels
 const bool kShowRivetDebugLabels = false;
@@ -64,12 +65,16 @@ class _HomeViewState extends State<HomeView> {
   // Shake to report bug
   StreamSubscription? _shakeSubscription;
   
-  // Navigation tabs: unified feed mode has just LUMARA; legacy has 3 tabs
+  /// Whether the unified feed is in empty/welcome state (no entries yet).
+  /// When true, the bottom nav is hidden so the welcome screen stands alone.
+  bool _feedIsEmpty = true;
+
+  // Navigation tabs: unified feed mode has LUMARA + Settings; legacy has 3 tabs
   List<TabItem> get _tabs {
     if (core_flags.FeatureFlags.USE_UNIFIED_FEED) {
-      // Single LUMARA tab only - Phase is accessible via Timeline button inside the feed
       return const [
         TabItem(icon: Icons.auto_awesome, text: 'LUMARA'),
+        TabItem(icon: Icons.settings_outlined, text: 'Settings'),
       ];
     }
     return const [
@@ -81,7 +86,7 @@ class _HomeViewState extends State<HomeView> {
 
   List<String> get _tabNames {
     if (core_flags.FeatureFlags.USE_UNIFIED_FEED) {
-      return const ['LUMARA'];
+      return const ['LUMARA', 'Settings'];
     }
     return const ['LUMARA', 'Phase', 'Conversations'];
   }
@@ -301,20 +306,19 @@ class _HomeViewState extends State<HomeView> {
                     ),
                   ],
                 ),
-              bottomNavigationBar: CustomTabBar(
-                tabs: _tabs,
-                selectedIndex: selectedIndex,
-                onTabSelected: (index) {
-                  print('DEBUG: Tab selected: $index');
-                  print('DEBUG: Current selected index was: $selectedIndex');
-
-                  _homeCubit.changeTab(index);
-                },
-                onNewJournalPressed: () async {
-                        // Clear any existing session cache to ensure fresh start
+              // Hide bottom nav when unified feed is in empty/welcome state
+              bottomNavigationBar: (core_flags.FeatureFlags.USE_UNIFIED_FEED && _feedIsEmpty)
+                  ? null
+                  : CustomTabBar(
+                      tabs: _tabs,
+                      selectedIndex: selectedIndex,
+                      onTabSelected: (index) {
+                        debugPrint('DEBUG: Tab selected: $index');
+                        debugPrint('DEBUG: Current selected index was: $selectedIndex');
+                        _homeCubit.changeTab(index);
+                      },
+                      onNewJournalPressed: () async {
                         await JournalSessionCache.clearSession();
-                        
-                        // Open JournalScreen for text entry
                         Navigator.push(
                           context,
                           MaterialPageRoute(
@@ -322,12 +326,12 @@ class _HomeViewState extends State<HomeView> {
                           ),
                         );
                       },
-                onVoiceJournalPressed: () {
-                        // Open Voice Journal UI
+                      onVoiceJournalPressed: () {
                         _openVoiceJournal(context);
                       },
-                showCenterButton: false,
-              ),
+                      // In unified feed mode, no "+" button — Settings is a tab instead
+                      showCenterButton: !core_flags.FeatureFlags.USE_UNIFIED_FEED,
+                    ),
             );
           },
         ),
@@ -342,11 +346,30 @@ class _HomeViewState extends State<HomeView> {
   /// Legacy mode:       LUMARA (0) | Phase (1) | Journal (2)
   Widget _getPageForIndex(int index, BuildContext context) {
     if (core_flags.FeatureFlags.USE_UNIFIED_FEED) {
-      // Single tab: always LUMARA unified feed
-      return UnifiedFeedScreen(
-        onVoiceTap: () => _openVoiceJournal(context),
-        initialMode: widget.initialMode,
-      );
+      switch (index) {
+        case 0:
+          return UnifiedFeedScreen(
+            onVoiceTap: () => _openVoiceJournal(context),
+            initialMode: widget.initialMode,
+            onEmptyStateChanged: (isEmpty) {
+              if (_feedIsEmpty != isEmpty) {
+                setState(() => _feedIsEmpty = isEmpty);
+              }
+            },
+          );
+        case 1:
+          return const SettingsView();
+        default:
+          return UnifiedFeedScreen(
+            onVoiceTap: () => _openVoiceJournal(context),
+            initialMode: widget.initialMode,
+            onEmptyStateChanged: (isEmpty) {
+              if (_feedIsEmpty != isEmpty) {
+                setState(() => _feedIsEmpty = isEmpty);
+              }
+            },
+          );
+      }
     }
 
     // Legacy 3-tab mode

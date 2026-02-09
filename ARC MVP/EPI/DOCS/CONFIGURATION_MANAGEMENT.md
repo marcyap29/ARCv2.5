@@ -88,6 +88,20 @@ Prompt/role definitions: **Documentation & Configuration Management Role** in [c
 
 ## Change Tracking Log
 
+### 2026-02-09 - Welcome Screen UX & Settings Tab (v3.3.18 continued)
+
+**Action:** Documented welcome/first-use UX enhancements and Settings tab addition. UnifiedFeedScreen gains `onEmptyStateChanged` callback, hides input bar during empty state. HomeView hides bottom nav on empty feed for clean onboarding. Tab layout changed to LUMARA + Settings (2 tabs). Center "+" button hidden in unified mode. `tab_bar.dart` conditionally renders center button.
+
+**Doc updates:**
+- **CHANGELOG.md:** Appended Welcome Screen / Settings Tab section to [3.3.18] (3 files modified).
+- **UNIFIED_FEED.md:** Updated tab layout table, feature flag impact, widgets section, files-modified table.
+- **FEATURES.md:** Updated Unified Feed concept and feed display descriptions.
+- **CONFIGURATION_MANAGEMENT.md:** This entry.
+
+**Status:** ✅ All docs updated.
+
+---
+
 ### 2026-02-09 - Document Unified Feed Phase 1.5 evolution (v3.3.18)
 
 **Action:** Documented significant evolution of Unified Feed from Phase 1 to Phase 1.5. FeedEntry model refactored (5 types, FeedMessage, phase colors, themes). FeedRepository gained pagination and robust error handling. New widgets: ExpandedEntryView, BaseFeedCard, ReflectionCard, LumaraPromptCard, TimelineModal/View. Single-tab home layout. EntryMode + PhaseColors infra.
