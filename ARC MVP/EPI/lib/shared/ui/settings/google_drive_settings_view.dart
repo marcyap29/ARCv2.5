@@ -52,7 +52,7 @@ class _GoogleDriveSettingsViewState extends State<GoogleDriveSettingsView> {
   String? _accountEmail;
   bool _exporting = false;
   String _exportProgress = '';
-  double _exportPercentage = 0.0;
+  int _exportPercentage = 0;
   bool _importing = false;
   List<drive.File> _driveFiles = [];
   bool _loadingFiles = false;
@@ -531,14 +531,6 @@ class _GoogleDriveSettingsViewState extends State<GoogleDriveSettingsView> {
     }
   }
 
-  void _setExportProgress(String message, [double? percentage]) {
-    if (!mounted) return;
-    setState(() {
-      _exportProgress = message;
-      if (percentage != null) _exportPercentage = percentage;
-    });
-  }
-
   Future<void> _exportToDrive() async {
     if (!_driveService.isSignedIn) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -552,11 +544,10 @@ class _GoogleDriveSettingsViewState extends State<GoogleDriveSettingsView> {
     setState(() {
       _exporting = true;
       _exportProgress = 'Preparing export...';
-      _exportPercentage = 0.0;
+      _exportPercentage = 0;
     });
     Directory? tempDir;
     try {
-      _setExportProgress('Initializing services...', 0.02);
       final analyticsService = AnalyticsService();
       final rivetSweepService = RivetSweepService(analyticsService);
       final phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
@@ -571,8 +562,7 @@ class _GoogleDriveSettingsViewState extends State<GoogleDriveSettingsView> {
 
       if (_driveBackupFormat == 'zip') {
         // ZIP format: single file, standard ZIP — survives app reinstall / device change
-        if (!mounted) return;
-        _setExportProgress('Loading entries...', 0.05);
+        if (mounted) setState(() => _exportProgress = 'Loading entries...');
 
         final entries = await widget.journalRepo.getAllJournalEntries();
         if (entries.isEmpty) {
@@ -585,8 +575,6 @@ class _GoogleDriveSettingsViewState extends State<GoogleDriveSettingsView> {
           return;
         }
 
-        _setExportProgress('Found ${entries.length} entries — preparing ZIP...', 0.10);
-
         final timestamp = DateFormat('yyyy-MM-dd_HH-mm').format(DateTime.now());
         final zipFileName = 'ARC_Full_$timestamp.zip';
         final zipPath = path.join(outputDir.path, zipFileName);
@@ -598,8 +586,7 @@ class _GoogleDriveSettingsViewState extends State<GoogleDriveSettingsView> {
           phaseRegimeService: phaseRegimeService,
         );
 
-        if (!mounted) return;
-        _setExportProgress('Creating ZIP backup (entries, chats, media)...', 0.15);
+        if (mounted) setState(() => _exportProgress = 'Creating ZIP backup...');
 
         final zipResult = await mcpService.exportJournal(
           entries: entries,
@@ -623,17 +610,10 @@ class _GoogleDriveSettingsViewState extends State<GoogleDriveSettingsView> {
           return;
         }
 
-        if (!mounted) return;
-        _setExportProgress(
-          'ZIP created — ${zipResult.totalEntries} entries, ${zipResult.totalChatSessions} chats. Preparing upload...',
-          0.65,
-        );
+        if (mounted) setState(() => _exportProgress = 'Uploading ZIP to Drive...');
 
         await _ensureFolder();
-        _setExportProgress('Connecting to Google Drive folder...', 0.70);
         final datedFolderId = await _driveService.getOrCreateDatedSubfolder(DateTime.now());
-
-        _setExportProgress('Uploading $zipFileName to Drive...', 0.75);
         await _driveService.uploadFile(
           localFile: File(zipPath),
           folderId: datedFolderId,
@@ -641,13 +621,10 @@ class _GoogleDriveSettingsViewState extends State<GoogleDriveSettingsView> {
         );
 
         if (mounted) {
-          _setExportProgress('Upload complete!', 1.0);
-          // Brief pause so user sees 100% before clearing
-          await Future.delayed(const Duration(milliseconds: 400));
           setState(() { _exporting = false; _exportProgress = ''; _exportPercentage = 0; });
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('ZIP backup uploaded to Google Drive ($zipFileName)'),
+              content: Text('ZIP backup complete: ${zipResult.totalEntries} entries, ${zipResult.totalChatSessions} chats'),
               backgroundColor: Colors.green,
             ),
           );
@@ -660,8 +637,7 @@ class _GoogleDriveSettingsViewState extends State<GoogleDriveSettingsView> {
           phaseRegimeService: phaseRegimeService,
         );
 
-        if (!mounted) return;
-        _setExportProgress('Exporting backup...', 0.05);
+        if (mounted) setState(() => _exportProgress = 'Exporting backup...');
 
         final result = await exportService.exportFullBackupChunked(
           outputDir: outputDir,
@@ -671,8 +647,7 @@ class _GoogleDriveSettingsViewState extends State<GoogleDriveSettingsView> {
             if (mounted) {
               setState(() {
                 _exportProgress = msg;
-                // Map export fraction (0.0–1.0) to 5%–70% of overall progress
-                if (fraction != null) _exportPercentage = 0.05 + fraction * 0.65;
+                if (fraction != null) _exportPercentage = (fraction * 100).round();
               });
             }
           },
@@ -691,27 +666,18 @@ class _GoogleDriveSettingsViewState extends State<GoogleDriveSettingsView> {
           return;
         }
 
-        if (!mounted) return;
-        _setExportProgress('Uploading ${result.chunkPaths.length} arcx file(s) to Drive...', 0.72);
+        if (mounted) setState(() => _exportProgress = 'Uploading arcx files (smallest first)...');
 
         final manifestTimestamp = DateTime.now().toUtc().toIso8601String();
         await _driveService.uploadChunkedBackup(
           arcxPaths: result.chunkPaths,
           manifestTimestamp: manifestTimestamp,
           onProgress: (current, total, phase) {
-            if (mounted) {
-              setState(() {
-                _exportProgress = phase;
-                // Map upload progress (0..total) to 72%–98%
-                if (total > 0) _exportPercentage = 0.72 + (current / total) * 0.26;
-              });
-            }
+            if (mounted) setState(() => _exportProgress = phase);
           },
         );
 
         if (mounted) {
-          _setExportProgress('Upload complete!', 1.0);
-          await Future.delayed(const Duration(milliseconds: 400));
           setState(() { _exporting = false; _exportProgress = ''; _exportPercentage = 0; });
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -1203,52 +1169,72 @@ class _GoogleDriveSettingsViewState extends State<GoogleDriveSettingsView> {
             visualDensity: VisualDensity.compact,
           ),
 
-          if (_exporting) ...[
-            const SizedBox(height: 16),
-            // Progress bar
-            ClipRRect(
-              borderRadius: BorderRadius.circular(4),
-              child: LinearProgressIndicator(
-                value: _exportPercentage > 0 ? _exportPercentage : null,
-                backgroundColor: Colors.white.withValues(alpha: 0.1),
-                valueColor: const AlwaysStoppedAnimation<Color>(kcAccentColor),
-                minHeight: 6,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                const SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2, color: kcAccentColor),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    _exportProgress.isNotEmpty ? _exportProgress : 'Preparing...',
-                    style: bodyStyle(context).copyWith(color: kcAccentColor, fontSize: 12),
-                  ),
-                ),
-                if (_exportPercentage > 0)
-                  Text(
-                    '${(_exportPercentage * 100).round()}%',
-                    style: bodyStyle(context).copyWith(
-                      color: kcAccentColor,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-              ],
-            ),
-          ],
           const SizedBox(height: 12),
-          FilledButton.icon(
-            onPressed: _exporting ? null : _exportToDrive,
-            icon: _exporting ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) : const Icon(Icons.upload, size: 18),
-            label: Text(_exporting ? 'Exporting...' : 'Export backup to Drive'),
-            style: FilledButton.styleFrom(backgroundColor: kcAccentColor, foregroundColor: Colors.white),
-          ),
+          if (_exporting)
+            Column(
+              children: [
+                Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    SizedBox(
+                      width: 60,
+                      height: 60,
+                      child: CircularProgressIndicator(
+                        value: _exportPercentage > 0 ? _exportPercentage / 100 : null,
+                        strokeWidth: 4,
+                        backgroundColor: Colors.grey[800],
+                        valueColor: const AlwaysStoppedAnimation<Color>(kcAccentColor),
+                      ),
+                    ),
+                    Text(
+                      '$_exportPercentage%',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[900],
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.grey[700]!),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.save_alt,
+                        color: kcAccentColor,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          _exportProgress.isNotEmpty
+                              ? _exportProgress
+                              : 'Preparing backup...',
+                          style: TextStyle(
+                            color: Colors.grey[300],
+                            fontSize: 14,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            )
+          else
+            FilledButton.icon(
+              onPressed: _exportToDrive,
+              icon: const Icon(Icons.upload, size: 18),
+              label: const Text('Export backup to Drive'),
+              style: FilledButton.styleFrom(backgroundColor: kcAccentColor, foregroundColor: Colors.white),
+            ),
         ],
       ),
     );

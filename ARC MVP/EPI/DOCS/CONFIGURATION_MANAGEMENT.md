@@ -80,6 +80,7 @@ Prompt/role definitions: **Documentation & Configuration Management Role** in [c
 | DOCUMENTATION_CONSOLIDATION_AUDIT_2026-02.md | DOCS/ | Doc consolidation audit |
 | NARRATIVE_INTELLIGENCE.md | DOCS/ | Narrative intelligence |
 | PAYMENTS_CLARIFICATION.md | DOCS/ | Stripe vs RevenueCat; web vs in-app |
+| UNIFIED_FEED.md | DOCS/ | Unified Feed architecture, models, services, phases |
 | revenuecat/README.md | DOCS/revenuecat/ | RevenueCat (in-app) doc index |
 | revenuecat/REVENUECAT_INTEGRATION.md | DOCS/revenuecat/ | RevenueCat integration guide |
 

@@ -34,7 +34,7 @@ class FeatureFlags {
   /// Unified Feed replaces separate LUMARA chat + Conversations tabs
   /// with a single merged feed. Set to true to enable.
   /// Status: Phase 1 - Core models and feed display
-  static const bool USE_UNIFIED_FEED = false;
+  static const bool USE_UNIFIED_FEED = true;
   
   // ============================================================
   // EXPERIMENTAL FEATURES
