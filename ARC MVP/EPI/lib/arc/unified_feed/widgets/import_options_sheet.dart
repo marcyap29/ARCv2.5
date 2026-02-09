@@ -128,7 +128,7 @@ class _ImportOptionsSheetState extends State<ImportOptionsSheet> {
                     icon: Icons.backup_outlined,
                     title: 'LUMARA Backup',
                     subtitle:
-                        'Restore from .zip, .arcx, or .mcpkg backup files',
+                        'Restore from .zip or .arcx backup files',
                     onTap: _openLumaraImport,
                   ),
                   const SizedBox(height: 12),
