@@ -1,8 +1,8 @@
 # Unified Feed: LUMARA + Conversations Merge
 
-**Version:** 2.0 (Phase 2.0)  
-**Last Updated:** February 9, 2026  
-**Status:** Phase 2.0 complete. Behind feature flag (`USE_UNIFIED_FEED`, default off).  
+**Version:** 2.1 (Phase 2.1)  
+**Last Updated:** February 10, 2026  
+**Status:** Phase 2.1 complete. Behind feature flag (`USE_UNIFIED_FEED`, default off).  
 **Location:** `lib/arc/unified_feed/`
 
 ---
@@ -271,16 +271,18 @@ The main screen. Replaces both `LumaraAssistantScreen` (chat) and `UnifiedJourna
 
 **Layout — populated feed (top to bottom):**
 1. **Greeting header** — LUMARA sigil + contextual greeting + sub-greeting
-2. **Header actions** — Select (batch delete), Timeline (calendar), Settings gear
-3. **Selection mode bar** — Cancel / Delete (N) — visible only when in selection mode
-4. **Phase Arcform preview** — `CurrentPhaseArcformPreview` widget; tap opens `PhaseAnalysisView`
-5. **Communication actions** — Chat / Reflect / Voice buttons (above "Today" section)
-6. **LUMARA observation banner** — If LUMARA has a proactive observation
-7. **Date-grouped entry cards** — Today, Yesterday, This Week, This Month, etc. with date dividers
+2. **Header actions** — Select (batch delete/export), Timeline (calendar), Settings gear
+3. **Selection mode bar** — Cancel / Export (N) / Delete (N) — visible only when in selection mode
+4. **Phase Arcform preview** — `CurrentPhaseArcformPreview` widget; tap opens `PhaseAnalysisView`; refreshes on return
+5. **Phase Journey Gantt** — `_PhaseJourneyGanttCard`: Gantt-style bar showing phase regimes over time (days, phases, date range). Uses `PhaseTimelinePainter`. Refreshes with phase preview.
+6. **Communication actions** — Chat / Reflect / Voice buttons (above "Today" section)
+7. **LUMARA observation banner** — If LUMARA has a proactive observation
+8. **Date-grouped entry cards** — Today, Yesterday, This Week, This Month, etc. with date dividers
 
 **Entry Management:**
 - **Swipe-to-delete**: Swipe any card left to delete (with confirmation dialog). Uses `Dismissible` + `JournalRepository.deleteJournalEntry()`.
-- **Batch selection**: Tap "Select entries" (checklist icon) → multi-select mode with checkbox overlays → "Delete (N)" button with confirmation.
+- **Batch selection**: Tap "Select entries" (checklist icon) → multi-select mode with checkbox overlays → "Export (N)" and "Delete (N)" buttons.
+- **Selective export**: Export selected entries as ARCX (encrypted) or ZIP (portable) via `ARCXExportServiceV2` / `McpPackExportService`. Progress dialog shown; result shared via `Share.shareXFiles`.
 - **ExpandedEntryView actions**: Edit opens `JournalScreen` in edit mode. Delete permanently removes entry with confirmation dialog and `onEntryDeleted` callback to refresh feed.
 
 **LUMARA Chat:**
@@ -305,6 +307,17 @@ The main screen. Replaces both `LumaraAssistantScreen` (chat) and `UnifiedJourna
 
 **Phase Hashtag Stripping:**
 - `FeedHelpers.contentWithoutPhaseHashtags()` strips `#discovery`, `#expansion`, `#transition`, `#consolidation`, `#recovery`, `#breakthrough` from display content. Phase shows only in card metadata/header.
+
+**Paragraph Rendering:**
+- `ExpandedEntryView._buildParagraphWidgets()` — splits text on `\n\n` (paragraph break) or `\n` (line break), renders each paragraph with 12px bottom spacing and 1.5 line height. Replaces single `Text()` blocks.
+- `EntryContentRenderer._buildParagraphs()` — same paragraph logic in the timeline view.
+
+**Summary Extraction:**
+- `FeedHelpers.extractSummary()` / `bodyWithoutSummary()` — parses `## Summary\n\n...\n\n---\n\n<body>` header. Written entries display summary (italic, labelled) and body separately.
+
+**Card Date Formatting:**
+- `FeedHelpers.formatEntryCreationDate()` — "Today, 14:30", "Yesterday, 09:15", "Mar 15, 14:30", "Mar 15, 2025".
+- All 5 feed cards use this format (12px, 0.8 opacity). `ReflectionCard` and `SavedConversationCard` show date at leading position in metadata row.
 
 ### FeedMediaThumbnails
 
@@ -356,7 +369,7 @@ All cards extend **BaseFeedCard**, which provides a consistent wrapper with a ph
 - Welcome screen: settings gear, Phase Quiz CTA, data import flow (5 sources)
 - UniversalImporterService for multi-format journal import with deduplication
 
-### Phase 2.0 (v3.3.19, current) — Entry management, media, LUMARA chat, phase priority
+### Phase 2.0 (v3.3.19) — Entry management, media, LUMARA chat, phase priority
 
 - **Entry deletion**: Swipe-to-delete (`Dismissible`) and batch selection mode (multi-select + bulk delete)
 - **Media support**: `FeedEntry.mediaItems`, `FeedMediaThumbnails` widget, media grid in ExpandedEntryView with URI resolution (`ph://`, `file://`, MCP)
@@ -372,6 +385,18 @@ All cards extend **BaseFeedCard**, which provides a consistent wrapper with a ph
 - **CHRONICLE progress UI**: Rich progress view in `ChronicleManagementView` with percentage, stage label, linear bar
 - **LumaraAssistantScreen**: `initialMessage` param, back arrow navigation, removed drawer and "New Chat" menu item
 - **JournalScreen cleanup**: Removed prompt notice dialog, phase-preserving profile creation
+
+### Phase 2.1 (v3.3.20, current) — Export, Gantt, paragraph rendering, Sentinel integration
+
+- **Selective export**: Export selected entries as ARCX or ZIP from feed selection bar
+- **Phase Journey Gantt**: `_PhaseJourneyGanttCard` widget showing phase regimes over time (Gantt-style bar)
+- **Phase preview refresh**: `_phasePreviewRefreshKey` forces Arcform preview and Gantt rebuild on return from Phase view
+- **Paragraph rendering**: `_buildParagraphWidgets()` in ExpandedEntryView; `_buildParagraphs()` in EntryContentRenderer
+- **Summary extraction**: `FeedHelpers.extractSummary()` / `bodyWithoutSummary()` for `## Summary` headers
+- **Card date formatting**: `FeedHelpers.formatEntryCreationDate()` — all cards show "Today, 14:30" style dates
+- **Phase Sentinel integration**: `resolvePhaseWithSentinel()` checks Sentinel before applying RIVET/ATLAS proposals; overrides to Recovery on alert
+- **RIVET reset on user phase change**: `PhaseRegimeService.changeCurrentPhase()` and `UserPhaseService.forceUpdatePhase()` reset RIVET
+- **ARC → LUMARA branding**: All asset references updated to `LUMARA_Sigil.png`; backup filenames use `LUMARA_*` prefix
 
 ### Phase 3 (planned) — LLM-powered conversation and advanced features
 
@@ -407,12 +432,15 @@ All cards extend **BaseFeedCard**, which provides a consistent wrapper with a ph
 | `lib/ui/phase/phase_analysis_view.dart` | Auto-apply analysis; removed approval flow |
 | `lib/ui/phase/phase_timeline_view.dart` | `forceUpdatePhase` on phase change |
 | `lib/arc/ui/timeline/widgets/current_phase_arcform_preview.dart` | `onTapOverride`; profile-first phase resolution |
+| `lib/arc/ui/timeline/widgets/entry_content_renderer.dart` | Paragraph rendering |
+| `lib/services/phase_sentinel_integration.dart` | New: Sentinel safety override for phase proposals |
+| `lib/mira/store/arcx/services/arcx_export_service_v2.dart` | ARC → LUMARA backup naming; backward-compat regex |
 
 ---
 
 ## Related Documents
 
 - [ARCHITECTURE.md](ARCHITECTURE.md) — ARC Module → `unified_feed/` submodule
-- [FEATURES.md](FEATURES.md) — "Unified Feed (v3.3.19, feature-flagged)" section
-- [CHANGELOG.md](CHANGELOG.md) — [3.3.19] entry
+- [FEATURES.md](FEATURES.md) — "Unified Feed (v3.3.20, feature-flagged)" section
+- [CHANGELOG.md](CHANGELOG.md) — [3.3.20] entry
 - [UI_UX.md](UI_UX.md) — UI patterns and components

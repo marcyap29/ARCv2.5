@@ -1,5 +1,5 @@
-// lib/lumara/ui/lumara_splash_screen.dart
-// ARC splash screen shown on app launch
+// lib/arc/chat/ui/lumara_splash_screen.dart
+// LUMARA splash screen shown on app launch
 
 import 'dart:async';
 import 'package:flutter/material.dart';
@@ -17,7 +17,7 @@ import 'package:my_app/arc/core/journal_repository.dart';
 import 'package:my_app/services/user_phase_service.dart';
 import 'package:my_app/prism/atlas/rivet/rivet_provider.dart';
 
-/// Splash screen with ARC logo and animated phase shape
+/// Splash screen with LUMARA logo and animated phase shape
 class LumaraSplashScreen extends StatefulWidget {
   const LumaraSplashScreen({super.key});
 
@@ -33,7 +33,7 @@ class _LumaraSplashScreenState extends State<LumaraSplashScreen>
   String _currentPhase = 'Discovery';
   bool _phaseLoaded = false;
   /// True only when the user has at least one phase regime (current or past).
-  /// When false, we show only the ARC logo—no phase shape or label.
+  /// When false, we show only the LUMARA logo—no phase shape or label.
   bool _userHasPhase = false;
   bool _hasNavigated = false;
   late AnimationController _fadeController;
@@ -119,7 +119,7 @@ class _LumaraSplashScreenState extends State<LumaraSplashScreen>
       final hasPhase = displayPhase.isNotEmpty;
       final phase = hasPhase
           ? displayPhase[0].toUpperCase() + displayPhase.substring(1).toLowerCase()
-          : ''; // No default - brand new users see ARC logo only
+          : ''; // No default - brand new users see LUMARA logo only
 
       if (mounted) {
         setState(() {
@@ -298,9 +298,9 @@ class _LumaraSplashScreenState extends State<LumaraSplashScreen>
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      // ARC Logo (always shown)
+                      // LUMARA logo (always shown)
                       Image.asset(
-                        'assets/images/ARC-Logo.png',
+                        'assets/icon/LUMARA_Sigil.png',
                         width: logoSize,
                         height: logoSize,
                         fit: BoxFit.contain,

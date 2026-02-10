@@ -1,5 +1,13 @@
 // lib/services/rivet_sweep_service.dart
 // RIVET Sweep: Segmented Phase Backfill Pipeline
+//
+// Phase determination is done by:
+// - RIVET: structures the sweep (segmentation, change points, hysteresis, min dwell) and gates
+//   real-time phase changes via RivetProvider.
+// - ATLAS: used for phase inference per segment via AtlasPhaseDecisionService (scoring and
+//   decidePhaseForEntry) in _inferPhaseFromContent and in trend analysis fallbacks.
+// - Sentinel: applied when applying proposals (see phase_sentinel_integration); safety override
+//   can set segment phase to Recovery when crisis/cluster alert is detected.
 
 import 'dart:math';
 import '../models/phase_models.dart';
@@ -11,6 +19,7 @@ import 'analytics_service.dart';
 import 'phase_regime_service.dart';
 import 'package:my_app/arc/ui/arcforms/phase_recommender.dart';
 import 'atlas_phase_decision_service.dart';
+import 'phase_sentinel_integration.dart';
 
 class RivetSweepService {
   // final SemanticSimilarityService _similarityService; // TODO: Implement
@@ -787,8 +796,8 @@ class RivetSweepService {
     return 1.0 - (dotProduct / (sqrt(normA) * sqrt(normB)));
   }
 
-  /// Infer phase from content using ATLAS phase decision scoring system
-  /// Replaces old keyword-based detection with scoring system that eliminates Discovery bias
+  /// Infer phase from content using ATLAS phase decision scoring system.
+  /// RIVET uses ATLAS here so phases are determined by ATLAS scoring + hysteresis.
   PhaseLabel? _inferPhaseFromContent(String content, List<String> keywords, {PhaseLabel? prevPhase}) {
     // Generate phase scores using ATLAS decision system
     final scores = AtlasPhaseDecisionService.generatePhaseScores(
@@ -833,6 +842,8 @@ class RivetSweepService {
   }
 }
 
+/// Runs RIVET Sweep then applies proposals. Phases are determined by RIVET + ATLAS;
+/// Sentinel override (Recovery when alert) is applied in the UI/regime-creation layer.
 // Supporting classes
 class DailySignal {
   final DateTime date;
@@ -915,7 +926,7 @@ Future<int> runAutoPhaseAnalysis() async {
     final phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
     await phaseRegimeService.initialize();
 
-    // Create regimes from proposals
+    // Create regimes from proposals (RIVET + ATLAS phase; Sentinel can override to Recovery)
     int created = 0;
     for (int i = 0; i < proposals.length; i++) {
       final proposal = proposals[i];
@@ -927,8 +938,9 @@ Future<int> runAutoPhaseAnalysis() async {
         if (daysSinceEnd <= 2) regimeEnd = null; // ongoing
       }
 
+      final label = await resolvePhaseWithSentinel(proposal, entries);
       await phaseRegimeService.createRegime(
-        label: proposal.proposedLabel,
+        label: label,
         start: proposal.start,
         end: regimeEnd,
         source: PhaseSource.rivet,

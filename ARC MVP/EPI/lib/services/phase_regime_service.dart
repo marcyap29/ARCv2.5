@@ -9,6 +9,7 @@ import 'package:my_app/arc/core/journal_repository.dart';
 import 'phase_index.dart';
 import 'rivet_sweep_service.dart';
 import 'analytics_service.dart';
+import 'package:my_app/prism/atlas/rivet/rivet_provider.dart';
 import 'package:my_app/prism/pipelines/prism_joiner.dart';
 import 'package:my_app/mira/store/mcp/mcp_fs.dart';
 
@@ -352,7 +353,8 @@ class PhaseRegimeService {
     return label.toString().split('.').last;
   }
 
-  /// Create a new phase regime
+  /// Create a new phase regime.
+  /// Phase labels are determined by callers: RIVET (sweep/gate), ATLAS (scoring), Sentinel (safety override).
   Future<PhaseRegime> createRegime({
     required PhaseLabel label,
     required DateTime start,
@@ -560,8 +562,9 @@ class PhaseRegimeService {
     return mergedRegime;
   }
 
-  /// Change current phase
-  /// If updateHashtags is true, updates hashtags for entries in the new regime
+  /// Change current phase (user-determined).
+  /// If updateHashtags is true, updates hashtags for entries in the new regime.
+  /// Resets RIVET so it starts fresh; the gate stays closed until it opens again and ATLAS can determine a new phase.
   Future<PhaseRegime> changeCurrentPhase(PhaseLabel newLabel, {bool updateHashtags = false}) async {
     final now = DateTime.now();
     final currentRegime = phaseIndex.currentRegime;
@@ -575,7 +578,7 @@ class PhaseRegimeService {
       await updateRegime(endedRegime);
     }
     
-    // Create new regime
+    // Create new regime (user is determining their phase)
     final newRegime = await createRegime(
       label: newLabel,
       start: now,
@@ -585,6 +588,16 @@ class PhaseRegimeService {
     // Update hashtags if requested
     if (updateHashtags) {
       await updateHashtagsForRegime(newRegime);
+    }
+    
+    // User determined phase: reset RIVET to a new start so the gate closes and
+    // RIVET will accumulate evidence again until it opens and ATLAS can determine a new phase
+    try {
+      const userId = 'default_user';
+      await RivetProvider().safeClearUserData(userId);
+    } catch (e) {
+      // Non-fatal: phase change still applied
+      print('DEBUG: RIVET reset after user phase change: $e');
     }
     
     return newRegime;
@@ -919,6 +932,38 @@ class PhaseRegimeService {
   /// Count entries that would be affected by a regime change
   int countEntriesForRegime(PhaseRegime regime) {
     return _getEntriesInDateRange(regime.start, regime.end).length;
+  }
+
+  /// Returns the date of the latest journal entry in [start, end], or null if none.
+  /// Used so the Gantt can show the most recent phase tracking to the last entry.
+  DateTime? getLastEntryDateInRange(DateTime start, DateTime? end) {
+    final entries = _getEntriesInDateRange(start, end);
+    if (entries.isEmpty) return null;
+    return entries.map((e) => e.createdAt).reduce((a, b) => a.isAfter(b) ? a : b);
+  }
+
+  /// If the most recent regime is ongoing (or ends before the last journal entry in its range),
+  /// extend its end to that last entry date so the Gantt and stats track to the last entries.
+  /// Uses entries from [regime.start, now] so new entries are included.
+  Future<bool> extendMostRecentRegimeToLastEntry() async {
+    final regimes = _regimesBox?.values.toList() ?? [];
+    if (regimes.isEmpty) return false;
+    final sorted = List<PhaseRegime>.from(regimes)
+      ..sort((a, b) => (b.end ?? DateTime.now()).compareTo(a.end ?? DateTime.now()));
+    final mostRecent = sorted.first;
+    final lastEntry = getLastEntryDateInRange(mostRecent.start, null);
+    if (lastEntry == null) return false;
+    final effectiveEnd = lastEntry.isBefore(mostRecent.start)
+        ? mostRecent.start
+        : lastEntry;
+    final bool shouldUpdate = mostRecent.end == null
+        ? effectiveEnd.isAfter(mostRecent.start)
+        : effectiveEnd.isAfter(mostRecent.end!);
+    if (!shouldUpdate) return false;
+    final updated = mostRecent.copyWith(end: effectiveEnd, updatedAt: DateTime.now());
+    await updateRegime(updated);
+    _loadPhaseIndex();
+    return true;
   }
 
   /// Update hashtags for entries in a regime

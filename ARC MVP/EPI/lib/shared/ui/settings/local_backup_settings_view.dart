@@ -72,7 +72,7 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
   bool _usePasswordEncryption = false;
   String? _exportPassword;
 
-  // Clean ARCX
+  // Clean LUMARA archive (.arcx)
   bool _isCleaningArcx = false;
   String _cleanArcxProgress = '';
 
@@ -327,7 +327,7 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
   Future<void> _useAppDocumentsFolder() async {
     try {
       final appDocDir = await getApplicationDocumentsDirectory();
-      final backupDir = Directory(path.join(appDocDir.path, 'ARCX_Backups'));
+      final backupDir = Directory(path.join(appDocDir.path, 'LUMARA_Backups'));
       
       // Create directory if it doesn't exist
       if (!await backupDir.exists()) {
@@ -576,14 +576,14 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
           return;
         }
         final timestamp = DateFormat('yyyy-MM-dd_HH-mm').format(DateTime.now());
-        final zipPath = path.join(cleanBackupPath, 'ARC_Inc_$timestamp.zip');
+        final zipPath = path.join(cleanBackupPath, 'LUMARA_Inc_$timestamp.zip');
         PhaseRegimeService? phaseRegimeService;
         try {
           phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
           await phaseRegimeService.initialize();
         } catch (_) {}
         final mcpService = McpPackExportService(
-          bundleId: 'ARC_Inc_$timestamp',
+          bundleId: 'LUMARA_Inc_$timestamp',
           outputPath: zipPath,
           chatRepo: chatRepo,
           phaseRegimeService: phaseRegimeService,
@@ -794,14 +794,14 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
           return;
         }
         final timestamp = DateFormat('yyyy-MM-dd_HH-mm').format(DateTime.now());
-        final zipPath = path.join(cleanBackupPath, 'ARC_Full_$timestamp.zip');
+        final zipPath = path.join(cleanBackupPath, 'LUMARA_Full_$timestamp.zip');
         PhaseRegimeService? phaseRegimeService;
         try {
           phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
           await phaseRegimeService.initialize();
         } catch (_) {}
         final mcpService = McpPackExportService(
-          bundleId: 'ARC_Full_$timestamp',
+          bundleId: 'LUMARA_Full_$timestamp',
           outputPath: zipPath,
           chatRepo: chatRepo,
           phaseRegimeService: phaseRegimeService,
@@ -1311,12 +1311,12 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
-                'Clean ARCX',
+                'Clean LUMARA archive',
                 style: heading3Style(context).copyWith(color: Colors.white),
               ),
               const SizedBox(height: 8),
               Text(
-                'Remove chat sessions with fewer than 3 LUMARA replies. Device-key-encrypted ARCX 1.2 only.',
+                'Remove chat sessions with fewer than 3 LUMARA replies. Device-key-encrypted LUMARA archive (ARCX 1.2) only.',
                 style: bodyStyle(context).copyWith(
                   color: kcSecondaryTextColor,
                   fontSize: 12,
@@ -1326,7 +1326,7 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
               ElevatedButton.icon(
                 onPressed: () => Navigator.of(context).pop('files'),
                 icon: const Icon(Icons.attach_file),
-                label: const Text('Select ARCX file(s)'),
+                label: const Text('Select LUMARA archive file(s)'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: kcAccentColor,
                   foregroundColor: Colors.white,
@@ -1656,7 +1656,7 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
                           const SizedBox(height: 12),
                           Text(
                             'You can use a folder inside the app (below) or choose a folder elsewhere (e.g. On My iPhone) for storage.\n\n'
-                            'Recommended: Use "On My iPhone" → "ARC" or "Documents" folder.\n\n'
+                            'Recommended: Use "On My iPhone" → "LUMARA" or "Documents" folder.\n\n'
                             'Avoid: iCloud Drive folders (they have restricted write permissions).\n\n'
                             'Tip: Create a new folder in Files app first, then select it here. If you use an external folder and the app was closed, select it again before backing up.',
                             style: bodyStyle(context).copyWith(
@@ -2476,8 +2476,8 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  '• Full: ARC_Full_001.arcx, ARC_Full_002.arcx (~200MB each)\n'
-                  '• Incremental: ARC_Inc_003_2026-01-17.arcx (added later)',
+                  '• Full: LUMARA_Full_001.arcx, LUMARA_Full_002.arcx (~200MB each)\n'
+                  '• Incremental: LUMARA_Inc_003_2026-01-17.arcx (added later)',
                   style: TextStyle(
                     color: Colors.blue[200]!.withOpacity(0.8),
                     fontSize: 10,
@@ -2896,7 +2896,7 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Clean ARCX file(s) or a whole folder: open, decrypt, remove chats with fewer than 3 LUMARA replies, re-encrypt. Device-key-encrypted ARCX 1.2 only. Output: *_cleaned.arcx.',
+            'Clean LUMARA archive file(s) or a whole folder: open, decrypt, remove chats with fewer than 3 LUMARA replies, re-encrypt. Device-key-encrypted LUMARA archive (ARCX 1.2) only. Output: *_cleaned.arcx.',
             style: bodyStyle(context).copyWith(
               color: kcSecondaryTextColor,
               fontSize: 12,
@@ -2927,7 +2927,7 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
             OutlinedButton.icon(
               onPressed: _runCleanArcx,
               icon: const Icon(Icons.cleaning_services, size: 18),
-              label: const Text('Clean ARCX file(s) or folder...'),
+              label: const Text('Clean LUMARA archive file(s) or folder...'),
               style: OutlinedButton.styleFrom(
                 foregroundColor: kcSecondaryTextColor,
                 side: BorderSide(color: kcSecondaryTextColor.withOpacity(0.5)),

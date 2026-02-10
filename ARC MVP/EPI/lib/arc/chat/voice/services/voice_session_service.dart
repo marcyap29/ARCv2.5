@@ -215,8 +215,11 @@ class VoiceSessionService {
     _audioCapture.onAudioLevel = _onAudioLevel;
     _audioCapture.onError = _onAudioError;
     
-    // Endpoint detector callbacks
-    _endpointDetector.onEndpointDetected = _onEndpointDetected;
+    // Endpoint detector: only user tap ends the turn (no auto-stop on silence)
+    _endpointDetector.onEndpointDetected = () {
+      // Disabled: was causing premature end when users pause to think.
+      // User must tap the talk button to indicate they're finished.
+    };
     _endpointDetector.onStateChanged = _onEndpointStateChanged;
     
     // TTS callbacks
@@ -412,14 +415,8 @@ class VoiceSessionService {
       _processTranscript();
     }
   }
-  
-  /// Handle endpoint detection (auto-detected by smart endpoint detector)
-  void _onEndpointDetected() async {
-    debugPrint('VoiceSession: Endpoint auto-detected');
-    await _stopListeningAndProcess();
-  }
-  
-  /// Stop listening and process transcript (for tap-to-toggle or endpoint detection)
+
+  /// Stop listening and process transcript (only via user tap; auto endpoint disabled)
   Future<void> stopListening() async {
     if (_state != VoiceSessionState.listening) {
       debugPrint('VoiceSession: Cannot stop listening - not in listening state');

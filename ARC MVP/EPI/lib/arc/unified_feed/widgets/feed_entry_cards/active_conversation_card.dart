@@ -71,10 +71,10 @@ class ActiveConversationCard extends StatelessWidget {
                     ),
                     const Spacer(),
                     Text(
-                      FeedHelpers.formatFeedDate(entry.timestamp),
+                      FeedHelpers.formatEntryCreationDate(entry.timestamp),
                       style: TextStyle(
-                        color: kcSecondaryTextColor.withOpacity(0.7),
-                        fontSize: 11,
+                        color: kcSecondaryTextColor.withOpacity(0.8),
+                        fontSize: 12,
                       ),
                     ),
                   ],

@@ -61,7 +61,7 @@ class Copy {
   static const String rivetProgressNotReady = "Not ready";
   
   static const String rivetDetailsTitle = "Why is this held?";
-  static const String rivetDetailsBlurb = "ARC changes your phase only when three checks pass: your entries match a new phase, we have enough confidence, and the signal stays consistent for a short time with one independent confirmation.";
+  static const String rivetDetailsBlurb = "LUMARA changes your phase only when three checks pass: your entries match a new phase, we have enough confidence, and the signal stays consistent for a short time with one independent confirmation.";
   static String rivetDetailsValuesMatch(int percent) => "Match: $percent%";
   static String rivetDetailsValuesConfidence(int percent) => "Confidence: $percent%";
   static String rivetDetailsValuesConsistency(int current, int target) => "Consistency: $current/$target days";

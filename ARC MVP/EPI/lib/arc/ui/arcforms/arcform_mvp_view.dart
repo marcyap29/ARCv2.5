@@ -153,7 +153,7 @@ class _ArcformMVPViewState extends State<ArcformMVPView> {
       backgroundColor: kcBackgroundColor,
       appBar: AppBar(
         backgroundColor: kcBackgroundColor,
-        title: Text('ARC MVP', style: heading1Style(context)),
+        title: Text('LUMARA MVP', style: heading1Style(context)),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh, color: kcPrimaryColor),

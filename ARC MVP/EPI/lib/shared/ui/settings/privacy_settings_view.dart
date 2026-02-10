@@ -1,11 +1,14 @@
 // lib/features/settings/privacy_settings_view.dart
 // Privacy Settings UI for user-configurable PII protection
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
-import 'package:my_app/echo/privacy_core/privacy_settings_service.dart';
-import 'package:my_app/echo/privacy_core/pii_detection_service.dart';
-import 'package:my_app/echo/privacy_core/models/pii_types.dart';
+import 'package:my_app/arc/internal/echo/prism_adapter.dart';
 import 'package:my_app/arc/privacy/privacy_demo_screen.dart';
+import 'package:my_app/echo/privacy_core/models/pii_types.dart';
+import 'package:my_app/echo/privacy_core/pii_detection_service.dart';
+import 'package:my_app/echo/privacy_core/privacy_settings_service.dart';
 
 class PrivacySettingsView extends StatefulWidget {
   const PrivacySettingsView({super.key});
@@ -18,10 +21,50 @@ class _PrivacySettingsViewState extends State<PrivacySettingsView> {
   final PrivacySettingsService _settingsService = PrivacySettingsService();
   bool _isLoading = true;
 
+  // Inline "Test privacy protection" demo (real-time PII scrubbing)
+  final TextEditingController _demoInputController = TextEditingController();
+  String _demoScrubbed = '';
+  int _demoRedactions = 0;
+  Timer? _demoDebounce;
+
   @override
   void initState() {
     super.initState();
     _loadSettings();
+    _demoInputController.text = 'Hi, I\'m Jane. Email me at jane@example.com or call (555) 123-4567.';
+    _runDemoScrub();
+  }
+
+  @override
+  void dispose() {
+    _demoDebounce?.cancel();
+    _demoInputController.dispose();
+    super.dispose();
+  }
+
+  void _onDemoInputChanged() {
+    _demoDebounce?.cancel();
+    _demoDebounce = Timer(const Duration(milliseconds: 350), _runDemoScrub);
+  }
+
+  void _runDemoScrub() {
+    if (!mounted) return;
+    final text = _demoInputController.text.trim();
+    if (text.isEmpty) {
+      setState(() {
+        _demoScrubbed = '';
+        _demoRedactions = 0;
+      });
+      return;
+    }
+    final prism = PrismAdapter();
+    final result = prism.scrub(text);
+    if (mounted) {
+      setState(() {
+        _demoScrubbed = result.scrubbedText;
+        _demoRedactions = result.redactionCount;
+      });
+    }
   }
 
   Future<void> _loadSettings() async {
@@ -64,6 +107,8 @@ class _PrivacySettingsViewState extends State<PrivacySettingsView> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildHeaderCard(),
+            const SizedBox(height: 16),
+            _buildTestPrivacyCard(),
             const SizedBox(height: 16),
             _buildPrivacyLevelSection(),
             const SizedBox(height: 16),
@@ -131,6 +176,78 @@ class _PrivacySettingsViewState extends State<PrivacySettingsView> {
                 ],
               ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTestPrivacyCard() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.verified_user, color: Theme.of(context).primaryColor),
+                const SizedBox(width: 8),
+                Text(
+                  'Test privacy protection',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'See how your text is scrubbed before it\'s sent to AI. Same pipeline as LUMARA.',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _demoInputController,
+              decoration: const InputDecoration(
+                hintText: 'Enter a statement (e.g. name, email, phone)...',
+                border: OutlineInputBorder(),
+              ),
+              maxLines: 3,
+              onChanged: (_) => _onDemoInputChanged(),
+            ),
+            if (_demoScrubbed.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Text(
+                'What we send to the cloud:',
+                style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: SelectableText(
+                  _demoScrubbed,
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+              ),
+              if (_demoRedactions > 0)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Text(
+                    '$_demoRedactions PII item(s) redacted',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                  ),
+                ),
+            ],
           ],
         ),
       ),

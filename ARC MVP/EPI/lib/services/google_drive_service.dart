@@ -19,7 +19,7 @@ const String _kPrefSyncFolderName = 'google_drive_sync_folder_name';
 const String _kPrefSyncedTxtIds = 'google_drive_synced_txt_ids';
 const String _kPrefSyncedTxtRecords = 'google_drive_synced_txt_records';
 const int _kMaxSyncedTxtRecords = 500;
-const String _kDriveAppFolderName = 'ARC Backups';
+const String _kDriveAppFolderName = 'LUMARA Backups';
 
 /// One synced .txt file: maps Drive file ID to ARC entry and last known Drive modified time.
 class SyncedTxtRecord {
@@ -164,7 +164,7 @@ class GoogleDriveService {
     }
   }
 
-  /// Create or get the single "ARC Backups" folder. Looks for an existing folder by name first to avoid creating duplicates.
+  /// Create or get the single "LUMARA Backups" folder. Looks for an existing folder by name first to avoid creating duplicates.
   /// Returns folder ID.
   Future<String> getOrCreateAppFolder() async {
     _requireDriveApi();
@@ -177,7 +177,7 @@ class GoogleDriveService {
         // Folder may have been deleted; fall through to search then create.
       }
     }
-    // Search for an existing "ARC Backups" folder (avoids duplicate folders).
+    // Search for an existing "LUMARA Backups" folder (avoids duplicate folders).
     try {
       final response = await _driveApi!.files.list(
         q: "name = '$_kDriveAppFolderName' and mimeType = 'application/vnd.google-apps.folder' and trashed = false",
@@ -193,7 +193,7 @@ class GoogleDriveService {
         }
       }
     } catch (e) {
-      debugPrint('GoogleDriveService: search for ARC Backups folder: $e');
+      debugPrint('GoogleDriveService: search for LUMARA Backups folder: $e');
     }
     // No existing folder found; create one.
     final file = drive.File();
@@ -204,7 +204,7 @@ class GoogleDriveService {
     return created.id!;
   }
 
-  /// Get or create a dated subfolder (yyyy-MM-dd) inside "ARC Backups". Returns the dated folder ID.
+  /// Get or create a dated subfolder (yyyy-MM-dd) inside "LUMARA Backups". Returns the dated folder ID.
   /// Always looks for an existing folder for that date first so multiple uploads the same day
   /// go into the same folder (no duplicate same-day folders). Uses an in-memory cache so a
   /// second upload in the same session reuses the folder even if Drive list hasn't updated yet.
@@ -515,7 +515,7 @@ class GoogleDriveService {
     }
   }
 
-  /// List all backup files (manifests, .arcx, .zip) from ARC Backups: from dated subfolders and any at root.
+  /// List all backup files (manifests, .arcx, .zip) from LUMARA Backups: from dated subfolders and any at root.
   /// Used by Import from Drive so backups in dated folders (e.g. 2026-02-02) are shown.
   Future<List<drive.File>> listAllBackupFiles({int pageSize = 200}) async {
     _requireDriveApi();
@@ -599,7 +599,7 @@ class GoogleDriveService {
   }
 
   /// Upload arcx files in size order (smallest first), then upload a manifest.
-  /// Files are placed in a dated subfolder (yyyy-MM-dd) inside "ARC Backups".
+  /// Files are placed in a dated subfolder (yyyy-MM-dd) inside "LUMARA Backups".
   /// [arcxPaths] = paths to .arcx files; [manifestTimestamp] = ISO timestamp for manifest name.
   /// [onProgress] is called with (current, total, phase) after each upload.
   Future<void> uploadChunkedBackup({
@@ -610,7 +610,7 @@ class GoogleDriveService {
     _requireDriveApi();
     if (arcxPaths.isEmpty) return;
 
-    // Use today's dated subfolder inside ARC Backups (e.g. 2026-02-02).
+    // Use today's dated subfolder inside LUMARA Backups (e.g. 2026-02-02).
     final datedFolderId = await getOrCreateDatedSubfolder(DateTime.now());
 
     // Sort by file size ascending so smaller arcx files upload first.
@@ -638,7 +638,7 @@ class GoogleDriveService {
       await Future.delayed(Duration.zero);
     }
 
-    // Restore order: sort by basename (ARC_Full_001.arcx, ARC_Full_002.arcx, ...).
+    // Restore order: sort by basename (LUMARA_Full_001.arcx, LUMARA_Full_002.arcx, ...).
     final basenames = basenameToFileId.keys.toList()..sort();
     final chunkFileIds = basenames.map((name) => basenameToFileId[name]!).toList();
 
@@ -684,7 +684,7 @@ class GoogleDriveService {
 
     for (var i = 0; i < chunkFileIds.length; i++) {
       final numStr = (i + 1).toString().padLeft(3, '0');
-      final name = 'ARC_Full_$numStr.arcx';
+      final name = 'LUMARA_Full_$numStr.arcx';
       final localPath = path.join(backupDir.path, name);
       await downloadFile(chunkFileIds[i], localPath);
     }

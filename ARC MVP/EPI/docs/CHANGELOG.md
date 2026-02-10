@@ -1,7 +1,7 @@
-# EPI ARC MVP - Changelog
+# EPI LUMARA MVP - Changelog
 
-**Version:** 3.3.19
-**Last Updated:** February 9, 2026
+**Version:** 3.3.20
+**Last Updated:** February 10, 2026
 
 ---
 
@@ -14,6 +14,178 @@ This changelog has been split into parts for easier navigation:
 | **[CHANGELOG_part1.md](CHANGELOG_part1.md)** | Dec 2025 | v2.1.43 - v2.1.87 (Current) |
 | **[CHANGELOG_part2.md](CHANGELOG_part2.md)** | Nov 2025 | v2.1.28 - v2.1.42 |
 | **[CHANGELOG_part3.md](CHANGELOG_part3.md)** | Jan-Oct 2025 | v2.0.0 - v2.1.27 & Earlier |
+
+---
+
+## [3.3.20] - February 10, 2026 (working changes)
+
+### ARC → LUMARA Branding Rename
+
+Complete rename of all user-facing "ARC" references to "LUMARA" throughout the application.
+
+**Asset Changes:**
+- Deleted `assets/icon/LUMARA_Sigil_White.png`, `assets/icon/app_icon.png`, `assets/images/ARC-Logo.png`.
+- Added `assets/icon/LUMARA_Sigil.png` — consolidated single sigil asset used everywhere (splash, tab bar, feed, voice sigil, onboarding, pulsing symbol, LumaraIcon widgets).
+
+**Backup File Naming:**
+- `ARC_BackupSet_` → `LUMARA_BackupSet_`, `ARC_Full_` → `LUMARA_Full_`, `ARC_Inc_` → `LUMARA_Inc_` (export filenames).
+- Backward-compatible regex: reading existing backups matches both `LUMARA_*` and legacy `ARC_*` patterns.
+- Google Drive folder: `ARC Backups` → `LUMARA Backups`.
+- Local backup default folder: `ARCX_Backups` → `LUMARA_Backups`.
+
+**UI Text:**
+- Splash screen: uses `LUMARA_Sigil.png` instead of `ARC-Logo.png`; comments updated.
+- Onboarding: "Welcome to ARC." → "Welcome to LUMARA.", "ARC learns..." → "LUMARA learns...", "ARC and LUMARA are built on..." → "LUMARA is built on...".
+- Notifications: `ARC Monthly Review` → `LUMARA Monthly Review`, `ARC 6-Month View` → `LUMARA 6-Month View`, `ARC Year in Review` → `LUMARA Year in Review`.
+- Copy.dart: "ARC changes your phase" → "LUMARA changes your phase".
+- Keyword analysis: "ARC is analyzing" → "LUMARA is analyzing", "ARC Analysis" → "LUMARA Analysis".
+- Arcform export: "ARC MVP" → "LUMARA MVP".
+- Chat export: "ARC EPI v1.0" → "LUMARA EPI v1.0".
+- Local backup: "Clean ARCX" → "Clean LUMARA archive", updated descriptions.
+- Google Drive settings: all "ARC" references → "LUMARA".
+- Permissions: "ARC needs a few permissions" → "LUMARA needs a few permissions".
+
+#### Files deleted
+- `assets/icon/LUMARA_Sigil_White.png`
+- `assets/icon/app_icon.png`
+- `assets/images/ARC-Logo.png`
+
+#### Files added
+- `assets/icon/LUMARA_Sigil.png`
+
+#### Files modified (branding only)
+- `lib/arc/chat/chat/chat_category_models.dart`
+- `lib/arc/chat/ui/lumara_splash_screen.dart`
+- `lib/arc/chat/ui/widgets/lumara_icon.dart`
+- `lib/arc/chat/voice/ui/voice_sigil.dart`
+- `lib/arc/core/widgets/keyword_analysis_view.dart`
+- `lib/arc/ui/arcforms/arcform_mvp_view.dart`
+- `lib/arc/ui/widgets/keyword_analysis_view.dart`
+- `lib/core/i18n/copy.dart`
+- `lib/mira/store/arcx/services/arcx_export_service_v2.dart`
+- `lib/services/arcform_export_service.dart`
+- `lib/services/temporal_notification_service.dart`
+- `lib/shared/tab_bar.dart`
+- `lib/shared/ui/onboarding/arc_onboarding_sequence.dart`
+- `lib/shared/ui/onboarding/onboarding_view.dart`
+- `lib/shared/ui/onboarding/widgets/lumara_pulsing_symbol.dart`
+- `lib/shared/ui/settings/google_drive_settings_view.dart`
+- `lib/shared/ui/settings/local_backup_settings_view.dart`
+- `lib/shared/widgets/lumara_icon.dart`
+- `lib/arc/unified_feed/widgets/unified_feed_screen.dart`
+
+---
+
+### Phase Sentinel Safety Integration
+
+New Sentinel integration layer ensures RIVET/ATLAS phase proposals are checked against Sentinel (crisis/cluster alert) before being applied. If alert triggers, segment phase is overridden to Recovery as a safety measure.
+
+**New file:** `lib/services/phase_sentinel_integration.dart`
+- `resolvePhaseWithSentinel(proposal, allEntries)` — calculates Sentinel score on segment text; returns `PhaseLabel.recovery` if `score.alert` is true, otherwise returns RIVET/ATLAS proposed label.
+- Graceful degradation: if Sentinel is unavailable (offline/Firestore), keeps the RIVET/ATLAS phase.
+
+**Applied in:**
+- `rivet_sweep_service.dart` — `runAutoPhaseAnalysis()` uses `resolvePhaseWithSentinel()` when creating regimes.
+- `phase_analysis_view.dart` — `_runRivetSweep()` applies Sentinel check.
+- `phase_analysis_settings_view.dart` — same integration.
+
+**RIVET/ATLAS/Sentinel Roles Documented:**
+- Header comments in `rivet_sweep_service.dart` now document the three-system architecture: RIVET (segmentation, gating), ATLAS (phase scoring), Sentinel (safety override).
+
+#### Files added
+- `lib/services/phase_sentinel_integration.dart`
+
+#### Files modified
+- `lib/services/rivet_sweep_service.dart` — Sentinel integration, updated comments
+- `lib/ui/phase/phase_analysis_view.dart` — Sentinel integration
+- `lib/shared/ui/settings/phase_analysis_settings_view.dart` — Sentinel integration
+
+---
+
+### Unified Feed: Selective Export, Phase Gantt, Paragraph Rendering
+
+**Selective Export from Feed:**
+- Selection bar now shows "Export (N)" button alongside "Delete (N)" when entries are selected.
+- `_showExportOptions()` — bottom sheet offering ARCX (encrypted) or ZIP (portable) export.
+- `_exportSelectedAsArcx()` — uses `ARCXExportServiceV2` with subset of journal IDs, shows progress dialog, shares via `Share.shareXFiles`.
+- `_exportSelectedAsZip()` — uses `McpPackExportService`, shows progress dialog, shares via `Share.shareXFiles`.
+- Only saved journal entries (with `journalEntryId`) can be exported.
+
+**Phase Journey Gantt Card:**
+- New `_PhaseJourneyGanttCard` widget embedded in the feed between phase Arcform preview and communication actions.
+- Gantt-style horizontal bar showing phase regimes over time using `PhaseTimelinePainter`.
+- Displays start/end dates, total days, number of phases.
+- `PhaseRegimeService.getLastEntryDateInRange()` — returns latest journal entry date in a date range.
+- `PhaseRegimeService.extendMostRecentRegimeToLastEntry()` — extends most recent regime end to last entry date.
+
+**Phase Preview Refresh:**
+- `_phasePreviewRefreshKey` state variable bumped when returning from Phase view, so both the Arcform preview and Gantt card rebuild with updated phase data.
+- Wrapped in `KeyedSubtree` for forced rebuild.
+
+**Paragraph Rendering:**
+- `ExpandedEntryView._buildParagraphWidgets()` — splits text on double newlines (paragraph break) or single newlines (line break), renders each paragraph with 12px bottom spacing and 1.5 line height.
+- Applied across all content renderers: conversation messages, written reflections, voice memos, LUMARA initiatives.
+- `EntryContentRenderer._buildParagraphs()` — same paragraph logic applied in timeline view (replaces single `Text(content)` with properly spaced paragraphs).
+
+**Summary Extraction:**
+- `FeedHelpers.extractSummary()` — extracts `## Summary\n\n...\n\n---\n\n` header from content.
+- `FeedHelpers.bodyWithoutSummary()` — returns content after the summary section.
+- `ExpandedEntryView._buildWrittenContent()` — renders summary (italic, with "Summary" label) and body separately.
+
+**Card Date Formatting:**
+- New `FeedHelpers.formatEntryCreationDate()` — formats as "Today, 14:30", "Yesterday, 09:15", "Mar 15, 14:30", or "Mar 15, 2025".
+- All 5 feed entry cards now use `formatEntryCreationDate()` — more prominent (12px, 0.8 opacity) than previous `formatFeedDate()` (11px, 0.5 opacity).
+- `ReflectionCard` and `SavedConversationCard`: date moved to leading position in metadata row.
+
+#### Files modified
+- `lib/arc/unified_feed/widgets/unified_feed_screen.dart` — Export, Gantt card, phase preview refresh
+- `lib/arc/unified_feed/widgets/expanded_entry_view.dart` — Paragraph rendering, summary extraction
+- `lib/arc/unified_feed/utils/feed_helpers.dart` — `extractSummary`, `bodyWithoutSummary`, `formatEntryCreationDate`
+- `lib/arc/unified_feed/widgets/feed_entry_cards/reflection_card.dart` — Date in metadata row, `formatEntryCreationDate`
+- `lib/arc/unified_feed/widgets/feed_entry_cards/saved_conversation_card.dart` — Same
+- `lib/arc/unified_feed/widgets/feed_entry_cards/active_conversation_card.dart` — `formatEntryCreationDate`
+- `lib/arc/unified_feed/widgets/feed_entry_cards/lumara_prompt_card.dart` — Same
+- `lib/arc/unified_feed/widgets/feed_entry_cards/voice_memo_card.dart` — Same
+- `lib/arc/ui/timeline/widgets/entry_content_renderer.dart` — Paragraph rendering
+
+---
+
+### RIVET Reset on User Phase Change
+
+When a user manually sets their phase (via quiz, timeline, or onboarding), RIVET is now reset so its gate closes and it accumulates fresh evidence before opening again.
+
+- `PhaseRegimeService.changeCurrentPhase()` — calls `RivetProvider().safeClearUserData()` after creating new regime.
+- `UserPhaseService.forceUpdatePhase()` — also resets RIVET.
+- `simplified_arcform_view_3d.dart` — phase change now persists to `UserPhaseService.forceUpdatePhase()`.
+
+#### Files modified
+- `lib/services/phase_regime_service.dart` — RIVET reset, `getLastEntryDateInRange`, `extendMostRecentRegimeToLastEntry`
+- `lib/services/user_phase_service.dart` — RIVET reset on `forceUpdatePhase`
+- `lib/ui/phase/simplified_arcform_view_3d.dart` — `forceUpdatePhase` on phase change
+
+---
+
+### Voice Session: Auto-Endpoint Disabled
+
+- `VoiceSessionService`: Endpoint detector callback is now a no-op — voice recording no longer auto-stops on silence.
+- Previous behavior caused premature stop when users pause to think.
+- User must now explicitly tap the talk button to indicate they're finished speaking.
+- Removed `_onEndpointDetected()` method entirely.
+
+#### Files modified
+- `lib/arc/chat/voice/services/voice_session_service.dart`
+
+---
+
+### Privacy Settings: Inline PII Scrub Demo
+
+- `PrivacySettingsView`: New "Test privacy protection" card with real-time PII scrubbing demo.
+- Inline `TextField` with debounced input (350ms) → runs `PrismAdapter.scrub()` → shows scrubbed output and redaction count.
+- Pre-filled example: "Hi, I'm Jane. Email me at jane@example.com or call (555) 123-4567."
+- Shows "What we send to the cloud:" label with scrubbed text and "N PII item(s) redacted" counter.
+
+#### Files modified
+- `lib/shared/ui/settings/privacy_settings_view.dart`
 
 ---
 

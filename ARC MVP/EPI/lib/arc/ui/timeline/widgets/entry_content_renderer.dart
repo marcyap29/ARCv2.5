@@ -31,6 +31,25 @@ class EntryContentRenderer extends StatelessWidget {
     );
   }
 
+  /// Build paragraph widgets (double newlines = paragraph break; single = line break).
+  List<Widget> _buildParagraphs(BuildContext context) {
+    if (content.trim().isEmpty) return [];
+    List<String> paragraphs = content.split('\n\n');
+    paragraphs = paragraphs.map((p) => p.replaceAll('\n', ' ').trim()).where((p) => p.isNotEmpty).toList();
+    if (paragraphs.length == 1 && content.contains('\n')) {
+      paragraphs = content.split('\n').map((p) => p.trim()).where((p) => p.isNotEmpty).toList();
+    }
+    final style = textStyle ?? Theme.of(context).textTheme.bodyMedium;
+    final result = <Widget>[];
+    for (int i = 0; i < paragraphs.length; i++) {
+      result.add(Padding(
+        padding: EdgeInsets.only(bottom: i < paragraphs.length - 1 ? 12 : 0),
+        child: Text(paragraphs[i], style: style?.copyWith(height: 1.5)),
+      ));
+    }
+    return result.isEmpty ? [Text(content, style: style)] : result;
+  }
+
   /// Build content with inline photo thumbnails
   List<Widget> _buildContentWithInlinePhotos(BuildContext context) {
     final widgets = <Widget>[];
@@ -47,9 +66,9 @@ class EntryContentRenderer extends StatelessWidget {
     // Simply render the text content without parsing PHOTO tags
     // Photos are now displayed separately as thumbnails below the text
     if (content.trim().isNotEmpty) {
-      widgets.add(Text(content, style: textStyle));
+      widgets.addAll(_buildParagraphs(context));
     }
-    
+
     // Add photo thumbnails below the text if any exist
     if (mediaItems.isNotEmpty) {
       print('🖼️ EntryContentRenderer: Adding photo thumbnail grid with ${mediaItems.length} items');

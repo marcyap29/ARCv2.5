@@ -2415,7 +2415,7 @@ user_id: ${aggregation.userId}
           'Backup failed: Write permission denied.\n\n'
           'The selected backup folder does not have write permissions.\n\n'
           'Please:\n'
-          '• Select a different folder (try "On My iPhone" → "ARC")\n'
+          '• Select a different folder (try "On My iPhone" → "LUMARA")\n'
           '• Avoid iCloud Drive folders\n'
           '• Use the "Use App Documents" button for recommended location'
         );
@@ -2474,7 +2474,7 @@ user_id: ${aggregation.userId}
   /// Uses the "Backup Set" model:
   /// - If no backup set exists, creates one with a full chunked backup first
   /// - Subsequent incrementals continue numbering in the same backup set folder
-  /// - Incremental files are named: ARC_Inc_NNN_YYYY-MM-DD.arcx
+  /// - Incremental files are named: LUMARA_Inc_NNN_YYYY-MM-DD.arcx
   Future<ARCXExportResultV2> exportIncremental({
     required Directory outputDir,
     String? password,
@@ -2592,7 +2592,7 @@ user_id: ${aggregation.userId}
       final nextNum = (highestNum + 1).toString().padLeft(3, '0');
       final timestamp = DateTime.now();
       final dateStr = '${timestamp.year}-${timestamp.month.toString().padLeft(2, '0')}-${timestamp.day.toString().padLeft(2, '0')}';
-      final incFilename = 'ARC_Inc_${nextNum}_$dateStr';
+      final incFilename = 'LUMARA_Inc_${nextNum}_$dateStr';
       
       onProgress?.call('Creating incremental backup: $incFilename.arcx');
       
@@ -2752,12 +2752,12 @@ user_id: ${aggregation.userId}
   /// 
   /// Example output:
   /// ```
-  /// ARC_BackupSet_2026-01-16/
-  ///   ├── ARC_Full_001.arcx  (oldest entries, ≤200MB)
-  ///   ├── ARC_Full_002.arcx  (next batch, ≤200MB)
-  ///   ├── ARC_Full_003.arcx  (newest entries, remaining)
-  ///   ├── ARC_Inc_004_2026-01-17.arcx  (incremental backup later)
-  ///   └── ARC_Inc_005_2026-01-20.arcx  (another incremental)
+  /// LUMARA_BackupSet_2026-01-16/
+  ///   ├── LUMARA_Full_001.arcx  (oldest entries, ≤200MB)
+  ///   ├── LUMARA_Full_002.arcx  (next batch, ≤200MB)
+  ///   ├── LUMARA_Full_003.arcx  (newest entries, remaining)
+  ///   ├── LUMARA_Inc_004_2026-01-17.arcx  (incremental backup later)
+  ///   └── LUMARA_Inc_005_2026-01-20.arcx  (another incremental)
   /// ```
   /// Progress callback: message and optional fraction [0.0, 1.0].
   static void _callProgress(void Function(String, [double?])? onProgress, String msg, [double? frac]) {
@@ -2781,7 +2781,7 @@ user_id: ${aggregation.userId}
       
       final timestamp = DateTime.now();
       final dateStr = '${timestamp.year}-${timestamp.month.toString().padLeft(2, '0')}-${timestamp.day.toString().padLeft(2, '0')}';
-      final dateFolderName = 'ARC_BackupSet_$dateStr';
+      final dateFolderName = 'LUMARA_BackupSet_$dateStr';
       final backupDir = Directory(path.join(outputDir.path, dateFolderName));
       
       // Create backup folder
@@ -2814,7 +2814,7 @@ user_id: ${aggregation.userId}
       for (int i = 0; i < numChunks; i++) {
         final chunk = chunks[i];
         final chunkNum = (i + 1).toString().padLeft(3, '0');
-        final chunkFilename = 'ARC_Full_$chunkNum';
+        final chunkFilename = 'LUMARA_Full_$chunkNum';
         final frac = 0.2 + 0.7 * (i + 1) / numChunks;
         _callProgress(onProgress, 'Exporting chunk ${i + 1}/$numChunks (${chunk.entries.length} entries, ${chunk.chats.length} chats)...', frac);
         
@@ -3270,7 +3270,7 @@ user_id: ${aggregation.userId}
   }
 
   /// Same as [getExportSetDiffPreview] but for a parent directory: finds the latest
-  /// ARC_BackupSet_* folder, or uses the folder itself if it contains .arcx files (supports pre-index exports).
+  /// LUMARA_BackupSet_* (or ARC_BackupSet_*) folder, or uses the folder itself if it contains .arcx files (supports pre-index exports).
   /// [password] is used when building index from existing .arcx files (no index file).
   Future<Map<String, dynamic>> getExportSetDiffPreviewForOutputDir(Directory outputDir, {String? password}) async {
     final backupSetDir = await _findLatestBackupSet(outputDir);
@@ -3407,7 +3407,7 @@ user_id: ${aggregation.userId}
       final nextNum = await _getHighestFileNumber(folder) + 1;
       final nextNumStr = nextNum.toString().padLeft(3, '0');
       final dateStr = '${DateTime.now().year}-${DateTime.now().month.toString().padLeft(2, '0')}-${DateTime.now().day.toString().padLeft(2, '0')}';
-      final filename = 'ARC_Inc_${nextNumStr}_$dateStr';
+      final filename = 'LUMARA_Inc_${nextNumStr}_$dateStr';
       onProgress?.call('Exporting $filename: ${entriesToExport.length} entries, ${chatsToExport.length} chats, ${mediaToExport.length} media');
 
       final options = ARCXExportOptions(
@@ -3469,7 +3469,7 @@ user_id: ${aggregation.userId}
   }
 
   /// Same as [exportContinueToFolder] but for a parent directory: finds the latest
-  /// ARC_BackupSet_* folder, or uses the folder itself if it contains .arcx files (supports pre-index exports).
+  /// LUMARA_BackupSet_* (or ARC_BackupSet_*) folder, or uses the folder itself if it contains .arcx files (supports pre-index exports).
   Future<ARCXExportResultV2> exportContinueToOutputDir({
     required Directory outputDir,
     String? password,
@@ -3509,8 +3509,8 @@ user_id: ${aggregation.userId}
     await for (final entity in outputDir.list()) {
       if (entity is Directory) {
         final name = path.basename(entity.path);
-        // Match ARC_BackupSet_YYYY-MM-DD pattern
-        final match = RegExp(r'^ARC_BackupSet_(\d{4})-(\d{2})-(\d{2})$').firstMatch(name);
+        // Match LUMARA_BackupSet_ or ARC_BackupSet_ YYYY-MM-DD pattern
+        final match = RegExp(r'^(?:LUMARA|ARC)_BackupSet_(\d{4})-(\d{2})-(\d{2})$').firstMatch(name);
         if (match != null) {
           try {
             final year = int.parse(match.group(1)!);
@@ -3540,9 +3540,9 @@ user_id: ${aggregation.userId}
     await for (final entity in backupSetDir.list()) {
       if (entity is File && entity.path.endsWith('.arcx')) {
         final fileName = path.basenameWithoutExtension(entity.path);
-        // Match ARC_Full_NNN or ARC_Inc_NNN_* pattern
-        final fullMatch = RegExp(r'^ARC_Full_(\d{3})$').firstMatch(fileName);
-        final incMatch = RegExp(r'^ARC_Inc_(\d{3})_').firstMatch(fileName);
+        // Match LUMARA_Full_NNN or LUMARA_Inc_NNN_* (or legacy ARC_* for backward compatibility)
+        final fullMatch = RegExp(r'^(?:LUMARA|ARC)_Full_(\d{3})$').firstMatch(fileName);
+        final incMatch = RegExp(r'^(?:LUMARA|ARC)_Inc_(\d{3})_').firstMatch(fileName);
         
         int? num;
         if (fullMatch != null) {

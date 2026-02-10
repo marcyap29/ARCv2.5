@@ -7,6 +7,7 @@ import 'package:my_app/services/phase_index.dart';
 import '../../services/phase_regime_service.dart';
 import '../../services/rivet_sweep_service.dart';
 import '../../services/analytics_service.dart';
+import '../../services/phase_sentinel_integration.dart';
 import 'package:my_app/arc/core/journal_repository.dart';
 import 'package:my_app/models/journal_entry_model.dart';
 import 'package:my_app/ui/journal/journal_screen.dart';
@@ -381,8 +382,10 @@ class _PhaseAnalysisViewState extends State<PhaseAnalysisView> {
           if (daysSinceEnd <= 2) regimeEnd = null; // ongoing
         }
 
+        // RIVET + ATLAS proposed phase; Sentinel can override to Recovery for safety
+        final label = await resolvePhaseWithSentinel(proposal, journalEntries);
         await phaseRegimeService.createRegime(
-          label: proposal.proposedLabel,
+          label: label,
           start: proposal.start,
           end: regimeEnd,
           source: PhaseSource.rivet,
@@ -391,7 +394,7 @@ class _PhaseAnalysisViewState extends State<PhaseAnalysisView> {
         );
 
         // Add phase hashtags to entries
-        await _addPhaseHashtagsToEntries(proposal.entryIds, proposal.proposedLabel);
+        await _addPhaseHashtagsToEntries(proposal.entryIds, label);
         created++;
       }
 

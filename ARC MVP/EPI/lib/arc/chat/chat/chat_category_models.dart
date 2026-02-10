@@ -238,7 +238,7 @@ class ChatExportData extends Equatable {
     return ChatExportData(
       version: '1.0',
       exportedAt: DateTime.now(),
-      exportedBy: 'ARC EPI v1.0',
+      exportedBy: 'LUMARA EPI v1.0',
       sessions: sessions,
       messages: messages,
       categories: categories,

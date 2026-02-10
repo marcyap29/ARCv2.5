@@ -14,8 +14,12 @@
 /// Behind feature flag: FeatureFlags.USE_UNIFIED_FEED
 
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:path/path.dart' as path;
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/arc/unified_feed/models/feed_entry.dart';
 import 'package:my_app/arc/unified_feed/repositories/feed_repository.dart';
@@ -32,6 +36,7 @@ import 'package:my_app/arc/unified_feed/widgets/expanded_entry_view.dart';
 import 'package:my_app/arc/unified_feed/widgets/timeline/timeline_modal.dart';
 import 'package:my_app/arc/internal/mira/journal_repository.dart';
 import 'package:my_app/arc/chat/chat/chat_repo_impl.dart';
+import 'package:my_app/models/journal_entry_model.dart';
 import 'package:my_app/ui/journal/journal_screen.dart';
 import 'package:my_app/services/journal_session_cache.dart';
 import 'package:my_app/shared/ui/settings/settings_view.dart';
@@ -41,6 +46,16 @@ import 'package:my_app/arc/unified_feed/widgets/import_options_sheet.dart';
 import 'package:my_app/arc/chat/ui/lumara_assistant_screen.dart';
 import 'package:my_app/arc/ui/timeline/widgets/current_phase_arcform_preview.dart';
 import 'package:my_app/ui/phase/phase_analysis_view.dart';
+import 'package:my_app/ui/phase/phase_timeline_view.dart';
+import 'package:my_app/models/phase_models.dart';
+import 'package:my_app/shared/text_style.dart';
+import 'package:my_app/mira/store/arcx/services/arcx_export_service_v2.dart';
+import 'package:my_app/mira/store/mcp/export/mcp_pack_export_service.dart';
+import 'package:my_app/services/analytics_service.dart';
+import 'package:my_app/services/rivet_sweep_service.dart';
+import 'package:my_app/services/phase_regime_service.dart';
+import 'package:my_app/services/export_history_service.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 /// The main unified feed screen that merges LUMARA chat and Conversations.
 class UnifiedFeedScreen extends StatefulWidget {
@@ -87,6 +102,9 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
   /// Batch selection: when true, user can select entries to delete.
   bool _selectionModeEnabled = false;
   final Set<String> _selectedEntryIds = {};
+
+  /// Bumped when returning from Phase view so the phase preview reloads (user may have changed phase).
+  int _phasePreviewRefreshKey = 0;
 
   StreamSubscription<List<FeedEntry>>? _feedSubscription;
 
@@ -431,17 +449,29 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
           // Selection mode bar (Cancel / Delete selected)
           SliverToBoxAdapter(child: _buildSelectionModeBar()),
 
-          // Phase preview (tap opens main Phase menu)
+          // Phase preview (tap opens Phase tab content; refresh when returning so phase change sticks)
           SliverToBoxAdapter(
-            child: CurrentPhaseArcformPreview(
-              onTapOverride: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const PhaseAnalysisView(),
-                  ),
-                );
-              },
+            child: KeyedSubtree(
+              key: ValueKey('phase_preview_$_phasePreviewRefreshKey'),
+              child: CurrentPhaseArcformPreview(
+                onTapOverride: () async {
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const PhaseAnalysisView(),
+                    ),
+                  );
+                  if (mounted) setState(() => _phasePreviewRefreshKey++);
+                },
+              ),
+            ),
+          ),
+
+          // Phase info: Gantt-style diagram (days and phases) — below phase preview, above Chat|Reflect|Voice
+          SliverToBoxAdapter(
+            child: KeyedSubtree(
+              key: ValueKey('phase_journey_$_phasePreviewRefreshKey'),
+              child: _PhaseJourneyGanttCard(),
             ),
           ),
 
@@ -550,7 +580,7 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
           Row(
             children: [
               Image.asset(
-                'assets/icon/LUMARA_Sigil_White.png',
+                'assets/icon/LUMARA_Sigil.png',
                 width: 28,
                 height: 28,
                 fit: BoxFit.contain,
@@ -666,13 +696,19 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
             label: const Text('Cancel'),
           ),
           const Spacer(),
-          if (n > 0)
+          if (n > 0) ...[
+            TextButton.icon(
+              onPressed: () => _showExportOptions(),
+              icon: Icon(Icons.upload_file, size: 20, color: kcPrimaryTextColor),
+              label: Text('Export ($n)', style: TextStyle(color: kcPrimaryTextColor, fontWeight: FontWeight.w600)),
+            ),
+            const SizedBox(width: 8),
             TextButton.icon(
               onPressed: () => _deleteSelectedEntries(),
               icon: Icon(Icons.delete_outline, size: 20, color: Colors.red[400]),
               label: Text('Delete ($n)', style: TextStyle(color: Colors.red[400], fontWeight: FontWeight.w600)),
-            )
-          else
+            ),
+          ] else
             Text(
               'Tap entries to select',
               style: TextStyle(color: kcSecondaryTextColor.withOpacity(0.7), fontSize: 13),
@@ -680,6 +716,205 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
         ],
       ),
     );
+  }
+
+  /// Collect journal entry IDs from selected feed entries (only saved journal entries can be exported).
+  List<String> _getSelectedJournalEntryIds() {
+    return _entries
+        .where((e) => _selectedEntryIds.contains(e.id) && e.journalEntryId != null && e.journalEntryId!.isNotEmpty)
+        .map((e) => e.journalEntryId!)
+        .toList();
+  }
+
+  void _showExportOptions() {
+    final journalIds = _getSelectedJournalEntryIds();
+    if (journalIds.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Only saved journal entries can be exported. Select entries that have been saved to the timeline.'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: kcSurfaceAltColor,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                'Export ${journalIds.length} ${journalIds.length == 1 ? 'entry' : 'entries'} as',
+                style: TextStyle(color: kcSecondaryTextColor.withOpacity(0.9), fontSize: 14),
+              ),
+              const SizedBox(height: 16),
+              ListTile(
+                leading: const Icon(Icons.folder_special, color: kcPrimaryColor),
+                title: const Text('LUMARA archive (.arcx)'),
+                subtitle: const Text('Encrypted backup format, best for restore'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _exportSelectedAsArcx();
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.folder_zip, color: kcPrimaryColor),
+                title: const Text('ZIP file (.zip)'),
+                subtitle: const Text('Standard zip, portable'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _exportSelectedAsZip();
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _exportSelectedAsArcx() async {
+    final journalIds = _getSelectedJournalEntryIds();
+    if (journalIds.isEmpty || !mounted) return;
+    final journalRepo = context.read<JournalRepository>();
+    ChatRepoImpl? chatRepo;
+    PhaseRegimeService? phaseRegimeService;
+    try {
+      chatRepo = context.read<ChatRepoImpl>();
+      final analyticsService = AnalyticsService();
+      final rivetSweepService = RivetSweepService(analyticsService);
+      phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
+      await phaseRegimeService.initialize();
+    } catch (_) {}
+    final exportService = ARCXExportServiceV2(
+      journalRepo: journalRepo,
+      chatRepo: chatRepo,
+      phaseRegimeService: phaseRegimeService,
+    );
+    final exportsDir = Directory(path.join((await getApplicationDocumentsDirectory()).path, 'exports'));
+    if (!await exportsDir.exists()) await exportsDir.create(recursive: true);
+    final progressNotifier = ValueNotifier<String>('Preparing export...');
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => ValueListenableBuilder<String>(
+        valueListenable: progressNotifier,
+        builder: (_, progress, __) => AlertDialog(
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const CircularProgressIndicator(),
+              const SizedBox(height: 16),
+              Text(progress, textAlign: TextAlign.center),
+            ],
+          ),
+        ),
+      ),
+    );
+    try {
+      final exportNumber = await ExportHistoryService.instance.getNextExportNumber();
+      final result = await exportService.export(
+        selection: ARCXExportSelection(entryIds: journalIds),
+        options: ARCXExportOptions(strategy: ARCXExportStrategy.together, encrypt: true, compression: 'auto', dedupeMedia: true, includeChecksums: true),
+        outputDir: exportsDir,
+        password: null,
+        onProgress: (msg) {
+          if (mounted) progressNotifier.value = msg;
+        },
+        exportNumber: exportNumber,
+      );
+      if (!mounted) return;
+      Navigator.pop(context);
+      if (result.success && result.arcxPath != null) {
+        await Share.shareXFiles([XFile(result.arcxPath!)], text: 'Exported ${journalIds.length} entries as ARCX');
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Exported ${journalIds.length} entries')));
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(result.error ?? 'Export failed'), backgroundColor: Colors.red));
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Export failed: $e'), backgroundColor: Colors.red));
+      }
+    }
+  }
+
+  Future<void> _exportSelectedAsZip() async {
+    final journalIds = _getSelectedJournalEntryIds();
+    if (journalIds.isEmpty || !mounted) return;
+    final journalRepo = context.read<JournalRepository>();
+    final entries = <JournalEntry>[];
+    for (final id in journalIds) {
+      final entry = await journalRepo.getJournalEntryById(id);
+      if (entry != null) entries.add(entry);
+    }
+    if (entries.isEmpty) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No entries could be loaded')));
+      return;
+    }
+    ChatRepoImpl? chatRepo;
+    PhaseRegimeService? phaseRegimeService;
+    try {
+      chatRepo = context.read<ChatRepoImpl>();
+      final analyticsService = AnalyticsService();
+      final rivetSweepService = RivetSweepService(analyticsService);
+      phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
+      await phaseRegimeService.initialize();
+    } catch (_) {}
+    final appDir = await getApplicationDocumentsDirectory();
+    final timestamp = DateTime.now().toIso8601String().replaceAll(':', '-').split('.')[0];
+    final outputPath = path.join(appDir.path, 'export_$timestamp.zip');
+    final progressNotifier = ValueNotifier<String>('Preparing ZIP export...');
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => ValueListenableBuilder<String>(
+        valueListenable: progressNotifier,
+        builder: (_, progress, __) => AlertDialog(
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const CircularProgressIndicator(),
+              const SizedBox(height: 16),
+              Text(progress, textAlign: TextAlign.center),
+            ],
+          ),
+        ),
+      ),
+    );
+    try {
+      final mcpService = McpPackExportService(
+        bundleId: 'export_$timestamp',
+        outputPath: outputPath,
+        chatRepo: chatRepo,
+        phaseRegimeService: phaseRegimeService,
+      );
+      if (mounted) progressNotifier.value = 'Exporting entries...';
+      final result = await mcpService.exportJournal(
+        entries: entries,
+        includePhotos: true,
+        reducePhotoSize: false,
+        includeChats: false,
+      );
+      if (!mounted) return;
+      Navigator.pop(context);
+      if (result.success && result.outputPath != null) {
+        await Share.shareXFiles([XFile(result.outputPath!)], text: 'Exported ${entries.length} entries as ZIP');
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Exported ${entries.length} entries')));
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(result.error ?? 'Export failed'), backgroundColor: Colors.red));
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Export failed: $e'), backgroundColor: Colors.red));
+      }
+    }
   }
 
   Future<void> _deleteSelectedEntries() async {
@@ -1005,7 +1240,7 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
                 children: [
                   // LUMARA logo
                   Image.asset(
-                    'assets/icon/LUMARA_Sigil_White.png',
+                    'assets/icon/LUMARA_Sigil.png',
                     width: 72,
                     height: 72,
                     fit: BoxFit.contain,
@@ -1181,5 +1416,162 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
     _autoSaveService.dispose();
     _feedRepo.dispose();
     super.dispose();
+  }
+}
+
+/// Phase info section: Gantt-style diagram of days and phases (below phase preview, above Chat|Reflect|Voice).
+class _PhaseJourneyGanttCard extends StatefulWidget {
+  @override
+  State<_PhaseJourneyGanttCard> createState() => _PhaseJourneyGanttCardState();
+}
+
+class _PhaseJourneyGanttCardState extends State<_PhaseJourneyGanttCard> {
+  List<PhaseRegime>? _regimes;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadRegimes();
+  }
+
+  /// Display end for the most recent regime (last entry date in range) so the Gantt tracks to the last entries.
+  DateTime? _displayEndForLastRegime;
+
+  Future<void> _loadRegimes() async {
+    try {
+      final analyticsService = AnalyticsService();
+      final rivetSweepService = RivetSweepService(analyticsService);
+      final phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
+      await phaseRegimeService.initialize();
+      final regimes = phaseRegimeService.phaseIndex.allRegimes;
+      DateTime? displayEnd;
+      if (regimes.isNotEmpty) {
+        final sorted = List<PhaseRegime>.from(regimes)..sort((a, b) => a.start.compareTo(b.start));
+        final last = sorted.last;
+        displayEnd = phaseRegimeService.getLastEntryDateInRange(
+          last.start,
+          last.end ?? DateTime.now(),
+        );
+      }
+      if (mounted) {
+        setState(() {
+          _regimes = regimes.isEmpty ? null : List<PhaseRegime>.from(regimes);
+          _displayEndForLastRegime = displayEnd;
+          _loading = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() { _regimes = null; _displayEndForLastRegime = null; _loading = false; });
+    }
+  }
+
+  static String _formatShortDate(DateTime date) {
+    return '${date.month}/${date.day}/${date.year}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading || _regimes == null || _regimes!.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    final regimes = List<PhaseRegime>.from(_regimes!)
+      ..sort((a, b) => a.start.compareTo(b.start));
+    final lastRegime = regimes.last;
+    final effectiveEnd = _displayEndForLastRegime != null &&
+            _displayEndForLastRegime!.isAfter(lastRegime.start)
+        ? _displayEndForLastRegime!
+        : (lastRegime.end ?? DateTime.now());
+    final displayRegimes = regimes.length == 1
+        ? [lastRegime.copyWith(end: effectiveEnd)]
+        : [
+            ...regimes.sublist(0, regimes.length - 1),
+            lastRegime.copyWith(end: effectiveEnd),
+          ];
+    final visibleStart = regimes.first.start;
+    final visibleEnd = effectiveEnd;
+    final totalDays = visibleEnd.difference(visibleStart).inDays;
+    final theme = Theme.of(context);
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: kcSurfaceColor,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: kcPrimaryColor.withOpacity(0.25)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.timeline, size: 20, color: kcPrimaryColor),
+              const SizedBox(width: 8),
+              Text(
+                'Your phase journey',
+                style: heading3Style(context).copyWith(
+                  color: kcPrimaryTextColor,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 15,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Days and phases over time',
+            style: bodyStyle(context).copyWith(
+              color: kcSecondaryTextColor,
+              fontSize: 12,
+            ),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 48,
+            width: double.infinity,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: CustomPaint(
+                painter: PhaseTimelinePainter(
+                  regimes: displayRegimes,
+                  visibleStart: visibleStart,
+                  visibleEnd: visibleEnd,
+                  zoomLevel: 1.0,
+                  theme: theme,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                _formatShortDate(visibleStart),
+                style: bodyStyle(context).copyWith(
+                  color: kcSecondaryTextColor,
+                  fontSize: 10,
+                ),
+              ),
+              Text(
+                '$totalDays days • ${regimes.length} phases',
+                style: bodyStyle(context).copyWith(
+                  color: kcSecondaryTextColor,
+                  fontSize: 10,
+                ),
+              ),
+              Text(
+                _formatShortDate(visibleEnd),
+                style: bodyStyle(context).copyWith(
+                  color: kcSecondaryTextColor,
+                  fontSize: 10,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 }

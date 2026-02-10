@@ -223,7 +223,7 @@ class _ArcIntroScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 48),
                 Text(
-                  "Welcome to ARC.",
+                  "Welcome to LUMARA.",
                   style: heading1Style(context).copyWith(
                     color: Colors.white,
                     fontSize: 28,
@@ -242,7 +242,7 @@ class _ArcIntroScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  "ARC learns your patterns locally, then provides insights that understand your whole story.",
+                  "LUMARA learns your patterns locally, then provides insights that understand your whole story.",
                   style: bodyStyle(context).copyWith(
                     color: Colors.white.withOpacity(0.8),
                     fontSize: 16,
@@ -287,7 +287,7 @@ class _NarrativeIntelligenceScreen extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(
-                  "ARC and LUMARA are built on something new: Narrative Intelligence.",
+                  "LUMARA is built on something new: Narrative Intelligence.",
                   style: heading1Style(context).copyWith(
                     color: Colors.white,
                     fontSize: 24,

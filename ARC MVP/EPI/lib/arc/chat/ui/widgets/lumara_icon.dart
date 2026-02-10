@@ -17,7 +17,7 @@ class LumaraIcon extends StatelessWidget {
   Widget build(BuildContext context) {
     // Use the LUMARA sigil image asset
     return Image.asset(
-      'assets/icon/LUMARA_Sigil_White.png',
+      'assets/icon/LUMARA_Sigil.png',
       width: size,
       height: size,
       fit: fit,

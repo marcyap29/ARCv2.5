@@ -104,7 +104,7 @@ class _KeywordAnalysisViewState extends State<KeywordAnalysisView>
         backgroundColor: kcBackgroundColor,
         appBar: AppBar(
           backgroundColor: kcBackgroundColor,
-          title: Text('ARC Analysis', style: heading1Style(context)),
+          title: Text('LUMARA Analysis', style: heading1Style(context)),
           actions: [
           BlocBuilder<KeywordExtractionCubit, KeywordExtractionState>(
             builder: (context, state) {
@@ -173,7 +173,7 @@ class _KeywordAnalysisViewState extends State<KeywordAnalysisView>
           const SizedBox(height: 32),
           
           Text(
-            'ARC is analyzing your entry',
+            'LUMARA is analyzing your entry',
             style: heading1Style(context),
             textAlign: TextAlign.center,
           ),

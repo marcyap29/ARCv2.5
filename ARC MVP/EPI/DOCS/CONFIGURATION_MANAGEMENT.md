@@ -1,7 +1,7 @@
 # Configuration Management & Documentation Tracking
 
 **Lead Configuration Management Analyst:** Active  
-**Last Updated:** February 9, 2026  
+**Last Updated:** February 10, 2026  
 **Status:** ✅ All Documents Synced with Repo
 
 ---
@@ -38,12 +38,12 @@ Prompt/role definitions: **Documentation & Configuration Management Role** in [c
 
 | Document | Location | Last Reviewed | Status | Notes |
 |----------|----------|---------------|--------|-------|
-| ARCHITECTURE.md | `/DOCS/ARCHITECTURE.md` | 2026-02-09 | ✅ Synced | v3.3.19 - Unified Feed Phase 2.0 |
-| CHANGELOG.md | `/DOCS/CHANGELOG.md` | 2026-02-09 | ✅ Synced | v3.3.19 - Last Updated Feb 9 |
+| ARCHITECTURE.md | `/DOCS/ARCHITECTURE.md` | 2026-02-10 | ✅ Synced | v3.3.20 - ARC→LUMARA branding, Sentinel integration, Unified Feed 2.1 |
+| CHANGELOG.md | `/DOCS/CHANGELOG.md` | 2026-02-10 | ✅ Synced | v3.3.20 - Last Updated Feb 10 |
 | PROMPT_REFERENCES.md | `/DOCS/PROMPT_REFERENCES.md` | 2026-02-07 | ✅ Current | v1.8.0 - Document scope and sources; prompt catalog |
 | PROMPT_TRACKER.md | `/DOCS/PROMPT_TRACKER.md` | 2026-02-07 | ✅ Synced | v1.0.0 - Prompt change tracking; links to PROMPT_REFERENCES |
 | bug_tracker.md | `/DOCS/bugtracker/bug_tracker.md` | 2026-02-08 | ✅ Synced | v3.2.2 - 29 records; How to use; Recent code changes |
-| FEATURES.md | `/DOCS/FEATURES.md` | 2026-02-09 | ✅ Synced | v3.3.19 - Unified Feed Phase 2.0 |
+| FEATURES.md | `/DOCS/FEATURES.md` | 2026-02-10 | ✅ Synced | v3.3.20 - LUMARA branding, Sentinel, Unified Feed 2.1 |
 | README.md | `/DOCS/README.md` | 2026-02-07 | ✅ Synced | Key docs table with purpose and when to read |
 | claude.md | `/DOCS/claude.md` | 2026-02-08 | ✅ Synced | Replaced backup-intelligence prompt with git-backup-docsync (systems engineer config mgr) |
 | backend.md | `/DOCS/backend.md` | 2026-02-07 | ✅ Synced | v3.2 - Firebase, Stripe; RevenueCat see revenuecat/ |
@@ -80,13 +80,28 @@ Prompt/role definitions: **Documentation & Configuration Management Role** in [c
 | DOCUMENTATION_CONSOLIDATION_AUDIT_2026-02.md | DOCS/ | Doc consolidation audit |
 | NARRATIVE_INTELLIGENCE.md | DOCS/ | Narrative intelligence |
 | PAYMENTS_CLARIFICATION.md | DOCS/ | Stripe vs RevenueCat; web vs in-app |
-| UNIFIED_FEED.md | DOCS/ | Unified Feed v2.0: architecture, entry management, media, LUMARA chat, phase priority |
+| UNIFIED_FEED.md | DOCS/ | Unified Feed v2.1: architecture, export, Gantt, paragraph rendering, Sentinel |
 | revenuecat/README.md | DOCS/revenuecat/ | RevenueCat (in-app) doc index |
 | revenuecat/REVENUECAT_INTEGRATION.md | DOCS/revenuecat/ | RevenueCat integration guide |
 
 ---
 
 ## Change Tracking Log
+
+### 2026-02-10 - ARC → LUMARA Branding, Phase Sentinel Integration, Unified Feed 2.1 (v3.3.20)
+
+**Action:** Comprehensive ARC → LUMARA branding rename across all user-facing text, assets, backup filenames, and notifications. New Sentinel safety integration checks crisis/cluster alerts before applying phase proposals (overrides to Recovery). Unified Feed gains selective export (ARCX/ZIP), Phase Journey Gantt card, paragraph rendering, summary extraction, and card date formatting. Voice session auto-endpoint disabled. Privacy Settings gains inline PII scrub demo. RIVET reset on user phase change. 39 modified files (excl. DS_Store), 3 deleted assets, 2 new files.
+
+**Doc updates:**
+- **CHANGELOG.md:** New [3.3.20] section — branding rename, Sentinel integration, selective export, Gantt, paragraph rendering, voice endpoint, privacy demo, RIVET reset (2 files added, 3 deleted, 39 modified).
+- **UNIFIED_FEED.md:** Updated to v2.1 — layout (Gantt, export), paragraph rendering, summary extraction, card dates, Phase 2.1 roadmap, files-modified table.
+- **ARCHITECTURE.md:** v3.3.20; key achievements for branding, Sentinel, Unified Feed 2.1, RIVET reset, voice endpoint, privacy demo; updated submodule description.
+- **FEATURES.md:** v3.3.20; Unified Feed status/entry management/visual design updated; Phase Analysis Sentinel and RIVET reset; Voice Sigil manual endpoint; Privacy inline demo.
+- **CONFIGURATION_MANAGEMENT.md:** Inventory dates, version sync, this entry.
+
+**Status:** ✅ All docs updated.
+
+---
 
 ### 2026-02-09 - Unified Feed Phase 2.0: Entry Management, Media, LUMARA Chat, Phase Priority (v3.3.19)
 

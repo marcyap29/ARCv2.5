@@ -262,23 +262,46 @@ class ExpandedEntryView extends StatelessWidget {
     }
   }
 
+  /// Build paragraph widgets from text (double newlines = paragraph break; single = line break).
+  List<Widget> _buildParagraphWidgets(BuildContext context, String text, TextStyle baseStyle) {
+    final displayContent = FeedHelpers.contentWithoutPhaseHashtags(text);
+    if (displayContent.trim().isEmpty) return [];
+    List<String> paragraphs = displayContent.split('\n\n');
+    paragraphs = paragraphs.map((p) => p.replaceAll('\n', ' ').trim()).where((p) => p.isNotEmpty).toList();
+    if (paragraphs.length == 1 && displayContent.contains('\n')) {
+      paragraphs = displayContent.split('\n').map((p) => p.trim()).where((p) => p.isNotEmpty).toList();
+    }
+    final result = <Widget>[];
+    for (int i = 0; i < paragraphs.length; i++) {
+      result.add(Padding(
+        padding: EdgeInsets.only(bottom: i < paragraphs.length - 1 ? 12 : 0),
+        child: Text(paragraphs[i], style: baseStyle.copyWith(height: 1.5)),
+      ));
+    }
+    return result.isEmpty ? [Text(displayContent, style: baseStyle)] : result;
+  }
+
   Widget _buildConversationContent(BuildContext context) {
+    final baseStyle = TextStyle(
+      color: kcPrimaryTextColor.withOpacity(0.85),
+      fontSize: 15,
+      height: 1.6,
+    );
     if (entry.messages == null || entry.messages!.isEmpty) {
       final raw = entry.content?.toString() ?? entry.preview;
-      final displayContent = FeedHelpers.contentWithoutPhaseHashtags(raw);
-      return Text(
-        displayContent,
-        style: TextStyle(
-          color: kcPrimaryTextColor.withOpacity(0.85),
-          fontSize: 15,
-          height: 1.6,
-        ),
-      );
+      final widgets = _buildParagraphWidgets(context, raw, baseStyle);
+      return Column(crossAxisAlignment: CrossAxisAlignment.start, children: widgets);
     }
 
     return Column(
       children: entry.messages!.map((msg) {
         final isUser = msg.role == 'user';
+        final msgStyle = TextStyle(
+          color: kcPrimaryTextColor.withOpacity(0.85),
+          fontSize: 14,
+          height: 1.5,
+        );
+        final paragraphWidgets = _buildParagraphWidgets(context, msg.content, msgStyle);
         return Padding(
           padding: const EdgeInsets.only(bottom: 16),
           child: Row(
@@ -307,13 +330,9 @@ class ExpandedEntryView extends StatelessWidget {
                         : kcSurfaceAltColor,
                     borderRadius: BorderRadius.circular(10),
                   ),
-                child: Text(
-                  FeedHelpers.contentWithoutPhaseHashtags(msg.content),
-                  style: TextStyle(
-                      color: kcPrimaryTextColor.withOpacity(0.85),
-                      fontSize: 14,
-                      height: 1.5,
-                    ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: paragraphWidgets,
                   ),
                 ),
               ),
@@ -384,13 +403,17 @@ class ExpandedEntryView extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 8),
-        Text(
-          FeedHelpers.contentWithoutPhaseHashtags(entry.content?.toString() ?? entry.preview),
-          style: TextStyle(
-            color: kcPrimaryTextColor.withOpacity(0.85),
-            fontSize: 15,
-            height: 1.6,
-            fontStyle: FontStyle.italic,
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: _buildParagraphWidgets(
+            context,
+            entry.content?.toString() ?? entry.preview,
+            TextStyle(
+              color: kcPrimaryTextColor.withOpacity(0.85),
+              fontSize: 15,
+              height: 1.6,
+              fontStyle: FontStyle.italic,
+            ),
           ),
         ),
       ],
@@ -399,20 +422,40 @@ class ExpandedEntryView extends StatelessWidget {
 
   Widget _buildWrittenContent(BuildContext context) {
     final raw = entry.content?.toString() ?? entry.preview;
-    final displayContent = FeedHelpers.contentWithoutPhaseHashtags(raw);
-    return Text(
-      displayContent,
-      style: TextStyle(
-        color: kcPrimaryTextColor.withOpacity(0.85),
-        fontSize: 15,
-        height: 1.6,
-      ),
+    final summary = FeedHelpers.extractSummary(raw);
+    final body = FeedHelpers.bodyWithoutSummary(raw);
+    final baseStyle = TextStyle(
+      color: kcPrimaryTextColor.withOpacity(0.85),
+      fontSize: 15,
+      height: 1.6,
     );
+    final children = <Widget>[];
+    if (summary != null && summary.isNotEmpty) {
+      children.addAll([
+        Text(
+          'Summary',
+          style: TextStyle(
+            color: kcPrimaryTextColor,
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 6),
+        ..._buildParagraphWidgets(context, summary, baseStyle.copyWith(fontStyle: FontStyle.italic)),
+        const SizedBox(height: 16),
+      ]);
+    }
+    children.addAll(_buildParagraphWidgets(context, body, baseStyle));
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: children);
   }
 
   Widget _buildLumaraInitiativeContent(BuildContext context) {
     final raw = entry.content?.toString() ?? entry.preview;
-    final displayContent = FeedHelpers.contentWithoutPhaseHashtags(raw);
+    final baseStyle = TextStyle(
+      color: kcPrimaryTextColor.withOpacity(0.85),
+      fontSize: 15,
+      height: 1.6,
+    );
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -420,13 +463,9 @@ class ExpandedEntryView extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: kcPrimaryColor.withOpacity(0.12)),
       ),
-      child: Text(
-        displayContent,
-        style: TextStyle(
-          color: kcPrimaryTextColor.withOpacity(0.85),
-          fontSize: 15,
-          height: 1.6,
-        ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: _buildParagraphWidgets(context, raw, baseStyle),
       ),
     );
   }

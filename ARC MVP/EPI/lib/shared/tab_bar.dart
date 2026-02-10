@@ -115,9 +115,9 @@ class _CustomTabBarState extends State<CustomTabBar> {
         mainAxisSize: MainAxisSize.min, // Prevent overflow by not expanding
         children: [
           if (isLumara)
-            // Use LUMARA_Sigil_White.png for LUMARA tab
+            // Use LUMARA sigil for LUMARA tab
             Image.asset(
-              'assets/icon/LUMARA_Sigil_White.png',
+              'assets/icon/LUMARA_Sigil.png',
               width: 24, // Reduced from 28 to fit in 42px height
               height: 24,
               fit: BoxFit.contain,
@@ -151,7 +151,7 @@ class _CustomTabBarState extends State<CustomTabBar> {
     } else if (tab.icon != null) {
       if (isLumara) {
         return Image.asset(
-          'assets/icon/LUMARA_Sigil_White.png',
+          'assets/icon/LUMARA_Sigil.png',
           width: 28,
           height: 28,
           fit: BoxFit.contain,

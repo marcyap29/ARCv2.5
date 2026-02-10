@@ -61,6 +61,37 @@ class FeedHelpers {
     return out.replaceAll(RegExp(r'\s+'), ' ').trim();
   }
 
+  /// Pattern: ## Summary\n\n...\n\n---\n\n<body>
+  static final _summaryPattern = RegExp(r'^## Summary\s*\n\n(.+?)\n\n---\n\n', dotAll: true);
+
+  static String? extractSummary(String? content) {
+    if (content == null || content.isEmpty) return null;
+    final m = _summaryPattern.firstMatch(content);
+    return m?.group(1)?.trim();
+  }
+
+  static String bodyWithoutSummary(String? content) {
+    if (content == null || content.isEmpty) return '';
+    final m = _summaryPattern.firstMatch(content);
+    if (m == null) return content.trim();
+    return content.substring(m.end).trim();
+  }
+
+  /// Format the entry creation date for display on the card (e.g. "Mar 15, 2025" or "Today, 2:30 PM").
+  static String formatEntryCreationDate(DateTime date) {
+    final now = DateTime.now();
+    final yesterday = now.subtract(const Duration(days: 1));
+    final isToday = date.year == now.year && date.month == now.month && date.day == now.day;
+    final isYesterday = date.year == yesterday.year && date.month == yesterday.month && date.day == yesterday.day;
+    final timeStr = '${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+    if (isToday) return 'Today, $timeStr';
+    if (isYesterday) return 'Yesterday, $timeStr';
+    final monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    final month = monthNames[date.month - 1];
+    if (date.year == now.year) return '$month ${date.day}, $timeStr';
+    return '$month ${date.day}, ${date.year}';
+  }
+
   /// Format a date for display in the feed.
   static String formatFeedDate(DateTime date) {
     final now = DateTime.now();

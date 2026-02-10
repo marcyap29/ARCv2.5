@@ -1161,6 +1161,10 @@ class _SimplifiedArcformView3DState extends State<SimplifiedArcformView3D> {
       // Change the current phase
       await phaseRegimeService.changeCurrentPhase(phaseLabel, updateHashtags: true);
 
+      // Persist to UserProfile so timeline/LUMARA preview and display use the new phase
+      final capitalized = phaseName.trim().isEmpty ? phaseName : phaseName[0].toUpperCase() + phaseName.substring(1).toLowerCase();
+      await UserPhaseService.forceUpdatePhase(capitalized);
+
       // Refresh the snapshots
       _loadSnapshots();
 

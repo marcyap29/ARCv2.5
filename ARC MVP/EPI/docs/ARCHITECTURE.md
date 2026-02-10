@@ -1,7 +1,7 @@
-# EPI MVP - Architecture Overview
+# EPI LUMARA MVP - Architecture Overview
 
-**Version:** 3.3.19
-**Last Updated:** February 9, 2026
+**Version:** 3.3.20
+**Last Updated:** February 10, 2026
 **Status:** ✅ Production Ready - MVP Fully Operational with Companion-First LUMARA, Reflection Session Safety System, RevenueCat In-App Purchases, Voice Sigil State Machine, Simplified Settings, Health Integration, AssemblyAI v3, Web Access Safety, Correlation-Resistant PII Protection, Bible Reference Retrieval, Google Drive Backup, Temporal Notifications, Enhanced Incremental Backups, Automatic First Export, Sequential Export Numbering, Local Backup Services, and Timeline Pagination
 
 ---
@@ -47,6 +47,12 @@ EPI (Evolving Personal Intelligence) is a Flutter-based intelligent journaling a
 - ✅ **ARCX Clean Service (v3.3.16)**: Utility to remove low-content chat sessions from ARCX archives.
 - ✅ **Unified Feed Phase 1.5 (v3.3.18, feature-flagged)**: Merged LUMARA chat + Conversations into a single scrollable feed. Phase 1.5 adds: refactored `FeedEntry` (5 types incl. `reflection`, `lumaraInitiative`), `FeedMessage` model, pagination, `ExpandedEntryView`, `BaseFeedCard` with phase-colored borders, `ReflectionCard`, `LumaraPromptCard`, `TimelineModal` for date navigation, infinite scroll, `EntryMode` initial mode from welcome screen, `PhaseColors` constants. Behind `USE_UNIFIED_FEED` flag (default off).
 - ✅ **Unified Feed Phase 2.0 (v3.3.19, feature-flagged)**: Entry management (swipe-to-delete, batch select/delete), media thumbnails in feed cards and expanded view, direct LUMARA chat integration (`initialMessage`), `FeedInputBar` removed — replaced by Chat/Reflect/Voice action buttons. Phase Arcform preview in feed. Phase hashtag stripping from display content. ExpandedEntryView: working edit/delete. Auto phase analysis after import (`runAutoPhaseAnalysis()`). Phase priority fix (user profile first). `PhaseAnalysisSettingsView` in Settings. CHRONICLE progress UI. `LumaraAssistantScreen` back-arrow navigation.
+- ✅ **ARC → LUMARA Branding Rename (v3.3.20)**: All user-facing "ARC" references renamed to "LUMARA". Consolidated sigil asset (`LUMARA_Sigil.png`). Backup file naming: `LUMARA_Full_`, `LUMARA_Inc_`, `LUMARA_BackupSet_` (backward-compatible regex for legacy `ARC_*` files). Google Drive folder: `LUMARA Backups`. All UI text, notifications, onboarding, export labels updated.
+- ✅ **Phase Sentinel Safety Integration (v3.3.20)**: `phase_sentinel_integration.dart` — `resolvePhaseWithSentinel()` checks Sentinel (crisis/cluster alert) before applying RIVET/ATLAS phase proposals. Overrides to Recovery when alert triggers. Applied in `runAutoPhaseAnalysis()`, `PhaseAnalysisView`, `PhaseAnalysisSettingsView`.
+- ✅ **Unified Feed Phase 2.1 (v3.3.20, feature-flagged)**: Selective export (ARCX/ZIP) from feed selection bar. Phase Journey Gantt card. Paragraph rendering in expanded view and timeline. Summary extraction from `## Summary` headers. Card date formatting (`formatEntryCreationDate`). Phase preview refresh on return from Phase view.
+- ✅ **RIVET Reset on User Phase Change (v3.3.20)**: `PhaseRegimeService.changeCurrentPhase()` and `UserPhaseService.forceUpdatePhase()` reset RIVET so gate closes and fresh evidence accumulates.
+- ✅ **Voice Session: Auto-Endpoint Disabled (v3.3.20)**: Voice recording no longer auto-stops on silence; user must tap to end turn (prevents premature cutoff).
+- ✅ **Privacy Settings: Inline PII Scrub Demo (v3.3.20)**: Real-time PII scrubbing demo in Privacy Settings; shows scrubbed output and redaction count.
 - ✅ **Google Drive Export Progress UI (v3.3.17)**: Visual progress bar with percentage, granular stage messages, and spinner during Google Drive backup export.
 
 ### Current Version
@@ -189,12 +195,12 @@ The EPI system is organized into 5 core modules:
 - `core/` - Journal entry processing and state management
 - `ui/` - Journaling interface components
 - `privacy/` - Privacy demonstration UI
-- `unified_feed/` - **(v3.3.19, feature-flagged)** Merged LUMARA chat + Conversations feed
+- `unified_feed/` - **(v3.3.20, feature-flagged)** Merged LUMARA chat + Conversations feed
   - `models/` - `FeedEntry` (5 types, `mediaItems`), `FeedMessage`, `EntryState`
   - `repositories/feed_repository.dart` - Aggregates journal, chat, voice note data; pagination; phase colors; `computedPhase`
   - `services/` - `ConversationManager` (lifecycle + auto-save), `AutoSaveService`, `ContextualGreetingService`, `UniversalImporterService`
-  - `utils/feed_helpers.dart` - Date grouping, icons, `contentWithoutPhaseHashtags()`
-  - `widgets/` - `UnifiedFeedScreen` (entry deletion, batch select, LUMARA chat, phase preview), `ExpandedEntryView` (media, edit, delete), `FeedMediaThumbnails`, `ImportOptionsSheet`, `BaseFeedCard`, 5 card types, `timeline/`
+  - `utils/feed_helpers.dart` - Date grouping, icons, `contentWithoutPhaseHashtags()`, `extractSummary()`, `formatEntryCreationDate()`
+  - `widgets/` - `UnifiedFeedScreen` (deletion, batch select/export, LUMARA chat, phase preview, Gantt), `ExpandedEntryView` (media, edit, delete, paragraph rendering), `FeedMediaThumbnails`, `ImportOptionsSheet`, `BaseFeedCard`, 5 card types, `timeline/`
 
 **Key Features:**
 - Journal entry capture and editing

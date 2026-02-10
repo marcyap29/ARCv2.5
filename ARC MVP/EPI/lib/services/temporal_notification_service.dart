@@ -90,7 +90,7 @@ class TemporalNotificationService {
     
     await _notifications.zonedSchedule(
       1, // ID for daily notifications
-      'ARC Resonance',
+      'LUMARA Resonance',
       null, // Title - will be set when generating content
       _tzDateTimeFromTimeOfDay(scheduledTime, prefs.dailyTime),
       const NotificationDetails(
@@ -124,7 +124,7 @@ class TemporalNotificationService {
       // Update the scheduled notification with actual content
       await _notifications.zonedSchedule(
         1,
-        'ARC Resonance',
+        'LUMARA Resonance',
         prompt.promptText,
         tz.TZDateTime.now(tz.local).add(const Duration(seconds: 5)), // Show soon for testing
         const NotificationDetails(
@@ -160,7 +160,7 @@ class TemporalNotificationService {
     
     await _notifications.zonedSchedule(
       2,
-      'ARC Monthly Review',
+      'LUMARA Monthly Review',
       'Your monthly thread review is ready',
       scheduledTime,
       const NotificationDetails(
@@ -193,13 +193,13 @@ class TemporalNotificationService {
     
     await _notifications.zonedSchedule(
       3,
-      'ARC 6-Month View',
+      'LUMARA 6-Month View',
       'Your developmental trajectory is ready',
       scheduledTime,
       const NotificationDetails(
         android: AndroidNotificationDetails(
           'six_month_arc',
-          '6-Month Arc Views',
+          '6-Month LUMARA Views',
           channelDescription: 'Your developmental trajectory over 6 months',
           importance: Importance.defaultImportance,
           priority: Priority.defaultPriority,
@@ -226,7 +226,7 @@ class TemporalNotificationService {
     
     await _notifications.zonedSchedule(
       4,
-      'ARC Year in Review',
+      'LUMARA Year in Review',
       'Your yearly becoming summary is ready',
       scheduledTime,
       const NotificationDetails(

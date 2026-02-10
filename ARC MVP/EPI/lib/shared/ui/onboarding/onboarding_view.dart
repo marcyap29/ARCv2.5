@@ -420,7 +420,7 @@ class _OnboardingPermissionsPageState extends State<_OnboardingPermissionsPage> 
           ),
           const SizedBox(height: 16),
           Text(
-            'ARC needs a few permissions to provide you with the best experience.',
+            'LUMARA needs a few permissions to provide you with the best experience.',
             style: bodyStyle(context).copyWith(
               color: Colors.white.withOpacity(0.8),
             ),

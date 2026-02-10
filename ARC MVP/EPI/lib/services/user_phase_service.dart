@@ -2,6 +2,7 @@ import 'package:hive/hive.dart';
 import 'package:my_app/core/models/arcform_snapshot.dart';
 import 'package:my_app/arc/ui/arcforms/arcform_mvp_implementation.dart';
 import 'package:my_app/models/user_profile_model.dart';
+import 'package:my_app/prism/atlas/rivet/rivet_provider.dart';
 
 /// Service to manage the user's current ATLAS phase.
 ///
@@ -195,7 +196,9 @@ class UserPhaseService {
     }
   }
   
-  /// Force update the user's phase (useful for debugging)
+  /// Force update the user's phase (quiz, onboarding, or manual set).
+  /// When the user determines their phase, RIVET is reset to a new start so its gate
+  /// closes and RIVET will accumulate evidence again until it opens and ATLAS can determine a new phase.
   static Future<bool> forceUpdatePhase(String newPhase) async {
     try {
       Box<UserProfile> userBox;
@@ -232,6 +235,13 @@ class UserPhaseService {
       
       await userBox.put('profile', updatedProfile);
       print('DEBUG: Force updated phase to: $newPhase');
+      // User determined phase: reset RIVET so it starts fresh until gate opens and ATLAS determines a new phase
+      try {
+        const userId = 'default_user';
+        await RivetProvider().safeClearUserData(userId);
+      } catch (e) {
+        print('DEBUG: RIVET reset after user phase update: $e');
+      }
       return true;
     } catch (e) {
       print('DEBUG: Error force updating phase: $e');

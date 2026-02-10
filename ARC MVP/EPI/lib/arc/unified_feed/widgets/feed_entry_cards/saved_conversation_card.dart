@@ -63,9 +63,19 @@ class SavedConversationCard extends StatelessWidget {
             ),
           const SizedBox(height: 10),
 
-          // Metadata row: exchanges · phase · timestamp
+          // Metadata row: creation date · exchanges · phase
           Row(
             children: [
+              Text(
+                FeedHelpers.formatEntryCreationDate(entry.timestamp),
+                style: TextStyle(
+                  color: kcSecondaryTextColor.withOpacity(0.8),
+                  fontSize: 12,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text('·', style: TextStyle(color: kcSecondaryTextColor.withOpacity(0.4))),
+              const SizedBox(width: 8),
               Text(
                 '${entry.exchangeCount ?? 0} exchanges',
                 style: TextStyle(
@@ -86,13 +96,6 @@ class SavedConversationCard extends StatelessWidget {
                 ),
               ],
               const Spacer(),
-              Text(
-                FeedHelpers.formatFeedDate(entry.timestamp),
-                style: TextStyle(
-                  color: kcSecondaryTextColor.withOpacity(0.5),
-                  fontSize: 11,
-                ),
-              ),
               if (entry.isPinned) ...[
                 const SizedBox(width: 6),
                 Icon(Icons.push_pin, size: 14, color: kcWarningColor.withOpacity(0.7)),

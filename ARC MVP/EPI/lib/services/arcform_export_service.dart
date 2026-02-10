@@ -50,7 +50,7 @@ class ArcformExportService {
       await Share.shareXFiles(
         [XFile(tempFile.path)],
         text: 'My $phaseName Arcform - $geometryName geometry',
-        subject: 'ARC MVP - Emotional Journey Visualization',
+        subject: 'LUMARA MVP - Emotional Journey Visualization',
       );
 
       // Track analytics

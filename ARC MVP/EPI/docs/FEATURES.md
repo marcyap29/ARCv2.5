@@ -1,7 +1,7 @@
 # EPI MVP - Comprehensive Features Guide
 
-**Version:** 3.3.19
-**Last Updated:** February 9, 2026
+**Version:** 3.3.20
+**Last Updated:** February 10, 2026
 
 ---
 
@@ -114,9 +114,9 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
   - Smooth 300ms animation with easeOut curve
 - **Available In**: LUMARA Chat, Journal Timeline, Journal Entry Editor
 
-### Unified Feed (v3.3.19, feature-flagged)
+### Unified Feed (v3.3.20, feature-flagged)
 
-**Status:** Phase 2.0 — entry management, media, LUMARA chat integration, phase priority. Behind `USE_UNIFIED_FEED` feature flag (default off).
+**Status:** Phase 2.1 — entry management, media, LUMARA chat, selective export, phase Gantt, paragraph rendering. Behind `USE_UNIFIED_FEED` feature flag (default off).
 
 **Concept:** Merges the separate LUMARA chat and Conversations (journal timeline) tabs into a single scrollable feed. When enabled, the home screen switches from 3 tabs to 2 tabs (LUMARA + Settings). Phase is accessible via the Phase Arcform preview embedded in the feed and via the Timeline button. On first use (empty feed), bottom nav is hidden for a clean welcome experience.
 
@@ -135,7 +135,8 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 
 **Entry Management**
 - **Swipe-to-delete**: Swipe any card left → confirmation dialog → permanent deletion via `JournalRepository`
-- **Batch selection**: Select (checklist) icon → multi-select mode with checkbox overlays → bulk delete with confirmation
+- **Batch selection**: Select (checklist) icon → multi-select mode with checkbox overlays → bulk delete or export with confirmation
+- **Selective export (v3.3.20)**: Export selected entries as ARCX (encrypted) or ZIP (portable) via bottom sheet; progress dialog; result shared via `Share.shareXFiles`
 - **Expanded entry delete**: Options menu "Delete" fully wired with confirmation and feed refresh
 - **Expanded entry edit**: Opens `JournalScreen` in edit mode with full `JournalEntry` loaded
 
@@ -160,7 +161,11 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 **Visual Design**
 - All cards use BaseFeedCard with phase-colored left border
 - Phase colors flow from ATLAS detection through to visual indicators
-- Phase Arcform preview embedded in feed between header actions and entry cards
+- Phase Arcform preview embedded in feed; refreshes on return from Phase view
+- **Phase Journey Gantt (v3.3.20)**: Gantt-style bar below phase preview showing phase regimes over time (days, phases, date range)
+- **Paragraph rendering (v3.3.20)**: Content split on double/single newlines with proper spacing (12px paragraph gap, 1.5 line height)
+- **Summary extraction (v3.3.20)**: Entries with `## Summary` header display summary (italic) and body separately
+- **Card dates (v3.3.20)**: All cards show "Today, 14:30" / "Yesterday, 09:15" / "Mar 15, 14:30" format at 12px
 - Expanded entry view: full-screen detail with phase, themes, media grid, CHRONICLE context, LUMARA notes
 
 **Conversation Management**
@@ -202,6 +207,7 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 - **Intent Routing**: Automatically handles journal creation, chat queries, and file operations
 - **PII Protection**: Mode A scrubbing pipeline (on-device)
 - **Auto-Resume Loop**: LUMARA speaks → automatically listens for your response
+- **Manual Endpoint (v3.3.20)**: Auto-endpoint detection disabled — voice recording no longer auto-stops on silence (was causing premature cutoff when users pause to think). User must tap the talk button to indicate they're finished speaking.
 - **Context Memory**: Maintains conversation state across voice turns
 - **How to Use**:
   1. Tap mic button in LUMARA chat
@@ -484,6 +490,8 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 - **Auto Phase Analysis after Import (v3.3.19)**: `runAutoPhaseAnalysis()` runs headless RIVET Sweep after ARCX/ZIP import, creates regimes, shows snackbar notification
 - **Phase Priority (v3.3.19)**: User's explicit phase (quiz or manual "set overall phase") takes priority over RIVET/regime. `UserPhaseService.getDisplayPhase()` reordered.
 - **Phase Analysis Settings (v3.3.19)**: Dedicated `PhaseAnalysisSettingsView` accessible from main Settings menu. Phase statistics cards.
+- **Phase Sentinel Safety Integration (v3.3.20)**: `resolvePhaseWithSentinel()` checks Sentinel (crisis/cluster alert) before applying RIVET/ATLAS proposals. Overrides segment to Recovery when alert triggers. Applied in auto phase analysis, Phase Analysis view, and Phase Analysis Settings.
+- **RIVET Reset on User Phase Change (v3.3.20)**: `PhaseRegimeService.changeCurrentPhase()` and `UserPhaseService.forceUpdatePhase()` reset RIVET so gate closes and fresh evidence accumulates before ATLAS can determine a new phase.
 - **SENTINEL Analysis**: Risk monitoring
 - **Phase Recommendations**: Change readiness with RIVET-based trends
 - **Phase Statistics**: Phase distribution and trends
@@ -643,6 +651,7 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 **Settings**
 - Privacy preferences
 - Data sharing controls
+- **Inline PII Scrub Demo (v3.3.20)**: "Test privacy protection" card in Privacy Settings. Real-time PII scrubbing: type text with names, emails, phone numbers → see scrubbed output and redaction count. Uses the same `PrismAdapter` pipeline as LUMARA.
 - PII detection settings
 - Encryption options
 

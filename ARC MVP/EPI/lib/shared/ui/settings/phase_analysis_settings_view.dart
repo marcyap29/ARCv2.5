@@ -10,6 +10,7 @@ import 'package:my_app/services/phase_regime_service.dart';
 import 'package:my_app/services/rivet_sweep_service.dart';
 import 'package:my_app/services/analytics_service.dart';
 import 'package:my_app/arc/core/journal_repository.dart';
+import 'package:my_app/services/phase_sentinel_integration.dart';
 
 /// Settings screen: Phase Analysis card + Phase Statistics card. Uses purple accent to match main menu.
 class PhaseAnalysisSettingsView extends StatefulWidget {
@@ -315,8 +316,10 @@ class _PhaseAnalysisSettingsViewState extends State<PhaseAnalysisSettingsView> {
           final daysSinceEnd = DateTime.now().difference(proposal.end).inDays;
           if (daysSinceEnd <= 2) regimeEnd = null;
         }
+        // RIVET + ATLAS proposed phase; Sentinel can override to Recovery for safety
+        final label = await resolvePhaseWithSentinel(proposal, journalEntries);
         await phaseRegimeService.createRegime(
-          label: proposal.proposedLabel,
+          label: label,
           start: proposal.start,
           end: regimeEnd,
           source: PhaseSource.rivet,

@@ -576,11 +576,11 @@ class _GoogleDriveSettingsViewState extends State<GoogleDriveSettingsView> {
         }
 
         final timestamp = DateFormat('yyyy-MM-dd_HH-mm').format(DateTime.now());
-        final zipFileName = 'ARC_Full_$timestamp.zip';
+        final zipFileName = 'LUMARA_Full_$timestamp.zip';
         final zipPath = path.join(outputDir.path, zipFileName);
 
         final mcpService = McpPackExportService(
-          bundleId: 'ARC_Full_$timestamp',
+          bundleId: 'LUMARA_Full_$timestamp',
           outputPath: zipPath,
           chatRepo: chatRepo,
           phaseRegimeService: phaseRegimeService,
@@ -1078,7 +1078,7 @@ class _GoogleDriveSettingsViewState extends State<GoogleDriveSettingsView> {
             ),
             const SizedBox(height: 12),
             Text(
-              'Backups will be saved in the "ARC Backups" folder in your Drive.',
+              'Backups will be saved in the "LUMARA Backups" folder in your Drive.',
               style: bodyStyle(context).copyWith(color: kcSecondaryTextColor, fontSize: 12),
             ),
             const SizedBox(height: 12),
@@ -1125,7 +1125,7 @@ class _GoogleDriveSettingsViewState extends State<GoogleDriveSettingsView> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Create a full backup and upload it to your ARC Backups folder.',
+            'Create a full backup and upload it to your LUMARA Backups folder.',
             style: bodyStyle(context).copyWith(color: kcSecondaryTextColor, fontSize: 12),
           ),
           const SizedBox(height: 12),
@@ -1143,7 +1143,7 @@ class _GoogleDriveSettingsViewState extends State<GoogleDriveSettingsView> {
           RadioListTile<String>(
             title: const Text('ARCX Format', style: TextStyle(color: Colors.white, fontSize: 14)),
             subtitle: const Text(
-              'Encrypted ARC archive (tied to this app install)',
+              'Encrypted LUMARA archive (tied to this app install)',
               style: TextStyle(color: Colors.grey, fontSize: 12),
             ),
             value: 'arcx',
@@ -1514,7 +1514,7 @@ class _GoogleDriveSettingsViewState extends State<GoogleDriveSettingsView> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Restore from ARC Backups, or browse Drive to pick other folders and import backup or text files from them.',
+            'Restore from LUMARA Backups, or browse Drive to pick other folders and import backup or text files from them.',
             style: bodyStyle(context).copyWith(color: kcSecondaryTextColor, fontSize: 12),
           ),
           const SizedBox(height: 12),
@@ -1524,7 +1524,7 @@ class _GoogleDriveSettingsViewState extends State<GoogleDriveSettingsView> {
                 child: OutlinedButton.icon(
                   onPressed: (_loadingFiles || _importing) ? null : _loadDriveFiles,
                   icon: _loadingFiles ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.refresh, size: 18),
-                  label: Text(_loadingFiles ? 'Loading...' : 'ARC Backups'),
+                  label: Text(_loadingFiles ? 'Loading...' : 'LUMARA Backups'),
                   style: OutlinedButton.styleFrom(foregroundColor: kcSecondaryTextColor),
                 ),
               ),
