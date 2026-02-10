@@ -1,6 +1,6 @@
 # EPI LUMARA MVP - Changelog
 
-**Version:** 3.3.20
+**Version:** 3.3.21
 **Last Updated:** February 10, 2026
 
 ---
@@ -14,6 +14,162 @@ This changelog has been split into parts for easier navigation:
 | **[CHANGELOG_part1.md](CHANGELOG_part1.md)** | Dec 2025 | v2.1.43 - v2.1.87 (Current) |
 | **[CHANGELOG_part2.md](CHANGELOG_part2.md)** | Nov 2025 | v2.1.28 - v2.1.42 |
 | **[CHANGELOG_part3.md](CHANGELOG_part3.md)** | Jan-Oct 2025 | v2.0.0 - v2.1.27 & Earlier |
+
+---
+
+## [3.3.21] - February 10, 2026 (working changes)
+
+### Phase Locking: Prevent Re-Inference on Reload/Import
+
+Phase assignments are now locked after inference to prevent ATLAS from randomly choosing a different phase when entries are reloaded, the timeline filter changes, or data is imported. Once a phase is determined — by ATLAS, by the user, or from a backup — it stays.
+
+**JournalCaptureCubit:**
+- Phase backfill now skips entries where `isPhaseLocked == true`.
+- After inference, entries are saved with `isPhaseLocked: true` so subsequent reloads never re-infer.
+
+**Import Services (ARCX v2 + MCP ZIP):**
+- Import now defaults `isPhaseLocked: true` if the entry had any phase data (`autoPhase`, `userPhaseOverride`, or `legacyPhaseTag`) — even if the backup didn't explicitly set the flag.
+- Phase inference after import also sets `isPhaseLocked: true`.
+
+#### Files modified
+- `lib/arc/core/journal_capture_cubit.dart` — Phase backfill respects `isPhaseLocked`; locks after inference
+- `lib/mira/store/arcx/services/arcx_import_service_v2.dart` — Smart `isPhaseLocked` default; lock after inference
+- `lib/mira/store/mcp/import/mcp_pack_import_service.dart` — Same `isPhaseLocked` logic
+
+---
+
+### Phase Regime Change Notification System
+
+New `ValueNotifier`-based notification system ensures the phase preview on the LUMARA tab stays in sync with regime and phase changes from any source (RIVET/ATLAS sweep, manual change, import, backup restore).
+
+**PhaseRegimeService:**
+- New static `regimeChangeNotifier` (`ValueNotifier<DateTime>`) fires on every regime create, update, rebuild, extend, and clear.
+- All mutation methods now call `regimeChangeNotifier.value = DateTime.now()`.
+
+**UserPhaseService:**
+- New static `phaseChangeNotifier` (`ValueNotifier<DateTime>`) fires on `forceUpdatePhase()`.
+
+**CurrentPhaseArcformPreview:**
+- Listens to both `UserPhaseService.phaseChangeNotifier` and `PhaseRegimeService.regimeChangeNotifier`.
+- Automatically reloads snapshots when either fires (e.g. after import, phase quiz, or RIVET sweep).
+- Also reloads on `didUpdateWidget` (e.g. after navigation back to feed).
+- Properly disposes listeners.
+
+**McpImportScreen:**
+- Fires both notifiers after each import path completes (4 integration points), ensuring the LUMARA tab phase preview reflects imported data immediately.
+
+#### Files modified
+- `lib/services/phase_regime_service.dart` — `regimeChangeNotifier` + fires on mutations
+- `lib/services/user_phase_service.dart` — `phaseChangeNotifier` + fires on `forceUpdatePhase`
+- `lib/arc/ui/timeline/widgets/current_phase_arcform_preview.dart` — Listens to both notifiers, reloads on change
+- `lib/ui/export_import/mcp_import_screen.dart` — Fires notifiers after import
+
+---
+
+### Phase Regimes: Extend Instead of Rebuild
+
+When the timeline loads or entries are imported, phase regimes are now incrementally extended rather than fully rebuilt from scratch. This preserves existing regime history and user-edited regimes instead of wiping them.
+
+- `TimelineCubit._applyFilterAndEmit()`: Changed from `rebuildRegimesFromEntries()` to `extendRegimesWithNewEntries()`.
+- `ARCXImportService` (v1): Same change.
+- `McpPackImportService`: Same change.
+
+#### Files modified
+- `lib/arc/ui/timeline/timeline_cubit.dart` — `extendRegimesWithNewEntries` replaces `rebuildRegimesFromEntries`
+- `lib/mira/store/arcx/services/arcx_import_service.dart` — Same
+- `lib/mira/store/mcp/import/mcp_pack_import_service.dart` — Same
+
+---
+
+### Phase Timeline: Bulk Phase Apply
+
+Two new bulk-edit actions in the Phase Timeline view allow users to set `userPhaseOverride` and `isPhaseLocked` on all journal entries within a date range or regime period at once.
+
+**"Apply phase by date range" (new button in Phase Timeline):**
+- Opens dialog with phase radio selector and start/end date pickers.
+- Sets `userPhaseOverride` and `isPhaseLocked: true` on all entries in the selected range.
+- Shows snackbar with count of updated entries.
+
+**"Apply this phase to all entries in this period" (new per-regime action):**
+- Available in the regime bottom-sheet options.
+- Confirmation dialog showing phase name and entry count.
+- Locks phase on all entries within the regime's date range.
+
+**PhaseRegimeService (new public methods):**
+- `getEntriesForRegime(PhaseRegime)` — returns entries in a regime's date range.
+- `getEntriesInDateRange(DateTime start, DateTime? end)` — returns entries in an arbitrary date range.
+
+#### Files modified
+- `lib/ui/phase/phase_timeline_view.dart` — Bulk apply buttons, dialogs, methods
+- `lib/services/phase_regime_service.dart` — `getEntriesForRegime`, `getEntriesInDateRange`
+
+---
+
+### Onboarding Streamlined (Screens Removed)
+
+Reduced onboarding from 6 screens to 4 by removing the redundant "ARC Intro" and "Sentinel Intro" screens. Remaining screens are more concise and use third-person language for the phase explanation.
+
+**Removed screens:**
+- `_ArcIntroScreen` — "Welcome to LUMARA" (redundant with LUMARA Intro)
+- `_SentinelIntroScreen` — "One more thing" Sentinel explanation (too early in onboarding)
+
+**Text updates:**
+- `_LumaraIntroScreen`: Condensed to "Hi, I'm LUMARA." with intelligence-compounds description.
+- `_NarrativeIntelligenceScreen`: Condensed to focus on "Narrative Intelligence" as a new category.
+- `PhaseExplanationScreen`: First-person ("I'll ask you", "help me see") → third-person ("identifies", "the analysis refines").
+
+**Flow update:**
+- `lumaraIntro` → `narrativeIntelligence` (skips `arcIntro`)
+- `narrativeIntelligence` → `phaseExplanation` (skips `sentinelIntro`)
+- Fallback mappings preserved: if state lands on removed screens, the next valid screen is shown.
+
+#### Files modified
+- `lib/shared/ui/onboarding/arc_onboarding_sequence.dart` — Removed `_ArcIntroScreen`, `_SentinelIntroScreen`; condensed text (~175 lines removed)
+- `lib/shared/ui/onboarding/arc_onboarding_cubit.dart` — Flow skips removed screens
+- `lib/shared/ui/onboarding/widgets/phase_explanation_screen.dart` — Third-person language
+
+---
+
+### Feed Greeting Simplified (ContextualGreetingService Removed)
+
+The dynamic time-of-day greeting in the Unified Feed header has been replaced with a static, consistent message. `ContextualGreetingService` is no longer used.
+
+**Before:** "Good morning" / "Welcome back" / "Picking up where we left off" (time/recency-based)
+**After:** "Share what's on your mind." with a description: "I build context from your entries over time — your patterns, your phases, the decisions you're working through. The longer we work together, the more relevant my responses become."
+
+#### Files modified
+- `lib/arc/unified_feed/widgets/unified_feed_screen.dart` — Removed `ContextualGreetingService` import/usage; static greeting text
+
+---
+
+### Phase Journey Gantt Card: Interactive Navigation
+
+The Gantt card in the Unified Feed is now tappable. Tapping the card or the new "edit phases" icon button navigates to `PhaseAnalysisView`. Regimes reload on return.
+
+- Card wrapped in `Material` + `InkWell` for tap and ripple.
+- New `IconButton` (edit_calendar icon) in the card header row.
+- `_loadRegimes()` called after returning from Phase view.
+
+#### Files modified
+- `lib/arc/unified_feed/widgets/unified_feed_screen.dart` — Gantt card InkWell, edit button, reload on return
+
+---
+
+### Asset Optimization
+
+- `LUMARA_Sigil.png` — Reduced from 256 KB to 42 KB (84% smaller).
+
+---
+
+### Selective Branding Reverts
+
+Two labels changed from "LUMARA" back to "ARC" for internal/analysis contexts:
+- `keyword_analysis_view.dart`: "LUMARA is analyzing your entry" → "ARC is analyzing your entry".
+- `temporal_notification_service.dart`: "LUMARA Monthly Review" → "ARC Monthly Review".
+
+#### Files modified
+- `lib/arc/ui/widgets/keyword_analysis_view.dart`
+- `lib/services/temporal_notification_service.dart`
 
 ---
 

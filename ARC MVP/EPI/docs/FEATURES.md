@@ -1,6 +1,6 @@
 # EPI MVP - Comprehensive Features Guide
 
-**Version:** 3.3.20
+**Version:** 3.3.21
 **Last Updated:** February 10, 2026
 
 ---
@@ -114,14 +114,14 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
   - Smooth 300ms animation with easeOut curve
 - **Available In**: LUMARA Chat, Journal Timeline, Journal Entry Editor
 
-### Unified Feed (v3.3.20, feature-flagged)
+### Unified Feed (v3.3.21, feature-flagged)
 
-**Status:** Phase 2.1 — entry management, media, LUMARA chat, selective export, phase Gantt, paragraph rendering. Behind `USE_UNIFIED_FEED` feature flag (default off).
+**Status:** Phase 2.2 — entry management, media, LUMARA chat, selective export, phase Gantt (interactive), static greeting, phase locking, bulk apply, onboarding streamline. Behind `USE_UNIFIED_FEED` feature flag (default off).
 
 **Concept:** Merges the separate LUMARA chat and Conversations (journal timeline) tabs into a single scrollable feed. When enabled, the home screen switches from 3 tabs to 2 tabs (LUMARA + Settings). Phase is accessible via the Phase Arcform preview embedded in the feed and via the Timeline button. On first use (empty feed), bottom nav is hidden for a clean welcome experience.
 
 **Feed Display**
-- Contextual greeting header with LUMARA sigil (time-of-day and recency-based)
+- Static greeting header with LUMARA sigil — "Share what's on your mind." with intelligence-compounds description (replaced dynamic `ContextualGreetingService` in v3.3.21)
 - Header actions: Select (batch delete), Timeline (calendar), Settings gear
 - Phase Arcform preview — tap opens `PhaseAnalysisView`
 - Chat / Reflect / Voice action buttons (above "Today" section in populated feed; also in welcome screen)
@@ -162,7 +162,7 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 - All cards use BaseFeedCard with phase-colored left border
 - Phase colors flow from ATLAS detection through to visual indicators
 - Phase Arcform preview embedded in feed; refreshes on return from Phase view
-- **Phase Journey Gantt (v3.3.20)**: Gantt-style bar below phase preview showing phase regimes over time (days, phases, date range)
+- **Phase Journey Gantt (v3.3.20, interactive v3.3.21)**: Gantt-style bar below phase preview showing phase regimes over time (days, phases, date range). Tappable — navigates to `PhaseAnalysisView`. Edit-phases icon button. Reloads on return.
 - **Paragraph rendering (v3.3.20)**: Content split on double/single newlines with proper spacing (12px paragraph gap, 1.5 line height)
 - **Summary extraction (v3.3.20)**: Entries with `## Summary` header display summary (italic) and body separately
 - **Card dates (v3.3.20)**: All cards show "Today, 14:30" / "Yesterday, 09:15" / "Mar 15, 14:30" format at 12px
@@ -492,6 +492,10 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 - **Phase Analysis Settings (v3.3.19)**: Dedicated `PhaseAnalysisSettingsView` accessible from main Settings menu. Phase statistics cards.
 - **Phase Sentinel Safety Integration (v3.3.20)**: `resolvePhaseWithSentinel()` checks Sentinel (crisis/cluster alert) before applying RIVET/ATLAS proposals. Overrides segment to Recovery when alert triggers. Applied in auto phase analysis, Phase Analysis view, and Phase Analysis Settings.
 - **RIVET Reset on User Phase Change (v3.3.20)**: `PhaseRegimeService.changeCurrentPhase()` and `UserPhaseService.forceUpdatePhase()` reset RIVET so gate closes and fresh evidence accumulates before ATLAS can determine a new phase.
+- **Phase Locking (v3.3.21)**: `isPhaseLocked: true` after inference prevents ATLAS from re-inferring phases on reload/import. Import services default lock when phase data exists. Bulk apply also locks entries.
+- **Regime Change Notifications (v3.3.21)**: `PhaseRegimeService.regimeChangeNotifier` and `UserPhaseService.phaseChangeNotifier` (`ValueNotifier<DateTime>`) — phase preview auto-reloads on any mutation.
+- **Extend-not-Rebuild (v3.3.21)**: Timeline and import services use `extendRegimesWithNewEntries` instead of `rebuildRegimesFromEntries`, preserving existing user-edited regimes.
+- **Bulk Phase Apply (v3.3.21)**: Phase Timeline gains "Apply phase by date range" dialog (pick phase + dates) and per-regime "Apply this phase to all entries in this period" action. Sets `userPhaseOverride` and `isPhaseLocked` on matching entries.
 - **SENTINEL Analysis**: Risk monitoring
 - **Phase Recommendations**: Change readiness with RIVET-based trends
 - **Phase Statistics**: Phase distribution and trends
@@ -1011,6 +1015,6 @@ All core features are production-ready and fully operational:
 ---
 
 **Features Guide Status:** ✅ Complete
-**Last Updated:** February 9, 2026
-**Version:** 3.3.18
+**Last Updated:** February 10, 2026
+**Version:** 3.3.21
 

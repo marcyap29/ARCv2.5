@@ -38,14 +38,14 @@ Prompt/role definitions: **Documentation & Configuration Management Role** in [c
 
 | Document | Location | Last Reviewed | Status | Notes |
 |----------|----------|---------------|--------|-------|
-| ARCHITECTURE.md | `/DOCS/ARCHITECTURE.md` | 2026-02-10 | ✅ Synced | v3.3.20 - ARC→LUMARA branding, Sentinel integration, Unified Feed 2.1 |
-| CHANGELOG.md | `/DOCS/CHANGELOG.md` | 2026-02-10 | ✅ Synced | v3.3.20 - Last Updated Feb 10 |
+| ARCHITECTURE.md | `/DOCS/ARCHITECTURE.md` | 2026-02-10 | ✅ Synced | v3.3.21 - Phase locking, regime notifications, bulk apply, onboarding streamline, Unified Feed 2.2 |
+| CHANGELOG.md | `/DOCS/CHANGELOG.md` | 2026-02-10 | ✅ Synced | v3.3.21 - Last Updated Feb 10 |
 | PROMPT_REFERENCES.md | `/DOCS/PROMPT_REFERENCES.md` | 2026-02-07 | ✅ Current | v1.8.0 - Document scope and sources; prompt catalog |
 | PROMPT_TRACKER.md | `/DOCS/PROMPT_TRACKER.md` | 2026-02-07 | ✅ Synced | v1.0.0 - Prompt change tracking; links to PROMPT_REFERENCES |
 | bug_tracker.md | `/DOCS/bugtracker/bug_tracker.md` | 2026-02-08 | ✅ Synced | v3.2.2 - 29 records; How to use; Recent code changes |
-| FEATURES.md | `/DOCS/FEATURES.md` | 2026-02-10 | ✅ Synced | v3.3.20 - LUMARA branding, Sentinel, Unified Feed 2.1 |
+| FEATURES.md | `/DOCS/FEATURES.md` | 2026-02-10 | ✅ Synced | v3.3.21 - Phase locking, bulk apply, Unified Feed 2.2 |
 | README.md | `/DOCS/README.md` | 2026-02-07 | ✅ Synced | Key docs table with purpose and when to read |
-| claude.md | `/DOCS/claude.md` | 2026-02-08 | ✅ Synced | Replaced backup-intelligence prompt with git-backup-docsync (systems engineer config mgr) |
+| claude.md | `/DOCS/claude.md` | 2026-02-10 | ✅ Synced | Git-backup-docsync role + new DevSecOps Security Audit Role (PII egress auditing) |
 | backend.md | `/DOCS/backend.md` | 2026-02-07 | ✅ Synced | v3.2 - Firebase, Stripe; RevenueCat see revenuecat/ |
 | git.md | `/DOCS/git.md` | 2026-02-07 | ✅ Synced | Git history and key phases |
 
@@ -80,13 +80,29 @@ Prompt/role definitions: **Documentation & Configuration Management Role** in [c
 | DOCUMENTATION_CONSOLIDATION_AUDIT_2026-02.md | DOCS/ | Doc consolidation audit |
 | NARRATIVE_INTELLIGENCE.md | DOCS/ | Narrative intelligence |
 | PAYMENTS_CLARIFICATION.md | DOCS/ | Stripe vs RevenueCat; web vs in-app |
-| UNIFIED_FEED.md | DOCS/ | Unified Feed v2.1: architecture, export, Gantt, paragraph rendering, Sentinel |
+| UNIFIED_FEED.md | DOCS/ | Unified Feed v2.2: phase locking, regime notifications, bulk apply, interactive Gantt, static greeting, onboarding |
+| DEVSECOPS_EGRESS_PII_AUDIT.md | DOCS/ | DevSecOps egress + PII audit report |
 | revenuecat/README.md | DOCS/revenuecat/ | RevenueCat (in-app) doc index |
 | revenuecat/REVENUECAT_INTEGRATION.md | DOCS/revenuecat/ | RevenueCat integration guide |
 
 ---
 
 ## Change Tracking Log
+
+### 2026-02-10 - Phase Locking, Regime Notifications, Bulk Apply, Onboarding Streamline, Unified Feed 2.2 (v3.3.21)
+
+**Action:** Phase assignments locked after inference to prevent re-inference on reload/import (`isPhaseLocked: true`). New `ValueNotifier`-based regime/phase change notifications so phase preview auto-reloads. Timeline and import services switched from `rebuildRegimesFromEntries` to `extendRegimesWithNewEntries` (preserves existing regimes). Phase Timeline gains "Apply phase by date range" and per-regime "Apply to all entries" bulk actions. Onboarding streamlined from 6 to 4 screens (removed ARC Intro and Sentinel Intro). Feed greeting simplified to static message (ContextualGreetingService removed). Gantt card now interactive (tappable, navigates to Phase view). `LUMARA_Sigil.png` optimized (256KB → 42KB). Selective branding reverts for internal analysis labels. 17 modified files (incl. binary asset).
+
+**Doc updates:**
+- **CHANGELOG.md:** New [3.3.21] section — phase locking, regime notifications, extend-not-rebuild, bulk apply, onboarding, greeting, Gantt interactive, asset optimization, branding reverts.
+- **UNIFIED_FEED.md:** Updated to v2.2 — ContextualGreetingService deprecated, greeting header static, Gantt interactive, Phase 2.2 roadmap, files-modified table expanded.
+- **ARCHITECTURE.md:** v3.3.21; key achievements for phase locking, notifications, extend-not-rebuild, bulk apply, onboarding, Unified Feed 2.2.
+- **FEATURES.md:** v3.3.21; Unified Feed status/greeting/Gantt updated; Phase Analysis: locking, notifications, extend-not-rebuild, bulk apply.
+- **CONFIGURATION_MANAGEMENT.md:** Inventory dates, version sync, this entry.
+
+**Status:** ✅ All docs updated.
+
+---
 
 ### 2026-02-10 - ARC → LUMARA Branding, Phase Sentinel Integration, Unified Feed 2.1 (v3.3.20)
 
@@ -565,8 +581,8 @@ Prompt/role definitions: **Documentation & Configuration Management Role** in [c
 | Component | Documented Version | Code Version | Status | Notes |
 |-----------|-------------------|--------------|--------|-------|
 | Application | 1.0.0+1 | 1.0.0+1 (pubspec.yaml) | ✅ Synced | - |
-| Architecture | 3.3.18 | 3.3.18 (ARCHITECTURE.md) | ✅ Synced | Updated Feb 9, 2026 |
-| Changelog | 3.3.18 | 3.3.18 (CHANGELOG.md) | ✅ Synced | Updated Feb 9, 2026 |
+| Architecture | 3.3.21 | 3.3.21 (ARCHITECTURE.md) | ✅ Synced | Updated Feb 10, 2026 |
+| Changelog | 3.3.21 | 3.3.21 (CHANGELOG.md) | ✅ Synced | Updated Feb 10, 2026 |
 | Bug Tracker | 3.2.2 | 3.2.2 (bug_tracker.md) | ✅ Synced | Matches main branch |
 | Prompt References | 1.8.0 | 1.8.0 (PROMPT_REFERENCES.md) | ✅ Synced | Last updated: Jan 31, 2026 |
 | Prompt Tracker | 1.0.0 | 1.0.0 (PROMPT_TRACKER.md) | ✅ Synced | Configuration tracking only |
@@ -647,7 +663,7 @@ Prompt/role definitions: **Documentation & Configuration Management Role** in [c
 
 ---
 
-**Last Updated:** February 9, 2026  
+**Last Updated:** February 10, 2026  
 **Next Review:** Per review schedule (weekly CHANGELOG/bugtracker; monthly full inventory)
 
 ---

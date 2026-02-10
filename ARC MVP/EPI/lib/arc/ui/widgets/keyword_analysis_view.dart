@@ -173,7 +173,7 @@ class _KeywordAnalysisViewState extends State<KeywordAnalysisView>
           const SizedBox(height: 32),
           
           Text(
-            'LUMARA is analyzing your entry',
+            'ARC is analyzing your entry',
             style: heading1Style(context),
             textAlign: TextAlign.center,
           ),

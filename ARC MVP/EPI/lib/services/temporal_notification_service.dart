@@ -160,7 +160,7 @@ class TemporalNotificationService {
     
     await _notifications.zonedSchedule(
       2,
-      'LUMARA Monthly Review',
+      'ARC Monthly Review',
       'Your monthly thread review is ready',
       scheduledTime,
       const NotificationDetails(

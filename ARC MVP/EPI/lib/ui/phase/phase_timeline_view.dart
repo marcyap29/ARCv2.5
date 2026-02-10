@@ -3,6 +3,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:my_app/models/phase_models.dart';
+import 'package:my_app/arc/core/journal_repository.dart';
 import 'package:my_app/services/phase_index.dart';
 import 'package:my_app/services/phase_regime_service.dart';
 import 'package:my_app/services/analytics_service.dart';
@@ -286,6 +287,15 @@ class _PhaseTimelineViewState extends State<PhaseTimelineView> {
                 onPressed: _showAddRegimeDialog,
                 icon: const Icon(Icons.add_circle_outline, size: 18),
                 label: const Text('Add New Regime'),
+              ),
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: _showApplyPhaseByDateRangeDialog,
+                icon: const Icon(Icons.batch_prediction, size: 18),
+                label: const Text('Apply phase by date range'),
               ),
             ),
             const SizedBox(height: 12),
@@ -627,6 +637,14 @@ class _PhaseTimelineViewState extends State<PhaseTimelineView> {
                 _endPhaseHere(regime);
               },
             ),
+            ListTile(
+              leading: const Icon(Icons.batch_prediction),
+              title: const Text('Apply this phase to all entries in this period'),
+              onTap: () {
+                Navigator.pop(context);
+                _applyPhaseToAllEntriesInRegime(regime);
+              },
+            ),
             const Divider(),
             ListTile(
               leading: const Icon(Icons.delete, color: Colors.red),
@@ -785,6 +803,92 @@ class _PhaseTimelineViewState extends State<PhaseTimelineView> {
                 _editRegimeDates(regime, startDate, isOngoing ? null : endDate);
               },
               child: const Text('Save'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showApplyPhaseByDateRangeDialog() {
+    PhaseLabel selectedPhase = PhaseLabel.discovery;
+    DateTime startDate = DateTime.now().subtract(const Duration(days: 30));
+    DateTime endDate = DateTime.now();
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Apply phase by date range'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'All entries between the start and end dates will get this phase and be locked.',
+                  style: TextStyle(fontSize: 12),
+                ),
+                const SizedBox(height: 16),
+                const Text('Phase:', style: TextStyle(fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                ...PhaseLabel.values.map((label) => RadioListTile<PhaseLabel>(
+                  title: Text(_getPhaseLabelName(label).toUpperCase()),
+                  value: label,
+                  groupValue: selectedPhase,
+                  onChanged: (value) {
+                    if (value != null) setDialogState(() => selectedPhase = value);
+                  },
+                  contentPadding: EdgeInsets.zero,
+                )),
+                const SizedBox(height: 16),
+                const Text('Start date:', style: TextStyle(fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(_formatDate(startDate)),
+                  trailing: const Icon(Icons.calendar_today),
+                  onTap: () async {
+                    final picked = await showDatePicker(
+                      context: context,
+                      initialDate: startDate,
+                      firstDate: DateTime(2020),
+                      lastDate: DateTime.now().add(const Duration(days: 365)),
+                    );
+                    if (picked != null) setDialogState(() => startDate = picked);
+                  },
+                ),
+                const SizedBox(height: 8),
+                const Text('End date:', style: TextStyle(fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(_formatDate(endDate)),
+                  trailing: const Icon(Icons.calendar_today),
+                  onTap: () async {
+                    final picked = await showDatePicker(
+                      context: context,
+                      initialDate: endDate,
+                      firstDate: startDate,
+                      lastDate: DateTime.now().add(const Duration(days: 365)),
+                    );
+                    if (picked != null) setDialogState(() => endDate = picked);
+                  },
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                _applyPhaseByDateRange(startDate, endDate, selectedPhase);
+              },
+              child: const Text('Apply'),
             ),
           ],
         ),
@@ -1111,6 +1215,145 @@ class _PhaseTimelineViewState extends State<PhaseTimelineView> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Failed to relabel phase: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  /// Apply this regime's phase to all journal entries in its date range (bulk edit from Gantt).
+  /// Sets userPhaseOverride and isPhaseLocked on each entry so phase stays fixed.
+  Future<void> _applyPhaseToAllEntriesInRegime(PhaseRegime regime) async {
+    try {
+      final analyticsService = AnalyticsService();
+      final rivetSweepService = RivetSweepService(analyticsService);
+      final phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
+      await phaseRegimeService.initialize();
+      final entries = phaseRegimeService.getEntriesForRegime(regime);
+      if (entries.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('No entries in this period'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+        return;
+      }
+      final raw = _getPhaseLabelName(regime.label);
+      final phaseString = raw.isEmpty ? raw : raw[0].toUpperCase() + raw.substring(1).toLowerCase();
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Apply phase to all entries'),
+          content: Text(
+            'Apply $phaseString to ${entries.length} entry(ies) in this period?\n\n'
+            'Each entry\'s phase will be set and locked so it won\'t change on reload or import.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Apply'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true || !mounted) return;
+      final journalRepo = JournalRepository();
+      int updated = 0;
+      for (final entry in entries) {
+        final updatedEntry = entry.copyWith(
+          userPhaseOverride: phaseString,
+          isPhaseLocked: true,
+          updatedAt: DateTime.now(),
+        );
+        await journalRepo.updateJournalEntry(updatedEntry);
+        updated++;
+      }
+      if (mounted) {
+        setState(() {});
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Applied $phaseString to $updated entr${updated == 1 ? 'y' : 'ies'}'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to apply phase: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  /// Apply a phase to all journal entries in a date range (bulk apply by dates).
+  Future<void> _applyPhaseByDateRange(DateTime start, DateTime end, PhaseLabel phase) async {
+    if (end.isBefore(start)) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('End date must be on or after start date'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+      return;
+    }
+    try {
+      final analyticsService = AnalyticsService();
+      final rivetSweepService = RivetSweepService(analyticsService);
+      final phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
+      await phaseRegimeService.initialize();
+      final entries = phaseRegimeService.getEntriesInDateRange(start, end);
+      if (entries.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('No entries between ${_formatDate(start)} and ${_formatDate(end)}'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+        return;
+      }
+      final raw = _getPhaseLabelName(phase);
+      final phaseString = raw.isEmpty ? raw : raw[0].toUpperCase() + raw.substring(1).toLowerCase();
+      final journalRepo = JournalRepository();
+      int updated = 0;
+      for (final entry in entries) {
+        final updatedEntry = entry.copyWith(
+          userPhaseOverride: phaseString,
+          isPhaseLocked: true,
+          updatedAt: DateTime.now(),
+        );
+        await journalRepo.updateJournalEntry(updatedEntry);
+        updated++;
+      }
+      if (mounted) {
+        setState(() {});
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Applied $phaseString to $updated entr${updated == 1 ? 'y' : 'ies'} (${_formatDate(start)} – ${_formatDate(end)})'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to apply phase: $e'),
             backgroundColor: Colors.red,
           ),
         );

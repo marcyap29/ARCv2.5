@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:hive/hive.dart';
 import 'package:my_app/core/models/arcform_snapshot.dart';
 import 'package:my_app/arc/ui/arcforms/arcform_mvp_implementation.dart';
@@ -13,6 +14,10 @@ import 'package:my_app/prism/atlas/rivet/rivet_provider.dart';
 /// Display this phase on startup (spin) and in the timeline phase preview.
 class UserPhaseService {
   static const String _snapshotsBoxName = 'arcform_snapshots';
+  
+  /// Notifier that fires when the user's phase changes (via quiz, manual change, or import).
+  /// UI components can listen to this to stay in sync with phase changes.
+  static final ValueNotifier<DateTime> phaseChangeNotifier = ValueNotifier<DateTime>(DateTime.now());
   
   /// Returns the phase to display everywhere (splash, timeline preview).
   /// User's explicit choice (quiz or manual "set overall phase") takes priority so it stays visible.
@@ -235,6 +240,10 @@ class UserPhaseService {
       
       await userBox.put('profile', updatedProfile);
       print('DEBUG: Force updated phase to: $newPhase');
+      
+      // Notify listeners that phase has changed (e.g. phase preview on LUMARA tab)
+      phaseChangeNotifier.value = DateTime.now();
+      
       // User determined phase: reset RIVET so it starts fresh until gate opens and ATLAS determines a new phase
       try {
         const userId = 'default_user';

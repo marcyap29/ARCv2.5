@@ -220,7 +220,7 @@ class _PhaseExplanationScreenState extends State<PhaseExplanationScreen>
                       ),
                       const SizedBox(height: 16),
                       Text(
-                        "The phase quiz helps me understand which phase you're in right now. I'll ask you five questions about where you are, what's occupying your thoughts, and what's changing. Your answers help me see the pattern you're living—not just what happened, but what it means for where you're going.",
+                        "The phase quiz identifies which phase you're in right now. I'll ask you five questions about where you are, what's occupying your thoughts, and what's changing. Your answers help identify the pattern you're in—not just what happened, but what it means for where you're going.",
                         style: bodyStyle(context).copyWith(
                           color: Colors.white.withOpacity(0.8),
                           fontSize: 16,
@@ -230,7 +230,7 @@ class _PhaseExplanationScreenState extends State<PhaseExplanationScreen>
                       ),
                       const SizedBox(height: 16),
                       Text(
-                        "This is your starting assessment. As you journal, I'll refine my understanding based on sustained patterns over time, not single entries. Your phase constellation will fill with words and insights as we talk.",
+                        "This is your starting assessment. As you journal, the analysis refines based on sustained patterns over time, not single entries. Your phase constellation will fill with words and insights as your entries accumulate.",
                         style: bodyStyle(context).copyWith(
                           color: Colors.white.withOpacity(0.8),
                           fontSize: 16,

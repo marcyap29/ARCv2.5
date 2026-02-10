@@ -29,15 +29,17 @@ class ArcOnboardingCubit extends Cubit<ArcOnboardingState> {
         next = OnboardingScreen.lumaraIntro;
         break;
       case OnboardingScreen.lumaraIntro:
-        next = OnboardingScreen.arcIntro;
+        next = OnboardingScreen.narrativeIntelligence;
         break;
       case OnboardingScreen.arcIntro:
+        // Redundant screen removed; skip to next
         next = OnboardingScreen.narrativeIntelligence;
         break;
       case OnboardingScreen.narrativeIntelligence:
-        next = OnboardingScreen.sentinelIntro;
+        next = OnboardingScreen.phaseExplanation;
         break;
       case OnboardingScreen.sentinelIntro:
+        // Screen removed; skip to phase explanation
         next = OnboardingScreen.phaseExplanation;
         break;
       case OnboardingScreen.phaseExplanation:

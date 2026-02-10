@@ -183,19 +183,19 @@ class McpPackImportService {
       // Clean up temporary directory (always extracted from ZIP)
       await mcpDir.parent.delete(recursive: true);
 
-      // Rebuild phase regimes using 10-day rolling windows for imported entries
+      // Extend phase regimes with imported entries only (preserve existing regimes; don't wipe)
       if (entriesImported > 0 && _journalRepo != null) {
         try {
-          print('🔄 Rebuilding phase regimes for imported entries...');
+          print('🔄 Extending phase regimes with imported entries...');
           final allEntries = _journalRepo!.getAllJournalEntriesSync();
           final analyticsService = AnalyticsService();
           final rivetSweepService = RivetSweepService(analyticsService);
           final phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
           await phaseRegimeService.initialize();
-          await phaseRegimeService.rebuildRegimesFromEntries(allEntries, windowDays: 10);
-          print('✅ Phase regimes rebuilt using 10-day rolling windows');
+          await phaseRegimeService.extendRegimesWithNewEntries(allEntries, windowDays: 10);
+          print('✅ Phase regimes extended');
         } catch (e) {
-          print('⚠️ Failed to rebuild phase regimes: $e');
+          print('⚠️ Failed to extend phase regimes: $e');
         }
       }
 
@@ -577,12 +577,15 @@ class McpPackImportService {
             }
           }
 
-          // Read phase fields from imported JSON (new versioned phase system)
+          // Read phase fields from imported JSON; lock if phase was predetermined so reloads don't re-infer
           final autoPhase = entryJson['autoPhase'] as String?;
           final autoPhaseConfidence = (entryJson['autoPhaseConfidence'] as num?)?.toDouble();
           final userPhaseOverride = entryJson['userPhaseOverride'] as String?;
-          final isPhaseLocked = entryJson['isPhaseLocked'] as bool? ?? false;
           final legacyPhaseTag = entryJson['legacyPhaseTag'] as String? ?? entryJson['phase'] as String?;
+          final isPhaseLocked = entryJson['isPhaseLocked'] as bool? ??
+              ((autoPhase != null && autoPhase.toString().trim().isNotEmpty) ||
+                  (userPhaseOverride != null && userPhaseOverride.toString().trim().isNotEmpty) ||
+                  (legacyPhaseTag != null && legacyPhaseTag.toString().trim().isNotEmpty));
           final importSource = entryJson['importSource'] as String? ?? 'ZIP';
           final phaseInferenceVersion = entryJson['phaseInferenceVersion'] as int?;
           final phaseMigrationStatus = entryJson['phaseMigrationStatus'] as String?;
@@ -1304,17 +1307,18 @@ class McpPackImportService {
         selectedKeywords: entry.keywords,
       );
       
-      // Update entry with phase fields
+      // Update entry with phase fields and lock so subsequent reloads/imports do not re-infer
       final updatedEntry = entry.copyWith(
         autoPhase: inferenceResult.phase,
         autoPhaseConfidence: inferenceResult.confidence,
         phaseInferenceVersion: CURRENT_PHASE_INFERENCE_VERSION,
         phaseMigrationStatus: 'DONE',
+        isPhaseLocked: true,
       );
-      
+
       // Save updated entry
       await _journalRepo!.updateJournalEntry(updatedEntry);
-      
+
       print('MCP Import: ✓ Phase inference completed for entry ${entry.id}: ${inferenceResult.phase} (confidence: ${inferenceResult.confidence.toStringAsFixed(3)})');
     } catch (e) {
       print('MCP Import: ✗ Phase inference failed for entry ${entry.id}: $e');

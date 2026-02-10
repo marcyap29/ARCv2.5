@@ -62,16 +62,18 @@ class ArcOnboardingSequenceContent extends StatelessWidget {
               screenKey = 'lumara_intro';
               break;
             case OnboardingScreen.arcIntro:
-              currentScreen = const _ArcIntroScreen();
-              screenKey = 'arc_intro';
+              // Redundant screen removed; show narrative intelligence if state ever lands here
+              currentScreen = const _NarrativeIntelligenceScreen();
+              screenKey = 'narrative_intelligence';
               break;
             case OnboardingScreen.narrativeIntelligence:
               currentScreen = const _NarrativeIntelligenceScreen();
               screenKey = 'narrative_intelligence';
               break;
             case OnboardingScreen.sentinelIntro:
-              currentScreen = const _SentinelIntroScreen();
-              screenKey = 'sentinel_intro';
+              // Screen removed; show phase explanation if state ever lands here
+              currentScreen = const PhaseExplanationScreen();
+              screenKey = 'phase_explanation';
               break;
             case OnboardingScreen.phaseExplanation:
               currentScreen = const PhaseExplanationScreen();
@@ -153,7 +155,7 @@ class _LumaraIntroScreen extends StatelessWidget {
                 const SizedBox(height: 48),
                 // Text
                 Text(
-                  "Hi, I'm LUMARA, your personal intelligence.",
+                  "Hi, I'm LUMARA.",
                   style: heading1Style(context).copyWith(
                     color: Colors.white,
                     fontSize: 24,
@@ -162,87 +164,7 @@ class _LumaraIntroScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 24),
                 Text(
-                  "I'm here to understand your narrative arc. As we talk and reflect together, I learn the patterns in your journey—not just what happened, but what it means for where you're going.",
-                  style: bodyStyle(context).copyWith(
-                    color: Colors.white.withOpacity(0.8),
-                    fontSize: 16,
-                    height: 1.6,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  "I'll help you see the story you're living.",
-                  style: bodyStyle(context).copyWith(
-                    color: Colors.white.withOpacity(0.8),
-                    fontSize: 16,
-                    height: 1.6,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 48),
-                Text(
-                  'Tap to continue',
-                  style: bodyStyle(context).copyWith(
-                    color: Colors.white.withOpacity(0.5),
-                    fontSize: 14,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Screen 3: ARC Introduction
-class _ArcIntroScreen extends StatelessWidget {
-  const _ArcIntroScreen();
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      body: GestureDetector(
-        onTap: () => context.read<ArcOnboardingCubit>().nextScreen(),
-        child: SafeArea(
-          child: _LayeredScreenContent(
-            gradientColors: [
-              kcPrimaryColor.withOpacity(0.1),
-              Colors.black,
-            ],
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                // LUMARA symbol (reduced opacity, standardized size)
-                Opacity(
-                  opacity: 0.3,
-                  child: const LumaraPulsingSymbol(size: 120),
-                ),
-                const SizedBox(height: 48),
-                Text(
-                  "Welcome to LUMARA.",
-                  style: heading1Style(context).copyWith(
-                    color: Colors.white,
-                    fontSize: 28,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 24),
-                Text(
-                  "This is where we have conversations. Share what matters. Your words stay on your device—private by design, powerful by architecture.",
-                  style: bodyStyle(context).copyWith(
-                    color: Colors.white.withOpacity(0.8),
-                    fontSize: 16,
-                    height: 1.6,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  "LUMARA learns your patterns locally, then provides insights that understand your whole story.",
+                  "Share what's on your mind. I build context from your entries over time — your patterns, your phases, the decisions you're working through. Over time, responses get more relevant to where you actually are. Not a fresh start every session. Intelligence that compounds.",
                   style: bodyStyle(context).copyWith(
                     color: Colors.white.withOpacity(0.8),
                     fontSize: 16,
@@ -287,7 +209,7 @@ class _NarrativeIntelligenceScreen extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(
-                  "LUMARA is built on something new: Narrative Intelligence.",
+                  "LUMARA runs on Narrative Intelligence — a new category beyond memory or AI assistance.",
                   style: heading1Style(context).copyWith(
                     color: Colors.white,
                     fontSize: 24,
@@ -296,7 +218,7 @@ class _NarrativeIntelligenceScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 24),
                 Text(
-                  "Not just memory. Not just AI assistance.",
+                  "It tracks who you're becoming, not just what you've done. Patterns across months - even years. Phases of development. The arc of your thinking over time.",
                   style: bodyStyle(context).copyWith(
                     color: Colors.white.withOpacity(0.8),
                     fontSize: 16,
@@ -306,82 +228,7 @@ class _NarrativeIntelligenceScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  "Intelligence that tracks *who you're becoming*, not just what you've done. That understands developmental trajectories, not disconnected moments.",
-                  style: bodyStyle(context).copyWith(
-                    color: Colors.white.withOpacity(0.8),
-                    fontSize: 16,
-                    height: 1.6,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  "Your life has an arc. Let's follow it together.",
-                  style: bodyStyle(context).copyWith(
-                    color: Colors.white.withOpacity(0.8),
-                    fontSize: 16,
-                    height: 1.6,
-                    fontStyle: FontStyle.italic,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 48),
-                Text(
-                  'Tap to continue',
-                  style: bodyStyle(context).copyWith(
-                    color: Colors.white.withOpacity(0.5),
-                    fontSize: 14,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Screen 4: SENTINEL Introduction
-class _SentinelIntroScreen extends StatelessWidget {
-  const _SentinelIntroScreen();
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      body: GestureDetector(
-        onTap: () => context.read<ArcOnboardingCubit>().nextScreen(),
-        child: SafeArea(
-          child: _LayeredScreenContent(
-            gradientColors: [
-              kcPrimaryColor.withOpacity(0.2),
-              Colors.black,
-            ],
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  "One more thing.",
-                  style: heading1Style(context).copyWith(
-                    color: Colors.white,
-                    fontSize: 24,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 24),
-                Text(
-                  "I'm designed to notice patterns in your writing—including when things might be getting harder than usual.",
-                  style: bodyStyle(context).copyWith(
-                    color: Colors.white.withOpacity(0.8),
-                    fontSize: 16,
-                    height: 1.6,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  "If I detect sustained distress, sudden intensity, or language suggesting crisis, I'll check in directly. Not to judge, but because staying silent wouldn't be right.",
+                  "That's what makes every conversation different.",
                   style: bodyStyle(context).copyWith(
                     color: Colors.white.withOpacity(0.8),
                     fontSize: 16,

@@ -499,20 +499,20 @@ class ARCXImportService {
         } else {
           print('ARCX Import: ✓ Data merged to repository');
           
-          // Rebuild phase regimes using 10-day rolling windows for imported entries
+          // Extend phase regimes with imported entries only (preserve existing regimes; don't wipe)
           if (entriesImported > 0 && _journalRepo != null) {
             try {
-              print('ARCX Import: 🔄 Rebuilding phase regimes...');
+              print('ARCX Import: 🔄 Extending phase regimes with imported entries...');
               final allEntries = _journalRepo!.getAllJournalEntriesSync();
               final analyticsService = AnalyticsService();
               final rivetSweepService = RivetSweepService(analyticsService);
               final phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
               await phaseRegimeService.initialize();
-              await phaseRegimeService.rebuildRegimesFromEntries(allEntries, windowDays: 10);
-              print('ARCX Import: ✅ Phase regimes rebuilt using 10-day rolling windows');
+              await phaseRegimeService.extendRegimesWithNewEntries(allEntries, windowDays: 10);
+              print('ARCX Import: ✅ Phase regimes extended');
             } catch (e) {
-              print('ARCX Import: ⚠️ Failed to rebuild phase regimes: $e');
-              warnings.add('Phase regime rebuild failed: $e');
+              print('ARCX Import: ⚠️ Failed to extend phase regimes: $e');
+              warnings.add('Phase regime extend failed: $e');
             }
           }
         }

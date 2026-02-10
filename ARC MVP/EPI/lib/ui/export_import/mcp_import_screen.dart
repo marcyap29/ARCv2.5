@@ -18,6 +18,7 @@ import 'package:my_app/arc/chat/chat/chat_repo_impl.dart';
 import 'package:my_app/services/phase_regime_service.dart';
 import 'package:my_app/services/rivet_sweep_service.dart';
 import 'package:my_app/services/analytics_service.dart';
+import 'package:my_app/services/user_phase_service.dart';
 import '../../utils/file_utils.dart';
 import 'package:my_app/arc/ui/timeline/timeline_cubit.dart';
 import 'package:my_app/mira/store/arcx/services/arcx_import_service_v2.dart';
@@ -214,6 +215,10 @@ class _McpImportScreenState extends State<McpImportScreen> {
       if (mounted) Navigator.of(context).pop();
       setState(() => _isImporting = false);
       if (continueResult.success) {
+        // Notify phase preview and other listeners that data has changed
+        PhaseRegimeService.regimeChangeNotifier.value = DateTime.now();
+        UserPhaseService.phaseChangeNotifier.value = DateTime.now();
+        
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
@@ -621,6 +626,10 @@ class _McpImportScreenState extends State<McpImportScreen> {
             // Don't fail the entire import if chat/favorites import fails
           }
           
+          // Notify phase preview and other listeners that data has changed
+          PhaseRegimeService.regimeChangeNotifier.value = DateTime.now();
+          UserPhaseService.phaseChangeNotifier.value = DateTime.now();
+          
           // Refresh timeline to show imported entries
           context.read<TimelineCubit>().reloadAllEntries();
           _showSuccessDialog(importResult, 
@@ -851,6 +860,10 @@ class _McpImportScreenState extends State<McpImportScreen> {
         print('🔧 DEBUG: Dismissed progress dialog');
       }
 
+      // Notify phase preview and other listeners that data has changed
+      PhaseRegimeService.regimeChangeNotifier.value = DateTime.now();
+      UserPhaseService.phaseChangeNotifier.value = DateTime.now();
+      
       // Refresh timeline
       context.read<TimelineCubit>().reloadAllEntries();
       print('🔄 DEBUG: Timeline refreshed');
@@ -1046,6 +1059,10 @@ class _McpImportScreenState extends State<McpImportScreen> {
         print('🔧 DEBUG: Dismissed progress dialog');
       }
 
+      // Notify phase preview and other listeners that data has changed
+      PhaseRegimeService.regimeChangeNotifier.value = DateTime.now();
+      UserPhaseService.phaseChangeNotifier.value = DateTime.now();
+      
       // Refresh timeline
       context.read<TimelineCubit>().reloadAllEntries();
       print('🔄 DEBUG: Timeline refreshed');

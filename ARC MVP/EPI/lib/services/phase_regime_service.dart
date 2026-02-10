@@ -1,6 +1,7 @@
 // lib/services/phase_regime_service.dart
 // Service for managing phase regimes and timeline
 
+import 'package:flutter/foundation.dart';
 import 'package:hive/hive.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/phase_models.dart';
@@ -24,6 +25,10 @@ class PhaseRegimeService {
     PhaseLabel.recovery: 'Recovery',
     PhaseLabel.breakthrough: 'Breakthrough',
   };
+  
+  /// Notifier that fires when phase regimes change (via RIVET/ATLAS, import, or manual changes).
+  /// UI components can listen to this to stay in sync with regime changes.
+  static final ValueNotifier<DateTime> regimeChangeNotifier = ValueNotifier<DateTime>(DateTime.now());
 
   // final AnalyticsService _analytics; // TODO: Use analytics
   final RivetSweepService _rivetSweep;
@@ -200,6 +205,9 @@ class PhaseRegimeService {
     }
 
     _loadPhaseIndex();
+    
+    // Notify listeners that regimes were rebuilt (e.g. phase preview on LUMARA tab)
+    regimeChangeNotifier.value = DateTime.now();
   }
 
   /// Incrementally add regimes for NEW entries only (preserves existing regimes)
@@ -310,6 +318,9 @@ class PhaseRegimeService {
     }
 
     _loadPhaseIndex();
+    
+    // Notify listeners that regimes were extended (e.g. phase preview on LUMARA tab)
+    regimeChangeNotifier.value = DateTime.now();
   }
 
 
@@ -421,6 +432,9 @@ class PhaseRegimeService {
     await _regimesBox?.put(regime.id, regime);
     _loadPhaseIndex(); // Reload phase index to ensure currentRegime is updated
     
+    // Notify listeners that regime changed (e.g. phase preview on LUMARA tab)
+    regimeChangeNotifier.value = DateTime.now();
+    
     // Trigger VEIL policy generation when new regime is created
     _triggerVeilPolicyGeneration();
     
@@ -453,6 +467,9 @@ class PhaseRegimeService {
     final updatedRegime = regime.copyWith(updatedAt: DateTime.now());
     await _regimesBox?.put(regime.id, updatedRegime);
     _loadPhaseIndex(); // Reload phase index to ensure currentRegime is updated
+    
+    // Notify listeners that regime changed (e.g. phase preview on LUMARA tab)
+    regimeChangeNotifier.value = DateTime.now();
     
     // Update hashtags if requested and label changed
     if (updateHashtags && previousLabel != null && previousLabel != regime.label) {
@@ -841,6 +858,9 @@ class PhaseRegimeService {
     await _regimesBox?.clear();
     _loadPhaseIndex();
     
+    // Notify listeners that regimes changed (e.g. phase preview on LUMARA tab)
+    regimeChangeNotifier.value = DateTime.now();
+    
         AnalyticsService.trackEvent('phase_regimes.cleared');
   }
 
@@ -932,6 +952,16 @@ class PhaseRegimeService {
   /// Count entries that would be affected by a regime change
   int countEntriesForRegime(PhaseRegime regime) {
     return _getEntriesInDateRange(regime.start, regime.end).length;
+  }
+
+  /// Get journal entries in a regime's date range (for bulk phase edit from Gantt)
+  List<JournalEntry> getEntriesForRegime(PhaseRegime regime) {
+    return _getEntriesInDateRange(regime.start, regime.end);
+  }
+
+  /// Get journal entries in an arbitrary date range (for bulk apply by dates)
+  List<JournalEntry> getEntriesInDateRange(DateTime start, DateTime? end) {
+    return _getEntriesInDateRange(start, end);
   }
 
   /// Returns the date of the latest journal entry in [start, end], or null if none.

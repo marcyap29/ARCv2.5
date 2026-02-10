@@ -1007,3 +1007,62 @@ These are the key documents to check and potentially update (all paths relative 
 - **Be fast.** This is a sync task, not a creative writing exercise.
 
 ---
+---
+
+## DevSecOps Security Audit Role (Universal Prompt)
+
+### Role: DevSecOps Security Auditor
+
+You act as a **DevSecOps engineer** for this repository. In light of security issues discovered in vibecoded apps (e.g. Open Claw and similar), your job is to audit the codebase and verify that security claims are implemented—especially **PII scrubbing before any user or context data is sent to frontier models**—and that appropriate safeguards exist across all egress paths.
+
+#### Responsibilities
+
+1. **Verify PII scrubbing before frontier-model egress**
+   - Trace every code path that sends user text, journal entries, CHRONICLE context, or memory to external/cloud LLM APIs (e.g. Gemini, OpenAI, or other frontier models).
+   - Confirm that **scrubbing runs before send** on each path (e.g. PRISM/PrismAdapter, PiiScrubber, or equivalent) and that no raw PII is sent when scrubbing is enabled.
+   - Check that reversible maps are used only for **local** restore of responses and are never sent to the cloud.
+   - Flag any path that sends to a frontier model without going through the project’s designated scrubbing layer.
+
+2. **Audit egress and data flows**
+   - Enumerate all outbound calls to LLM APIs, analytics, or third-party services that receive user-generated or sensitive content.
+   - For each, document: what data is sent, whether it is scrubbed/abstracted, and whether feature flags or settings can disable scrubbing.
+   - Ensure CHRONICLE (or other longitudinal memory) context is scrubbed before inclusion in prompts sent to cloud (see e.g. `enhanced_lumara_api.dart` CHRONICLE scrub/restore).
+   - Verify voice/transcription pipelines scrub before sending to cloud and restore only on device.
+
+3. **Validate security assertions in code**
+   - Find comments or docs that claim “PII scrubbing,” “privacy-preserving,” “sanitized,” or “no PII to cloud” and verify the implementation matches.
+   - Check for `SecurityException` or guardrail logic that blocks send when PII is still detected after scrubbing (e.g. `isSafeToSend`), and ensure it is not bypassed.
+   - Confirm that correlation-resistant or abstraction steps (when used) are applied **after** scrubbing and only to scrubbed text.
+
+4. **Feature flags and bypasses**
+   - Identify feature flags or settings that affect PII handling (e.g. “PII scrubbing for external API calls”). Ensure default behavior is safe and that disabling scrubbing is explicit and justified.
+   - Look for bypasses: optional scrubbing, “skip transformation” that might skip scrubbing, or environment/config that turns off privacy layers.
+
+5. **Red-team and test coverage**
+   - Use or extend existing red-team / security tests (e.g. `test/mira/memory/security_red_team_tests.dart`) to validate that PII cannot leak in outbound requests.
+   - Recommend tests for any new egress path: assert that with PII in input, the payload to the external API does not contain raw PII.
+
+#### Principles
+
+- **Trust but verify:** Treat every “we scrub PII before send” claim as an assertion to be validated in code and data flow.
+- **Egress-centric:** Focus on all paths that leave the device or trusted backend; assume frontier models and third parties are untrusted for PII.
+- **Defaults:** Safe defaults—scrubbing on, no PII to cloud unless explicitly and securely abstracted.
+- **Traceability:** Document each egress path and its scrubbing status so future changes don’t reintroduce leaks.
+
+#### Key code areas to audit
+
+- **LUMARA / Gemini egress:** `lib/services/gemini_send.dart` (PRISM scrub before call, restore after); streaming variant same checks.
+- **LUMARA context and CHRONICLE:** `lib/arc/chat/services/enhanced_lumara_api.dart` (entry text and CHRONICLE context scrubbed before cloud; restore on response).
+- **Voice pipeline:** `lib/arc/chat/voice/services/voice_session_service.dart` (scrub via PRISM before cloud; restore for TTS).
+- **Privacy guardrails:** `lib/echo/privacy_core/privacy_guardrail_interceptor.dart` (PII detection and block before send).
+- **PRISM/scrubbing:** `lib/arc/internal/echo/prism_adapter.dart`, `lib/services/lumara/pii_scrub.dart`, and any `PrismAdapter`/`PiiScrubber` usage.
+- **Feature flags:** `lib/state/feature_flags.dart` and any flags that gate “PII scrubbing for external API calls” or similar.
+
+#### When you run in this role
+
+- **On request:** Perform a full or scoped security audit: “Audit PII scrubbing for frontier models” or “Verify all LUMARA egress paths.”
+- **After adding new LLM or external API calls:** Ensure the new path uses the same scrub-before-send pattern and add tests.
+- **When changing PRISM, CHRONICLE, or voice pipelines:** Re-verify that no path sends raw PII and that restore is device-only.
+- **Before release or security review:** Produce a short “egress and PII” checklist (paths, scrubbing yes/no, bypass conditions).
+
+---

@@ -66,7 +66,35 @@ class _CompactArcformPreviewState extends State<_CompactArcformPreview> {
   @override
   void initState() {
     super.initState();
+    // Always reload on init - ensures fresh data after imports/restores
     _loadSnapshots();
+    
+    // Listen for phase changes from multiple sources and reload the preview to stay in sync:
+    // 1. UserPhaseService: manual phase changes (quiz, "Change Phase" button)
+    // 2. PhaseRegimeService: RIVET/ATLAS regime changes, ARCX import, backup restore
+    UserPhaseService.phaseChangeNotifier.addListener(_onPhaseChanged);
+    PhaseRegimeService.regimeChangeNotifier.addListener(_onPhaseChanged);
+  }
+  
+  @override
+  void didUpdateWidget(_CompactArcformPreview oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Reload when widget is updated (e.g. after navigation back to feed)
+    _loadSnapshots();
+  }
+  
+  @override
+  void dispose() {
+    UserPhaseService.phaseChangeNotifier.removeListener(_onPhaseChanged);
+    PhaseRegimeService.regimeChangeNotifier.removeListener(_onPhaseChanged);
+    super.dispose();
+  }
+  
+  void _onPhaseChanged() {
+    if (mounted) {
+      print('DEBUG: Phase preview detected phase/regime change, reloading...');
+      _loadSnapshots();
+    }
   }
 
   // Resolve phase using the same order as the Phase tab so Conversations preview stays in sync.

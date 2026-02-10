@@ -1,8 +1,8 @@
 # Unified Feed: LUMARA + Conversations Merge
 
-**Version:** 2.1 (Phase 2.1)  
+**Version:** 2.2 (Phase 2.2)  
 **Last Updated:** February 10, 2026  
-**Status:** Phase 2.1 complete. Behind feature flag (`USE_UNIFIED_FEED`, default off).  
+**Status:** Phase 2.2 complete. Behind feature flag (`USE_UNIFIED_FEED`, default off).  
 **Location:** `lib/arc/unified_feed/`
 
 ---
@@ -68,7 +68,7 @@ lib/arc/unified_feed/
 ├── services/
 │   ├── conversation_manager.dart       # Active conversation lifecycle + auto-save
 │   ├── auto_save_service.dart          # App lifecycle-aware save triggers
-│   ├── contextual_greeting.dart        # Time/recency-based greeting generation
+│   ├── contextual_greeting.dart        # Time/recency-based greeting generation (unused in v2.2; kept for reference)
 │   └── universal_importer_service.dart # Multi-format journal data import
 ├── utils/
 │   └── feed_helpers.dart       # Date grouping, icons, colors, text utilities
@@ -247,19 +247,11 @@ Thin wrapper that hooks into app lifecycle:
 | `resumed` | Resume auto-save |
 | `detached` / `hidden` | Emergency save |
 
-### ContextualGreetingService
+### ContextualGreetingService (deprecated in v2.2)
 
-Generates the greeting header based on:
+**Note:** As of v2.2, the `ContextualGreetingService` is no longer used by the feed. The greeting header now shows a static message: "Share what's on your mind." with a description of LUMARA's compounding intelligence. The service file is kept for reference but is not imported or instantiated.
 
-| Signal | Example Output |
-|--------|---------------|
-| Time of day | "Good morning", "Good evening", "Late night" |
-| Recency | "Picking up where we left off" (< 30 min), "Welcome back" (< 2 hr) |
-| Entry count | "Ready when you are" (0 entries) |
-| Day of week | "Happy Friday", "Fresh start to the week" |
-| Phase | "Exploring new territory" (Discovery) |
-
-Sub-greeting examples: "You have an active conversation", "3 entries today", "Last entry was yesterday"
+Previously generated the greeting header based on time of day, recency, entry count, day of week, and phase
 
 ---
 
@@ -270,11 +262,11 @@ Sub-greeting examples: "You have an active conversation", "3 entries today", "La
 The main screen. Replaces both `LumaraAssistantScreen` (chat) and `UnifiedJournalView` (timeline).
 
 **Layout — populated feed (top to bottom):**
-1. **Greeting header** — LUMARA sigil + contextual greeting + sub-greeting
+1. **Greeting header** — LUMARA sigil + static message ("Share what's on your mind.") + intelligence-compounds description
 2. **Header actions** — Select (batch delete/export), Timeline (calendar), Settings gear
 3. **Selection mode bar** — Cancel / Export (N) / Delete (N) — visible only when in selection mode
 4. **Phase Arcform preview** — `CurrentPhaseArcformPreview` widget; tap opens `PhaseAnalysisView`; refreshes on return
-5. **Phase Journey Gantt** — `_PhaseJourneyGanttCard`: Gantt-style bar showing phase regimes over time (days, phases, date range). Uses `PhaseTimelinePainter`. Refreshes with phase preview.
+5. **Phase Journey Gantt** — `_PhaseJourneyGanttCard`: Gantt-style bar showing phase regimes over time (days, phases, date range). Uses `PhaseTimelinePainter`. Tappable: navigates to `PhaseAnalysisView`; edit-phases icon button. Reloads regimes on return. Refreshes with phase preview.
 6. **Communication actions** — Chat / Reflect / Voice buttons (above "Today" section)
 7. **LUMARA observation banner** — If LUMARA has a proactive observation
 8. **Date-grouped entry cards** — Today, Yesterday, This Week, This Month, etc. with date dividers
@@ -386,7 +378,7 @@ All cards extend **BaseFeedCard**, which provides a consistent wrapper with a ph
 - **LumaraAssistantScreen**: `initialMessage` param, back arrow navigation, removed drawer and "New Chat" menu item
 - **JournalScreen cleanup**: Removed prompt notice dialog, phase-preserving profile creation
 
-### Phase 2.1 (v3.3.20, current) — Export, Gantt, paragraph rendering, Sentinel integration
+### Phase 2.1 (v3.3.20) — Export, Gantt, paragraph rendering, Sentinel integration
 
 - **Selective export**: Export selected entries as ARCX or ZIP from feed selection bar
 - **Phase Journey Gantt**: `_PhaseJourneyGanttCard` widget showing phase regimes over time (Gantt-style bar)
@@ -397,6 +389,18 @@ All cards extend **BaseFeedCard**, which provides a consistent wrapper with a ph
 - **Phase Sentinel integration**: `resolvePhaseWithSentinel()` checks Sentinel before applying RIVET/ATLAS proposals; overrides to Recovery on alert
 - **RIVET reset on user phase change**: `PhaseRegimeService.changeCurrentPhase()` and `UserPhaseService.forceUpdatePhase()` reset RIVET
 - **ARC → LUMARA branding**: All asset references updated to `LUMARA_Sigil.png`; backup filenames use `LUMARA_*` prefix
+
+### Phase 2.2 (v3.3.21, current) — Phase locking, regime notifications, bulk apply, onboarding streamline
+
+- **Phase locking**: `isPhaseLocked: true` after inference prevents re-inference on reload/import. Import services default lock when phase data exists.
+- **Regime change notifications**: `PhaseRegimeService.regimeChangeNotifier` and `UserPhaseService.phaseChangeNotifier` (`ValueNotifier<DateTime>`). Phase preview listens and auto-reloads.
+- **Extend-not-rebuild**: Timeline and import services use `extendRegimesWithNewEntries` instead of `rebuildRegimesFromEntries`, preserving existing regimes.
+- **Gantt card interactive**: Tappable card navigates to `PhaseAnalysisView`; edit-phases icon button; reloads on return.
+- **Greeting simplified**: `ContextualGreetingService` removed from feed; static "Share what's on your mind." message with intelligence-compounds description.
+- **Onboarding streamlined**: Removed `_ArcIntroScreen` and `_SentinelIntroScreen` (6 → 4 screens). Text condensed and third-person language in phase explanation.
+- **Bulk phase apply (Phase Timeline)**: "Apply phase by date range" and per-regime "Apply this phase to all entries in this period" — sets `userPhaseOverride` and `isPhaseLocked` on matching entries.
+- **Asset optimization**: `LUMARA_Sigil.png` 256KB → 42KB.
+- **Selective branding reverts**: "ARC" restored for internal analysis labels and monthly review notification.
 
 ### Phase 3 (planned) — LLM-powered conversation and advanced features
 
@@ -431,16 +435,28 @@ All cards extend **BaseFeedCard**, which provides a consistent wrapper with a ph
 | `lib/ui/journal/journal_screen.dart` | Removed prompt notice; phase-preserving profile creation |
 | `lib/ui/phase/phase_analysis_view.dart` | Auto-apply analysis; removed approval flow |
 | `lib/ui/phase/phase_timeline_view.dart` | `forceUpdatePhase` on phase change |
-| `lib/arc/ui/timeline/widgets/current_phase_arcform_preview.dart` | `onTapOverride`; profile-first phase resolution |
+| `lib/arc/ui/timeline/widgets/current_phase_arcform_preview.dart` | `onTapOverride`; profile-first phase resolution; listens to `phaseChangeNotifier`/`regimeChangeNotifier` for auto-reload |
 | `lib/arc/ui/timeline/widgets/entry_content_renderer.dart` | Paragraph rendering |
+| `lib/arc/ui/timeline/timeline_cubit.dart` | `extendRegimesWithNewEntries` replaces `rebuildRegimesFromEntries` |
+| `lib/arc/core/journal_capture_cubit.dart` | Phase backfill respects `isPhaseLocked`; locks after inference |
 | `lib/services/phase_sentinel_integration.dart` | New: Sentinel safety override for phase proposals |
+| `lib/services/phase_regime_service.dart` | `regimeChangeNotifier`; `getEntriesForRegime`; `getEntriesInDateRange` |
+| `lib/services/user_phase_service.dart` | `phaseChangeNotifier`; fires on `forceUpdatePhase` |
 | `lib/mira/store/arcx/services/arcx_export_service_v2.dart` | ARC → LUMARA backup naming; backward-compat regex |
+| `lib/mira/store/arcx/services/arcx_import_service.dart` | `extendRegimesWithNewEntries`; extend-not-rebuild |
+| `lib/mira/store/arcx/services/arcx_import_service_v2.dart` | Smart `isPhaseLocked` default; lock after inference |
+| `lib/mira/store/mcp/import/mcp_pack_import_service.dart` | `extendRegimesWithNewEntries`; smart `isPhaseLocked`; lock after inference |
+| `lib/ui/export_import/mcp_import_screen.dart` | Fires notifiers after import for phase preview refresh |
+| `lib/ui/phase/phase_timeline_view.dart` | Bulk phase apply: by date range + per-regime |
+| `lib/shared/ui/onboarding/arc_onboarding_sequence.dart` | Removed `_ArcIntroScreen`, `_SentinelIntroScreen`; condensed text |
+| `lib/shared/ui/onboarding/arc_onboarding_cubit.dart` | Flow skips removed screens |
+| `lib/shared/ui/onboarding/widgets/phase_explanation_screen.dart` | Third-person language |
 
 ---
 
 ## Related Documents
 
 - [ARCHITECTURE.md](ARCHITECTURE.md) — ARC Module → `unified_feed/` submodule
-- [FEATURES.md](FEATURES.md) — "Unified Feed (v3.3.20, feature-flagged)" section
-- [CHANGELOG.md](CHANGELOG.md) — [3.3.20] entry
+- [FEATURES.md](FEATURES.md) — "Unified Feed (v3.3.21, feature-flagged)" section
+- [CHANGELOG.md](CHANGELOG.md) — [3.3.21] entry
 - [UI_UX.md](UI_UX.md) — UI patterns and components

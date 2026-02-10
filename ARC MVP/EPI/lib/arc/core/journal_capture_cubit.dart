@@ -1381,8 +1381,9 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
       
       await _journalRepository.updateJournalEntry(updatedEntry);
       
-      // Backfill phase for entries that don't have autoPhase (e.g. legacy or missed inference)
-      if (updatedEntry.autoPhase == null || updatedEntry.autoPhase!.trim().isEmpty) {
+      // Backfill phase only for entries that don't have phase and are not locked
+      if (!updatedEntry.isPhaseLocked &&
+          (updatedEntry.autoPhase == null || updatedEntry.autoPhase!.trim().isEmpty)) {
         await _inferAndSetPhaseForEntry(updatedEntry);
       }
       
@@ -1658,9 +1659,13 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
     }
   }
 
-  /// Infer phase for entry and update entry with phase fields
+  /// Infer phase for entry and update entry with phase fields.
+  /// Once set, phase is locked (isPhaseLocked: true) so ATLAS does not randomly choose a different phase on reload/import.
   Future<void> _inferAndSetPhaseForEntry(JournalEntry entry) async {
     try {
+      if (entry.isPhaseLocked) {
+        return; // Preserve predetermined phase; do not overwrite
+      }
       // Get recent entries for context
       final allEntries = await _journalRepository.getAllJournalEntries();
       // Sort by createdAt descending and take 7 most recent
@@ -1683,13 +1688,14 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
         selectedKeywords: entry.keywords,
       );
       
-      // Update entry with phase fields
+      // Update entry with phase fields and lock so subsequent reloads/imports do not re-infer
       final updatedEntry = entry.copyWith(
         autoPhase: inferenceResult.phase,
         autoPhaseConfidence: inferenceResult.confidence,
         phaseInferenceVersion: CURRENT_PHASE_INFERENCE_VERSION,
+        isPhaseLocked: true,
       );
-      
+
       // Save updated entry
       // Verify metadata before saving
       print('DEBUG: updateEntryWithKeywords - About to save entry ${updatedEntry.id}');

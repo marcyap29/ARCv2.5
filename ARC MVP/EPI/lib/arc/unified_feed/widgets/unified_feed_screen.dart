@@ -23,7 +23,6 @@ import 'package:share_plus/share_plus.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/arc/unified_feed/models/feed_entry.dart';
 import 'package:my_app/arc/unified_feed/repositories/feed_repository.dart';
-import 'package:my_app/arc/unified_feed/services/contextual_greeting.dart';
 import 'package:my_app/arc/unified_feed/services/conversation_manager.dart';
 import 'package:my_app/arc/unified_feed/services/auto_save_service.dart';
 import 'package:my_app/arc/unified_feed/utils/feed_helpers.dart';
@@ -86,8 +85,6 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
   late FeedRepository _feedRepo;
   late ConversationManager _conversationManager;
   late AutoSaveService _autoSaveService;
-  final ContextualGreetingService _greetingService =
-      ContextualGreetingService();
 
   final ScrollController _scrollController = ScrollController();
 
@@ -546,32 +543,6 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
   }
 
   Widget _buildGreetingHeader() {
-    final now = DateTime.now();
-    DateTime? lastEntryAt;
-    int todayCount = 0;
-
-    for (final entry in _entries) {
-      if (lastEntryAt == null || entry.timestamp.isAfter(lastEntryAt)) {
-        lastEntryAt = entry.timestamp;
-      }
-      if (entry.timestamp.year == now.year &&
-          entry.timestamp.month == now.month &&
-          entry.timestamp.day == now.day) {
-        todayCount++;
-      }
-    }
-
-    final greeting = _greetingService.generateGreeting(
-      lastEntryAt: lastEntryAt,
-      entryCount: _entries.length,
-    );
-    final subGreeting = _greetingService.generateSubGreeting(
-      lastEntryAt: lastEntryAt,
-      activeConversationCount:
-          _conversationManager.hasActiveConversation ? 1 : 0,
-      todayEntryCount: todayCount,
-    );
-
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 4),
       child: Column(
@@ -602,9 +573,9 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
             ],
           ),
           const SizedBox(height: 12),
-          Text(
-            greeting,
-            style: const TextStyle(
+          const Text(
+            "Share what's on your mind.",
+            style: TextStyle(
               color: kcPrimaryTextColor,
               fontSize: 18,
               fontWeight: FontWeight.w600,
@@ -612,7 +583,7 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
           ),
           const SizedBox(height: 4),
           Text(
-            subGreeting,
+            "I build context from your entries over time — your patterns, your phases, the decisions you're working through. The longer we work together, the more relevant my responses become.",
             style: TextStyle(
               color: kcSecondaryTextColor.withOpacity(0.7),
               fontSize: 14,
@@ -1501,48 +1472,81 @@ class _PhaseJourneyGanttCardState extends State<_PhaseJourneyGanttCard> {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: kcPrimaryColor.withOpacity(0.25)),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: () async {
+            await Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const PhaseAnalysisView(),
+              ),
+            );
+            if (mounted) _loadRegimes();
+          },
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(Icons.timeline, size: 20, color: kcPrimaryColor),
-              const SizedBox(width: 8),
+              Row(
+                children: [
+                  Icon(Icons.timeline, size: 20, color: kcPrimaryColor),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Your phase journey',
+                      style: heading3Style(context).copyWith(
+                        color: kcPrimaryTextColor,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 15,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.edit_calendar, size: 20),
+                    tooltip: 'Edit phases',
+                    onPressed: () async {
+                      await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const PhaseAnalysisView(),
+                        ),
+                      );
+                      if (mounted) _loadRegimes();
+                    },
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                    style: IconButton.styleFrom(
+                      foregroundColor: kcSecondaryTextColor,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
               Text(
-                'Your phase journey',
-                style: heading3Style(context).copyWith(
-                  color: kcPrimaryTextColor,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 15,
+                'Days and phases over time',
+                style: bodyStyle(context).copyWith(
+                  color: kcSecondaryTextColor,
+                  fontSize: 12,
                 ),
               ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Text(
-            'Days and phases over time',
-            style: bodyStyle(context).copyWith(
-              color: kcSecondaryTextColor,
-              fontSize: 12,
-            ),
-          ),
-          const SizedBox(height: 12),
-          SizedBox(
-            height: 48,
-            width: double.infinity,
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: CustomPaint(
-                painter: PhaseTimelinePainter(
-                  regimes: displayRegimes,
-                  visibleStart: visibleStart,
-                  visibleEnd: visibleEnd,
-                  zoomLevel: 1.0,
-                  theme: theme,
+              const SizedBox(height: 12),
+              SizedBox(
+                height: 48,
+                width: double.infinity,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: CustomPaint(
+                    painter: PhaseTimelinePainter(
+                      regimes: displayRegimes,
+                      visibleStart: visibleStart,
+                      visibleEnd: visibleEnd,
+                      zoomLevel: 1.0,
+                      theme: theme,
+                    ),
+                  ),
                 ),
               ),
-            ),
-          ),
           const SizedBox(height: 8),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1570,7 +1574,9 @@ class _PhaseJourneyGanttCardState extends State<_PhaseJourneyGanttCard> {
               ),
             ],
           ),
-        ],
+            ],
+          ),
+        ),
       ),
     );
   }

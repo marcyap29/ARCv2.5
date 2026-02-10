@@ -424,19 +424,20 @@ class TimelineCubit extends Cubit<TimelineState> {
       // Get all entries without pagination (async to ensure Hive box opens)
       final allJournalEntries = await _journalRepository.getAllJournalEntries();
 
-      // Rebuild phase regimes from entries with a 14-day minimum per regime to align Timeline with Rivet analysis
+      // Incrementally extend phase regimes with new entries only (preserves existing regimes).
+      // Avoids wiping user/RIVET history when changing timeline filter or search.
       try {
         if (_phaseRegimeService != null) {
-          await _phaseRegimeService!.rebuildRegimesFromEntries(
+          await _phaseRegimeService!.extendRegimesWithNewEntries(
             allJournalEntries,
             windowDays: 10,
           );
           _phaseIndex = _phaseRegimeService!.phaseIndex;
         }
       } catch (e) {
-        print('Warning: Failed to rebuild phase regimes from entries: $e');
+        print('Warning: Failed to extend phase regimes from entries: $e');
       }
-      
+
       // Apply filter
       List<JournalEntry> filteredEntries = allJournalEntries;
       switch (effectiveFilter) {

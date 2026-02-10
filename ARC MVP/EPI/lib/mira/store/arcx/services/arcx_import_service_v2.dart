@@ -1777,12 +1777,16 @@ class ARCXImportServiceV2 {
       }
       
       // Read phase fields from imported JSON (new versioned phase system)
-      // Preserve phase data from newer archives, set migration status for older ones
+      // Preserve phase data from newer archives; lock if phase was predetermined by ATLAS so reloads don't re-infer.
       final autoPhase = entryJson['autoPhase'] as String?;
       final autoPhaseConfidence = (entryJson['autoPhaseConfidence'] as num?)?.toDouble();
       final userPhaseOverride = entryJson['userPhaseOverride'] as String?;
-      final isPhaseLocked = entryJson['isPhaseLocked'] as bool? ?? false;
       final legacyPhaseTag = entryJson['legacyPhaseTag'] as String? ?? entryJson['phase'] as String?;
+      // Lock phase if backup had ATLAS-determined (or user) phase so we don't randomly re-infer on subsequent reloads
+      final isPhaseLocked = entryJson['isPhaseLocked'] as bool? ??
+          ((autoPhase != null && autoPhase.toString().trim().isNotEmpty) ||
+                  (userPhaseOverride != null && userPhaseOverride.toString().trim().isNotEmpty) ||
+                  (legacyPhaseTag != null && legacyPhaseTag.toString().trim().isNotEmpty));
       final importSource = entryJson['importSource'] as String? ?? 'ARCHX';
       final phaseInferenceVersion = entryJson['phaseInferenceVersion'] as int?;
       final phaseMigrationStatus = entryJson['phaseMigrationStatus'] as String?;
@@ -2223,17 +2227,18 @@ class ARCXImportServiceV2 {
         selectedKeywords: entry.keywords,
       );
       
-      // Update entry with phase fields
+      // Update entry with phase fields and lock so subsequent reloads/imports do not re-infer
       final updatedEntry = entry.copyWith(
         autoPhase: inferenceResult.phase,
         autoPhaseConfidence: inferenceResult.confidence,
         phaseInferenceVersion: CURRENT_PHASE_INFERENCE_VERSION,
         phaseMigrationStatus: 'DONE',
+        isPhaseLocked: true,
       );
-      
+
       // Save updated entry
       await _journalRepo!.updateJournalEntry(updatedEntry);
-      
+
       print('ARCX Import V2: ✓ Phase inference completed for entry ${entry.id}: ${inferenceResult.phase} (confidence: ${inferenceResult.confidence.toStringAsFixed(3)})');
     } catch (e) {
       print('ARCX Import V2: ✗ Phase inference failed for entry ${entry.id}: $e');
