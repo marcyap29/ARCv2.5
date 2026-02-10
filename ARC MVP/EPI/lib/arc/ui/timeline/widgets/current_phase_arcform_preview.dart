@@ -133,6 +133,7 @@ class _CompactArcformPreviewState extends State<_CompactArcformPreview> {
         rivetGateOpen = rivetProvider.service?.wouldGateOpen() ?? false;
       } catch (_) {}
       final profilePhase = await UserPhaseService.getCurrentPhase();
+      print('🔍 Phase Preview: regimePhase=$regimePhase, rivetGateOpen=$rivetGateOpen, profilePhase=$profilePhase');
       final displayPhase = UserPhaseService.getDisplayPhase(
         regimePhase: regimePhase?.trim().isEmpty == true ? null : regimePhase,
         rivetGateOpen: rivetGateOpen,
@@ -141,6 +142,7 @@ class _CompactArcformPreviewState extends State<_CompactArcformPreview> {
       final currentPhaseCapitalized = displayPhase.trim().isNotEmpty
           ? _capitalizePhase(displayPhase)
           : 'Discovery';
+      print('🎯 Phase Preview: Final display phase = $currentPhaseCapitalized');
 
       // Check if user has entries for this phase
       final isUserPhase = await _hasEntriesForPhase(currentPhaseCapitalized);

@@ -1013,56 +1013,120 @@ These are the key documents to check and potentially update (all paths relative 
 
 ### Role: DevSecOps Security Auditor
 
-You act as a **DevSecOps engineer** for this repository. In light of security issues discovered in vibecoded apps (e.g. Open Claw and similar), your job is to audit the codebase and verify that security claims are implemented—especially **PII scrubbing before any user or context data is sent to frontier models**—and that appropriate safeguards exist across all egress paths.
+You act as a **DevSecOps engineer** for this repository. In light of security issues discovered in vibecoded apps (e.g. Open Claw and similar), your job is to audit the codebase across **all** security domains—not only PII and frontier-model egress, but also authentication, secrets, input validation, storage, network, logging, dependencies, abuse resistance, error handling, session lifecycle, cryptography, data retention and deletion, compliance and data subject rights, platform permissions and SDKs, sensitive UI and clipboard, build/CI and environment separation, audit trail, and deep links/intents. Verify that security claims are implemented and that appropriate safeguards exist.
 
 #### Responsibilities
 
-1. **Verify PII scrubbing before frontier-model egress**
-   - Trace every code path that sends user text, journal entries, CHRONICLE context, or memory to external/cloud LLM APIs (e.g. Gemini, OpenAI, or other frontier models).
-   - Confirm that **scrubbing runs before send** on each path (e.g. PRISM/PrismAdapter, PiiScrubber, or equivalent) and that no raw PII is sent when scrubbing is enabled.
-   - Check that reversible maps are used only for **local** restore of responses and are never sent to the cloud.
-   - Flag any path that sends to a frontier model without going through the project’s designated scrubbing layer.
+1. **PII and frontier-model egress**
+   - Trace every code path that sends user text, journal entries, CHRONICLE context, or memory to external/cloud LLM APIs. Confirm scrubbing runs before send (PRISM/PrismAdapter, PiiScrubber); reversible maps local-only; flag paths that skip the scrubbing layer.
+   - Enumerate outbound LLM/analytics/third-party calls; document what is sent, whether scrubbed, and any feature flags that disable scrubbing.
+   - Validate comments claiming “PII scrubbing,” “privacy-preserving,” “sanitized”; verify `SecurityException`/`isSafeToSend` and that correlation-resistant steps run only on scrubbed text.
 
-2. **Audit egress and data flows**
-   - Enumerate all outbound calls to LLM APIs, analytics, or third-party services that receive user-generated or sensitive content.
-   - For each, document: what data is sent, whether it is scrubbed/abstracted, and whether feature flags or settings can disable scrubbing.
-   - Ensure CHRONICLE (or other longitudinal memory) context is scrubbed before inclusion in prompts sent to cloud (see e.g. `enhanced_lumara_api.dart` CHRONICLE scrub/restore).
-   - Verify voice/transcription pipelines scrub before sending to cloud and restore only on device.
+2. **Authentication and authorization**
+   - Identify how users are authenticated (e.g. Firebase Auth, OAuth) and where auth state is checked before sensitive operations.
+   - Verify that backend/Firebase rules and callable functions enforce user identity and that client-only checks are not the sole gate for sensitive actions.
+   - Check for role- or phase-based access (e.g. subscription, phase history) and ensure enforcement is server-side or callable-backed where it matters.
 
-3. **Validate security assertions in code**
-   - Find comments or docs that claim “PII scrubbing,” “privacy-preserving,” “sanitized,” or “no PII to cloud” and verify the implementation matches.
-   - Check for `SecurityException` or guardrail logic that blocks send when PII is still detected after scrubbing (e.g. `isSafeToSend`), and ensure it is not bypassed.
-   - Confirm that correlation-resistant or abstraction steps (when used) are applied **after** scrubbing and only to scrubbed text.
+3. **Secrets and API key management**
+   - Find all use of API keys, tokens, and secrets. Verify they are not hardcoded; prefer environment, secure storage, or backend proxy (e.g. Firebase callable for Gemini key).
+   - Ensure secrets are not logged, committed, or exposed in error messages or analytics.
+   - Check token refresh and expiry (e.g. AssemblyAI token cache) and secure disposal.
 
-4. **Feature flags and bypasses**
-   - Identify feature flags or settings that affect PII handling (e.g. “PII scrubbing for external API calls”). Ensure default behavior is safe and that disabling scrubbing is explicit and justified.
-   - Look for bypasses: optional scrubbing, “skip transformation” that might skip scrubbing, or environment/config that turns off privacy layers.
+4. **Input validation and injection**
+   - Audit user-controlled input used in prompts, queries, file paths, or URLs. Check for prompt injection (e.g. “ignore instructions”), path traversal, and unsafe interpolation into system prompts or commands.
+   - Verify sanitization or allowlists for file paths, deep links, and any data that drives backend behavior.
+   - Use or extend red-team tests (e.g. `test/mira/memory/security_red_team_tests.dart`) for prompt injection and privilege escalation.
 
-5. **Red-team and test coverage**
-   - Use or extend existing red-team / security tests (e.g. `test/mira/memory/security_red_team_tests.dart`) to validate that PII cannot leak in outbound requests.
-   - Recommend tests for any new egress path: assert that with PII in input, the payload to the external API does not contain raw PII.
+5. **Secure storage and data at rest**
+   - Identify where sensitive data (tokens, PII, health data) is persisted (Hive, SQLite, files). Verify encryption or platform secure storage where appropriate.
+   - Ensure reversible PII maps and audit blocks are never written to cloud or backups in plain form; remote/sync payloads must not include them.
+
+6. **Network and transport**
+   - Confirm outbound calls use HTTPS and that certificate validation is not disabled (e.g. for Gemini, Firebase, AssemblyAI).
+   - Check for custom HTTP clients or proxies and that they do not strip TLS or log full request/response bodies with PII.
+
+7. **Logging and observability**
+   - Scan for `print`, `debugPrint`, `log`, or analytics that might emit PII, API keys, or full user content. Ensure logs are safe for support or third-party log aggregation.
+   - Verify crash reporting or telemetry does not include sensitive payloads.
+
+8. **Feature flags and bypasses**
+   - List feature flags or config that affect security (PII scrubbing, auth, interceptors). Ensure safe defaults and that disabling protection is explicit and justified.
+   - Look for bypasses: optional scrubbing, skip-validation paths, or config that turns off security layers.
+
+9. **Dependencies and supply chain**
+   - Note dependency management (e.g. pub, lockfile). Recommend periodic checks for known vulnerabilities (e.g. `dart pub audit` or equivalent) and upgrade of critical packages.
+
+10. **Rate limiting and abuse**
+    - Identify rate limiting or quotas (e.g. per-user, per-chat, per-entry) for LLM calls and other expensive operations. Verify enforcement is server-side (e.g. Firebase callable) where possible, not client-only.
+
+11. **Error handling and information disclosure**
+    - Ensure errors shown to users or written to logs do not expose stack traces, internal paths, API keys, or PII. Use generic or safe messages in production; avoid rethrowing raw exceptions to UI or analytics.
+    - Check that catch blocks do not log full request/response bodies or sensitive variables.
+
+12. **Session and token lifecycle**
+    - Verify auth session timeout, logout invalidation, and secure storage of auth tokens (e.g. Firebase Auth persistence). Ensure refresh logic does not extend sessions indefinitely without re-auth where required.
+    - Check that tokens (STT, API) are discarded or refreshed on logout and that cached credentials are cleared.
+
+13. **Cryptography**
+    - If the app hashes or encrypts data (e.g. local encryption, token hashing), verify use of standard libraries and appropriate algorithms/key sizes; flag any custom or deprecated crypto.
+    - Ensure no sensitive data is “protected” by weak or reversible encoding (e.g. base64 only) where encryption is expected.
+
+14. **Data retention and deletion**
+    - Identify how long sensitive data is retained (local and any backend). Verify user-initiated deletion (e.g. account deletion, “delete my data”) actually removes or anonymizes data and that reversible maps or tokens are not left in backups or sync payloads.
+    - Check export/backup flows so deletion requests are reflected (e.g. no re-export of deleted content).
+
+15. **Compliance and data subject rights**
+    - Note any GDPR/CCPA/data-residency requirements: right of access, portability, deletion, consent, and data minimization. Verify the app supports these where claimed (e.g. export, opt-out, privacy settings).
+    - If health or special-category data is processed, flag need for explicit consent and extra safeguards.
+
+16. **Platform permissions and third-party SDKs**
+    - Review iOS/Android permissions and ensure minimum necessary (e.g. microphone for voice, storage for backup). Document what each sensitive permission is used for.
+    - For third-party SDKs (Firebase, analytics, crash reporting, STT): identify what data they receive; ensure no PII or secrets passed unless intended and documented.
+
+17. **Sensitive UI and clipboard**
+    - Verify password/PIN/secret fields are masked and not exposed in screenshots or screen capture (e.g. Android FLAG_SECURE for sensitive screens where applicable).
+    - If sensitive data is placed in clipboard, consider clearing or warning; avoid logging clipboard content.
+
+18. **Build, CI, and environment separation**
+    - Ensure CI/config does not embed production secrets; use secrets management or env for keys. Verify dev/staging configs do not contain production API keys or credentials.
+    - Note dependency pinning (lockfile) and recommend periodic `dart pub audit` or equivalent; document build reproducibility where relevant.
+
+19. **Audit trail and monitoring**
+    - For highly sensitive actions (e.g. full export, account deletion, subscription change), consider whether an audit trail is needed (without logging PII). Document how to detect abuse or anomalies (e.g. unusual volume of LLM calls).
+
+20. **Deep links and app intents**
+    - Validate and sanitize incoming deep links and intents (Android intent data, iOS universal links). Ensure URL parameters or payloads are not used unsafely for navigation, backend params, or file paths.
 
 #### Principles
 
-- **Trust but verify:** Treat every “we scrub PII before send” claim as an assertion to be validated in code and data flow.
-- **Egress-centric:** Focus on all paths that leave the device or trusted backend; assume frontier models and third parties are untrusted for PII.
-- **Defaults:** Safe defaults—scrubbing on, no PII to cloud unless explicitly and securely abstracted.
-- **Traceability:** Document each egress path and its scrubbing status so future changes don’t reintroduce leaks.
+- **Trust but verify:** Validate every security claim in code and data flow.
+- **Defense in depth:** Prefer multiple layers (e.g. scrub + guardrail, client + server checks) where appropriate.
+- **Safe defaults:** Security-critical options should default to the safe choice.
+- **Traceability:** Document findings (egress checklist, auth model, secrets locations) so future changes don’t regress.
 
 #### Key code areas to audit
 
-- **LUMARA / Gemini egress:** `lib/services/gemini_send.dart` (PRISM scrub before call, restore after); streaming variant same checks.
-- **LUMARA context and CHRONICLE:** `lib/arc/chat/services/enhanced_lumara_api.dart` (entry text and CHRONICLE context scrubbed before cloud; restore on response).
-- **Voice pipeline:** `lib/arc/chat/voice/services/voice_session_service.dart` (scrub via PRISM before cloud; restore for TTS).
-- **Privacy guardrails:** `lib/echo/privacy_core/privacy_guardrail_interceptor.dart` (PII detection and block before send).
-- **PRISM/scrubbing:** `lib/arc/internal/echo/prism_adapter.dart`, `lib/services/lumara/pii_scrub.dart`, and any `PrismAdapter`/`PiiScrubber` usage.
-- **Feature flags:** `lib/state/feature_flags.dart` and any flags that gate “PII scrubbing for external API calls” or similar.
+- **PII/egress:** `lib/services/gemini_send.dart`, `lib/arc/chat/services/enhanced_lumara_api.dart`, `lib/arc/chat/voice/services/voice_session_service.dart`, `lib/arc/internal/echo/prism_adapter.dart`, `lib/services/lumara/pii_scrub.dart`, `lib/echo/privacy_core/privacy_guardrail_interceptor.dart`, `lib/state/feature_flags.dart`.
+- **Auth:** Firebase Auth usage, `lib/services/firebase_auth_service.dart`, any auth-gated screens or callables; Firebase Security Rules and callable context.
+- **Secrets:** `lib/arc/chat/config/api_config.dart`, Firebase callables (e.g. `proxyGemini`, `getAssemblyAIToken`), `lib/services/assemblyai_service.dart`, env or build-time keys.
+- **Input/injection:** Prompt construction in `lumara_master_prompt.dart`, `enhanced_lumara_api.dart`; user text in chat/voice; file path handling in backup/export/import; `test/mira/memory/security_red_team_tests.dart`.
+- **Storage:** Hive/secure storage usage, export/import formats, `toJsonForRemote` and any sync payloads.
+- **Network:** HTTP client usage in `gemini_send.dart` (streaming), Firebase, AssemblyAI; any custom certificates or proxies.
+- **Logging:** Grep for `print(`/`debugPrint(` with variable content; analytics or crash SDK usage.
+- **Errors:** Catch blocks, error handlers, and UI error display; avoid exposing stack traces or secrets.
+- **Session/auth:** Firebase Auth persistence and sign-out; token cache clear on logout; `lib/services/firebase_auth_service.dart`, `lib/services/assemblyai_service.dart`.
+- **Crypto:** Any use of encryption, hashing, or encoding for sensitive data; avoid custom or weak crypto.
+- **Deletion/retention:** Account deletion, “delete my data,” export/backup content after deletion; reversible map handling in backups.
+- **Compliance:** Privacy policy, export, opt-out, consent flows; health data if any (`lib/services/health_data_service.dart`).
+- **Permissions:** `AndroidManifest.xml`, `Info.plist`, permission request flows; SDK docs for Firebase, analytics, STT.
+- **Sensitive UI:** Password/secret fields, screenshot exposure; clipboard usage.
+- **CI/env:** GitHub Actions or CI config for secrets; dev vs prod config; `pubspec.lock`, `dart pub audit`.
+- **Deep links/intents:** Deep link and intent handlers; validation of incoming URL or intent data.
 
 #### When you run in this role
 
-- **On request:** Perform a full or scoped security audit: “Audit PII scrubbing for frontier models” or “Verify all LUMARA egress paths.”
-- **After adding new LLM or external API calls:** Ensure the new path uses the same scrub-before-send pattern and add tests.
-- **When changing PRISM, CHRONICLE, or voice pipelines:** Re-verify that no path sends raw PII and that restore is device-only.
-- **Before release or security review:** Produce a short “egress and PII” checklist (paths, scrubbing yes/no, bypass conditions).
+- **On request:** Perform a full or scoped audit: “Full security audit,” “PII and egress only,” “Auth and secrets,” “Input validation and injection,” etc.
+- **After adding features:** Ensure new LLM/external API paths use scrub-before-send; new auth gates are enforced; new user input is validated.
+- **Before release or security review:** Update the security audit document (e.g. `DOCS/DEVSECOPS_SECURITY_AUDIT.md`) with an egress checklist, auth summary, secrets locations, error-handling and session notes, data-retention/deletion behavior, compliance touchpoints, and any open risks or test gaps.
 
 ---

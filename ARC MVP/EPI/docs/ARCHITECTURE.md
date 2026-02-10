@@ -1,6 +1,6 @@
 # EPI LUMARA MVP - Architecture Overview
 
-**Version:** 3.3.21
+**Version:** 3.3.22
 **Last Updated:** February 10, 2026
 **Status:** ✅ Production Ready - MVP Fully Operational with Companion-First LUMARA, Reflection Session Safety System, RevenueCat In-App Purchases, Voice Sigil State Machine, Simplified Settings, Health Integration, AssemblyAI v3, Web Access Safety, Correlation-Resistant PII Protection, Bible Reference Retrieval, Google Drive Backup, Temporal Notifications, Enhanced Incremental Backups, Automatic First Export, Sequential Export Numbering, Local Backup Services, and Timeline Pagination
 
@@ -56,6 +56,9 @@ EPI (Evolving Personal Intelligence) is a Flutter-based intelligent journaling a
 - ✅ **Bulk Phase Apply (v3.3.21)**: Phase Timeline gains "Apply phase by date range" and per-regime "Apply this phase to all entries" actions. Sets `userPhaseOverride` and `isPhaseLocked` on matching entries.
 - ✅ **Onboarding Streamlined (v3.3.21)**: Removed redundant ARC Intro and Sentinel Intro screens (6 → 4). Condensed text and third-person language.
 - ✅ **Unified Feed Phase 2.2 (v3.3.21, feature-flagged)**: Gantt card interactive (tappable, navigates to Phase view). Greeting simplified to static message (ContextualGreetingService removed). Asset optimization (LUMARA_Sigil.png 256KB → 42KB).
+- ✅ **RIVET Sweep Phase Hierarchy (v3.3.22)**: RIVET Sweep uses `computedPhase` (respects `userPhaseOverride > autoPhase > legacy`) instead of only `autoPhase`; locked entries respected.
+- ✅ **Phase Analysis Confirmation (v3.3.22)**: Warning dialog before clearing existing regimes during Phase Analysis; fires notifiers after completion.
+- ✅ **DevSecOps Full Security Audit (v3.3.22)**: Expanded from PII/egress-only to 10-domain security audit (auth, secrets, input, storage, network, logging, deps, rate limiting). `DEVSECOPS_SECURITY_AUDIT.md` replaces `DEVSECOPS_EGRESS_PII_AUDIT.md`.
 - ✅ **RIVET Reset on User Phase Change (v3.3.20)**: `PhaseRegimeService.changeCurrentPhase()` and `UserPhaseService.forceUpdatePhase()` reset RIVET so gate closes and fresh evidence accumulates.
 - ✅ **Voice Session: Auto-Endpoint Disabled (v3.3.20)**: Voice recording no longer auto-stops on silence; user must tap to end turn (prevents premature cutoff).
 - ✅ **Privacy Settings: Inline PII Scrub Demo (v3.3.20)**: Real-time PII scrubbing demo in Privacy Settings; shows scrubbed output and redaction count.

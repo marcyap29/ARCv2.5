@@ -1,6 +1,6 @@
 # EPI MVP - Comprehensive Features Guide
 
-**Version:** 3.3.21
+**Version:** 3.3.22
 **Last Updated:** February 10, 2026
 
 ---
@@ -490,6 +490,8 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 - **Auto Phase Analysis after Import (v3.3.19)**: `runAutoPhaseAnalysis()` runs headless RIVET Sweep after ARCX/ZIP import, creates regimes, shows snackbar notification
 - **Phase Priority (v3.3.19)**: User's explicit phase (quiz or manual "set overall phase") takes priority over RIVET/regime. `UserPhaseService.getDisplayPhase()` reordered.
 - **Phase Analysis Settings (v3.3.19)**: Dedicated `PhaseAnalysisSettingsView` accessible from main Settings menu. Phase statistics cards.
+- **Phase Analysis Confirmation (v3.3.22)**: Warning dialog before clearing existing regimes during Phase Analysis. Explains that all existing phase regimes will be cleared and re-analyzed. User must confirm "Clear & Re-analyze". Fires regime/phase change notifiers after completion so phase preview refreshes.
+- **RIVET Sweep Phase Hierarchy (v3.3.22)**: RIVET Sweep uses `computedPhase` (respects `userPhaseOverride > autoPhase > legacyPhaseTag`) instead of only `autoPhase`. Locked entries are respected and not re-inferred.
 - **Phase Sentinel Safety Integration (v3.3.20)**: `resolvePhaseWithSentinel()` checks Sentinel (crisis/cluster alert) before applying RIVET/ATLAS proposals. Overrides segment to Recovery when alert triggers. Applied in auto phase analysis, Phase Analysis view, and Phase Analysis Settings.
 - **RIVET Reset on User Phase Change (v3.3.20)**: `PhaseRegimeService.changeCurrentPhase()` and `UserPhaseService.forceUpdatePhase()` reset RIVET so gate closes and fresh evidence accumulates before ATLAS can determine a new phase.
 - **Phase Locking (v3.3.21)**: `isPhaseLocked: true` after inference prevents ATLAS from re-inferring phases on reload/import. Import services default lock when phase data exists. Bulk apply also locks entries.
@@ -1016,5 +1018,5 @@ All core features are production-ready and fully operational:
 
 **Features Guide Status:** ✅ Complete
 **Last Updated:** February 10, 2026
-**Version:** 3.3.21
+**Version:** 3.3.22
 

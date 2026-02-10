@@ -1,6 +1,6 @@
 # EPI LUMARA MVP - Changelog
 
-**Version:** 3.3.21
+**Version:** 3.3.22
 **Last Updated:** February 10, 2026
 
 ---
@@ -14,6 +14,60 @@ This changelog has been split into parts for easier navigation:
 | **[CHANGELOG_part1.md](CHANGELOG_part1.md)** | Dec 2025 | v2.1.43 - v2.1.87 (Current) |
 | **[CHANGELOG_part2.md](CHANGELOG_part2.md)** | Nov 2025 | v2.1.28 - v2.1.42 |
 | **[CHANGELOG_part3.md](CHANGELOG_part3.md)** | Jan-Oct 2025 | v2.0.0 - v2.1.27 & Earlier |
+
+---
+
+## [3.3.22] - February 10, 2026 (working changes)
+
+### RIVET Sweep: Phase Hierarchy Fix
+
+RIVET Sweep now uses `entry.computedPhase` (which respects `userPhaseOverride > autoPhase > legacyPhaseTag`) instead of only checking `autoPhase`. This ensures that entries with manual phase overrides, imported phases, or locked phases are not re-inferred during RIVET Sweep analysis.
+
+- Locked entries (`isPhaseLocked: true`) are explicitly noted in debug logging but their phase is respected.
+- Only entries with no existing phase data are inferred from content via `PhaseRecommender`.
+
+#### Files modified
+- `lib/services/rivet_sweep_service.dart` — `computedPhase` priority hierarchy; locked-entry handling
+
+---
+
+### Phase Analysis: Confirmation Dialog Before Clear
+
+Running Phase Analysis now shows a warning dialog when existing phase regimes are present, explaining that all regimes will be cleared and re-analyzed. The user must confirm "Clear & Re-analyze" before proceeding. Previously, regimes were silently cleared.
+
+After analysis completes, both `PhaseRegimeService.regimeChangeNotifier` and `UserPhaseService.phaseChangeNotifier` are fired so the phase preview on the LUMARA tab refreshes immediately.
+
+#### Files modified
+- `lib/ui/phase/phase_analysis_view.dart` — Confirmation dialog; fires notifiers after analysis
+
+---
+
+### Phase Preview: Debug Logging
+
+Added two debug print statements to `CurrentPhaseArcformPreview` for tracing phase resolution (regime phase, RIVET gate status, profile phase, and final display phase). Aids in diagnosing phase display mismatches.
+
+#### Files modified
+- `lib/arc/ui/timeline/widgets/current_phase_arcform_preview.dart` — Debug prints
+
+---
+
+### DevSecOps: Security Audit Scope Expanded
+
+**claude.md:** The DevSecOps Security Audit Role has been expanded from PII/egress-only (5 responsibilities) to a full 10-domain security audit covering: PII/egress, authentication, secrets, input validation, storage, network, logging, feature flags, dependencies, and rate limiting. Key code areas updated to match.
+
+**DEVSECOPS_EGRESS_PII_AUDIT.md → DEVSECOPS_SECURITY_AUDIT.md:**
+- Old narrow PII egress audit document deleted.
+- New `DEVSECOPS_SECURITY_AUDIT.md` created with 10 sections, an egress checklist table (12 paths verified), and structured "To audit" guidance for each security domain.
+
+#### Files deleted
+- `DOCS/DEVSECOPS_EGRESS_PII_AUDIT.md`
+
+#### Files added
+- `DOCS/DEVSECOPS_SECURITY_AUDIT.md`
+
+#### Files modified
+- `docs/claude.md` — DevSecOps role expanded to 10 security domains
+- `DOCS/CONFIGURATION_MANAGEMENT.md` — Audit doc renamed in inventory
 
 ---
 

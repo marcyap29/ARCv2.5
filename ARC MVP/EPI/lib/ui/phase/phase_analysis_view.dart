@@ -342,9 +342,57 @@ class _PhaseAnalysisViewState extends State<PhaseAnalysisView> {
         return;
       }
 
-      // Run analysis
+      // Check if regimes already exist and warn user
       final analyticsService = AnalyticsService();
       final rivetSweepService = RivetSweepService(analyticsService);
+      final phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
+      await phaseRegimeService.initialize();
+      
+      final existingRegimes = phaseRegimeService.phaseIndex.allRegimes;
+      if (existingRegimes.isNotEmpty) {
+        // Show warning dialog
+        final shouldContinue = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Row(
+              children: [
+                Icon(Icons.warning, color: Colors.orange),
+                SizedBox(width: 8),
+                Expanded(child: Text('Existing Phase Data Found')),
+              ],
+            ),
+            content: Text(
+              'You have ${existingRegimes.length} existing phase regime(s).\n\n'
+              'Running Phase Analysis will:\n'
+              '• Clear all existing phase regimes\n'
+              '• Re-analyze all entries from scratch\n'
+              '• Create new phase regimes based on current analysis\n\n'
+              'This may result in different phases than what you currently have.\n\n'
+              'Are you sure you want to continue?',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
+                child: const Text('Clear & Re-analyze'),
+              ),
+            ],
+          ),
+        );
+        
+        if (shouldContinue != true) {
+          if (mounted) {
+            setState(() => _isLoading = false);
+          }
+          return;
+        }
+      }
+
+      // Run analysis
       final result = await rivetSweepService.analyzeEntries(journalEntries);
 
       // Auto-apply all approvable proposals (no wizard needed)
@@ -363,11 +411,7 @@ class _PhaseAnalysisViewState extends State<PhaseAnalysisView> {
         return;
       }
 
-      // Create phase regimes from proposals
-      final phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
-      await phaseRegimeService.initialize();
-
-      // Clear existing regimes before applying new analysis
+      // Clear existing regimes before applying new analysis (user already confirmed in dialog above)
       await phaseRegimeService.clearAllRegimes();
       await phaseRegimeService.initialize();
 
@@ -401,6 +445,10 @@ class _PhaseAnalysisViewState extends State<PhaseAnalysisView> {
       // Backfill + save analysis date
       await _backfillDiscoveryRegime(phaseRegimeService, journalRepo);
       await phaseRegimeService.setLastAnalysisDate(DateTime.now());
+
+      // Notify phase preview and other listeners that phases changed
+      PhaseRegimeService.regimeChangeNotifier.value = DateTime.now();
+      UserPhaseService.phaseChangeNotifier.value = DateTime.now();
 
       // Show results summary
       if (mounted) {

@@ -447,21 +447,35 @@ class RivetSweepService {
     int totalConsecutive = 0;
 
     for (final entry in entries) {
-      // Use PhaseRecommender for phase detection (hashtags are no longer used for inference)
-      // If entry has autoPhase, use that; otherwise use PhaseRecommender
+      // Use existing phase data with proper priority hierarchy:
+      // 1. userPhaseOverride (manual user choice or imported phase) - especially if isPhaseLocked
+      // 2. autoPhase (model-detected phase)
+      // 3. Infer from content using PhaseRecommender
       String? recommendedPhaseStr;
       
-      if (entry.autoPhase != null) {
-        recommendedPhaseStr = entry.autoPhase;
-        print('DEBUG: RIVET Sweep - Entry ${entry.id} has autoPhase: $recommendedPhaseStr');
+      // Use computedPhase which respects the proper hierarchy (userPhaseOverride > autoPhase > legacy)
+      final existingPhase = entry.computedPhase;
+      
+      if (existingPhase != null && existingPhase.trim().isNotEmpty) {
+        // Entry already has a phase (manual, imported, or previously detected)
+        // Respect it, especially if isPhaseLocked
+        recommendedPhaseStr = existingPhase;
+        if (entry.isPhaseLocked) {
+          print('DEBUG: RIVET Sweep - Entry ${entry.id} has LOCKED phase: $recommendedPhaseStr (will not override)');
+        } else if (entry.userPhaseOverride != null) {
+          print('DEBUG: RIVET Sweep - Entry ${entry.id} has userPhaseOverride: $recommendedPhaseStr (respecting user choice)');
+        } else {
+          print('DEBUG: RIVET Sweep - Entry ${entry.id} has existing phase: $recommendedPhaseStr');
+        }
       } else {
-        // Use PhaseRecommender for phase detection
+        // No existing phase data - infer from content using PhaseRecommender
         recommendedPhaseStr = PhaseRecommender.recommend(
           emotion: entry.emotion ?? '',
           reason: entry.emotionReason ?? '',
           text: entry.content,
           selectedKeywords: entry.keywords,
         );
+        print('DEBUG: RIVET Sweep - Entry ${entry.id} inferring phase from content: $recommendedPhaseStr');
       }
       
       // Convert string to PhaseLabel enum

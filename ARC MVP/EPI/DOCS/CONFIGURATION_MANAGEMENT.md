@@ -38,12 +38,12 @@ Prompt/role definitions: **Documentation & Configuration Management Role** in [c
 
 | Document | Location | Last Reviewed | Status | Notes |
 |----------|----------|---------------|--------|-------|
-| ARCHITECTURE.md | `/DOCS/ARCHITECTURE.md` | 2026-02-10 | ✅ Synced | v3.3.21 - Phase locking, regime notifications, bulk apply, onboarding streamline, Unified Feed 2.2 |
-| CHANGELOG.md | `/DOCS/CHANGELOG.md` | 2026-02-10 | ✅ Synced | v3.3.21 - Last Updated Feb 10 |
+| ARCHITECTURE.md | `/DOCS/ARCHITECTURE.md` | 2026-02-10 | ✅ Synced | v3.3.22 - RIVET phase hierarchy, analysis confirmation, DevSecOps full audit |
+| CHANGELOG.md | `/DOCS/CHANGELOG.md` | 2026-02-10 | ✅ Synced | v3.3.22 - Last Updated Feb 10 |
 | PROMPT_REFERENCES.md | `/DOCS/PROMPT_REFERENCES.md` | 2026-02-07 | ✅ Current | v1.8.0 - Document scope and sources; prompt catalog |
 | PROMPT_TRACKER.md | `/DOCS/PROMPT_TRACKER.md` | 2026-02-07 | ✅ Synced | v1.0.0 - Prompt change tracking; links to PROMPT_REFERENCES |
 | bug_tracker.md | `/DOCS/bugtracker/bug_tracker.md` | 2026-02-08 | ✅ Synced | v3.2.2 - 29 records; How to use; Recent code changes |
-| FEATURES.md | `/DOCS/FEATURES.md` | 2026-02-10 | ✅ Synced | v3.3.21 - Phase locking, bulk apply, Unified Feed 2.2 |
+| FEATURES.md | `/DOCS/FEATURES.md` | 2026-02-10 | ✅ Synced | v3.3.22 - RIVET phase hierarchy, analysis confirmation, DevSecOps |
 | README.md | `/DOCS/README.md` | 2026-02-07 | ✅ Synced | Key docs table with purpose and when to read |
 | claude.md | `/DOCS/claude.md` | 2026-02-10 | ✅ Synced | Git-backup-docsync role + new DevSecOps Security Audit Role (PII egress auditing) |
 | backend.md | `/DOCS/backend.md` | 2026-02-07 | ✅ Synced | v3.2 - Firebase, Stripe; RevenueCat see revenuecat/ |
@@ -81,13 +81,27 @@ Prompt/role definitions: **Documentation & Configuration Management Role** in [c
 | NARRATIVE_INTELLIGENCE.md | DOCS/ | Narrative intelligence |
 | PAYMENTS_CLARIFICATION.md | DOCS/ | Stripe vs RevenueCat; web vs in-app |
 | UNIFIED_FEED.md | DOCS/ | Unified Feed v2.2: phase locking, regime notifications, bulk apply, interactive Gantt, static greeting, onboarding |
-| DEVSECOPS_EGRESS_PII_AUDIT.md | DOCS/ | DevSecOps egress + PII audit report |
+| DEVSECOPS_SECURITY_AUDIT.md | DOCS/ | DevSecOps full security audit (PII/egress, auth, secrets, input, storage, network, logging, deps, rate limit) |
 | revenuecat/README.md | DOCS/revenuecat/ | RevenueCat (in-app) doc index |
 | revenuecat/REVENUECAT_INTEGRATION.md | DOCS/revenuecat/ | RevenueCat integration guide |
 
 ---
 
 ## Change Tracking Log
+
+### 2026-02-10 - RIVET Phase Hierarchy, Analysis Confirmation, DevSecOps Expanded (v3.3.22)
+
+**Action:** RIVET Sweep now uses `computedPhase` (userPhaseOverride > autoPhase > legacy) instead of only `autoPhase`, so imported/locked/manual phases are respected during analysis. Phase Analysis now shows a confirmation dialog before clearing existing regimes. Phase preview fires notifiers after analysis. DevSecOps Security Audit Role expanded from PII/egress-only to 10-domain full security audit. `DEVSECOPS_EGRESS_PII_AUDIT.md` replaced by `DEVSECOPS_SECURITY_AUDIT.md`. Phase preview gains debug logging. 6 files changed (1 deleted, 1 added).
+
+**Doc updates:**
+- **CHANGELOG.md:** New [3.3.22] section — RIVET phase hierarchy, analysis confirmation, phase preview debug, DevSecOps expanded.
+- **ARCHITECTURE.md:** v3.3.22; key achievements for RIVET hierarchy, analysis confirmation, DevSecOps.
+- **FEATURES.md:** v3.3.22; Phase Analysis confirmation and RIVET hierarchy in Phase Analysis section.
+- **CONFIGURATION_MANAGEMENT.md:** Inventory dates, version sync, this entry.
+
+**Status:** ✅ All docs updated.
+
+---
 
 ### 2026-02-10 - Phase Locking, Regime Notifications, Bulk Apply, Onboarding Streamline, Unified Feed 2.2 (v3.3.21)
 
@@ -581,8 +595,8 @@ Prompt/role definitions: **Documentation & Configuration Management Role** in [c
 | Component | Documented Version | Code Version | Status | Notes |
 |-----------|-------------------|--------------|--------|-------|
 | Application | 1.0.0+1 | 1.0.0+1 (pubspec.yaml) | ✅ Synced | - |
-| Architecture | 3.3.21 | 3.3.21 (ARCHITECTURE.md) | ✅ Synced | Updated Feb 10, 2026 |
-| Changelog | 3.3.21 | 3.3.21 (CHANGELOG.md) | ✅ Synced | Updated Feb 10, 2026 |
+| Architecture | 3.3.22 | 3.3.22 (ARCHITECTURE.md) | ✅ Synced | Updated Feb 10, 2026 |
+| Changelog | 3.3.22 | 3.3.22 (CHANGELOG.md) | ✅ Synced | Updated Feb 10, 2026 |
 | Bug Tracker | 3.2.2 | 3.2.2 (bug_tracker.md) | ✅ Synced | Matches main branch |
 | Prompt References | 1.8.0 | 1.8.0 (PROMPT_REFERENCES.md) | ✅ Synced | Last updated: Jan 31, 2026 |
 | Prompt Tracker | 1.0.0 | 1.0.0 (PROMPT_TRACKER.md) | ✅ Synced | Configuration tracking only |
