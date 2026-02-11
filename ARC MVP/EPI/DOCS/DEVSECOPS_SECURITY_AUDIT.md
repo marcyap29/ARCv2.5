@@ -1,7 +1,7 @@
 # DevSecOps Security Audit
 
-**Date:** 2026-02-09  
-**Scope:** Full security audit — PII/egress, authentication, secrets, input validation, storage, network, logging, dependencies, rate limiting.  
+**Date:** 2026-02-09 (audit run)  
+**Scope:** Full security audit — all 20 domains (PII/egress, auth, secrets, input, storage, network, logging, flags, dependencies, rate limit, errors, session, crypto, retention, compliance, permissions, sensitive UI, build/CI, audit trail, deep links).  
 **Reference:** `DOCS/claude.md` — DevSecOps Security Audit Role (Universal Prompt).
 
 ---
@@ -40,18 +40,21 @@
 
 ## 2. Authentication & Authorization
 
-- **To audit:** Identify Firebase Auth usage, where `currentUser` or ID token is checked before sensitive operations (e.g. subscription, phase history, export). Verify backend/callables enforce identity; document any client-only gates that protect sensitive actions.
-- **Key areas:** `lib/services/firebase_auth_service.dart`, auth-gated screens, Firebase callable context (e.g. `proxyGemini`, subscription), Firebase Security Rules and Firestore rules.
-- **Phase/subscription access:** `lib/services/phase_history_access_control.dart`, `lib/services/subscription_service.dart` — confirm enforcement is server-side or callable-backed where required.
+- **Verified:** Firebase Auth is the identity provider. `FirebaseAuthService` (`lib/services/firebase_auth_service.dart`) provides `currentUser`, `getIdToken(forceRefresh)`, `signOut`, and token refresh listener. Sensitive screens (LUMARA, subscription, chronicle, home) use `currentUser`/`uid` for gating.
+- **Backend enforcement:** Firebase callables **require auth** — in `functions/index.js`, `proxyGemini`, `getAssemblyAIToken`, `getUserSubscription`, `createCheckoutSession`, and others check `if (!request.auth)` and throw `HttpsError("unauthenticated", ...)`. UID and email are taken from `request.auth`; no client-only gate for these operations.
+- **Phase/subscription access:** Subscription tier and AssemblyAI eligibility are determined server-side (getUserSubscription, getAssemblyAIToken). Phase history and export use `currentUser?.uid` on client; any backend that serves per-user data should also validate auth (callables do).
+- **To audit:** Firestore Security Rules (if used for user data) and any REST endpoints; ensure no sensitive action is protected only by client checks.
 
 ---
 
 ## 3. Secrets & API Key Management
 
-- **Gemini API key:** Not sent from client; `gemini_send.dart` uses Firebase `proxyGemini` callable — key held on backend. Streaming path uses `LumaraAPIConfig` (runtime config); ensure key is not logged or committed.
-- **AssemblyAI:** Token via Firebase callable `getAssemblyAIToken`; `lib/services/assemblyai_service.dart` caches with expiry; verify token not logged or exposed in errors.
-- **Other:** `lib/arc/chat/config/api_config.dart` — API keys for providers; confirm storage (e.g. secure/preferences) and no print of keys. Env/build-time keys (e.g. `GEMINI_API_KEY` in guardrail) only where necessary and never in repo.
-- **To audit:** Grep for hardcoded keys, `String.fromEnvironment` usage, and any log/print of tokens or keys.
+- **Gemini API key:** Not sent from client for main path; `gemini_send.dart` uses Firebase `proxyGemini`; key is in Firebase secrets (`GEMINI_API_KEY`). Streaming path uses `LumaraAPIConfig`; `gemini_send` logs only `apiKey.isNotEmpty`, not the key itself.
+- **Backend secrets:** `functions/index.js` uses `defineSecret` for `GEMINI_API_KEY`, `ASSEMBLYAI_API_KEY`, `STRIPE_*`; keys not in repo.
+- **AssemblyAI:** Token via callable `getAssemblyAIToken` (auth required); `lib/services/assemblyai_service.dart` caches with expiry. **Finding:** `assemblyai_provider.dart` logs token length and substring (`_token.substring(0, 10)`); reduce or remove in production.
+- **API config:** `lib/arc/chat/config/api_config.dart` uses masked key in debug (`$maskedKey`); no raw key in logs. Storage is runtime/preferences; confirm no commit of saved keys.
+- **WisprFlow:** Logs URI and auth message with `replaceAll(_config.apiKey, '***')` — key redacted in logs.
+- **To audit:** Ensure no token substring or raw key in production logs; review `subscription_management_view` token preview (length + substring) for production build.
 
 ---
 
@@ -67,25 +70,27 @@
 ## 5. Secure Storage & Data at Rest
 
 - **Reversible PII maps:** Never persisted to cloud or backups; `toJsonForRemote` excludes them; local only.
-- **Sensitive persistence:** Hive, SQLite, or file-based storage for tokens, health data, journal — verify use of platform secure storage or encryption where appropriate (e.g. Flutter secure storage for tokens if any).
-- **Export/backup:** Exported content may include user text; ensure exports are device/user-scoped and not exposed to other users or services unintentionally.
-- **To audit:** List all persistent stores; confirm no reversible maps or API keys in plain text in export/sync payloads.
+- **Secure storage in use:** `flutter_secure_storage` (pubspec) used in `lib/prism/processors/crypto/enhanced_encryption.dart`, `at_rest_encryption.dart`, and `lib/arc/core/private_notes_storage.dart`; iOS Keychain/Secure Enclave via `ARCXCrypto.swift` for device-bound keys. Sensitive keys and private notes use platform secure storage.
+- **Export/backup:** Exported content may include user text; exports are device/user-scoped. ARCX export supports password-based encryption; reversible maps not included in remote/sync payloads.
+- **To audit:** Full inventory of Hive/SharedPreferences keys that hold tokens or PII; ensure no reversible map or API key in export/sync formats.
 
 ---
 
 ## 6. Network & Transport
 
-- **HTTPS:** Firebase, Gemini (generativelanguage.googleapis.com), AssemblyAI, OpenAI — confirm all outbound use HTTPS. No custom client that disables certificate validation unless documented and justified.
-- **gemini_send stream:** Uses `HttpClient` with `postUrl(uri)`; default TLS behavior — verify no badHttpClientCertificate or similar.
-- **To audit:** Grep for `badCertificateCallback`, `HttpClient`, and any proxy/certificate overrides.
+- **Verified:** No `badCertificateCallback`, `HttpOverrides`, or `allowBadCertificates` found in the repo. Default TLS/certificate validation is used.
+- **gemini_send stream:** Uses `HttpClient.postUrl(uri)` with HTTPS URI; no certificate override.
+- **Firebase / callables:** Use HTTPS. AssemblyAI and other SDKs use their own clients; assume HTTPS by default.
+- **To audit:** Periodically confirm new HTTP client usage does not disable certificate validation.
 
 ---
 
 ## 7. Logging & Observability
 
-- **Risk:** `print`/`debugPrint` used for debugging (e.g. gemini_send, LUMARA, voice) — may include lengths, flags, or redacted counts; ensure no full user content or PII in logs.
-- **To audit:** Grep for `print(` and `debugPrint(` with variable content; ensure no API keys, tokens, or raw PII. Analytics/crash SDK — verify no sensitive payloads attached.
-- **Recommendation:** Prefer structured logging with severity and avoid logging request/response bodies; keep PII and tokens out of log messages.
+- **Finding — PII in logs:** Several files log user identifiers or tokens: `firebase_auth_service.dart` and `subscription_service.dart` log email and UID in debugPrint; `subscription_management_view.dart` logs email and token length/preview; `unified_transcription_service.dart` logs currentUser email. These are acceptable for debug but **should be disabled or masked in production** (e.g. kReleaseMode or log level).
+- **Token/keys:** API key is not logged raw; WisprFlow redacts key with `'***'`. AssemblyAI provider logs token substring — reduce for production. api_config uses masked key.
+- **Sentry:** Commented out in pubspec (`# sentry_flutter`); when enabled, ensure no PII or full request/response in breadcrumbs or context.
+- **Recommendation:** Use release-mode guards or log levels to avoid logging email/UID/token in production; avoid logging request/response bodies.
 
 ---
 
@@ -106,26 +111,33 @@
 
 ## 10. Rate Limiting & Abuse
 
-- **Existing:** `gemini_send` accepts `entryId` and `chatId` for per-entry and per-chat usage limits; backend (Firebase callable) can enforce quotas.
-- **To audit:** Confirm Firebase `proxyGemini` (and other callables) enforce rate limits or subscription checks server-side; document client-side vs server-side enforcement for LLM and other expensive operations.
+- **Client:** `gemini_send` passes `entryId` and `chatId` to `proxyGemini` for per-entry and per-chat usage tracking; backend can enforce quotas.
+- **Backend:** `getUserSubscription` returns `dailyLumaraLimit` (e.g. 50 for free) and `lumaraThrottled`/`phaseHistoryRestricted`; enforcement of these limits is in app/callable logic. `proxyGemini` itself does not implement rate limiting in the audited snippet — it only checks auth.
+- **To audit:** Implement or confirm server-side rate limit/throttle in `proxyGemini` (or a wrapper) for free-tier users; document where limits are enforced (client vs callable vs Firestore rules).
 
 ---
 
 ## 11. Error Handling & Information Disclosure
 
-- **To audit:** Ensure catch blocks and error UI do not expose stack traces, internal paths, API keys, or PII. Grep for `catch`, `rethrow`, and error display; verify production-safe messages. Avoid logging full request/response or sensitive variables in exceptions.
+- **Backend:** `proxyGemini` catch rethrows `HttpsError("internal", error.message)` — backend may expose generic error message to client; avoid including stack traces or secrets in `error.message`.
+- **Client:** Widespread use of `catch (e)` and `rethrow` (e.g. rivet_sweep_service, phase_analysis_view, mcp_import_screen). Error display to users should show generic/safe messages, not `e.toString()` which can contain stack traces or paths.
+- **To audit:** Audit UI error paths (SnackBar, AlertDialog) to ensure they do not show raw exception; ensure no catch block logs full request/response or PII.
 
 ---
 
 ## 12. Session & Token Lifecycle
 
-- **To audit:** Firebase Auth session timeout and persistence; logout flow and token invalidation. AssemblyAI (and any other) token cache cleared on logout. Verify refresh logic and that cached credentials are not left in memory or storage after sign-out.
+- **Verified:** `FirebaseAuthService.signOut()` (and force sign-out path): calls `GoogleSignIn.signOut()`, `auth.signOut()`, `SubscriptionService.instance.clearCache()`, and `AssemblyAIService.instance.clearCache()`. Token caches are cleared on logout.
+- **Token refresh:** ID token refresh listener (`idTokenChanges`) and `refreshTokenIfNeeded()`; tokens refreshed for callables via `getIdToken(forceRefresh)`.
+- **Dispose:** `_idTokenSubscription` cancelled in `dispose()` to avoid leaks.
+- **To audit:** Confirm no other token or credential caches (e.g. LumaraAPIConfig saved keys) that persist after sign-out; consider clearing on logout if they are user-scoped.
 
 ---
 
 ## 13. Cryptography
 
-- **To audit:** Any use of encryption, hashing, or encoding for sensitive data. Prefer standard libraries (e.g. PointyCastle, crypto); flag custom or deprecated algorithms. Ensure no “security” that is only base64 or weak encoding.
+- **Verified:** `crypto` and `cryptography` packages in pubspec; `lib/prism/processors/crypto/` and `lib/arc/core/private_notes_storage.dart` use `FlutterSecureStorage` (Keychain/Keystore). Native `ARCXCrypto.swift` uses Secure Enclave when available, fallback to Keychain; AES/key handling is device-bound. ARCX export supports password-based encryption. No custom or weak crypto observed; standard platform and Dart libraries used.
+- **To audit:** If any new crypto is added, use standard libs and document algorithm/key size; avoid base64-only “encryption.”
 
 ---
 
@@ -143,7 +155,9 @@
 
 ## 16. Platform Permissions & Third-Party SDKs
 
-- **To audit:** iOS/Android permissions (manifest/plist) — minimum necessary; document purpose of each sensitive permission. Third-party SDKs (Firebase, analytics, crash, STT): what data they receive; ensure no unintended PII or secrets.
+- **Android:** `android/app/src/main/AndroidManifest.xml` — no explicit RECORD_AUDIO, READ_EXTERNAL_STORAGE, etc. in the base manifest; LAUNCHER and PROCESS_TEXT (for share). Permissions may be added by plugins (e.g. speech_to_text, record, image_picker, health). Document plugin-added permissions and ensure minimum necessary.
+- **Third-party:** Firebase (auth, Firestore, callables) — receives auth UID/email on server; client sends scrubbed payloads to proxyGemini. AssemblyAI receives audio via backend/token flow. Sentry commented out. No analytics SDK found in pubspec that would receive PII; ensure any added SDK does not get raw PII.
+- **To audit:** Review iOS Info.plist and plugin-generated permissions; document each sensitive permission and its feature.
 
 ---
 
@@ -155,7 +169,9 @@
 
 ## 18. Build, CI & Environment Separation
 
-- **To audit:** CI config (e.g. GitHub Actions) — no production secrets in repo; use secrets management. Dev/staging vs prod configs — no prod keys in dev. Lockfile and `dart pub audit`; build reproducibility.
+- **Secrets:** Production API keys live in Firebase secrets (functions) and client-side in LumaraAPIConfig (user-configured); no hardcoded prod keys in repo. `String.fromEnvironment('GEMINI_API_KEY')` used only in echo guardrail (optional path).
+- **Lockfile:** `pubspec.lock` present; dependencies pinned for reproducibility.
+- **To audit:** Run `dart pub audit` periodically; if CI exists (e.g. GitHub Actions), ensure secrets are in CI secrets manager, not in repo. Verify dev/staging Firebase project or config does not use prod keys.
 
 ---
 
@@ -167,11 +183,19 @@
 
 ## 20. Deep Links & App Intents
 
-- **To audit:** Deep link and intent handlers; validate and sanitize URL parameters and intent data before use for navigation, backend params, or file paths. Prevent injection or unintended behavior from malicious links.
+- **Current use:** “Deeplink” in codebase refers to **internal** app navigation (e.g. `patterns://` in insight cards; `deeplinkAnchor` for in-app routing). No external deep-link or intent handler was found (no `getInitialLink`/`uriLink` in lib). Android manifest has no custom intent-filter for external URLs.
+- **To audit:** If external deep links or intents are added, validate and sanitize URL/intent data before use for navigation or backend params; use allowlist for schemes/hosts.
 
 ---
 
 ## Summary
 
 - **PII/egress:** Implemented and verified; all frontier-model paths scrub before send; reversible maps local-only; test gap: automated egress PII payload test.
-- **Other domains:** Sections 2–20 provide structure and key areas; complete each on next full audit run. Update this document when adding features or before release/security review.
+- **Auth:** Backend callables enforce `request.auth`; signOut clears subscription and AssemblyAI caches; token refresh and dispose in place.
+- **Secrets:** Gemini key in Firebase secrets; AssemblyAI via callable; API config masks keys in logs. Finding: token substring and email/UID in debug logs — mask or disable in production.
+- **Storage/crypto:** Flutter secure storage and Keychain/Secure Enclave used for sensitive data; no reversible maps in cloud/backup.
+- **Network:** No certificate validation disabled found.
+- **Session:** Logout clears token caches; ID token refresh and subscription cleanup verified.
+- **Rate limiting:** Client passes entryId/chatId; backend returns tier/limits; proxyGemini does not yet enforce rate limit in code — recommend adding or documenting where enforced.
+- **Deep links:** Internal only (patterns://); no external handler found.
+- **Remaining:** Sections 4, 14, 15, 17, 19 remain “to audit” for next run (input validation detail, data retention/deletion flows, compliance touchpoints, sensitive UI/clipboard, audit trail). Update this document when adding features or before release/security review.

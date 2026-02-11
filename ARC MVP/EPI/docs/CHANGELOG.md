@@ -1,7 +1,7 @@
 # EPI LUMARA MVP - Changelog
 
-**Version:** 3.3.22
-**Last Updated:** February 10, 2026
+**Version:** 3.3.23
+**Last Updated:** February 11, 2026
 
 ---
 
@@ -14,6 +14,219 @@ This changelog has been split into parts for easier navigation:
 | **[CHANGELOG_part1.md](CHANGELOG_part1.md)** | Dec 2025 | v2.1.43 - v2.1.87 (Current) |
 | **[CHANGELOG_part2.md](CHANGELOG_part2.md)** | Nov 2025 | v2.1.28 - v2.1.42 |
 | **[CHANGELOG_part3.md](CHANGELOG_part3.md)** | Jan-Oct 2025 | v2.0.0 - v2.1.27 & Earlier |
+
+---
+
+## [3.3.23] - February 11, 2026 (working changes)
+
+### CHRONICLE Speed-Tiered Context System
+
+New `ResponseSpeed` enum (`instant`, `fast`, `normal`, `deep`) maps engagement modes and voice status to latency targets, ensuring CHRONICLE context is built at the appropriate speed for each use case.
+
+**ResponseSpeed (new enum in `query_plan.dart`):**
+- `instant` (<1s): Mini-context only (50–100 tokens) — used by explore mode and voice.
+- `fast` (<10s): Single-layer compressed (~2k tokens) — used by integrate and reflect modes.
+- `normal` (<30s): Multi-layer context (~8–10k tokens) — default for legacy text queries.
+- `deep` (30–60s): Full context for synthesis — used when >2 layers selected.
+
+**ChronicleQueryRouter (mode-aware routing):**
+- Accepts `EngagementMode` and `isVoice` parameters.
+- `explore` or `isVoice` → instant speed, no CHRONICLE layers (rawEntry plan).
+- `integrate` → fast speed, yearly layer only, drill-down enabled.
+- `reflect` → fast speed, single layer (monthly or yearly inferred from query keywords and intent).
+- Legacy (no mode) → classify intent via LLM, then normal/deep based on layer count.
+- New `_selectLayersForMode()` and `_inferReflectLayer()` methods.
+
+**ChronicleContextBuilder (speed-tiered building):**
+- `instant` → calls `buildMiniContext()` for first layer only.
+- `fast` → new `_buildSingleLayerContext()` loads one layer and compresses via `_compressForSpeed()` (~2k token target).
+- `normal` / `deep` → existing multi-layer `_buildMultiLayerContext()`.
+- `_compressForSpeed()` preserves headings and bullet points, truncates paragraph bodies to first sentence, adds "[Additional details available on request]" when token estimate exceeds target.
+- All tiers use `ChronicleContextCache` for reads and writes (except deep mode).
+
+**EnhancedLumaraApi integration:**
+- Passes `mode` and `isVoice` to query router.
+- Uses `ChronicleContextCache.instance` for context builder.
+- Voice always gets mini-context even when plan is rawEntry (falls back to current-month monthly layer).
+- Logs speed target alongside layer count.
+
+#### Files added
+- `lib/chronicle/query/chronicle_context_cache.dart` — Singleton in-memory TTL cache (30min, max 50)
+
+#### Files modified
+- `lib/chronicle/models/query_plan.dart` — `ResponseSpeed` enum; `speedTarget` field on `QueryPlan`
+- `lib/chronicle/query/query_router.dart` — Mode-aware routing; `_selectLayersForMode`, `_inferReflectLayer`
+- `lib/chronicle/query/context_builder.dart` — Speed-tiered building; cache integration; `_buildSingleLayerContext`, `_compressForSpeed`
+- `lib/arc/chat/services/enhanced_lumara_api.dart` — Passes `mode`/`isVoice` to router; cache integration; voice mini-context fallback
+
+---
+
+### CHRONICLE Context Cache
+
+New singleton `ChronicleContextCache` provides in-memory caching of built CHRONICLE contexts to speed up repeated queries on the same period.
+
+- **TTL:** 30 minutes per entry.
+- **Max entries:** 50 (LRU eviction of oldest on overflow).
+- **Key:** `userId:layers:period`.
+- **Invalidation:** `JournalRepository.saveJournalEntry()` invalidates cache for the entry's month and year periods so subsequent reflections see fresh content.
+
+#### Files added
+- `lib/chronicle/query/chronicle_context_cache.dart`
+
+#### Files modified
+- `lib/arc/internal/mira/journal_repository.dart` — Invalidates cache on save (monthly + yearly periods)
+- `lib/chronicle/query/context_builder.dart` — Accepts optional cache; reads/writes cache (except deep mode)
+- `lib/arc/chat/services/enhanced_lumara_api.dart` — Passes `ChronicleContextCache.instance` to context builder
+
+---
+
+### Streaming LUMARA Responses
+
+LUMARA reflections now stream to the UI in real-time as chunks arrive from the Gemini API, providing immediate visual feedback instead of waiting for the full response.
+
+**EnhancedLumaraApi:**
+- New `onStreamChunk` callback parameter. When set, uses `geminiSendStream` for token-by-token streaming.
+- Falls back to non-streaming `geminiSend` if stream is unavailable (e.g., Firebase proxy without direct API key).
+- On fallback, emits the full response as a single chunk.
+
+**ReflectionHandler:**
+- Passes `onStreamChunk` through to `EnhancedLumaraApi` in both entryId and no-entryId paths.
+
+**JournalScreen:**
+- `onStreamChunk` callback updates the LUMARA inline block content in real-time via `setState`.
+- Accumulated `StringBuffer` holds partial response; block content updates on each chunk.
+- Loading message shows "Streaming..." while chunks arrive.
+
+#### Files modified
+- `lib/arc/chat/services/enhanced_lumara_api.dart` — `onStreamChunk` parameter; streaming/fallback logic
+- `lib/arc/chat/services/reflection_handler.dart` — Passes `onStreamChunk` to API
+- `lib/ui/journal/journal_screen.dart` — Real-time streaming UI for LUMARA inline blocks
+
+---
+
+### Unified Feed: Scroll-to-Top/Bottom Navigation
+
+Direction-aware scroll navigation buttons appear in the feed when scrolling, providing quick navigation similar to ChatGPT/Claude.
+
+- **Scrolling down** (and not near bottom): "Jump to bottom" pill button appears centered at bottom.
+- **Scrolling up** (and not near top): "Jump to top" pill button appears centered at bottom.
+- **Threshold-based**: Only appears after 150px from edges and when total scroll extent exceeds 400px.
+- **Animated**: 200ms opacity animation. Pill design with icon + text, primary color accent, shadow, rounded corners.
+- **`_scrollToTop()` / `_scrollToBottom()`**: 400ms animated scroll with `easeOut` curve.
+
+#### Files modified
+- `lib/arc/unified_feed/widgets/unified_feed_screen.dart` — Scroll state tracking, direction detection, overlay buttons, `_scrollToTop`/`_scrollToBottom`
+
+---
+
+### Feed Content Display Improvements
+
+Several refinements to how entry content is displayed in feed cards and the expanded entry view.
+
+**FeedEntry.preview:**
+- Strips `## Summary\n\n...\n\n---\n\n` prefix from content before computing preview text, so card previews show actual body content instead of summary headers.
+
+**FeedRepository timestamp:**
+- Uses `entry.createdAt` instead of `entry.updatedAt` for feed timestamp. Entries now sort by original creation date rather than last edit date.
+
+**FeedHelpers.contentWithoutPhaseHashtags:**
+- Preserves newlines when stripping phase hashtags instead of collapsing all whitespace to single spaces. Paragraph structure is maintained in display content.
+
+**ExpandedEntryView paragraph rendering:**
+- `---` lines become visual `Divider` widgets (matches edit mode appearance).
+- Markdown headers (`#` lines) are skipped in display (structural, not display content).
+- Single newlines within paragraphs preserved as line breaks (previously collapsed).
+- Line height increased from 1.5 to 1.6.
+- Summary section only shown when meaningfully different from body (60% overlap detection prevents redundant display).
+
+**ReflectionCard preview:**
+- Collapses newlines in preview text to single spaces for compact single-line card display.
+
+#### Files modified
+- `lib/arc/unified_feed/models/feed_entry.dart` — `_summaryPrefix` regex; strip summary from preview
+- `lib/arc/unified_feed/repositories/feed_repository.dart` — `createdAt` instead of `updatedAt` for timestamp
+- `lib/arc/unified_feed/utils/feed_helpers.dart` — Preserve newlines in hashtag stripping
+- `lib/arc/unified_feed/widgets/expanded_entry_view.dart` — Divider for `---`, skip headers, preserve newlines, summary overlap detection
+- `lib/arc/unified_feed/widgets/feed_entry_cards/reflection_card.dart` — Collapse newlines in preview
+
+---
+
+### Phase Display: Regime Phase Without RIVET Gate
+
+`UserPhaseService.getDisplayPhase()` now shows the regime phase even when the RIVET gate is closed. Previously, regime phase was only displayed when `rivetGateOpen == true`, which meant imported or RIVET-detected phases were invisible until the gate opened. Now, any existing regime phase is trusted and displayed, with the user's explicit profile phase still taking priority.
+
+#### Files modified
+- `lib/services/user_phase_service.dart` — `getDisplayPhase()` shows regime phase regardless of RIVET gate status
+
+---
+
+### Phase Timeline: Bottom Sheet Phase Change Dialog
+
+The "Change Current Phase" dialog has been redesigned from a basic `AlertDialog` to a polished modal bottom sheet.
+
+- Phase list shows colored circle indicators, phase names, and highlights the current phase with a "Current" `Chip`.
+- Current phase is non-tappable (prevents no-op selection).
+- Non-current phases have forward arrow icon.
+- Descriptive subtitle: "Your current phase will end today and the new one begins now."
+- No redundant confirmation dialog after selection — phase changes immediately.
+- Fires `PhaseRegimeService.regimeChangeNotifier` and `UserPhaseService.phaseChangeNotifier` after change so phase preview and Gantt card refresh instantly.
+
+#### Files modified
+- `lib/ui/phase/phase_timeline_view.dart` — Bottom sheet dialog, notifier firing, removed redundant confirmation
+
+---
+
+### Phase Analysis: Direct Timeline Navigation
+
+Tapping the Gantt card or edit-phases button in the feed now navigates directly to the editable Phase Timeline view instead of the Phase Analysis overview.
+
+**PhaseAnalysisView:**
+- New `initialView` parameter. When set to `'timeline'`, the view opens directly on the timeline tab.
+
+**Gantt card & edit button:**
+- Both now navigate to `PhaseAnalysisView(initialView: 'timeline')`.
+
+#### Files modified
+- `lib/ui/phase/phase_analysis_view.dart` — `initialView` parameter; set `_selectedView` in `initState`
+- `lib/arc/unified_feed/widgets/unified_feed_screen.dart` — Gantt card and edit button pass `initialView: 'timeline'`
+
+---
+
+### Gantt Card & Phase Preview: Auto-Refresh on Change
+
+`_PhaseJourneyGanttCard` now listens to both `PhaseRegimeService.regimeChangeNotifier` and `UserPhaseService.phaseChangeNotifier` and auto-reloads when a change is detected — matching the behavior of `CurrentPhaseArcformPreview`. Listeners are properly disposed.
+
+Additional notification improvements:
+- `HomeView.initState()` fires both notifiers on app startup (via `addPostFrameCallback`) to ensure phase preview is fresh on launch.
+- `App._AppState` fires both notifiers after ARCX import completes.
+- `UnifiedFeedScreen` pull-to-refresh fires both notifiers.
+- `SimplifiedArcformView3D` fires both notifiers after a phase change in the 3D view.
+
+#### Files modified
+- `lib/arc/unified_feed/widgets/unified_feed_screen.dart` — Gantt card listens to notifiers; pull-to-refresh fires notifiers
+- `lib/shared/ui/home/home_view.dart` — Fires notifiers on startup
+- `lib/app/app.dart` — Fires notifiers after ARCX import
+- `lib/ui/phase/simplified_arcform_view_3d.dart` — Fires notifiers after phase change
+
+---
+
+### DevSecOps Security Audit: Verified Findings
+
+The security audit document has been updated from "to audit" stubs to verified findings across multiple domains.
+
+**Verified (previously "to audit"):**
+- **Auth (§2):** Firebase callables enforce `request.auth`; backend checks `if (!request.auth)` and throws `unauthenticated`. UID/email from `request.auth`, no client-only gate for sensitive operations.
+- **Secrets (§3):** Gemini key in Firebase secrets (`defineSecret`); WisprFlow redacts key in logs; `api_config.dart` uses masked key. **Finding:** `assemblyai_provider.dart` logs token substring — reduce in production.
+- **Storage (§5):** `flutter_secure_storage` in use for encryption keys; iOS Keychain/Secure Enclave via `ARCXCrypto.swift`; no reversible maps in cloud/backup.
+- **Network (§6):** No `badCertificateCallback`, `HttpOverrides`, or `allowBadCertificates` found.
+- **Logging (§7):** Email/UID in debug logs (`firebase_auth_service`, `subscription_service`). Token substring logged. Sentry commented out. **Recommendation:** Use release-mode guards.
+- **Rate limiting (§10):** Client passes entryId/chatId; backend returns tier/limits. `proxyGemini` does not enforce rate limit in code — recommend adding.
+- **Deep links (§20):** Internal only (`patterns://` for in-app routing). No external handler found.
+
+**Summary expanded** with verified findings and remaining audit items (§4 input validation, §14 retention, §15 compliance, §17 sensitive UI, §19 audit trail).
+
+#### Files modified
+- `DOCS/DEVSECOPS_SECURITY_AUDIT.md` — Verified findings for auth, secrets, storage, network, logging, rate limiting, deep links; expanded summary
 
 ---
 

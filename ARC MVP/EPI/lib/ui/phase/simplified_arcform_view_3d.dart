@@ -1165,6 +1165,10 @@ class _SimplifiedArcformView3DState extends State<SimplifiedArcformView3D> {
       final capitalized = phaseName.trim().isEmpty ? phaseName : phaseName[0].toUpperCase() + phaseName.substring(1).toLowerCase();
       await UserPhaseService.forceUpdatePhase(capitalized);
 
+      // Notify phase preview and Gantt card to refresh immediately (no exit/reenter needed)
+      PhaseRegimeService.regimeChangeNotifier.value = DateTime.now();
+      UserPhaseService.phaseChangeNotifier.value = DateTime.now();
+
       // Refresh the snapshots
       _loadSnapshots();
 

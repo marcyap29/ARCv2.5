@@ -1400,6 +1400,19 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
         }
       }
 
+      final streamBuffer = StringBuffer();
+      void onStreamChunk(String chunk) {
+        streamBuffer.write(chunk);
+        if (mounted && blockIndex < _entryState.blocks.length) {
+          setState(() {
+            _entryState.blocks[blockIndex] = _entryState.blocks[blockIndex].copyWith(
+              content: streamBuffer.toString(),
+            );
+            _lumaraLoadingMessages[blockIndex] = 'Streaming...';
+          });
+        }
+      }
+
       final handler = await _getReflectionHandler();
       final response = await handler.handleReflectionRequest(
         userQuery: userQuery,
@@ -1408,6 +1421,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
         sessionId: _currentReflectionSessionId,
         options: options,
         onProgress: onProgressMsg,
+        onStreamChunk: onStreamChunk,
       );
 
       if (response.isPaused) {

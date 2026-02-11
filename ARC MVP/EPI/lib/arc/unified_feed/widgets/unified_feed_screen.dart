@@ -53,6 +53,7 @@ import 'package:my_app/mira/store/mcp/export/mcp_pack_export_service.dart';
 import 'package:my_app/services/analytics_service.dart';
 import 'package:my_app/services/rivet_sweep_service.dart';
 import 'package:my_app/services/phase_regime_service.dart';
+import 'package:my_app/services/user_phase_service.dart';
 import 'package:my_app/services/export_history_service.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -92,6 +93,11 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
   bool _isLoading = true;
   bool _isLoadingMore = false;
   String? _errorMessage;
+  
+  // Scroll-to-top/bottom button state
+  bool _showScrollToBottom = false;
+  bool _showScrollToTop = false;
+  double _lastScrollOffset = 0;
 
   /// If non-null, the feed is showing entries from a specific date
   DateTime? _currentViewingDate;
@@ -203,6 +209,59 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
         !_isLoadingMore) {
       _loadOlderEntries();
     }
+    
+    // Update scroll button visibility based on position and direction
+    final offset = _scrollController.offset;
+    final maxExtent = _scrollController.position.maxScrollExtent;
+    final scrollingDown = offset > _lastScrollOffset;
+    final scrollingUp = offset < _lastScrollOffset;
+    
+    // Thresholds: only show after meaningful scroll (150px from edges)
+    const threshold = 150.0;
+    final nearTop = offset < threshold;
+    final nearBottom = offset > maxExtent - threshold;
+    
+    bool newShowBottom = false;
+    bool newShowTop = false;
+    
+    if (scrollingDown && !nearBottom && maxExtent > 400) {
+      // Scrolling down and not near bottom → show "jump to bottom"
+      newShowBottom = true;
+    } else if (scrollingUp && !nearTop && maxExtent > 400) {
+      // Scrolling up and not near top → show "jump to top"
+      newShowTop = true;
+    }
+    
+    if (newShowBottom != _showScrollToBottom || newShowTop != _showScrollToTop) {
+      setState(() {
+        _showScrollToBottom = newShowBottom;
+        _showScrollToTop = newShowTop;
+      });
+    }
+    
+    _lastScrollOffset = offset;
+  }
+  
+  void _scrollToTop() {
+    _scrollController.animateTo(
+      0,
+      duration: const Duration(milliseconds: 400),
+      curve: Curves.easeOut,
+    );
+    setState(() {
+      _showScrollToTop = false;
+    });
+  }
+  
+  void _scrollToBottom() {
+    _scrollController.animateTo(
+      _scrollController.position.maxScrollExtent,
+      duration: const Duration(milliseconds: 400),
+      curve: Curves.easeOut,
+    );
+    setState(() {
+      _showScrollToBottom = false;
+    });
   }
 
   Future<void> _loadOlderEntries() async {
@@ -362,13 +421,73 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
         backgroundColor: kcBackgroundColor,
         body: Column(
         children: [
-          // Feed content
+          // Feed content with scroll-to-top/bottom overlay
           Expanded(
-            child: _isLoading
-                ? _buildLoadingState()
-                : _errorMessage != null
-                    ? _buildErrorState()
-                    : _buildFeedContent(),
+            child: Stack(
+              children: [
+                _isLoading
+                    ? _buildLoadingState()
+                    : _errorMessage != null
+                        ? _buildErrorState()
+                        : _buildFeedContent(),
+                // Scroll-to-top / scroll-to-bottom button (centered bottom, like ChatGPT/Claude)
+                if (_showScrollToBottom || _showScrollToTop)
+                  Positioned(
+                    bottom: 16,
+                    left: 0,
+                    right: 0,
+                    child: Center(
+                      child: AnimatedOpacity(
+                        opacity: (_showScrollToBottom || _showScrollToTop) ? 1.0 : 0.0,
+                        duration: const Duration(milliseconds: 200),
+                        child: Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(24),
+                            onTap: _showScrollToBottom ? _scrollToBottom : _scrollToTop,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                              decoration: BoxDecoration(
+                                color: kcSurfaceColor,
+                                borderRadius: BorderRadius.circular(24),
+                                border: Border.all(color: kcPrimaryColor.withOpacity(0.3)),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.25),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    _showScrollToBottom
+                                        ? Icons.keyboard_arrow_down
+                                        : Icons.keyboard_arrow_up,
+                                    color: kcPrimaryColor,
+                                    size: 20,
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    _showScrollToBottom ? 'Jump to bottom' : 'Jump to top',
+                                    style: TextStyle(
+                                      color: kcPrimaryColor,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
           ),
 
         ],
@@ -430,7 +549,12 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
     final grouped = FeedHelpers.groupByDate(_entries);
 
     return RefreshIndicator(
-      onRefresh: () => _feedRepo.refresh(),
+      onRefresh: () async {
+        await _feedRepo.refresh();
+        // Notify phase preview and Gantt to refresh after pull-to-refresh
+        PhaseRegimeService.regimeChangeNotifier.value = DateTime.now();
+        UserPhaseService.phaseChangeNotifier.value = DateTime.now();
+      },
       color: kcPrimaryColor,
       backgroundColor: kcSurfaceColor,
       child: CustomScrollView(
@@ -1404,6 +1528,24 @@ class _PhaseJourneyGanttCardState extends State<_PhaseJourneyGanttCard> {
   void initState() {
     super.initState();
     _loadRegimes();
+    
+    // Listen for phase/regime changes and reload
+    PhaseRegimeService.regimeChangeNotifier.addListener(_onRegimeChanged);
+    UserPhaseService.phaseChangeNotifier.addListener(_onRegimeChanged);
+  }
+  
+  @override
+  void dispose() {
+    PhaseRegimeService.regimeChangeNotifier.removeListener(_onRegimeChanged);
+    UserPhaseService.phaseChangeNotifier.removeListener(_onRegimeChanged);
+    super.dispose();
+  }
+  
+  void _onRegimeChanged() {
+    if (mounted) {
+      print('DEBUG: Phase Journey Gantt detected phase/regime change, reloading...');
+      _loadRegimes();
+    }
   }
 
   /// Display end for the most recent regime (last entry date in range) so the Gantt tracks to the last entries.
@@ -1477,10 +1619,11 @@ class _PhaseJourneyGanttCardState extends State<_PhaseJourneyGanttCard> {
         child: InkWell(
           borderRadius: BorderRadius.circular(12),
           onTap: () async {
+            // Go directly to editable PhaseTimelineView (via PhaseAnalysisView's Timeline tab)
             await Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => const PhaseAnalysisView(),
+                builder: (context) => const PhaseAnalysisView(initialView: 'timeline'),
               ),
             );
             if (mounted) _loadRegimes();
@@ -1506,10 +1649,11 @@ class _PhaseJourneyGanttCardState extends State<_PhaseJourneyGanttCard> {
                     icon: const Icon(Icons.edit_calendar, size: 20),
                     tooltip: 'Edit phases',
                     onPressed: () async {
+                      // Edit button also goes to editable timeline
                       await Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => const PhaseAnalysisView(),
+                          builder: (context) => const PhaseAnalysisView(initialView: 'timeline'),
                         ),
                       );
                       if (mounted) _loadRegimes();

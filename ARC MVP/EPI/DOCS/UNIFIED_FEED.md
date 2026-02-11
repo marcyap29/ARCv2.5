@@ -1,8 +1,8 @@
 # Unified Feed: LUMARA + Conversations Merge
 
-**Version:** 2.2 (Phase 2.2)  
-**Last Updated:** February 10, 2026  
-**Status:** Phase 2.2 complete. Behind feature flag (`USE_UNIFIED_FEED`, default off).  
+**Version:** 2.3 (Phase 2.3)  
+**Last Updated:** February 11, 2026  
+**Status:** Phase 2.3 complete. Behind feature flag (`USE_UNIFIED_FEED`, default off).  
 **Location:** `lib/arc/unified_feed/`
 
 ---
@@ -266,7 +266,7 @@ The main screen. Replaces both `LumaraAssistantScreen` (chat) and `UnifiedJourna
 2. **Header actions** — Select (batch delete/export), Timeline (calendar), Settings gear
 3. **Selection mode bar** — Cancel / Export (N) / Delete (N) — visible only when in selection mode
 4. **Phase Arcform preview** — `CurrentPhaseArcformPreview` widget; tap opens `PhaseAnalysisView`; refreshes on return
-5. **Phase Journey Gantt** — `_PhaseJourneyGanttCard`: Gantt-style bar showing phase regimes over time (days, phases, date range). Uses `PhaseTimelinePainter`. Tappable: navigates to `PhaseAnalysisView`; edit-phases icon button. Reloads regimes on return. Refreshes with phase preview.
+5. **Phase Journey Gantt** — `_PhaseJourneyGanttCard`: Gantt-style bar showing phase regimes over time (days, phases, date range). Uses `PhaseTimelinePainter`. Tappable: navigates directly to editable timeline (`PhaseAnalysisView(initialView: 'timeline')`); edit-phases icon button. Auto-refreshes on phase/regime change (listens to `regimeChangeNotifier` / `phaseChangeNotifier`). Reloads regimes on return.
 6. **Communication actions** — Chat / Reflect / Voice buttons (above "Today" section)
 7. **LUMARA observation banner** — If LUMARA has a proactive observation
 8. **Date-grouped entry cards** — Today, Yesterday, This Week, This Month, etc. with date dividers
@@ -281,8 +281,16 @@ The main screen. Replaces both `LumaraAssistantScreen` (chat) and `UnifiedJourna
 - "Chat" button opens `LumaraAssistantScreen` directly. If the feed has entries, the most recent entry with content is sent as `initialMessage` ("Please reflect on this entry...") so LUMARA can immediately engage.
 - `LumaraAssistantScreen` auto-sends `initialMessage` on first frame via `addPostFrameCallback`.
 
+**Scroll Navigation (v2.3):**
+- Direction-aware scroll-to-top/bottom pill buttons appear when scrolling the feed
+- Scrolling down (not near bottom) → "Jump to bottom" centered pill button with arrow icon
+- Scrolling up (not near top) → "Jump to top" centered pill button with arrow icon
+- Threshold-based: 150px from edges, 400px min scroll extent
+- Animated 200ms opacity; 400ms smooth scroll on tap with easeOut curve
+- Pill design: `kcSurfaceColor` background, `kcPrimaryColor` accent, shadow, rounded corners
+
 **Interactions:**
-- Pull-to-refresh to reload feed
+- Pull-to-refresh to reload feed (fires `PhaseRegimeService.regimeChangeNotifier` and `UserPhaseService.phaseChangeNotifier` so phase preview and Gantt refresh)
 - Infinite scroll: loads 20 entries at a time, loads more when near bottom
 - Tap entry card → opens **ExpandedEntryView** (full-screen detail with phase, themes, media, CHRONICLE context)
 - Tap "Save" on active conversation card → persist as journal entry
@@ -300,16 +308,19 @@ The main screen. Replaces both `LumaraAssistantScreen` (chat) and `UnifiedJourna
 **Phase Hashtag Stripping:**
 - `FeedHelpers.contentWithoutPhaseHashtags()` strips `#discovery`, `#expansion`, `#transition`, `#consolidation`, `#recovery`, `#breakthrough` from display content. Phase shows only in card metadata/header.
 
-**Paragraph Rendering:**
-- `ExpandedEntryView._buildParagraphWidgets()` — splits text on `\n\n` (paragraph break) or `\n` (line break), renders each paragraph with 12px bottom spacing and 1.5 line height. Replaces single `Text()` blocks.
+**Paragraph Rendering (improved v2.3):**
+- `ExpandedEntryView._buildParagraphWidgets()` — splits text on `\n\n` (paragraph break); preserves `\n` within paragraphs as line breaks; 14px bottom spacing, 1.6 line height. `---` lines become visual `Divider` widgets. Markdown headers (`#`) skipped in display. Replaces single `Text()` blocks.
+- Summary section only shown when meaningfully different from body (60% overlap detection prevents redundant display).
 - `EntryContentRenderer._buildParagraphs()` — same paragraph logic in the timeline view.
 
 **Summary Extraction:**
 - `FeedHelpers.extractSummary()` / `bodyWithoutSummary()` — parses `## Summary\n\n...\n\n---\n\n<body>` header. Written entries display summary (italic, labelled) and body separately.
+- `FeedEntry.preview` (v2.3) — strips `## Summary...---` prefix before computing preview text, so card previews show actual body content instead of summary header.
 
 **Card Date Formatting:**
 - `FeedHelpers.formatEntryCreationDate()` — "Today, 14:30", "Yesterday, 09:15", "Mar 15, 14:30", "Mar 15, 2025".
 - All 5 feed cards use this format (12px, 0.8 opacity). `ReflectionCard` and `SavedConversationCard` show date at leading position in metadata row.
+- Feed entries sort by `createdAt` (original creation date) instead of `updatedAt` (v2.3).
 
 ### FeedMediaThumbnails
 
@@ -390,7 +401,21 @@ All cards extend **BaseFeedCard**, which provides a consistent wrapper with a ph
 - **RIVET reset on user phase change**: `PhaseRegimeService.changeCurrentPhase()` and `UserPhaseService.forceUpdatePhase()` reset RIVET
 - **ARC → LUMARA branding**: All asset references updated to `LUMARA_Sigil.png`; backup filenames use `LUMARA_*` prefix
 
-### Phase 2.2 (v3.3.21, current) — Phase locking, regime notifications, bulk apply, onboarding streamline
+### Phase 2.3 (v3.3.23, current) — Scroll navigation, content display, streaming, Gantt auto-refresh, phase display fix
+
+- **Scroll-to-top/bottom navigation**: Direction-aware pill buttons (centered bottom) for quick scroll. Threshold-based, animated.
+- **Feed content improvements**: `FeedEntry.preview` strips summary header. Entries sort by `createdAt`. `contentWithoutPhaseHashtags` preserves newlines. Paragraph rendering: `---` as dividers, skip `#` headers, preserve single newlines, 1.6 line height, summary overlap detection.
+- **ReflectionCard preview**: Collapses newlines to spaces for compact card display.
+- **Gantt card auto-refresh**: Listens to `regimeChangeNotifier` / `phaseChangeNotifier`; auto-reloads on change.
+- **Gantt direct navigation**: Taps navigate to `PhaseAnalysisView(initialView: 'timeline')` — editable timeline, not overview.
+- **Phase display fix**: `getDisplayPhase()` shows regime phase even when RIVET gate is closed — trusts imported/detected regimes.
+- **Phase change bottom sheet**: Redesigned from AlertDialog to modal bottom sheet with colored list and current-phase chip.
+- **Pull-to-refresh fires notifiers**: Phase preview and Gantt refresh after pull-to-refresh.
+- **Startup notifiers**: `HomeView` fires notifiers on app startup; `App` fires after import.
+- **Streaming LUMARA responses**: `onStreamChunk` callback updates inline blocks in real-time.
+- **DevSecOps audit verified**: Auth, secrets, storage, network, logging findings documented.
+
+### Phase 2.2 (v3.3.21) — Phase locking, regime notifications, bulk apply, onboarding streamline
 
 - **Phase locking**: `isPhaseLocked: true` after inference prevents re-inference on reload/import. Import services default lock when phase data exists.
 - **Regime change notifications**: `PhaseRegimeService.regimeChangeNotifier` and `UserPhaseService.phaseChangeNotifier` (`ValueNotifier<DateTime>`). Phase preview listens and auto-reloads.
@@ -451,12 +476,23 @@ All cards extend **BaseFeedCard**, which provides a consistent wrapper with a ph
 | `lib/shared/ui/onboarding/arc_onboarding_sequence.dart` | Removed `_ArcIntroScreen`, `_SentinelIntroScreen`; condensed text |
 | `lib/shared/ui/onboarding/arc_onboarding_cubit.dart` | Flow skips removed screens |
 | `lib/shared/ui/onboarding/widgets/phase_explanation_screen.dart` | Third-person language |
+| `lib/chronicle/models/query_plan.dart` | `ResponseSpeed` enum; `speedTarget` field |
+| `lib/chronicle/query/query_router.dart` | Mode-aware routing; `_selectLayersForMode`, `_inferReflectLayer` |
+| `lib/chronicle/query/context_builder.dart` | Speed-tiered building; cache; `_buildSingleLayerContext`, `_compressForSpeed` |
+| `lib/chronicle/query/chronicle_context_cache.dart` | NEW: Singleton in-memory TTL cache for CHRONICLE contexts |
+| `lib/arc/chat/services/enhanced_lumara_api.dart` | Mode/voice to router; cache; streaming `onStreamChunk`; voice mini-context fallback |
+| `lib/arc/chat/services/reflection_handler.dart` | Passes `onStreamChunk` to API |
+| `lib/arc/internal/mira/journal_repository.dart` | Cache invalidation on save |
+| `lib/ui/journal/journal_screen.dart` | Streaming UI for LUMARA inline blocks |
+| `lib/app/app.dart` | Fires notifiers after ARCX import |
+| `lib/shared/ui/home/home_view.dart` | Fires notifiers on startup |
+| `lib/ui/phase/simplified_arcform_view_3d.dart` | Fires notifiers after phase change |
 
 ---
 
 ## Related Documents
 
 - [ARCHITECTURE.md](ARCHITECTURE.md) — ARC Module → `unified_feed/` submodule
-- [FEATURES.md](FEATURES.md) — "Unified Feed (v3.3.21, feature-flagged)" section
-- [CHANGELOG.md](CHANGELOG.md) — [3.3.21] entry
+- [FEATURES.md](FEATURES.md) — "Unified Feed (v3.3.23, feature-flagged)" section
+- [CHANGELOG.md](CHANGELOG.md) — [3.3.23] entry
 - [UI_UX.md](UI_UX.md) — UI patterns and components

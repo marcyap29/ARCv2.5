@@ -1,3 +1,4 @@
+import '../../models/engagement_discipline.dart' show EngagementMode;
 import '../../services/gemini_send.dart';
 import '../models/query_plan.dart';
 import '../models/chronicle_layer.dart';
@@ -6,51 +7,122 @@ import '../models/chronicle_layer.dart';
 /// 
 /// Classifies user queries and determines which CHRONICLE layers to access.
 /// Routes queries to appropriate aggregation layers or raw entries.
+/// When [mode] and/or [isVoice] are set, uses speed-optimized layer selection
+/// (instant/fast/normal/deep) to meet latency targets.
 
 class ChronicleQueryRouter {
-  /// Route a query and determine the query plan
+  /// Route a query and determine the query plan.
+  /// [userContext] must contain at least context (e.g. userId, currentPhase).
+  /// [mode] when set enables mode-aware layer selection (explore=instant, integrate=fast yearly, reflect=fast monthly/yearly).
+  /// [isVoice] when true forces instant speed (mini-context only), skipping intent classification.
   Future<QueryPlan> route({
     required String query,
     required Map<String, dynamic> userContext,
+    EngagementMode? mode,
+    bool isVoice = false,
   }) async {
     print('🔀 ChronicleQueryRouter: Routing query: "${query.substring(0, query.length > 50 ? 50 : query.length)}..."');
 
-    // 1. Classify intent
+    // Speed-optimized path: explore or voice → instant, no CHRONICLE layers (mini-context only)
+    if (isVoice || mode == EngagementMode.explore) {
+      final plan = QueryPlan.rawEntry(
+        intent: QueryIntent.temporalQuery,
+        dateFilter: extractDateFilter(query),
+        speedTarget: ResponseSpeed.instant,
+      );
+      print('🔀 ChronicleQueryRouter: Plan (instant): $plan');
+      return plan;
+    }
+
+    // Integrate: yearly only, fast, allow drill-down (no LLM intent call)
+    if (mode == EngagementMode.integrate) {
+      final dateFilter = extractDateFilter(query);
+      final strategy = 'Use yearly aggregation(s) for fast integrate; drill-down to monthly if needed';
+      final plan = QueryPlan.chronicle(
+        intent: QueryIntent.temporalQuery,
+        layers: [ChronicleLayer.yearly],
+        strategy: strategy,
+        drillDown: true,
+        dateFilter: dateFilter,
+        instructions: 'Connect current situation to broader patterns. Reference yearly themes. Suggest drill-down if user wants specific details.',
+        voiceInstructions: 'Connect to yearly themes. Drill-down available.',
+        speedTarget: ResponseSpeed.fast,
+      );
+      print('🔀 ChronicleQueryRouter: Plan (integrate/fast): $plan');
+      return plan;
+    }
+
+    // Reflect or legacy: classify intent then select layers with speed target
     final intent = await _classifyIntent(query);
-
-    // 2. Determine which layers to access
-    final layers = selectLayers(intent, query);
-
-    // 3. Build query strategy
-    final strategy = _determineStrategy(intent, layers);
-
-    // 4. Extract date filter if present
     final dateFilter = extractDateFilter(query);
+    final (layers, speedTarget) = _selectLayersForMode(intent, mode, query);
 
-    // 5. Determine if drill-down is needed
-    final drillDown = shouldDrillDown(intent, query);
+    if (layers.isEmpty) {
+      final plan = QueryPlan.rawEntry(
+        intent: intent,
+        dateFilter: dateFilter,
+        speedTarget: speedTarget,
+      );
+      print('🔀 ChronicleQueryRouter: Plan: $plan');
+      return plan;
+    }
 
-    // 6. Build instructions
+    final strategy = _determineStrategy(intent, layers);
+    final drillDown = mode == EngagementMode.reflect || mode == EngagementMode.integrate
+        ? shouldDrillDown(intent, query)
+        : shouldDrillDown(intent, query);
     final instructions = _buildInstructions(intent, layers);
     final voiceInstructions = _buildVoiceInstructions(intent, layers);
 
-    final plan = layers.isEmpty
-        ? QueryPlan.rawEntry(
-            intent: intent,
-            dateFilter: dateFilter,
-          )
-        : QueryPlan.chronicle(
-            intent: intent,
-            layers: layers,
-            strategy: strategy,
-            drillDown: drillDown,
-            dateFilter: dateFilter,
-            instructions: instructions,
-            voiceInstructions: voiceInstructions,
-          );
+    final plan = QueryPlan.chronicle(
+      intent: intent,
+      layers: layers,
+      strategy: strategy,
+      drillDown: drillDown,
+      dateFilter: dateFilter,
+      instructions: instructions,
+      voiceInstructions: voiceInstructions,
+      speedTarget: speedTarget,
+    );
 
     print('🔀 ChronicleQueryRouter: Plan: $plan');
     return plan;
+  }
+
+  /// Mode-aware layer selection and speed target.
+  /// Returns (layers, speedTarget). For reflect/integrate uses single layer + fast when [mode] is set.
+  (List<ChronicleLayer>, ResponseSpeed) _selectLayersForMode(
+    QueryIntent intent,
+    EngagementMode? mode,
+    String query,
+  ) {
+    if (mode == EngagementMode.reflect) {
+      final layer = _inferReflectLayer(query, intent);
+      return ([layer], ResponseSpeed.fast);
+    }
+    // Legacy: no mode, use full selectLayers and normal speed
+    final layers = selectLayers(intent, query);
+    final speedTarget = layers.length > 2 ? ResponseSpeed.deep : ResponseSpeed.normal;
+    return (layers, speedTarget);
+  }
+
+  /// Infer single layer for reflect mode from query and intent (monthly vs yearly).
+  ChronicleLayer _inferReflectLayer(String query, QueryIntent intent) {
+    final lower = query.toLowerCase();
+    if (lower.contains(RegExp(r'\b(this\s+)?year\b|20\d{2}'))) {
+      return ChronicleLayer.yearly;
+    }
+    if (lower.contains(RegExp(r'\b(this\s+)?month\b|january|february|march|april|may|june|july|august|september|october|november|december'))) {
+      return ChronicleLayer.monthly;
+    }
+    switch (intent) {
+      case QueryIntent.patternIdentification:
+      case QueryIntent.developmentalTrajectory:
+      case QueryIntent.inflectionPoint:
+        return ChronicleLayer.yearly;
+      default:
+        return ChronicleLayer.monthly;
+    }
   }
 
   /// Classify query intent using LLM

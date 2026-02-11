@@ -26,7 +26,9 @@ import 'package:my_app/services/user_phase_service.dart';
 import 'package:my_app/ui/splash/animated_phase_shape.dart';
 
 class PhaseAnalysisView extends StatefulWidget {
-  const PhaseAnalysisView({super.key});
+  final String? initialView;
+  
+  const PhaseAnalysisView({super.key, this.initialView});
 
   @override
   State<PhaseAnalysisView> createState() => _PhaseAnalysisViewState();
@@ -52,6 +54,10 @@ class _PhaseAnalysisViewState extends State<PhaseAnalysisView> {
   @override
   void initState() {
     super.initState();
+    // Set initial view if provided (e.g., 'timeline' to go directly to editable timeline)
+    if (widget.initialView != null) {
+      _selectedView = widget.initialView!;
+    }
     _loadPhaseData();
   }
 

@@ -12,6 +12,7 @@ import 'lumara_context_selector.dart';
 import 'package:my_app/telemetry/analytics.dart';
 import 'package:my_app/chronicle/query/query_router.dart';
 import 'package:my_app/chronicle/query/context_builder.dart';
+import 'package:my_app/chronicle/query/chronicle_context_cache.dart';
 import 'package:my_app/chronicle/query/drill_down_handler.dart';
 import 'package:my_app/chronicle/storage/layer0_repository.dart';
 import 'package:my_app/chronicle/storage/aggregation_repository.dart';
@@ -182,6 +183,7 @@ class EnhancedLumaraApi {
       _queryRouter = ChronicleQueryRouter();
       _contextBuilder = ChronicleContextBuilder(
         aggregationRepo: _aggregationRepo!,
+        cache: ChronicleContextCache.instance,
       );
       _drillDownHandler = DrillDownHandler(
         layer0Repo: _layer0Repo!,
@@ -313,6 +315,8 @@ class EnhancedLumaraApi {
     bool skipHeavyProcessing = false, // Skip node matching/context retrieval but still use Master Prompt
     EngagementMode? voiceEngagementModeOverride, // When set (voice dropdown), use for control state and prompt cap
     void Function(String message)? onProgress,
+    /// When set, stream response chunks to this callback (uses direct Gemini stream when available; else emits full response once)
+    void Function(String chunk)? onStreamChunk,
   }) async {
     try {
       if (!_initialized) {
@@ -672,14 +676,15 @@ class EnhancedLumaraApi {
                   'userId': userId,
                   'currentPhase': request.phaseHint?.name,
                 },
+                mode: engagementMode,
+                isVoice: skipHeavyProcessing,
               );
               
-              print('🔀 EnhancedLumaraApi: Query routed - intent: ${queryPlan.intent}, usesChronicle: ${queryPlan.usesChronicle}');
+              print('🔀 EnhancedLumaraApi: Query routed - intent: ${queryPlan.intent}, usesChronicle: ${queryPlan.usesChronicle}, speedTarget: ${queryPlan.speedTarget}');
               
               if (queryPlan.usesChronicle && _contextBuilder != null) {
                 if (skipHeavyProcessing) {
                   // Voice mode: only build mini-context (one layer) to avoid latency/timeout.
-                  // Skip full buildContext() which loads all layers and can cause 55s timeout.
                   if (queryPlan.layers.isNotEmpty) {
                     final layer = queryPlan.layers.first;
                     final period = _getPeriodForLayer(layer, queryPlan.dateFilter, now);
@@ -695,7 +700,7 @@ class EnhancedLumaraApi {
                     }
                   }
                 } else {
-                  // Text mode: load full CHRONICLE context
+                  // Text mode: load context (single-layer compressed for fast, full for normal/deep)
                   chronicleContext = await _contextBuilder!.buildContext(
                     userId: userId,
                     queryPlan: queryPlan,
@@ -721,11 +726,23 @@ class EnhancedLumaraApi {
                         })
                         .toList();
                     
-                    print('✅ EnhancedLumaraApi: CHRONICLE context loaded (${queryPlan.layers.length} layers)');
+                    print('✅ EnhancedLumaraApi: CHRONICLE context loaded (${queryPlan.layers.length} layers, ${queryPlan.speedTarget})');
                   } else {
                     print('⚠️ EnhancedLumaraApi: CHRONICLE context not available, falling back to raw entries');
                     promptMode = LumaraPromptMode.rawBacked;
                   }
+                }
+              }
+              // Voice or instant speed: build mini-context even when plan has no layers (rawEntry)
+              if (skipHeavyProcessing && _contextBuilder != null && chronicleMiniContext == null) {
+                final period = '${now.year}-${now.month.toString().padLeft(2, '0')}';
+                chronicleMiniContext = await _contextBuilder!.buildMiniContext(
+                  userId: userId,
+                  layer: ChronicleLayer.monthly,
+                  period: period,
+                );
+                if (chronicleMiniContext != null && chronicleMiniContext.isNotEmpty) {
+                  print('✅ EnhancedLumaraApi: CHRONICLE mini-context loaded for voice (current month)');
                 }
               }
             } catch (e) {
@@ -1099,18 +1116,42 @@ class EnhancedLumaraApi {
 
           while (retryCount <= maxRetries && geminiResponse == null) {
             try {
-              // Direct Gemini API call - same protocol as main LUMARA chat
-              // Pass entryId for per-entry usage limit tracking (free tier: 5 per entry)
-              // NOTE: Voice uses split payload (user = context + transcript); non-voice has everything in system, user empty
-              // Skip transformation since we've already abstracted the entry text in the prompt
-              geminiResponse = await geminiSend(
-                system: systemPrompt,
-                user: userPromptForApi,
-                jsonExpected: false,
-                entryId: entryId,
-                intent: 'journal_reflection', // Specify intent for journal entries
-                skipTransformation: true, // Skip transformation - entry already abstracted
-              );
+              if (onStreamChunk != null) {
+                // Streaming path: use geminiSendStream when available for perceived speed
+                try {
+                  final buffer = StringBuffer();
+                  await for (final chunk in geminiSendStream(
+                    system: systemPrompt,
+                    user: userPromptForApi,
+                  )) {
+                    buffer.write(chunk);
+                    onStreamChunk(chunk);
+                  }
+                  geminiResponse = buffer.toString();
+                } catch (streamErr) {
+                  // Fallback: e.g. no API key when using Firebase proxy
+                  print('LUMARA: Stream not available ($streamErr), using non-streaming call');
+                  geminiResponse = await geminiSend(
+                    system: systemPrompt,
+                    user: userPromptForApi,
+                    jsonExpected: false,
+                    entryId: entryId,
+                    intent: 'journal_reflection',
+                    skipTransformation: true,
+                  );
+                  onStreamChunk(geminiResponse);
+                }
+              } else {
+                // Non-streaming: Firebase proxy with entryId and skipTransformation
+                geminiResponse = await geminiSend(
+                  system: systemPrompt,
+                  user: userPromptForApi,
+                  jsonExpected: false,
+                  entryId: entryId,
+                  intent: 'journal_reflection', // Specify intent for journal entries
+                  skipTransformation: true, // Skip transformation - entry already abstracted
+                );
+              }
 
               print('LUMARA: Gemini API response received (length: ${geminiResponse.length})');
               onProgress?.call('Processing response...');

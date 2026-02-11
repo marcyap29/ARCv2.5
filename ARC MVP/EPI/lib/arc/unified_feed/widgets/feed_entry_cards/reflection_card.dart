@@ -53,7 +53,7 @@ class ReflectionCard extends StatelessWidget {
           // Content preview (strip phase hashtags so they only show in the metadata row)
           if (entry.preview.isNotEmpty)
             Text(
-              FeedHelpers.contentWithoutPhaseHashtags(entry.preview),
+              FeedHelpers.contentWithoutPhaseHashtags(entry.preview).replaceAll(RegExp(r'\s*\n\s*'), ' '),
               style: TextStyle(
                 color: kcPrimaryTextColor.withOpacity(0.65),
                 fontSize: 13,

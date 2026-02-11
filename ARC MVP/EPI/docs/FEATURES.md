@@ -1,7 +1,7 @@
 # EPI MVP - Comprehensive Features Guide
 
-**Version:** 3.3.22
-**Last Updated:** February 10, 2026
+**Version:** 3.3.23
+**Last Updated:** February 11, 2026
 
 ---
 
@@ -114,9 +114,9 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
   - Smooth 300ms animation with easeOut curve
 - **Available In**: LUMARA Chat, Journal Timeline, Journal Entry Editor
 
-### Unified Feed (v3.3.21, feature-flagged)
+### Unified Feed (v3.3.23, feature-flagged)
 
-**Status:** Phase 2.2 — entry management, media, LUMARA chat, selective export, phase Gantt (interactive), static greeting, phase locking, bulk apply, onboarding streamline. Behind `USE_UNIFIED_FEED` feature flag (default off).
+**Status:** Phase 2.3 — entry management, media, LUMARA chat, selective export, phase Gantt (interactive + auto-refresh), static greeting, phase locking, bulk apply, onboarding streamline, scroll navigation, content display improvements, streaming LUMARA responses. Behind `USE_UNIFIED_FEED` feature flag (default off).
 
 **Concept:** Merges the separate LUMARA chat and Conversations (journal timeline) tabs into a single scrollable feed. When enabled, the home screen switches from 3 tabs to 2 tabs (LUMARA + Settings). Phase is accessible via the Phase Arcform preview embedded in the feed and via the Timeline button. On first use (empty feed), bottom nav is hidden for a clean welcome experience.
 
@@ -127,8 +127,9 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 - Chat / Reflect / Voice action buttons (above "Today" section in populated feed; also in welcome screen)
 - LUMARA observation banner (proactive check-ins from CHRONICLE/SENTINEL)
 - Entries grouped by date (Today, Yesterday, This Week, Earlier) with date dividers
-- Pull-to-refresh and infinite scroll (loads 20 entries at a time)
+- Pull-to-refresh and infinite scroll (loads 20 entries at a time); pull-to-refresh fires phase/regime change notifiers
 - Timeline modal (calendar icon) for date-based navigation; jump to any date
+- **Scroll-to-top/bottom navigation (v3.3.23)**: Direction-aware pill buttons appear when scrolling. Scrolling down shows "Jump to bottom"; scrolling up shows "Jump to top". Threshold-based (150px from edges, 400px min extent). Animated opacity, centered bottom, primary color accent. 400ms smooth scroll on tap.
 - **Welcome screen (empty/first-use):** Settings gear top-right, "Discover Your Phase" gradient button (Phase Quiz), "Import your data" link (5 import sources: LUMARA, Day One, Journey, Text, CSV). Bottom nav hidden for clean onboarding
 - Settings accessible as a dedicated tab (index 1) in the bottom nav
 - Phase hashtags (`#discovery`, `#expansion`, etc.) stripped from display content — phase shown only in card metadata
@@ -162,10 +163,12 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 - All cards use BaseFeedCard with phase-colored left border
 - Phase colors flow from ATLAS detection through to visual indicators
 - Phase Arcform preview embedded in feed; refreshes on return from Phase view
-- **Phase Journey Gantt (v3.3.20, interactive v3.3.21)**: Gantt-style bar below phase preview showing phase regimes over time (days, phases, date range). Tappable — navigates to `PhaseAnalysisView`. Edit-phases icon button. Reloads on return.
-- **Paragraph rendering (v3.3.20)**: Content split on double/single newlines with proper spacing (12px paragraph gap, 1.5 line height)
+- **Phase Journey Gantt (v3.3.20, interactive v3.3.21, auto-refresh v3.3.23)**: Gantt-style bar below phase preview showing phase regimes over time (days, phases, date range). Tappable — navigates directly to editable Phase Timeline view (`PhaseAnalysisView(initialView: 'timeline')`). Edit-phases icon button. Auto-refreshes on phase/regime change via notifier listeners. Reloads on return.
+- **Paragraph rendering (v3.3.20, improved v3.3.23)**: Content split on double/single newlines with proper spacing (14px paragraph gap, 1.6 line height). `---` lines rendered as visual dividers. Markdown headers (`#`) skipped in display. Summary section shown only when meaningfully different from body (60% overlap detection).
 - **Summary extraction (v3.3.20)**: Entries with `## Summary` header display summary (italic) and body separately
 - **Card dates (v3.3.20)**: All cards show "Today, 14:30" / "Yesterday, 09:15" / "Mar 15, 14:30" format at 12px
+- **Feed entry sort (v3.3.23)**: Entries sort by `createdAt` (original creation date) instead of `updatedAt`
+- **Card preview (v3.3.23)**: Preview text strips `## Summary...---` header to show actual body content
 - Expanded entry view: full-screen detail with phase, themes, media grid, CHRONICLE context, LUMARA notes
 
 **Conversation Management**
@@ -191,6 +194,7 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 - Phase-aware reflections
 - Multimodal understanding
 - **Unified Feed integration (v3.3.19)**: `initialMessage` parameter auto-sends most recent journal entry to LUMARA for reflection when opened from feed. Back-arrow navigation (replaces drawer). "New Chat" removed from popup menu.
+- **Streaming Responses (v3.3.23)**: LUMARA reflections stream to the UI in real-time as chunks arrive from Gemini API. LUMARA inline blocks update progressively via `onStreamChunk` callback, showing "Streaming..." status. Falls back to non-streaming if direct API key unavailable.
 
 **Voice Chat - Voice Sigil (v3.3.16, upgraded from Jarvis Mode v2.1.53)**
 - **Voice Sigil UI**: Sophisticated 6-state animation system replacing the original glowing indicator
@@ -289,6 +293,12 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 - **Cross-Session Continuity**: Remembers past discussions
 - **Rolling Summaries**: Map-reduce summarization every 10 messages
 - **Memory Commands**: /memory show, forget, export
+- **CHRONICLE Speed-Tiered Context (v3.3.23)**: Mode-aware query routing builds CHRONICLE context at the appropriate speed for each engagement mode:
+  - **Instant** (<1s): Mini-context only (50–100 tokens) — explore mode, voice mode
+  - **Fast** (<10s): Single-layer compressed (~2k tokens) — integrate mode (yearly), reflect mode (monthly/yearly)
+  - **Normal** (<30s): Multi-layer context (~8–10k tokens) — default text queries
+  - **Deep** (30–60s): Full context for synthesis — when >2 layers selected
+  - `ChronicleContextCache`: In-memory 30min TTL cache (max 50 entries) speeds repeated queries; invalidated when journal entries are saved
 
 **Temporal Notifications System** (v2.1.83)
 - **Daily Resonance Prompts**: Surface relevant themes, callbacks, and patterns from recent entries
@@ -498,6 +508,9 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 - **Regime Change Notifications (v3.3.21)**: `PhaseRegimeService.regimeChangeNotifier` and `UserPhaseService.phaseChangeNotifier` (`ValueNotifier<DateTime>`) — phase preview auto-reloads on any mutation.
 - **Extend-not-Rebuild (v3.3.21)**: Timeline and import services use `extendRegimesWithNewEntries` instead of `rebuildRegimesFromEntries`, preserving existing user-edited regimes.
 - **Bulk Phase Apply (v3.3.21)**: Phase Timeline gains "Apply phase by date range" dialog (pick phase + dates) and per-regime "Apply this phase to all entries in this period" action. Sets `userPhaseOverride` and `isPhaseLocked` on matching entries.
+- **Phase Display Fix (v3.3.23)**: `getDisplayPhase()` shows regime phase even when RIVET gate is closed — trusts imported/detected regimes regardless of gate status. Previously, regime phase was invisible until RIVET gate opened.
+- **Phase Change Dialog Redesign (v3.3.23)**: "Change Current Phase" is now a modal bottom sheet with colored phase list, current-phase "Current" chip, no redundant confirmation dialog. Fires notifiers for instant UI refresh.
+- **Direct Timeline Navigation (v3.3.23)**: `PhaseAnalysisView` gains `initialView` parameter. Gantt card and edit button navigate directly to the editable Phase Timeline tab (`initialView: 'timeline'`).
 - **SENTINEL Analysis**: Risk monitoring
 - **Phase Recommendations**: Change readiness with RIVET-based trends
 - **Phase Statistics**: Phase distribution and trends
@@ -1017,6 +1030,6 @@ All core features are production-ready and fully operational:
 ---
 
 **Features Guide Status:** ✅ Complete
-**Last Updated:** February 10, 2026
-**Version:** 3.3.22
+**Last Updated:** February 11, 2026
+**Version:** 3.3.23
 

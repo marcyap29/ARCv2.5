@@ -51,6 +51,7 @@ class FeedHelpers {
   ];
 
   /// Returns content with phase hashtags removed (for display only).
+  /// Preserves newlines so paragraph structure is maintained.
   static String contentWithoutPhaseHashtags(String? content) {
     if (content == null || content.isEmpty) return '';
     String out = content;
@@ -58,7 +59,8 @@ class FeedHelpers {
       final regex = RegExp(RegExp.escape(tag), caseSensitive: false);
       out = out.replaceAll(regex, '').trim();
     }
-    return out.replaceAll(RegExp(r'\s+'), ' ').trim();
+    // Collapse runs of spaces/tabs on the same line, but preserve newlines
+    return out.replaceAll(RegExp(r'[^\S\n]+'), ' ').trim();
   }
 
   /// Pattern: ## Summary\n\n...\n\n---\n\n<body>

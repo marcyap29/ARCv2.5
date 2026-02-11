@@ -230,7 +230,7 @@ class FeedRepository {
     return FeedEntry(
       id: 'journal_${entry.id}',
       type: type,
-      timestamp: entry.updatedAt,
+      timestamp: entry.createdAt,
       state: EntryState.saved,
       title: entry.title.isNotEmpty ? entry.title : _generateTitle(entry),
       content: entry.content,

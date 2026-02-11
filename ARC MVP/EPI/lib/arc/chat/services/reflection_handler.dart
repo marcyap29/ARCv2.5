@@ -63,6 +63,7 @@ class ReflectionHandler {
 
   /// Handles reflection with optional session/AURORA when [entryId] is set.
   /// When [entryId] is null (e.g. voice, overview), skips session tracking and AURORA and calls LUMARA only.
+  /// When [onStreamChunk] is set, response text is streamed to the callback as it arrives.
   Future<ReflectionResponse> handleReflectionRequest({
     required String userQuery,
     String? entryId,
@@ -77,6 +78,7 @@ class ReflectionHandler {
     bool skipHeavyProcessing = false,
     EngagementMode? voiceEngagementModeOverride,
     void Function(String message)? onProgress,
+    void Function(String chunk)? onStreamChunk,
   }) async {
     final effectiveUserId = userId ?? '';
 
@@ -102,6 +104,7 @@ class ReflectionHandler {
         skipHeavyProcessing: skipHeavyProcessing,
         voiceEngagementModeOverride: voiceEngagementModeOverride,
         onProgress: onProgress,
+        onStreamChunk: onStreamChunk,
       );
       return ReflectionResponse.success(
         text: result.reflection,
@@ -159,6 +162,7 @@ class ReflectionHandler {
       userId: effectiveUserId.isEmpty ? null : effectiveUserId,
       entryId: entryId,
       onProgress: onProgress,
+      onStreamChunk: onStreamChunk,
     );
 
     final lumaraResponse = result.reflection;

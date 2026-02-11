@@ -262,22 +262,41 @@ class ExpandedEntryView extends StatelessWidget {
     }
   }
 
-  /// Build paragraph widgets from text (double newlines = paragraph break; single = line break).
+  /// Build paragraph widgets from text, preserving the same paragraph/line structure as edit mode.
+  /// - `---` lines become visual dividers
+  /// - Double newlines become paragraph spacing
+  /// - Single newlines become line breaks within a paragraph
   List<Widget> _buildParagraphWidgets(BuildContext context, String text, TextStyle baseStyle) {
     final displayContent = FeedHelpers.contentWithoutPhaseHashtags(text);
     if (displayContent.trim().isEmpty) return [];
-    List<String> paragraphs = displayContent.split('\n\n');
-    paragraphs = paragraphs.map((p) => p.replaceAll('\n', ' ').trim()).where((p) => p.isNotEmpty).toList();
-    if (paragraphs.length == 1 && displayContent.contains('\n')) {
-      paragraphs = displayContent.split('\n').map((p) => p.trim()).where((p) => p.isNotEmpty).toList();
-    }
+    
+    // Split on double newlines (paragraph boundaries)
+    final rawBlocks = displayContent.split('\n\n');
     final result = <Widget>[];
-    for (int i = 0; i < paragraphs.length; i++) {
+    
+    for (int i = 0; i < rawBlocks.length; i++) {
+      final block = rawBlocks[i].trim();
+      if (block.isEmpty) continue;
+      
+      // --- separator → visual divider (matches edit mode)
+      if (RegExp(r'^-{3,}$').hasMatch(block)) {
+        result.add(Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Divider(color: kcSecondaryTextColor.withOpacity(0.2), thickness: 1),
+        ));
+        continue;
+      }
+      
+      // Skip markdown headers like "## Summary" — these are structural, not display content
+      if (block.startsWith('#')) continue;
+      
+      // Preserve single newlines as line breaks within the paragraph
       result.add(Padding(
-        padding: EdgeInsets.only(bottom: i < paragraphs.length - 1 ? 12 : 0),
-        child: Text(paragraphs[i], style: baseStyle.copyWith(height: 1.5)),
+        padding: EdgeInsets.only(bottom: i < rawBlocks.length - 1 ? 14 : 0),
+        child: Text(block, style: baseStyle.copyWith(height: 1.6)),
       ));
     }
+    
     return result.isEmpty ? [Text(displayContent, style: baseStyle)] : result;
   }
 
@@ -430,7 +449,15 @@ class ExpandedEntryView extends StatelessWidget {
       height: 1.6,
     );
     final children = <Widget>[];
-    if (summary != null && summary.isNotEmpty) {
+    
+    // Only show the summary section if it's meaningfully different from the body
+    // (not just the first paragraph of the body repeated)
+    final showSummary = summary != null &&
+        summary.isNotEmpty &&
+        body.isNotEmpty &&
+        !body.trimLeft().startsWith(summary.substring(0, (summary.length * 0.6).round().clamp(0, summary.length)));
+    
+    if (showSummary) {
       children.addAll([
         Text(
           'Summary',

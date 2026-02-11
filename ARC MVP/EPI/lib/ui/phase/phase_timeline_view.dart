@@ -661,27 +661,61 @@ class _PhaseTimelineViewState extends State<PhaseTimelineView> {
   }
 
   void _showPhaseChangeDialog() {
-    showDialog(
+    // Determine current phase for highlighting
+    final currentLabel = widget.phaseIndex.currentRegime?.label;
+    
+    showModalBottomSheet(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Change Current Phase'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('Select a new phase:'),
-            const SizedBox(height: 16),
-            ...PhaseLabel.values.map((label) => ListTile(
-              title: Text(_getPhaseLabelName(label).toUpperCase()),
-              leading: Icon(
-                Icons.circle,
-                color: _getPhaseColor(label),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.swap_horiz, size: 22),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Change Phase',
+                    style: Theme.of(ctx).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                  ),
+                ],
               ),
-              onTap: () {
-                Navigator.pop(context);
-                _changeCurrentPhase(label);
-              },
-            )),
-          ],
+              const SizedBox(height: 4),
+              Text(
+                'Your current phase will end today and the new one begins now.',
+                style: Theme.of(ctx).textTheme.bodySmall?.copyWith(color: Colors.grey),
+              ),
+              const SizedBox(height: 12),
+              ...PhaseLabel.values.map((label) {
+                final isCurrent = label == currentLabel;
+                return ListTile(
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  tileColor: isCurrent ? _getPhaseColor(label).withOpacity(0.12) : null,
+                  leading: Icon(Icons.circle, color: _getPhaseColor(label), size: 16),
+                  title: Text(
+                    _getPhaseLabelName(label).toUpperCase(),
+                    style: TextStyle(
+                      fontWeight: isCurrent ? FontWeight.bold : FontWeight.normal,
+                    ),
+                  ),
+                  trailing: isCurrent
+                      ? const Chip(label: Text('Current', style: TextStyle(fontSize: 11)), padding: EdgeInsets.zero, visualDensity: VisualDensity.compact)
+                      : const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey),
+                  onTap: isCurrent ? null : () {
+                    Navigator.pop(ctx);
+                    _changeCurrentPhase(label);
+                  },
+                );
+              }),
+              const SizedBox(height: 8),
+            ],
+          ),
         ),
       ),
     );
@@ -1109,41 +1143,19 @@ class _PhaseTimelineViewState extends State<PhaseTimelineView> {
       final phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
       await phaseRegimeService.initialize();
       
-      // For changing current phase, new entries will automatically get hashtags
-      // We don't need to update existing entries since they're in the old regime
-      // Show a simple confirmation dialog
-      final shouldUpdateHashtags = await showDialog<bool>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Change Current Phase'),
-          content: Text(
-            'This will change your current phase to ${_getPhaseLabelName(newLabel).toUpperCase()}.\n\n'
-            'New journal entries will automatically include the #${_getPhaseLabelName(newLabel).toLowerCase()} hashtag.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('Change Phase'),
-            ),
-          ],
-        ),
-      );
-      
-      if (shouldUpdateHashtags == false) return; // User cancelled
-      
-      // Change phase (no need to update hashtags since new regime starts now with no entries yet)
+      // Change phase immediately — no extra confirmation needed (user already picked from list)
       await phaseRegimeService.changeCurrentPhase(newLabel, updateHashtags: false);
       
-      // Persist to UserProfile so "set overall phase" sticks (display uses profile when set)
+      // Persist to UserProfile so display phase updates everywhere (splash, preview, Gantt)
       final raw = _getPhaseLabelName(newLabel);
       final phaseString = raw.isEmpty ? raw : raw[0].toUpperCase() + raw.substring(1).toLowerCase();
       await UserPhaseService.forceUpdatePhase(phaseString);
       
-      // Refresh UI
+      // Notify phase preview and Gantt card to refresh immediately
+      PhaseRegimeService.regimeChangeNotifier.value = DateTime.now();
+      UserPhaseService.phaseChangeNotifier.value = DateTime.now();
+      
+      // Refresh this view's data
       if (mounted) {
         setState(() {});
         ScaffoldMessenger.of(context).showSnackBar(

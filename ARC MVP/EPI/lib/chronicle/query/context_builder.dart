@@ -2,20 +2,27 @@ import '../storage/aggregation_repository.dart';
 import '../models/chronicle_aggregation.dart';
 import '../models/chronicle_layer.dart';
 import '../models/query_plan.dart';
+import 'chronicle_context_cache.dart';
 
 /// Context Builder for CHRONICLE
 /// 
 /// Formats aggregations for prompt injection.
 /// Handles cross-layer navigation and builds drill-down paths.
-
+/// Speed tiers: instant (mini only), fast (single layer compressed), normal/deep (full).
+/// Optional [ChronicleContextCache] speeds up repeated queries on the same period.
 class ChronicleContextBuilder {
   final AggregationRepository _aggregationRepo;
+  final ChronicleContextCache? _cache;
 
   ChronicleContextBuilder({
     required AggregationRepository aggregationRepo,
-  }) : _aggregationRepo = aggregationRepo;
+    ChronicleContextCache? cache,
+  })  : _aggregationRepo = aggregationRepo,
+        _cache = cache;
 
-  /// Build context string from query plan
+  /// Build context string from query plan.
+  /// Uses [queryPlan.speedTarget]: fast → single layer compressed; normal/deep → full.
+  /// Uses cache when available (except for deep mode).
   Future<String?> buildContext({
     required String userId,
     required QueryPlan queryPlan,
@@ -24,7 +31,82 @@ class ChronicleContextBuilder {
       return null;
     }
 
-    // Load aggregations for each layer
+    final periodKey = _periodKeyForPlan(queryPlan);
+    if (periodKey == null) return null;
+
+    if (_cache != null && queryPlan.speedTarget != ResponseSpeed.deep) {
+      final cached = _cache!.get(userId: userId, layers: queryPlan.layers, period: periodKey);
+      if (cached != null) return cached;
+    }
+
+    String? context;
+    switch (queryPlan.speedTarget) {
+      case ResponseSpeed.instant:
+        final layer = queryPlan.layers.first;
+        final period = _getPeriodForLayer(layer, queryPlan.dateFilter);
+        if (period == null) return null;
+        context = await buildMiniContext(userId: userId, layer: layer, period: period);
+        break;
+      case ResponseSpeed.fast:
+        context = await _buildSingleLayerContext(userId, queryPlan);
+        break;
+      case ResponseSpeed.normal:
+      case ResponseSpeed.deep:
+        context = await _buildMultiLayerContext(userId, queryPlan);
+    }
+
+    if (_cache != null && context != null && queryPlan.speedTarget != ResponseSpeed.deep) {
+      _cache!.put(
+        userId: userId,
+        layers: queryPlan.layers,
+        period: periodKey,
+        context: context,
+      );
+    }
+    return context;
+  }
+
+  String? _periodKeyForPlan(QueryPlan plan) {
+    final periods = <String>[];
+    for (final layer in plan.layers) {
+      final p = _getPeriodForLayer(layer, plan.dateFilter);
+      if (p == null) return null;
+      periods.add(p);
+    }
+    return periods.join('|');
+  }
+
+  /// Single-layer context for fast responses (~2–5k tokens).
+  Future<String?> _buildSingleLayerContext(String userId, QueryPlan plan) async {
+    final layer = plan.layers.first;
+    final period = _getPeriodForLayer(layer, plan.dateFilter);
+    if (period == null) return null;
+
+    final agg = await _aggregationRepo.loadLayer(
+      userId: userId,
+      layer: layer,
+      period: period,
+    );
+    if (agg == null) return null;
+
+    final compressed = _compressForSpeed(agg, targetTokens: 2000);
+    final buffer = StringBuffer();
+    buffer.writeln('<chronicle_context>');
+    buffer.writeln('Source: ${layer.displayName} aggregation for $period');
+    buffer.writeln('User edited: ${agg.userEdited}');
+    if (plan.drillDown) {
+      buffer.writeln('Drill-down available: Can access specific entries on request.');
+    }
+    buffer.writeln('');
+    buffer.writeln(compressed);
+    buffer.writeln('');
+    buffer.writeln('Source layers: ${layer.displayName}');
+    buffer.writeln('</chronicle_context>');
+    return buffer.toString();
+  }
+
+  /// Multi-layer context (existing full load and format).
+  Future<String?> _buildMultiLayerContext(String userId, QueryPlan queryPlan) async {
     final aggregations = <ChronicleAggregation>[];
 
     for (final layer in queryPlan.layers) {
@@ -42,12 +124,40 @@ class ChronicleContextBuilder {
       }
     }
 
-    if (aggregations.isEmpty) {
-      return null;
-    }
-
-    // Format aggregations for prompt
+    if (aggregations.isEmpty) return null;
     return _formatAggregationsForPrompt(aggregations, queryPlan);
+  }
+
+  /// Compress aggregation to target token count while preserving structure.
+  String _compressForSpeed(ChronicleAggregation agg, {required int targetTokens}) {
+    final lines = agg.content.split('\n');
+    final result = <String>[];
+    var tokenEstimate = 0;
+
+    for (final line in lines) {
+      if (line.startsWith('#')) {
+        result.add(line);
+        tokenEstimate += line.length ~/ 4;
+        continue;
+      }
+      if (line.trim().startsWith('-') || line.trim().startsWith('*')) {
+        result.add(line);
+        tokenEstimate += line.length ~/ 4;
+        continue;
+      }
+      if (line.trim().isNotEmpty && !line.startsWith('  ')) {
+        final firstSentence = line.split(RegExp(r'[.!?]')).first.trim();
+        if (firstSentence.length > 20) {
+          result.add('$firstSentence.');
+          tokenEstimate += firstSentence.length ~/ 4;
+        }
+      }
+      if (tokenEstimate >= targetTokens) {
+        result.add('\n[Additional details available on request]');
+        break;
+      }
+    }
+    return result.join('\n');
   }
 
   /// Get period identifier for a layer based on date filter or current period
@@ -113,12 +223,22 @@ class ChronicleContextBuilder {
     return buffer.toString();
   }
 
-  /// Build mini-context for voice mode (50-100 tokens)
+  /// Build mini-context for voice mode (50-100 tokens).
+  /// Uses cache when builder was constructed with [ChronicleContextCache].
   Future<String?> buildMiniContext({
     required String userId,
     required ChronicleLayer layer,
     required String period,
   }) async {
+    if (_cache != null) {
+      final cached = _cache!.get(
+        userId: userId,
+        layers: [layer],
+        period: period,
+      );
+      if (cached != null) return cached;
+    }
+
     final agg = await _aggregationRepo.loadLayer(
       userId: userId,
       layer: layer,
@@ -147,7 +267,16 @@ class ChronicleContextBuilder {
       buffer.write('Key events: ${events.join('; ')}. ');
     }
 
-    return buffer.toString().trim();
+    final result = buffer.toString().trim();
+    if (_cache != null) {
+      _cache!.put(
+        userId: userId,
+        layers: [layer],
+        period: period,
+        context: result,
+      );
+    }
+    return result;
   }
 
   /// Extract top themes from aggregation content

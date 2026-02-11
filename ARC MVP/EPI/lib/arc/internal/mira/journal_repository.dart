@@ -12,6 +12,8 @@ import 'package:my_app/data/hive/duration_adapter.dart';
 import 'package:my_app/state/journal_entry_state.dart';
 import 'package:my_app/chronicle/storage/layer0_repository.dart';
 import 'package:my_app/chronicle/storage/layer0_populator.dart';
+import 'package:my_app/chronicle/query/chronicle_context_cache.dart';
+import 'package:my_app/chronicle/models/chronicle_layer.dart';
 import 'package:my_app/services/firebase_auth_service.dart';
 
 /// Self-initializing repository with consistent box name.
@@ -203,6 +205,13 @@ class JournalRepository {
       
       // Populate Layer 0 for CHRONICLE (if enabled)
       _populateLayer0IfEnabled(entry, userId);
+
+      // Invalidate CHRONICLE context cache for this user/period so next reflection sees new content
+      final effectiveUserId = userId ?? FirebaseAuthService.instance.currentUser?.uid ?? 'default_user';
+      final monthPeriod = '${entry.createdAt.year}-${entry.createdAt.month.toString().padLeft(2, '0')}';
+      final yearPeriod = '${entry.createdAt.year}';
+      ChronicleContextCache.instance.invalidate(userId: effectiveUserId, layer: ChronicleLayer.monthly, period: monthPeriod);
+      ChronicleContextCache.instance.invalidate(userId: effectiveUserId, layer: ChronicleLayer.yearly, period: yearPeriod);
       
       // Verify the entry was saved
       final savedEntry = box.get(entry.id);

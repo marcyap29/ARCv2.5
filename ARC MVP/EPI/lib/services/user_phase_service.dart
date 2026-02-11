@@ -21,7 +21,7 @@ class UserPhaseService {
   
   /// Returns the phase to display everywhere (splash, timeline preview).
   /// User's explicit choice (quiz or manual "set overall phase") takes priority so it stays visible.
-  /// Then RIVET/regime if gate open; else empty (no default).
+  /// Then regime phase (imported or RIVET-detected); else empty (no default).
   static String getDisplayPhase({
     String? regimePhase,
     required bool rivetGateOpen,
@@ -31,8 +31,8 @@ class UserPhaseService {
     if (profilePhase.trim().isNotEmpty) {
       return profilePhase.trim();
     }
-    // 2. RIVET/regime when gate open and no user choice
-    if (rivetGateOpen && regimePhase != null && regimePhase.trim().isNotEmpty) {
+    // 2. Regime phase if it exists — trust imported/detected regimes even when RIVET gate is closed
+    if (regimePhase != null && regimePhase.trim().isNotEmpty) {
       return regimePhase.trim();
     }
     return '';

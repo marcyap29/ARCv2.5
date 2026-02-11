@@ -11,6 +11,7 @@ import 'package:my_app/arc/chat/chat/chat_repo_impl.dart';
 import 'package:my_app/services/phase_regime_service.dart';
 import 'package:my_app/services/rivet_sweep_service.dart';
 import 'package:my_app/services/analytics_service.dart';
+import 'package:my_app/services/user_phase_service.dart';
 import 'package:my_app/ui/auth/sign_in_screen.dart';
 
 // Global repo + cubit
@@ -97,6 +98,9 @@ class _AppState extends State<App> {
               },
             );
             if (result.success) {
+              // Notify phase preview and Gantt to refresh after import
+              PhaseRegimeService.regimeChangeNotifier.value = DateTime.now();
+              UserPhaseService.phaseChangeNotifier.value = DateTime.now();
               progressCubit.complete(result);
             } else {
               progressCubit.fail(result.error);

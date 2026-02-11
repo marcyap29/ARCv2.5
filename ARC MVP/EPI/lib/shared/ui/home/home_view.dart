@@ -97,6 +97,13 @@ class _HomeViewState extends State<HomeView> {
     super.initState();
     _homeCubit = HomeCubit();
     _homeCubit.initialize();
+    
+    // Trigger phase preview and Gantt refresh on app startup
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      PhaseRegimeService.regimeChangeNotifier.value = DateTime.now();
+      UserPhaseService.phaseChangeNotifier.value = DateTime.now();
+    });
+    
       if (widget.initialTab != 0) {
         _homeCubit.changeTab(widget.initialTab);
       } else if (core_flags.FeatureFlags.USE_UNIFIED_FEED) {

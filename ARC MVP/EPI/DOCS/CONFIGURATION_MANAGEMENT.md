@@ -1,7 +1,7 @@
 # Configuration Management & Documentation Tracking
 
 **Lead Configuration Management Analyst:** Active  
-**Last Updated:** February 10, 2026  
+**Last Updated:** February 11, 2026  
 **Status:** ✅ All Documents Synced with Repo
 
 ---
@@ -38,12 +38,12 @@ Prompt/role definitions: **Documentation & Configuration Management Role** in [c
 
 | Document | Location | Last Reviewed | Status | Notes |
 |----------|----------|---------------|--------|-------|
-| ARCHITECTURE.md | `/DOCS/ARCHITECTURE.md` | 2026-02-10 | ✅ Synced | v3.3.22 - RIVET phase hierarchy, analysis confirmation, DevSecOps full audit |
-| CHANGELOG.md | `/DOCS/CHANGELOG.md` | 2026-02-10 | ✅ Synced | v3.3.22 - Last Updated Feb 10 |
+| ARCHITECTURE.md | `/DOCS/ARCHITECTURE.md` | 2026-02-11 | ✅ Synced | v3.3.23 - CHRONICLE speed tiers, streaming, scroll nav, phase display fix |
+| CHANGELOG.md | `/DOCS/CHANGELOG.md` | 2026-02-11 | ✅ Synced | v3.3.23 - Last Updated Feb 11 |
 | PROMPT_REFERENCES.md | `/DOCS/PROMPT_REFERENCES.md` | 2026-02-07 | ✅ Current | v1.8.0 - Document scope and sources; prompt catalog |
 | PROMPT_TRACKER.md | `/DOCS/PROMPT_TRACKER.md` | 2026-02-07 | ✅ Synced | v1.0.0 - Prompt change tracking; links to PROMPT_REFERENCES |
 | bug_tracker.md | `/DOCS/bugtracker/bug_tracker.md` | 2026-02-08 | ✅ Synced | v3.2.2 - 29 records; How to use; Recent code changes |
-| FEATURES.md | `/DOCS/FEATURES.md` | 2026-02-10 | ✅ Synced | v3.3.22 - RIVET phase hierarchy, analysis confirmation, DevSecOps |
+| FEATURES.md | `/DOCS/FEATURES.md` | 2026-02-11 | ✅ Synced | v3.3.23 - CHRONICLE speed tiers, streaming, scroll nav, phase display, phase timeline UX |
 | README.md | `/DOCS/README.md` | 2026-02-07 | ✅ Synced | Key docs table with purpose and when to read |
 | claude.md | `/DOCS/claude.md` | 2026-02-10 | ✅ Synced | Git-backup-docsync role + new DevSecOps Security Audit Role (PII egress auditing) |
 | backend.md | `/DOCS/backend.md` | 2026-02-07 | ✅ Synced | v3.2 - Firebase, Stripe; RevenueCat see revenuecat/ |
@@ -80,7 +80,7 @@ Prompt/role definitions: **Documentation & Configuration Management Role** in [c
 | DOCUMENTATION_CONSOLIDATION_AUDIT_2026-02.md | DOCS/ | Doc consolidation audit |
 | NARRATIVE_INTELLIGENCE.md | DOCS/ | Narrative intelligence |
 | PAYMENTS_CLARIFICATION.md | DOCS/ | Stripe vs RevenueCat; web vs in-app |
-| UNIFIED_FEED.md | DOCS/ | Unified Feed v2.2: phase locking, regime notifications, bulk apply, interactive Gantt, static greeting, onboarding |
+| UNIFIED_FEED.md | DOCS/ | Unified Feed v2.3: scroll nav, content display, streaming, Gantt auto-refresh, phase display fix, CHRONICLE speed |
 | DEVSECOPS_SECURITY_AUDIT.md | DOCS/ | DevSecOps full security audit (PII/egress, auth, secrets, input, storage, network, logging, deps, rate limit) |
 | revenuecat/README.md | DOCS/revenuecat/ | RevenueCat (in-app) doc index |
 | revenuecat/REVENUECAT_INTEGRATION.md | DOCS/revenuecat/ | RevenueCat integration guide |
@@ -88,6 +88,21 @@ Prompt/role definitions: **Documentation & Configuration Management Role** in [c
 ---
 
 ## Change Tracking Log
+
+### 2026-02-11 - CHRONICLE Speed Tiers, Streaming, Scroll Nav, Phase Display, Feed Content (v3.3.23)
+
+**Action:** CHRONICLE context building gains speed-tiered system (`ResponseSpeed`: instant/fast/normal/deep) with mode-aware query routing (explore/voice→instant, integrate→fast yearly, reflect→fast monthly/yearly). New `ChronicleContextCache` (30min TTL, max 50) speeds repeated queries; invalidated on journal save. LUMARA responses stream to UI in real-time via `onStreamChunk` callback. Unified Feed gains scroll-to-top/bottom direction-aware navigation. Feed content display improved: preview strips summary header, entries sort by `createdAt`, paragraph rendering preserves newlines and renders `---` as dividers, summary overlap detection. Phase display shows regime phase even when RIVET gate closed. Phase change dialog redesigned as modal bottom sheet. Gantt card auto-refreshes via notifiers and navigates directly to editable timeline. DevSecOps audit updated with verified findings. 1 new file, 20 modified files.
+
+**Doc updates:**
+- **CHANGELOG.md:** New [3.3.23] section — CHRONICLE speed tiers, context cache, streaming, scroll nav, feed content, phase display, phase timeline UX, Gantt auto-refresh, DevSecOps verified.
+- **ARCHITECTURE.md:** v3.3.23; key achievements for CHRONICLE speed, streaming, Unified Feed 2.3, phase display fix, phase timeline UX, DevSecOps verified; updated `unified_feed/` submodule description.
+- **FEATURES.md:** v3.3.23; Unified Feed status/concept/display updated (scroll nav, content fixes); Phase Analysis (phase display fix, change dialog, direct timeline nav); LUMARA streaming responses; CHRONICLE speed-tiered context.
+- **UNIFIED_FEED.md:** v2.3; Phase 2.3 section; scroll navigation; Gantt auto-refresh and direct timeline navigation; paragraph rendering improvements; summary/preview changes; pull-to-refresh fires notifiers; files-modified table expanded.
+- **CONFIGURATION_MANAGEMENT.md:** Inventory dates, version sync, this entry.
+
+**Status:** ✅ All docs updated.
+
+---
 
 ### 2026-02-10 - RIVET Phase Hierarchy, Analysis Confirmation, DevSecOps Expanded (v3.3.22)
 
@@ -595,8 +610,8 @@ Prompt/role definitions: **Documentation & Configuration Management Role** in [c
 | Component | Documented Version | Code Version | Status | Notes |
 |-----------|-------------------|--------------|--------|-------|
 | Application | 1.0.0+1 | 1.0.0+1 (pubspec.yaml) | ✅ Synced | - |
-| Architecture | 3.3.22 | 3.3.22 (ARCHITECTURE.md) | ✅ Synced | Updated Feb 10, 2026 |
-| Changelog | 3.3.22 | 3.3.22 (CHANGELOG.md) | ✅ Synced | Updated Feb 10, 2026 |
+| Architecture | 3.3.23 | 3.3.23 (ARCHITECTURE.md) | ✅ Synced | Updated Feb 11, 2026 |
+| Changelog | 3.3.23 | 3.3.23 (CHANGELOG.md) | ✅ Synced | Updated Feb 11, 2026 |
 | Bug Tracker | 3.2.2 | 3.2.2 (bug_tracker.md) | ✅ Synced | Matches main branch |
 | Prompt References | 1.8.0 | 1.8.0 (PROMPT_REFERENCES.md) | ✅ Synced | Last updated: Jan 31, 2026 |
 | Prompt Tracker | 1.0.0 | 1.0.0 (PROMPT_TRACKER.md) | ✅ Synced | Configuration tracking only |
@@ -677,7 +692,7 @@ Prompt/role definitions: **Documentation & Configuration Management Role** in [c
 
 ---
 
-**Last Updated:** February 10, 2026  
+**Last Updated:** February 11, 2026  
 **Next Review:** Per review schedule (weekly CHANGELOG/bugtracker; monthly full inventory)
 
 ---

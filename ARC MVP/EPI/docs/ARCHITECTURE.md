@@ -1,7 +1,7 @@
 # EPI LUMARA MVP - Architecture Overview
 
-**Version:** 3.3.22
-**Last Updated:** February 10, 2026
+**Version:** 3.3.23
+**Last Updated:** February 11, 2026
 **Status:** ✅ Production Ready - MVP Fully Operational with Companion-First LUMARA, Reflection Session Safety System, RevenueCat In-App Purchases, Voice Sigil State Machine, Simplified Settings, Health Integration, AssemblyAI v3, Web Access Safety, Correlation-Resistant PII Protection, Bible Reference Retrieval, Google Drive Backup, Temporal Notifications, Enhanced Incremental Backups, Automatic First Export, Sequential Export Numbering, Local Backup Services, and Timeline Pagination
 
 ---
@@ -59,6 +59,12 @@ EPI (Evolving Personal Intelligence) is a Flutter-based intelligent journaling a
 - ✅ **RIVET Sweep Phase Hierarchy (v3.3.22)**: RIVET Sweep uses `computedPhase` (respects `userPhaseOverride > autoPhase > legacy`) instead of only `autoPhase`; locked entries respected.
 - ✅ **Phase Analysis Confirmation (v3.3.22)**: Warning dialog before clearing existing regimes during Phase Analysis; fires notifiers after completion.
 - ✅ **DevSecOps Full Security Audit (v3.3.22)**: Expanded from PII/egress-only to 10-domain security audit (auth, secrets, input, storage, network, logging, deps, rate limiting). `DEVSECOPS_SECURITY_AUDIT.md` replaces `DEVSECOPS_EGRESS_PII_AUDIT.md`.
+- ✅ **CHRONICLE Speed-Tiered Context (v3.3.23)**: New `ResponseSpeed` enum (instant/fast/normal/deep) with mode-aware query routing. Explore/voice → instant (~50 tokens). Integrate → fast yearly (~2k tokens). Reflect → fast monthly/yearly. Legacy → normal/deep. `ChronicleContextCache` (30min TTL, max 50 entries) speeds repeated queries. `ChronicleContextBuilder` gains `_buildSingleLayerContext()` + `_compressForSpeed()` for fast tier.
+- ✅ **Streaming LUMARA Responses (v3.3.23)**: `EnhancedLumaraApi.onStreamChunk` callback streams Gemini responses token-by-token to the UI. `ReflectionHandler` passes stream through. `JournalScreen` updates LUMARA inline blocks in real-time via `setState`. Falls back to non-streaming if direct API unavailable.
+- ✅ **Unified Feed Phase 2.3 (v3.3.23)**: Scroll-to-top/bottom navigation (direction-aware pill buttons). Feed content improvements: preview strips summary header, entries sort by `createdAt`, paragraph rendering preserves newlines and renders `---` as dividers, summary overlap detection. Gantt card auto-refreshes on phase/regime change and navigates directly to editable timeline. Pull-to-refresh fires notifiers.
+- ✅ **Phase Display Fix (v3.3.23)**: `getDisplayPhase()` shows regime phase even when RIVET gate is closed — trusts imported/detected regimes regardless of gate status.
+- ✅ **Phase Timeline UX (v3.3.23)**: "Change Phase" dialog redesigned as modal bottom sheet with colored phase list, current-phase chip, no redundant confirmation. `PhaseAnalysisView` gains `initialView` parameter for direct timeline navigation.
+- ✅ **DevSecOps Audit Verified (v3.3.23)**: Auth (callables enforce auth), secrets (Firebase secrets, no raw key in logs), storage (secure storage + Keychain), network (no cert override), logging (email/UID in debug — recommend masking), rate limiting (client-side; recommend server enforcement), deep links (internal only).
 - ✅ **RIVET Reset on User Phase Change (v3.3.20)**: `PhaseRegimeService.changeCurrentPhase()` and `UserPhaseService.forceUpdatePhase()` reset RIVET so gate closes and fresh evidence accumulates.
 - ✅ **Voice Session: Auto-Endpoint Disabled (v3.3.20)**: Voice recording no longer auto-stops on silence; user must tap to end turn (prevents premature cutoff).
 - ✅ **Privacy Settings: Inline PII Scrub Demo (v3.3.20)**: Real-time PII scrubbing demo in Privacy Settings; shows scrubbed output and redaction count.
@@ -204,12 +210,12 @@ The EPI system is organized into 5 core modules:
 - `core/` - Journal entry processing and state management
 - `ui/` - Journaling interface components
 - `privacy/` - Privacy demonstration UI
-- `unified_feed/` - **(v3.3.21, feature-flagged)** Merged LUMARA chat + Conversations feed
-  - `models/` - `FeedEntry` (5 types, `mediaItems`), `FeedMessage`, `EntryState`
-  - `repositories/feed_repository.dart` - Aggregates journal, chat, voice note data; pagination; phase colors; `computedPhase`
+- `unified_feed/` - **(v3.3.23, feature-flagged)** Merged LUMARA chat + Conversations feed
+  - `models/` - `FeedEntry` (5 types, `mediaItems`, preview strips summary header), `FeedMessage`, `EntryState`
+  - `repositories/feed_repository.dart` - Aggregates journal, chat, voice note data; pagination; phase colors; `computedPhase`; `createdAt` timestamp
   - `services/` - `ConversationManager` (lifecycle + auto-save), `AutoSaveService`, `ContextualGreetingService` (deprecated v2.2), `UniversalImporterService`
-  - `utils/feed_helpers.dart` - Date grouping, icons, `contentWithoutPhaseHashtags()`, `extractSummary()`, `formatEntryCreationDate()`
-  - `widgets/` - `UnifiedFeedScreen` (deletion, batch select/export, LUMARA chat, phase preview, interactive Gantt, static greeting), `ExpandedEntryView` (media, edit, delete, paragraph rendering), `FeedMediaThumbnails`, `ImportOptionsSheet`, `BaseFeedCard`, 5 card types, `timeline/`
+  - `utils/feed_helpers.dart` - Date grouping, icons, `contentWithoutPhaseHashtags()` (preserves newlines), `extractSummary()`, `formatEntryCreationDate()`
+  - `widgets/` - `UnifiedFeedScreen` (deletion, batch select/export, LUMARA chat, phase preview, interactive Gantt, static greeting, scroll-to-top/bottom navigation, pull-to-refresh fires notifiers), `ExpandedEntryView` (media, edit, delete, paragraph rendering with dividers and summary overlap detection), `FeedMediaThumbnails`, `ImportOptionsSheet`, `BaseFeedCard`, 5 card types, `timeline/`
 
 **Key Features:**
 - Journal entry capture and editing

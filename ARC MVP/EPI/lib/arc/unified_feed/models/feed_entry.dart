@@ -193,10 +193,15 @@ class FeedEntry {
     }
   }
 
-  /// Preview text (first line of content or first message)
+  /// Pattern to strip "## Summary\n\n...\n\n---\n\n" prefix from content for preview display.
+  static final _summaryPrefix = RegExp(r'^## Summary\s*\n\n.+?\n\n---\n\n', dotAll: true);
+
+  /// Preview text (body without summary header, first 200 chars)
   String get preview {
     if (content is String && (content as String).isNotEmpty) {
-      final text = content as String;
+      // Strip the "## Summary...---" block so preview shows the actual body text
+      String text = (content as String).replaceFirst(_summaryPrefix, '').trim();
+      if (text.isEmpty) text = content as String; // fallback if regex removes everything
       return text.length > 200 ? '${text.substring(0, 197)}...' : text;
     }
     if (messages != null && messages!.isNotEmpty) {
