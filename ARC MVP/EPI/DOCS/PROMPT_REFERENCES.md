@@ -8,7 +8,7 @@ This document catalogs all prompts used throughout the ARC application, organize
 - **Path baseline:** All paths are relative to the EPI app root (e.g. `ARC MVP/EPI/`). Example: `lib/arc/chat/prompts/lumara_profile.json` means `ARC MVP/EPI/lib/arc/chat/prompts/lumara_profile.json`.
 - **Content:** Quoted blocks are taken from or derived from the cited sources. Some sections show a subset or summary; the source file holds the full, authoritative text.
 - **Cloud vs on-device:** Cloud API uses the master prompt system (`lumara_master_prompt.dart`); on-device and legacy paths may use `lumara_system_prompt.dart` or profile JSON.
-- **Last synced with codebase:** 2026-02-11. Document version: 1.9.0.
+- **Last synced with codebase:** 2026-02-11. Document version: 2.0.0.
 
 ---
 
@@ -1203,10 +1203,14 @@ The Firebase Cloud Functions use LUMARA-style system prompts that are simplified
 
 | Function | Purpose | Prompt type |
 |----------|---------|-------------|
+| **proxyGroq** (`functions/index.js`) | **Primary** cloud LLM proxy (v3.3.24) | Forwards system + user prompts to Groq API (Llama 3.3 70B / Mixtral 8x7b). No prompt modification — passes through exactly. API key hidden via Firebase Secret Manager (`GROQ_API_KEY`). |
+| **proxyGemini** (`functions/index.js`) | **Fallback** cloud LLM proxy | Forwards system + user prompts to Gemini API. No prompt modification — passes through exactly. API key hidden via `GEMINI_API_KEY` secret. |
 | **sendChatMessage.ts** | Chat with user (cloud) | LUMARA system prompt with web access and trigger-safety policy |
 | **generateJournalReflection.ts** | Journal reflection (cloud) | LUMARA system prompt (simplified, no web access); encourages gentle guidance when patterns suggest it |
 | **generateJournalPrompts.ts** | Journal prompt generation | LUMARA system prompt for generating 4 initial or 12-18 expanded prompts (33/33/33 mix: contextual, fun/playful, deep) |
 | **analyzeJournalEntry.ts** | Journal entry analysis | LUMARA system prompt for entry analysis |
+
+**Note on proxy functions:** `proxyGroq` and `proxyGemini` are transparent proxies — they do not modify or inject prompts. The client-side `enhanced_lumara_api.dart` constructs the full system/user prompts and sends them through the proxy. The proxy's role is solely to attach the API key and forward to the provider.
 
 These are not duplicated in full in this document; they are derived from the LUMARA Core Identity and adapted for backend context. See the source files for exact text.
 
@@ -1574,7 +1578,7 @@ Summary:
 
 | Version | Date | Changes |
 |---------|------|---------|
-| 1.9.0 | 2026-02-11 | Added 6 prompt sections: CHRONICLE Monthly Narrative (VEIL INTEGRATE), CHRONICLE Yearly Narrative (VEIL INTEGRATE), CHRONICLE Multi-Year Narrative (VEIL LINK), Voice Split-Payload System-Only Prompt (getVoicePromptSystemOnly + buildVoiceUserMessage), CHRONICLE Speed-Tiered Context System (ResponseSpeed, mode-aware routing, context cache), Conversation Summary Prompt. Updated TOC. |
+| 2.0.0 | 2026-02-11 | **Groq primary LLM**: Added `proxyGroq` and `proxyGemini` (transparent proxy) entries to Backend section with note on proxy vs prompt-injecting functions. Updated from v1.9.0 which added 6 prompt sections: CHRONICLE Monthly/Yearly/Multi-Year Narrative, Voice Split-Payload, Speed-Tiered Context System, Conversation Summary Prompt. |
 | 1.8.0 | 2026-01-31 | Document scope and sources: added section explaining how this doc reflects codebase prompts; path baseline (EPI app root); LUMARA Core Identity source note (lumara_system_prompt.dart vs lumara_master_prompt.dart, lumara_profile.json). Aligned document with prompts used to generate it. |
 | 1.7.0 | 2026-01-30 | Added CHRONICLE prompts (Query Classifier, Monthly Theme Extraction / VEIL EXAMINE), Voice Journal Entry Creation ([VOICE_JOURNAL_SUMMARIZATION]), and Backend (Firebase) prompts (sendChatMessage, generateJournalReflection, generateJournalPrompts, analyzeJournalEntry). Renumbered Voice Mode to §13. |
 | 1.6.0 | 2026-01-24 | **BREAKING**: Renamed REFLECT → DEFAULT mode. Added Layer 2.5 (Voice Mode Direct Answer Protocol), Layer 2.6 (Context Retrieval Triggers), Layer 2.7 (Mode Switching Commands). Updated temporal query classification to fix "Tell me about my week" routing. |

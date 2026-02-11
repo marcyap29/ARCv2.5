@@ -1,6 +1,6 @@
 # EPI LUMARA MVP - Architecture Overview
 
-**Version:** 3.3.23
+**Version:** 3.3.24
 **Last Updated:** February 11, 2026
 **Status:** ✅ Production Ready - MVP Fully Operational with Companion-First LUMARA, Reflection Session Safety System, RevenueCat In-App Purchases, Voice Sigil State Machine, Simplified Settings, Health Integration, AssemblyAI v3, Web Access Safety, Correlation-Resistant PII Protection, Bible Reference Retrieval, Google Drive Backup, Temporal Notifications, Enhanced Incremental Backups, Automatic First Export, Sequential Export Numbering, Local Backup Services, and Timeline Pagination
 
@@ -65,6 +65,7 @@ EPI (Evolving Personal Intelligence) is a Flutter-based intelligent journaling a
 - ✅ **Phase Display Fix (v3.3.23)**: `getDisplayPhase()` shows regime phase even when RIVET gate is closed — trusts imported/detected regimes regardless of gate status.
 - ✅ **Phase Timeline UX (v3.3.23)**: "Change Phase" dialog redesigned as modal bottom sheet with colored phase list, current-phase chip, no redundant confirmation. `PhaseAnalysisView` gains `initialView` parameter for direct timeline navigation.
 - ✅ **DevSecOps Audit Verified (v3.3.23)**: Auth (callables enforce auth), secrets (Firebase secrets, no raw key in logs), storage (secure storage + Keychain), network (no cert override), logging (email/UID in debug — recommend masking), rate limiting (client-side; recommend server enforcement), deep links (internal only).
+- ✅ **Groq Primary LLM Provider (v3.3.24)**: Groq (Llama 3.3 70B / Mixtral 8x7b) as primary cloud LLM, Gemini demoted to fallback. New `proxyGroq` Firebase Cloud Function. `GroqService` client with streaming and non-streaming. `GroqProvider` in LLM factory. Mode-aware temperature (explore 0.8 / integrate 0.7 / reflect 0.6). Settings UI simplified: Groq + Gemini only (Claude/ChatGPT/Venice/OpenRouter removed).
 - ✅ **RIVET Reset on User Phase Change (v3.3.20)**: `PhaseRegimeService.changeCurrentPhase()` and `UserPhaseService.forceUpdatePhase()` reset RIVET so gate closes and fresh evidence accumulates.
 - ✅ **Voice Session: Auto-Endpoint Disabled (v3.3.20)**: Voice recording no longer auto-stops on silence; user must tap to end turn (prevents premature cutoff).
 - ✅ **Privacy Settings: Inline PII Scrub Demo (v3.3.20)**: Real-time PII scrubbing demo in Privacy Settings; shows scrubbed output and redaction count.
@@ -321,7 +322,7 @@ The EPI system is organized into 5 core modules:
 - `test/services/lumara/entry_classifier_test.dart` - Comprehensive test suite
 
 **Key Features:**
-- LLM integration (Gemini API, on-device Qwen)
+- LLM integration (Groq primary / Gemini fallback, on-device Qwen)
 - Response safety checks
 - Privacy filtering
 - Context management
@@ -398,7 +399,8 @@ The EPI system is organized into 5 core modules:
 - **Crypto**: crypto, pointycastle
 
 ### AI Integration
-- **Cloud LLM**: Gemini API (Google)
+- **Cloud LLM (Primary)**: Groq API — Llama 3.3 70B (128K context) with Mixtral 8x7b (32K context) backup. Via `proxyGroq` Firebase Cloud Function or direct API key.
+- **Cloud LLM (Fallback)**: Gemini API (Google) — used when Groq unavailable or fails.
 - **On-Device**: llama.cpp with Qwen models
 - **Embeddings**: Qwen3-Embedding-0.6B
 - **Vision**: Qwen2.5-VL-3B
@@ -595,7 +597,8 @@ Update last export date and tracked IDs/hashes
 - **ECHO Response**: LLM integration
 
 ### External APIs
-- **Gemini API**: Cloud LLM provider
+- **Groq API**: Primary cloud LLM provider (Llama 3.3 70B / Mixtral 8x7b)
+- **Gemini API**: Fallback cloud LLM provider
 - **HealthKit**: iOS health data (planned)
 - **Google Fit**: Android health data (planned)
 

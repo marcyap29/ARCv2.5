@@ -1,13 +1,14 @@
 # EPI Documentation Context Guide
 
-**Version:** 3.3.23
+**Version:** 3.3.24
 **Last Updated:** February 11, 2026
 **Current Branch:** `test`
 
-### Recent Updates (v3.3.23)
-- **PROMPT_REFERENCES v1.9.0**: Added 6 prompt sections: CHRONICLE Monthly/Yearly/Multi-Year Narrative (VEIL INTEGRATE/LINK), Voice Split-Payload System-Only Prompt, CHRONICLE Speed-Tiered Context System (ResponseSpeed enum, mode-aware routing, context cache), Conversation Summary Prompt. PROMPT_TRACKER updated.
+### Recent Updates (v3.3.24)
+- **Groq Primary LLM Provider**: Groq (Llama 3.3 70B / Mixtral 8x7b) is now the primary cloud LLM for LUMARA; Gemini demoted to fallback. New `proxyGroq` Firebase Cloud Function. `GroqService` (streaming + non-streaming), `GroqProvider`, `groq_send.dart`. Mode-aware temperature. Settings simplified to Groq + Gemini only. 4 new files, 8 modified.
+- **PROMPT_REFERENCES v2.0.0**: Added `proxyGroq`/`proxyGemini` to Backend section. Prior v1.9.0: CHRONICLE Monthly/Yearly/Multi-Year Narrative, Voice Split-Payload, Speed-Tiered Context, Conversation Summary.
 - **CHRONICLE Speed-Tiered Context**: ResponseSpeed enum (instant/fast/normal/deep) with mode-aware query routing; ChronicleContextCache (in-memory TTL, 50 entries, 30-min); context building tiers from mini-context (50 tokens) to full multi-layer.
-- **Streaming LUMARA Responses**: `geminiSendStream` with `onStreamChunk` callback for real-time response delivery in journal reflection UI.
+- **Streaming LUMARA Responses**: `geminiSendStream`/`GroqService.generateContentStream` with `onStreamChunk` callback for real-time response delivery in journal reflection UI.
 - **Unified Feed Phase 2.3**: Scroll-to-top/bottom navigation, Gantt card auto-refresh via notifiers, improved paragraph rendering (dividers, line height, summary overlap detection), feed sort by `createdAt`, summary stripping from preview.
 - **Phase Display Fix**: Regime phase shown regardless of RIVET gate status; phase change dialog redesigned as bottom sheet; direct timeline navigation from Gantt card.
 - **DevSecOps Security Audit**: Verified findings for auth, secrets, storage, network, logging, rate limiting, deep links.

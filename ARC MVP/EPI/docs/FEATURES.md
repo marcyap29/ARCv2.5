@@ -1,6 +1,6 @@
 # EPI MVP - Comprehensive Features Guide
 
-**Version:** 3.3.23
+**Version:** 3.3.24
 **Last Updated:** February 11, 2026
 
 ---
@@ -194,7 +194,8 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 - Phase-aware reflections
 - Multimodal understanding
 - **Unified Feed integration (v3.3.19)**: `initialMessage` parameter auto-sends most recent journal entry to LUMARA for reflection when opened from feed. Back-arrow navigation (replaces drawer). "New Chat" removed from popup menu.
-- **Streaming Responses (v3.3.23)**: LUMARA reflections stream to the UI in real-time as chunks arrive from Gemini API. LUMARA inline blocks update progressively via `onStreamChunk` callback, showing "Streaming..." status. Falls back to non-streaming if direct API key unavailable.
+- **Streaming Responses (v3.3.23)**: LUMARA reflections stream to the UI in real-time as chunks arrive from the cloud API. LUMARA inline blocks update progressively via `onStreamChunk` callback, showing "Streaming..." status. Falls back to non-streaming if direct API key unavailable.
+- **Groq Primary LLM Provider (v3.3.24)**: LUMARA now uses **Groq** (Llama 3.3 70B / Mixtral 8x7b) as the primary cloud LLM, with Gemini as fallback. Streaming and non-streaming support. Mode-aware temperature (explore: 0.8, integrate: 0.7, reflect: 0.6). Firebase `proxyGroq` Cloud Function hides API key from client.
 
 **Voice Chat - Voice Sigil (v3.3.16, upgraded from Jarvis Mode v2.1.53)**
 - **Voice Sigil UI**: Sophisticated 6-state animation system replacing the original glowing indicator
@@ -443,9 +444,16 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 
 ### Cloud AI Fallback
 
-**Gemini API**
-- Primary cloud LLM provider
-- Streaming responses
+**Groq API (v3.3.24 — Primary)**
+- Primary cloud LLM provider via Llama 3.3 70B (128K context) + Mixtral 8x7b (32K context) backup
+- Streaming and non-streaming generation
+- Firebase `proxyGroq` Cloud Function hides API key from client
+- Direct API key option in LUMARA Settings for non-Firebase scenarios
+- Mode-aware temperature adjustment per engagement mode
+
+**Gemini API (Fallback)**
+- Fallback cloud LLM provider when Groq unavailable or fails
+- Streaming responses via `geminiSendStream`
 - Context-aware generation
 - Privacy-first design
 

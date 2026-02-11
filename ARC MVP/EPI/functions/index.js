@@ -5,6 +5,43 @@ const { getAuth } = require("firebase-admin/auth");
 const { getFirestore, FieldValue } = require("firebase-admin/firestore");
 const https = require("https");
 const { GoogleGenerativeAI } = require("@google/generative-ai");
+
+/** Call Groq OpenAI-compatible API (non-streaming) */
+function groqChatCompletion(apiKey, body) {
+  return new Promise((resolve, reject) => {
+    const data = JSON.stringify(body);
+    const req = https.request(
+      {
+        hostname: "api.groq.com",
+        path: "/openai/v1/chat/completions",
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Length": Buffer.byteLength(data),
+        },
+      },
+      (res) => {
+        let buf = "";
+        res.on("data", (chunk) => { buf += chunk; });
+        res.on("end", () => {
+          if (res.statusCode !== 200) {
+            reject(new Error(`Groq API error: ${res.statusCode} - ${buf}`));
+            return;
+          }
+          try {
+            resolve(JSON.parse(buf));
+          } catch (e) {
+            reject(new Error("Invalid Groq response: " + buf));
+          }
+        });
+      }
+    );
+    req.on("error", reject);
+    req.write(data);
+    req.end();
+  });
+}
 const Stripe = require("stripe");
 
 // Initialize Firebase Admin
@@ -13,6 +50,7 @@ initializeApp();
 // Define secrets
 const ASSEMBLYAI_API_KEY = defineSecret("ASSEMBLYAI_API_KEY");
 const GEMINI_API_KEY = defineSecret("GEMINI_API_KEY");
+const GROQ_API_KEY = defineSecret("GROQ_API_KEY");
 const STRIPE_SECRET_KEY = defineSecret("STRIPE_SECRET_KEY");
 const STRIPE_WEBHOOK_SECRET = defineSecret("STRIPE_WEBHOOK_SECRET");
 const STRIPE_PRICE_ID_MONTHLY = defineSecret("STRIPE_PRICE_ID_MONTHLY");
@@ -246,6 +284,71 @@ exports.proxyGemini = onCall(
         throw error;
       }
       throw new HttpsError("internal", `Gemini API error: ${error.message || "Unknown error"}`);
+    }
+  }
+);
+
+/**
+ * Proxy Groq API calls - hides API key from client (Llama 3.3 70B / Mixtral)
+ */
+exports.proxyGroq = onCall(
+  {
+    cors: true,
+    secrets: [GROQ_API_KEY],
+  },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "The function must be called while authenticated.");
+    }
+
+    const { system, user, model, temperature, maxTokens, entryId, chatId } = request.data || {};
+    const uid = request.auth.uid;
+    const email = request.auth.token.email;
+
+    if (user == null) {
+      throw new HttpsError("invalid-argument", "user is required");
+    }
+    const systemStr = typeof system === "string" ? system : (system != null ? JSON.stringify(system) : "");
+    const userStr = typeof user === "string" ? user : JSON.stringify(user);
+    if (userStr.trim().length === 0) {
+      throw new HttpsError("invalid-argument", "user must have content");
+    }
+
+    const apiKey = GROQ_API_KEY.value();
+    if (!apiKey || !apiKey.trim()) {
+      throw new HttpsError("internal", "Groq API key not configured");
+    }
+
+    const modelId = model === "mixtral-8x7b-32768" ? "mixtral-8x7b-32768" : "llama-3.3-70b-versatile";
+    const messages = [];
+    if (systemStr.trim().length > 0) {
+      messages.push({ role: "system", content: systemStr });
+    }
+    messages.push({ role: "user", content: userStr });
+
+    const body = {
+      model: modelId,
+      messages,
+      temperature: typeof temperature === "number" ? temperature : 0.7,
+      stream: false,
+    };
+    if (typeof maxTokens === "number" && maxTokens > 0) {
+      body.max_tokens = maxTokens;
+    }
+
+    try {
+      const result = await groqChatCompletion(apiKey, body);
+      const choices = result.choices;
+      const content = choices?.[0]?.message?.content;
+      if (content == null) {
+        throw new HttpsError("internal", "Groq API returned no content");
+      }
+      console.log(`proxyGroq: Successfully generated response for ${email}`);
+      return { response: content, usage: result.usage || null };
+    } catch (error) {
+      console.error("proxyGroq error:", error);
+      if (error instanceof HttpsError) throw error;
+      throw new HttpsError("internal", `Groq API error: ${error.message || "Unknown error"}`);
     }
   }
 );
@@ -873,7 +976,7 @@ exports.healthCheck = onRequest(
     res.json({
       status: 'healthy',
       timestamp: new Date().toISOString(),
-      functions: ['getUserSubscription', 'getAssemblyAIToken', 'proxyGemini', 'createCheckoutSession', 'createPortalSession', 'stripeWebhook']
+      functions: ['getUserSubscription', 'getAssemblyAIToken', 'proxyGemini', 'proxyGroq', 'createCheckoutSession', 'createPortalSession', 'stripeWebhook']
     });
   }
 );

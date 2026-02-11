@@ -5,6 +5,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 import '../../../services/gemini_send.dart';
+import 'groq_service.dart';
 import 'lumara_reflection_settings_service.dart';
 import '../llm/prompts/lumara_master_prompt.dart';
 import '../../../mira/memory/sentence_extraction_util.dart';
@@ -126,13 +127,36 @@ class EnhancedLumaraApi {
   /// Lazy-built when [FeatureFlags.useOrchestrator] is true and CHRONICLE is initialized.
   LumaraOrchestrator? _orchestrator;
   
-  // LLM Provider tracking (for logging only - we use geminiSend directly)
+  // LLM Provider tracking (for logging only - we use Groq primary, geminiSend fallback)
   LLMProviderBase? _llmProvider;
   LumaraAPIConfig? _apiConfig;
-  
+  GroqService? _groqService;
+
   bool _initialized = false;
 
   EnhancedLumaraApi(this._analytics);
+
+  /// Groq service (Llama 3.3 70B / Mixtral). Created when Groq API key is available.
+  GroqService? get _groq {
+    if (_groqService != null) return _groqService;
+    final key = _apiConfig?.getConfig(LLMProvider.groq)?.apiKey;
+    if (key == null || key.isEmpty) return null;
+    _groqService = GroqService(apiKey: key);
+    return _groqService;
+  }
+
+  double _temperatureForMode(EngagementMode? mode) {
+    switch (mode) {
+      case EngagementMode.explore:
+        return 0.8;
+      case EngagementMode.integrate:
+        return 0.7;
+      case EngagementMode.reflect:
+        return 0.6;
+      default:
+        return 0.7;
+    }
+  }
 
   /// Initialize the enhanced API
   Future<void> initialize({String? mcpBundlePath}) async {
@@ -1109,28 +1133,76 @@ class EnhancedLumaraApi {
           
           onProgress?.call('Calling cloud API...');
 
-          // Call Gemini API directly - no fallbacks, no hard-coded responses
+          // Primary: Groq (Llama 3.3 70B → Mixtral fallback). Fallback: Gemini API.
           String? geminiResponse;
           int retryCount = 0;
           const maxRetries = 2;
+          final useGroq = _groq != null;
+          final temperature = _temperatureForMode(engagementMode);
 
           while (retryCount <= maxRetries && geminiResponse == null) {
             try {
-              if (onStreamChunk != null) {
-                // Streaming path: use geminiSendStream when available for perceived speed
+              if (useGroq) {
                 try {
-                  final buffer = StringBuffer();
-                  await for (final chunk in geminiSendStream(
-                    system: systemPrompt,
-                    user: userPromptForApi,
-                  )) {
-                    buffer.write(chunk);
-                    onStreamChunk(chunk);
+                  // Try Groq first (Llama 3.3 70B → Mixtral backup)
+                  if (onStreamChunk != null) {
+                    final buffer = StringBuffer();
+                    await for (final chunk in _groq!.generateContentStream(
+                      prompt: userPromptForApi,
+                      systemPrompt: systemPrompt,
+                      model: GroqModel.llama33_70b,
+                      temperature: temperature,
+                    )) {
+                      buffer.write(chunk);
+                      onStreamChunk(chunk);
+                    }
+                    geminiResponse = buffer.toString();
+                  } else {
+                    geminiResponse = await _groq!.generateContent(
+                      prompt: userPromptForApi,
+                      systemPrompt: systemPrompt,
+                      model: GroqModel.llama33_70b,
+                      temperature: temperature,
+                      fallbackToMixtral: true,
+                    );
                   }
-                  geminiResponse = buffer.toString();
-                } catch (streamErr) {
-                  // Fallback: e.g. no API key when using Firebase proxy
-                  print('LUMARA: Stream not available ($streamErr), using non-streaming call');
+                  if (geminiResponse != null && geminiResponse.isNotEmpty) {
+                    print('LUMARA: Groq API response received (length: ${geminiResponse.length})');
+                    break;
+                  }
+                } catch (groqErr) {
+                  print('LUMARA: Groq failed, falling back to Gemini: $groqErr');
+                }
+              }
+              // Fallback to Gemini (when Groq not configured or Groq failed)
+              if (geminiResponse == null || geminiResponse.isEmpty) {
+                if (useGroq) {
+                  print('LUMARA: Groq failed, falling back to Gemini');
+                }
+                if (onStreamChunk != null) {
+                  try {
+                    final buffer = StringBuffer();
+                    await for (final chunk in geminiSendStream(
+                      system: systemPrompt,
+                      user: userPromptForApi,
+                    )) {
+                      buffer.write(chunk);
+                      onStreamChunk(chunk);
+                    }
+                    geminiResponse = buffer.toString();
+                  } catch (streamErr) {
+                    print('LUMARA: Gemini stream not available ($streamErr), using non-streaming');
+                    geminiResponse = await geminiSend(
+                      system: systemPrompt,
+                      user: userPromptForApi,
+                      jsonExpected: false,
+                      entryId: entryId,
+                      intent: 'journal_reflection',
+                      skipTransformation: true,
+                    );
+                    onStreamChunk(geminiResponse);
+                  }
+                } else {
                   geminiResponse = await geminiSend(
                     system: systemPrompt,
                     user: userPromptForApi,
@@ -1139,46 +1211,30 @@ class EnhancedLumaraApi {
                     intent: 'journal_reflection',
                     skipTransformation: true,
                   );
-                  onStreamChunk(geminiResponse);
                 }
-              } else {
-                // Non-streaming: Firebase proxy with entryId and skipTransformation
-                geminiResponse = await geminiSend(
-                  system: systemPrompt,
-                  user: userPromptForApi,
-                  jsonExpected: false,
-                  entryId: entryId,
-                  intent: 'journal_reflection', // Specify intent for journal entries
-                  skipTransformation: true, // Skip transformation - entry already abstracted
-                );
+                print('LUMARA: Gemini API response received (length: ${geminiResponse.length})');
               }
-
-              print('LUMARA: Gemini API response received (length: ${geminiResponse.length})');
               onProgress?.call('Processing response...');
-              break; // Success, exit retry loop
+              break;
             } catch (e) {
               retryCount++;
               if (retryCount > maxRetries) {
-                print('LUMARA: Gemini API error after $maxRetries retries: $e');
-                // Re-throw the error - no fallbacks, user needs to configure API key
+                print('LUMARA: Cloud API error after $maxRetries retries: $e');
                 rethrow;
               }
-              // Only retry on 503/overloaded errors
               if (!e.toString().contains('503') &&
                   !e.toString().contains('overloaded') &&
                   !e.toString().contains('UNAVAILABLE')) {
-                print('LUMARA: Gemini API error (non-retryable): $e');
-                // Re-throw immediately for non-retryable errors (like API key missing)
+                print('LUMARA: Cloud API error (non-retryable): $e');
                 rethrow;
               }
               onProgress?.call('Retrying API... ($retryCount/$maxRetries)');
-              print('LUMARA: Gemini API retry $retryCount/$maxRetries - waiting 2 seconds...');
               await Future.delayed(const Duration(seconds: 2));
             }
           }
 
           if (geminiResponse == null) {
-            throw Exception('Failed to generate response from Gemini API');
+            throw Exception('Failed to generate response from cloud API (Groq/Gemini)');
           }
 
           // Restore PII in response when CHRONICLE context was scrubbed before send

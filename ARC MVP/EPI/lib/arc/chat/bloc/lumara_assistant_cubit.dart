@@ -479,7 +479,7 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
 
       print('LUMARA Debug: Provider Status Summary:');
       print('LUMARA Debug:   - On-Device (Qwen): ${onDeviceAvailable ? "AVAILABLE ✓" : "Not Available (${LLMAdapter.reason})"}');
-      print('LUMARA Debug:   - Cloud API (Gemini): ${availableProviders.any((p) => p.name == 'Google Gemini') ? "AVAILABLE ✓" : "Not Available (no API key)"}');
+      print('LUMARA Debug:   - Cloud API (Groq/Gemini): ${availableProviders.any((p) => p.name == 'Groq (Llama 3.3 70B / Mixtral)' || p.name == 'Google Gemini') ? "AVAILABLE ✓" : "Not Available (no API key)"}');
       print('LUMARA Debug: Security-first fallback chain: On-Device → Cloud API → Rule-Based');
 
       // Check if user has manually selected a provider
@@ -492,14 +492,14 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
       print('LUMARA Debug: Best provider: ${bestProvider?.name ?? 'none'}');
       print('LUMARA Debug: Is manual selection: $isManualSelection');
 
-      // Use Gemini with full journal context (ArcLLM chat) - Cloud API only
+      // Use Groq or Gemini with full journal context (ArcLLM chat) - Cloud API only
       // Retry logic: 3 attempts total (initial + 2 retries)
       const maxAttempts = 3;
       Exception? lastError;
       
       for (int attempt = 1; attempt <= maxAttempts; attempt++) {
         try {
-          print('LUMARA Debug: [Gemini] Attempt $attempt/$maxAttempts - Attempting Gemini with journal context...');
+          print('LUMARA Debug: [Cloud API] Attempt $attempt/$maxAttempts - Attempting Groq/Gemini with journal context...');
           
           // Get context for Gemini (using current scope from state)
           final context = await _contextProvider.buildContext(scope: currentState.scope);
@@ -670,7 +670,7 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
             lastKeywordsJson: keywords,
           );
           
-          print('LUMARA Debug: [Gemini] ✓ Response received on attempt $attempt, length: ${response.length}');
+          print('LUMARA Debug: [Cloud API] ✓ Response received on attempt $attempt, length: ${response.length}');
           
           // Use attribution traces from context building (the actual memory nodes used)
           var attributionTraces = contextAttributionTraces;
@@ -720,12 +720,12 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
           // Clear pending input when response completes successfully
           await PendingConversationService.clearPendingInput();
           
-          print('LUMARA Debug: [Gemini] Complete - personalized response generated');
-          return; // Exit early - Gemini succeeded
+          print('LUMARA Debug: [Cloud API] Complete - personalized response generated');
+          return; // Exit early - Groq/Gemini succeeded
         } catch (e) {
           lastError = e is Exception ? e : Exception(e.toString());
           final errorString = e.toString();
-          print('LUMARA Debug: [Gemini] Attempt $attempt/$maxAttempts failed: $errorString');
+          print('LUMARA Debug: [Cloud API] Attempt $attempt/$maxAttempts failed: $errorString');
           
           // Check if this is an auth/trial error - don't retry, show immediately
           if (errorString.contains('ANONYMOUS_TRIAL_EXPIRED') ||
@@ -745,14 +745,14 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
           if (attempt < maxAttempts) {
             // Exponential backoff: 1s, 2s
             final delaySeconds = attempt;
-            print('LUMARA Debug: [Gemini] Waiting ${delaySeconds}s before retry...');
+            print('LUMARA Debug: [Cloud API] Waiting ${delaySeconds}s before retry...');
             await Future.delayed(Duration(seconds: delaySeconds));
           }
         }
       }
       
       // All retries failed - show graceful error message
-      print('LUMARA Debug: [Gemini] All $maxAttempts attempts failed. Last error: $lastError');
+      print('LUMARA Debug: [Cloud API] All $maxAttempts attempts failed. Last error: $lastError');
       print('LUMARA Debug: Cloud API only mode - no automated responses');
 
       // Check if last error was auth-related

@@ -224,7 +224,7 @@ Stream<String> geminiSendStream({
 
   if (apiKey.isEmpty) {
     print('DEBUG GEMINI STREAM: No API key found, throwing StateError');
-    throw StateError('No Gemini API key configured. Please add your API key in Settings → LUMARA Settings.');
+    throw StateError('No Gemini API key configured. Please add a Groq or Gemini API key in Settings → LUMARA Settings.');
   }
 
   // Step 1: PRISM - Scrub PII from user input and system prompt

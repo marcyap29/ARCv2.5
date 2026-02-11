@@ -17,6 +17,7 @@
 
 | Date | Change | Source / doc |
 |------|--------|--------------|
+| 2026-02-11 | Groq primary LLM: proxyGroq/proxyGemini backend proxy entries; transparent proxy note | PROMPT_REFERENCES.md v2.0.0 |
 | 2026-02-11 | CHRONICLE synthesis prompts (Monthly/Yearly/Multi-Year Narrative); Voice Split-Payload Prompt; CHRONICLE Speed-Tiered Context System; Conversation Summary Prompt | PROMPT_REFERENCES.md v1.9.0 |
 | 2026-01-31 | Document scope and sources; LUMARA source note (lumara_system_prompt vs lumara_master_prompt, lumara_profile.json) | PROMPT_REFERENCES.md v1.8.0 |
 | 2026-01-30 | CHRONICLE prompts (Query Classifier, VEIL EXAMINE); Backend (Firebase) prompts; Voice Journal Entry Creation | PROMPT_REFERENCES.md v1.7.0 |

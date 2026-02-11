@@ -7,7 +7,10 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Supported LLM providers
+/// LUMARA uses Groq (Llama 3.3 70B / Mixtral) as primary, Gemini as fallback option.
+/// Claude, ChatGPT (openai), Venice, OpenRouter are not used by LUMARA.
 enum LLMProvider {
+  groq,       // Groq: Llama 3.3 70B + Mixtral 8x7b backup (primary for LUMARA)
   gemini,
   openai,
   anthropic,
@@ -146,6 +149,18 @@ class LumaraAPIConfig {
 
   /// Load configurations from environment and storage
   Future<void> _loadConfigs() async {
+    // Groq: primary for LUMARA (Llama 3.3 70B, Mixtral backup)
+    final groqApiKey = const String.fromEnvironment('GROQ_API_KEY');
+    debugPrint('LUMARA API: Loading Groq API key from environment: ${groqApiKey.isNotEmpty ? 'Found' : 'Not found'}');
+
+    _configs[LLMProvider.groq] = LLMProviderConfig(
+      provider: LLMProvider.groq,
+      name: 'Groq (Llama 3.3 70B / Mixtral)',
+      apiKey: groqApiKey,
+      baseUrl: 'https://api.groq.com/openai/v1',
+      isInternal: false,
+    );
+
     // External API providers - load defaults from environment
     final geminiApiKey = const String.fromEnvironment('GEMINI_API_KEY');
     debugPrint('LUMARA API: Loading Gemini API key from environment: ${geminiApiKey.isNotEmpty ? 'Found' : 'Not found'}');
@@ -277,6 +292,38 @@ class LumaraAPIConfig {
           }
         }
       }
+
+      // Auto-save Groq API key from runtime environment if not already saved
+      final runtimeGroqKey = Platform.environment['GROQ_API_KEY'];
+      if (runtimeGroqKey != null && runtimeGroqKey.isNotEmpty) {
+        final savedConfigsJson = _prefs!.getString(_prefsKey);
+        Map<String, dynamic> savedConfigs = {};
+        if (savedConfigsJson != null) {
+          try {
+            savedConfigs = jsonDecode(savedConfigsJson) as Map<String, dynamic>;
+          } catch (e) {
+            debugPrint('LUMARA API: Error parsing saved configs for Groq auto-save: $e');
+          }
+        }
+        final groqConfig = savedConfigs['groq'] as Map<String, dynamic>?;
+        final savedGroqKey = groqConfig?['apiKey'] as String?;
+        if (savedGroqKey == null || savedGroqKey.isEmpty) {
+          debugPrint('LUMARA API: Auto-saving Groq API key from runtime environment variable...');
+          savedConfigs['groq'] = {
+            'provider': 'groq',
+            'name': 'Groq (Llama 3.3 70B / Mixtral)',
+            'apiKey': runtimeGroqKey,
+            'baseUrl': 'https://api.groq.com/openai/v1',
+            'isInternal': false,
+            'isAvailable': true,
+          };
+          await _prefs!.setString(_prefsKey, jsonEncode(savedConfigs));
+          final currentConfig = _configs[LLMProvider.groq];
+          if (currentConfig != null) {
+            _configs[LLMProvider.groq] = currentConfig.copyWith(apiKey: runtimeGroqKey);
+          }
+        }
+      }
     }
   }
 
@@ -351,14 +398,18 @@ class LumaraAPIConfig {
       _prefs?.remove('manual_provider');
     }
 
-    // Preference order: Gemini first (explicit), then other Cloud APIs, then internal models
-    // Explicitly prioritize Gemini for in-journal insights
+    // Preference order: Groq first (Llama 3.3 70B / Mixtral), then Gemini, then other Cloud APIs
+    final groqConfig = _configs[LLMProvider.groq];
+    if (groqConfig != null && groqConfig.isAvailable) {
+      return groqConfig;
+    }
+
     final geminiConfig = _configs[LLMProvider.gemini];
     if (geminiConfig != null && geminiConfig.isAvailable) {
       return geminiConfig;
     }
 
-    // Fallback to other external/cloud APIs if Gemini not available
+    // Fallback to other external/cloud APIs if Groq/Gemini not available
     final external = available.where((c) => !c.isInternal).toList();
     if (external.isNotEmpty) return external.first;
 
@@ -521,7 +572,7 @@ class LumaraAPIConfig {
 
     // Save empty strings for all external providers to override environment variables
     final clearedConfigs = <String, dynamic>{};
-    for (final provider in [LLMProvider.gemini, LLMProvider.openai, LLMProvider.anthropic, LLMProvider.venice, LLMProvider.openrouter]) {
+    for (final provider in [LLMProvider.groq, LLMProvider.gemini, LLMProvider.openai, LLMProvider.anthropic, LLMProvider.venice, LLMProvider.openrouter]) {
       clearedConfigs[provider.name] = {'apiKey': ''}; // Empty string overrides environment
     }
 

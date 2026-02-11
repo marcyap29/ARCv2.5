@@ -714,17 +714,13 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
 
   Widget _buildProviderSelection(ThemeData theme) {
     final allProviders = _apiConfig.getAllProviders();
-    // For paying users: Anthropic, OpenAI (ChatGPT), Venice AI, and OpenRouter
-    // Gemini is now "Default" and shown separately
+    // LUMARA: Default = Groq; alternative = Gemini only (no Claude/ChatGPT)
     final externalProviders = allProviders
-        .where((p) => p.provider == LLMProvider.anthropic || 
-                     p.provider == LLMProvider.openai ||
-                     p.provider == LLMProvider.venice ||
-                     p.provider == LLMProvider.openrouter)
+        .where((p) => p.provider == LLMProvider.gemini)
         .toList();
     
-    // Check if Default (Gemini) is currently selected
-    final isDefaultSelected = _selectedProvider == null || _selectedProvider == LLMProvider.gemini;
+    // Default = Groq (Llama 3.3 70B / Mixtral)
+    final isDefaultSelected = _selectedProvider == null || _selectedProvider == LLMProvider.groq;
     
     return Card(
       child: Padding(
@@ -746,15 +742,15 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
             ),
             const SizedBox(height: 16),
             
-            // Default Provider Option (always available)
-            _buildDefaultProviderOption(theme, isDefaultSelected),
+            // Default: Groq (Llama 3.3 70B / Mixtral) - primary for LUMARA
+            _buildDefaultProviderOption(theme, isDefaultSelected, isGroq: true),
             const SizedBox(height: 16),
             
-            // Cloud API Section
+            // Gemini option (fallback when Groq unavailable)
             _buildProviderCategory(
               theme: theme,
-              title: 'Cloud API',
-              subtitle: 'External services with API keys',
+              title: 'AI Provider Options',
+              subtitle: 'Groq (default) or Gemini. Add API key(s) in API Keys section below.',
               providers: externalProviders,
               isInternal: false,
             ),
@@ -764,7 +760,9 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
     );
   }
   
-  Widget _buildDefaultProviderOption(ThemeData theme, bool isSelected) {
+  Widget _buildDefaultProviderOption(ThemeData theme, bool isSelected, {bool isGroq = true}) {
+    final provider = isGroq ? LLMProvider.groq : LLMProvider.gemini;
+    final label = isGroq ? 'Default (Groq · Llama 3.3 70B / Mixtral)' : 'Default (Gemini)';
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
@@ -781,18 +779,11 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
       ),
       child: InkWell(
         onTap: () async {
-          // Set Default (Gemini) as the manually selected provider
-          await _apiConfig.setManualProvider(LLMProvider.gemini);
-
-          // Reinitialize LUMARA API to use the default provider
+          await _apiConfig.setManualProvider(provider);
           await _lumaraApi.initialize();
-
-          // Update UI
           setState(() {
-            _selectedProvider = LLMProvider.gemini;
+            _selectedProvider = provider;
           });
-
-          // Show confirmation
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
@@ -801,7 +792,7 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
                     Icon(Icons.swap_horiz, color: Colors.white),
                     const SizedBox(width: 12),
                     Expanded(
-                      child: Text('Switched to Default'),
+                      child: Text('Switched to $label'),
                     ),
                   ],
                 ),
@@ -817,7 +808,6 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
           padding: const EdgeInsets.all(12),
           child: Row(
             children: [
-              // Status indicator (always green for Default)
               Container(
                 width: 12,
                 height: 12,
@@ -844,7 +834,7 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
                       children: [
                         Expanded(
                           child: Text(
-                            'Default',
+                            label,
                             style: theme.textTheme.titleSmall?.copyWith(
                               fontWeight: FontWeight.w600,
                               color: theme.colorScheme.onSurface,
@@ -871,7 +861,9 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Standard AI provider - No API key required',
+                      isGroq
+                          ? 'Groq: Llama 3.3 70B + Mixtral backup. Add Groq API key below.'
+                          : 'Google Gemini as fallback. Add Gemini API key below.',
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: Colors.green,
                         fontWeight: FontWeight.w600,
@@ -1230,7 +1222,7 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
           });
 
           // Show confirmation - use "Default" for Gemini provider
-          final displayName = config.provider == LLMProvider.gemini ? 'Default' : config.name;
+          final displayName = config.provider == LLMProvider.groq ? 'Default (Groq)' : config.name;
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
@@ -1496,6 +1488,9 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
     // Custom display names for API key fields
     String displayName;
     switch (provider) {
+      case LLMProvider.groq:
+        displayName = 'Groq';
+        break;
       case LLMProvider.openai:
         displayName = 'ChatGPT';
         break;
@@ -1620,6 +1615,9 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
       final config = _apiConfig.getConfig(provider);
       String displayName;
       switch (provider) {
+        case LLMProvider.groq:
+          displayName = 'Groq';
+          break;
         case LLMProvider.openai:
           displayName = 'ChatGPT';
           break;
@@ -1689,14 +1687,10 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
 
 
   Widget _buildApiKeysCard(ThemeData theme) {
-    // For paying users: Anthropic, OpenAI (ChatGPT), Venice AI, and OpenRouter
-    // Gemini (Default) doesn't require an API key as it's the standard provider
-    // Free users don't see this card at all (handled in build method)
+    // LUMARA uses Groq (primary) and Gemini (fallback) only
     final externalProviders = [
-      LLMProvider.anthropic,
-      LLMProvider.openai,
-      LLMProvider.venice,
-      LLMProvider.openrouter,
+      LLMProvider.groq,
+      LLMProvider.gemini,
     ];
     
     return Card(

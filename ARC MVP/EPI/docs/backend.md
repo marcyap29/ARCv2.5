@@ -1,8 +1,8 @@
 # Backend Architecture & Setup
 
-**Version:** 3.2
-**Last Updated:** February 7, 2026
-**Status:** ✅ Production Ready with Adaptive Framework, Companion-First LUMARA, Validation & Logging, Health Integration, AssemblyAI v3, Internet Access, Enhanced Classification-Aware PRISM Privacy Protection, Stripe Integration (web), RevenueCat (in-app purchases), and Local Backup Services
+**Version:** 3.3
+**Last Updated:** February 11, 2026
+**Status:** ✅ Production Ready with Adaptive Framework, Companion-First LUMARA, Validation & Logging, Health Integration, AssemblyAI v3, Internet Access, Enhanced Classification-Aware PRISM Privacy Protection, Stripe Integration (web), RevenueCat (in-app purchases), Local Backup Services, and Groq API Proxy
 
 ---
 
@@ -25,17 +25,18 @@ Client (Flutter)
   ↓
 LUMARA (On-Device Logic)
   ↓
-Firebase Cloud Function (proxyGemini)
+Firebase Cloud Function (proxyGroq → proxyGemini fallback)
   ↓
-Gemini API (with secured API key)
+Groq API / Gemini API (with secured API keys)
 ```
 
 ### Key Benefits
 
-- ✅ **API keys hidden** in Firebase Functions
+- ✅ **API keys hidden** in Firebase Functions (Groq and Gemini secrets)
 - ✅ **LUMARA runs on-device** - maintains full journal access (chat + in-journal reflections)
 - ✅ **No user configuration** - API key management is transparent
-- ✅ **Simple proxy pattern** - Firebase function just forwards requests with the API key
+- ✅ **Dual-provider resilience** - Groq primary (Llama 3.3 70B / Mixtral), Gemini fallback
+- ✅ **Simple proxy pattern** - Firebase functions forward requests with the API key
 - ✅ **Full data access** - LUMARA can still read local Hive database
 - ✅ **Both LUMARA modes working** - Chat assistant and in-journal reflections both use proxy
 
@@ -188,7 +189,8 @@ LUMARA's web access is governed by a comprehensive 10-rule safety layer that ens
    - Anonymous authentication (for MVP testing)
 
 2. **Cloud Functions**
-   - `proxyGemini` - API key proxy for Gemini API
+   - `proxyGroq` - API key proxy for Groq API (Llama 3.3 70B / Mixtral) — **primary for LUMARA (v3.3.24)**
+   - `proxyGemini` - API key proxy for Gemini API — **fallback when Groq unavailable**
    - `getAssemblyAIToken` - Returns AssemblyAI API key for premium users (Universal Streaming v3)
    - `sendChatMessage` - LUMARA chat (currently deprecated, uses proxy instead)
    - `generateJournalReflection` - In-journal reflections (currently deprecated, uses proxy instead)
@@ -378,7 +380,8 @@ firebase deploy --only functions:proxyGemini
 
 | Function | Status | Critical | Notes |
 |----------|--------|----------|-------|
-| `proxyGemini` | ✅ Deployed | YES | API key proxy |
+| `proxyGroq` | ✅ Deployed | YES | API key proxy for Groq (Llama 3.3 70B / Mixtral) — **primary** |
+| `proxyGemini` | ✅ Deployed | YES | API key proxy for Gemini — **fallback** |
 | `getAssemblyAIToken` | ✅ Deployed | YES | AssemblyAI API key for premium users (v3) |
 | `sendChatMessage` | ✅ Deployed | NO | Deprecated, uses proxy |
 | `generateJournalReflection` | ✅ Deployed | NO | Deprecated, uses proxy |

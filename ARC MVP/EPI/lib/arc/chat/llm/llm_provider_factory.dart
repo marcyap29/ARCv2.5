@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import '../config/api_config.dart';
 import 'llm_provider.dart';
 import 'providers/gemini_provider.dart';
+import 'providers/groq_provider.dart';
 import 'providers/openai_provider.dart';
 import 'providers/anthropic_provider.dart';
 import 'providers/llama_provider.dart';
@@ -20,6 +21,8 @@ class LLMProviderFactory {
   LLMProviderBase? createProvider(LLMProviderType type) {
     try {
       switch (type) {
+        case LLMProviderType.groq:
+          return GroqProvider(_apiConfig);
         case LLMProviderType.gemini:
           return GeminiProvider(_apiConfig);
         case LLMProviderType.openai:
@@ -65,6 +68,7 @@ class LLMProviderFactory {
   /// Convert config to provider type
   LLMProviderType _getProviderTypeFromConfig(LLMProviderConfig config) {
     return switch (config.provider) {
+      LLMProvider.groq => LLMProviderType.groq,
       LLMProvider.gemini => LLMProviderType.gemini,
       LLMProvider.openai => LLMProviderType.openai,
       LLMProvider.anthropic => LLMProviderType.anthropic,
@@ -78,6 +82,7 @@ class LLMProviderFactory {
 
 /// Supported LLM provider types
 enum LLMProviderType {
+  groq,
   gemini,
   openai,
   anthropic,

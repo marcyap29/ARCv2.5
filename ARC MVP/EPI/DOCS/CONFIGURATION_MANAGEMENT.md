@@ -38,15 +38,15 @@ Prompt/role definitions: **Documentation & Configuration Management Role** in [c
 
 | Document | Location | Last Reviewed | Status | Notes |
 |----------|----------|---------------|--------|-------|
-| ARCHITECTURE.md | `/DOCS/ARCHITECTURE.md` | 2026-02-11 | ✅ Synced | v3.3.23 - CHRONICLE speed tiers, streaming, scroll nav, phase display fix |
-| CHANGELOG.md | `/DOCS/CHANGELOG.md` | 2026-02-11 | ✅ Synced | v3.3.23 - Last Updated Feb 11 |
-| PROMPT_REFERENCES.md | `/DOCS/PROMPT_REFERENCES.md` | 2026-02-11 | ✅ Synced | v1.9.0 - CHRONICLE synthesis prompts, voice split-payload, speed tiers, conversation summary |
-| PROMPT_TRACKER.md | `/DOCS/PROMPT_TRACKER.md` | 2026-02-11 | ✅ Synced | v1.1.0 - Added v1.9.0 change row |
+| ARCHITECTURE.md | `/DOCS/ARCHITECTURE.md` | 2026-02-11 | ✅ Synced | v3.3.24 - Groq primary LLM, Gemini fallback |
+| CHANGELOG.md | `/DOCS/CHANGELOG.md` | 2026-02-11 | ✅ Synced | v3.3.24 - Groq as primary LLM provider |
+| PROMPT_REFERENCES.md | `/DOCS/PROMPT_REFERENCES.md` | 2026-02-11 | ✅ Synced | v2.0.0 - proxyGroq/proxyGemini backend, CHRONICLE synthesis, voice split-payload |
+| PROMPT_TRACKER.md | `/DOCS/PROMPT_TRACKER.md` | 2026-02-11 | ✅ Synced | v1.1.0 - Added v1.9.0 and v2.0.0 change rows |
 | bug_tracker.md | `/DOCS/bugtracker/bug_tracker.md` | 2026-02-08 | ✅ Synced | v3.2.2 - 29 records; How to use; Recent code changes |
-| FEATURES.md | `/DOCS/FEATURES.md` | 2026-02-11 | ✅ Synced | v3.3.23 - CHRONICLE speed tiers, streaming, scroll nav, phase display, phase timeline UX |
+| FEATURES.md | `/DOCS/FEATURES.md` | 2026-02-11 | ✅ Synced | v3.3.24 - Groq primary LLM, Gemini fallback |
 | README.md | `/DOCS/README.md` | 2026-02-07 | ✅ Synced | Key docs table with purpose and when to read |
-| claude.md | `/DOCS/claude.md` | 2026-02-11 | ✅ Synced | v3.3.23 - Updated version, recent updates (prompt sync, CHRONICLE speed tiers, streaming) |
-| backend.md | `/DOCS/backend.md` | 2026-02-07 | ✅ Synced | v3.2 - Firebase, Stripe; RevenueCat see revenuecat/ |
+| claude.md | `/DOCS/claude.md` | 2026-02-11 | ✅ Synced | v3.3.24 - Groq primary LLM, updated recent updates |
+| backend.md | `/DOCS/backend.md` | 2026-02-11 | ✅ Synced | v3.3 - proxyGroq (Groq primary), proxyGemini (fallback), Firebase, Stripe |
 | git.md | `/DOCS/git.md` | 2026-02-07 | ✅ Synced | Git history and key phases |
 
 ### White Papers & Specifications
@@ -88,6 +88,23 @@ Prompt/role definitions: **Documentation & Configuration Management Role** in [c
 ---
 
 ## Change Tracking Log
+
+### 2026-02-11 - Groq Primary LLM Provider (v3.3.24) — Llama 3.3 70B / Mixtral, proxyGroq Cloud Function
+
+**Action:** Groq (Llama 3.3 70B / Mixtral 8x7b) is now the primary cloud LLM for LUMARA; Gemini demoted to fallback. New `proxyGroq` Firebase Cloud Function hides Groq API key. `GroqService` (streaming + non-streaming), `GroqProvider` (Firebase proxy when signed in, direct key when not), `groq_send.dart` (Firebase callable client). `LLMProvider.groq` enum, `LLMProviderType.groq`. `EnhancedLumaraApi` calls Groq first, falls back to Gemini. Mode-aware temperature per engagement mode. Settings UI simplified: only Groq + Gemini shown (Claude/ChatGPT/Venice/OpenRouter removed). Error messages updated throughout. 4 new files, 8 modified files.
+
+**Doc updates:**
+- **CHANGELOG.md:** New [3.3.24] section — Groq as primary LLM, full file listing.
+- **ARCHITECTURE.md:** v3.3.24; key achievement; AI Integration and External APIs updated.
+- **FEATURES.md:** v3.3.24; Groq primary LLM feature entry; Gemini demoted to fallback in Cloud Providers section.
+- **backend.md:** v3.3; proxyGroq added to architecture diagram, Cloud Functions list, deployment table.
+- **PROMPT_REFERENCES.md:** v2.0.0; proxyGroq/proxyGemini in Backend section with proxy note.
+- **claude.md:** v3.3.24; Groq integration in recent updates.
+- **CONFIGURATION_MANAGEMENT.md:** Inventory dates, this entry.
+
+**Status:** ✅ All docs updated.
+
+---
 
 ### 2026-02-11 - Prompt References Sync (v1.9.0) — CHRONICLE Synthesis Prompts, Voice Split-Payload, Speed Tiers, Conversation Summary
 

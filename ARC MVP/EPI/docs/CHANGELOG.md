@@ -1,6 +1,6 @@
 # EPI LUMARA MVP - Changelog
 
-**Version:** 3.3.23
+**Version:** 3.3.24
 **Last Updated:** February 11, 2026
 
 ---
@@ -17,7 +17,37 @@ This changelog has been split into parts for easier navigation:
 
 ---
 
-## [3.3.23] - February 11, 2026 (working changes)
+## [3.3.24] - February 11, 2026 (working changes)
+
+### Groq as Primary LLM Provider (Llama 3.3 70B / Mixtral)
+
+LUMARA now uses **Groq** (Llama 3.3 70B) as the **primary** cloud LLM, with **Gemini** demoted to fallback. This provides faster inference via Groq's purpose-built inference hardware while maintaining full backward compatibility. Mixtral 8x7b serves as a secondary fallback within the Groq tier.
+
+**New files:**
+- `lib/arc/chat/services/groq_service.dart` — Core Groq API client: non-streaming (`generateContent`) and streaming (`generateContentStream` via SSE). `GroqModel` enum with `llama33_70b` (128K context) and `mixtral_8x7b` (32K context). Auto-fallback from Llama to Mixtral on error.
+- `lib/arc/chat/llm/providers/groq_provider.dart` — `GroqProvider` LLM provider: uses Firebase `proxyGroq` when signed in, direct API key when not. Implements `isAvailable()` and `generateResponse()`.
+- `lib/services/groq_send.dart` — Firebase proxy client: calls `proxyGroq` Cloud Function via `httpsCallable`. Passes system/user/model/temperature/maxTokens/entryId/chatId.
+- `SET_GROQ_SECRET.md` — Setup guide for Groq API key in Firebase Secret Manager (`firebase functions:secrets:set GROQ_API_KEY`).
+
+**Backend (Firebase Cloud Functions):**
+- `functions/index.js` — New `proxyGroq` Cloud Function: authenticates user, calls Groq OpenAI-compatible API (`api.groq.com/openai/v1/chat/completions`), hides API key from client. Supports `llama-3.3-70b-versatile` and `mixtral-8x7b-32768`. New `groqChatCompletion()` helper via `https.request`. `GROQ_API_KEY` added to secrets. `healthCheck` updated to list `proxyGroq`.
+
+**LLM Provider Architecture:**
+- `lib/arc/chat/config/api_config.dart` — New `LLMProvider.groq` enum value. Groq config loaded from environment and auto-saved from runtime environment. `bestProvider` now prefers Groq → Gemini → other external → internal. `clearAllApiKeys()` includes Groq.
+- `lib/arc/chat/llm/llm_provider_factory.dart` — New `LLMProviderType.groq` and `GroqProvider` instantiation. Maps `LLMProvider.groq` → `LLMProviderType.groq`.
+
+**LUMARA Reflection API:**
+- `lib/arc/chat/services/enhanced_lumara_api.dart` — `GroqService` integrated as primary for journal reflections. Call chain: Groq (streaming or non-streaming) → Gemini fallback. Mode-aware temperature (`explore: 0.8`, `integrate: 0.7`, `reflect: 0.6`, default: 0.7`). Logging updated from "Gemini" to "Groq/Gemini".
+
+**UI & Error Messages:**
+- `lib/arc/chat/ui/lumara_settings_screen.dart` — Default provider changed from "Gemini" to "Groq (Llama 3.3 70B / Mixtral)". Claude, ChatGPT, Venice, OpenRouter removed from provider selection. API Keys card now shows Groq + Gemini only.
+- `lib/arc/chat/bloc/lumara_assistant_cubit.dart` — Logging updated to "Cloud API (Groq/Gemini)" throughout.
+- `lib/services/gemini_send.dart` — Error message updated to mention Groq.
+- `lib/ui/journal/journal_screen.dart` — Error snackbar text updated: "LUMARA needs a Groq or Gemini API key."
+
+---
+
+## [3.3.23] - February 11, 2026
 
 ### CHRONICLE Speed-Tiered Context System
 

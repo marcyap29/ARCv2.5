@@ -1263,7 +1263,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('LUMARA needs a Gemini API key to work. Configure it in Settings.'),
+              content: Text('LUMARA needs a Groq or Gemini API key to work. Configure it in Settings.'),
               backgroundColor: Theme.of(context).colorScheme.error,
               action: SnackBarAction(
                 label: 'Settings',
@@ -1539,11 +1539,12 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
       if (e.toString().contains('API key') || 
           e.toString().contains('not configured') || 
           e.toString().contains('Gemini API key') ||
+          e.toString().contains('Groq API key') ||
           e.toString().contains('not configured')) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('LUMARA needs a Gemini API key to work. Configure it in Settings.'),
+              content: Text('LUMARA needs a Groq or Gemini API key to work. Configure it in Settings.'),
               backgroundColor: Theme.of(context).colorScheme.error,
               action: SnackBarAction(
                 label: 'Settings',
