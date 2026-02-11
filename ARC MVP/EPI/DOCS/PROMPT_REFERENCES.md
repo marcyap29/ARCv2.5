@@ -8,7 +8,7 @@ This document catalogs all prompts used throughout the ARC application, organize
 - **Path baseline:** All paths are relative to the EPI app root (e.g. `ARC MVP/EPI/`). Example: `lib/arc/chat/prompts/lumara_profile.json` means `ARC MVP/EPI/lib/arc/chat/prompts/lumara_profile.json`.
 - **Content:** Quoted blocks are taken from or derived from the cited sources. Some sections show a subset or summary; the source file holds the full, authoritative text.
 - **Cloud vs on-device:** Cloud API uses the master prompt system (`lumara_master_prompt.dart`); on-device and legacy paths may use `lumara_system_prompt.dart` or profile JSON.
-- **Last synced with codebase:** 2026-01-31. Document version: 1.8.0.
+- **Last synced with codebase:** 2026-02-11. Document version: 1.9.0.
 
 ---
 
@@ -55,6 +55,10 @@ This document catalogs all prompts used throughout the ARC application, organize
     - [Complete CHRONICLE Architecture Reference](#chronicle-complete-reference)
     - [Query Classifier](#chronicle-query-classifier)
     - [Monthly Theme Extraction (VEIL EXAMINE)](#chronicle-monthly-theme-extraction-veil-examine)
+    - [Monthly Narrative (VEIL INTEGRATE)](#chronicle-monthly-narrative-veil-integrate)
+    - [Yearly Narrative (VEIL INTEGRATE)](#chronicle-yearly-narrative-veil-integrate)
+    - [Multi-Year Narrative (VEIL LINK)](#chronicle-multi-year-narrative-veil-link)
+    - [Speed-Tiered Context System](#chronicle-speed-tiered-context-system)
 11. [Voice Journal Entry Creation](#voice-journal-entry-creation)
 12. [Backend (Firebase) Prompts](#backend-firebase-prompts)
     - [Send Chat Message](#send-chat-message)
@@ -62,11 +66,13 @@ This document catalogs all prompts used throughout the ARC application, organize
     - [Generate Journal Prompts](#generate-journal-prompts)
     - [Analyze Journal Entry](#analyze-journal-entry)
 13. [Voice Mode Prompts](#13-voice-mode-prompts)
+    - [Voice Split-Payload System-Only Prompt](#voice-split-payload-system-only-prompt)
     - [DEFAULT Mode (Baseline)](#default-mode-baseline)
     - [EXPLORE Mode (When Asked)](#explore-mode-when-asked)
     - [INTEGRATE Mode (When Asked)](#integrate-mode-when-asked)
     - [Voice Depth Classification Triggers](#voice-depth-classification-triggers)
     - [Mode Switching Commands](#mode-switching-commands)
+14. [Conversation Summary Prompt](#conversation-summary-prompt)
 
 ---
 
@@ -1049,6 +1055,134 @@ System and user prompts for the EXAMINE stage of the VEIL narrative integration 
 
 ---
 
+### CHRONICLE Monthly Narrative (VEIL INTEGRATE)
+
+**Location:** `lib/chronicle/synthesis/monthly_synthesizer.dart`
+
+Generates a detailed month-in-review narrative from raw journal entries. This is the INTEGRATE stage of the VEIL cycle at the monthly layer — converting raw entries into a coherent narrative that preserves concrete details.
+
+**System prompt:**
+
+```
+You write detailed month-in-review summaries for a personal journaling app (memory files the owner will read).
+Based only on the journal entry content provided, write a detailed narrative in third person that:
+- Preserves concrete details: specific names, places, events, dates, and projects from the entries. Pull out and include specific details, not generic summaries.
+- Covers what actually happened this month (events, routines, changes), what the person was focused on or struggling with, multiple themes (work, family, health, projects), and notable emotional or relational themes.
+Write in clear, narrative prose: flowing paragraphs, no bullet points. Weave specifics from the entries; avoid generic tags like "Personal" or "Family" by themselves. Length: several paragraphs if the month has rich content; be concise only when entries are sparse or vague. Do not mention "References" or entry IDs.
+Target readability: Flesch-Kincaid grade level 8. Use clear sentences and common words. Full detail is kept on device; this text may be privacy-scrubbed when sent to cloud and restored in responses.
+```
+
+**User prompt:**
+
+```
+Journal entries from {monthName}:
+
+{entriesText}
+
+Write a detailed narrative of what happened and what mattered this month, preserving specific names, places, events, and projects from the entries:
+```
+
+**Template Variables:**
+- `{monthName}` — Human-readable month/year (e.g., "January 2026")
+- `{entriesText}` — Concatenated journal entry text for the month
+
+---
+
+### CHRONICLE Yearly Narrative (VEIL INTEGRATE)
+
+**Location:** `lib/chronicle/synthesis/yearly_synthesizer.dart`
+
+Synthesizes monthly aggregations into a year-in-review narrative. This is the INTEGRATE stage at the yearly layer — compressing 12 monthly narratives into a coherent year narrative.
+
+**System prompt:**
+
+```
+You write year-in-review memory summaries for a personal journaling app. The owner will read these like "Purpose & context" memory.
+Given the monthly summaries below, synthesize the year while preserving important specifics from the monthly aggregations: people, projects, events, and throughlines. Write 3–5 flowing paragraphs (or more if the year is dense) that integrate what happened, what the person was becoming or struggling with, and key themes—include concrete details and names/events where the monthly text provides them, not only high-level summary. Write in third person. No bullet lists in the main narrative—use prose only.
+Target readability: Flesch-Kincaid grade level 8. Use clear sentences and common words. Do not mention "References," entry IDs, or internal metadata. This text may be privacy-scrubbed when sent to cloud and restored in responses.
+```
+
+**User prompt:**
+
+```
+Monthly summaries for {year}:
+
+{monthlySummaries}
+
+Write a narrative year-in-review for {year} that preserves important specifics (people, projects, events) from the monthly summaries:
+```
+
+**Template Variables:**
+- `{year}` — Four-digit year (e.g., "2025")
+- `{monthlySummaries}` — Concatenated monthly aggregation texts
+
+---
+
+### CHRONICLE Multi-Year Narrative (VEIL LINK)
+
+**Location:** `lib/chronicle/synthesis/multiyear_synthesizer.dart`
+
+Integrates yearly aggregations into a multi-year biographical narrative. This is the LINK stage of the VEIL cycle — the highest compression layer connecting themes across years.
+
+**System prompt:**
+
+```
+You write multi-year memory summaries for a personal journaling app. The owner will read these like "Purpose & context" memory.
+Given the yearly summaries below (for {yearCount} years), integrate the period {period} while preserving key specifics and concrete details across years: important people, projects, turning points, and life chapters. Write 3–5 flowing paragraphs (or more if the period is dense) that cover major throughlines, how the person evolved, recurring themes, and turning points—include concrete details and names/events where the yearly text provides them, not only high-level life themes. Write in third person. No bullet lists in the main narrative—use prose only.
+Target readability: Flesch-Kincaid grade level 8. Use clear sentences and common words. Do not mention "References," entry IDs, or internal metadata. This text may be privacy-scrubbed when sent to cloud and restored in responses.
+```
+
+**User prompt:**
+
+```
+Yearly summaries for {period}:
+
+{yearlySummaries}
+
+Write a narrative summary for this {yearCount}-year period ({period}) that preserves key specifics (people, projects, turning points) from the yearly summaries:
+```
+
+**Template Variables:**
+- `{yearCount}` — Number of years covered (e.g., 3)
+- `{period}` — Date range (e.g., "2023-2025")
+- `{yearlySummaries}` — Concatenated yearly aggregation texts
+
+---
+
+### CHRONICLE Speed-Tiered Context System
+
+**Location:** `lib/chronicle/models/query_plan.dart` (enum), `lib/chronicle/query/query_router.dart` (routing), `lib/chronicle/query/context_builder.dart` (building), `lib/chronicle/query/chronicle_context_cache.dart` (caching)
+
+Added in v3.3.23. Not a prompt itself, but an architectural system that determines how much CHRONICLE context is built and injected into prompts based on engagement mode and interaction type.
+
+**ResponseSpeed Enum:**
+
+| Speed | Latency Target | Token Budget | Context Method | Used When |
+|-------|---------------|-------------|----------------|-----------|
+| `instant` | <1s | 50–100 tokens | `buildMiniContext` (single aggregation header) | Explore mode, Voice mode |
+| `fast` | <10s | 2–5k tokens | `_buildSingleLayerContext` (compressed single aggregation) | Integrate mode, Reflect mode |
+| `normal` | <30s | 8–10k tokens | `_buildMultiLayerContext` (full multi-layer load) | Legacy / no engagement mode |
+| `deep` | 30–60s | Full context | `_buildMultiLayerContext` (no cache, full load) | Synthesis tasks |
+
+**Mode-Aware Routing (QueryRouter):**
+
+| Engagement Mode | Speed Target | Layers | LLM Intent Call |
+|----------------|-------------|--------|-----------------|
+| `explore` | instant | None (mini-context only) | Skipped |
+| `isVoice` | instant | None (mini-context only) | Skipped |
+| `integrate` | fast | Yearly only | Skipped |
+| `reflect` | fast | Inferred single layer (monthly or yearly) | Skipped |
+| Legacy (no mode) | normal or deep | Full `selectLayers` | Yes (`_classifyIntent`) |
+
+**Context Cache (`ChronicleContextCache`):**
+- Singleton in-memory TTL cache
+- Max 50 entries, 30-minute default TTL
+- Key: `userId + layers + period`
+- Cache used for all speeds except `deep`
+- Invalidated when journal entries are saved (by `journal_repository.dart`)
+
+---
+
 ## Voice Journal Entry Creation
 
 **Location:** `lib/arc/chat/voice/voice_journal/unified_voice_service.dart`
@@ -1081,6 +1215,61 @@ These are not duplicated in full in this document; they are derived from the LUM
 ## 13. Voice Mode Prompts
 
 **NOTE: The DEFAULT/EXPLORE/INTEGRATE engagement system is UNIVERSAL across all interaction types (voice, text chat, journal conversation). The prompt updates below apply to voice mode specifically, but the engagement mode behaviors apply everywhere.**
+
+### Voice Split-Payload System-Only Prompt
+
+**Location:** `lib/arc/chat/llm/prompts/lumara_master_prompt.dart` (`getVoicePromptSystemOnly`, `buildVoiceUserMessage`)
+
+For lower latency, voice mode uses a split-payload architecture: a short static system prompt plus a turn-specific user message. The system prompt is compact (~300 tokens) and contains only control state and behavioral rules. Turn-specific context (mode instructions, CHRONICLE mini-context, current transcript) is placed in the user message via `buildVoiceUserMessage`.
+
+**System prompt (static half):**
+
+```
+You are LUMARA, the user's Evolving Personal Intelligence (EPI). Voice mode: respond briefly and naturally.
+
+[LUMARA_CONTROL_STATE]
+{controlStateJson}
+[/LUMARA_CONTROL_STATE]
+
+Follow the control state exactly. Do not modify it.
+
+<current_context>
+Current date and time: {current_datetime_iso}
+Current date (human readable): {current_date_formatted}
+</current_context>
+
+WORD LIMIT: Stay at or under responseMode.maxWords in the control state. Count words; stop at the limit.
+
+ENGAGEMENT MODE (engagement.mode): reflect = answer supportively, no forced questions; explore = surface patterns, one clarifying question if helpful; integrate = short integrative take, connect themes.
+
+CRISIS: If the user mentions self-harm, suicide, harm to others, medical emergency, abuse, or acute crisis, respond only with: "I can't help with this, but these people can: 988 Suicide & Crisis Lifeline (call or text), Crisis Text Line: Text HOME to 741741, International: findahelpline.com. If this is a medical emergency, call 911 or go to your nearest emergency room." Then stop.
+
+PRISM: You receive sanitized input. Respond to the semantic meaning directly. Never say "it seems like" or "you're looking to". Answer directly.
+
+VOICE: Answer first. Stay conversational. Respect the word limit and engagement mode above. Use the context in the user message below.
+```
+
+**User message (dynamic half, built by `buildVoiceUserMessage`):**
+
+```
+{modeSpecificInstructions}     (if provided)
+
+CHRONICLE CONTEXT (temporal summary – "how have I been" / patterns):
+{chronicleMiniContext}          (if provided)
+
+Current user input to respond to:
+{entryText}
+```
+
+**Template Variables:**
+- `{controlStateJson}` — JSON control state (persona, engagement mode, phase, word limits)
+- `{current_datetime_iso}` — ISO 8601 timestamp
+- `{current_date_formatted}` — Human-readable date (e.g., "Saturday, February 8, 2026")
+- `{modeSpecificInstructions}` — Engagement-mode-specific instructions (optional)
+- `{chronicleMiniContext}` — CHRONICLE mini-context, 50–100 tokens (optional, from speed tier `instant`)
+- `{entryText}` — Current user voice transcript
+
+**Non-voice split-payload:** A parallel `getMasterPromptSystemOnly` / `buildMasterUserMessage` pair exists for non-voice interactions, using the full master prompt as the system half and recent entries + context + current entry as the user half.
 
 Voice mode uses the **same three-tier engagement system as written mode** (DEFAULT/EXPLORE/INTEGRATE) with automatic depth classification per utterance and user-controlled mode switching.
 
@@ -1350,10 +1539,42 @@ Prepended to stored transcript for future retrieval.
 
 ---
 
+## 14. Conversation Summary Prompt
+
+**Location:** `lib/arc/chat/bloc/lumara_assistant_cubit.dart` (`_createConversationSummaryWithLLM`)
+
+Used to generate a concise summary of a LUMARA chat conversation, for context carry-forward in future sessions.
+
+**System prompt:**
+
+```
+You are a helpful assistant that creates concise conversation summaries.
+```
+
+**User prompt:**
+
+```
+Summarize the following conversation in 2-3 paragraphs, highlighting:
+1. Main topics discussed
+2. Key insights or decisions
+3. Important context for future messages
+
+Conversation:
+{conversationText}
+
+Summary:
+```
+
+**Template Variables:**
+- `{conversationText}` — Formatted conversation history (`User: ... \n\n Assistant: ...`)
+
+---
+
 ## Version History
 
 | Version | Date | Changes |
 |---------|------|---------|
+| 1.9.0 | 2026-02-11 | Added 6 prompt sections: CHRONICLE Monthly Narrative (VEIL INTEGRATE), CHRONICLE Yearly Narrative (VEIL INTEGRATE), CHRONICLE Multi-Year Narrative (VEIL LINK), Voice Split-Payload System-Only Prompt (getVoicePromptSystemOnly + buildVoiceUserMessage), CHRONICLE Speed-Tiered Context System (ResponseSpeed, mode-aware routing, context cache), Conversation Summary Prompt. Updated TOC. |
 | 1.8.0 | 2026-01-31 | Document scope and sources: added section explaining how this doc reflects codebase prompts; path baseline (EPI app root); LUMARA Core Identity source note (lumara_system_prompt.dart vs lumara_master_prompt.dart, lumara_profile.json). Aligned document with prompts used to generate it. |
 | 1.7.0 | 2026-01-30 | Added CHRONICLE prompts (Query Classifier, Monthly Theme Extraction / VEIL EXAMINE), Voice Journal Entry Creation ([VOICE_JOURNAL_SUMMARIZATION]), and Backend (Firebase) prompts (sendChatMessage, generateJournalReflection, generateJournalPrompts, analyzeJournalEntry). Renumbered Voice Mode to §13. |
 | 1.6.0 | 2026-01-24 | **BREAKING**: Renamed REFLECT → DEFAULT mode. Added Layer 2.5 (Voice Mode Direct Answer Protocol), Layer 2.6 (Context Retrieval Triggers), Layer 2.7 (Mode Switching Commands). Updated temporal query classification to fix "Tell me about my week" routing. |

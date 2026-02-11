@@ -40,12 +40,12 @@ Prompt/role definitions: **Documentation & Configuration Management Role** in [c
 |----------|----------|---------------|--------|-------|
 | ARCHITECTURE.md | `/DOCS/ARCHITECTURE.md` | 2026-02-11 | ✅ Synced | v3.3.23 - CHRONICLE speed tiers, streaming, scroll nav, phase display fix |
 | CHANGELOG.md | `/DOCS/CHANGELOG.md` | 2026-02-11 | ✅ Synced | v3.3.23 - Last Updated Feb 11 |
-| PROMPT_REFERENCES.md | `/DOCS/PROMPT_REFERENCES.md` | 2026-02-07 | ✅ Current | v1.8.0 - Document scope and sources; prompt catalog |
-| PROMPT_TRACKER.md | `/DOCS/PROMPT_TRACKER.md` | 2026-02-07 | ✅ Synced | v1.0.0 - Prompt change tracking; links to PROMPT_REFERENCES |
+| PROMPT_REFERENCES.md | `/DOCS/PROMPT_REFERENCES.md` | 2026-02-11 | ✅ Synced | v1.9.0 - CHRONICLE synthesis prompts, voice split-payload, speed tiers, conversation summary |
+| PROMPT_TRACKER.md | `/DOCS/PROMPT_TRACKER.md` | 2026-02-11 | ✅ Synced | v1.1.0 - Added v1.9.0 change row |
 | bug_tracker.md | `/DOCS/bugtracker/bug_tracker.md` | 2026-02-08 | ✅ Synced | v3.2.2 - 29 records; How to use; Recent code changes |
 | FEATURES.md | `/DOCS/FEATURES.md` | 2026-02-11 | ✅ Synced | v3.3.23 - CHRONICLE speed tiers, streaming, scroll nav, phase display, phase timeline UX |
 | README.md | `/DOCS/README.md` | 2026-02-07 | ✅ Synced | Key docs table with purpose and when to read |
-| claude.md | `/DOCS/claude.md` | 2026-02-10 | ✅ Synced | Git-backup-docsync role + new DevSecOps Security Audit Role (PII egress auditing) |
+| claude.md | `/DOCS/claude.md` | 2026-02-11 | ✅ Synced | v3.3.23 - Updated version, recent updates (prompt sync, CHRONICLE speed tiers, streaming) |
 | backend.md | `/DOCS/backend.md` | 2026-02-07 | ✅ Synced | v3.2 - Firebase, Stripe; RevenueCat see revenuecat/ |
 | git.md | `/DOCS/git.md` | 2026-02-07 | ✅ Synced | Git history and key phases |
 
@@ -88,6 +88,20 @@ Prompt/role definitions: **Documentation & Configuration Management Role** in [c
 ---
 
 ## Change Tracking Log
+
+### 2026-02-11 - Prompt References Sync (v1.9.0) — CHRONICLE Synthesis Prompts, Voice Split-Payload, Speed Tiers, Conversation Summary
+
+**Action:** Reviewed all LLM prompts in codebase against PROMPT_REFERENCES.md (last synced Jan 31, v1.8.0). Identified and documented 6 previously undocumented prompt sections: CHRONICLE Monthly Narrative (VEIL INTEGRATE, `monthly_synthesizer.dart`), CHRONICLE Yearly Narrative (VEIL INTEGRATE, `yearly_synthesizer.dart`), CHRONICLE Multi-Year Narrative (VEIL LINK, `multiyear_synthesizer.dart`), Voice Split-Payload System-Only Prompt (`getVoicePromptSystemOnly` + `buildVoiceUserMessage`), CHRONICLE Speed-Tiered Context System (`ResponseSpeed` enum, mode-aware routing, `ChronicleContextCache`), and Conversation Summary Prompt (`lumara_assistant_cubit.dart`). Updated TOC, version history.
+
+**Doc updates:**
+- **PROMPT_REFERENCES.md:** v1.9.0; 6 new prompt sections added; TOC expanded; version history updated.
+- **PROMPT_TRACKER.md:** v1.1.0; new change row for v1.9.0.
+- **claude.md:** v3.3.23; updated recent updates with prompt sync, CHRONICLE speed tiers, streaming, feed, phase display.
+- **CONFIGURATION_MANAGEMENT.md:** Inventory dates for PROMPT_REFERENCES, PROMPT_TRACKER, claude.md; this entry.
+
+**Status:** ✅ All docs updated.
+
+---
 
 ### 2026-02-11 - CHRONICLE Speed Tiers, Streaming, Scroll Nav, Phase Display, Feed Content (v3.3.23)
 

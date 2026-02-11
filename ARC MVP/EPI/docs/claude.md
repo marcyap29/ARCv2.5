@@ -1,15 +1,22 @@
 # EPI Documentation Context Guide
 
-**Version:** 3.3.13
-**Last Updated:** January 31, 2026
-**Current Branch:** `dev`
+**Version:** 3.3.23
+**Last Updated:** February 11, 2026
+**Current Branch:** `test`
 
-### Recent Updates (v3.3.13)
+### Recent Updates (v3.3.23)
+- **PROMPT_REFERENCES v1.9.0**: Added 6 prompt sections: CHRONICLE Monthly/Yearly/Multi-Year Narrative (VEIL INTEGRATE/LINK), Voice Split-Payload System-Only Prompt, CHRONICLE Speed-Tiered Context System (ResponseSpeed enum, mode-aware routing, context cache), Conversation Summary Prompt. PROMPT_TRACKER updated.
+- **CHRONICLE Speed-Tiered Context**: ResponseSpeed enum (instant/fast/normal/deep) with mode-aware query routing; ChronicleContextCache (in-memory TTL, 50 entries, 30-min); context building tiers from mini-context (50 tokens) to full multi-layer.
+- **Streaming LUMARA Responses**: `geminiSendStream` with `onStreamChunk` callback for real-time response delivery in journal reflection UI.
+- **Unified Feed Phase 2.3**: Scroll-to-top/bottom navigation, Gantt card auto-refresh via notifiers, improved paragraph rendering (dividers, line height, summary overlap detection), feed sort by `createdAt`, summary stripping from preview.
+- **Phase Display Fix**: Regime phase shown regardless of RIVET gate status; phase change dialog redesigned as bottom sheet; direct timeline navigation from Gantt card.
+- **DevSecOps Security Audit**: Verified findings for auth, secrets, storage, network, logging, rate limiting, deep links.
+
+### Earlier Updates (v3.3.13)
 - **Documentation & Configuration Manager role pass**: README key documents table (purpose, when to read); claude.md paths to relative DOCS/; CONFIGURATION_MANAGEMENT "Key documents for onboarding"; ARCHITECTURE Phase Quiz/Phase tab achievement; traceability via change log.
-- **Phase Quiz / Phase Tab Sync**: Phase Quiz V2 result now persisted via UserPhaseService; Phase tab shows quiz phase when no regimes exist; rotating phase shape (AnimatedPhaseShape) shown alongside 3D constellation on Phase tab. Docs updated (CHANGELOG, FEATURES, git, this file).
-- **UPDATE ALL DOCS**: Full documentation sync; Documentation & Configuration Management Role (universal prompt) in Quick Reference; CONFIGURATION_MANAGEMENT inventory and all key doc dates aligned to 2026-01-31.
+- **Phase Quiz / Phase Tab Sync**: Phase Quiz V2 result now persisted via UserPhaseService; Phase tab shows quiz phase when no regimes exist; rotating phase shape (AnimatedPhaseShape) shown alongside 3D constellation on Phase tab.
 - **Response Length Architecture Refactor**: Response length now tied to Engagement Mode, not Persona. Persona applies density modifiers.
-- **Phase Intelligence Integration**: Documented two-stage memory system (Context Selection + CHRONICLE). LUMARA Enterprise Architecture: four-subsystem spine (ARC, ATLAS, CHRONICLE, AURORA) coordinated by LUMARA Orchestrator; see DOCS/LUMARA_ORCHESTRATOR.md, SUBSYSTEMS.md, LUMARA_ENTERPRISE_ARCHITECTURE_GUIDE.md.
+- **Phase Intelligence Integration**: Documented two-stage memory system (Context Selection + CHRONICLE). LUMARA Enterprise Architecture: four-subsystem spine (ARC, ATLAS, CHRONICLE, AURORA) coordinated by LUMARA Orchestrator.
 - **Custom Memory Focus UI**: Sliders for Time Window, Matching Precision, Max Entries when Custom preset selected
 - **LUMARA Context Selector**: New service for sophisticated context selection based on Memory Focus, Engagement Mode, and Phase Intelligence
 - **Temporal Context Accuracy Fix**: Current entry excluded from recent entries, relative dates added (e.g., "3 days ago")
