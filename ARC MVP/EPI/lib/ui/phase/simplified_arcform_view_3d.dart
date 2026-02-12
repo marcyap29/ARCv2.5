@@ -27,11 +27,18 @@ import 'package:my_app/shared/ui/onboarding/phase_quiz_v2_screen.dart';
 class SimplifiedArcformView3D extends StatefulWidget {
   final String? currentPhase;
   final List<Widget>? footerWidgets;
-  
+  /// When true, show only the first snapshot card (header + 3D constellation), no footer sections.
+  /// Used in the feed above the timeline; tap opens full Phase page when [onCardTap] is set.
+  final bool cardOnly;
+  /// When [cardOnly] is true, called when the card is tapped (e.g. navigate to full Phase page).
+  final VoidCallback? onCardTap;
+
   const SimplifiedArcformView3D({
     super.key,
     this.currentPhase,
     this.footerWidgets,
+    this.cardOnly = false,
+    this.onCardTap,
   });
 
   @override
@@ -301,15 +308,26 @@ class _SimplifiedArcformView3DState extends State<SimplifiedArcformView3D> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Center(
+      final loading = const Center(
         child: CircularProgressIndicator(
           valueColor: AlwaysStoppedAnimation<Color>(kcPrimaryColor),
         ),
       );
+      if (widget.cardOnly) {
+        return SizedBox(height: 260, child: loading);
+      }
+      return loading;
     }
 
     if (_snapshots.isEmpty) {
       return _buildEmptyState();
+    }
+
+    if (widget.cardOnly) {
+      return Padding(
+        padding: const EdgeInsets.all(16),
+        child: _buildSnapshotCard(_snapshots.first),
+      );
     }
 
     final footerCount = widget.footerWidgets?.length ?? 0;
@@ -368,22 +386,23 @@ class _SimplifiedArcformView3DState extends State<SimplifiedArcformView3D> {
   Widget _buildSnapshotCard(Map<String, dynamic> snapshot) {
     final keywords = List<String>.from(snapshot['keywords'] ?? []);
     final phaseHint = snapshot['phaseHint'] ?? 'Discovery';
-    
+    final cardOnly = widget.cardOnly;
+
     // Generate 3D constellation data
     final arcformData = _generateArcformData(snapshot, phaseHint);
-    
+
     return Card(
-      margin: const EdgeInsets.only(bottom: 16),
+      margin: cardOnly ? EdgeInsets.zero : const EdgeInsets.only(bottom: 16),
       color: kcSurfaceColor,
       child: InkWell(
-        onTap: () {
-          // Go directly to full-screen 3D view
-          _showFullScreenArcform(phaseHint);
-        },
+        onTap: cardOnly && widget.onCardTap != null
+            ? widget.onCardTap
+            : () => _showFullScreenArcform(phaseHint),
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: cardOnly ? MainAxisSize.min : MainAxisSize.max,
             children: [
               // Header with constellation icon
               Row(
@@ -423,7 +442,6 @@ class _SimplifiedArcformView3DState extends State<SimplifiedArcformView3D> {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  // Share button
                   IconButton(
                     icon: const Icon(Icons.share_outlined, size: 18),
                     color: kcSecondaryTextColor,
@@ -434,9 +452,7 @@ class _SimplifiedArcformView3DState extends State<SimplifiedArcformView3D> {
                   ),
                 ],
               ),
-              
               const SizedBox(height: 12),
-              
               // 3D Constellation Preview
               Container(
                 height: 200, // Increased from 150 to show full ARCform
@@ -494,17 +510,12 @@ class _SimplifiedArcformView3DState extends State<SimplifiedArcformView3D> {
                         ),
                 ),
               ),
-
-              const SizedBox(height: 16),
-
-              // Change Phase button
-              _buildChangePhaseButton(phaseHint),
-
-              // PAST PHASES section (user's historical phases)
-              _buildPastPhasesSection(phaseHint),
-
-              // EXAMPLE PHASES section (demo phases for exploration)
-              _buildExamplePhasesSection(phaseHint),
+              if (!cardOnly) ...[
+                const SizedBox(height: 16),
+                _buildChangePhaseButton(phaseHint),
+                _buildPastPhasesSection(phaseHint),
+                _buildExamplePhasesSection(phaseHint),
+              ],
             ],
           ),
         ),

@@ -45,7 +45,7 @@ import 'package:my_app/arc/unified_feed/widgets/import_options_sheet.dart';
 import 'package:my_app/arc/chat/ui/lumara_assistant_screen.dart';
 import 'package:my_app/ui/phase/phase_analysis_view.dart';
 import 'package:my_app/ui/phase/phase_timeline_view.dart';
-import 'package:my_app/arc/ui/timeline/widgets/current_phase_arcform_preview.dart';
+import 'package:my_app/ui/phase/simplified_arcform_view_3d.dart';
 import 'package:my_app/models/phase_models.dart';
 import 'package:my_app/shared/text_style.dart';
 import 'package:my_app/mira/store/arcx/services/arcx_export_service_v2.dart';
@@ -570,12 +570,13 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
           // Selection mode bar (Cancel / Delete selected)
           SliverToBoxAdapter(child: _buildSelectionModeBar()),
 
-          // Phase preview: only the phase card (yellow-bordered arcform); tap opens full Phase page
+          // Phase card: same widget as Phase page (header + 3D constellation only); tap opens full Phase page
           SliverToBoxAdapter(
             child: KeyedSubtree(
               key: ValueKey('phase_preview_$_phasePreviewRefreshKey'),
-              child: CurrentPhaseArcformPreview(
-                onTapOverride: () async {
+              child: SimplifiedArcformView3D(
+                cardOnly: true,
+                onCardTap: () async {
                   await Navigator.push(
                     context,
                     MaterialPageRoute(

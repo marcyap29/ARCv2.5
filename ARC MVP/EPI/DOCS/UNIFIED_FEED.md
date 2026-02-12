@@ -265,7 +265,7 @@ The main screen. Replaces both `LumaraAssistantScreen` (chat) and `UnifiedJourna
 1. **Greeting header** — LUMARA sigil + static message ("Share what's on your mind.") + intelligence-compounds description
 2. **Header actions** — Select (batch delete/export), Timeline (calendar), Settings gear
 3. **Selection mode bar** — Cancel / Export (N) / Delete (N) — visible only when in selection mode
-4. **Phase Arcform preview** — `CurrentPhaseArcformPreview` widget; tap opens `PhaseAnalysisView`; refreshes on return
+4. **Phase Arcform preview** — `SimplifiedArcformView3D(cardOnly: true)` widget; 3D constellation card; tap opens `PhaseAnalysisView`; refreshes on return
 5. **Phase Journey Gantt** — `_PhaseJourneyGanttCard`: Gantt-style bar showing phase regimes over time (days, phases, date range). Uses `PhaseTimelinePainter`. Tappable: navigates directly to editable timeline (`PhaseAnalysisView(initialView: 'timeline')`); edit-phases icon button. Auto-refreshes on phase/regime change (listens to `regimeChangeNotifier` / `phaseChangeNotifier`). Reloads regimes on return.
 6. **Communication actions** — Chat / Reflect / Voice buttons (above "Today" section)
 7. **LUMARA observation banner** — If LUMARA has a proactive observation
@@ -378,7 +378,7 @@ All cards extend **BaseFeedCard**, which provides a consistent wrapper with a ph
 - **Media support**: `FeedEntry.mediaItems`, `FeedMediaThumbnails` widget, media grid in ExpandedEntryView with URI resolution (`ph://`, `file://`, MCP)
 - **LUMARA chat integration**: Chat button opens `LumaraAssistantScreen` directly with `initialMessage` from most recent entry
 - **Input bar removed**: `FeedInputBar` removed from feed; Chat/Reflect/Voice action buttons serve as quick-start actions in both empty and populated states
-- **Phase Arcform preview**: `CurrentPhaseArcformPreview` embedded in feed, tap opens `PhaseAnalysisView`
+- **Phase Arcform preview**: `SimplifiedArcformView3D(cardOnly: true)` in feed, tap opens `PhaseAnalysisView`
 - **Phase hashtag stripping**: `FeedHelpers.contentWithoutPhaseHashtags()` strips phase tags from display content everywhere
 - **ExpandedEntryView enhanced**: Media section, working edit (opens `JournalScreen`), working delete with `onEntryDeleted` callback
 - **Phase priority fix**: `UserPhaseService.getDisplayPhase()` reordered — user's explicit phase (quiz/manual) takes priority over RIVET/regime
@@ -460,7 +460,7 @@ All cards extend **BaseFeedCard**, which provides a consistent wrapper with a ph
 | `lib/ui/journal/journal_screen.dart` | Removed prompt notice; phase-preserving profile creation |
 | `lib/ui/phase/phase_analysis_view.dart` | Auto-apply analysis; removed approval flow |
 | `lib/ui/phase/phase_timeline_view.dart` | `forceUpdatePhase` on phase change |
-| `lib/arc/ui/timeline/widgets/current_phase_arcform_preview.dart` | `onTapOverride`; profile-first phase resolution; listens to `phaseChangeNotifier`/`regimeChangeNotifier` for auto-reload |
+| `lib/ui/phase/simplified_arcform_view_3d.dart` | `cardOnly: true`, `onCardTap`; 3D constellation card in feed; listens to `phaseChangeNotifier`/`regimeChangeNotifier` for auto-reload |
 | `lib/arc/ui/timeline/widgets/entry_content_renderer.dart` | Paragraph rendering |
 | `lib/arc/ui/timeline/timeline_cubit.dart` | `extendRegimesWithNewEntries` replaces `rebuildRegimesFromEntries` |
 | `lib/arc/core/journal_capture_cubit.dart` | Phase backfill respects `isPhaseLocked`; locks after inference |

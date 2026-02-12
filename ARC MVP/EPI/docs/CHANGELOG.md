@@ -60,16 +60,16 @@ LUMARA chat sessions now receive ATLAS phase classifications, bringing the same 
 - New `_PhaseDataPoint` class for non-journal phase contributions (date, phase, confidence).
 - Chat phase points contribute to 10-day window sliding analysis, extending date range if chat dates fall outside journal range.
 
-### Embedded Phase Analysis View
+### 3D Constellation Phase Card in Feed
 
-**`phase_analysis_view.dart`:**
-- New `embedded` and `onEmbeddedTap` parameters.
-- `_buildEmbeddedPhaseWindow()` renders a compact 360px phase window (arcform content) with loading/error states.
-- Tapping the embedded view opens the full Phase Analysis page.
+**`simplified_arcform_view_3d.dart`:**
+- New `cardOnly` and `onCardTap` parameters. When `cardOnly: true`, only the first snapshot card (header + 3D constellation) is rendered — no Change Phase button, no Past/Example Phases sections.
+- Loading state gets a fixed 260px height in card mode.
+- Tap delegates to `onCardTap` when provided.
 
 **`unified_feed_screen.dart`:**
-- Replaced `CurrentPhaseArcformPreview` with `PhaseAnalysisView(embedded: true)` for richer inline phase display.
-- Removed `current_phase_arcform_preview.dart` import.
+- Replaced `CurrentPhaseArcformPreview` with `SimplifiedArcformView3D(cardOnly: true)` for the 3D constellation card in the Unified Feed.
+- Tapping opens full Phase Analysis page; refreshes on return.
 
 ### Draft Reflection Fix
 
@@ -111,8 +111,8 @@ Full implementation of the brutal documentation efficiency audit (claude.md §55
 - `lib/arc/chat/chat/ui/enhanced_chats_screen.dart` — Phase chips, show all sessions, archived label
 - `lib/arc/chat/ui/widgets/chat_navigation_drawer.dart` — Show all sessions
 - `lib/services/phase_regime_service.dart` — Chat session integration, `_PhaseDataPoint`
-- `lib/ui/phase/phase_analysis_view.dart` — Embedded mode
-- `lib/arc/unified_feed/widgets/unified_feed_screen.dart` — Embedded phase view
+- `lib/ui/phase/simplified_arcform_view_3d.dart` — `cardOnly` / `onCardTap` parameters
+- `lib/arc/unified_feed/widgets/unified_feed_screen.dart` — 3D constellation card in feed
 - `lib/arc/chat/services/reflection_handler.dart` — Draft entry fix
 - `docs/claude.md` — Prompt references audit section
 
