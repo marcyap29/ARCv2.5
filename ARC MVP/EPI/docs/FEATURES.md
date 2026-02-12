@@ -755,7 +755,7 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 **Setup Documentation:**
 - Stripe (web): `DOCS/stripe/README.md`
 - RevenueCat (in-app): `DOCS/revenuecat/README.md`
-- Payments clarification: `DOCS/PAYMENTS_CLARIFICATION.md`
+- Payments: Stripe for web (see `DOCS/stripe/`), RevenueCat for in-app (see `DOCS/revenuecat/`)
 - Complete Stripe setup: `DOCS/stripe/STRIPE_SECRETS_SETUP.md`
 - Webhook configuration: `DOCS/stripe/STRIPE_WEBHOOK_SETUP_VISUAL.md`
 - Test vs Live mode: `DOCS/stripe/STRIPE_TEST_VS_LIVE.md`

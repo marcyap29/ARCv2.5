@@ -54,7 +54,7 @@ Main overview: `DOCS/README.md`
 Adhere to: `DOCS/ARCHITECTURE.md`
 - 5-module system (ARC, PRISM, MIRA, ECHO, AURORA)
 - Technical stack and data flow
-- Two-Stage Memory System (Context Selection + CHRONICLE). LUMARA four-subsystem spine (ARC, ATLAS, CHRONICLE, AURORA) and Orchestrator (see LUMARA_ORCHESTRATOR.md)
+- Two-Stage Memory System (Context Selection + CHRONICLE). LUMARA four-subsystem spine (ARC, ATLAS, CHRONICLE, AURORA) and Orchestrator (see LUMARA_COMPLETE.md)
 
 ### 📋 Features Guide
 Reference: `DOCS/FEATURES.md`
@@ -129,7 +129,7 @@ Response length is determined by **Engagement Mode** (primary driver), with **Pe
    - Semantic relevance
    - Phase intelligence (RIVET/SENTINEL/ATLAS)
    
-2. **CHRONICLE** (longitudinal memory): Aggregated synthesis across time; exposed via `ChronicleSubsystem` in the LUMARA Orchestrator. The four-subsystem spine (ARC, ATLAS, CHRONICLE, AURORA) is coordinated by the Orchestrator when `FeatureFlags.useOrchestrator` is true. Legacy: **MemoryModeService** (Polymeta) still provides domain-based semantic memory filtering (Always On/Suggestive/High Confidence Only); see CHRONICLE_CONTEXT_FOR_CLAUDE.md for Polymeta→CHRONICLE relationship.
+2. **CHRONICLE** (longitudinal memory): Aggregated synthesis across time; exposed via `ChronicleSubsystem` in the LUMARA Orchestrator. The four-subsystem spine (ARC, ATLAS, CHRONICLE, AURORA) is coordinated by the Orchestrator when `FeatureFlags.useOrchestrator` is true. See LUMARA_COMPLETE.md for full architecture. Legacy: **MemoryModeService** (Polymeta) still provides domain-based semantic memory filtering (Always On/Suggestive/High Confidence Only).
 
 ### Memory Focus Presets
 | Preset | Time Window | Max Entries | Similarity |
@@ -152,7 +152,7 @@ Response length is determined by **Engagement Mode** (primary driver), with **Pe
 
 ### LUMARA Settings UI
 - **Main Settings**: `lib/shared/ui/settings/settings_view.dart` - Memory Focus, Persona, Engagement Mode
-- **Memory Mode Settings**: `lib/mira/memory/ui/memory_mode_settings_view.dart` - Memory mode domain settings (see CHRONICLE_CONTEXT_FOR_CLAUDE.md for Polymeta→CHRONICLE)
+- **Memory Mode Settings**: `lib/mira/memory/ui/memory_mode_settings_view.dart` - Memory mode domain settings (Polymeta→CHRONICLE rename complete; see LUMARA_COMPLETE.md)
 
 ### Export System
 - **Export Service V2**: `lib/mira/store/arcx/services/arcx_export_service_v2.dart` - Full/incremental exports

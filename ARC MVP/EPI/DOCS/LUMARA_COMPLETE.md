@@ -1,7 +1,7 @@
 # LUMARA - Complete Guide
 
-**Version:** 1.0  
-**Last Updated:** January 2025  
+**Version:** 2.0  
+**Last Updated:** February 12, 2026  
 **Status:** ✅ Production Ready
 
 ---
@@ -9,25 +9,189 @@
 ## Table of Contents
 
 1. [Overview](#overview)
-2. [User Guide](#user-guide)
-3. [Technical Specification](#technical-specification)
-4. [Response Systems](#response-systems)
-5. [Firebase Integration](#firebase-integration)
-6. [Implementation Summary](#implementation-summary)
-7. [Related Documentation](#related-documentation)
+2. [Narrative Intelligence](#narrative-intelligence)
+3. [Subsystems](#subsystems)
+4. [Orchestrator](#orchestrator)
+5. [User Guide](#user-guide)
+6. [Technical Specification](#technical-specification)
+7. [Response Systems](#response-systems)
+8. [LLM Integration](#llm-integration)
+9. [Implementation Summary](#implementation-summary)
+10. [Related Documentation](#related-documentation)
 
 ---
 
 ## Overview
 
-LUMARA (Lifelong Unified Memory and Adaptive Response Architecture) is ARC's adaptive intelligence system that provides personalized responses based on user phase, engagement mode, and historical context.
+**ARC** is the journaling and narrative-capture subsystem; **LUMARA** is the orchestrator that uses ARC's data (plus CHRONICLE, ATLAS, AURORA) to provide a single assistant that can answer like ChatGPT/Claude by default and, when needed, act as a persistent, developmentally aware partner with long-term memory and pattern recognition.
 
-**Key Features:**
-- Phase-based persona adaptation
-- Three-tier engagement system (Reflect/Explore/Integrate)
-- Two-stage memory system (Context Selection + CHRONICLE). LUMARA Enterprise Architecture: four-subsystem spine (ARC, ATLAS, CHRONICLE, AURORA) coordinated by the LUMARA Orchestrator when `FeatureFlags.useOrchestrator` is true; see DOCS/LUMARA_ORCHESTRATOR.md, SUBSYSTEMS.md.
-- Firebase-only API architecture
-- Unified prompt system
+### What is ARC?
+
+**ARC** = **Personal Intelligence Reactor**. One of four subsystems in the EPI (Evolving Personal Intelligence) app spine.
+
+**Role:** Narrative **capture** and **reflection**.
+
+- **Capture:** Journal entries (text, voice, Arcforms) form a continuous stream of self-documentation (VEIL "Verbalize" — immediate capture).
+- **Reflection:** In-journal and in-chat conversations with LUMARA turn entries into reflected narrative (patterns, questions, connections in the moment).
+- **Context for LUMARA:** ARC supplies **recent entries** and **base context** so the Master Prompt has current-journal context. It does not decide *when* to use that context; LUMARA does.
+
+**What ARC does *not* do:** It does not run the LLM, choose personas, or route queries. It feeds the pipeline; LUMARA consumes it.
+
+**Implementation:** `lib/arc/` (journaling, chat, reflections); orchestrator-facing logic in `lib/arc/chat/services/arc_subsystem.dart`.
+
+### What is LUMARA?
+
+**LUMARA** = **Lifelong Unified Memory and Adaptive Response Architecture**. It is the **orchestrator** of narrative intelligence and the layer that actually produces assistant responses.
+
+**Core responsibilities:**
+
+1. **Orchestration:** Coordinate four subsystems (ARC, ATLAS, CHRONICLE, AURORA); route user intents; build the prompt so the LLM sees: recent entries (ARC), current phase (ATLAS), longitudinal memory (CHRONICLE), rhythm (AURORA).
+2. **Phase-aware response:** Adapt tone, depth, and suggestions to the user's developmental phase (e.g. Recovery vs Transition vs Breakthrough).
+3. **Memory and context:** Two-stage model — (1) context selection (which recent/similar entries to pull in), (2) CHRONICLE (aggregated temporal layers). Enables "How have I changed?" and "What was going on last year?" from synthesized narrative, not only raw search.
+4. **Unified conversation:** One assistant. Persona (Companion, Therapist, Strategist, Challenger), engagement mode (Default / Explore / Integrate), response length, and CHRONICLE-backed vs raw-backed modes are all integrated in a single conversation experience.
+
+### Pipeline
+
+```
+User journals (ARC)
+       ↓
+Layer 0 raw entries → CHRONICLE synthesis (VEIL: Examine → Integrate → Link)
+       ↓
+LUMARA Orchestrator
+  ├─ ARC:     recent entries + base context
+  ├─ ATLAS:   current phase + rationale
+  ├─ CHRONICLE: temporal aggregations (monthly / yearly / multi-year)
+  └─ AURORA:  rhythm/regulation (stub for now)
+       ↓
+Master Prompt (phase-aware, CHRONICLE-backed or raw-backed)
+       ↓
+LLM response (Groq primary, Gemini fallback)
+```
+
+### Capabilities
+
+- **Answer like ChatGPT or Claude:** Default behavior: 60–80% pure answers with no historical references; 20–40% with 1–3 brief references when relevant.
+- **Long-term context:** Retrieves and uses ARC + CHRONICLE for queries like "Tell me about my week," "How have I changed?"
+- **Pattern recognition across time:** Themes, emotional arcs, phase distribution (monthly); theme shifts (yearly); developmental arcs (multi-year).
+- **Phase-aware tone:** Responses adapt to the user's current phase (Discovery, Expansion, Transition, Consolidation, Recovery, Breakthrough).
+- **Actionable insights:** Concrete suggestions when appropriate (via persona and engagement mode).
+- **Persistent relationship:** Memory is not reset each session. Context selection + CHRONICLE provide continuity.
+- **Narrative authority:** The system proposes synthesis; the user can refine, correct, and own the narrative (collaborative autobiography).
+
+---
+
+## Narrative Intelligence
+
+**Narrative intelligence** is the capacity of a system to understand, synthesize, and work *with* a person's life story over time—not by building a hidden model *of* them, but by co-creating a shared biographical understanding. It combines:
+
+1. **Temporal continuity** — Connecting experiences across days, months, and years.
+2. **Pattern recognition** — Identifying themes, phases, and recurrences from ongoing self-documentation.
+3. **Developmental awareness** — Knowing *where* someone is in their psychological journey, not just *what* they said.
+4. **Narrative authority** — The human is the authority on their own story. The system proposes; the user refines and owns.
+5. **Collaborative autobiography** — AI handles synthesis and pattern detection; the human retains editorial control.
+
+Implemented through the **VEIL cycle** (Verbalize → Examine → Integrate → Link): immediate capture, pattern recognition, synthesis into coherent narrative, and cross-temporal biographical linking. CHRONICLE is the automated implementation. The result is **collaborative biographical intelligence** across unbounded time, with bounded computational cost.
+
+---
+
+## Subsystems
+
+All subsystems implement the interface in `lib/lumara/subsystems/subsystem.dart`:
+- **name** – Subsystem identifier (e.g. `'CHRONICLE'`, `'ARC'`).
+- **canHandle(CommandIntent)** – Whether this subsystem should be queried for the given intent.
+- **query(CommandIntent)** – Returns `Future<SubsystemResult>`.
+
+### CHRONICLE (Longitudinal Memory)
+
+**Role:** Aggregated longitudinal context (synthesis across time). Wraps `ChronicleQueryRouter`, `ChronicleContextBuilder`.
+
+**Location:** `lib/lumara/subsystems/chronicle_subsystem.dart`
+
+**CanHandle:** temporalQuery, patternAnalysis, developmentalArc, historicalParallel, comparison, decisionSupport, specificRecall.
+
+**Output:** `chronicleContext` (string) and `chronicleLayerNames` (list). Sets prompt mode to `chronicleBacked` when present.
+
+### ARC (Capture / Recent Context)
+
+**Role:** Recent journal entries and entry contents. Wraps `LumaraContextSelector`, `LumaraReflectionSettingsService`.
+
+**Location:** `lib/arc/chat/services/arc_subsystem.dart`
+
+**CanHandle:** temporalQuery, patternAnalysis, developmentalArc, historicalParallel, comparison, recentContext, decisionSupport, specificRecall.
+
+**Output:** `recentEntries` (list of maps: date, relativeDate, daysAgo, title, id), `entryContents` (list of content strings).
+
+### ATLAS (Developmental Phase)
+
+**Role:** Current developmental phase and rationale. Informs tone and phase calibration.
+
+**Location:** `lib/arc/chat/services/atlas_subsystem.dart`
+
+**Wraps:** `UserPhaseService` (getCurrentPhase, getCurrentPhaseRationale, getPhaseDescription).
+
+**Output:** Phase name, description, rationale → injected as SUBSYSTEM CONTEXT block.
+
+### AURORA (Rhythm / Regulation)
+
+**Role:** Rhythm and regulation summary (usage patterns, optimal timing).
+
+**Location:** `lib/arc/chat/services/aurora_subsystem.dart`
+
+**CanHandle:** usagePatterns, optimalTiming, recentContext, temporalQuery.
+
+**Status:** Stub — `aggregations` is empty until full implementation.
+
+### Summary Table
+
+| Subsystem | Location | Main output for prompt | Status |
+|-----------|----------|------------------------|--------|
+| CHRONICLE | lumara/subsystems/ | chronicleContext, chronicleLayerNames | Implemented |
+| ARC | arc/chat/services/ | recentEntries, baseContext | Implemented |
+| ATLAS | arc/chat/services/ | ATLAS line in SUBSYSTEM CONTEXT block | Implemented |
+| AURORA | arc/chat/services/ | AURORA line in SUBSYSTEM CONTEXT block | Stub (empty) |
+
+All four registered in `EnhancedLumaraApi._ensureOrchestrator()`.
+
+---
+
+## Orchestrator
+
+### Role
+
+- **Coordinates data, does not replace the Master Prompt.** Parses user query into intent, queries all subsystems in parallel, aggregates results.
+- **Single entry point for journal reflection context.** When `FeatureFlags.useOrchestrator` is true, `EnhancedLumaraApi` calls `LumaraOrchestrator.execute()`.
+- **Gradual migration.** Feature flag allows A/B and rollout; legacy path remains for voice.
+
+### Flow
+
+1. **Parse:** `CommandParser` turns user query into `CommandIntent` (intent type, raw query, optional userId/entryId).
+2. **Route:** Orchestrator asks each subsystem `canHandle(intent)`. All that return true are queried in parallel.
+3. **Aggregate:** `ResultAggregator` collects `SubsystemResult`s into `OrchestrationResult`.
+4. **Consume:** `EnhancedLumaraApi` uses `OrchestrationResult.toContextMap()` to build the prompt.
+
+### Key Types and Locations
+
+| Item | Location |
+|------|----------|
+| **Subsystem interface** | `lib/lumara/subsystems/subsystem.dart` |
+| **CommandParser** | `lib/lumara/orchestrator/command_parser.dart` |
+| **LumaraOrchestrator** | `lib/lumara/orchestrator/lumara_orchestrator.dart` |
+| **ResultAggregator / OrchestrationResult** | `lib/lumara/orchestrator/result_aggregator.dart`, `lib/lumara/models/orchestration_result.dart` |
+| **Models** | `lib/lumara/models/` (IntentType, CommandIntent, SubsystemResult) |
+| **Integration** | `lib/arc/chat/services/enhanced_lumara_api.dart` |
+| **Feature flag** | `lib/state/feature_flags.dart` – `FeatureFlags.useOrchestrator` |
+
+### When the Orchestrator Runs
+
+- **Journal reflection (text),** with feature flag on, CHRONICLE initialized, `userId` set: orchestrator runs.
+- **Voice or flag false:** Legacy path (direct context selector + query router + context builder).
+
+### Enterprise Architecture Principles
+
+- **Wrap, don't rebuild** — CHRONICLE stays; wrap as ChronicleSubsystem.
+- **Orchestrator vs Master Prompt** — Orchestrator coordinates data; Master Prompt controls LLM behavior.
+- **Gradual migration** — Feature flag for A/B and rollout.
+- **Preserve quality** — Orchestrator path must match or exceed legacy output.
 
 ---
 
@@ -37,141 +201,43 @@ LUMARA (Lifelong Unified Memory and Adaptive Response Architecture) is ARC's ada
 
 #### Engagement-Mode-Based Response Lengths (Primary Driver)
 
-**Response length is determined by Engagement Mode, not Persona:**
+- **REFLECT Mode**: 200 words base (5 sentences) — Brief observations, grounding, pattern recognition
+- **EXPLORE Mode**: 400 words base (10 sentences) — Deeper investigation with follow-up questions
+- **INTEGRATE Mode**: 500 words base (15 sentences) — Comprehensive cross-domain synthesis
 
-- **REFLECT Mode**: 200 words base (5 sentences)
-  - Brief, surface-level observations
-  - Focused on grounding and pattern recognition
-  - No exploratory questions
+#### Conversation Mode Overrides
 
-- **EXPLORE Mode**: 400 words base (10 sentences)
-  - Deeper investigation with follow-up questions
-  - Allows connecting questions and alternative framings
-  - Medium-length responses for investigation
-
-- **INTEGRATE Mode**: 500 words base (15 sentences)
-  - Comprehensive cross-domain synthesis
-  - Longest responses for developmental analysis
-  - Cross-domain connections and trajectory themes
-
-#### Conversation Mode Response Length Overrides
-
-**Extended Analysis Modes:**
 - **"Analyze"** (ConversationMode.ideas): 600 words base (18 sentences)
-  - Extended analysis with practical suggestions
-  - Longer than INTEGRATE mode for comprehensive analysis
-  - Available in both in-journal and in-chat interfaces
-  
 - **"Deep Analysis"** (ConversationMode.think): 750 words base (22 sentences)
-  - Comprehensive deep analysis with structured scaffolding
-  - Longest response mode for thorough investigation
-  - Available in main menu and suggestion sheets
-  - Includes interpretation, structured analysis, and concrete action suggestions
-
-**Note:** These conversation mode overrides take precedence over engagement mode base lengths when active. Persona density modifiers still apply to these extended lengths.
 
 **Persona Density Modifiers:**
-- Persona affects communication style/density, not base length:
-  - **Companion**: 1.0x (neutral - warm and conversational)
-  - **Strategist**: 1.15x (+15% for analytical detail)
-  - **Grounded**: 0.9x (-10% for concise clarity)
-  - **Challenger**: 0.85x (-15% for sharp directness)
-
-**Example Word Limits:**
+- **Companion**: 1.0x (warm, conversational)
+- **Strategist**: 1.15x (analytical detail)
+- **Grounded**: 0.9x (concise clarity)
+- **Challenger**: 0.85x (sharp directness)
 
 | Engagement Mode | Companion | Strategist | Grounded | Challenger |
 |-----------------|-----------|------------|----------|------------|
-| **REFLECT**     | 200       | 230        | 180      | 170        |
-| **EXPLORE**     | 400       | 460        | 360      | 340        |
-| **INTEGRATE**   | 500       | 575        | 450      | 425        |
+| **REFLECT** | 200 | 230 | 180 | 170 |
+| **EXPLORE** | 400 | 460 | 360 | 340 |
+| **INTEGRATE** | 500 | 575 | 450 | 425 |
 
 ### Auto Mode vs Manual Mode
 
-**Auto Mode (responseLength.auto = true):**
-- LUMARA automatically determines response length based on context
-- **ENFORCED LIMIT**: Responses are capped at 10-15 sentences maximum
-- LUMARA chooses the appropriate length within this range based on:
-  - Engagement Mode (primary driver)
-  - Persona density modifier
-  - `behavior.verbosity` (0.0-1.0)
-  - `engagement.response_length` (concise/moderate/detailed)
-  - Context complexity
-- **Strict enforcement**: LUMARA must count sentences and stop at 15 maximum
+**Auto Mode** (responseLength.auto = true): Automatic length based on context, capped at 10-15 sentences.
 
-**Manual Mode (responseLength.auto = false):**
-- User sets exact limits via sliders:
-  - **Max Sentences**: 3, 5, 10, 15, or ∞ (infinity)
-  - **Sentences Per Paragraph**: 3, 4, or 5
-- **ABSOLUTE STRICT LIMIT**: LUMARA must follow these settings exactly
-- No exceptions - if max_sentences = 10, response must have exactly 10 sentences or fewer
-- Paragraph structure must match sentences_per_paragraph setting
-
-**Truncation:**
-- Responses are truncated at sentence boundaries to prevent mid-sentence cuts
-- 25% buffer allows natural flow before truncation triggers
+**Manual Mode** (responseLength.auto = false): User sets exact limits via sliders (Max Sentences: 3/5/10/15/∞; Sentences Per Paragraph: 3/4/5). Strict enforcement.
 
 ### Memory Retrieval Settings
 
-#### Max Similar Entries (also called "Max Matches")
+**Max Similar Entries (1-20, default 5):** How many past entries LUMARA **retrieves** for context.
 
-**What it does:**
-- Controls how many past journal entries LUMARA retrieves when building context
-- Determines the **breadth of historical context** available to LUMARA
-- Range: 1-20 entries (default: 5)
+**Max Temporal Connections (1-5, default 2):** How many past entries LUMARA **mentions** in a response.
 
-**How it works:**
-- When you write a journal entry or chat message, LUMARA searches your journal history
-- It finds entries with similar themes, emotions, or topics (using semantic similarity)
-- `maxMatches` determines how many of these similar entries to include in the context
-- More entries = broader context, but potentially more noise
-- Fewer entries = more focused context, but might miss relevant connections
-
-**When to adjust:**
-- **Increase** (10-20): If you want LUMARA to consider more of your history, see broader patterns
-- **Decrease** (1-3): If you want more focused responses, less historical context
-
-### Engagement Discipline Settings
-
-#### Max Temporal Connections
-
-**What it does:**
-- Controls how many references to past entries LUMARA can make **in a single response**
-- Determines how many historical connections LUMARA mentions when responding
-- Range: 1-5 connections (default: 2)
-
-**How it works:**
-- When LUMARA responds, it can reference past journal entries to show patterns or connections
-- `maxTemporalConnections` limits how many of these references appear in one response
-- This prevents responses from becoming cluttered with too many historical callbacks
-- Each "connection" is typically a mention like: "This connects to your entry from [date] where you wrote about..."
-
-**Key Difference: Max Similar Entries vs Max Temporal Connections**
-
-| Setting | What It Controls | When It's Used |
-|---------|-----------------|----------------|
-| **Max Similar Entries** | How many past entries LUMARA **retrieves** for context | During context building (before response generation) |
-| **Max Temporal Connections** | How many past entries LUMARA **mentions** in response | During response generation (in the actual response text) |
-
-**Analogy:**
-- **Max Similar Entries** = How many books LUMARA reads to prepare for the conversation
-- **Max Temporal Connections** = How many books LUMARA actually quotes or references in its response
-
-### Recommended Settings
-
-**For focused, concise responses:**
-- Max Similar Entries: 3-5
-- Max Temporal Connections: 1-2
-- Response Length: Manual, 5-10 sentences
-
-**For comprehensive, pattern-rich responses:**
-- Max Similar Entries: 10-15
-- Max Temporal Connections: 3-4
-- Response Length: Auto (10-15 sentences) or Manual, 15 sentences
-
-**For minimal historical context:**
-- Max Similar Entries: 1-3
-- Max Temporal Connections: 1
-- Response Length: Manual, 3-5 sentences
+| Setting | Controls | When Used |
+|---------|----------|-----------|
+| Max Similar Entries | How many entries retrieved | Context building (before response) |
+| Max Temporal Connections | How many entries mentioned | Response generation (in the response text) |
 
 ---
 
@@ -179,44 +245,7 @@ LUMARA (Lifelong Unified Memory and Adaptive Response Architecture) is ARC's ada
 
 ### Master Prompt System
 
-LUMARA uses a unified master prompt system that dynamically adapts based on user phase, engagement mode, and context.
-
-#### Phase-Based Persona Adaptation
-
-The master prompt system utilizes a user's ATLAS phase to dynamically modify the prompt, which in turn updates LUMARA's persona behavior.
-
-**Algorithm Overview:**
-
-```
-FUNCTION BuildLUMARAMasterPrompt(userId, userMessage, context):
-    // Step 1: Retrieve ATLAS phase and readiness signals
-    currentPhase ← GetCurrentPhase(userId)  // Discovery, Recovery, Breakthrough, Consolidation
-    readinessScore ← CalculateReadinessScore(userId)  // 0-100
-    sentinelAlert ← CheckSentinelState(userId)  // Safety override flag
-    
-    // Step 2: Determine effective persona based on phase + readiness
-    effectivePersona ← DeterminePersona(currentPhase, readinessScore, sentinelAlert, userMessage)
-    
-    // Step 3: Construct unified control state JSON
-    controlState ← {
-        'atlas': {
-            'phase': currentPhase,
-            'readinessScore': readinessScore,
-            'sentinelAlert': sentinelAlert
-        },
-        'persona': {
-            'effective': effectivePersona,
-            'isAuto': true
-        },
-        // ... additional signals from VEIL, FAVORITES, PRISM
-    }
-    
-    // Step 4: Inject control state into master prompt template
-    masterPrompt ← GetMasterPromptTemplate()
-    masterPrompt ← masterPrompt.replace("[LUMARA_CONTROL_STATE]", JSON.stringify(controlState))
-    
-    RETURN masterPrompt
-```
+LUMARA uses a unified master prompt system (`lib/arc/chat/llm/prompts/lumara_master_prompt.dart`) that dynamically adapts based on user phase, engagement mode, and context.
 
 #### Phase-to-Persona Mapping
 
@@ -232,178 +261,74 @@ FUNCTION BuildLUMARAMasterPrompt(userId, userMessage, context):
 | Consolidation | < 50 | Companion | Supportive integration, reflective |
 | Consolidation | ≥ 50 | Strategist | Analytical integration, synthesis |
 
-#### Control State Structure
+#### Two-Stage Memory System
 
-The unified control state JSON includes:
-
-```json
-{
-  "atlas": {
-    "phase": "discovery",
-    "readinessScore": 65,
-    "sentinelAlert": false
-  },
-  "persona": {
-    "effective": "companion",
-    "isAuto": true
-  },
-  "engagement": {
-    "mode": "explore",
-    "response_length": "moderate",
-    "max_temporal_connections": 2
-  },
-  "memory": {
-    "max_similar_entries": 5,
-    "lookback_years": 2
-  },
-  "veil": {
-    "sophisticationLevel": 0.7,
-    "timeOfDay": "evening"
-  }
-}
-```
-
-### Two-Stage Memory System
-
-LUMARA uses a two-stage memory system for context building:
-
-1. **Context Selection**: Retrieves relevant entries based on time window and semantic similarity
-2. **CHRONICLE**: Longitudinal aggregated memory; synthesizes patterns across retrieved entries. Part of the four-subsystem spine (ARC, ATLAS, CHRONICLE, AURORA) coordinated by the LUMARA Orchestrator (see DOCS/LUMARA_ORCHESTRATOR.md).
-
-**Memory Context Building:**
-
-```
-FUNCTION BuildLUMARAMemoryContext(userId, currentEntry, userMessage, lookbackYears):
-    // Step 1: Get user's lookback setting (from slider: 1, 2, 5, 10 years, or "all")
-    lookbackYears ← GetEffectiveLookbackYears(userId)
-    cutoffDate ← DateTime.now().subtract(Duration(days: lookbackYears * 365))
-    
-    // Step 2: Retrieve and filter journal entries by time range
-    allEntries ← GetAllJournalEntries(userId)
-    recentEntries ← FilterByDateRange(allEntries, cutoffDate)
-    similarEntries ← FindSemanticallySimilarEntries(userMessage, recentEntries, lookbackYears)
-    
-    // Step 3: Build weighted context structure
-    context ← {
-        'tier1': {
-            'currentEntry': currentEntry,  // Weight: 1.0
-            'similarEntries': similarEntries,  // Weight: 0.9
-            'recentEntries': recentEntries.take(20)  // Weight: 0.8
-        }
-    }
-    
-    RETURN FormatContextForPrompt(context, lookbackYears)
-```
+1. **Context Selection:** Retrieves relevant entries based on time window and semantic similarity.
+2. **CHRONICLE:** Longitudinal aggregated memory; synthesizes patterns across retrieved entries. Part of the four-subsystem spine coordinated by the Orchestrator (see [Orchestrator](#orchestrator) above).
 
 ---
 
 ## Response Systems
 
-LUMARA's responses are controlled by **three independent systems** that layer together:
+LUMARA's responses are controlled by **three independent systems**:
 
-| System | When It's Set | What It Controls |
-|--------|---------------|------------------|
-| **EngagementMode** | Before you write (or via voice command) | Depth of engagement & cross-domain connections |
+| System | When Set | Controls |
+|--------|----------|----------|
+| **EngagementMode** | Before writing (or voice command) | Depth of engagement & cross-domain connections |
 | **EntryClassifier** | Automatic (content-based) | Response length based on message type |
 | **ConversationMode** | After LUMARA responds | Follow-up continuation style |
 
 ### EngagementMode
 
-**Purpose:** Controls how deeply LUMARA engages with your content.
-
-**APPLIES TO:** ALL interaction types - voice conversations, text chat, journal reflections, and all LUMARA interactions.
-
-**When set:** User selects before writing (DEFAULT / EXPLORE / INTEGRATE selector) OR uses voice/text commands to switch mid-conversation.
-
-**Modes:**
-
 | Mode | Behavior | Historical References | Best For |
 |------|----------|----------------------|----------|
-| **DEFAULT** | Answer naturally like Claude. 60-80% pure answers with NO references, 20-40% with 1-3 brief references. | 20-40% of responses (1-3 refs) | Casual conversation, quick questions, factual queries |
-| **EXPLORE** | Surface patterns + invite deeper examination. Ask follow-up questions. Proactive connections. | 50-70% of responses (2-5 dated refs) | Active sense-making, pattern analysis, temporal queries |
-| **INTEGRATE** | Synthesize across domains and time horizons. Connect past entries, other life areas. Full synthesis. | 80-100% of responses (extensive refs) | Holistic understanding, big picture, comprehensive analysis |
+| **DEFAULT** | Answer naturally (60-80% pure, 20-40% with refs) | 20-40% (1-3 refs) | Casual, quick questions |
+| **EXPLORE** | Surface patterns + invite examination | 50-70% (2-5 refs) | Active sense-making, temporal queries |
+| **INTEGRATE** | Synthesize across domains and time | 80-100% (extensive refs) | Holistic understanding, big picture |
 
-**Voice/Text Commands for Mode Switching:**
+### Voice/Text Commands for Mode Switching
+
 - **To DEFAULT:** "Keep it simple", "Just answer briefly", "Quick response"
 - **To EXPLORE:** "Explore this more", "Show me patterns", "Go deeper on this"
 - **To INTEGRATE:** "Full synthesis", "Connect across everything", "Big picture"
 
 ### EntryClassifier
 
-**Purpose:** Automatically classifies entry type and adjusts response length.
-
-**Classification Types:**
-- `factual` - 0 examples (no pattern recognition)
-- `reflective` - 2-4 dated examples required
-- `analytical` - 3-8 examples for deep analysis
-- `conversational` - 0 examples (no pattern recognition)
-- `metaAnalysis` - Extensive examples for synthesis
+Types: `factual` (0 examples), `reflective` (2-4 dated), `analytical` (3-8), `conversational` (0), `metaAnalysis` (extensive).
 
 ### ConversationMode
 
-**Purpose:** Controls follow-up continuation style after LUMARA responds.
-
-**Modes:**
-- `continue` - Natural conversation flow
-- `ideas` - Extended analysis (600 words)
-- `think` - Deep analysis (750 words)
-- `different` - Alternative perspective
+Modes: `continue` (natural flow), `ideas` (600 words analysis), `think` (750 words deep analysis), `different` (alternative perspective).
 
 ---
 
-## Firebase Integration
+## LLM Integration
 
-### ✅ All User-Facing LUMARA Features Use Firebase
+### Cloud LLM Providers (v3.3.24+)
 
-1. **✅ Main Chat Messages** (`lumara_assistant_cubit.dart`)
-   - Uses: `sendChatMessage` Cloud Function
-   - Status: Fully migrated, no local API key fallback
+**Primary:** Groq (Llama 3.3 70B / Mixtral 8x7b fallback). Firebase `proxyGroq` Cloud Function hides API key.
 
-2. **✅ Message Continuation** (`lumara_assistant_cubit.dart:447`)
-   - Uses: `sendChatMessage` Cloud Function
-   - Status: **Just migrated** - now Firebase-only
+**Fallback:** Google Gemini via Firebase `proxyGemini` Cloud Function.
 
-3. **✅ In-Journal Reflections** (`enhanced_lumara_api.dart`)
-   - Uses: `generateJournalReflection` Cloud Function
-   - Status: Fully migrated
+**Mode-aware temperature:** Explore 0.8, Integrate 0.7, Reflect 0.6.
 
-4. **✅ Journal Prompts** (`journal_screen.dart`)
-   - Uses: `generateJournalPrompts` Cloud Function
-   - Status: Fully migrated with local fallback for prompts only
+**Streaming:** Both providers support streaming responses to the UI via `onStreamChunk` callback.
 
-5. **✅ Conversation Summaries** (`lumara_assistant_cubit.dart:2146`)
-   - Uses: `sendChatMessage` Cloud Function
-   - Status: Fully migrated with simple fallback
+### Chat Phase Classification (v3.3.25)
 
-### ⚠️ Unused/Non-Critical Code Paths (Not User-Facing)
+`ChatPhaseService` auto-classifies LUMARA chat sessions into ATLAS phases using the same `PhaseInferenceService` pipeline as journal entries. Runs after every assistant response. Manual override via bottom sheet.
 
-These functions exist but are **NOT CALLED** in active LUMARA flows:
+### Critical Files
 
-1. **Streaming Function** (`_processMessageWithStreaming`)
-   - Status: Defined but never called
-   - Action: Can be safely removed or left as-is
-
-2. **VEIL-EDGE Integration**
-   - Status: May be used in edge cases, not primary LUMARA flow
-   - Action: Can be migrated later if needed
-
-3. **Privacy Guardrail Wrapper**
-   - Status: Wrapper function, not direct LUMARA usage
-   - Action: Can be migrated later if needed
-
-### 📋 Non-LUMARA Services
-
-These services use `provideArcLLM()` but are **NOT part of LUMARA**:
-- `echo_service.dart` - ECHO service (separate from LUMARA)
-- `lumara_share_service.dart` - Sharing service (may need migration)
-- `journal_screen.dart` - Uses for non-LUMARA features
-
-### ✅ Confirmation
-
-**All active LUMARA user-facing features use Firebase backend exclusively.**
-- No local API key fallback for LUMARA features
-- All LLM calls go through Firebase Functions
-- Error handling provides graceful degradation (simple fallbacks, not API key usage)
+| File | Role |
+|------|------|
+| `lib/arc/chat/llm/prompts/lumara_master_prompt.dart` | Master prompt, word limits, banned phrases |
+| `lib/arc/chat/services/lumara_control_state_builder.dart` | Control state JSON (persona, mode, limits) |
+| `lib/services/lumara/entry_classifier.dart` | Entry classification, pattern requirements |
+| `lib/arc/chat/llm/prompts/lumara_context_builder.dart` | Memory context building |
+| `lib/arc/chat/services/enhanced_lumara_api.dart` | Main API: context → prompt → LLM |
+| `lib/arc/chat/bloc/lumara_assistant_cubit.dart` | Chat: system prompt building |
+| `lib/arc/chat/services/chat_phase_service.dart` | Chat session phase classification |
 
 ---
 
@@ -411,69 +336,26 @@ These services use `provideArcLLM()` but are **NOT part of LUMARA**:
 
 ### LUMARA v3.0 Pattern Recognition System
 
-Successfully implemented the LUMARA Response Generation System v3.0 specification with comprehensive pattern recognition capabilities and favorites library-only functionality.
-
-#### ✅ Completed Changes
-
-1. **Favorites System Updates**
-   - Removed favorites-based learning/adaptation, made favorites library-only
-   - Updated comments to clarify favorites are "Library reference only"
-   - Added explicit instructions: "Do NOT adapt writing style based on these examples"
-
-2. **ResponseMode Class Enhancement**
-   - Added `minPatternExamples`, `maxPatternExamples`, `requireDates` fields
-   - Updated all persona factory methods with pattern requirements:
-     - **Companion**: 2-4 dated examples required
-     - **Therapist**: 1-3 examples for continuity
-     - **Strategist**: 3-8 examples for deep analysis
-     - **Challenger**: 1-2 sharp, focused examples
-
-3. **Master Prompt Builder Transformation**
-   - Constraints-first approach - word limits and pattern requirements at the top
-   - Comprehensive banned phrases list (13 melodramatic phrases)
-   - Pattern recognition guidelines for Companion with good/bad examples
-   - Word allocation breakdown (40% validate, 40% patterns, 20% insights)
-
-4. **Unified Prompt System (v3.2)**
-   - Consolidated master prompt and user prompt into single unified prompt
-   - Eliminated duplication and override risk
-   - Single source of truth for all LUMARA instructions
-
-### Critical Files That Control Output
-
-1. **Master Prompt (System Prompt)**
-   - `lib/arc/chat/llm/prompts/lumara_master_prompt.dart`
-   - Contains word limit enforcement
-   - Contains Companion mode detection
-   - Contains banned phrases list
-
-2. **Control State Builder**
-   - `lib/arc/chat/services/lumara_control_state_builder.dart`
-   - Sets persona.effective
-   - Sets responseMode.maxWords
-   - Sets entryClassification
-
-3. **Entry Classification**
-   - `lib/services/lumara/entry_classifier.dart`
-   - Classifies entries correctly
-   - Determines pattern requirements
-
-4. **Context Builder**
-   - `lib/arc/chat/llm/prompts/lumara_context_builder.dart`
-   - Favorites are library-only
-   - Memory context building
+1. **Favorites System:** Library reference only; no learning/adaptation from favorites.
+2. **ResponseMode Enhancement:** `minPatternExamples`, `maxPatternExamples`, `requireDates` per persona.
+3. **Master Prompt Builder:** Constraints-first approach, banned phrases list (13), pattern recognition guidelines, word allocation (40% validate, 40% patterns, 20% insights).
+4. **Unified Prompt System (v3.2):** Consolidated master + user prompt into single unified prompt.
 
 ---
 
 ## Related Documentation
 
-- [LUMARA Vision](./LUMARA_Vision.md) - Complete vision document
-- [Voice Mode Complete](./VOICE_MODE_COMPLETE.md) - Voice mode implementation
-- [Engagement Discipline](./Engagement_Discipline.md) - Engagement mode details
-- [Prompt References](./PROMPT_REFERENCES.md) - All LUMARA prompts
+- [LUMARA Vision](./LUMARA_Vision.md) — Vision document
+- [Voice Mode Complete](./VOICE_MODE_COMPLETE.md) — Voice mode implementation
+- [Engagement Discipline](./Engagement_Discipline.md) — Engagement mode details
+- [Prompt References](./PROMPT_REFERENCES.md) — All LUMARA prompts (includes Master Prompt Architecture §16)
+- [CHRONICLE Complete](./CHRONICLE_COMPLETE.md) — CHRONICLE feature spec
+- [ARCHITECTURE](./ARCHITECTURE.md) — System-wide architecture
+
+**Consolidated from:** This document merges content from the following docs (now archived): `ARC_AND_LUMARA_OVERVIEW.md`, `NARRATIVE_INTELLIGENCE.md`, `SUBSYSTEMS.md`, `LUMARA_ORCHESTRATOR.md`, `LUMARA_ENTERPRISE_ARCHITECTURE_GUIDE.md`.
 
 ---
 
-**Document Version**: 1.0  
-**Last Updated**: January 2025  
+**Document Version**: 2.0  
+**Last Updated**: February 12, 2026  
 **Maintainer**: ARC Development Team

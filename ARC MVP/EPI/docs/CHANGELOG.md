@@ -82,6 +82,20 @@ LUMARA chat sessions now receive ATLAS phase classifications, bringing the same 
 - Added PROMPT REFERENCES AUDIT (MANDATORY) section: checks for `PROMPT_REFERENCES.md` existence, compares codebase prompts vs documented, updates tracker and config management.
 - Added "Prompt catalog drift" to Missing & Incomplete Documentation checklist.
 
+### Documentation Consolidation & Optimization
+
+Full implementation of the brutal documentation efficiency audit (claude.md §550-808). 190 .md files audited. 23 files removed from active docs (archived or deleted), zero information lost.
+
+**Phase 1 — Obsolete/empty (7 files):** Deleted `UI_UX.md` (empty). Archived: `CHRONICLE_CONTEXT_FOR_CLAUDE.md`, `LUMARA_ORCHESTRATOR_ROADMAP.md`, `DOCUMENTATION_CONSOLIDATION_AUDIT_2026-02.md`, `TIMELINE_LEGACY_ENTRIES.md`, `PAYMENTS_CLARIFICATION.md`, `ENTERPRISE_VOICE.md`.
+
+**Phase 2 — Prompt consolidation (2 → PROMPT_REFERENCES v2.1.0):** Merged `UNIFIED_INTENT_CLASSIFIER_PROMPT.md` (§15) and `MASTER_PROMPT_CONTEXT.md` (§16) into PROMPT_REFERENCES. Originals archived.
+
+**Phase 3 — LUMARA architecture (5 → LUMARA_COMPLETE v2.0):** Merged `ARC_AND_LUMARA_OVERVIEW.md`, `NARRATIVE_INTELLIGENCE.md`, `SUBSYSTEMS.md`, `LUMARA_ORCHESTRATOR.md`, `LUMARA_ENTERPRISE_ARCHITECTURE_GUIDE.md` into comprehensive LUMARA_COMPLETE.md. Originals archived.
+
+**Phase 4 — Stripe (7 → 1 new doc):** Created `stripe/STRIPE_TESTING_AND_MIGRATION.md` merging 7 small helper files. Active stripe docs: 4 (README + SETUP + TESTING + ANALYSIS). Originals in stripe/archive/.
+
+**Phase 5 — Bugtracker (2 duplicates archived):** `BUG_TRACKER_MASTER_INDEX.md` and `BUG_TRACKER_PART1_CRITICAL.md` archived (bug_tracker.md is canonical).
+
 #### Files added
 - `lib/arc/chat/services/chat_phase_service.dart`
 

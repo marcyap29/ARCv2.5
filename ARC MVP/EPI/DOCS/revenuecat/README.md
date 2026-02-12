@@ -6,7 +6,7 @@
 
 ## Overview
 
-RevenueCat powers **in-app purchases** for ARC on iOS (and optionally Android). Stripe is used for **web** purchases. See [PAYMENTS_CLARIFICATION.md](../PAYMENTS_CLARIFICATION.md) for how the two channels fit together.
+RevenueCat powers **in-app purchases** for ARC on iOS (and optionally Android). Stripe is used for **web** purchases. See [stripe/README.md](../stripe/README.md) for web payments.
 
 ---
 

@@ -8,7 +8,7 @@ This document catalogs all prompts used throughout the ARC application, organize
 - **Path baseline:** All paths are relative to the EPI app root (e.g. `ARC MVP/EPI/`). Example: `lib/arc/chat/prompts/lumara_profile.json` means `ARC MVP/EPI/lib/arc/chat/prompts/lumara_profile.json`.
 - **Content:** Quoted blocks are taken from or derived from the cited sources. Some sections show a subset or summary; the source file holds the full, authoritative text.
 - **Cloud vs on-device:** Cloud API uses the master prompt system (`lumara_master_prompt.dart`); on-device and legacy paths may use `lumara_system_prompt.dart` or profile JSON.
-- **Last synced with codebase:** 2026-02-11. Document version: 2.0.0.
+- **Last synced with codebase:** 2026-02-12. Document version: 2.1.0.
 
 ---
 
@@ -73,6 +73,8 @@ This document catalogs all prompts used throughout the ARC application, organize
     - [Voice Depth Classification Triggers](#voice-depth-classification-triggers)
     - [Mode Switching Commands](#mode-switching-commands)
 14. [Conversation Summary Prompt](#conversation-summary-prompt)
+15. [Unified Intent Depth Classifier](#unified-intent-depth-classifier)
+16. [Master Prompt Architecture](#master-prompt-architecture)
 
 ---
 
@@ -1574,10 +1576,154 @@ Summary:
 
 ---
 
+## 15. Unified Intent Depth Classifier
+
+**Location:** Used in voice/text classification pipelines. Related: `lib/services/lumara/entry_classifier.dart` (`classifyVoiceDepth()`, `classifySeeking()`).
+
+**Purpose:** Classify user input (voice transcript or text message) as TRANSACTIONAL (quick, factual) or REFLECTIVE (deep, emotionally engaged) to determine engagement depth.
+
+**Classification Types:**
+- **TRANSACTIONAL** — Factual questions, brief observations, technical how-to, calculations, definitions, short daily activities, time-sensitive queries.
+- **REFLECTIVE** — Processing emotions/experiences, decision support, identity/relationship questions, existential queries, working through difficulties, seeking perspective.
+
+**REFLECTIVE Triggers (any match → REFLECTIVE):**
+- Processing language: "I need to process/think through/work through"
+- Emotional struggle: "I'm struggling with", "I'm worried about", "Something's been bothering me"
+- Emotional states: "I'm feeling [emotion]", high emotion word density (3+ emotion words)
+- Decision support: "Should I", "What do you think about [personal matter]", "Help me decide"
+- Self-reflection: "Why do I", "Am I being", "What does it mean that I"
+- Relationship/identity: Questions about relationships, purpose, meaning, values
+- Uncertainty about self: "I don't understand why I", "I can't figure out"
+- High emotional density: 3+ emotion words, or >50 words with personal pronouns (I, me, my)
+
+**TRANSACTIONAL Indicators (default if no reflective triggers):**
+- Factual queries: "What is…", "When did…", "How do I [technical task]"
+- Brief observations: <20 words, no emotional language
+- Task requests: "Remind me…", "Calculate…", "Convert…"
+
+**LLM Classifier Prompt:**
+
+```
+You are an intent depth classifier. Analyze the user's input and determine if it requires transactional (quick, factual) or reflective (deep, emotionally engaged) response.
+
+REFLECTIVE triggers include:
+- Processing language: "I need to process/think through/work through"
+- Emotional struggle: "I'm struggling with", "I'm worried about", "Something's been bothering me"
+- Emotional states: "I'm feeling [emotion]", high emotion word density
+- Decision support: "Should I", "What do you think about [personal matter]"
+- Self-reflection: "Why do I", "Am I being", "What does it mean that I"
+- Relationship/identity: Questions about relationships, purpose, meaning, values
+- Uncertainty about self: "I don't understand why I", "I can't figure out"
+
+TRANSACTIONAL is the default for:
+- Factual queries, technical questions, brief observations
+- Task requests, calculations, definitions
+- Short utterances (<20 words) with no emotional content
+
+When uncertain, default to REFLECTIVE.
+
+User input: "{user_input}"
+
+Respond with ONLY this JSON format (no markdown, no explanation):
+{"depth": "transactional" | "reflective", "confidence": 0.0-1.0, "triggers": ["trigger1", "trigger2"]}
+```
+
+**Decision Logic:** Scan for reflective triggers → if found, REFLECTIVE (confidence based on trigger count/strength) → if none, TRANSACTIONAL (default). When uncertain, default to REFLECTIVE.
+
+**Confidence Thresholds:** ≥0.80 TRANSACTIONAL → fast path. <0.80 or REFLECTIVE → deep path.
+
+**Integration:** Voice: after transcript → `classifyVoiceDepth()` + `classifySeeking()` → route by mode. Text chat: TRANSACTIONAL → skip semantic memory, minimal context. REFLECTIVE → full semantic memory, phase-aware context.
+
+**Performance:** ~150-200 tokens, <500ms latency, ~$0.00002 per classification.
+
+**Previously documented in:** `UNIFIED_INTENT_CLASSIFIER_PROMPT.md` (now archived).
+
+---
+
+## 16. Master Prompt Architecture
+
+**Location:** `lib/arc/chat/llm/prompts/lumara_master_prompt.dart` (`LumaraMasterPrompt`)
+
+**Purpose:** Single reference for how the LUMARA master prompt is structured and how it affects chat, journal reflections, and voice mode. The master prompt is the system prompt sent to the LLM; behavior is governed by a unified control state JSON.
+
+### Prompt Structure (Full Master Prompt)
+
+1. **Identity and control state** — "You are LUMARA…" and `[LUMARA_CONTROL_STATE]` block
+2. **Current context** — `<current_context>` with current date/time
+3. **Recent entries** — `<recent_entries>` list
+4. **Context section** — Built from mode: rawBacked (raw journal entries), chronicleBacked (CHRONICLE aggregation), hybrid (both)
+5. **TEMPORAL CONTEXT USAGE** — Current date rules; never reference current entry with a past date
+6. **WORD LIMIT ENFORCEMENT** — `responseMode.maxWords`; count words, stop at limit
+7. **Web access** — `webAccess.enabled`
+8. **LUMARA CONVERSATIONAL INTELLIGENCE** — Phase, emotional intensity, engagement mode, PRISM
+9. **LAYER 1: Crisis detection** — Self-harm, harm to others, medical emergency, abuse; `atlas.sentinelAlert`
+10. **LAYER 2: Phase + intensity calibration** — Tone matrix (Phase × Emotional Intensity)
+11. **LAYER 2.5: Voice mode protocol** — Answer first, 60-80% pure answers, retrieve when asked
+12. **Context section (expanded)** — Mode-dependent content
+13. **CURRENT TASK / RESPOND NOW** — Instruction to respond
+
+### Prompt Modes
+
+| Mode | Use case |
+|------|----------|
+| `chronicleBacked` | CHRONICLE aggregation context only (temporal queries) |
+| `rawBacked` | Raw journal entries as historical context (default) |
+| `hybrid` | CHRONICLE + supporting raw entries (drill-down) |
+
+### Control State Signals
+
+Built by `lib/arc/chat/services/lumara_control_state_builder.dart`:
+- **ATLAS:** phase, readinessScore, sentinelAlert
+- **VEIL:** sophisticationLevel, timeOfDay, usagePattern, health
+- **FAVORITES:** directness, warmth, rigor
+- **PRISM:** journal_entries, drafts, chats, media, patterns, emotional_tone, cognitive_load
+- **ENGAGEMENT DISCIPLINE:** mode, response_length, synthesis_allowed
+- **MEMORY:** similarityThreshold, lookbackYears, maxMatches
+
+### Key Control State Effects
+
+| Key | Effect |
+|-----|--------|
+| `atlas.phase` | Phase calibration (Discovery/Expansion/Transition/Consolidation/Recovery/Breakthrough) |
+| `atlas.sentinelAlert` | Crisis indicator; maximum gentleness |
+| `responseMode.maxWords` | Word limit |
+| `responseMode.interactionType` | voice vs text; triggers LAYER 2.5 |
+| `engagement.mode` | reflect/explore/integrate |
+| `webAccess.enabled` | Google Search usage |
+
+### Entry Points
+
+| Path | Entry point | Prompt variant | Payload |
+|------|-------------|----------------|---------|
+| **Chat** | `LumaraAssistantCubit` | `getMasterPrompt` + `injectDateContext` | Full prompt (system) with user message |
+| **Journal reflection** | `EnhancedLumaraApi` (skipHeavy=false) | `getMasterPromptSystemOnly` + `buildMasterUserMessage` | Split: system + user |
+| **Voice** | `EnhancedLumaraApi` (skipHeavy=true) | `getVoicePromptSystemOnly` + `buildVoiceUserMessage` | Short system + user |
+
+### Key Static Methods
+
+| Method | Purpose |
+|--------|---------|
+| `getMasterPrompt()` | Full prompt for single payload (chat) |
+| `getMasterPromptSystemOnly()` | System-only for split payload (journal) |
+| `getVoicePromptSystemOnly()` | Short system prompt for voice |
+| `buildMasterUserMessage()` | User message for journal: entries, context, current entry |
+| `buildVoiceUserMessage()` | User message for voice: instructions, mini-context, transcript |
+| `injectDateContext()` | Injects current date/time into prompt |
+| `buildChronicleMiniContext()` | 50-100 token summary for voice |
+
+### Orchestrator Path
+
+When `FeatureFlags.useOrchestrator` is true, `LumaraOrchestrator.execute()` queries ARC, ATLAS, CHRONICLE, AURORA in parallel. The same prompt builders (`getMasterPromptSystemOnly`, `buildMasterUserMessage`) are used; only the arguments (recentEntries, baseContext, chronicleContext) come from the orchestrator result instead of direct calls.
+
+**Previously documented in:** `MASTER_PROMPT_CONTEXT.md` (now archived).
+
+---
+
 ## Version History
 
 | Version | Date | Changes |
 |---------|------|---------|
+| 2.1.0 | 2026-02-12 | **Documentation consolidation**: Merged `UNIFIED_INTENT_CLASSIFIER_PROMPT.md` (§15 — Unified Intent Depth Classifier with full LLM prompt, classification rules, integration notes) and `MASTER_PROMPT_CONTEXT.md` (§16 — Master Prompt Architecture with structure, control state, entry points, orchestrator path). Originals archived. |
 | 2.0.0 | 2026-02-11 | **Groq primary LLM**: Added `proxyGroq` and `proxyGemini` (transparent proxy) entries to Backend section with note on proxy vs prompt-injecting functions. Updated from v1.9.0 which added 6 prompt sections: CHRONICLE Monthly/Yearly/Multi-Year Narrative, Voice Split-Payload, Speed-Tiered Context System, Conversation Summary Prompt. |
 | 1.8.0 | 2026-01-31 | Document scope and sources: added section explaining how this doc reflects codebase prompts; path baseline (EPI app root); LUMARA Core Identity source note (lumara_system_prompt.dart vs lumara_master_prompt.dart, lumara_profile.json). Aligned document with prompts used to generate it. |
 | 1.7.0 | 2026-01-30 | Added CHRONICLE prompts (Query Classifier, Monthly Theme Extraction / VEIL EXAMINE), Voice Journal Entry Creation ([VOICE_JOURNAL_SUMMARIZATION]), and Backend (Firebase) prompts (sendChatMessage, generateJournalReflection, generateJournalPrompts, analyzeJournalEntry). Renumbered Voice Mode to §13. |

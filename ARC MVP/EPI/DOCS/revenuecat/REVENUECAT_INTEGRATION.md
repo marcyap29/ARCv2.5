@@ -30,7 +30,7 @@ This guide covers integrating RevenueCat for **Apple in-app purchases** (subscri
 - Flutter project (e.g. ARC MVP/EPI) with iOS (and optionally Android) targets.
 - [RevenueCat](https://www.revenuecat.com) account.
 - Apple Developer account; App Store Connect app and **In-App Purchases** created (monthly, yearly, lifetime).
-- **Clarification:** Stripe = web purchases; in-app purchases = RevenueCat (this app). See [PAYMENTS_CLARIFICATION.md](../PAYMENTS_CLARIFICATION.md).
+- **Clarification:** Stripe = web purchases; in-app purchases = RevenueCat (this app). See [stripe/README.md](../stripe/README.md) for web payments.
 
 ---
 
@@ -429,4 +429,4 @@ Use the same entitlement **ARC Pro** and product IDs (`monthly`, `yearly`, `life
 | **Customer Center** | `RevenueCatUI.presentCustomerCenter()` |
 | **Stripe vs IAP** | Stripe = web; RevenueCat = in-app; treat user as premium if either grants access |
 
-For payments clarification, see [PAYMENTS_CLARIFICATION.md](../PAYMENTS_CLARIFICATION.md). For Stripe (web), see [stripe/README.md](../stripe/README.md).
+For Stripe (web purchases), see [stripe/README.md](../stripe/README.md).

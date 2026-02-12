@@ -8,7 +8,7 @@
 
 ## Overview
 
-EPI MVP uses Firebase as its backend infrastructure for authentication, cloud functions, and subscription management. **Stripe** is used for web-based subscription/payments; **RevenueCat** powers in-app purchases (iOS/Android). See [PAYMENTS_CLARIFICATION.md](PAYMENTS_CLARIFICATION.md) and [revenuecat/README.md](revenuecat/README.md) for how the two fit together. This document covers Firebase backend setup, architecture, and deployment procedures.
+EPI MVP uses Firebase as its backend infrastructure for authentication, cloud functions, and subscription management. **Stripe** is used for web-based subscription/payments; **RevenueCat** powers in-app purchases (iOS/Android). See [revenuecat/README.md](revenuecat/README.md) and [stripe/README.md](stripe/README.md) for details. This document covers Firebase backend setup, architecture, and deployment procedures.
 
 ---
 

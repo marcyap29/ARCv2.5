@@ -302,7 +302,7 @@ The EPI system is organized into 5 core modules:
   - **Stage 1: Context Selection** (Temporal/Phase-Aware Entry Selection)
     - `LumaraContextSelector` selects entries based on Memory Focus, Engagement Mode, semantic relevance, and phase intelligence
     - Determines: "Which parts of the journey?" (horizontal - time/phases)
-  - **Stage 2: CHRONICLE / Memory filtering** – **CHRONICLE** (longitudinal aggregated memory) is the named subsystem in the LUMARA four-subsystem spine (ARC, ATLAS, CHRONICLE, AURORA), coordinated by the LUMARA Orchestrator. Legacy **MemoryModeService** (Polymeta) still provides domain/confidence-based filtering (Always On/Suggestive/High Confidence Only). See DOCS/LUMARA_ORCHESTRATOR.md, SUBSYSTEMS.md, CHRONICLE_CONTEXT_FOR_CLAUDE.md.
+  - **Stage 2: CHRONICLE / Memory filtering** – **CHRONICLE** (longitudinal aggregated memory) is the named subsystem in the LUMARA four-subsystem spine (ARC, ATLAS, CHRONICLE, AURORA), coordinated by the LUMARA Orchestrator. Legacy **MemoryModeService** (Polymeta) still provides domain/confidence-based filtering (Always On/Suggestive/High Confidence Only). See DOCS/LUMARA_COMPLETE.md (Orchestrator and Subsystems sections).
   - **Integration Pattern**: Context Selector selects entries → CHRONICLE (or legacy Polymeta) contributes memory context → Orchestrator aggregates when enabled → Both included in prompt
 
 ---
@@ -354,7 +354,7 @@ The EPI system is organized into 5 core modules:
 **Documentation:**
 - Stripe (web): `DOCS/stripe/README.md`
 - RevenueCat (in-app): `DOCS/revenuecat/README.md`
-- Payments clarification: `DOCS/PAYMENTS_CLARIFICATION.md`
+- Payments: Stripe for web (see `DOCS/stripe/`), RevenueCat for in-app (see `DOCS/revenuecat/`)
 - Complete Stripe setup: `DOCS/stripe/STRIPE_SECRETS_SETUP.md`
 - Webhook setup: `DOCS/stripe/STRIPE_WEBHOOK_SETUP_VISUAL.md`
 

@@ -1,7 +1,7 @@
 # Prompt Tracker
 
-**Version:** 1.1.0  
-**Last Updated:** February 11, 2026  
+**Version:** 1.2.0  
+**Last Updated:** February 12, 2026  
 **Purpose:** Prompt change tracking and quick reference. Full prompt catalog and version history live in [PROMPT_REFERENCES.md](PROMPT_REFERENCES.md).
 
 ---
@@ -17,6 +17,7 @@
 
 | Date | Change | Source / doc |
 |------|--------|--------------|
+| 2026-02-12 | Doc consolidation: Merged UNIFIED_INTENT_CLASSIFIER_PROMPT (§15 — Unified Intent Depth Classifier with full LLM prompt) and MASTER_PROMPT_CONTEXT (§16 — Master Prompt Architecture, structure, control state, entry points). Originals archived. | PROMPT_REFERENCES.md v2.1.0 |
 | 2026-02-11 | Groq primary LLM: proxyGroq/proxyGemini backend proxy entries; transparent proxy note | PROMPT_REFERENCES.md v2.0.0 |
 | 2026-02-11 | CHRONICLE synthesis prompts (Monthly/Yearly/Multi-Year Narrative); Voice Split-Payload Prompt; CHRONICLE Speed-Tiered Context System; Conversation Summary Prompt | PROMPT_REFERENCES.md v1.9.0 |
 | 2026-01-31 | Document scope and sources; LUMARA source note (lumara_system_prompt vs lumara_master_prompt, lumara_profile.json) | PROMPT_REFERENCES.md v1.8.0 |
