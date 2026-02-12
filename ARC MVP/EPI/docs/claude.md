@@ -1,12 +1,13 @@
 # EPI Documentation Context Guide
 
-**Version:** 3.3.24
-**Last Updated:** February 11, 2026
+**Version:** 3.3.25
+**Last Updated:** February 12, 2026
 **Current Branch:** `test`
 
-### Recent Updates (v3.3.24)
-- **Groq Primary LLM Provider**: Groq (Llama 3.3 70B / Mixtral 8x7b) is now the primary cloud LLM for LUMARA; Gemini demoted to fallback. New `proxyGroq` Firebase Cloud Function. `GroqService` (streaming + non-streaming), `GroqProvider`, `groq_send.dart`. Mode-aware temperature. Settings simplified to Groq + Gemini only. 4 new files, 8 modified.
-- **PROMPT_REFERENCES v2.0.0**: Added `proxyGroq`/`proxyGemini` to Backend section. Prior v1.9.0: CHRONICLE Monthly/Yearly/Multi-Year Narrative, Voice Split-Payload, Speed-Tiered Context, Conversation Summary.
+### Recent Updates (v3.3.25)
+- **Chat Phase Classification System**: `ChatPhaseService` auto-classifies LUMARA chat sessions into ATLAS phases. Phase in session app bar with manual override. Phase chips on chat list cards. Chat sessions contribute to regime building. Draft reflection fix (`draft_*` IDs skip AURORA). Embedded `PhaseAnalysisView` replaces preview in feed.
+- **Groq Primary LLM Provider (v3.3.24)**: Groq (Llama 3.3 70B / Mixtral 8x7b) primary, Gemini fallback. `proxyGroq` Firebase Cloud Function. Mode-aware temperature.
+- **PROMPT_REFERENCES v2.0.0**: `proxyGroq`/`proxyGemini` backend, CHRONICLE synthesis prompts, Voice Split-Payload, Speed-Tiered Context, Conversation Summary.
 - **CHRONICLE Speed-Tiered Context**: ResponseSpeed enum (instant/fast/normal/deep) with mode-aware query routing; ChronicleContextCache (in-memory TTL, 50 entries, 30-min); context building tiers from mini-context (50 tokens) to full multi-layer.
 - **Streaming LUMARA Responses**: `geminiSendStream`/`GroqService.generateContentStream` with `onStreamChunk` callback for real-time response delivery in journal reflection UI.
 - **Unified Feed Phase 2.3**: Scroll-to-top/bottom navigation, Gantt card auto-refresh via notifiers, improved paragraph rendering (dividers, line height, summary overlap detection), feed sort by `createdAt`, summary stripping from preview.
@@ -555,6 +556,17 @@ description: Brutally optimizes documentation ecosystems for maximum efficiency 
 model: opus
 ```
 
+## PROMPT REFERENCES AUDIT (MANDATORY)
+
+Before any documentation pass, you MUST:
+
+1. **Check for `PROMPT_REFERENCES.md`**: If `DOCS/PROMPT_REFERENCES.md` does not exist, create it using the format and scope described in the existing document (catalog of all LLM prompts by category, source file citations, template variables, version history). See the current `PROMPT_REFERENCES.md` for the canonical structure.
+2. **Compare prompts in repo vs `PROMPT_REFERENCES.md`**: Search the codebase for all LLM prompt definitions (system prompts, user prompts, prompt templates — look for `systemPrompt`, `system =`, `geminiSend`, `groqSend`, `prompt =`, etc.) and compare against what is cataloged in `PROMPT_REFERENCES.md`. Any prompt that exists in code but is missing from the document must be added.
+3. **Update `PROMPT_TRACKER.md`**: After any prompt additions or changes, add a row to the recent changes table in `PROMPT_TRACKER.md` and bump the version in `PROMPT_REFERENCES.md`.
+4. **Update `CONFIGURATION_MANAGEMENT.md`**: Record the prompt sync in the inventory and change log.
+
+This ensures the prompt catalog stays synchronized with the actual codebase and no prompts go undocumented.
+
 ## OBJECTIVE: BRUTAL DOCUMENTATION EFFICIENCY OPTIMIZATION
 
 You are an expert documentation consolidation specialist tasked with achieving maximum documentation efficiency through systematic elimination of redundancy, obsolescence, and inefficient document structures. Your goal is to minimize documentation maintenance burden and maximize information accessibility while preserving ALL critical knowledge.
@@ -607,6 +619,7 @@ Use "very thorough" exploration to identify:
    - Outdated documents missing recent changes
    - Broken internal links and references
    - Documentation gaps identified during audit
+   - **Prompt catalog drift**: Prompts in the codebase that are not in `PROMPT_REFERENCES.md` (see PROMPT REFERENCES AUDIT above)
 
 ### STEP 2: CONTENT ANALYSIS & CATEGORIZATION
 For each document identified, analyze:

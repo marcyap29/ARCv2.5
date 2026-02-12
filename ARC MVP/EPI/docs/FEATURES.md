@@ -1,7 +1,7 @@
 # EPI MVP - Comprehensive Features Guide
 
-**Version:** 3.3.24
-**Last Updated:** February 11, 2026
+**Version:** 3.3.25
+**Last Updated:** February 12, 2026
 
 ---
 
@@ -196,6 +196,8 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 - **Unified Feed integration (v3.3.19)**: `initialMessage` parameter auto-sends most recent journal entry to LUMARA for reflection when opened from feed. Back-arrow navigation (replaces drawer). "New Chat" removed from popup menu.
 - **Streaming Responses (v3.3.23)**: LUMARA reflections stream to the UI in real-time as chunks arrive from the cloud API. LUMARA inline blocks update progressively via `onStreamChunk` callback, showing "Streaming..." status. Falls back to non-streaming if direct API key unavailable.
 - **Groq Primary LLM Provider (v3.3.24)**: LUMARA now uses **Groq** (Llama 3.3 70B / Mixtral 8x7b) as the primary cloud LLM, with Gemini as fallback. Streaming and non-streaming support. Mode-aware temperature (explore: 0.8, integrate: 0.7, reflect: 0.6). Firebase `proxyGroq` Cloud Function hides API key from client.
+- **Chat Phase Classification (v3.3.25)**: LUMARA chat sessions are automatically classified into ATLAS phases using the same inference pipeline as journal entries. Phase displayed in session app bar (tappable for manual override). Phase chips on chat list cards. Chat sessions contribute to phase regime building. Backfill support for existing chats.
+- **Embedded Phase Analysis (v3.3.25)**: `PhaseAnalysisView(embedded: true)` replaces the phase preview widget in the Unified Feed, showing the full arcform content in a compact 360px window. Tapping opens the full Phase Analysis page.
 
 **Voice Chat - Voice Sigil (v3.3.16, upgraded from Jarvis Mode v2.1.53)**
 - **Voice Sigil UI**: Sophisticated 6-state animation system replacing the original glowing indicator

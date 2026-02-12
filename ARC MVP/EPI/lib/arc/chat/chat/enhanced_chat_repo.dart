@@ -38,6 +38,12 @@ abstract class EnhancedChatRepo {
   /// Update session metadata
   Future<void> updateSessionMetadata(String sessionId, Map<String, dynamic> metadata);
 
+  /// Update the phase classification for a chat session
+  Future<void> updateSessionPhase(String sessionId, {
+    required String autoPhase,
+    required double autoPhaseConfidence,
+  });
+
   /// Pin or unpin a session
   Future<void> pinSession(String sessionId, bool pin);
 

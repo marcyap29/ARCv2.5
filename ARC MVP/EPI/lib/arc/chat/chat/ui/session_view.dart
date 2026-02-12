@@ -6,10 +6,12 @@ import '../../bloc/lumara_assistant_cubit.dart';
 import '../../data/context_provider.dart';
 import '../../data/context_scope.dart';
 import '../../services/favorites_service.dart';
+import '../../services/chat_phase_service.dart';
 import '../../data/models/lumara_favorite.dart';
 import 'package:my_app/shared/ui/settings/favorites_management_view.dart';
 import '../../voice/audio_io.dart';
 import 'package:my_app/shared/widgets/lumara_icon.dart';
+import 'package:my_app/prism/atlas/phase/phase_scoring.dart';
 
 // Real context provider for SessionView that respects scope
 class SessionContextProvider extends ContextProvider {
@@ -202,6 +204,26 @@ class _SessionViewState extends State<SessionView> {
       
       // Check if chat is saved after loading session
       _checkIfChatSaved();
+
+      // Reclassify phase when session is revisited (fire-and-forget).
+      // If the user has been chatting more, the tenor may have shifted.
+      if (messages.isNotEmpty) {
+        final sessionId = session.id;
+        ChatPhaseService(widget.chatRepo)
+            .classifySessionPhase(sessionId)
+            .then((phase) {
+          if (phase != null && mounted) {
+            // Refresh session to pick up the new phase metadata
+            widget.chatRepo.getSession(sessionId).then((updated) {
+              if (updated != null && mounted) {
+                setState(() => _session = updated);
+              }
+            });
+          }
+        }).catchError((e) {
+          print('SessionView: Phase reclassification error: $e');
+        });
+      }
     } catch (e) {
       setState(() {
         _error = 'Session not found. It may have been deleted.';
@@ -748,12 +770,157 @@ class _SessionViewState extends State<SessionView> {
     );
   }
 
+  // ── Phase display helpers ──
+
+  Color _getPhaseColor(String phase) {
+    switch (phase.toLowerCase()) {
+      case 'discovery':
+        return const Color(0xFF7C3AED); // Purple
+      case 'expansion':
+        return const Color(0xFF059669); // Green
+      case 'transition':
+        return const Color(0xFFD97706); // Orange
+      case 'consolidation':
+        return const Color(0xFF2563EB); // Blue
+      case 'recovery':
+        return const Color(0xFFDC2626); // Red
+      case 'breakthrough':
+        return const Color(0xFFFBBF24); // Yellow/Gold
+      default:
+        return Colors.grey;
+    }
+  }
+
+  void _showPhaseSelector() {
+    final phases = PhaseScoring.allPhases;
+    final currentPhase = _session?.displayPhase;
+
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                child: Row(
+                  children: [
+                    const Icon(Icons.category, size: 20),
+                    const SizedBox(width: 8),
+                    const Text(
+                      'Chat Phase',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                    ),
+                    const Spacer(),
+                    if (_session?.userPhaseOverride != null)
+                      TextButton(
+                        onPressed: () {
+                          Navigator.pop(ctx);
+                          _clearPhaseOverride();
+                        },
+                        child: const Text('Reset to Auto'),
+                      ),
+                  ],
+                ),
+              ),
+              const Divider(height: 1),
+              ...phases.map((phase) {
+                final isSelected = currentPhase?.toLowerCase() == phase.toLowerCase();
+                return ListTile(
+                  leading: Icon(Icons.circle, color: _getPhaseColor(phase), size: 16),
+                  title: Text(
+                    phase,
+                    style: TextStyle(
+                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                    ),
+                  ),
+                  trailing: isSelected
+                      ? const Icon(Icons.check, color: Colors.green)
+                      : null,
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _setPhaseOverride(phase);
+                  },
+                );
+              }),
+              const SizedBox(height: 8),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _setPhaseOverride(String phase) async {
+    try {
+      final service = ChatPhaseService(widget.chatRepo);
+      await service.setUserPhaseOverride(widget.sessionId, phase);
+      // Refresh session to pick up the new override
+      final updated = await widget.chatRepo.getSession(widget.sessionId);
+      if (updated != null && mounted) {
+        setState(() => _session = updated);
+      }
+    } catch (e) {
+      print('Error setting phase override: $e');
+    }
+  }
+
+  Future<void> _clearPhaseOverride() async {
+    try {
+      final service = ChatPhaseService(widget.chatRepo);
+      await service.clearUserPhaseOverride(widget.sessionId);
+      // Refresh session
+      final updated = await widget.chatRepo.getSession(widget.sessionId);
+      if (updated != null && mounted) {
+        setState(() => _session = updated);
+      }
+    } catch (e) {
+      print('Error clearing phase override: $e');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(_session?.subject ?? 'Loading...'),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(_session?.subject ?? 'Loading...', style: const TextStyle(fontSize: 16)),
+            if (_session?.displayPhase != null)
+              GestureDetector(
+                onTap: _showPhaseSelector,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 8,
+                      height: 8,
+                      decoration: BoxDecoration(
+                        color: _getPhaseColor(_session!.displayPhase!),
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      _session!.displayPhase!,
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: _getPhaseColor(_session!.displayPhase!),
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(width: 2),
+                    Icon(Icons.edit, size: 10, color: _getPhaseColor(_session!.displayPhase!).withOpacity(0.6)),
+                  ],
+                ),
+              ),
+          ],
+        ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.pop(context),

@@ -43,7 +43,6 @@ import 'package:my_app/core/models/entry_mode.dart';
 import 'package:my_app/shared/ui/onboarding/phase_quiz_v2_screen.dart';
 import 'package:my_app/arc/unified_feed/widgets/import_options_sheet.dart';
 import 'package:my_app/arc/chat/ui/lumara_assistant_screen.dart';
-import 'package:my_app/arc/ui/timeline/widgets/current_phase_arcform_preview.dart';
 import 'package:my_app/ui/phase/phase_analysis_view.dart';
 import 'package:my_app/ui/phase/phase_timeline_view.dart';
 import 'package:my_app/models/phase_models.dart';
@@ -570,12 +569,13 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
           // Selection mode bar (Cancel / Delete selected)
           SliverToBoxAdapter(child: _buildSelectionModeBar()),
 
-          // Phase preview (tap opens Phase tab content; refresh when returning so phase change sticks)
+          // Phase window (same content as Phase tab; tap opens full Phase page; refresh on return)
           SliverToBoxAdapter(
             child: KeyedSubtree(
               key: ValueKey('phase_preview_$_phasePreviewRefreshKey'),
-              child: CurrentPhaseArcformPreview(
-                onTapOverride: () async {
+              child: PhaseAnalysisView(
+                embedded: true,
+                onEmbeddedTap: () async {
                   await Navigator.push(
                     context,
                     MaterialPageRoute(

@@ -27,8 +27,18 @@ import 'package:my_app/ui/splash/animated_phase_shape.dart';
 
 class PhaseAnalysisView extends StatefulWidget {
   final String? initialView;
-  
-  const PhaseAnalysisView({super.key, this.initialView});
+  /// When true, only the phase window (arcform content) is shown, no app bar or full page.
+  /// Tapping opens the full Phase page.
+  final bool embedded;
+  /// When [embedded] is true, called when the user taps the phase window (e.g. to refresh after return).
+  final VoidCallback? onEmbeddedTap;
+
+  const PhaseAnalysisView({
+    super.key,
+    this.initialView,
+    this.embedded = false,
+    this.onEmbeddedTap,
+  });
 
   @override
   State<PhaseAnalysisView> createState() => _PhaseAnalysisViewState();
@@ -564,8 +574,15 @@ class _PhaseAnalysisViewState extends State<PhaseAnalysisView> {
   // analysis now auto-applies results via _runRivetSweep and shows a summary dialog
 
 
+  /// Height of the embedded phase window in the feed (no app bar, no full page).
+  static const double kEmbeddedHeight = 360;
+
   @override
   Widget build(BuildContext context) {
+    if (widget.embedded) {
+      return _buildEmbeddedPhaseWindow(context);
+    }
+
     if (_isLoading) {
       return Scaffold(
         appBar: AppBar(
@@ -716,6 +733,73 @@ class _PhaseAnalysisViewState extends State<PhaseAnalysisView> {
             child: _buildContentForView(_selectedView),
           ),
         ],
+      ),
+    );
+  }
+
+  /// Embedded phase window only (no app bar, no full page). Tapping opens full Phase view.
+  Widget _buildEmbeddedPhaseWindow(BuildContext context) {
+    Widget content;
+    if (_isLoading) {
+      content = const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(height: 12),
+            Text('Loading phase...', style: TextStyle(fontSize: 13)),
+          ],
+        ),
+      );
+    } else if (_error != null) {
+      content = Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.error_outline, size: 40, color: Colors.red[300]),
+            const SizedBox(height: 8),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Text(
+                'Could not load phase',
+                style: TextStyle(fontSize: 13, color: Colors.grey[400]),
+                textAlign: TextAlign.center,
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextButton(
+              onPressed: _loadPhaseData,
+              child: const Text('Retry'),
+            ),
+          ],
+        ),
+      );
+    } else {
+      content = ClipRect(
+        child: SizedBox(
+          height: kEmbeddedHeight,
+          child: _buildArcformContent(),
+        ),
+      );
+    }
+    return GestureDetector(
+      onTap: () {
+        if (widget.onEmbeddedTap != null) {
+          widget.onEmbeddedTap!();
+        } else {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const PhaseAnalysisView(),
+            ),
+          );
+        }
+      },
+      child: SizedBox(
+        height: kEmbeddedHeight,
+        child: content,
       ),
     );
   }

@@ -1,7 +1,7 @@
 # Configuration Management & Documentation Tracking
 
 **Lead Configuration Management Analyst:** Active  
-**Last Updated:** February 11, 2026  
+**Last Updated:** February 12, 2026  
 **Status:** ✅ All Documents Synced with Repo
 
 ---
@@ -38,14 +38,14 @@ Prompt/role definitions: **Documentation & Configuration Management Role** in [c
 
 | Document | Location | Last Reviewed | Status | Notes |
 |----------|----------|---------------|--------|-------|
-| ARCHITECTURE.md | `/DOCS/ARCHITECTURE.md` | 2026-02-11 | ✅ Synced | v3.3.24 - Groq primary LLM, Gemini fallback |
-| CHANGELOG.md | `/DOCS/CHANGELOG.md` | 2026-02-11 | ✅ Synced | v3.3.24 - Groq as primary LLM provider |
+| ARCHITECTURE.md | `/DOCS/ARCHITECTURE.md` | 2026-02-12 | ✅ Synced | v3.3.25 - Chat phase classification, embedded phase view |
+| CHANGELOG.md | `/DOCS/CHANGELOG.md` | 2026-02-12 | ✅ Synced | v3.3.25 - Chat phase classification, embedded phase, draft fix |
 | PROMPT_REFERENCES.md | `/DOCS/PROMPT_REFERENCES.md` | 2026-02-11 | ✅ Synced | v2.0.0 - proxyGroq/proxyGemini backend, CHRONICLE synthesis, voice split-payload |
 | PROMPT_TRACKER.md | `/DOCS/PROMPT_TRACKER.md` | 2026-02-11 | ✅ Synced | v1.1.0 - Added v1.9.0 and v2.0.0 change rows |
 | bug_tracker.md | `/DOCS/bugtracker/bug_tracker.md` | 2026-02-08 | ✅ Synced | v3.2.2 - 29 records; How to use; Recent code changes |
-| FEATURES.md | `/DOCS/FEATURES.md` | 2026-02-11 | ✅ Synced | v3.3.24 - Groq primary LLM, Gemini fallback |
+| FEATURES.md | `/DOCS/FEATURES.md` | 2026-02-12 | ✅ Synced | v3.3.25 - Chat phase classification, embedded phase |
 | README.md | `/DOCS/README.md` | 2026-02-07 | ✅ Synced | Key docs table with purpose and when to read |
-| claude.md | `/DOCS/claude.md` | 2026-02-11 | ✅ Synced | v3.3.24 - Groq primary LLM, updated recent updates |
+| claude.md | `/DOCS/claude.md` | 2026-02-12 | ✅ Synced | v3.3.25 - Chat phase classification, recent updates |
 | backend.md | `/DOCS/backend.md` | 2026-02-11 | ✅ Synced | v3.3 - proxyGroq (Groq primary), proxyGemini (fallback), Firebase, Stripe |
 | git.md | `/DOCS/git.md` | 2026-02-07 | ✅ Synced | Git history and key phases |
 
@@ -88,6 +88,21 @@ Prompt/role definitions: **Documentation & Configuration Management Role** in [c
 ---
 
 ## Change Tracking Log
+
+### 2026-02-12 - Chat Phase Classification (v3.3.25) — ChatPhaseService, Embedded Phase View, Draft Reflection Fix
+
+**Action:** LUMARA chat sessions now receive ATLAS phase classifications via `ChatPhaseService` (uses same `PhaseInferenceService` pipeline as journal entries). Auto-classifies after every assistant response; reclassifies on session revisit. Manual user phase override via bottom sheet selector. Phase chips displayed on chat list cards. Chat sessions with phase data contribute to `rebuildRegimesFromEntries()` as phase data points alongside journal entries. `PhaseAnalysisView(embedded: true)` replaces `CurrentPhaseArcformPreview` in Unified Feed. Draft reflection fix: `reflection_handler.dart` now skips AURORA session tracking for `draft_*` IDs. `claude.md` updated with PROMPT REFERENCES AUDIT mandatory section.
+
+**Doc updates:**
+- **CHANGELOG.md:** New [3.3.25] section — Chat phase classification, phase UI, regime integration, embedded phase, draft fix, claude.md audit.
+- **ARCHITECTURE.md:** v3.3.25; key achievement for Chat Phase Classification.
+- **FEATURES.md:** v3.3.25; Chat Phase Classification and Embedded Phase Analysis features.
+- **claude.md:** v3.3.25; recent updates for chat phase system.
+- **CONFIGURATION_MANAGEMENT.md:** Inventory dates, this entry.
+
+**Status:** ✅ All docs updated.
+
+---
 
 ### 2026-02-11 - Groq Primary LLM Provider (v3.3.24) — Llama 3.3 70B / Mixtral, proxyGroq Cloud Function
 

@@ -74,6 +74,13 @@ class EnhancedChatRepoImpl implements EnhancedChatRepo {
       _baseRepo.updateSessionMetadata(sessionId, metadata);
 
   @override
+  Future<void> updateSessionPhase(String sessionId, {
+    required String autoPhase,
+    required double autoPhaseConfidence,
+  }) =>
+      _baseRepo.updateSessionPhase(sessionId, autoPhase: autoPhase, autoPhaseConfidence: autoPhaseConfidence);
+
+  @override
   Future<void> pinSession(String sessionId, bool pin) =>
       _baseRepo.pinSession(sessionId, pin);
 

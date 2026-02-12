@@ -239,6 +239,29 @@ class ChatRepoImpl implements ChatRepo {
   }
 
   @override
+  Future<void> updateSessionPhase(String sessionId, {
+    required String autoPhase,
+    required double autoPhaseConfidence,
+  }) async {
+    _ensureInitialized();
+
+    final session = await getSession(sessionId);
+    if (session == null) return;
+
+    // Merge phase fields into existing metadata
+    final existing = session.metadata ?? {};
+    final merged = {
+      ...existing,
+      'autoPhase': autoPhase,
+      'autoPhaseConfidence': autoPhaseConfidence,
+    };
+
+    final updatedSession = session.copyWith(metadata: merged);
+    await _sessionsBox!.put(sessionId, updatedSession);
+    print('ChatRepo: Updated phase for session $sessionId → $autoPhase ($autoPhaseConfidence)');
+  }
+
+  @override
   Future<void> pinSession(String sessionId, bool pin) async {
     _ensureInitialized();
 

@@ -252,6 +252,23 @@ class ChatSession extends HiveObject {
   // Alias for backward compatibility
   String get title => subject;
 
+  // ── Phase helpers (stored in metadata to avoid Hive schema change) ──
+
+  /// The auto-detected phase label (e.g. "Discovery", "Recovery").
+  String? get autoPhase => metadata?['autoPhase'] as String?;
+
+  /// Confidence score (0.0–1.0) of the auto-detected phase.
+  double? get autoPhaseConfidence => (metadata?['autoPhaseConfidence'] as num?)?.toDouble();
+
+  /// Manual user override for the phase.
+  String? get userPhaseOverride => metadata?['userPhaseOverride'] as String?;
+
+  /// Whether the phase has been locked (prevents reclassification).
+  bool get isPhaseLocked => metadata?['isPhaseLocked'] == true;
+
+  /// The effective phase to display (user override > auto).
+  String? get displayPhase => userPhaseOverride ?? autoPhase;
+
   /// Generate subject from message content
   static String generateSubject(String message) {
     if (message.isEmpty) return 'New chat';

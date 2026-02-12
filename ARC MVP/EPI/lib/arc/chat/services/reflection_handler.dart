@@ -82,8 +82,9 @@ class ReflectionHandler {
   }) async {
     final effectiveUserId = userId ?? '';
 
-    // Pass-through when no entry (voice, overview, etc.): no session, no AURORA
-    if (entryId == null || entryId.isEmpty) {
+    // Pass-through when no entry or draft (voice, overview, unsaved new entries):
+    // no session, no AURORA — draft entries haven't been saved to the journal repository yet
+    if (entryId == null || entryId.isEmpty || entryId.startsWith('draft_')) {
       final request = models.LumaraReflectionRequest(
         userText: userQuery,
         entryType: models.EntryType.journal,

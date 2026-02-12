@@ -1,7 +1,7 @@
 # EPI LUMARA MVP - Changelog
 
-**Version:** 3.3.24
-**Last Updated:** February 11, 2026
+**Version:** 3.3.25
+**Last Updated:** February 12, 2026
 
 ---
 
@@ -17,7 +17,94 @@ This changelog has been split into parts for easier navigation:
 
 ---
 
-## [3.3.24] - February 11, 2026 (working changes)
+## [3.3.25] - February 12, 2026 (working changes)
+
+### Chat Phase Classification System
+
+LUMARA chat sessions now receive ATLAS phase classifications, bringing the same phase intelligence that journal entries have to the chat experience.
+
+**New file: `lib/arc/chat/services/chat_phase_service.dart`**
+- `ChatPhaseService`: Classifies chat sessions into ATLAS phases using `PhaseInferenceService` (same pipeline as journal entries). Concatenates all user + assistant messages for holistic analysis.
+- Auto-classification fires after every assistant response (fire-and-forget in `lumara_assistant_cubit.dart`).
+- Reclassification on session revisit (`session_view.dart` triggers on load).
+- Manual user phase override with `setUserPhaseOverride()` / `clearUserPhaseOverride()`.
+- `backfillAllSessions()` for batch-classifying existing chats without phases.
+- Respects user override — never auto-reclassifies when override is set.
+
+**Chat model phase helpers (`chat_models.dart`):**
+- `autoPhase`, `autoPhaseConfidence`, `userPhaseOverride`, `isPhaseLocked`, `displayPhase` — stored in session metadata (no Hive schema change).
+
+**Chat repo (`chat_repo.dart`, `chat_repo_impl.dart`, `enhanced_chat_repo.dart`, `enhanced_chat_repo_impl.dart`):**
+- New `updateSessionPhase()` method merges phase fields into existing metadata.
+
+### Chat Session Phase UI
+
+**Session view (`session_view.dart`):**
+- Phase displayed in app bar subtitle: colored dot + phase label (tappable).
+- Bottom sheet phase selector with all 6 ATLAS phases, current-phase checkmark, "Reset to Auto" option.
+- `_setPhaseOverride()` and `_clearPhaseOverride()` for manual control.
+
+**Chat lists (`chats_screen.dart`, `enhanced_chats_screen.dart`):**
+- Phase chip shown on each chat session card (colored pill with phase name).
+- Both screens now show all sessions including archived (`listAll(includeArchived: true)`).
+- Enhanced screen shows "Archived" label on archived chats.
+
+**Chat drawer (`chat_navigation_drawer.dart`):**
+- Shows all sessions including archived.
+
+### Phase Regime Service — Chat Session Integration
+
+**`phase_regime_service.dart`:**
+- `rebuildRegimesFromEntries()` now accepts `includeChatSessions` parameter (default: `true`).
+- Loads chat sessions with phase data and treats them as phase data points alongside journal entries.
+- New `_PhaseDataPoint` class for non-journal phase contributions (date, phase, confidence).
+- Chat phase points contribute to 10-day window sliding analysis, extending date range if chat dates fall outside journal range.
+
+### Embedded Phase Analysis View
+
+**`phase_analysis_view.dart`:**
+- New `embedded` and `onEmbeddedTap` parameters.
+- `_buildEmbeddedPhaseWindow()` renders a compact 360px phase window (arcform content) with loading/error states.
+- Tapping the embedded view opens the full Phase Analysis page.
+
+**`unified_feed_screen.dart`:**
+- Replaced `CurrentPhaseArcformPreview` with `PhaseAnalysisView(embedded: true)` for richer inline phase display.
+- Removed `current_phase_arcform_preview.dart` import.
+
+### Draft Reflection Fix
+
+**`reflection_handler.dart`:**
+- Draft entries (`draft_*` IDs) now skip AURORA session tracking and go straight to LUMARA, fixing "Entry not found: draft_..." error when reflecting on unsaved new entries.
+
+### Documentation
+
+**`claude.md`:**
+- Added PROMPT REFERENCES AUDIT (MANDATORY) section: checks for `PROMPT_REFERENCES.md` existence, compares codebase prompts vs documented, updates tracker and config management.
+- Added "Prompt catalog drift" to Missing & Incomplete Documentation checklist.
+
+#### Files added
+- `lib/arc/chat/services/chat_phase_service.dart`
+
+#### Files modified
+- `lib/arc/chat/chat/chat_models.dart` — Phase helpers on ChatSession
+- `lib/arc/chat/chat/chat_repo.dart` — `updateSessionPhase()` abstract method
+- `lib/arc/chat/chat/chat_repo_impl.dart` — `updateSessionPhase()` implementation
+- `lib/arc/chat/chat/enhanced_chat_repo.dart` — `updateSessionPhase()` forward
+- `lib/arc/chat/chat/enhanced_chat_repo_impl.dart` — `updateSessionPhase()` delegate
+- `lib/arc/chat/bloc/lumara_assistant_cubit.dart` — Auto-classify after assistant response
+- `lib/arc/chat/chat/ui/session_view.dart` — Phase in app bar, phase selector, reclassify on load
+- `lib/arc/chat/chat/ui/chats_screen.dart` — Phase chips, show all sessions
+- `lib/arc/chat/chat/ui/enhanced_chats_screen.dart` — Phase chips, show all sessions, archived label
+- `lib/arc/chat/ui/widgets/chat_navigation_drawer.dart` — Show all sessions
+- `lib/services/phase_regime_service.dart` — Chat session integration, `_PhaseDataPoint`
+- `lib/ui/phase/phase_analysis_view.dart` — Embedded mode
+- `lib/arc/unified_feed/widgets/unified_feed_screen.dart` — Embedded phase view
+- `lib/arc/chat/services/reflection_handler.dart` — Draft entry fix
+- `docs/claude.md` — Prompt references audit section
+
+---
+
+## [3.3.24] - February 11, 2026
 
 ### Groq as Primary LLM Provider (Llama 3.3 70B / Mixtral)
 

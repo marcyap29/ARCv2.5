@@ -64,7 +64,8 @@ class _ChatsScreenState extends State<ChatsScreen> {
 
   Future<void> _loadSessions() async {
     try {
-      final sessions = await _chatRepo.listActive();
+      // Include archived so all chats are visible in Chat History
+      final sessions = await _chatRepo.listAll(includeArchived: true);
       setState(() {
         _sessions = sessions;
         _filteredSessions = sessions;
@@ -480,9 +481,17 @@ class _ChatSessionCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const SizedBox(height: 4),
-                Text(
-                  '${session.messageCount} messages • ${_formatDate(session.updatedAt)}',
-                  style: captionStyle(context),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        '${session.messageCount} messages • ${_formatDate(session.updatedAt)}',
+                        style: captionStyle(context),
+                      ),
+                    ),
+                    if (session.displayPhase != null)
+                      _buildPhaseChip(session.displayPhase!),
+                  ],
                 ),
                 if (session.tags.isNotEmpty) ...[
                   const SizedBox(height: 8),
@@ -569,9 +578,17 @@ class _ChatSessionCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const SizedBox(height: 4),
-                  Text(
-                    '${session.messageCount} messages • ${_formatDate(session.updatedAt)}',
-                    style: captionStyle(context),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          '${session.messageCount} messages • ${_formatDate(session.updatedAt)}',
+                          style: captionStyle(context),
+                        ),
+                      ),
+                      if (session.displayPhase != null)
+                        _buildPhaseChip(session.displayPhase!),
+                    ],
                   ),
                   if (session.tags.isNotEmpty) ...[
                     const SizedBox(height: 8),
@@ -591,6 +608,44 @@ class _ChatSessionCard extends StatelessWidget {
             ),
           ),
     );
+  }
+
+  Widget _buildPhaseChip(String phase) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: _getPhaseColor(phase).withOpacity(0.12),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: _getPhaseColor(phase).withOpacity(0.4)),
+      ),
+      child: Text(
+        phase,
+        style: TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.w600,
+          color: _getPhaseColor(phase),
+        ),
+      ),
+    );
+  }
+
+  Color _getPhaseColor(String phase) {
+    switch (phase.toLowerCase()) {
+      case 'discovery':
+        return const Color(0xFF7C3AED);
+      case 'expansion':
+        return const Color(0xFF059669);
+      case 'transition':
+        return const Color(0xFFD97706);
+      case 'consolidation':
+        return const Color(0xFF2563EB);
+      case 'recovery':
+        return const Color(0xFFDC2626);
+      case 'breakthrough':
+        return const Color(0xFFFBBF24);
+      default:
+        return Colors.grey;
+    }
   }
 
   String _formatDate(DateTime date) {

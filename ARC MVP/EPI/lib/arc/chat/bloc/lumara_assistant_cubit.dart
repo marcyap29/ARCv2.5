@@ -38,6 +38,7 @@ import 'package:my_app/services/sentinel/crisis_mode.dart';
 import 'package:my_app/services/firebase_auth_service.dart';
 import 'package:my_app/arc/chat/models/lumara_reflection_options.dart' as models;
 import '../services/reflection_handler.dart';
+import '../services/chat_phase_service.dart';
 import 'package:my_app/repositories/reflection_session_repository.dart';
 import 'package:my_app/aurora/reflection/aurora_reflection_service.dart';
 import 'package:my_app/arc/chat/reflection/reflection_pattern_analyzer.dart';
@@ -121,6 +122,7 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
   
   // Chat History System
   late final ChatRepo _chatRepo;
+  late final ChatPhaseService _chatPhaseService;
   String? currentChatSessionId;
   
   
@@ -171,6 +173,7 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
   }) : _contextProvider = contextProvider,
        _llmAdapter = LLMAdapter(),
        _chatRepo = ChatRepoImpl.instance,
+       _chatPhaseService = ChatPhaseService(ChatRepoImpl.instance),
        super(LumaraAssistantInitial()) {
     // Initialize ArcLLM with Gemini integration
     _arcLLM = provideArcLLM();
@@ -2418,6 +2421,14 @@ Your exported MCP bundle can be imported into any MCP-compatible system, ensurin
       
       // Check if compaction is needed
       await _checkAndCompactIfNeeded();
+
+      // After each assistant response, (re)classify the session phase.
+      // Fire-and-forget so we don't block the UI.
+      if (role == 'assistant') {
+        _chatPhaseService
+            .classifySessionPhase(currentChatSessionId!)
+            .catchError((e) { print('ChatPhase: classification error: $e'); return null; });
+      }
     } catch (e) {
       print('LUMARA Chat: Error adding message to session: $e');
     }

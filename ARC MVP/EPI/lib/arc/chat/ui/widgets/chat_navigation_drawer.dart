@@ -58,8 +58,8 @@ class _ChatNavigationDrawerState extends State<ChatNavigationDrawer>
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
     try {
-      // Load recent sessions
-      final sessions = await widget.chatRepo.listActive();
+      // Load all sessions (including archived) so full chat history is visible
+      final sessions = await widget.chatRepo.listAll(includeArchived: true);
       sessions.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
       
       // Load saved chats from favorites

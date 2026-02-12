@@ -13,6 +13,7 @@ import 'analytics_service.dart';
 import 'package:my_app/prism/atlas/rivet/rivet_provider.dart';
 import 'package:my_app/prism/pipelines/prism_joiner.dart';
 import 'package:my_app/mira/store/mcp/mcp_fs.dart';
+import 'package:my_app/arc/chat/chat/chat_repo_impl.dart';
 
 class PhaseRegimeService {
   static const String _regimesBoxName = 'phase_regimes';
@@ -80,8 +81,33 @@ class PhaseRegimeService {
   /// 
   /// This preserves phase diversity (Discovery, Transition, Consolidation, etc.)
   /// instead of merging everything into one dominant phase.
-  Future<void> rebuildRegimesFromEntries(List<JournalEntry> entries, {int windowDays = 10}) async {
-    if (entries.isEmpty) {
+  Future<void> rebuildRegimesFromEntries(List<JournalEntry> entries, {int windowDays = 10, bool includeChatSessions = true}) async {
+    // Gather chat sessions with phase data to include as reflections
+    List<_PhaseDataPoint> chatPhasePoints = [];
+    if (includeChatSessions) {
+      try {
+        final chatRepo = ChatRepoImpl.instance;
+        await chatRepo.initialize();
+        final sessions = await chatRepo.listAll(includeArchived: true);
+        for (final session in sessions) {
+          final phase = session.displayPhase;
+          if (phase != null && phase.isNotEmpty) {
+            chatPhasePoints.add(_PhaseDataPoint(
+              date: session.updatedAt,
+              phase: phase,
+              confidence: session.autoPhaseConfidence ?? 0.7,
+            ));
+          }
+        }
+        if (chatPhasePoints.isNotEmpty) {
+          print('DEBUG: rebuildRegimesFromEntries - Including ${chatPhasePoints.length} chat sessions as phase data points');
+        }
+      } catch (e) {
+        print('DEBUG: rebuildRegimesFromEntries - Could not load chat sessions: $e');
+      }
+    }
+
+    if (entries.isEmpty && chatPhasePoints.isEmpty) {
       return;
     }
 
@@ -89,19 +115,36 @@ class PhaseRegimeService {
     final sortedEntries = List<JournalEntry>.from(entries)
       ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
 
-    // Find the date range
-    final firstDate = DateTime(
-      sortedEntries.first.createdAt.year,
-      sortedEntries.first.createdAt.month,
-      sortedEntries.first.createdAt.day,
-    );
-    final lastDate = DateTime(
-      sortedEntries.last.createdAt.year,
-      sortedEntries.last.createdAt.month,
-      sortedEntries.last.createdAt.day,
-    );
+    // Find the date range (considering both journal entries and chat sessions)
+    DateTime firstDate;
+    DateTime lastDate;
+    if (sortedEntries.isNotEmpty) {
+      firstDate = DateTime(
+        sortedEntries.first.createdAt.year,
+        sortedEntries.first.createdAt.month,
+        sortedEntries.first.createdAt.day,
+      );
+      lastDate = DateTime(
+        sortedEntries.last.createdAt.year,
+        sortedEntries.last.createdAt.month,
+        sortedEntries.last.createdAt.day,
+      );
+    } else {
+      // Only chat phase points
+      chatPhasePoints.sort((a, b) => a.date.compareTo(b.date));
+      firstDate = DateTime(chatPhasePoints.first.date.year, chatPhasePoints.first.date.month, chatPhasePoints.first.date.day);
+      lastDate = DateTime(chatPhasePoints.last.date.year, chatPhasePoints.last.date.month, chatPhasePoints.last.date.day);
+    }
 
-    print('DEBUG: rebuildRegimesFromEntries - Processing ${entries.length} entries from $firstDate to $lastDate');
+    // Extend range if chat sessions fall outside journal date range
+    for (final cp in chatPhasePoints) {
+      final d = DateTime(cp.date.year, cp.date.month, cp.date.day);
+      if (d.isBefore(firstDate)) firstDate = d;
+      if (d.isAfter(lastDate)) lastDate = d;
+    }
+
+    final totalPoints = entries.length + chatPhasePoints.length;
+    print('DEBUG: rebuildRegimesFromEntries - Processing $totalPoints data points (${entries.length} entries + ${chatPhasePoints.length} chats) from $firstDate to $lastDate');
 
     // Create 10-day windows and calculate dominant phase for each
     final windowRegimes = <_PhaseSegment>[];
@@ -117,7 +160,14 @@ class PhaseRegimeService {
                entryDay.isBefore(windowEnd.add(const Duration(days: 1)));
       }).toList();
 
-      if (windowEntries.isNotEmpty) {
+      // Get chat phase points in this window
+      final windowChatPoints = chatPhasePoints.where((cp) {
+        final cpDay = DateTime(cp.date.year, cp.date.month, cp.date.day);
+        return cpDay.isAfter(windowStart.subtract(const Duration(days: 1))) &&
+               cpDay.isBefore(windowEnd.add(const Duration(days: 1)));
+      }).toList();
+
+      if (windowEntries.isNotEmpty || windowChatPoints.isNotEmpty) {
         // Count phases in this window using each entry's autoPhase
         final phaseCounts = <PhaseLabel, double>{};
         
@@ -128,6 +178,14 @@ class PhaseRegimeService {
       final weight = entry.autoPhaseConfidence ?? 1.0;
             phaseCounts[phaseLabel] = (phaseCounts[phaseLabel] ?? 0) + weight;
     }
+        }
+
+        // Include chat session phase data points (each chat = 1 reflection)
+        for (final cp in windowChatPoints) {
+          final phaseLabel = _normalizePhase(cp.phase);
+          if (phaseLabel != null) {
+            phaseCounts[phaseLabel] = (phaseCounts[phaseLabel] ?? 0) + cp.confidence;
+          }
         }
 
         if (phaseCounts.isNotEmpty) {
@@ -1127,5 +1185,19 @@ class _PhaseSegment {
   void mergeEnd(DateTime newEnd) {
     end = newEnd.isAfter(end) ? newEnd : end;
   }
+}
+
+/// Lightweight data point representing a phase contribution from a non-journal
+/// source (e.g. a LUMARA chat session).
+class _PhaseDataPoint {
+  final DateTime date;
+  final String phase;
+  final double confidence;
+
+  const _PhaseDataPoint({
+    required this.date,
+    required this.phase,
+    required this.confidence,
+  });
 }
 
