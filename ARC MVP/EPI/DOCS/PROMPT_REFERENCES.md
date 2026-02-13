@@ -8,7 +8,7 @@ This document catalogs all prompts used throughout the ARC application, organize
 - **Path baseline:** All paths are relative to the EPI app root (e.g. `ARC MVP/EPI/`). Example: `lib/arc/chat/prompts/lumara_profile.json` means `ARC MVP/EPI/lib/arc/chat/prompts/lumara_profile.json`.
 - **Content:** Quoted blocks are taken from or derived from the cited sources. Some sections show a subset or summary; the source file holds the full, authoritative text.
 - **Cloud vs on-device:** Cloud API uses the master prompt system (`lumara_master_prompt.dart`); on-device and legacy paths may use `lumara_system_prompt.dart` or profile JSON.
-- **Last synced with codebase:** 2026-02-13. Document version: 2.2.0.
+- **Last synced with codebase:** 2026-02-13. Document version: 2.3.0.
 
 ---
 
@@ -75,6 +75,10 @@ This document catalogs all prompts used throughout the ARC application, organize
 14. [Conversation Summary Prompt](#conversation-summary-prompt)
 15. [Unified Intent Depth Classifier](#unified-intent-depth-classifier)
 16. [Master Prompt Architecture](#master-prompt-architecture)
+17. [Intellectual Honesty / Pushback Prompt](#17-intellectual-honesty--pushback-prompt)
+18. [Crossroads Decision Capture Prompts](#18-crossroads-decision-capture-prompts)
+19. [CHRONICLE Edit Validation Prompts](#19-chronicle-edit-validation-prompts)
+20. [Quick Answers / MMCO Polish](#20-quick-answers--mmco-polish)
 
 ---
 
@@ -1830,10 +1834,31 @@ When a user edit introduces statements that contradict specific source entries:
 
 ---
 
+## 20. Quick Answers / MMCO Polish
+
+**Source:** `lib/arc/chat/chat/quickanswers_router.dart` (`QuickAnswersRouter._polishWithLLM`)
+
+Pre-LLM gate for basic MIRA (MMCO) questions: answers phase/themes/streak/recency from QuickAnswers; optionally polishes the answer with an on-device LLM using MMCO as ground truth.
+
+**System prompt:**
+
+```
+You are LUMARA. Use MMCO as ground truth.
+Answer briefly, steady tone, plain ASCII.
+Do not say you lack context if MMCO provides it.
+```
+
+**User message (concatenated):** `<MMCO>` (compact JSON), `User asked: "..."`, `Draft answer:`, base answer text, `Polish for clarity. Keep facts. Limit to 3-5 short sentences.`
+
+**Purpose:** Light polish of instant QuickAnswers output when on-device LLM is ready; fallback to unpolished base if polish fails or model unavailable.
+
+---
+
 ## Version History
 
 | Version | Date | Changes |
 |---------|------|---------|
+| 2.3.0 | 2026-02-13 | **Prompt audit:** Added §20 Quick Answers / MMCO Polish prompt (`quickanswers_router.dart` — pre-LLM gate, MMCO ground truth, optional on-device polish). |
 | 2.2.0 | 2026-02-13 | **v3.3.26 prompts**: Added §17 Intellectual Honesty / Pushback prompt (`<intellectual_honesty>` master prompt section, truth_check injection, Evidence Review), §18 Crossroads Decision Capture prompts (four-step flow, trigger detection patterns, decision archaeology query), §19 CHRONICLE Edit Validation prompts (pattern suppression and factual contradiction warnings). |
 | 2.1.0 | 2026-02-12 | **Documentation consolidation**: Merged `UNIFIED_INTENT_CLASSIFIER_PROMPT.md` (§15 — Unified Intent Depth Classifier with full LLM prompt, classification rules, integration notes) and `MASTER_PROMPT_CONTEXT.md` (§16 — Master Prompt Architecture with structure, control state, entry points, orchestrator path). Originals archived. |
 | 2.0.0 | 2026-02-11 | **Groq primary LLM**: Added `proxyGroq` and `proxyGemini` (transparent proxy) entries to Backend section with note on proxy vs prompt-injecting functions. Updated from v1.9.0 which added 6 prompt sections: CHRONICLE Monthly/Yearly/Multi-Year Narrative, Voice Split-Payload, Speed-Tiered Context System, Conversation Summary Prompt. |

@@ -38,10 +38,10 @@ Prompt/role definitions: **Ultimate Documentation, Configuration Management and 
 
 | Document | Location | Last Reviewed | Status | Notes |
 |----------|----------|---------------|--------|-------|
-| ARCHITECTURE.md | `/DOCS/ARCHITECTURE.md` | 2026-02-13 | ✅ Synced | v3.3.27 - Module naming refactor (ARC→LUMARA, MIRA→CHRONICLE), vectorizer in diagram |
+| ARCHITECTURE.md | `/DOCS/ARCHITECTURE.md` | 2026-02-13 | ✅ Synced | v3.3.27 - Module naming refactor; Code Simplifier Phase 3 consolidated patterns section (single source, repo/phase, MCP/ARCX) |
 | CHANGELOG.md | `/DOCS/CHANGELOG.md` | 2026-02-13 | ✅ Synced | v3.3.27 - Pattern index in Orchestrator, scheduler at launch, white paper |
-| PROMPT_REFERENCES.md | `/DOCS/PROMPT_REFERENCES.md` | 2026-02-13 | ✅ Synced | v2.2.0 - §17 Intellectual Honesty, §18 Crossroads, §19 Edit Validation |
-| PROMPT_TRACKER.md | `/DOCS/PROMPT_TRACKER.md` | 2026-02-13 | ✅ Synced | v1.3.0 - Added v2.2.0 prompts row |
+| PROMPT_REFERENCES.md | `/DOCS/PROMPT_REFERENCES.md` | 2026-02-13 | ✅ Synced | v2.3.0 - §20 Quick Answers / MMCO Polish (prompt audit) |
+| PROMPT_TRACKER.md | `/DOCS/PROMPT_TRACKER.md` | 2026-02-13 | ✅ Synced | v1.4.0 - Added v2.3.0 prompt audit row |
 | bug_tracker.md | `/DOCS/bugtracker/bug_tracker.md` | 2026-02-13 | ✅ Synced | v3.2.4 - 32 records; 3 new iOS build/embedding records; Build & Platform index |
 | FEATURES.md | `/DOCS/FEATURES.md` | 2026-02-13 | ✅ Synced | v3.3.27 - Pattern index in Orchestrator, white paper |
 | README.md | `/DOCS/README.md` | 2026-02-07 | ✅ Synced | Key docs table with purpose and when to read |
@@ -90,6 +90,30 @@ Prompt/role definitions: **Ultimate Documentation, Configuration Management and 
 ---
 
 ## Change Tracking Log
+
+### 2026-02-13 - Documentation & Git Backup run: prompt audit, PROMPT_REFERENCES v2.3.0
+
+**Action:** Ran Documentation, Configuration Management and Git Backup workflow (claude.md §233–349). Mandatory PROMPT REFERENCES AUDIT: compared repo prompts to PROMPT_REFERENCES.md; added §20 Quick Answers / MMCO Polish prompt (`lib/arc/chat/chat/quickanswers_router.dart`). Git backup: identified uncommitted working changes (many modified files, new/untracked); documented prompt sync only (code changes left uncommitted per procedure: commit docs only).
+
+**Updates:**
+- **PROMPT_REFERENCES.md:** v2.2.0 → v2.3.0; new §20 Quick Answers / MMCO Polish (system prompt, user message format, purpose); TOC entries 17–20; Version History row for 2.3.0.
+- **PROMPT_TRACKER.md:** v1.3.0 → v1.4.0; new row for 2026-02-13 prompt audit (§20).
+- **CONFIGURATION_MANAGEMENT.md:** This entry; inventory rows for PROMPT_REFERENCES and PROMPT_TRACKER (Last Reviewed 2026-02-13, notes).
+
+**Status:** ✅ Prompt audit complete; docs updated; ready to commit and push documentation files.
+
+---
+
+### 2026-02-13 - Code Simplifier Phase 3 (Agent F): consolidated patterns docs, metrics, rollback
+
+**Action:** Ran Code Simplifier Phase 3 (P3-DOCS, P3-TESTS, P3-METRICS) per `DOCS/CODE_SIMPLIFIER_CONSOLIDATION_PLAN.md`.
+
+**Updates:**
+- **ARCHITECTURE.md:** Added section "Code Simplifier consolidated patterns (Phase 3)" documenting single source of truth (JournalVersionService, QuickActionsService), repository/phase service access pattern, and MCP/ARCX entry points. Corrected LUMARA internal mira bullet: version management now references canonical `lib/core/services/journal_version_service.dart` and re-export via barrel.
+- **CODE_SIMPLIFIER_CONSOLIDATION_PLAN.md:** Added Phase 3 metrics and rollback section (lines removed, files removed, changed files, rollback steps per work package).
+- **CONFIGURATION_MANAGEMENT.md:** This entry; inventory row for ARCHITECTURE.md — Last Reviewed 2026-02-13, note "Code Simplifier Phase 3 consolidated patterns section."
+
+---
 
 ### 2026-02-13 - Documentation & Git Backup Sync (claude.md TOC, bugtracker records)
 
