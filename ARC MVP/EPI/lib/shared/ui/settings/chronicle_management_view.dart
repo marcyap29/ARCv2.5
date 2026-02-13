@@ -12,7 +12,8 @@ import 'package:my_app/chronicle/models/chronicle_layer.dart';
 import 'package:my_app/chronicle/scheduling/synthesis_scheduler.dart';
 import 'package:my_app/chronicle/scheduling/chronicle_schedule_preferences.dart';
 import 'package:my_app/chronicle/storage/pattern_index_last_updated.dart';
-import 'package:my_app/chronicle/embeddings/local_embedding_service.dart';
+import 'package:my_app/chronicle/embeddings/create_embedding_service.dart';
+import 'package:my_app/chronicle/embeddings/embedding_service.dart';
 import 'package:my_app/chronicle/storage/chronicle_index_storage.dart';
 import 'package:my_app/chronicle/index/chronicle_index_builder.dart';
 import 'package:my_app/chronicle/index/monthly_aggregation_adapter.dart';
@@ -97,32 +98,84 @@ class _ChronicleManagementViewState extends State<ChronicleManagementView> {
     setState(() {
       _patternIndexUpdating = true;
       _patternIndexError = null;
+      _isLoading = true;
+      _progressStage = 'Loading embeddings...';
+      _progressCurrent = 0;
+      _progressTotal = 100;
     });
     try {
-      final embedder = LocalEmbeddingService();
-      await embedder.initialize();
+      EmbeddingService? embedder;
+      try {
+        embedder = await createEmbeddingService();
+        await embedder.initialize();
+      } catch (e) {
+        final msg = e.toString();
+        final isTflite = msg.contains('TfLite') ||
+            msg.contains('symbol not found') ||
+            msg.contains('dlsym') ||
+            msg.contains('Interpreter');
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+            _patternIndexUpdating = false;
+            _patternIndexError = isTflite
+                ? 'On-device embeddings are not available on this device (TensorFlow Lite not supported). Use a physical device or a build with TFLite support.'
+                : msg;
+            _statusMessage = isTflite
+                ? 'Pattern index skipped: embeddings not available on this device.'
+                : 'Pattern index update failed: $e';
+            _statusIsError = true;
+          });
+          await _loadPatternIndexLastUpdated();
+        }
+        return;
+      }
       final storage = ChronicleIndexStorage();
       final indexBuilder = ChronicleIndexBuilder(
         embedder: embedder,
         storage: storage,
       );
       final aggregationRepo = AggregationRepository();
+      if (mounted) {
+        setState(() {
+          _progressStage = 'Loading monthly aggregations...';
+          _progressCurrent = 0;
+          _progressTotal = 100;
+        });
+      }
       final monthlyAggs = await aggregationRepo.getAllForLayer(
         userId: userId,
         layer: ChronicleLayer.monthly,
       );
-      for (final agg in monthlyAggs) {
+      final total = monthlyAggs.isEmpty ? 1 : monthlyAggs.length;
+      if (mounted) {
+        setState(() {
+          _progressTotal = total;
+          _progressStage = 'Building pattern index...';
+        });
+      }
+      for (int i = 0; i < monthlyAggs.length; i++) {
+        final agg = monthlyAggs[i];
         final synthesis = MonthlyAggregation.fromChronicleAggregation(agg);
         await indexBuilder.updateIndexAfterSynthesis(
           userId: userId,
           synthesis: synthesis,
         );
+        if (mounted) {
+          setState(() {
+            _progressCurrent = i + 1;
+            _progressStage = 'Building pattern index... (${i + 1} / $total)';
+          });
+        }
+        await Future.microtask(() {});
       }
       await PatternIndexLastUpdatedStorage.setLastUpdated(userId, DateTime.now());
       if (mounted) {
         setState(() {
           _patternIndexLastUpdated = DateTime.now();
           _patternIndexUpdating = false;
+          _isLoading = false;
+          _progressCurrent = total;
           _statusMessage = 'Pattern index updated (${monthlyAggs.length} months).';
           _statusIsError = false;
         });
@@ -132,6 +185,7 @@ class _ChronicleManagementViewState extends State<ChronicleManagementView> {
       if (mounted) {
         setState(() {
           _patternIndexUpdating = false;
+          _isLoading = false;
           _patternIndexError = e.toString();
           _statusMessage = 'Pattern index update failed: $e';
           _statusIsError = true;

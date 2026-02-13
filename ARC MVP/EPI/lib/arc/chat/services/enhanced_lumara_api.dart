@@ -16,7 +16,7 @@ import 'package:my_app/chronicle/query/context_builder.dart';
 import 'package:my_app/chronicle/query/chronicle_context_cache.dart';
 import 'package:my_app/chronicle/query/drill_down_handler.dart';
 import 'package:my_app/chronicle/query/pattern_query_router.dart' hide QueryIntent, QueryResponse, QueryType;
-import 'package:my_app/chronicle/embeddings/local_embedding_service.dart';
+import 'package:my_app/chronicle/embeddings/create_embedding_service.dart';
 import 'package:my_app/chronicle/storage/chronicle_index_storage.dart';
 import 'package:my_app/chronicle/index/chronicle_index_builder.dart';
 import 'package:my_app/chronicle/matching/three_stage_matcher.dart';
@@ -224,7 +224,7 @@ class EnhancedLumaraApi {
 
       // Optional: pattern index (vectorizer) for cross-temporal theme queries
       try {
-        final embedder = LocalEmbeddingService();
+        final embedder = await createEmbeddingService();
         await embedder.initialize();
         final indexStorage = ChronicleIndexStorage();
         final indexBuilder = ChronicleIndexBuilder(

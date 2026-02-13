@@ -4,7 +4,7 @@ import '../models/dominant_theme.dart';
 import '../models/theme_cluster.dart';
 import '../models/theme_appearance.dart';
 import '../models/pattern_insights.dart';
-import '../embeddings/local_embedding_service.dart';
+import '../embeddings/embedding_service.dart';
 import '../matching/three_stage_matcher.dart';
 import '../storage/chronicle_index_storage.dart';
 import 'monthly_aggregation_adapter.dart';
@@ -16,12 +16,12 @@ import 'monthly_aggregation_adapter.dart';
 /// - Create new clusters for novel themes
 /// - Track pattern insights and arcs
 class ChronicleIndexBuilder {
-  final LocalEmbeddingService _embedder;
+  final EmbeddingService _embedder;
   final ThreeStagePatternMatcher _matcher;
   final ChronicleIndexStorage _storage;
 
   ChronicleIndexBuilder({
-    required LocalEmbeddingService embedder,
+    required EmbeddingService embedder,
     required ChronicleIndexStorage storage,
   })  : _embedder = embedder,
         _matcher = ThreeStagePatternMatcher(embedder),

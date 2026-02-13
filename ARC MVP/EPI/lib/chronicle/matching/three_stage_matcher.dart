@@ -2,14 +2,14 @@ import 'package:flutter/foundation.dart';
 import '../models/dominant_theme.dart';
 import '../models/theme_cluster.dart';
 import '../models/chronicle_index.dart';
-import '../embeddings/local_embedding_service.dart';
+import '../embeddings/embedding_service.dart';
 
 /// Three-stage pattern matching to prevent false positives.
 /// Stage 1: Cheap keyword filter (1ms)
 /// Stage 2: Semantic similarity via embeddings (50-100ms)
 /// Stage 3: Confirmation logic with supporting evidence
 class ThreeStagePatternMatcher {
-  final LocalEmbeddingService _embedder;
+  final EmbeddingService _embedder;
 
   ThreeStagePatternMatcher(this._embedder);
 

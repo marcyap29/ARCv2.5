@@ -4,19 +4,19 @@ import '../models/chronicle_index.dart';
 import '../models/dominant_theme.dart';
 import '../models/theme_cluster.dart';
 import '../models/pattern_insights.dart';
-import '../embeddings/local_embedding_service.dart';
+import '../embeddings/embedding_service.dart';
 
 /// Routes queries to appropriate response type.
 /// Pattern queries use cross-temporal index; temporal queries use CHRONICLE aggregations.
 class PatternQueryRouter {
   final ChronicleIndexBuilder _indexBuilder;
   final ThreeStagePatternMatcher _matcher;
-  final LocalEmbeddingService _embedder;
+  final EmbeddingService _embedder;
 
   PatternQueryRouter({
     required ChronicleIndexBuilder indexBuilder,
     required ThreeStagePatternMatcher matcher,
-    required LocalEmbeddingService embedder,
+    required EmbeddingService embedder,
   })  : _indexBuilder = indexBuilder,
         _matcher = matcher,
         _embedder = embedder;

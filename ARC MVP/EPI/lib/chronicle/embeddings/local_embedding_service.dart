@@ -3,17 +3,14 @@
 import 'dart:math' show sqrt;
 import 'package:tflite_flutter/tflite_flutter.dart';
 
-/// Generates semantic embeddings entirely on-device
+import 'embedding_service.dart';
+
+/// Generates semantic embeddings entirely on-device via TensorFlow Lite.
 /// Model: Universal Sentence Encoder Lite (512 dimensions)
 /// Performance: <100ms per embedding on mid-range phones
-class LocalEmbeddingService {
+class LocalEmbeddingService extends EmbeddingService {
   Interpreter? _interpreter;
   bool _initialized = false;
-
-  static const int _embeddingDimension = 512; // Universal SE uses 512-dim
-
-  /// Embedding dimension for use by callers (e.g. rivet_sweep_service).
-  static int get embeddingDimension => _embeddingDimension;
 
   Future<void> initialize() async {
     if (_initialized) return;
@@ -48,13 +45,20 @@ class LocalEmbeddingService {
     // No manual tokenization needed!
 
     final input = [text]; // Just wrap string in array
-    final output = _reshape2D(
-        List<double>.filled(_embeddingDimension, 0.0), 1, _embeddingDimension);
+    final dim = EmbeddingService.embeddingDimension;
+    final output = _reshape2D(List<double>.filled(dim, 0.0), 1, dim);
 
     _interpreter!.run(input, output);
 
     final embedding = (output[0] as List).cast<double>();
     return _normalize(embedding);
+  }
+
+  /// L2-normalize embedding for cosine similarity.
+  static List<double> _normalize(List<double> v) {
+    final norm = sqrt(v.fold<double>(0, (s, x) => s + x * x));
+    if (norm == 0) return v;
+    return v.map((x) => x / norm).toList();
   }
 
   /// Batch embed multiple texts
@@ -68,16 +72,7 @@ class LocalEmbeddingService {
     return results;
   }
 
-  List<double> _normalize(List<double> embedding) {
-    final magnitude = embedding.fold<double>(
-      0.0,
-      (sum, val) => sum + (val * val),
-    );
-    final norm = magnitude > 0 ? sqrt(magnitude) : 1.0;
-    return embedding.map((val) => val / norm).toList();
-  }
-
-  /// Calculate cosine similarity between two embeddings (assumes normalized)
+  @override
   double cosineSimilarity(List<double> embedding1, List<double> embedding2) {
     assert(embedding1.length == embedding2.length);
 

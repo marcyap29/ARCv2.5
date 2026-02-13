@@ -5,7 +5,7 @@ import '../storage/changelog_repository.dart';
 import '../storage/aggregation_repository.dart';
 import '../storage/layer0_repository.dart';
 import '../storage/chronicle_index_storage.dart';
-import '../embeddings/local_embedding_service.dart';
+import '../embeddings/create_embedding_service.dart';
 import '../index/chronicle_index_builder.dart';
 import '../scheduling/synthesis_scheduler.dart';
 import 'chronicle_narrative_integration.dart';
@@ -37,7 +37,7 @@ class VeilChronicleFactory {
 
       ChronicleIndexBuilder? indexBuilder;
       try {
-        final embedder = LocalEmbeddingService();
+        final embedder = await createEmbeddingService();
         await embedder.initialize();
         final storage = ChronicleIndexStorage();
         indexBuilder = ChronicleIndexBuilder(

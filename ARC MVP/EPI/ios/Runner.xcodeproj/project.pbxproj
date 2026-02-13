@@ -39,6 +39,7 @@
 		PHOTOLIB001 /* PhotoLibraryService.swift in Sources */ = {isa = PBXBuildFile; fileRef = PHOTOLIB002 /* PhotoLibraryService.swift */; };
 		SHAKEDET001 /* ShakeDetectorPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = SHAKEDET002 /* ShakeDetectorPlugin.swift */; };
 		VISIONIMPL001 /* VisionApiImpl.swift in Sources */ = {isa = PBXBuildFile; fileRef = VISIONIMPL002 /* VisionApiImpl.swift */; };
+		1F3EEF752E93526C009BFF74 /* NativeEmbeddingChannel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F3EEF762E93526C009BFF74 /* NativeEmbeddingChannel.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -126,6 +127,7 @@
 		PHOTOLIB002 /* PhotoLibraryService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoLibraryService.swift; sourceTree = "<group>"; };
 		SHAKEDET002 /* ShakeDetectorPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShakeDetectorPlugin.swift; sourceTree = "<group>"; };
 		VISIONIMPL002 /* VisionApiImpl.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisionApiImpl.swift; sourceTree = "<group>"; };
+		1F3EEF762E93526C009BFF74 /* NativeEmbeddingChannel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeEmbeddingChannel.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -251,6 +253,7 @@
 				SHAKEDET002 /* ShakeDetectorPlugin.swift */,
 				PHOTOLIB002 /* PhotoLibraryService.swift */,
 				PHOTOCHAN002 /* PhotoChannel.swift */,
+				1F3EEF762E93526C009BFF74 /* NativeEmbeddingChannel.swift */,
 				AD02F52095DB446494429964 /* LumaraPromptSystem.swift */,
 				4700A91B00044A52AA765055 /* MiraMemoryStore.swift */,
 				74858FAD1ED2DC5600515810 /* Runner-Bridging-Header.h */,
@@ -524,6 +527,7 @@
 				VISIONIMPL001 /* VisionApiImpl.swift in Sources */,
 				PHOTOLIB001 /* PhotoLibraryService.swift in Sources */,
 				PHOTOCHAN001 /* PhotoChannel.swift in Sources */,
+				1F3EEF752E93526C009BFF74 /* NativeEmbeddingChannel.swift in Sources */,
 				SHAKEDET001 /* ShakeDetectorPlugin.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -658,6 +662,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.epi.arcmvp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
+				STRIP_STYLE = "Non-Global Symbols";
 				SUPPORTED_PLATFORMS = "iphonesimulator iphoneos";
 				SWIFT_OBJC_BRIDGING_HEADER = "Runner/Runner-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
@@ -876,6 +881,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.epi.arcmvp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
+				STRIP_STYLE = "Non-Global Symbols";
 				SUPPORTED_PLATFORMS = "iphonesimulator iphoneos";
 				SWIFT_OBJC_BRIDGING_HEADER = "Runner/Runner-Bridging-Header.h";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
@@ -930,6 +936,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.epi.arcmvp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
+				STRIP_STYLE = "Non-Global Symbols";
 				SUPPORTED_PLATFORMS = "iphonesimulator iphoneos";
 				SWIFT_OBJC_BRIDGING_HEADER = "Runner/Runner-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;

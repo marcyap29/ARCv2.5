@@ -101,6 +101,10 @@ import Photos
     ShakeDetectorPlugin.register(with: self.registrar(forPlugin: "ShakeDetectorPlugin")!)
     NSLog("[AppDelegate] ShakeDetectorPlugin registered ✅")
 
+    // Register on-device embedding channel (Natural Language framework, no TFLite)
+    NativeEmbeddingChannel.register(with: controller.binaryMessenger)
+    NSLog("[AppDelegate] NativeEmbeddingChannel registered ✅")
+
         // Register Photos method channel
         let photosChannel = FlutterMethodChannel(name: "com.epi.arcmvp/photos", binaryMessenger: controller.binaryMessenger)
         photosChannel.setMethodCallHandler { [weak self] (call, result) in
