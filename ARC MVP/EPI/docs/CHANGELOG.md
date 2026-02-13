@@ -1,6 +1,6 @@
 # EPI LUMARA MVP - Changelog
 
-**Version:** 3.3.26
+**Version:** 3.3.27
 **Last Updated:** February 13, 2026
 
 ---
@@ -14,6 +14,63 @@ This changelog has been split into parts for easier navigation:
 | **[CHANGELOG_part1.md](CHANGELOG_part1.md)** | Dec 2025 | v2.1.43 - v2.1.87 (Current) |
 | **[CHANGELOG_part2.md](CHANGELOG_part2.md)** | Nov 2025 | v2.1.28 - v2.1.42 |
 | **[CHANGELOG_part3.md](CHANGELOG_part3.md)** | Jan-Oct 2025 | v2.0.0 - v2.1.27 & Earlier |
+
+---
+
+## [3.3.27] - February 13, 2026 (working changes)
+
+### ARCHITECTURE.md Module Naming Refactor
+
+**`ARCHITECTURE.md`:**
+- Module 1 renamed **ARC** → **LUMARA** (`lib/arc/`). Clarified as the user-facing timeline and interface (journaling, chat, Arcform) — not a peer subsystem in the LUMARA orchestration spine. Data flows from this interface into CHRONICLE (Layer 0) and is consumed by the Orchestrator via CHRONICLE and ATLAS.
+- Module 3 renamed **MIRA** → **CHRONICLE** (`lib/chronicle/`, storage: `lib/mira/`). Now explicitly covers longitudinal memory, synthesis, and **on-device vector generation** (embeddings). Submodules list updated to include `embeddings/`, `index/`, `query/`, `synthesis/`, `storage/`, `scheduling/`. Key features rewritten: Layer 0, vector generation, context selection, MCP/ARCX.
+- System diagram updated: ARC→LUMARA (interface), MIRA→CHRONICLE with storage/synthesis/embeddings nodes.
+- All references (entry creation flow, export/import flow, APIs, test structure) updated from ARC/MIRA to LUMARA/CHRONICLE.
+- Executive Summary reworded: "5-module architecture: LUMARA (interface), PRISM, CHRONICLE, AURORA, ECHO".
+
+### Pattern Index (Vectorizer) Integration into Orchestrator
+
+**`enhanced_lumara_api.dart`:**
+- During CHRONICLE initialization, now creates `PatternQueryRouter` from `LocalEmbeddingService` + `ChronicleIndexStorage` + `ChronicleIndexBuilder` + `ThreeStagePatternMatcher`.
+- Passes `patternQueryRouter` to `ChronicleSubsystem` constructor.
+
+**`chronicle_subsystem.dart`:**
+- New optional `PatternQueryRouter? patternQueryRouter` parameter.
+- For pattern-like intents (`patternAnalysis`, `developmentalArc`, `historicalParallel`), runs vectorizer query and merges result into CHRONICLE context via `<chronicle_pattern_index>` tags.
+- When query router says `usesChronicle: false` but pattern index returns results, still returns that context.
+
+### VEIL-CHRONICLE Scheduler Starts at App Launch
+
+**`home_view.dart`:**
+- `_startVeilChronicleScheduler()` called via `addPostFrameCallback` at `HomeView` init.
+- Uses `VeilChronicleFactory.createAndStart()` with `SynthesisTier.premium`. First run at midnight; subsequent runs follow user cadence preference.
+
+### Pattern Index UI and Timestamp Tracking
+
+**New: `lib/chronicle/storage/pattern_index_last_updated.dart`**
+- `PatternIndexLastUpdatedStorage`: SharedPreferences persistence for last pattern index update timestamp per user.
+
+**`synthesis_scheduler.dart`:**
+- After updating pattern index, saves timestamp via `PatternIndexLastUpdatedStorage.setLastUpdated()`.
+
+**`chronicle_management_view.dart`:**
+- New "Pattern index (vectorizer)" section: shows last updated timestamp, error state, and "Update pattern index now" button for manual rebuild from existing monthly aggregations.
+- After full onboarding completes, automatically triggers `_updatePatternIndexNow()`.
+
+### Narrative Intelligence White Paper
+
+**New: `DOCS/NARRATIVE_INTELLIGENCE_WHITE_PAPER.md`**
+- Comprehensive white paper describing the Narrative Intelligence framework: architecture (LUMARA, Narrative Intelligence modules, CHRONICLE memory), VEIL cycle, five-module breakdown, subsystem spine (ARC, ATLAS, CHRONICLE, AURORA), vector generation, intellectual honesty, Crossroads decision capture, and implementation status.
+
+**Files changed (7 modified + 2 new):**
+- `docs/ARCHITECTURE.md` — Module naming refactor (ARC→LUMARA, MIRA→CHRONICLE)
+- `lib/arc/chat/services/enhanced_lumara_api.dart` — PatternQueryRouter in Orchestrator
+- `lib/chronicle/scheduling/synthesis_scheduler.dart` — Pattern index timestamp
+- `lib/chronicle/storage/pattern_index_last_updated.dart` (NEW)
+- `lib/lumara/subsystems/chronicle_subsystem.dart` — Vectorizer integration
+- `lib/shared/ui/home/home_view.dart` — VEIL-CHRONICLE scheduler at launch
+- `lib/shared/ui/settings/chronicle_management_view.dart` — Pattern index UI
+- `DOCS/NARRATIVE_INTELLIGENCE_WHITE_PAPER.md` (NEW)
 
 ---
 

@@ -380,12 +380,13 @@ On-device semantic indexing for cross-temporal pattern recognition.
 
 ## Related Documentation
 
+- [Narrative Intelligence White Paper](./NARRATIVE_INTELLIGENCE_WHITE_PAPER.md) — Framework document (architecture, VEIL cycle, subsystems, vector generation)
 - [LUMARA Vision](./LUMARA_Vision.md) — Vision document
 - [Voice Mode Complete](./VOICE_MODE_COMPLETE.md) — Voice mode implementation
 - [Engagement Discipline](./Engagement_Discipline.md) — Engagement mode details
 - [Prompt References](./PROMPT_REFERENCES.md) — All LUMARA prompts (includes Master Prompt Architecture §16)
 - [CHRONICLE Complete](./CHRONICLE_COMPLETE.md) — CHRONICLE feature spec
-- [ARCHITECTURE](./ARCHITECTURE.md) — System-wide architecture
+- [ARCHITECTURE](./ARCHITECTURE.md) — System-wide architecture (5 modules: LUMARA, PRISM, CHRONICLE, AURORA, ECHO)
 
 **Consolidated from:** This document merges content from the following docs (now archived): `ARC_AND_LUMARA_OVERVIEW.md`, `NARRATIVE_INTELLIGENCE.md`, `SUBSYSTEMS.md`, `LUMARA_ORCHESTRATOR.md`, `LUMARA_ENTERPRISE_ARCHITECTURE_GUIDE.md`.
 

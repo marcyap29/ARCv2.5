@@ -15,6 +15,11 @@ import 'package:my_app/chronicle/query/query_router.dart';
 import 'package:my_app/chronicle/query/context_builder.dart';
 import 'package:my_app/chronicle/query/chronicle_context_cache.dart';
 import 'package:my_app/chronicle/query/drill_down_handler.dart';
+import 'package:my_app/chronicle/query/pattern_query_router.dart' hide QueryIntent, QueryResponse, QueryType;
+import 'package:my_app/chronicle/embeddings/local_embedding_service.dart';
+import 'package:my_app/chronicle/storage/chronicle_index_storage.dart';
+import 'package:my_app/chronicle/index/chronicle_index_builder.dart';
+import 'package:my_app/chronicle/matching/three_stage_matcher.dart';
 import 'package:my_app/chronicle/storage/layer0_repository.dart';
 import 'package:my_app/chronicle/editing/contradiction_checker.dart';
 import 'package:my_app/chronicle/storage/aggregation_repository.dart';
@@ -120,6 +125,7 @@ class EnhancedLumaraApi {
   // CHRONICLE components (lazy initialization)
   ChronicleQueryRouter? _queryRouter;
   ChronicleContextBuilder? _contextBuilder;
+  PatternQueryRouter? _patternQueryRouter;
   DrillDownHandler? _drillDownHandler;
   Layer0Repository? _layer0Repo;
   AggregationRepository? _aggregationRepo;
@@ -215,7 +221,27 @@ class EnhancedLumaraApi {
         aggregationRepo: _aggregationRepo!,
         journalRepo: _journalRepo,
       );
-      
+
+      // Optional: pattern index (vectorizer) for cross-temporal theme queries
+      try {
+        final embedder = LocalEmbeddingService();
+        await embedder.initialize();
+        final indexStorage = ChronicleIndexStorage();
+        final indexBuilder = ChronicleIndexBuilder(
+          embedder: embedder,
+          storage: indexStorage,
+        );
+        final matcher = ThreeStagePatternMatcher(embedder);
+        _patternQueryRouter = PatternQueryRouter(
+          indexBuilder: indexBuilder,
+          matcher: matcher,
+          embedder: embedder,
+        );
+        print('✅ LUMARA: CHRONICLE pattern index (vectorizer) enabled');
+      } catch (e) {
+        print('⚠️ LUMARA: CHRONICLE pattern index unavailable (non-fatal): $e');
+      }
+
       _chronicleInitialized = true;
       print('✅ LUMARA: CHRONICLE components initialized');
     } catch (e) {
@@ -233,6 +259,7 @@ class EnhancedLumaraApi {
         ChronicleSubsystem(
           router: _queryRouter!,
           contextBuilder: _contextBuilder!,
+          patternQueryRouter: _patternQueryRouter,
         ),
         ArcSubsystem(),
         AtlasSubsystem(),

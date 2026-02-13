@@ -42,6 +42,8 @@ import 'package:my_app/arc/unified_feed/widgets/unified_feed_screen.dart';
 import 'package:my_app/core/models/entry_mode.dart';
 import 'package:my_app/shared/ui/settings/settings_view.dart';
 import 'package:my_app/services/rivet_sweep_service.dart' show runAutoPhaseAnalysis;
+import 'package:my_app/chronicle/integration/veil_chronicle_factory.dart';
+import 'package:my_app/chronicle/scheduling/synthesis_scheduler.dart' show SynthesisTier;
 
 // Debug flag for showing RIVET engineering labels
 const bool kShowRivetDebugLabels = false;
@@ -102,6 +104,11 @@ class _HomeViewState extends State<HomeView> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       PhaseRegimeService.regimeChangeNotifier.value = DateTime.now();
       UserPhaseService.phaseChangeNotifier.value = DateTime.now();
+    });
+
+    // Start VEIL–CHRONICLE scheduler (monthly synthesis + pattern index / vectorizer)
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _startVeilChronicleScheduler();
     });
     
       if (widget.initialTab != 0) {
@@ -213,6 +220,28 @@ class _HomeViewState extends State<HomeView> {
     } catch (e) {
       print('ERROR: Failed to check photo permissions: $e');
     }
+  }
+
+  /// Start VEIL–CHRONICLE scheduler (runs at midnight; monthly synthesis updates pattern index / vectorizer).
+  void _startVeilChronicleScheduler() {
+    Future(() async {
+      try {
+        final userId = FirebaseAuthService.instance.currentUser?.uid ?? 'default_user';
+        final scheduler = await VeilChronicleFactory.createAndStart(
+          userId: userId,
+          tier: SynthesisTier.premium,
+        );
+        if (scheduler != null) {
+          if (kDebugMode) {
+            print('✅ VEIL–CHRONICLE scheduler started (pattern index will update after monthly synthesis)');
+          }
+        }
+      } catch (e) {
+        if (kDebugMode) {
+          print('⚠️ VEIL–CHRONICLE scheduler failed to start: $e');
+        }
+      }
+    });
   }
 
   @override

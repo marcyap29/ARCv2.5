@@ -1,6 +1,6 @@
 # EPI MVP - Comprehensive Features Guide
 
-**Version:** 3.3.26
+**Version:** 3.3.27
 **Last Updated:** February 13, 2026
 
 ---
@@ -206,6 +206,8 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 - **CHRONICLE Schedule Preferences (v3.3.26)**: User-selectable synthesis cadence (Daily / Weekly / Monthly) via FilterChip in settings. VEIL scheduler adapts run interval accordingly.
 - **Expanded Entry View (v3.3.26)**: Full journal entry loaded to show interleaved writer text + LUMARA reflection blocks + user comments. Related entries section shows real linked entries (tappable). LUMARA's note section shows actual overview/blocks content.
 - **Journal View-Only Improvements (v3.3.26)**: Read-only LUMARA blocks (no action buttons). Paragraph formatting for writer text and user comments. View-only continuation field shows saved comment text.
+- **Pattern Index in Orchestrator (v3.3.27)**: CHRONICLE vectorizer (on-device embeddings) integrated into the LUMARA Orchestrator pipeline. Pattern-like intents (`patternAnalysis`, `developmentalArc`, `historicalParallel`) route through `PatternQueryRouter` and merge results via `<chronicle_pattern_index>` tags. VEIL-CHRONICLE scheduler starts at app launch. CHRONICLE Management UI shows vectorizer status and manual rebuild.
+- **Narrative Intelligence White Paper (v3.3.27)**: `DOCS/NARRATIVE_INTELLIGENCE_WHITE_PAPER.md` — comprehensive framework document covering architecture, VEIL cycle, subsystem spine, vector generation, intellectual honesty, and Crossroads.
 
 **Voice Chat - Voice Sigil (v3.3.16, upgraded from Jarvis Mode v2.1.53)**
 - **Voice Sigil UI**: Sophisticated 6-state animation system replacing the original glowing indicator

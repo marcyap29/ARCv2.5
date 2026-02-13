@@ -8,12 +8,12 @@
 
 ## Executive Summary
 
-EPI (Evolving Personal Intelligence) is a Flutter-based intelligent journaling application that provides life-aware assistance through journaling, pattern recognition, and contextual AI responses. The MVP is fully operational with a consolidated 5-module architecture that has been refactored from 8+ separate modules into clean, deployable modules with clear boundaries and responsibilities.
+EPI (Evolving Personal Intelligence) is a Flutter-based intelligent journaling application that provides life-aware assistance through journaling, pattern recognition, and contextual AI responses. The MVP is fully operational with a **5-module architecture**: **LUMARA** (interface), **PRISM**, **CHRONICLE**, **AURORA**, and **ECHO**.
 
 ### Key Achievements
 
 - ✅ **Complete MVP Implementation**: All core features operational
-- ✅ **5-Module Architecture**: Consolidated from 8+ modules for maintainability
+- ✅ **5-Module Architecture**: LUMARA (interface), PRISM, CHRONICLE, AURORA, ECHO
 - ✅ **LUMARA MCP Memory System**: Persistent conversational memory across sessions
 - ✅ **On-Device AI Integration**: Qwen models with llama.cpp and Metal acceleration
 - ✅ **MCP Export/Import System**: Standards-compliant data portability
@@ -116,11 +116,11 @@ EPI provides users with an intelligent journaling companion that:
 
 The EPI system is organized into 5 core modules:
 
-1. **ARC** - Core Journaling Interface
-2. **PRISM** - Multimodal Perception & Analysis
-3. **MIRA** - Memory Graph & Secure Store
-4. **AURORA** - Circadian Orchestration
-5. **ECHO** - Response Control & Safety
+1. **LUMARA** — User-facing timeline and interface (journaling, chat, Arcform). The surface through which users interact with the LUMARA assistant. Implementation: `lib/arc/`.
+2. **PRISM** — Multimodal Perception & Analysis (ATLAS, RIVET, SENTINEL, extractors, processors, privacy).
+3. **CHRONICLE** — Longitudinal memory, storage, synthesis, and vector generation (embeddings). Includes Layer 0 raw storage, temporal aggregations, context selection, and on-device embeddings.
+4. **AURORA** — Circadian Orchestration (VEIL, jobs, scheduling).
+5. **ECHO** — Response Control & Safety (guard, privacy, LLM integration).
 
 ### System Diagram
 
@@ -130,16 +130,15 @@ The EPI system is organized into 5 core modules:
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
 │  ┌──────────────┐      ┌──────────────┐      ┌──────────────┐ │
-│  │     ARC      │──────▶│    PRISM     │──────▶│  MIRA    │ │
-│  │              │      │              │      │              │ │
+│  │   LUMARA     │──────▶│    PRISM     │──────▶│  CHRONICLE   │ │
+│  │  (interface) │      │              │      │              │ │
 │  │ • Journaling │      │ • Perception │      │ • Memory     │ │
-│  │ • Chat       │      │ • Analysis   │      │ • Encryption │ │
-│  │ • Arcform    │      │ • ATLAS      │      │ • Storage    │ │
-│  │              │      │   - Phase    │      │ • MCP/ARCX   │ │
-│  │              │      │   - RIVET    │      │              │ │
-│  │              │      │   - SENTINEL │      │              │ │
+│  │ • Chat       │      │ • Analysis   │      │ • Synthesis  │ │
+│  │ • Arcform    │      │ • ATLAS      │      │ • Embeddings │ │
+│  │ • Timeline   │      │   - Phase    │      │ • Layer 0–N  │ │
+│  │              │      │   - RIVET    │      │ • MCP/ARCX    │ │
+│  │              │      │   - SENTINEL │      │ • Storage     │ │
 │  └──────┬───────┘      └──────┬───────┘      └──────┬───────┘ │
-│         │                     │                     │         │
 │         │                     │                     │         │
 │         └─────────────────────┼─────────────────────┘         │
 │                               │                               │
@@ -165,23 +164,23 @@ The EPI system is organized into 5 core modules:
 
 ## Module Details
 
-### 1. ARC Module (`lib/arc/`)
+### 1. LUMARA (`lib/arc/`)
 
-**Purpose:** Core journaling app & main user experience
+**Purpose:** The user-facing timeline and interface. Users journal, chat, and view Arcform here; this is the surface through which they interact with the LUMARA assistant. It is not a peer subsystem in the LUMARA orchestration spine—data flows from this interface into CHRONICLE (Layer 0) and is consumed by the LUMARA Orchestrator via CHRONICLE and ATLAS.
 
-**Architecture:** ARC internally mirrors the 5-module architecture:
-- **PRISM (Internal)**: Analysis of text and media
-- **MIRA (Internal)**: Memory and security of files
-- **AURORA (Internal)**: Handles time when user is active
-- **ECHO (Internal)**: Provides PII and security
+**Internal components** (under `lib/arc/`):
+- **PRISM (internal):** Text and media analysis
+- **Memory/storage (internal):** Feeds CHRONICLE and secure store
+- **AURORA (internal):** Time and user activity
+- **ECHO (internal):** PII and security
 
 **Submodules:**
-- `internal/` - **ARC Internal Modules** (mirrors EPI 5-module architecture)
-  - `prism/` - Text & Media Analysis (PRISM Internal)
+- `internal/` — Components used by the LUMARA interface
+  - `prism/` — Text & media analysis
     - `theme_analysis_service.dart` - Longitudinal theme tracking
     - `keyword_extraction_service.dart` - Keyword extraction
     - `media/` - Media processing (capture, preview, OCR)
-  - `mira/` - Memory & File Security (MIRA Internal)
+  - `mira/` — Memory & file security (feeds CHRONICLE / storage)
     - `memory_loader.dart` - Progressive memory loading
     - `reflective_storage.dart` - Reflective node storage
     - `semantic_matching.dart` - Semantic similarity matching
@@ -284,30 +283,31 @@ The EPI system is organized into 5 core modules:
 
 ---
 
-### 3. MIRA Module (`lib/mira/`)
+### 3. CHRONICLE (`lib/chronicle/`, storage: `lib/mira/`)
 
-**Purpose:** Memory graph & secure storage
+**Purpose:** Longitudinal memory, storage, synthesis, and vector generation. CHRONICLE is the memory architecture: Layer 0 raw entries, temporal aggregations (monthly/yearly/multi-year), context selection for the LUMARA assistant, and **on-device vector generation** for semantic matching. Storage implementation remains under `lib/mira/` for MCP/ARCX.
+
+**Vector generation (part of CHRONICLE):**
+- **On-device embeddings:** `lib/chronicle/embeddings/local_embedding_service.dart` — TFLite Universal Sentence Encoder.
+- **ChronicleIndexBuilder:** Cross-temporal pattern index from monthly aggregation themes; clusters by embedding similarity; updated after each monthly synthesis.
+- **Three-stage matching:** Exact → cosine (embedding) → fuzzy via `lib/chronicle/matching/three_stage_matcher.dart` and `lib/chronicle/query/pattern_query_router.dart`.
 
 **Submodules:**
-- `store/` - Secure storage with encryption
-  - `mcp/` - MCP format export/import
-  - `arcx/` - ARCX encrypted archive format
-- `graph/` - Semantic memory graph
-- `services/` - Memory services
+- `lib/chronicle/` — Synthesis, query, embeddings, index, scheduling
+  - `embeddings/` — Local embedding service (vector generation)
+  - `index/` — Chronicle index builder and storage
+  - `query/` — Query router, context builder, pattern query router
+  - `synthesis/` — Monthly, yearly, multi-year synthesizers
+  - `storage/` — Layer 0 repository, aggregation repository, index storage
+  - `scheduling/` — Synthesis scheduler
+- `lib/mira/` — Secure store (MCP/ARCX export-import, encryption)
 
 **Key Features:**
-- MCP-compliant memory storage
-- ARCX encrypted archives
-- Semantic graph construction
-- Export/import with extended data support
-- Secure key management
-- Google Drive cloud backup integration
-- **Two-Stage Memory System (v3.2.4)**: Complementary memory architecture
-  - **Stage 1: Context Selection** (Temporal/Phase-Aware Entry Selection)
-    - `LumaraContextSelector` selects entries based on Memory Focus, Engagement Mode, semantic relevance, and phase intelligence
-    - Determines: "Which parts of the journey?" (horizontal - time/phases)
-  - **Stage 2: CHRONICLE / Memory filtering** – **CHRONICLE** (longitudinal aggregated memory) is the named subsystem in the LUMARA four-subsystem spine (ARC, ATLAS, CHRONICLE, AURORA), coordinated by the LUMARA Orchestrator. Legacy **MemoryModeService** (Polymeta) still provides domain/confidence-based filtering (Always On/Suggestive/High Confidence Only). See DOCS/LUMARA_COMPLETE.md (Orchestrator and Subsystems sections).
-  - **Integration Pattern**: Context Selector selects entries → CHRONICLE (or legacy Polymeta) contributes memory context → Orchestrator aggregates when enabled → Both included in prompt
+- Layer 0 raw entries and temporal aggregations (VEIL: Examine → Integrate → Link)
+- **Vector generation:** On-device sentence embeddings for semantic matching and pattern indexing
+- Context selection (temporal/phase-aware entry selection for LUMARA prompts)
+- MCP-compliant storage and ARCX encrypted archives
+- CHRONICLE is one of **three** LUMARA orchestration subsystems (ATLAS, CHRONICLE, AURORA). See DOCS/LUMARA_COMPLETE.md.
 
 ---
 
@@ -448,17 +448,17 @@ The EPI system is organized into 5 core modules:
 ### Entry Creation Flow
 
 ```
-User Input → ARC UI → Journal Repository → PRISM Analysis → MIRA Storage
-                                                              ↓
-                                                         ECHO Response
-                                                              ↓
-                                                         LUMARA Chat
+User Input → LUMARA (interface) → Journal Repository → PRISM Analysis → CHRONICLE (storage)
+                                                                              ↓
+                                                                         ECHO Response
+                                                                              ↓
+                                                                         LUMARA Chat
 ```
 
 ### Export/Import Flow
 
 ```
-MIRA Store → MCP Export Service → ZIP/ARCX Archive
+CHRONICLE Store (lib/mira) → MCP Export Service → ZIP/ARCX Archive
                                     ↓
                               Extended Data:
                               - Phase Regimes
@@ -597,7 +597,7 @@ Update last export date and tracked IDs/hashes
 
 ### Internal APIs
 - **Journal Repository**: Entry CRUD operations
-- **MIRA Store**: Memory graph operations
+- **CHRONICLE Store** (lib/mira): Memory graph operations, MCP/ARCX storage
 - **PRISM Analysis**: Content analysis services
 - **ECHO Response**: LLM integration
 
@@ -618,9 +618,9 @@ Update last export date and tracked IDs/hashes
 - **Golden Tests**: Visual regression
 
 ### Test Structure
-- `test/arc/` - ARC module tests
+- `test/arc/` - LUMARA interface tests
 - `test/prism/` - PRISM module tests
-- `test/mira/` - MIRA module tests
+- `test/mira/` - CHRONICLE storage tests
 - `test/integration/` - Integration tests
 
 ---

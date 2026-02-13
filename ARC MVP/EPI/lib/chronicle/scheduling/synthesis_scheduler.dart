@@ -2,6 +2,7 @@ import '../synthesis/synthesis_engine.dart';
 import '../storage/changelog_repository.dart';
 import '../storage/aggregation_repository.dart';
 import '../storage/layer0_repository.dart';
+import '../storage/pattern_index_last_updated.dart';
 import '../models/chronicle_layer.dart';
 import '../index/chronicle_index_builder.dart';
 import '../index/monthly_aggregation_adapter.dart';
@@ -141,6 +142,10 @@ class SynthesisScheduler {
                   await _chronicleIndexBuilder!.updateIndexAfterSynthesis(
                     userId: _userId,
                     synthesis: synthesis,
+                  );
+                  await PatternIndexLastUpdatedStorage.setLastUpdated(
+                    _userId,
+                    DateTime.now(),
                   );
                   print('✅ SynthesisScheduler: Updated Chronicle pattern index for $period');
                 } catch (e) {

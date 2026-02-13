@@ -1,7 +1,7 @@
 # Configuration Management & Documentation Tracking
 
 **Lead Configuration Management Analyst:** Active  
-**Last Updated:** February 13, 2026  
+**Last Updated:** February 13, 2026 (v3.3.27)  
 **Status:** ✅ All Documents Synced with Repo
 
 ---
@@ -38,12 +38,12 @@ Prompt/role definitions: **Documentation & Configuration Management Role** in [c
 
 | Document | Location | Last Reviewed | Status | Notes |
 |----------|----------|---------------|--------|-------|
-| ARCHITECTURE.md | `/DOCS/ARCHITECTURE.md` | 2026-02-13 | ✅ Synced | v3.3.26 - Crossroads, pushback, pattern index, edit validation |
-| CHANGELOG.md | `/DOCS/CHANGELOG.md` | 2026-02-13 | ✅ Synced | v3.3.26 - Crossroads, pushback, pattern index, CHRONICLE improvements |
+| ARCHITECTURE.md | `/DOCS/ARCHITECTURE.md` | 2026-02-13 | ✅ Synced | v3.3.27 - Module naming refactor (ARC→LUMARA, MIRA→CHRONICLE), vectorizer in diagram |
+| CHANGELOG.md | `/DOCS/CHANGELOG.md` | 2026-02-13 | ✅ Synced | v3.3.27 - Pattern index in Orchestrator, scheduler at launch, white paper |
 | PROMPT_REFERENCES.md | `/DOCS/PROMPT_REFERENCES.md` | 2026-02-13 | ✅ Synced | v2.2.0 - §17 Intellectual Honesty, §18 Crossroads, §19 Edit Validation |
 | PROMPT_TRACKER.md | `/DOCS/PROMPT_TRACKER.md` | 2026-02-13 | ✅ Synced | v1.3.0 - Added v2.2.0 prompts row |
 | bug_tracker.md | `/DOCS/bugtracker/bug_tracker.md` | 2026-02-08 | ✅ Synced | v3.2.2 - 29 records; How to use; Recent code changes |
-| FEATURES.md | `/DOCS/FEATURES.md` | 2026-02-13 | ✅ Synced | v3.3.26 - Crossroads, pushback, pattern index, expanded entry, import |
+| FEATURES.md | `/DOCS/FEATURES.md` | 2026-02-13 | ✅ Synced | v3.3.27 - Pattern index in Orchestrator, white paper |
 | README.md | `/DOCS/README.md` | 2026-02-07 | ✅ Synced | Key docs table with purpose and when to read |
 | claude.md | `/DOCS/claude.md` | 2026-02-12 | ✅ Synced | v3.3.25 - Chat phase classification, recent updates |
 | backend.md | `/DOCS/backend.md` | 2026-02-11 | ✅ Synced | v3.3 - proxyGroq (Groq primary), proxyGemini (fallback), Firebase, Stripe |
@@ -54,6 +54,7 @@ Prompt/role definitions: **Documentation & Configuration Management Role** in [c
 | Document | Location | Last Reviewed | Status | Notes |
 |----------|----------|---------------|--------|-------|
 | LUMARA_Vision.md | `/DOCS/LUMARA_Vision.md` | 2026-02-12 | ✅ Synced | Vision document (white paper) |
+| NARRATIVE_INTELLIGENCE_WHITE_PAPER.md | `/DOCS/NARRATIVE_INTELLIGENCE_WHITE_PAPER.md` | 2026-02-13 | ✅ Synced | Narrative Intelligence framework white paper (v2.2, aligned with EPI repo) |
 | RIVET_ARCHITECTURE.md | `/DOCS/RIVET_ARCHITECTURE.md` | 2026-02-12 | ✅ Synced | RIVET algorithm spec (white paper) |
 | SENTINEL_ARCHITECTURE.md | `/DOCS/SENTINEL_ARCHITECTURE.md` | 2026-02-12 | ✅ Synced | SENTINEL algorithm spec (white paper) |
 
@@ -128,6 +129,19 @@ Prompt/role definitions: **Documentation & Configuration Management Role** in [c
 | Redundancy reduction | - | ~50% in affected areas |
 
 **Status:** ✅ All consolidation actions executed. Zero information loss. All cross-references updated.
+
+---
+
+### 2026-02-13 - v3.3.27: Architecture naming refactor, pattern index in Orchestrator, white paper
+
+**Action:** ARCHITECTURE.md module naming refactored: ARC→LUMARA (interface), MIRA→CHRONICLE (storage + synthesis + embeddings). Pattern index (vectorizer) integrated into LUMARA Orchestrator via `PatternQueryRouter` in `ChronicleSubsystem`. VEIL-CHRONICLE scheduler starts at app launch. CHRONICLE Management UI gains pattern index section. New `NARRATIVE_INTELLIGENCE_WHITE_PAPER.md`.
+
+**Doc updates:**
+- **CHANGELOG.md:** v3.3.27 entry.
+- **ARCHITECTURE.md:** Already updated by user (module rename is the code change).
+- **FEATURES.md:** v3.3.27; pattern index in Orchestrator, white paper entries.
+- **claude.md:** v3.3.27; Recent Updates rewritten; architecture description updated.
+- **CONFIGURATION_MANAGEMENT.md:** Inventory updated; this entry.
 
 ---
 

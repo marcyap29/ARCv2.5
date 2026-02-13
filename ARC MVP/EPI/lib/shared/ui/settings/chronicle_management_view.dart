@@ -11,9 +11,15 @@ import 'package:my_app/chronicle/storage/layer0_repository.dart';
 import 'package:my_app/chronicle/models/chronicle_layer.dart';
 import 'package:my_app/chronicle/scheduling/synthesis_scheduler.dart';
 import 'package:my_app/chronicle/scheduling/chronicle_schedule_preferences.dart';
+import 'package:my_app/chronicle/storage/pattern_index_last_updated.dart';
+import 'package:my_app/chronicle/embeddings/local_embedding_service.dart';
+import 'package:my_app/chronicle/storage/chronicle_index_storage.dart';
+import 'package:my_app/chronicle/index/chronicle_index_builder.dart';
+import 'package:my_app/chronicle/index/monthly_aggregation_adapter.dart';
 import 'package:my_app/arc/internal/mira/journal_repository.dart';
 import 'package:my_app/services/firebase_auth_service.dart';
 import 'package:my_app/shared/ui/chronicle/chronicle_layers_viewer.dart';
+import 'package:my_app/shared/ui/chronicle/pattern_index_viewer.dart';
 import 'package:my_app/shared/ui/settings/privacy_settings_view.dart';
 import 'package:file_picker/file_picker.dart';
 import 'dart:io';
@@ -48,6 +54,12 @@ class _ChronicleManagementViewState extends State<ChronicleManagementView> {
   ChronicleScheduleCadence _scheduleCadence = ChronicleScheduleCadence.daily;
   bool _cadenceLoaded = false;
 
+  // Pattern index (vectorizer)
+  DateTime? _patternIndexLastUpdated;
+  bool _patternIndexLoaded = false;
+  bool _patternIndexUpdating = false;
+  String? _patternIndexError;
+
   /// When true, back arrow returns to this screen's menu instead of popping the route.
   bool get _showProgressView => _isLoading;
 
@@ -56,6 +68,76 @@ class _ChronicleManagementViewState extends State<ChronicleManagementView> {
     super.initState();
     _loadAggregationCounts();
     _loadScheduleCadence();
+    _loadPatternIndexLastUpdated();
+  }
+
+  Future<void> _loadPatternIndexLastUpdated() async {
+    try {
+      final userId = FirebaseAuthService.instance.currentUser?.uid ?? 'default_user';
+      final when = await PatternIndexLastUpdatedStorage.getLastUpdated(userId);
+      if (mounted) {
+        setState(() {
+          _patternIndexLastUpdated = when;
+          _patternIndexLoaded = true;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _patternIndexLoaded = true;
+          _patternIndexError = e.toString();
+        });
+      }
+    }
+  }
+
+  /// Rebuild pattern index from existing monthly aggregations (vectorizer).
+  Future<void> _updatePatternIndexNow() async {
+    final userId = FirebaseAuthService.instance.currentUser?.uid ?? 'default_user';
+    setState(() {
+      _patternIndexUpdating = true;
+      _patternIndexError = null;
+    });
+    try {
+      final embedder = LocalEmbeddingService();
+      await embedder.initialize();
+      final storage = ChronicleIndexStorage();
+      final indexBuilder = ChronicleIndexBuilder(
+        embedder: embedder,
+        storage: storage,
+      );
+      final aggregationRepo = AggregationRepository();
+      final monthlyAggs = await aggregationRepo.getAllForLayer(
+        userId: userId,
+        layer: ChronicleLayer.monthly,
+      );
+      for (final agg in monthlyAggs) {
+        final synthesis = MonthlyAggregation.fromChronicleAggregation(agg);
+        await indexBuilder.updateIndexAfterSynthesis(
+          userId: userId,
+          synthesis: synthesis,
+        );
+      }
+      await PatternIndexLastUpdatedStorage.setLastUpdated(userId, DateTime.now());
+      if (mounted) {
+        setState(() {
+          _patternIndexLastUpdated = DateTime.now();
+          _patternIndexUpdating = false;
+          _statusMessage = 'Pattern index updated (${monthlyAggs.length} months).';
+          _statusIsError = false;
+        });
+        await _loadPatternIndexLastUpdated();
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _patternIndexUpdating = false;
+          _patternIndexError = e.toString();
+          _statusMessage = 'Pattern index update failed: $e';
+          _statusIsError = true;
+        });
+      }
+    }
   }
 
   Future<void> _loadScheduleCadence() async {
@@ -402,7 +484,11 @@ class _ChronicleManagementViewState extends State<ChronicleManagementView> {
               : 'Failed: ${result.error}';
           _statusIsError = !result.success;
         });
-        if (result.success) await _loadAggregationCounts();
+        if (result.success) {
+          await _loadAggregationCounts();
+          // Update pattern index from the newly synthesized monthly aggregations
+          await _updatePatternIndexNow();
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -505,6 +591,68 @@ class _ChronicleManagementViewState extends State<ChronicleManagementView> {
                         Icons.calendar_view_month,
                         onTap: () => _openLayersViewer(initialTabIndex: 2),
                       ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 32),
+
+                  // Pattern index (vectorizer) — on-device embeddings for cross-temporal themes
+                  _buildSection(
+                    title: 'Pattern index (vectorizer)',
+                    children: [
+                      Text(
+                        'On-device embeddings power cross-temporal pattern search. Updated after each monthly synthesis or manually below.',
+                        style: captionStyle(context).copyWith(
+                          color: kcSecondaryTextColor,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      if (!_patternIndexLoaded)
+                        const SizedBox(
+                          height: 48,
+                          child: Center(child: CircularProgressIndicator()),
+                        )
+                      else ...[
+                        _buildStatusTile(
+                          'Last updated',
+                          _patternIndexLastUpdated != null
+                              ? _patternIndexLastUpdated!.toIso8601String().split('.').first
+                              : 'Never',
+                          Icons.psychology,
+                        ),
+                        if (_patternIndexError != null) ...[
+                          const SizedBox(height: 8),
+                          Text(
+                            _patternIndexError!,
+                            style: captionStyle(context).copyWith(
+                              color: Colors.red,
+                            ),
+                          ),
+                        ],
+                        const SizedBox(height: 12),
+                        _buildActionButton(
+                          _patternIndexUpdating
+                              ? 'Updating pattern index...'
+                              : 'Update pattern index now',
+                          'Rebuild index from existing monthly aggregations (embeddings)',
+                          Icons.auto_awesome,
+                          _patternIndexUpdating ? () {} : _updatePatternIndexNow,
+                        ),
+                        const SizedBox(height: 12),
+                        _buildActionButton(
+                          'View vectorized patterns',
+                          'See which themes have been embedded and clustered across time',
+                          Icons.visibility,
+                          () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const PatternIndexViewer(),
+                              ),
+                            );
+                          },
+                        ),
+                      ],
                     ],
                   ),
 
