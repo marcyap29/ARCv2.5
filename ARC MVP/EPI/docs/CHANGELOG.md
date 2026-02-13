@@ -72,6 +72,15 @@ This changelog has been split into parts for easier navigation:
 - `lib/shared/ui/settings/chronicle_management_view.dart` — Pattern index UI
 - `DOCS/NARRATIVE_INTELLIGENCE_WHITE_PAPER.md` (NEW)
 
+### Documentation sync (claude.md, bugtracker)
+
+**`DOCS/claude.md`:**
+- Table of Contents — Prompts: added section with links to all prompt blocks (Documentation/Config/Git Backup, Code Simplifier, Bugtracker Consolidation, DevSecOps). TOC updated to reflect current document (Code Consolidation prompt removed; section names aligned).
+
+**`DOCS/bugtracker/`:**
+- **bug_tracker.md** (v3.2.4): 32 records; Build & Platform section and Recent code changes table updated.
+- **records/** (3 new): `ios-build-local-embedding-service-errors.md`, `ios-build-native-embedding-channel-swift-scope.md`, `ios-release-build-third-party-warnings.md` — iOS release build and CHRONICLE embedding stack issues (Dart type/parse, Swift NativeEmbeddingChannel scope, third-party warnings).
+
 ---
 
 ## [3.3.26] - February 13, 2026 (working changes)

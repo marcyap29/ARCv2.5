@@ -14,7 +14,7 @@ This document tracks all changes between the repository codebase and documentati
 
 ## Key documents for onboarding
 
-Per the **Documentation & Configuration Management Role** (see [claude.md](claude.md), section "Documentation & Configuration Management Role (Universal Prompt)"):
+Per the **Documentation, Configuration Management and Git Backup** role (see [claude.md](claude.md), section "Ultimate Documentation, Configuration Management and Git Backup Prompt"):
 
 | Entry point | Purpose | When to read |
 |-------------|---------|--------------|
@@ -28,7 +28,7 @@ Per the **Documentation & Configuration Management Role** (see [claude.md](claud
 | **CONFIGURATION_MANAGEMENT.md** (this file) | Docs inventory and change log | Sync status; what changed in docs |
 | **claude.md** | Context guide; Documentation & Config Role | Onboarding; adopting docs/config manager role |
 
-Prompt/role definitions: **Documentation & Configuration Management Role** in [claude.md](claude.md).
+Prompt/role definitions: **Ultimate Documentation, Configuration Management and Git Backup Prompt** in [claude.md](claude.md).
 
 ---
 
@@ -42,10 +42,10 @@ Prompt/role definitions: **Documentation & Configuration Management Role** in [c
 | CHANGELOG.md | `/DOCS/CHANGELOG.md` | 2026-02-13 | ✅ Synced | v3.3.27 - Pattern index in Orchestrator, scheduler at launch, white paper |
 | PROMPT_REFERENCES.md | `/DOCS/PROMPT_REFERENCES.md` | 2026-02-13 | ✅ Synced | v2.2.0 - §17 Intellectual Honesty, §18 Crossroads, §19 Edit Validation |
 | PROMPT_TRACKER.md | `/DOCS/PROMPT_TRACKER.md` | 2026-02-13 | ✅ Synced | v1.3.0 - Added v2.2.0 prompts row |
-| bug_tracker.md | `/DOCS/bugtracker/bug_tracker.md` | 2026-02-08 | ✅ Synced | v3.2.2 - 29 records; How to use; Recent code changes |
+| bug_tracker.md | `/DOCS/bugtracker/bug_tracker.md` | 2026-02-13 | ✅ Synced | v3.2.4 - 32 records; 3 new iOS build/embedding records; Build & Platform index |
 | FEATURES.md | `/DOCS/FEATURES.md` | 2026-02-13 | ✅ Synced | v3.3.27 - Pattern index in Orchestrator, white paper |
 | README.md | `/DOCS/README.md` | 2026-02-07 | ✅ Synced | Key docs table with purpose and when to read |
-| claude.md | `/DOCS/claude.md` | 2026-02-12 | ✅ Synced | v3.3.25 - Chat phase classification, recent updates |
+| claude.md | `/DOCS/claude.md` | 2026-02-13 | ✅ Synced | TOC — Prompts; consolidated Doc/Config/Git Backup prompt; TOC aligned with current sections |
 | backend.md | `/DOCS/backend.md` | 2026-02-11 | ✅ Synced | v3.3 - proxyGroq (Groq primary), proxyGemini (fallback), Firebase, Stripe |
 | git.md | `/DOCS/git.md` | 2026-02-07 | ✅ Synced | Git history and key phases |
 
@@ -90,6 +90,20 @@ Prompt/role definitions: **Documentation & Configuration Management Role** in [c
 ---
 
 ## Change Tracking Log
+
+### 2026-02-13 - Documentation & Git Backup Sync (claude.md TOC, bugtracker records)
+
+**Action:** Ran Documentation, Configuration Management and Git Backup prompt. Synced documentation to reflect current repo and doc state.
+
+**Updates:**
+- **claude.md:** Table of Contents — Prompts section lists all prompt blocks with anchor links; TOC updated to match current sections (Code Consolidation removed; section names aligned).
+- **bugtracker:** bug_tracker.md v3.2.4 — 32 records; index and Recent code changes table include 3 new iOS build/embedding records. New records in `records/`: `ios-build-local-embedding-service-errors.md`, `ios-build-native-embedding-channel-swift-scope.md`, `ios-release-build-third-party-warnings.md`.
+- **CONFIGURATION_MANAGEMENT.md:** Key documents reference updated to "Ultimate Documentation, Configuration Management and Git Backup Prompt"; inventory rows for claude.md and bug_tracker.md updated (Last Reviewed 2026-02-13, notes).
+- **CHANGELOG.md:** [3.3.27] — added subsection "Documentation sync (claude.md, bugtracker)" describing TOC and bugtracker changes.
+
+**Files touched:** CHANGELOG.md, CONFIGURATION_MANAGEMENT.md, claude.md (already modified), bug_tracker.md (already modified), DOCS/bugtracker/records/ (3 new record files).
+
+---
 
 ### 2026-02-12 - Documentation Consolidation & Optimization — Brutal Efficiency Audit
 

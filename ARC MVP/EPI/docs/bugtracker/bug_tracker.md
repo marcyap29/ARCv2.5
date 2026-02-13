@@ -1,8 +1,8 @@
 # EPI MVP - Bug Tracker
 
-**Version:** 3.2.2  
-**Last Updated:** February 7, 2026  
-**Record count:** 29 individual bug records in [records/](records/). Index below matches all files in records/.
+**Version:** 3.2.4  
+**Last Updated:** February 13, 2026  
+**Record count:** 32 individual bug records in [records/](records/). Index below matches all files in records/.
 
 ---
 
@@ -67,6 +67,11 @@ Detailed bug reports are available in the [records/](records/) directory:
 - [stripe-checkout-unauthenticated.md](records/stripe-checkout-unauthenticated.md) - **CRITICAL:** Cloud Run IAM blocking Stripe checkout ✅ RESOLVED
 - [stripe-subscription-critical-fixes.md](records/stripe-subscription-critical-fixes.md) - Stripe subscription critical fixes
 
+### Build & Platform Issues
+- [ios-build-local-embedding-service-errors.md](records/ios-build-local-embedding-service-errors.md) - **CRITICAL:** iOS release build – CHRONICLE embedding stack (Dart parse/type, then EmbeddingService vs LocalEmbeddingService at call sites)
+- [ios-build-native-embedding-channel-swift-scope.md](records/ios-build-native-embedding-channel-swift-scope.md) - **CRITICAL:** iOS Swift build – NativeEmbeddingChannel not in scope in AppDelegate.swift:104
+- [ios-release-build-third-party-warnings.md](records/ios-release-build-third-party-warnings.md) - iOS release build third-party deprecation/warning noise (Pods, file_picker, Firebase, RevenueCat)
+
 ### Feature-Specific Issues
 - [constellation-zero-stars-display.md](records/constellation-zero-stars-display.md) - Constellation visualization
 - [draft-creation-unwanted-drafts.md](records/draft-creation-unwanted-drafts.md) - Draft management
@@ -96,8 +101,11 @@ This section is derived from the repo and [CHANGELOG.md](../CHANGELOG.md) to kee
 | llama.xcframework build / simulator | recent | — | Link llama static library directly; device build search paths; simulator stubs; exclude xcframework from simulator. Build/config fixes. |
 | Import status bar, mini bar, per-file status | v3.3.13 | — | Feature; not a bug. See CHANGELOG. |
 | Wispr Flow cache – new API key not used until restart | v3.3.13 | [wispr-flow-cache-issue.md](records/wispr-flow-cache-issue.md) ✅ | WisprConfigService cached key; fix: clearCache() on save in Settings. |
+| iOS release build failure (LocalEmbeddingService) | — | [ios-build-local-embedding-service-errors.md](records/ios-build-local-embedding-service-errors.md) | Dart parse/type; then EmbeddingService vs LocalEmbeddingService at call sites (3 files). |
+| iOS Swift: NativeEmbeddingChannel not in scope | — | [ios-build-native-embedding-channel-swift-scope.md](records/ios-build-native-embedding-channel-swift-scope.md) | AppDelegate.swift:104; Runner target membership / compile sources. |
+| iOS release build third-party warnings | — | [ios-release-build-third-party-warnings.md](records/ios-release-build-third-party-warnings.md) | DKImagePickerController, file_picker, Firebase, RevenueCat deprecations; tech debt. |
 
-**Source:** `git log --oneline`, [CHANGELOG.md](../CHANGELOG.md). Last synced: 2026-02-08.
+**Source:** `git log --oneline`, [CHANGELOG.md](../CHANGELOG.md). Last synced: 2026-02-13.
 
 ---
 
@@ -111,5 +119,5 @@ Individual bug records stay in [records/](records/); only the legacy multi-part 
 
 ---
 
-**Status**: ✅ Active - All resolved issues documented  
-**Last Updated**: February 8, 2026
+**Status**: ✅ Active - All resolved issues documented; Build & Platform: 3 records (embedding Dart chain, NativeEmbeddingChannel Swift, third-party warnings).  
+**Last Updated**: February 13, 2026
