@@ -13,6 +13,7 @@ import 'package:my_app/arc/unified_feed/widgets/feed_media_thumbnails.dart';
 import 'package:my_app/arc/internal/mira/journal_repository.dart';
 import 'package:my_app/data/models/media_item.dart';
 import 'package:my_app/models/journal_entry_model.dart';
+import 'package:my_app/state/journal_entry_state.dart';
 import 'package:my_app/ui/journal/journal_screen.dart';
 import 'package:my_app/ui/widgets/full_image_viewer.dart';
 
@@ -53,48 +54,56 @@ class ExpandedEntryView extends StatelessWidget {
           ),
         ],
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          // Phase indicator card (prominent)
-          if (entry.phase != null) _buildPhaseCard(context),
-          if (entry.phase != null) const SizedBox(height: 16),
+      body: FutureBuilder<JournalEntry?>(
+        future: entry.journalEntryId != null && entry.journalEntryId!.isNotEmpty
+            ? JournalRepository().getJournalEntryById(entry.journalEntryId!)
+            : Future<JournalEntry?>.value(null),
+        builder: (context, snapshot) {
+          final fullEntry = snapshot.data;
+          return ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              // Phase indicator card (prominent)
+              if (entry.phase != null) _buildPhaseCard(context),
+              if (entry.phase != null) const SizedBox(height: 16),
 
-          // Date + type header
-          _buildDateHeader(context),
-          const SizedBox(height: 16),
+              // Date + type header
+              _buildDateHeader(context),
+              const SizedBox(height: 16),
 
-          // Full content
-          _buildContent(context),
-          const SizedBox(height: 24),
+              // Full content (with LUMARA blocks when fullEntry available)
+              _buildContent(context, fullEntry),
+              const SizedBox(height: 24),
 
-          // Media (photos, videos, files) — load from journal when possible for correct URIs
-          if (entry.mediaItems.isNotEmpty) ...[
-            Text(
-              'Media',
-              style: TextStyle(
-                color: kcPrimaryTextColor,
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: 8),
-            _buildMediaSection(context),
-            const SizedBox(height: 24),
-          ],
+              // Media (photos, videos, files) — load from journal when possible for correct URIs
+              if (entry.mediaItems.isNotEmpty) ...[
+                Text(
+                  'Media',
+                  style: TextStyle(
+                    color: kcPrimaryTextColor,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                _buildMediaSection(context),
+                const SizedBox(height: 24),
+              ],
 
-          // Themes section
-          if (entry.themes.isNotEmpty) _buildThemesSection(context),
-          if (entry.themes.isNotEmpty) const SizedBox(height: 24),
+              // Themes section
+              if (entry.themes.isNotEmpty) _buildThemesSection(context),
+              if (entry.themes.isNotEmpty) const SizedBox(height: 24),
 
-          // Related entries section (CHRONICLE integration)
-          _buildRelatedEntries(context),
-          const SizedBox(height: 24),
+              // Related entries section (CHRONICLE integration)
+              _buildRelatedEntries(context, fullEntry),
+              const SizedBox(height: 24),
 
-          // LUMARA's note
-          _buildLumaraNote(context),
-          const SizedBox(height: 32),
-        ],
+              // LUMARA's note (from overview or lumaraBlocks)
+              _buildLumaraNote(context, fullEntry),
+              const SizedBox(height: 32),
+            ],
+          );
+        },
       ),
     );
   }
@@ -248,7 +257,7 @@ class ExpandedEntryView extends StatelessWidget {
     );
   }
 
-  Widget _buildContent(BuildContext context) {
+  Widget _buildContent(BuildContext context, [JournalEntry? fullEntry]) {
     switch (entry.type) {
       case FeedEntryType.activeConversation:
       case FeedEntryType.savedConversation:
@@ -256,7 +265,7 @@ class ExpandedEntryView extends StatelessWidget {
       case FeedEntryType.voiceMemo:
         return _buildVoiceContent(context);
       case FeedEntryType.reflection:
-        return _buildWrittenContent(context);
+        return _buildWrittenContent(context, fullEntry);
       case FeedEntryType.lumaraInitiative:
         return _buildLumaraInitiativeContent(context);
     }
@@ -439,24 +448,63 @@ class ExpandedEntryView extends StatelessWidget {
     );
   }
 
-  Widget _buildWrittenContent(BuildContext context) {
-    final raw = entry.content?.toString() ?? entry.preview;
-    final summary = FeedHelpers.extractSummary(raw);
-    final body = FeedHelpers.bodyWithoutSummary(raw);
+  Widget _buildWrittenContent(BuildContext context, [JournalEntry? fullEntry]) {
     final baseStyle = TextStyle(
       color: kcPrimaryTextColor.withOpacity(0.85),
       fontSize: 15,
       height: 1.6,
     );
     final children = <Widget>[];
-    
-    // Only show the summary section if it's meaningfully different from the body
-    // (not just the first paragraph of the body repeated)
+
+    // When we have full entry with LUMARA blocks, show interleaved content (writer text + Lumara blocks + user comments)
+    if (fullEntry != null && fullEntry.lumaraBlocks.isNotEmpty) {
+      final mainText = FeedHelpers.contentWithoutPhaseHashtags(fullEntry.content);
+      final summary = FeedHelpers.extractSummary(mainText);
+      final body = FeedHelpers.bodyWithoutSummary(mainText);
+
+      if (summary != null && summary.isNotEmpty && body.isNotEmpty &&
+          !body.trimLeft().startsWith(summary.substring(0, (summary.length * 0.6).round().clamp(0, summary.length)))) {
+        children.addAll([
+          Text(
+            'Summary',
+            style: TextStyle(
+              color: kcPrimaryTextColor,
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 6),
+          ..._buildParagraphWidgets(context, summary, baseStyle.copyWith(fontStyle: FontStyle.italic)),
+          const SizedBox(height: 16),
+        ]);
+      }
+      children.addAll(_buildParagraphWidgets(context, body, baseStyle));
+
+      for (final block in fullEntry.lumaraBlocks) {
+        children.add(const SizedBox(height: 16));
+        children.add(_buildReadOnlyLumaraBlock(context, block));
+        if (block.userComment != null && block.userComment!.trim().isNotEmpty) {
+          children.add(const SizedBox(height: 10));
+          children.addAll(_buildParagraphWidgets(
+            context,
+            block.userComment!,
+            baseStyle,
+          ));
+        }
+      }
+      return Column(crossAxisAlignment: CrossAxisAlignment.start, children: children);
+    }
+
+    // Fallback: entry content only (no blocks)
+    final raw = entry.content?.toString() ?? entry.preview;
+    final summary = FeedHelpers.extractSummary(raw);
+    final body = FeedHelpers.bodyWithoutSummary(raw);
+
     final showSummary = summary != null &&
         summary.isNotEmpty &&
         body.isNotEmpty &&
         !body.trimLeft().startsWith(summary.substring(0, (summary.length * 0.6).round().clamp(0, summary.length)));
-    
+
     if (showSummary) {
       children.addAll([
         Text(
@@ -474,6 +522,54 @@ class ExpandedEntryView extends StatelessWidget {
     }
     children.addAll(_buildParagraphWidgets(context, body, baseStyle));
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: children);
+  }
+
+  /// Read-only LUMARA reflection block (no actions)
+  Widget _buildReadOnlyLumaraBlock(BuildContext context, InlineBlock block) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: kcPrimaryColor.withOpacity(0.06),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: kcPrimaryColor.withOpacity(0.12)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  gradient: kcPrimaryGradient,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: const Icon(Icons.auto_awesome, size: 14, color: Colors.white),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'LUMARA',
+                style: TextStyle(
+                  color: kcPrimaryTextColor,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          ..._buildParagraphWidgets(
+            context,
+            block.content,
+            TextStyle(
+              color: kcPrimaryTextColor.withOpacity(0.9),
+              fontSize: 14,
+              height: 1.55,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildLumaraInitiativeContent(BuildContext context) {
@@ -532,8 +628,13 @@ class ExpandedEntryView extends StatelessWidget {
     );
   }
 
-  Widget _buildRelatedEntries(BuildContext context) {
-    // CHRONICLE integration - placeholder for related entries
+  Widget _buildRelatedEntries(BuildContext context, [JournalEntry? fullEntry]) {
+    List<String>? relatedIds;
+    if (fullEntry?.metadata != null && fullEntry!.metadata!.containsKey('relatedEntryIds')) {
+      final raw = fullEntry.metadata!['relatedEntryIds'];
+      if (raw is List) relatedIds = raw.cast<String>();
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -546,38 +647,159 @@ class ExpandedEntryView extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 8),
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: kcSurfaceAltColor,
-            borderRadius: BorderRadius.circular(12),
+        if (relatedIds != null && relatedIds.isNotEmpty)
+          FutureBuilder<List<JournalEntry>>(
+            future: _loadRelatedEntries(relatedIds),
+            builder: (context, snapshot) {
+              final entries = snapshot.data ?? [];
+              if (entries.isEmpty && snapshot.connectionState != ConnectionState.waiting) {
+                return _relatedEntriesPlaceholder(
+                  'No related entries',
+                  context,
+                );
+              }
+              if (snapshot.connectionState == ConnectionState.waiting && entries.isEmpty) {
+                return _relatedEntriesPlaceholder(
+                  'Loading...',
+                  context,
+                );
+              }
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: entries.map((e) {
+                  final dateStr = '${e.createdAt.month}/${e.createdAt.day}/${e.createdAt.year}';
+                  final title = e.title.isNotEmpty ? e.title : (e.content.length > 60 ? '${e.content.substring(0, 57)}...' : e.content);
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: InkWell(
+                      onTap: () => _openEntry(context, e.id),
+                      borderRadius: BorderRadius.circular(12),
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: kcSurfaceAltColor,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.description_outlined, size: 18, color: kcSecondaryTextColor.withOpacity(0.6)),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    title,
+                                    style: TextStyle(
+                                      color: kcPrimaryTextColor,
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    dateStr,
+                                    style: TextStyle(
+                                      color: kcSecondaryTextColor.withOpacity(0.7),
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Icon(Icons.chevron_right, size: 20, color: kcSecondaryTextColor.withOpacity(0.5)),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                }).toList(),
+              );
+            },
+          )
+        else
+          _relatedEntriesPlaceholder(
+            'Related entries from CHRONICLE will appear here when available.',
+            context,
           ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(Icons.link, size: 20, color: kcSecondaryTextColor.withOpacity(0.4)),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  'Related entries from CHRONICLE will appear here',
-                  style: TextStyle(
-                    color: kcSecondaryTextColor.withOpacity(0.5),
-                    fontSize: 13,
-                  ),
-                  softWrap: true,
-                  overflow: TextOverflow.visible,
-                ),
-              ),
-            ],
-          ),
-        ),
       ],
     );
   }
 
-  Widget _buildLumaraNote(BuildContext context) {
-    if (!entry.hasLumaraReflections) return const SizedBox.shrink();
+  Future<List<JournalEntry>> _loadRelatedEntries(List<String> ids) async {
+    final repo = JournalRepository();
+    final list = <JournalEntry>[];
+    for (final id in ids) {
+      final e = await repo.getJournalEntryById(id);
+      if (e != null) list.add(e);
+    }
+    return list;
+  }
+
+  Widget _relatedEntriesPlaceholder(String text, BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: kcSurfaceAltColor,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.link, size: 20, color: kcSecondaryTextColor.withOpacity(0.4)),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              text,
+              style: TextStyle(
+                color: kcSecondaryTextColor.withOpacity(0.5),
+                fontSize: 13,
+              ),
+              softWrap: true,
+              overflow: TextOverflow.visible,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _openEntry(BuildContext context, String entryId) {
+    JournalRepository().getJournalEntryById(entryId).then((e) {
+      if (e != null && context.mounted) {
+        Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (context) => JournalScreen(
+              existingEntry: e,
+              isViewOnly: true,
+              openAsEdit: false,
+            ),
+          ),
+        );
+      }
+    });
+  }
+
+  Widget _buildLumaraNote(BuildContext context, [JournalEntry? fullEntry]) {
+    final hasReflections = entry.hasLumaraReflections || (fullEntry != null && (fullEntry.overview != null || fullEntry.lumaraBlocks.isNotEmpty));
+    if (!hasReflections) return const SizedBox.shrink();
+
+    String noteText = '';
+    if (fullEntry != null) {
+      if (fullEntry.overview != null && fullEntry.overview!.trim().isNotEmpty) {
+        noteText = fullEntry.overview!.trim();
+      } else if (fullEntry.lumaraBlocks.isNotEmpty) {
+        noteText = fullEntry.lumaraBlocks.map((b) => b.content.trim()).where((s) => s.isNotEmpty).join('\n\n');
+      }
+    }
+    if (noteText.isEmpty && entry.hasLumaraReflections) {
+      noteText = 'LUMARA reflection content will appear here when available.';
+    }
+    if (noteText.isEmpty) return const SizedBox.shrink();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -611,12 +833,16 @@ class ExpandedEntryView extends StatelessWidget {
             borderRadius: BorderRadius.circular(12),
             border: Border.all(color: kcPrimaryColor.withOpacity(0.12)),
           ),
-          child: Text(
-            'LUMARA reflection content will appear here when available.',
-            style: TextStyle(
-              color: kcPrimaryTextColor.withOpacity(0.7),
-              fontSize: 14,
-              height: 1.5,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: _buildParagraphWidgets(
+              context,
+              noteText,
+              TextStyle(
+                color: kcPrimaryTextColor.withOpacity(0.85),
+                fontSize: 14,
+                height: 1.5,
+              ),
             ),
           ),
         ),

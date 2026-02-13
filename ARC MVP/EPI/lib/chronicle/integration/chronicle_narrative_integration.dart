@@ -3,21 +3,28 @@ import '../synthesis/synthesis_engine.dart';
 import '../storage/changelog_repository.dart';
 import '../models/chronicle_layer.dart';
 import '../scheduling/synthesis_scheduler.dart';
+import '../index/chronicle_index_builder.dart';
+import '../index/monthly_aggregation_adapter.dart';
 import 'veil_stage_models.dart';
 
 /// CHRONICLE synthesis framed as VEIL narrative integration.
 /// 
 /// This class wraps the existing SynthesisEngine but frames it
 /// explicitly as implementing the VEIL cycle stages.
+/// When [chronicleIndexBuilder] is set, EXAMINE (monthly synthesis) also updates
+/// the cross-temporal pattern index.
 class ChronicleNarrativeIntegration {
   final SynthesisEngine _synthesisEngine;
   final ChangelogRepository _changelogRepo;
-  
+  final ChronicleIndexBuilder? _chronicleIndexBuilder;
+
   ChronicleNarrativeIntegration({
     required SynthesisEngine synthesisEngine,
     required ChangelogRepository changelogRepo,
+    ChronicleIndexBuilder? chronicleIndexBuilder,
   })  : _synthesisEngine = synthesisEngine,
-        _changelogRepo = changelogRepo;
+        _changelogRepo = changelogRepo,
+        _chronicleIndexBuilder = chronicleIndexBuilder;
   
   /// Run VEIL narrative integration cycle
   /// 
@@ -122,10 +129,23 @@ class ChronicleNarrativeIntegration {
         summary: 'No entries found for $currentMonth',
       );
     }
-    
+
+    // Update cross-temporal pattern index when available
+    if (_chronicleIndexBuilder != null) {
+      try {
+        final synthesis = MonthlyAggregation.fromChronicleAggregation(aggregation);
+        await _chronicleIndexBuilder!.updateIndexAfterSynthesis(
+          userId: userId,
+          synthesis: synthesis,
+        );
+      } catch (e) {
+        developer.log('VEIL: Chronicle index update failed (non-fatal): $e');
+      }
+    }
+
     // Extract key themes for summary
     final themes = _extractThemes(aggregation.content);
-    
+
     return StageResult(
       stage: VeilStage.examine,
       period: currentMonth,

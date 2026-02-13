@@ -1263,7 +1263,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('LUMARA needs a Groq or Gemini API key to work. Configure it in Settings.'),
+              content: Text('Connection to AI isn\'t working. Configure Groq or Gemini in Settings.'),
               backgroundColor: Theme.of(context).colorScheme.error,
               action: SnackBarAction(
                 label: 'Settings',
@@ -1535,16 +1535,17 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
 
       _analytics.log('lumara_error', {'error': e.toString()});
       
-      // Check if it's an API key issue
+      // Check if it's an API/connection issue (Groq, Gemini, or generic cloud AI)
       if (e.toString().contains('API key') || 
           e.toString().contains('not configured') || 
           e.toString().contains('Gemini API key') ||
           e.toString().contains('Groq API key') ||
-          e.toString().contains('not configured')) {
+          e.toString().contains('Cloud AI') ||
+          e.toString().contains('Connection to AI')) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('LUMARA needs a Groq or Gemini API key to work. Configure it in Settings.'),
+              content: Text('Connection to AI isn\'t working. Configure Groq or Gemini in Settings.'),
               backgroundColor: Theme.of(context).colorScheme.error,
               action: SnackBarAction(
                 label: 'Settings',
@@ -3041,6 +3042,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
         loadingMessage: _lumaraLoadingMessages[index],
         attributionTraces: block.attributionTraces,
         blockId: blockId,
+        readOnly: widget.isViewOnly && !_isEditMode,
         onRegenerate: () => _onRegenerateReflection(index),
         onReflectDeeply: () => _onReflectDeeply(index),
         onContinueThought: () => _onContinueThought(index),
@@ -3059,13 +3061,27 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
   }
   
   /// Build continuation text field for user to respond after LUMARA reflection
+  /// In view-only mode shows read-only user comment with paragraph formatting
   Widget _buildContinuationField(ThemeData theme, int blockIndex) {
+    final isReadOnly = widget.isViewOnly && !_isEditMode;
+    if (isReadOnly) {
+      final block = blockIndex < _entryState.blocks.length ? _entryState.blocks[blockIndex] : null;
+      final comment = block?.userComment?.trim() ?? '';
+      if (comment.isEmpty) return const SizedBox.shrink();
+      return Padding(
+        padding: const EdgeInsets.only(top: 4, bottom: 8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: _buildViewOnlyParagraphs(theme, comment),
+        ),
+      );
+    }
+
     final controller = _continuationControllers[blockIndex];
     if (controller == null) {
-      // Should not happen, but handle gracefully
       return const SizedBox.shrink();
     }
-    
+
     return Row(
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
@@ -4684,24 +4700,45 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     );
   }
 
+  /// Build paragraph widgets from text for view-only mode (double newlines = paragraph; --- = divider)
+  List<Widget> _buildViewOnlyParagraphs(ThemeData theme, String text) {
+    final style = theme.textTheme.bodyLarge?.copyWith(
+      color: Colors.white,
+      fontSize: 16,
+      height: 1.5,
+    );
+    if (text.trim().isEmpty) return [Text('', style: style)];
+    final rawBlocks = text.split('\n\n');
+    final result = <Widget>[];
+    for (int i = 0; i < rawBlocks.length; i++) {
+      final block = rawBlocks[i].trim();
+      if (block.isEmpty) continue;
+      if (RegExp(r'^-{3,}$').hasMatch(block)) {
+        result.add(Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Divider(color: Colors.white.withOpacity(0.2), thickness: 1),
+        ));
+        continue;
+      }
+      if (block.startsWith('#')) continue;
+      result.add(Padding(
+        padding: EdgeInsets.only(bottom: i < rawBlocks.length - 1 ? 14 : 0),
+        child: Text(block, style: style),
+      ));
+    }
+    return result.isEmpty ? [Text(text, style: style)] : result;
+  }
+
   /// Build content view with inline thumbnails for view-only mode
+  /// Shows full entry with paragraph formatting (writer paragraphs + LUMARA blocks + writer comments)
   Widget _buildContentView(ThemeData theme) {
-    // In view-only mode, just show the text content
+    // In view-only mode, show text with paragraph structure (double newlines = paragraphs)
     // Photos are displayed separately via _buildPhotoGallerySection -> _buildPhotoThumbnailGrid
     return Container(
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            _entryState.text,
-            style: theme.textTheme.bodyLarge?.copyWith(
-              color: Colors.white,
-              fontSize: 16,
-              height: 1.5,
-            ),
-          ),
-        ],
+        children: _buildViewOnlyParagraphs(theme, _entryState.text),
       ),
     );
   }

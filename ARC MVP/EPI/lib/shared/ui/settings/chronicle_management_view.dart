@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
-import 'package:my_app/chronicle/services/chronicle_manual_service.dart';
 import 'package:my_app/chronicle/services/chronicle_export_service.dart';
+import 'package:my_app/chronicle/services/chronicle_import_service.dart';
 import 'package:my_app/chronicle/services/chronicle_onboarding_service.dart';
 import 'package:my_app/chronicle/storage/aggregation_repository.dart';
 import 'package:my_app/chronicle/storage/changelog_repository.dart';
@@ -10,6 +10,7 @@ import 'package:my_app/chronicle/synthesis/synthesis_engine.dart';
 import 'package:my_app/chronicle/storage/layer0_repository.dart';
 import 'package:my_app/chronicle/models/chronicle_layer.dart';
 import 'package:my_app/chronicle/scheduling/synthesis_scheduler.dart';
+import 'package:my_app/chronicle/scheduling/chronicle_schedule_preferences.dart';
 import 'package:my_app/arc/internal/mira/journal_repository.dart';
 import 'package:my_app/services/firebase_auth_service.dart';
 import 'package:my_app/shared/ui/chronicle/chronicle_layers_viewer.dart';
@@ -43,10 +44,38 @@ class _ChronicleManagementViewState extends State<ChronicleManagementView> {
   int _multiyearCount = 0;
   bool _countsLoaded = false;
 
+  // Automatic synthesis cadence (daily / weekly / monthly)
+  ChronicleScheduleCadence _scheduleCadence = ChronicleScheduleCadence.daily;
+  bool _cadenceLoaded = false;
+
+  /// When true, back arrow returns to this screen's menu instead of popping the route.
+  bool get _showProgressView => _isLoading;
+
   @override
   void initState() {
     super.initState();
     _loadAggregationCounts();
+    _loadScheduleCadence();
+  }
+
+  Future<void> _loadScheduleCadence() async {
+    try {
+      final cadence = await ChronicleSchedulePreferences.getCadence();
+      if (mounted) {
+        setState(() {
+          _scheduleCadence = cadence;
+          _cadenceLoaded = true;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading schedule cadence: $e');
+      if (mounted) setState(() => _cadenceLoaded = true);
+    }
+  }
+
+  Future<void> _setScheduleCadence(ChronicleScheduleCadence cadence) async {
+    await ChronicleSchedulePreferences.setCadence(cadence);
+    if (mounted) setState(() => _scheduleCadence = cadence);
   }
 
   Future<void> _loadAggregationCounts() async {
@@ -85,7 +114,7 @@ class _ChronicleManagementViewState extends State<ChronicleManagementView> {
       _isLoading = true;
       _statusMessage = null;
       _progressCurrent = 0;
-      _progressTotal = 0;
+      _progressTotal = 2;
       _progressStage = 'Backfilling Layer 0...';
     });
     try {
@@ -97,7 +126,7 @@ class _ChronicleManagementViewState extends State<ChronicleManagementView> {
           if (mounted) setState(() {
             _progressCurrent = processed;
             _progressTotal = total;
-            _progressStage = 'Backfilling Layer 0...';
+            _progressStage = processed < total ? 'Backfilling Layer 0...' : 'Synthesizing current month...';
           });
         },
       );
@@ -125,7 +154,7 @@ class _ChronicleManagementViewState extends State<ChronicleManagementView> {
       _isLoading = true;
       _statusMessage = null;
       _progressCurrent = 0;
-      _progressTotal = 0;
+      _progressTotal = 2;
       _progressStage = 'Backfilling Layer 0...';
     });
     try {
@@ -137,7 +166,7 @@ class _ChronicleManagementViewState extends State<ChronicleManagementView> {
           if (mounted) setState(() {
             _progressCurrent = processed;
             _progressTotal = total;
-            _progressStage = 'Backfilling Layer 0...';
+            _progressStage = processed < total ? 'Backfilling Layer 0...' : 'Synthesizing current year...';
           });
         },
       );
@@ -165,7 +194,7 @@ class _ChronicleManagementViewState extends State<ChronicleManagementView> {
       _isLoading = true;
       _statusMessage = null;
       _progressCurrent = 0;
-      _progressTotal = 0;
+      _progressTotal = 2;
       _progressStage = 'Backfilling Layer 0...';
     });
     try {
@@ -177,7 +206,7 @@ class _ChronicleManagementViewState extends State<ChronicleManagementView> {
           if (mounted) setState(() {
             _progressCurrent = processed;
             _progressTotal = total;
-            _progressStage = 'Backfilling Layer 0...';
+            _progressStage = processed < total ? 'Backfilling Layer 0...' : 'Synthesizing multi-year...';
           });
         },
       );
@@ -185,6 +214,57 @@ class _ChronicleManagementViewState extends State<ChronicleManagementView> {
         setState(() {
           _isLoading = false;
           _statusMessage = result.success ? (result.message ?? 'Done') : 'Failed: ${result.error}';
+          _statusIsError = !result.success;
+        });
+        if (result.success) await _loadAggregationCounts();
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _statusMessage = 'Error: $e';
+          _statusIsError = true;
+        });
+      }
+    }
+  }
+
+  Future<void> _importAggregations() async {
+    final String? selectedDirectory = await FilePicker.platform.getDirectoryPath();
+    if (selectedDirectory == null || !mounted) return;
+
+    setState(() {
+      _isLoading = true;
+      _statusMessage = null;
+      _progressCurrent = 0;
+      _progressTotal = 0;
+      _progressStage = 'Scanning folder...';
+    });
+
+    try {
+      final userId = FirebaseAuthService.instance.currentUser?.uid ?? 'default_user';
+      final aggregationRepo = AggregationRepository();
+      final importService = ChronicleImportService(aggregationRepo: aggregationRepo);
+      final exportDir = Directory(selectedDirectory);
+
+      final result = await importService.importFromDirectory(
+        userId: userId,
+        exportDir: exportDir,
+        onProgress: (processed, total) {
+          if (mounted) {
+            setState(() {
+              _progressCurrent = processed;
+              _progressTotal = total;
+              _progressStage = 'Importing aggregations... ($processed / $total)';
+            });
+          }
+        },
+      );
+
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _statusMessage = result.success ? result.toString() : 'Import failed: ${result.error}';
           _statusIsError = !result.success;
         });
         if (result.success) await _loadAggregationCounts();
@@ -259,25 +339,6 @@ class _ChronicleManagementViewState extends State<ChronicleManagementView> {
     }
   }
 
-  Future<ChronicleManualService> _createManualService() async {
-    final layer0Repo = Layer0Repository();
-    await layer0Repo.initialize();
-    
-    final aggregationRepo = AggregationRepository();
-    final changelogRepo = ChangelogRepository();
-    
-    final synthesisEngine = SynthesisEngine(
-      layer0Repo: layer0Repo,
-      aggregationRepo: aggregationRepo,
-      changelogRepo: changelogRepo,
-    );
-    
-    return ChronicleManualService(
-      synthesisEngine: synthesisEngine,
-      changelogRepo: changelogRepo,
-    );
-  }
-
   Future<ChronicleOnboardingService> _createOnboardingService() async {
     final journalRepo = JournalRepository();
     final layer0Repo = Layer0Repository();
@@ -311,7 +372,7 @@ class _ChronicleManagementViewState extends State<ChronicleManagementView> {
       _isLoading = true;
       _statusMessage = null;
       _progressCurrent = 0;
-      _progressTotal = 0;
+      _progressTotal = 100;
       _progressStage = 'Initializing...';
     });
 
@@ -327,7 +388,7 @@ class _ChronicleManagementViewState extends State<ChronicleManagementView> {
             setState(() {
               _progressStage = stage;
               _progressCurrent = progress;
-              _progressTotal = total;
+              _progressTotal = total > 0 ? total : 100;
             });
           }
         },
@@ -361,7 +422,15 @@ class _ChronicleManagementViewState extends State<ChronicleManagementView> {
       appBar: AppBar(
         backgroundColor: kcBackgroundColor,
         elevation: 0,
-        leading: const BackButton(color: kcPrimaryTextColor),
+        leading: _showProgressView
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back, color: kcPrimaryTextColor),
+                onPressed: () {
+                  setState(() => _isLoading = false);
+                },
+                tooltip: 'Back to menu',
+              )
+            : const BackButton(color: kcPrimaryTextColor),
         title: Text(
           'CHRONICLE Management',
           style: heading1Style(context).copyWith(
@@ -441,6 +510,37 @@ class _ChronicleManagementViewState extends State<ChronicleManagementView> {
 
                   const SizedBox(height: 32),
 
+                  // Automatic synthesis schedule (Daily / Weekly / Monthly)
+                  _buildSection(
+                    title: 'Automatic synthesis',
+                    children: [
+                      Text(
+                        'How often to check and run CHRONICLE synthesis (and pattern index). Next run uses this setting.',
+                        style: captionStyle(context).copyWith(
+                          color: kcSecondaryTextColor,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      if (!_cadenceLoaded)
+                        const SizedBox(
+                          height: 48,
+                          child: Center(child: CircularProgressIndicator()),
+                        )
+                      else
+                        Row(
+                          children: [
+                            _buildCadenceChip(ChronicleScheduleCadence.daily),
+                            const SizedBox(width: 8),
+                            _buildCadenceChip(ChronicleScheduleCadence.weekly),
+                            const SizedBox(width: 8),
+                            _buildCadenceChip(ChronicleScheduleCadence.monthly),
+                          ],
+                        ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 32),
+
                   // Backfill and Synthesize (single section with 4 options)
                   _buildSection(
                     title: 'Backfill and Synthesize',
@@ -477,10 +577,17 @@ class _ChronicleManagementViewState extends State<ChronicleManagementView> {
 
                   const SizedBox(height: 32),
 
-                  // Export
+                  // Import / Export
                   _buildSection(
-                    title: 'Export',
+                    title: 'Import & Export',
                     children: [
+                      _buildActionButton(
+                        'Import Aggregations',
+                        'Import aggregations from a previously exported folder',
+                        Icons.upload,
+                        _importAggregations,
+                      ),
+                      const SizedBox(height: 12),
                       _buildActionButton(
                         'Export All Aggregations',
                         'Export all CHRONICLE aggregations to a folder',
@@ -540,9 +647,10 @@ class _ChronicleManagementViewState extends State<ChronicleManagementView> {
   }
 
   Widget _buildProgressView() {
-    final fraction = _progressTotal > 0
+    final hasTotal = _progressTotal > 0;
+    final fraction = hasTotal
         ? (_progressCurrent / _progressTotal).clamp(0.0, 1.0)
-        : null; // null = indeterminate
+        : null; // null = indeterminate (animated)
     final percent = fraction != null ? (fraction * 100).round() : null;
 
     return Center(
@@ -551,7 +659,7 @@ class _ChronicleManagementViewState extends State<ChronicleManagementView> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Circular progress with percentage in the center
+            // Circular progress: indeterminate when no fraction so it visibly animates
             SizedBox(
               width: 120,
               height: 120,
@@ -575,40 +683,65 @@ class _ChronicleManagementViewState extends State<ChronicleManagementView> {
                         color: kcPrimaryTextColor,
                         fontWeight: FontWeight.bold,
                       ),
+                    )
+                  else
+                    Text(
+                      '…',
+                      style: heading1Style(context).copyWith(
+                        color: kcPrimaryTextColor,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                 ],
               ),
             ),
             const SizedBox(height: 32),
-            // Stage label
-            if (_progressStage != null)
-              Text(
-                _progressStage!,
-                style: heading3Style(context).copyWith(color: kcPrimaryTextColor),
-                textAlign: TextAlign.center,
-              ),
+            // Stage label (always show something so it doesn't look static)
+            Text(
+              _progressStage ?? 'Working...',
+              style: heading3Style(context).copyWith(color: kcPrimaryTextColor),
+              textAlign: TextAlign.center,
+            ),
             const SizedBox(height: 8),
-            // x / y entries
-            if (_progressTotal > 0)
+            // Sub progress text
+            if (hasTotal)
               Text(
-                '$_progressCurrent / $_progressTotal entries',
+                _progressTotal <= 10
+                    ? '$_progressCurrent / $_progressTotal'
+                    : '$_progressCurrent of $_progressTotal',
+                style: bodyStyle(context).copyWith(color: kcSecondaryTextColor),
+              )
+            else
+              Text(
+                'Please wait',
                 style: bodyStyle(context).copyWith(color: kcSecondaryTextColor),
               ),
             const SizedBox(height: 24),
-            // Linear progress bar
+            // Linear progress bar: indeterminate when no fraction so it animates
             SizedBox(
               width: double.infinity,
               child: LinearProgressIndicator(
                 value: fraction,
-                minHeight: 4,
+                minHeight: 6,
                 backgroundColor: kcSurfaceAltColor,
                 valueColor: const AlwaysStoppedAnimation<Color>(kcPrimaryColor),
-                borderRadius: BorderRadius.circular(2),
+                borderRadius: BorderRadius.circular(3),
               ),
             ),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildCadenceChip(ChronicleScheduleCadence cadence) {
+    final isSelected = _scheduleCadence == cadence;
+    return FilterChip(
+      label: Text(cadence.label),
+      selected: isSelected,
+      onSelected: (_) => _setScheduleCadence(cadence),
+      selectedColor: kcPrimaryColor.withOpacity(0.3),
+      checkmarkColor: kcPrimaryColor,
     );
   }
 

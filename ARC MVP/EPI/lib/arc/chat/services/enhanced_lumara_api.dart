@@ -16,6 +16,7 @@ import 'package:my_app/chronicle/query/context_builder.dart';
 import 'package:my_app/chronicle/query/chronicle_context_cache.dart';
 import 'package:my_app/chronicle/query/drill_down_handler.dart';
 import 'package:my_app/chronicle/storage/layer0_repository.dart';
+import 'package:my_app/chronicle/editing/contradiction_checker.dart';
 import 'package:my_app/chronicle/storage/aggregation_repository.dart';
 import 'package:my_app/chronicle/models/chronicle_layer.dart';
 import 'package:my_app/chronicle/models/chronicle_aggregation.dart';
@@ -1047,6 +1048,24 @@ class EnhancedLumaraApi {
                   : '$enterpriseBlock\n\n═══════════════════════════════════════════════════════════\n\n$modeSpecificInstructions';
             }
           }
+
+          // Real-time pushback: if user message looks like a claim, check against CHRONICLE and inject truth_check context
+          if (!skipHeavyProcessing && userId != null && _layer0Repo != null) {
+            final checker = ChronicleContradictionChecker(layer0: _layer0Repo!);
+            if (checker.detectsUserClaim(request.userText)) {
+              final contradiction = await checker.checkAgainstChronicle(
+                claim: request.userText,
+                userId: userId,
+              );
+              if (contradiction != null) {
+                final truthCheckBlock = contradiction.toTruthCheckBlock(request.userText);
+                modeSpecificInstructions = modeSpecificInstructions.isEmpty
+                    ? truthCheckBlock
+                    : '$truthCheckBlock\n\n═══════════════════════════════════════════════════════════\n\n$modeSpecificInstructions';
+                print('🔵 LUMARA V23: Injected truth_check pushback context (CHRONICLE contradicts user claim)');
+              }
+            }
+          }
           
           // Get unified master prompt or voice-only trimmed prompt (use ARC data when from orchestrator)
           final recentEntries = recentEntriesFromArc ??
@@ -1469,7 +1488,7 @@ class EnhancedLumaraApi {
             sentinelScore: sentinelScore?.score,
           );
       } catch (e) {
-        print('LUMARA Enhanced API: ✗ Error calling Gemini API: $e');
+        print('LUMARA Enhanced API: ✗ Error calling cloud AI: $e');
         // No fallbacks - rethrow the error so user knows API call failed
         // Same behavior as main LUMARA chat - no hard-coded responses
         rethrow;
@@ -1731,7 +1750,7 @@ Respond now:''';
           attributionTraces: [], // No historical context needed for factual responses
         );
       } else {
-        throw Exception('Empty response from Gemini API');
+        throw Exception('Empty response from cloud AI');
       }
     } catch (e) {
       print('Error generating factual response: $e');
@@ -1780,7 +1799,7 @@ Respond now:''';
           attributionTraces: [], // No historical context needed for conversational responses
         );
       } else {
-        throw Exception('Empty response from Gemini API');
+        throw Exception('Empty response from cloud AI');
       }
     } catch (e) {
       print('Error generating conversational response: $e');

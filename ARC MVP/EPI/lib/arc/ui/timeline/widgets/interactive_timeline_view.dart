@@ -250,7 +250,7 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
               tooltip: 'Export Selected',
             ),
             const SizedBox(width: 8),
-            // Delete selected button
+            // Multi-entry delete: icon + label with count
             IconButton(
               onPressed:
                   _selectedEntryIds.isNotEmpty ? deleteSelectedEntries : null,
@@ -258,6 +258,22 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
               color: _selectedEntryIds.isNotEmpty
                   ? kcDangerColor
                   : kcSecondaryTextColor.withOpacity(0.3),
+              tooltip: _selectedEntryIds.isEmpty
+                  ? 'Delete selected'
+                  : 'Delete ${_selectedEntryIds.length} ${_selectedEntryIds.length == 1 ? 'entry' : 'entries'}',
+            ),
+            TextButton(
+              onPressed:
+                  _selectedEntryIds.isNotEmpty ? deleteSelectedEntries : null,
+              child: Text(
+                'Delete (${_selectedEntryIds.length})',
+                style: bodyStyle(context).copyWith(
+                  color: _selectedEntryIds.isNotEmpty
+                      ? kcDangerColor
+                      : kcSecondaryTextColor.withOpacity(0.3),
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ),
           ],
         ),
@@ -1508,20 +1524,25 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
       
       final outputDir = Directory(selectedPath);
       
-      // Show progress dialog
+      // Show progress dialog (explicit colors so it's visible on dark theme)
       showDialog(
         context: context,
         barrierDismissible: false,
-        builder: (dialogContext) => const Center(
+        barrierColor: Colors.black54,
+        builder: (dialogContext) => Center(
           child: Card(
+            color: kcSurfaceColor,
             child: Padding(
-              padding: EdgeInsets.all(24.0),
+              padding: const EdgeInsets.all(24.0),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  CircularProgressIndicator(),
-                  SizedBox(height: 16),
-                  Text('Exporting entries...'),
+                  const CircularProgressIndicator(color: kcPrimaryTextColor),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Exporting entries...',
+                    style: bodyStyle(dialogContext).copyWith(color: kcPrimaryTextColor),
+                  ),
                 ],
               ),
             ),
@@ -1567,24 +1588,29 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
       String? lastProgress = 'Preparing export...';
       final progressNotifier = ValueNotifier<String>(lastProgress);
       
-      // Update progress dialog
+      // Update progress dialog (explicit colors so it's visible on dark theme)
       if (mounted) {
         navigator.pop(); // Close initial dialog
         showDialog(
           context: context,
           barrierDismissible: false,
+          barrierColor: Colors.black54,
           builder: (dialogContext) => ValueListenableBuilder<String>(
             valueListenable: progressNotifier,
-            builder: (context, progress, _) => Center(
+            builder: (ctx, progress, _) => Center(
               child: Card(
+                color: kcSurfaceColor,
                 child: Padding(
                   padding: const EdgeInsets.all(24.0),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const CircularProgressIndicator(),
+                      const CircularProgressIndicator(color: kcPrimaryTextColor),
                       const SizedBox(height: 16),
-                      Text(progress),
+                      Text(
+                        progress,
+                        style: bodyStyle(ctx).copyWith(color: kcPrimaryTextColor),
+                      ),
                     ],
                   ),
                 ),

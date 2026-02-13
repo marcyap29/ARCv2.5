@@ -30,10 +30,10 @@ class _LumaraSplashScreenState extends State<LumaraSplashScreen>
   Timer? _timer;
   /// Safeguard: if phase load hangs, still navigate after this delay so app never sticks on splash/white.
   Timer? _safeguardTimer;
-  String _currentPhase = 'Discovery';
+  /// Only used when _userHasPhase is true; never default to Discovery for display.
+  String _currentPhase = '';
   bool _phaseLoaded = false;
-  /// True only when the user has at least one phase regime (current or past).
-  /// When false, we show only the LUMARA logo—no phase shape or label.
+  /// True only when a phase has been designated (profile or regime). When false, show only the LUMARA logo.
   bool _userHasPhase = false;
   bool _hasNavigated = false;
   late AnimationController _fadeController;
@@ -66,23 +66,11 @@ class _LumaraSplashScreenState extends State<LumaraSplashScreen>
 
   Future<void> _loadCurrentPhase() async {
     try {
-      // SOP: 1a RIVET (gate open + regime), else 1b quiz result, else Discovery
-      var profilePhase = await UserPhaseService.getCurrentPhase();
+      // Use same source as Phase Page: profile (quiz/manual) first, then regime; empty when none set
+      final profilePhase = await UserPhaseService.getCurrentPhase();
       print('DEBUG: _loadCurrentPhase - getCurrentPhase returned: "$profilePhase"');
-      
-      // MIGRATION: If UserProfile has no phase, try to backfill from entries
-      if (profilePhase.isEmpty) {
-        print('DEBUG: Profile phase is empty, attempting backfill from entries...');
-        final entryPhase = await _getPhaseFromEntries();
-        print('DEBUG: _getPhaseFromEntries returned: "$entryPhase"');
-        if (entryPhase != null && entryPhase.isNotEmpty) {
-          print('DEBUG: Backfilling UserProfile phase from entry: $entryPhase');
-          final success = await UserPhaseService.forceUpdatePhase(entryPhase);
-          print('DEBUG: forceUpdatePhase returned: $success');
-          profilePhase = entryPhase;
-        }
-      }
-      
+      // Do not backfill UserProfile from entries here — splash is display-only. Phase Page / onboarding set profile.
+
       final analyticsService = AnalyticsService();
       final rivetSweepService = RivetSweepService(analyticsService);
       final phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
@@ -137,45 +125,6 @@ class _LumaraSplashScreenState extends State<LumaraSplashScreen>
         });
         _startTimer();
       }
-    }
-  }
-  
-  /// Get phase from existing journal entries (for migration/backfill)
-  Future<String?> _getPhaseFromEntries() async {
-    try {
-      final journalRepo = JournalRepository();
-      final entries = await journalRepo.getAllJournalEntries();
-      print('DEBUG: _getPhaseFromEntries - found ${entries.length} entries');
-      if (entries.isEmpty) return null;
-      
-      // Sort by most recent first
-      final sortedEntries = List.of(entries)
-        ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
-      
-      // Find the first entry with a valid phase
-      for (final entry in sortedEntries) {
-        print('DEBUG: Checking entry ${entry.id}: autoPhase=${entry.autoPhase}, computedPhase=${entry.computedPhase}, phase=${entry.phase}');
-        // Use computedPhase (priority: userPhaseOverride > autoPhase > legacyPhaseTag)
-        final computed = entry.computedPhase;
-        if (computed != null && computed.isNotEmpty) {
-          // Capitalize properly
-          final result = computed[0].toUpperCase() + computed.substring(1).toLowerCase();
-          print('DEBUG: Found phase from computedPhase: $result');
-          return result;
-        }
-        // Fallback to phase field
-        if (entry.phase != null && entry.phase!.isNotEmpty) {
-          final phase = entry.phase!;
-          final result = phase[0].toUpperCase() + phase.substring(1).toLowerCase();
-          print('DEBUG: Found phase from phase field: $result');
-          return result;
-        }
-      }
-      print('DEBUG: No entries with valid phase found');
-      return null;
-    } catch (e) {
-      print('DEBUG: Error getting phase from entries: $e');
-      return null;
     }
   }
 

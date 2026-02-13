@@ -311,6 +311,9 @@ The main screen. Replaces both `LumaraAssistantScreen` (chat) and `UnifiedJourna
 **Paragraph Rendering (improved v2.3):**
 - `ExpandedEntryView._buildParagraphWidgets()` — splits text on `\n\n` (paragraph break); preserves `\n` within paragraphs as line breaks; 14px bottom spacing, 1.6 line height. `---` lines become visual `Divider` widgets. Markdown headers (`#`) skipped in display. Replaces single `Text()` blocks.
 - Summary section only shown when meaningfully different from body (60% overlap detection prevents redundant display).
+- `_buildReadOnlyLumaraBlock()` — Renders LUMARA reflection blocks inline (icon + "LUMARA" header + block content). Shown when full journal entry has `lumaraBlocks`.
+- `_buildRelatedEntries()` — When `metadata['relatedEntryIds']` is present, loads and displays related entries as tappable cards (title, date, chevron). Navigates to full entry view.
+- `_buildLumaraNote()` — Shows actual `overview` or `lumaraBlocks` content from the full journal entry instead of placeholder.
 - `EntryContentRenderer._buildParagraphs()` — same paragraph logic in the timeline view.
 
 **Summary Extraction:**
@@ -380,7 +383,7 @@ All cards extend **BaseFeedCard**, which provides a consistent wrapper with a ph
 - **Input bar removed**: `FeedInputBar` removed from feed; Chat/Reflect/Voice action buttons serve as quick-start actions in both empty and populated states
 - **Phase Arcform preview**: `SimplifiedArcformView3D(cardOnly: true)` in feed, tap opens `PhaseAnalysisView`
 - **Phase hashtag stripping**: `FeedHelpers.contentWithoutPhaseHashtags()` strips phase tags from display content everywhere
-- **ExpandedEntryView enhanced**: Media section, working edit (opens `JournalScreen`), working delete with `onEntryDeleted` callback
+- **ExpandedEntryView enhanced**: Media section, working edit (opens `JournalScreen`), working delete with `onEntryDeleted` callback. Full journal entry loaded via `FutureBuilder` to show LUMARA blocks (interleaved writer text + reflection blocks + user comments), real related entries from `metadata['relatedEntryIds']` (tappable), and LUMARA overview/blocks content (v3.3.26)
 - **Phase priority fix**: `UserPhaseService.getDisplayPhase()` reordered — user's explicit phase (quiz/manual) takes priority over RIVET/regime
 - **Auto phase analysis**: `runAutoPhaseAnalysis()` headless function auto-creates phase regimes after ARCX import
 - **Phase Analysis refactored**: Removed pending approval flow; analysis auto-applies; new `PhaseAnalysisSettingsView` in Settings

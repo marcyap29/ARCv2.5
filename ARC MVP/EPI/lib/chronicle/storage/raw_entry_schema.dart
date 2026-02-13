@@ -3,6 +3,12 @@
 /// Defines the structure of raw entries stored in Layer 0.
 /// This matches the specification from the CHRONICLE architecture document.
 
+/// Source type for Layer 0 entries (journal vs Crossroads decision).
+enum ChronicleEntryType {
+  journal,
+  decision,
+}
+
 class RawEntrySchema {
   /// Entry ID (UUID string)
   final String entryId;
@@ -83,6 +89,10 @@ class RawEntryAnalysis {
   final List<String>? rivetTransitions;
   final List<String> extractedThemes;
   final List<String> keywords;
+  /// journal (default) or decision (Crossroads)
+  final String? entryType;
+  /// Populated when entryType == decision
+  final Map<String, dynamic>? decisionData;
 
   const RawEntryAnalysis({
     this.sentinelScore,
@@ -91,10 +101,14 @@ class RawEntryAnalysis {
     this.rivetTransitions,
     this.extractedThemes = const [],
     this.keywords = const [],
+    this.entryType,
+    this.decisionData,
   });
 
+  bool get isDecision => entryType == 'decision';
+
   Map<String, dynamic> toJson() {
-    return {
+    final map = <String, dynamic>{
       'sentinel_score': sentinelScore?.toJson(),
       'atlas_phase': atlasPhase,
       'atlas_scores': atlasScores,
@@ -102,6 +116,9 @@ class RawEntryAnalysis {
       'extracted_themes': extractedThemes,
       'keywords': keywords,
     };
+    if (entryType != null) map['entry_type'] = entryType;
+    if (decisionData != null) map['decision_data'] = decisionData;
+    return map;
   }
 
   factory RawEntryAnalysis.fromJson(Map<String, dynamic> json) {
@@ -118,6 +135,10 @@ class RawEntryAnalysis {
           : null,
       extractedThemes: List<String>.from(json['extracted_themes'] as List? ?? []),
       keywords: List<String>.from(json['keywords'] as List? ?? []),
+      entryType: json['entry_type'] as String?,
+      decisionData: json['decision_data'] != null
+          ? Map<String, dynamic>.from(json['decision_data'] as Map)
+          : null,
     );
   }
 }

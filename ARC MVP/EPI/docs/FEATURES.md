@@ -1,7 +1,7 @@
 # EPI MVP - Comprehensive Features Guide
 
-**Version:** 3.3.25
-**Last Updated:** February 12, 2026
+**Version:** 3.3.26
+**Last Updated:** February 13, 2026
 
 ---
 
@@ -198,6 +198,14 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 - **Groq Primary LLM Provider (v3.3.24)**: LUMARA now uses **Groq** (Llama 3.3 70B / Mixtral 8x7b) as the primary cloud LLM, with Gemini as fallback. Streaming and non-streaming support. Mode-aware temperature (explore: 0.8, integrate: 0.7, reflect: 0.6). Firebase `proxyGroq` Cloud Function hides API key from client.
 - **Chat Phase Classification (v3.3.25)**: LUMARA chat sessions are automatically classified into ATLAS phases using the same inference pipeline as journal entries. Phase displayed in session app bar (tappable for manual override). Phase chips on chat list cards. Chat sessions contribute to phase regime building. Backfill support for existing chats.
 - **3D Constellation Phase Card (v3.3.25)**: `SimplifiedArcformView3D(cardOnly: true)` replaces the legacy phase preview in the Unified Feed, showing the 3D constellation card (header + interactive constellation). Tapping opens the full Phase Analysis page.
+- **Crossroads Decision Capture (v3.3.26)**: RIVET detects decision moments in chat messages (five phrase categories weighted by ATLAS phase). Confirmation prompt → four-step capture flow → CHRONICLE Layer 0 storage as `entry_type: "decision"`. Monthly synthesis weaves decisions as inflection points. Outcome revisitation via scheduled prompts. `QueryIntent.decisionArchaeology` for decision history queries. Export includes `decisions/` directory.
+- **LUMARA Intellectual Honesty (v3.3.26)**: Real-time pushback when user claims contradict their journal record. `ChronicleContradictionChecker` checks against Layer 0; `truth_check` injected into system prompt (chat + reflection). `<intellectual_honesty>` master prompt section defines when to push back vs. defer. Evidence Review widget shows CHRONICLE excerpts below pushback responses.
+- **CHRONICLE Cross-Temporal Pattern Index (v3.3.26)**: On-device sentence embeddings via TFLite Universal Sentence Encoder. `ChronicleIndexBuilder` clusters themes by cosine similarity, tracks appearances across time. Updated after monthly synthesis. Three-stage matching (exact → cosine → fuzzy). `PatternQueryRouter` for index-backed queries.
+- **CHRONICLE Edit Validation (v3.3.26)**: `EditValidator` detects pattern suppression and factual contradictions when users edit synthesis content. Surfaces warnings with "keep pattern with different wording / note why removing / proceed anyway" options.
+- **CHRONICLE Import (v3.3.26)**: Import aggregations from a previously exported directory. New "Import Aggregations" button in CHRONICLE Management.
+- **CHRONICLE Schedule Preferences (v3.3.26)**: User-selectable synthesis cadence (Daily / Weekly / Monthly) via FilterChip in settings. VEIL scheduler adapts run interval accordingly.
+- **Expanded Entry View (v3.3.26)**: Full journal entry loaded to show interleaved writer text + LUMARA reflection blocks + user comments. Related entries section shows real linked entries (tappable). LUMARA's note section shows actual overview/blocks content.
+- **Journal View-Only Improvements (v3.3.26)**: Read-only LUMARA blocks (no action buttons). Paragraph formatting for writer text and user comments. View-only continuation field shows saved comment text.
 
 **Voice Chat - Voice Sigil (v3.3.16, upgraded from Jarvis Mode v2.1.53)**
 - **Voice Sigil UI**: Sophisticated 6-state animation system replacing the original glowing indicator

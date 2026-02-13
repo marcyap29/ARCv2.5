@@ -1,5 +1,6 @@
 import '../../../models/journal_entry_model.dart';
 import '../../../prism/atlas/phase/phase_history_repository.dart';
+import '../../../crossroads/models/decision_capture.dart';
 import 'layer0_repository.dart';
 import 'raw_entry_schema.dart';
 
@@ -138,5 +139,84 @@ class Layer0Populator {
       if (ok) succeeded++; else failed++;
     }
     return (succeeded: succeeded, failed: failed);
+  }
+
+  /// Populate Layer 0 from a Crossroads DecisionCapture.
+  /// Decision entries use entry_type "decision" and store full decision_data in analysis.
+  Future<bool> populateFromDecisionCapture({
+    required DecisionCapture capture,
+    required String userId,
+  }) async {
+    try {
+      final content = [
+        capture.decisionStatement,
+        capture.lifeContext,
+        capture.optionsConsidered,
+        capture.successMarker,
+      ].where((s) => s.isNotEmpty).join('\n\n');
+      final wordCount = content.isEmpty ? 0 : content.split(RegExp(r'\s+')).where((s) => s.isNotEmpty).length;
+
+      final themes = _extractThemesFromDecision(capture.decisionStatement, capture.lifeContext);
+
+      final decisionData = <String, dynamic>{
+        'decision_capture_id': capture.id,
+        'decision_statement': capture.decisionStatement,
+        'life_context': capture.lifeContext,
+        'options_considered': capture.optionsConsidered,
+        'success_marker': capture.successMarker,
+        'outcome_log': capture.outcomeLog,
+        'outcome_logged_at': capture.outcomeLoggedAt?.toIso8601String(),
+        'phase_at_capture': capture.phaseAtCapture.name,
+        'trigger_confidence': capture.triggerConfidence,
+        'user_initiated': capture.userInitiated,
+      };
+
+      final analysis = RawEntryAnalysis(
+        sentinelScore: SentinelScore(
+          emotionalIntensity: capture.sentinelScoreAtCapture,
+          frequency: 0,
+          density: capture.sentinelScoreAtCapture,
+        ),
+        atlasPhase: capture.phaseAtCapture.name,
+        rivetTransitions: const ['decisionCapture'],
+        extractedThemes: themes,
+        keywords: themes,
+        entryType: 'decision',
+        decisionData: decisionData,
+      );
+
+      final schema = RawEntrySchema(
+        entryId: 'decision_${capture.id}',
+        timestamp: capture.capturedAt,
+        content: content,
+        metadata: RawEntryMetadata(
+          wordCount: wordCount,
+          voiceTranscribed: false,
+          mediaAttachments: const [],
+        ),
+        analysis: analysis,
+      );
+
+      final rawEntry = ChronicleRawEntry.fromSchema(schema, userId);
+      await _layer0Repo.saveEntry(rawEntry);
+      print('✅ Layer0Populator: Populated Layer 0 for decision ${capture.id}');
+      return true;
+    } catch (e) {
+      print('❌ Layer0Populator: Failed to populate Layer 0 for decision ${capture.id}: $e');
+      return false;
+    }
+  }
+
+  List<String> _extractThemesFromDecision(String statement, String lifeContext) {
+    final combined = '$statement $lifeContext'.toLowerCase();
+    final words = combined.split(RegExp(r'\s+')).where((w) => w.length > 3).toList();
+    final stop = {'what', 'that', 'this', 'with', 'from', 'have', 'been', 'when', 'where', 'about', 'would', 'could', 'should'};
+    final counted = <String, int>{};
+    for (final w in words) {
+      if (stop.contains(w)) continue;
+      counted[w] = (counted[w] ?? 0) + 1;
+    }
+    final sorted = counted.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
+    return sorted.take(10).map((e) => e.key).toList();
   }
 }

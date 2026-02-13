@@ -1,7 +1,7 @@
 # EPI LUMARA MVP - Changelog
 
-**Version:** 3.3.25
-**Last Updated:** February 12, 2026
+**Version:** 3.3.26
+**Last Updated:** February 13, 2026
 
 ---
 
@@ -14,6 +14,265 @@ This changelog has been split into parts for easier navigation:
 | **[CHANGELOG_part1.md](CHANGELOG_part1.md)** | Dec 2025 | v2.1.43 - v2.1.87 (Current) |
 | **[CHANGELOG_part2.md](CHANGELOG_part2.md)** | Nov 2025 | v2.1.28 - v2.1.42 |
 | **[CHANGELOG_part3.md](CHANGELOG_part3.md)** | Jan-Oct 2025 | v2.0.0 - v2.1.27 & Earlier |
+
+---
+
+## [3.3.26] - February 13, 2026 (working changes)
+
+### Crossroads Decision Capture System
+
+New subsystem for capturing life decisions at the moment they surface in conversation, storing them in CHRONICLE, and revisiting outcomes later.
+
+**New directory: `lib/crossroads/`**
+- `CrossroadsService`: Manages the four-prompt capture flow (What are you deciding? → Life context → Real options → What success looks like), saves complete/partial captures, schedules outcome revisitation, and builds confirmation/revisitation prompts.
+- `CrossroadsCaptureStep` enum: `none`, `prompt1`–`prompt4`, `complete`.
+- `CrossroadsCaptureState`: In-memory state for a capture session.
+- `PendingOutcomeStore`: SharedPreferences-based storage for due outcome prompt IDs.
+
+**New: `lib/crossroads/models/decision_capture.dart`**
+- `DecisionCapture` Hive model: `decisionStatement`, `lifeContext`, `optionsConsidered`, `successMarker`, `outcomeLog`, `outcomeLoggedAt`, `phaseAtCapture`, `sentinelScoreAtCapture`, `triggerConfidence`, `triggerPhrase`, `userInitiated`, `linkedJournalEntryId`.
+- `DecisionOutcomePrompt` Hive model: scheduled outcome revisitation with `dueDate`.
+
+**New: `lib/crossroads/storage/decision_capture_repository.dart`**
+- Hive-backed CRUD for `DecisionCapture` and `DecisionOutcomePrompt`.
+
+**New: `lib/prism/atlas/rivet/rivet_decision_analyzer.dart`**
+- `RivetDecisionAnalyzer`: Phrase-based detection of decision moments in chat messages. Five phrase categories (`consideration`, `activeChoice`, `seekingOpinion`, `actionFraming`, `futureWeighing`) with phase-weighted confidence. Phase sensitivity: Transition 0.90 → Discovery 0.45 → Recovery 0.35.
+
+**`rivet_models.dart` (extended):**
+- `DecisionPhraseCategory` enum, `DecisionTriggerSignal` (phraseCategory, detectedPhrase, currentPhase, phaseWeight, phraseWeight, rawMessageContext).
+- `RivetOutputType` enum (`phaseTransition`, `decisionTrigger`), `RivetOutput` class unifying transition and decision signals.
+
+**`lumara_assistant_cubit.dart` (Crossroads integration):**
+- `LumaraAssistantLoaded` state extended: `pendingCrossroadsSignal`, `pendingCrossroadsConfirmationText`, `pendingCrossroadsUserMessage`, `crossroadsCaptureStep`, `crossroadsCapturePromptText`, `pendingOutcomeCapture`. Convenience methods `clearedCrossroadsPending()`, `clearedCrossroadsCapture()`, `clearedPendingOutcome()`.
+- Decision trigger detection runs per turn before sending to LLM. If RIVET detects a decision moment and `shouldSurfaceCrossroadsPrompt()` returns true, emits confirmation state (pausing the message).
+- `acceptCrossroadsConfirmation()`: Starts four-prompt capture flow.
+- `declineCrossroadsConfirmation()`: Clears pending and sends original message normally.
+- `submitCrossroadsAnswer()`: Advances capture step; on completion, saves to Hive via `CrossroadsService` and populates CHRONICLE Layer 0.
+- `cancelCrossroadsCapture()`: Saves partial capture.
+- `checkPendingOutcomePrompt()`: At conversation start, checks for due outcome revisitation.
+- `submitOutcomeResponse()`: Logs outcome text to the decision capture.
+
+**`lumara_assistant_screen.dart` (Crossroads UI):**
+- `_buildCrossroadsConfirmationCard()`: Yes/No card replacing input bar when a decision trigger is detected.
+- Send flow routes to `submitCrossroadsAnswer()` during capture, `submitOutcomeResponse()` for outcome revisitation.
+- Input hint adapts: "Your answer..." (capture), "How did it turn out?..." (outcome), "Ask LUMARA anything..." (normal).
+- `checkPendingOutcomePrompt()` called via `addPostFrameCallback` at screen load.
+
+**`bootstrap.dart`:**
+- Registered `DecisionCaptureAdapter` (Hive ID 118) and `DecisionOutcomePromptAdapter` (Hive ID 119).
+
+**CHRONICLE Layer 0 integration:**
+- `layer0_populator.dart`: New `populateFromDecisionCapture()` — writes decision captures as `entry_type: "decision"` entries with full `decision_data` in analysis.
+- `raw_entry_schema.dart`: New `ChronicleEntryType` enum (`journal`, `decision`). `RawEntryAnalysis` gains `entryType` and `decisionData` fields; `isDecision` helper getter.
+
+**Monthly synthesis (`monthly_synthesizer.dart`):**
+- Decision entries extracted separately and formatted via `_formatDecisionCapturesForSynthesis()`.
+- Narrative prompt includes "DECISION CAPTURES this month" section; instructions treat them as inflection-point markers.
+- Monthly markdown gains "Decision captures (Crossroads)" section.
+
+**CHRONICLE query (`query_router.dart`, `query_plan.dart`):**
+- New `QueryIntent.decisionArchaeology`: "What decisions have I made about X?"
+- Routes to Layer 0 + monthly aggregations.
+- System prompt: "List what the user decided, when, and (if available) what the outcome was."
+
+**CHRONICLE export (`chronicle_export_service.dart`):**
+- New `decisions/` directory in export. Each decision exported as YAML+markdown (`_buildDecisionMarkdown()`).
+- `ChronicleExportResult` gains `decisionsCount`.
+
+**VEIL scheduler (`veil_chronicle_scheduler.dart`):**
+- Nightly cycle now runs `CrossroadsService().checkDueOutcomePrompts(userId)` for outcome revisitation.
+
+### LUMARA Intellectual Honesty / Pushback System
+
+New system enabling LUMARA to gently push back when users make claims that contradict their own journal record, while respecting narrative authority.
+
+**Master Prompt (`lumara_master_prompt.dart`):**
+- New `<intellectual_honesty>` section: defines WHEN to push back (factual contradictions, pattern denial, recent-entry contradictions) vs. WHEN NOT to (reframing, evolving perspectives, ambiguous patterns). "Both/And" technique: cite evidence neutrally, allow legitimate disagreement, distinguish fact from interpretation.
+
+**New: `lib/chronicle/editing/contradiction_checker.dart`**
+- `ChronicleContradictionChecker`: Detects user claims via simple heuristics, checks against CHRONICLE Layer 0 entries. Returns `ContradictionResult` with `aggregationSummary` and `entryExcerpts`. `toTruthCheckBlock()` generates injectable system prompt context.
+
+**Real-time pushback (chat path — `lumara_assistant_cubit.dart`):**
+- Before calling LLM, checks if user message is a claim. If CHRONICLE contradicts it, injects `truth_check` block into system prompt. `PushbackEvidence` attached to assistant message for Evidence Review UI.
+
+**Real-time pushback (reflection path — `enhanced_lumara_api.dart`):**
+- Same contradiction check and `truth_check` injection in `buildPromptForRequest()`.
+
+**New: `lib/arc/chat/data/models/pushback_evidence.dart`**
+- `PushbackEvidence` model: `aggregationSummary` (e.g. "5 entries in the last 30 days touch on this") + `entryExcerpts` (dated excerpts).
+
+**`lumara_message.dart`:**
+- New `pushbackEvidence` field on `LumaraMessage`. Added to `copyWith`, `props`.
+
+**New: `lib/arc/chat/ui/widgets/evidence_review_widget.dart`**
+- `EvidenceReviewWidget`: Expandable "What I'm seeing" card below assistant messages with pushback. Shows summary, expand reveals individual entry excerpts.
+
+### CHRONICLE Cross-Temporal Pattern Index (On-Device Embeddings)
+
+New on-device semantic indexing system for cross-temporal pattern recognition using TFLite Universal Sentence Encoder.
+
+**New: `lib/chronicle/embeddings/local_embedding_service.dart`**
+- `LocalEmbeddingService`: Loads `universal_sentence_encoder.tflite` model. Generates sentence embeddings on-device for semantic matching.
+
+**New: `lib/chronicle/index/chronicle_index_builder.dart`**
+- `ChronicleIndexBuilder`: Builds and maintains cross-temporal pattern index from monthly aggregation themes. Clusters themes by embedding similarity, tracks theme appearances across time, identifies dominant patterns.
+
+**New: `lib/chronicle/index/monthly_aggregation_adapter.dart`**
+- `MonthlyAggregation.fromChronicleAggregation()`: Converts CHRONICLE aggregations to the format needed by the index builder.
+
+**New: `lib/chronicle/matching/three_stage_matcher.dart`**
+- `ThreeStageMatcher`: Three-stage semantic matching pipeline (exact → embedding cosine → fuzzy).
+
+**New: `lib/chronicle/storage/chronicle_index_storage.dart`**
+- Persistent storage for the cross-temporal pattern index.
+
+**New models:**
+- `lib/chronicle/models/chronicle_index.dart`, `dominant_theme.dart`, `pattern_insights.dart`, `theme_appearance.dart`, `theme_cluster.dart`.
+
+**New: `lib/chronicle/query/pattern_query_router.dart`**
+- Routes pattern-related queries through the cross-temporal index.
+
+**Integration:**
+- `veil_chronicle_factory.dart`: Creates `LocalEmbeddingService` + `ChronicleIndexStorage` + `ChronicleIndexBuilder` and passes to narrative integration.
+- `chronicle_narrative_integration.dart`: EXAMINE stage updates pattern index after monthly synthesis.
+- `synthesis_scheduler.dart`: Pattern index updated after each monthly synthesis.
+
+**Dependencies:**
+- `pubspec.yaml`: Added `tflite_flutter: ^0.12.1`. Asset: `assets/models/universal_sentence_encoder.tflite`.
+
+### CHRONICLE Edit Validation
+
+**New: `lib/chronicle/editing/edit_validation_models.dart`**
+- `EditValidationResult` (approved / warning / conflict), `EditWarningType` (patternSuppression), `SuppressedPattern`, `EntryContradiction`.
+
+**New: `lib/chronicle/editing/edit_validator.dart`**
+- `EditValidator`: Detects pattern suppression (themes removed that appear in many entries) and factual contradictions in user edits to CHRONICLE content.
+
+**New: `lib/chronicle/services/chronicle_editing_service.dart`**
+- `ChronicleEditingService`: Validates edits against source entries. Returns approved / warning (with affected entry IDs) / conflict.
+
+### CHRONICLE Import Service
+
+**New: `lib/chronicle/services/chronicle_import_service.dart`**
+- `ChronicleImportService`: Imports aggregations from a directory exported by `ChronicleExportService`. Parses monthly/yearly/multiyear subdirectories.
+- `ChronicleImportResult` with counts per layer.
+
+**`aggregation_repository.dart`:**
+- New public `parseFromMarkdownContent()` method for import parsing.
+
+### CHRONICLE Schedule Preferences
+
+**New: `lib/chronicle/scheduling/chronicle_schedule_preferences.dart`**
+- `ChronicleScheduleCadence` enum: `daily`, `weekly`, `monthly` with `label`, `description`, `interval`.
+- `ChronicleSchedulePreferences`: Persists cadence via SharedPreferences.
+
+**`veil_chronicle_scheduler.dart` (refactored):**
+- Replaced fixed 24-hour `Timer.periodic` with cadence-based `_runAndReschedule()`. First run at next midnight; subsequent runs use user preference.
+- `stop()` clears userId/tier state.
+
+### Expanded Entry View Enhancements
+
+**`expanded_entry_view.dart`:**
+- Full journal entry now loaded via `FutureBuilder<JournalEntry?>` to access LUMARA blocks and metadata.
+- Written content: When entry has `lumaraBlocks`, renders interleaved writer text + LUMARA reflection blocks (`_buildReadOnlyLumaraBlock()`) + user comments.
+- Related entries: Uses `metadata['relatedEntryIds']` to show real linked entries (tappable cards with title/date, navigate to full entry).
+- LUMARA's note: Shows actual `overview` or `lumaraBlocks` content instead of placeholder.
+
+### Journal Screen View-Only Improvements
+
+**`journal_screen.dart`:**
+- `_buildContinuationField()`: In view-only mode, shows read-only user comment with paragraph formatting (`_buildViewOnlyParagraphs()`).
+- `_buildContentView()`: Paragraph formatting (double newlines → separate `Text` widgets) instead of single `Text` block.
+
+**`inline_reflection_block.dart`:**
+- New `readOnly` parameter (default `false`). When true, hides action buttons (regenerate, reflect deeply, continue thought, share, TTS, menu).
+
+### Splash Screen Phase Display Cleanup
+
+**`lumara_splash_screen.dart`:**
+- Removed `_getPhaseFromEntries()` backfill migration — splash is now display-only.
+- Phase display uses same source as Phase Page: profile first, then regime. No default to "Discovery"; `_currentPhase` starts empty.
+
+### Phase Analysis View — Unified Phase Source
+
+**`phase_analysis_view.dart`:**
+- New `_displayPhaseName` field: single source of truth (profile first, then regime; same as splash/timeline).
+- Rotating phase shape only shown when phase is set; "Set your phase" placeholder with icon when no phase exists.
+- `_buildArcformContent()` refactored to use `_displayPhaseName` throughout.
+
+### CHRONICLE Management UI Improvements
+
+**`chronicle_management_view.dart`:**
+- **Import**: New "Import Aggregations" button using `ChronicleImportService` + `FilePicker`.
+- **Schedule cadence**: New "Automatic synthesis" section with `FilterChip` selection (Daily/Weekly/Monthly) persisted via `ChronicleSchedulePreferences`.
+- **Progress UX**: Two-phase progress bar (0-50% backfill, 50-100% synthesis). Indeterminate animation when total is unknown. Stages label updates ("Backfilling Layer 0..." → "Synthesizing current month..."). Back button returns to menu during progress instead of popping route. "Please wait" shown when no fraction.
+- Removed `ChronicleManualService` dependency.
+
+### UI Polish
+
+**Timeline export dialogs (`interactive_timeline_view.dart`):**
+- Dark-theme-safe: explicit `kcSurfaceColor` background, `kcPrimaryTextColor` text, `Colors.black54` barrier.
+- Multi-entry delete: icon + "Delete (N)" text label with count and tooltip.
+
+**MCP export (`mcp_export_screen.dart`):**
+- Custom date range validation: requires both start and end dates; start must be on or before end.
+- All dialogs: dark-theme-safe colors.
+
+**Files changed (32 modified + 21 new):**
+- `lib/arc/chat/bloc/lumara_assistant_cubit.dart` — Crossroads flow, pushback injection
+- `lib/arc/chat/data/models/lumara_message.dart` — pushbackEvidence field
+- `lib/arc/chat/data/models/pushback_evidence.dart` (NEW)
+- `lib/arc/chat/llm/prompts/lumara_master_prompt.dart` — intellectual_honesty section
+- `lib/arc/chat/services/enhanced_lumara_api.dart` — pushback injection (reflection path)
+- `lib/arc/chat/ui/lumara_assistant_screen.dart` — Crossroads UI, evidence review
+- `lib/arc/chat/ui/lumara_splash_screen.dart` — phase display cleanup
+- `lib/arc/chat/ui/widgets/evidence_review_widget.dart` (NEW)
+- `lib/arc/ui/timeline/widgets/interactive_timeline_view.dart` — dark-theme dialogs, delete label
+- `lib/arc/unified_feed/widgets/expanded_entry_view.dart` — full entry with blocks/related
+- `lib/chronicle/editing/contradiction_checker.dart` (NEW)
+- `lib/chronicle/editing/edit_validation_models.dart` (NEW)
+- `lib/chronicle/editing/edit_validator.dart` (NEW)
+- `lib/chronicle/embeddings/local_embedding_service.dart` (NEW)
+- `lib/chronicle/index/chronicle_index_builder.dart` (NEW)
+- `lib/chronicle/index/monthly_aggregation_adapter.dart` (NEW)
+- `lib/chronicle/integration/chronicle_narrative_integration.dart` — pattern index update
+- `lib/chronicle/integration/veil_chronicle_factory.dart` — index builder creation
+- `lib/chronicle/integration/veil_chronicle_integration.dart` (NEW)
+- `lib/chronicle/matching/three_stage_matcher.dart` (NEW)
+- `lib/chronicle/models/chronicle_index.dart` (NEW)
+- `lib/chronicle/models/dominant_theme.dart` (NEW)
+- `lib/chronicle/models/pattern_insights.dart` (NEW)
+- `lib/chronicle/models/query_plan.dart` — decisionArchaeology intent
+- `lib/chronicle/models/theme_appearance.dart` (NEW)
+- `lib/chronicle/models/theme_cluster.dart` (NEW)
+- `lib/chronicle/query/pattern_query_router.dart` (NEW)
+- `lib/chronicle/query/query_router.dart` — decisionArchaeology routing
+- `lib/chronicle/scheduling/chronicle_schedule_preferences.dart` (NEW)
+- `lib/chronicle/scheduling/synthesis_scheduler.dart` — pattern index integration
+- `lib/chronicle/services/chronicle_editing_service.dart` (NEW)
+- `lib/chronicle/services/chronicle_export_service.dart` — decisions export
+- `lib/chronicle/services/chronicle_import_service.dart` (NEW)
+- `lib/chronicle/services/chronicle_onboarding_service.dart` — two-phase progress
+- `lib/chronicle/storage/aggregation_repository.dart` — public parse method
+- `lib/chronicle/storage/chronicle_index_storage.dart` (NEW)
+- `lib/chronicle/storage/layer0_populator.dart` — decision capture population
+- `lib/chronicle/storage/raw_entry_schema.dart` — decision entry type
+- `lib/chronicle/synthesis/monthly_synthesizer.dart` — decisions in narrative/markdown
+- `lib/crossroads/crossroads_service.dart` (NEW)
+- `lib/crossroads/models/decision_capture.dart` (NEW)
+- `lib/crossroads/storage/decision_capture_repository.dart` (NEW)
+- `lib/echo/rhythms/veil_chronicle_scheduler.dart` — cadence-based scheduling, Crossroads check
+- `lib/main/bootstrap.dart` — Hive adapters 118/119
+- `lib/prism/atlas/rivet/rivet_decision_analyzer.dart` (NEW)
+- `lib/prism/atlas/rivet/rivet_models.dart` — decision trigger models
+- `lib/shared/ui/settings/chronicle_management_view.dart` — import, cadence, progress UX
+- `lib/ui/export_import/mcp_export_screen.dart` — validation, dark-theme dialogs
+- `lib/ui/journal/journal_screen.dart` — view-only paragraphs, readOnly blocks
+- `lib/ui/journal/widgets/inline_reflection_block.dart` — readOnly parameter
+- `lib/ui/phase/phase_analysis_view.dart` — unified phase source
+- `test/chronicle/pattern_recognition_test.dart` (NEW)
+- `pubspec.yaml` — tflite_flutter, USE model asset
 
 ---
 

@@ -27,6 +27,8 @@ class InlineReflectionBlock extends StatefulWidget {
   final VoidCallback onDelete;
   final List<AttributionTrace>? attributionTraces; // Memory attribution traces
   final String? blockId; // Unique ID for favorites tracking
+  /// When true, only content is shown (no action buttons). Used in view-only entry.
+  final bool readOnly;
 
   const InlineReflectionBlock({
     super.key,
@@ -43,6 +45,7 @@ class InlineReflectionBlock extends StatefulWidget {
     required this.onDelete,
     this.attributionTraces,
     this.blockId,
+    this.readOnly = false,
   });
 
   @override
@@ -263,8 +266,8 @@ class _InlineReflectionBlockState extends State<InlineReflectionBlock> with Sing
                   ),
                 ],
                 
-                // Minimal Action Row (Rosebud Style: Play, Share, Menu)
-                if (!widget.isLoading && widget.content.isNotEmpty) ...[
+                // Minimal Action Row (Rosebud Style: Play, Share, Menu) — hidden in readOnly (view-only)
+                if (!widget.isLoading && widget.content.isNotEmpty && !widget.readOnly) ...[
                   const SizedBox(height: 8),
                   Row(
                     mainAxisSize: MainAxisSize.min,

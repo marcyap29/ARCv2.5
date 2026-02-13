@@ -1,7 +1,7 @@
 # LUMARA - Complete Guide
 
-**Version:** 2.0  
-**Last Updated:** February 12, 2026  
+**Version:** 2.1  
+**Last Updated:** February 13, 2026  
 **Status:** ✅ Production Ready
 
 ---
@@ -318,17 +318,52 @@ Modes: `continue` (natural flow), `ideas` (600 words analysis), `think` (750 wor
 
 `ChatPhaseService` auto-classifies LUMARA chat sessions into ATLAS phases using the same `PhaseInferenceService` pipeline as journal entries. Runs after every assistant response. Manual override via bottom sheet.
 
+### Crossroads Decision Capture (v3.3.26)
+
+RIVET-triggered system for capturing life decisions at the moment they surface in conversation.
+
+**Flow:** Message → `RivetDecisionAnalyzer` detects decision phrases (5 categories × phase weight) → confirmation prompt (Yes/No) → four-step capture (decision statement → life context → options → success marker) → CHRONICLE Layer 0 (`entry_type: "decision"`) → scheduled outcome revisitation.
+
+**Key components:**
+- `lib/crossroads/crossroads_service.dart` — capture flow, confirmation/revisitation prompts, outcome scheduling
+- `lib/crossroads/models/decision_capture.dart` — Hive model (ID 118)
+- `lib/prism/atlas/rivet/rivet_decision_analyzer.dart` — phrase patterns, phase-weighted confidence
+- `lib/chronicle/storage/layer0_populator.dart` — `populateFromDecisionCapture()`
+
+**CHRONICLE integration:** Monthly synthesis includes decisions as inflection points; narrative prompt treats them as month-defining moments. New `QueryIntent.decisionArchaeology` for "What decisions have I made?" queries.
+
+### Intellectual Honesty / Pushback (v3.3.26)
+
+LUMARA gently pushes back when user claims contradict their own journal record while preserving narrative authority.
+
+**Runtime:** `ChronicleContradictionChecker` checks user messages against CHRONICLE Layer 0. If contradiction found, `truth_check` block injected into system prompt (both chat cubit and `EnhancedLumaraApi`). `PushbackEvidence` (summary + excerpts) attached to `LumaraMessage` for `EvidenceReviewWidget`.
+
+**Master prompt `<intellectual_honesty>` section:** Defines when to push back (factual contradictions, pattern denial, recent-entry contradictions) vs. when NOT (reframing, evolving perspective, ambiguous patterns). "Both/And" technique.
+
+### CHRONICLE Cross-Temporal Pattern Index (v3.3.26)
+
+On-device semantic indexing for cross-temporal pattern recognition.
+
+- `lib/chronicle/embeddings/local_embedding_service.dart` — TFLite Universal Sentence Encoder
+- `lib/chronicle/index/chronicle_index_builder.dart` — builds pattern index from monthly themes
+- `lib/chronicle/matching/three_stage_matcher.dart` — exact → cosine → fuzzy matching
+- Updated after each monthly synthesis (via `VeilChronicleFactory` and `SynthesisScheduler`)
+
 ### Critical Files
 
 | File | Role |
 |------|------|
-| `lib/arc/chat/llm/prompts/lumara_master_prompt.dart` | Master prompt, word limits, banned phrases |
+| `lib/arc/chat/llm/prompts/lumara_master_prompt.dart` | Master prompt, word limits, banned phrases, intellectual honesty |
 | `lib/arc/chat/services/lumara_control_state_builder.dart` | Control state JSON (persona, mode, limits) |
 | `lib/services/lumara/entry_classifier.dart` | Entry classification, pattern requirements |
 | `lib/arc/chat/llm/prompts/lumara_context_builder.dart` | Memory context building |
-| `lib/arc/chat/services/enhanced_lumara_api.dart` | Main API: context → prompt → LLM |
-| `lib/arc/chat/bloc/lumara_assistant_cubit.dart` | Chat: system prompt building |
+| `lib/arc/chat/services/enhanced_lumara_api.dart` | Main API: context → prompt → LLM, pushback injection |
+| `lib/arc/chat/bloc/lumara_assistant_cubit.dart` | Chat: Crossroads flow, pushback, system prompt |
 | `lib/arc/chat/services/chat_phase_service.dart` | Chat session phase classification |
+| `lib/crossroads/crossroads_service.dart` | Crossroads decision capture + outcome revisitation |
+| `lib/prism/atlas/rivet/rivet_decision_analyzer.dart` | RIVET decision trigger detection |
+| `lib/chronicle/editing/contradiction_checker.dart` | Pushback: claim vs CHRONICLE check |
+| `lib/chronicle/index/chronicle_index_builder.dart` | Cross-temporal pattern index |
 
 ---
 
@@ -356,6 +391,6 @@ Modes: `continue` (natural flow), `ideas` (600 words analysis), `think` (750 wor
 
 ---
 
-**Document Version**: 2.0  
-**Last Updated**: February 12, 2026  
+**Document Version**: 2.1  
+**Last Updated**: February 13, 2026  
 **Maintainer**: ARC Development Team

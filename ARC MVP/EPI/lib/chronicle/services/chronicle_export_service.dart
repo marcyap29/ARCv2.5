@@ -5,6 +5,8 @@ import '../storage/aggregation_repository.dart';
 import '../storage/changelog_repository.dart';
 import '../models/chronicle_layer.dart';
 import '../models/chronicle_aggregation.dart';
+import '../../crossroads/models/decision_capture.dart';
+import '../../crossroads/storage/decision_capture_repository.dart';
 
 /// CHRONICLE export service
 /// 
@@ -24,11 +26,10 @@ class ChronicleExportService {
   /// Creates a directory structure:
   ///   exportDir/
   ///     monthly/
-  ///       YYYY-MM.md
   ///     yearly/
-  ///       YYYY.md
   ///     multiyear/
-  ///       YYYY-YYYY.md
+  ///     decisions/
+  ///       2025-03-decision-[id].md
   ///     changelog.jsonl
   Future<ChronicleExportResult> exportAll({
     required String userId,
@@ -43,10 +44,12 @@ class ChronicleExportService {
       final monthlyDir = Directory(path.join(exportDir.path, 'monthly'));
       final yearlyDir = Directory(path.join(exportDir.path, 'yearly'));
       final multiyearDir = Directory(path.join(exportDir.path, 'multiyear'));
+      final decisionsDir = Directory(path.join(exportDir.path, 'decisions'));
       
       await monthlyDir.create(recursive: true);
       await yearlyDir.create(recursive: true);
       await multiyearDir.create(recursive: true);
+      await decisionsDir.create(recursive: true);
       
       // Export monthly aggregations
       final monthlyAggs = await _aggregationRepo.getAllForLayer(
@@ -84,6 +87,18 @@ class ChronicleExportService {
         result.multiyearCount++;
       }
       
+      // Export decision captures (Crossroads)
+      final decisionRepo = DecisionCaptureRepository();
+      await decisionRepo.initialize();
+      final captures = await decisionRepo.getAll();
+      for (final c in captures) {
+        final period = '${c.capturedAt.year}-${c.capturedAt.month.toString().padLeft(2, '0')}';
+        final filename = '$period-decision-${c.id}.md';
+        final file = File(path.join(decisionsDir.path, filename));
+        await file.writeAsString(_buildDecisionMarkdown(c));
+        result.decisionsCount++;
+      }
+
       // Export changelog
       final changelogEntries = await _changelogRepo.getAllEntries();
       final changelogFile = File(path.join(exportDir.path, 'changelog.jsonl'));
@@ -94,7 +109,7 @@ class ChronicleExportService {
       result.changelogEntries = changelogEntries.length;
       
       result.success = true;
-      print('✅ ChronicleExportService: Exported ${result.monthlyCount} monthly, ${result.yearlyCount} yearly, ${result.multiyearCount} multi-year aggregations');
+      print('✅ ChronicleExportService: Exported ${result.monthlyCount} monthly, ${result.yearlyCount} yearly, ${result.multiyearCount} multi-year, ${result.decisionsCount} decisions');
       
       return result;
     } catch (e) {
@@ -161,6 +176,39 @@ class ChronicleExportService {
     }
   }
 
+  /// Build markdown for a single decision capture (Crossroads export).
+  String _buildDecisionMarkdown(DecisionCapture c) {
+    final title = c.decisionStatement.length > 50
+        ? '${c.decisionStatement.substring(0, 50)}...'
+        : c.decisionStatement;
+    return '''---
+type: decision_capture
+id: ${c.id}
+captured_at: ${c.capturedAt.toUtc().toIso8601String()}
+phase_at_capture: ${c.phaseAtCapture.name}
+outcome_logged: ${c.outcomeLog != null && c.outcomeLog!.isNotEmpty}
+user_initiated: ${c.userInitiated}
+---
+
+# Decision: $title
+
+## What I Was Deciding
+${c.decisionStatement}
+
+## What Was Going On
+${c.lifeContext}
+
+## What I Was Weighing
+${c.optionsConsidered}
+
+## What Success Looks Like
+${c.successMarker}
+
+## What Actually Happened
+${c.outcomeLog ?? 'Not yet logged'}
+''';
+  }
+
   /// Build markdown content with YAML frontmatter
   String _buildMarkdownWithFrontmatter(ChronicleAggregation aggregation) {
     final frontmatter = '''---
@@ -186,17 +234,18 @@ class ChronicleExportResult {
   int monthlyCount = 0;
   int yearlyCount = 0;
   int multiyearCount = 0;
+  int decisionsCount = 0;
   int changelogEntries = 0;
   bool success = false;
   String? error;
   
-  int get totalCount => monthlyCount + yearlyCount + multiyearCount;
+  int get totalCount => monthlyCount + yearlyCount + multiyearCount + decisionsCount;
   
   @override
   String toString() {
     if (!success) {
       return 'Export failed: $error';
     }
-    return 'Exported $monthlyCount monthly, $yearlyCount yearly, $multiyearCount multi-year aggregations, $changelogEntries changelog entries';
+    return 'Exported $monthlyCount monthly, $yearlyCount yearly, $multiyearCount multi-year, $decisionsCount decisions, $changelogEntries changelog entries';
   }
 }

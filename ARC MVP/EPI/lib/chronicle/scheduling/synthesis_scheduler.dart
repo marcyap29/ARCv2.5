@@ -3,6 +3,8 @@ import '../storage/changelog_repository.dart';
 import '../storage/aggregation_repository.dart';
 import '../storage/layer0_repository.dart';
 import '../models/chronicle_layer.dart';
+import '../index/chronicle_index_builder.dart';
+import '../index/monthly_aggregation_adapter.dart';
 
 /// Synthesis Tier Configuration
 /// 
@@ -95,6 +97,7 @@ class SynthesisScheduler {
   final Layer0Repository _layer0Repo;
   final SynthesisCadence _cadence;
   final String _userId;
+  final ChronicleIndexBuilder? _chronicleIndexBuilder;
 
   SynthesisScheduler({
     required SynthesisEngine synthesisEngine,
@@ -103,12 +106,14 @@ class SynthesisScheduler {
     required Layer0Repository layer0Repo,
     required SynthesisCadence cadence,
     required String userId,
+    ChronicleIndexBuilder? chronicleIndexBuilder,
   })  : _synthesisEngine = synthesisEngine,
         _changelogRepo = changelogRepo,
         _aggregationRepo = aggregationRepo,
         _layer0Repo = layer0Repo,
         _cadence = cadence,
-        _userId = userId;
+        _userId = userId,
+        _chronicleIndexBuilder = chronicleIndexBuilder;
 
   /// Check and synthesize pending aggregations
   /// 
@@ -122,13 +127,27 @@ class SynthesisScheduler {
         final monthlyPeriods = await _getPendingMonthlyPeriods();
         for (final period in monthlyPeriods) {
           try {
-            await _synthesisEngine.synthesizeLayer(
+            final aggregation = await _synthesisEngine.synthesizeLayer(
               userId: _userId,
               layer: ChronicleLayer.monthly,
               period: period,
             );
-            synthesized.add('monthly:$period');
-            print('✅ SynthesisScheduler: Synthesized monthly $period');
+            if (aggregation != null) {
+              synthesized.add('monthly:$period');
+              print('✅ SynthesisScheduler: Synthesized monthly $period');
+              if (_chronicleIndexBuilder != null) {
+                try {
+                  final synthesis = MonthlyAggregation.fromChronicleAggregation(aggregation);
+                  await _chronicleIndexBuilder!.updateIndexAfterSynthesis(
+                    userId: _userId,
+                    synthesis: synthesis,
+                  );
+                  print('✅ SynthesisScheduler: Updated Chronicle pattern index for $period');
+                } catch (e) {
+                  print('⚠️ SynthesisScheduler: Chronicle index update failed: $e');
+                }
+              }
+            }
           } catch (e) {
             print('⚠️ SynthesisScheduler: Failed to synthesize monthly $period: $e');
             await _changelogRepo.logError(
@@ -342,10 +361,7 @@ class SynthesisScheduler {
     DateTime? nextTime;
 
     if (_cadence.enableMonthly) {
-      final monthlyNext = now.add(_cadence.monthlyInterval);
-      if (nextTime == null || monthlyNext.isBefore(nextTime)) {
-        nextTime = monthlyNext;
-      }
+      nextTime = now.add(_cadence.monthlyInterval);
     }
 
     if (_cadence.enableYearly) {

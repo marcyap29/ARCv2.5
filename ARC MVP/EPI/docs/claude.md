@@ -1,11 +1,23 @@
 # EPI Documentation Context Guide
 
-**Version:** 3.3.25
-**Last Updated:** February 12, 2026
+**Version:** 3.3.26
+**Last Updated:** February 13, 2026
 **Current Branch:** `test`
 
-### Recent Updates (v3.3.25)
-- **Chat Phase Classification System**: `ChatPhaseService` auto-classifies LUMARA chat sessions into ATLAS phases. Phase in session app bar with manual override. Phase chips on chat list cards. Chat sessions contribute to regime building. Draft reflection fix (`draft_*` IDs skip AURORA). Embedded `PhaseAnalysisView` replaces preview in feed.
+### Recent Updates (v3.3.26)
+- **Crossroads Decision Capture**: New `lib/crossroads/` subsystem. RIVET-triggered decision detection (`RivetDecisionAnalyzer`) → confirmation prompt → four-step capture → CHRONICLE Layer 0 (`entry_type: "decision"`). Outcome revisitation via scheduled prompts. Monthly synthesis weaves decisions as inflection points. `QueryIntent.decisionArchaeology`. Export `decisions/` directory. Hive adapters 118/119.
+- **LUMARA Intellectual Honesty / Pushback**: `<intellectual_honesty>` section in master prompt. `ChronicleContradictionChecker` detects claims contradicting journal record → `truth_check` injected into system prompt (chat + reflection paths). `PushbackEvidence` on `LumaraMessage`. `EvidenceReviewWidget` shows CHRONICLE excerpts.
+- **CHRONICLE Cross-Temporal Pattern Index**: On-device TFLite Universal Sentence Encoder. `ChronicleIndexBuilder`, `ThreeStageMatcher`, `PatternQueryRouter`, `ChronicleIndexStorage`. Updated after each monthly synthesis. `tflite_flutter: ^0.12.1` dependency.
+- **CHRONICLE Edit Validation**: `EditValidator` detects pattern suppression + factual contradictions in user edits. `ChronicleEditingService`.
+- **CHRONICLE Import/Export**: `ChronicleImportService` (from export directory). Export gains `decisions/` folder. Import button in CHRONICLE Management.
+- **CHRONICLE Schedule Preferences**: User-selectable cadence (Daily/Weekly/Monthly). VEIL scheduler adapts interval. FilterChip in settings.
+- **Expanded Entry View**: Full entry loaded for LUMARA blocks, related entries (tappable from metadata), overview/blocks content.
+- **Journal View-Only**: Read-only LUMARA blocks, paragraph formatting, view-only continuation field.
+- **Phase Display Unification**: `_displayPhaseName` single source of truth (profile first, then regime). Splash removes backfill migration. "Set your phase" placeholder.
+- **UI Polish**: Dark-theme-safe export dialogs, multi-delete label with count, CHRONICLE progress UX improvements, MCP export date validation.
+
+### Earlier Updates (v3.3.25)
+- **Chat Phase Classification System**: `ChatPhaseService` auto-classifies LUMARA chat sessions into ATLAS phases. Phase in session app bar with manual override. Phase chips on chat list cards. Chat sessions contribute to regime building. Draft reflection fix (`draft_*` IDs skip AURORA). 3D constellation card in feed.
 - **Groq Primary LLM Provider (v3.3.24)**: Groq (Llama 3.3 70B / Mixtral 8x7b) primary, Gemini fallback. `proxyGroq` Firebase Cloud Function. Mode-aware temperature.
 - **PROMPT_REFERENCES v2.0.0**: `proxyGroq`/`proxyGemini` backend, CHRONICLE synthesis prompts, Voice Split-Payload, Speed-Tiered Context, Conversation Summary.
 - **CHRONICLE Speed-Tiered Context**: ResponseSpeed enum (instant/fast/normal/deep) with mode-aware query routing; ChronicleContextCache (in-memory TTL, 50 entries, 30-min); context building tiers from mini-context (50 tokens) to full multi-layer.
@@ -14,7 +26,7 @@
 - **Phase Display Fix**: Regime phase shown regardless of RIVET gate status; phase change dialog redesigned as bottom sheet; direct timeline navigation from Gantt card.
 - **DevSecOps Security Audit**: Verified findings for auth, secrets, storage, network, logging, rate limiting, deep links.
 
-### Earlier Updates (v3.3.13)
+### Earlier Updates (v3.3.13–v3.3.24)
 - **Documentation & Configuration Manager role pass**: README key documents table (purpose, when to read); claude.md paths to relative DOCS/; CONFIGURATION_MANAGEMENT "Key documents for onboarding"; ARCHITECTURE Phase Quiz/Phase tab achievement; traceability via change log.
 - **Phase Quiz / Phase Tab Sync**: Phase Quiz V2 result now persisted via UserPhaseService; Phase tab shows quiz phase when no regimes exist; rotating phase shape (AnimatedPhaseShape) shown alongside 3D constellation on Phase tab.
 - **Response Length Architecture Refactor**: Response length now tied to Engagement Mode, not Persona. Persona applies density modifiers.

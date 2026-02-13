@@ -410,3 +410,65 @@ enum TransitionDirection {
   away,     // Moving away from approaching phase
   stable,   // No significant shift
 }
+
+// ---------------------------------------------------------------------------
+// Crossroads: Decision trigger output (runs alongside transition detection)
+// ---------------------------------------------------------------------------
+
+/// Category of phrase that triggered decision detection
+enum DecisionPhraseCategory {
+  consideration,   // thinking about, considering, wondering if
+  activeChoice,     // torn between, going back and forth, don't know whether
+  seekingOpinion,   // what do you think, should I, do you think I should
+  actionFraming,   // I've decided to, I'm going to, I think I'll
+  futureWeighing,   // trying to figure out, weighing, not sure if I should
+}
+
+/// Signal emitted when RIVET detects a decision moment in message text
+class DecisionTriggerSignal extends Equatable {
+  final DecisionPhraseCategory phraseCategory;
+  final String detectedPhrase;
+  /// Phase name at time of detection (e.g. "transition", "recovery")
+  final String currentPhase;
+  final double phaseWeight;
+  final double phraseWeight;
+  final String rawMessageContext;
+
+  const DecisionTriggerSignal({
+    required this.phraseCategory,
+    required this.detectedPhrase,
+    required this.currentPhase,
+    required this.phaseWeight,
+    required this.phraseWeight,
+    required this.rawMessageContext,
+  });
+
+  @override
+  List<Object?> get props => [phraseCategory, detectedPhrase, currentPhase, phaseWeight, phraseWeight, rawMessageContext];
+}
+
+/// Type of output from RIVET analysis
+enum RivetOutputType {
+  phaseTransition,
+  decisionTrigger,
+}
+
+/// Single output from RIVET (either a phase transition or a decision trigger)
+class RivetOutput extends Equatable {
+  final RivetOutputType type;
+  final double confidenceScore;
+  final RivetGateDecision? transition;
+  final DecisionTriggerSignal? decisionSignal;
+  final DateTime detectedAt;
+
+  const RivetOutput({
+    required this.type,
+    required this.confidenceScore,
+    this.transition,
+    this.decisionSignal,
+    required this.detectedAt,
+  });
+
+  @override
+  List<Object?> get props => [type, confidenceScore, transition, decisionSignal, detectedAt];
+}

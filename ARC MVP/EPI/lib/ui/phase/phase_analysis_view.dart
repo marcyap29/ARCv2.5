@@ -60,6 +60,8 @@ class _PhaseAnalysisViewState extends State<PhaseAnalysisView> {
   String? _phaseFromUserProfile;
   /// RIVET gate open: when true, current regime can determine phase; when false, show quiz phase.
   bool _rivetGateOpen = false;
+  /// Display phase for rotating shape and arcform (same as splash/timeline): profile first, then regime; null/empty when no phase set.
+  String? _displayPhaseName;
 
   @override
   void initState() {
@@ -149,12 +151,6 @@ class _PhaseAnalysisViewState extends State<PhaseAnalysisView> {
       }
 
       final currentRegime = _phaseIndex?.currentRegime;
-      String effectivePhaseName = currentRegime != null ? _getPhaseLabelName(currentRegime.label) : 'none';
-      if (_phaseIndex?.allRegimes.isNotEmpty == true) {
-        effectivePhaseName = currentRegime != null
-            ? _getPhaseLabelName(currentRegime.label)
-            : _getPhaseLabelName((List.from(_phaseIndex!.allRegimes)..sort((a, b) => b.start.compareTo(a.start))).first.label);
-      }
       final profilePhase = await UserPhaseService.getCurrentPhase();
       if (_phaseIndex?.allRegimes.isEmpty ?? true) {
         _phaseFromUserProfile = profilePhase.isNotEmpty ? profilePhase : null;
@@ -168,7 +164,23 @@ class _PhaseAnalysisViewState extends State<PhaseAnalysisView> {
           _phaseFromUserProfile = null;
         }
       }
-      print('DEBUG: _loadPhaseData - Current phase determined: $effectivePhaseName (ID: ${currentRegime?.id})');
+      // Single source of truth for display (splash, Phase tab, timeline): profile first, then regime; empty when none set
+      String? regimePhase;
+      if (currentRegime != null) {
+        regimePhase = _getPhaseLabelName(currentRegime.label);
+      } else if (_phaseIndex?.allRegimes.isNotEmpty == true) {
+        final sorted = List.from(_phaseIndex!.allRegimes)..sort((a, b) => b.start.compareTo(a.start));
+        regimePhase = _getPhaseLabelName(sorted.first.label);
+      }
+      final displayPhaseRaw = UserPhaseService.getDisplayPhase(
+        regimePhase: regimePhase,
+        rivetGateOpen: _rivetGateOpen,
+        profilePhase: profilePhase,
+      );
+      _displayPhaseName = displayPhaseRaw.isEmpty
+          ? null
+          : displayPhaseRaw[0].toUpperCase() + displayPhaseRaw.substring(1).toLowerCase();
+      print('DEBUG: _loadPhaseData - Display phase (profile first): $_displayPhaseName (ID: ${currentRegime?.id})');
 
       // Check if there's a pending analysis result from ARCX import
       await _checkPendingAnalysis();
@@ -1260,49 +1272,52 @@ class _PhaseAnalysisViewState extends State<PhaseAnalysisView> {
   }
 
   /// Build arcform content widget
+  /// Uses _displayPhaseName (profile first, then regime; same as splash) so rotating phase matches Phase Page / user choice.
   Widget _buildArcformContent() {
-    // Get current phase - prioritize currentRegime, then most recent regime, then UserProfile/quiz (e.g. right after onboarding)
-    String? currentPhaseName;
-    if (_phaseIndex?.currentRegime != null) {
-      currentPhaseName = _getPhaseLabelName(_phaseIndex!.currentRegime!.label);
-    } else if (_phaseIndex?.allRegimes.isNotEmpty == true) {
-      // No current ongoing regime, use most recent one
-      final sortedRegimes = List.from(_phaseIndex!.allRegimes)..sort((a, b) => b.start.compareTo(a.start));
-      currentPhaseName = _getPhaseLabelName(sortedRegimes.first.label);
-    } else {
-      // No regimes at all (e.g. right after phase quiz) - use phase from UserProfile/quiz so Phase tab matches quiz result
-      currentPhaseName = _phaseFromUserProfile;
-    }
-
-    // Create a unique key that includes both the regime ID and phase name
+    final currentPhaseName = _displayPhaseName;
     final regimeId = _phaseIndex?.currentRegime?.id ?? 'none';
-    final phaseName = currentPhaseName ?? 'Discovery';
-    final uniqueKey = 'arcform_${regimeId}_$phaseName';
+    final phaseNameForKey = currentPhaseName ?? 'none';
+    final uniqueKey = 'arcform_${regimeId}_$phaseNameForKey';
 
-    // Rotating phase shape (same as phase reveal) alongside the detailed 3D constellation
+    // Rotating phase shape only when a phase is set (no default Discovery); otherwise placeholder
     final rotatingPhaseWidget = Container(
       padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          AnimatedPhaseShape(
-            phase: phaseName,
-            size: 100,
-            rotationDuration: const Duration(seconds: 15),
-          ),
-          const SizedBox(width: 16),
-          Flexible(
-            child: Text(
-              phaseName,
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                color: Theme.of(context).colorScheme.onSurface,
-                fontWeight: FontWeight.w600,
-              ),
-              overflow: TextOverflow.ellipsis,
+      child: currentPhaseName != null && currentPhaseName.isNotEmpty
+          ? Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                AnimatedPhaseShape(
+                  phase: currentPhaseName,
+                  size: 100,
+                  rotationDuration: const Duration(seconds: 15),
+                ),
+                const SizedBox(width: 16),
+                Flexible(
+                  child: Text(
+                    currentPhaseName,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurface,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            )
+          : Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.psychology_outlined, size: 40, color: Theme.of(context).colorScheme.outline),
+                const SizedBox(width: 12),
+                Text(
+                  'Set your phase',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    color: Theme.of(context).colorScheme.outline,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
             ),
-          ),
-        ],
-      ),
     );
 
     return Column(
@@ -1314,11 +1329,8 @@ class _PhaseAnalysisViewState extends State<PhaseAnalysisView> {
             key: ValueKey(uniqueKey),
             currentPhase: currentPhaseName,
             footerWidgets: [
-              // Phase Transition Readiness card
               _buildPhaseTransitionReadinessCard(currentPhaseName),
-              // Simpler Most Aligned Phase card - no async, no CustomPaint
               _buildSimpleMostAlignedCard(currentPhaseName),
-              // Run Phase Analysis card
               _buildRunAnalysisCard(),
             ],
           ),

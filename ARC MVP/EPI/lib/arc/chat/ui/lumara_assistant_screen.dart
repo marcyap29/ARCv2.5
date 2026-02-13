@@ -12,6 +12,7 @@ import '../chat/chat_repo_impl.dart';
 import 'lumara_quick_palette.dart';
 import 'lumara_settings_screen.dart';
 import '../widgets/attribution_display_widget.dart';
+import 'widgets/evidence_review_widget.dart';
 import '../widgets/enhanced_attribution_display_widget.dart';
 import 'package:my_app/mira/memory/enhanced_memory_schema.dart';
 import 'package:my_app/mira/memory/enhanced_attribution_schema.dart';
@@ -106,6 +107,13 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
         _sendMessage(widget.initialMessage!.trim());
       });
     }
+    // Crossroads: check for due outcome revisitation at conversation start
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      try {
+        context.read<LumaraAssistantCubit>().checkPendingOutcomePrompt();
+      } catch (_) {}
+    });
   }
 
   /// Check if user is in crisis mode (Sentinel override)
@@ -766,9 +774,21 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
                           ),
                         ),
                         
-                        // Message input - show/hide based on visibility state
-                        if (_isInputVisible) _buildMessageInput(),
-                        if (!_isInputVisible) _buildShowInputButton(),
+                        // Message input - Crossroads confirmation or normal input
+                        BlocBuilder<LumaraAssistantCubit, LumaraAssistantState>(
+                          buildWhen: (prev, curr) =>
+                              prev is LumaraAssistantLoaded && curr is LumaraAssistantLoaded
+                                  ? prev.pendingCrossroadsConfirmationText != curr.pendingCrossroadsConfirmationText
+                                  : true,
+                          builder: (context, state) {
+                            if (state is LumaraAssistantLoaded &&
+                                state.pendingCrossroadsConfirmationText != null) {
+                              return _buildCrossroadsConfirmationCard(state.pendingCrossroadsConfirmationText!);
+                            }
+                            if (_isInputVisible) return _buildMessageInput();
+                            return _buildShowInputButton();
+                          },
+                        ),
                       ],
                     ),
                         ),
@@ -1025,6 +1045,9 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
                         height: 1.6, // Increased line height for better mobile readability
                       ),
                     ),
+                    // Evidence Review: show what CHRONICLE entries LUMARA used for pushback
+                    if (message.pushbackEvidence != null)
+                      EvidenceReviewWidget(evidence: message.pushbackEvidence!),
                   ],
                   
                   // Action buttons for user messages (edit/copy)
@@ -1311,11 +1334,22 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
                   constraints: const BoxConstraints(
                     maxHeight: 120.0, // Max height for ~5 lines (24px per line)
                   ),
-                  child: TextField(
+                  child: BlocBuilder<LumaraAssistantCubit, LumaraAssistantState>(
+                    builder: (context, state) {
+                      final inCrossroadsCapture = state is LumaraAssistantLoaded && state.crossroadsCaptureStep != null;
+                      final inOutcome = state is LumaraAssistantLoaded && state.pendingOutcomeCapture != null;
+                      final hint = isEditing
+                          ? 'Edit your message...'
+                          : inCrossroadsCapture
+                              ? 'Your answer...'
+                              : inOutcome
+                                  ? 'How did it turn out?...'
+                                  : 'Ask LUMARA anything...';
+                      return TextField(
                     controller: _messageController,
                     focusNode: _inputFocusNode,
                     decoration: InputDecoration(
-                      hintText: isEditing ? 'Edit your message...' : 'Ask LUMARA anything...',
+                      hintText: hint,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(20),
                       ),
@@ -1334,6 +1368,8 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
                     onTap: () {
                       // Ensure input is visible when tapped
                       setState(() => _isInputVisible = true);
+                    },
+                  );
                     },
                   ),
                 ),
@@ -1358,6 +1394,43 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
                 padding: const EdgeInsets.all(8),
                 constraints: const BoxConstraints(),
                 onPressed: () => _showQuickPalette(),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCrossroadsConfirmationCard(String confirmationText) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.5),
+        border: Border(
+          top: BorderSide(color: Colors.grey[300]!),
+        ),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            confirmationText,
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+          const Gap(12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              TextButton(
+                onPressed: () => context.read<LumaraAssistantCubit>().declineCrossroadsConfirmation(),
+                child: const Text('No'),
+              ),
+              const Gap(8),
+              ElevatedButton(
+                onPressed: () => context.read<LumaraAssistantCubit>().acceptCrossroadsConfirmation(),
+                child: const Text('Yes'),
               ),
             ],
           ),
@@ -1403,20 +1476,24 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
 
   Future<void> _sendCurrentMessage() async {
     final text = _messageController.text.trim();
-    if (text.isNotEmpty) {
-      if (_editingMessageId != null) {
-        await _resubmitMessage(_editingMessageId!, text);
-      } else {
-        await _sendMessage(text);
-      }
-      _messageController.clear();
-      _editingMessageId = null;
-      // Keep input visible after sending
-      setState(() {
-        _isInputVisible = true;
-      });
-      // Don't dismiss keyboard - keep it open for next message
+    if (text.isEmpty) return;
+
+    final cubit = context.read<LumaraAssistantCubit>();
+    final state = cubit.state;
+
+    if (_editingMessageId != null) {
+      await _resubmitMessage(_editingMessageId!, text);
+    } else if (state is LumaraAssistantLoaded && state.crossroadsCaptureStep != null) {
+      await cubit.submitCrossroadsAnswer(text);
+    } else if (state is LumaraAssistantLoaded && state.pendingOutcomeCapture != null) {
+      await cubit.submitOutcomeResponse(text);
+    } else {
+      await _sendMessage(text);
     }
+
+    _messageController.clear();
+    _editingMessageId = null;
+    setState(() => _isInputVisible = true);
   }
 
   Future<void> _showEngagementModeMenu() async {

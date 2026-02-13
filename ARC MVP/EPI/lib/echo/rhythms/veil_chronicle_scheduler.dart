@@ -4,25 +4,32 @@ import 'veil_aurora_scheduler.dart';
 import '../../chronicle/integration/chronicle_narrative_integration.dart';
 import '../../chronicle/integration/veil_stage_models.dart';
 import '../../chronicle/scheduling/synthesis_scheduler.dart';
+import '../../chronicle/scheduling/chronicle_schedule_preferences.dart';
+import '../../crossroads/crossroads_service.dart';
 
-/// Unified VEIL-CHRONICLE nightly scheduler.
-/// 
+/// Unified VEIL-CHRONICLE scheduler.
+///
 /// Performs two categories of work:
 /// 1. System Maintenance (archives, cache, PRISM, RIVET)
 /// 2. Narrative Integration (CHRONICLE synthesis as VEIL cycle)
+///
+/// Run interval is determined by user preference: daily, weekly, or monthly.
 class VeilChronicleScheduler {
   final ChronicleNarrativeIntegration _narrativeIntegration;
-  Timer? _nightlyTimer;
+  Timer? _cycleTimer;
   bool _isRunning = false;
-  
+  String? _userId;
+  SynthesisTier? _tier;
+
   VeilChronicleScheduler({
     required VeilAuroraScheduler maintenanceScheduler, // Kept for API compatibility
     required ChronicleNarrativeIntegration narrativeIntegration,
-  })  : _narrativeIntegration = narrativeIntegration;
-  
-  /// Start unified nightly cycle
-  /// 
-  /// Schedules both maintenance and narrative integration to run at midnight.
+  }) : _narrativeIntegration = narrativeIntegration;
+
+  /// Start unified cycle.
+  ///
+  /// First run at next midnight; subsequent runs use cadence from preferences
+  /// (daily, weekly, or monthly).
   Future<void> start({
     required String userId,
     required SynthesisTier tier,
@@ -31,33 +38,42 @@ class VeilChronicleScheduler {
       developer.log('VEIL: Already running');
       return;
     }
-    
+
     _isRunning = true;
-    
-    // Calculate time until next midnight
+    _userId = userId;
+    _tier = tier;
+
     final now = DateTime.now();
     final nextMidnight = DateTime(now.year, now.month, now.day + 1);
     final timeUntilMidnight = nextMidnight.difference(now);
-    
-    developer.log('VEIL: Starting unified scheduler, first run at ${nextMidnight.toIso8601String()}');
-    
-    // Schedule periodic runs (every 24 hours)
-    _nightlyTimer = Timer.periodic(Duration(hours: 24), (_) {
-      _runNightlyCycle(userId: userId, tier: tier);
-    });
-    
-    // Run first cycle after calculated delay
-    Timer(timeUntilMidnight, () {
-      _runNightlyCycle(userId: userId, tier: tier);
-    });
+
+    developer.log(
+      'VEIL: Starting scheduler, first run at ${nextMidnight.toIso8601String()}',
+    );
+
+    Timer(timeUntilMidnight, () => _runAndReschedule());
   }
   
-  /// Stop the scheduler
+  /// Stop the scheduler.
   void stop() {
-    _nightlyTimer?.cancel();
-    _nightlyTimer = null;
+    _cycleTimer?.cancel();
+    _cycleTimer = null;
     _isRunning = false;
-    developer.log('VEIL: Stopped unified scheduler');
+    _userId = null;
+    _tier = null;
+    developer.log('VEIL: Stopped scheduler');
+  }
+
+  /// Run one cycle then schedule the next based on user cadence.
+  Future<void> _runAndReschedule() async {
+    if (!_isRunning || _userId == null || _tier == null) return;
+    await _runNightlyCycle(userId: _userId!, tier: _tier!);
+    if (!_isRunning) return;
+    final cadence = await ChronicleSchedulePreferences.getCadence();
+    _cycleTimer = Timer(cadence.interval, () => _runAndReschedule());
+    developer.log(
+      'VEIL: Next run in ${cadence.interval.inDays} day(s) (${cadence.label})',
+    );
   }
   
   /// Run complete nightly VEIL cycle
@@ -84,6 +100,13 @@ class VeilChronicleScheduler {
       report.narrativeIntegrationCompleted = true;
       report.veilStagesExecuted = narrativeResult.stagesExecuted;
       report.synthesisDetails = narrativeResult.details;
+
+      // Part 2b: Crossroads – check due outcome prompts for revisitation
+      try {
+        await CrossroadsService().checkDueOutcomePrompts(userId);
+      } catch (e) {
+        developer.log('VEIL: Crossroads due outcome check failed (non-fatal): $e');
+      }
       
       report.success = true;
       report.endTime = DateTime.now();
@@ -109,21 +132,13 @@ class VeilChronicleScheduler {
     await runNightlyCycle(userId: userId, tier: tier);
   }
   
-  /// Get next scheduled VEIL cycle time
+  /// Get next scheduled VEIL cycle time (estimate; actual uses cadence after first run).
   DateTime getNextCycleTime() {
-    // Default: Midnight local time
     final now = DateTime.now();
-    var nextMidnight = DateTime(now.year, now.month, now.day + 1, 0, 0);
-    
-    // If already past midnight today, use tomorrow
-    if (now.isAfter(nextMidnight)) {
-      nextMidnight = nextMidnight.add(Duration(days: 1));
-    }
-    
-    return nextMidnight;
+    return DateTime(now.year, now.month, now.day + 1, 0, 0);
   }
-  
-  /// Get scheduler status
+
+  /// Get scheduler status. [nextCycle] is approximate when using weekly/monthly.
   Map<String, dynamic> getStatus() {
     return {
       'isRunning': _isRunning,

@@ -137,8 +137,9 @@ Classify user queries into one of these intents:
 - historical_parallel: Asking if they've experienced something similar before (e.g., "Have I dealt with this before?", "When did I last feel this way?")
 - inflection_point: Asking when a shift or change began (e.g., "When did this shift start?", "When did I start feeling different?")
 - temporal_query: Asking about a time period (e.g., "Tell me about my month", "What happened in January?", "Summarize my year")
+- decision_archaeology: Asking about past decisions (e.g., "What have I decided about my career?", "When did I decide to...", "What decisions did I make about X?")
 
-Respond with ONLY the intent name (e.g., "specific_recall", "temporal_query").''';
+Respond with ONLY the intent name (e.g., "specific_recall", "temporal_query", "decision_archaeology").''';
 
       final userPrompt = 'Classify this query: "$query"';
 
@@ -169,6 +170,8 @@ Respond with ONLY the intent name (e.g., "specific_recall", "temporal_query").''
         return QueryIntent.inflectionPoint;
       } else if (intentStr.contains('temporal') || intentStr.contains('month') || intentStr.contains('year') || intentStr.contains('week')) {
         return QueryIntent.temporalQuery;
+      } else if (intentStr.contains('decision') || intentStr.contains('archaeology') || intentStr.contains('decided')) {
+        return QueryIntent.decisionArchaeology;
       }
 
       // Default fallback
@@ -218,6 +221,10 @@ Respond with ONLY the intent name (e.g., "specific_recall", "temporal_query").''
       case QueryIntent.inflectionPoint:
         // Yearly to find the year, monthly to find the month
         return [ChronicleLayer.yearly, ChronicleLayer.monthly];
+
+      case QueryIntent.decisionArchaeology:
+        // Layer 0 decision entries + monthly aggregations (decision captures appear in both)
+        return [ChronicleLayer.layer0, ChronicleLayer.monthly];
     }
   }
 
@@ -251,6 +258,8 @@ Respond with ONLY the intent name (e.g., "specific_recall", "temporal_query").''
         return 'Use $layerNames to find historical parallels';
       case QueryIntent.inflectionPoint:
         return 'Use $layerNames to locate inflection points';
+      case QueryIntent.decisionArchaeology:
+        return 'Use Layer 0 decision entries and monthly aggregations to retrieve decision record';
       default:
         return 'Use $layerNames';
     }
@@ -347,6 +356,9 @@ Respond with ONLY the intent name (e.g., "specific_recall", "temporal_query").''
       
       case QueryIntent.inflectionPoint:
         return 'Locate inflection points using yearly and monthly aggregations. Identify when shifts began and provide context.';
+
+      case QueryIntent.decisionArchaeology:
+        return 'Answer using Layer 0 decision entries and monthly aggregations. List what the user decided, when, and (if available) what the outcome was.';
       
       default:
         return null;
@@ -372,7 +384,10 @@ Respond with ONLY the intent name (e.g., "specific_recall", "temporal_query").''
       
       case QueryIntent.inflectionPoint:
         return 'Locate inflection point in CHRONICLE.';
-      
+
+      case QueryIntent.decisionArchaeology:
+        return 'Retrieve decision captures from CHRONICLE.';
+
       default:
         return null;
     }

@@ -240,7 +240,7 @@ exports.proxyGemini = onCall(
     try {
       const apiKey = GEMINI_API_KEY.value();
       if (!apiKey) {
-        throw new HttpsError("internal", "Gemini API key not configured");
+        throw new HttpsError("internal", "Cloud AI (Gemini fallback) API key not configured");
       }
 
       const genAI = new GoogleGenerativeAI(apiKey);

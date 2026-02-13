@@ -29,6 +29,7 @@ import 'package:my_app/arc/chat/chat/chat_category_models.dart';
 import 'package:my_app/arc/chat/data/models/lumara_favorite.dart';
 import 'package:my_app/arc/voice_notes/models/voice_note.dart';
 import 'package:my_app/chronicle/storage/layer0_repository.dart';
+import 'package:my_app/crossroads/storage/decision_capture_repository.dart';
 import 'package:my_app/services/firebase_service.dart';
 import 'package:my_app/services/firebase_auth_service.dart';
 import 'package:my_app/services/revenuecat_service.dart';
@@ -276,6 +277,15 @@ Future<void> _registerHiveAdapters() async {
     if (!Hive.isAdapterRegistered(110)) {
       Hive.registerAdapter(ChronicleRawEntryAdapter());
       logger.d('✅ Registered ChronicleRawEntryAdapter (ID: 110)');
+    }
+    // Crossroads: decision captures and outcome prompts
+    if (!Hive.isAdapterRegistered(118)) {
+      Hive.registerAdapter(DecisionCaptureAdapter());
+      logger.d('✅ Registered DecisionCaptureAdapter (ID: 118)');
+    }
+    if (!Hive.isAdapterRegistered(119)) {
+      Hive.registerAdapter(DecisionOutcomePromptAdapter());
+      logger.d('✅ Registered DecisionOutcomePromptAdapter (ID: 119)');
     }
     // Reflection session monitoring (AURORA)
     if (!Hive.isAdapterRegistered(125)) {

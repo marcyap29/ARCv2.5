@@ -140,6 +140,17 @@ user_id: ${aggregation.userId}
     return _parseMarkdownWithFrontmatter(content, layer, period, userId);
   }
 
+  /// Parse aggregation from markdown content (export format).
+  /// Used when importing aggregations from an export directory.
+  ChronicleAggregation parseFromMarkdownContent(
+    String content,
+    ChronicleLayer layer,
+    String period,
+    String userId,
+  ) {
+    return _parseMarkdownWithFrontmatter(content, layer, period, userId);
+  }
+
   /// Parse markdown with YAML frontmatter
   ChronicleAggregation _parseMarkdownWithFrontmatter(
     String content,

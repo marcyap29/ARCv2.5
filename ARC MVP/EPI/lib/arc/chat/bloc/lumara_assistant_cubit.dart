@@ -27,6 +27,9 @@ import '../../../services/pending_conversation_service.dart';
 import 'package:my_app/shared/ui/settings/voiceover_preference_service.dart';
 import '../voice/audio_io.dart';
 import '../llm/prompts/lumara_master_prompt.dart';
+import 'package:my_app/chronicle/editing/contradiction_checker.dart';
+import 'package:my_app/chronicle/storage/layer0_repository.dart';
+import '../data/models/pushback_evidence.dart';
 import '../services/lumara_control_state_builder.dart';
 import '../services/reflective_query_service.dart';
 import '../services/reflective_query_formatter.dart';
@@ -47,6 +50,13 @@ import 'package:my_app/services/adaptive/adaptive_sentinel_calculator.dart';
 import 'package:my_app/services/sentinel/sentinel_config.dart';
 import 'package:hive/hive.dart';
 import 'package:my_app/models/reflection_session.dart';
+import 'package:my_app/crossroads/crossroads_service.dart';
+import 'package:my_app/crossroads/models/decision_capture.dart';
+import 'package:my_app/crossroads/storage/decision_capture_repository.dart';
+import 'package:my_app/prism/atlas/rivet/rivet_models.dart';
+import 'package:my_app/prism/atlas/rivet/rivet_decision_analyzer.dart';
+import 'package:my_app/models/phase_models.dart';
+import 'package:my_app/services/user_phase_service.dart';
 
 /// LUMARA Assistant Cubit State
 abstract class LumaraAssistantState {}
@@ -62,6 +72,15 @@ class LumaraAssistantLoaded extends LumaraAssistantState {
   final String? currentSessionId;
   final String? apiErrorMessage; // Message to show in snackbar after retries fail
   final String? notice; // AURORA level-1 notice (non-blocking)
+  // Crossroads: decision capture confirmation (show Yes/No before sending to LUMARA)
+  final DecisionTriggerSignal? pendingCrossroadsSignal;
+  final String? pendingCrossroadsConfirmationText;
+  final String? pendingCrossroadsUserMessage;
+  // Crossroads: in-progress four-prompt capture flow
+  final int? crossroadsCaptureStep; // 1-4, null when not in capture
+  final String? crossroadsCapturePromptText;
+  // Crossroads: due outcome revisitation (show at conversation start)
+  final DecisionCapture? pendingOutcomeCapture;
 
   LumaraAssistantLoaded({
     required this.messages,
@@ -70,6 +89,12 @@ class LumaraAssistantLoaded extends LumaraAssistantState {
     this.currentSessionId,
     this.apiErrorMessage,
     this.notice,
+    this.pendingCrossroadsSignal,
+    this.pendingCrossroadsConfirmationText,
+    this.pendingCrossroadsUserMessage,
+    this.crossroadsCaptureStep,
+    this.crossroadsCapturePromptText,
+    this.pendingOutcomeCapture,
   });
 
   LumaraAssistantLoaded copyWith({
@@ -79,6 +104,12 @@ class LumaraAssistantLoaded extends LumaraAssistantState {
     String? currentSessionId,
     String? apiErrorMessage,
     String? notice,
+    DecisionTriggerSignal? pendingCrossroadsSignal,
+    String? pendingCrossroadsConfirmationText,
+    String? pendingCrossroadsUserMessage,
+    int? crossroadsCaptureStep,
+    String? crossroadsCapturePromptText,
+    DecisionCapture? pendingOutcomeCapture,
   }) {
     return LumaraAssistantLoaded(
       messages: messages ?? this.messages,
@@ -87,6 +118,66 @@ class LumaraAssistantLoaded extends LumaraAssistantState {
       currentSessionId: currentSessionId ?? this.currentSessionId,
       apiErrorMessage: apiErrorMessage,
       notice: notice,
+      pendingCrossroadsSignal: pendingCrossroadsSignal ?? this.pendingCrossroadsSignal,
+      pendingCrossroadsConfirmationText: pendingCrossroadsConfirmationText ?? this.pendingCrossroadsConfirmationText,
+      pendingCrossroadsUserMessage: pendingCrossroadsUserMessage ?? this.pendingCrossroadsUserMessage,
+      crossroadsCaptureStep: crossroadsCaptureStep ?? this.crossroadsCaptureStep,
+      crossroadsCapturePromptText: crossroadsCapturePromptText ?? this.crossroadsCapturePromptText,
+      pendingOutcomeCapture: pendingOutcomeCapture ?? this.pendingOutcomeCapture,
+    );
+  }
+
+  /// Clear Crossroads confirmation pending (e.g. when user declines).
+  LumaraAssistantLoaded clearedCrossroadsPending() {
+    return LumaraAssistantLoaded(
+      messages: messages,
+      scope: scope,
+      isProcessing: isProcessing,
+      currentSessionId: currentSessionId,
+      apiErrorMessage: apiErrorMessage,
+      notice: notice,
+      pendingCrossroadsSignal: null,
+      pendingCrossroadsConfirmationText: null,
+      pendingCrossroadsUserMessage: null,
+      crossroadsCaptureStep: crossroadsCaptureStep,
+      crossroadsCapturePromptText: crossroadsCapturePromptText,
+      pendingOutcomeCapture: pendingOutcomeCapture,
+    );
+  }
+
+  /// Clear Crossroads capture flow (e.g. when complete or cancelled).
+  LumaraAssistantLoaded clearedCrossroadsCapture() {
+    return LumaraAssistantLoaded(
+      messages: messages,
+      scope: scope,
+      isProcessing: isProcessing,
+      currentSessionId: currentSessionId,
+      apiErrorMessage: apiErrorMessage,
+      notice: notice,
+      pendingCrossroadsSignal: pendingCrossroadsSignal,
+      pendingCrossroadsConfirmationText: pendingCrossroadsConfirmationText,
+      pendingCrossroadsUserMessage: pendingCrossroadsUserMessage,
+      crossroadsCaptureStep: null,
+      crossroadsCapturePromptText: null,
+      pendingOutcomeCapture: pendingOutcomeCapture,
+    );
+  }
+
+  /// Clear pending outcome revisitation.
+  LumaraAssistantLoaded clearedPendingOutcome() {
+    return LumaraAssistantLoaded(
+      messages: messages,
+      scope: scope,
+      isProcessing: isProcessing,
+      currentSessionId: currentSessionId,
+      apiErrorMessage: apiErrorMessage,
+      notice: notice,
+      pendingCrossroadsSignal: pendingCrossroadsSignal,
+      pendingCrossroadsConfirmationText: pendingCrossroadsConfirmationText,
+      pendingCrossroadsUserMessage: pendingCrossroadsUserMessage,
+      crossroadsCaptureStep: crossroadsCaptureStep,
+      crossroadsCapturePromptText: crossroadsCapturePromptText,
+      pendingOutcomeCapture: null,
     );
   }
 }
@@ -167,6 +258,10 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
   
   // Voiceover/TTS for AI responses
   AudioIO? _audioIO;
+
+  // Crossroads: decision capture and revisitation
+  final CrossroadsService _crossroadsService = CrossroadsService();
+  final RivetDecisionAnalyzer _rivetDecisionAnalyzer = RivetDecisionAnalyzer();
 
   LumaraAssistantCubit({
     required ContextProvider contextProvider,
@@ -347,11 +442,15 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
     JournalEntry? currentEntry,
     models.ConversationMode? conversationMode,
     String? persona, // 'companion', 'strategist', 'therapist', 'challenger'
+    bool skipCrossroadsCheck = false, // true when resending after user declined Crossroads
   }) async {
     if (text.trim().isEmpty) return;
 
     final currentState = state;
     if (currentState is! LumaraAssistantLoaded) return;
+
+    // Crossroads: allow one confirmation per turn; clear when starting new message
+    _crossroadsService.clearSurfacedThisTurn();
 
     print('LUMARA Debug: Sending message: "$text"');
     print('LUMARA Debug: Current message count: ${currentState.messages.length}');
@@ -436,6 +535,38 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
       print('LUMARA: Stack trace: $stackTrace');
     }
 
+    // ═══════════════════════════════════════════════════════════
+    // CROSSROADS: Decision trigger detection (one prompt per turn)
+    // ═══════════════════════════════════════════════════════════
+    if (!skipCrossroadsCheck &&
+        currentState.crossroadsCaptureStep == null &&
+        !_crossroadsService.isCaptureInProgress) {
+      try {
+        final userId = FirebaseAuthService.instance.currentUser?.uid ?? 'default_user';
+        String phaseName = await UserPhaseService.getCurrentPhase();
+        if (phaseName.isEmpty) phaseName = 'discovery';
+        final outputs = _rivetDecisionAnalyzer.analyzeMessage(
+          messageText: text,
+          currentPhase: phaseName,
+        );
+        final decisionOutputs = outputs.where((o) => o.type == RivetOutputType.decisionTrigger && o.decisionSignal != null).toList();
+        if (decisionOutputs.isNotEmpty) {
+          final signal = decisionOutputs.first.decisionSignal!;
+          final shouldSurface = await _crossroadsService.shouldSurfaceCrossroadsPrompt(signal: signal, userId: userId);
+          if (shouldSurface) {
+            final confirmationText = _crossroadsService.buildConfirmationPrompt(signal);
+            emit(currentState.copyWith(
+              pendingCrossroadsSignal: signal,
+              pendingCrossroadsConfirmationText: confirmationText,
+              pendingCrossroadsUserMessage: text,
+            ));
+            return;
+          }
+        }
+      } catch (e) {
+        print('LUMARA Crossroads: Decision check failed (non-fatal): $e');
+      }
+    }
 
     // Save pending input in case of interruption
     await _savePendingInput(text, conversationMode: conversationMode, persona: effectivePersona);
@@ -998,6 +1129,30 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
       print('LUMARA: Stack trace: $stackTrace');
     }
 
+    // Real-time pushback: if user message looks like a claim, check against CHRONICLE and inject truth_check
+    var effectiveSystemPrompt = systemPrompt;
+    ContradictionResult? pushbackContradiction;
+    if (_userId != null && _userId!.isNotEmpty) {
+      try {
+        final layer0 = Layer0Repository();
+        await layer0.initialize();
+        final checker = ChronicleContradictionChecker(layer0: layer0);
+        if (checker.detectsUserClaim(text)) {
+          final contradiction = await checker.checkAgainstChronicle(
+            claim: text,
+            userId: _userId!,
+          );
+          if (contradiction != null) {
+            pushbackContradiction = contradiction;
+            effectiveSystemPrompt = '$systemPrompt\n\n${contradiction.toTruthCheckBlock(text)}';
+            print('LUMARA: Injected truth_check pushback context (chat)');
+          }
+        }
+      } catch (_) {
+        // CHRONICLE not available or init failed; skip pushback
+      }
+    }
+
     // Use Firebase proxy with chatId for per-chat rate limiting
     // (replaces streaming to enable backend rate limiting)
     String responseText;
@@ -1015,7 +1170,7 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
       
       // Call Firebase proxy with chatId for rate limiting
       responseText = await geminiSend(
-        system: systemPrompt,
+        system: effectiveSystemPrompt,
         user: userMessage,
         chatId: currentChatSessionId, // For per-chat usage limit tracking
         skipTransformation: isBibleQuestion, // Skip transformation to preserve Bible context instructions
@@ -1074,14 +1229,22 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
       // Record assistant response in MCP memory
       await _recordAssistantMessage(enhancedContent);
 
-      // Update final message with attribution traces
+      // Update final message with attribution traces and optional pushback evidence for Evidence Review UI
       if (state is LumaraAssistantLoaded) {
         final currentMessages = (state as LumaraAssistantLoaded).messages;
         if (currentMessages.isNotEmpty) {
           final lastIndex = currentMessages.length - 1;
+          final contradiction = pushbackContradiction;
+          final pushbackEvidence = contradiction != null
+              ? PushbackEvidence(
+                  aggregationSummary: contradiction.aggregationSummary,
+                  entryExcerpts: contradiction.entryExcerpts,
+                )
+              : null;
           final finalMessage = currentMessages[lastIndex].copyWith(
             content: enhancedContent,
             attributionTraces: attributionTraces,
+            pushbackEvidence: pushbackEvidence,
           );
 
           // Add assistant response to chat session (preserve ID for favorites)
@@ -2364,6 +2527,153 @@ Your enhanced memory system continuously adapts to your growth and maintains tra
 Your exported MCP bundle can be imported into any MCP-compatible system, ensuring complete data portability and user control.
 
 *Note: Export functionality requires UI implementation in settings.*''';
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // CROSSROADS: Confirmation and capture flow
+  // ═══════════════════════════════════════════════════════════
+
+  /// User accepted Crossroads confirmation: start the four-prompt capture flow.
+  Future<void> acceptCrossroadsConfirmation() async {
+    final currentState = state;
+    if (currentState is! LumaraAssistantLoaded ||
+        currentState.pendingCrossroadsSignal == null ||
+        currentState.pendingCrossroadsConfirmationText == null) return;
+
+    final signal = currentState.pendingCrossroadsSignal!;
+    final phaseLabel = PhaseLabel.values.firstWhere(
+      (p) => p.name == signal.currentPhase.toLowerCase(),
+      orElse: () => PhaseLabel.discovery,
+    );
+
+    _crossroadsService.startCapture(
+      phaseAtCapture: phaseLabel,
+      sentinelScoreAtCapture: 0.5,
+      triggerConfidence: signal.phaseWeight * 0.4 + signal.phraseWeight * 0.6,
+      triggerPhrase: signal.phraseCategory,
+      userInitiated: false,
+      linkedJournalEntryId: null,
+    );
+    _crossroadsService.setCaptureInProgress(true);
+
+    final promptText = _crossroadsService.getPromptTextForCurrentStep();
+    final assistantMsg = LumaraMessage.assistant(content: promptText ?? '');
+    final updatedMessages = [...currentState.messages, assistantMsg];
+
+    emit(LumaraAssistantLoaded(
+      messages: updatedMessages,
+      scope: currentState.scope,
+      isProcessing: false,
+      currentSessionId: currentState.currentSessionId,
+      apiErrorMessage: currentState.apiErrorMessage,
+      notice: currentState.notice,
+      pendingCrossroadsSignal: null,
+      pendingCrossroadsConfirmationText: null,
+      pendingCrossroadsUserMessage: null,
+      crossroadsCaptureStep: 1,
+      crossroadsCapturePromptText: promptText,
+      pendingOutcomeCapture: currentState.pendingOutcomeCapture,
+    ));
+  }
+
+  /// User declined Crossroads: clear pending and send the message to LUMARA normally.
+  Future<void> declineCrossroadsConfirmation() async {
+    final currentState = state;
+    if (currentState is! LumaraAssistantLoaded) return;
+    final pendingText = currentState.pendingCrossroadsUserMessage;
+    emit(currentState.clearedCrossroadsPending());
+    if (pendingText != null && pendingText.isNotEmpty) {
+      await sendMessage(pendingText, skipCrossroadsCheck: true);
+    }
+  }
+
+  /// Submit one answer in the Crossroads four-prompt capture flow.
+  Future<void> submitCrossroadsAnswer(String answer) async {
+    final currentState = state;
+    if (currentState is! LumaraAssistantLoaded || currentState.crossroadsCaptureStep == null) return;
+
+    final step = _crossroadsService.submitStepAnswer(answer);
+    final stepIndex = step == CrossroadsCaptureStep.prompt1 ? 1
+        : step == CrossroadsCaptureStep.prompt2 ? 2
+        : step == CrossroadsCaptureStep.prompt3 ? 3
+        : step == CrossroadsCaptureStep.prompt4 ? 4
+        : 5;
+
+    final userMsg = LumaraMessage.user(content: answer);
+    var updatedMessages = [...currentState.messages, userMsg];
+
+    if (step == CrossroadsCaptureStep.complete) {
+      try {
+        final userId = FirebaseAuthService.instance.currentUser?.uid ?? 'default_user';
+        await _crossroadsService.saveCompleteCaptureAndScheduleOutcome(userId: userId);
+        _crossroadsService.setCaptureInProgress(false);
+        const doneText = crossroadsConfirmDone;
+        updatedMessages = [...updatedMessages, LumaraMessage.assistant(content: doneText)];
+        emit((currentState.copyWith(messages: updatedMessages)).clearedCrossroadsCapture());
+      } catch (e) {
+        print('LUMARA Crossroads: Save complete capture failed: $e');
+        emit(currentState.copyWith(apiErrorMessage: 'Could not save decision. Please try again.'));
+      }
+      return;
+    }
+
+    final nextPrompt = _crossroadsService.getPromptTextForCurrentStep();
+    updatedMessages = [...updatedMessages, LumaraMessage.assistant(content: nextPrompt ?? '')];
+    emit(currentState.copyWith(
+      messages: updatedMessages,
+      crossroadsCaptureStep: stepIndex,
+      crossroadsCapturePromptText: nextPrompt,
+    ));
+  }
+
+  /// Cancel the Crossroads capture flow and save partial capture.
+  Future<void> cancelCrossroadsCapture() async {
+    await _crossroadsService.savePartialCapture();
+    _crossroadsService.setCaptureInProgress(false);
+    final currentState = state;
+    if (currentState is LumaraAssistantLoaded) {
+      emit(currentState.clearedCrossroadsCapture());
+    }
+  }
+
+  /// Check for a due outcome prompt at conversation start (call when chat screen loads).
+  Future<void> checkPendingOutcomePrompt() async {
+    final userId = FirebaseAuthService.instance.currentUser?.uid ?? 'default_user';
+    final captureId = await PendingOutcomeStore.getPendingCaptureId(userId);
+    if (captureId == null) return;
+
+    final repo = DecisionCaptureRepository();
+    await repo.initialize();
+    final capture = await repo.getById(captureId);
+    if (capture == null) return;
+
+    final currentState = state;
+    if (currentState is LumaraAssistantLoaded) {
+      final promptText = _crossroadsService.buildRevisitationPrompt(capture);
+      final assistantMsg = LumaraMessage.assistant(content: promptText);
+      emit(currentState.copyWith(
+        messages: [...currentState.messages, assistantMsg],
+        pendingOutcomeCapture: capture,
+      ));
+    }
+  }
+
+  /// Submit outcome response for a pending Crossroads revisitation.
+  Future<void> submitOutcomeResponse(String outcomeText) async {
+    final currentState = state;
+    if (currentState is! LumaraAssistantLoaded || currentState.pendingOutcomeCapture == null) return;
+
+    final capture = currentState.pendingOutcomeCapture!;
+    final userId = FirebaseAuthService.instance.currentUser?.uid ?? 'default_user';
+    await _crossroadsService.logOutcome(
+      decisionCaptureId: capture.id,
+      outcomeLog: outcomeText,
+      userId: userId,
+    );
+
+    final userMsg = LumaraMessage.user(content: outcomeText);
+    final updatedMessages = [...currentState.messages, userMsg];
+    emit(currentState.clearedPendingOutcome().copyWith(messages: updatedMessages));
   }
 
   /// Ensure we have an active chat session (auto-create if needed)

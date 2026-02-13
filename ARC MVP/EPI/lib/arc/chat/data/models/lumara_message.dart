@@ -1,6 +1,7 @@
 import 'package:equatable/equatable.dart';
 import 'package:my_app/mira/memory/enhanced_memory_schema.dart';
 import '../../chat/chat_models.dart';
+import 'pushback_evidence.dart';
 
 /// Role of a LUMARA message
 enum LumaraMessageRole {
@@ -18,6 +19,8 @@ class LumaraMessage extends Equatable {
   final List<String> sources;
   final Map<String, dynamic> metadata;
   final List<AttributionTrace>? attributionTraces;
+  /// When set, this message was generated with pushback context; show Evidence Review UI.
+  final PushbackEvidence? pushbackEvidence;
 
   const LumaraMessage({
     required this.id,
@@ -27,6 +30,7 @@ class LumaraMessage extends Equatable {
     this.sources = const [],
     this.metadata = const {},
     this.attributionTraces,
+    this.pushbackEvidence,
   });
 
   factory LumaraMessage.user({
@@ -54,6 +58,7 @@ class LumaraMessage extends Equatable {
     List<String> sources = const [],
     Map<String, dynamic> metadata = const {},
     List<AttributionTrace>? attributionTraces,
+    PushbackEvidence? pushbackEvidence,
     String? id,
     DateTime? timestamp,
   }) {
@@ -66,6 +71,7 @@ class LumaraMessage extends Equatable {
       sources: sources,
       metadata: metadata,
       attributionTraces: attributionTraces,
+      pushbackEvidence: pushbackEvidence,
     );
   }
 
@@ -112,6 +118,7 @@ class LumaraMessage extends Equatable {
     List<String>? sources,
     Map<String, dynamic>? metadata,
     List<AttributionTrace>? attributionTraces,
+    PushbackEvidence? pushbackEvidence,
   }) {
     return LumaraMessage(
       id: id ?? this.id,
@@ -121,6 +128,7 @@ class LumaraMessage extends Equatable {
       sources: sources ?? this.sources,
       metadata: metadata ?? this.metadata,
       attributionTraces: attributionTraces ?? this.attributionTraces,
+      pushbackEvidence: pushbackEvidence ?? this.pushbackEvidence,
     );
   }
 
@@ -150,5 +158,5 @@ class LumaraMessage extends Equatable {
   }
 
   @override
-  List<Object?> get props => [id, role, content, timestamp, sources, metadata, attributionTraces];
+  List<Object?> get props => [id, role, content, timestamp, sources, metadata, attributionTraces, pushbackEvidence];
 }

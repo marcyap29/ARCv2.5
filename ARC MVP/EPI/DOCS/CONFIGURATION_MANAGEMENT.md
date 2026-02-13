@@ -1,7 +1,7 @@
 # Configuration Management & Documentation Tracking
 
 **Lead Configuration Management Analyst:** Active  
-**Last Updated:** February 12, 2026  
+**Last Updated:** February 13, 2026  
 **Status:** ✅ All Documents Synced with Repo
 
 ---
@@ -38,12 +38,12 @@ Prompt/role definitions: **Documentation & Configuration Management Role** in [c
 
 | Document | Location | Last Reviewed | Status | Notes |
 |----------|----------|---------------|--------|-------|
-| ARCHITECTURE.md | `/DOCS/ARCHITECTURE.md` | 2026-02-12 | ✅ Synced | v3.3.25 - Chat phase classification, embedded phase view |
-| CHANGELOG.md | `/DOCS/CHANGELOG.md` | 2026-02-12 | ✅ Synced | v3.3.25 - Chat phase classification, embedded phase, draft fix |
-| PROMPT_REFERENCES.md | `/DOCS/PROMPT_REFERENCES.md` | 2026-02-12 | ✅ Synced | v2.1.0 - Consolidated: §15 Unified Intent Depth Classifier, §16 Master Prompt Architecture |
-| PROMPT_TRACKER.md | `/DOCS/PROMPT_TRACKER.md` | 2026-02-12 | ✅ Synced | v1.2.0 - Added v2.1.0 consolidation row |
+| ARCHITECTURE.md | `/DOCS/ARCHITECTURE.md` | 2026-02-13 | ✅ Synced | v3.3.26 - Crossroads, pushback, pattern index, edit validation |
+| CHANGELOG.md | `/DOCS/CHANGELOG.md` | 2026-02-13 | ✅ Synced | v3.3.26 - Crossroads, pushback, pattern index, CHRONICLE improvements |
+| PROMPT_REFERENCES.md | `/DOCS/PROMPT_REFERENCES.md` | 2026-02-13 | ✅ Synced | v2.2.0 - §17 Intellectual Honesty, §18 Crossroads, §19 Edit Validation |
+| PROMPT_TRACKER.md | `/DOCS/PROMPT_TRACKER.md` | 2026-02-13 | ✅ Synced | v1.3.0 - Added v2.2.0 prompts row |
 | bug_tracker.md | `/DOCS/bugtracker/bug_tracker.md` | 2026-02-08 | ✅ Synced | v3.2.2 - 29 records; How to use; Recent code changes |
-| FEATURES.md | `/DOCS/FEATURES.md` | 2026-02-12 | ✅ Synced | v3.3.25 - Chat phase classification, embedded phase |
+| FEATURES.md | `/DOCS/FEATURES.md` | 2026-02-13 | ✅ Synced | v3.3.26 - Crossroads, pushback, pattern index, expanded entry, import |
 | README.md | `/DOCS/README.md` | 2026-02-07 | ✅ Synced | Key docs table with purpose and when to read |
 | claude.md | `/DOCS/claude.md` | 2026-02-12 | ✅ Synced | v3.3.25 - Chat phase classification, recent updates |
 | backend.md | `/DOCS/backend.md` | 2026-02-11 | ✅ Synced | v3.3 - proxyGroq (Groq primary), proxyGemini (fallback), Firebase, Stripe |
@@ -63,12 +63,12 @@ Prompt/role definitions: **Documentation & Configuration Management Role** in [c
 |----------|----------|-------|
 | CHRONICLE_COMPLETE.md | DOCS/ | CHRONICLE feature spec |
 | CHRONICLE_PROMPT_REFERENCE.md | DOCS/ | CHRONICLE prompt reference (cross-ref from PROMPT_REFERENCES) |
-| LUMARA_COMPLETE.md | DOCS/ | **v2.0** — consolidated LUMARA architecture, subsystems, orchestrator, narrative intelligence, user guide |
+| LUMARA_COMPLETE.md | DOCS/ | **v2.1** — consolidated LUMARA architecture + Crossroads, pushback, pattern index (v3.3.26) |
 | PHASE_DETECTION_FACTORS.md | DOCS/ | Phase detection code reference |
 | SENTINEL_DETECTION_FACTORS.md | DOCS/ | SENTINEL detection factors |
 | MVP_Install.md | DOCS/ | MVP installation |
 | TESTER_ACCOUNT_SETUP.md | DOCS/ | Tester account setup |
-| UNIFIED_FEED.md | DOCS/ | Unified Feed v2.3: scroll nav, content display, streaming, Gantt auto-refresh, phase display fix, CHRONICLE speed |
+| UNIFIED_FEED.md | DOCS/ | Unified Feed v2.3+: scroll nav, content display, streaming, Gantt auto-refresh, expanded entry LUMARA blocks/related entries (v3.3.26) |
 | DEVSECOPS_SECURITY_AUDIT.md | DOCS/ | DevSecOps full security audit |
 | Engagement_Discipline.md | DOCS/ | Engagement discipline system |
 | ONBOARDING_TEXT.md | DOCS/ | Onboarding screen text collection |
@@ -128,6 +128,41 @@ Prompt/role definitions: **Documentation & Configuration Management Role** in [c
 | Redundancy reduction | - | ~50% in affected areas |
 
 **Status:** ✅ All consolidation actions executed. Zero information loss. All cross-references updated.
+
+---
+
+### 2026-02-13 - v3.3.26: Crossroads, Intellectual Honesty, Pattern Index, CHRONICLE Improvements
+
+**Action:** Massive feature release with 3 new subsystems and significant CHRONICLE enhancements. 32 modified files + 21 new files.
+
+**New subsystems:**
+- **Crossroads Decision Capture** (`lib/crossroads/`): RIVET-triggered decision detection → confirmation → 4-step capture → CHRONICLE Layer 0 (`entry_type: "decision"`). Outcome revisitation. Monthly synthesis treats decisions as inflection points. `QueryIntent.decisionArchaeology`. Export `decisions/` directory. Hive adapters 118/119.
+- **LUMARA Intellectual Honesty / Pushback**: `<intellectual_honesty>` master prompt section. `ChronicleContradictionChecker` → `truth_check` injection (chat + reflection). `PushbackEvidence` on messages. `EvidenceReviewWidget`.
+- **CHRONICLE Cross-Temporal Pattern Index**: On-device TFLite Universal Sentence Encoder. `ChronicleIndexBuilder`, `ThreeStageMatcher`, `PatternQueryRouter`, `ChronicleIndexStorage`. Updated after monthly synthesis. `tflite_flutter: ^0.12.1`.
+
+**CHRONICLE enhancements:**
+- Edit Validation (`EditValidator`): pattern suppression + factual contradiction detection.
+- Import Service (`ChronicleImportService`): import from export directory.
+- Schedule Preferences: user-selectable cadence (Daily/Weekly/Monthly). VEIL scheduler adapts.
+- Onboarding progress: 0-100 scale with continuous bar.
+
+**UI improvements:**
+- Expanded Entry View: full entry with LUMARA blocks, related entries (tappable), overview content.
+- Journal view-only: readOnly LUMARA blocks, paragraph formatting.
+- Phase display unification: profile first → regime; no default Discovery. Splash removes backfill.
+- Dark-theme-safe export/delete dialogs; multi-delete label with count; MCP export date validation.
+- CHRONICLE Management: import button, cadence chips, improved progress UX.
+
+**Doc updates:**
+- **CHANGELOG.md:** v3.3.26 entry (all sections above).
+- **ARCHITECTURE.md:** v3.3.26; 5 new key achievements (Crossroads, Honesty, Pattern Index, Edit Validation, Chat Phase updated).
+- **FEATURES.md:** v3.3.26; 9 new feature entries.
+- **claude.md:** v3.3.26; Recent Updates rewritten with all v3.3.26 changes; previous v3.3.25 moved to "Earlier Updates".
+- **PROMPT_REFERENCES.md:** v2.2.0; §17 Intellectual Honesty, §18 Crossroads Capture, §19 Edit Validation.
+- **LUMARA_COMPLETE.md:** v2.1; Crossroads, Intellectual Honesty, Pattern Index sections + updated critical files table.
+- **UNIFIED_FEED.md:** ExpandedEntryView LUMARA blocks, related entries, LUMARA note; paragraph rendering additions.
+- **CONFIGURATION_MANAGEMENT.md:** Inventory updated; this entry.
+- **PROMPT_TRACKER.md:** v1.3.0; new row for v2.2.0 prompts.
 
 ---
 

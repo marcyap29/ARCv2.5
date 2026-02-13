@@ -39,6 +39,9 @@ enum QueryIntent {
 
   /// User wants temporal query: "Tell me about my month/year"
   temporalQuery,
+
+  /// User wants decision archaeology: "What decisions have I made about X?" / "When did I decide to..."
+  decisionArchaeology,
 }
 
 /// Query Plan

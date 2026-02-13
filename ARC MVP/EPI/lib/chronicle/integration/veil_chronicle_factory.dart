@@ -4,44 +4,58 @@ import '../synthesis/synthesis_engine.dart';
 import '../storage/changelog_repository.dart';
 import '../storage/aggregation_repository.dart';
 import '../storage/layer0_repository.dart';
+import '../storage/chronicle_index_storage.dart';
+import '../embeddings/local_embedding_service.dart';
+import '../index/chronicle_index_builder.dart';
 import '../scheduling/synthesis_scheduler.dart';
 import 'chronicle_narrative_integration.dart';
 
-/// Factory for creating unified VEIL-CHRONICLE scheduler
-/// 
-/// Simplifies initialization of the unified architecture.
+/// Factory for creating unified VEIL-CHRONICLE scheduler.
+///
+/// Initializes synthesis engine, optional cross-temporal pattern index,
+/// and narrative integration. Pattern index runs on-device embeddings
+/// (Universal Sentence Encoder); if TFLite is unavailable, index update
+/// is skipped non-fatally.
 class VeilChronicleFactory {
-  /// Create unified VEIL-CHRONICLE scheduler
-  /// 
-  /// Initializes all required components and returns a configured scheduler.
+  /// Create unified VEIL-CHRONICLE scheduler.
   static Future<VeilChronicleScheduler?> create({
     required String userId,
     required SynthesisTier tier,
   }) async {
     try {
-      // Initialize CHRONICLE components
       final layer0Repo = Layer0Repository();
       await layer0Repo.initialize();
-      
+
       final aggregationRepo = AggregationRepository();
       final changelogRepo = ChangelogRepository();
-      
+
       final synthesisEngine = SynthesisEngine(
         layer0Repo: layer0Repo,
         aggregationRepo: aggregationRepo,
         changelogRepo: changelogRepo,
       );
-      
-      // Create narrative integration (VEIL-framed synthesis)
+
+      ChronicleIndexBuilder? indexBuilder;
+      try {
+        final embedder = LocalEmbeddingService();
+        await embedder.initialize();
+        final storage = ChronicleIndexStorage();
+        indexBuilder = ChronicleIndexBuilder(
+          embedder: embedder,
+          storage: storage,
+        );
+      } catch (e) {
+        print('⚠️ VeilChronicleFactory: Chronicle pattern index disabled: $e');
+      }
+
       final narrativeIntegration = ChronicleNarrativeIntegration(
         synthesisEngine: synthesisEngine,
         changelogRepo: changelogRepo,
+        chronicleIndexBuilder: indexBuilder,
       );
-      
-      // Create maintenance scheduler (existing VEIL tasks)
+
       final maintenanceScheduler = VeilAuroraScheduler();
-      
-      // Create unified scheduler
+
       return VeilChronicleScheduler(
         maintenanceScheduler: maintenanceScheduler,
         narrativeIntegration: narrativeIntegration,

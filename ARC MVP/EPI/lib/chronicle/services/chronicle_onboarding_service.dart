@@ -50,6 +50,7 @@ class ChronicleOnboardingService {
       print('📥 ChronicleOnboardingService: Journal has ${entries.length} entries to consider');
       
       if (entries.isEmpty) {
+        onProgress?.call(0, 1); // Signal UI so progress view is not static
         result.success = true;
         result.message = 'No entries to backfill';
         return result;
@@ -256,18 +257,23 @@ class ChronicleOnboardingService {
   }
 
   /// Backfill Layer 0 then synthesize current month only.
+  /// Reports progress as (current, total) with total >= 2: 0/2 = backfill, 1/2 = synthesizing.
   Future<OnboardingResult> backfillAndSynthesizeCurrentMonth({
     required String userId,
     Function(int processed, int total)? onProgress,
   }) async {
     final result = OnboardingResult();
     try {
-      final layer0Result = await backfillLayer0(userId: userId, onProgress: onProgress);
+      onProgress?.call(0, 2);
+      final layer0Result = await backfillLayer0(userId: userId, onProgress: (p, t) {
+        if (t > 0) onProgress?.call(0, 2); // Keep at "phase 1" with sub-progress from backfill
+      });
       if (!layer0Result.success) {
         result.success = false;
         result.error = layer0Result.error;
         return result;
       }
+      onProgress?.call(1, 2);
       final now = DateTime.now();
       final period = '${now.year}-${now.month.toString().padLeft(2, '0')}';
       await _synthesisEngine.synthesizeLayer(
@@ -275,6 +281,7 @@ class ChronicleOnboardingService {
         layer: ChronicleLayer.monthly,
         period: period,
       );
+      onProgress?.call(2, 2);
       result.success = true;
       result.message = 'Backfill complete; current month ($period) synthesized';
       return result;
@@ -292,18 +299,21 @@ class ChronicleOnboardingService {
   }) async {
     final result = OnboardingResult();
     try {
-      final layer0Result = await backfillLayer0(userId: userId, onProgress: onProgress);
+      onProgress?.call(0, 2);
+      final layer0Result = await backfillLayer0(userId: userId, onProgress: (p, t) => onProgress?.call(0, 2));
       if (!layer0Result.success) {
         result.success = false;
         result.error = layer0Result.error;
         return result;
       }
+      onProgress?.call(1, 2);
       final period = DateTime.now().year.toString();
       await _synthesisEngine.synthesizeLayer(
         userId: userId,
         layer: ChronicleLayer.yearly,
         period: period,
       );
+      onProgress?.call(2, 2);
       result.success = true;
       result.message = 'Backfill complete; current year ($period) synthesized';
       return result;
@@ -321,12 +331,14 @@ class ChronicleOnboardingService {
   }) async {
     final result = OnboardingResult();
     try {
-      final layer0Result = await backfillLayer0(userId: userId, onProgress: onProgress);
+      onProgress?.call(0, 2);
+      final layer0Result = await backfillLayer0(userId: userId, onProgress: (p, t) => onProgress?.call(0, 2));
       if (!layer0Result.success) {
         result.success = false;
         result.error = layer0Result.error;
         return result;
       }
+      onProgress?.call(1, 2);
       final now = DateTime.now().year;
       final startYear = (now ~/ 5) * 5;
       final endYear = startYear + 4;
@@ -336,6 +348,7 @@ class ChronicleOnboardingService {
         layer: ChronicleLayer.multiyear,
         period: period,
       );
+      onProgress?.call(2, 2);
       result.success = true;
       result.message = 'Backfill complete; multi-year ($period) synthesized';
       return result;
@@ -346,7 +359,8 @@ class ChronicleOnboardingService {
     }
   }
 
-  /// Full onboarding: backfill Layer 0 + batch synthesize
+  /// Full onboarding: backfill Layer 0 + batch synthesize.
+  /// Reports progress on a 0-100 scale: 0-50 = backfill, 50-100 = synthesis (so the bar moves continuously).
   Future<OnboardingResult> fullOnboarding({
     required String userId,
     required SynthesisTier tier,
@@ -355,14 +369,20 @@ class ChronicleOnboardingService {
     print('📥 ChronicleOnboardingService: Starting full onboarding...');
     
     final result = OnboardingResult();
+    const int totalScale = 100;
     
     try {
-      // Stage 1: Backfill Layer 0
-      onProgress?.call('Backfilling Layer 0', 0, 2);
+      // Stage 1: Backfill Layer 0 (reports 0–50)
+      onProgress?.call('Backfilling Layer 0...', 0, totalScale);
       final layer0Result = await backfillLayer0(
         userId: userId,
         onProgress: (processed, total) {
-          onProgress?.call('Backfilling Layer 0', 0, 2);
+          if (total > 0) {
+            final p = (processed / total * 50).round().clamp(0, 50);
+            onProgress?.call('Backfilling Layer 0... ($processed / $total entries)', p, totalScale);
+          } else {
+            onProgress?.call('Backfilling Layer 0...', 0, totalScale);
+          }
         },
       );
       
@@ -375,13 +395,19 @@ class ChronicleOnboardingService {
       result.processedEntries = layer0Result.processedEntries;
       result.newEntries = layer0Result.newEntries;
       
-      // Stage 2: Batch synthesize
-      onProgress?.call('Synthesizing historical periods', 1, 2);
+      onProgress?.call('Synthesizing historical periods...', 50, totalScale);
+      
+      // Stage 2: Batch synthesize (reports 50–100)
       final synthesisResult = await batchSynthesizeHistorical(
         userId: userId,
         tier: tier,
         onProgress: (processed, total, period) {
-          onProgress?.call('Synthesizing historical periods', 1, 2);
+          if (total > 0) {
+            final p = 50 + (processed / total * 50).round().clamp(0, 50);
+            onProgress?.call('Synthesizing $period ($processed / $total)', p, totalScale);
+          } else {
+            onProgress?.call('Synthesizing historical periods...', 50, totalScale);
+          }
         },
       );
       
@@ -394,6 +420,8 @@ class ChronicleOnboardingService {
       result.processedPeriods = synthesisResult.processedPeriods;
       result.totalPeriods = synthesisResult.totalPeriods;
       result.errors = synthesisResult.errors;
+      
+      onProgress?.call('Done', totalScale, totalScale);
       
       result.success = true;
       result.message = 'Onboarding complete: ${result.newEntries} entries backfilled, ${result.processedPeriods} periods synthesized';

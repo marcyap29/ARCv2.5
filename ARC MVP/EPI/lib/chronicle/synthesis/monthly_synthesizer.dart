@@ -78,8 +78,16 @@ class MonthlySynthesizer {
     // 6. Extract themes using LLM for richer descriptions
     final llmThemes = await _extractThemesWithLLM(entrySchemas);
 
+    // 6a. Decision captures this month (for narrative and markdown)
+    final decisionSchemas = entrySchemas.where((e) => e.analysis.isDecision).toList();
+    final decisionCapturesText = _formatDecisionCapturesForSynthesis(decisionSchemas);
+
     // 6b. Generate narrative summary: "What happened this month"
-    final monthNarrative = await _generateMonthNarrative(month: month, entrySchemas: entrySchemas);
+    final monthNarrative = await _generateMonthNarrative(
+      month: month,
+      entrySchemas: entrySchemas,
+      decisionCapturesText: decisionCapturesText,
+    );
 
     // 7. Calculate original token count (before markdown generation)
     final originalTokens = entrySchemas
@@ -97,6 +105,7 @@ class MonthlySynthesizer {
       events: events,
       originalTokens: originalTokens,
       monthNarrative: monthNarrative,
+      decisionCapturesText: decisionCapturesText,
     );
 
     // 9. Calculate compression ratio
@@ -241,33 +250,59 @@ Output JSON array of themes:''';
     return false;
   }
 
+  /// Build text block of decision captures for synthesis prompts.
+  String _formatDecisionCapturesForSynthesis(List<RawEntrySchema> decisionSchemas) {
+    if (decisionSchemas.isEmpty) return '';
+    final buffer = StringBuffer();
+    for (final e in decisionSchemas) {
+      final data = e.analysis.decisionData;
+      if (data == null) continue;
+      buffer.writeln('- **Decision:** ${(data['decision_statement'] as String? ?? '').toString().trim()}');
+      buffer.writeln('  Context: ${(data['life_context'] as String? ?? '').toString().trim()}');
+      buffer.writeln('  Options considered: ${(data['options_considered'] as String? ?? '').toString().trim()}');
+      buffer.writeln('  Success marker: ${(data['success_marker'] as String? ?? '').toString().trim()}');
+      if (data['outcome_log'] != null && (data['outcome_log'] as String).isNotEmpty) {
+        buffer.writeln('  Outcome (logged later): ${data['outcome_log']}');
+      }
+      buffer.writeln();
+    }
+    return buffer.toString().trim();
+  }
+
   /// Generate a narrative summary of what happened this month (1–2 paragraphs).
   Future<String> _generateMonthNarrative({
     required String month,
     required List<RawEntrySchema> entrySchemas,
+    String decisionCapturesText = '',
   }) async {
     if (entrySchemas.isEmpty) return '';
 
     final monthName = _formatMonthName(month);
     try {
-      // More entries and longer snippets for full detail on device; same content is scrubbed when sent to cloud and restored in responses
-      final entriesText = entrySchemas
+      // Journal entries only for main narrative (exclude decision entry content from duplicate treatment)
+      final journalSchemas = entrySchemas.where((e) => !e.analysis.isDecision).toList();
+      final entriesText = (journalSchemas.isEmpty ? entrySchemas : journalSchemas)
           .take(80)
           .map((e) => e.content.substring(0, e.content.length > 1200 ? 1200 : e.content.length))
           .join('\n\n---\n\n');
 
       final systemPrompt = '''You write detailed month-in-review summaries for a personal journaling app (memory files the owner will read).
-Based only on the journal entry content provided, write a detailed narrative in third person that:
+Based only on the journal entry content and any DECISION CAPTURES provided, write a detailed narrative in third person that:
 - Preserves concrete details: specific names, places, events, dates, and projects from the entries. Pull out and include specific details, not generic summaries.
 - Covers what actually happened this month (events, routines, changes), what the person was focused on or struggling with, multiple themes (work, family, health, projects), and notable emotional or relational themes.
+- Treats decision captures as significant inflection point markers: note what the person was deciding, what was driving the decision, and (if outcome is provided) how it turned out versus what would have made it feel right. These moments define the month's direction, not just its emotional texture.
 Write in clear, narrative prose: flowing paragraphs, no bullet points. Weave specifics from the entries; avoid generic tags like "Personal" or "Family" by themselves. Length: several paragraphs if the month has rich content; be concise only when entries are sparse or vague. Do not mention "References" or entry IDs.
 Target readability: Flesch-Kincaid grade level 8. Use clear sentences and common words. Full detail is kept on device; this text may be privacy-scrubbed when sent to cloud and restored in responses.''';
+
+      final decisionSection = decisionCapturesText.isEmpty
+          ? ''
+          : '\n\nDECISION CAPTURES this month:\n$decisionCapturesText\n\n';
 
       final userPrompt = '''Journal entries from $monthName:
 
 $entriesText
-
-Write a detailed narrative of what happened and what mattered this month, preserving specific names, places, events, and projects from the entries:''';
+$decisionSection
+Write a detailed narrative of what happened and what mattered this month, preserving specific names, places, events, and projects from the entries. If decision captures are listed, weave them in as inflection points.''';
 
       final response = await geminiSend(
         system: systemPrompt,
@@ -293,6 +328,7 @@ Write a detailed narrative of what happened and what mattered this month, preser
     required List<SignificantEvent> events,
     required int originalTokens,
     String monthNarrative = '',
+    String decisionCapturesText = '',
   }) async {
     final monthName = _formatMonthName(month);
     final synthesisDate = DateTime.now();
@@ -390,6 +426,8 @@ $sentinelSection
 ## Significant Events
 
 $eventsSection
+
+${decisionCapturesText.isEmpty ? '' : '## Decision captures (Crossroads)\n\n$decisionCapturesText\n\n'}
 
 ---
 **Confidence note:** This synthesis represents LUMARA's interpretation of developmental patterns. User can edit/correct before propagation to yearly aggregation.

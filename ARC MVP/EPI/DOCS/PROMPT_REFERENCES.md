@@ -8,7 +8,7 @@ This document catalogs all prompts used throughout the ARC application, organize
 - **Path baseline:** All paths are relative to the EPI app root (e.g. `ARC MVP/EPI/`). Example: `lib/arc/chat/prompts/lumara_profile.json` means `ARC MVP/EPI/lib/arc/chat/prompts/lumara_profile.json`.
 - **Content:** Quoted blocks are taken from or derived from the cited sources. Some sections show a subset or summary; the source file holds the full, authoritative text.
 - **Cloud vs on-device:** Cloud API uses the master prompt system (`lumara_master_prompt.dart`); on-device and legacy paths may use `lumara_system_prompt.dart` or profile JSON.
-- **Last synced with codebase:** 2026-02-12. Document version: 2.1.0.
+- **Last synced with codebase:** 2026-02-13. Document version: 2.2.0.
 
 ---
 
@@ -1719,10 +1719,122 @@ When `FeatureFlags.useOrchestrator` is true, `LumaraOrchestrator.execute()` quer
 
 ---
 
+## 17. Intellectual Honesty / Pushback Prompt
+
+**Source:** `lib/arc/chat/llm/prompts/lumara_master_prompt.dart` — `<intellectual_honesty>` section.
+
+This prompt block is embedded in the LUMARA master prompt and governs when and how LUMARA pushes back on user claims that contradict the journal record.
+
+### When to Push Back (gently but firmly)
+
+- **Factual contradictions with journal record:** User claims "I never wrote about work stress" when 15 entries mention it → cite specific count and offer to show.
+- **Pattern denial that breaks temporal intelligence:** User edits monthly to remove a theme present in most entries → note frequency, offer rewording.
+- **Claims contradicting very recent entries:** User says "I'm totally fine" two days after exploring exit options → cite the recent entry, ask what shifted.
+
+### When NOT to Push Back (preserve narrative authority)
+
+- **Reframing interpretations:** Changing "self-doubt" to "strategic caution" → accept as legitimate narrative sovereignty.
+- **Evolving perspective on past events:** "I thought it was depression but now I see it was burnout" → honor the evolution.
+- **Ambiguous patterns:** User disputes whether a theme is central or peripheral → defer to lived experience.
+
+### Technique: "Both/And" not "You're Wrong"
+
+> Instead of: "That's incorrect, you wrote about X on Y date"
+> Use: "I'm holding two things — you're saying Z now, and I have entries showing X. Help me understand what changed or what I'm missing?"
+
+### Always
+
+- Cite specific entries with dates
+- Present evidence neutrally as "here's what I'm seeing"
+- Allow for legitimate disagreement
+- Distinguish fact (entry exists) from interpretation (what it means)
+
+### Runtime Implementation
+
+At send time (`lumara_assistant_cubit.dart` chat path and `enhanced_lumara_api.dart` reflection path), `ChronicleContradictionChecker` checks the user message against CHRONICLE Layer 0. If a contradiction is found, a `truth_check` block is injected into the system prompt:
+
+```
+[TRUTH_CHECK]
+User claim: "<user message>"
+CHRONICLE evidence: <aggregation summary>
+Excerpts: <dated entry excerpts>
+Apply <intellectual_honesty> guidelines when responding.
+[/TRUTH_CHECK]
+```
+
+The `PushbackEvidence` (summary + excerpts) is attached to the `LumaraMessage` so the `EvidenceReviewWidget` can display "What I'm seeing" below the response.
+
+---
+
+## 18. Crossroads Decision Capture Prompts
+
+**Source:** `lib/crossroads/crossroads_service.dart` — four-prompt constants.
+
+These prompts are sent as LUMARA assistant messages during the Crossroads four-step decision capture flow.
+
+| Step | Constant | Prompt Text |
+|------|----------|-------------|
+| 1 | `crossroadsPrompt1` | "What are you deciding?" |
+| 2 | `crossroadsPrompt2` | "What's going on in your life right now that's making this feel important or difficult?" |
+| 3 | `crossroadsPrompt3` | "What are your real options — including the one you're leaning away from?" |
+| 4 | `crossroadsPrompt4` | "What would make this feel right six months from now?" |
+| Done | `crossroadsConfirmDone` | "Got it — I've captured this decision. I'll check back with you later to see how it played out." |
+
+### Decision Trigger Detection
+
+**Source:** `lib/prism/atlas/rivet/rivet_decision_analyzer.dart`
+
+Five phrase categories with pattern lists:
+- **consideration**: "I'm thinking about", "I've been considering", "I'm wondering if"...
+- **activeChoice**: "torn between", "going back and forth", "I can't decide", "part of me wants"...
+- **seekingOpinion**: "what do you think", "should I", "do you think I should"...
+- **actionFraming**: "I've decided to", "I'm going to", "I've made up my mind"...
+- **futureWeighing**: "trying to figure out", "weighing", "pros and cons"...
+
+Phase-weighted confidence: Transition 0.90 → Breakthrough 0.85 → Consolidation 0.80 → Expansion 0.75 → Discovery 0.45 → Recovery 0.35.
+
+### Query Intent: Decision Archaeology
+
+**Source:** `lib/chronicle/query/query_router.dart`
+
+Classifier prompt includes: `decision_archaeology: Asking about past decisions (e.g., "What have I decided about my career?", "When did I decide to...", "What decisions did I make about X?")`
+
+System prompt for this intent: "Answer using Layer 0 decision entries and monthly aggregations. List what the user decided, when, and (if available) what the outcome was."
+
+---
+
+## 19. CHRONICLE Edit Validation Prompts
+
+**Source:** `lib/chronicle/editing/edit_validator.dart`, `lib/chronicle/services/chronicle_editing_service.dart`
+
+### Pattern Suppression Warning
+
+When a user edit removes themes that appear in a high percentage of source entries:
+
+> You're removing patterns that appear in N% of entries:
+> - pattern_name (X entries)
+>
+> This might affect LUMARA's pattern detection. Three options:
+> 1. Keep pattern, change wording (e.g., "anxiety" → "heightened awareness")
+> 2. Note explicitly why you're removing it ("This wasn't actually X, it was Y")
+> 3. Proceed anyway (I'll respect your authority, but may affect future synthesis)
+
+### Factual Contradiction Warning
+
+When a user edit introduces statements that contradict specific source entries:
+
+> This edit contradicts what was written on [date]:
+> "[excerpt from source entry]"
+>
+> If you meant to reframe this, consider noting why your perspective changed.
+
+---
+
 ## Version History
 
 | Version | Date | Changes |
 |---------|------|---------|
+| 2.2.0 | 2026-02-13 | **v3.3.26 prompts**: Added §17 Intellectual Honesty / Pushback prompt (`<intellectual_honesty>` master prompt section, truth_check injection, Evidence Review), §18 Crossroads Decision Capture prompts (four-step flow, trigger detection patterns, decision archaeology query), §19 CHRONICLE Edit Validation prompts (pattern suppression and factual contradiction warnings). |
 | 2.1.0 | 2026-02-12 | **Documentation consolidation**: Merged `UNIFIED_INTENT_CLASSIFIER_PROMPT.md` (§15 — Unified Intent Depth Classifier with full LLM prompt, classification rules, integration notes) and `MASTER_PROMPT_CONTEXT.md` (§16 — Master Prompt Architecture with structure, control state, entry points, orchestrator path). Originals archived. |
 | 2.0.0 | 2026-02-11 | **Groq primary LLM**: Added `proxyGroq` and `proxyGemini` (transparent proxy) entries to Backend section with note on proxy vs prompt-injecting functions. Updated from v1.9.0 which added 6 prompt sections: CHRONICLE Monthly/Yearly/Multi-Year Narrative, Voice Split-Payload, Speed-Tiered Context System, Conversation Summary Prompt. |
 | 1.8.0 | 2026-01-31 | Document scope and sources: added section explaining how this doc reflects codebase prompts; path baseline (EPI app root); LUMARA Core Identity source note (lumara_system_prompt.dart vs lumara_master_prompt.dart, lumara_profile.json). Aligned document with prompts used to generate it. |

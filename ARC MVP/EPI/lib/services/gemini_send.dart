@@ -198,10 +198,10 @@ Future<String> geminiSend({
       throw Exception(e.message ?? 'Request limit reached');
     }
     
-    throw Exception('Gemini API request failed: ${e.message}');
+    throw Exception('Connection to AI failed: ${e.message}');
   } catch (e) {
     print('DEBUG GEMINI: Error in geminiSend: $e');
-    throw Exception('Gemini API request failed: $e');
+    throw Exception('Connection to AI failed: $e');
   }
 }
 
@@ -224,7 +224,7 @@ Stream<String> geminiSendStream({
 
   if (apiKey.isEmpty) {
     print('DEBUG GEMINI STREAM: No API key found, throwing StateError');
-    throw StateError('No Gemini API key configured. Please add a Groq or Gemini API key in Settings → LUMARA Settings.');
+    throw StateError('No cloud AI API key configured. Add a Groq or Gemini API key in Settings → LUMARA Settings.');
   }
 
   // Step 1: PRISM - Scrub PII from user input and system prompt
@@ -315,7 +315,7 @@ Stream<String> geminiSendStream({
     if (response.statusCode != 200) {
       final errorBody = await response.transform(utf8.decoder).join();
       print('DEBUG GEMINI STREAM: Error response: $errorBody');
-      throw HttpException('Gemini API error: ${response.statusCode}\n$errorBody');
+      throw HttpException('Cloud AI error: ${response.statusCode}\n$errorBody');
     }
 
     // Process Server-Sent Events stream

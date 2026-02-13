@@ -137,6 +137,20 @@ class _McpExportScreenState extends State<McpExportScreen> {
   Future<void> _exportMcpPackage() async {
     if (_isExporting) return;
 
+    // Validate custom date range: require both start and end when "Custom date range" is selected
+    if (_dateRangeSelection == 'custom') {
+      if (_customStartDate == null || _customEndDate == null) {
+        _showErrorDialog(
+          'Please set both Start Date and End Date for the custom date range, or switch to "All entries".',
+        );
+        return;
+      }
+      if (_customStartDate!.isAfter(_customEndDate!)) {
+        _showErrorDialog('Start date must be on or before end date.');
+        return;
+      }
+    }
+
     setState(() {
       _isExporting = true;
     });
@@ -534,16 +548,18 @@ class _McpExportScreenState extends State<McpExportScreen> {
     showDialog(
       context: context,
       barrierDismissible: false,
+      barrierColor: Colors.black54,
       builder: (context) => ValueListenableBuilder<String>(
         valueListenable: progressNotifier,
         builder: (context, message, child) {
           return AlertDialog(
+            backgroundColor: kcSurfaceColor,
             content: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
                   'Creating Secure Archive...',
-                  style: heading3Style(context),
+                  style: heading3Style(context).copyWith(color: kcPrimaryTextColor),
                 ),
                 const SizedBox(height: 16),
                 const LinearProgressIndicator(
@@ -553,7 +569,7 @@ class _McpExportScreenState extends State<McpExportScreen> {
                 const SizedBox(height: 8),
                 Text(
                   message,
-                  style: bodyStyle(context),
+                  style: bodyStyle(context).copyWith(color: kcPrimaryTextColor),
                   textAlign: TextAlign.center,
                 ),
               ],
@@ -769,21 +785,29 @@ class _McpExportScreenState extends State<McpExportScreen> {
   void _showErrorDialog(String message) {
     showDialog(
       context: context,
+      barrierColor: Colors.black54,
       builder: (context) => AlertDialog(
+        backgroundColor: kcSurfaceColor,
         title: Row(
           children: [
             const Icon(Icons.error, color: Colors.red),
             const SizedBox(width: 8),
             Expanded(
-              child: Text('Export Failed', style: heading2Style(context)),
+              child: Text(
+                'Export Failed',
+                style: heading2Style(context).copyWith(color: kcPrimaryTextColor),
+              ),
             ),
           ],
         ),
-        content: Text(message, style: bodyStyle(context)),
+        content: Text(
+          message,
+          style: bodyStyle(context).copyWith(color: kcPrimaryTextColor),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('OK'),
+            child: Text('OK', style: bodyStyle(context).copyWith(color: kcAccentColor)),
           ),
         ],
       ),
