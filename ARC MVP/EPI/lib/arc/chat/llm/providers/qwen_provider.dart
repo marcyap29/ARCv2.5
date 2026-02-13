@@ -1,14 +1,10 @@
 // lib/lumara/llm/providers/qwen_provider.dart
 // Qwen internal model provider implementation
 
-import 'dart:convert';
-import 'dart:io';
 import 'package:flutter/foundation.dart';
 import '../llm_provider.dart';
 import '../../config/api_config.dart';
 import '../bridge.pigeon.dart';
-import '../prompts/prompt_profile_manager.dart';
-import '../ondevice_prompt_service.dart';
 
 /// Qwen internal model provider
 class QwenProvider extends LLMProviderBase {

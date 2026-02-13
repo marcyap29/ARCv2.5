@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
-import 'package:my_app/chronicle/storage/aggregation_repository.dart';
+import 'package:my_app/chronicle/core/chronicle_repos.dart';
 import 'package:my_app/chronicle/models/chronicle_layer.dart';
 import 'package:my_app/chronicle/models/chronicle_aggregation.dart';
 import 'package:my_app/services/firebase_auth_service.dart';
@@ -49,7 +49,7 @@ class _ChronicleLayersViewerState extends State<ChronicleLayersViewer>
 
     try {
       final userId = FirebaseAuthService.instance.currentUser?.uid ?? 'default_user';
-      final aggregationRepo = AggregationRepository();
+      final aggregationRepo = ChronicleRepos.aggregation;
 
       final monthly = await aggregationRepo.getAllForLayer(
         userId: userId,
@@ -631,7 +631,7 @@ class _ChronicleContentSheetState extends State<_ChronicleContentSheet> {
     setState(() => _isSaving = true);
     try {
       final userId = FirebaseAuthService.instance.currentUser?.uid ?? 'default_user';
-      final repo = AggregationRepository();
+      final repo = ChronicleRepos.aggregation;
       final updated = widget.aggregation.copyWith(
         content: _controller.text.trim(),
         userEdited: true,

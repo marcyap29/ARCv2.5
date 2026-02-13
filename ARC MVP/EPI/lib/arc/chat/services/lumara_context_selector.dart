@@ -23,11 +23,11 @@
 import '../../../models/journal_entry_model.dart';
 import '../../../models/memory_focus_preset.dart';
 import '../../../models/engagement_discipline.dart';
-import '../../../arc/core/journal_repository.dart';
+import 'package:my_app/services/app_repos.dart';
 import 'lumara_reflection_settings_service.dart';
 
 class LumaraContextSelector {
-  final JournalRepository _journalRepo = JournalRepository();
+  final JournalRepository _journalRepo = AppRepos.journal;
 
   /// Select entries based on Memory Focus + Engagement Mode + Semantic relevance
   Future<List<JournalEntry>> selectContextEntries({

@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:my_app/shared/app_colors.dart';
-import 'package:my_app/shared/text_style.dart';
 import 'package:my_app/arc/chat/chat/chat_models.dart';
 import 'package:my_app/arc/chat/chat/chat_repo.dart';
 import '../chat_repo.dart';

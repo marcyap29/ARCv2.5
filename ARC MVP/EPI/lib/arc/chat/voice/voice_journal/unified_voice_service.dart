@@ -26,7 +26,7 @@ import '../../services/enhanced_lumara_api.dart';
 import '../../services/lumara_reflection_settings_service.dart';
 import '../../services/lumara_control_state_builder.dart';
 import '../../../core/journal_capture_cubit.dart';
-import '../../../core/journal_repository.dart';
+import 'package:my_app/services/app_repos.dart';
 import '../../bloc/lumara_assistant_cubit.dart';
 import 'voice_journal_state.dart';
 import 'voice_mode.dart';
@@ -653,7 +653,7 @@ class UnifiedVoiceService {
       if (currentText.isEmpty) return null;
       
       // Get journal entries from repository
-      final journalRepository = JournalRepository();
+      final journalRepository = AppRepos.journal;
       final allEntries = await journalRepository.getAllJournalEntries();
       
       // Filter by lookback period
@@ -692,7 +692,7 @@ class UnifiedVoiceService {
     try {
       // Get recent RIVET events to identify active threads
       // This is a simplified implementation - can be enhanced with full RIVET integration
-      final journalRepository = JournalRepository();
+      final journalRepository = AppRepos.journal;
       final allEntries = await journalRepository.getAllJournalEntries();
       
       // Get entries from last 30 days to identify recent patterns

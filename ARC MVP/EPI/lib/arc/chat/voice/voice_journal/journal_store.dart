@@ -11,7 +11,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 import '../../../core/journal_capture_cubit.dart';
-import '../../../core/journal_repository.dart';
+import 'package:my_app/services/app_repos.dart';
 import '../../../../models/journal_entry_model.dart';
 import 'voice_journal_state.dart';
 
@@ -161,7 +161,7 @@ class VoiceJournalTurn {
 /// - Uses JournalCaptureCubit if available
 /// - NEVER saves to chat history
 class VoiceJournalStore {
-  final JournalRepository _repository = JournalRepository();
+  final JournalRepository _repository = AppRepos.journal;
   final JournalCaptureCubit? _captureCubit;
   final Uuid _uuid = const Uuid();
 

@@ -1,9 +1,4 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:my_app/arc/core/journal_capture_cubit.dart';
-import 'package:my_app/arc/core/journal_capture_state.dart';
-import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/data/models/media_item.dart';
 import 'package:my_app/arc/core/media/media_strip.dart';
 

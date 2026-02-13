@@ -71,13 +71,10 @@ class ModelManagementCubit extends Cubit<ModelManagementState> {
   };
       print('LUMARA Debug: Available models: $availableModels');
       
-      // Currently using rule-based adapter only
-      const isAiEnabled = false;
-      const currentModel = 'rule_based';
-      
+      // Currently using rule-based adapter only (no on-device model active)
       // For now, we don't have actual downloaded models - they need to be manually installed
       final downloadedModels = <String>[];
-      const activeModel = isAiEnabled ? currentModel : null;
+      const activeModel = null;
 
       print('LUMARA Debug: Available models: $availableModels');
       print('LUMARA Debug: Downloaded models: $downloadedModels');
@@ -109,36 +106,10 @@ class ModelManagementCubit extends Cubit<ModelManagementState> {
         downloadProgress: 0.0,
       ));
 
-      // For now, model downloads are not supported in the new adapter pattern
-      // The app will automatically use the best available model
-      const success = false; // No actual download - models need to be manually installed
-
-      if (success) {
-        // Update downloaded models list
-        final updatedDownloaded = [...currentState.downloadedModels];
-        if (!updatedDownloaded.contains(modelName)) {
-          updatedDownloaded.add(modelName);
-        }
-
-        // Show success and return to normal state
-        emit(ModelDownloadComplete(modelName));
-        
-        // Wait a moment then return to loaded state with updated models
-        await Future.delayed(const Duration(milliseconds: 500));
-        
-        emit(ModelManagementLoaded(
-          availableModels: currentState.availableModels,
-          downloadedModels: updatedDownloaded,
-          activeModel: currentState.activeModel,
-        ));
-      } else {
-        // Handle download failure
-        emit(ModelManagementError('Model downloads not available. Please install model files manually. See setup guide for details.'));
-        
-        // Return to loaded state after error
-        await Future.delayed(const Duration(seconds: 2));
-        emit(currentState.copyWith(clearDownloading: true));
-      }
+      // Model downloads not supported in the new adapter pattern; install model files manually
+      emit(ModelManagementError('Model downloads not available. Please install model files manually. See setup guide for details.'));
+      await Future.delayed(const Duration(seconds: 2));
+      emit(currentState.copyWith(clearDownloading: true));
     } catch (e) {
       // Handle exceptions
       emit(ModelManagementError('Download error: $e'));

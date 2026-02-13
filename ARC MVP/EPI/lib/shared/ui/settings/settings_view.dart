@@ -279,7 +279,7 @@ class _SettingsViewState extends State<SettingsView> {
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 14, 16, 6),
             child: Text(
-              'Advanced Settings',
+              'Analysis and memory',
               style: heading3Style(context).copyWith(
                 color: kcPrimaryTextColor,
                 fontWeight: FontWeight.w600,
@@ -301,7 +301,7 @@ class _SettingsViewState extends State<SettingsView> {
               ),
             ),
             title: Text(
-              'Analysis, memory & debug',
+              'Analysis, memory & response behavior',
               style: heading3Style(context).copyWith(
                 color: kcPrimaryTextColor,
                 fontWeight: FontWeight.w500,
@@ -1411,8 +1411,6 @@ class _LumaraFolderViewState extends State<LumaraFolderView> {
             _buildMemoryFocusCard(),
             // Engagement Mode Card
             _buildEngagementModeCard(),
-            // Cross-Domain Synthesis Toggle
-            _buildCrossDomainSynthesisToggle(),
             // Include Media Toggle
             _buildIncludeMediaToggle(),
             // Therapeutic Depth Slider
@@ -2039,63 +2037,6 @@ class _LumaraFolderViewState extends State<LumaraFolderView> {
       }
     } catch (e) {
       print('Error setting engagement mode: $e');
-    }
-  }
-
-  Widget _buildCrossDomainSynthesisToggle() {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
-      ),
-      child: SwitchListTile(
-        title: Text(
-          'Cross-Domain Connections',
-          style: heading3Style(context).copyWith(
-            color: kcPrimaryTextColor,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-        subtitle: Text(
-          'Allow LUMARA to connect themes across different life areas',
-          style: bodyStyle(context).copyWith(
-            color: kcSecondaryTextColor,
-          ),
-        ),
-        value: _engagementSettings.synthesisPreferences.allowCrossDomainSynthesis,
-        onChanged: _engagementSettingsLoading
-            ? null
-            : (value) => _setCrossDomainSynthesis(value),
-        secondary: Icon(
-          Icons.hub,
-          color: kcAccentColor,
-          size: 24,
-        ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      ),
-    );
-  }
-
-  Future<void> _setCrossDomainSynthesis(bool value) async {
-    try {
-      final settingsService = LumaraReflectionSettingsService.instance;
-      final updated = _engagementSettings.copyWith(
-        synthesisPreferences: _engagementSettings.synthesisPreferences.copyWith(
-          allowCrossDomainSynthesis: value,
-        ),
-      );
-      await settingsService.saveAllSettingsWithEngagement(
-        engagementSettings: updated,
-      );
-      if (mounted) {
-        setState(() {
-          _engagementSettings = updated;
-        });
-      }
-    } catch (e) {
-      print('Error setting cross-domain synthesis: $e');
     }
   }
 

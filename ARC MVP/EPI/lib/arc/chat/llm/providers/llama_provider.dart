@@ -1,14 +1,10 @@
 // lib/lumara/llm/providers/llama_provider.dart
 // Llama internal model provider implementation
 
-import 'dart:convert';
-import 'dart:io';
 import 'package:flutter/foundation.dart';
 import '../llm_provider.dart';
 import '../../config/api_config.dart';
 import '../bridge.pigeon.dart';
-import '../prompts/prompt_profile_manager.dart';
-import '../ondevice_prompt_service.dart';
 
 /// Llama/Phi internal model provider
 class LlamaProvider extends LLMProviderBase {

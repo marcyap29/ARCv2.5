@@ -2,7 +2,6 @@
 // UI widget for displaying memory notifications
 
 import 'package:flutter/material.dart';
-import 'package:my_app/models/journal_entry_model.dart';
 import 'package:my_app/arc/internal/aurora/memory_notification_service.dart';
 
 class MemoryNotificationWidget extends StatelessWidget {

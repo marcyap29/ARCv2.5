@@ -1,6 +1,5 @@
 import '../chat/bloc/lumara_assistant_cubit.dart';
 import '../chat/data/context_provider.dart';
-import '../chat/data/context_scope.dart';
 import 'package:uuid/uuid.dart';
 
 class MainChatManager {

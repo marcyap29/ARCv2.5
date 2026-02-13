@@ -20,7 +20,8 @@ import 'package:my_app/telemetry/analytics.dart';
 import '../chat/chat_repo.dart';
 import '../chat/chat_repo_impl.dart';
 import '../chat/chat_models.dart';
-import 'package:my_app/arc/core/journal_repository.dart';
+import 'package:my_app/services/app_repos.dart';
+import 'package:my_app/chronicle/core/chronicle_repos.dart';
 import '../services/lumara_reflection_settings_service.dart';
 import 'package:my_app/models/journal_entry_model.dart';
 import '../../../services/pending_conversation_service.dart';
@@ -28,7 +29,6 @@ import 'package:my_app/shared/ui/settings/voiceover_preference_service.dart';
 import '../voice/audio_io.dart';
 import '../llm/prompts/lumara_master_prompt.dart';
 import 'package:my_app/chronicle/editing/contradiction_checker.dart';
-import 'package:my_app/chronicle/storage/layer0_repository.dart';
 import '../data/models/pushback_evidence.dart';
 import '../services/lumara_control_state_builder.dart';
 import '../services/reflective_query_service.dart';
@@ -219,7 +219,7 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
   
   // Progressive Memory Loader
   late final ProgressiveMemoryLoader _memoryLoader;
-  final JournalRepository _journalRepository = JournalRepository();
+  final JournalRepository _journalRepository = AppRepos.journal;
   
   // Attribution Service for creating traces
   final AttributionService _attributionService = AttributionService();
@@ -1134,9 +1134,8 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
     ContradictionResult? pushbackContradiction;
     if (_userId != null && _userId!.isNotEmpty) {
       try {
-        final layer0 = Layer0Repository();
-        await layer0.initialize();
-        final checker = ChronicleContradictionChecker(layer0: layer0);
+        await ChronicleRepos.ensureLayer0Initialized();
+        final checker = ChronicleContradictionChecker(layer0: ChronicleRepos.layer0);
         if (checker.detectsUserClaim(text)) {
           final contradiction = await checker.checkAgainstChronicle(
             claim: text,

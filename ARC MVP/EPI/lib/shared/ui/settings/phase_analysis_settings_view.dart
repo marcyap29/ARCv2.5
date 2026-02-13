@@ -4,9 +4,11 @@
 import 'package:flutter/material.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
+import 'package:my_app/shared/ui/settings/settings_common.dart';
 import 'package:my_app/models/phase_models.dart';
 import 'package:my_app/services/phase_index.dart';
 import 'package:my_app/services/phase_regime_service.dart';
+import 'package:my_app/services/phase_service_registry.dart';
 import 'package:my_app/services/rivet_sweep_service.dart';
 import 'package:my_app/services/analytics_service.dart';
 import 'package:my_app/arc/core/journal_repository.dart';
@@ -32,10 +34,7 @@ class _PhaseAnalysisSettingsViewState extends State<PhaseAnalysisSettingsView> {
   }
 
   Future<void> _initializeServices() async {
-    final analyticsService = AnalyticsService();
-    final rivetSweepService = RivetSweepService(analyticsService);
-    _phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
-    await _phaseRegimeService!.initialize();
+    _phaseRegimeService = await PhaseServiceRegistry.phaseRegimeService;
     if (mounted) {
       setState(() {
         _phaseIndex = _phaseRegimeService!.phaseIndex;
@@ -47,19 +46,7 @@ class _PhaseAnalysisSettingsViewState extends State<PhaseAnalysisSettingsView> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: kcBackgroundColor,
-      appBar: AppBar(
-        backgroundColor: kcBackgroundColor,
-        elevation: 0,
-        leading: const BackButton(color: kcPrimaryTextColor),
-        title: Text(
-          'Phase Analysis',
-          style: heading1Style(context).copyWith(
-            color: kcPrimaryTextColor,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        centerTitle: true,
-      ),
+      appBar: settingsAppBar(context, title: 'Phase Analysis'),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -82,21 +69,7 @@ class _PhaseAnalysisSettingsViewState extends State<PhaseAnalysisSettingsView> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                Icon(Icons.auto_awesome, color: kcAccentColor),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Phase Analysis',
-                    style: heading3Style(context).copyWith(
-                      color: kcPrimaryTextColor,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ],
-            ),
+            const SettingsCardTitle(title: 'Phase Analysis', icon: Icons.auto_awesome),
             const SizedBox(height: 12),
             Text(
               'Detect phase transitions in your entries using pattern recognition. '
@@ -165,19 +138,7 @@ class _PhaseAnalysisSettingsViewState extends State<PhaseAnalysisSettingsView> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                Icon(Icons.timeline, color: kcAccentColor),
-                const SizedBox(width: 8),
-                Text(
-                  'Phase Statistics',
-                  style: heading3Style(context).copyWith(
-                    color: kcPrimaryTextColor,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
+            const SettingsCardTitle(title: 'Phase Statistics', icon: Icons.timeline),
             const SizedBox(height: 16),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -302,8 +263,7 @@ class _PhaseAnalysisSettingsViewState extends State<PhaseAnalysisSettingsView> {
         return;
       }
 
-      final phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
-      await phaseRegimeService.initialize();
+      final phaseRegimeService = await PhaseServiceRegistry.phaseRegimeService;
       await phaseRegimeService.clearAllRegimes();
       await phaseRegimeService.initialize();
 

@@ -6,8 +6,6 @@
 /// - Differentiates between "thinking pause" vs "done speaking"
 /// - Prevents premature endpoint detection during natural speech
 
-import 'package:flutter/foundation.dart';
-
 /// Filler word types
 enum FillerType {
   thinkingSound,   // um, uh, er, ah

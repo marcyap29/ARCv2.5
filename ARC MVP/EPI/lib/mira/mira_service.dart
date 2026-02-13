@@ -16,7 +16,7 @@ import 'package:my_app/mira/store/mcp/models/mcp_schemas.dart';
 import 'package:my_app/arc/chat/chat/chat_repo.dart';
 import 'package:my_app/data/models/media_item.dart';
 import 'package:my_app/models/journal_entry_model.dart';
-import 'package:my_app/arc/core/journal_repository.dart';
+import 'package:my_app/services/app_repos.dart';
 
 class MiraService {
   static MiraService? _instance;
@@ -64,7 +64,7 @@ class MiraService {
 
     // Store repository references
     _chatRepo = chatRepo;
-    _journalRepo = journalRepo ?? JournalRepository();
+    _journalRepo = journalRepo ?? AppRepos.journal;
 
     // Initialize enhanced MCP export/import services
     _mcpExportService = McpExportService(

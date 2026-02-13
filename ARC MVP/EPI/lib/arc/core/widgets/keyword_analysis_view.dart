@@ -3,7 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:my_app/arc/core/keyword_extraction_cubit.dart';
 import 'package:my_app/arc/core/keyword_extraction_state.dart';
 import 'package:my_app/arc/core/journal_capture_cubit.dart';
-import 'package:my_app/arc/core/journal_repository.dart';
+import 'package:my_app/services/app_repos.dart';
 import 'package:my_app/arc/ui/timeline/timeline_cubit.dart';
 import 'package:my_app/models/journal_entry_model.dart';
 import 'package:my_app/data/models/media_item.dart';
@@ -56,7 +56,7 @@ class _KeywordAnalysisViewState extends State<KeywordAnalysisView>
   late Animation<double> _progressAnimation;
   final TextEditingController _keywordController = TextEditingController();
   final TextEditingController _titleController = TextEditingController();
-  final JournalRepository _journalRepository = JournalRepository();
+  final JournalRepository _journalRepository = AppRepos.journal;
   List<String> _pastKeywords = [];
   List<String> _filteredSuggestions = [];
   bool _generateSummaryForEdit = false;

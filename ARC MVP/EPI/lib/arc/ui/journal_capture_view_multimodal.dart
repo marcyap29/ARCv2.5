@@ -1,27 +1,13 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:my_app/arc/core/journal_capture_cubit.dart';
 import 'package:my_app/arc/core/journal_capture_state.dart';
-import 'package:my_app/arc/core/keyword_extraction_cubit.dart';
-import 'package:my_app/arc/core/widgets/emotion_selection_view.dart';
-import 'package:my_app/arc/core/journal_repository.dart';
-import 'package:my_app/shared/app_colors.dart';
-import 'package:my_app/shared/text_style.dart';
-import 'package:permission_handler/permission_handler.dart';
-import 'package:my_app/core/perf/frame_budget.dart';
 import 'package:my_app/data/models/media_item.dart';
-import 'package:my_app/arc/core/media/media_capture_sheet.dart';
 import 'package:my_app/arc/core/media/media_strip.dart';
 import 'package:my_app/arc/core/media/media_preview_dialog.dart';
 import 'package:my_app/arc/core/media/ocr_text_insert_dialog.dart';
 import 'package:my_app/core/services/media_store.dart';
-import 'package:my_app/mira/store/mcp/orchestrator/ios_vision_orchestrator.dart';
-import 'package:my_app/arc/ui/widgets/draft_recovery_dialog.dart';
-
-// Import the Multimodal MCP Orchestrator
 import 'package:my_app/mira/store/mcp/orchestrator/multimodal_orchestrator_bloc.dart';
-import 'package:my_app/mira/store/mcp/orchestrator/multimodal_orchestrator_commands.dart';
 import 'package:my_app/mira/store/mcp/orchestrator/ui/multimodal_ui_components.dart';
 import 'package:my_app/mira/store/mcp/models/mcp_schemas.dart';
 

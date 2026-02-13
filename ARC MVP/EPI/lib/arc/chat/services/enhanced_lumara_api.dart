@@ -20,6 +20,7 @@ import 'package:my_app/chronicle/embeddings/create_embedding_service.dart';
 import 'package:my_app/chronicle/storage/chronicle_index_storage.dart';
 import 'package:my_app/chronicle/index/chronicle_index_builder.dart';
 import 'package:my_app/chronicle/matching/three_stage_matcher.dart';
+import 'package:my_app/chronicle/core/chronicle_repos.dart';
 import 'package:my_app/chronicle/storage/layer0_repository.dart';
 import 'package:my_app/chronicle/editing/contradiction_checker.dart';
 import 'package:my_app/chronicle/storage/aggregation_repository.dart';
@@ -37,10 +38,10 @@ import '../config/api_config.dart';
 import 'lumara_response_scoring.dart' as scoring;
 import '../../../mira/memory/attribution_service.dart';
 import '../../../mira/memory/enhanced_memory_schema.dart';
-import '../../../arc/core/journal_repository.dart';
+import 'package:my_app/app/app_repos.dart';
+import 'package:my_app/arc/core/journal_repository.dart';
 import '../../../models/journal_entry_model.dart';
 import '../../../arc/chat/chat/chat_repo.dart';
-import '../../../arc/chat/chat/chat_repo_impl.dart';
 import '../../../arc/chat/chat/chat_models.dart';
 import 'package:my_app/arc/internal/echo/prism_adapter.dart';
 import 'package:my_app/arc/internal/echo/correlation_resistant_transformer.dart';
@@ -119,8 +120,8 @@ class EnhancedLumaraApi {
   final ReflectiveNodeStorage _storage = ReflectiveNodeStorage();
   final SemanticSimilarityService _similarity = SemanticSimilarityService();
   final AttributionService _attributionService = AttributionService();
-  final JournalRepository _journalRepo = JournalRepository();
-  final ChatRepo _chatRepo = ChatRepoImpl.instance;
+  final JournalRepository _journalRepo = AppRepos.journal;
+  final ChatRepo _chatRepo = AppRepos.chat;
 
   // CHRONICLE components (lazy initialization)
   ChronicleQueryRouter? _queryRouter;
@@ -206,10 +207,9 @@ class EnhancedLumaraApi {
     if (_chronicleInitialized) return;
 
     try {
-      _layer0Repo = Layer0Repository();
-      await _layer0Repo!.initialize();
-      
-      _aggregationRepo = AggregationRepository();
+      await ChronicleRepos.ensureLayer0Initialized();
+      _layer0Repo = ChronicleRepos.layer0;
+      _aggregationRepo = ChronicleRepos.aggregation;
       
       _queryRouter = ChronicleQueryRouter();
       _contextBuilder = ChronicleContextBuilder(

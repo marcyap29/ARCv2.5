@@ -1,7 +1,6 @@
 // lib/lumara/memory/summary_service.dart
 // Rolling summary generation with map-reduce abstraction
 
-import 'dart:convert';
 import 'mcp_memory_models.dart';
 
 /// Summary generation service implementing map-reduce pattern

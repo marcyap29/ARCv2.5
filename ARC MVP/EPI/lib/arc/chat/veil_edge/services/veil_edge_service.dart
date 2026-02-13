@@ -9,7 +9,7 @@ import '../core/rivet_policy_engine.dart';
 import '../registry/prompt_registry.dart';
 import '../../../aurora/services/circadian_profile_service.dart';
 import '../../../aurora/models/circadian_context.dart';
-import 'package:my_app/arc/core/journal_repository.dart';
+import 'package:my_app/services/app_repos.dart';
 
 /// Main VEIL-EDGE service for phase-reactive restorative layer with AURORA integration
 class VeilEdgeService {
@@ -32,7 +32,7 @@ class VeilEdgeService {
        _promptRenderer = promptRenderer ?? VeilEdgePromptRenderer(),
        _registry = registry ?? VeilEdgePromptRegistry.getDefault(),
        _aurora = aurora ?? CircadianProfileService(),
-       _journalRepo = journalRepo ?? JournalRepository();
+       _journalRepo = journalRepo ?? AppRepos.journal;
 
   /// Route user context through ATLAS → RIVET → SENTINEL → AURORA
   /// Returns phase group, variant, and blocks for prompt generation

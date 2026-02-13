@@ -2,7 +2,6 @@
 // Longitudinal theme tracking and frequency analysis
 
 import 'package:my_app/models/journal_entry_model.dart';
-import 'package:my_app/arc/internal/mira/journal_repository.dart';
 
 /// Theme frequency data
 class ThemeFrequency {

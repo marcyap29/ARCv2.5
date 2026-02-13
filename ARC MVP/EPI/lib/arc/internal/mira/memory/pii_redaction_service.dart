@@ -3,7 +3,6 @@
 
 import 'dart:convert';
 import 'dart:math';
-import 'package:crypto/crypto.dart';
 import 'mcp_memory_models.dart';
 
 /// Result of PII redaction operation

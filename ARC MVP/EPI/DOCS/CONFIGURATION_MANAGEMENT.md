@@ -1,7 +1,7 @@
 # Configuration Management & Documentation Tracking
 
 **Lead Configuration Management Analyst:** Active  
-**Last Updated:** February 13, 2026 (v3.3.27)  
+**Last Updated:** February 13, 2026 (v3.3.28)  
 **Status:** ✅ All Documents Synced with Repo
 
 ---
@@ -38,12 +38,12 @@ Prompt/role definitions: **Ultimate Documentation, Configuration Management and 
 
 | Document | Location | Last Reviewed | Status | Notes |
 |----------|----------|---------------|--------|-------|
-| ARCHITECTURE.md | `/DOCS/ARCHITECTURE.md` | 2026-02-13 | ✅ Synced | v3.3.27 - Module naming refactor; Code Simplifier Phase 3 consolidated patterns section (single source, repo/phase, MCP/ARCX) |
-| CHANGELOG.md | `/DOCS/CHANGELOG.md` | 2026-02-13 | ✅ Synced | v3.3.27 - Pattern index in Orchestrator, scheduler at launch, white paper |
+| ARCHITECTURE.md | `/DOCS/ARCHITECTURE.md` | 2026-02-13 | ✅ Synced | v3.3.28 - Code Simplifier Phase 1 (version_service/firestore removed, app repos/phase registry) |
+| CHANGELOG.md | `/DOCS/CHANGELOG.md` | 2026-02-13 | ✅ Synced | v3.3.28 - Code Simplifier Phase 1 execution, consolidation & cleanup |
 | PROMPT_REFERENCES.md | `/DOCS/PROMPT_REFERENCES.md` | 2026-02-13 | ✅ Synced | v2.3.0 - §20 Quick Answers / MMCO Polish (prompt audit) |
 | PROMPT_TRACKER.md | `/DOCS/PROMPT_TRACKER.md` | 2026-02-13 | ✅ Synced | v1.4.0 - Added v2.3.0 prompt audit row |
 | bug_tracker.md | `/DOCS/bugtracker/bug_tracker.md` | 2026-02-13 | ✅ Synced | v3.2.4 - 32 records; 3 new iOS build/embedding records; Build & Platform index |
-| FEATURES.md | `/DOCS/FEATURES.md` | 2026-02-13 | ✅ Synced | v3.3.27 - Pattern index in Orchestrator, white paper |
+| FEATURES.md | `/DOCS/FEATURES.md` | 2026-02-13 | ✅ Synced | v3.3.28 - Code Simplifier Phase 1 |
 | README.md | `/DOCS/README.md` | 2026-02-07 | ✅ Synced | Key docs table with purpose and when to read |
 | claude.md | `/DOCS/claude.md` | 2026-02-13 | ✅ Synced | TOC — Prompts; consolidated Doc/Config/Git Backup prompt; TOC aligned with current sections |
 | backend.md | `/DOCS/backend.md` | 2026-02-11 | ✅ Synced | v3.3 - proxyGroq (Groq primary), proxyGemini (fallback), Firebase, Stripe |
@@ -90,6 +90,18 @@ Prompt/role definitions: **Ultimate Documentation, Configuration Management and 
 ---
 
 ## Change Tracking Log
+
+### 2026-02-13 - v3.3.28: Code Simplifier Phase 1, repo review, doc sync, commit, push, merge
+
+**Action:** Reviewed repo (uncommitted changes), documented differences, updated docs, committed all changes (code + docs), pushed to `test`, merged `test` → `main`.
+
+**Code changes documented (v3.3.28):** Code Simplifier Phase 1 execution: removed `version_service.dart` (canonical in core `journal_version_service.dart`), removed `firestore_service.dart` (dead code). New: `app_repos.dart`, `phase_service_registry.dart`, `settings_common.dart`; CHRONICLE `core/`, `related_entries_service.dart`. Settings consolidation (advanced_settings_view slimmed, shared patterns in settings_common). QuickActionsService single source; widget_installation_service duplicate removed. 60 files modified, 2 deleted, several new. DOCS: CODE_SIMPLIFIER_CONSOLIDATION_PLAN.md, PHASE_AND_CHRONICLE_ACCESS.md, Orchestrator Plan Templates.
+
+**Doc updates:** CHANGELOG.md [3.3.28]; CONFIGURATION_MANAGEMENT.md (this entry, inventory); ARCHITECTURE.md (version 3.3.28, key achievement for Code Simplifier Phase 1).
+
+**Status:** ✅ All changes committed and pushed; test merged into main.
+
+---
 
 ### 2026-02-13 - Documentation & Git Backup run: prompt audit, PROMPT_REFERENCES v2.3.0
 

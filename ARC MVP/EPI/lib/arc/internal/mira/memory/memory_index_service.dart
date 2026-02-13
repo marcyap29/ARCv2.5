@@ -3,7 +3,6 @@
 
 import 'dart:convert';
 import 'dart:io';
-import 'package:path/path.dart' as path;
 import 'mcp_memory_models.dart';
 
 /// Service for managing the global memory index

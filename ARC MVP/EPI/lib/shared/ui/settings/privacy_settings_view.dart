@@ -4,6 +4,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:my_app/shared/ui/settings/settings_common.dart';
 import 'package:my_app/arc/internal/echo/prism_adapter.dart';
 import 'package:my_app/arc/privacy/privacy_demo_screen.dart';
 import 'package:my_app/echo/privacy_core/models/pii_types.dart';
@@ -83,9 +84,9 @@ class _PrivacySettingsViewState extends State<PrivacySettingsView> {
     }
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Privacy & Security'),
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+      appBar: settingsAppBar(
+        context,
+        title: 'Privacy & Security',
         actions: [
           IconButton(
             icon: const Icon(Icons.science),

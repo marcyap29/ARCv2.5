@@ -6,10 +6,8 @@ import 'package:my_app/arc/internal/echo/phase/phase_quiz_v2.dart';
 import 'package:my_app/arc/internal/echo/phase/quiz_models.dart';
 import 'package:my_app/arc/internal/echo/phase/inaugural_entry_generator.dart';
 import 'package:my_app/arc/internal/mira/journal_repository.dart';
+import 'package:my_app/chronicle/core/chronicle_repos.dart';
 import 'package:my_app/chronicle/synthesis/synthesis_engine.dart';
-import 'package:my_app/chronicle/storage/layer0_repository.dart';
-import 'package:my_app/chronicle/storage/aggregation_repository.dart';
-import 'package:my_app/chronicle/storage/changelog_repository.dart';
 import 'package:my_app/chronicle/models/chronicle_layer.dart';
 import 'package:my_app/services/firebase_auth_service.dart';
 import 'package:my_app/shared/ui/onboarding/widgets/quiz_question_card.dart';
@@ -213,13 +211,9 @@ class _PhaseQuizV2ScreenState extends State<PhaseQuizV2Screen> {
       // Get user ID
       final userId = FirebaseAuthService.instance.currentUser?.uid ?? 'default_user';
       
-      // Initialize CHRONICLE components
-      final layer0Repo = Layer0Repository();
-      await layer0Repo.initialize();
-      
-      final aggregationRepo = AggregationRepository();
-      final changelogRepo = ChangelogRepository();
-      
+      // Initialize CHRONICLE components (shared repos)
+      final (layer0Repo, aggregationRepo, changelogRepo) = await ChronicleRepos.initializedRepos;
+
       final synthesisEngine = SynthesisEngine(
         layer0Repo: layer0Repo,
         aggregationRepo: aggregationRepo,

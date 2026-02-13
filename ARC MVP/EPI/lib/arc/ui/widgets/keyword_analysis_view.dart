@@ -4,7 +4,6 @@ import 'package:my_app/arc/core/keyword_extraction_cubit.dart';
 import 'package:my_app/arc/core/keyword_extraction_state.dart';
 import 'package:my_app/arc/core/journal_capture_cubit.dart';
 import 'package:my_app/arc/ui/timeline/timeline_cubit.dart';
-import 'package:my_app/shared/ui/home/home_view.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
 import 'package:my_app/data/models/media_item.dart';

@@ -34,7 +34,7 @@ import 'package:my_app/arc/chat/reflection/reflection_pattern_analyzer.dart';
 import 'package:my_app/arc/chat/reflection/reflection_emotional_analyzer.dart';
 import 'package:my_app/services/adaptive/adaptive_sentinel_calculator.dart';
 import 'package:my_app/services/sentinel/sentinel_config.dart';
-import 'package:my_app/arc/core/journal_repository.dart';
+import 'package:my_app/services/app_repos.dart';
 import '../../../../models/phase_models.dart';
 import '../../../../models/engagement_discipline.dart';
 import '../../../../services/lumara/entry_classifier.dart';
@@ -108,7 +108,7 @@ class VoiceSessionService {
   final UnifiedTranscriptionService _unifiedTranscription;
 
   ReflectionHandler? _reflectionHandler;
-  static final JournalRepository _journalRepo = JournalRepository();
+  static final JournalRepository _journalRepo = AppRepos.journal;
 
   Future<ReflectionHandler> _getReflectionHandler() async {
     if (_reflectionHandler != null) return _reflectionHandler!;

@@ -42,6 +42,7 @@ import '../../services/llm_bridge_adapter.dart';
 import '../../services/journal_session_cache.dart';
 import '../../arc/core/keyword_extraction_cubit.dart';
 import '../../arc/core/journal_capture_cubit.dart';
+import 'package:my_app/app/app_repos.dart';
 import 'package:my_app/arc/core/journal_repository.dart';
 import '../../arc/core/widgets/keyword_analysis_view.dart';
 import 'package:my_app/arc/ui/timeline/timeline_cubit.dart';
@@ -116,7 +117,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
   
   // Progressive memory loading for in-journal LUMARA
   late final ProgressiveMemoryLoader _memoryLoader;
-  final JournalRepository _journalRepository = JournalRepository();
+  final JournalRepository _journalRepository = AppRepos.journal;
   late final ArcLLM _arcLLM;
   EnhancedMiraMemoryService? _memoryService;
   String? _currentDraftId;
@@ -2790,8 +2791,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     if (entryWithLegacy != entry && _currentEntryOverride == null) {
       // Save the entry with legacyPhaseTag populated (only if not already overridden)
       WidgetsBinding.instance.addPostFrameCallback((_) async {
-        final journalRepository = JournalRepository();
-        await journalRepository.updateJournalEntry(entryWithLegacy);
+        await _journalRepository.updateJournalEntry(entryWithLegacy);
       });
     }
     
@@ -2919,8 +2919,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
         isPhaseLocked: true,
       );
       
-      final journalRepository = JournalRepository();
-      await journalRepository.updateJournalEntry(updatedEntry);
+      await _journalRepository.updateJournalEntry(updatedEntry);
       
       setState(() {
         _hasBeenModified = true;
@@ -2941,8 +2940,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
         isPhaseLocked: false,
       );
       
-      final journalRepository = JournalRepository();
-      await journalRepository.updateJournalEntry(updatedEntry);
+      await _journalRepository.updateJournalEntry(updatedEntry);
       
       setState(() {
         _hasBeenModified = true;

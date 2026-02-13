@@ -55,7 +55,6 @@ import 'package:my_app/services/sentinel/sentinel_config.dart';
 import 'package:my_app/models/reflection_session.dart';
 import 'package:my_app/services/assemblyai_service.dart';
 import 'package:my_app/arc/chat/voice/transcription/assemblyai_provider.dart';
-import 'package:my_app/arc/chat/voice/transcription/transcription_provider.dart';
 import 'package:my_app/mira/memory/sentence_extraction_util.dart';
 
 class JournalCaptureCubit extends Cubit<JournalCaptureState> {

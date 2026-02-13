@@ -1,9 +1,7 @@
 import '../../echo/rhythms/veil_aurora_scheduler.dart';
 import '../../echo/rhythms/veil_chronicle_scheduler.dart';
+import '../core/chronicle_repos.dart';
 import '../synthesis/synthesis_engine.dart';
-import '../storage/changelog_repository.dart';
-import '../storage/aggregation_repository.dart';
-import '../storage/layer0_repository.dart';
 import '../storage/chronicle_index_storage.dart';
 import '../embeddings/create_embedding_service.dart';
 import '../index/chronicle_index_builder.dart';
@@ -23,11 +21,7 @@ class VeilChronicleFactory {
     required SynthesisTier tier,
   }) async {
     try {
-      final layer0Repo = Layer0Repository();
-      await layer0Repo.initialize();
-
-      final aggregationRepo = AggregationRepository();
-      final changelogRepo = ChangelogRepository();
+      final (layer0Repo, aggregationRepo, changelogRepo) = await ChronicleRepos.initializedRepos;
 
       final synthesisEngine = SynthesisEngine(
         layer0Repo: layer0Repo,

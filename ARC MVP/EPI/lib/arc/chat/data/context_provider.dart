@@ -1,7 +1,6 @@
 import 'package:my_app/arc/chat/data/context_scope.dart';
-import 'package:my_app/models/journal_entry_model.dart';
 import 'package:my_app/services/user_phase_service.dart';
-import 'package:my_app/arc/core/journal_repository.dart';
+import 'package:my_app/services/app_repos.dart';
 import 'package:my_app/services/phase_regime_service.dart';
 import 'package:my_app/services/analytics_service.dart';
 import 'package:my_app/services/rivet_sweep_service.dart';
@@ -58,8 +57,8 @@ class ContextProvider {
   final JournalRepository _journalRepository;
   final ChatRepo _chatRepo;
 
-  ContextProvider(this._scope) 
-      : _journalRepository = JournalRepository(),
+  ContextProvider(this._scope)
+      : _journalRepository = AppRepos.journal,
         _chatRepo = ChatRepoImpl.instance;
   
   /// Build context window for LUMARA processing

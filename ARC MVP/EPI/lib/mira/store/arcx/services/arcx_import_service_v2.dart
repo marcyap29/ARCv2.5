@@ -34,6 +34,7 @@ import 'package:my_app/prism/atlas/phase/phase_inference_service.dart';
 import 'package:my_app/services/export_history_service.dart';
 import 'arcx_checkpoint_service.dart';
 import 'arcx_import_set_index_service.dart';
+import 'package:my_app/chronicle/core/chronicle_repos.dart';
 import 'package:my_app/chronicle/storage/aggregation_repository.dart';
 import 'package:my_app/chronicle/storage/changelog_repository.dart';
 import 'package:my_app/chronicle/models/chronicle_layer.dart';
@@ -1250,8 +1251,8 @@ class ARCXImportServiceV2 {
         };
       }
 
-      final aggregationRepo = AggregationRepository();
-      final changelogRepo = ChangelogRepository();
+      final aggregationRepo = ChronicleRepos.aggregation;
+      final changelogRepo = ChronicleRepos.changelog;
       
       // Get current user ID (default to 'default_user' if not available)
       // In production, this should come from FirebaseAuthService

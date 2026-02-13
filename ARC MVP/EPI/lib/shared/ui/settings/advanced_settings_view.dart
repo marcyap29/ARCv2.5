@@ -1,15 +1,12 @@
 // lib/shared/ui/settings/advanced_settings_view.dart
-// Consolidated Advanced Settings View - combines Analysis, Memory, Debug, and Response Behavior settings
+// Analysis and memory settings - Voice & Transcription, Memory Configuration, Response Behavior
 
 import 'package:flutter/material.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
-import 'package:my_app/shared/ui/settings/combined_analysis_view.dart';
 import 'package:my_app/arc/chat/voice/transcription/transcription_provider.dart';
-import 'package:my_app/arc/chat/voice/models/voice_input_mode.dart';
 import 'package:my_app/services/assemblyai_service.dart';
 import 'package:my_app/arc/chat/services/lumara_reflection_settings_service.dart';
-import 'package:my_app/models/engagement_discipline.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class AdvancedSettingsView extends StatefulWidget {
@@ -25,21 +22,12 @@ class _AdvancedSettingsViewState extends State<AdvancedSettingsView> {
   // Voice & Transcription settings
   SttMode _sttMode = SttMode.auto;
   SttTier _userTier = SttTier.free;
-  VoiceInputMode _voiceInputMode = VoiceInputMode.pushToTalk;
 
   // Advanced memory settings
   int _lookbackYears = 2;
   double _similarityThreshold = 0.55;
   int _maxMatches = 5;
   bool _memorySettingsLoading = true;
-
-  // Debug settings
-  bool _showClassificationDebug = false;
-  bool _debugSettingsLoading = true;
-
-  // Engagement settings (Response Behavior)
-  EngagementSettings _engagementSettings = const EngagementSettings();
-  bool _engagementSettingsLoading = true;
 
   // Therapeutic settings (Response Behavior)
   int _therapeuticDepthLevel = 2;
@@ -55,8 +43,6 @@ class _AdvancedSettingsViewState extends State<AdvancedSettingsView> {
     await Future.wait([
       _loadTranscriptionSettings(),
       _loadMemorySettings(),
-      _loadDebugSettings(),
-      _loadEngagementSettings(),
       _loadTherapeuticSettings(),
     ]);
   }
@@ -68,24 +54,14 @@ class _AdvancedSettingsViewState extends State<AdvancedSettingsView> {
       final sttMode = savedMode != null
           ? SttMode.values.firstWhere((m) => m.name == savedMode, orElse: () => SttMode.auto)
           : SttMode.auto;
-      
-      // Load voice input mode
-      final savedVoiceInputMode = prefs.getString('voice_input_mode');
-      final voiceInputMode = savedVoiceInputMode != null
-          ? VoiceInputMode.values.firstWhere(
-              (m) => m.name == savedVoiceInputMode, 
-              orElse: () => VoiceInputMode.pushToTalk
-            )
-          : VoiceInputMode.pushToTalk;
-      
+
       final assemblyAIService = AssemblyAIService();
       final userTier = await assemblyAIService.getUserTier();
-      
+
       if (mounted) {
         setState(() {
           _sttMode = sttMode;
           _userTier = userTier;
-          _voiceInputMode = voiceInputMode;
           _isLoading = false;
         });
       }
@@ -99,20 +75,6 @@ class _AdvancedSettingsViewState extends State<AdvancedSettingsView> {
     }
   }
   
-  Future<void> _setVoiceInputMode(VoiceInputMode mode) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('voice_input_mode', mode.name);
-      if (mounted) {
-        setState(() {
-          _voiceInputMode = mode;
-        });
-      }
-    } catch (e) {
-      debugPrint('Error setting voice input mode: $e');
-    }
-  }
-
   Future<void> _loadMemorySettings() async {
     try {
       final settingsService = LumaraReflectionSettingsService.instance;
@@ -132,47 +94,6 @@ class _AdvancedSettingsViewState extends State<AdvancedSettingsView> {
       if (mounted) {
         setState(() {
           _memorySettingsLoading = false;
-        });
-      }
-    }
-  }
-
-  Future<void> _loadDebugSettings() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final showDebug = prefs.getBool('show_classification_debug') ?? false;
-      if (mounted) {
-        setState(() {
-          _showClassificationDebug = showDebug;
-          _debugSettingsLoading = false;
-        });
-      }
-    } catch (e) {
-      debugPrint('Error loading debug settings: $e');
-      if (mounted) {
-        setState(() {
-          _debugSettingsLoading = false;
-        });
-      }
-    }
-  }
-
-  Future<void> _loadEngagementSettings() async {
-    try {
-      final settingsService = LumaraReflectionSettingsService.instance;
-      await settingsService.initialize();
-      final engagement = await settingsService.getEngagementSettings();
-      if (mounted) {
-        setState(() {
-          _engagementSettings = engagement;
-          _engagementSettingsLoading = false;
-        });
-      }
-    } catch (e) {
-      debugPrint('Error loading engagement settings: $e');
-      if (mounted) {
-        setState(() {
-          _engagementSettingsLoading = false;
         });
       }
     }
@@ -242,21 +163,6 @@ class _AdvancedSettingsViewState extends State<AdvancedSettingsView> {
     }
   }
 
-  // Debug settings handlers
-  Future<void> _setShowClassificationDebug(bool show) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool('show_classification_debug', show);
-      if (mounted) {
-        setState(() {
-          _showClassificationDebug = show;
-        });
-      }
-    } catch (e) {
-      debugPrint('Error setting classification debug: $e');
-    }
-  }
-
   // Response Behavior handlers
   Future<void> _setTherapeuticDepthLevel(int level) async {
     try {
@@ -270,48 +176,6 @@ class _AdvancedSettingsViewState extends State<AdvancedSettingsView> {
     }
   }
 
-  Future<void> _setCrossDomainSynthesis(bool value) async {
-    try {
-      final settingsService = LumaraReflectionSettingsService.instance;
-      final updated = _engagementSettings.copyWith(
-        synthesisPreferences: _engagementSettings.synthesisPreferences.copyWith(
-          allowCrossDomainSynthesis: value,
-        ),
-      );
-      await settingsService.saveAllSettingsWithEngagement(
-        engagementSettings: updated,
-      );
-      if (mounted) {
-        setState(() {
-          _engagementSettings = updated;
-        });
-      }
-    } catch (e) {
-      debugPrint('Error setting cross-domain synthesis: $e');
-    }
-  }
-
-  Future<void> _setTherapeuticLanguage(bool value) async {
-    try {
-      final settingsService = LumaraReflectionSettingsService.instance;
-      final updated = _engagementSettings.copyWith(
-        responseDiscipline: _engagementSettings.responseDiscipline.copyWith(
-          allowTherapeuticLanguage: value,
-        ),
-      );
-      await settingsService.saveAllSettingsWithEngagement(
-        engagementSettings: updated,
-      );
-      if (mounted) {
-        setState(() {
-          _engagementSettings = updated;
-        });
-      }
-    } catch (e) {
-      debugPrint('Error setting therapeutic language: $e');
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -321,7 +185,7 @@ class _AdvancedSettingsViewState extends State<AdvancedSettingsView> {
         elevation: 0,
         leading: const BackButton(color: kcPrimaryTextColor),
         title: Text(
-          'Advanced Settings',
+          'Analysis and memory',
           style: heading1Style(context).copyWith(
             color: kcPrimaryTextColor,
             fontWeight: FontWeight.bold,
@@ -336,33 +200,11 @@ class _AdvancedSettingsViewState extends State<AdvancedSettingsView> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Analysis & Insights Section
-                  _buildSection(
-                    title: 'Analysis & Insights',
-                    children: [
-                      _buildNavigationTile(
-                        title: 'Analysis',
-                        subtitle: 'Phase detection, patterns, AURORA, VEIL, SENTINEL',
-                        icon: Icons.analytics,
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (context) => const CombinedAnalysisView()),
-                          );
-                        },
-                      ),
-                    ],
-                  ),
-                  
-                  const SizedBox(height: 32),
-
                   // Voice & Transcription Section
                   _buildSection(
                     title: 'Voice & Transcription',
                     children: [
                       _buildTranscriptionModeTile(),
-                      const SizedBox(height: 8),
-                      _buildVoiceInputModeTile(),
                     ],
                   ),
                   
@@ -424,45 +266,11 @@ class _AdvancedSettingsViewState extends State<AdvancedSettingsView> {
                     children: [
                       // Therapeutic Depth
                       _buildTherapeuticDepthCard(),
-
-                      // Cross-Domain Synthesis Toggle
-                      _buildSwitchTile(
-                        title: 'Cross-Domain Connections',
-                        subtitle: 'Allow LUMARA to make connections across different life areas',
-                        icon: Icons.hub,
-                        value: _engagementSettings.synthesisPreferences.allowCrossDomainSynthesis,
-                        onChanged: _engagementSettingsLoading ? null : _setCrossDomainSynthesis,
-                      ),
-
-                      // Therapeutic Language Toggle
-                      _buildSwitchTile(
-                        title: 'Therapeutic Language',
-                        subtitle: 'Allow supportive, therapy-style phrasing in responses',
-                        icon: Icons.healing,
-                        value: _engagementSettings.responseDiscipline.allowTherapeuticLanguage,
-                        onChanged: _engagementSettingsLoading ? null : _setTherapeuticLanguage,
-                      ),
                     ],
                   ),
 
                   const SizedBox(height: 32),
 
-                  // Debug & Development Section
-                  _buildSection(
-                    title: 'Debug & Development',
-                    children: [
-                      _buildSwitchTile(
-                        title: 'Show Classification Debug',
-                        subtitle: 'Show how entries are classified (factual, reflective, etc.)',
-                        icon: Icons.bug_report,
-                        value: _showClassificationDebug,
-                        onChanged: _debugSettingsLoading ? null : _setShowClassificationDebug,
-                      ),
-                    ],
-                  ),
-                  
-                  const SizedBox(height: 32),
-                  
                   // About Section
                   _buildInfoCard(),
                 ],
@@ -488,42 +296,6 @@ class _AdvancedSettingsViewState extends State<AdvancedSettingsView> {
         const SizedBox(height: 12),
         ...children,
       ],
-    );
-  }
-
-  Widget _buildNavigationTile({
-    required String title,
-    required String subtitle,
-    required IconData icon,
-    required VoidCallback onTap,
-  }) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withOpacity(0.1)),
-      ),
-      child: ListTile(
-        leading: Icon(icon, color: kcAccentColor, size: 24),
-        title: Text(
-          title,
-          style: heading3Style(context).copyWith(
-            color: kcPrimaryTextColor,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-        subtitle: Text(
-          subtitle,
-          style: bodyStyle(context).copyWith(
-            color: kcSecondaryTextColor,
-            fontSize: 12,
-          ),
-        ),
-        trailing: const Icon(Icons.arrow_forward_ios, color: kcSecondaryTextColor, size: 16),
-        onTap: onTap,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      ),
     );
   }
 
@@ -610,44 +382,6 @@ class _AdvancedSettingsViewState extends State<AdvancedSettingsView> {
             onChanged: loading ? null : onChanged,
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildSwitchTile({
-    required String title,
-    required String subtitle,
-    required IconData icon,
-    required bool value,
-    required ValueChanged<bool>? onChanged,
-  }) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withOpacity(0.1)),
-      ),
-      child: SwitchListTile(
-        secondary: Icon(icon, color: kcAccentColor, size: 24),
-        title: Text(
-          title,
-          style: heading3Style(context).copyWith(
-            color: kcPrimaryTextColor,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-        subtitle: Text(
-          subtitle,
-          style: bodyStyle(context).copyWith(
-            color: kcSecondaryTextColor,
-            fontSize: 12,
-          ),
-        ),
-        value: value,
-        onChanged: onChanged,
-        activeColor: kcAccentColor,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       ),
     );
   }
@@ -800,139 +534,6 @@ class _AdvancedSettingsViewState extends State<AdvancedSettingsView> {
     );
   }
 
-  Widget _buildVoiceInputModeTile() {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withOpacity(0.1)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(Icons.touch_app, color: kcAccentColor, size: 24),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Voice Input Mode',
-                      style: heading3Style(context).copyWith(
-                        color: kcPrimaryTextColor,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    Text(
-                      'How you interact with voice mode',
-                      style: bodyStyle(context).copyWith(
-                        color: kcSecondaryTextColor,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          _buildVoiceInputModeOption(
-            mode: VoiceInputMode.pushToTalk,
-            title: 'Push to Talk (Recommended)',
-            description: 'Hold to speak, release to send. Clear control over recording.',
-            icon: Icons.touch_app,
-          ),
-          const SizedBox(height: 8),
-          _buildVoiceInputModeOption(
-            mode: VoiceInputMode.handsFree,
-            title: 'Hands-Free Mode',
-            description: 'Auto-detects when you finish speaking. Good for accessibility.',
-            icon: Icons.accessibility_new,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildVoiceInputModeOption({
-    required VoiceInputMode mode,
-    required String title,
-    required String description,
-    required IconData icon,
-  }) {
-    final isSelected = _voiceInputMode == mode;
-    
-    return GestureDetector(
-      onTap: () => _setVoiceInputMode(mode),
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? kcAccentColor.withOpacity(0.15)
-              : Colors.white.withOpacity(0.03),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: isSelected
-                ? kcAccentColor
-                : Colors.white.withOpacity(0.1),
-            width: isSelected ? 2 : 1,
-          ),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 20,
-              height: 20,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: isSelected ? kcAccentColor : kcSecondaryTextColor,
-                  width: 2,
-                ),
-                color: isSelected ? kcAccentColor : Colors.transparent,
-              ),
-              child: isSelected
-                  ? const Icon(Icons.check, size: 12, color: Colors.white)
-                  : null,
-            ),
-            const SizedBox(width: 12),
-            Icon(
-              icon,
-              size: 20,
-              color: isSelected ? kcAccentColor : kcSecondaryTextColor,
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: bodyStyle(context).copyWith(
-                      color: kcPrimaryTextColor,
-                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                    ),
-                  ),
-                  Text(
-                    description,
-                    style: bodyStyle(context).copyWith(
-                      color: kcSecondaryTextColor,
-                      fontSize: 11,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _buildTranscriptionModeOption({
     required SttMode mode,
     required String title,
@@ -1075,7 +676,7 @@ class _AdvancedSettingsViewState extends State<AdvancedSettingsView> {
               const Icon(Icons.info_outline, color: Colors.blue, size: 20),
               const SizedBox(width: 8),
               Text(
-                'About Advanced Settings',
+                'About Analysis and memory',
                 style: heading3Style(context).copyWith(
                   color: kcPrimaryTextColor,
                   fontWeight: FontWeight.w600,
@@ -1085,7 +686,7 @@ class _AdvancedSettingsViewState extends State<AdvancedSettingsView> {
           ),
           const SizedBox(height: 8),
           Text(
-            'These settings control analysis features, memory retrieval, voice transcription, and LUMARA\'s response behavior. Most users can leave these at their defaults.',
+            'These settings control analysis features, memory retrieval, and LUMARA\'s response behavior. Most users can leave these at their defaults.',
             style: bodyStyle(context).copyWith(
               color: kcSecondaryTextColor,
               fontSize: 12,

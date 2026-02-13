@@ -59,8 +59,7 @@ class SimpleMcpService {
       print('🔍 Simple MCP: Starting export to: ${outputDir.path}');
 
       // Check if we have any journal entries to export
-      final journalRepo = JournalRepository();
-      final allEntries = await journalRepo.getAllJournalEntries();
+      final allEntries = await _journalRepo.getAllJournalEntries();
       
       if (allEntries.isEmpty) {
         print('🔍 Simple MCP: No journal entries found, creating minimal export');

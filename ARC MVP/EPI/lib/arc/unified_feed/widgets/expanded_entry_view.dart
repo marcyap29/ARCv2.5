@@ -11,8 +11,10 @@ import 'package:my_app/arc/unified_feed/models/feed_entry.dart';
 import 'package:my_app/arc/unified_feed/utils/feed_helpers.dart';
 import 'package:my_app/arc/unified_feed/widgets/feed_media_thumbnails.dart';
 import 'package:my_app/arc/internal/mira/journal_repository.dart';
+import 'package:my_app/chronicle/related_entries_service.dart';
 import 'package:my_app/data/models/media_item.dart';
 import 'package:my_app/models/journal_entry_model.dart';
+import 'package:my_app/services/firebase_auth_service.dart';
 import 'package:my_app/state/journal_entry_state.dart';
 import 'package:my_app/ui/journal/journal_screen.dart';
 import 'package:my_app/ui/widgets/full_image_viewer.dart';
@@ -635,6 +637,14 @@ class ExpandedEntryView extends StatelessWidget {
       if (raw is List) relatedIds = raw.cast<String>();
     }
 
+    // Use metadata IDs if present; otherwise load from CHRONICLE pattern index when entry is loaded
+    Future<List<JournalEntry>>? future;
+    if (relatedIds != null && relatedIds.isNotEmpty) {
+      future = _loadRelatedEntries(relatedIds);
+    } else if (fullEntry?.id != null) {
+      future = _loadRelatedEntriesFromChronicle(fullEntry!);
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -647,9 +657,9 @@ class ExpandedEntryView extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 8),
-        if (relatedIds != null && relatedIds.isNotEmpty)
+        if (future != null)
           FutureBuilder<List<JournalEntry>>(
-            future: _loadRelatedEntries(relatedIds),
+            future: future,
             builder: (context, snapshot) {
               final entries = snapshot.data ?? [];
               if (entries.isEmpty && snapshot.connectionState != ConnectionState.waiting) {
@@ -727,6 +737,17 @@ class ExpandedEntryView extends StatelessWidget {
           ),
       ],
     );
+  }
+
+  /// Load related entries using the CHRONICLE pattern index (vectorized themes).
+  /// Entries that share the same thematic cluster as this one are shown as related.
+  Future<List<JournalEntry>> _loadRelatedEntriesFromChronicle(JournalEntry fullEntry) async {
+    final userId = FirebaseAuthService.instance.currentUser?.uid ?? 'default_user';
+    final ids = await RelatedEntriesService().getRelatedEntryIds(
+      userId: userId,
+      entryId: fullEntry.id,
+    );
+    return _loadRelatedEntries(ids);
   }
 
   Future<List<JournalEntry>> _loadRelatedEntries(List<String> ids) async {

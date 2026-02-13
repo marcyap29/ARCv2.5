@@ -13,7 +13,7 @@
 import 'dart:io';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
-import 'package:my_app/arc/internal/mira/journal_repository.dart';
+import 'package:my_app/services/app_repos.dart';
 import 'package:my_app/models/journal_entry_model.dart';
 
 /// Callback for reporting import progress.
@@ -32,7 +32,7 @@ enum ImportType {
 
 /// Service for importing journal entries from external sources.
 class UniversalImporterService {
-  final JournalRepository _journalRepo = JournalRepository();
+  final JournalRepository _journalRepo = AppRepos.journal;
 
   /// Import entries from a file.
   ///

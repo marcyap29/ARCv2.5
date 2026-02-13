@@ -1,6 +1,6 @@
 # EPI LUMARA MVP - Changelog
 
-**Version:** 3.3.27
+**Version:** 3.3.28
 **Last Updated:** February 13, 2026
 
 ---
@@ -14,6 +14,27 @@ This changelog has been split into parts for easier navigation:
 | **[CHANGELOG_part1.md](CHANGELOG_part1.md)** | Dec 2025 | v2.1.43 - v2.1.87 (Current) |
 | **[CHANGELOG_part2.md](CHANGELOG_part2.md)** | Nov 2025 | v2.1.28 - v2.1.42 |
 | **[CHANGELOG_part3.md](CHANGELOG_part3.md)** | Jan-Oct 2025 | v2.0.0 - v2.1.27 & Earlier |
+
+---
+
+## [3.3.28] - February 13, 2026
+
+### Code Simplifier Phase 1 execution (consolidation & cleanup)
+
+**Removed / consolidated:**
+- **`lib/arc/internal/mira/version_service.dart`** — Deleted (~1.3k lines). Version management is canonical in `lib/core/services/journal_version_service.dart`; `mira_internal.dart` now re-exports the core service (P1-DUP per CODE_SIMPLIFIER_CONSOLIDATION_PLAN).
+- **`lib/services/firestore_service.dart`** — Removed (dead/unused code per P1-IMPORTS).
+
+**New / refactored:**
+- **App repos & phase registry:** `lib/app/app_repos.dart`, `lib/services/app_repos.dart`, `lib/services/phase_service_registry.dart` — Centralized repository and phase-service access (P2-REPOS / P1-PHASE).
+- **Settings consolidation:** `advanced_settings_view.dart` significantly reduced; shared patterns moved to `settings_common.dart`. `chronicle_management_view.dart`, `phase_analysis_settings_view.dart`, `simplified_settings_view.dart`, `settings_view.dart` updated for consistent structure.
+- **QuickActionsService:** Single source in `quick_actions_service.dart`; `widget_installation_service.dart` duplicate removed (P1-QUICK).
+- **CHRONICLE:** New `lib/chronicle/core/`, `lib/chronicle/related_entries_service.dart`; `veil_chronicle_factory.dart`, `background_tasks.dart` updates.
+- **Docs:** `CODE_SIMPLIFIER_CONSOLIDATION_PLAN.md`, `PHASE_AND_CHRONICLE_ACCESS.md`, `Orchestrator Plan Templates/` added under DOCS.
+
+**Touched (imports, wiring, minor):** LUMARA chat/cubit, enhanced_lumara_api, context_provider, voice/journal services, MIRA/memory services, ARCX/MCP services, timeline_cubit, journal_capture views, expanded_entry_view, universal_importer_service, home_view, phase_quiz_v2_screen, privacy_settings_view, journal_screen, and ~30 other files (cleanup, re-exports, repo/phase access).
+
+**Files:** 60 modified, 2 deleted, several new (app_repos, phase_service_registry, settings_common, chronicle/core, related_entries_service, DOCS additions). Net line reduction from duplicate removal and settings consolidation.
 
 ---
 

@@ -7,7 +7,7 @@ export 'memory_loader.dart';
 export 'reflective_storage.dart';
 export 'semantic_matching.dart';
 export 'journal_repository.dart';
-export 'version_service.dart';
+export 'package:my_app/core/services/journal_version_service.dart';
 export 'memory/mcp_memory_models.dart';
 export 'memory/mcp_memory_service.dart';
 export 'memory/memory_index_service.dart';

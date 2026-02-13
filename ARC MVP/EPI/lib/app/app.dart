@@ -9,12 +9,12 @@ import 'package:my_app/arc/chat/ui/lumara_splash_screen.dart';
 import 'package:my_app/mira/store/arcx/services/arcx_import_service_v2.dart';
 import 'package:my_app/arc/chat/chat/chat_repo_impl.dart';
 import 'package:my_app/services/phase_regime_service.dart';
-import 'package:my_app/services/rivet_sweep_service.dart';
-import 'package:my_app/services/analytics_service.dart';
+import 'package:my_app/services/phase_service_registry.dart';
 import 'package:my_app/services/user_phase_service.dart';
 import 'package:my_app/ui/auth/sign_in_screen.dart';
 
-// Global repo + cubit
+// Global repo + cubit (P2-REPOS: single source via AppRepos)
+import 'package:my_app/app/app_repos.dart';
 import 'package:my_app/arc/core/journal_repository.dart';
 import 'package:my_app/core/models/entry_mode.dart';
 import 'package:my_app/arc/chat/data/context_scope.dart' as arc_scope;
@@ -26,11 +26,9 @@ import 'package:my_app/arc/core/keyword_extraction_cubit.dart';
 import 'package:my_app/core/a11y/a11y_flags.dart';
 import 'package:my_app/prism/atlas/rivet/rivet_provider.dart';
 import 'package:my_app/core/services/app_lifecycle_manager.dart';
-import 'package:my_app/echo/echo_module.dart';
 import 'package:my_app/shared/ui/settings/settings_cubit.dart';
 import 'package:my_app/services/pending_conversation_service.dart';
 import 'package:my_app/mira/store/arcx/import_progress_cubit.dart';
-import 'package:hive/hive.dart';
 
 // Global navigator key for deep linking from notifications
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
@@ -64,7 +62,7 @@ class _AppState extends State<App> {
         final ctx = navigatorKey.currentContext;
         if (!mounted || ctx == null) return;
         final progressCubit = ctx.read<ImportProgressCubit>();
-        final journalRepo = ctx.read<JournalRepository>();
+        final journalRepo = AppRepos.journal;
         progressCubit.start();
         Navigator.of(ctx).pushNamedAndRemoveUntil('/home', (route) => false);
         // Run import in background; mini bar on HomeView shows progress
@@ -74,10 +72,7 @@ class _AppState extends State<App> {
             await chatRepo.initialize();
             PhaseRegimeService? phaseRegimeService;
             try {
-              final analyticsService = AnalyticsService();
-              final rivetSweepService = RivetSweepService(analyticsService);
-              phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
-              await phaseRegimeService.initialize();
+              phaseRegimeService = await PhaseServiceRegistry.phaseRegimeService;
             } catch (_) {}
             final importService = ARCXImportServiceV2(
               journalRepo: journalRepo,
@@ -119,8 +114,8 @@ class _AppState extends State<App> {
   Widget build(BuildContext context) {
     return MultiRepositoryProvider(
       providers: [
-        // One shared instance, available everywhere
-        RepositoryProvider(create: (_) => JournalRepository()),
+        // One shared instance (P2-REPOS: same as AppRepos.journal)
+        RepositoryProvider(create: (_) => AppRepos.journal),
       ],
       child: MultiBlocProvider(
         providers: [

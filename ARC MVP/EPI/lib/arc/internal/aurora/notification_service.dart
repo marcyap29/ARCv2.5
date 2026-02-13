@@ -4,7 +4,6 @@
 import 'dart:async';
 import 'package:my_app/arc/internal/mira/journal_repository.dart';
 import 'package:my_app/models/journal_entry_model.dart';
-import 'package:my_app/arc/internal/aurora/memory_notification_service.dart';
 import 'package:my_app/arc/internal/aurora/active_window_detector.dart';
 import 'package:my_app/arc/internal/aurora/sleep_protection_service.dart';
 import 'package:my_app/arc/chat/models/notification_models.dart';

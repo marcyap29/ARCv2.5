@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:my_app/arc/ui/widget_quick_actions_service.dart';
 
 /// Flutter integration for iOS Widget Extension and Quick Actions
 class IOSWidgetQuickActionsIntegration {

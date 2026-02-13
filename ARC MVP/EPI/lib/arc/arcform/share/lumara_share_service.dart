@@ -5,7 +5,6 @@
 import 'dart:convert';
 import 'arcform_share_models.dart';
 import '../../../services/llm_bridge_adapter.dart';
-import '../../../services/gemini_send.dart';
 
 /// Service for generating sharing metadata via LUMARA
 /// Enforces privacy rules and narrative dignity

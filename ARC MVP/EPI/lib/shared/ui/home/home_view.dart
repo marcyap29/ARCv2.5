@@ -9,6 +9,7 @@ import 'package:my_app/shared/tab_bar.dart';
 import 'package:my_app/services/user_phase_service.dart';
 import 'package:my_app/services/analytics_service.dart';
 import 'package:my_app/services/phase_regime_service.dart';
+import 'package:my_app/services/phase_service_registry.dart';
 import 'package:my_app/services/rivet_sweep_service.dart';
 import 'package:flutter/foundation.dart';
 import 'package:my_app/core/services/photo_library_service.dart';
@@ -572,10 +573,7 @@ class _HomeViewState extends State<HomeView> {
   /// This is the authoritative source for the user's current phase
   Future<PhaseLabel> _getCurrentPhaseFromRegimeService() async {
     try {
-      final analyticsService = AnalyticsService();
-      final rivetSweepService = RivetSweepService(analyticsService);
-      final phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
-      await phaseRegimeService.initialize();
+      final phaseRegimeService = await PhaseServiceRegistry.phaseRegimeService;
 
       final currentRegime = phaseRegimeService.phaseIndex.currentRegime;
       

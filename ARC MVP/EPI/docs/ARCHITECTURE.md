@@ -1,6 +1,6 @@
 # EPI LUMARA MVP - Architecture Overview
 
-**Version:** 3.3.26
+**Version:** 3.3.28
 **Last Updated:** February 13, 2026
 **Status:** ✅ Production Ready - MVP Fully Operational with Companion-First LUMARA, Reflection Session Safety System, RevenueCat In-App Purchases, Voice Sigil State Machine, Simplified Settings, Health Integration, AssemblyAI v3, Web Access Safety, Correlation-Resistant PII Protection, Bible Reference Retrieval, Google Drive Backup, Temporal Notifications, Enhanced Incremental Backups, Automatic First Export, Sequential Export Numbering, Local Backup Services, and Timeline Pagination
 
@@ -71,6 +71,7 @@ EPI (Evolving Personal Intelligence) is a Flutter-based intelligent journaling a
 - ✅ **LUMARA Intellectual Honesty (v3.3.26)**: Real-time pushback when user claims contradict journal record. `ChronicleContradictionChecker` compares against Layer 0; `truth_check` block injected into system prompt (both chat and reflection paths). `<intellectual_honesty>` master prompt section defines when/how to push back vs. when to defer to narrative authority. Evidence Review UI shows CHRONICLE excerpts.
 - ✅ **CHRONICLE Cross-Temporal Pattern Index (v3.3.26)**: On-device sentence embeddings (Universal Sentence Encoder via TFLite). `ChronicleIndexBuilder` clusters themes by embedding similarity, tracks appearances across time. Updated after each monthly synthesis. Three-stage matching (exact → cosine → fuzzy). `PatternQueryRouter` for index-backed queries.
 - ✅ **CHRONICLE Edit Validation (v3.3.26)**: `EditValidator` detects pattern suppression and factual contradictions in user edits to synthesis content. `ChronicleEditingService` surfaces warnings with affected entry IDs.
+- ✅ **Code Simplifier Phase 1 (v3.3.28)**: Removed duplicate `version_service.dart` (canonical `lib/core/services/journal_version_service.dart`); removed dead `firestore_service.dart`. New app-level repo/phase access: `app_repos.dart`, `phase_service_registry.dart`. Settings consolidated with `settings_common.dart`; QuickActionsService single source in `quick_actions_service.dart`. CHRONICLE: `core/`, `related_entries_service.dart`.
 - ✅ **RIVET Reset on User Phase Change (v3.3.20)**: `PhaseRegimeService.changeCurrentPhase()` and `UserPhaseService.forceUpdatePhase()` reset RIVET so gate closes and fresh evidence accumulates.
 - ✅ **Voice Session: Auto-Endpoint Disabled (v3.3.20)**: Voice recording no longer auto-stops on silence; user must tap to end turn (prevents premature cutoff).
 - ✅ **Privacy Settings: Inline PII Scrub Demo (v3.3.20)**: Real-time PII scrubbing demo in Privacy Settings; shows scrubbed output and redaction count.
@@ -185,7 +186,7 @@ The EPI system is organized into 5 core modules:
     - `reflective_storage.dart` - Reflective node storage
     - `semantic_matching.dart` - Semantic similarity matching
     - `journal_repository.dart` - Secure journal entry storage
-    - `version_service.dart` - Version management
+    - Version management: canonical `lib/core/services/journal_version_service.dart` (re-exported via this barrel; see § Code Simplifier consolidated patterns)
     - `memory/` - Memory services (MCP, indexing, PII redaction)
   - `aurora/` - Time & User Activity (AURORA Internal)
     - `active_window_detector.dart` - Active reflection window detection
@@ -383,6 +384,31 @@ The EPI system is organized into 5 core modules:
 - Time-based job scheduling
 
 **Note:** VEIL is part of AURORA and accessed via `aurora/regimens/veil/`. Additional VEIL-related components exist in `mira/veil/` (VEIL jobs) and `ui/veil/` (VEIL policy UI).
+
+---
+
+## Code Simplifier consolidated patterns (Phase 3)
+
+These patterns reflect the Code Simplifier full-repo consolidation (see `DOCS/CODE_SIMPLIFIER_CONSOLIDATION_PLAN.md`). Single sources of truth and access patterns are documented here for maintainability.
+
+### Single source of truth
+
+| Component | Canonical location | Consumers |
+|-----------|--------------------|-----------|
+| **JournalVersionService** | `lib/core/services/journal_version_service.dart` | Core and LUMARA; `lib/arc/internal/mira/mira_internal.dart` re-exports it for MIRA-internal consumers. Do not add a second copy under `arc/internal/mira/`. |
+| **QuickActionsService** | `lib/arc/ui/quick_actions_service.dart` | Widget installation and quick-actions UI; other UI that needs short-cut actions should import this file. |
+
+### Repository and phase service access
+
+- **Repositories:** `JournalRepository`, `ChatRepo` (ChatRepoImpl), `Layer0Repository`, `AggregationRepository`, `ChangelogRepository` are used in many call sites (ChronicleManagementView, EnhancedLumaraApi, SynthesisScheduler, JournalScreen, McpExportScreen, bootstrap). Prefer factory or shared getters where the architecture allows; avoid ad-hoc `new X()` in 20+ places. Phase 2 work may introduce a minimal “app repos” provider for high-traffic call sites.
+- **Phase services:** `PhaseRegimeService`, `UserPhaseService`, `ChatPhaseService` should be created from a single place (e.g. bootstrap or a small PhaseServiceRegistry) where possible; document the chosen access pattern in this section when centralized.
+
+### MCP / ARCX export-import entry points
+
+- **MCP:** McpExportService, McpImportService, and enhanced/pack variants; prefer a single “export to MCP” / “import from MCP” entry point that delegates internally.
+- **ARCX:** ARCXExportService, ARCXExportServiceV2, ARCXImportService, ARCXImportServiceV2, UnifiedARCXImportService; prefer a single entry point per format (export/import) that delegates to enhanced/v2 internally to reduce duplicate “load journal + chat + phase” boilerplate.
+
+*(Rollback and metrics for consolidation work packages are in `DOCS/CODE_SIMPLIFIER_CONSOLIDATION_PLAN.md` § 4–5 and Phase 3 metrics section.)*
 
 ---
 

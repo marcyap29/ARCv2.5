@@ -401,16 +401,16 @@ class _SimplifiedSettingsViewState extends State<SimplifiedSettingsView> {
 
             const SizedBox(height: 32),
 
-            // Advanced Settings Section - Admin only (marcyap@orbitalai.net)
+            // Analysis and memory Section - Admin only (marcyap@orbitalai.net)
             if (FirebaseAuthService.instance.currentUser?.email?.toLowerCase() == 'marcyap@orbitalai.net') ...[
               _buildSection(
                 context,
-                title: 'Advanced Settings',
+                title: 'Analysis and memory',
                 children: [
                   _buildSettingsTile(
                     context,
-                    title: 'Advanced Settings',
-                    subtitle: 'Memory lookback, matching precision, debug options',
+                    title: 'Analysis and memory',
+                    subtitle: 'Memory lookback, matching precision, response behavior',
                     icon: Icons.settings_applications,
                     onTap: () {
                       Navigator.push(

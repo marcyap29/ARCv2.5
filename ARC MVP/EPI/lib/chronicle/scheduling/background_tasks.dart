@@ -1,9 +1,7 @@
 import 'dart:async';
 import 'synthesis_scheduler.dart';
+import '../core/chronicle_repos.dart';
 import '../synthesis/synthesis_engine.dart';
-import '../storage/changelog_repository.dart';
-import '../storage/aggregation_repository.dart';
-import '../storage/layer0_repository.dart';
 
 /// Background Task Manager for CHRONICLE
 /// 
@@ -95,12 +93,7 @@ class ChronicleBackgroundTasksFactory {
     required SynthesisTier tier,
   }) async {
     try {
-      // Initialize repositories
-      final layer0Repo = Layer0Repository();
-      await layer0Repo.initialize();
-      
-      final aggregationRepo = AggregationRepository();
-      final changelogRepo = ChangelogRepository();
+      final (layer0Repo, aggregationRepo, changelogRepo) = await ChronicleRepos.initializedRepos;
 
       // Create synthesis engine (it will create synthesizers internally)
       final synthesisEngine = SynthesisEngine(

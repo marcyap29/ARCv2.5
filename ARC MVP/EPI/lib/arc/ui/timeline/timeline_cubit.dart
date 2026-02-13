@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:my_app/arc/ui/timeline/timeline_state.dart';
 import 'package:my_app/arc/ui/timeline/timeline_entry_model.dart';
@@ -9,10 +8,8 @@ import 'package:my_app/data/models/media_item.dart';
 import 'package:my_app/models/phase_models.dart';
 import 'package:my_app/services/phase_index.dart';
 import 'package:my_app/services/phase_regime_service.dart';
-import 'package:my_app/services/analytics_service.dart';
-import 'package:my_app/services/rivet_sweep_service.dart';
+import 'package:my_app/services/phase_service_registry.dart';
 import 'package:my_app/services/atlas_phase_decision_service.dart';
-import 'package:my_app/state/journal_entry_state.dart';
 import 'package:hive/hive.dart';
 
 class TimelineCubit extends Cubit<TimelineState> {
@@ -30,13 +27,10 @@ class TimelineCubit extends Cubit<TimelineState> {
     _initializePhaseIndex();
   }
 
-  /// Initialize phase index for regime-based phase lookup
+  /// Initialize phase index for regime-based phase lookup (uses shared PhaseRegimeService)
   Future<void> _initializePhaseIndex() async {
     try {
-      final analyticsService = AnalyticsService();
-      final rivetSweepService = RivetSweepService(analyticsService);
-      _phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
-      await _phaseRegimeService!.initialize();
+      _phaseRegimeService = await PhaseServiceRegistry.phaseRegimeService;
       _phaseIndex = _phaseRegimeService!.phaseIndex;
     } catch (e) {
       print('Warning: Could not initialize phase index: $e');

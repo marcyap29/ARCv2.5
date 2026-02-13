@@ -11,9 +11,7 @@ import '../../chat/chat_repo.dart';
 import '../models/veil_edge_models.dart';
 import '../services/veil_edge_service.dart';
 import '../../../../aurora/models/circadian_context.dart';
-import '../../llm/prompts/lumara_master_prompt.dart';
 import '../../services/lumara_control_state_builder.dart';
-import '../../../../services/gemini_send.dart';
 
 /// Integration service for LUMARA and VEIL-EDGE
 class LumaraVeilEdgeIntegration {

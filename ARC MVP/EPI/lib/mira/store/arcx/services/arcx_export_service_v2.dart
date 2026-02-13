@@ -33,6 +33,7 @@ import 'package:my_app/arc/chat/data/models/lumara_favorite.dart';
 import 'package:hive/hive.dart';
 import 'package:my_app/services/export_history_service.dart';
 import 'package:flutter/foundation.dart';
+import 'package:my_app/chronicle/core/chronicle_repos.dart';
 import 'package:my_app/chronicle/storage/aggregation_repository.dart';
 import 'package:my_app/chronicle/storage/changelog_repository.dart';
 import 'package:my_app/chronicle/models/chronicle_layer.dart';
@@ -1929,8 +1930,8 @@ class ARCXExportServiceV2 {
       final chronicleDir = Directory(path.join(payloadDir.path, 'Chronicle'));
       await chronicleDir.create(recursive: true);
       
-      final aggregationRepo = AggregationRepository();
-      final changelogRepo = ChangelogRepository();
+      final aggregationRepo = ChronicleRepos.aggregation;
+      final changelogRepo = ChronicleRepos.changelog;
       
       // Get current user ID (default to 'default_user' if not available)
       // In production, this should come from FirebaseAuthService

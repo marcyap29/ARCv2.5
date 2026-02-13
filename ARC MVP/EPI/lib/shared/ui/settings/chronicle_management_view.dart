@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
+import 'package:my_app/shared/ui/settings/settings_common.dart';
+import 'package:my_app/chronicle/core/chronicle_repos.dart';
 import 'package:my_app/chronicle/services/chronicle_export_service.dart';
 import 'package:my_app/chronicle/services/chronicle_import_service.dart';
 import 'package:my_app/chronicle/services/chronicle_onboarding_service.dart';
-import 'package:my_app/chronicle/storage/aggregation_repository.dart';
-import 'package:my_app/chronicle/storage/changelog_repository.dart';
 import 'package:my_app/chronicle/synthesis/synthesis_engine.dart';
-import 'package:my_app/chronicle/storage/layer0_repository.dart';
 import 'package:my_app/chronicle/models/chronicle_layer.dart';
 import 'package:my_app/chronicle/scheduling/synthesis_scheduler.dart';
 import 'package:my_app/chronicle/scheduling/chronicle_schedule_preferences.dart';
@@ -17,7 +16,7 @@ import 'package:my_app/chronicle/embeddings/embedding_service.dart';
 import 'package:my_app/chronicle/storage/chronicle_index_storage.dart';
 import 'package:my_app/chronicle/index/chronicle_index_builder.dart';
 import 'package:my_app/chronicle/index/monthly_aggregation_adapter.dart';
-import 'package:my_app/arc/internal/mira/journal_repository.dart';
+import 'package:my_app/app/app_repos.dart';
 import 'package:my_app/services/firebase_auth_service.dart';
 import 'package:my_app/shared/ui/chronicle/chronicle_layers_viewer.dart';
 import 'package:my_app/shared/ui/chronicle/pattern_index_viewer.dart';
@@ -135,7 +134,7 @@ class _ChronicleManagementViewState extends State<ChronicleManagementView> {
         embedder: embedder,
         storage: storage,
       );
-      final aggregationRepo = AggregationRepository();
+      final aggregationRepo = ChronicleRepos.aggregation;
       if (mounted) {
         setState(() {
           _progressStage = 'Loading monthly aggregations...';
@@ -217,7 +216,7 @@ class _ChronicleManagementViewState extends State<ChronicleManagementView> {
   Future<void> _loadAggregationCounts() async {
     try {
       final userId = FirebaseAuthService.instance.currentUser?.uid ?? 'default_user';
-      final aggregationRepo = AggregationRepository();
+      final aggregationRepo = ChronicleRepos.aggregation;
       
       final monthly = await aggregationRepo.getAllForLayer(
         userId: userId,
@@ -379,7 +378,7 @@ class _ChronicleManagementViewState extends State<ChronicleManagementView> {
 
     try {
       final userId = FirebaseAuthService.instance.currentUser?.uid ?? 'default_user';
-      final aggregationRepo = AggregationRepository();
+      final aggregationRepo = ChronicleRepos.aggregation;
       final importService = ChronicleImportService(aggregationRepo: aggregationRepo);
       final exportDir = Directory(selectedDirectory);
 
@@ -439,9 +438,9 @@ class _ChronicleManagementViewState extends State<ChronicleManagementView> {
       }
 
       final exportDir = Directory(selectedDirectory);
-      final aggregationRepo = AggregationRepository();
-      final changelogRepo = ChangelogRepository();
-      
+      final aggregationRepo = ChronicleRepos.aggregation;
+      final changelogRepo = ChronicleRepos.changelog;
+
       final exportService = ChronicleExportService(
         aggregationRepo: aggregationRepo,
         changelogRepo: changelogRepo,
@@ -476,11 +475,8 @@ class _ChronicleManagementViewState extends State<ChronicleManagementView> {
   }
 
   Future<ChronicleOnboardingService> _createOnboardingService() async {
-    final journalRepo = JournalRepository();
-    final layer0Repo = Layer0Repository();
-    await layer0Repo.initialize();
-    final aggregationRepo = AggregationRepository();
-    final changelogRepo = ChangelogRepository();
+    final journalRepo = AppRepos.journal;
+    final (layer0Repo, aggregationRepo, changelogRepo) = await AppRepos.initializedChronicleRepos;
     final synthesisEngine = SynthesisEngine(
       layer0Repo: layer0Repo,
       aggregationRepo: aggregationRepo,
@@ -559,9 +555,9 @@ class _ChronicleManagementViewState extends State<ChronicleManagementView> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: kcBackgroundColor,
-      appBar: AppBar(
-        backgroundColor: kcBackgroundColor,
-        elevation: 0,
+      appBar: settingsAppBar(
+        context,
+        title: 'CHRONICLE Management',
         leading: _showProgressView
             ? IconButton(
                 icon: const Icon(Icons.arrow_back, color: kcPrimaryTextColor),
@@ -570,15 +566,7 @@ class _ChronicleManagementViewState extends State<ChronicleManagementView> {
                 },
                 tooltip: 'Back to menu',
               )
-            : const BackButton(color: kcPrimaryTextColor),
-        title: Text(
-          'CHRONICLE Management',
-          style: heading1Style(context).copyWith(
-            color: kcPrimaryTextColor,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        centerTitle: true,
+            : null,
       ),
       body: _isLoading
           ? _buildProgressView()
@@ -622,7 +610,7 @@ class _ChronicleManagementViewState extends State<ChronicleManagementView> {
                     ),
 
                   // Aggregation Status (tiles open CHRONICLE Layers at the corresponding tab)
-                  _buildSection(
+                  SettingsSection(
                     title: 'Aggregation Status',
                     children: [
                       _buildStatusTile(
@@ -651,7 +639,7 @@ class _ChronicleManagementViewState extends State<ChronicleManagementView> {
                   const SizedBox(height: 32),
 
                   // Pattern index (vectorizer) — on-device embeddings for cross-temporal themes
-                  _buildSection(
+                  SettingsSection(
                     title: 'Pattern index (vectorizer)',
                     children: [
                       Text(
@@ -684,20 +672,21 @@ class _ChronicleManagementViewState extends State<ChronicleManagementView> {
                           ),
                         ],
                         const SizedBox(height: 12),
-                        _buildActionButton(
-                          _patternIndexUpdating
+                        SettingsActionButton(
+                          title: _patternIndexUpdating
                               ? 'Updating pattern index...'
                               : 'Update pattern index now',
-                          'Rebuild index from existing monthly aggregations (embeddings)',
-                          Icons.auto_awesome,
-                          _patternIndexUpdating ? () {} : _updatePatternIndexNow,
+                          subtitle: 'Rebuild index from existing monthly aggregations (embeddings)',
+                          icon: Icons.auto_awesome,
+                          onPressed: _patternIndexUpdating ? () {} : _updatePatternIndexNow,
+                          enabled: !_patternIndexUpdating,
                         ),
                         const SizedBox(height: 12),
-                        _buildActionButton(
-                          'View vectorized patterns',
-                          'See which themes have been embedded and clustered across time',
-                          Icons.visibility,
-                          () {
+                        SettingsActionButton(
+                          title: 'View vectorized patterns',
+                          subtitle: 'See which themes have been embedded and clustered across time',
+                          icon: Icons.visibility,
+                          onPressed: () {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
@@ -713,7 +702,7 @@ class _ChronicleManagementViewState extends State<ChronicleManagementView> {
                   const SizedBox(height: 32),
 
                   // Automatic synthesis schedule (Daily / Weekly / Monthly)
-                  _buildSection(
+                  SettingsSection(
                     title: 'Automatic synthesis',
                     children: [
                       Text(
@@ -744,35 +733,39 @@ class _ChronicleManagementViewState extends State<ChronicleManagementView> {
                   const SizedBox(height: 32),
 
                   // Backfill and Synthesize (single section with 4 options)
-                  _buildSection(
+                  SettingsSection(
                     title: 'Backfill and Synthesize',
                     children: [
-                      _buildActionButton(
-                        'Backfill and Synthesize Current Month',
-                        'Update Layer 0 and create monthly aggregation for this month',
-                        Icons.calendar_month,
-                        _backfillAndSynthesizeCurrentMonth,
+                      SettingsActionButton(
+                        title: 'Backfill and Synthesize Current Month',
+                        subtitle: 'Update Layer 0 and create monthly aggregation for this month',
+                        icon: Icons.calendar_month,
+                        onPressed: _backfillAndSynthesizeCurrentMonth,
+                        enabled: !_isLoading,
                       ),
                       const SizedBox(height: 12),
-                      _buildActionButton(
-                        'Backfill and Synthesize Current Year',
-                        'Update Layer 0 and create yearly aggregation for this year',
-                        Icons.calendar_today,
-                        _backfillAndSynthesizeCurrentYear,
+                      SettingsActionButton(
+                        title: 'Backfill and Synthesize Current Year',
+                        subtitle: 'Update Layer 0 and create yearly aggregation for this year',
+                        icon: Icons.calendar_today,
+                        onPressed: _backfillAndSynthesizeCurrentYear,
+                        enabled: !_isLoading,
                       ),
                       const SizedBox(height: 12),
-                      _buildActionButton(
-                        'Backfill and Synthesize Multi-Year',
-                        'Update Layer 0 and create multi-year aggregation for current 5-year block',
-                        Icons.calendar_view_month,
-                        _backfillAndSynthesizeMultiYear,
+                      SettingsActionButton(
+                        title: 'Backfill and Synthesize Multi-Year',
+                        subtitle: 'Update Layer 0 and create multi-year aggregation for current 5-year block',
+                        icon: Icons.calendar_view_month,
+                        onPressed: _backfillAndSynthesizeMultiYear,
+                        enabled: !_isLoading,
                       ),
                       const SizedBox(height: 12),
-                      _buildActionButton(
-                        'Backfill and Synthesize All',
-                        'Update Layer 0 and synthesize all months/years with entries',
-                        Icons.sync_alt,
-                        _backfillAndSynthesizeAll,
+                      SettingsActionButton(
+                        title: 'Backfill and Synthesize All',
+                        subtitle: 'Update Layer 0 and synthesize all months/years with entries',
+                        icon: Icons.sync_alt,
+                        onPressed: _backfillAndSynthesizeAll,
+                        enabled: !_isLoading,
                       ),
                     ],
                   ),
@@ -780,21 +773,23 @@ class _ChronicleManagementViewState extends State<ChronicleManagementView> {
                   const SizedBox(height: 32),
 
                   // Import / Export
-                  _buildSection(
+                  SettingsSection(
                     title: 'Import & Export',
                     children: [
-                      _buildActionButton(
-                        'Import Aggregations',
-                        'Import aggregations from a previously exported folder',
-                        Icons.upload,
-                        _importAggregations,
+                      SettingsActionButton(
+                        title: 'Import Aggregations',
+                        subtitle: 'Import aggregations from a previously exported folder',
+                        icon: Icons.upload,
+                        onPressed: _importAggregations,
+                        enabled: !_isLoading,
                       ),
                       const SizedBox(height: 12),
-                      _buildActionButton(
-                        'Export All Aggregations',
-                        'Export all CHRONICLE aggregations to a folder',
-                        Icons.download,
-                        _exportAll,
+                      SettingsActionButton(
+                        title: 'Export All Aggregations',
+                        subtitle: 'Export all CHRONICLE aggregations to a folder',
+                        icon: Icons.download,
+                        onPressed: _exportAll,
+                        enabled: !_isLoading,
                       ),
                     ],
                   ),
@@ -802,14 +797,14 @@ class _ChronicleManagementViewState extends State<ChronicleManagementView> {
                   const SizedBox(height: 32),
 
                   // View Layers
-                  _buildSection(
+                  SettingsSection(
                     title: 'View Layers',
                     children: [
-                      _buildActionButton(
-                        'View CHRONICLE Layers',
-                        'Browse monthly, yearly, and multi-year aggregations',
-                        Icons.visibility,
-                        () {
+                      SettingsActionButton(
+                        title: 'View CHRONICLE Layers',
+                        subtitle: 'Browse monthly, yearly, and multi-year aggregations',
+                        icon: Icons.visibility,
+                        onPressed: () {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
@@ -824,14 +819,14 @@ class _ChronicleManagementViewState extends State<ChronicleManagementView> {
                   const SizedBox(height: 32),
 
                   // Privacy Protection (links to same screen as Settings → Privacy & Security)
-                  _buildSection(
+                  SettingsSection(
                     title: 'Privacy',
                     children: [
-                      _buildActionButton(
-                        'Privacy Protection',
-                        'Configure PII detection and masking for CHRONICLE and LUMARA',
-                        Icons.security,
-                        () {
+                      SettingsActionButton(
+                        title: 'Privacy Protection',
+                        subtitle: 'Configure PII detection and masking for CHRONICLE and LUMARA',
+                        icon: Icons.security,
+                        onPressed: () {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
@@ -947,26 +942,6 @@ class _ChronicleManagementViewState extends State<ChronicleManagementView> {
     );
   }
 
-  Widget _buildSection({
-    required String title,
-    required List<Widget> children,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          title,
-          style: heading2Style(context).copyWith(
-            color: kcPrimaryTextColor,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(height: 12),
-        ...children,
-      ],
-    );
-  }
-
   Widget _buildStatusTile(
     String title,
     String subtitle,
@@ -1018,54 +993,5 @@ class _ChronicleManagementViewState extends State<ChronicleManagementView> {
       );
     }
     return content;
-  }
-
-  Widget _buildActionButton(
-    String title,
-    String subtitle,
-    IconData icon,
-    VoidCallback onPressed,
-  ) {
-    return SizedBox(
-      width: double.infinity,
-      child: ElevatedButton(
-        onPressed: _isLoading ? null : onPressed,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: kcBackgroundColor.withOpacity(0.5),
-          padding: const EdgeInsets.all(16),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-        ),
-        child: Row(
-          children: [
-            Icon(icon, color: kcPrimaryTextColor),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: bodyStyle(context).copyWith(
-                      color: kcPrimaryTextColor,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    subtitle,
-                    style: captionStyle(context).copyWith(
-                      color: kcSecondaryTextColor,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const Icon(Icons.chevron_right, color: kcPrimaryTextColor),
-          ],
-        ),
-      ),
-    );
   }
 }

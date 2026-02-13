@@ -1,7 +1,6 @@
 #!/usr/bin/env dart
 // Debug script to test photo import and reconstruction
 
-import 'dart:io';
 import 'dart:convert';
 
 void main() async {

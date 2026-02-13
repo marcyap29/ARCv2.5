@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:my_app/arc/ui/quick_journal_entry_widget.dart';
 import 'package:my_app/mira/store/mcp/models/mcp_schemas.dart';
 
 /// iOS Widget Extension - Native iOS widget for home screen
@@ -199,48 +198,6 @@ class _AppWidgetState extends State<AppWidget> {
 
   void _handleCamera() {
     // TODO: Open camera
-  }
-}
-
-/// Quick Actions - 3D Touch/Long Press actions on app icon
-class QuickActionsService {
-  static const MethodChannel _channel = MethodChannel('quick_actions');
-
-  /// Initialize quick actions
-  static Future<void> initialize() async {
-    try {
-      await _channel.invokeMethod('initializeQuickActions');
-    } catch (e) {
-      print('Failed to initialize quick actions: $e');
-    }
-  }
-
-  /// Add quick action
-  static Future<void> addQuickAction({
-    required String id,
-    required String title,
-    required String subtitle,
-    required String icon,
-  }) async {
-    try {
-      await _channel.invokeMethod('addQuickAction', {
-        'id': id,
-        'title': title,
-        'subtitle': subtitle,
-        'icon': icon,
-      });
-    } catch (e) {
-      print('Failed to add quick action: $e');
-    }
-  }
-
-  /// Remove quick action
-  static Future<void> removeQuickAction(String id) async {
-    try {
-      await _channel.invokeMethod('removeQuickAction', {'id': id});
-    } catch (e) {
-      print('Failed to remove quick action: $e');
-    }
   }
 }
 

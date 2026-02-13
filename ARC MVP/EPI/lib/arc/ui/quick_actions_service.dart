@@ -23,6 +23,34 @@ class QuickActionsService {
       print('Failed to handle quick action: $e');
     }
   }
+
+  /// Add quick action
+  static Future<void> addQuickAction({
+    required String id,
+    required String title,
+    required String subtitle,
+    required String icon,
+  }) async {
+    try {
+      await _channel.invokeMethod('addQuickAction', {
+        'id': id,
+        'title': title,
+        'subtitle': subtitle,
+        'icon': icon,
+      });
+    } catch (e) {
+      print('Failed to add quick action: $e');
+    }
+  }
+
+  /// Remove quick action
+  static Future<void> removeQuickAction(String id) async {
+    try {
+      await _channel.invokeMethod('removeQuickAction', {'id': id});
+    } catch (e) {
+      print('Failed to remove quick action: $e');
+    }
+  }
 }
 
 /// Deep Link Handler for Quick Actions
