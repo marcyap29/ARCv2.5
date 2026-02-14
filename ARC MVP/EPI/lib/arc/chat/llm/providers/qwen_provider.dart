@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import '../llm_provider.dart';
 import '../../config/api_config.dart';
 import '../bridge.pigeon.dart';
+import '../ondevice_prompt_service.dart';
 
 /// Qwen internal model provider
 class QwenProvider extends LLMProviderBase {
@@ -33,7 +34,7 @@ class QwenProvider extends LLMProviderBase {
     final userPrompt = context['userPrompt'] as String;
     
     // Use on-device specific prompt formatting
-    final formattedPrompt = OnDevicePromptService.formatOnDevicePrompt(systemPrompt, userPrompt);
+    final formattedPrompt = OnDevicePromptService.formatOnDevicePromptLegacy(systemPrompt, userPrompt);
     
     try {
       // Use native bridge to generate response
@@ -69,25 +70,5 @@ class QwenProvider extends LLMProviderBase {
       debugPrint('QwenProvider: Error generating response: $e');
       rethrow;
     }
-  }
-
-  /// Format prompt for Qwen model
-  String _formatPrompt(String systemPrompt, String userPrompt) {
-    return '''<|im_start|>system
-$systemPrompt
-<|im_end|>
-<|im_start|>user
-$userPrompt
-<|im_end|>
-<|im_start|>assistant''';
-  }
-
-  /// Clean response from Qwen model
-  String _cleanResponse(String response) {
-    // Remove common Qwen artifacts
-    return response
-        .replaceAll(RegExp(r'<\|im_start\|>.*?<\|im_end\|>', dotAll: true), '')
-        .replaceAll(RegExp(r'<\|endoftext\|>'), '')
-        .trim();
   }
 }

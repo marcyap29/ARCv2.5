@@ -250,7 +250,7 @@ class _DriveFolderPickerScreenState extends State<DriveFolderPickerScreen> {
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         Text(
-                          'Select folders to import from. We\'ll import backup files (.arcx, .zip) and text files (.txt) from selected folders.',
+                          'Select folders to import from. We\'ll import backup files (.arcx, .zip) and text files (.txt, .md) as LUMARA entries.',
                           style: bodyStyle(context).copyWith(
                             color: kcSecondaryTextColor,
                             fontSize: 12,

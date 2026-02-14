@@ -778,7 +778,7 @@ class _GoogleDriveSettingsViewState extends State<GoogleDriveSettingsView> {
         if (created > 0) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Imported $created .txt file(s) into Timeline with #googledrive and folder hashtag'),
+              content: Text('Imported $created .txt/.md file(s) into Timeline with #googledrive and folder hashtag'),
               backgroundColor: Colors.green,
             ),
           );
@@ -789,7 +789,7 @@ class _GoogleDriveSettingsViewState extends State<GoogleDriveSettingsView> {
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('No new .txt files in sync folder'),
+              content: Text('No new .txt/.md files in sync folder'),
               backgroundColor: Colors.orange,
             ),
           );
@@ -842,16 +842,19 @@ class _GoogleDriveSettingsViewState extends State<GoogleDriveSettingsView> {
         final n = f.name ?? '';
         return n.endsWith('.arcx') || n.endsWith('.zip');
       }).toList();
-      final textFiles = allFiles.where((f) => (f.name ?? '').endsWith('.txt')).toList();
+      final textFiles = allFiles.where((f) {
+        final n = f.name ?? '';
+        return n.endsWith('.txt') || n.endsWith('.md');
+      }).toList();
 
-      int imported = 0;
+      int importedBackups = 0;
       String? lastError;
 
       for (final file in manifests) {
         if (!mounted) break;
         try {
           final r = await _performImportFromDriveFile(file);
-          if (r.success) imported++;
+          if (r.success) importedBackups++;
           else lastError = r.error;
         } catch (e) {
           lastError = e.toString();
@@ -862,26 +865,34 @@ class _GoogleDriveSettingsViewState extends State<GoogleDriveSettingsView> {
         if (manifests.any((m) => m.id == file.id)) continue;
         try {
           final r = await _performImportFromDriveFile(file);
-          if (r.success) imported++;
+          if (r.success) importedBackups++;
           else lastError = r.error;
         } catch (e) {
           lastError = e.toString();
         }
       }
 
+      // Import .txt/.md files as LUMARA entries (same as sync folder, but one-time from selected folders).
+      int importedText = 0;
+      if (mounted && textFiles.isNotEmpty) {
+        importedText = await _driveService.importTextFilesFromDrive(textFiles, widget.journalRepo);
+      }
+
       if (mounted) {
         setState(() => _importing = false);
         final buf = StringBuffer();
-        if (imported > 0) buf.write('Imported $imported backup(s). ');
-        if (textFiles.isNotEmpty) buf.write('${textFiles.length} text file(s) found (open in Drive to use). ');
-        if (lastError != null && imported == 0) buf.write(lastError);
+        if (importedBackups > 0) buf.write('Imported $importedBackups backup(s). ');
+        if (importedText > 0) buf.write('Imported $importedText text file(s) as LUMARA entries. ');
+        if (importedText == 0 && textFiles.isNotEmpty) buf.write('${textFiles.length} text file(s) found but could not be imported. ');
+        if (lastError != null && importedBackups == 0 && importedText == 0) buf.write(lastError);
+        final totalImported = importedBackups + importedText;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(buf.isEmpty ? 'No importable files in selected folders.' : buf.toString().trim()),
-            backgroundColor: imported > 0 ? Colors.green : Colors.orange,
+            backgroundColor: totalImported > 0 ? Colors.green : Colors.orange,
           ),
         );
-        if (imported > 0) {
+        if (totalImported > 0) {
           try {
             if (context.mounted) context.read<TimelineCubit>().reloadAllEntries();
           } catch (_) {}
@@ -1456,7 +1467,7 @@ class _GoogleDriveSettingsViewState extends State<GoogleDriveSettingsView> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Choose a Google Drive folder. Add .txt files there, then tap Sync to import them into the Timeline with #googledrive and a hashtag from the folder name (e.g. #BYOK).',
+            'Choose a Google Drive folder. Add .txt or .md files there, then tap Sync to import them into the Timeline with #googledrive and a hashtag from the folder name (e.g. #BYOK).',
             style: bodyStyle(context).copyWith(color: kcSecondaryTextColor, fontSize: 12),
           ),
           const SizedBox(height: 12),
@@ -1514,7 +1525,7 @@ class _GoogleDriveSettingsViewState extends State<GoogleDriveSettingsView> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Restore from LUMARA Backups, or browse Drive to pick other folders and import backup or text files from them.',
+            'Restore from LUMARA Backups, or browse Drive to pick folders and import backups (.arcx, .zip) or text files (.txt, .md) as LUMARA entries.',
             style: bodyStyle(context).copyWith(color: kcSecondaryTextColor, fontSize: 12),
           ),
           const SizedBox(height: 12),

@@ -30,6 +30,7 @@ import 'package:my_app/arc/chat/data/models/lumara_favorite.dart';
 import 'package:my_app/arc/voice_notes/models/voice_note.dart';
 import 'package:my_app/chronicle/storage/layer0_repository.dart';
 import 'package:my_app/crossroads/storage/decision_capture_repository.dart';
+import 'package:my_app/models/phase_check_in_model.dart';
 import 'package:my_app/services/firebase_service.dart';
 import 'package:my_app/services/firebase_auth_service.dart';
 import 'package:my_app/services/revenuecat_service.dart';
@@ -286,6 +287,11 @@ Future<void> _registerHiveAdapters() async {
     if (!Hive.isAdapterRegistered(119)) {
       Hive.registerAdapter(DecisionOutcomePromptAdapter());
       logger.d('✅ Registered DecisionOutcomePromptAdapter (ID: 119)');
+    }
+    // Phase Check-in (monthly recalibration)
+    if (!Hive.isAdapterRegistered(115)) {
+      Hive.registerAdapter(PhaseCheckInAdapter());
+      logger.d('✅ Registered PhaseCheckInAdapter (ID: 115)');
     }
     // Reflection session monitoring (AURORA)
     if (!Hive.isAdapterRegistered(125)) {

@@ -1,14 +1,15 @@
 # EPI MVP - Bug Tracker
 
-**Version:** 3.2.4  
+**Version:** 3.2.5  
 **Last Updated:** February 13, 2026  
-**Record count:** 32 individual bug records in [records/](records/). Index below matches all files in records/.
+**Record count:** 34 individual bug records in [records/](records/). Index below matches all files in records/.
 
 ---
 
 ## How to use this tracker
 
 - **Index:** Use the sections below to find bugs by category (LUMARA, Timeline & UI, Export/Import, etc.). Each entry links to a detailed record in `records/`.
+- **Fix instructions:** Each record in `records/` should include a **How to fix** section (or equivalent) with concrete steps so bugs can be resolved or worked around without hunting through the codebase.
 - **Recent code changes:** Table derived from repo and [CHANGELOG.md](../CHANGELOG.md) – use it to see which fixes have bug records and which might need new records.
 - **Archive:** Legacy bug tracker files (Bug_Tracker-1.md through Bug_Tracker-9.md) are in [archive/](archive/).
 
@@ -68,9 +69,13 @@ Detailed bug reports are available in the [records/](records/) directory:
 - [stripe-subscription-critical-fixes.md](records/stripe-subscription-critical-fixes.md) - Stripe subscription critical fixes
 
 ### Build & Platform Issues
+- [ios-build-rivet-models-keywords-set-type.md](records/ios-build-rivet-models-keywords-set-type.md) - **CRITICAL:** iOS build – rivet_models.g.dart keywords List vs Set<String> type error ✅ RESOLVED
 - [ios-build-local-embedding-service-errors.md](records/ios-build-local-embedding-service-errors.md) - **CRITICAL:** iOS release build – CHRONICLE embedding stack (Dart parse/type, then EmbeddingService vs LocalEmbeddingService at call sites)
 - [ios-build-native-embedding-channel-swift-scope.md](records/ios-build-native-embedding-channel-swift-scope.md) - **CRITICAL:** iOS Swift build – NativeEmbeddingChannel not in scope in AppDelegate.swift:104
 - [ios-release-build-third-party-warnings.md](records/ios-release-build-third-party-warnings.md) - iOS release build third-party deprecation/warning noise (Pods, file_picker, Firebase, RevenueCat)
+
+### Environment / Tooling
+- [ollama-serve-address-in-use-and-quit-command.md](records/ollama-serve-address-in-use-and-quit-command.md) - Ollama: port 11434 already in use; `ollama quit` unknown command
 
 ### Feature-Specific Issues
 - [constellation-zero-stars-display.md](records/constellation-zero-stars-display.md) - Constellation visualization
@@ -104,8 +109,10 @@ This section is derived from the repo and [CHANGELOG.md](../CHANGELOG.md) to kee
 | iOS release build failure (LocalEmbeddingService) | — | [ios-build-local-embedding-service-errors.md](records/ios-build-local-embedding-service-errors.md) | Dart parse/type; then EmbeddingService vs LocalEmbeddingService at call sites (3 files). |
 | iOS Swift: NativeEmbeddingChannel not in scope | — | [ios-build-native-embedding-channel-swift-scope.md](records/ios-build-native-embedding-channel-swift-scope.md) | AppDelegate.swift:104; Runner target membership / compile sources. |
 | iOS release build third-party warnings | — | [ios-release-build-third-party-warnings.md](records/ios-release-build-third-party-warnings.md) | DKImagePickerController, file_picker, Firebase, RevenueCat deprecations; tech debt. |
+| iOS build: rivet_models.g.dart keywords Set type | 2026-02-13 | [ios-build-rivet-models-keywords-set-type.md](records/ios-build-rivet-models-keywords-set-type.md) ✅ | List<String> assigned to Set<String> in generated adapter; fix: .toSet() in read(). |
+| Ollama serve address in use; ollama quit unknown | 2026-02-13 | [ollama-serve-address-in-use-and-quit-command.md](records/ollama-serve-address-in-use-and-quit-command.md) | Environment: port 11434 in use; CLI "quit" not recognized. |
 
-**Source:** `git log --oneline`, [CHANGELOG.md](../CHANGELOG.md). Last synced: 2026-02-13.
+**Source:** `git log --oneline`, [CHANGELOG.md](../CHANGELOG.md), terminal build log 2026-02-13. Last synced: 2026-02-13.
 
 ---
 
@@ -119,5 +126,5 @@ Individual bug records stay in [records/](records/); only the legacy multi-part 
 
 ---
 
-**Status**: ✅ Active - All resolved issues documented; Build & Platform: 3 records (embedding Dart chain, NativeEmbeddingChannel Swift, third-party warnings).  
+**Status**: ✅ Active - All resolved issues documented; Build & Platform: 4 records (rivet Set type ✅, embedding Dart chain, NativeEmbeddingChannel Swift, third-party warnings); Environment: 1 (Ollama).  
 **Last Updated**: February 13, 2026

@@ -1,7 +1,7 @@
 # Configuration Management & Documentation Tracking
 
 **Lead Configuration Management Analyst:** Active  
-**Last Updated:** February 13, 2026 (v3.3.28)  
+**Last Updated:** February 13, 2026 (v3.3.29)  
 **Status:** ✅ All Documents Synced with Repo
 
 ---
@@ -38,12 +38,12 @@ Prompt/role definitions: **Ultimate Documentation, Configuration Management and 
 
 | Document | Location | Last Reviewed | Status | Notes |
 |----------|----------|---------------|--------|-------|
-| ARCHITECTURE.md | `/DOCS/ARCHITECTURE.md` | 2026-02-13 | ✅ Synced | v3.3.28 - Code Simplifier Phase 1 (version_service/firestore removed, app repos/phase registry) |
-| CHANGELOG.md | `/DOCS/CHANGELOG.md` | 2026-02-13 | ✅ Synced | v3.3.28 - Code Simplifier Phase 1 execution, consolidation & cleanup |
+| ARCHITECTURE.md | `/DOCS/ARCHITECTURE.md` | 2026-02-13 | ✅ Synced | v3.3.29 - Phase Check-In feature |
+| CHANGELOG.md | `/DOCS/CHANGELOG.md` | 2026-02-13 | ✅ Synced | v3.3.29 - Phase Check-In, bugtracker (2 records), Google Drive/settings |
 | PROMPT_REFERENCES.md | `/DOCS/PROMPT_REFERENCES.md` | 2026-02-13 | ✅ Synced | v2.3.0 - §20 Quick Answers / MMCO Polish (prompt audit) |
 | PROMPT_TRACKER.md | `/DOCS/PROMPT_TRACKER.md` | 2026-02-13 | ✅ Synced | v1.4.0 - Added v2.3.0 prompt audit row |
-| bug_tracker.md | `/DOCS/bugtracker/bug_tracker.md` | 2026-02-13 | ✅ Synced | v3.2.4 - 32 records; 3 new iOS build/embedding records; Build & Platform index |
-| FEATURES.md | `/DOCS/FEATURES.md` | 2026-02-13 | ✅ Synced | v3.3.28 - Code Simplifier Phase 1 |
+| bug_tracker.md | `/DOCS/bugtracker/bug_tracker.md` | 2026-02-13 | ✅ Synced | v3.2.5 - 34 records; Phase Check-In, RIVET keywords fix, Ollama env records |
+| FEATURES.md | `/DOCS/FEATURES.md` | 2026-02-13 | ✅ Synced | v3.3.29 - Phase Check-In |
 | README.md | `/DOCS/README.md` | 2026-02-07 | ✅ Synced | Key docs table with purpose and when to read |
 | claude.md | `/DOCS/claude.md` | 2026-02-13 | ✅ Synced | TOC — Prompts; consolidated Doc/Config/Git Backup prompt; TOC aligned with current sections |
 | backend.md | `/DOCS/backend.md` | 2026-02-11 | ✅ Synced | v3.3 - proxyGroq (Groq primary), proxyGemini (fallback), Firebase, Stripe |
@@ -90,6 +90,18 @@ Prompt/role definitions: **Ultimate Documentation, Configuration Management and 
 ---
 
 ## Change Tracking Log
+
+### 2026-02-13 - v3.3.29: Phase Check-In, bugtracker (2 records), doc sync, commit, push, merge
+
+**Action:** Reviewed repo (uncommitted changes), updated docs, committed all changes, pushed to `test`, merged `test` → `main`.
+
+**Code changes documented (v3.3.29):** Phase Check-In feature: PhaseCheckInService (monthly recalibration, reminder preference), PhaseCheckIn model + Hive, phase_check_in_bottom_sheet, HomeView shows sheet when due (once per session), Phase Analysis Settings card "Show reminder when due". Bugtracker: 2 new records (ios-build-rivet-models-keywords-set-type, ollama-serve-address-in-use-and-quit-command); bug_tracker.md v3.2.5, 34 records. Google Drive/settings and qwen/bootstrap/rivet_models.g updates.
+
+**Doc updates:** CHANGELOG.md [3.3.29]; CONFIGURATION_MANAGEMENT.md (this entry, inventory); ARCHITECTURE.md, FEATURES.md (Phase Check-In).
+
+**Status:** ✅ All changes committed and pushed; test merged into main.
+
+---
 
 ### 2026-02-13 - v3.3.28: Code Simplifier Phase 1, repo review, doc sync, commit, push, merge
 

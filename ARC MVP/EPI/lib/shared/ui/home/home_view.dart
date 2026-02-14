@@ -45,6 +45,8 @@ import 'package:my_app/shared/ui/settings/settings_view.dart';
 import 'package:my_app/services/rivet_sweep_service.dart' show runAutoPhaseAnalysis;
 import 'package:my_app/chronicle/integration/veil_chronicle_factory.dart';
 import 'package:my_app/chronicle/scheduling/synthesis_scheduler.dart' show SynthesisTier;
+import 'package:my_app/services/phase_check_in_service.dart';
+import 'package:my_app/ui/phase/phase_check_in_bottom_sheet.dart';
 
 // Debug flag for showing RIVET engineering labels
 const bool kShowRivetDebugLabels = false;
@@ -72,6 +74,9 @@ class _HomeViewState extends State<HomeView> {
   /// Whether the unified feed is in empty/welcome state (no entries yet).
   /// When true, the bottom nav is hidden so the welcome screen stands alone.
   bool _feedIsEmpty = true;
+
+  /// Phase Check-in shown this session (only prompt once per app open).
+  bool _phaseCheckInShownThisSession = false;
 
   // Navigation tabs: unified feed mode has LUMARA + Settings; legacy has 3 tabs
   List<TabItem> get _tabs {
@@ -152,7 +157,22 @@ class _HomeViewState extends State<HomeView> {
         _openEntryById(widget.entryIdToOpen!);
       });
     }
-    
+
+    // Phase Check-in: show once per session when due (30 days since last, or 7 days after dismiss)
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Future.delayed(const Duration(seconds: 2), () async {
+        if (!mounted || _phaseCheckInShownThisSession) return;
+        try {
+          final due = await PhaseCheckInService.instance.isCheckInDue();
+          if (!mounted) return;
+          if (due) {
+            _phaseCheckInShownThisSession = true;
+            await showPhaseCheckInBottomSheet(context);
+          }
+        } catch (_) {}
+      });
+    });
+
     // Initialize shake-to-report-bug detection
     _initializeShakeDetection();
   }

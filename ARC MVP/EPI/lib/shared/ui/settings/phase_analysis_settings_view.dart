@@ -13,6 +13,8 @@ import 'package:my_app/services/rivet_sweep_service.dart';
 import 'package:my_app/services/analytics_service.dart';
 import 'package:my_app/arc/core/journal_repository.dart';
 import 'package:my_app/services/phase_sentinel_integration.dart';
+import 'package:my_app/ui/phase/phase_check_in_bottom_sheet.dart';
+import 'package:my_app/services/phase_check_in_service.dart';
 
 /// Settings screen: Phase Analysis card + Phase Statistics card. Uses purple accent to match main menu.
 class PhaseAnalysisSettingsView extends StatefulWidget {
@@ -26,11 +28,14 @@ class _PhaseAnalysisSettingsViewState extends State<PhaseAnalysisSettingsView> {
   PhaseRegimeService? _phaseRegimeService;
   PhaseIndex? _phaseIndex;
   bool _isLoading = false;
+  bool _phaseCheckInReminderEnabled = true;
+  bool _phaseCheckInReminderLoading = true;
 
   @override
   void initState() {
     super.initState();
     _initializeServices();
+    _loadPhaseCheckInReminder();
   }
 
   Future<void> _initializeServices() async {
@@ -40,6 +45,21 @@ class _PhaseAnalysisSettingsViewState extends State<PhaseAnalysisSettingsView> {
         _phaseIndex = _phaseRegimeService!.phaseIndex;
       });
     }
+  }
+
+  Future<void> _loadPhaseCheckInReminder() async {
+    final enabled = await PhaseCheckInService.instance.isReminderEnabled();
+    if (mounted) {
+      setState(() {
+        _phaseCheckInReminderEnabled = enabled;
+        _phaseCheckInReminderLoading = false;
+      });
+    }
+  }
+
+  Future<void> _setPhaseCheckInReminder(bool value) async {
+    await PhaseCheckInService.instance.setReminderEnabled(value);
+    if (mounted) setState(() => _phaseCheckInReminderEnabled = value);
   }
 
   @override
@@ -52,9 +72,77 @@ class _PhaseAnalysisSettingsViewState extends State<PhaseAnalysisSettingsView> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            _buildPhaseCheckInCard(),
+            const SizedBox(height: 16),
             _buildPhaseAnalysisCard(),
             const SizedBox(height: 16),
             _buildPhaseStatisticsCard(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPhaseCheckInCard() {
+    return Card(
+      color: kcSurfaceAltColor,
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SettingsCardTitle(title: 'Phase Check-in', icon: Icons.check_circle_outline),
+            const SizedBox(height: 8),
+            Text(
+              'Monthly prompt to confirm or update your phase. You can always open it manually below.',
+              style: bodyStyle(context).copyWith(
+                fontSize: 13,
+                color: kcSecondaryTextColor,
+              ),
+            ),
+            const SizedBox(height: 12),
+            if (_phaseCheckInReminderLoading)
+              const Center(child: Padding(
+                padding: EdgeInsets.all(8.0),
+                child: SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              ))
+            else
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Show reminder when due',
+                      style: bodyStyle(context).copyWith(
+                        color: kcPrimaryTextColor,
+                      ),
+                    ),
+                  ),
+                  Switch(
+                    value: _phaseCheckInReminderEnabled,
+                    onChanged: _setPhaseCheckInReminder,
+                    activeColor: kcAccentColor,
+                  ),
+                ],
+              ),
+            const Divider(height: 24),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.edit_calendar, color: kcAccentColor, size: 22),
+              title: Text(
+                'Review and update your current phase',
+                style: bodyStyle(context).copyWith(
+                  fontWeight: FontWeight.w500,
+                  color: kcPrimaryTextColor,
+                ),
+              ),
+              trailing: const Icon(Icons.chevron_right, color: kcSecondaryTextColor),
+              onTap: () => showPhaseCheckInBottomSheet(context),
+            ),
           ],
         ),
       ),

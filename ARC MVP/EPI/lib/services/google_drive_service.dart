@@ -276,7 +276,7 @@ class GoogleDriveService {
   }
 
   /// Recursively collect all backup and text file IDs under the given folder.
-  /// Returns list of Drive files (.arcx, .zip, manifest .json, .txt).
+  /// Returns list of Drive files (.arcx, .zip, manifest .json, .txt, .md).
   Future<List<drive.File>> listImportableFilesInFolder(String folderId, {int maxFiles = 500}) async {
     _requireDriveApi();
     final result = <drive.File>[];
@@ -297,10 +297,52 @@ class GoogleDriveService {
       } else {
         final isBackup = name.endsWith('.arcx') || name.endsWith('.zip') ||
             (name.startsWith('arc_backup_manifest_') && name.endsWith('.json'));
-        final isText = name.endsWith('.txt');
+        final isText = name.endsWith('.txt') || name.endsWith('.md');
         if (isBackup || isText) out.add(item);
       }
     }
+  }
+
+  /// One-time import of .txt/.md files from Drive (e.g. from Browse Drive folder picker).
+  /// Creates LUMARA entries with #googledrive and folder hashtag. Does not add to sync records.
+  Future<int> importTextFilesFromDrive(List<drive.File> files, JournalRepository journalRepo) async {
+    _requireDriveApi();
+    int count = 0;
+    for (final file in files) {
+      final fileId = file.id;
+      final name = file.name ?? '';
+      if (fileId == null || fileId.isEmpty) continue;
+      if (!name.endsWith('.txt') && !name.endsWith('.md')) continue;
+      try {
+        final path = await downloadToTempFile(fileId, suggestedName: file.name);
+        final content = await File(path).readAsString();
+        try {
+          await File(path).delete();
+        } catch (_) {}
+        final parentId = file.parents != null && file.parents!.isNotEmpty ? file.parents!.first : null;
+        final folderName = parentId != null ? (await getFileMetadata(parentId, fields: 'name'))?.name ?? 'Drive' : 'Drive';
+        final folderTag = _folderNameToHashtag(folderName);
+        final hashtags = ' #googledrive #$folderTag';
+        final title = name.replaceAll(RegExp(r'\.(txt|md)$'), '').trim();
+        final now = DateTime.now();
+        final entry = JournalEntry(
+          id: const Uuid().v4(),
+          title: title.isEmpty ? 'Imported from Drive' : title,
+          content: content.trim() + hashtags,
+          createdAt: now,
+          updatedAt: now,
+          tags: const [],
+          mood: '',
+          keywords: ['googledrive', folderTag],
+          importSource: 'GOOGLE_DRIVE',
+        );
+        await journalRepo.createJournalEntry(entry);
+        count++;
+      } catch (e) {
+        debugPrint('GoogleDriveService: import text file $fileId failed: $e');
+      }
+    }
+    return count;
   }
 
   // --- Sync folder (for .txt auto-import) ---
@@ -379,7 +421,7 @@ class GoogleDriveService {
     return null;
   }
 
-  /// Sync .txt files from the chosen sync folder: create new entries or update existing if the file was edited on Drive.
+  /// Sync .txt/.md files from the chosen sync folder: create new entries or update existing if the file was edited on Drive.
   /// Returns the number of entries created or updated. Call on app open or when user taps Sync.
   Future<int> syncTxtFromDriveToTimeline(JournalRepository journalRepo) async {
     final folderId = await getSyncFolderId();
@@ -427,8 +469,8 @@ class GoogleDriveService {
             final folderName = parentMeta?.name ?? 'Drive';
             final folderTag = _folderNameToHashtag(folderName);
             final hashtags = ' #googledrive #$folderTag';
-            final title = (pair.file.name ?? 'Note').replaceAll(RegExp(r'\.txt$'), '').trim();
-            final updated = existing.copyWith(
+final title = (pair.file.name ?? 'Note').replaceAll(RegExp(r'\.(txt|md)$'), '').trim();
+        final updated = existing.copyWith(
               content: content.trim() + hashtags,
               title: title.isEmpty ? 'Imported from Drive' : title,
               updatedAt: DateTime.now(),
@@ -461,7 +503,7 @@ class GoogleDriveService {
         final folderTag = _folderNameToHashtag(folderName);
         final hashtags = ' #googledrive #$folderTag';
         final now = DateTime.now();
-        final title = (pair.file.name ?? 'Note').replaceAll(RegExp(r'\.txt$'), '').trim();
+        final title = (pair.file.name ?? 'Note').replaceAll(RegExp(r'\.(txt|md)$'), '').trim();
         final entry = JournalEntry(
           id: const Uuid().v4(),
           title: title.isEmpty ? 'Imported from Drive' : title,
@@ -489,7 +531,7 @@ class GoogleDriveService {
     return createdOrUpdated;
   }
 
-  /// List .txt files under [folderId] with each file's direct parent folder id (for folder-name hashtag).
+  /// List .txt/.md files under [folderId] with each file's direct parent folder id (for folder-name hashtag).
   Future<List<({drive.File file, String parentFolderId})>> listTxtFilesInFolderWithParent(String folderId, {int maxFiles = 200}) async {
     _requireDriveApi();
     final result = <({drive.File file, String parentFolderId})>[];
@@ -507,7 +549,7 @@ class GoogleDriveService {
       if (mime == 'application/vnd.google-apps.folder') {
         final id = item.id;
         if (id != null) await _listTxtWithParentRecursive(id, id, out, maxFiles);
-      } else if (name.endsWith('.txt')) {
+      } else if (name.endsWith('.txt') || name.endsWith('.md')) {
         final parents = item.parents;
         final pid = (parents != null && parents.isNotEmpty) ? parents.first : parentId;
         out.add((file: item, parentFolderId: pid));

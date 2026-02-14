@@ -1,6 +1,6 @@
 # EPI LUMARA MVP - Changelog
 
-**Version:** 3.3.28
+**Version:** 3.3.29
 **Last Updated:** February 13, 2026
 
 ---
@@ -14,6 +14,31 @@ This changelog has been split into parts for easier navigation:
 | **[CHANGELOG_part1.md](CHANGELOG_part1.md)** | Dec 2025 | v2.1.43 - v2.1.87 (Current) |
 | **[CHANGELOG_part2.md](CHANGELOG_part2.md)** | Nov 2025 | v2.1.28 - v2.1.42 |
 | **[CHANGELOG_part3.md](CHANGELOG_part3.md)** | Jan-Oct 2025 | v2.0.0 - v2.1.27 & Earlier |
+
+---
+
+## [3.3.29] - February 13, 2026
+
+### Phase Check-In (monthly phase recalibration)
+
+- **PhaseCheckInService** (`lib/services/phase_check_in_service.dart`): Singleton service for monthly phase check-in. Tracks last check-in and reminder preference (SharedPreferences). Check-in due when reminder enabled, 30 days since last (or account creation), and not dismissed in last 7 days.
+- **PhaseCheckIn model** (`lib/models/phase_check_in_model.dart` + `.g.dart`): Hive model for check-in records (phase, timestamp, etc.). Registered in bootstrap.
+- **Phase Check-in bottom sheet** (`lib/ui/phase/phase_check_in_bottom_sheet.dart`): UI to confirm current phase or run 3-question diagnostic; integrates with PhaseCheckInService and CHRONICLE/phase stack.
+- **HomeView:** Shows phase check-in bottom sheet once per session when due (2s delay after init).
+- **Phase Analysis Settings:** New "Phase Check-in" card with toggle "Show reminder when due" and description; uses PhaseCheckInService for preference.
+
+### Bugtracker and build / environment
+
+- **Bug records (2 new):** [ios-build-rivet-models-keywords-set-type.md](bugtracker/records/ios-build-rivet-models-keywords-set-type.md) — iOS build fix for `rivet_models.g.dart` keywords `List` vs `Set<String>` (`.toSet()` in read). [ollama-serve-address-in-use-and-quit-command.md](bugtracker/records/ollama-serve-address-in-use-and-quit-command.md) — Ollama port 11434 in use; `ollama quit` not recognized.
+- **bug_tracker.md:** Version 3.2.5; 34 records; index and Recent code changes table updated. ios-release-build-third-party-warnings record updated.
+- **RIVET:** `rivet_models.g.dart` fix (keywords type) as per bug record.
+
+### Google Drive and settings
+
+- **Google Drive:** `google_drive_service.dart`, `drive_folder_picker_screen.dart`, `google_drive_settings_view.dart` — updates (folder picker and settings behavior).
+- **Ollama:** `ollama_config.g.dart` (generated) added under chat services.
+
+**Files:** 13 modified, 7 new (phase_check_in model/service/UI, 2 bug records, ollama_config.g). Excludes .DS_Store and .flutter-plugins-dependencies.
 
 ---
 
