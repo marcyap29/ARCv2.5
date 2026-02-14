@@ -23,13 +23,13 @@ This changelog has been split into parts for easier navigation:
 
 - **PhaseCheckInService:** Configurable interval — user can choose 14, 30, or 60 days between check-ins (SharedPreferences `phase_check_in_interval_days`). Default remains 30. `getCurrentPhaseName()` now uses display-phase logic (profile first, then regime; RIVET gate respected) via PhaseServiceRegistry/RIVET.
 - **Phase Analysis Settings:** Phase Check-in card extended with interval selector (14/30/60 days) and description.
-- **Settings / Timeline / Feed / CHRONICLE:** Local backup settings view refactor; settings_view, simplified_settings_view expanded; timeline_view and timeline_with_ideas_view updates; expanded_entry_view and unified_feed_screen improvements; chronicle_layers_viewer enhancements. Journal capture cubit and journal_repository minor cleanup.
+- **Settings / Timeline / Feed / CHRONICLE:** Local backup settings view refactor; settings_view, simplified_settings_view expanded; timeline_view, timeline_with_ideas_view, and interactive_timeline_view updates; expanded_entry_view and unified_feed_screen improvements; chronicle_layers_viewer enhancements. Journal capture cubit and journal_repository minor cleanup.
 
 ### Documentation
 
 - **Narrative Intelligence paper:** New `NARRATIVE_INTELLIGENCE_PAPER_ARCHITECTURE_SECTION.md` (§2 System Architecture for paper/PDF) and `NARRATIVE_INTELLIGENCE_PAPER_COMPARISON.md` (paper vs repo alignment). White paper edits in `NARRATIVE_INTELLIGENCE_WHITE_PAPER.md`.
 
-**Files (uncommitted):** 14 modified (DOCS, lib phase_check_in_service, settings, timeline, feed, chronicle_layers_viewer, journal_capture_cubit, journal_repository), 2 new (narrative paper docs).
+**Files (uncommitted):** 15 modified (DOCS, lib phase_check_in_service, settings, timeline incl. interactive_timeline_view, feed, chronicle_layers_viewer, journal_capture_cubit, journal_repository), 2 new (narrative paper docs).
 
 ---
 
