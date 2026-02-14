@@ -1,7 +1,7 @@
 # EPI LUMARA MVP - Changelog
 
-**Version:** 3.3.29
-**Last Updated:** February 13, 2026
+**Version:** 3.3.30
+**Last Updated:** February 14, 2026
 
 ---
 
@@ -14,6 +14,22 @@ This changelog has been split into parts for easier navigation:
 | **[CHANGELOG_part1.md](CHANGELOG_part1.md)** | Dec 2025 | v2.1.43 - v2.1.87 (Current) |
 | **[CHANGELOG_part2.md](CHANGELOG_part2.md)** | Nov 2025 | v2.1.28 - v2.1.42 |
 | **[CHANGELOG_part3.md](CHANGELOG_part3.md)** | Jan-Oct 2025 | v2.0.0 - v2.1.27 & Earlier |
+
+---
+
+## [3.3.30] - February 14, 2026 (working)
+
+### Phase Check-In enhancements
+
+- **PhaseCheckInService:** Configurable interval — user can choose 14, 30, or 60 days between check-ins (SharedPreferences `phase_check_in_interval_days`). Default remains 30. `getCurrentPhaseName()` now uses display-phase logic (profile first, then regime; RIVET gate respected) via PhaseServiceRegistry/RIVET.
+- **Phase Analysis Settings:** Phase Check-in card extended with interval selector (14/30/60 days) and description.
+- **Settings / Timeline / Feed / CHRONICLE:** Local backup settings view refactor; settings_view, simplified_settings_view expanded; timeline_view and timeline_with_ideas_view updates; expanded_entry_view and unified_feed_screen improvements; chronicle_layers_viewer enhancements. Journal capture cubit and journal_repository minor cleanup.
+
+### Documentation
+
+- **Narrative Intelligence paper:** New `NARRATIVE_INTELLIGENCE_PAPER_ARCHITECTURE_SECTION.md` (§2 System Architecture for paper/PDF) and `NARRATIVE_INTELLIGENCE_PAPER_COMPARISON.md` (paper vs repo alignment). White paper edits in `NARRATIVE_INTELLIGENCE_WHITE_PAPER.md`.
+
+**Files (uncommitted):** 14 modified (DOCS, lib phase_check_in_service, settings, timeline, feed, chronicle_layers_viewer, journal_capture_cubit, journal_repository), 2 new (narrative paper docs).
 
 ---
 

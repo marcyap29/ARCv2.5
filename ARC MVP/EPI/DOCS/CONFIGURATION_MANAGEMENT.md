@@ -1,7 +1,7 @@
 # Configuration Management & Documentation Tracking
 
 **Lead Configuration Management Analyst:** Active  
-**Last Updated:** February 13, 2026 (v3.3.29)  
+**Last Updated:** February 14, 2026 (v3.3.30)  
 **Status:** ✅ All Documents Synced with Repo
 
 ---
@@ -38,12 +38,12 @@ Prompt/role definitions: **Ultimate Documentation, Configuration Management and 
 
 | Document | Location | Last Reviewed | Status | Notes |
 |----------|----------|---------------|--------|-------|
-| ARCHITECTURE.md | `/DOCS/ARCHITECTURE.md` | 2026-02-13 | ✅ Synced | v3.3.29 - Phase Check-In feature |
-| CHANGELOG.md | `/DOCS/CHANGELOG.md` | 2026-02-13 | ✅ Synced | v3.3.29 - Phase Check-In, bugtracker (2 records), Google Drive/settings |
+| ARCHITECTURE.md | `/DOCS/ARCHITECTURE.md` | 2026-02-14 | ✅ Synced | v3.3.30 - Phase Check-In configurable interval, display phase |
+| CHANGELOG.md | `/DOCS/CHANGELOG.md` | 2026-02-14 | ✅ Synced | v3.3.30 - Phase Check-In enhancements, settings/timeline/feed/CHRONICLE, narrative paper docs |
 | PROMPT_REFERENCES.md | `/DOCS/PROMPT_REFERENCES.md` | 2026-02-13 | ✅ Synced | v2.3.0 - §20 Quick Answers / MMCO Polish (prompt audit) |
 | PROMPT_TRACKER.md | `/DOCS/PROMPT_TRACKER.md` | 2026-02-13 | ✅ Synced | v1.4.0 - Added v2.3.0 prompt audit row |
 | bug_tracker.md | `/DOCS/bugtracker/bug_tracker.md` | 2026-02-13 | ✅ Synced | v3.2.5 - 34 records; Phase Check-In, RIVET keywords fix, Ollama env records |
-| FEATURES.md | `/DOCS/FEATURES.md` | 2026-02-13 | ✅ Synced | v3.3.29 - Phase Check-In |
+| FEATURES.md | `/DOCS/FEATURES.md` | 2026-02-14 | ✅ Synced | v3.3.30 - Phase Check-In interval, display phase |
 | README.md | `/DOCS/README.md` | 2026-02-07 | ✅ Synced | Key docs table with purpose and when to read |
 | claude.md | `/DOCS/claude.md` | 2026-02-13 | ✅ Synced | TOC — Prompts; consolidated Doc/Config/Git Backup prompt; TOC aligned with current sections |
 | backend.md | `/DOCS/backend.md` | 2026-02-11 | ✅ Synced | v3.3 - proxyGroq (Groq primary), proxyGemini (fallback), Firebase, Stripe |
@@ -55,6 +55,8 @@ Prompt/role definitions: **Ultimate Documentation, Configuration Management and 
 |----------|----------|---------------|--------|-------|
 | LUMARA_Vision.md | `/DOCS/LUMARA_Vision.md` | 2026-02-12 | ✅ Synced | Vision document (white paper) |
 | NARRATIVE_INTELLIGENCE_WHITE_PAPER.md | `/DOCS/NARRATIVE_INTELLIGENCE_WHITE_PAPER.md` | 2026-02-13 | ✅ Synced | Narrative Intelligence framework white paper (v2.2, aligned with EPI repo) |
+| NARRATIVE_INTELLIGENCE_PAPER_ARCHITECTURE_SECTION.md | `/DOCS/NARRATIVE_INTELLIGENCE_PAPER_ARCHITECTURE_SECTION.md` | 2026-02-14 | ✅ Synced | §2 System Architecture text for paper (repo-aligned; use in PDF) |
+| NARRATIVE_INTELLIGENCE_PAPER_COMPARISON.md | `/DOCS/NARRATIVE_INTELLIGENCE_PAPER_COMPARISON.md` | 2026-02-14 | ✅ Synced | Paper vs repo comparison; alignment notes so paper matches repo |
 | RIVET_ARCHITECTURE.md | `/DOCS/RIVET_ARCHITECTURE.md` | 2026-02-12 | ✅ Synced | RIVET algorithm spec (white paper) |
 | SENTINEL_ARCHITECTURE.md | `/DOCS/SENTINEL_ARCHITECTURE.md` | 2026-02-12 | ✅ Synced | SENTINEL algorithm spec (white paper) |
 
@@ -90,6 +92,24 @@ Prompt/role definitions: **Ultimate Documentation, Configuration Management and 
 ---
 
 ## Change Tracking Log
+
+### 2026-02-14 - Documentation & Git Backup run (full repo sync)
+
+**Action:** Ran Documentation, Configuration Management and Git Backup workflow (claude.md §233–349) on the entire repo.
+
+**PROMPT REFERENCES AUDIT:** Compared repo prompt definitions to PROMPT_REFERENCES.md; no new prompts found; catalog v2.3.0 current. No updates to PROMPT_REFERENCES or PROMPT_TRACKER.
+
+**Git Backup — Identify what changed:** Branch `test`; last documented commit e82585589 (2026-02-13). Uncommitted working changes: Phase Check-In enhancements (configurable 14/30/60-day interval, display-phase logic), settings/timeline/feed/chronicle_layers_viewer/settings views updates, journal_capture_cubit and journal_repository cleanup; new DOCS: NARRATIVE_INTELLIGENCE_PAPER_ARCHITECTURE_SECTION.md, NARRATIVE_INTELLIGENCE_PAPER_COMPARISON.md; edits to NARRATIVE_INTELLIGENCE_WHITE_PAPER.md.
+
+**Updates:**
+- **CHANGELOG.md:** Version 3.3.30; new [3.3.30] entry (Phase Check-In enhancements, settings/timeline/feed/CHRONICLE viewer, narrative paper docs).
+- **ARCHITECTURE.md:** Phase Check-In bullet updated (configurable interval, display phase).
+- **FEATURES.md:** Version 3.3.30; Phase Check-In line updated (interval selector, display phase).
+- **CONFIGURATION_MANAGEMENT.md:** This entry; inventory Last Reviewed 2026-02-14 for CHANGELOG, ARCHITECTURE, FEATURES. Narrative paper docs already in inventory (NARRATIVE_INTELLIGENCE_PAPER_ARCHITECTURE_SECTION, NARRATIVE_INTELLIGENCE_PAPER_COMPARISON).
+
+**Status:** ✅ Prompt audit complete; docs updated to reflect repo state; ready to commit and push documentation.
+
+---
 
 ### 2026-02-13 - Documentation & Git Backup run (prompt audit, config sync)
 

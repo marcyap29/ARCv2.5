@@ -1,7 +1,7 @@
 # EPI MVP - Comprehensive Features Guide
 
-**Version:** 3.3.29
-**Last Updated:** February 13, 2026
+**Version:** 3.3.30
+**Last Updated:** February 14, 2026
 
 ---
 
@@ -209,7 +209,7 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 - **Pattern Index in Orchestrator (v3.3.27)**: CHRONICLE vectorizer (on-device embeddings) integrated into the LUMARA Orchestrator pipeline. Pattern-like intents (`patternAnalysis`, `developmentalArc`, `historicalParallel`) route through `PatternQueryRouter` and merge results via `<chronicle_pattern_index>` tags. VEIL-CHRONICLE scheduler starts at app launch. CHRONICLE Management UI shows vectorizer status and manual rebuild.
 - **Narrative Intelligence White Paper (v3.3.27)**: `DOCS/NARRATIVE_INTELLIGENCE_WHITE_PAPER.md` — comprehensive framework document covering architecture, VEIL cycle, subsystem spine, vector generation, intellectual honesty, and Crossroads.
 - **Code Simplifier Phase 1 (v3.3.28)**: Consolidated version management (removed duplicate `version_service.dart`; canonical `journal_version_service.dart`). Removed dead `firestore_service.dart`. New app-level access: `app_repos.dart`, `phase_service_registry.dart`. Settings shared patterns in `settings_common.dart`; QuickActionsService single source. CHRONICLE: `core/`, `related_entries_service.dart`. DOCS: CODE_SIMPLIFIER_CONSOLIDATION_PLAN, PHASE_AND_CHRONICLE_ACCESS.
-- **Phase Check-In (v3.3.29)**: Monthly phase recalibration prompt. PhaseCheckInService (30-day cadence, reminder preference, dismiss 7-day re-show). Bottom sheet: confirm current phase or run 3-question diagnostic. HomeView shows once per session when due; Phase Analysis Settings: "Show reminder when due" toggle.
+- **Phase Check-In (v3.3.29, enhanced v3.3.30)**: Monthly phase recalibration. PhaseCheckInService: configurable 14/30/60-day cadence, reminder preference, dismiss 7-day re-show; display phase from profile then regime (RIVET respected). Bottom sheet: confirm phase or run 3-question diagnostic. HomeView shows once per session when due; Phase Analysis Settings: "Show reminder when due" and interval selector.
 
 **Voice Chat - Voice Sigil (v3.3.16, upgraded from Jarvis Mode v2.1.53)**
 - **Voice Sigil UI**: Sophisticated 6-state animation system replacing the original glowing indicator
