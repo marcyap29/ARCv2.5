@@ -1,7 +1,7 @@
 # EPI LUMARA MVP - Changelog
 
-**Version:** 3.3.30
-**Last Updated:** February 14, 2026
+**Version:** 3.3.31
+**Last Updated:** February 15, 2026
 
 ---
 
@@ -14,6 +14,19 @@ This changelog has been split into parts for easier navigation:
 | **[CHANGELOG_part1.md](CHANGELOG_part1.md)** | Dec 2025 | v2.1.43 - v2.1.87 (Current) |
 | **[CHANGELOG_part2.md](CHANGELOG_part2.md)** | Nov 2025 | v2.1.28 - v2.1.42 |
 | **[CHANGELOG_part3.md](CHANGELOG_part3.md)** | Jan-Oct 2025 | v2.0.0 - v2.1.27 & Earlier |
+
+---
+
+## [3.3.31] - February 15, 2026
+
+### Voice Moonshine spec, transcription cleanup, unified feed and narrative docs
+
+- **Voice transcription:** New spec `VOICE_TRANSCRIPTION_MOONSHINE_SPEC.md` — Apple On-Device Speech primary; Wispr Flow optional; mandatory cleanup pass (filler words, misrecognitions) before PRISM. `TranscriptCleanupService` added; `UnifiedTranscriptionService` and voice session/timeline storage updated. Voice mode screen refactor.
+- **Unified feed:** `FeedEntry`, `feed_helpers`, `ExpandedEntryView`, `UnifiedFeedScreen` and `HomeView` updates for feed behavior and navigation.
+- **Narrative Intelligence:** `NARRATIVE_INTELLIGENCE_WHITE_PAPER.md` edits.
+- **iOS:** Moonshine on-device models (encoder/decoder .ort) and Runner/project updates.
+
+**Files:** 17 changed (DOCS, lib voice/transcription/cleanup, unified_feed, home_view; iOS project and Moonshine models).
 
 ---
 

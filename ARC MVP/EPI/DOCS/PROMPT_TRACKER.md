@@ -1,7 +1,7 @@
 # Prompt Tracker
 
 **Version:** 1.4.0  
-**Last Updated:** February 13, 2026  
+**Last Updated:** February 15, 2026  
 **Purpose:** Prompt change tracking and quick reference. Full prompt catalog and version history live in [PROMPT_REFERENCES.md](PROMPT_REFERENCES.md).
 
 ---
@@ -17,6 +17,7 @@
 
 | Date | Change | Source / doc |
 |------|--------|--------------|
+| 2026-02-15 | Doc sync: Full repo Documentation & Git Backup run; prompt audit (no new prompts); catalog v2.3.0 current | CONFIGURATION_MANAGEMENT.md |
 | 2026-02-13 | Prompt audit: §20 Quick Answers / MMCO Polish (`quickanswers_router.dart` — pre-LLM gate, MMCO ground truth, optional on-device polish) | PROMPT_REFERENCES.md v2.3.0 |
 | 2026-02-13 | v3.3.26 prompts: §17 Intellectual Honesty / Pushback (master prompt `<intellectual_honesty>`, truth_check injection, Evidence Review); §18 Crossroads Decision Capture (4-step flow, trigger patterns, decision archaeology query); §19 CHRONICLE Edit Validation (pattern suppression and contradiction warnings) | PROMPT_REFERENCES.md v2.2.0 |
 | 2026-02-12 | Doc consolidation: Merged UNIFIED_INTENT_CLASSIFIER_PROMPT (§15 — Unified Intent Depth Classifier with full LLM prompt) and MASTER_PROMPT_CONTEXT (§16 — Master Prompt Architecture, structure, control state, entry points). Originals archived. | PROMPT_REFERENCES.md v2.1.0 |

@@ -1,7 +1,7 @@
 # Configuration Management & Documentation Tracking
 
 **Lead Configuration Management Analyst:** Active  
-**Last Updated:** February 14, 2026 (v3.3.30)  
+**Last Updated:** February 15, 2026 (v3.3.31)  
 **Status:** ✅ All Documents Synced with Repo
 
 ---
@@ -38,12 +38,12 @@ Prompt/role definitions: **Ultimate Documentation, Configuration Management and 
 
 | Document | Location | Last Reviewed | Status | Notes |
 |----------|----------|---------------|--------|-------|
-| ARCHITECTURE.md | `/DOCS/ARCHITECTURE.md` | 2026-02-14 | ✅ Synced | v3.3.30 - Phase Check-In configurable interval, display phase |
-| CHANGELOG.md | `/DOCS/CHANGELOG.md` | 2026-02-14 | ✅ Synced | v3.3.30 - Phase Check-In enhancements, settings/timeline/feed/CHRONICLE, narrative paper docs |
-| PROMPT_REFERENCES.md | `/DOCS/PROMPT_REFERENCES.md` | 2026-02-13 | ✅ Synced | v2.3.0 - §20 Quick Answers / MMCO Polish (prompt audit) |
-| PROMPT_TRACKER.md | `/DOCS/PROMPT_TRACKER.md` | 2026-02-13 | ✅ Synced | v1.4.0 - Added v2.3.0 prompt audit row |
-| bug_tracker.md | `/DOCS/bugtracker/bug_tracker.md` | 2026-02-13 | ✅ Synced | v3.2.5 - 34 records; Phase Check-In, RIVET keywords fix, Ollama env records |
-| FEATURES.md | `/DOCS/FEATURES.md` | 2026-02-14 | ✅ Synced | v3.3.30 - Phase Check-In interval, display phase |
+| ARCHITECTURE.md | `/DOCS/ARCHITECTURE.md` | 2026-02-15 | ✅ Synced | v3.3.31 - Voice Moonshine/transcription cleanup, unified feed |
+| CHANGELOG.md | `/DOCS/CHANGELOG.md` | 2026-02-15 | ✅ Synced | v3.3.31 - Voice Moonshine spec, transcription cleanup, unified feed, narrative docs |
+| PROMPT_REFERENCES.md | `/DOCS/PROMPT_REFERENCES.md` | 2026-02-15 | ✅ Synced | v2.3.0 - Prompt audit (no new prompts) |
+| PROMPT_TRACKER.md | `/DOCS/PROMPT_TRACKER.md` | 2026-02-15 | ✅ Synced | v1.4.0 - Doc sync row; prompt audit |
+| bug_tracker.md | `/DOCS/bugtracker/bug_tracker.md` | 2026-02-15 | ✅ Synced | v3.2.5 - 34 records; tracked in doc sync |
+| FEATURES.md | `/DOCS/FEATURES.md` | 2026-02-15 | ✅ Synced | v3.3.31 - Voice transcription cleanup, Moonshine spec |
 | README.md | `/DOCS/README.md` | 2026-02-07 | ✅ Synced | Key docs table with purpose and when to read |
 | claude.md | `/DOCS/claude.md` | 2026-02-13 | ✅ Synced | TOC — Prompts; consolidated Doc/Config/Git Backup prompt; TOC aligned with current sections |
 | backend.md | `/DOCS/backend.md` | 2026-02-11 | ✅ Synced | v3.3 - proxyGroq (Groq primary), proxyGemini (fallback), Firebase, Stripe |
@@ -80,6 +80,7 @@ Prompt/role definitions: **Ultimate Documentation, Configuration Management and 
 | ECHO_AND_PRISM_PRIVACY_ARCHITECTURE.md | DOCS/ | ECHO and PRISM privacy architecture |
 | FIREBASE.md | DOCS/ | Firebase deployment & management (CLI commands) |
 | VOICE_MODE_COMPLETE.md | DOCS/ | Voice mode feature spec |
+| VOICE_TRANSCRIPTION_MOONSHINE_SPEC.md | DOCS/ | Voice transcription (Apple On-Device Speech, Wispr optional, cleanup pass) — v3.3.31 |
 | CRISIS_SYSTEM_COMPLETE.md | DOCS/ | Crisis system feature spec |
 | PRIVACY_COMPLETE.md | DOCS/ | Privacy feature spec |
 | PHASE_RATING_COMPLETE.md | DOCS/ | Phase rating feature spec |
@@ -92,6 +93,26 @@ Prompt/role definitions: **Ultimate Documentation, Configuration Management and 
 ---
 
 ## Change Tracking Log
+
+### 2026-02-15 - Documentation & Git Backup run (full repo; test → main merge)
+
+**Action:** Ran Documentation, Configuration Management and Git Backup workflow (claude.md §233–349) on the entire repo. Document updates include **bug_tracker** tracking as requested.
+
+**PROMPT REFERENCES AUDIT:** Compared repo prompt definitions to PROMPT_REFERENCES.md; no new prompts; catalog v2.3.0 current.
+
+**Git Backup — Identify what changed:** Branch `test`; one commit ahead of main: 7695200d3 (Voice Moonshine spec, transcription cleanup, unified feed and narrative doc updates). Changes: new VOICE_TRANSCRIPTION_MOONSHINE_SPEC.md; TranscriptCleanupService; UnifiedTranscriptionService and voice session/timeline storage; voice_mode_screen refactor; FeedEntry, feed_helpers, ExpandedEntryView, UnifiedFeedScreen, HomeView; NARRATIVE_INTELLIGENCE_WHITE_PAPER edits; iOS Moonshine models.
+
+**Updates:**
+- **CHANGELOG.md:** Version 3.3.31; new [3.3.31] entry (Voice Moonshine spec, transcription cleanup, unified feed, narrative docs).
+- **CONFIGURATION_MANAGEMENT.md:** This entry; inventory Last Reviewed 2026-02-15 for core docs; bug_tracker explicitly tracked.
+- **FEATURES.md:** Version 3.3.31; voice transcription cleanup and Moonshine spec noted.
+- **ARCHITECTURE.md:** Version 3.3.31; Voice Moonshine/transcription cleanup and unified feed bullet.
+- **bug_tracker.md:** Last Updated 2026-02-15; no new records this release; tracked in inventory.
+- **PROMPT_TRACKER.md:** Doc sync row; Last Updated 2026-02-15.
+
+**Status:** ✅ Doc sync complete; commit, push test, merge test into main, push main.
+
+---
 
 ### 2026-02-14 - Documentation & Git Backup run (full repo, second pass)
 

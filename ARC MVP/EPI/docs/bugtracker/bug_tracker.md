@@ -1,7 +1,7 @@
 # EPI MVP - Bug Tracker
 
 **Version:** 3.2.5  
-**Last Updated:** February 13, 2026  
+**Last Updated:** February 15, 2026  
 **Record count:** 34 individual bug records in [records/](records/). Index below matches all files in records/.
 
 ---
@@ -112,7 +112,9 @@ This section is derived from the repo and [CHANGELOG.md](../CHANGELOG.md) to kee
 | iOS build: rivet_models.g.dart keywords Set type | 2026-02-13 | [ios-build-rivet-models-keywords-set-type.md](records/ios-build-rivet-models-keywords-set-type.md) ✅ | List<String> assigned to Set<String> in generated adapter; fix: .toSet() in read(). |
 | Ollama serve address in use; ollama quit unknown | 2026-02-13 | [ollama-serve-address-in-use-and-quit-command.md](records/ollama-serve-address-in-use-and-quit-command.md) | Environment: port 11434 in use; CLI "quit" not recognized. |
 
-**Source:** `git log --oneline`, [CHANGELOG.md](../CHANGELOG.md), terminal build log 2026-02-13. Last synced: 2026-02-13.
+| Voice Moonshine spec, transcription cleanup, unified feed | v3.3.31 | — | Feature: VOICE_TRANSCRIPTION_MOONSHINE_SPEC; TranscriptCleanupService; unified feed/HomeView updates. |
+
+**Source:** `git log --oneline`, [CHANGELOG.md](../CHANGELOG.md), terminal build log 2026-02-15. Last synced: 2026-02-15.
 
 ---
 
@@ -127,4 +129,4 @@ Individual bug records stay in [records/](records/); only the legacy multi-part 
 ---
 
 **Status**: ✅ Active - All resolved issues documented; Build & Platform: 4 records (rivet Set type ✅, embedding Dart chain, NativeEmbeddingChannel Swift, third-party warnings); Environment: 1 (Ollama).  
-**Last Updated**: February 13, 2026
+**Last Updated**: February 15, 2026

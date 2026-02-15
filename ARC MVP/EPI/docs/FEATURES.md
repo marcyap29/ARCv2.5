@@ -1,7 +1,7 @@
 # EPI MVP - Comprehensive Features Guide
 
-**Version:** 3.3.30
-**Last Updated:** February 14, 2026
+**Version:** 3.3.31
+**Last Updated:** February 15, 2026
 
 ---
 
@@ -48,7 +48,7 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 **Multimodal Journaling**
 - **Photo Capture**: Camera integration with OCR
 - **Photo Selection**: Gallery access with thumbnails
-- **Voice Recording**: Audio capture with transcription
+- **Voice Recording**: Audio capture with transcription; mandatory cleanup pass (filler words, misrecognitions) per [VOICE_TRANSCRIPTION_MOONSHINE_SPEC.md](VOICE_TRANSCRIPTION_MOONSHINE_SPEC.md); Apple On-Device Speech primary, Wispr Flow optional
 - **Video Capture & Playback**: Complete video functionality with:
   - Video selection from gallery with automatic duration extraction
   - Full-screen video player with play/pause controls and progress scrubbing

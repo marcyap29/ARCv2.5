@@ -1,7 +1,7 @@
 # EPI LUMARA MVP - Architecture Overview
 
-**Version:** 3.3.30
-**Last Updated:** February 14, 2026
+**Version:** 3.3.31
+**Last Updated:** February 15, 2026
 **Status:** ✅ Production Ready - MVP Fully Operational with Companion-First LUMARA, Reflection Session Safety System, RevenueCat In-App Purchases, Voice Sigil State Machine, Simplified Settings, Health Integration, AssemblyAI v3, Web Access Safety, Correlation-Resistant PII Protection, Bible Reference Retrieval, Google Drive Backup, Temporal Notifications, Enhanced Incremental Backups, Automatic First Export, Sequential Export Numbering, Local Backup Services, and Timeline Pagination
 
 ---
@@ -73,6 +73,7 @@ EPI (Evolving Personal Intelligence) is a Flutter-based intelligent journaling a
 - ✅ **CHRONICLE Edit Validation (v3.3.26)**: `EditValidator` detects pattern suppression and factual contradictions in user edits to synthesis content. `ChronicleEditingService` surfaces warnings with affected entry IDs.
 - ✅ **Code Simplifier Phase 1 (v3.3.28)**: Removed duplicate `version_service.dart` (canonical `lib/core/services/journal_version_service.dart`); removed dead `firestore_service.dart`. New app-level repo/phase access: `app_repos.dart`, `phase_service_registry.dart`. Settings consolidated with `settings_common.dart`; QuickActionsService single source in `quick_actions_service.dart`. CHRONICLE: `core/`, `related_entries_service.dart`.
 - ✅ **Phase Check-In (v3.3.29, enhanced v3.3.30)**: Monthly phase recalibration — PhaseCheckInService (reminder preference; configurable 14/30/60-day cadence; 7-day re-show after dismiss). Display phase: profile first, then regime (RIVET gate respected). PhaseCheckIn Hive model; bottom sheet to confirm phase or run 3-question diagnostic. HomeView shows check-in once per session when due; Phase Analysis Settings: "Show reminder when due" and interval selector.
+- ✅ **Voice transcription cleanup (v3.3.31)**: TranscriptCleanupService (filler words, misrecognitions); spec VOICE_TRANSCRIPTION_MOONSHINE_SPEC.md. Apple On-Device Speech primary; Wispr Flow optional. Unified feed and HomeView updates.
 - ✅ **RIVET Reset on User Phase Change (v3.3.20)**: `PhaseRegimeService.changeCurrentPhase()` and `UserPhaseService.forceUpdatePhase()` reset RIVET so gate closes and fresh evidence accumulates.
 - ✅ **Voice Session: Auto-Endpoint Disabled (v3.3.20)**: Voice recording no longer auto-stops on silence; user must tap to end turn (prevents premature cutoff).
 - ✅ **Privacy Settings: Inline PII Scrub Demo (v3.3.20)**: Real-time PII scrubbing demo in Privacy Settings; shows scrubbed output and redaction count.
