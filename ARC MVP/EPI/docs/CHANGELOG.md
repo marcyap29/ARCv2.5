@@ -1,6 +1,6 @@
 # EPI LUMARA MVP - Changelog
 
-**Version:** 3.3.31
+**Version:** 3.3.32
 **Last Updated:** February 15, 2026
 
 ---
@@ -17,6 +17,17 @@ This changelog has been split into parts for easier navigation:
 
 ---
 
+## [3.3.32] - February 15, 2026
+
+### Unified feed expanded entry and CHRONICLE related entries
+
+- **ExpandedEntryView:** Significant updates to unified feed expanded entry widget (layout, behavior).
+- **RelatedEntriesService:** CHRONICLE related-entries logic extended (+38 lines).
+
+**Files:** 2 modified (`expanded_entry_view.dart`, `related_entries_service.dart`).
+
+---
+
 ## [3.3.31] - February 15, 2026
 
 ### Voice Moonshine spec, transcription cleanup, unified feed and narrative docs
@@ -24,9 +35,8 @@ This changelog has been split into parts for easier navigation:
 - **Voice transcription:** New spec `VOICE_TRANSCRIPTION_MOONSHINE_SPEC.md` — Apple On-Device Speech primary; Wispr Flow optional; mandatory cleanup pass (filler words, misrecognitions) before PRISM. `TranscriptCleanupService` added; `UnifiedTranscriptionService` and voice session/timeline storage updated. Voice mode screen refactor.
 - **Unified feed:** `FeedEntry`, `feed_helpers`, `ExpandedEntryView`, `UnifiedFeedScreen` and `HomeView` updates for feed behavior and navigation.
 - **Narrative Intelligence:** `NARRATIVE_INTELLIGENCE_WHITE_PAPER.md` edits.
-- **iOS:** Moonshine on-device models (encoder/decoder .ort) and Runner/project updates.
-
-**Files:** 17 changed (DOCS, lib voice/transcription/cleanup, unified_feed, home_view; iOS project and Moonshine models).
+- **iOS:** Moonshine on-device models removed from repo (see .gitignore); Runner/project references retained.
+**Files:** 17 changed (DOCS, lib voice/transcription/cleanup, unified_feed, home_view; iOS project).
 
 ---
 

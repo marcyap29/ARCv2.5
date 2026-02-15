@@ -1,6 +1,6 @@
 # EPI MVP - Comprehensive Features Guide
 
-**Version:** 3.3.31
+**Version:** 3.3.32
 **Last Updated:** February 15, 2026
 
 ---

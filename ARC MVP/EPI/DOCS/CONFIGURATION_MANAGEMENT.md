@@ -1,7 +1,7 @@
 # Configuration Management & Documentation Tracking
 
 **Lead Configuration Management Analyst:** Active  
-**Last Updated:** February 15, 2026 (v3.3.31)  
+**Last Updated:** February 15, 2026 (v3.3.32)  
 **Status:** ✅ All Documents Synced with Repo
 
 ---
@@ -38,12 +38,12 @@ Prompt/role definitions: **Ultimate Documentation, Configuration Management and 
 
 | Document | Location | Last Reviewed | Status | Notes |
 |----------|----------|---------------|--------|-------|
-| ARCHITECTURE.md | `/DOCS/ARCHITECTURE.md` | 2026-02-15 | ✅ Synced | v3.3.31 - Voice Moonshine/transcription cleanup, unified feed |
-| CHANGELOG.md | `/DOCS/CHANGELOG.md` | 2026-02-15 | ✅ Synced | v3.3.31 - Voice Moonshine spec, transcription cleanup, unified feed, narrative docs |
+| ARCHITECTURE.md | `/DOCS/ARCHITECTURE.md` | 2026-02-15 | ✅ Synced | v3.3.32 - Expanded entry, related entries (doc sync) |
+| CHANGELOG.md | `/DOCS/CHANGELOG.md` | 2026-02-15 | ✅ Synced | v3.3.32 - ExpandedEntryView, RelatedEntriesService |
 | PROMPT_REFERENCES.md | `/DOCS/PROMPT_REFERENCES.md` | 2026-02-15 | ✅ Synced | v2.3.0 - Prompt audit (no new prompts) |
-| PROMPT_TRACKER.md | `/DOCS/PROMPT_TRACKER.md` | 2026-02-15 | ✅ Synced | v1.4.0 - Doc sync row; prompt audit |
+| PROMPT_TRACKER.md | `/DOCS/PROMPT_TRACKER.md` | 2026-02-15 | ✅ Synced | v1.4.0 - Doc sync |
 | bug_tracker.md | `/DOCS/bugtracker/bug_tracker.md` | 2026-02-15 | ✅ Synced | v3.2.5 - 34 records; tracked in doc sync |
-| FEATURES.md | `/DOCS/FEATURES.md` | 2026-02-15 | ✅ Synced | v3.3.31 - Voice transcription cleanup, Moonshine spec |
+| FEATURES.md | `/DOCS/FEATURES.md` | 2026-02-15 | ✅ Synced | v3.3.32 - Doc sync |
 | README.md | `/DOCS/README.md` | 2026-02-07 | ✅ Synced | Key docs table with purpose and when to read |
 | claude.md | `/DOCS/claude.md` | 2026-02-13 | ✅ Synced | TOC — Prompts; consolidated Doc/Config/Git Backup prompt; TOC aligned with current sections |
 | backend.md | `/DOCS/backend.md` | 2026-02-11 | ✅ Synced | v3.3 - proxyGroq (Groq primary), proxyGemini (fallback), Firebase, Stripe |
@@ -93,6 +93,24 @@ Prompt/role definitions: **Ultimate Documentation, Configuration Management and 
 ---
 
 ## Change Tracking Log
+
+### 2026-02-15 - Documentation & Git Backup run (full repo; bug_tracker tracked)
+
+**Action:** Ran Documentation, Configuration Management and Git Backup workflow (claude.md §233–349) on the entire repo. Document updates include **bug_tracker** tracking.
+
+**PROMPT REFERENCES AUDIT:** Repo prompt definitions compared to PROMPT_REFERENCES.md; no new prompts; catalog v2.3.0 current.
+
+**Git Backup — Identify what changed:** Uncommitted changes: `expanded_entry_view.dart` (unified feed expanded entry updates), `related_entries_service.dart` (CHRONICLE related-entries extension). Last documented: 7cf3261f8 (v3.3.31 + moonshine ignore).
+
+**Updates:**
+- **CHANGELOG.md:** Version 3.3.32; new [3.3.32] entry (ExpandedEntryView, RelatedEntriesService). [3.3.31] iOS line corrected (Moonshine binaries removed from repo).
+- **CONFIGURATION_MANAGEMENT.md:** This entry; inventory Last Reviewed 2026-02-15; bug_tracker tracked.
+- **bug_tracker.md:** Last Updated 2026-02-15; new row in Recent code changes for v3.3.32.
+- **PROMPT_TRACKER.md:** Doc sync; Last Updated 2026-02-15.
+
+**Status:** ✅ Commit on test, push test, merge test into main, push main.
+
+---
 
 ### 2026-02-15 - Documentation & Git Backup run (full repo; test → main merge)
 

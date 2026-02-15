@@ -62,22 +62,19 @@ class ExpandedEntryView extends StatelessWidget {
             : Future<JournalEntry?>.value(null),
         builder: (context, snapshot) {
           final fullEntry = snapshot.data;
+          final summaryAtTop = _getSummaryText(fullEntry);
+          final showSummaryAtTop = summaryAtTop != null && summaryAtTop.trim().isNotEmpty;
+
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              // Phase indicator card (prominent)
-              if (entry.phase != null) _buildPhaseCard(context),
-              if (entry.phase != null) const SizedBox(height: 16),
+              // 1. Summary (top)
+              if (showSummaryAtTop) ...[
+                _buildSummarySection(context, summaryAtTop),
+                const SizedBox(height: 24),
+              ],
 
-              // Date + type header
-              _buildDateHeader(context),
-              const SizedBox(height: 16),
-
-              // Full content (with LUMARA blocks when fullEntry available)
-              _buildContent(context, fullEntry),
-              const SizedBox(height: 24),
-
-              // Media (photos, videos, files) — load from journal when possible for correct URIs
+              // 2. Pictures / media
               if (entry.mediaItems.isNotEmpty) ...[
                 Text(
                   'Media',
@@ -92,16 +89,20 @@ class ExpandedEntryView extends StatelessWidget {
                 const SizedBox(height: 24),
               ],
 
-              // Themes section
+              // 3. Entry: phase, date, content (user + LUMARA interweaved), themes, LUMARA note
+              if (entry.phase != null) _buildPhaseCard(context),
+              if (entry.phase != null) const SizedBox(height: 16),
+              _buildDateHeader(context),
+              const SizedBox(height: 16),
+              _buildContent(context, fullEntry, !showSummaryAtTop),
+              const SizedBox(height: 24),
               if (entry.themes.isNotEmpty) _buildThemesSection(context),
               if (entry.themes.isNotEmpty) const SizedBox(height: 24),
-
-              // Related entries section (CHRONICLE integration)
-              _buildRelatedEntries(context, fullEntry),
+              _buildLumaraNote(context, fullEntry),
               const SizedBox(height: 24),
 
-              // LUMARA's note (from overview or lumaraBlocks)
-              _buildLumaraNote(context, fullEntry),
+              // 4. Related entries (bottom)
+              _buildRelatedEntries(context, fullEntry),
               const SizedBox(height: 32),
             ],
           );
@@ -259,7 +260,41 @@ class ExpandedEntryView extends StatelessWidget {
     );
   }
 
-  Widget _buildContent(BuildContext context, [JournalEntry? fullEntry]) {
+  /// Summary text when shown at top (from ## Summary or first paragraph). Null if none.
+  String? _getSummaryText(JournalEntry? fullEntry) {
+    final raw = fullEntry?.content ?? entry.content?.toString() ?? entry.preview;
+    if (raw.isEmpty) return null;
+    final mainText = FeedHelpers.contentWithoutPhaseHashtags(raw);
+    final summary = FeedHelpers.extractSummary(mainText);
+    if (summary != null && summary.isNotEmpty) return summary;
+    return null;
+  }
+
+  Widget _buildSummarySection(BuildContext context, String summaryText) {
+    final baseStyle = TextStyle(
+      color: kcPrimaryTextColor.withOpacity(0.85),
+      fontSize: 15,
+      height: 1.6,
+      fontStyle: FontStyle.italic,
+    );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Summary',
+          style: TextStyle(
+            color: kcPrimaryTextColor,
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 8),
+        ..._buildParagraphWidgets(context, summaryText, baseStyle),
+      ],
+    );
+  }
+
+  Widget _buildContent(BuildContext context, [JournalEntry? fullEntry, bool includeSummaryInContent = true]) {
     switch (entry.type) {
       case FeedEntryType.activeConversation:
       case FeedEntryType.savedConversation:
@@ -267,7 +302,7 @@ class ExpandedEntryView extends StatelessWidget {
       case FeedEntryType.voiceMemo:
         return _buildVoiceContent(context);
       case FeedEntryType.reflection:
-        return _buildWrittenContent(context, fullEntry);
+        return _buildWrittenContent(context, fullEntry, includeSummaryInContent);
       case FeedEntryType.lumaraInitiative:
         return _buildLumaraInitiativeContent(context);
     }
@@ -470,7 +505,7 @@ class ExpandedEntryView extends StatelessWidget {
     );
   }
 
-  Widget _buildWrittenContent(BuildContext context, [JournalEntry? fullEntry]) {
+  Widget _buildWrittenContent(BuildContext context, [JournalEntry? fullEntry, bool includeSummaryInContent = true]) {
     final baseStyle = TextStyle(
       color: kcPrimaryTextColor.withOpacity(0.85),
       fontSize: 15,
@@ -484,7 +519,10 @@ class ExpandedEntryView extends StatelessWidget {
       final summary = FeedHelpers.extractSummary(mainText);
       final body = FeedHelpers.bodyWithoutSummary(mainText);
 
-      if (summary != null && summary.isNotEmpty && body.isNotEmpty &&
+      if (includeSummaryInContent &&
+          summary != null &&
+          summary.isNotEmpty &&
+          body.isNotEmpty &&
           !body.trimLeft().startsWith(summary.substring(0, (summary.length * 0.6).round().clamp(0, summary.length)))) {
         children.addAll([
           Text(
@@ -534,7 +572,8 @@ class ExpandedEntryView extends StatelessWidget {
     final summary = FeedHelpers.extractSummary(raw);
     final body = FeedHelpers.bodyWithoutSummary(raw);
 
-    final showSummary = summary != null &&
+    final showSummary = includeSummaryInContent &&
+        summary != null &&
         summary.isNotEmpty &&
         body.isNotEmpty &&
         !body.trimLeft().startsWith(summary.substring(0, (summary.length * 0.6).round().clamp(0, summary.length)));
@@ -669,14 +708,6 @@ class ExpandedEntryView extends StatelessWidget {
       if (raw is List) relatedIds = raw.cast<String>();
     }
 
-    // Use metadata IDs if present; otherwise load from CHRONICLE pattern index when entry is loaded
-    Future<List<JournalEntry>>? future;
-    if (relatedIds != null && relatedIds.isNotEmpty) {
-      future = _loadRelatedEntries(relatedIds);
-    } else if (fullEntry?.id != null) {
-      future = _loadRelatedEntriesFromChronicle(fullEntry!);
-    }
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -689,76 +720,26 @@ class ExpandedEntryView extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 8),
-        if (future != null)
+        if (relatedIds != null && relatedIds.isNotEmpty)
           FutureBuilder<List<JournalEntry>>(
-            future: future,
+            future: _loadRelatedEntries(relatedIds),
+            builder: (context, snapshot) => _buildRelatedEntriesFlat(context, snapshot),
+          )
+        else if (fullEntry?.id != null)
+          FutureBuilder<Map<String, List<JournalEntry>>>(
+            future: _loadRelatedEntriesGroupedByTheme(fullEntry!),
             builder: (context, snapshot) {
-              final entries = snapshot.data ?? [];
-              if (entries.isEmpty && snapshot.connectionState != ConnectionState.waiting) {
-                return _relatedEntriesPlaceholder(
-                  'No related entries',
-                  context,
-                );
+              if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
+                return _relatedEntriesPlaceholder('Loading...', context);
               }
-              if (snapshot.connectionState == ConnectionState.waiting && entries.isEmpty) {
-                return _relatedEntriesPlaceholder(
-                  'Loading...',
-                  context,
-                );
+              final grouped = snapshot.data ?? {};
+              if (grouped.isEmpty && snapshot.connectionState != ConnectionState.waiting) {
+                return _relatedEntriesPlaceholder('No related entries', context);
               }
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: entries.map((e) {
-                  final dateStr = '${e.createdAt.month}/${e.createdAt.day}/${e.createdAt.year}';
-                  final title = e.title.isNotEmpty ? e.title : (e.content.length > 60 ? '${e.content.substring(0, 57)}...' : e.content);
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: InkWell(
-                      onTap: () => _openEntry(context, e.id),
-                      borderRadius: BorderRadius.circular(12),
-                      child: Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: kcSurfaceAltColor,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(Icons.description_outlined, size: 18, color: kcSecondaryTextColor.withOpacity(0.6)),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    title,
-                                    style: TextStyle(
-                                      color: kcPrimaryTextColor,
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    dateStr,
-                                    style: TextStyle(
-                                      color: kcSecondaryTextColor.withOpacity(0.7),
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Icon(Icons.chevron_right, size: 20, color: kcSecondaryTextColor.withOpacity(0.5)),
-                          ],
-                        ),
-                      ),
-                    ),
-                  );
-                }).toList(),
+              if (grouped.isEmpty) return _relatedEntriesPlaceholder('Loading...', context);
+              return _RelatedEntriesByThemeSection(
+                grouped: grouped,
+                onOpenEntry: (id) => _openEntry(context, id),
               );
             },
           )
@@ -771,20 +752,97 @@ class ExpandedEntryView extends StatelessWidget {
     );
   }
 
-  /// Load related entries using the CHRONICLE pattern index (vectorized themes).
-  /// If CHRONICLE returns none, fall back to recent entries so the section is never empty when entries exist.
-  Future<List<JournalEntry>> _loadRelatedEntriesFromChronicle(JournalEntry fullEntry) async {
+  Widget _buildRelatedEntriesFlat(
+    BuildContext context,
+    AsyncSnapshot<List<JournalEntry>> snapshot,
+  ) {
+    final entries = snapshot.data ?? [];
+    if (entries.isEmpty && snapshot.connectionState != ConnectionState.waiting) {
+      return _relatedEntriesPlaceholder('No related entries', context);
+    }
+    if (snapshot.connectionState == ConnectionState.waiting && entries.isEmpty) {
+      return _relatedEntriesPlaceholder('Loading...', context);
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: entries.map((e) => _buildRelatedEntryTile(context, e)).toList(),
+    );
+  }
+
+  Widget _buildRelatedEntryTile(BuildContext context, JournalEntry e) {
+    final dateStr = '${e.createdAt.month}/${e.createdAt.day}/${e.createdAt.year}';
+    final title = e.title.isNotEmpty ? e.title : (e.content.length > 60 ? '${e.content.substring(0, 57)}...' : e.content);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: InkWell(
+        onTap: () => _openEntry(context, e.id),
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: kcSurfaceAltColor,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.description_outlined, size: 18, color: kcSecondaryTextColor.withOpacity(0.6)),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        color: kcPrimaryTextColor,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      dateStr,
+                      style: TextStyle(
+                        color: kcSecondaryTextColor.withOpacity(0.7),
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(Icons.chevron_right, size: 20, color: kcSecondaryTextColor.withOpacity(0.5)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Load related entries grouped by theme (canonical label). Each list sorted newest to oldest.
+  Future<Map<String, List<JournalEntry>>> _loadRelatedEntriesGroupedByTheme(JournalEntry fullEntry) async {
     final userId = FirebaseAuthService.instance.currentUser?.uid ?? 'default_user';
-    final ids = await RelatedEntriesService().getRelatedEntryIds(
+    final grouped = await RelatedEntriesService().getRelatedEntriesGroupedByTheme(
       userId: userId,
       entryId: fullEntry.id,
     );
-    if (ids.isNotEmpty) {
-      return _loadRelatedEntries(ids);
+    if (grouped.isEmpty) return {};
+
+    final repo = JournalRepository();
+    final result = <String, List<JournalEntry>>{};
+    for (final e in grouped.entries) {
+      final label = e.key;
+      final list = <JournalEntry>[];
+      for (final id in e.value) {
+        final entry = await repo.getJournalEntryById(id);
+        if (entry != null) list.add(entry);
+      }
+      list.sort((a, b) => b.createdAt.compareTo(a.createdAt)); // newest first
+      if (list.isNotEmpty) result[label] = list;
     }
-    // Fallback: show recent entries (excluding this one) so the section is useful
-    final recent = await JournalRepository().getRecentJournalEntries(limit: 8, excludeId: fullEntry.id);
-    return recent;
+    return result;
   }
 
   Future<List<JournalEntry>> _loadRelatedEntries(List<String> ids) async {
@@ -1078,5 +1136,148 @@ class ExpandedEntryView extends StatelessWidget {
   void _filterByTheme(BuildContext context, String theme) {
     // Navigate back to feed filtered by this theme
     Navigator.pop(context, theme);
+  }
+}
+
+/// Expandable related entries by theme: theme word (whole row tappable), caret when multiple, entries newest→oldest.
+class _RelatedEntriesByThemeSection extends StatefulWidget {
+  final Map<String, List<JournalEntry>> grouped;
+  final void Function(String entryId) onOpenEntry;
+
+  const _RelatedEntriesByThemeSection({
+    required this.grouped,
+    required this.onOpenEntry,
+  });
+
+  @override
+  State<_RelatedEntriesByThemeSection> createState() => _RelatedEntriesByThemeSectionState();
+}
+
+class _RelatedEntriesByThemeSectionState extends State<_RelatedEntriesByThemeSection> {
+  final Set<String> _expandedThemes = {};
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: widget.grouped.entries.map((e) {
+        final themeLabel = e.key;
+        final entries = e.value;
+        final hasMultiple = entries.length > 1;
+        final isExpanded = _expandedThemes.contains(themeLabel);
+
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: Container(
+            decoration: BoxDecoration(
+              color: kcSurfaceAltColor,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                InkWell(
+                  onTap: () {
+                    if (hasMultiple) {
+                      setState(() {
+                        if (isExpanded) {
+                          _expandedThemes.remove(themeLabel);
+                        } else {
+                          _expandedThemes.add(themeLabel);
+                        }
+                      });
+                    } else if (entries.isNotEmpty) {
+                      widget.onOpenEntry(entries.single.id);
+                    }
+                  },
+                  borderRadius: BorderRadius.circular(12),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            themeLabel,
+                            style: TextStyle(
+                              color: kcPrimaryTextColor,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                        if (hasMultiple)
+                          Icon(
+                            isExpanded ? Icons.expand_less : Icons.expand_more,
+                            size: 24,
+                            color: kcSecondaryTextColor.withOpacity(0.7),
+                          )
+                        else if (entries.isNotEmpty)
+                          Icon(Icons.chevron_right, size: 20, color: kcSecondaryTextColor.withOpacity(0.5)),
+                      ],
+                    ),
+                  ),
+                ),
+                if (hasMultiple && isExpanded)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 12, right: 12, bottom: 12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: entries.map((entry) {
+                        final dateStr = '${entry.createdAt.month}/${entry.createdAt.day}/${entry.createdAt.year}';
+                        final title = entry.title.isNotEmpty
+                            ? entry.title
+                            : (entry.content.length > 60 ? '${entry.content.substring(0, 57)}...' : entry.content);
+                        return Padding(
+                          padding: const EdgeInsets.only(top: 8),
+                          child: InkWell(
+                            onTap: () => widget.onOpenEntry(entry.id),
+                            borderRadius: BorderRadius.circular(8),
+                            child: Padding(
+                              padding: const EdgeInsets.all(10),
+                              child: Row(
+                                children: [
+                                  Icon(Icons.description_outlined, size: 16, color: kcSecondaryTextColor.withOpacity(0.6)),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          title,
+                                          style: TextStyle(
+                                            color: kcPrimaryTextColor,
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          dateStr,
+                                          style: TextStyle(
+                                            color: kcSecondaryTextColor.withOpacity(0.7),
+                                            fontSize: 11,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  Icon(Icons.chevron_right, size: 18, color: kcSecondaryTextColor.withOpacity(0.5)),
+                                ],
+                              ),
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        );
+      }).toList(),
+    );
   }
 }

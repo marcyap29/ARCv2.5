@@ -113,6 +113,7 @@ This section is derived from the repo and [CHANGELOG.md](../CHANGELOG.md) to kee
 | Ollama serve address in use; ollama quit unknown | 2026-02-13 | [ollama-serve-address-in-use-and-quit-command.md](records/ollama-serve-address-in-use-and-quit-command.md) | Environment: port 11434 in use; CLI "quit" not recognized. |
 
 | Voice Moonshine spec, transcription cleanup, unified feed | v3.3.31 | — | Feature: VOICE_TRANSCRIPTION_MOONSHINE_SPEC; TranscriptCleanupService; unified feed/HomeView updates. |
+| ExpandedEntryView, RelatedEntriesService | v3.3.32 | — | Unified feed expanded entry widget and CHRONICLE related-entries service updates. |
 
 **Source:** `git log --oneline`, [CHANGELOG.md](../CHANGELOG.md), terminal build log 2026-02-15. Last synced: 2026-02-15.
 
