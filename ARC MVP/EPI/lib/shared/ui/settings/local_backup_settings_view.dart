@@ -52,6 +52,7 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
   bool _isLoading = false;
   bool _isEnabled = false;
   String? _backupPath;
+  bool _backupPathIsAppDocuments = false;
   String _backupFormat = 'arcx';
   bool _scheduleEnabled = false;
   String _scheduleFrequency = 'daily';
@@ -103,6 +104,7 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
   static const String _keyScheduleTime = 'local_backup_schedule_time';
   static const String _keyLastBackup = 'local_backup_last_backup';
   static const String _keyUsePasswordEncryption = 'local_backup_use_password_encryption';
+  static const String _keyBackupPathIsAppDocuments = 'local_backup_path_is_app_documents';
 
   Future<void> _loadSettings() async {
     setState(() => _isLoading = true);
@@ -122,10 +124,12 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
           ? DateTime.fromMillisecondsSinceEpoch(lastBackupMillis) 
           : null;
       final usePasswordEncryption = prefs.getBool(_keyUsePasswordEncryption) ?? false;
+      final backupPathIsAppDocuments = prefs.getBool(_keyBackupPathIsAppDocuments) ?? false;
 
       setState(() {
         _isEnabled = isEnabled;
         _backupPath = backupPath;
+        _backupPathIsAppDocuments = backupPathIsAppDocuments;
         _backupFormat = backupFormat;
         _scheduleEnabled = scheduleEnabled;
         _scheduleFrequency = scheduleFrequency;
@@ -295,13 +299,15 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
           }
         }
         
-        // Persist backup path to SharedPreferences
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString(_keyBackupPath, selectedPath);
-        
-        setState(() {
-          _backupPath = selectedPath;
-        });
+      // Persist backup path to SharedPreferences (user chose external folder, so not app documents)
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_keyBackupPath, selectedPath);
+      await prefs.setBool(_keyBackupPathIsAppDocuments, false);
+      
+      setState(() {
+        _backupPath = selectedPath;
+        _backupPathIsAppDocuments = false;
+      });
         
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -334,12 +340,14 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
         await backupDir.create(recursive: true);
       }
       
-      // Persist backup path to SharedPreferences
+      // Persist backup path to SharedPreferences and mark as app documents
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_keyBackupPath, backupDir.path);
+      await prefs.setBool(_keyBackupPathIsAppDocuments, true);
       
       setState(() {
         _backupPath = backupDir.path;
+        _backupPathIsAppDocuments = true;
       });
       
       ScaffoldMessenger.of(context).showSnackBar(
@@ -391,6 +399,30 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
       }
     } catch (_) {}
     return false;
+  }
+
+  /// Returns the backup folder to use. If none is set, defaults to App Documents / LUMARA_Backups
+  /// and persists it so the UI shows the default.
+  Future<String> _getEffectiveBackupPath() async {
+    if (_backupPath != null && _backupPath!.isNotEmpty) {
+      return _backupPath!;
+    }
+    final appDocDir = await getApplicationDocumentsDirectory();
+    final backupDir = Directory(path.join(appDocDir.path, 'LUMARA_Backups'));
+    if (!await backupDir.exists()) {
+      await backupDir.create(recursive: true);
+    }
+    final pathStr = backupDir.path;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keyBackupPath, pathStr);
+    await prefs.setBool(_keyBackupPathIsAppDocuments, true);
+    if (mounted) {
+      setState(() {
+        _backupPath = pathStr;
+        _backupPathIsAppDocuments = true;
+      });
+    }
+    return pathStr;
   }
 
   Future<void> _setBackupFormat(String format) async {
@@ -453,15 +485,6 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
   }
   
   Future<void> _performIncrementalBackup() async {
-    if (_backupPath == null || _backupPath!.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please select a backup folder first'),
-          backgroundColor: Colors.orange,
-        ),
-      );
-      return;
-    }
     if (_usePasswordEncryption && (_exportPassword == null || _exportPassword!.isEmpty)) {
       await _showPasswordDialog();
       if (!mounted) return;
@@ -476,6 +499,9 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
       }
     }
 
+    final backupPath = await _getEffectiveBackupPath();
+    if (!mounted) return;
+
     setState(() {
       _isBackingUp = true;
       _backupProgress = 'Starting incremental backup...';
@@ -485,11 +511,11 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
     // On iOS/macOS, acquire security-scoped access for folders outside the app sandbox
     bool isAccessing = false;
     if (Platform.isIOS || Platform.isMacOS) {
-      final inSandbox = await _isBackupPathInAppSandbox(_backupPath!);
+      final inSandbox = await _isBackupPathInAppSandbox(backupPath);
       if (!inSandbox) {
         try {
           final plugin = AccessingSecurityScopedResource();
-          isAccessing = await plugin.startAccessingSecurityScopedResourceWithFilePath(_backupPath!);
+          isAccessing = await plugin.startAccessingSecurityScopedResourceWithFilePath(backupPath);
           if (!isAccessing && mounted) {
             setState(() {
               _isBackingUp = false;
@@ -542,7 +568,7 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
       );
       
       // Clean and validate backup path
-      final cleanBackupPath = _backupPath!.trim();
+      final cleanBackupPath = backupPath.trim();
       final outputDir = Directory(cleanBackupPath);
       
       // Verify directory exists or can be created
@@ -657,7 +683,7 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
       if ((Platform.isIOS || Platform.isMacOS) && isAccessing) {
         try {
           final plugin = AccessingSecurityScopedResource();
-          await plugin.stopAccessingSecurityScopedResourceWithFilePath(_backupPath!);
+          await plugin.stopAccessingSecurityScopedResourceWithFilePath(backupPath);
         } catch (_) {}
       }
       if (mounted) {
@@ -671,15 +697,8 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
   }
   
   Future<void> _performFullBackup() async {
-    if (_backupPath == null || _backupPath!.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please select a backup folder first'),
-          backgroundColor: Colors.orange,
-        ),
-      );
-      return;
-    }
+    final backupPath = await _getEffectiveBackupPath();
+    if (!mounted) return;
     if (_usePasswordEncryption && (_exportPassword == null || _exportPassword!.isEmpty)) {
       await _showPasswordDialog();
       if (!mounted) return;
@@ -703,11 +722,11 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
     // On iOS/macOS, acquire security-scoped access for folders outside the app sandbox
     bool isAccessing = false;
     if (Platform.isIOS || Platform.isMacOS) {
-      final inSandbox = await _isBackupPathInAppSandbox(_backupPath!);
+      final inSandbox = await _isBackupPathInAppSandbox(backupPath);
       if (!inSandbox) {
         try {
           final plugin = AccessingSecurityScopedResource();
-          isAccessing = await plugin.startAccessingSecurityScopedResourceWithFilePath(_backupPath!);
+          isAccessing = await plugin.startAccessingSecurityScopedResourceWithFilePath(backupPath);
           if (!isAccessing && mounted) {
             setState(() {
               _isBackingUp = false;
@@ -760,7 +779,7 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
       );
       
       // Clean and validate backup path
-      final cleanBackupPath = _backupPath!.trim();
+      final cleanBackupPath = backupPath.trim();
       final outputDir = Directory(cleanBackupPath);
       
       // Verify directory exists or can be created
@@ -875,7 +894,7 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
       if ((Platform.isIOS || Platform.isMacOS) && isAccessing) {
         try {
           final plugin = AccessingSecurityScopedResource();
-          await plugin.stopAccessingSecurityScopedResourceWithFilePath(_backupPath!);
+          await plugin.stopAccessingSecurityScopedResourceWithFilePath(backupPath);
         } catch (_) {}
       }
       if (mounted) {
@@ -891,15 +910,9 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
   /// Continue export into the current backup folder: scan existing exports (via index),
   /// diff against current app data, and export only the delta into that set.
   Future<void> _performContinueExport() async {
-    if (_backupPath == null || _backupPath!.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please select a backup folder first'),
-          backgroundColor: Colors.orange,
-        ),
-      );
-      return;
-    }
+    // Default to App Documents / LUMARA_Backups when no folder is set
+    final backupPath = await _getEffectiveBackupPath();
+    if (!mounted) return;
     if (_usePasswordEncryption && (_exportPassword == null || _exportPassword!.isEmpty)) {
       await _showPasswordDialog();
       if (!mounted) return;
@@ -933,11 +946,11 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
     // On iOS/macOS, acquire security-scoped access for folders outside the app sandbox
     bool isAccessing = false;
     if (Platform.isIOS || Platform.isMacOS) {
-      final inSandbox = await _isBackupPathInAppSandbox(_backupPath!);
+      final inSandbox = await _isBackupPathInAppSandbox(backupPath);
       if (!inSandbox) {
         try {
           final plugin = AccessingSecurityScopedResource();
-          isAccessing = await plugin.startAccessingSecurityScopedResourceWithFilePath(_backupPath!);
+          isAccessing = await plugin.startAccessingSecurityScopedResourceWithFilePath(backupPath);
           if (!isAccessing && mounted) {
             setState(() {
               _isBackingUp = false;
@@ -989,7 +1002,7 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
         phaseRegimeService: phaseRegimeService,
       );
 
-      final outputDir = Directory(_backupPath!.trim());
+      final outputDir = Directory(backupPath.trim());
       if (!await outputDir.exists()) {
         if (mounted) {
           setState(() { _isBackingUp = false; _backupProgress = ''; });
@@ -1039,7 +1052,7 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
       if ((Platform.isIOS || Platform.isMacOS) && isAccessing) {
         try {
           final plugin = AccessingSecurityScopedResource();
-          await plugin.stopAccessingSecurityScopedResourceWithFilePath(_backupPath!);
+          await plugin.stopAccessingSecurityScopedResourceWithFilePath(backupPath);
         } catch (_) {}
       }
       if (mounted) {
@@ -1693,12 +1706,14 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                _backupPath ?? 'No folder selected',
+                                _backupPathIsAppDocuments
+                                    ? 'App Documents (LUMARA_Backups)'
+                                    : (_backupPath ?? 'No folder selected'),
                                 style: TextStyle(color: Colors.grey[400]),
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
                               ),
-                              if (_backupPath != null && _isRestrictedPath(_backupPath!))
+                              if (_backupPath != null && !_backupPathIsAppDocuments && _isRestrictedPath(_backupPath!))
                                 Padding(
                                   padding: const EdgeInsets.only(top: 4),
                                   child: Row(
@@ -2100,7 +2115,17 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
             ],
           ),
           const SizedBox(height: 12),
-          
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Text(
+              'Back up now saves to the folder below. Default: App Documents (on this device, most private).',
+              style: bodyStyle(context).copyWith(
+                color: kcSecondaryTextColor,
+                fontSize: 12,
+                height: 1.35,
+              ),
+            ),
+          ),
           // Backup buttons
           if (hasChanges) ...[
             // Incremental backup (recommended)
@@ -2775,15 +2800,10 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
     List<JournalEntry> selectedEntries,
     List<ChatSession> selectedChats,
   ) async {
-    if (_backupPath == null || _backupPath!.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please select a backup folder first'),
-          backgroundColor: Colors.orange,
-        ),
-      );
-      return;
-    }
+    // Default to App Documents / LUMARA_Backups when no folder is set (path used when selective backup is implemented)
+    final backupPath = await _getEffectiveBackupPath();
+    if (!mounted) return;
+    assert(backupPath.isNotEmpty, 'Effective backup path must be set');
 
     setState(() {
       _isBackingUp = true;
@@ -2800,7 +2820,7 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
       final chatRepo = ChatRepoImpl.instance;
       await chatRepo.initialize();
       
-      // Generate backup to temp location
+      // Generate backup to temp location (backupPath will be used when TODO below is implemented)
       // TODO: Backup service not yet implemented
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

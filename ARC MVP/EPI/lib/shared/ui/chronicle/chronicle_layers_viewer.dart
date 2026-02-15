@@ -5,6 +5,8 @@ import 'package:my_app/chronicle/core/chronicle_repos.dart';
 import 'package:my_app/chronicle/models/chronicle_layer.dart';
 import 'package:my_app/chronicle/models/chronicle_aggregation.dart';
 import 'package:my_app/services/firebase_auth_service.dart';
+import 'package:my_app/arc/core/journal_repository.dart';
+import 'package:my_app/arc/ui/timeline/timeline_with_ideas_view.dart';
 
 /// CHRONICLE Layers Viewer
 /// 
@@ -380,11 +382,17 @@ class _ChronicleLayersViewerState extends State<ChronicleLayersViewer>
                 _buildMetadataRow('Synthesized', _formatDateLong(aggregation.synthesisDate)),
                 _buildMetadataRow('Version', 'v${aggregation.version}'),
                 _buildMetadataRow('Compression', '${(aggregation.compressionRatio * 100).toStringAsFixed(2)}%'),
-                _buildMetadataRow('Source Entries', '${aggregation.sourceEntryIds.length}'),
                 if (aggregation.userEdited)
                   _buildMetadataRow('Status', 'User Edited', valueColor: Colors.orange),
               ],
             ),
+          ),
+          const SizedBox(height: 12),
+          // Source entries: titles for monthly (clickable → timeline), count for others
+          _SourceEntriesSection(
+            aggregation: aggregation,
+            layer: layer,
+            layerColor: _getLayerColor(layer),
           ),
           const SizedBox(height: 16),
           // Content preview
@@ -587,6 +595,157 @@ class _ChronicleLayersViewerState extends State<ChronicleLayersViewer>
       'July', 'August', 'September', 'October', 'November', 'December'
     ];
     return '${monthNames[date.month]} ${date.day}, ${date.year}';
+  }
+}
+
+/// Shows source entry titles (monthly) or count (yearly/multiyear). Monthly titles are tappable → timeline.
+class _SourceEntriesSection extends StatelessWidget {
+  final ChronicleAggregation aggregation;
+  final ChronicleLayer layer;
+  final Color layerColor;
+
+  const _SourceEntriesSection({
+    required this.aggregation,
+    required this.layer,
+    required this.layerColor,
+  });
+
+  Future<List<({String id, String title})>> _loadTitlesForMonthly(BuildContext context) async {
+    if (aggregation.sourceEntryIds.isEmpty) return [];
+    final repo = JournalRepository();
+    final results = <({String id, String title})>[];
+    for (final id in aggregation.sourceEntryIds) {
+      final entry = await repo.getJournalEntryById(id);
+      final title = entry?.title.trim().isNotEmpty == true
+          ? entry!.title
+          : (entry?.content.trim().isNotEmpty == true
+              ? '${entry!.content.substring(0, entry.content.length.clamp(0, 50))}${entry.content.length > 50 ? '…' : ''}'
+              : 'Entry');
+      results.add((id: id, title: title));
+    }
+    return results;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (layer != ChronicleLayer.monthly) {
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: kcBackgroundColor.withOpacity(0.3),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.article_outlined, size: 18, color: kcSecondaryTextColor),
+            const SizedBox(width: 8),
+            Text(
+              '${aggregation.sourceEntryIds.length} source ${aggregation.sourceEntryIds.length == 1 ? 'period' : 'periods'}',
+              style: captionStyle(context).copyWith(color: kcSecondaryTextColor),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: kcBackgroundColor.withOpacity(0.3),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.list_alt, size: 18, color: layerColor),
+              const SizedBox(width: 8),
+              Text(
+                'Source entries (${aggregation.sourceEntryIds.length})',
+                style: captionStyle(context).copyWith(
+                  color: kcSecondaryTextColor,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          FutureBuilder<List<({String id, String title})>>(
+            future: _loadTitlesForMonthly(context),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Row(
+                    children: [
+                      SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: layerColor),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Loading titles…',
+                        style: captionStyle(context).copyWith(color: kcSecondaryTextColor),
+                      ),
+                    ],
+                  ),
+                );
+              }
+              final items = snapshot.data ?? [];
+              if (items.isEmpty) {
+                return Text(
+                  'No source entries',
+                  style: captionStyle(context).copyWith(color: kcSecondaryTextColor),
+                );
+              }
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: items.map((item) {
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: InkWell(
+                      onTap: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (context) => TimelineWithIdeasView(
+                              initialScrollToEntryId: item.id,
+                            ),
+                          ),
+                        );
+                      },
+                      borderRadius: BorderRadius.circular(8),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
+                        child: Row(
+                          children: [
+                            Icon(Icons.open_in_new, size: 16, color: layerColor),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                item.title,
+                                style: bodyStyle(context).copyWith(
+                                  color: kcPrimaryTextColor,
+                                  fontSize: 14,
+                                  decoration: TextDecoration.none,
+                                ),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                }).toList(),
+              );
+            },
+          ),
+        ],
+      ),
+    );
   }
 }
 

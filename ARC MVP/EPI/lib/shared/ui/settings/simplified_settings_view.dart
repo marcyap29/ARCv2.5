@@ -11,6 +11,7 @@
 /// ✅ KEPT: Web Access (important privacy setting)
 /// ✅ MOVED: Advanced settings to separate screen
 
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:my_app/shared/app_colors.dart';
@@ -341,6 +342,17 @@ class _SimplifiedSettingsViewState extends State<SimplifiedSettingsView> {
               context,
               title: 'Import & Export',
               children: [
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 16),
+                  child: Text(
+                    'When you back up, files save to this device by default (App Documents). Choose a destination below to use a different folder or the cloud.',
+                    style: bodyStyle(context).copyWith(
+                      color: kcSecondaryTextColor,
+                      fontSize: 13,
+                      height: 1.4,
+                    ),
+                  ),
+                ),
                 _buildSettingsTile(
                   context,
                   title: 'Verify',
@@ -355,11 +367,25 @@ class _SimplifiedSettingsViewState extends State<SimplifiedSettingsView> {
                     );
                   },
                 ),
+                const SizedBox(height: 8),
+                Padding(
+                  padding: const EdgeInsets.only(left: 4, bottom: 6),
+                  child: Text(
+                    'On this device',
+                    style: bodyStyle(context).copyWith(
+                      color: kcSecondaryTextColor,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 12,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ),
                 _buildSettingsTile(
                   context,
                   title: 'Local Backup',
-                  subtitle: 'Regular backups with incremental tracking and scheduling',
+                  subtitle: 'Save to this device (App Documents or a folder). Use Files to copy to iCloud or a computer.',
                   icon: Icons.folder,
+                  badge: 'Most private',
                   onTap: () {
                     Navigator.push(
                       context,
@@ -371,10 +397,35 @@ class _SimplifiedSettingsViewState extends State<SimplifiedSettingsView> {
                     );
                   },
                 ),
+                if (Platform.isIOS)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 4, top: 6, bottom: 4),
+                    child: Text(
+                      'On iPhone: App Documents is included in iCloud Backup when enabled in Settings. You can also move exports to iCloud Drive via the Files app.',
+                      style: bodyStyle(context).copyWith(
+                        color: kcSecondaryTextColor,
+                        fontSize: 12,
+                        height: 1.35,
+                      ),
+                    ),
+                  ),
+                const SizedBox(height: 16),
+                Padding(
+                  padding: const EdgeInsets.only(left: 4, bottom: 6),
+                  child: Text(
+                    'In the cloud',
+                    style: bodyStyle(context).copyWith(
+                      color: kcSecondaryTextColor,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 12,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ),
                 _buildSettingsTile(
                   context,
                   title: 'Google Drive',
-                  subtitle: 'Connect with OAuth to export and import backups to your Drive',
+                  subtitle: 'Back up to your Google account. Restore on any device.',
                   icon: Icons.cloud,
                   onTap: () {
                     Navigator.push(
@@ -387,6 +438,7 @@ class _SimplifiedSettingsViewState extends State<SimplifiedSettingsView> {
                     );
                   },
                 ),
+                const SizedBox(height: 16),
                 _buildSettingsTile(
                   context,
                   title: 'Import Data',
@@ -920,6 +972,7 @@ class _SimplifiedSettingsViewState extends State<SimplifiedSettingsView> {
     required String subtitle,
     required IconData icon,
     VoidCallback? onTap,
+    String? badge,
   }) {
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
@@ -936,12 +989,32 @@ class _SimplifiedSettingsViewState extends State<SimplifiedSettingsView> {
           color: kcAccentColor,
           size: 24,
         ),
-        title: Text(
-          title,
-          style: heading3Style(context).copyWith(
-            color: kcPrimaryTextColor,
-            fontWeight: FontWeight.w500,
-          ),
+        title: Row(
+          children: [
+            Expanded(
+              child: Text(
+                title,
+                style: heading3Style(context).copyWith(
+                  color: kcPrimaryTextColor,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+            if (badge != null)
+              Padding(
+                padding: const EdgeInsets.only(left: 8),
+                child: Chip(
+                  label: Text(
+                    badge,
+                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500),
+                  ),
+                  backgroundColor: Colors.white.withValues(alpha: 0.12),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
+                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  visualDensity: VisualDensity.compact,
+                ),
+              ),
+          ],
         ),
         subtitle: Text(
           subtitle,

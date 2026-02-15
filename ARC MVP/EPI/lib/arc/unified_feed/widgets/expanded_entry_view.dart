@@ -273,6 +273,26 @@ class ExpandedEntryView extends StatelessWidget {
     }
   }
 
+  /// Split a list of paragraph strings into [segmentCount] segments for interleaving with LUMARA blocks.
+  /// Earlier segments get one more paragraph when count does not divide evenly.
+  List<List<String>> _splitIntoSegments(List<String> paragraphs, int segmentCount) {
+    if (segmentCount <= 0) return [];
+    if (paragraphs.isEmpty) {
+      return List.generate(segmentCount, (_) => <String>[]);
+    }
+    if (segmentCount == 1) return [List.from(paragraphs)];
+    final result = <List<String>>[];
+    final total = paragraphs.length;
+    int start = 0;
+    for (int i = 0; i < segmentCount; i++) {
+      final size = (total - start) / (segmentCount - i).ceil();
+      final end = (start + size).round().clamp(start, total);
+      result.add(paragraphs.sublist(start, end));
+      start = end;
+    }
+    return result;
+  }
+
   /// Build paragraph widgets from text, preserving the same paragraph/line structure as edit mode.
   /// - `---` lines become visual dividers
   /// - Double newlines become paragraph spacing
@@ -458,7 +478,7 @@ class ExpandedEntryView extends StatelessWidget {
     );
     final children = <Widget>[];
 
-    // When we have full entry with LUMARA blocks, show interleaved content (writer text + Lumara blocks + user comments)
+    // When we have full entry with LUMARA blocks, show interleaved content (writer text + Lumara blocks within the entry)
     if (fullEntry != null && fullEntry.lumaraBlocks.isNotEmpty) {
       final mainText = FeedHelpers.contentWithoutPhaseHashtags(fullEntry.content);
       final summary = FeedHelpers.extractSummary(mainText);
@@ -480,18 +500,30 @@ class ExpandedEntryView extends StatelessWidget {
           const SizedBox(height: 16),
         ]);
       }
-      children.addAll(_buildParagraphWidgets(context, body, baseStyle));
+      // Interleave body segments with LUMARA blocks (blocks appear within the entry, not at the end)
+      final bodyParagraphs = body.split('\n\n').map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
+      final blockCount = fullEntry.lumaraBlocks.length;
+      final segmentCount = blockCount + 1;
+      final segments = _splitIntoSegments(bodyParagraphs, segmentCount);
 
-      for (final block in fullEntry.lumaraBlocks) {
-        children.add(const SizedBox(height: 16));
-        children.add(_buildReadOnlyLumaraBlock(context, block));
-        if (block.userComment != null && block.userComment!.trim().isNotEmpty) {
-          children.add(const SizedBox(height: 10));
-          children.addAll(_buildParagraphWidgets(
-            context,
-            block.userComment!,
-            baseStyle,
-          ));
+      for (int i = 0; i < segmentCount; i++) {
+        if (i > 0) children.add(const SizedBox(height: 16));
+        final segmentText = segments[i].join('\n\n');
+        if (segmentText.isNotEmpty) {
+          children.addAll(_buildParagraphWidgets(context, segmentText, baseStyle));
+        }
+        if (i < blockCount) {
+          final block = fullEntry.lumaraBlocks[i];
+          children.add(const SizedBox(height: 16));
+          children.add(_buildReadOnlyLumaraBlock(context, block));
+          if (block.userComment != null && block.userComment!.trim().isNotEmpty) {
+            children.add(const SizedBox(height: 10));
+            children.addAll(_buildParagraphWidgets(
+              context,
+              block.userComment!,
+              baseStyle,
+            ));
+          }
         }
       }
       return Column(crossAxisAlignment: CrossAxisAlignment.start, children: children);
@@ -740,14 +772,19 @@ class ExpandedEntryView extends StatelessWidget {
   }
 
   /// Load related entries using the CHRONICLE pattern index (vectorized themes).
-  /// Entries that share the same thematic cluster as this one are shown as related.
+  /// If CHRONICLE returns none, fall back to recent entries so the section is never empty when entries exist.
   Future<List<JournalEntry>> _loadRelatedEntriesFromChronicle(JournalEntry fullEntry) async {
     final userId = FirebaseAuthService.instance.currentUser?.uid ?? 'default_user';
     final ids = await RelatedEntriesService().getRelatedEntryIds(
       userId: userId,
       entryId: fullEntry.id,
     );
-    return _loadRelatedEntries(ids);
+    if (ids.isNotEmpty) {
+      return _loadRelatedEntries(ids);
+    }
+    // Fallback: show recent entries (excluding this one) so the section is useful
+    final recent = await JournalRepository().getRecentJournalEntries(limit: 8, excludeId: fullEntry.id);
+    return recent;
   }
 
   Future<List<JournalEntry>> _loadRelatedEntries(List<String> ids) async {

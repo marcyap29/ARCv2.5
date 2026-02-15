@@ -379,7 +379,6 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
             
             // Adjust index for entries (subtract 1 if arcform preview is shown)
             final entryIndex = widget.showArcformPreview ? index - 1 : index;
-            print('DEBUG: Building timeline card for entry $entryIndex');
             final entry = sortedEntries[entryIndex];
             
             // Wrap entry card in Dismissible for swipe gestures (only when not in selection mode)
@@ -745,122 +744,131 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
                             ),
 
                             const SizedBox(height: 8),
-                            // Entry metadata
+                            // Entry metadata: scrollable chips so Row never overflows
                             Row(
                               children: [
-                                if (entry.hasLumaraBlocks) ...[
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                    decoration: BoxDecoration(
-                                      color: Colors.purple.withOpacity(0.15),
-                                      borderRadius: BorderRadius.circular(6),
-                                      border: Border.all(
-                                        color: Colors.purple.withOpacity(0.3),
-                                        width: 1,
-                                      ),
-                                    ),
+                                Flexible(
+                                  child: SingleChildScrollView(
+                                    scrollDirection: Axis.horizontal,
                                     child: Row(
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
-                                        LumaraIcon(
-                                          size: 14,
-                                          color: Colors.purple[700],
-                                        ),
-                                        const SizedBox(width: 6),
-                                        Text(
-                                          'LUMARA',
-                                          style: TextStyle(
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.w700,
-                                            color: Colors.purple[700],
-                                            letterSpacing: 0.3,
+                                        if (entry.hasLumaraBlocks) ...[
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                            decoration: BoxDecoration(
+                                              color: Colors.purple.withOpacity(0.15),
+                                              borderRadius: BorderRadius.circular(6),
+                                              border: Border.all(
+                                                color: Colors.purple.withOpacity(0.3),
+                                                width: 1,
+                                              ),
+                                            ),
+                                            child: Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                LumaraIcon(
+                                                  size: 14,
+                                                  color: Colors.purple[700],
+                                                ),
+                                                const SizedBox(width: 6),
+                                                Text(
+                                                  'LUMARA',
+                                                  style: TextStyle(
+                                                    fontSize: 11,
+                                                    fontWeight: FontWeight.w700,
+                                                    color: Colors.purple[700],
+                                                    letterSpacing: 0.3,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
                                           ),
-                                        ),
+                                          const SizedBox(width: 8),
+                                        ],
+                                        if (entry.keywords.contains('googledrive')) ...[
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                                            decoration: BoxDecoration(
+                                              color: Colors.blue.withOpacity(0.15),
+                                              borderRadius: BorderRadius.circular(6),
+                                              border: Border.all(
+                                                color: Colors.blue.withOpacity(0.3),
+                                                width: 1,
+                                              ),
+                                            ),
+                                            child: Text(
+                                              '#googledrive',
+                                              style: TextStyle(
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w600,
+                                                color: Colors.blue[700],
+                                              ),
+                                            ),
+                                          ),
+                                          ...entry.keywords
+                                              .where((k) => k != 'googledrive')
+                                              .map((folderTag) => Padding(
+                                                    padding: const EdgeInsets.only(left: 6),
+                                                    child: Container(
+                                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                                                      decoration: BoxDecoration(
+                                                        color: Colors.blue.withOpacity(0.12),
+                                                        borderRadius: BorderRadius.circular(6),
+                                                        border: Border.all(
+                                                          color: Colors.blue.withOpacity(0.25),
+                                                          width: 1,
+                                                        ),
+                                                      ),
+                                                      child: Text(
+                                                        '#$folderTag',
+                                                        style: TextStyle(
+                                                          fontSize: 11,
+                                                          fontWeight: FontWeight.w600,
+                                                          color: Colors.blue[800],
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  )),
+                                          const SizedBox(width: 8),
+                                        ],
+                                        if (entry.media.any((m) => m.type == MediaType.image)) ...[
+                                          Icon(
+                                            Icons.photo,
+                                            size: 14,
+                                            color: kcSecondaryTextColor,
+                                          ),
+                                          const SizedBox(width: 4),
+                                        ],
+                                        if (entry.media.any((m) => m.type == MediaType.video)) ...[
+                                          Icon(
+                                            Icons.videocam,
+                                            size: 14,
+                                            color: kcSecondaryTextColor,
+                                          ),
+                                          const SizedBox(width: 4),
+                                        ],
+                                        if (entry.keywords.isNotEmpty) ...[
+                                          Icon(
+                                            Icons.tag,
+                                            size: 14,
+                                            color: kcSecondaryTextColor,
+                                          ),
+                                          const SizedBox(width: 4),
+                                        ],
                                       ],
                                     ),
                                   ),
-                                  const SizedBox(width: 8),
-                                ],
-                                if (entry.keywords.contains('googledrive')) ...[
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                                    decoration: BoxDecoration(
-                                      color: Colors.blue.withOpacity(0.15),
-                                      borderRadius: BorderRadius.circular(6),
-                                      border: Border.all(
-                                        color: Colors.blue.withOpacity(0.3),
-                                        width: 1,
-                                      ),
-                                    ),
-                                    child: Text(
-                                      '#googledrive',
-                                      style: TextStyle(
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w600,
-                                        color: Colors.blue[700],
-                                      ),
-                                    ),
-                                  ),
-                                  ...entry.keywords
-                                      .where((k) => k != 'googledrive')
-                                      .map((folderTag) => Padding(
-                                            padding: const EdgeInsets.only(left: 6),
-                                            child: Container(
-                                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                                              decoration: BoxDecoration(
-                                                color: Colors.blue.withOpacity(0.12),
-                                                borderRadius: BorderRadius.circular(6),
-                                                border: Border.all(
-                                                  color: Colors.blue.withOpacity(0.25),
-                                                  width: 1,
-                                                ),
-                                              ),
-                                              child: Text(
-                                                '#$folderTag',
-                                                style: TextStyle(
-                                                  fontSize: 11,
-                                                  fontWeight: FontWeight.w600,
-                                                  color: Colors.blue[800],
-                                                ),
-                                              ),
-                                            ),
-                                          )),
-                                  const SizedBox(width: 8),
-                                ],
-                                if (entry.media.any((m) => m.type == MediaType.image)) ...[
-                                  Icon(
-                                    Icons.photo,
-                                    size: 14,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  entry.phase ?? 'No Phase',
+                                  style: captionStyle(context).copyWith(
                                     color: kcSecondaryTextColor,
+                                    fontSize: 12,
                                   ),
-                                  const SizedBox(width: 4),
-                                ],
-                                if (entry.media.any((m) => m.type == MediaType.video)) ...[
-                                  Icon(
-                                    Icons.videocam,
-                                    size: 14,
-                                    color: kcSecondaryTextColor,
-                                  ),
-                                  const SizedBox(width: 4),
-                                ],
-                                if (entry.keywords.isNotEmpty) ...[
-                                  Icon(
-                                    Icons.tag,
-                                    size: 14,
-                                    color: kcSecondaryTextColor,
-                                  ),
-                                  const SizedBox(width: 4),
-                                ],
-                                Expanded(
-                                  child: Text(
-                                    entry.phase ?? 'No Phase',
-                                    style: captionStyle(context).copyWith(
-                                      color: kcSecondaryTextColor,
-                                      fontSize: 12,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                               ],
                             ),

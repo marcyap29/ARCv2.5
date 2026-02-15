@@ -5,7 +5,10 @@ import 'package:hive/hive.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:my_app/models/phase_check_in_model.dart';
 import 'package:my_app/models/user_profile_model.dart';
+import 'package:my_app/models/phase_models.dart';
 import 'package:my_app/services/user_phase_service.dart';
+import 'package:my_app/services/phase_service_registry.dart';
+import 'package:my_app/prism/atlas/rivet/rivet_provider.dart';
 import 'package:my_app/chronicle/models/chronicle_layer.dart';
 import 'package:my_app/chronicle/core/chronicle_repos.dart';
 import 'package:my_app/services/firebase_auth_service.dart';
@@ -13,7 +16,8 @@ import 'package:my_app/services/firebase_auth_service.dart';
 const String _boxName = 'phase_check_ins';
 const String _prefDismissedAt = 'phase_check_in_dismissed_at';
 const String _prefReminderEnabled = 'phase_check_in_reminder_enabled';
-const int _daysBetweenCheckIns = 30;
+const String _prefIntervalDays = 'phase_check_in_interval_days';
+const int _defaultDaysBetweenCheckIns = 30;
 const int _daysBeforeReShowAfterDismiss = 7;
 
 /// Service for monthly Phase Check-in: confirm current phase or run 3-question diagnostic.
@@ -43,8 +47,24 @@ class PhaseCheckInService {
     await prefs.setBool(_prefReminderEnabled, value);
   }
 
-  /// True if a check-in is due: reminder enabled, 30 days since last completed check-in (or account creation),
-  /// and either not dismissed or dismissed 7+ days ago.
+  /// Get the configured interval (days between check-ins). Default 30; allowed 14, 30, 60.
+  Future<int> getIntervalDays() async {
+    final prefs = await SharedPreferences.getInstance();
+    final v = prefs.getInt(_prefIntervalDays);
+    if (v == null) return _defaultDaysBetweenCheckIns;
+    if (v == 14 || v == 30 || v == 60) return v;
+    return _defaultDaysBetweenCheckIns;
+  }
+
+  /// Set interval (days) between check-ins. Use 14, 30, or 60.
+  Future<void> setIntervalDays(int days) async {
+    if (days != 14 && days != 30 && days != 60) return;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_prefIntervalDays, days);
+  }
+
+  /// True if a check-in is due: reminder enabled, N days since last completed check-in (or account creation),
+  /// and either not dismissed or dismissed 7+ days ago. N = user-configured interval.
   Future<bool> isCheckInDue() async {
     final prefs = await SharedPreferences.getInstance();
     if (prefs.getBool(_prefReminderEnabled) == false) return false;
@@ -56,14 +76,15 @@ class PhaseCheckInService {
       }
     }
 
+    final intervalDays = await getIntervalDays();
     final lastDue = await _getLastCheckInNextDue();
     if (lastDue != null) {
       return DateTime.now().isAfter(lastDue) || !lastDue.difference(DateTime.now()).isNegative;
     }
-    // No check-in yet: due 30 days after account creation
+    // No check-in yet: due after interval days from account creation
     final createdAt = await _getAccountCreatedAt();
     if (createdAt == null) return false;
-    return DateTime.now().difference(createdAt).inDays >= _daysBetweenCheckIns;
+    return DateTime.now().difference(createdAt).inDays >= intervalDays;
   }
 
   Future<DateTime?> _getLastCheckInNextDue() async {
@@ -93,17 +114,79 @@ class PhaseCheckInService {
   }
 
   /// Current phase for confirmation screen (display name).
+  /// Uses same logic as Phase page: profile first, then regime; RIVET gate respected.
   Future<String> getCurrentPhaseName() async {
-    final phase = await UserPhaseService.getCurrentPhase();
-    if (phase.isEmpty) return 'Discovery';
-    return phase.substring(0, 1).toUpperCase() + phase.substring(1).toLowerCase();
+    final display = await getDisplayPhaseName();
+    return display.isEmpty ? 'Discovery' : display;
   }
 
-  /// User confirmed "Yes, this fits". Log check-in and reset 30-day timer.
+  /// Display phase name using same source as Phase page (profile first, then regime).
+  Future<String> getDisplayPhaseName() async {
+    try {
+      final profile = await _getUserProfile();
+      final profilePhase = profile?.onboardingCurrentSeason?.trim() ??
+          profile?.currentPhase.trim() ??
+          '';
+
+      String? regimePhase;
+      bool rivetGateOpen = false;
+      try {
+        final regimeService = await PhaseServiceRegistry.phaseRegimeService;
+        final index = regimeService.phaseIndex;
+        final currentRegime = index.currentRegime;
+        if (currentRegime != null) {
+          regimePhase = _phaseLabelToName(currentRegime.label);
+        } else if (index.allRegimes.isNotEmpty) {
+          final sorted = List<PhaseRegime>.from(index.allRegimes)
+            ..sort((a, b) => b.start.compareTo(a.start));
+          regimePhase = _phaseLabelToName(sorted.first.label);
+        }
+        final rivetProvider = RivetProvider();
+        if (!rivetProvider.isAvailable) {
+          await rivetProvider.initialize(_userId);
+        }
+        rivetGateOpen = rivetProvider.service?.wouldGateOpen() ?? false;
+      } catch (_) {
+        // Regime/RIVET optional; fall back to profile
+      }
+
+      final raw = UserPhaseService.getDisplayPhase(
+        regimePhase: regimePhase,
+        rivetGateOpen: rivetGateOpen,
+        profilePhase: profilePhase,
+      );
+      if (raw.isEmpty) return '';
+      return raw.substring(0, 1).toUpperCase() + raw.substring(1).toLowerCase();
+    } catch (_) {
+      return '';
+    }
+  }
+
+  static Future<UserProfile?> _getUserProfile() async {
+    try {
+      Box<UserProfile> userBox;
+      if (Hive.isBoxOpen('user_profile')) {
+        userBox = Hive.box<UserProfile>('user_profile');
+      } else {
+        userBox = await Hive.openBox<UserProfile>('user_profile');
+      }
+      return userBox.get('profile');
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static String _phaseLabelToName(PhaseLabel label) {
+    final name = label.name;
+    return name.substring(0, 1).toUpperCase() + name.substring(1).toLowerCase();
+  }
+
+  /// User confirmed "Yes, this fits". Log check-in and reset timer per configured interval.
   Future<void> confirmPhase(String phaseName) async {
     final box = await _openBox();
     final normalized = _normalizePhaseName(phaseName);
-    final nextDue = DateTime.now().add(const Duration(days: _daysBetweenCheckIns));
+    final intervalDays = await getIntervalDays();
+    final nextDue = DateTime.now().add(Duration(days: intervalDays));
     final checkIn = PhaseCheckIn(
       id: '${_userId}_${DateTime.now().millisecondsSinceEpoch}',
       userId: _userId,
@@ -173,7 +256,8 @@ class PhaseCheckInService {
     await UserPhaseService.forceUpdatePhase(normalized);
 
     final box = await _openBox();
-    final nextDue = DateTime.now().add(const Duration(days: _daysBetweenCheckIns));
+    final intervalDays = await getIntervalDays();
+    final nextDue = DateTime.now().add(Duration(days: intervalDays));
     final checkIn = PhaseCheckIn(
       id: '${_userId}_${DateTime.now().millisecondsSinceEpoch}',
       userId: _userId,

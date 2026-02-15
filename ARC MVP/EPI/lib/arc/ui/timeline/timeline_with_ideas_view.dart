@@ -14,7 +14,10 @@ import '../../voice_notes/models/voice_note.dart';
 /// - Timeline: Existing journal entries and LUMARA conversations
 /// - Voice Notes: Quick voice captures
 class TimelineWithIdeasView extends StatefulWidget {
-  const TimelineWithIdeasView({super.key});
+  /// If set, the timeline will scroll to this entry once loaded (e.g. from Chronicle).
+  final String? initialScrollToEntryId;
+
+  const TimelineWithIdeasView({super.key, this.initialScrollToEntryId});
 
   @override
   State<TimelineWithIdeasView> createState() => _TimelineWithIdeasViewState();
@@ -77,19 +80,21 @@ class _TimelineWithIdeasViewState extends State<TimelineWithIdeasView>
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    return Column(
-      children: [
-        // Tab bar
-        Container(
-          decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
-            border: Border(
-              bottom: BorderSide(
-                color: Colors.grey.withOpacity(0.2),
+    return Scaffold(
+      body: SafeArea(
+        child: Column(
+          children: [
+            // Tab bar
+            Container(
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+                border: Border(
+                  bottom: BorderSide(
+                    color: Colors.grey.withOpacity(0.2),
+                  ),
+                ),
               ),
-            ),
-          ),
-          child: TabBar(
+              child: TabBar(
             controller: _tabController,
             indicatorColor: theme.primaryColor,
             // Selected tab (user is on): lighter/brighter text so it stands out
@@ -160,7 +165,7 @@ class _TimelineWithIdeasViewState extends State<TimelineWithIdeasView>
             controller: _tabController,
             children: [
               // Timeline tab - existing view
-              const TimelineView(),
+              TimelineView(initialScrollToEntryId: widget.initialScrollToEntryId),
 
               // Voice Notes tab
               _voiceNoteRepository != null
@@ -178,7 +183,9 @@ class _TimelineWithIdeasViewState extends State<TimelineWithIdeasView>
             ],
           ),
         ),
-      ],
+          ],
+        ),
+      ),
     );
   }
 }

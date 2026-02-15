@@ -1167,45 +1167,53 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
     return const SizedBox.shrink();
   }
 
-  Widget _buildEntryCard(FeedEntry entry) {
+  /// [onTapOverride] When non-null (e.g. in selection mode), used as the card's onTap
+  /// so the whole entry is the selection target instead of opening the entry.
+  Widget _buildEntryCard(FeedEntry entry, {VoidCallback? onTapOverride}) {
+    final onTap = onTapOverride ?? () => _onEntryTap(entry);
     switch (entry.type) {
       case FeedEntryType.activeConversation:
         return ActiveConversationCard(
           entry: entry,
-          onTap: () => _onEntryTap(entry),
+          onTap: onTap,
           onSave: _onSaveActiveConversation,
         );
       case FeedEntryType.savedConversation:
         return SavedConversationCard(
           entry: entry,
-          onTap: () => _onEntryTap(entry),
+          onTap: onTap,
         );
       case FeedEntryType.voiceMemo:
         return VoiceMemoCard(
           entry: entry,
-          onTap: () => _onEntryTap(entry),
+          onTap: onTap,
         );
       case FeedEntryType.reflection:
         return ReflectionCard(
           entry: entry,
-          onTap: () => _onEntryTap(entry),
+          onTap: onTap,
         );
       case FeedEntryType.lumaraInitiative:
         return LumaraPromptCard(
           entry: entry,
-          onTap: () => _onEntryTap(entry),
+          onTap: onTap,
         );
     }
   }
 
   /// Wraps the card in Dismissible (swipe left to delete) and/or selection overlay when applicable.
+  /// In selection mode, the whole card uses [onToggleSelect] as its tap target so the full entry is selectable.
   Widget _buildEntryCardWithSwipe(
     FeedEntry entry, {
     bool isSelectionMode = false,
     bool isSelected = false,
     VoidCallback? onToggleSelect,
   }) {
-    final card = _buildEntryCard(entry);
+    final useSelectionTap = isSelectionMode && onToggleSelect != null;
+    final card = _buildEntryCard(
+      entry,
+      onTapOverride: useSelectionTap ? onToggleSelect : null,
+    );
     final journalEntryId = entry.journalEntryId;
     final canDelete = journalEntryId != null && journalEntryId.isNotEmpty;
 

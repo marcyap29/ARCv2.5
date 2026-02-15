@@ -317,6 +317,17 @@ class JournalRepository {
     }
   }
 
+  /// Returns recent journal entries sorted by createdAt descending, optionally excluding one by id.
+  /// Used as fallback for "Related entries" when CHRONICLE index has no matches.
+  Future<List<JournalEntry>> getRecentJournalEntries({int limit = 8, String? excludeId}) async {
+    final all = await getAllJournalEntries();
+    final filtered = excludeId != null
+        ? all.where((e) => e.id != excludeId).toList()
+        : List<JournalEntry>.from(all);
+    filtered.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    return filtered.take(limit).toList();
+  }
+
   // Synchronous version for backward compatibility
   List<JournalEntry> getAllJournalEntriesSync() {
     // Ensure required adapters are registered before loading entries

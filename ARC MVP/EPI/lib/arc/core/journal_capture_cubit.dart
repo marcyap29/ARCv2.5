@@ -988,44 +988,9 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
           
           for (final otherEntry in otherEntries) {
             final newDate = otherEntry.createdAt.add(dateOffset);
-            final updatedEntry = JournalEntry(
-              id: otherEntry.id,
-              title: otherEntry.title,
-              content: otherEntry.content,
-              createdAt: newDate,
-              updatedAt: otherEntry.updatedAt,
-              tags: otherEntry.tags,
-              mood: otherEntry.mood,
-              audioUri: otherEntry.audioUri,
-              keywords: otherEntry.keywords,
-              emotion: otherEntry.emotion,
-              emotionReason: otherEntry.emotionReason,
-              media: otherEntry.media,
-              sageAnnotation: otherEntry.sageAnnotation,
-              metadata: otherEntry.metadata,
-            );
-            // Verify metadata before saving
-      print('DEBUG: updateEntryWithKeywords - About to save entry ${updatedEntry.id}');
-      print('DEBUG: updateEntryWithKeywords - Entry metadata keys: ${updatedEntry.metadata?.keys ?? "null"}');
-      if (updatedEntry.metadata != null && updatedEntry.metadata!.containsKey('inlineBlocks')) {
-        final savedBlocks = updatedEntry.metadata!['inlineBlocks'] as List?;
-        print('DEBUG: updateEntryWithKeywords - Entry has ${savedBlocks?.length ?? 0} inlineBlocks before save');
-      }
-      
-      await _journalRepository.updateJournalEntry(updatedEntry);
-      
-      // Verify entry was saved correctly
-      final savedEntry = await _journalRepository.getJournalEntryById(updatedEntry.id);
-      if (savedEntry != null) {
-        print('DEBUG: updateEntryWithKeywords - Entry ${savedEntry.id} saved successfully');
-        print('DEBUG: updateEntryWithKeywords - Saved entry has ${savedEntry.lumaraBlocks.length} LUMARA blocks');
-        for (int i = 0; i < savedEntry.lumaraBlocks.length; i++) {
-          final block = savedEntry.lumaraBlocks[i];
-          print('DEBUG: Saved Block $i - type: ${block.type}, intent: ${block.intent}, hasComment: ${block.userComment != null}');
-        }
-      } else {
-        print('DEBUG: updateEntryWithKeywords - ⚠️ ERROR: Could not retrieve saved entry!');
-      }
+            // Use copyWith so we preserve lumaraBlocks, overview, and all other fields
+            final updatedEntry = otherEntry.copyWith(createdAt: newDate);
+            await _journalRepository.updateJournalEntry(updatedEntry);
           }
           print('DEBUG: Adjusted ${otherEntries.length} entries by offset ${dateOffset.inHours} hours');
         } catch (e) {

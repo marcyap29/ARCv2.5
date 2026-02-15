@@ -13,16 +13,21 @@ import 'package:my_app/shared/ui/settings/settings_view.dart';
 import 'package:scroll_to_index/scroll_to_index.dart';
 
 class TimelineView extends StatelessWidget {
-  const TimelineView({super.key});
+  /// If set, timeline will scroll to this entry once loaded (e.g. from Chronicle).
+  final String? initialScrollToEntryId;
+
+  const TimelineView({super.key, this.initialScrollToEntryId});
 
   @override
   Widget build(BuildContext context) {
-    return const TimelineViewContent();
+    return TimelineViewContent(initialScrollToEntryId: initialScrollToEntryId);
   }
 }
 
 class TimelineViewContent extends StatefulWidget {
-  const TimelineViewContent({super.key});
+  final String? initialScrollToEntryId;
+
+  const TimelineViewContent({super.key, this.initialScrollToEntryId});
 
   @override
   State<TimelineViewContent> createState() => _TimelineViewContentState();
@@ -46,6 +51,7 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
   bool _isProgrammaticScroll = false;
   DateTime? _lastVisibleEntryDate;
   DateTime? _pendingScrollDate;
+  String? _pendingScrollEntryId;
   
   // Scroll button visibility
   bool _showScrollToTop = false;
@@ -54,6 +60,7 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
   @override
   void initState() {
     super.initState();
+    _pendingScrollEntryId = widget.initialScrollToEntryId;
     _scrollController = AutoScrollController(
       viewportBoundaryGetter: () => Rect.fromLTRB(0, 0, 0, MediaQuery.of(context).padding.bottom),
     );
@@ -252,6 +259,78 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
     });
   }
 
+  void _jumpToEntryId(String entryId) {
+    final currentState = _timelineCubit.state;
+    if (currentState is! TimelineLoaded) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Timeline not loaded yet'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+
+    final sortedEntries = _getFilteredEntriesFromState(currentState);
+    final targetIndex = sortedEntries.indexWhere((e) => e.id == entryId);
+    if (targetIndex < 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Entry not found on timeline'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+
+    final targetEntry = sortedEntries[targetIndex];
+    final weekStart = _calculateWeekStart(targetEntry.createdAt);
+    if (_weekNotifier.value != weekStart) {
+      _weekNotifier.value = weekStart;
+    }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _isProgrammaticScroll = true;
+      Future.delayed(const Duration(milliseconds: 200), () {
+        final currentState = _timelineCubit.state;
+        if (currentState is TimelineLoaded) {
+          final filteredEntries = _getFilteredEntriesFromState(currentState);
+          final actualIndex = filteredEntries.indexWhere((e) => e.id == entryId);
+          if (actualIndex >= 0) {
+            final showArcformPreview = !_isArcformTimelineVisible && !_isSelectionMode;
+            final scrollIndex = showArcformPreview ? actualIndex + 1 : actualIndex;
+            _scrollController.scrollToIndex(
+              scrollIndex,
+              preferPosition: AutoScrollPosition.middle,
+              duration: const Duration(milliseconds: 800),
+            ).then((_) {
+              Future.delayed(const Duration(milliseconds: 200), () {
+                if (mounted) _isProgrammaticScroll = false;
+              });
+            });
+          } else {
+            _isProgrammaticScroll = false;
+          }
+        } else {
+          _isProgrammaticScroll = false;
+        }
+      });
+    });
+
+    final label = (targetEntry.title?.trim().isNotEmpty == true
+            ? targetEntry.title!
+            : targetEntry.preview)
+        .replaceAll('\n', ' ');
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          'Jumped to entry: ${label.length > 45 ? "${label.substring(0, 45)}…" : label}',
+        ),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
   static DateTime _calculateWeekStart(DateTime date) {
     final weekday = date.weekday;
     return date.subtract(Duration(days: weekday - 1));
@@ -448,11 +527,37 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
   Widget build(BuildContext context) {
     return BlocListener<TimelineCubit, TimelineState>(
       listener: (context, state) {
-        if (state is TimelineLoaded && _pendingScrollDate != null) {
+        if (state is! TimelineLoaded) return;
+        if (_pendingScrollDate != null) {
           final dateToRestore = _pendingScrollDate!;
           _pendingScrollDate = null;
           WidgetsBinding.instance.addPostFrameCallback((_) {
             _jumpToDate(dateToRestore);
+          });
+          return;
+        }
+        if (_pendingScrollEntryId == null) return;
+        final entryId = _pendingScrollEntryId!;
+        final sortedEntries = _getFilteredEntriesFromState(state);
+        final found = sortedEntries.any((e) => e.id == entryId);
+        if (found) {
+          _pendingScrollEntryId = null;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _jumpToEntryId(entryId);
+          });
+        } else if (state.hasMore) {
+          _timelineCubit.loadMoreEntries();
+        } else {
+          _pendingScrollEntryId = null;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Entry not found on timeline'),
+                  duration: Duration(seconds: 2),
+                ),
+              );
+            }
           });
         }
       },

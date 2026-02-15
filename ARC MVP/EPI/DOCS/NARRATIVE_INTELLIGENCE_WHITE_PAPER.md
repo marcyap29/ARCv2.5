@@ -4,7 +4,9 @@
 Marc Yap  
 January 2025  
 
-*Version 2.2 — Production Implementation (aligned with EPI repo architecture)*
+*Version 2.2 — Architecture (implementation details in appendix)*
+
+**Scope:** This document describes **architecture only**. Parameters, technologies, and implementation details are in the appendix. The five modules are: LUMARA (interface), PRISM, CHRONICLE, AURORA, ECHO. The Developmental Phase Engine (ATLAS), including RIVET and SENTINEL, resides within PRISM. A repo-aligned §2 System Architecture text for the PDF is in the Paper Architecture Section document.
 
 ---
 
@@ -146,7 +148,7 @@ EPI remembers more than commands. It remembers who you were becoming. Memory is 
 **Multimodal Capture:**
 
 * Text journaling with rich formatting
-* Voice transcription with AssemblyAI integration
+* Voice transcription (speech-to-text)
 * Photo capture with OCR and analysis
 * Video journaling support
 
@@ -183,21 +185,13 @@ The Six Life Phases:
 
 1. Emotional Signals — Valence, intensity, and diversity from journal text
 2. Behavioral Signals — Journaling frequency, entry length, time-of-day patterns
-3. Health Signals (optional) — Steps, sleep, heart rate variability from Apple Health
+3. Health Signals (optional) — Steps, sleep, heart rate variability from device health integration
 4. Keyword Evidence — Thematic clustering from PRISM extraction
 5. Temporal Patterns — Rate of change, cyclical patterns, trend direction
 
 **Phase Determination Formula:**
 
-Phase = argmax(confidence[p]) where:
-
-- confidence[p] = f(readiness, stress, behavioral_signals)
-- Breakthrough: readiness > 0.7 AND activity > threshold
-- Expansion: readiness > 0.55 AND stress < 0.5
-- Recovery: stress ≥ 0.6
-- Transition: stress > 0.5 AND readiness < 0.6
-- Discovery: readiness < 0.5 AND stress < 0.4
-- Consolidation: default when no strong signals
+Phase = argmax(confidence[p]) where confidence[p] = f(readiness, stress, behavioral_signals). Each phase corresponds to a region in readiness–stress–behavior space (e.g. Breakthrough: high readiness and activity; Recovery: elevated stress; Consolidation: default when no strong signals). *Thresholds and mapping details are in the appendix.*
 
 **Integration with Other Modules:**
 
@@ -216,34 +210,21 @@ RIVET (Risk-Validation Evidence Tracker) prevents premature or poorly-supported 
 
 | Metric | Formula | Purpose |
 | :---- | :---- | :---- |
-| ALIGN | ALIGN_t = (1-β)ALIGN_{t-1} + β·s_t | Measures consistency between predicted and observed phase |
-| TRACE | TRACE_t = 1 − exp(-Σe_i / K) | Tracks cumulative evidence strength over time |
+| ALIGN | ALIGN_t = (1−β)ALIGN_{t−1} + β·s_t | Measures consistency between predicted and observed phase (EMA over alignment samples) |
+| TRACE | TRACE_t = 1 − exp(−Σe_i / K) | Tracks cumulative evidence strength over time (saturating sum of evidence weights) |
 
-Where:
+Where β is a smoothing factor, s_t is sample alignment (prediction vs observation), e_i are evidence weights from keyword/thematic extraction, and K is a saturation constant. *Parameter values (β, K, thresholds) are in the appendix.*
 
-* β = 2/(N+1), N = smoothing parameter (default: 10)
-* s_t = sample alignment (1 if prediction matches observation, 0 otherwise)
-* e_i = evidence weight for keyword i
-* K = saturation parameter (default: 20)
+**Gate Opening Conditions:** The transition gate opens only when all of the following are satisfied:
 
-**Gate Opening Conditions:** The transition gate opens only when ALL conditions are met:
+1. **Alignment threshold** — Predictions consistently match observations (ALIGN above a configured minimum)
+2. **Evidence threshold** — Sufficient cumulative evidence (TRACE above a configured minimum)
+3. **Sustain** — Conditions held for a minimum number of consecutive entries
+4. **Independent event** — At least one qualifying event from a different day or source
 
-1. ALIGN ≥ 0.6 — Predictions consistently match observations
-2. TRACE ≥ 0.6 — Sufficient evidence has accumulated
-3. Sustained for W entries — Conditions held for W consecutive entries (default: 2)
-4. Independent event observed — At least one event from a different day or source
+Configurable profiles (e.g. conservative vs aggressive) trade off stability vs responsiveness. *Default thresholds and profiles are in the appendix.*
 
-**Configuration Profiles:**
-
-| Profile | ALIGN | TRACE | Sustain | Use Case |
-| :---- | :---- | :---- | :---- | :---- |
-| Production | 0.60 | 0.60 | 2 | Default balanced approach |
-| Conservative | 0.65 | 0.65 | 3 | Sensitive users, high stability |
-| Aggressive | 0.55 | 0.55 | 1 | Rapid progression, experienced users |
-
-**Data Flow:**
-
-Journal Entry → PRISM Keyword Extraction → RivetEvent created → ALIGN/TRACE updated → Gate status evaluated → If gate open AND no SENTINEL block → Phase transition applied → PhaseRegime updated.
+**Data Flow:** Journal entry → PRISM keyword/thematic extraction → evidence events → ALIGN/TRACE updated → gate evaluated → if open and no SENTINEL block → phase transition applied → regime state updated.
 
 ### **SENTINEL — Temporal Crisis Detection & Wellbeing Monitoring**
 
@@ -251,32 +232,20 @@ SENTINEL monitors emotional clustering over time to detect emerging crisis patte
 
 **Core Mechanism: Temporal Clustering Analysis**
 
-| Window | Weight | Frequency Threshold |
-| :---- | :---- | :---- |
-| 1 day | 100% | 3 high-intensity entries |
-| 3 days | 70% | 5 high-intensity entries |
-| 7 days | 40% | 8 high-intensity entries |
-| 30 days | 10% | 15 high-intensity entries |
+SENTINEL uses rolling windows at multiple timescales (short to long, e.g. 1-day through 30-day) with weighted contribution and frequency thresholds per window. High emotional intensity clustered within a window raises the composite risk score. *Window lengths, weights, and thresholds are in the appendix.*
 
-**Scoring Components:** SENTINEL calculates a composite score (0.0 to 1.0) from four weighted dimensions:
+**Scoring Components:** SENTINEL computes a composite risk score from four dimensions:
 
-* Emotional Intensity (25%) — Raw magnitude of negative emotional language
-* Emotional Diversity (25%) — Whether distress is concentrated or diffuse across themes
-* Thematic Coherence (25%) — Repeated fixation on specific concerns (rumination signal)
-* Temporal Dynamics (25%) — Acceleration/deceleration of emotional load over time
+* **Emotional Intensity** — Magnitude of negative emotional language
+* **Emotional Diversity** — Whether distress is concentrated or diffuse across themes
+* **Thematic Coherence** — Repeated fixation on specific concerns (rumination signal)
+* **Temporal Dynamics** — Acceleration or deceleration of emotional load over time
 
-**Alert Triggers:**
+**Alert Triggers:** Explicit crisis language (e.g. self-harm, suicide) triggers immediate crisis mode. A dangerous phase transition flagged by RIVET can also trigger immediate activation. When the temporal clustering score exceeds a configured threshold, crisis mode is activated. Below threshold, normal operation continues.
 
-| Condition | Score | Action |
-| :---- | :---- | :---- |
-| Explicit crisis language (self-harm, suicide) | 1.0 (immediate) | Crisis mode activated |
-| RIVET dangerous phase transition | 1.0 (immediate) | Crisis mode activated |
-| Temporal clustering score ≥ 0.7 | Variable | Crisis mode activated |
-| Score < 0.7 | Variable | Normal operation continues |
+**Crisis Mode:** When activated, LUMARA responses prioritize safety and grounding; AURORA shifts to gentler tone; the interface surfaces crisis resources and check-in prompts.
 
-**Crisis Mode:** When activated, LUMARA responses prioritize safety and grounding; AURORA activates with gentler tone; UI surfaces crisis resources and check-in prompts.
-
-**Adaptive Configuration:** SENTINEL adapts to user journaling frequency (power user, frequent, weekly, sporadic) to prevent bias and ensure accurate detection.
+**Adaptive Configuration:** SENTINEL adapts to user journaling cadence (e.g. power user, frequent, weekly, sporadic) so that thresholds and normalization do not bias against sparse journalers. *Default weights and cadence-specific tuning are in the appendix.*
 
 ### **Seeking Classification — Intent Detection for Response Calibration**
 
@@ -304,11 +273,7 @@ This hierarchical structure (VEIL: Examine → Integrate → Link) achieves 50�
 
 ## **Vector Generation (On-Device)**
 
-CHRONICLE includes **on-device vector generation** for semantic matching and cross-temporal pattern indexing:
-
-* **Local Embedding Service** — TFLite Universal Sentence Encoder for sentence embeddings.
-* **ChronicleIndexBuilder** — Cross-temporal pattern index from monthly aggregation themes; clusters by embedding similarity; updated after each monthly synthesis.
-* **Three-Stage Matching** — Exact → cosine (embedding) → fuzzy for index-backed queries (e.g. "What themes have recurred over the years?").
+CHRONICLE includes **on-device vector generation** for semantic matching and cross-temporal pattern indexing: dominant themes from temporal aggregation are embedded locally, stored in a persistent index, and queried via a multi-stage retrieval strategy (exact match, similarity search, fallback) so that cross-year pattern questions can be answered without reprocessing raw history. *Implementation details (embedding model, index construction, retrieval pipeline) are documented in the appendix.*
 
 ## **Key Capabilities Enabled**
 
@@ -319,12 +284,14 @@ CHRONICLE includes **on-device vector generation** for semantic matching and cro
 
 ## **Secure Storage**
 
-* **Local Storage** — Hive NoSQL database for on-device persistence
-* **Encryption** — AES-256-GCM for archive exports
-* **Digital Signatures** — Ed25519 for archive verification
-* **MCP/ARCX** — Standards-compliant export/import (implementation under `lib/mira/`)
+* **Local Storage** — On-device persistent store for journal and memory data
+* **Encryption** — Strong encryption for archive exports
+* **Verification** — Digital signatures for archive integrity
+* **Export/Import** — Standards-compliant formats for portability and backup
 
-CHRONICLE is one of **three** LUMARA Orchestrator subsystems (ATLAS, CHRONICLE, AURORA); it supplies both recent context (Layer 0 + context selection) and longitudinal aggregations to the Master Prompt.
+*Specific storage technology, algorithms, and format names are in the appendix.*
+
+CHRONICLE is one of **three** LUMARA Orchestrator subsystems (ATLAS, CHRONICLE, AURORA); it supplies both recent context (Layer 0 + context selection) and longitudinal aggregations to the master prompt.
 
 ---
 
@@ -348,8 +315,8 @@ The Adaptive Framework represents EPI's capacity for user-adaptive calibration �
 
 ## **Signal Integration**
 
-* **Evidence Accumulation (RIVET)** — Tracks ALIGN and TRACE over 10-day rolling windows
-* **Phase Detection (ATLAS)** — Identifies developmental state; calculates readiness scores (0–100)
+* **Evidence Accumulation (RIVET)** — Tracks ALIGN and TRACE over configurable rolling windows
+* **Phase Detection (ATLAS)** — Identifies developmental state; calculates readiness scores on a normalized scale
 * **Keyword Trend Analysis (CHRONICLE)** — Extracts semantic patterns; vector-backed theme clustering
 * **Safety Monitoring (SENTINEL)** — Detects crisis signals requiring immediate escalation
 
@@ -370,21 +337,21 @@ ECHO is the response layer of EPI. It represents the voice of LUMARA — produci
 
 ## **Privacy Protection Pipeline**
 
-* **Rotating Aliases** — Session-specific identifiers
+* **Rotating Aliases** — Session-specific identifiers so the same entity is not linkable across sessions
 * **Session Rotation** — Identifiers rotate per session to prevent linkage
-* **Structured Payloads** — JSON abstractions instead of verbatim text
+* **Structured Payloads** — Abstracted representations (not verbatim text) sent to external models
 
 ### **Three-Tier Voice Engagement System**
 
-| Mode | Trigger Examples | Response Style | Word Limit |
-| :---- | :---- | :---- | :---- |
-| Reflect | Default (no triggers) | Surface pattern, then stop | 100 words |
-| Explore | "Analyze", "insight", "how has my week been" | Pattern analysis + one question | 200 words |
-| Integrate | "Go deeper", "connect the dots" | Cross-domain synthesis | 300 words |
+| Mode | Role | Response Style |
+| :---- | :---- | :---- |
+| **Reflect** | Default (no depth triggers) | Surface pattern, then stop; brief |
+| **Explore** | Deeper inquiry, time-period questions | Pattern analysis plus one question; medium depth |
+| **Integrate** | Synthesis requests | Cross-domain synthesis; longer |
 
-**Temporal Query Routing:** Questions about past time periods automatically trigger Explore mode with full memory retrieval. The engagement mode combines with seeking classification and phase detection:
+Trigger examples and response length bounds are configurable. *Defaults (keywords, word limits) are in the appendix.*
 
-User speaks → PRISM scrubs PII (on-device) → Depth classified (Reflect/Explore/Integrate) → Seeking classified → Phase prompt selected → LUMARA responds with calibrated tone, length, and style.
+**Temporal Query Routing:** Questions about past time periods route to Explore with full memory retrieval. Pipeline: user speaks → PRISM scrubs PII on-device → depth classified (Reflect/Explore/Integrate) → seeking classified → phase prompt selected → LUMARA responds with calibrated tone, length, and style.
 
 ---
 
@@ -420,11 +387,11 @@ Every AI treats you the same way regardless of what you're going through. Whethe
 | Breakthrough | ≥ 60 | Challenger | Growth-oriented challenge |
 | Consolidation | ≥ 50 | Strategist | Analytical integration |
 
-*Safety sentinel alerts always override to Therapist persona.*
+*Readiness is on a normalized scale; threshold values for this mapping are in the appendix. Safety sentinel alerts always override to Therapist persona.*
 
 ### **Phase-Specific Voice Prompts**
 
-Voice mode uses targeted prompts (~500 words each) tailored to each ATLAS phase. Each phase prompt includes phase-appropriate tone, capacity-adjusted response lengths, and explicit good/bad response examples.
+Voice mode uses targeted prompts tailored to each ATLAS phase: phase-appropriate tone, capacity-adjusted response length, and explicit good/bad response examples. *Prompt scope and length parameters are in the appendix.*
 
 **Same Question, Different Phases**
 
@@ -507,4 +474,4 @@ Contact: marc@orbitalai.net
 
 ---
 
-*Document aligned with EPI repo architecture (ARCHITECTURE.md, LUMARA_COMPLETE.md): 5-module (LUMARA interface, PRISM, CHRONICLE, AURORA, ECHO); LUMARA Orchestrator three subsystems (ATLAS, CHRONICLE, AURORA); CHRONICLE as memory layer including vector generation.*
+*Architecture: five modules (LUMARA interface, PRISM, CHRONICLE, AURORA, ECHO); ATLAS (Developmental Phase Engine, RIVET, SENTINEL) within PRISM; LUMARA Orchestrator coordinates ATLAS, CHRONICLE, AURORA; CHRONICLE provides memory and vector generation. Implementation details are in the appendix.*
