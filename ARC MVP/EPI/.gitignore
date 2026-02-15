@@ -555,5 +555,5 @@ Desktop.ini
 gcloud/
 google-cloud-sdk/
 
-# Moonshine on-device model binaries (exceed GitHub 100MB limit; fetch separately)
+# Moonshine on-device model binaries (not used; excluded from repo)
 ios/Runner/moonshine_models/
