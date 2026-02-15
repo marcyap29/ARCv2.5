@@ -829,12 +829,13 @@ class ExpandedEntryView extends StatelessWidget {
   void _openEntry(BuildContext context, String entryId) {
     JournalRepository().getJournalEntryById(entryId).then((e) {
       if (e != null && context.mounted) {
+        // Open in preview (ExpandedEntryView) instead of journal/editing screen
+        final feedEntry = FeedHelpers.journalEntryToFeedEntry(e);
         Navigator.of(context).push(
           MaterialPageRoute<void>(
-            builder: (context) => JournalScreen(
-              existingEntry: e,
-              isViewOnly: true,
-              openAsEdit: false,
+            builder: (context) => ExpandedEntryView(
+              entry: feedEntry,
+              onEntryDeleted: onEntryDeleted,
             ),
           ),
         );

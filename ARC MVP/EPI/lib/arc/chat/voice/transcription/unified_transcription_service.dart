@@ -1,17 +1,15 @@
 /// Unified Transcription Service
-/// 
-/// Provides seamless fallback between transcription backends:
-/// 1. Wispr Flow (admin only) - if marcyap@orbitalai.net has API key configured
-/// 2. Apple On-Device (default) - always available for all users, no network required
-/// 
-/// Note: Assembly AI has been removed. Wispr Flow is restricted to admin for testing.
-/// All other users get Apple On-Device transcription by default.
+///
+/// Backends: Wispr Flow (optional, via Settings) → Apple On-Device (primary).
+/// A mandatory cleanup pass (filler removal, corrections) is applied to final transcripts
+/// before PRISM.
 
 import 'dart:async';
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'ondevice_provider.dart';
 import 'transcription_provider.dart';
+import 'cleanup/transcript_cleanup_service.dart';
 import '../config/wispr_config_service.dart';
 import '../wispr/wispr_flow_service.dart';
 import '../../../../services/firebase_auth_service.dart';
@@ -60,18 +58,19 @@ class TranscriptionStartResult {
   }
 }
 
-/// Unified transcription service with automatic fallback
-/// 
-/// Fallback chain: Wispr (if admin + configured) → Apple On-Device
+/// Unified transcription service: Wispr (optional) or Apple On-Device (primary).
+///
+/// Cleanup applied to final transcripts.
 class UnifiedTranscriptionService {
   final WisprConfigService _wisprConfigService;
-  
+  final TranscriptCleanupService _cleanup = TranscriptCleanupService();
+
   UnifiedTranscriptionStatus _status = UnifiedTranscriptionStatus.idle;
   TranscriptionBackend _activeBackend = TranscriptionBackend.none;
-  
+
   // Providers
   WisprFlowService? _wisprService;
-  OnDeviceTranscriptionProvider? _onDeviceProvider;
+  TranscriptionProvider? _onDeviceProvider; // OnDeviceTranscriptionProvider (Apple)
   
   // Callbacks (unified interface)
   Function(String transcript, bool isFinal)? onTranscript;
@@ -104,27 +103,23 @@ class UnifiedTranscriptionService {
         return false;
     }
   }
-  
+
   /// Get human-readable name for active backend
   String get activeBackendName {
     switch (_activeBackend) {
       case TranscriptionBackend.wisprFlow:
         return 'Wispr Flow';
       case TranscriptionBackend.appleOnDevice:
-        return 'On-Device';
+        return 'Apple On-Device';
       case TranscriptionBackend.none:
         return 'None';
     }
   }
   
-  /// Initialize the service and determine best available backend
-  /// 
-  /// Priority (fallback chain):
-  /// 1. Wispr Flow (admin only - marcyap@orbitalai.net with API key configured)
-  /// 2. Apple On-Device (default) - always available for all users
+  /// Initialize the service and determine backend: Wispr (optional) or Apple On-Device (primary).
   Future<TranscriptionStartResult> initialize() async {
     _status = UnifiedTranscriptionStatus.initializing;
-    debugPrint('UnifiedTranscription: Initializing (Wispr admin-only → Apple On-Device)...');
+    debugPrint('UnifiedTranscription: Initializing (Wispr optional → Apple On-Device primary)...');
     
     // Check if current user is admin (Wispr is restricted to admin for testing)
     final currentUserEmail = FirebaseAuthService.instance.currentUser?.email?.toLowerCase();
@@ -183,26 +178,19 @@ class UnifiedTranscriptionService {
       debugPrint('UnifiedTranscription: Wispr Flow skipped (not admin user)');
     }
     
-    // Step 2: Use Apple On-Device transcription (default for all users)
-    debugPrint('UnifiedTranscription: Using Apple On-Device transcription...');
-    
+    // Step 2: Apple On-Device (primary and only on-device backend)
+    debugPrint('UnifiedTranscription: Initializing Apple On-Device...');
     _onDeviceProvider = OnDeviceTranscriptionProvider();
-    final onDeviceInitialized = await _onDeviceProvider!.initialize();
-    
-    if (onDeviceInitialized) {
+    final appleInitialized = await _onDeviceProvider!.initialize();
+    if (appleInitialized) {
       _activeBackend = TranscriptionBackend.appleOnDevice;
       _status = UnifiedTranscriptionStatus.ready;
-      
       debugPrint('UnifiedTranscription: Using Apple On-Device backend');
       return TranscriptionStartResult.success(TranscriptionBackend.appleOnDevice);
-    } else {
-      debugPrint('UnifiedTranscription: Apple On-Device failed to initialize');
     }
     
-    // Step 4: No backend available (shouldn't happen - on-device should always work)
     _status = UnifiedTranscriptionStatus.error;
     _activeBackend = TranscriptionBackend.none;
-    
     debugPrint('UnifiedTranscription: All backends failed!');
     return TranscriptionStartResult.error(
       'Voice transcription unavailable. Please check microphone permissions.',
@@ -250,16 +238,17 @@ class UnifiedTranscriptionService {
             onTranscript?.call(segment.text, false);
           },
           onFinalResult: (segment) {
-            onTranscript?.call(segment.text, true);
+            final cleaned = _cleanup.cleanup(segment.text);
+            onTranscript?.call(cleaned.isEmpty ? segment.text : cleaned, true);
           },
           onError: (error) {
             onError?.call(error);
           },
         );
         onConnected?.call();
-        debugPrint('UnifiedTranscription: Started Apple On-Device session');
+        debugPrint('UnifiedTranscription: Started on-device session ($activeBackendName)');
         return true;
-        
+
       case TranscriptionBackend.none:
         return false;
     }
@@ -312,11 +301,9 @@ class UnifiedTranscriptionService {
       case TranscriptionBackend.wisprFlow:
         _wisprService?.commitSession();
         break;
-        
       case TranscriptionBackend.appleOnDevice:
         await _onDeviceProvider?.stopListening();
         break;
-        
       case TranscriptionBackend.none:
         break;
     }
@@ -334,12 +321,11 @@ class UnifiedTranscriptionService {
         _wisprService?.dispose();
         _wisprService = null;
         break;
-        
       case TranscriptionBackend.appleOnDevice:
         await _onDeviceProvider?.stopListening();
+        await _onDeviceProvider?.dispose();
         _onDeviceProvider = null;
         break;
-        
       case TranscriptionBackend.none:
         break;
     }

@@ -109,6 +109,9 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
   /// Bumped when returning from Phase view so the phase preview reloads (user may have changed phase).
   int _phasePreviewRefreshKey = 0;
 
+  /// When true and feed is empty, show the welcome screen. When false, show the empty timeline (Chat/Reflect/Voice).
+  bool _showWelcomeWhenEmpty = true;
+
   StreamSubscription<List<FeedEntry>>? _feedSubscription;
 
   @override
@@ -544,7 +547,10 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
   }
 
   Widget _buildFeedContent() {
-    if (_entries.isEmpty) return _buildEmptyState();
+    if (_entries.isEmpty) {
+      if (_showWelcomeWhenEmpty) return _buildEmptyState();
+      return _buildEmptyTimeline();
+    }
 
     final grouped = FeedHelpers.groupByDate(_entries);
 
@@ -1310,6 +1316,73 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
     }
   }
 
+  /// Empty timeline: same layout as the feed (greeting, phase, Chat|Reflect|Voice) with no entries.
+  Widget _buildEmptyTimeline() {
+    return RefreshIndicator(
+      onRefresh: () async {
+        await _feedRepo.refresh();
+        PhaseRegimeService.regimeChangeNotifier.value = DateTime.now();
+        UserPhaseService.phaseChangeNotifier.value = DateTime.now();
+      },
+      color: kcPrimaryColor,
+      backgroundColor: kcSurfaceColor,
+      child: CustomScrollView(
+        controller: _scrollController,
+        physics: const AlwaysScrollableScrollPhysics(),
+        slivers: [
+          SliverToBoxAdapter(child: _buildGreetingHeader()),
+          SliverToBoxAdapter(child: _buildHeaderActions()),
+          SliverToBoxAdapter(child: _buildSelectionModeBar()),
+          SliverToBoxAdapter(
+            child: KeyedSubtree(
+              key: ValueKey('phase_preview_$_phasePreviewRefreshKey'),
+              child: SimplifiedArcformView3D(
+                cardOnly: true,
+                onCardTap: () async {
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const PhaseAnalysisView(),
+                    ),
+                  );
+                  if (mounted) setState(() => _phasePreviewRefreshKey++);
+                },
+              ),
+            ),
+          ),
+          SliverToBoxAdapter(
+            child: KeyedSubtree(
+              key: ValueKey('phase_journey_$_phasePreviewRefreshKey'),
+              child: _PhaseJourneyGanttCard(),
+            ),
+          ),
+          SliverToBoxAdapter(child: _buildCommunicationActions()),
+          if (_currentViewingDate != null)
+            SliverToBoxAdapter(child: _buildDateContextBanner()),
+          SliverToBoxAdapter(child: _buildLumaraObservationBanner()),
+          const SliverToBoxAdapter(child: SizedBox(height: 4)),
+          SliverToBoxAdapter(
+            child: FeedHelpers.buildDateDivider('Today', entryCount: 0),
+          ),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+              child: Text(
+                'Your entries will appear here. Use Chat, Reflect, or Voice above to get started.',
+                style: TextStyle(
+                  color: kcSecondaryTextColor.withOpacity(0.7),
+                  fontSize: 14,
+                  height: 1.5,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildEmptyState() {
     return SafeArea(
       child: Stack(
@@ -1376,7 +1449,11 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
                     ),
                     textAlign: TextAlign.center,
                   ),
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 28),
+
+                  // Get started — go to empty timeline (Chat / Reflect / Voice)
+                  _buildGetStartedButton(),
+                  const SizedBox(height: 20),
 
                   // Phase Quiz button — prominent, centered
                   _buildPhaseQuizButton(),
@@ -1417,6 +1494,39 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  /// Get started button — takes user to the empty timeline (Chat / Reflect / Voice).
+  Widget _buildGetStartedButton() {
+    return GestureDetector(
+      onTap: () {
+        setState(() => _showWelcomeWhenEmpty = false);
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
+        decoration: BoxDecoration(
+          color: kcSurfaceAltColor,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: kcPrimaryColor.withOpacity(0.4)),
+        ),
+        child: const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.play_arrow, color: kcPrimaryColor, size: 22),
+            SizedBox(width: 10),
+            Text(
+              'Get started',
+              style: TextStyle(
+                color: kcPrimaryColor,
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.3,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

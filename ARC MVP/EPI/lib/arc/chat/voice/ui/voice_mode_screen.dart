@@ -73,7 +73,11 @@ class _VoiceModeScreenState extends State<VoiceModeScreen> {
   final VoiceUsageService _usageService = VoiceUsageService.instance;
   DateTime? _sessionStartTime;
   VoiceUsageStats? _usageStats;
-  
+
+  /// Chat bubbles built from completed turns (user + LUMARA per turn)
+  final List<_VoiceChatMessage> _chatMessages = [];
+  final ScrollController _scrollController = ScrollController();
+
   @override
   void initState() {
     super.initState();
@@ -82,6 +86,17 @@ class _VoiceModeScreenState extends State<VoiceModeScreen> {
   }
   
   void _setupCallbacks() {
+    widget.sessionService.onBackendStatusMessage = (message) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          duration: const Duration(seconds: 2),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    };
+
     widget.sessionService.onStateChanged = (state) {
       if (!mounted) return;
       _previousState = _state;
@@ -105,6 +120,7 @@ class _VoiceModeScreenState extends State<VoiceModeScreen> {
     widget.sessionService.onTranscriptUpdate = (transcript) {
       if (!mounted) return;
       setState(() => _currentTranscript = transcript);
+      _scrollToBottom();
     };
     
     widget.sessionService.onLumaraResponse = (response) {
@@ -120,7 +136,12 @@ class _VoiceModeScreenState extends State<VoiceModeScreen> {
     
     widget.sessionService.onTurnComplete = (turn) {
       if (!mounted) return;
-      setState(() => _turnCount++);
+      setState(() {
+        _turnCount++;
+        _chatMessages.add(_VoiceChatMessage(isUser: true, text: turn.userText));
+        _chatMessages.add(_VoiceChatMessage(isUser: false, text: turn.lumaraResponse));
+      });
+      _scrollToBottom();
     };
     
     widget.sessionService.onError = (error) {
@@ -462,8 +483,20 @@ class _VoiceModeScreenState extends State<VoiceModeScreen> {
     debugPrint('VoiceModeScreen: Session ended');
   }
   
+  void _scrollToBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_scrollController.hasClients) return;
+      _scrollController.animateTo(
+        _scrollController.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+    });
+  }
+
   @override
   void dispose() {
+    _scrollController.dispose();
     widget.sessionService.dispose();
     super.dispose();
   }
@@ -494,71 +527,177 @@ class _VoiceModeScreenState extends State<VoiceModeScreen> {
         ],
       ),
       body: SafeArea(
-        child: Column(
+        child: Stack(
           children: [
-            // Phase indicator
-            _buildPhaseIndicator(),
-
-            const SizedBox(height: 8),
-
-            // Engagement mode dropdown (Default / Explore / Integrate)
-            _buildEngagementModeDropdown(),
-
-            const SizedBox(height: 4),
-
-            // Usage indicator (for free users)
-            _buildUsageIndicator(),
-
-            const SizedBox(height: 8),
-
-            // Transcript display (above sigil) with 1s transition
-            Expanded(
-              flex: 1,
-              child: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 1000),
-                child: KeyedSubtree(
-                  key: ValueKey<String>('transcript_${_state.name}_$_showRecordingUI'),
-                  child: _buildTranscriptDisplay(),
-                ),
+            // Background: voice sigil + state label (semi-transparent so chat is readable)
+            Positioned.fill(
+              child: Center(
+                child: _buildVoiceSigilBackground(),
               ),
             ),
-
-            const SizedBox(height: 8),
-
-            // Voice sigil (center) - fade when transcript visible for readability
-            _buildVoiceSigil(),
-            
-            const SizedBox(height: 8),
-            
-            // LUMARA response display (below sigil) - fade in when LUMARA talks
-            Expanded(
-              flex: 2,
-              child: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 800),
-                transitionBuilder: (Widget child, Animation<double> animation) {
-                  return FadeTransition(opacity: animation, child: child);
-                },
-                child: KeyedSubtree(
-                  key: ValueKey<String>(
-                    'lumara_${_state.name}_${_lastLumaraResponse.isNotEmpty}_$_turnCount',
+            // Foreground: scrolling chat + controls
+            Column(
+              children: [
+                _buildPhaseIndicator(),
+                const SizedBox(height: 8),
+                _buildEngagementModeDropdown(),
+                const SizedBox(height: 4),
+                _buildUsageIndicator(),
+                const SizedBox(height: 8),
+                Expanded(
+                  child: _buildChatList(),
+                ),
+                const SizedBox(height: 12),
+                _buildControls(),
+                const SizedBox(height: 12),
+              ],
+            ),
+            // Tap-to-talk: transparent overlay over sigil area
+            Positioned.fill(
+              child: Center(
+                child: IgnorePointer(
+                  ignoring: _state != VoiceSessionState.idle && _state != VoiceSessionState.listening,
+                  child: GestureDetector(
+                    onTap: _handleSigilTap,
+                    behavior: HitTestBehavior.opaque,
+                    child: const SizedBox(width: 220, height: 220),
                   ),
-                  child: _buildLumaraResponseDisplay(),
                 ),
               ),
             ),
-            
-            const SizedBox(height: 12),
-            
-            // Controls
-            _buildControls(),
-            
-            const SizedBox(height: 12),
           ],
         ),
       ),
     );
   }
   
+  Widget _buildChatList() {
+    const lumaraPurple = Color(0xFF7C3AED);
+    final hasPendingUser = _currentTranscript.trim().isNotEmpty;
+    final showPendingLumara = (_state == VoiceSessionState.waitingForLumara ||
+            _state == VoiceSessionState.speaking) &&
+        _lastLumaraResponse.trim().isNotEmpty;
+    var itemCount = _chatMessages.length;
+    if (hasPendingUser) itemCount += 1;
+    if (showPendingLumara) itemCount += 1;
+
+    if (itemCount == 0) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Text(
+            _isFirstTurn && _state == VoiceSessionState.idle
+                ? 'Tap the orb to start speaking.\nYour conversation will appear here.'
+                : 'Say something and tap the orb when done.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: Colors.white.withOpacity(0.5),
+              fontSize: 15,
+              height: 1.4,
+            ),
+          ),
+        ),
+      );
+    }
+
+    return ListView.builder(
+      controller: _scrollController,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      itemCount: itemCount,
+      itemBuilder: (context, index) {
+        if (index < _chatMessages.length) {
+          final msg = _chatMessages[index];
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: _buildChatBubble(
+              isUser: msg.isUser,
+              text: msg.text,
+              lumaraPurple: lumaraPurple,
+            ),
+          );
+        }
+        if (hasPendingUser && index == _chatMessages.length) {
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: _buildChatBubble(
+              isUser: true,
+              text: _currentTranscript,
+              lumaraPurple: lumaraPurple,
+              isPending: true,
+            ),
+          );
+        }
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: _buildChatBubble(
+            isUser: false,
+            text: _lastLumaraResponse,
+            lumaraPurple: lumaraPurple,
+            isPending: true,
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildChatBubble({
+    required bool isUser,
+    required String text,
+    required Color lumaraPurple,
+    bool isPending = false,
+  }) {
+    return Align(
+      alignment: isUser ? Alignment.centerLeft : Alignment.centerRight,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.85),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: isUser
+                ? Colors.white.withOpacity(isPending ? 0.12 : 0.1)
+                : lumaraPurple.withOpacity(0.2),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: isUser
+                  ? Colors.white.withOpacity(0.2)
+                  : lumaraPurple.withOpacity(0.4),
+              width: 1,
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                isUser ? 'YOU' : 'LUMARA',
+                style: TextStyle(
+                  color: isUser
+                      ? Colors.white.withOpacity(0.6)
+                      : lumaraPurple.withOpacity(0.95),
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 1.1,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                text,
+                style: TextStyle(
+                  color: isUser
+                      ? Colors.white.withOpacity(0.95)
+                      : lumaraPurple.withOpacity(1.0),
+                  fontSize: 15,
+                  height: 1.45,
+                ),
+                textAlign: TextAlign.left,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildPhaseIndicator() {
     final phase = widget.sessionService.currentPhase;
     final phaseColor = _getPhaseColor(phase);
@@ -727,339 +866,23 @@ class _VoiceModeScreenState extends State<VoiceModeScreen> {
     );
   }
   
-  static const double _transcriptMaxHeight = 140;
-  static const int _longTranscriptChars = 200;
-
-  Widget _buildTranscriptDisplay() {
-    // First turn idle state - no transcript to show, instructions are below sigil
-    if (_isFirstTurn && _state == VoiceSessionState.idle) {
-      return const SizedBox(); // Instructions are now shown below sigil via VoiceSigilStateLabel
-    }
-
-    // Show listening state with 2s transition then fade-in: "Preparing..." then "Recording"
-    if (_state == VoiceSessionState.listening) {
-      final showRecordingPill = _showRecordingUI;
-      final isLongTranscript = _currentTranscript.length > _longTranscriptChars;
-      final transcriptFontSize = isLongTranscript ? 14.0 : 18.0;
-
-      return ConstrainedBox(
-        constraints: const BoxConstraints(maxHeight: _transcriptMaxHeight),
-        child: SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: AnimatedOpacity(
-            duration: const Duration(milliseconds: 400),
-            opacity: showRecordingPill ? 1.0 : 0.5,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Recording / Preparing indicator (Recording after 2s, then fade in)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: showRecordingPill
-                        ? Colors.red.withOpacity(0.2)
-                        : Colors.white.withOpacity(0.08),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        width: 8,
-                        height: 8,
-                        decoration: BoxDecoration(
-                          color: showRecordingPill ? Colors.red : Colors.white54,
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        showRecordingPill ? 'Recording' : 'Preparing...',
-                        style: TextStyle(
-                          color: showRecordingPill ? Colors.red.shade300 : Colors.white54,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 12),
-                // Real-time transcript in a distinct "You" container (not LUMARA purple)
-                if (_currentTranscript.isNotEmpty) ...[
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.07),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.white.withOpacity(0.18)),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'YOU',
-                          style: TextStyle(
-                            color: Colors.white.withOpacity(0.55),
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 1.1,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          _currentTranscript,
-                          style: TextStyle(
-                            color: Colors.white.withOpacity(0.95),
-                            fontSize: transcriptFontSize,
-                            height: 1.45,
-                          ),
-                          textAlign: TextAlign.left,
-                          maxLines: isLongTranscript ? 8 : 4,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
-                    ),
-                  ),
-                ] else ...[
-                  Text(
-                    'Listening...',
-                    style: TextStyle(
-                      color: Colors.white.withOpacity(0.35),
-                      fontSize: 15,
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ),
-      );
-    }
-    
-    // Show processing state (constrained height, distinct "You" container)
-    if (_state == VoiceSessionState.processingTranscript ||
-        _state == VoiceSessionState.scrubbing ||
-        _state == VoiceSessionState.waitingForLumara) {
-      if (_currentTranscript.isEmpty) return const SizedBox();
-      final isLong = _currentTranscript.length > _longTranscriptChars;
-      return Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxHeight: _transcriptMaxHeight),
-          child: SingleChildScrollView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.07),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.white.withOpacity(0.18)),
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'YOU',
-                    style: TextStyle(
-                      color: Colors.white.withOpacity(0.55),
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 1.1,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    _currentTranscript,
-                    style: TextStyle(
-                      color: Colors.white.withOpacity(0.9),
-                      fontSize: isLong ? 14 : 16,
-                      height: 1.45,
-                    ),
-                    textAlign: TextAlign.left,
-                    maxLines: isLong ? 8 : 5,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      );
-    }
-
-    // Default empty state
-    if (_currentTranscript.isEmpty) {
-      return const SizedBox();
-    }
-
-    // When LUMARA is speaking or thinking: collapse user transcript to one line so LUMARA's answer is clearly the focus
-    if (_state == VoiceSessionState.speaking || _state == VoiceSessionState.waitingForLumara) {
-      const previewLen = 52;
-      final preview = _currentTranscript.length <= previewLen
-          ? _currentTranscript
-          : '${_currentTranscript.substring(0, previewLen)}…';
-      return Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.08),
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: Colors.white.withOpacity(0.15)),
-          ),
-          child: Row(
-            children: [
-              Text(
-                'You: ',
-                style: TextStyle(
-                  color: Colors.white.withOpacity(0.6),
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              Expanded(
-                child: Text(
-                  preview,
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.85),
-                    fontSize: 13,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    // Past turn transcript (constrained, readable) with clear "You" container
-    final isLong = _currentTranscript.length > _longTranscriptChars;
-    return ConstrainedBox(
-      constraints: const BoxConstraints(maxHeight: _transcriptMaxHeight),
-      child: SingleChildScrollView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.symmetric(horizontal: 24),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.07),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.white.withOpacity(0.18)),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'YOU',
-                style: TextStyle(
-                  color: Colors.white.withOpacity(0.55),
-                  fontSize: 10,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 1.1,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                _currentTranscript,
-                style: TextStyle(
-                  color: Colors.white.withOpacity(0.95),
-                  fontSize: isLong ? 14 : 18,
-                  height: 1.45,
-                ),
-                textAlign: TextAlign.left,
-                maxLines: isLong ? 8 : 4,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-  
-  Widget _buildLumaraResponseDisplay() {
-    if (_lastLumaraResponse.isEmpty) {
-      return const SizedBox();
-    }
-
-    const lumaraPurple = Color(0xFF7C3AED);
-
-    return SizedBox.expand(
-      child: SingleChildScrollView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          decoration: BoxDecoration(
-            color: lumaraPurple.withOpacity(0.12),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: lumaraPurple.withOpacity(0.35), width: 1),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'LUMARA',
-                style: TextStyle(
-                  color: lumaraPurple.withOpacity(0.9),
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 1.2,
-                ),
-              ),
-              const SizedBox(height: 10),
-              Text(
-                _lastLumaraResponse,
-                style: const TextStyle(
-                  color: lumaraPurple,
-                  fontSize: 17,
-                  height: 1.5,
-                ),
-                textAlign: TextAlign.left,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-  
-  Widget _buildVoiceSigil() {
-    final transcriptVisible = _currentTranscript.isNotEmpty &&
-        (_state == VoiceSessionState.listening ||
-            _state == VoiceSessionState.processingTranscript ||
-            _state == VoiceSessionState.scrubbing ||
-            _state == VoiceSessionState.waitingForLumara);
-    final sigilOpacity = transcriptVisible ? 0.55 : 1.0;
-
-    return Center(
+  /// Background layer: sigil + label with reduced opacity (tap handled by overlay).
+  Widget _buildVoiceSigilBackground() {
+    return AnimatedOpacity(
+      duration: const Duration(milliseconds: 400),
+      opacity: 0.5,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          AnimatedOpacity(
-            duration: const Duration(milliseconds: 400),
-            opacity: sigilOpacity,
-            child: VoiceSigil(
-              state: _mapToSigilState(_state),
-              currentPhase: widget.sessionService.currentPhase,
-              audioLevel: _audioLevel,
-              commitmentLevel: _commitmentLevel,
-              onTap: _handleSigilTap,
-              size: 200,
-            ),
+          VoiceSigil(
+            state: _mapToSigilState(_state),
+            currentPhase: widget.sessionService.currentPhase,
+            audioLevel: _audioLevel,
+            commitmentLevel: _commitmentLevel,
+            onTap: () {}, // Tap-to-talk is handled by overlay
+            size: 200,
           ),
-
           const SizedBox(height: 16),
-
-          // State label with 1s transition to avoid jerk
           AnimatedSwitcher(
             duration: const Duration(milliseconds: 1000),
             child: KeyedSubtree(
@@ -1074,7 +897,7 @@ class _VoiceModeScreenState extends State<VoiceModeScreen> {
       ),
     );
   }
-  
+
   /// Handle tap on sigil for tap-to-toggle interaction
   void _handleSigilTap() {
     switch (_state) {
@@ -1141,6 +964,14 @@ class _VoiceModeScreenState extends State<VoiceModeScreen> {
       ),
     );
   }
+}
+
+/// Single message in the voice chat list (user or LUMARA).
+class _VoiceChatMessage {
+  final bool isUser;
+  final String text;
+
+  const _VoiceChatMessage({required this.isUser, required this.text});
 }
 
 /// Inline modal widget for voice processing choice

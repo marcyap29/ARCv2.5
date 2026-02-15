@@ -5,7 +5,10 @@
 /// and other shared helpers.
 
 import 'package:flutter/material.dart';
+import 'package:my_app/core/constants/phase_colors.dart';
+import 'package:my_app/arc/unified_feed/models/entry_state.dart';
 import 'package:my_app/arc/unified_feed/models/feed_entry.dart';
+import 'package:my_app/models/journal_entry_model.dart';
 
 /// Utility class for feed-related helpers.
 class FeedHelpers {
@@ -271,5 +274,66 @@ class FeedHelpers {
     final minutes = (wordCount / 200).ceil(); // ~200 WPM reading speed
     if (minutes <= 1) return '< 1 min read';
     return '$minutes min read';
+  }
+
+  /// Build a FeedEntry from a JournalEntry (e.g. for opening related entries in preview).
+  static FeedEntry journalEntryToFeedEntry(JournalEntry entry) {
+    final bool isConversation = entry.lumaraBlocks.isNotEmpty;
+    final bool isVoiceMemo =
+        entry.audioUri != null && entry.audioUri!.isNotEmpty;
+
+    FeedEntryType type;
+    if (isVoiceMemo) {
+      type = FeedEntryType.voiceMemo;
+    } else if (isConversation) {
+      type = FeedEntryType.savedConversation;
+    } else {
+      type = FeedEntryType.reflection;
+    }
+
+    final phase = entry.computedPhase;
+    final phaseColor = phase != null && phase.isNotEmpty ? PhaseColors.getPhaseColor(phase) : null;
+
+    final themes = <String>[];
+    if (entry.metadata != null && entry.metadata!['themes'] != null) {
+      final rawThemes = entry.metadata!['themes'];
+      if (rawThemes is List) {
+        themes.addAll(rawThemes.cast<String>());
+      }
+    }
+
+    String title = entry.title;
+    if (title.isEmpty) {
+      final content = entry.content.trim();
+      if (content.isEmpty) {
+        title = 'Untitled Entry';
+      } else {
+        final firstLine = content.split('\n').first.trim();
+        title = firstLine.length <= 50 ? firstLine : '${firstLine.substring(0, 47)}...';
+      }
+    }
+
+    return FeedEntry(
+      id: 'journal_${entry.id}',
+      type: type,
+      timestamp: entry.createdAt,
+      state: EntryState.saved,
+      title: title,
+      content: entry.content,
+      themes: themes,
+      exchangeCount: isConversation ? entry.lumaraBlocks.length : null,
+      phase: phase,
+      phaseColor: phaseColor,
+      mood: entry.emotion ?? entry.mood,
+      isPinned: false,
+      hasLumaraReflections: entry.lumaraBlocks.isNotEmpty,
+      hasMedia: entry.media.isNotEmpty,
+      mediaCount: entry.media.length,
+      mediaItems: entry.media,
+      tags: entry.tags,
+      journalEntryId: entry.id,
+      audioPath: isVoiceMemo ? entry.audioUri : null,
+      metadata: entry.metadata ?? {},
+    );
   }
 }

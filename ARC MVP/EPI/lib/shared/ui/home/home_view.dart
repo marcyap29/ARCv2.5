@@ -28,6 +28,7 @@ import 'package:my_app/arc/chat/voice/ui/voice_mode_screen.dart';
 import 'package:my_app/arc/chat/voice/ui/voice_transition_screen.dart';
 import 'package:my_app/arc/chat/voice/config/voice_system_initializer.dart';
 import 'package:my_app/arc/chat/voice/services/voice_session_service.dart';
+import 'package:my_app/arc/chat/voice/voice_permissions.dart';
 import 'package:my_app/arc/chat/services/enhanced_lumara_api.dart';
 import 'package:my_app/arc/internal/echo/prism_adapter.dart';
 import 'package:my_app/services/firebase_auth_service.dart';
@@ -521,6 +522,46 @@ class _HomeViewState extends State<HomeView> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Please sign in to use voice mode'),
+          duration: Duration(seconds: 3),
+        ),
+      );
+      return;
+    }
+
+    // Request microphone (and speech recognition) before opening voice so the system
+    // prompt appears and the user can grant access before any capture or STT runs.
+    final permState = await VoicePermissions.request();
+    if (permState == VoicePermState.permanentlyDenied) {
+      if (!mounted) return;
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Microphone Permission Required'),
+          content: const Text(
+            'Voice mode needs microphone access to record and transcribe. Please enable it in Settings.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(ctx).pop();
+                VoicePermissions.openSettings();
+              },
+              child: const Text('Open Settings'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+    if (permState != VoicePermState.allGranted) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Voice mode needs microphone access to continue'),
           duration: Duration(seconds: 3),
         ),
       );

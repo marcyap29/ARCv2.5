@@ -196,8 +196,16 @@ class FeedEntry {
   /// Pattern to strip "## Summary\n\n...\n\n---\n\n" prefix from content for preview display.
   static final _summaryPrefix = RegExp(r'^## Summary\s*\n\n.+?\n\n---\n\n', dotAll: true);
 
-  /// Preview text (body without summary header, first 200 chars)
+  /// Preview text (body without summary header, first 200 chars).
+  /// For voice entries, uses metadata['narrativeSummary'] when present.
   String get preview {
+    final raw = metadata['narrativeSummary'];
+    if (raw != null && raw is String) {
+      final summary = raw;
+      if (summary.isNotEmpty) {
+        return summary.length > 200 ? '${summary.substring(0, 197)}...' : summary;
+      }
+    }
     if (content is String && (content as String).isNotEmpty) {
       // Strip the "## Summary...---" block so preview shows the actual body text
       String text = (content as String).replaceFirst(_summaryPrefix, '').trim();

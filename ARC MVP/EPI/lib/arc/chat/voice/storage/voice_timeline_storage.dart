@@ -129,10 +129,28 @@ class VoiceTimelineStorage {
     return title;
   }
   
-  /// Build metadata for voice entry
+  /// Build a short narrative summary for list/preview display (2–4 sentences).
+  String _buildNarrativeSummary(VoiceSession session) {
+    if (session.turns.isEmpty) {
+      return 'Voice conversation with LUMARA (no turns).';
+    }
+    final first = session.turns.first;
+    final duration = _formatDuration(session.totalDuration);
+    final n = session.turnCount;
+    final topic = first.userText.length > 60
+        ? '${first.userText.substring(0, 57).trim()}...'
+        : first.userText.trim();
+    if (n == 1) {
+      return 'You reflected on $topic. LUMARA responded. ($duration)';
+    }
+    return 'You had a $n-turn voice conversation with LUMARA, starting with: $topic. ($duration)';
+  }
+
+  /// Build metadata for voice entry (includes narrativeSummary for list display).
   Map<String, dynamic> _buildMetadata(VoiceSession session) {
     return {
       'entryType': 'voice_conversation',
+      'narrativeSummary': _buildNarrativeSummary(session),
       'voiceSession': {
         'sessionId': session.sessionId,
         'turnCount': session.turnCount,

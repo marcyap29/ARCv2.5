@@ -18,6 +18,7 @@ import 'package:uuid/uuid.dart';
 import '../audio/audio_capture_service.dart';
 import '../endpoint/smart_endpoint_detector.dart';
 import '../transcription/unified_transcription_service.dart';
+import '../voice_permissions.dart';
 import '../../../internal/echo/prism_adapter.dart';
 import '../voice_journal/tts_client.dart';
 import '../prompts/voice_response_builders.dart'; // For VoiceResponseConfig only
@@ -262,6 +263,16 @@ class VoiceSessionService {
     _usingOnDeviceFallback = false;
     
     try {
+      // Request microphone (and speech recognition) before any capture or STT runs.
+      // This ensures the system prompt has been shown and the user has granted access.
+      final permState = await VoicePermissions.request();
+      if (permState != VoicePermState.allGranted) {
+        debugPrint('VoiceSession: Permissions not granted ($permState)');
+        onError?.call('Microphone permission required');
+        _updateState(VoiceSessionState.error);
+        return false;
+      }
+
       // Initialize unified transcription service (handles backend selection)
       final result = await _unifiedTranscription.initialize();
       
@@ -273,11 +284,10 @@ class VoiceSessionService {
             debugPrint('VoiceSession: Using Wispr Flow (user API key)');
             onBackendStatusMessage?.call('Using Wispr Flow');
             break;
-            
           case TranscriptionBackend.appleOnDevice:
             debugPrint('VoiceSession: Using Apple On-Device');
+            onBackendStatusMessage?.call('Using Apple On-Device');
             break;
-            
           case TranscriptionBackend.none:
             break;
         }
@@ -363,8 +373,10 @@ class VoiceSessionService {
       return;
     }
     
-    // Start audio capture (only needed for some backends)
-    await _audioCapture.startRecording();
+    // Start audio capture only for Wispr (streaming). Apple on-device uses its own mic.
+    if (_unifiedTranscription.activeBackend == TranscriptionBackend.wisprFlow) {
+      await _audioCapture.startRecording();
+    }
     
     // Start endpoint detector
     _endpointDetector.start();
@@ -438,10 +450,8 @@ class VoiceSessionService {
     // (recorder may emit in chunks; stopping too soon can yield 0 packets and empty transcript)
     if (_unifiedTranscription.activeBackend == TranscriptionBackend.wisprFlow) {
       await Future.delayed(const Duration(milliseconds: 400));
+      await _audioCapture.stopRecording();
     }
-    
-    // Stop audio capture
-    await _audioCapture.stopRecording();
     
     // Stop endpoint detector
     _endpointDetector.stop();

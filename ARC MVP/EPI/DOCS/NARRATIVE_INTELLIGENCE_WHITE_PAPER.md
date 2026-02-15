@@ -24,17 +24,7 @@ January 2025
 
 ---
 
-## **Product Architecture**
-
-The EPI ecosystem consists of three layers:
-
-* **LUMARA** — The intelligent journaling application. LUMARA is the product users interact with: the timeline, journaling surface, and chat interface. The name reflects life-aware, unified memory and reflection.
-* **Narrative Intelligence** — The architectural framework powering LUMARA, comprising five synergistic modules.
-* **LUMARA (assistant)** — The AI companion within LUMARA: the Life-aware Unified Memory And Reflection Assistant that produces phase-aware, context-aware responses.
-
----
-
-## **Core Architecture: Five Synergistic Modules**
+## **Product Architecture: Five Synergistic Modules**
 
 * **LUMARA (interface)** — User-facing timeline and interface: journaling, chat, Arcform visualization. The surface through which users interact; data flows into CHRONICLE (Layer 0) and is consumed by the LUMARA Orchestrator.
 * **PRISM** — Multimodal perception layer with phase detection (ATLAS), evidence gating (RIVET), and safety monitoring (SENTINEL).
@@ -66,7 +56,7 @@ The **LUMARA Orchestrator** coordinates **three subsystems** — ATLAS, CHRONICL
 
 # **Market Context**
 
-**Bottom Line:** EPI has no direct competitor. The market has fragmented into narrow categories, but no player combines phase-aware developmental intelligence, narrative memory, circadian orchestration, and privacy-maximized frontier AI access.
+**Bottom Line:** Narrative Intelligence has no direct competitor. The market has fragmented into narrow categories, but no player combines phase-aware developmental intelligence, narrative memory, circadian orchestration, and privacy-maximized frontier AI access.
 
 ## **Market Landscape**
 
@@ -458,7 +448,6 @@ And because it remembers *with* you, not *for* you — it earns trust.
 
 **The era of Narrative Intelligence begins now.**
 
-*To enable coherence, and preserve the dignity of the human spirit. — The Principle of EPI*
 
 ---
 
