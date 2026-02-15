@@ -1,7 +1,7 @@
 # Configuration Management & Documentation Tracking
 
 **Lead Configuration Management Analyst:** Active  
-**Last Updated:** February 15, 2026 (v3.3.32)  
+**Last Updated:** February 15, 2026 (v3.3.33)  
 **Status:** ✅ All Documents Synced with Repo
 
 ---
@@ -38,12 +38,12 @@ Prompt/role definitions: **Ultimate Documentation, Configuration Management and 
 
 | Document | Location | Last Reviewed | Status | Notes |
 |----------|----------|---------------|--------|-------|
-| ARCHITECTURE.md | `/DOCS/ARCHITECTURE.md` | 2026-02-15 | ✅ Synced | v3.3.32 - Expanded entry, related entries (doc sync) |
-| CHANGELOG.md | `/DOCS/CHANGELOG.md` | 2026-02-15 | ✅ Synced | v3.3.32 - ExpandedEntryView, RelatedEntriesService |
-| PROMPT_REFERENCES.md | `/DOCS/PROMPT_REFERENCES.md` | 2026-02-15 | ✅ Synced | v2.3.0 - Prompt audit (no new prompts) |
-| PROMPT_TRACKER.md | `/DOCS/PROMPT_TRACKER.md` | 2026-02-15 | ✅ Synced | v1.4.0 - Doc sync |
+| ARCHITECTURE.md | `/DOCS/ARCHITECTURE.md` | 2026-02-15 | ✅ Synced | v3.3.33 - Doc sync |
+| CHANGELOG.md | `/DOCS/CHANGELOG.md` | 2026-02-15 | ✅ Synced | v3.3.33 - Master prompt, control state, Narrative Intelligence docs |
+| PROMPT_REFERENCES.md | `/DOCS/PROMPT_REFERENCES.md` | 2026-02-15 | ✅ Synced | v2.3.0 - Master prompt expansion documented in MASTER_PROMPT_CHRONICLE_VECTORIZATION |
+| PROMPT_TRACKER.md | `/DOCS/PROMPT_TRACKER.md` | 2026-02-15 | ✅ Synced | v1.4.0 - Master prompt expansion row |
 | bug_tracker.md | `/DOCS/bugtracker/bug_tracker.md` | 2026-02-15 | ✅ Synced | v3.2.5 - 34 records; tracked in doc sync |
-| FEATURES.md | `/DOCS/FEATURES.md` | 2026-02-15 | ✅ Synced | v3.3.32 - Doc sync |
+| FEATURES.md | `/DOCS/FEATURES.md` | 2026-02-15 | ✅ Synced | v3.3.33 - Doc sync |
 | README.md | `/DOCS/README.md` | 2026-02-07 | ✅ Synced | Key docs table with purpose and when to read |
 | claude.md | `/DOCS/claude.md` | 2026-02-13 | ✅ Synced | TOC — Prompts; consolidated Doc/Config/Git Backup prompt; TOC aligned with current sections |
 | backend.md | `/DOCS/backend.md` | 2026-02-11 | ✅ Synced | v3.3 - proxyGroq (Groq primary), proxyGemini (fallback), Firebase, Stripe |
@@ -81,6 +81,8 @@ Prompt/role definitions: **Ultimate Documentation, Configuration Management and 
 | FIREBASE.md | DOCS/ | Firebase deployment & management (CLI commands) |
 | VOICE_MODE_COMPLETE.md | DOCS/ | Voice mode feature spec |
 | VOICE_TRANSCRIPTION_MOONSHINE_SPEC.md | DOCS/ | Voice transcription (Apple On-Device Speech, Wispr optional, cleanup pass) — v3.3.31 |
+| MASTER_PROMPT_CHRONICLE_VECTORIZATION.md | DOCS/ | Master prompt build, contents, CHRONICLE/vectorization integration — v3.3.33 |
+| NARRATIVE_INTELLIGENCE_OVERVIEW.md | DOCS/ | High-level Narrative Intelligence and LUMARA overview (general audience) — v3.3.33 |
 | CRISIS_SYSTEM_COMPLETE.md | DOCS/ | Crisis system feature spec |
 | PRIVACY_COMPLETE.md | DOCS/ | Privacy feature spec |
 | PHASE_RATING_COMPLETE.md | DOCS/ | Phase rating feature spec |
@@ -93,6 +95,24 @@ Prompt/role definitions: **Ultimate Documentation, Configuration Management and 
 ---
 
 ## Change Tracking Log
+
+### 2026-02-15 - Documentation & Git Backup run (v3.3.33; bug_tracker tracked)
+
+**Action:** Ran Documentation, Configuration Management and Git Backup workflow (claude.md §233–349) on the entire repo. Document updates include **bug_tracker** tracking.
+
+**PROMPT REFERENCES AUDIT:** Master prompt and control state expanded in code; documented in new MASTER_PROMPT_CHRONICLE_VECTORIZATION.md. PROMPT_REFERENCES.md v2.3.0 current; cross-ref to new doc.
+
+**Git Backup — Identify what changed:** Uncommitted: `lumara_master_prompt.dart` (+~560 lines), `lumara_control_state_builder.dart` (+82). New docs: `MASTER_PROMPT_CHRONICLE_VECTORIZATION.md`, `NARRATIVE_INTELLIGENCE_OVERVIEW.md`.
+
+**Updates:**
+- **CHANGELOG.md:** Version 3.3.33; new [3.3.33] (master prompt, control state, Narrative Intelligence docs).
+- **CONFIGURATION_MANAGEMENT.md:** This entry; inventory 2026-02-15; new docs added to Additional DOCS.
+- **bug_tracker.md:** New row in Recent code changes for v3.3.33; Last Updated 2026-02-15.
+- **PROMPT_TRACKER.md:** Master prompt expansion row; Last Updated 2026-02-15.
+
+**Status:** ✅ Commit on test, push test, merge test into main, push main.
+
+---
 
 ### 2026-02-15 - Documentation & Git Backup run (full repo; bug_tracker tracked)
 

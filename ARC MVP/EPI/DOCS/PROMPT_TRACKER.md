@@ -17,6 +17,7 @@
 
 | Date | Change | Source / doc |
 |------|--------|--------------|
+| 2026-02-15 | Master prompt expansion: lumara_master_prompt.dart +~560 lines, LumaraControlStateBuilder +82; control state block, CHRONICLE/vectorization. Documented in MASTER_PROMPT_CHRONICLE_VECTORIZATION.md | CHANGELOG [3.3.33]; CONFIGURATION_MANAGEMENT.md |
 | 2026-02-15 | Doc sync: Full repo Documentation & Git Backup run; prompt audit (no new prompts); catalog v2.3.0 current | CONFIGURATION_MANAGEMENT.md |
 | 2026-02-13 | Prompt audit: §20 Quick Answers / MMCO Polish (`quickanswers_router.dart` — pre-LLM gate, MMCO ground truth, optional on-device polish) | PROMPT_REFERENCES.md v2.3.0 |
 | 2026-02-13 | v3.3.26 prompts: §17 Intellectual Honesty / Pushback (master prompt `<intellectual_honesty>`, truth_check injection, Evidence Review); §18 Crossroads Decision Capture (4-step flow, trigger patterns, decision archaeology query); §19 CHRONICLE Edit Validation (pattern suppression and contradiction warnings) | PROMPT_REFERENCES.md v2.2.0 |

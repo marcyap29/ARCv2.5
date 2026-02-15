@@ -1,6 +1,6 @@
 # EPI LUMARA MVP - Changelog
 
-**Version:** 3.3.32
+**Version:** 3.3.33
 **Last Updated:** February 15, 2026
 
 ---
@@ -14,6 +14,18 @@ This changelog has been split into parts for easier navigation:
 | **[CHANGELOG_part1.md](CHANGELOG_part1.md)** | Dec 2025 | v2.1.43 - v2.1.87 (Current) |
 | **[CHANGELOG_part2.md](CHANGELOG_part2.md)** | Nov 2025 | v2.1.28 - v2.1.42 |
 | **[CHANGELOG_part3.md](CHANGELOG_part3.md)** | Jan-Oct 2025 | v2.0.0 - v2.1.27 & Earlier |
+
+---
+
+## [3.3.33] - February 15, 2026
+
+### Master prompt, control state, and Narrative Intelligence docs
+
+- **LUMARA master prompt:** Significant expansion in `lumara_master_prompt.dart` (+~560 lines) — identity, control state block, CHRONICLE/vectorization integration, mode-dependent context injection.
+- **LumaraControlStateBuilder:** Extended in `lumara_control_state_builder.dart` (+82 lines) — control state JSON structure and sources (atlas, veil, favorites, prism, therapy, engagement, responseMode, memory, webAccess).
+- **Documentation:** New `MASTER_PROMPT_CHRONICLE_VECTORIZATION.md` — single reference for master prompt build, contents, CHRONICLE and vectorization integration. New `NARRATIVE_INTELLIGENCE_OVERVIEW.md` — high-level overview of Narrative Intelligence and LUMARA for general audience.
+
+**Files:** 2 modified (lumara_master_prompt.dart, lumara_control_state_builder.dart), 2 new (DOCS).
 
 ---
 

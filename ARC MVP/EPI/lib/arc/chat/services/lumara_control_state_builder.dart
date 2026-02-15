@@ -652,6 +652,33 @@ class LumaraControlStateBuilder {
     state['memory'] = memory;
 
     // ============================================================
+    // L. TEMPORAL AWARENESS (for LAYER 2.5 prompt)
+    // ============================================================
+    final temporalAwareness = <String, dynamic>{};
+    try {
+      final msg = userMessage ?? '';
+      temporalAwareness['currentCycleWeek'] = await _calculateCycleWeek(userId, atlas['phase'] as String?);
+      temporalAwareness['historicalThresholdNear'] = await _checkTemporalThreshold(userId);
+      temporalAwareness['seasonalPatternActive'] = await _checkSeasonalPattern(userId);
+      temporalAwareness['expansionSignals'] = _detectExpansionLanguage(msg);
+      temporalAwareness['consolidationSignals'] = _detectConsolidationLanguage(msg);
+      temporalAwareness['compressionSignals'] = _detectCompressionLanguage(msg);
+      temporalAwareness['decisionPointDetected'] = _isDecisionQuestion(msg);
+      temporalAwareness['temporalQueryDetected'] = _isTemporalQuery(msg);
+    } catch (e) {
+      print('LUMARA Control State: Error building temporalAwareness (non-fatal): $e');
+      temporalAwareness['currentCycleWeek'] = null;
+      temporalAwareness['historicalThresholdNear'] = false;
+      temporalAwareness['seasonalPatternActive'] = false;
+      temporalAwareness['expansionSignals'] = false;
+      temporalAwareness['consolidationSignals'] = false;
+      temporalAwareness['compressionSignals'] = false;
+      temporalAwareness['decisionPointDetected'] = false;
+      temporalAwareness['temporalQueryDetected'] = false;
+    }
+    state['temporalAwareness'] = temporalAwareness;
+
+    // ============================================================
     // Final computed behavioral parameters
     // ============================================================
     // These are derived from the above signals AND persona
@@ -1228,5 +1255,60 @@ class LumaraControlStateBuilder {
       behavior['allowTherapeuticLanguage'] = engagement['allow_therapeutic_language'] as bool? ?? false;
       behavior['allowPrescriptiveGuidance'] = engagement['allow_prescriptive_guidance'] as bool? ?? false;
     }
+  }
+
+  // ========== Temporal awareness helpers (for LAYER 2.5) ==========
+
+  /// Query CHRONICLE for phase start date, calculate weeks since. Returns null if insufficient data.
+  static Future<int?> _calculateCycleWeek(String? userId, String? phase) async {
+    if (userId == null || phase == null || phase.isEmpty) return null;
+    // TODO: Integrate with CHRONICLE when phase start date is available from aggregations
+    return null;
+  }
+
+  /// Check if user is within ~1 week of historical pattern threshold (from CHRONICLE temporal markers).
+  static Future<bool> _checkTemporalThreshold(String? userId) async {
+    if (userId == null) return false;
+    // TODO: Integrate with CHRONICLE pattern index / temporal markers when available
+    return false;
+  }
+
+  /// Check if current date matches known seasonal pattern trigger (e.g. mid-February expansion).
+  static Future<bool> _checkSeasonalPattern(String? userId) async {
+    if (userId == null) return false;
+    // TODO: Integrate with CHRONICLE when seasonal pattern detection is available
+    return false;
+  }
+
+  static bool _detectExpansionLanguage(String message) {
+    const keywords = ['adding', 'building', 'what if', 'also', 'integrate', 'connect'];
+    final lower = message.toLowerCase();
+    return keywords.any((kw) => lower.contains(kw));
+  }
+
+  static bool _detectConsolidationLanguage(String message) {
+    const keywords = ['focus', 'priority', 'ship', 'simple', 'mvp', 'what matters'];
+    final lower = message.toLowerCase();
+    return keywords.any((kw) => lower.contains(kw));
+  }
+
+  static bool _detectCompressionLanguage(String message) {
+    const keywords = ['overwhelm', '80/20', 'too much', 'scope', 'constraint'];
+    final lower = message.toLowerCase();
+    return keywords.any((kw) => lower.contains(kw));
+  }
+
+  static bool _isDecisionQuestion(String message) {
+    final lower = message.toLowerCase();
+    return lower.contains('should i') || lower.contains('should we');
+  }
+
+  static bool _isTemporalQuery(String message) {
+    const keywords = [
+      'when', 'how long', 'last week', 'last month', 'february',
+      'how have i changed', 'show me', 'what was i', 'january', 'march',
+    ];
+    final lower = message.toLowerCase();
+    return keywords.any((kw) => lower.contains(kw));
   }
 }
