@@ -1,0 +1,264 @@
+// lib/arc/chat/ui/research_screen.dart
+// Dedicated screen for the LUMARA Research Agent (Agents tab).
+
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:gap/gap.dart';
+
+import '../config/api_config.dart';
+import '../services/groq_service.dart';
+import 'package:my_app/lumara/agents/research/research_agent.dart';
+import 'package:my_app/lumara/agents/research/research_models.dart';
+import 'package:my_app/lumara/agents/research/web_search_tool.dart';
+import 'package:my_app/services/firebase_auth_service.dart';
+
+/// Screen for the LUMARA Research Agent: enter a question, get a synthesized report.
+class ResearchScreen extends StatefulWidget {
+  const ResearchScreen({super.key});
+
+  @override
+  State<ResearchScreen> createState() => _ResearchScreenState();
+}
+
+class _ResearchScreenState extends State<ResearchScreen> {
+  final TextEditingController _queryController = TextEditingController();
+  ResearchReport? _report;
+  bool _loading = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _queryController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _runResearch() async {
+    final query = _queryController.text.trim();
+    if (query.isEmpty) {
+      setState(() {
+        _error = 'Enter a research question.';
+      });
+      return;
+    }
+    final userId = FirebaseAuthService.instance.currentUser?.uid ?? 'default_user';
+    setState(() {
+      _loading = true;
+      _error = null;
+      _report = null;
+    });
+    try {
+      await LumaraAPIConfig.instance.initialize();
+      final config = LumaraAPIConfig.instance.getConfig(LLMProvider.groq);
+      final apiKey = config?.apiKey;
+      if (apiKey == null || apiKey.isEmpty) {
+        setState(() {
+          _loading = false;
+          _error = 'Groq API key not set. Add it in LUMARA settings.';
+        });
+        return;
+      }
+      final groq = GroqService(apiKey: apiKey);
+      final agent = ResearchAgent(
+        generate: ({required systemPrompt, required userPrompt, maxTokens}) async {
+          return groq.generateContent(
+            prompt: userPrompt,
+            systemPrompt: systemPrompt,
+            maxTokens: maxTokens ?? 1200,
+          );
+        },
+        searchTool: StubWebSearchTool(),
+      );
+      final result = await agent.conductResearch(
+        userId: userId,
+        query: query,
+      );
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _report = result.report;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _error = e.toString();
+        });
+      }
+    }
+  }
+
+  void _copyReport() {
+    if (_report == null) return;
+    final buf = StringBuffer();
+    buf.writeln('# Research: ${_report!.query}');
+    buf.writeln();
+    buf.writeln('## Summary');
+    buf.writeln(_report!.summary);
+    buf.writeln();
+    buf.writeln('## Key Insights');
+    for (final i in _report!.keyInsights) {
+      buf.writeln('- ${i.statement}');
+    }
+    buf.writeln();
+    buf.writeln('## Detailed Findings');
+    buf.writeln(_report!.detailedFindings);
+    buf.writeln();
+    buf.writeln('## Sources');
+    for (final c in _report!.citations) {
+      buf.writeln('[${c.id}] ${c.title} - ${c.url}');
+    }
+    Clipboard.setData(ClipboardData(text: buf.toString()));
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Report copied to clipboard')),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('LUMARA Research'),
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            TextField(
+              controller: _queryController,
+              decoration: const InputDecoration(
+                labelText: 'Research question',
+                hintText: 'e.g. SBIR Phase I requirements and how ARC maps to defense priorities',
+                border: OutlineInputBorder(),
+                alignLabelWithHint: true,
+              ),
+              maxLines: 3,
+            ),
+            const Gap(16),
+            FilledButton(
+              onPressed: _loading ? null : _runResearch,
+              child: _loading
+                  ? const SizedBox(
+                      height: 24,
+                      width: 24,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Text('Run research'),
+            ),
+            if (_error != null) ...[
+              const Gap(16),
+              Text(
+                _error!,
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
+            ],
+            if (_report != null) ...[
+              const Gap(24),
+              const Divider(),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Report',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  TextButton.icon(
+                    onPressed: _copyReport,
+                    icon: const Icon(Icons.copy, size: 18),
+                    label: const Text('Copy'),
+                  ),
+                ],
+              ),
+              const Gap(8),
+              _Section(
+                title: 'Summary',
+                child: SelectableText(_report!.summary),
+              ),
+              if (_report!.keyInsights.isNotEmpty) ...[
+                const Gap(16),
+                _Section(
+                  title: 'Key insights',
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: _report!.keyInsights
+                        .map((i) => Padding(
+                              padding: const EdgeInsets.only(bottom: 8),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Icon(Icons.lightbulb_outline, size: 18),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: SelectableText(
+                                      i.statement,
+                                      style: Theme.of(context).textTheme.bodyMedium,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ))
+                        .toList(),
+                  ),
+                ),
+              ],
+              const Gap(16),
+              _Section(
+                title: 'Detailed findings',
+                child: SelectableText(_report!.detailedFindings),
+              ),
+              if (_report!.citations.isNotEmpty) ...[
+                const Gap(16),
+                _Section(
+                  title: 'Sources',
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: _report!.citations
+                        .map((c) => Padding(
+                              padding: const EdgeInsets.only(bottom: 6),
+                              child: SelectableText(
+                                '[${c.id}] ${c.title}\n${c.url}',
+                                style: Theme.of(context).textTheme.bodySmall,
+                              ),
+                            ))
+                        .toList(),
+                  ),
+                ),
+              ],
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _Section extends StatelessWidget {
+  final String title;
+  final Widget child;
+
+  const _Section({required this.title, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: Theme.of(context).textTheme.titleSmall,
+        ),
+        const Gap(6),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            border: Border.all(color: Theme.of(context).dividerColor),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: child,
+        ),
+      ],
+    );
+  }
+}

@@ -69,7 +69,7 @@ class WisprConfigService {
       
       if (apiKey == null || apiKey.isEmpty) {
         debugPrint('WisprConfigService: No user API key configured');
-        debugPrint('WisprConfigService: Users can add their key in LUMARA Settings → External Services');
+        debugPrint('WisprConfigService: Users can add their key in LUMARA Settings → API');
         _cachedApiKey = null;
         return null;
       }

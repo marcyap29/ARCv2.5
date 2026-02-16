@@ -269,6 +269,17 @@ class Layer0Repository {
     return keysToDelete.length;
   }
 
+  /// Get the most recent [limit] entries for [userId], sorted by timestamp descending.
+  /// Used by Writing Agent voice analysis (e.g. last 20 entries).
+  Future<List<ChronicleRawEntry>> getRecentEntries(String userId, int limit) async {
+    await _ensureBox();
+    final list = _box!.values
+        .where((entry) => entry.userId == userId)
+        .toList()
+      ..sort((a, b) => b.timestamp.compareTo(a.timestamp));
+    return list.take(limit).toList();
+  }
+
   /// Get count of entries for a user
   Future<int> getEntryCount(String userId) async {
     await _ensureBox();

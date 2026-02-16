@@ -43,6 +43,7 @@ import 'package:my_app/core/feature_flags.dart' as core_flags;
 import 'package:my_app/arc/unified_feed/widgets/unified_feed_screen.dart';
 import 'package:my_app/core/models/entry_mode.dart';
 import 'package:my_app/shared/ui/settings/settings_view.dart';
+import 'package:my_app/lumara/agents/screens/agents_screen.dart';
 import 'package:my_app/services/rivet_sweep_service.dart' show runAutoPhaseAnalysis;
 import 'package:my_app/chronicle/integration/veil_chronicle_factory.dart';
 import 'package:my_app/chronicle/scheduling/synthesis_scheduler.dart' show SynthesisTier;
@@ -84,6 +85,7 @@ class _HomeViewState extends State<HomeView> {
     if (core_flags.FeatureFlags.USE_UNIFIED_FEED) {
       return const [
         TabItem(icon: Icons.auto_awesome, text: 'LUMARA'),
+        TabItem(icon: Icons.workspaces_outlined, text: 'Agents'),
         TabItem(icon: Icons.settings_outlined, text: 'Settings'),
       ];
     }
@@ -96,7 +98,7 @@ class _HomeViewState extends State<HomeView> {
 
   List<String> get _tabNames {
     if (core_flags.FeatureFlags.USE_UNIFIED_FEED) {
-      return const ['LUMARA', 'Settings'];
+      return const ['LUMARA', 'Agents', 'Settings'];
     }
     return const ['LUMARA', 'Phase', 'Conversations'];
   }
@@ -417,7 +419,7 @@ class _HomeViewState extends State<HomeView> {
 
   /// Get the appropriate page widget for the given index.
   ///
-  /// Unified feed mode: LUMARA (0) | Phase (1)
+  /// Unified feed mode: LUMARA (0) | Agents (1) | Settings (2)
   /// Legacy mode:       LUMARA (0) | Phase (1) | Journal (2)
   Widget _getPageForIndex(int index, BuildContext context) {
     if (core_flags.FeatureFlags.USE_UNIFIED_FEED) {
@@ -433,6 +435,8 @@ class _HomeViewState extends State<HomeView> {
             },
           );
         case 1:
+          return const AgentsScreen();
+        case 2:
           return const SettingsView();
         default:
           return UnifiedFeedScreen(

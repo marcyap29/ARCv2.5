@@ -1,0 +1,142 @@
+import 'package:my_app/models/phase_models.dart';
+import 'package:my_app/services/user_phase_service.dart';
+import 'package:my_app/lumara/agents/writing/writing_models.dart';
+import 'package:my_app/lumara/agents/writing/voice_analyzer.dart';
+import 'package:my_app/lumara/agents/writing/theme_tracker.dart';
+import 'package:my_app/lumara/agents/writing/tone_calibrator.dart';
+import 'package:my_app/lumara/agents/writing/draft_composer.dart';
+import 'package:my_app/lumara/agents/writing/self_critic.dart';
+
+/// Orchestrates the Writing Agent pipeline: voice → themes → tone → compose (→ critique loop when enabled).
+class WritingAgent {
+  final VoiceAnalyzer _voiceAnalyzer;
+  final ThemeTracker _themeTracker;
+  final ToneCalibrator _toneCalibrator;
+  final DraftComposer _draftComposer;
+  final SelfCritic _selfCritic;
+  final WritingDraftRepository? _draftRepository;
+
+  WritingAgent({
+    VoiceAnalyzer? voiceAnalyzer,
+    ThemeTracker? themeTracker,
+    ToneCalibrator? toneCalibrator,
+    DraftComposer? draftComposer,
+    SelfCritic? selfCritic,
+    WritingDraftRepository? draftRepository,
+    required WritingLlmGenerate generateContent,
+  })  : _voiceAnalyzer = voiceAnalyzer ?? VoiceAnalyzer(),
+        _themeTracker = themeTracker ?? ThemeTracker(),
+        _toneCalibrator = toneCalibrator ?? ToneCalibrator(),
+        _draftComposer = draftComposer ?? DraftComposer(generate: generateContent),
+        _selfCritic = selfCritic ?? SelfCritic(),
+        _draftRepository = draftRepository;
+
+  /// Compose content for the user. Optionally pass [phaseOverride] and [readinessOverride]
+  /// when the caller has already resolved ATLAS state (e.g. from LUMARA control state).
+  /// When not provided, phase is resolved via [UserPhaseService.getCurrentPhase] and readiness defaults to 50.
+  ///
+  /// [maxCritiqueIterations] 0 = no self-critique; 1–2 = up to that many re-drafts after critique.
+  Future<ComposedContent> composeContent({
+    required String userId,
+    required String prompt,
+    required ContentType type,
+    String? phaseOverride,
+    double? readinessOverride,
+    int maxCritiqueIterations = 0,
+  }) async {
+    final phaseStr = phaseOverride ?? await UserPhaseService.getCurrentPhase();
+    final phaseLabel = _phaseStringToLabel(phaseStr);
+    final readiness = readinessOverride ?? 50.0;
+
+    final voice = await _voiceAnalyzer.analyzeVoice(userId: userId, sampleSize: 20);
+    final themes = await _themeTracker.getThemeContext(userId: userId, contentTopic: prompt);
+    final tone = _toneCalibrator.calibrateTone(
+      currentPhase: phaseLabel,
+      readinessScore: readiness,
+      contentType: type,
+    );
+
+    var draft = await _draftComposer.composeDraft(
+      prompt: prompt,
+      voice: voice,
+      themes: themes,
+      tone: tone,
+      type: type,
+    );
+
+    double? voiceScore;
+    double? themeAlignment;
+    final suggestedEdits = <String>[];
+    int iterations = 0;
+
+    while (maxCritiqueIterations > 0 && iterations < maxCritiqueIterations) {
+      final critique = await _selfCritic.critiqueDraft(
+        draft: draft,
+        expectedVoice: voice,
+        expectedThemes: themes,
+      );
+      voiceScore = critique.voiceScore;
+      themeAlignment = critique.themeScore;
+      if (critique.passesThreshold) break;
+      suggestedEdits.addAll(critique.suggestions);
+      final improvedPrompt = '$prompt\n\nIMPROVEMENTS NEEDED:\n${critique.suggestions.join('\n')}';
+      draft = await _draftComposer.composeDraft(
+        prompt: improvedPrompt,
+        voice: voice,
+        themes: themes,
+        tone: tone,
+        type: type,
+      );
+      iterations++;
+    }
+
+    if (voiceScore == null && maxCritiqueIterations > 0) {
+      final critique = await _selfCritic.critiqueDraft(
+        draft: draft,
+        expectedVoice: voice,
+        expectedThemes: themes,
+      );
+      voiceScore = critique.voiceScore;
+      themeAlignment = critique.themeScore;
+      if (suggestedEdits.isEmpty) suggestedEdits.addAll(critique.suggestions);
+    }
+
+    final composed = ComposedContent(
+      draft: draft.copyWith(voiceScore: voiceScore, themeAlignment: themeAlignment),
+      voiceScore: voiceScore,
+      themeAlignment: themeAlignment,
+      suggestedEdits: suggestedEdits,
+    );
+
+    if (_draftRepository != null) {
+      await _draftRepository!.storeDraft(
+        userId: userId,
+        draft: draft.copyWith(voiceScore: voiceScore, themeAlignment: themeAlignment),
+        metadata: draft.metadata,
+      );
+    }
+
+    return composed;
+  }
+
+  PhaseLabel _phaseStringToLabel(String phaseStr) {
+    final normalized = phaseStr.trim().toLowerCase();
+    if (normalized.isEmpty) return PhaseLabel.discovery;
+    switch (normalized) {
+      case 'discovery':
+        return PhaseLabel.discovery;
+      case 'expansion':
+        return PhaseLabel.expansion;
+      case 'transition':
+        return PhaseLabel.transition;
+      case 'consolidation':
+        return PhaseLabel.consolidation;
+      case 'recovery':
+        return PhaseLabel.recovery;
+      case 'breakthrough':
+        return PhaseLabel.breakthrough;
+      default:
+        return PhaseLabel.discovery;
+    }
+  }
+}

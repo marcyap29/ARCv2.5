@@ -55,10 +55,13 @@ import '../../../models/engagement_discipline.dart' show EngagementMode;
 import '../../../models/memory_focus_preset.dart' show MemoryFocusPreset;
 import '../voice/prompts/voice_response_builders.dart';
 import 'package:my_app/state/feature_flags.dart';
+import 'package:my_app/lumara/models/intent_type.dart';
 import 'package:my_app/lumara/orchestrator/lumara_orchestrator.dart';
 import 'package:my_app/lumara/subsystems/chronicle_subsystem.dart';
+import 'package:my_app/lumara/subsystems/writing_subsystem.dart';
 import 'package:my_app/lumara/orchestrator/command_parser.dart';
 import 'package:my_app/lumara/orchestrator/result_aggregator.dart';
+import 'package:my_app/lumara/agents/writing/writing_agent.dart';
 import 'arc_subsystem.dart';
 import 'atlas_subsystem.dart';
 import 'aurora_subsystem.dart';
@@ -254,6 +257,20 @@ class EnhancedLumaraApi {
   void _ensureOrchestrator() {
     if (_orchestrator != null || !FeatureFlags.useOrchestrator) return;
     if (!_chronicleInitialized || _queryRouter == null || _contextBuilder == null) return;
+    final self = this;
+    final writingAgent = WritingAgent(
+      generateContent: ({required systemPrompt, required userPrompt, maxTokens}) async {
+        final g = self._groq;
+        if (g == null) {
+          throw StateError('Writing requires a cloud API key (Groq). Set it in LUMARA settings.');
+        }
+        return g.generateContent(
+          prompt: userPrompt,
+          systemPrompt: systemPrompt,
+          maxTokens: maxTokens ?? 800,
+        );
+      },
+    );
     _orchestrator = LumaraOrchestrator(
       subsystems: [
         ChronicleSubsystem(
@@ -264,11 +281,12 @@ class EnhancedLumaraApi {
         ArcSubsystem(),
         AtlasSubsystem(),
         AuroraSubsystem(),
+        WritingSubsystem(agent: writingAgent),
       ],
       parser: CommandParser(),
       aggregator: ResultAggregator(),
     );
-    print('✅ LUMARA: Orchestrator initialized (CHRONICLE + ARC + ATLAS + AURORA)');
+    print('✅ LUMARA: Orchestrator initialized (CHRONICLE + ARC + ATLAS + AURORA + WRITING)');
   }
 
   /// Index MCP bundle for reflection
@@ -709,6 +727,19 @@ class EnhancedLumaraApi {
                 }
                 if (auroraContext != null && auroraContext.isNotEmpty) {
                   print('✅ EnhancedLumaraApi: AURORA context from orchestrator');
+                }
+                // Writing Agent: if intent is content generation, return draft as reflection
+                if (orchResult.intent.type == IntentType.contentGeneration) {
+                  final writingData = orchResult.getSubsystemData('WRITING');
+                  final draft = writingData?['draft'];
+                  if (draft != null && draft is String) {
+                    final draftStr = draft as String;
+                    print('✅ EnhancedLumaraApi: Returning WRITING draft (${draftStr.length} chars)');
+                    return ReflectionResult(
+                      reflection: draftStr,
+                      attributionTraces: [],
+                    );
+                  }
                 }
               } else {
                 final first = orchResult.subsystemResults.isNotEmpty ? orchResult.subsystemResults.first : null;

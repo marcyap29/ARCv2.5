@@ -1,5 +1,6 @@
 import 'package:my_app/chronicle/models/chronicle_index.dart';
 import 'package:my_app/chronicle/storage/chronicle_index_storage.dart';
+import 'package:my_app/chronicle/storage/chronicle_theme_ignore_list_storage.dart';
 
 /// Resolves related journal entry IDs from the CHRONICLE pattern index.
 /// Entries that share the same thematic cluster (vectorized pattern) are
@@ -22,7 +23,10 @@ class RelatedEntriesService {
       return [];
     }
 
-    final index = ChronicleIndex.fromJson(json);
+    var index = ChronicleIndex.fromJson(json);
+    final ignored =
+        (await ChronicleThemeIgnoreListStorage.getIgnored(userId)).toSet();
+    index = index.withoutIgnoredThemes(ignored);
     final related = <String>{};
 
     for (final cluster in index.themeClusters.values) {
@@ -58,7 +62,10 @@ class RelatedEntriesService {
       return {};
     }
 
-    final index = ChronicleIndex.fromJson(json);
+    var index = ChronicleIndex.fromJson(json);
+    final ignored =
+        (await ChronicleThemeIgnoreListStorage.getIgnored(userId)).toSet();
+    index = index.withoutIgnoredThemes(ignored);
     final grouped = <String, List<String>>{};
 
     for (final cluster in index.themeClusters.values) {

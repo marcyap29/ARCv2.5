@@ -4,6 +4,7 @@ import '../models/chronicle_index.dart';
 import '../models/dominant_theme.dart';
 import '../models/theme_cluster.dart';
 import '../models/pattern_insights.dart';
+import '../storage/chronicle_theme_ignore_list_storage.dart';
 import '../embeddings/embedding_service.dart';
 
 /// Routes queries to appropriate response type.
@@ -25,7 +26,10 @@ class PatternQueryRouter {
     required String userId,
     required String query,
   }) async {
-    final index = await _indexBuilder.loadIndex(userId);
+    var index = await _indexBuilder.loadIndex(userId);
+    final ignored =
+        (await ChronicleThemeIgnoreListStorage.getIgnored(userId)).toSet();
+    index = index.withoutIgnoredThemes(ignored);
     final intent = _classifyIntent(query);
 
     // ignore: avoid_print

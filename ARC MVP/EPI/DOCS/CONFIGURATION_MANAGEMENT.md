@@ -1,7 +1,7 @@
 # Configuration Management & Documentation Tracking
 
 **Lead Configuration Management Analyst:** Active  
-**Last Updated:** February 15, 2026 (v3.3.34)  
+**Last Updated:** February 15, 2026 (v3.3.35)  
 **Status:** ✅ All Documents Synced with Repo
 
 ---
@@ -38,12 +38,12 @@ Prompt/role definitions: **Ultimate Documentation, Configuration Management and 
 
 | Document | Location | Last Reviewed | Status | Notes |
 |----------|----------|---------------|--------|-------|
-| ARCHITECTURE.md | `/DOCS/ARCHITECTURE.md` | 2026-02-15 | ✅ Synced | v3.3.34 - Doc sync |
-| CHANGELOG.md | `/DOCS/CHANGELOG.md` | 2026-02-15 | ✅ Synced | v3.3.34 - LUMARA API, control state, CHRONICLE query |
+| ARCHITECTURE.md | `/DOCS/ARCHITECTURE.md` | 2026-02-15 | ✅ Synced | v3.3.35 - Doc sync |
+| CHANGELOG.md | `/DOCS/CHANGELOG.md` | 2026-02-15 | ✅ Synced | v3.3.35 - LUMARA agents, orchestrator, CHRONICLE, settings refactor |
 | PROMPT_REFERENCES.md | `/DOCS/PROMPT_REFERENCES.md` | 2026-02-15 | ✅ Synced | v2.3.0 current |
 | PROMPT_TRACKER.md | `/DOCS/PROMPT_TRACKER.md` | 2026-02-15 | ✅ Synced | v1.4.0 - Doc sync |
 | bug_tracker.md | `/DOCS/bugtracker/bug_tracker.md` | 2026-02-15 | ✅ Synced | v3.2.5 - 34 records; tracked in doc sync |
-| FEATURES.md | `/DOCS/FEATURES.md` | 2026-02-15 | ✅ Synced | v3.3.34 - Doc sync |
+| FEATURES.md | `/DOCS/FEATURES.md` | 2026-02-15 | ✅ Synced | v3.3.35 - Doc sync |
 | README.md | `/DOCS/README.md` | 2026-02-07 | ✅ Synced | Key docs table with purpose and when to read |
 | claude.md | `/DOCS/claude.md` | 2026-02-13 | ✅ Synced | TOC — Prompts; consolidated Doc/Config/Git Backup prompt; TOC aligned with current sections |
 | backend.md | `/DOCS/backend.md` | 2026-02-11 | ✅ Synced | v3.3 - proxyGroq (Groq primary), proxyGemini (fallback), Firebase, Stripe |
@@ -83,6 +83,8 @@ Prompt/role definitions: **Ultimate Documentation, Configuration Management and 
 | VOICE_TRANSCRIPTION_MOONSHINE_SPEC.md | DOCS/ | Voice transcription (Apple On-Device Speech, Wispr optional, cleanup pass) — v3.3.31 |
 | MASTER_PROMPT_CHRONICLE_VECTORIZATION.md | DOCS/ | Master prompt build, contents, CHRONICLE/vectorization integration — v3.3.33 |
 | NARRATIVE_INTELLIGENCE_OVERVIEW.md | DOCS/ | High-level Narrative Intelligence and LUMARA overview (general audience) — v3.3.33 |
+| CHRONICLE_PAPER_VS_IMPLEMENTATION.md | DOCS/ | Paper vs codebase alignment; suggested edits for CHRONICLE paper — v3.3.35 |
+| CHRONICLE-2026_02_15.md | DOCS/ | CHRONICLE snapshot/notes 2026-02-15 — v3.3.35 |
 | CRISIS_SYSTEM_COMPLETE.md | DOCS/ | Crisis system feature spec |
 | PRIVACY_COMPLETE.md | DOCS/ | Privacy feature spec |
 | PHASE_RATING_COMPLETE.md | DOCS/ | Phase rating feature spec |
@@ -95,6 +97,24 @@ Prompt/role definitions: **Ultimate Documentation, Configuration Management and 
 ---
 
 ## Change Tracking Log
+
+### 2026-02-15 - Documentation & Git Backup run (v3.3.35; bug_tracker tracked)
+
+**Action:** Ran Documentation, Configuration Management and Git Backup workflow (claude.md §233–349) on the entire repo. Document updates include **bug_tracker** tracking.
+
+**PROMPT REFERENCES AUDIT:** Repo prompts compared to PROMPT_REFERENCES.md; no new prompts; catalog v2.3.0 current.
+
+**Git Backup — Identify what changed:** LUMARA agents (research, writing, agents tab, screens), orchestrator/chat intent classifier, CHRONICLE (index, pattern router, repos, pattern_index_viewer), lumara_settings_screen refactor, assistant cubit/screen, new docs CHRONICLE_PAPER_VS_IMPLEMENTATION.md, CHRONICLE-2026_02_15.md.
+
+**Updates:**
+- **CHANGELOG.md:** Version 3.3.35; new [3.3.35] (LUMARA agents, orchestrator, CHRONICLE alignment, settings refactor).
+- **CONFIGURATION_MANAGEMENT.md:** This entry; inventory 2026-02-15; new docs added to Additional DOCS; bug_tracker tracked.
+- **bug_tracker.md:** New row for v3.3.35; Last Updated 2026-02-15.
+- **PROMPT_TRACKER.md:** Doc sync; Last Updated 2026-02-15.
+
+**Status:** ✅ Commit on test, push test, merge test into main, push main.
+
+---
 
 ### 2026-02-15 - Documentation & Git Backup run (v3.3.34; bug_tracker tracked)
 

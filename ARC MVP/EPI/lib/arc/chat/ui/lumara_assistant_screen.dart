@@ -11,6 +11,12 @@ import '../chat/enhanced_chat_repo_impl.dart';
 import '../chat/chat_repo_impl.dart';
 import 'lumara_quick_palette.dart';
 import 'lumara_settings_screen.dart';
+import 'writing_screen.dart';
+import 'research_screen.dart';
+import 'chat_draft_viewer_screen.dart';
+import 'package:my_app/lumara/agents/screens/research_report_detail_screen.dart';
+import 'package:my_app/lumara/agents/models/research_models.dart' as agents_research;
+import 'package:my_app/lumara/orchestrator/lumara_chat_orchestrator.dart';
 import '../widgets/attribution_display_widget.dart';
 import 'widgets/evidence_review_widget.dart';
 import '../widgets/enhanced_attribution_display_widget.dart';
@@ -422,9 +428,45 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
                 case 'clear':
                   _clearChat();
                   break;
+                case 'writing':
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const WritingScreen(),
+                    ),
+                  );
+                  break;
+                case 'research':
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const ResearchScreen(),
+                    ),
+                  );
+                  break;
               }
             },
             itemBuilder: (BuildContext context) => [
+              const PopupMenuItem<String>(
+                value: 'writing',
+                child: Row(
+                  children: [
+                    Icon(Icons.edit_note, size: 20),
+                    SizedBox(width: 12),
+                    Text('Writing'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem<String>(
+                value: 'research',
+                child: Row(
+                  children: [
+                    Icon(Icons.search, size: 20),
+                    SizedBox(width: 12),
+                    Text('Research'),
+                  ],
+                ),
+              ),
               const PopupMenuItem<String>(
                 value: 'settings',
                 child: Row(
@@ -1048,6 +1090,11 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
                     // Evidence Review: show what CHRONICLE entries LUMARA used for pushback
                     if (message.pushbackEvidence != null)
                       EvidenceReviewWidget(evidence: message.pushbackEvidence!),
+                    // Agent result actions: View Full Report / View Draft
+                    if (message.metadata.containsKey('reportId') || message.metadata.containsKey('draftId')) ...[
+                      const Gap(8),
+                      _buildAgentResultActions(context, message),
+                    ],
                   ],
                   
                   // Action buttons for user messages (edit/copy)
@@ -1638,6 +1685,69 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
     return cleaned;
   }
 
+  Widget _buildAgentResultActions(BuildContext context, LumaraMessage message) {
+    final reportId = message.metadata['reportId'] as String?;
+    final draftId = message.metadata['draftId'] as String?;
+    final report = message.metadata['report'];
+    final children = <Widget>[];
+    if (reportId != null && report != null && report is agents_research.ResearchReport) {
+      children.add(
+        ElevatedButton.icon(
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute<void>(
+                builder: (context) => ResearchReportDetailScreen(report: report),
+              ),
+            );
+          },
+          icon: const Icon(Icons.open_in_new, size: 16),
+          label: const Text('View Full Report'),
+          style: ElevatedButton.styleFrom(visualDensity: VisualDensity.compact),
+        ),
+      );
+    }
+    if (draftId != null) {
+      children.add(
+        ElevatedButton.icon(
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute<void>(
+                builder: (context) => ChatDraftViewerScreen(draftId: draftId),
+              ),
+            );
+          },
+          icon: const Icon(Icons.edit_note, size: 16),
+          label: const Text('View & Edit Draft'),
+          style: ElevatedButton.styleFrom(visualDensity: VisualDensity.compact),
+        ),
+      );
+      final content = ChatDraftCache.instance.get(draftId);
+      if (content != null) {
+        children.add(const SizedBox(width: 8));
+        children.add(
+          OutlinedButton.icon(
+            onPressed: () {
+              Clipboard.setData(ClipboardData(text: content.draft.content));
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Draft copied to clipboard')),
+              );
+            },
+            icon: const Icon(Icons.copy, size: 16),
+            label: const Text('Copy'),
+            style: OutlinedButton.styleFrom(visualDensity: VisualDensity.compact),
+          ),
+        );
+      }
+    }
+    if (children.isEmpty) return const SizedBox.shrink();
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: children,
+    );
+  }
+
   void _copyMessage(String text) {
     Clipboard.setData(ClipboardData(text: text));
     ScaffoldMessenger.of(context).showSnackBar(
@@ -2119,7 +2229,7 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
     // Dismiss keyboard first
     _dismissKeyboard();
     
-    // Open Settings → LUMARA (same as main Settings folder); user can tap "API & providers" for full setup
+    // Open Settings → LUMARA (same as main Settings folder); user can tap "API" for full setup
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (context) => const LumaraFolderView(),

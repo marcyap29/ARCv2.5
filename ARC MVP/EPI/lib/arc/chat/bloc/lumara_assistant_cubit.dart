@@ -57,6 +57,12 @@ import 'package:my_app/prism/atlas/rivet/rivet_models.dart';
 import 'package:my_app/prism/atlas/rivet/rivet_decision_analyzer.dart';
 import 'package:my_app/models/phase_models.dart';
 import 'package:my_app/services/user_phase_service.dart';
+import 'package:my_app/arc/chat/services/groq_service.dart';
+import 'package:my_app/lumara/orchestrator/chat_intent_classifier.dart';
+import 'package:my_app/lumara/orchestrator/lumara_chat_orchestrator.dart';
+import 'package:my_app/lumara/agents/research/research_agent.dart';
+import 'package:my_app/lumara/agents/research/web_search_tool.dart';
+import 'package:my_app/lumara/agents/writing/writing_agent.dart';
 
 /// LUMARA Assistant Cubit State
 abstract class LumaraAssistantState {}
@@ -262,6 +268,9 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
   // Crossroads: decision capture and revisitation
   final CrossroadsService _crossroadsService = CrossroadsService();
   final RivetDecisionAnalyzer _rivetDecisionAnalyzer = RivetDecisionAnalyzer();
+
+  // Chat-based agent orchestration (Research / Writing from LUMARA chat)
+  LumaraChatOrchestrator? _chatOrchestrator;
 
   LumaraAssistantCubit({
     required ContextProvider contextProvider,
@@ -593,6 +602,10 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
     await _addToChatSession(text, 'user', messageId: userMessage.id, timestamp: userMessage.timestamp);
 
     print('LUMARA Debug: Added user message, new count: ${updatedMessages.length}');
+
+    // Chat agent orchestration: classify intent; if research/writing run agent, else fall through to reflection
+    final handled = await _tryChatAgentPath(text, updatedMessages, currentState, currentEntry);
+    if (handled) return;
 
     // Check if this is a reflective query
     final taskType = _determineTaskType(text);
@@ -2673,6 +2686,162 @@ Your exported MCP bundle can be imported into any MCP-compatible system, ensurin
     final userMsg = LumaraMessage.user(content: outcomeText);
     final updatedMessages = [...currentState.messages, userMsg];
     emit(currentState.clearedPendingOutcome().copyWith(messages: updatedMessages));
+  }
+
+  /// Lazy-create chat orchestrator (Research + Writing agents) for LUMARA chat.
+  Future<LumaraChatOrchestrator?> _getChatOrchestrator() async {
+    if (_chatOrchestrator != null) return _chatOrchestrator;
+    try {
+      await LumaraAPIConfig.instance.initialize();
+      final config = LumaraAPIConfig.instance.getConfig(LLMProvider.groq);
+      final apiKey = config?.apiKey;
+      if (apiKey == null || apiKey.isEmpty) return null;
+      final groq = GroqService(apiKey: apiKey);
+      final classifier = ChatIntentClassifier(
+        generate: ({required systemPrompt, required userPrompt, maxTokens}) async {
+          return geminiSend(
+            system: systemPrompt,
+            user: userPrompt,
+          );
+        },
+      );
+      final researchAgent = ResearchAgent(
+        generate: ({required systemPrompt, required userPrompt, maxTokens}) async {
+          return groq.generateContent(
+            prompt: userPrompt,
+            systemPrompt: systemPrompt,
+            maxTokens: maxTokens ?? 1200,
+          );
+        },
+        searchTool: StubWebSearchTool(),
+      );
+      final writingAgent = WritingAgent(
+        generateContent: ({required systemPrompt, required userPrompt, maxTokens}) async {
+          return groq.generateContent(
+            prompt: userPrompt,
+            systemPrompt: systemPrompt,
+            maxTokens: maxTokens ?? 800,
+          );
+        },
+      );
+      _chatOrchestrator = LumaraChatOrchestrator(
+        classifier: classifier,
+        researchAgent: researchAgent,
+        writingAgent: writingAgent,
+      );
+      return _chatOrchestrator;
+    } catch (e) {
+      print('LUMARA Chat: Could not create chat orchestrator: $e');
+      return null;
+    }
+  }
+
+  /// If the message is research/writing intent, run the agent and return true; otherwise false.
+  Future<bool> _tryChatAgentPath(
+    String text,
+    List<LumaraMessage> updatedMessages,
+    LumaraAssistantLoaded currentState,
+    JournalEntry? currentEntry,
+  ) async {
+    final orchestrator = await _getChatOrchestrator();
+    if (orchestrator == null) return false;
+    final intent = await orchestrator.classifyIntent(text);
+    final userId = FirebaseAuthService.instance.currentUser?.uid ?? 'default_user';
+
+    // Low confidence: ask for clarification
+    if (intent.confidence < 0.6) {
+      final response = await orchestrator.handleMessage(
+        userId: userId,
+        message: text,
+        onProgressUpdate: (_) {},
+      );
+      if (response.type == ChatResponseType.clarification) {
+        final assistantMsg = LumaraMessage.assistant(content: response.message);
+        final finalMessages = [...updatedMessages, assistantMsg];
+        await _addToChatSession(response.message, 'assistant', messageId: assistantMsg.id, timestamp: assistantMsg.timestamp);
+        emit(currentState.copyWith(messages: finalMessages, isProcessing: false));
+        return true;
+      }
+      return false;
+    }
+
+    // Pattern: show "coming soon"
+    if (intent.type == ChatIntentType.pattern) {
+      final response = await orchestrator.handleMessage(
+        userId: userId,
+        message: text,
+        onProgressUpdate: (_) {},
+      );
+      if (response.type == ChatResponseType.notImplemented) {
+        final assistantMsg = LumaraMessage.assistant(content: response.message);
+        final finalMessages = [...updatedMessages, assistantMsg];
+        await _addToChatSession(response.message, 'assistant', messageId: assistantMsg.id, timestamp: assistantMsg.timestamp);
+        emit(currentState.copyWith(messages: finalMessages, isProcessing: false));
+        return true;
+      }
+      return false;
+    }
+
+    // Reflection or journaling -> use normal reflection path
+    if (intent.type != ChatIntentType.research && intent.type != ChatIntentType.writing) return false;
+
+    // Placeholder assistant message for progress updates
+    final placeholderId = DateTime.now().millisecondsSinceEpoch.toString();
+    var messagesWithPlaceholder = [
+      ...updatedMessages,
+      LumaraMessage.assistant(content: 'Working...', id: placeholderId),
+    ];
+    emit(currentState.copyWith(messages: messagesWithPlaceholder, isProcessing: true));
+
+    try {
+      final response = await orchestrator.handleMessage(
+        userId: userId,
+        message: text,
+        onProgressUpdate: (progressText) {
+          final s = state;
+          if (s is LumaraAssistantLoaded && s.messages.isNotEmpty) {
+            final last = s.messages.last;
+            if (last.id == placeholderId) {
+              final updated = [
+                ...s.messages.sublist(0, s.messages.length - 1),
+                last.copyWith(content: progressText),
+              ];
+              emit(s.copyWith(messages: updated));
+            }
+          }
+        },
+      );
+
+      if (response.type == ChatResponseType.useReflectionPath) {
+        // Agent failed or returned delegate; remove placeholder and let reflection path run
+        emit(currentState.copyWith(messages: updatedMessages, isProcessing: true));
+        return false;
+      }
+
+      if (response.type == ChatResponseType.clarification || response.type == ChatResponseType.notImplemented) {
+        final assistantMsg = LumaraMessage.assistant(content: response.message);
+        final finalMessages = [...updatedMessages, assistantMsg];
+        await _addToChatSession(response.message, 'assistant', messageId: assistantMsg.id, timestamp: assistantMsg.timestamp);
+        emit(currentState.copyWith(messages: finalMessages, isProcessing: false));
+        return true;
+      }
+
+      // researchComplete or writingComplete
+      final assistantMsg = LumaraMessage.assistant(
+        content: response.message,
+        metadata: response.metadata,
+      );
+      final finalMessages = [...updatedMessages, assistantMsg];
+      await _recordAssistantMessage(response.message);
+      await _addToChatSession(response.message, 'assistant', messageId: assistantMsg.id, timestamp: assistantMsg.timestamp);
+      emit(currentState.copyWith(messages: finalMessages, isProcessing: false));
+      await PendingConversationService.clearPendingInput();
+      return true;
+    } catch (e) {
+      print('LUMARA Chat: Agent path failed: $e');
+      emit(currentState.copyWith(messages: updatedMessages, isProcessing: true));
+      return false;
+    }
   }
 
   /// Ensure we have an active chat session (auto-create if needed)

@@ -1400,7 +1400,7 @@ class _LumaraFolderViewState extends State<LumaraFolderView> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Setup — AI provider, API keys, reflection, voice (one place for technical config)
+            // Setup — API, reflection, voice (one place for technical config)
             Padding(
               padding: const EdgeInsets.only(left: 4, bottom: 6),
               child: Text(
@@ -1413,8 +1413,8 @@ class _LumaraFolderViewState extends State<LumaraFolderView> {
               ),
             ),
             _SettingsTile(
-              title: 'API & providers',
-              subtitle: 'AI provider, API keys, reflection, voice transcription',
+              title: 'API',
+              subtitle: 'API keys, provider selection, voice transcription',
               icon: Icons.settings_applications,
               onTap: () {
                 Navigator.push(

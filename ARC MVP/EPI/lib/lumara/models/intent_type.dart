@@ -32,4 +32,7 @@ enum IntentType {
 
   /// AURORA: "When is optimal time for X?"
   optimalTiming,
+
+  /// Writing Agent: "Write a LinkedIn post", "Draft a Substack article", etc.
+  contentGeneration,
 }

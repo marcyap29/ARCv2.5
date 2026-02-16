@@ -1,6 +1,6 @@
 # EPI LUMARA MVP - Changelog
 
-**Version:** 3.3.34
+**Version:** 3.3.35
 **Last Updated:** February 15, 2026
 
 ---
@@ -14,6 +14,20 @@ This changelog has been split into parts for easier navigation:
 | **[CHANGELOG_part1.md](CHANGELOG_part1.md)** | Dec 2025 | v2.1.43 - v2.1.87 (Current) |
 | **[CHANGELOG_part2.md](CHANGELOG_part2.md)** | Nov 2025 | v2.1.28 - v2.1.42 |
 | **[CHANGELOG_part3.md](CHANGELOG_part3.md)** | Jan-Oct 2025 | v2.0.0 - v2.1.27 & Earlier |
+
+---
+
+## [3.3.35] - February 15, 2026
+
+### LUMARA agents, orchestrator, CHRONICLE alignment, and settings refactor
+
+- **LUMARA agents:** New `lib/lumara/agents/` — research agent (query planner, search orchestrator, synthesis engine, CHRONICLE cross-reference, citation manager, web search tool), writing subsystem, content drafts; screens: `agents_tab_view`, `research_screen`, `writing_screen`, `chat_draft_viewer_screen`; `chronicle_theme_ignore_list_storage`. Orchestrator: `lumara_chat_orchestrator`, `chat_intent_classifier`, `research_report_adapter`.
+- **LUMARA chat/settings:** `lumara_assistant_cubit` (+169), `lumara_assistant_screen`, `enhanced_lumara_api`; `lumara_settings_screen` major simplification (~-900 lines). Wispr/transcription config tweaks.
+- **CHRONICLE:** `chronicle_index` (+38), `pattern_query_router`, `related_entries_service`, `aggregation_repository`, `layer0_repository`; `pattern_index_viewer` updates. Intent/orchestrator: `intent_type`, `command_parser`.
+- **Home/settings:** `home_view`, `settings_view` minor updates.
+- **Documentation:** New `CHRONICLE_PAPER_VS_IMPLEMENTATION.md` (paper vs codebase alignment); `CHRONICLE-2026_02_15.md`.
+
+**Files:** 16 modified, multiple new (agents/, screens, chronicle_theme_ignore_list_storage, orchestrator/classifier/adapter, writing_subsystem; 2 DOCS).
 
 ---
 

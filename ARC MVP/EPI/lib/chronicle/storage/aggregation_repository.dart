@@ -212,6 +212,24 @@ user_id: ${aggregation.userId}
     );
   }
 
+  /// List available period identifiers for a layer (e.g. ["2025-01", "2024-12"] for monthly).
+  /// Sorted descending (most recent first). Used by ThemeTracker to load recent N periods.
+  Future<List<String>> listPeriods(ChronicleLayer layer) async {
+    if (layer == ChronicleLayer.layer0) {
+      throw ArgumentError('Layer 0 uses Layer0Repository, not AggregationRepository');
+    }
+    final layerDir = await _getLayerDirectory(layer);
+    if (!await layerDir.exists()) return [];
+    final periods = layerDir
+        .listSync()
+        .whereType<File>()
+        .where((f) => f.path.endsWith('.md'))
+        .map((f) => path.basenameWithoutExtension(f.path))
+        .toList();
+    periods.sort((a, b) => b.compareTo(a));
+    return periods;
+  }
+
   /// Get all aggregations for a layer
   Future<List<ChronicleAggregation>> getAllForLayer({
     required String userId,

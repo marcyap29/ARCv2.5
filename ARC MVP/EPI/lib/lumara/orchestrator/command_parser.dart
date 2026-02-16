@@ -43,6 +43,10 @@ class CommandParser {
     if (_matchesOptimalTiming(normalized)) {
       return CommandIntent(type: IntentType.optimalTiming, rawQuery: raw);
     }
+    if (_matchesContentGeneration(normalized)) {
+      final domain = _contentGenerationDomain(normalized);
+      return CommandIntent(type: IntentType.contentGeneration, rawQuery: raw, domain: domain);
+    }
 
     // Natural language: temporal references → temporalQuery
     if (_hasTemporalReference(normalized)) {
@@ -93,6 +97,23 @@ class CommandParser {
 
   static bool _matchesOptimalTiming(String s) {
     return RegExp(r'^(when\s+is\s+optimal|optimal\s+timing)', caseSensitive: false).hasMatch(s);
+  }
+
+  static bool _matchesContentGeneration(String s) {
+    return RegExp(r'write\s+(a\s+)?(linkedin|linked\s*in)\s+post', caseSensitive: false).hasMatch(s) ||
+        RegExp(r'write\s+(a\s+)?substack\s+(article|post)', caseSensitive: false).hasMatch(s) ||
+        RegExp(r'draft\s+(a\s+)?(linkedin|linked\s*in)\s+post', caseSensitive: false).hasMatch(s) ||
+        RegExp(r'draft\s+(a\s+)?substack\s+(article|post)', caseSensitive: false).hasMatch(s) ||
+        RegExp(r'write\s+(technical\s+)?doc', caseSensitive: false).hasMatch(s) ||
+        s.contains('linkedin') && (s.contains('write') || s.contains('draft') || s.contains('post')) ||
+        s.contains('substack') && (s.contains('write') || s.contains('draft') || s.contains('article')) ||
+        s.contains('technical doc') || s.contains('technical documentation');
+  }
+
+  static String? _contentGenerationDomain(String s) {
+    if (RegExp(r'substack|substack\s+article').hasMatch(s)) return 'substack';
+    if (RegExp(r'technical\s+doc|technical\s+documentation').hasMatch(s)) return 'technical';
+    return 'linkedIn'; // default for "write a post" / LinkedIn
   }
 
   static final _temporalTerms = [

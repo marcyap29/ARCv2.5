@@ -64,6 +64,44 @@ class ChronicleIndex {
         arcs: arcs ?? this.arcs,
         lastUpdated: lastUpdated ?? this.lastUpdated,
       );
+
+  /// Returns a copy of this index with theme clusters whose [canonicalLabel]
+  /// is in [ignoredCanonicalLabels] removed. Used to hide user-ignored themes
+  /// from pattern queries and related-entry resolution.
+  ChronicleIndex withoutIgnoredThemes(Set<String> ignoredCanonicalLabels) {
+    if (ignoredCanonicalLabels.isEmpty) return this;
+    final keepIds = <String>{};
+    final filteredClusters = <String, ThemeCluster>{};
+    for (final e in themeClusters.entries) {
+      if (!ignoredCanonicalLabels.contains(e.value.canonicalLabel)) {
+        keepIds.add(e.key);
+        filteredClusters[e.key] = e.value;
+      }
+    }
+    if (filteredClusters.length == themeClusters.length) return this;
+
+    final filteredLabelToClusterId = Map<String, String>.fromEntries(
+      labelToClusterId.entries.where(
+        (e) => keepIds.contains(e.value),
+      ),
+    );
+    final filteredEchoes = Map<String, PendingEcho>.fromEntries(
+      pendingEchoes.entries.where(
+        (e) => keepIds.contains(e.value.candidateCluster.clusterId),
+      ),
+    );
+    final filteredArcs = Map<String, UnresolvedArc>.fromEntries(
+      arcs.entries.where((e) => keepIds.contains(e.value.clusterId)),
+    );
+
+    return ChronicleIndex(
+      themeClusters: filteredClusters,
+      labelToClusterId: filteredLabelToClusterId,
+      pendingEchoes: filteredEchoes,
+      arcs: filteredArcs,
+      lastUpdated: lastUpdated,
+    );
+  }
 }
 
 @immutable

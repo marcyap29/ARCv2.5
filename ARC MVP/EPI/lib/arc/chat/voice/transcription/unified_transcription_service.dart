@@ -172,7 +172,7 @@ class UnifiedTranscriptionService {
           debugPrint('UnifiedTranscription: API key is null or empty');
         }
       } else {
-        debugPrint('UnifiedTranscription: No admin Wispr API key configured in Settings → External Services');
+        debugPrint('UnifiedTranscription: No Wispr API key configured in Settings → LUMARA → API');
       }
     } else {
       debugPrint('UnifiedTranscription: Wispr Flow skipped (not admin user)');
