@@ -55,6 +55,20 @@ class ChronicleQueryRouter {
     // Reflect or legacy: classify intent then select layers with speed target
     final intent = await _classifyIntent(query);
     final dateFilter = extractDateFilter(query);
+    final explicitPeriods = extractExplicitPeriods(query);
+
+    // Specific recall with date range → Layer 0 retrieval (API will fetch getEntriesInRange)
+    if (intent == QueryIntent.specificRecall && dateFilter != null) {
+      final plan = QueryPlan.rawEntry(
+        intent: intent,
+        dateFilter: dateFilter,
+        layer0DateRange: dateFilter,
+        speedTarget: ResponseSpeed.normal,
+      );
+      print('🔀 ChronicleQueryRouter: Plan (specific recall + date range): $plan');
+      return plan;
+    }
+
     final (layers, speedTarget) = _selectLayersForMode(intent, mode, query);
 
     if (layers.isEmpty) {
@@ -80,6 +94,7 @@ class ChronicleQueryRouter {
       strategy: strategy,
       drillDown: drillDown,
       dateFilter: dateFilter,
+      explicitPeriodsByLayer: explicitPeriods,
       instructions: instructions,
       voiceInstructions: voiceInstructions,
       speedTarget: speedTarget,
@@ -265,13 +280,51 @@ Respond with ONLY the intent name (e.g., "specific_recall", "temporal_query", "d
     }
   }
 
-  /// Extract date filter from query if present
+  /// Extract date filter from query if present.
+  /// Supports: full month ("February 2024"), year ("2024"), week range ("February 3-9", "Feb 3-9"), "last week".
   // Public for testing
   DateTimeRange? extractDateFilter(String query) {
-    // Simple date extraction - can be enhanced
     final lowerQuery = query.toLowerCase();
-    
-    // Check for specific months/years mentioned
+    final now = DateTime.now();
+
+    // Week range: "February 3-9", "Feb 3-9", "February 3 to 9", "Feb 3 - 9"
+    final weekRangeMatch = RegExp(
+      r'(january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|jun|jul|aug|sep|oct|nov|dec)\s+(\d{1,2})\s*(?:-|to)\s*(\d{1,2})(?:\s+(\d{4}))?',
+      caseSensitive: false,
+    ).firstMatch(lowerQuery);
+    if (weekRangeMatch != null) {
+      final monthName = weekRangeMatch.group(1)!;
+      final day1 = int.tryParse(weekRangeMatch.group(2)!);
+      final day2 = int.tryParse(weekRangeMatch.group(3)!);
+      final yearStr = weekRangeMatch.group(4);
+      final year = yearStr != null ? int.tryParse(yearStr) : now.year;
+      final month = _monthNameToNumber(monthName) ?? _shortMonthToNumber(monthName);
+      if (year != null && month != null && day1 != null && day2 != null) {
+        final start = DateTime(year, month, day1.clamp(1, 31));
+        final end = DateTime(year, month, day2.clamp(1, 31), 23, 59, 59);
+        if (end.isBefore(start)) {
+          return DateTimeRange(start: end, end: start.add(const Duration(days: 1)));
+        }
+        return DateTimeRange(start: start, end: end);
+      }
+    }
+
+    // "last week" -> previous 7 days
+    if (RegExp(r'\blast\s+week\b').hasMatch(lowerQuery)) {
+      final end = DateTime(now.year, now.month, now.day, 23, 59, 59);
+      final start = end.subtract(const Duration(days: 7));
+      return DateTimeRange(start: start, end: end);
+    }
+
+    // "last month" -> previous calendar month
+    if (RegExp(r'\blast\s+month\b').hasMatch(lowerQuery)) {
+      final prev = DateTime(now.year, now.month - 1, 1);
+      final start = prev;
+      final end = DateTime(prev.year, prev.month + 1, 0, 23, 59, 59);
+      return DateTimeRange(start: start, end: end);
+    }
+
+    // Specific month + year
     final monthMatch = RegExp(r'(january|february|march|april|may|june|july|august|september|october|november|december)\s+(\d{4})', caseSensitive: false).firstMatch(lowerQuery);
     if (monthMatch != null) {
       final monthName = monthMatch.group(1)!;
@@ -286,7 +339,19 @@ Respond with ONLY the intent name (e.g., "specific_recall", "temporal_query", "d
       }
     }
 
-    // Check for year mentioned
+    // Short month + year: "Feb 2024"
+    final shortMonthMatch = RegExp(r'(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\s+(\d{4})', caseSensitive: false).firstMatch(lowerQuery);
+    if (shortMonthMatch != null) {
+      final month = _shortMonthToNumber(shortMonthMatch.group(1)!);
+      final year = int.tryParse(shortMonthMatch.group(2)!);
+      if (year != null && month != null) {
+        final start = DateTime(year, month, 1);
+        final end = DateTime(year, month + 1, 0, 23, 59, 59);
+        return DateTimeRange(start: start, end: end);
+      }
+    }
+
+    // Year only
     final yearMatch = RegExp(r'\b(20\d{2})\b').firstMatch(lowerQuery);
     if (yearMatch != null) {
       final year = int.tryParse(yearMatch.group(1)!);
@@ -297,6 +362,46 @@ Respond with ONLY the intent name (e.g., "specific_recall", "temporal_query", "d
       }
     }
 
+    return null;
+  }
+
+  /// Extract multiple periods when user asks to compare (e.g. "January vs February", "compare 2024 and 2023").
+  /// Returns map keyed by layer name: 'monthly' -> ['2025-01', '2025-02'], 'yearly' -> ['2024', '2023'].
+  Map<String, List<String>>? extractExplicitPeriods(String query) {
+    final lowerQuery = query.toLowerCase();
+    final months = <String>[];
+    final years = <String>[];
+
+    // "January and February", "January vs February", "compare January to February"
+    final monthNames = [
+      'january', 'february', 'march', 'april', 'may', 'june',
+      'july', 'august', 'september', 'october', 'november', 'december',
+    ];
+    final currentYear = DateTime.now().year;
+    for (final name in monthNames) {
+      if (lowerQuery.contains(name)) {
+        final monthNum = monthNames.indexOf(name) + 1;
+        final yearMatch = RegExp(r'\b(20\d{2})\b').firstMatch(lowerQuery);
+        final year = yearMatch != null ? int.tryParse(yearMatch.group(1)!) : currentYear;
+        if (year != null) {
+          months.add('$year-${monthNum.toString().padLeft(2, '0')}');
+        }
+      }
+    }
+
+    // "2024 and 2023", "compare 2024 to 2023"
+    final yearMatches = RegExp(r'\b(20\d{2})\b').allMatches(lowerQuery);
+    for (final m in yearMatches) {
+      final y = m.group(1);
+      if (y != null && !years.contains(y)) years.add(y);
+    }
+
+    if (months.length >= 2) {
+      return {'monthly': months.take(5).toList()};
+    }
+    if (years.length >= 2) {
+      return {'yearly': years.take(5).toList()};
+    }
     return null;
   }
 
@@ -317,6 +422,14 @@ Respond with ONLY the intent name (e.g., "specific_recall", "temporal_query", "d
       'december': 12,
     };
     return months[monthName.toLowerCase()];
+  }
+
+  int? _shortMonthToNumber(String short) {
+    const shortMonths = {
+      'jan': 1, 'feb': 2, 'mar': 3, 'apr': 4, 'may': 5, 'jun': 6,
+      'jul': 7, 'aug': 8, 'sep': 9, 'oct': 10, 'nov': 11, 'dec': 12,
+    };
+    return shortMonths[short.toLowerCase()];
   }
 
   /// Determine if drill-down is needed

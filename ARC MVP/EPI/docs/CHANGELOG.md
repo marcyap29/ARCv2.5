@@ -1,6 +1,6 @@
 # EPI LUMARA MVP - Changelog
 
-**Version:** 3.3.33
+**Version:** 3.3.34
 **Last Updated:** February 15, 2026
 
 ---
@@ -14,6 +14,19 @@ This changelog has been split into parts for easier navigation:
 | **[CHANGELOG_part1.md](CHANGELOG_part1.md)** | Dec 2025 | v2.1.43 - v2.1.87 (Current) |
 | **[CHANGELOG_part2.md](CHANGELOG_part2.md)** | Nov 2025 | v2.1.28 - v2.1.42 |
 | **[CHANGELOG_part3.md](CHANGELOG_part3.md)** | Jan-Oct 2025 | v2.0.0 - v2.1.27 & Earlier |
+
+---
+
+## [3.3.34] - February 15, 2026
+
+### LUMARA API, control state, and CHRONICLE query stack
+
+- **EnhancedLumaraApi:** Updates in `enhanced_lumara_api.dart` (+34 lines) — LUMARA API integration.
+- **LumaraControlStateBuilder:** Further extension in `lumara_control_state_builder.dart` (+86 net) — control state construction.
+- **CHRONICLE query:** `query_plan.dart` (+17 net), `context_builder.dart` refactor (+100 net), `query_router.dart` (+123 net) — query planning, context building, and routing.
+- **Docs:** `NARRATIVE_INTELLIGENCE_OVERVIEW.md` minor edit.
+
+**Files:** 6 modified (DOCS, enhanced_lumara_api, lumara_control_state_builder, query_plan, context_builder, query_router).
 
 ---
 

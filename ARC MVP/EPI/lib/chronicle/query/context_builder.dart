@@ -43,7 +43,8 @@ class ChronicleContextBuilder {
     switch (queryPlan.speedTarget) {
       case ResponseSpeed.instant:
         final layer = queryPlan.layers.first;
-        final period = _getPeriodForLayer(layer, queryPlan.dateFilter);
+        final periods = _getPeriodsForLayer(queryPlan, layer);
+        final period = periods != null && periods.isNotEmpty ? periods.first : _getPeriodForLayer(layer, queryPlan.dateFilter);
         if (period == null) return null;
         context = await buildMiniContext(userId: userId, layer: layer, period: period);
         break;
@@ -67,60 +68,91 @@ class ChronicleContextBuilder {
   }
 
   String? _periodKeyForPlan(QueryPlan plan) {
-    final periods = <String>[];
+    final parts = <String>[];
     for (final layer in plan.layers) {
-      final p = _getPeriodForLayer(layer, plan.dateFilter);
-      if (p == null) return null;
-      periods.add(p);
+      final periods = _getPeriodsForLayer(plan, layer);
+      if (periods == null || periods.isEmpty) return null;
+      parts.add(periods.join(','));
     }
-    return periods.join('|');
+    return parts.join('|');
   }
 
-  /// Single-layer context for fast responses (~2–5k tokens).
+  /// Returns one or more period strings for a layer. Uses explicitPeriodsByLayer when set.
+  List<String>? _getPeriodsForLayer(QueryPlan plan, ChronicleLayer layer) {
+    final explicit = plan.explicitPeriodsByLayer;
+    if (explicit != null) {
+      String? key;
+      switch (layer) {
+        case ChronicleLayer.monthly:
+          key = 'monthly';
+          break;
+        case ChronicleLayer.yearly:
+          key = 'yearly';
+          break;
+        case ChronicleLayer.multiyear:
+          key = 'multiyear';
+          break;
+        default:
+          break;
+      }
+      if (key != null) {
+        final list = explicit[key];
+        if (list != null && list.isNotEmpty) return list;
+      }
+    }
+    final single = _getPeriodForLayer(layer, plan.dateFilter);
+    return single != null ? [single] : null;
+  }
+
+  /// Single-layer context for fast responses (~2–5k tokens). Supports multiple periods (e.g. compare January vs February).
   Future<String?> _buildSingleLayerContext(String userId, QueryPlan plan) async {
     final layer = plan.layers.first;
-    final period = _getPeriodForLayer(layer, plan.dateFilter);
-    if (period == null) return null;
+    final periods = _getPeriodsForLayer(plan, layer);
+    if (periods == null || periods.isEmpty) return null;
 
-    final agg = await _aggregationRepo.loadLayer(
-      userId: userId,
-      layer: layer,
-      period: period,
-    );
-    if (agg == null) return null;
-
-    final compressed = _compressForSpeed(agg, targetTokens: 2000);
     final buffer = StringBuffer();
     buffer.writeln('<chronicle_context>');
-    buffer.writeln('Source: ${layer.displayName} aggregation for $period');
-    buffer.writeln('User edited: ${agg.userEdited}');
-    if (plan.drillDown) {
-      buffer.writeln('Drill-down available: Can access specific entries on request.');
-    }
-    buffer.writeln('');
-    buffer.writeln(compressed);
-    buffer.writeln('');
-    buffer.writeln('Source layers: ${layer.displayName}');
-    buffer.writeln('</chronicle_context>');
-    return buffer.toString();
-  }
-
-  /// Multi-layer context (existing full load and format).
-  Future<String?> _buildMultiLayerContext(String userId, QueryPlan queryPlan) async {
-    final aggregations = <ChronicleAggregation>[];
-
-    for (final layer in queryPlan.layers) {
-      final period = _getPeriodForLayer(layer, queryPlan.dateFilter);
-      if (period == null) continue;
-
+    for (final period in periods) {
       final agg = await _aggregationRepo.loadLayer(
         userId: userId,
         layer: layer,
         period: period,
       );
+      if (agg == null) continue;
+      final compressed = _compressForSpeed(agg, targetTokens: periods.length > 1 ? 1200 : 2000);
+      buffer.writeln('Source: ${layer.displayName} aggregation for $period');
+      buffer.writeln('User edited: ${agg.userEdited}');
+      buffer.writeln('');
+      buffer.writeln(compressed);
+      buffer.writeln('');
+      buffer.writeln('---');
+      buffer.writeln('');
+    }
+    if (plan.drillDown) {
+      buffer.writeln('Drill-down available: Can access specific entries on request.');
+    }
+    buffer.writeln('Source layers: ${layer.displayName}');
+    buffer.writeln('</chronicle_context>');
+    return buffer.toString();
+  }
 
-      if (agg != null) {
-        aggregations.add(agg);
+  /// Multi-layer context (full load and format). Supports multiple periods per layer via explicitPeriodsByLayer.
+  Future<String?> _buildMultiLayerContext(String userId, QueryPlan queryPlan) async {
+    final aggregations = <ChronicleAggregation>[];
+
+    for (final layer in queryPlan.layers) {
+      final periods = _getPeriodsForLayer(queryPlan, layer);
+      if (periods == null || periods.isEmpty) continue;
+
+      for (final period in periods) {
+        final agg = await _aggregationRepo.loadLayer(
+          userId: userId,
+          layer: layer,
+          period: period,
+        );
+        if (agg != null) {
+          aggregations.add(agg);
+        }
       }
     }
 

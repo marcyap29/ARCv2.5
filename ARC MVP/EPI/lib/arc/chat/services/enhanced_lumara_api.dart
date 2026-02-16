@@ -824,6 +824,40 @@ class EnhancedLumaraApi {
           String? baseContext;
           if (promptMode == LumaraPromptMode.rawBacked || promptMode == LumaraPromptMode.hybrid) {
             final baseContextParts = <String>[];
+
+            // Layer 0 date-range retrieval (e.g. "Show me February 3-9") when plan requests it
+            if (userId != null &&
+                _layer0Repo != null &&
+                queryPlan != null &&
+                queryPlan.layer0DateRange != null) {
+              try {
+                final range = queryPlan.layer0DateRange!;
+                final layer0Entries = await _layer0Repo!.getEntriesInRange(
+                  userId!,
+                  range.start,
+                  range.end,
+                );
+                if (layer0Entries.isNotEmpty) {
+                  baseContextParts.add('**ENTRIES FOR REQUESTED DATE RANGE (CHRONICLE Layer 0):**');
+                  baseContextParts.add(
+                    'The following entries fall within the requested period (${range.start.toIso8601String().split('T')[0]} to ${range.end.toIso8601String().split('T')[0]}). Use these to answer specific recall questions.'
+                  );
+                  baseContextParts.add('');
+                  for (final e in layer0Entries) {
+                    final dateStr = '${e.timestamp.year}-${e.timestamp.month.toString().padLeft(2, '0')}-${e.timestamp.day.toString().padLeft(2, '0')}';
+                    baseContextParts.add('$dateStr | entry_id: ${e.entryId}');
+                    baseContextParts.add(e.content);
+                    baseContextParts.add('');
+                  }
+                  baseContextParts.add('---');
+                  baseContextParts.add('');
+                  print('✅ EnhancedLumaraApi: Layer 0 date-range context added (${layer0Entries.length} entries)');
+                }
+              } catch (e) {
+                print('⚠️ EnhancedLumaraApi: Layer 0 date-range retrieval failed (non-fatal): $e');
+              }
+            }
+
             baseContextParts.addAll(contextParts);
             baseContextParts.add('');
             baseContextParts.add('**CURRENT ENTRY (PRIMARY FOCUS - WRITTEN TODAY, $todayDateStr)**: ${request.userText}');

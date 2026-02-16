@@ -17,6 +17,9 @@ import 'package:my_app/services/health_data_service.dart';
 import 'package:my_app/services/lumara/entry_classifier.dart';
 import 'package:my_app/services/lumara/user_intent.dart';
 import 'package:my_app/services/lumara/persona_selector.dart';
+import 'package:my_app/prism/atlas/phase/phase_history_repository.dart';
+import 'package:my_app/chronicle/storage/chronicle_index_storage.dart';
+import 'package:my_app/chronicle/models/chronicle_index.dart';
 
 class LumaraControlStateBuilder {
   /// Build the unified control state JSON
@@ -1259,25 +1262,88 @@ class LumaraControlStateBuilder {
 
   // ========== Temporal awareness helpers (for LAYER 2.5) ==========
 
-  /// Query CHRONICLE for phase start date, calculate weeks since. Returns null if insufficient data.
-  static Future<int?> _calculateCycleWeek(String? userId, String? phase) async {
-    if (userId == null || phase == null || phase.isEmpty) return null;
-    // TODO: Integrate with CHRONICLE when phase start date is available from aggregations
-    return null;
+  /// Compute dominant phase from phase scores (argmax).
+  static String? _dominantPhase(PhaseHistoryEntry entry) {
+    if (entry.phaseScores.isEmpty) return null;
+    return entry.phaseScores.entries
+        .reduce((a, b) => a.value >= b.value ? a : b)
+        .key;
   }
 
-  /// Check if user is within ~1 week of historical pattern threshold (from CHRONICLE temporal markers).
+  /// Phase start = timestamp of the oldest entry in the current run of [currentPhase]. Returns null if insufficient data.
+  /// Assumes single-user device (phase history box not filtered by userId).
+  static Future<int?> _calculateCycleWeek(String? userId, String? phase) async {
+    if (userId == null) return null;
+    try {
+      await PhaseHistoryRepository.initialize();
+      final entries = await PhaseHistoryRepository.getAllEntries();
+      if (entries.length < 2) return null;
+      entries.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+      final currentPhase = phase?.isNotEmpty == true
+          ? phase
+          : _dominantPhase(entries.first);
+      if (currentPhase == null) return null;
+      DateTime phaseStart = entries.first.timestamp;
+      for (final e in entries) {
+        if (_dominantPhase(e) != currentPhase) break;
+        phaseStart = e.timestamp;
+      }
+      final now = DateTime.now();
+      final days = now.difference(phaseStart).inDays;
+      if (days < 0) return null;
+      return (days / 7).floor();
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /// True if user is within ~1 week of a historical pattern duration (from pattern index typicalDurationDays).
   static Future<bool> _checkTemporalThreshold(String? userId) async {
     if (userId == null) return false;
-    // TODO: Integrate with CHRONICLE pattern index / temporal markers when available
-    return false;
+    try {
+      final cycleWeek = await _calculateCycleWeek(userId, null);
+      if (cycleWeek == null) return false;
+      final storage = ChronicleIndexStorage();
+      final json = await storage.read(userId);
+      if (json.isEmpty) return false;
+      final index = ChronicleIndex.fromJson(json);
+      for (final cluster in index.themeClusters.values) {
+        final days = cluster.insights.typicalDurationDays;
+        if (days == null) continue;
+        final durationWeeks = (days / 7).round();
+        if ((durationWeeks - cycleWeek).abs() <= 1) return true;
+      }
+      return false;
+    } catch (_) {
+      return false;
+    }
   }
 
-  /// Check if current date matches known seasonal pattern trigger (e.g. mid-February expansion).
+  /// True if current month appears in 2+ years in pattern index appearances (seasonal recurrence).
   static Future<bool> _checkSeasonalPattern(String? userId) async {
     if (userId == null) return false;
-    // TODO: Integrate with CHRONICLE when seasonal pattern detection is available
-    return false;
+    try {
+      final storage = ChronicleIndexStorage();
+      final json = await storage.read(userId);
+      if (json.isEmpty) return false;
+      final index = ChronicleIndex.fromJson(json);
+      final currentMonth = DateTime.now().month.toString().padLeft(2, '0');
+      final yearsWithThisMonth = <int>{};
+      for (final cluster in index.themeClusters.values) {
+        for (final app in cluster.appearances) {
+          if (app.period.endsWith('-$currentMonth')) {
+            final parts = app.period.split('-');
+            if (parts.isNotEmpty) {
+              final year = int.tryParse(parts[0]);
+              if (year != null) yearsWithThisMonth.add(year);
+            }
+          }
+        }
+      }
+      return yearsWithThisMonth.length >= 2;
+    } catch (_) {
+      return false;
+    }
   }
 
   static bool _detectExpansionLanguage(String message) {

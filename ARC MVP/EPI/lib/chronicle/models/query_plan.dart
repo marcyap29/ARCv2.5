@@ -71,6 +71,13 @@ class QueryPlan {
   /// Optional date filter to narrow the query
   final DateTimeRange? dateFilter;
 
+  /// When set, API loads Layer 0 entries in this range and adds to baseContext (specific recall / "Show me Feb 3-9").
+  final DateTimeRange? layer0DateRange;
+
+  /// When set, context builder loads these periods per layer instead of deriving from dateFilter (e.g. compare January vs February).
+  /// Keys: 'monthly', 'yearly', 'multiyear'. Values: list of period strings (e.g. ['2025-01', '2025-02']).
+  final Map<String, List<String>>? explicitPeriodsByLayer;
+
   /// Instructions specific to this query plan
   final String? instructions;
 
@@ -87,6 +94,8 @@ class QueryPlan {
     required this.usesChronicle,
     this.drillDown = false,
     this.dateFilter,
+    this.layer0DateRange,
+    this.explicitPeriodsByLayer,
     this.instructions,
     this.voiceInstructions,
     this.speedTarget = ResponseSpeed.normal,
@@ -96,15 +105,19 @@ class QueryPlan {
   factory QueryPlan.rawEntry({
     required QueryIntent intent,
     DateTimeRange? dateFilter,
+    DateTimeRange? layer0DateRange,
     ResponseSpeed speedTarget = ResponseSpeed.normal,
   }) {
     return QueryPlan(
       intent: intent,
       layers: [],
-      strategy: 'Use raw journal entries (CHRONICLE not applicable)',
+      strategy: layer0DateRange != null
+          ? 'Use Layer 0 entries for requested date range'
+          : 'Use raw journal entries (CHRONICLE not applicable)',
       usesChronicle: false,
       drillDown: false,
       dateFilter: dateFilter,
+      layer0DateRange: layer0DateRange,
       speedTarget: speedTarget,
     );
   }
@@ -116,6 +129,7 @@ class QueryPlan {
     required String strategy,
     bool drillDown = false,
     DateTimeRange? dateFilter,
+    Map<String, List<String>>? explicitPeriodsByLayer,
     String? instructions,
     String? voiceInstructions,
     ResponseSpeed speedTarget = ResponseSpeed.normal,
@@ -127,6 +141,7 @@ class QueryPlan {
       usesChronicle: true,
       drillDown: drillDown,
       dateFilter: dateFilter,
+      explicitPeriodsByLayer: explicitPeriodsByLayer,
       instructions: instructions,
       voiceInstructions: voiceInstructions,
       speedTarget: speedTarget,

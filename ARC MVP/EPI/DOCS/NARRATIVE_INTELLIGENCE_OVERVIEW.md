@@ -4,8 +4,6 @@
 Marc Yap  
 January 2025  
 
-*A plain-language overview for the general public*
-
 ---
 
 # **What Is Narrative Intelligence?**

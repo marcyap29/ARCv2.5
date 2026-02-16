@@ -115,6 +115,7 @@ This section is derived from the repo and [CHANGELOG.md](../CHANGELOG.md) to kee
 | Voice Moonshine spec, transcription cleanup, unified feed | v3.3.31 | — | Feature: VOICE_TRANSCRIPTION_MOONSHINE_SPEC; TranscriptCleanupService; unified feed/HomeView updates. |
 | ExpandedEntryView, RelatedEntriesService | v3.3.32 | — | Unified feed expanded entry widget and CHRONICLE related-entries service updates. |
 | Master prompt, control state, Narrative Intelligence docs | v3.3.33 | — | lumara_master_prompt.dart and LumaraControlStateBuilder extended; MASTER_PROMPT_CHRONICLE_VECTORIZATION.md, NARRATIVE_INTELLIGENCE_OVERVIEW.md added. |
+| LUMARA API, control state, CHRONICLE query stack | v3.3.34 | — | enhanced_lumara_api, lumara_control_state_builder; query_plan, context_builder, query_router; NARRATIVE_INTELLIGENCE_OVERVIEW edit. |
 
 **Source:** `git log --oneline`, [CHANGELOG.md](../CHANGELOG.md), terminal build log 2026-02-15. Last synced: 2026-02-15.
 
