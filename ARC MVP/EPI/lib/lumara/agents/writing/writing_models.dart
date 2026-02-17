@@ -165,12 +165,39 @@ class DraftMetadata {
   final String phase;
   final int wordCount;
   final DateTime generatedAt;
+  /// Parsed from agent footer: "Context signals used" block (for display).
+  final String? contextSignalsUsed;
+  /// Parsed from agent footer: Voice Match Estimate % (0-100).
+  final double? voiceMatchEstimate;
+  /// Parsed from agent footer: Theme Match Estimate % (0-100).
+  final double? themeMatchEstimate;
 
   const DraftMetadata({
     this.phase = 'Discovery',
     this.wordCount = 0,
     required this.generatedAt,
+    this.contextSignalsUsed,
+    this.voiceMatchEstimate,
+    this.themeMatchEstimate,
   });
+
+  DraftMetadata copyWith({
+    String? phase,
+    int? wordCount,
+    DateTime? generatedAt,
+    String? contextSignalsUsed,
+    double? voiceMatchEstimate,
+    double? themeMatchEstimate,
+  }) {
+    return DraftMetadata(
+      phase: phase ?? this.phase,
+      wordCount: wordCount ?? this.wordCount,
+      generatedAt: generatedAt ?? this.generatedAt,
+      contextSignalsUsed: contextSignalsUsed ?? this.contextSignalsUsed,
+      voiceMatchEstimate: voiceMatchEstimate ?? this.voiceMatchEstimate,
+      themeMatchEstimate: themeMatchEstimate ?? this.themeMatchEstimate,
+    );
+  }
 }
 
 /// A composed draft (before or after critique).

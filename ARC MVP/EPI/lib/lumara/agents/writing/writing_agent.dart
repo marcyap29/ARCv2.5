@@ -1,5 +1,6 @@
 import 'package:my_app/models/phase_models.dart';
 import 'package:my_app/services/user_phase_service.dart';
+import 'package:my_app/lumara/agents/services/timeline_context_service.dart';
 import 'package:my_app/lumara/agents/writing/writing_models.dart';
 import 'package:my_app/lumara/agents/writing/voice_analyzer.dart';
 import 'package:my_app/lumara/agents/writing/theme_tracker.dart';
@@ -7,7 +8,7 @@ import 'package:my_app/lumara/agents/writing/tone_calibrator.dart';
 import 'package:my_app/lumara/agents/writing/draft_composer.dart';
 import 'package:my_app/lumara/agents/writing/self_critic.dart';
 
-/// Orchestrates the Writing Agent pipeline: voice → themes → tone → compose (→ critique loop when enabled).
+/// Orchestrates the Writing Agent pipeline: timeline context → voice → themes → tone → compose (→ critique loop when enabled).
 class WritingAgent {
   final VoiceAnalyzer _voiceAnalyzer;
   final ThemeTracker _themeTracker;
@@ -15,6 +16,7 @@ class WritingAgent {
   final DraftComposer _draftComposer;
   final SelfCritic _selfCritic;
   final WritingDraftRepository? _draftRepository;
+  final TimelineContextService _timelineContextService;
 
   WritingAgent({
     VoiceAnalyzer? voiceAnalyzer,
@@ -23,13 +25,15 @@ class WritingAgent {
     DraftComposer? draftComposer,
     SelfCritic? selfCritic,
     WritingDraftRepository? draftRepository,
+    TimelineContextService? timelineContextService,
     required WritingLlmGenerate generateContent,
   })  : _voiceAnalyzer = voiceAnalyzer ?? VoiceAnalyzer(),
         _themeTracker = themeTracker ?? ThemeTracker(),
         _toneCalibrator = toneCalibrator ?? ToneCalibrator(),
         _draftComposer = draftComposer ?? DraftComposer(generate: generateContent),
         _selfCritic = selfCritic ?? SelfCritic(),
-        _draftRepository = draftRepository;
+        _draftRepository = draftRepository,
+        _timelineContextService = timelineContextService ?? TimelineContextService();
 
   /// Compose content for the user. Optionally pass [phaseOverride] and [readinessOverride]
   /// when the caller has already resolved ATLAS state (e.g. from LUMARA control state).
@@ -55,6 +59,10 @@ class WritingAgent {
       readinessScore: readiness,
       contentType: type,
     );
+    final timelineContext = await _timelineContextService.getWritingContext(
+      userId: userId,
+      contentTopic: prompt,
+    );
 
     var draft = await _draftComposer.composeDraft(
       prompt: prompt,
@@ -62,6 +70,7 @@ class WritingAgent {
       themes: themes,
       tone: tone,
       type: type,
+      timelineContext: timelineContext,
     );
 
     double? voiceScore;
@@ -86,6 +95,7 @@ class WritingAgent {
         themes: themes,
         tone: tone,
         type: type,
+        timelineContext: timelineContext,
       );
       iterations++;
     }

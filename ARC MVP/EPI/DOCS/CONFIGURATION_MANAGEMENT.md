@@ -1,7 +1,7 @@
 # Configuration Management & Documentation Tracking
 
 **Lead Configuration Management Analyst:** Active  
-**Last Updated:** February 15, 2026 (v3.3.36)  
+**Last Updated:** February 15, 2026 (v3.3.37)  
 **Status:** ✅ All Documents Synced with Repo
 
 ---
@@ -38,12 +38,12 @@ Prompt/role definitions: **Ultimate Documentation, Configuration Management and 
 
 | Document | Location | Last Reviewed | Status | Notes |
 |----------|----------|---------------|--------|-------|
-| ARCHITECTURE.md | `/DOCS/ARCHITECTURE.md` | 2026-02-15 | ✅ Synced | v3.3.36 - Doc sync |
-| CHANGELOG.md | `/DOCS/CHANGELOG.md` | 2026-02-15 | ✅ Synced | v3.3.36 - Agents screen, connection service, bug record |
-| PROMPT_REFERENCES.md | `/DOCS/PROMPT_REFERENCES.md` | 2026-02-15 | ✅ Synced | v2.3.0 current |
-| PROMPT_TRACKER.md | `/DOCS/PROMPT_TRACKER.md` | 2026-02-15 | ✅ Synced | v1.4.0 - Doc sync |
-| bug_tracker.md | `/DOCS/bugtracker/bug_tracker.md` | 2026-02-15 | ✅ Synced | v3.2.6 - 35 records; build-fixes-session-feb-2026 tracked |
-| FEATURES.md | `/DOCS/FEATURES.md` | 2026-02-15 | ✅ Synced | v3.3.36 - Doc sync |
+| ARCHITECTURE.md | `/DOCS/ARCHITECTURE.md` | 2026-02-15 | ✅ Synced | v3.3.37 - Doc sync |
+| CHANGELOG.md | `/DOCS/CHANGELOG.md` | 2026-02-15 | ✅ Synced | v3.3.37 - Research/writing prompts, timeline context |
+| PROMPT_REFERENCES.md | `/DOCS/PROMPT_REFERENCES.md` | 2026-02-15 | ✅ Synced | v2.3.0; agent prompts in research_prompts/writing_prompts (track in PROMPT_TRACKER) |
+| PROMPT_TRACKER.md | `/DOCS/PROMPT_TRACKER.md` | 2026-02-15 | ✅ Synced | v1.4.0 - Agent prompts row |
+| bug_tracker.md | `/DOCS/bugtracker/bug_tracker.md` | 2026-02-15 | ✅ Synced | v3.2.6 - 35 records; tracked in doc sync |
+| FEATURES.md | `/DOCS/FEATURES.md` | 2026-02-15 | ✅ Synced | v3.3.37 - Doc sync |
 | README.md | `/DOCS/README.md` | 2026-02-07 | ✅ Synced | Key docs table with purpose and when to read |
 | claude.md | `/DOCS/claude.md` | 2026-02-13 | ✅ Synced | TOC — Prompts; consolidated Doc/Config/Git Backup prompt; TOC aligned with current sections |
 | backend.md | `/DOCS/backend.md` | 2026-02-11 | ✅ Synced | v3.3 - proxyGroq (Groq primary), proxyGemini (fallback), Firebase, Stripe |
@@ -97,6 +97,24 @@ Prompt/role definitions: **Ultimate Documentation, Configuration Management and 
 ---
 
 ## Change Tracking Log
+
+### 2026-02-15 - Documentation & Git Backup run (v3.3.37; bug_tracker tracked)
+
+**Action:** Ran Documentation, Configuration Management and Git Backup workflow (claude.md §233–349) on the entire repo. Document updates include **bug_tracker** tracking.
+
+**PROMPT REFERENCES AUDIT:** New prompt files `research_prompts.dart`, `writing_prompts.dart` (LUMARA agents); catalog v2.3.0 current; agent prompts tracked in PROMPT_TRACKER.
+
+**Git Backup — Identify what changed:** research_agent, synthesis_engine, draft_composer, writing_agent, writing_models, writing_screen; new research_prompts, writing_prompts, timeline_context_service.
+
+**Updates:**
+- **CHANGELOG.md:** Version 3.3.37; new [3.3.37] (research/writing prompts, timeline context, synthesis/draft updates).
+- **CONFIGURATION_MANAGEMENT.md:** This entry; inventory 2026-02-15; bug_tracker tracked.
+- **bug_tracker.md:** New row for v3.3.37; Last Updated 2026-02-15.
+- **PROMPT_TRACKER.md:** Agent prompts (research_prompts, writing_prompts) row; Last Updated 2026-02-15.
+
+**Status:** ✅ Commit on test, push test, merge test into main, push main.
+
+---
 
 ### 2026-02-15 - Documentation & Git Backup run (v3.3.36; bug_tracker tracked)
 

@@ -4,6 +4,7 @@
 import 'package:my_app/models/phase_models.dart';
 import 'package:my_app/services/user_phase_service.dart';
 
+import 'package:my_app/lumara/agents/services/timeline_context_service.dart';
 import 'chronicle_cross_reference.dart';
 import 'query_planner.dart';
 import 'research_models.dart';
@@ -11,6 +12,13 @@ import 'research_session_manager.dart';
 import 'search_orchestrator.dart';
 import 'synthesis_engine.dart';
 import 'web_search_tool.dart';
+
+/// Research depth: drives synthesis depth and optional query scope.
+enum ResearchDepth {
+  quick_scan,
+  standard,
+  deep_dive,
+}
 
 typedef LlmGenerate = Future<String> Function({
   required String systemPrompt,
@@ -47,28 +55,33 @@ class ResearchAgent {
   final SearchOrchestrator _searchOrchestrator;
   final SynthesisEngine _synthesisEngine;
   final ResearchSessionManager _sessionManager;
+  final TimelineContextService _timelineContextService;
 
   ResearchAgent({
     required LlmGenerate generate,
     required WebSearchTool searchTool,
     ChronicleCrossReference? chronicleCrossRef,
     ResearchSessionManager? sessionManager,
+    TimelineContextService? timelineContextService,
   })  : _queryPlanner = QueryPlanner(generate: generate),
         _chronicleCrossRef = chronicleCrossRef ?? ChronicleCrossReference(),
         _searchOrchestrator = SearchOrchestrator(searchTool: searchTool),
         _synthesisEngine = SynthesisEngine(generate: generate),
-        _sessionManager = sessionManager ?? ResearchSessionManager();
+        _sessionManager = sessionManager ?? ResearchSessionManager(),
+        _timelineContextService = timelineContextService ?? TimelineContextService();
 
   static const int _totalSteps = 6;
 
   /// Run full research pipeline and return report with session id.
   /// [onProgress] is optional; when provided, called at each step for chat UI.
+  /// [researchDepth] optional: quick_scan, standard, deep_dive (default derived from phase/readiness).
   Future<ResearchResult> conductResearch({
     required String userId,
     required String query,
     bool allowFollowUps = true,
     PhaseLabel? phaseOverride,
     double? readinessOverride,
+    ResearchDepth? researchDepth,
     void Function(ResearchProgress)? onProgress,
   }) async {
     final phase = phaseOverride ?? _phaseFromString(await UserPhaseService.getCurrentPhase());
@@ -123,12 +136,20 @@ class ResearchAgent {
       totalSteps: _totalSteps,
     ));
 
+    final timelineContext = await _timelineContextService.getResearchContext(
+      userId: userId,
+      pastResearchSummary: priorContext.existingKnowledge.summary,
+    );
+    final depthLabel = researchDepth != null ? _researchDepthToLabel(researchDepth) : null;
+
     final report = await _synthesisEngine.synthesizeFindings(
       originalQuery: query,
       searchResults: searchResults,
       priorContext: priorContext,
       currentPhase: phase,
       readinessScore: readiness,
+      timelineContext: timelineContext,
+      researchDepthLabel: depthLabel,
     );
 
     onProgress?.call(ResearchProgress(
@@ -181,6 +202,10 @@ class ResearchAgent {
     session.searchResults.addAll(additionalResults);
 
     final allResults = List<SearchResult>.from(session.searchResults);
+    final timelineContext = await _timelineContextService.getResearchContext(
+      userId: session.userId,
+      pastResearchSummary: priorContext.existingKnowledge.summary,
+    );
 
     final refinedReport = await _synthesisEngine.synthesizeFindings(
       originalQuery: '${session.queries.first} → $followUpQuery',
@@ -188,6 +213,7 @@ class ResearchAgent {
       priorContext: priorContext,
       currentPhase: session.phase,
       readinessScore: session.readinessScore,
+      timelineContext: timelineContext,
     );
 
     _sessionManager.updateSessionWithReport(session, refinedReport);
@@ -200,5 +226,16 @@ class ResearchAgent {
       if (p.name == lower) return p;
     }
     return PhaseLabel.discovery;
+  }
+
+  String _researchDepthToLabel(ResearchDepth depth) {
+    switch (depth) {
+      case ResearchDepth.quick_scan:
+        return 'quick_scan';
+      case ResearchDepth.standard:
+        return 'standard';
+      case ResearchDepth.deep_dive:
+        return 'deep_dive';
+    }
   }
 }

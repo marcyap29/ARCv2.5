@@ -19,7 +19,7 @@ class WritingScreen extends StatefulWidget {
 class _WritingScreenState extends State<WritingScreen> {
   final TextEditingController _promptController = TextEditingController();
   ContentType _contentType = ContentType.linkedIn;
-  String? _draft;
+  Draft? _draft;
   double? _voiceScore;
   double? _themeAlignment;
   List<String> _suggestedEdits = [];
@@ -41,14 +41,14 @@ class _WritingScreenState extends State<WritingScreen> {
       return;
     }
     final userId = FirebaseAuthService.instance.currentUser?.uid ?? 'default_user';
-    setState(() {
-      _loading = true;
-      _error = null;
-      _draft = null;
-      _voiceScore = null;
-      _themeAlignment = null;
-      _suggestedEdits = [];
-    });
+      setState(() {
+        _loading = true;
+        _error = null;
+        _draft = null;
+        _voiceScore = null;
+        _themeAlignment = null;
+        _suggestedEdits = [];
+      });
     try {
       await LumaraAPIConfig.instance.initialize();
       final config = LumaraAPIConfig.instance.getConfig(LLMProvider.groq);
@@ -79,7 +79,7 @@ class _WritingScreenState extends State<WritingScreen> {
       if (mounted) {
         setState(() {
           _loading = false;
-          _draft = composed.draft.content;
+          _draft = composed.draft;
           _voiceScore = composed.voiceScore;
           _themeAlignment = composed.themeAlignment;
           _suggestedEdits = composed.suggestedEdits;
@@ -97,11 +97,26 @@ class _WritingScreenState extends State<WritingScreen> {
 
   void _copyDraft() {
     if (_draft != null) {
-      Clipboard.setData(ClipboardData(text: _draft!));
+      Clipboard.setData(ClipboardData(text: _draft!.content));
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Draft copied to clipboard')),
       );
     }
+  }
+
+  Widget _buildScoresRow(BuildContext context) {
+    final voicePct = _draft?.metadata.voiceMatchEstimate ??
+        (_voiceScore != null ? _voiceScore! * 100 : null);
+    final themePct = _draft?.metadata.themeMatchEstimate ??
+        (_themeAlignment != null ? _themeAlignment! * 100 : null);
+    if (voicePct == null && themePct == null) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Text(
+        'Voice: ${voicePct?.toStringAsFixed(0) ?? "—"}%  •  Theme: ${themePct?.toStringAsFixed(0) ?? "—"}%',
+        style: Theme.of(context).textTheme.bodySmall,
+      ),
+    );
   }
 
   @override
@@ -169,13 +184,7 @@ class _WritingScreenState extends State<WritingScreen> {
                   ),
                 ],
               ),
-              if (_voiceScore != null || _themeAlignment != null) ...[
-                const Gap(8),
-                Text(
-                  'Voice: ${(_voiceScore! * 100).toStringAsFixed(0)}%  •  Theme: ${(_themeAlignment! * 100).toStringAsFixed(0)}%',
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-              ],
+              _buildScoresRow(context),
               const Gap(8),
               Container(
                 width: double.infinity,
@@ -184,8 +193,27 @@ class _WritingScreenState extends State<WritingScreen> {
                   border: Border.all(color: Theme.of(context).dividerColor),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: SelectableText(_draft!),
+                child: SelectableText(_draft!.content),
               ),
+              if (_draft!.metadata.contextSignalsUsed != null &&
+                  _draft!.metadata.contextSignalsUsed!.isNotEmpty) ...[
+                const Gap(12),
+                ExpansionTile(
+                  title: Text(
+                    'Context used',
+                    style: Theme.of(context).textTheme.titleSmall,
+                  ),
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: SelectableText(
+                        _draft!.metadata.contextSignalsUsed!,
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
               if (_suggestedEdits.isNotEmpty) ...[
                 const Gap(16),
                 Text('Suggestions', style: Theme.of(context).textTheme.titleSmall),

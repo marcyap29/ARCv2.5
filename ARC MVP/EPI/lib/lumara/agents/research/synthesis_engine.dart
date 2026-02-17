@@ -1,10 +1,12 @@
 // lib/lumara/agents/research/synthesis_engine.dart
-// Phase-aware synthesis of research findings.
+// Phase-aware synthesis of research findings with optional timeline context.
 
 import 'package:my_app/models/phase_models.dart';
 
+import 'package:my_app/lumara/agents/services/timeline_context_service.dart';
 import 'citation_manager.dart';
 import 'research_models.dart';
+import 'research_prompts.dart';
 
 typedef LlmGenerate = Future<String> Function({
   required String systemPrompt,
@@ -13,6 +15,7 @@ typedef LlmGenerate = Future<String> Function({
 });
 
 /// Synthesizes search results into a report with phase- and readiness-aware depth.
+/// When [timelineContext] is provided, uses the full Research Agent prompt with timeline integration.
 class SynthesisEngine {
   final LlmGenerate _generate;
   final CitationManager _citations = CitationManager();
@@ -25,21 +28,31 @@ class SynthesisEngine {
     required PriorResearchContext priorContext,
     required PhaseLabel currentPhase,
     required double readinessScore,
+    ResearchTimelineContext? timelineContext,
+    String? researchDepthLabel,
   }) async {
     final depth = _calculateSynthesisDepth(currentPhase, readinessScore);
-    final systemPrompt = _buildSynthesisPrompt(
-      depth: depth,
-      phase: currentPhase,
-      priorContext: priorContext,
-    );
+    final depthLabel = researchDepthLabel ?? _synthesisDepthToLabel(depth);
+    final systemPrompt = timelineContext != null
+        ? _buildEnhancedPrompt(
+            timelineContext: timelineContext,
+            query: originalQuery,
+            depthLabel: depthLabel,
+          )
+        : _buildSynthesisPrompt(
+            depth: depth,
+            phase: currentPhase,
+            priorContext: priorContext,
+          );
     final context = _prepareContext(searchResults, priorContext);
 
+    int maxTokens = depth == SynthesisDepth.brief ? 500 : (depth == SynthesisDepth.deep ? 2000 : 1200);
     String synthesis;
     try {
       synthesis = await _generate(
         systemPrompt: systemPrompt,
         userPrompt: context,
-        maxTokens: depth == SynthesisDepth.brief ? 500 : (depth == SynthesisDepth.deep ? 2000 : 1200),
+        maxTokens: maxTokens,
       );
     } catch (e) {
       synthesis = _fallbackSynthesis(originalQuery, searchResults);
@@ -63,6 +76,51 @@ class SynthesisEngine {
       phase: currentPhase,
       depth: depth,
     );
+  }
+
+  String _synthesisDepthToLabel(SynthesisDepth depth) {
+    switch (depth) {
+      case SynthesisDepth.brief:
+        return 'quick_scan';
+      case SynthesisDepth.moderate:
+      case SynthesisDepth.comprehensive:
+        return 'standard';
+      case SynthesisDepth.deep:
+        return 'deep_dive';
+    }
+  }
+
+  String _buildEnhancedPrompt({
+    required ResearchTimelineContext timelineContext,
+    required String query,
+    required String depthLabel,
+  }) {
+    final timestamp = DateTime.now().toIso8601String();
+    final timeEstimate = _timeEstimateForDepth(depthLabel);
+    return kResearchAgentSystemPromptTemplate
+        .replaceAll('{{TIMELINE_SUMMARY}}', timelineContext.timelineSummary)
+        .replaceAll('{{FOCUS_AREAS}}', timelineContext.focusAreas)
+        .replaceAll('{{CURRENT_PROJECTS}}', timelineContext.currentProjects)
+        .replaceAll('{{PAST_RESEARCH}}', timelineContext.pastResearch)
+        .replaceAll('{{CURRENT_PHASE}}', timelineContext.currentPhase)
+        .replaceAll('{{PHASE_DESCRIPTION}}', timelineContext.phaseDescription)
+        .replaceAll('{{USER_PROMPT}}', query)
+        .replaceAll('{{RESEARCH_DEPTH}}', depthLabel)
+        .replaceAll('{{QUERY}}', query)
+        .replaceAll('{{TIMESTAMP}}', timestamp)
+        .replaceAll('{{TIME_ESTIMATE}}', timeEstimate);
+  }
+
+  String _timeEstimateForDepth(String depthLabel) {
+    switch (depthLabel.toLowerCase()) {
+      case 'quick_scan':
+        return '5-10 min';
+      case 'deep_dive':
+        return '45-90 min';
+      case 'standard':
+      default:
+        return '15-30 min';
+    }
   }
 
   SynthesisDepth _calculateSynthesisDepth(PhaseLabel phase, double readiness) {
@@ -124,6 +182,9 @@ Generate the synthesis now.
       for (final s in sr.snippets.take(5)) {
         buf.writeln('- ${s.title}: ${s.snippet}');
         buf.writeln('  URL: ${s.url}');
+        if (s.publishDate != null) {
+          buf.writeln('  Date: ${s.publishDate}');
+        }
       }
       for (final p in sr.fullContent) {
         buf.writeln('Full content (${p.title}): ${p.content.length > 2000 ? p.content.substring(0, 2000) : p.content}...');

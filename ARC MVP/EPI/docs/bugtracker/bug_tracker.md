@@ -120,6 +120,7 @@ This section is derived from the repo and [CHANGELOG.md](../CHANGELOG.md) to kee
 | LUMARA agents, orchestrator, CHRONICLE alignment, settings refactor | v3.3.35 | — | agents/ (research, writing), orchestrator, intent classifier; CHRONICLE index/pattern/router/repos; lumara_settings_screen refactor; CHRONICLE_PAPER_VS_IMPLEMENTATION.md. |
 | AppLifecycleState import; FeedRepository types; _buildRunAnalysisCard order | 2026-02-08 | [build-fixes-session-feb-2026.md](records/build-fixes-session-feb-2026.md) ✅ | auto_save_service: add `dart:ui` show AppLifecycleState. feed_repository: createdAt, metadata ?? {}, msg.id. phase_analysis_view: move _buildRunAnalysisCard before _buildArcformContent, remove duplicate. |
 | Agents screen, agents_connection_service | v3.3.36 | — | agents_screen.dart extended; new agents_connection_service.dart. |
+| Research/writing prompts, timeline context, synthesis/draft | v3.3.37 | — | research_prompts.dart, writing_prompts.dart, timeline_context_service.dart; research_agent, synthesis_engine, draft_composer, writing_agent, writing_models, writing_screen. |
 
 **Source:** `git log --oneline`, [CHANGELOG.md](../CHANGELOG.md), terminal build log. Last synced: 2026-02-15.
 
