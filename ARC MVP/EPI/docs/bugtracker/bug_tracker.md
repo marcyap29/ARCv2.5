@@ -1,8 +1,8 @@
 # EPI MVP - Bug Tracker
 
-**Version:** 3.2.5  
-**Last Updated:** February 15, 2026  
-**Record count:** 34 individual bug records in [records/](records/). Index below matches all files in records/.
+**Version:** 3.2.6  
+**Last Updated:** 2026-02-08  
+**Record count:** 35 individual bug records in [records/](records/). Index below matches all files in records/.
 
 ---
 
@@ -69,6 +69,7 @@ Detailed bug reports are available in the [records/](records/) directory:
 - [stripe-subscription-critical-fixes.md](records/stripe-subscription-critical-fixes.md) - Stripe subscription critical fixes
 
 ### Build & Platform Issues
+- [build-fixes-session-feb-2026.md](records/build-fixes-session-feb-2026.md) - **CRITICAL:** Session consolidation – AppLifecycleState import, FeedRepository ChatMessage/session types, _buildRunAnalysisCard scope (3 bugs) ✅ RESOLVED
 - [ios-build-rivet-models-keywords-set-type.md](records/ios-build-rivet-models-keywords-set-type.md) - **CRITICAL:** iOS build – rivet_models.g.dart keywords List vs Set<String> type error ✅ RESOLVED
 - [ios-build-local-embedding-service-errors.md](records/ios-build-local-embedding-service-errors.md) - **CRITICAL:** iOS release build – CHRONICLE embedding stack (Dart parse/type, then EmbeddingService vs LocalEmbeddingService at call sites)
 - [ios-build-native-embedding-channel-swift-scope.md](records/ios-build-native-embedding-channel-swift-scope.md) - **CRITICAL:** iOS Swift build – NativeEmbeddingChannel not in scope in AppDelegate.swift:104
@@ -117,8 +118,10 @@ This section is derived from the repo and [CHANGELOG.md](../CHANGELOG.md) to kee
 | Master prompt, control state, Narrative Intelligence docs | v3.3.33 | — | lumara_master_prompt.dart and LumaraControlStateBuilder extended; MASTER_PROMPT_CHRONICLE_VECTORIZATION.md, NARRATIVE_INTELLIGENCE_OVERVIEW.md added. |
 | LUMARA API, control state, CHRONICLE query stack | v3.3.34 | — | enhanced_lumara_api, lumara_control_state_builder; query_plan, context_builder, query_router; NARRATIVE_INTELLIGENCE_OVERVIEW edit. |
 | LUMARA agents, orchestrator, CHRONICLE alignment, settings refactor | v3.3.35 | — | agents/ (research, writing), orchestrator, intent classifier; CHRONICLE index/pattern/router/repos; lumara_settings_screen refactor; CHRONICLE_PAPER_VS_IMPLEMENTATION.md. |
+| AppLifecycleState import; FeedRepository types; _buildRunAnalysisCard order | 2026-02-08 | [build-fixes-session-feb-2026.md](records/build-fixes-session-feb-2026.md) ✅ | auto_save_service: add `dart:ui` show AppLifecycleState. feed_repository: createdAt, metadata ?? {}, msg.id. phase_analysis_view: move _buildRunAnalysisCard before _buildArcformContent, remove duplicate. |
+| Agents screen, agents_connection_service | v3.3.36 | — | agents_screen.dart extended; new agents_connection_service.dart. |
 
-**Source:** `git log --oneline`, [CHANGELOG.md](../CHANGELOG.md), terminal build log 2026-02-15. Last synced: 2026-02-15.
+**Source:** `git log --oneline`, [CHANGELOG.md](../CHANGELOG.md), terminal build log. Last synced: 2026-02-15.
 
 ---
 
@@ -132,5 +135,5 @@ Individual bug records stay in [records/](records/); only the legacy multi-part 
 
 ---
 
-**Status**: ✅ Active - All resolved issues documented; Build & Platform: 4 records (rivet Set type ✅, embedding Dart chain, NativeEmbeddingChannel Swift, third-party warnings); Environment: 1 (Ollama).  
-**Last Updated**: February 15, 2026
+**Status**: ✅ Active - All resolved issues documented; Build & Platform: 5 records (session consolidation ✅, rivet Set type ✅, embedding Dart chain, NativeEmbeddingChannel Swift, third-party warnings); Environment: 1 (Ollama).  
+**Last Updated**: 2026-02-15

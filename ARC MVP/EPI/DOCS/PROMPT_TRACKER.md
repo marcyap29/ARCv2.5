@@ -17,6 +17,7 @@
 
 | Date | Change | Source / doc |
 |------|--------|--------------|
+| 2026-02-15 | Doc sync v3.3.36: Agents screen, connection service, bug_tracker (35 records); prompt audit (no new prompts) | CONFIGURATION_MANAGEMENT.md |
 | 2026-02-15 | Doc sync v3.3.35: LUMARA agents, orchestrator, CHRONICLE alignment; prompt audit (no new prompts) | CONFIGURATION_MANAGEMENT.md |
 | 2026-02-15 | Doc sync v3.3.34: LUMARA API, control state, CHRONICLE query (query_plan, context_builder, query_router); prompt audit (no new prompts) | CONFIGURATION_MANAGEMENT.md |
 | 2026-02-15 | Master prompt expansion: lumara_master_prompt.dart +~560 lines, LumaraControlStateBuilder +82; control state block, CHRONICLE/vectorization. Documented in MASTER_PROMPT_CHRONICLE_VECTORIZATION.md | CHANGELOG [3.3.33]; CONFIGURATION_MANAGEMENT.md |

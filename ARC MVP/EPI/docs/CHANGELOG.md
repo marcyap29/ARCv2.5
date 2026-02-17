@@ -1,6 +1,6 @@
 # EPI LUMARA MVP - Changelog
 
-**Version:** 3.3.35
+**Version:** 3.3.36
 **Last Updated:** February 15, 2026
 
 ---
@@ -14,6 +14,18 @@ This changelog has been split into parts for easier navigation:
 | **[CHANGELOG_part1.md](CHANGELOG_part1.md)** | Dec 2025 | v2.1.43 - v2.1.87 (Current) |
 | **[CHANGELOG_part2.md](CHANGELOG_part2.md)** | Nov 2025 | v2.1.28 - v2.1.42 |
 | **[CHANGELOG_part3.md](CHANGELOG_part3.md)** | Jan-Oct 2025 | v2.0.0 - v2.1.27 & Earlier |
+
+---
+
+## [3.3.36] - February 15, 2026
+
+### LUMARA agents screen, connection service, and bug tracker
+
+- **Agents screen:** `agents_screen.dart` extended (+230 net) — UI and behavior for agents tab.
+- **Agents connection service:** New `agents_connection_service.dart` — connection/wiring for LUMARA agents.
+- **Bug tracker:** New record `build-fixes-session-feb-2026.md` (session consolidation: AppLifecycleState import, FeedRepository type errors, _buildRunAnalysisCard scope). Index and record count updated to 35; version 3.2.6.
+
+**Files:** 2 modified (agents_screen, bug_tracker.md), 2 new (agents_connection_service, bug record).
 
 ---
 
