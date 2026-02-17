@@ -1,6 +1,6 @@
 # EPI LUMARA MVP - Changelog
 
-**Version:** 3.3.37
+**Version:** 3.3.38
 **Last Updated:** February 15, 2026
 
 ---
@@ -14,6 +14,20 @@ This changelog has been split into parts for easier navigation:
 | **[CHANGELOG_part1.md](CHANGELOG_part1.md)** | Dec 2025 | v2.1.43 - v2.1.87 (Current) |
 | **[CHANGELOG_part2.md](CHANGELOG_part2.md)** | Nov 2025 | v2.1.28 - v2.1.42 |
 | **[CHANGELOG_part3.md](CHANGELOG_part3.md)** | Jan-Oct 2025 | v2.0.0 - v2.1.27 & Earlier |
+
+---
+
+## [3.3.38] - February 15, 2026
+
+### LUMARA agents: writing drafts storage, research persistence, archive/delete UI, ARCX export/import
+
+- **Writing drafts:** `WritingDraftRepository` extended with `listDrafts`, `getDraft`, `markFinished`, `archiveDraft`, `unarchiveDraft`, `deleteDraft`. File-based storage under `writing_drafts/{userId}/{draftId}.md` with frontmatter (status, archived, archived_at). `WritingDraftRepositoryImpl` used in WritingScreen, EnhancedLumaraApi, LumaraAssistantCubit so composed drafts are stored.
+- **Writing UI:** `AgentsChronicleService.getContentDrafts` wired to writing repo; `ContentDraft` extended (createdAt, status, archived, wordCount). Writing Agent tab: Active/Archived sections, card actions (Mark finished, Archive/Unarchive, Delete with confirm), Created date and metadata.
+- **Research persistence:** `ResearchArtifactRepository` singleton with JSON file persistence (`research_artifacts.json`); `StoredResearchArtifact` gains archived/archivedAt; `listForUser`, `listAllForExport`, `replaceAllForImport`, `archiveArtifact`, `unarchiveArtifact`, `deleteArtifact`. `getResearchReports` wired to repo; archive/delete/unarchive service methods.
+- **Research UI:** Research Agent tab: Active/Archived sections; card menu Archive/Unarchive/Delete (with confirm); "Created" date; `ResearchReport` gains archived/archivedAt.
+- **ARCX export/import:** `_exportAgentsData` copies `writing_drafts/` tree and serializes research artifacts to `payload/extensions/agents/`. `_importAgentsData` restores writing_drafts and loads research_artifacts.json. Called after voice notes in all export flows; import after voice notes.
+
+**Files:** 17 modified (writing/repository, agents_chronicle_service, content_draft, research_models, research_artifact_repository, writing_agent_tab, research_agent_tab, content_draft_card, research_report_card, writing_screen, enhanced_lumara_api, lumara_assistant_cubit, arcx_export/import_service_v2), 1 new (lumara_cloud_generate). bug_tracker tracked.
 
 ---
 

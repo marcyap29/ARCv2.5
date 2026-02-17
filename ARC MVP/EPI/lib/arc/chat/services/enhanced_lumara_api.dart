@@ -62,6 +62,7 @@ import 'package:my_app/lumara/subsystems/writing_subsystem.dart';
 import 'package:my_app/lumara/orchestrator/command_parser.dart';
 import 'package:my_app/lumara/orchestrator/result_aggregator.dart';
 import 'package:my_app/lumara/agents/writing/writing_agent.dart';
+import 'package:my_app/lumara/agents/writing/writing_draft_repository.dart';
 import 'arc_subsystem.dart';
 import 'atlas_subsystem.dart';
 import 'aurora_subsystem.dart';
@@ -259,6 +260,7 @@ class EnhancedLumaraApi {
     if (!_chronicleInitialized || _queryRouter == null || _contextBuilder == null) return;
     final self = this;
     final writingAgent = WritingAgent(
+      draftRepository: WritingDraftRepositoryImpl(),
       generateContent: ({required systemPrompt, required userPrompt, maxTokens}) async {
         final g = self._groq;
         if (g == null) {

@@ -41,6 +41,7 @@ import 'package:my_app/chronicle/models/chronicle_layer.dart';
 import 'package:my_app/chronicle/models/chronicle_aggregation.dart';
 import 'package:my_app/arc/voice_notes/models/voice_note.dart';
 import 'package:my_app/arc/voice_notes/repositories/voice_note_repository.dart';
+import 'package:my_app/lumara/agents/research/research_artifact_repository.dart';
 
 const _uuid = Uuid();
 
@@ -416,6 +417,10 @@ class ARCXImportServiceV2 {
         // Import voice notes (Voice Notes tab)
         onProgress?.call('Importing voice notes...', _kPhaseRegimesEnd);
         await _importVoiceNotes(payloadDir!, onProgress: onProgress);
+        
+        // Import agents data (writing drafts + research artifacts)
+        onProgress?.call('Importing agents data...', _kPhaseRegimesEnd);
+        await _importAgentsData(payloadDir!, onProgress: onProgress);
         
         // Import Entries AFTER phase regimes so they can be tagged correctly
         final entriesDir = Directory(path.join(payloadDir!.path, 'Entries'));
@@ -1506,6 +1511,58 @@ class ARCXImportServiceV2 {
     } catch (e) {
       print('ARCX Import V2: ⚠️ Error importing voice notes: $e');
       return 0;
+    }
+  }
+
+  /// Import agents data from extensions/agents/ (writing_drafts tree + research_artifacts.json)
+  Future<void> _importAgentsData(
+    Directory payloadDir, {
+    ImportProgressCallback? onProgress,
+  }) async {
+    try {
+      final extensionsDir = Directory(path.join(payloadDir.path, 'extensions'));
+      if (!await extensionsDir.exists()) return;
+      final agentsDir = Directory(path.join(extensionsDir.path, 'agents'));
+      if (!await agentsDir.exists()) return;
+
+      // Writing drafts: copy payload tree into app writing_drafts/
+      final sourceDrafts = Directory(path.join(agentsDir.path, 'writing_drafts'));
+      if (await sourceDrafts.exists()) {
+        final appDir = await getApplicationDocumentsDirectory();
+        final destDrafts = Directory(path.join(appDir.path, 'writing_drafts'));
+        await destDrafts.create(recursive: true);
+        await for (final entity in sourceDrafts.list(recursive: false)) {
+          if (entity is Directory) {
+            final userDir = Directory(path.join(destDrafts.path, path.basename(entity.path)));
+            await userDir.create(recursive: true);
+            await for (final file in (entity as Directory).list(recursive: true)) {
+              if (file is File) {
+                final rel = path.relative(file.path, from: entity.path);
+                final destFile = File(path.join(userDir.path, rel));
+                await destFile.parent.create(recursive: true);
+                await destFile.writeAsBytes(await (file as File).readAsBytes());
+              }
+            }
+          }
+        }
+        print('ARCX Import V2: ✓ Imported writing_drafts');
+      }
+
+      // Research artifacts: load and replace store
+      final researchFile = File(path.join(agentsDir.path, 'research_artifacts.json'));
+      if (await researchFile.exists()) {
+        final content = await researchFile.readAsString();
+        final data = jsonDecode(content) as Map<String, dynamic>;
+        final list = data['research_artifacts'] as List<dynamic>? ?? [];
+        final artifacts = list
+            .whereType<Map<String, dynamic>>()
+            .map((e) => StoredResearchArtifact.fromJson(e))
+            .toList();
+        await ResearchArtifactRepository.instance.replaceAllForImport(artifacts);
+        print('ARCX Import V2: ✓ Imported ${artifacts.length} research artifacts');
+      }
+    } catch (e) {
+      print('ARCX Import V2: ⚠️ Error importing agents data: $e');
     }
   }
 

@@ -261,6 +261,38 @@ class ComposedContent {
   });
 }
 
+/// Draft status for UI and export.
+enum DraftStatus { draft, finished }
+
+/// Summary of a stored draft for list views.
+class StoredDraftSummary {
+  final String draftId;
+  final String userId;
+  final String title;
+  final String preview;
+  final DateTime createdAt;
+  final DateTime? updatedAt;
+  final DraftStatus status;
+  final bool archived;
+  final DateTime? archivedAt;
+  final int wordCount;
+  final String? phase;
+
+  const StoredDraftSummary({
+    required this.draftId,
+    required this.userId,
+    required this.title,
+    required this.preview,
+    required this.createdAt,
+    this.updatedAt,
+    this.status = DraftStatus.draft,
+    this.archived = false,
+    this.archivedAt,
+    this.wordCount = 0,
+    this.phase,
+  });
+}
+
 /// Optional storage for composed drafts (e.g. for history or reference).
 abstract class WritingDraftRepository {
   Future<void> storeDraft({
@@ -268,4 +300,22 @@ abstract class WritingDraftRepository {
     required Draft draft,
     required DraftMetadata metadata,
   });
+
+  /// List drafts for [userId]. If [includeArchived] is false, only active drafts are returned.
+  Future<List<StoredDraftSummary>> listDrafts(String userId, {bool includeArchived = false});
+
+  /// Load full draft content and metadata by id. Returns null if not found.
+  Future<({Draft draft, DraftMetadata metadata})?> getDraft(String userId, String draftId);
+
+  /// Mark draft as finished.
+  Future<void> markFinished(String userId, String draftId);
+
+  /// Archive draft (exclude from default list).
+  Future<void> archiveDraft(String userId, String draftId);
+
+  /// Unarchive draft.
+  Future<void> unarchiveDraft(String userId, String draftId);
+
+  /// Permanently delete draft.
+  Future<void> deleteDraft(String userId, String draftId);
 }

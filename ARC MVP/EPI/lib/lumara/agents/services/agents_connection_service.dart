@@ -1,4 +1,4 @@
-import 'package:my_app/arc/chat/config/api_config.dart';
+import 'package:my_app/arc/chat/services/lumara_cloud_generate.dart';
 
 /// Connection status for an agent (needs cloud API to run).
 enum AgentConnectionStatus {
@@ -21,8 +21,8 @@ class AgentConnectionState {
   bool get isConnected => status == AgentConnectionStatus.connected;
 }
 
-/// Checks whether each LUMARA agent has required services connected (e.g. API keys).
-/// Used by the Agents tab to show connection status and "Connect" action.
+/// Checks whether each LUMARA agent can use the same cloud API as LUMARA chat
+/// (Groq or Gemini key, or Firebase proxy when signed in). No separate API key needed for agents.
 class AgentsConnectionService {
   AgentsConnectionService._();
   static final AgentsConnectionService instance = AgentsConnectionService._();
@@ -30,16 +30,14 @@ class AgentsConnectionService {
   static const String writingAgentId = 'writing';
   static const String researchAgentId = 'research';
 
-  /// Ensure API config is loaded, then check Writing agent (uses Groq).
+  /// Uses same cloud availability as LUMARA: Groq key, Gemini key, or signed-in proxy.
   Future<AgentConnectionState> checkWritingConnection() async {
     try {
-      await LumaraAPIConfig.instance.initialize();
-      final apiKey = LumaraAPIConfig.instance.getApiKey(LLMProvider.groq);
-      final connected = apiKey != null && apiKey.trim().isNotEmpty;
+      final connected = await isLumaraCloudAvailable();
       return AgentConnectionState(
         agentId: writingAgentId,
         status: connected ? AgentConnectionStatus.connected : AgentConnectionStatus.notConnected,
-        message: connected ? null : 'Set Groq API key in LUMARA settings',
+        message: connected ? null : 'Sign in or add Groq/Gemini in Settings → LUMARA to use agents',
       );
     } catch (e) {
       return AgentConnectionState(
@@ -50,16 +48,14 @@ class AgentsConnectionService {
     }
   }
 
-  /// Research agent uses same cloud API (Groq) for now.
+  /// Same cloud as LUMARA (Groq/Gemini/proxy).
   Future<AgentConnectionState> checkResearchConnection() async {
     try {
-      await LumaraAPIConfig.instance.initialize();
-      final apiKey = LumaraAPIConfig.instance.getApiKey(LLMProvider.groq);
-      final connected = apiKey != null && apiKey.trim().isNotEmpty;
+      final connected = await isLumaraCloudAvailable();
       return AgentConnectionState(
         agentId: researchAgentId,
         status: connected ? AgentConnectionStatus.connected : AgentConnectionStatus.notConnected,
-        message: connected ? null : 'Set Groq API key in LUMARA settings',
+        message: connected ? null : 'Sign in or add Groq/Gemini in Settings → LUMARA to use agents',
       );
     } catch (e) {
       return AgentConnectionState(

@@ -5,11 +5,21 @@ import 'package:my_app/shared/app_colors.dart';
 class ContentDraftCard extends StatelessWidget {
   final ContentDraft draft;
   final VoidCallback? onTap;
+  final VoidCallback? onMarkFinished;
+  final VoidCallback? onArchive;
+  final VoidCallback? onUnarchive;
+  final VoidCallback? onDelete;
+  final VoidCallback? onChanged;
 
   const ContentDraftCard({
     super.key,
     required this.draft,
     this.onTap,
+    this.onMarkFinished,
+    this.onArchive,
+    this.onUnarchive,
+    this.onDelete,
+    this.onChanged,
   });
 
   String _formatTime(DateTime time) {
@@ -74,16 +84,36 @@ class ContentDraftCard extends StatelessWidget {
                         const SizedBox(height: 4),
                         Row(
                           children: [
-                            Icon(Icons.schedule,
+                            const Icon(Icons.schedule,
                                 size: 14, color: kcSecondaryColor),
                             const SizedBox(width: 4),
                             Text(
-                              _formatTime(draft.updatedAt),
+                              draft.createdAt != null
+                                  ? 'Created ${_formatTime(draft.createdAt!)}'
+                                  : _formatTime(draft.updatedAt),
                               style: Theme.of(context)
                                   .textTheme
                                   .bodySmall
                                   ?.copyWith(color: kcSecondaryColor),
                             ),
+                            if (draft.status == ContentDraftStatus.finished) ...[
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: Colors.green.withValues(alpha: 0.2),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  'Finished',
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .labelSmall
+                                      ?.copyWith(color: Colors.green[700]),
+                                ),
+                              ),
+                            ],
                             if (draft.contentType != null) ...[
                               const SizedBox(width: 8),
                               Container(
@@ -102,12 +132,86 @@ class ContentDraftCard extends StatelessWidget {
                                 ),
                               ),
                             ],
+                            if (draft.wordCount > 0) ...[
+                              const SizedBox(width: 8),
+                              Text(
+                                '${draft.wordCount} words',
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodySmall
+                                    ?.copyWith(color: kcSecondaryColor),
+                              ),
+                            ],
                           ],
                         ),
                       ],
                     ),
                   ),
-                  const Icon(Icons.chevron_right, color: kcSecondaryColor),
+                  PopupMenuButton<String>(
+                    icon: const Icon(Icons.more_vert, color: kcSecondaryColor),
+                    onSelected: (value) {
+                      switch (value) {
+                        case 'finished':
+                          onMarkFinished?.call();
+                          break;
+                        case 'archive':
+                          onArchive?.call();
+                          break;
+                        case 'unarchive':
+                          onUnarchive?.call();
+                          break;
+                        case 'delete':
+                          onDelete?.call();
+                          break;
+                      }
+                      onChanged?.call();
+                    },
+                    itemBuilder: (context) => [
+                      if (draft.status != ContentDraftStatus.finished)
+                        const PopupMenuItem(
+                          value: 'finished',
+                          child: Row(
+                            children: [
+                              Icon(Icons.check_circle_outline, size: 20),
+                              SizedBox(width: 12),
+                              Text('Mark finished'),
+                            ],
+                          ),
+                        ),
+                      if (!draft.archived)
+                        const PopupMenuItem(
+                          value: 'archive',
+                          child: Row(
+                            children: [
+                              Icon(Icons.archive_outlined, size: 20),
+                              SizedBox(width: 12),
+                              Text('Archive'),
+                            ],
+                          ),
+                        ),
+                      if (draft.archived)
+                        const PopupMenuItem(
+                          value: 'unarchive',
+                          child: Row(
+                            children: [
+                              Icon(Icons.unarchive_outlined, size: 20),
+                              SizedBox(width: 12),
+                              Text('Unarchive'),
+                            ],
+                          ),
+                        ),
+                      const PopupMenuItem(
+                        value: 'delete',
+                        child: Row(
+                          children: [
+                            Icon(Icons.delete_outline, size: 20, color: Colors.red),
+                            SizedBox(width: 12),
+                            Text('Delete', style: TextStyle(color: Colors.red)),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
               ),
               if (draft.preview.isNotEmpty) ...[

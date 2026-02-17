@@ -63,6 +63,7 @@ import 'package:my_app/lumara/orchestrator/lumara_chat_orchestrator.dart';
 import 'package:my_app/lumara/agents/research/research_agent.dart';
 import 'package:my_app/lumara/agents/research/web_search_tool.dart';
 import 'package:my_app/lumara/agents/writing/writing_agent.dart';
+import 'package:my_app/lumara/agents/writing/writing_draft_repository.dart';
 
 /// LUMARA Assistant Cubit State
 abstract class LumaraAssistantState {}
@@ -2716,6 +2717,7 @@ Your exported MCP bundle can be imported into any MCP-compatible system, ensurin
         searchTool: StubWebSearchTool(),
       );
       final writingAgent = WritingAgent(
+        draftRepository: WritingDraftRepositoryImpl(),
         generateContent: ({required systemPrompt, required userPrompt, maxTokens}) async {
           return groq.generateContent(
             prompt: userPrompt,

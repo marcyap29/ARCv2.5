@@ -1,7 +1,7 @@
 # Configuration Management & Documentation Tracking
 
 **Lead Configuration Management Analyst:** Active  
-**Last Updated:** February 15, 2026 (v3.3.37)  
+**Last Updated:** February 15, 2026 (v3.3.38)  
 **Status:** ✅ All Documents Synced with Repo
 
 ---
@@ -38,12 +38,12 @@ Prompt/role definitions: **Ultimate Documentation, Configuration Management and 
 
 | Document | Location | Last Reviewed | Status | Notes |
 |----------|----------|---------------|--------|-------|
-| ARCHITECTURE.md | `/DOCS/ARCHITECTURE.md` | 2026-02-15 | ✅ Synced | v3.3.37 - Doc sync |
-| CHANGELOG.md | `/DOCS/CHANGELOG.md` | 2026-02-15 | ✅ Synced | v3.3.37 - Research/writing prompts, timeline context |
+| ARCHITECTURE.md | `/DOCS/ARCHITECTURE.md` | 2026-02-15 | ✅ Synced | v3.3.38 - Writing drafts, research persist, ARCX agents |
+| CHANGELOG.md | `/DOCS/CHANGELOG.md` | 2026-02-15 | ✅ Synced | v3.3.38 - Drafts/research storage, archive/delete, export/import |
 | PROMPT_REFERENCES.md | `/DOCS/PROMPT_REFERENCES.md` | 2026-02-15 | ✅ Synced | v2.3.0; agent prompts in research_prompts/writing_prompts (track in PROMPT_TRACKER) |
 | PROMPT_TRACKER.md | `/DOCS/PROMPT_TRACKER.md` | 2026-02-15 | ✅ Synced | v1.4.0 - Agent prompts row |
 | bug_tracker.md | `/DOCS/bugtracker/bug_tracker.md` | 2026-02-15 | ✅ Synced | v3.2.6 - 35 records; tracked in doc sync |
-| FEATURES.md | `/DOCS/FEATURES.md` | 2026-02-15 | ✅ Synced | v3.3.37 - Doc sync |
+| FEATURES.md | `/DOCS/FEATURES.md` | 2026-02-15 | ✅ Synced | v3.3.38 - Writing/research agents storage & export/import |
 | README.md | `/DOCS/README.md` | 2026-02-07 | ✅ Synced | Key docs table with purpose and when to read |
 | claude.md | `/DOCS/claude.md` | 2026-02-13 | ✅ Synced | TOC — Prompts; consolidated Doc/Config/Git Backup prompt; TOC aligned with current sections |
 | backend.md | `/DOCS/backend.md` | 2026-02-11 | ✅ Synced | v3.3 - proxyGroq (Groq primary), proxyGemini (fallback), Firebase, Stripe |
@@ -97,6 +97,25 @@ Prompt/role definitions: **Ultimate Documentation, Configuration Management and 
 ---
 
 ## Change Tracking Log
+
+### 2026-02-15 - Documentation & Git Backup run (v3.3.38; bug_tracker tracked)
+
+**Action:** Ran Documentation, Configuration Management and Git Backup workflow (claude.md §233–349) on the entire repo. Document updates include **bug_tracker** tracking.
+
+**PROMPT REFERENCES AUDIT:** No new prompts; catalog v2.3.0 current.
+
+**Git Backup — Identify what changed:** Writing drafts repo (listDrafts, getDraft, markFinished, archive, delete); WritingDraftRepositoryImpl wired in WritingScreen, EnhancedLumaraApi, LumaraAssistantCubit; AgentsChronicleService getContentDrafts + mark/archive/delete draft; ContentDraft extended; Writing Agent tab Active/Archived, card actions; ResearchArtifactRepository persistence (JSON), listForUser, archive/delete, listAllForExport, replaceAllForImport; getResearchReports + archive/delete; Research Agent tab Active/Archived, card menu; ARCX export/import agents data (writing_drafts tree, research_artifacts.json). New: lumara_cloud_generate.dart.
+
+**Updates:**
+- **CHANGELOG.md:** Version 3.3.38; [3.3.38] writing drafts storage, research persistence, archive/delete UI, ARCX agents export/import.
+- **CONFIGURATION_MANAGEMENT.md:** This entry; inventory 2026-02-15; bug_tracker tracked.
+- **bug_tracker.md:** New row for v3.3.38 in Recent code changes; Last Updated 2026-02-15.
+- **FEATURES.md:** v3.3.38; LUMARA agents drafts & research (list, archive, delete, export/import).
+- **ARCHITECTURE.md:** v3.3.38; writing drafts storage, research persistence, ARCX agents payload.
+
+**Status:** ✅ Commit, push main; merge test into main; push.
+
+---
 
 ### 2026-02-15 - Documentation & Git Backup run (v3.3.37; bug_tracker tracked)
 

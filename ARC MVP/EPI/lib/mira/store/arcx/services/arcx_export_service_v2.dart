@@ -40,6 +40,7 @@ import 'package:my_app/chronicle/models/chronicle_layer.dart';
 import 'package:my_app/chronicle/models/chronicle_aggregation.dart';
 import 'package:my_app/arc/voice_notes/models/voice_note.dart';
 import 'package:my_app/arc/voice_notes/repositories/voice_note_repository.dart';
+import 'package:my_app/lumara/agents/research/research_artifact_repository.dart';
 
 const _uuid = Uuid();
 
@@ -446,6 +447,8 @@ class ARCXExportServiceV2 {
       int voiceNotesExported = 0;
       onProgress?.call('Exporting voice notes...');
       voiceNotesExported = await _exportVoiceNotes(payloadDir);
+      onProgress?.call('Exporting agents data (drafts & research)...');
+      await _exportAgentsData(payloadDir);
       
       // Export health streams (aligned with MCP format)
       if (entries.isNotEmpty) {
@@ -692,6 +695,8 @@ class ARCXExportServiceV2 {
         int voiceNotesExported = 0;
         onProgress?.call('Exporting voice notes...');
         voiceNotesExported = await _exportVoiceNotes(payloadDir);
+        onProgress?.call('Exporting agents data (drafts & research)...');
+        await _exportAgentsData(payloadDir);
         
         // Generate checksums
         if (options.includeChecksums) {
@@ -879,6 +884,8 @@ class ARCXExportServiceV2 {
       if (groupType == 'Entries') {
         onProgress?.call('Exporting voice notes...');
         voiceNotesExported = await _exportVoiceNotes(payloadDir);
+        onProgress?.call('Exporting agents data (drafts & research)...');
+        await _exportAgentsData(payloadDir);
       }
       
       // Generate checksums
@@ -1919,6 +1926,55 @@ class ARCXExportServiceV2 {
     } catch (e) {
       debugPrint('ARCX Export V2: Error exporting voice notes: $e');
       return 0;
+    }
+  }
+
+  /// Export agents data: writing_drafts tree + research_artifacts.json to payload/extensions/agents/
+  Future<void> _exportAgentsData(Directory payloadDir) async {
+    try {
+      final extensionsDir = Directory(path.join(payloadDir.path, 'extensions'));
+      await extensionsDir.create(recursive: true);
+      final agentsDir = Directory(path.join(extensionsDir.path, 'agents'));
+      await agentsDir.create(recursive: true);
+
+      // Writing drafts: copy app writing_drafts/ tree
+      final appDir = await getApplicationDocumentsDirectory();
+      final sourceDrafts = Directory(path.join(appDir.path, 'writing_drafts'));
+      if (await sourceDrafts.exists()) {
+        final destDrafts = Directory(path.join(agentsDir.path, 'writing_drafts'));
+        await destDrafts.create(recursive: true);
+        await for (final entity in sourceDrafts.list(recursive: false)) {
+          if (entity is Directory) {
+            final userDir = Directory(path.join(destDrafts.path, path.basename(entity.path)));
+            await userDir.create(recursive: true);
+            await for (final file in (entity as Directory).list(recursive: true)) {
+              if (file is File) {
+                final rel = path.relative(file.path, from: entity.path);
+                final destFile = File(path.join(userDir.path, rel));
+                await destFile.parent.create(recursive: true);
+                await destFile.writeAsBytes(await (file as File).readAsBytes());
+              }
+            }
+          }
+        }
+        debugPrint('ARCX Export V2: Exported writing_drafts');
+      }
+
+      // Research artifacts: serialize all to research_artifacts.json
+      final artifacts = await ResearchArtifactRepository.instance.listAllForExport();
+      final list = artifacts.map((a) => a.toJson()).toList();
+      final researchFile = File(path.join(agentsDir.path, 'research_artifacts.json'));
+      await researchFile.writeAsString(
+        JsonEncoder.withIndent('  ').convert({
+          'research_artifacts': list,
+          'exported_at': DateTime.now().toUtc().toIso8601String(),
+          'version': '1.0',
+          'count': list.length,
+        }),
+      );
+      debugPrint('ARCX Export V2: Exported ${artifacts.length} research artifacts');
+    } catch (e) {
+      debugPrint('ARCX Export V2: Error exporting agents data: $e');
     }
   }
 

@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:gap/gap.dart';
-import 'package:my_app/arc/chat/config/api_config.dart';
-import 'package:my_app/arc/chat/services/groq_service.dart';
+import 'package:my_app/arc/chat/services/lumara_cloud_generate.dart';
 import 'package:my_app/lumara/agents/writing/writing_agent.dart';
+import 'package:my_app/lumara/agents/writing/writing_draft_repository.dart';
 import 'package:my_app/lumara/agents/writing/writing_models.dart';
 import 'package:my_app/services/firebase_auth_service.dart';
 
@@ -50,22 +50,12 @@ class _WritingScreenState extends State<WritingScreen> {
         _suggestedEdits = [];
       });
     try {
-      await LumaraAPIConfig.instance.initialize();
-      final config = LumaraAPIConfig.instance.getConfig(LLMProvider.groq);
-      final apiKey = config?.apiKey;
-      if (apiKey == null || apiKey.isEmpty) {
-        setState(() {
-          _loading = false;
-          _error = 'Groq API key not set. Add it in LUMARA settings.';
-        });
-        return;
-      }
-      final groq = GroqService(apiKey: apiKey);
       final agent = WritingAgent(
+        draftRepository: WritingDraftRepositoryImpl(),
         generateContent: ({required systemPrompt, required userPrompt, maxTokens}) async {
-          return groq.generateContent(
-            prompt: userPrompt,
+          return generateWithLumaraCloud(
             systemPrompt: systemPrompt,
+            userPrompt: userPrompt,
             maxTokens: maxTokens ?? 800,
           );
         },

@@ -7,11 +7,17 @@ import 'package:my_app/shared/app_colors.dart';
 class ResearchReportCard extends StatelessWidget {
   final ResearchReport report;
   final VoidCallback? onTap;
+  final VoidCallback? onArchive;
+  final VoidCallback? onUnarchive;
+  final VoidCallback? onDelete;
 
   const ResearchReportCard({
     super.key,
     required this.report,
     this.onTap,
+    this.onArchive,
+    this.onUnarchive,
+    this.onDelete,
   });
 
   Color _getPhaseColor(AtlasPhase phase) {
@@ -107,16 +113,12 @@ class ResearchReportCard extends StatelessWidget {
             ListTile(
               leading: const Icon(Icons.share),
               title: const Text('Share'),
-              onTap: () {
-                Navigator.pop(ctx);
-              },
+              onTap: () => Navigator.pop(ctx),
             ),
             ListTile(
               leading: const Icon(Icons.file_download),
               title: const Text('Export as PDF'),
-              onTap: () {
-                Navigator.pop(ctx);
-              },
+              onTap: () => Navigator.pop(ctx),
             ),
             ListTile(
               leading: const Icon(Icons.edit),
@@ -134,13 +136,33 @@ class ResearchReportCard extends StatelessWidget {
                 );
               },
             ),
-            ListTile(
-              leading: const Icon(Icons.delete_outline, color: Colors.red),
-              title: const Text('Delete', style: TextStyle(color: Colors.red)),
-              onTap: () {
-                Navigator.pop(ctx);
-              },
-            ),
+            if (!report.archived && onArchive != null)
+              ListTile(
+                leading: const Icon(Icons.archive_outlined),
+                title: const Text('Archive'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  onArchive?.call();
+                },
+              ),
+            if (report.archived && onUnarchive != null)
+              ListTile(
+                leading: const Icon(Icons.unarchive_outlined),
+                title: const Text('Unarchive'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  onUnarchive?.call();
+                },
+              ),
+            if (onDelete != null)
+              ListTile(
+                leading: const Icon(Icons.delete_outline, color: Colors.red),
+                title: const Text('Delete', style: TextStyle(color: Colors.red)),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  onDelete?.call();
+                },
+              ),
           ],
         ),
       ),
@@ -190,11 +212,11 @@ class ResearchReportCard extends StatelessWidget {
                         const SizedBox(height: 4),
                         Row(
                           children: [
-                            Icon(Icons.schedule,
+                            const Icon(Icons.schedule,
                                 size: 14, color: kcSecondaryColor),
                             const SizedBox(width: 4),
                             Text(
-                              _formatTime(report.generatedAt),
+                              'Created ${_formatTime(report.generatedAt)}',
                               style: Theme.of(context)
                                   .textTheme
                                   .bodySmall

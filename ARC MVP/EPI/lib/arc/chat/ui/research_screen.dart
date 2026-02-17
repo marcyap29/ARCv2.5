@@ -5,8 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:gap/gap.dart';
 
-import '../config/api_config.dart';
-import '../services/groq_service.dart';
+import '../services/lumara_cloud_generate.dart';
 import 'package:my_app/lumara/agents/research/research_agent.dart';
 import 'package:my_app/lumara/agents/research/research_models.dart';
 import 'package:my_app/lumara/agents/research/web_search_tool.dart';
@@ -47,22 +46,11 @@ class _ResearchScreenState extends State<ResearchScreen> {
       _report = null;
     });
     try {
-      await LumaraAPIConfig.instance.initialize();
-      final config = LumaraAPIConfig.instance.getConfig(LLMProvider.groq);
-      final apiKey = config?.apiKey;
-      if (apiKey == null || apiKey.isEmpty) {
-        setState(() {
-          _loading = false;
-          _error = 'Groq API key not set. Add it in LUMARA settings.';
-        });
-        return;
-      }
-      final groq = GroqService(apiKey: apiKey);
       final agent = ResearchAgent(
         generate: ({required systemPrompt, required userPrompt, maxTokens}) async {
-          return groq.generateContent(
-            prompt: userPrompt,
+          return generateWithLumaraCloud(
             systemPrompt: systemPrompt,
+            userPrompt: userPrompt,
             maxTokens: maxTokens ?? 1200,
           );
         },

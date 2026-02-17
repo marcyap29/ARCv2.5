@@ -16,7 +16,7 @@
 ## Recent prompt-related changes
 
 | Date | Change | Source / doc |
-|------|--------|--------------|
+| 2026-02-15 | Doc sync v3.3.38: Writing drafts/research storage, archive/delete, ARCX agents export/import; prompt audit (no new prompts); bug_tracker tracked | CONFIGURATION_MANAGEMENT.md |
 | 2026-02-15 | Agent prompts: research_prompts.dart, writing_prompts.dart (LUMARA research/writing agents); add to PROMPT_REFERENCES when consolidating | CONFIGURATION_MANAGEMENT.md; CHANGELOG [3.3.37] |
 | 2026-02-15 | Doc sync v3.3.36: Agents screen, connection service, bug_tracker (35 records); prompt audit (no new prompts) | CONFIGURATION_MANAGEMENT.md |
 | 2026-02-15 | Doc sync v3.3.35: LUMARA agents, orchestrator, CHRONICLE alignment; prompt audit (no new prompts) | CONFIGURATION_MANAGEMENT.md |

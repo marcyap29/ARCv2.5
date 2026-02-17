@@ -1,6 +1,6 @@
 # EPI MVP - Comprehensive Features Guide
 
-**Version:** 3.3.37
+**Version:** 3.3.38
 **Last Updated:** February 15, 2026
 
 ---
@@ -203,6 +203,7 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 - **CHRONICLE Cross-Temporal Pattern Index (v3.3.26)**: On-device sentence embeddings via TFLite Universal Sentence Encoder. `ChronicleIndexBuilder` clusters themes by cosine similarity, tracks appearances across time. Updated after monthly synthesis. Three-stage matching (exact → cosine → fuzzy). `PatternQueryRouter` for index-backed queries.
 - **CHRONICLE Edit Validation (v3.3.26)**: `EditValidator` detects pattern suppression and factual contradictions when users edit synthesis content. Surfaces warnings with "keep pattern with different wording / note why removing / proceed anyway" options.
 - **CHRONICLE Import (v3.3.26)**: Import aggregations from a previously exported directory. New "Import Aggregations" button in CHRONICLE Management.
+- **LUMARA Agents: Writing Drafts & Research (v3.3.38)**: Writing Agent drafts stored in `writing_drafts/{userId}/` with status (draft/finished), archive, and delete. Research reports persisted to `research_artifacts.json` with archive/delete. Agents tab: Active and Archived sections; card actions (Mark finished, Archive/Unarchive, Delete with confirm); Created date and metadata. ARCX and ZIP export/import include `extensions/agents/writing_drafts/` and `research_artifacts.json` so drafts and research reports are backed up and restorable.
 - **CHRONICLE Schedule Preferences (v3.3.26)**: User-selectable synthesis cadence (Daily / Weekly / Monthly) via FilterChip in settings. VEIL scheduler adapts run interval accordingly.
 - **Expanded Entry View (v3.3.26)**: Full journal entry loaded to show interleaved writer text + LUMARA reflection blocks + user comments. Related entries section shows real linked entries (tappable). LUMARA's note section shows actual overview/blocks content.
 - **Journal View-Only Improvements (v3.3.26)**: Read-only LUMARA blocks (no action buttons). Paragraph formatting for writer text and user comments. View-only continuation field shows saved comment text.
@@ -828,6 +829,7 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
   - ArcForm timeline snapshots
   - LUMARA Favorites (all categories: answers, chats, journal entries)
   - Edges (relationship tracking via edges.jsonl)
+  - **Agents data (v3.3.38)**: Writing drafts (`extensions/agents/writing_drafts/`) and research artifacts (`extensions/agents/research_artifacts.json`) for full backup and restore
 - **Media Pack Organization**: Media files organized into packs for efficient storage:
   - Configurable pack size (50-500 MB, default 200 MB)
   - Media organized into `/Media/packs/pack-XXX/` directories
@@ -862,7 +864,7 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
   - Supports new date-bucketed structure (`Entries/`, `Chats/`, `extensions/`)
   - Supports legacy flat structure (`nodes/journal/`, `nodes/chat/`, `PhaseRegimes/`)
   - Automatic detection of format version for seamless migration
-- **Extended Data Import**: Full support for importing Phase Regimes, RIVET state, Sentinel state, ArcForm timeline, and LUMARA Favorites
+- **Extended Data Import**: Full support for importing Phase Regimes, RIVET state, Sentinel state, ArcForm timeline, LUMARA Favorites, and **agents data (v3.3.38)** (writing_drafts tree and research_artifacts.json)
 - **Category Preservation**: Favorite categories (answers, chats, journal entries) are preserved during import
 - **Capacity Management**: Import respects category-specific limits (25 answers, 25 chats, 25 journal entries)
 - **Timeline Integration**: Automatic timeline refresh after import

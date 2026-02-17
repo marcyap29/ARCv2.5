@@ -54,6 +54,8 @@ class ResearchReport {
   final List<ResearchCitation> citations;
   final AtlasPhase phase;
   final DateTime generatedAt;
+  final bool archived;
+  final DateTime? archivedAt;
 
   const ResearchReport({
     required this.id,
@@ -66,5 +68,7 @@ class ResearchReport {
     this.citations = const [],
     this.phase = AtlasPhase.discovery,
     required this.generatedAt,
+    this.archived = false,
+    this.archivedAt,
   });
 }

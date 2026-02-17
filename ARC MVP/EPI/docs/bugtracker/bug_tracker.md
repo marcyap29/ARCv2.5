@@ -1,7 +1,7 @@
 # EPI MVP - Bug Tracker
 
 **Version:** 3.2.6  
-**Last Updated:** 2026-02-08  
+**Last Updated:** 2026-02-15  
 **Record count:** 35 individual bug records in [records/](records/). Index below matches all files in records/.
 
 ---
@@ -121,6 +121,7 @@ This section is derived from the repo and [CHANGELOG.md](../CHANGELOG.md) to kee
 | AppLifecycleState import; FeedRepository types; _buildRunAnalysisCard order | 2026-02-08 | [build-fixes-session-feb-2026.md](records/build-fixes-session-feb-2026.md) ✅ | auto_save_service: add `dart:ui` show AppLifecycleState. feed_repository: createdAt, metadata ?? {}, msg.id. phase_analysis_view: move _buildRunAnalysisCard before _buildArcformContent, remove duplicate. |
 | Agents screen, agents_connection_service | v3.3.36 | — | agents_screen.dart extended; new agents_connection_service.dart. |
 | Research/writing prompts, timeline context, synthesis/draft | v3.3.37 | — | research_prompts.dart, writing_prompts.dart, timeline_context_service.dart; research_agent, synthesis_engine, draft_composer, writing_agent, writing_models, writing_screen. |
+| Writing drafts storage, research persistence, archive/delete, ARCX agents | v3.3.38 | — | WritingDraftRepository (list/archive/delete); ResearchArtifactRepository JSON persist; Agents tab Active/Archived; ARCX export/import extensions/agents. |
 
 **Source:** `git log --oneline`, [CHANGELOG.md](../CHANGELOG.md), terminal build log. Last synced: 2026-02-15.
 
@@ -136,5 +137,5 @@ Individual bug records stay in [records/](records/); only the legacy multi-part 
 
 ---
 
-**Status**: ✅ Active - All resolved issues documented; Build & Platform: 5 records (session consolidation ✅, rivet Set type ✅, embedding Dart chain, NativeEmbeddingChannel Swift, third-party warnings); Environment: 1 (Ollama).  
+**Status**: ✅ Active - All resolved issues documented; Build & Platform: 5 records (session consolidation ✅, rivet Set type ✅, embedding Dart chain, NativeEmbeddingChannel Swift, third-party warnings); Environment: 1 (Ollama). Doc sync v3.3.38: bug_tracker tracked.  
 **Last Updated**: 2026-02-15
