@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:my_app/arc/chat/ui/research_screen.dart';
 import 'package:my_app/lumara/agents/models/research_models.dart';
 import 'package:my_app/lumara/agents/services/agents_chronicle_service.dart';
 import 'package:my_app/lumara/agents/widgets/research_report_card.dart';
 import 'package:my_app/lumara/agents/screens/research_report_detail_screen.dart';
-import 'package:my_app/shared/ui/home/home_cubit.dart';
 import 'package:my_app/shared/app_colors.dart';
 
 class ResearchAgentTab extends StatefulWidget {
@@ -21,6 +20,49 @@ class _ResearchAgentTabState extends State<ResearchAgentTab> {
   }
 
   void _refresh() => setState(() {});
+
+  static const List<String> _exampleQueries = [
+    'SBIR Phase I requirements and how ARC maps to defense priorities',
+    'Evidence-based practices for trauma recovery and resilience',
+    'Current research on narrative identity and meaning-making',
+  ];
+
+  void _showExampleQueries(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                'Example research questions',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      color: kcPrimaryTextColor,
+                      fontWeight: FontWeight.w600,
+                    ),
+              ),
+              const SizedBox(height: 12),
+              ..._exampleQueries.map((q) => ListTile(
+                    title: Text(q, style: const TextStyle(fontSize: 14)),
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute<void>(
+                          builder: (context) => ResearchScreen(initialQuery: q),
+                        ),
+                      ).then((_) => _refresh());
+                    },
+                  )),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 
   Map<DateTime, List<ResearchReport>> _groupReportsByDate(
       List<ResearchReport> reports) {
@@ -75,7 +117,7 @@ class _ResearchAgentTabState extends State<ResearchAgentTab> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Ask LUMARA to research something in the main tab',
+            'Run research from here or use LUMARA chat for research with sources.',
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   color: kcSecondaryColor,
                 ),
@@ -84,24 +126,25 @@ class _ResearchAgentTabState extends State<ResearchAgentTab> {
           const SizedBox(height: 24),
           ElevatedButton.icon(
             onPressed: () {
-              try {
-                context.read<HomeCubit>().changeTab(0);
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Go to LUMARA and ask for research'),
-                      duration: Duration(seconds: 2),
-                    ),
-                  );
-                }
-              } catch (_) {}
+              Navigator.push(
+                context,
+                MaterialPageRoute<void>(
+                  builder: (context) => const ResearchScreen(),
+                ),
+              ).then((_) => _refresh());
             },
-            icon: const Icon(Icons.lightbulb_outline),
-            label: const Text('See Examples'),
+            icon: const Icon(Icons.search),
+            label: const Text('Run new research'),
             style: ElevatedButton.styleFrom(
               backgroundColor: kcPrimaryColor,
               foregroundColor: Colors.white,
             ),
+          ),
+          const SizedBox(height: 12),
+          TextButton.icon(
+            onPressed: () => _showExampleQueries(context),
+            icon: const Icon(Icons.lightbulb_outline),
+            label: const Text('See Examples'),
           ),
         ],
       ),

@@ -58,6 +58,7 @@ import 'package:my_app/prism/atlas/rivet/rivet_decision_analyzer.dart';
 import 'package:my_app/models/phase_models.dart';
 import 'package:my_app/services/user_phase_service.dart';
 import 'package:my_app/arc/chat/services/groq_service.dart';
+import 'package:my_app/arc/chat/services/lumara_cloud_generate.dart';
 import 'package:my_app/lumara/orchestrator/chat_intent_classifier.dart';
 import 'package:my_app/lumara/orchestrator/lumara_chat_orchestrator.dart';
 import 'package:my_app/lumara/agents/research/research_agent.dart';
@@ -2690,24 +2691,40 @@ Your exported MCP bundle can be imported into any MCP-compatible system, ensurin
   }
 
   /// Lazy-create chat orchestrator (Research + Writing agents) for LUMARA chat.
+  /// Uses Lumara cloud (proxy or keys) when available, else Groq key, else null.
   Future<LumaraChatOrchestrator?> _getChatOrchestrator() async {
     if (_chatOrchestrator != null) return _chatOrchestrator;
     try {
       await LumaraAPIConfig.instance.initialize();
+      final useCloud = await isLumaraCloudAvailable();
       final config = LumaraAPIConfig.instance.getConfig(LLMProvider.groq);
       final apiKey = config?.apiKey;
-      if (apiKey == null || apiKey.isEmpty) return null;
-      final groq = GroqService(apiKey: apiKey);
+      final hasGroqKey = apiKey != null && apiKey.isNotEmpty;
+      if (!useCloud && !hasGroqKey) return null;
+
       final classifier = ChatIntentClassifier(
         generate: ({required systemPrompt, required userPrompt, maxTokens}) async {
-          return geminiSend(
-            system: systemPrompt,
-            user: userPrompt,
-          );
+          if (useCloud) {
+            return generateWithLumaraCloud(
+              systemPrompt: systemPrompt,
+              userPrompt: userPrompt,
+              maxTokens: maxTokens ?? 600,
+            );
+          }
+          return geminiSend(system: systemPrompt, user: userPrompt);
         },
       );
+
       final researchAgent = ResearchAgent(
         generate: ({required systemPrompt, required userPrompt, maxTokens}) async {
+          if (useCloud) {
+            return generateWithLumaraCloud(
+              systemPrompt: systemPrompt,
+              userPrompt: userPrompt,
+              maxTokens: maxTokens ?? 1200,
+            );
+          }
+          final groq = GroqService(apiKey: apiKey!);
           return groq.generateContent(
             prompt: userPrompt,
             systemPrompt: systemPrompt,
@@ -2716,9 +2733,18 @@ Your exported MCP bundle can be imported into any MCP-compatible system, ensurin
         },
         searchTool: StubWebSearchTool(),
       );
+
       final writingAgent = WritingAgent(
         draftRepository: WritingDraftRepositoryImpl(),
         generateContent: ({required systemPrompt, required userPrompt, maxTokens}) async {
+          if (useCloud) {
+            return generateWithLumaraCloud(
+              systemPrompt: systemPrompt,
+              userPrompt: userPrompt,
+              maxTokens: maxTokens ?? 800,
+            );
+          }
+          final groq = GroqService(apiKey: apiKey!);
           return groq.generateContent(
             prompt: userPrompt,
             systemPrompt: systemPrompt,
@@ -2726,6 +2752,7 @@ Your exported MCP bundle can be imported into any MCP-compatible system, ensurin
           );
         },
       );
+
       _chatOrchestrator = LumaraChatOrchestrator(
         classifier: classifier,
         researchAgent: researchAgent,

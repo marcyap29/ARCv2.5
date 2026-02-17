@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:my_app/arc/chat/ui/lumara_settings_screen.dart';
+import 'package:my_app/arc/chat/ui/research_screen.dart';
 import 'package:my_app/arc/chat/ui/writing_screen.dart';
-import 'package:my_app/lumara/agents/screens/research_agent_tab.dart';
 import 'package:my_app/lumara/agents/services/agents_connection_service.dart';
 import 'package:my_app/shared/app_colors.dart';
 
@@ -98,13 +98,7 @@ class _AgentsScreenState extends State<AgentsScreen> {
                       Navigator.push(
                         context,
                         MaterialPageRoute<void>(
-                          builder: (context) => Scaffold(
-                            appBar: AppBar(
-                              title: const Text('Research'),
-                              backgroundColor: kcBackgroundColor,
-                            ),
-                            body: const ResearchAgentTab(),
-                          ),
+                          builder: (context) => const ResearchScreen(),
                         ),
                       );
                     },

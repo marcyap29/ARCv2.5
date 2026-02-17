@@ -160,20 +160,41 @@ class _WritingScreenState extends State<WritingScreen> {
               const Gap(16),
               Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
             ],
-            if (_draft != null) ...[
-              const Gap(24),
-              const Divider(),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text('Draft', style: Theme.of(context).textTheme.titleMedium),
-                  TextButton.icon(
-                    onPressed: _copyDraft,
-                    icon: const Icon(Icons.copy, size: 18),
-                    label: const Text('Copy'),
+            const Gap(24),
+            const Divider(),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('Draft', style: Theme.of(context).textTheme.titleMedium),
+                if (_draft != null)
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      TextButton.icon(
+                        onPressed: _copyDraft,
+                        icon: const Icon(Icons.copy, size: 18),
+                        label: const Text('Copy'),
+                      ),
+                    ],
                   ),
-                ],
-              ),
+              ],
+            ),
+            if (_draft == null)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  border: Border.all(color: Theme.of(context).dividerColor),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  'Your draft will appear here after you generate. Use "Generate draft" above.',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                ),
+              )
+            else ...[
               _buildScoresRow(context),
               const Gap(8),
               Container(
@@ -184,6 +205,13 @@ class _WritingScreenState extends State<WritingScreen> {
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: SelectableText(_draft!.content),
+              ),
+              const Gap(12),
+              Text(
+                'Saved to My Drafts. Open Agents → Writing to see all drafts.',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
               ),
               if (_draft!.metadata.contextSignalsUsed != null &&
                   _draft!.metadata.contextSignalsUsed!.isNotEmpty) ...[

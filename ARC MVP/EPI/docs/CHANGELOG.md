@@ -1,6 +1,6 @@
 # EPI LUMARA MVP - Changelog
 
-**Version:** 3.3.38
+**Version:** 3.3.39
 **Last Updated:** February 15, 2026
 
 ---
@@ -14,6 +14,22 @@ This changelog has been split into parts for easier navigation:
 | **[CHANGELOG_part1.md](CHANGELOG_part1.md)** | Dec 2025 | v2.1.43 - v2.1.87 (Current) |
 | **[CHANGELOG_part2.md](CHANGELOG_part2.md)** | Nov 2025 | v2.1.28 - v2.1.42 |
 | **[CHANGELOG_part3.md](CHANGELOG_part3.md)** | Jan-Oct 2025 | v2.0.0 - v2.1.27 & Earlier |
+
+---
+
+## [3.3.39] - February 15, 2026
+
+### LUMARA agents: research/writing prompts expansion, screen and tab refinements
+
+- **Research prompts:** `research_prompts.dart` extended (+148 lines) — expanded prompt definitions for research agent.
+- **Writing prompts:** `writing_prompts.dart` extended (+150 lines) — expanded prompt definitions for writing agent.
+- **Research screen:** `research_screen.dart` updates (+81 net) — UI and flow refinements.
+- **Writing screen:** `writing_screen.dart` updates (+54 net) — UI and flow refinements.
+- **Research Agent tab:** `research_agent_tab.dart` refinements (+75 net).
+- **LUMARA assistant cubit:** `lumara_assistant_cubit.dart` updates (+39 net).
+- **Agents screen:** `agents_screen.dart` minor updates (+10 net).
+
+**Files:** 7 modified (research_prompts, writing_prompts, research_screen, writing_screen, research_agent_tab, lumara_assistant_cubit, agents_screen). bug_tracker tracked.
 
 ---
 

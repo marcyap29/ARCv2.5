@@ -9,18 +9,28 @@ import '../services/lumara_cloud_generate.dart';
 import 'package:my_app/lumara/agents/research/research_agent.dart';
 import 'package:my_app/lumara/agents/research/research_models.dart';
 import 'package:my_app/lumara/agents/research/web_search_tool.dart';
+import 'package:my_app/lumara/agents/screens/research_agent_tab.dart';
 import 'package:my_app/services/firebase_auth_service.dart';
 
 /// Screen for the LUMARA Research Agent: enter a question, get a synthesized report.
 class ResearchScreen extends StatefulWidget {
-  const ResearchScreen({super.key});
+  const ResearchScreen({super.key, this.initialQuery});
+
+  final String? initialQuery;
 
   @override
   State<ResearchScreen> createState() => _ResearchScreenState();
 }
 
 class _ResearchScreenState extends State<ResearchScreen> {
-  final TextEditingController _queryController = TextEditingController();
+  late final TextEditingController _queryController;
+
+  @override
+  void initState() {
+    super.initState();
+    _queryController = TextEditingController(text: widget.initialQuery ?? '');
+  }
+
   ResearchReport? _report;
   bool _loading = false;
   String? _error;
@@ -107,6 +117,26 @@ class _ResearchScreenState extends State<ResearchScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('LUMARA Research'),
+        actions: [
+          TextButton.icon(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute<void>(
+                  builder: (context) => Scaffold(
+                    appBar: AppBar(
+                      title: const Text('My Research'),
+                      backgroundColor: Theme.of(context).colorScheme.surface,
+                    ),
+                    body: const ResearchAgentTab(),
+                  ),
+                ),
+              );
+            },
+            icon: const Icon(Icons.folder_open, size: 20),
+            label: const Text('My reports'),
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -141,24 +171,47 @@ class _ResearchScreenState extends State<ResearchScreen> {
                 style: TextStyle(color: Theme.of(context).colorScheme.error),
               ),
             ],
-            if (_report != null) ...[
-              const Gap(24),
-              const Divider(),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Report',
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
+            const Gap(24),
+            const Divider(),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Report',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                if (_report != null)
                   TextButton.icon(
                     onPressed: _copyReport,
                     icon: const Icon(Icons.copy, size: 18),
                     label: const Text('Copy'),
                   ),
-                ],
-              ),
+              ],
+            ),
+            if (_report == null)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  border: Border.all(color: Theme.of(context).dividerColor),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  'Your research report will appear here after you run a query above. Reports are saved automatically to My Research.',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                ),
+              )
+            else ...[
               const Gap(8),
+              Text(
+                'Saved to My Research. Open Agents → Research to see all reports.',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+              ),
+              const Gap(12),
               _Section(
                 title: 'Summary',
                 child: SelectableText(_report!.summary),
