@@ -1,7 +1,7 @@
 # EPI LUMARA MVP - Changelog
 
-**Version:** 3.3.39
-**Last Updated:** February 15, 2026
+**Version:** 3.3.40
+**Last Updated:** February 16, 2026
 
 ---
 
@@ -14,6 +14,23 @@ This changelog has been split into parts for easier navigation:
 | **[CHANGELOG_part1.md](CHANGELOG_part1.md)** | Dec 2025 | v2.1.43 - v2.1.87 (Current) |
 | **[CHANGELOG_part2.md](CHANGELOG_part2.md)** | Nov 2025 | v2.1.28 - v2.1.42 |
 | **[CHANGELOG_part3.md](CHANGELOG_part3.md)** | Jan-Oct 2025 | v2.0.0 - v2.1.27 & Earlier |
+
+---
+
+## [3.3.40] - February 16, 2026
+
+### LUMARA agents expansion, Narrative Intelligence paper (.tex), chats/settings, orchestration
+
+- **Agents screen:** `agents_screen.dart` major extension (+475 net) — expanded UI and flows for agents tab.
+- **Chats:** `saved_chats_screen.dart` extended (+267 net); `enhanced_chats_screen.dart` updates (+76 net).
+- **LUMARA settings:** `lumara_settings_screen.dart` extended (+132 net); `lumara_reflection_settings_service.dart` (+51); `lumara_assistant_screen.dart` updates.
+- **Orchestrator & intent:** `chat_intent_classifier.dart`, `lumara_chat_orchestrator.dart` updates; new `lumara_intent_classifier.dart`; new `orchestration_violation_checker.dart`.
+- **Research/writing agents:** `research_agent.dart`, `research_prompts.dart`, `synthesis_engine.dart`; `writing_agent.dart`, `writing_prompts.dart`, `draft_composer.dart` updates.
+- **Arc agents drafts:** New `lib/arc/agents/drafts/` — `agent_draft.dart`, `draft_repository.dart`, `new_draft_screen.dart`; new `lib/lumara/agents/prompts/agent_operating_system_prompt.dart`.
+- **Unified feed:** `unified_feed_screen.dart` minor updates; `research_screen.dart`, `writing_screen.dart` small tweaks.
+- **DOCS:** `NARRATIVE_INTELLIGENCE_WHITE_PAPER.md` and `NARRATIVE_INTELLIGENCE_PAPER_COMPARISON.md` removed; `NARRATIVE_INTELLIGENCE_WHITE_PAPER.tex` added (LaTeX source for paper). `PROMPT_REFERENCES.md` updated (+77).
+
+**Files:** 22 modified, 2 deleted (DOCS .md), 7 new (.tex, arc/agents/drafts, lumara_intent_classifier, agent_operating_system_prompt, orchestration_violation_checker). bug_tracker tracked.
 
 ---
 

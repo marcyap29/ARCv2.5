@@ -1,3 +1,5 @@
+import 'package:my_app/arc/agents/drafts/agent_draft.dart';
+import 'package:my_app/arc/agents/drafts/draft_repository.dart';
 import 'package:my_app/models/phase_models.dart';
 import 'package:my_app/services/user_phase_service.dart';
 import 'package:my_app/lumara/agents/services/timeline_context_service.dart';
@@ -17,6 +19,7 @@ class WritingAgent {
   final SelfCritic _selfCritic;
   final WritingDraftRepository? _draftRepository;
   final TimelineContextService _timelineContextService;
+  final Future<String> Function()? _getAgentOsPrefix;
 
   WritingAgent({
     VoiceAnalyzer? voiceAnalyzer,
@@ -26,6 +29,7 @@ class WritingAgent {
     SelfCritic? selfCritic,
     WritingDraftRepository? draftRepository,
     TimelineContextService? timelineContextService,
+    Future<String> Function()? getAgentOsPrefix,
     required WritingLlmGenerate generateContent,
   })  : _voiceAnalyzer = voiceAnalyzer ?? VoiceAnalyzer(),
         _themeTracker = themeTracker ?? ThemeTracker(),
@@ -33,13 +37,15 @@ class WritingAgent {
         _draftComposer = draftComposer ?? DraftComposer(generate: generateContent),
         _selfCritic = selfCritic ?? SelfCritic(),
         _draftRepository = draftRepository,
-        _timelineContextService = timelineContextService ?? TimelineContextService();
+        _timelineContextService = timelineContextService ?? TimelineContextService(),
+        _getAgentOsPrefix = getAgentOsPrefix;
 
   /// Compose content for the user. Optionally pass [phaseOverride] and [readinessOverride]
   /// when the caller has already resolved ATLAS state (e.g. from LUMARA control state).
   /// When not provided, phase is resolved via [UserPhaseService.getCurrentPhase] and readiness defaults to 50.
   ///
   /// [maxCritiqueIterations] 0 = no self-critique; 1–2 = up to that many re-drafts after critique.
+  /// [onProgress] optional; when provided (e.g. from chat), called with status for each step.
   Future<ComposedContent> composeContent({
     required String userId,
     required String prompt,
@@ -47,23 +53,41 @@ class WritingAgent {
     String? phaseOverride,
     double? readinessOverride,
     int maxCritiqueIterations = 0,
+    void Function(String)? onProgress,
   }) async {
+    onProgress?.call('Resolving phase and tone...');
     final phaseStr = phaseOverride ?? await UserPhaseService.getCurrentPhase();
     final phaseLabel = _phaseStringToLabel(phaseStr);
     final readiness = readinessOverride ?? 50.0;
 
+    onProgress?.call('Analyzing your voice from CHRONICLE...');
     final voice = await _voiceAnalyzer.analyzeVoice(userId: userId, sampleSize: 20);
+    onProgress?.call('Loading theme context...');
     final themes = await _themeTracker.getThemeContext(userId: userId, contentTopic: prompt);
     final tone = _toneCalibrator.calibrateTone(
       currentPhase: phaseLabel,
       readinessScore: readiness,
       contentType: type,
     );
+    onProgress?.call('Loading timeline context...');
     final timelineContext = await _timelineContextService.getWritingContext(
       userId: userId,
       contentTopic: prompt,
     );
+    final systemPromptPrefix = _getAgentOsPrefix != null ? await _getAgentOsPrefix!() : null;
 
+    String? draftsSnippet;
+    try {
+      final ctx = await DraftRepository.instance.getDraftsAndArchivedForContext(
+        draftLimit: 5,
+        archiveLimit: 5,
+      );
+      draftsSnippet = _formatDraftsAndArchiveForPrompt(ctx.drafts, ctx.archived);
+    } catch (_) {
+      draftsSnippet = null;
+    }
+
+    onProgress?.call('Composing draft...');
     var draft = await _draftComposer.composeDraft(
       prompt: prompt,
       voice: voice,
@@ -71,6 +95,8 @@ class WritingAgent {
       tone: tone,
       type: type,
       timelineContext: timelineContext,
+      systemPromptPrefix: systemPromptPrefix,
+      draftsAndArchiveSnippet: draftsSnippet,
     );
 
     double? voiceScore;
@@ -96,6 +122,8 @@ class WritingAgent {
         tone: tone,
         type: type,
         timelineContext: timelineContext,
+        systemPromptPrefix: systemPromptPrefix,
+        draftsAndArchiveSnippet: draftsSnippet,
       );
       iterations++;
     }
@@ -127,6 +155,35 @@ class WritingAgent {
     }
 
     return composed;
+  }
+
+  static const int _draftPreviewChars = 500;
+
+  static String? _formatDraftsAndArchiveForPrompt(
+    List<AgentDraft> drafts,
+    List<AgentDraft> archived,
+  ) {
+    final parts = <String>[];
+    if (drafts.isNotEmpty) {
+      parts.add('Drafts (for reference):');
+      for (final d in drafts) {
+        final preview = d.content.length > _draftPreviewChars
+            ? '${d.content.substring(0, _draftPreviewChars)}...'
+            : d.content;
+        parts.add('[${d.title}]\n$preview');
+      }
+    }
+    if (archived.isNotEmpty) {
+      parts.add('Archive (for reference):');
+      for (final d in archived) {
+        final preview = d.content.length > _draftPreviewChars
+            ? '${d.content.substring(0, _draftPreviewChars)}...'
+            : d.content;
+        parts.add('[${d.title}]\n$preview');
+      }
+    }
+    if (parts.isEmpty) return null;
+    return parts.join('\n\n');
   }
 
   PhaseLabel _phaseStringToLabel(String phaseStr) {

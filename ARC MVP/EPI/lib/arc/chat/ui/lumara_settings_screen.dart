@@ -65,6 +65,12 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
   
   // Subscription status
   SubscriptionTier _subscriptionTier = SubscriptionTier.free;
+
+  // Agent Operating System (user context for Writing/Research agents)
+  final TextEditingController _agentOsUserContextController = TextEditingController();
+  final TextEditingController _agentOsCommunicationController = TextEditingController();
+  final TextEditingController _agentOsMemoryController = TextEditingController();
+  bool _agentOsLoading = true;
   
   /// Clamp progress to 0-1 range, return null for invalid values (indeterminate progress)
   double? clamp01(num? x) {
@@ -85,6 +91,7 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
     _loadSubscriptionTier();
     _loadCurrentSettings();
     _loadReflectionSettings();
+    _loadAgentOsSettings();
     _downloadStateService.addListener(_onDownloadStateChanged);
     // Refresh model states to handle model ID changes
     _downloadStateService.refreshAllStates();
@@ -113,9 +120,37 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
       controller.dispose();
     }
     _wisprApiKeyController.dispose();
+    _agentOsUserContextController.dispose();
+    _agentOsCommunicationController.dispose();
+    _agentOsMemoryController.dispose();
     _downloadStateService.removeListener(_onDownloadStateChanged);
     _refreshDebounceTimer?.cancel();
     super.dispose();
+  }
+
+  Future<void> _loadAgentOsSettings() async {
+    final settings = LumaraReflectionSettingsService.instance;
+    final context = await settings.getAgentOsUserContext();
+    final communication = await settings.getAgentOsCommunicationPreferences();
+    final memory = await settings.getAgentOsMemory();
+    if (mounted) {
+      _agentOsUserContextController.text = context;
+      _agentOsCommunicationController.text = communication;
+      _agentOsMemoryController.text = memory;
+      setState(() => _agentOsLoading = false);
+    }
+  }
+
+  Future<void> _saveAgentOsSettings() async {
+    final settings = LumaraReflectionSettingsService.instance;
+    await settings.setAgentOsUserContext(_agentOsUserContextController.text);
+    await settings.setAgentOsCommunicationPreferences(_agentOsCommunicationController.text);
+    await settings.setAgentOsMemory(_agentOsMemoryController.text);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Agent instructions saved')),
+      );
+    }
   }
 
   void _onDownloadStateChanged() {
@@ -322,6 +357,10 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
             _buildTherapeuticPresenceCard(theme),
             const SizedBox(height: 24),
 
+            // Agent Operating System (user context for Writing/Research agents)
+            _buildAgentOperatingSystemCard(theme),
+            const SizedBox(height: 24),
+
             // API — provider selection, API keys, voice (Wispr) in one card
             if (_subscriptionTier == SubscriptionTier.premium) ...[
               _buildApiCard(theme),
@@ -359,6 +398,99 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
     LLMProvider.venice,
     LLMProvider.openrouter,
   ];
+
+  Widget _buildAgentOperatingSystemCard(ThemeData theme) {
+    return Card(
+      elevation: 2,
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.tune, color: theme.colorScheme.primary, size: 24),
+                const SizedBox(width: 12),
+                Text(
+                  'Agent instructions',
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: theme.colorScheme.primary,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Customize how Writing and Research agents work for you. These are prepended to every agent run.',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+            if (_agentOsLoading) ...[
+              const SizedBox(height: 16),
+              const Center(child: CircularProgressIndicator()),
+            ] else ...[
+              const SizedBox(height: 16),
+              Text(
+                'Your context',
+                style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 4),
+              TextField(
+                controller: _agentOsUserContextController,
+                maxLines: 4,
+                decoration: const InputDecoration(
+                  hintText: 'e.g. Senior engineer, new to Flutter. Prefer hands-on examples.',
+                  border: OutlineInputBorder(),
+                  alignLabelWithHint: true,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Communication style',
+                style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 4),
+              TextField(
+                controller: _agentOsCommunicationController,
+                maxLines: 3,
+                decoration: const InputDecoration(
+                  hintText: 'e.g. Direct and concise. Skip preamble. Technical language is fine.',
+                  border: OutlineInputBorder(),
+                  alignLabelWithHint: true,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Agent memory',
+                style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 4),
+              TextField(
+                controller: _agentOsMemoryController,
+                maxLines: 4,
+                decoration: const InputDecoration(
+                  hintText: 'e.g. Project: BudgetBuddy. Using Flutter + Riverpod. Prefer functional components.',
+                  border: OutlineInputBorder(),
+                  alignLabelWithHint: true,
+                ),
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: _saveAgentOsSettings,
+                  icon: const Icon(Icons.save, size: 18),
+                  label: const Text('Save configuration'),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
 
   Widget _buildApiCard(ThemeData theme) {
     final isDefaultGroq = _selectedProvider == null || _selectedProvider == LLMProvider.groq;

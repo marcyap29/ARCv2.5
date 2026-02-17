@@ -56,6 +56,7 @@ class ResearchAgent {
   final SynthesisEngine _synthesisEngine;
   final ResearchSessionManager _sessionManager;
   final TimelineContextService _timelineContextService;
+  final Future<String> Function()? _getAgentOsPrefix;
 
   ResearchAgent({
     required LlmGenerate generate,
@@ -63,12 +64,14 @@ class ResearchAgent {
     ChronicleCrossReference? chronicleCrossRef,
     ResearchSessionManager? sessionManager,
     TimelineContextService? timelineContextService,
+    Future<String> Function()? getAgentOsPrefix,
   })  : _queryPlanner = QueryPlanner(generate: generate),
         _chronicleCrossRef = chronicleCrossRef ?? ChronicleCrossReference(),
         _searchOrchestrator = SearchOrchestrator(searchTool: searchTool),
         _synthesisEngine = SynthesisEngine(generate: generate),
         _sessionManager = sessionManager ?? ResearchSessionManager(),
-        _timelineContextService = timelineContextService ?? TimelineContextService();
+        _timelineContextService = timelineContextService ?? TimelineContextService(),
+        _getAgentOsPrefix = getAgentOsPrefix;
 
   static const int _totalSteps = 6;
 
@@ -141,6 +144,7 @@ class ResearchAgent {
       pastResearchSummary: priorContext.existingKnowledge.summary,
     );
     final depthLabel = researchDepth != null ? _researchDepthToLabel(researchDepth) : null;
+    final systemPromptPrefix = _getAgentOsPrefix != null ? await _getAgentOsPrefix!() : null;
 
     final report = await _synthesisEngine.synthesizeFindings(
       originalQuery: query,
@@ -150,6 +154,7 @@ class ResearchAgent {
       readinessScore: readiness,
       timelineContext: timelineContext,
       researchDepthLabel: depthLabel,
+      systemPromptPrefix: systemPromptPrefix,
     );
 
     onProgress?.call(ResearchProgress(
@@ -206,6 +211,7 @@ class ResearchAgent {
       userId: session.userId,
       pastResearchSummary: priorContext.existingKnowledge.summary,
     );
+    final systemPromptPrefix = _getAgentOsPrefix != null ? await _getAgentOsPrefix!() : null;
 
     final refinedReport = await _synthesisEngine.synthesizeFindings(
       originalQuery: '${session.queries.first} → $followUpQuery',
@@ -214,6 +220,7 @@ class ResearchAgent {
       currentPhase: session.phase,
       readinessScore: session.readinessScore,
       timelineContext: timelineContext,
+      systemPromptPrefix: systemPromptPrefix,
     );
 
     _sessionManager.updateSessionWithReport(session, refinedReport);

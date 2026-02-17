@@ -24,6 +24,8 @@ class _SavedChatsScreenState extends State<SavedChatsScreen> {
   List<LumaraFavorite> _savedChats = [];
   List<ChatSession> _sessions = [];
   bool _isLoading = true;
+  bool _isSelectionMode = false;
+  Set<String> _selectedFavoriteIds = {};
   final FavoritesService _favoritesService = FavoritesService.instance;
 
   @override
@@ -56,6 +58,101 @@ class _SavedChatsScreenState extends State<SavedChatsScreen> {
     }
   }
 
+  void _toggleSelectionMode() {
+    setState(() {
+      _isSelectionMode = !_isSelectionMode;
+      if (!_isSelectionMode) _selectedFavoriteIds.clear();
+    });
+  }
+
+  void _toggleFavoriteSelection(String favoriteId) {
+    setState(() {
+      if (_selectedFavoriteIds.contains(favoriteId)) {
+        _selectedFavoriteIds.remove(favoriteId);
+      } else {
+        _selectedFavoriteIds.add(favoriteId);
+      }
+    });
+  }
+
+  void _selectAllFavorites() {
+    setState(() {
+      _selectedFavoriteIds = _savedChats.map((f) => f.id).toSet();
+    });
+  }
+
+  void _clearSelection() {
+    setState(() => _selectedFavoriteIds.clear());
+  }
+
+  Future<void> _batchRemoveSavedChats() async {
+    if (_selectedFavoriteIds.isEmpty) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Remove from Saved'),
+        content: Text(
+          'Remove ${_selectedFavoriteIds.length} saved chat${_selectedFavoriteIds.length > 1 ? 's' : ''}? They will no longer appear in Saved Chats.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: kcDangerColor),
+            child: const Text('Remove'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) {
+      try {
+        final count = _selectedFavoriteIds.length;
+        for (final id in _selectedFavoriteIds) {
+          await _favoritesService.removeFavorite(id);
+        }
+        await _loadData();
+        setState(() {
+          _isSelectionMode = false;
+          _selectedFavoriteIds.clear();
+        });
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Removed $count saved chat${count > 1 ? 's' : ''}'),
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Failed to remove: $e')),
+          );
+        }
+      }
+    }
+  }
+
+  Future<void> _removeSavedChat(LumaraFavorite favorite) async {
+    try {
+      await _favoritesService.removeFavorite(favorite.id);
+      await _loadData();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Removed from saved chats')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to remove: $e')),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -64,13 +161,52 @@ class _SavedChatsScreenState extends State<SavedChatsScreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: kcPrimaryColor),
-          onPressed: () => Navigator.pop(context),
+          icon: Icon(
+            _isSelectionMode ? Icons.close : Icons.arrow_back,
+            color: kcPrimaryColor,
+          ),
+          onPressed: () {
+            if (_isSelectionMode) {
+              _toggleSelectionMode();
+            } else {
+              Navigator.pop(context);
+            }
+          },
         ),
         title: Text(
-          'Saved Chats',
+          _isSelectionMode
+              ? '${_selectedFavoriteIds.length} selected'
+              : 'Saved Chats',
           style: heading1Style(context),
         ),
+        actions: _isSelectionMode
+            ? [
+                if (_selectedFavoriteIds.length < _savedChats.length)
+                  IconButton(
+                    icon: const Icon(Icons.select_all, color: kcPrimaryColor),
+                    onPressed: _selectAllFavorites,
+                    tooltip: 'Select All',
+                  ),
+                if (_selectedFavoriteIds.isNotEmpty) ...[
+                  IconButton(
+                    icon: const Icon(Icons.clear, color: kcPrimaryColor),
+                    onPressed: _clearSelection,
+                    tooltip: 'Clear Selection',
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.delete, color: kcDangerColor),
+                    onPressed: _batchRemoveSavedChats,
+                    tooltip: 'Remove Selected',
+                  ),
+                ],
+              ]
+            : [
+                IconButton(
+                  icon: const Icon(Icons.checklist, color: kcPrimaryColor),
+                  onPressed: _savedChats.isEmpty ? null : _toggleSelectionMode,
+                  tooltip: 'Select Multiple',
+                ),
+              ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -104,18 +240,23 @@ class _SavedChatsScreenState extends State<SavedChatsScreen> {
                         ? _sessions.firstWhere((s) => s.id == session.id)
                         : session;
 
-                    return SavedChatCard(
+                    Widget card = SavedChatCard(
                       favorite: favorite,
                       session: actualSession,
                       isSessionAvailable: sessionExists,
+                      isSelectionMode: _isSelectionMode,
+                      isSelected: _selectedFavoriteIds.contains(favorite.id),
                       onTap: () async {
+                        if (_isSelectionMode) {
+                          _toggleFavoriteSelection(favorite.id);
+                          return;
+                        }
                         // Always allow navigation - SessionView will handle restoration
                         if (actualSession.id.isNotEmpty) {
                           // If session is archived, restore it first
                           if (sessionExists && actualSession.isArchived) {
                             try {
                               await widget.chatRepo.archiveSession(actualSession.id, false);
-                              // Reload data to refresh the session state
                               await _loadData();
                             } catch (e) {
                               print('Error restoring archived session: $e');
@@ -130,7 +271,7 @@ class _SavedChatsScreenState extends State<SavedChatsScreen> {
                                 chatRepo: ChatRepoImpl.instance,
                               ),
                             ),
-                          ).then((_) => _loadData()); // Reload when returning
+                          ).then((_) => _loadData());
                         } else {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
@@ -141,10 +282,66 @@ class _SavedChatsScreenState extends State<SavedChatsScreen> {
                         }
                       },
                       onUnsave: () async {
-                        await _favoritesService.removeFavorite(favorite.id);
-                        _loadData();
+                        await _removeSavedChat(favorite);
                       },
                     );
+
+                    if (!_isSelectionMode) {
+                      card = Dismissible(
+                        key: ValueKey(favorite.id),
+                        direction: DismissDirection.endToStart,
+                        background: Container(
+                          margin: const EdgeInsets.only(bottom: 12),
+                          decoration: BoxDecoration(
+                            color: kcDangerColor,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          alignment: Alignment.centerRight,
+                          padding: const EdgeInsets.only(right: 20),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                'Remove',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              SizedBox(width: 12),
+                              Icon(Icons.delete, color: Colors.white, size: 28),
+                            ],
+                          ),
+                        ),
+                        confirmDismiss: (direction) async {
+                          return await showDialog<bool>(
+                            context: context,
+                            builder: (context) => AlertDialog(
+                              title: const Text('Remove from Saved'),
+                              content: const Text(
+                                'Remove this chat from Saved Chats? The chat will still exist in your history.',
+                              ),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.pop(context, false),
+                                  child: const Text('Cancel'),
+                                ),
+                                TextButton(
+                                  onPressed: () => Navigator.pop(context, true),
+                                  style: TextButton.styleFrom(foregroundColor: kcDangerColor),
+                                  child: const Text('Remove'),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                        onDismissed: (_) => _removeSavedChat(favorite),
+                        child: card,
+                      );
+                    }
+
+                    return card;
                   },
                 ),
     );
@@ -155,6 +352,8 @@ class SavedChatCard extends StatelessWidget {
   final LumaraFavorite favorite;
   final ChatSession session;
   final bool isSessionAvailable;
+  final bool isSelectionMode;
+  final bool isSelected;
   final VoidCallback onTap;
   final VoidCallback onUnsave;
 
@@ -163,6 +362,8 @@ class SavedChatCard extends StatelessWidget {
     required this.favorite,
     required this.session,
     this.isSessionAvailable = true,
+    this.isSelectionMode = false,
+    this.isSelected = false,
     required this.onTap,
     required this.onUnsave,
   });
@@ -171,27 +372,37 @@ class SavedChatCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
-      color: isSessionAvailable 
-          ? const Color(0xFF2196F3).withOpacity(0.05)
-          : Colors.grey.withOpacity(0.05),
+      color: isSelected
+          ? kcPrimaryColor.withOpacity(0.1)
+          : isSessionAvailable 
+              ? const Color(0xFF2196F3).withOpacity(0.05)
+              : Colors.grey.withOpacity(0.05),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
         side: BorderSide(
-          color: isSessionAvailable 
-              ? const Color(0xFF2196F3)
-              : Colors.grey.withOpacity(0.5),
-          width: 1,
+          color: isSelected
+              ? kcPrimaryColor
+              : isSessionAvailable 
+                  ? const Color(0xFF2196F3)
+                  : Colors.grey.withOpacity(0.5),
+          width: isSelected ? 2 : 1,
         ),
       ),
       child: ListTile(
         contentPadding: const EdgeInsets.all(16),
-        leading: Icon(
-          Icons.bookmark,
-          color: isSessionAvailable 
-              ? const Color(0xFF2196F3)
-              : Colors.grey,
-          size: 24,
-        ),
+        leading: isSelectionMode
+            ? Checkbox(
+                value: isSelected,
+                onChanged: (_) => onTap(),
+                activeColor: kcPrimaryColor,
+              )
+            : Icon(
+                Icons.bookmark,
+                color: isSessionAvailable 
+                    ? const Color(0xFF2196F3)
+                    : Colors.grey,
+                size: 24,
+              ),
         title: Row(
           children: [
             Expanded(
@@ -242,11 +453,13 @@ class SavedChatCard extends StatelessWidget {
             ),
           ],
         ),
-        trailing: IconButton(
-          icon: const Icon(Icons.bookmark, color: Color(0xFF2196F3)),
-          onPressed: onUnsave,
-          tooltip: 'Unsave chat',
-        ),
+        trailing: isSelectionMode
+            ? null
+            : IconButton(
+                icon: const Icon(Icons.bookmark, color: Color(0xFF2196F3)),
+                onPressed: onUnsave,
+                tooltip: 'Unsave chat',
+              ),
         onTap: onTap,
       ),
     );

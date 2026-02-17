@@ -1,7 +1,7 @@
 # Configuration Management & Documentation Tracking
 
 **Lead Configuration Management Analyst:** Active  
-**Last Updated:** February 15, 2026 (v3.3.39)  
+**Last Updated:** February 16, 2026 (v3.3.40)  
 **Status:** ✅ All Documents Synced with Repo
 
 ---
@@ -38,9 +38,9 @@ Prompt/role definitions: **Ultimate Documentation, Configuration Management and 
 
 | Document | Location | Last Reviewed | Status | Notes |
 |----------|----------|---------------|--------|-------|
-| ARCHITECTURE.md | `/DOCS/ARCHITECTURE.md` | 2026-02-15 | ✅ Synced | v3.3.39 - Doc sync |
-| CHANGELOG.md | `/DOCS/CHANGELOG.md` | 2026-02-15 | ✅ Synced | v3.3.39 - Prompts expansion, screen/tab refinements |
-| PROMPT_REFERENCES.md | `/DOCS/PROMPT_REFERENCES.md` | 2026-02-15 | ✅ Synced | v2.3.0; agent prompts in research_prompts/writing_prompts (track in PROMPT_TRACKER) |
+| ARCHITECTURE.md | `/DOCS/ARCHITECTURE.md` | 2026-02-16 | ✅ Synced | v3.3.40 - Doc sync |
+| CHANGELOG.md | `/DOCS/CHANGELOG.md` | 2026-02-16 | ✅ Synced | v3.3.40 - Agents expansion, paper .tex, chats/settings, orchestration |
+| PROMPT_REFERENCES.md | `/DOCS/PROMPT_REFERENCES.md` | 2026-02-16 | ✅ Synced | Updated; agent_operating_system_prompt, intent/orchestration refs |
 | PROMPT_TRACKER.md | `/DOCS/PROMPT_TRACKER.md` | 2026-02-15 | ✅ Synced | v1.4.0 - Agent prompts row |
 | bug_tracker.md | `/DOCS/bugtracker/bug_tracker.md` | 2026-02-15 | ✅ Synced | v3.2.6 - 35 records; tracked in doc sync |
 | FEATURES.md | `/DOCS/FEATURES.md` | 2026-02-15 | ✅ Synced | v3.3.38 - Writing/research agents storage & export/import |
@@ -54,9 +54,8 @@ Prompt/role definitions: **Ultimate Documentation, Configuration Management and 
 | Document | Location | Last Reviewed | Status | Notes |
 |----------|----------|---------------|--------|-------|
 | LUMARA_Vision.md | `/DOCS/LUMARA_Vision.md` | 2026-02-12 | ✅ Synced | Vision document (white paper) |
-| NARRATIVE_INTELLIGENCE_WHITE_PAPER.md | `/DOCS/NARRATIVE_INTELLIGENCE_WHITE_PAPER.md` | 2026-02-13 | ✅ Synced | Narrative Intelligence framework white paper (v2.2, aligned with EPI repo) |
+| NARRATIVE_INTELLIGENCE_WHITE_PAPER.tex | `/DOCS/NARRATIVE_INTELLIGENCE_WHITE_PAPER.tex` | 2026-02-16 | ✅ Synced | LaTeX source for Narrative Intelligence paper (replaces .md; v3.3.40) |
 | NARRATIVE_INTELLIGENCE_PAPER_ARCHITECTURE_SECTION.md | `/DOCS/NARRATIVE_INTELLIGENCE_PAPER_ARCHITECTURE_SECTION.md` | 2026-02-14 | ✅ Synced | §2 System Architecture text for paper (repo-aligned; use in PDF) |
-| NARRATIVE_INTELLIGENCE_PAPER_COMPARISON.md | `/DOCS/NARRATIVE_INTELLIGENCE_PAPER_COMPARISON.md` | 2026-02-14 | ✅ Synced | Paper vs repo comparison; alignment notes so paper matches repo |
 | RIVET_ARCHITECTURE.md | `/DOCS/RIVET_ARCHITECTURE.md` | 2026-02-12 | ✅ Synced | RIVET algorithm spec (white paper) |
 | SENTINEL_ARCHITECTURE.md | `/DOCS/SENTINEL_ARCHITECTURE.md` | 2026-02-12 | ✅ Synced | SENTINEL algorithm spec (white paper) |
 
@@ -97,6 +96,24 @@ Prompt/role definitions: **Ultimate Documentation, Configuration Management and 
 ---
 
 ## Change Tracking Log
+
+### 2026-02-16 - Documentation & Git Backup run (v3.3.40; bug_tracker tracked)
+
+**Action:** Ran Documentation, Configuration Management and Git Backup workflow (claude.md §233–349) on the entire repo. Document updates include **bug_tracker** tracking.
+
+**PROMPT REFERENCES AUDIT:** PROMPT_REFERENCES.md updated; new prompt assets: agent_operating_system_prompt.dart, lumara_intent_classifier (intent/orchestration). Catalog current.
+
+**Git Backup — Identify what changed:** agents_screen major extension; saved_chats_screen, enhanced_chats_screen; lumara_settings_screen, lumara_reflection_settings_service, lumara_assistant_screen; chat_intent_classifier, lumara_chat_orchestrator; new lumara_intent_classifier, orchestration_violation_checker; research_agent, research_prompts, synthesis_engine; writing_agent, writing_prompts, draft_composer; new arc/agents/drafts (agent_draft, draft_repository, new_draft_screen), lumara/agents/prompts/agent_operating_system_prompt; unified_feed_screen, research_screen, writing_screen; DOCS: NARRATIVE_INTELLIGENCE_WHITE_PAPER.md and NARRATIVE_INTELLIGENCE_PAPER_COMPARISON.md removed, NARRATIVE_INTELLIGENCE_WHITE_PAPER.tex added; PROMPT_REFERENCES.md updated.
+
+**Updates:**
+- **CHANGELOG.md:** Version 3.3.40; [3.3.40] agents expansion, paper .tex, chats/settings, orchestration.
+- **CONFIGURATION_MANAGEMENT.md:** This entry; inventory 2026-02-16; NARRATIVE_INTELLIGENCE row updated (.tex replaces .md; comparison doc removed); bug_tracker tracked.
+- **bug_tracker.md:** New row for v3.3.40 in Recent code changes; Last Updated 2026-02-16.
+- **PROMPT_TRACKER.md:** Doc sync v3.3.40; PROMPT_REFERENCES updated.
+
+**Status:** ✅ Commit, push main; merge test into main; push.
+
+---
 
 ### 2026-02-15 - Documentation & Git Backup run (v3.3.39; bug_tracker tracked)
 

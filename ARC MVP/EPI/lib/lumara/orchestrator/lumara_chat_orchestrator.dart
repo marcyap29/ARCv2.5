@@ -6,6 +6,7 @@ import 'package:my_app/lumara/agents/research/research_models.dart' as agent_mod
 import 'package:my_app/lumara/agents/writing/writing_agent.dart';
 import 'package:my_app/lumara/agents/writing/writing_models.dart';
 import 'package:my_app/lumara/orchestrator/chat_intent_classifier.dart';
+import 'package:my_app/lumara/orchestrator/orchestration_violation_checker.dart';
 import 'package:my_app/lumara/orchestrator/research_report_adapter.dart';
 
 /// Response type from the chat orchestrator.
@@ -133,7 +134,11 @@ class LumaraChatOrchestrator {
       );
 
       final uiReport = toUiReport(result.report, result.sessionId);
-      final completionMessage = _formatResearchCompletion(result.report);
+      var completionMessage = _formatResearchCompletion(result.report);
+      completionMessage = _validateAndSanitizeAgentOutput(
+        completionMessage,
+        agentName: 'ResearchAgent',
+      );
 
       return ChatOrchestratorResponse(
         type: ChatResponseType.researchComplete,
@@ -162,25 +167,29 @@ class LumaraChatOrchestrator {
     required void Function(String) onProgressUpdate,
   }) async {
     onProgressUpdate(
-      "Switching to Writing Agent to compose content. Analyzing your voice from CHRONICLE...",
+      "Switching to Writing Agent...",
     );
 
     try {
       final contentType = _parseContentType(
         intent.parameters['content_type']?.toString(),
       );
-      onProgressUpdate("✍️ Composing draft...");
 
       final composed = await _writingAgent.composeContent(
         userId: userId,
         prompt: intent.originalMessage,
         type: contentType,
+        onProgress: onProgressUpdate,
       );
 
       final draftId = 'DRAFT-${DateTime.now().millisecondsSinceEpoch}';
       ChatDraftCache.instance.put(draftId, composed);
 
-      final completionMessage = _formatWritingCompletion(composed);
+      var completionMessage = _formatWritingCompletion(composed);
+      completionMessage = _validateAndSanitizeAgentOutput(
+        completionMessage,
+        agentName: 'WritingAgent',
+      );
       return ChatOrchestratorResponse(
         type: ChatResponseType.writingComplete,
         message: completionMessage,
@@ -261,5 +270,21 @@ $preview
         "• **Research** something? (e.g., \"Research SBIR requirements\")\n"
         "• **Write** content? (e.g., \"Write a LinkedIn post about X\")\n"
         "• **Reflect** on something? (e.g., \"Help me think through this\")";
+  }
+
+  /// Validates agent output for orchestration violations; returns sanitized message.
+  String _validateAndSanitizeAgentOutput(String message, {required String agentName}) {
+    final result = checkAndSanitize(
+      agentOutput: message,
+      agentName: agentName,
+      onViolation: (agent, violation, snippet) {
+        logOrchestrationViolation(
+          agent: agent,
+          violation: violation,
+          responseSnippet: snippet,
+        );
+      },
+    );
+    return result.sanitized;
   }
 }

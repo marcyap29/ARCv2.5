@@ -417,13 +417,25 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
                   break;
                 case 'history':
                   Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => EnhancedChatsScreen(
-                  chatRepo: EnhancedChatRepoImpl(ChatRepoImpl.instance),
-                ),
-              ),
-                  );
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => EnhancedChatsScreen(
+                        chatRepo: EnhancedChatRepoImpl(ChatRepoImpl.instance),
+                      ),
+                    ),
+                  ).then((_) async {
+                    // If user deleted the current chat from History, start a new chat when returning
+                    if (!mounted) return;
+                    final sessionId = await _getCurrentSessionId();
+                    if (sessionId == null) return;
+                    try {
+                      await ChatRepoImpl.instance.initialize();
+                      final session = await ChatRepoImpl.instance.getSession(sessionId);
+                      if (session == null && mounted) {
+                        context.read<LumaraAssistantCubit>().startNewChat();
+                      }
+                    } catch (_) {}
+                  });
                   break;
                 case 'clear':
                   _clearChat();

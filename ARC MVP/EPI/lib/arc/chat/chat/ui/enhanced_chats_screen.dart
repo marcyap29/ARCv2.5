@@ -33,7 +33,6 @@ class _EnhancedChatsScreenState extends State<EnhancedChatsScreen>
   List<ChatSession> _sessions = [];
   List<ChatCategory> _categories = [];
   List<ChatSession> _filteredSessions = [];
-  List<LumaraFavorite> _savedChats = [];
   List<LumaraFavorite> _allSavedChats = []; // Keep track of all saved chats for display
   bool _isLoading = true;
   String? _error;
@@ -96,7 +95,6 @@ class _EnhancedChatsScreenState extends State<EnhancedChatsScreen>
         _categories = categories;
         _sessions = sessions;
         _filteredSessions = sessions;
-        _savedChats = savedChats; // Keep all saved chats (SavedChatsScreen will handle filtering)
         _allSavedChats = savedChats; // Keep all saved chats for display count
         _isLoading = false;
         _error = null;
@@ -222,6 +220,46 @@ class _EnhancedChatsScreenState extends State<EnhancedChatsScreen>
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed to restore chat: $e')),
         );
+      }
+    }
+  }
+
+  Future<void> _deleteSession(ChatSession session) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Chat'),
+        content: const Text(
+          'This chat will be permanently deleted. This action cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: kcDangerColor),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) {
+      try {
+        await widget.chatRepo.deleteSession(session.id);
+        await _loadData();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Chat deleted')),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Failed to delete chat: $e')),
+          );
+        }
       }
     }
   }
@@ -654,6 +692,7 @@ class _EnhancedChatsScreenState extends State<EnhancedChatsScreen>
                 ),
             onPin: () => _pinSession(session),
             onArchive: () => _archiveSession(session),
+            onDelete: () => _deleteSession(session),
           );
           }),
         ],
@@ -667,6 +706,7 @@ class _ChatSessionCard extends StatelessWidget {
   final VoidCallback onTap;
   final VoidCallback onPin;
   final VoidCallback onArchive;
+  final VoidCallback onDelete;
   final bool isSelectionMode;
   final bool isSelected;
 
@@ -675,6 +715,7 @@ class _ChatSessionCard extends StatelessWidget {
     required this.onTap,
     required this.onPin,
     required this.onArchive,
+    required this.onDelete,
     this.isSelectionMode = false,
     this.isSelected = false,
   });
@@ -746,23 +787,39 @@ class _ChatSessionCard extends StatelessWidget {
           )
         : Dismissible(
             key: ValueKey(session.id),
+            direction: DismissDirection.horizontal,
             background: Container(
+              margin: const EdgeInsets.only(bottom: 12),
               decoration: BoxDecoration(
                 color: kcPrimaryColor,
                 borderRadius: BorderRadius.circular(12),
               ),
               alignment: Alignment.centerLeft,
               padding: const EdgeInsets.only(left: 20),
-              child: const Icon(Icons.push_pin, color: Colors.white),
+              child: const Row(
+                children: [
+                  Icon(Icons.push_pin, color: Colors.white, size: 28),
+                  SizedBox(width: 12),
+                  Text('Pin', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                ],
+              ),
             ),
             secondaryBackground: Container(
+              margin: const EdgeInsets.only(bottom: 12),
               decoration: BoxDecoration(
                 color: kcDangerColor,
                 borderRadius: BorderRadius.circular(12),
               ),
               alignment: Alignment.centerRight,
               padding: const EdgeInsets.only(right: 20),
-              child: const Icon(Icons.archive, color: Colors.white),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('Delete', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                  SizedBox(width: 12),
+                  Icon(Icons.delete, color: Colors.white, size: 28),
+                ],
+              ),
             ),
             confirmDismiss: (direction) async {
               if (direction == DismissDirection.startToEnd) {
@@ -772,8 +829,10 @@ class _ChatSessionCard extends StatelessWidget {
                 return await showDialog<bool>(
                   context: context,
                   builder: (context) => AlertDialog(
-                    title: const Text('Archive Chat'),
-                    content: const Text('This will move the chat to your archive.'),
+                    title: const Text('Delete Chat'),
+                    content: const Text(
+                      'This chat will be permanently deleted. This action cannot be undone.',
+                    ),
                     actions: [
                       TextButton(
                         onPressed: () => Navigator.pop(context, false),
@@ -781,7 +840,8 @@ class _ChatSessionCard extends StatelessWidget {
                       ),
                       TextButton(
                         onPressed: () => Navigator.pop(context, true),
-                        child: const Text('Archive'),
+                        style: TextButton.styleFrom(foregroundColor: kcDangerColor),
+                        child: const Text('Delete'),
                       ),
                     ],
                   ),
@@ -790,7 +850,7 @@ class _ChatSessionCard extends StatelessWidget {
             },
             onDismissed: (direction) {
               if (direction == DismissDirection.endToStart) {
-                onArchive();
+                onDelete();
               }
             },
             child: ListTile(

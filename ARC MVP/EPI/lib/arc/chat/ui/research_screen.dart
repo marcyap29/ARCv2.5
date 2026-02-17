@@ -7,6 +7,7 @@ import 'package:gap/gap.dart';
 
 import '../services/lumara_cloud_generate.dart';
 import 'package:my_app/lumara/agents/research/research_agent.dart';
+import 'package:my_app/arc/chat/services/lumara_reflection_settings_service.dart';
 import 'package:my_app/lumara/agents/research/research_models.dart';
 import 'package:my_app/lumara/agents/research/web_search_tool.dart';
 import 'package:my_app/lumara/agents/screens/research_agent_tab.dart';
@@ -57,6 +58,7 @@ class _ResearchScreenState extends State<ResearchScreen> {
     });
     try {
       final agent = ResearchAgent(
+        getAgentOsPrefix: () => LumaraReflectionSettingsService.instance.getAgentOsPrefix(),
         generate: ({required systemPrompt, required userPrompt, maxTokens}) async {
           return generateWithLumaraCloud(
             systemPrompt: systemPrompt,

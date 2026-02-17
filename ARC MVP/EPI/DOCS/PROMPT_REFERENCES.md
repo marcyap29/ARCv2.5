@@ -8,7 +8,7 @@ This document catalogs all prompts used throughout the ARC application, organize
 - **Path baseline:** All paths are relative to the EPI app root (e.g. `ARC MVP/EPI/`). Example: `lib/arc/chat/prompts/lumara_profile.json` means `ARC MVP/EPI/lib/arc/chat/prompts/lumara_profile.json`.
 - **Content:** Quoted blocks are taken from or derived from the cited sources. Some sections show a subset or summary; the source file holds the full, authoritative text.
 - **Cloud vs on-device:** Cloud API uses the master prompt system (`lumara_master_prompt.dart`); on-device and legacy paths may use `lumara_system_prompt.dart` or profile JSON.
-- **Last synced with codebase:** 2026-02-13. Document version: 2.3.0.
+- **Last synced with codebase:** 2026-02-16. Document version: 2.4.0.
 
 ---
 
@@ -79,6 +79,7 @@ This document catalogs all prompts used throughout the ARC application, organize
 18. [Crossroads Decision Capture Prompts](#18-crossroads-decision-capture-prompts)
 19. [CHRONICLE Edit Validation Prompts](#19-chronicle-edit-validation-prompts)
 20. [Quick Answers / MMCO Polish](#20-quick-answers--mmco-polish)
+21. [LUMARA Agent Prompts (Research & Writing)](#21-lumara-agent-prompts-research--writing)
 
 ---
 
@@ -1854,10 +1855,84 @@ Do not say you lack context if MMCO provides it.
 
 ---
 
+## 21. LUMARA Agent Prompts (Research & Writing)
+
+**Source:** `lib/lumara/agents/research/research_prompts.dart` (`kResearchAgentSystemPromptTemplate`), `lib/lumara/agents/writing/writing_prompts.dart` (`kWritingAgentSystemPromptTemplate`)
+
+LUMARA invokes specialized agents for research and writing. Both share a common **orchestration framework** (role definition, agent boundaries, workflow position, context trust, interaction model, collaboration rules, output recipient). Each agent then has role-specific instructions, context placeholders, and output structure. Used by Research Agent (`synthesis_engine.dart`) and Writing Agent (`draft_composer.dart`).
+
+### Shared orchestration framework (both agents)
+
+- **`<critical_role_definition>`**: Agent invoked by LUMARA; LUMARA is orchestrator (timeline, interaction, agent invocation); agent is a single-function tool, receives context from LUMARA, returns results to LUMARA; does not invoke other agents or access timeline directly.
+- **`<agent_boundaries>`**: What the agent CAN (use provided context, generate content/findings, suggest next steps) and CANNOT (invoke other agents, access raw timeline, bypass PRISM, store state).
+- **`<workflow_position>`**: Correct flow (user → LUMARA → context extraction → agent invocation → output → LUMARA reconstitution → user); incorrect flows (agent invoking Research Agent, direct timeline access, etc.).
+- **`<context_trust>`**: Context from LUMARA is authoritative (CHRONICLE, ATLAS, PRISM); do not second-guess; if insufficient, note limitation and suggest—LUMARA decides.
+- **`<interaction_model>`**: Stateless between invocations; LUMARA provides previous draft in context for revisions.
+- **`<agent_collaboration>`**: May suggest multi-agent workflows; LUMARA executes them.
+- **`<output_recipient>`**: Output goes to LUMARA (reconstitution, metadata, storage, presentation); agent provides raw deliverable and metadata only.
+
+### Research Agent prompt
+
+**Purpose:** Deep research with sources, synthesis grounded in external data and user timeline; source rigor, timeline integration, phase awareness, actionable synthesis.
+
+**Key blocks:** `<timeline_context>`, `<research_request>`, `<research_process>`, `<additional_guidelines>` (artifact creation, epistemic humility, content safety, source credibility hierarchy, recency awareness, synthesis rigor, scope awareness, graceful degradation), `<output_structure>`, `<phase_delivery_adaptation>`, `<critical_requirements>`.
+
+**Template variables:**
+
+| Variable | Description |
+|----------|-------------|
+| `{{TIMELINE_SUMMARY}}` | Timeline summary from LUMARA |
+| `{{FOCUS_AREAS}}` | User's areas of focus from timeline |
+| `{{CURRENT_PROJECTS}}` | Current projects/interests |
+| `{{PAST_RESEARCH}}` | Relevant past research |
+| `{{CURRENT_PHASE}}` | Current ATLAS phase |
+| `{{PHASE_DESCRIPTION}}` | Phase characteristics |
+| `{{USER_PROMPT}}` | Research query |
+| `{{RESEARCH_DEPTH}}` | Depth (e.g. Quick Scan, Standard, Deep Dive) |
+| `{{QUERY}}` | Query for report title |
+| `{{TIMESTAMP}}` | Generation timestamp |
+| `{{TIME_ESTIMATE}}` | Optional time estimate |
+
+**Output structure:** Research Report with Executive Summary, Key Findings (with sources and relevance), Timeline Connections, Insights, Recommended Actions (phase-appropriate), Sources Analyzed, metadata block, Confidence Level.
+
+### Writing Agent prompt
+
+**Purpose:** Generate content in the user's authentic voice grounded in longitudinal timeline; one explicit longitudinal reference; voice profile and timeline context; anti-generic guardrails.
+
+**Key blocks:** `<voice_profile>`, `<timeline_context>`, `<content_request>`, internal process (Extract Voice Profile, Extract Longitudinal Signals, Explicit Timeline Integration, Structural Requirements, Authenticity Check, Prohibited Patterns, Density Calibration, Phase Alignment, Structural Signature), `<additional_guidelines>`, `<output_format>` (draft + context signals block + metadata block).
+
+**Template variables:**
+
+| Variable | Description |
+|----------|-------------|
+| `{{VOICE_PATTERNS}}` | Writing style from timeline |
+| `{{SYNTAX_PATTERNS}}` | Typical sentence structure |
+| `{{VOCABULARY}}` | Common phrases/vocabulary |
+| `{{TONE_ANALYSIS}}` | Tone preferences |
+| `{{TIMELINE_SUMMARY}}` | Timeline summary |
+| `{{RECENT_ENTRIES}}` | Recent entries (last 30 days) |
+| `{{DOMINANT_THEMES}}` | Dominant themes (last 90 days) |
+| `{{PATTERNS}}` | Recurring patterns |
+| `{{CURRENT_PHASE}}` | Current ATLAS phase |
+| `{{PHASE_DESCRIPTION}}` | Phase characteristics |
+| `{{CONTENT_TYPE}}` | Type of content |
+| `{{USER_PROMPT}}` | User's topic/request |
+| `{{PLATFORM}}` | Target platform |
+| `{{PLATFORM_GUIDANCE}}` | Platform-specific guidance |
+| `{{AVG_SENTENCE_LENGTH}}` | User's average sentence length |
+| `{{AVG_PARAGRAPH_LENGTH}}` | User's paragraph rhythm |
+| `{{READING_LEVEL}}` | Reading level |
+| `{{FIRST_PERSON_RATIO}}` | First-person usage frequency |
+
+**Output format:** Full draft, then "Context signals used" block (recurring theme, prior framing, phase), then metadata block (Voice Match %, Theme Match %, Timeline References, Phase Alignment).
+
+---
+
 ## Version History
 
 | Version | Date | Changes |
 |---------|------|---------|
+| 2.4.0 | 2026-02-16 | **Prompt audit:** Added §21 LUMARA Agent Prompts — Research Agent (`research_prompts.dart`) and Writing Agent (`writing_prompts.dart`): shared orchestration framework, role-specific blocks, template variables, output structure. |
 | 2.3.0 | 2026-02-13 | **Prompt audit:** Added §20 Quick Answers / MMCO Polish prompt (`quickanswers_router.dart` — pre-LLM gate, MMCO ground truth, optional on-device polish). |
 | 2.2.0 | 2026-02-13 | **v3.3.26 prompts**: Added §17 Intellectual Honesty / Pushback prompt (`<intellectual_honesty>` master prompt section, truth_check injection, Evidence Review), §18 Crossroads Decision Capture prompts (four-step flow, trigger detection patterns, decision archaeology query), §19 CHRONICLE Edit Validation prompts (pattern suppression and factual contradiction warnings). |
 | 2.1.0 | 2026-02-12 | **Documentation consolidation**: Merged `UNIFIED_INTENT_CLASSIFIER_PROMPT.md` (§15 — Unified Intent Depth Classifier with full LLM prompt, classification rules, integration notes) and `MASTER_PROMPT_CONTEXT.md` (§16 — Master Prompt Architecture with structure, control state, entry points, orchestrator path). Originals archived. |

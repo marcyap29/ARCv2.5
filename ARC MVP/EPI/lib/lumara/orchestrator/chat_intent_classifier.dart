@@ -38,18 +38,49 @@ typedef ChatIntentLlmGenerate = Future<String> Function({
 });
 
 /// Classifies user chat messages into intent for agent routing.
+/// Explicit prefixes "LUMARA, write..." and "LUMARA, research..." force Writing/Research agent;
+/// everything else (e.g. "how have my patterns looked over x days") goes to reflection.
 class ChatIntentClassifier {
   final ChatIntentLlmGenerate _generate;
 
   ChatIntentClassifier({required ChatIntentLlmGenerate generate}) : _generate = generate;
+
+  /// High confidence when user explicitly invokes an agent via prefix.
+  static const double _explicitInvokeConfidence = 0.95;
+
+  /// Check for "LUMARA, write..." or "LUMARA, research..." (case-insensitive, flexible punctuation/spacing).
+  UserIntent? _tryExplicitInvoke(String message) {
+    final trimmed = message.trim();
+    if (trimmed.isEmpty) return null;
+    final lower = trimmed.toLowerCase();
+    // "lumara" then optional comma and/or spaces, then "write" or "research"
+    if (RegExp(r'^lumara\s*,?\s*write').hasMatch(lower)) {
+      return UserIntent(
+        type: ChatIntentType.writing,
+        originalMessage: message,
+        estimatedDuration: const Duration(minutes: 5),
+        confidence: _explicitInvokeConfidence,
+      );
+    }
+    if (RegExp(r'^lumara\s*,?\s*research').hasMatch(lower)) {
+      return UserIntent(
+        type: ChatIntentType.research,
+        originalMessage: message,
+        estimatedDuration: const Duration(minutes: 10),
+        confidence: _explicitInvokeConfidence,
+      );
+    }
+    return null;
+  }
 
   static const String _systemPrompt = r'''
 You are LUMARA's intent classifier. Classify user messages into intent types.
 
 ## INTENT TYPES
 
-**reflection** - Normal conversation, thinking out loud, processing emotions
-Examples: "I'm feeling uncertain about the SBIR deadline", "Help me think through this decision"
+**reflection** - Normal conversation, thinking out loud, processing emotions, casual questions about the user's timeline/patterns
+Examples: "I'm feeling uncertain about the SBIR deadline", "Help me think through this decision", "How have my patterns looked over the last 30 days?", "What was I like last year?"
+Note: Questions about "my patterns over x days" or "over the last year" are reflection (conversation), not the pattern agent.
 
 **research** - Requests to investigate topics, gather information, analyze landscapes
 Triggers: "research", "investigate", "analyze", "find out about", "what do we know about"
@@ -95,6 +126,11 @@ For writing:
 ''';
 
   Future<UserIntent> classifyIntent(String message) async {
+    // Explicit invocation: "LUMARA, write a..." → Writing agent; "LUMARA, research..." → Research agent
+    final explicit = _tryExplicitInvoke(message);
+    if (explicit != null) return explicit;
+
+    // Otherwise classify via LLM (reflection, pattern, journaling, or fallback research/writing)
     final userPrompt = 'User message: "${message.replaceAll('"', '\\"')}"\n\nClassify this intent now. Reply with only the JSON object.';
     String raw;
     try {

@@ -1092,32 +1092,14 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
     );
   }
 
-  /// Open LUMARA chat and send the most recent entry for reply (so LUMARA can reflect on it).
+  /// Open LUMARA chat to a new conversation (no auto-submit of reflection or previous message).
   void _openLumaraChat() {
-    final String? initialMessage = _buildEntryMessageForLumara();
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => LumaraAssistantScreen(initialMessage: initialMessage),
+        builder: (context) => const LumaraAssistantScreen(),
       ),
     );
-  }
-
-  /// Build a message from the most recent entry with content so LUMARA can reply to it.
-  String? _buildEntryMessageForLumara() {
-    if (_entries.isEmpty) return null;
-    for (final entry in _entries) {
-      final content = entry.content?.toString() ?? entry.preview;
-      if (content.trim().isEmpty) continue;
-      final cleanContent = FeedHelpers.contentWithoutPhaseHashtags(content);
-      if (cleanContent.trim().isEmpty) continue;
-      final title = entry.title?.trim() ?? '';
-      if (title.isNotEmpty) {
-        return 'Please reflect on this entry:\n\n$title\n\n$cleanContent';
-      }
-      return 'Please reflect on this entry:\n\n$cleanContent';
-    }
-    return null;
   }
 
   Widget _buildDateContextBanner() {

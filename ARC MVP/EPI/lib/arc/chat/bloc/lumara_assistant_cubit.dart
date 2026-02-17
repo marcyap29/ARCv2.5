@@ -59,6 +59,9 @@ import 'package:my_app/models/phase_models.dart';
 import 'package:my_app/services/user_phase_service.dart';
 import 'package:my_app/arc/chat/services/groq_service.dart';
 import 'package:my_app/arc/chat/services/lumara_cloud_generate.dart';
+import 'package:my_app/arc/agents/drafts/agent_draft.dart';
+import 'package:my_app/arc/agents/drafts/draft_repository.dart';
+import 'package:my_app/lumara/agents/writing/writing_models.dart';
 import 'package:my_app/lumara/orchestrator/chat_intent_classifier.dart';
 import 'package:my_app/lumara/orchestrator/lumara_chat_orchestrator.dart';
 import 'package:my_app/lumara/agents/research/research_agent.dart';
@@ -1389,7 +1392,17 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
     // Inject current date/time context for temporal grounding
     // (No recent entries for chat mode, but date context is still important)
     masterPrompt = LumaraMasterPrompt.injectDateContext(masterPrompt);
-    
+
+    // Phase metadata suppression: do not surface entry counts or phase labels in chat
+    masterPrompt = '$masterPrompt\n\n<response_style>\n'
+        'You are LUMARA having a conversation. Use phase/context to calibrate tone and intensity only.\n'
+        'DO NOT mention entry counts in your response.\n'
+        'DO NOT say "Based on X entries..." or "Your current phase is...".\n'
+        'DO NOT surface phase metadata or CHRONICLE stats in response text.\n'
+        'Respond like a trusted friend. Conversational. Direct. Personal.\n'
+        'NEVER respond in third person about LUMARA. NEVER write product copy unless asked.\n'
+        '</response_style>\n';
+
     return masterPrompt;
   }
 
@@ -2079,51 +2092,15 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
     return jsonEncode(phaseContext);
   }
 
-  /// Append phase information from attribution traces to response
+  /// Append phase information from attribution traces to response.
+  /// Phase metadata is suppressed: we do not surface entry counts or "Based on X entries..."
+  /// in chat so responses stay conversational.
   String _appendPhaseInfoFromAttributions(
     String response,
     List<AttributionTrace> attributionTraces,
     ContextWindow context,
   ) {
-    // Check if response already ends with phase info (to avoid duplicating)
-    if (response.contains('Based on') && response.contains('phase history')) {
-      return response; // Already has phase info
-    }
-    
-    // Get current phase from context
-    final currentPhaseNodes = context.nodes
-        .where((n) => n['type'] == 'phase' && n['meta']?['current'] == true)
-        .toList();
-    final currentPhase = currentPhaseNodes.isNotEmpty
-        ? (currentPhaseNodes.first['text'] as String? ?? 'Discovery')
-        : 'Discovery';
-    
-    // Extract unique phases from attribution traces
-    final phasesFromTraces = attributionTraces
-        .where((trace) => trace.phaseContext != null && trace.phaseContext!.isNotEmpty)
-        .map((trace) => trace.phaseContext!)
-        .toSet()
-        .toList();
-    
-    // Count entries from context
-    final entryCount = context.totalEntries;
-    
-    // Calculate days since start date
-    final daysSince = DateTime.now().difference(context.startDate).inDays;
-    
-    // Build phase citation
-    String phaseCitation;
-    if (phasesFromTraces.isNotEmpty && phasesFromTraces.length > 1) {
-      phaseCitation = 'Based on $entryCount entries, current phase: $currentPhase, ${phasesFromTraces.length} phases in history since ${daysSince} days ago.';
-    } else {
-      phaseCitation = 'Based on $entryCount entries, current phase: $currentPhase, phase history since ${daysSince} days ago.';
-    }
-    
-    // Append if not already present
-    if (!response.trim().endsWith(phaseCitation.trim())) {
-      return '$response\n\n$phaseCitation';
-    }
-    
+    // Phase metadata suppression: do not append entry counts or phase citations to chat output.
     return response;
   }
 
@@ -2716,6 +2693,7 @@ Your exported MCP bundle can be imported into any MCP-compatible system, ensurin
       );
 
       final researchAgent = ResearchAgent(
+        getAgentOsPrefix: () => LumaraReflectionSettingsService.instance.getAgentOsPrefix(),
         generate: ({required systemPrompt, required userPrompt, maxTokens}) async {
           if (useCloud) {
             return generateWithLumaraCloud(
@@ -2736,6 +2714,7 @@ Your exported MCP bundle can be imported into any MCP-compatible system, ensurin
 
       final writingAgent = WritingAgent(
         draftRepository: WritingDraftRepositoryImpl(),
+        getAgentOsPrefix: () => LumaraReflectionSettingsService.instance.getAgentOsPrefix(),
         generateContent: ({required systemPrompt, required userPrompt, maxTokens}) async {
           if (useCloud) {
             return generateWithLumaraCloud(
@@ -2855,7 +2834,36 @@ Your exported MCP bundle can be imported into any MCP-compatible system, ensurin
         return true;
       }
 
-      // researchComplete or writingComplete
+      // researchComplete or writingComplete — always persist writing to Drafts tab
+      if (response.type == ChatResponseType.writingComplete) {
+        try {
+          final composed = response.metadata['composedContent'];
+          if (composed != null && composed is ComposedContent) {
+            await DraftRepository.instance.saveDraft(
+              agentType: AgentType.writing,
+              content: composed.draft.content,
+              originalPrompt: text,
+              metadata: {
+                if (composed.voiceScore != null) 'voiceMatch': composed.voiceScore,
+                if (composed.themeAlignment != null) 'themeMatch': composed.themeAlignment,
+              },
+            );
+          } else {
+            // Fallback: save assistant message as draft so it always appears in Agents → Drafts
+            final content = response.message.trim();
+            if (content.isNotEmpty) {
+              await DraftRepository.instance.saveDraft(
+                agentType: AgentType.writing,
+                content: content,
+                originalPrompt: text,
+                metadata: {'source': 'chat'},
+              );
+            }
+          }
+        } catch (e) {
+          print('LUMARA Chat: Failed to auto-save draft: $e');
+        }
+      }
       final assistantMsg = LumaraMessage.assistant(
         content: response.message,
         metadata: response.metadata,

@@ -30,10 +30,11 @@ class SynthesisEngine {
     required double readinessScore,
     ResearchTimelineContext? timelineContext,
     String? researchDepthLabel,
+    String? systemPromptPrefix,
   }) async {
     final depth = _calculateSynthesisDepth(currentPhase, readinessScore);
     final depthLabel = researchDepthLabel ?? _synthesisDepthToLabel(depth);
-    final systemPrompt = timelineContext != null
+    final agentPrompt = timelineContext != null
         ? _buildEnhancedPrompt(
             timelineContext: timelineContext,
             query: originalQuery,
@@ -44,6 +45,10 @@ class SynthesisEngine {
             phase: currentPhase,
             priorContext: priorContext,
           );
+    final systemPrompt = (systemPromptPrefix != null && systemPromptPrefix.trim().isNotEmpty
+            ? '${systemPromptPrefix.trim()}\n'
+            : '') +
+        agentPrompt;
     final context = _prepareContext(searchResults, priorContext);
 
     int maxTokens = depth == SynthesisDepth.brief ? 500 : (depth == SynthesisDepth.deep ? 2000 : 1200);
@@ -97,7 +102,11 @@ class SynthesisEngine {
   }) {
     final timestamp = DateTime.now().toIso8601String();
     final timeEstimate = _timeEstimateForDepth(depthLabel);
+    final privateCalibration = 'Current phase for tone: ${timelineContext.currentPhase}. '
+        '${timelineContext.phaseDescription}. '
+        'Focus areas (relevance only): ${timelineContext.focusAreas}.';
     return kResearchAgentSystemPromptTemplate
+        .replaceAll('{{PRIVATE_CONTEXT_CALIBRATION}}', privateCalibration)
         .replaceAll('{{TIMELINE_SUMMARY}}', timelineContext.timelineSummary)
         .replaceAll('{{FOCUS_AREAS}}', timelineContext.focusAreas)
         .replaceAll('{{CURRENT_PROJECTS}}', timelineContext.currentProjects)

@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import '../../../models/engagement_discipline.dart';
 import '../../../models/memory_focus_preset.dart';
+import 'package:my_app/lumara/agents/prompts/agent_operating_system_prompt.dart';
 
 /// LUMARA Persona types
 enum LumaraPersona {
@@ -119,6 +120,11 @@ class LumaraReflectionSettingsService {
   
   // Memory Focus preset key
   static const String _keyMemoryFocusPreset = 'lumara_memory_focus_preset';
+
+  // Agent Operating System (user-customizable context for Writing/Research agents)
+  static const String _keyAgentOsUserContext = 'lumara_agent_os_user_context';
+  static const String _keyAgentOsCommunication = 'lumara_agent_os_communication';
+  static const String _keyAgentOsMemory = 'lumara_agent_os_memory';
 
   /// Initialize the service
   Future<void> initialize() async {
@@ -365,6 +371,51 @@ class LumaraReflectionSettingsService {
       await setSimilarityThreshold(preset.similarityThreshold);
       await setMaxMatches(preset.maxEntries);
     }
+  }
+
+  // ─── Agent Operating System (user context for Writing/Research agents) ───
+
+  Future<String> getAgentOsUserContext() async {
+    await initialize();
+    return _prefs!.getString(_keyAgentOsUserContext) ?? '';
+  }
+
+  Future<void> setAgentOsUserContext(String value) async {
+    await initialize();
+    await _prefs!.setString(_keyAgentOsUserContext, value);
+  }
+
+  Future<String> getAgentOsCommunicationPreferences() async {
+    await initialize();
+    return _prefs!.getString(_keyAgentOsCommunication) ?? '';
+  }
+
+  Future<void> setAgentOsCommunicationPreferences(String value) async {
+    await initialize();
+    await _prefs!.setString(_keyAgentOsCommunication, value);
+  }
+
+  Future<String> getAgentOsMemory() async {
+    await initialize();
+    return _prefs!.getString(_keyAgentOsMemory) ?? '';
+  }
+
+  Future<void> setAgentOsMemory(String value) async {
+    await initialize();
+    await _prefs!.setString(_keyAgentOsMemory, value);
+  }
+
+  /// Full Agent OS prefix (base prompt + user context/communication/memory) for prepending to agent system prompts.
+  Future<String> getAgentOsPrefix() async {
+    await initialize();
+    final userContext = _prefs!.getString(_keyAgentOsUserContext) ?? '';
+    final communication = _prefs!.getString(_keyAgentOsCommunication) ?? '';
+    final memory = _prefs!.getString(_keyAgentOsMemory) ?? '';
+    return buildAgentOsPrefix(
+      userContext: userContext,
+      communicationPreferences: communication,
+      agentMemory: memory,
+    );
   }
 
   /// Get effective time window in days adjusted for preset and therapeutic depth level

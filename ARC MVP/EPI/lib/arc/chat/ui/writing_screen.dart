@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:gap/gap.dart';
 import 'package:my_app/arc/chat/services/lumara_cloud_generate.dart';
+import 'package:my_app/arc/chat/services/lumara_reflection_settings_service.dart';
 import 'package:my_app/lumara/agents/writing/writing_agent.dart';
 import 'package:my_app/lumara/agents/writing/writing_draft_repository.dart';
 import 'package:my_app/lumara/agents/writing/writing_models.dart';
@@ -52,6 +53,7 @@ class _WritingScreenState extends State<WritingScreen> {
     try {
       final agent = WritingAgent(
         draftRepository: WritingDraftRepositoryImpl(),
+        getAgentOsPrefix: () => LumaraReflectionSettingsService.instance.getAgentOsPrefix(),
         generateContent: ({required systemPrompt, required userPrompt, maxTokens}) async {
           return generateWithLumaraCloud(
             systemPrompt: systemPrompt,

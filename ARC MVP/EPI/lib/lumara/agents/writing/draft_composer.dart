@@ -18,6 +18,8 @@ class DraftComposer {
 
   /// Compose a draft from the user prompt and context.
   /// [timelineContext] supplies timeline summary, recent entries, themes, patterns, and phase for the prompt.
+  /// [systemPromptPrefix] optional LUMARA Agent OS + user context (from settings).
+  /// [draftsAndArchiveSnippet] optional reference from Agents Drafts and Archive (swap file for writing).
   Future<Draft> composeDraft({
     required String prompt,
     required VoiceProfile voice,
@@ -25,6 +27,8 @@ class DraftComposer {
     required ToneGuidance tone,
     required ContentType type,
     required WritingTimelineContext timelineContext,
+    String? systemPromptPrefix,
+    String? draftsAndArchiveSnippet,
   }) async {
     final systemPrompt = _buildSystemPromptFromTemplate(
       prompt: prompt,
@@ -32,6 +36,7 @@ class DraftComposer {
       tone: tone,
       type: type,
       timelineContext: timelineContext,
+      systemPromptPrefix: systemPromptPrefix,
     );
     int maxTokens = 800;
     switch (type) {
@@ -45,9 +50,12 @@ class DraftComposer {
         maxTokens = 2000;
         break;
     }
+    final userPrompt = (draftsAndArchiveSnippet != null && draftsAndArchiveSnippet.trim().isNotEmpty)
+        ? '$prompt\n\n--- Reference (Drafts & Archive) ---\n$draftsAndArchiveSnippet'
+        : prompt;
     final rawContent = await _generate(
       systemPrompt: systemPrompt,
-      userPrompt: prompt,
+      userPrompt: userPrompt,
       maxTokens: maxTokens,
     );
     final parsed = _parseResponse(rawContent.trim(), tone.phase);
@@ -70,6 +78,7 @@ class DraftComposer {
     required ToneGuidance tone,
     required ContentType type,
     required WritingTimelineContext timelineContext,
+    String? systemPromptPrefix,
   }) {
     final voicePatterns = _formatVoicePatterns(voice);
     final syntaxPatterns = voice.sentenceLength.description;
@@ -93,7 +102,16 @@ class DraftComposer {
     const readingLevel = "match the user's natural complexity (see vocabulary and syntax above)";
     const firstPersonRatio = "match the user's first-person usage from the voice profile";
 
-    return kWritingAgentSystemPromptTemplate
+    final privateCalibration = 'Current phase for tone: ${timelineContext.currentPhase}. '
+        '${timelineContext.phaseDescription}. '
+        'Dominant themes (relevance only): ${timelineContext.dominantThemes}.';
+    const publicContextWriting = 'Product documentation: [None provided]. '
+        'Architecture specifications: [None]. Marketing positioning: [None]. '
+        'Approved public narratives: [None]. Use the user request and voice calibration above to generate public-facing content only.';
+
+    final agentPrompt = kWritingAgentSystemPromptTemplate
+        .replaceAll('{{PRIVATE_CONTEXT_CALIBRATION}}', privateCalibration)
+        .replaceAll('{{PUBLIC_CONTEXT_WRITING}}', publicContextWriting)
         .replaceAll('{{TIMELINE_SUMMARY}}', timelineContext.timelineSummary)
         .replaceAll('{{RECENT_ENTRIES}}', timelineContext.recentEntries)
         .replaceAll('{{DOMINANT_THEMES}}', timelineContext.dominantThemes)
@@ -112,6 +130,8 @@ class DraftComposer {
         .replaceAll('{{AVG_PARAGRAPH_LENGTH}}', avgParagraphLength)
         .replaceAll('{{READING_LEVEL}}', readingLevel)
         .replaceAll('{{FIRST_PERSON_RATIO}}', firstPersonRatio);
+    final prefix = systemPromptPrefix?.trim();
+    return (prefix != null && prefix.isNotEmpty ? '$prefix\n' : '') + agentPrompt;
   }
 
   String _formatVoicePatterns(VoiceProfile voice) {

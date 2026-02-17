@@ -261,6 +261,7 @@ class EnhancedLumaraApi {
     final self = this;
     final writingAgent = WritingAgent(
       draftRepository: WritingDraftRepositoryImpl(),
+      getAgentOsPrefix: () => LumaraReflectionSettingsService.instance.getAgentOsPrefix(),
       generateContent: ({required systemPrompt, required userPrompt, maxTokens}) async {
         final g = self._groq;
         if (g == null) {

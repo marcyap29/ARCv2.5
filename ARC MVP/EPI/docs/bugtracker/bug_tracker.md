@@ -123,8 +123,9 @@ This section is derived from the repo and [CHANGELOG.md](../CHANGELOG.md) to kee
 | Research/writing prompts, timeline context, synthesis/draft | v3.3.37 | — | research_prompts.dart, writing_prompts.dart, timeline_context_service.dart; research_agent, synthesis_engine, draft_composer, writing_agent, writing_models, writing_screen. |
 | Writing drafts storage, research persistence, archive/delete, ARCX agents | v3.3.38 | — | WritingDraftRepository (list/archive/delete); ResearchArtifactRepository JSON persist; Agents tab Active/Archived; ARCX export/import extensions/agents. |
 | Research/writing prompts expansion, screen and tab refinements | v3.3.39 | — | research_prompts.dart, writing_prompts.dart extended; research_screen, writing_screen, research_agent_tab, lumara_assistant_cubit, agents_screen. |
+| Agents expansion, Narrative Intelligence .tex, chats/settings, orchestration | v3.3.40 | — | agents_screen major; saved_chats_screen, lumara_settings_screen; arc/agents/drafts, agent_operating_system_prompt, lumara_intent_classifier, orchestration_violation_checker; DOCS .md→.tex. |
 
-**Source:** `git log --oneline`, [CHANGELOG.md](../CHANGELOG.md), terminal build log. Last synced: 2026-02-15.
+**Source:** `git log --oneline`, [CHANGELOG.md](../CHANGELOG.md), terminal build log. Last synced: 2026-02-16.
 
 ---
 
@@ -138,5 +139,5 @@ Individual bug records stay in [records/](records/); only the legacy multi-part 
 
 ---
 
-**Status**: ✅ Active - All resolved issues documented; Build & Platform: 5 records; Environment: 1 (Ollama). Doc sync v3.3.39: bug_tracker tracked.  
-**Last Updated**: 2026-02-15
+**Status**: ✅ Active - All resolved issues documented; Build & Platform: 5 records; Environment: 1 (Ollama). Doc sync v3.3.40: bug_tracker tracked.  
+**Last Updated**: 2026-02-16
