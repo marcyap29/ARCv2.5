@@ -1,7 +1,7 @@
 # EPI LUMARA MVP - Changelog
 
-**Version:** 3.3.43
-**Last Updated:** February 17, 2026
+**Version:** 3.3.44
+**Last Updated:** February 18, 2026
 
 ---
 
@@ -14,6 +14,19 @@ This changelog has been split into parts for easier navigation:
 | **[CHANGELOG_part1.md](CHANGELOG_part1.md)** | Dec 2025 | v2.1.43 - v2.1.87 (Current) |
 | **[CHANGELOG_part2.md](CHANGELOG_part2.md)** | Nov 2025 | v2.1.28 - v2.1.42 |
 | **[CHANGELOG_part3.md](CHANGELOG_part3.md)** | Jan-Oct 2025 | v2.0.0 - v2.1.27 & Earlier |
+
+---
+
+## [3.3.44] - February 18, 2026
+
+### CHRONICLE search (hybrid/BM25/semantic), unified feed, Arcform 3D, archive doc
+
+- **CHRONICLE search:** New `lib/chronicle/search/` — `chronicle_search.dart`, `hybrid_search_engine.dart`, `bm25_index.dart`, `semantic_index.dart`, `adaptive_fusion_engine.dart`, `chronicle_rerank_service.dart`, `feature_based_reranker.dart`, `rerank_context_builder.dart`, `chronicle_search_models.dart`. Hybrid search and reranking for CHRONICLE context.
+- **Unified feed:** `unified_feed_screen.dart` extended (+57/−3).
+- **Arcform 3D:** `simplified_arcform_view_3d.dart` refactor (+68/−31).
+- **DOCS:** `DOCS/archive/LUMARA_ARCHITECTURE_SECTION.md` minor update.
+
+**Files:** 3 modified, 9 new (lib/chronicle/search/). bug_tracker tracked.
 
 ---
 

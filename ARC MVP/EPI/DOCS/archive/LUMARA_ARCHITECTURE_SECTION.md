@@ -1,4 +1,4 @@
-# Narrative Intelligence — §2 System Architecture (Repo-Aligned)
+# LUMARA System Architecture (Repo-Aligned)
 
 **ARCHIVED:** 2026-02-17. Content integrated into `NARRATIVE_INTELLIGENCE_WHITE_PAPER.tex` §2 and repo mapping in `DOCS/ARCHITECTURE.md`. This file retained for reference only.
 

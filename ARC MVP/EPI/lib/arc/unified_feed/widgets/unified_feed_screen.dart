@@ -56,6 +56,7 @@ import 'package:my_app/services/rivet_sweep_service.dart';
 import 'package:my_app/services/phase_regime_service.dart';
 import 'package:my_app/services/user_phase_service.dart';
 import 'package:my_app/services/export_history_service.dart';
+import 'package:my_app/prism/atlas/rivet/rivet_provider.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 /// The main unified feed screen that merges LUMARA chat and Conversations.
@@ -574,6 +575,8 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
         // Notify phase preview and Gantt to refresh after pull-to-refresh
         PhaseRegimeService.regimeChangeNotifier.value = DateTime.now();
         UserPhaseService.phaseChangeNotifier.value = DateTime.now();
+        // Force phase preview and Gantt to rebuild so they reload from storage
+        if (mounted) setState(() => _phasePreviewRefreshKey++);
       },
       color: kcPrimaryColor,
       backgroundColor: kcSurfaceColor,
@@ -583,6 +586,9 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
         slivers: [
           // Greeting header
           SliverToBoxAdapter(child: _buildGreetingHeader()),
+
+          // Calendar + Settings row
+          SliverToBoxAdapter(child: _buildHeaderActions()),
 
           // Selection mode bar (Cancel / Delete selected)
           SliverToBoxAdapter(child: _buildSelectionModeBar()),
@@ -616,9 +622,6 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
 
           // Chat | Reflect | Voice
           SliverToBoxAdapter(child: _buildCommunicationActions()),
-
-          // Multiselect, calendar, settings — just above the timeline
-          SliverToBoxAdapter(child: _buildHeaderActions()),
 
           // Date context banner (when viewing a specific date)
           if (_currentViewingDate != null)
@@ -1324,6 +1327,7 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
         await _feedRepo.refresh();
         PhaseRegimeService.regimeChangeNotifier.value = DateTime.now();
         UserPhaseService.phaseChangeNotifier.value = DateTime.now();
+        if (mounted) setState(() => _phasePreviewRefreshKey++);
       },
       color: kcPrimaryColor,
       backgroundColor: kcSurfaceColor,
@@ -1332,6 +1336,7 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
         physics: const AlwaysScrollableScrollPhysics(),
         slivers: [
           SliverToBoxAdapter(child: _buildGreetingHeader()),
+          SliverToBoxAdapter(child: _buildHeaderActions()),
           SliverToBoxAdapter(child: _buildSelectionModeBar()),
           SliverToBoxAdapter(
             child: KeyedSubtree(
@@ -1357,7 +1362,6 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
             ),
           ),
           SliverToBoxAdapter(child: _buildCommunicationActions()),
-          SliverToBoxAdapter(child: _buildHeaderActions()),
           if (_currentViewingDate != null)
             SliverToBoxAdapter(child: _buildDateContextBanner()),
           SliverToBoxAdapter(child: _buildLumaraObservationBanner()),
@@ -1645,6 +1649,8 @@ class _PhaseJourneyGanttCard extends StatefulWidget {
 class _PhaseJourneyGanttCardState extends State<_PhaseJourneyGanttCard> {
   List<PhaseRegime>? _regimes;
   bool _loading = true;
+  /// User's display phase (profile first); when different from last regime, the Gantt shows this as the current segment.
+  String? _displayPhase;
 
   @override
   void initState() {
@@ -1673,6 +1679,19 @@ class _PhaseJourneyGanttCardState extends State<_PhaseJourneyGanttCard> {
   /// Display end for the most recent regime (last entry date in range) so the Gantt tracks to the last entries.
   DateTime? _displayEndForLastRegime;
 
+  static PhaseLabel? _phaseNameToLabel(String? name) {
+    if (name == null || name.trim().isEmpty) return null;
+    switch (name.trim().toLowerCase()) {
+      case 'discovery': return PhaseLabel.discovery;
+      case 'expansion': return PhaseLabel.expansion;
+      case 'transition': return PhaseLabel.transition;
+      case 'consolidation': return PhaseLabel.consolidation;
+      case 'recovery': return PhaseLabel.recovery;
+      case 'breakthrough': return PhaseLabel.breakthrough;
+      default: return null;
+    }
+  }
+
   Future<void> _loadRegimes() async {
     try {
       final analyticsService = AnalyticsService();
@@ -1681,6 +1700,7 @@ class _PhaseJourneyGanttCardState extends State<_PhaseJourneyGanttCard> {
       await phaseRegimeService.initialize();
       final regimes = phaseRegimeService.phaseIndex.allRegimes;
       DateTime? displayEnd;
+      String? displayPhase;
       if (regimes.isNotEmpty) {
         final sorted = List<PhaseRegime>.from(regimes)..sort((a, b) => a.start.compareTo(b.start));
         final last = sorted.last;
@@ -1688,16 +1708,31 @@ class _PhaseJourneyGanttCardState extends State<_PhaseJourneyGanttCard> {
           last.start,
           last.end ?? DateTime.now(),
         );
+        String? regimePhase = last.label.toString().split('.').last;
+        bool rivetGateOpen = false;
+        try {
+          final rivetProvider = RivetProvider();
+          if (!rivetProvider.isAvailable) await rivetProvider.initialize('default_user');
+          rivetGateOpen = rivetProvider.service?.wouldGateOpen() ?? false;
+        } catch (_) {}
+        final profilePhase = await UserPhaseService.getCurrentPhase();
+        final raw = UserPhaseService.getDisplayPhase(
+          regimePhase: regimePhase.trim().isEmpty ? null : regimePhase,
+          rivetGateOpen: rivetGateOpen,
+          profilePhase: profilePhase,
+        );
+        displayPhase = raw.trim().isEmpty ? null : raw.trim();
       }
       if (mounted) {
         setState(() {
           _regimes = regimes.isEmpty ? null : List<PhaseRegime>.from(regimes);
           _displayEndForLastRegime = displayEnd;
+          _displayPhase = displayPhase;
           _loading = false;
         });
       }
     } catch (_) {
-      if (mounted) setState(() { _regimes = null; _displayEndForLastRegime = null; _loading = false; });
+      if (mounted) setState(() { _regimes = null; _displayEndForLastRegime = null; _displayPhase = null; _loading = false; });
     }
   }
 
@@ -1799,11 +1834,19 @@ class _PhaseJourneyGanttCardState extends State<_PhaseJourneyGanttCard> {
             _displayEndForLastRegime!.isAfter(lastRegime.start)
         ? _displayEndForLastRegime!
         : (lastRegime.end ?? DateTime.now());
+    PhaseRegime lastForDisplay = lastRegime.copyWith(end: effectiveEnd);
+    // When user's display phase (e.g. Discovery) differs from last regime (e.g. Breakthrough), show display phase as current segment
+    if (_displayPhase != null && _displayPhase!.trim().isNotEmpty) {
+      final displayLabel = _phaseNameToLabel(_displayPhase);
+      if (displayLabel != null && displayLabel != lastRegime.label) {
+        lastForDisplay = lastForDisplay.copyWith(label: displayLabel);
+      }
+    }
     final displayRegimes = regimes.length == 1
-        ? [lastRegime.copyWith(end: effectiveEnd)]
+        ? [lastForDisplay]
         : [
             ...regimes.sublist(0, regimes.length - 1),
-            lastRegime.copyWith(end: effectiveEnd),
+            lastForDisplay,
           ];
     final visibleStart = regimes.first.start;
     final visibleEnd = effectiveEnd;

@@ -22,6 +22,7 @@ import 'package:my_app/arc/ui/timeline/widgets/current_phase_arcform_preview.dar
 import 'package:my_app/models/phase_models.dart';
 import 'package:my_app/services/user_phase_service.dart';
 import 'package:my_app/shared/ui/onboarding/phase_quiz_v2_screen.dart';
+import 'package:my_app/prism/atlas/rivet/rivet_provider.dart';
 
 /// Simplified ARCForms view with 3D constellation renderer
 class SimplifiedArcformView3D extends StatefulWidget {
@@ -56,6 +57,19 @@ class _SimplifiedArcformView3DState extends State<SimplifiedArcformView3D> {
   void initState() {
     super.initState();
     _loadSnapshots();
+    UserPhaseService.phaseChangeNotifier.addListener(_onPhaseOrRegimeChanged);
+    PhaseRegimeService.regimeChangeNotifier.addListener(_onPhaseOrRegimeChanged);
+  }
+
+  @override
+  void dispose() {
+    UserPhaseService.phaseChangeNotifier.removeListener(_onPhaseOrRegimeChanged);
+    PhaseRegimeService.regimeChangeNotifier.removeListener(_onPhaseOrRegimeChanged);
+    super.dispose();
+  }
+
+  void _onPhaseOrRegimeChanged() {
+    if (mounted) _loadSnapshots();
   }
 
   void _loadSnapshots() async {
@@ -68,46 +82,54 @@ class _SimplifiedArcformView3DState extends State<SimplifiedArcformView3D> {
       await _discoverUserPhases();
 
       // Get the current phase - prioritize widget.currentPhase if provided
-      String currentPhase = widget.currentPhase ?? '';
+      String currentPhase = widget.currentPhase?.trim() ?? '';
       print('DEBUG: SimplifiedArcformView3D - widget.currentPhase: ${widget.currentPhase}');
 
       // If widget.currentPhase is provided, use it (it comes from phase_analysis_view which has the correct current phase)
       if (currentPhase.isNotEmpty) {
         print('DEBUG: Using widget.currentPhase: $currentPhase');
       } else {
-        // Fallback: try to get current phase from phase regimes
+        // Use same resolution as Phase page / CurrentPhaseArcformPreview: profile (user choice) first, then regime
         try {
           final analyticsService = AnalyticsService();
           final rivetSweepService = RivetSweepService(analyticsService);
           final phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
           await phaseRegimeService.initialize();
 
+          String? regimePhase;
           final currentRegime = phaseRegimeService.phaseIndex.currentRegime;
-          print('DEBUG: currentRegime from phaseIndex: ${currentRegime?.label.toString().split('.').last ?? 'null'}');
-          
+          final allRegimes = phaseRegimeService.phaseIndex.allRegimes;
           if (currentRegime != null) {
-            currentPhase = currentRegime.label.toString().split('.').last;
-            print('DEBUG: Using current phase from phaseIndex: $currentPhase');
-          } else {
-            // Get the most recent regime if no current ongoing regime
-            final allRegimes = phaseRegimeService.phaseIndex.allRegimes;
-            if (allRegimes.isNotEmpty) {
-              final sortedRegimes = List.from(allRegimes)..sort((a, b) => b.start.compareTo(a.start));
-              final mostRecentRegime = sortedRegimes.first;
-              currentPhase = mostRecentRegime.label.toString().split('.').last;
-              print('DEBUG: No current ongoing regime, using most recent regime: $currentPhase');
-            } else {
-              // No regimes (e.g. right after phase quiz) - use UserProfile/quiz phase so display matches quiz result
-              currentPhase = await UserPhaseService.getCurrentPhase();
-              print('DEBUG: No regimes found, using phase from UserProfile/quiz: $currentPhase');
+            regimePhase = currentRegime.label.toString().split('.').last;
+          } else if (allRegimes.isNotEmpty) {
+            final sortedRegimes = List.from(allRegimes)..sort((a, b) => b.start.compareTo(a.start));
+            regimePhase = sortedRegimes.first.label.toString().split('.').last;
+          }
+          bool rivetGateOpen = false;
+          try {
+            final rivetProvider = RivetProvider();
+            if (rivetProvider.isAvailable == false) {
+              await rivetProvider.initialize('default_user');
             }
+            rivetGateOpen = rivetProvider.service?.wouldGateOpen() ?? false;
+          } catch (_) {}
+          final profilePhase = await UserPhaseService.getCurrentPhase();
+          final displayPhase = UserPhaseService.getDisplayPhase(
+            regimePhase: regimePhase?.trim().isEmpty == true ? null : regimePhase,
+            rivetGateOpen: rivetGateOpen,
+            profilePhase: profilePhase,
+          );
+          if (displayPhase.trim().isNotEmpty) {
+            currentPhase = displayPhase.trim();
+            currentPhase = currentPhase[0].toUpperCase() + currentPhase.substring(1).toLowerCase();
+            print('DEBUG: Using display phase (profile first): $currentPhase');
+          } else if (regimePhase != null && regimePhase.trim().isNotEmpty) {
+            currentPhase = regimePhase.trim();
+            currentPhase = currentPhase[0].toUpperCase() + currentPhase.substring(1).toLowerCase();
+            print('DEBUG: Using regime phase: $currentPhase');
           }
         } catch (e) {
-          print('DEBUG: Error getting current phase from phaseIndex: $e');
-          // Fallback to Discovery
-          if (currentPhase.isEmpty) {
-            currentPhase = 'Discovery';
-          }
+          print('DEBUG: Error getting current phase: $e');
         }
       }
 
