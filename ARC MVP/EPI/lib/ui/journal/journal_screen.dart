@@ -88,6 +88,8 @@ class JournalScreen extends StatefulWidget {
   final bool isViewOnly; // New parameter to distinguish viewing vs editing
   final bool openAsEdit; // Flag to indicate entry is opened directly for editing (no initial draft)
   final bool isTimelineEditing; // Flag to allow timestamp editing when editing from timeline
+  /// When set (e.g. in Writing with LUMARA split view), called whenever the main text content changes so the parent can sync draft for the side panel.
+  final void Function(String)? onContentChanged;
 
   const JournalScreen({
     super.key,
@@ -98,6 +100,7 @@ class JournalScreen extends StatefulWidget {
     this.isViewOnly = false, // Default to editing mode for backward compatibility
     this.openAsEdit = false, // Default to false - will create draft normally
     this.isTimelineEditing = false, // Default to locked timestamps - only allow changes from timeline
+    this.onContentChanged,
   });
 
   @override
@@ -248,12 +251,14 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     if (widget.initialContent != null) {
       _textController.text = widget.initialContent!;
       _entryState.text = widget.initialContent!;
+      widget.onContentChanged?.call(widget.initialContent!);
     }
 
     // Load existing entry with media if provided
     if (widget.existingEntry != null) {
       _textController.text = widget.existingEntry!.content;
       _entryState.text = widget.existingEntry!.content;
+      widget.onContentChanged?.call(widget.existingEntry!.content);
       
       // Store original values for change tracking
       _originalContent = widget.existingEntry!.content;
@@ -682,6 +687,8 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     if (!widget.isViewOnly || _isEditMode) {
       _updateDraftContent(text);
     }
+    
+    widget.onContentChanged?.call(text);
   }
 
   /// Initialize LUMARA with MCP bundle if available

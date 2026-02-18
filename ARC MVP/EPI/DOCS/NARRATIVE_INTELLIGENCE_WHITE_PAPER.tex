@@ -8,8 +8,8 @@
 % Typography and fonts
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
-\usepackage{lmodern}
-\usepackage{microtype}
+
+
 \usepackage{setspace}
 
 % Graphics and colors
@@ -35,9 +35,12 @@
     filecolor=magenta,
     urlcolor=cyan,
     citecolor=blue,
-    pdftitle={Narrative Intelligence: A Framework for Lifelong, Evolving Intelligence Systems},
+    pdftitle={The Chronicle Framework: Phase-Aware AI Across the Human Lifespan},
     pdfauthor={Marc Yap},
 }
+
+% Float control
+\usepackage{float}
 
 % Lists
 \usepackage{enumitem}
@@ -49,7 +52,7 @@
 % Header and footer
 \pagestyle{fancy}
 \fancyhf{}
-\fancyhead[L]{\small\textit{Narrative Intelligence}}
+\fancyhead[L]{\small\textit{The Chronicle Framework}}
 \fancyhead[R]{\small Version 2.2}
 \fancyfoot[C]{\thepage\ of \pageref{LastPage}}
 \renewcommand{\headrulewidth}{0.4pt}
@@ -69,69 +72,59 @@
 % Title page information
 \title{
     \vspace{-1cm}
-    {\Huge\bfseries\color{primaryblue} Narrative Intelligence}\\
+    {\Huge\bfseries\color{primaryblue} The Chronicle Framework}\\
     \vspace{0.5cm}
-    {\Large A Framework for Lifelong, Evolving Intelligence Systems}
+    {\Large Phase-Aware AI Across the Human Lifespan}
 }
 \author{Marc Yap}
-\date{January 2025\\[0.5cm]
-\textit{Version 2.2 — Architecture (implementation details in appendix)}}
+\date{February 2026\\[0.5cm]
+\textit{Version 2.2 --- Architecture (implementation details in appendix)}}
 
 \begin{document}
 
 \maketitle
 
 \begin{abstract}
-Narrative Intelligence is a longitudinal, phase-aware artificial intelligence architecture designed to model human development across time. Most contemporary AI systems operate transactionally—they respond to isolated inputs, maintain limited memory, and lack awareness of trajectory. Narrative Intelligence introduces structural continuity by integrating hierarchical temporal aggregation, cross-temporal semantic indexing, developmental phase inference, evidence-gated transitions, circadian orchestration, and privacy-preserving response control.
+The Chronicle Framework is a longitudinal, phase-aware artificial intelligence architecture designed to model human development across time. Most contemporary AI systems operate transactionally---they respond to isolated inputs, maintain limited memory, and lack awareness of trajectory. The Chronicle Framework introduces structural continuity by integrating hierarchical temporal aggregation, cross-temporal semantic indexing, developmental phase inference, evidence-gated transitions, circadian orchestration, and privacy-preserving response control.
 
-The result is an intelligence system that conditions responses not only on current input, but on longitudinal developmental context. This framework enables AI to adapt tone, rigor, pacing, and support according to where an individual is in their life arc. Narrative Intelligence represents a shift from session-based assistance to \textbf{trajectory-conditioned intelligence}.
+The result is an intelligence system that conditions responses not only on current input, but on longitudinal developmental context. This framework enables AI to adapt tone, rigor, pacing, and support according to where an individual is in their life arc. The Chronicle Framework represents a shift from session-based assistance to \textbf{trajectory-conditioned intelligence} --- AI that knows you across time.
 \end{abstract}
 
 \begin{center}
-\textbf{Scope:} This document describes \textbf{architecture only}. Parameters, technologies, and implementation details are in the appendix. The five modules are: LUMARA (interface), PRISM, CHRONICLE, AURORA, ECHO. The Developmental Phase Engine (ATLAS), including RIVET and SENTINEL, resides within PRISM. A repo-aligned \S2 System Architecture text for the PDF is in the Paper Architecture Section document.
+\textbf{Scope:} This document describes \textbf{architecture only}. Parameters, technologies, and implementation details are in the appendix. The consumer product built on this framework is \textbf{LUMARA} --- AI that knows you across time.
 \end{center}
 
 \vspace{1cm}
 
 \section*{Executive Summary}
 
-\textbf{Narrative Intelligence} is a new paradigm for artificial intelligence: not built to simply assist, but to evolve with the individual across time.
+\textbf{The Chronicle Framework} is a new paradigm for artificial intelligence: not built to simply assist, but to evolve with the individual across time.
 
-\subsection*{Narrative Intelligence is Living Intelligence:}
 
-\begin{itemize}[leftmargin=*]
-    \item It learns from your rhythms.
-    \item It holds your story.
-    \item It grows with you.
-\end{itemize}
+\subsection*{Architecture: Five Synergistic Layers}
 
-\subsection*{Its purpose:}
-\begin{center}
-\emphasis{To enable coherence, and preserve the dignity of the human spirit.}
-\end{center}
-
-\subsection*{Product Architecture: Five Synergistic Modules}
+The Chronicle Framework is implemented through five synergistic architectural layers:
 
 \begin{itemize}[leftmargin=*]
-    \item \module{LUMARA (interface)} — User-facing timeline and interface: journaling, chat, Arcform visualization. The surface through which users interact; data flows into CHRONICLE (Layer 0) and is consumed by the LUMARA Orchestrator.
+    \item \textbf{Interface Layer} --- User-facing timeline and interaction surface: chat, reflection, and voice. Data flows into the longitudinal memory layer and is consumed by the orchestration engine.
 
-    \item \module{PRISM} — Multimodal perception layer with phase detection (ATLAS), evidence gating (RIVET), and safety monitoring (SENTINEL).
+    \item \textbf{Perception Layer} --- Multimodal perception and analysis, including phase detection, evidence-gated transitions, and safety monitoring.
 
-    \item \module{CHRONICLE} — Longitudinal memory, storage, synthesis, and vector generation. Maintains narrative continuity via hierarchical temporal aggregation (Layer 0--N), on-device embeddings for semantic matching, and context selection for the LUMARA assistant.
+    \item \textbf{Memory Layer} --- Longitudinal memory, storage, synthesis, and vector generation. Maintains biographical continuity via hierarchical temporal aggregation, on-device embeddings for semantic matching, and context selection for the AI assistant.
 
-    \item \module{AURORA} — Circadian orchestration layer.
+    \item \textbf{Circadian Layer} --- Rhythm-aware orchestration that adapts computation to natural human cycles.
 
-    \item \module{ECHO} — Response control and safety layer managing LLM integration with privacy protection.
+    \item \textbf{Response Layer} --- Response control and safety, managing AI integration with privacy protection.
 \end{itemize}
 
-\noindent The \textbf{LUMARA Orchestrator} coordinates \textbf{three subsystems} — ATLAS, CHRONICLE, and AURORA — to build prompts: current phase (ATLAS), recent and longitudinal context (CHRONICLE), and rhythm/regulation (AURORA).
+\noindent The \textbf{Orchestration Engine} coordinates three subsystems --- phase detection, longitudinal memory, and circadian rhythm --- to build prompts: current developmental phase, recent and longitudinal context, and rhythm/regulation signals.
 
 \subsection*{Privacy-First Architecture}
 
 \begin{enumerate}
-    \item \textbf{PRISM PII Scrubbing} — Personal identifiable information replaced with tokens.
-    \item \textbf{Correlation-Resistant Transformation} — Rotating hashes create session-specific aliases.
-    \item \textbf{Semantic Summarization} — Original text never sent; structured abstractions preserve meaning.
+    \item \textbf{PII Scrubbing} --- Personally identifiable information replaced with tokens before any cloud query.
+    \item \textbf{Correlation-Resistant Transformation} --- Rotating hashes create session-specific aliases.
+    \item \textbf{Semantic Summarization} --- Original text never sent; structured abstractions preserve meaning.
 \end{enumerate}
 
 \begin{center}
@@ -141,16 +134,14 @@ The result is an intelligence system that conditions responses not only on curre
 \subsection*{Key Positioning}
 
 \begin{itemize}[leftmargin=*]
-    \item \textbf{Primary:} ``The AI that evolves with you''
-    \item \textbf{Privacy:} ``Frontier AI power, maximum privacy''
-    \item \textbf{Philosophy:} ``AI that pushes you toward life, not away from it''
+    \item \textbf{Consumer Product:} LUMARA --- ``AI that knows you across time''
 \end{itemize}
 
 \newpage
 
 \section{Market Context}
 
-\textbf{Bottom Line:} Narrative Intelligence has no direct competitor. The market has fragmented into narrow categories, but no player combines phase-aware developmental intelligence, narrative memory, circadian orchestration, and privacy-maximized frontier AI access.
+\textbf{Bottom Line:} The Chronicle Framework has no direct competitor. The market has fragmented into narrow categories, but no player combines phase-aware developmental intelligence, longitudinal biographical memory, circadian orchestration, and privacy-maximized frontier AI access.
 
 \subsection{Market Landscape}
 
@@ -159,11 +150,11 @@ The result is an intelligence system that conditions responses not only on curre
 \small
 \begin{tabularx}{\textwidth}{|l|X|X|}
 \hline
-\textbf{Segment} & \textbf{Key Players} & \textbf{Gap EPI Fills} \\
+\textbf{Segment} & \textbf{Key Players} & \textbf{Gap The Chronicle Framework Fills} \\
 \hline
 \textbf{AI Companions} & Replika, Pi, Character.AI & Development over dependency; phase-aware support \\
 \hline
-\textbf{Memory Assistants} & ChatGPT Memory, Claude, Mem0 & Narrative memory vs.\ factual storage \\
+\textbf{Memory Assistants} & ChatGPT Memory, Claude, Mem0 & Biographical memory vs.\ factual storage \\
 \hline
 \textbf{Mental Health AI} & Wysa, Woebot & Holistic developmental framework \\
 \hline
@@ -182,11 +173,11 @@ The result is an intelligence system that conditions responses not only on curre
 \small
 \begin{tabularx}{\textwidth}{|l|c|c|c|c|c|c|}
 \hline
-\textbf{Capability} & \textbf{EPI} & \textbf{ChatGPT} & \textbf{Claude} & \textbf{Replika} & \textbf{Wysa} & \textbf{Rosebud} \\
+\textbf{Capability} & \textbf{Chronicle} & \textbf{ChatGPT} & \textbf{Claude} & \textbf{Replika} & \textbf{Wysa} & \textbf{Rosebud} \\
 \hline
 Life Phase Detection & \textbf{x} & -- & -- & -- & $\sim$ & -- \\
 \hline
-Narrative Memory & \textbf{x} & $\sim$ & $\sim$ & $\sim$ & -- & $\sim$ \\
+Biographical Memory & \textbf{x} & $\sim$ & $\sim$ & $\sim$ & -- & $\sim$ \\
 \hline
 Persona Adaptation & \textbf{x} & -- & -- & $\sim$ & -- & -- \\
 \hline
@@ -194,7 +185,7 @@ Circadian Orchestration & \textbf{x} & -- & -- & -- & -- & -- \\
 \hline
 Evidence-Gated Transitions & \textbf{x} & -- & -- & -- & -- & -- \\
 \hline
-Privacy-Max Frontier AI & \textbf{x} & -- & -- & -- & $\sim$ & -- \\
+Architectural Privacy & \textbf{x} & -- & -- & -- & $\sim$ & -- \\
 \hline
 Growth-Oriented Design & \textbf{x} & $\sim$ & $\sim$ & -- & \textbf{x} & \textbf{x} \\
 \hline
@@ -205,9 +196,9 @@ Growth-Oriented Design & \textbf{x} & $\sim$ & $\sim$ & -- & \textbf{x} & \textb
 \subsection{Competitive Moats}
 
 \begin{itemize}[leftmargin=*]
-    \item \textbf{Architectural:} 5-module integration creates compounding advantages.
-    \item \textbf{Data:} CHRONICLE narrative memory (temporal aggregation, on-device vector generation) increases value over time; biographical intelligence improves with history while maintaining bounded computational costs. High switching costs.
-    \item \textbf{Privacy:} ECHO enables frontier AI power without data exposure.
+    \item \textbf{Architectural:} Five-layer integration creates compounding advantages impossible to replicate piecemeal.
+    \item \textbf{Data:} Longitudinal biographical memory increases value over time; biographical intelligence improves with history while maintaining bounded computational costs. High switching costs.
+    \item \textbf{Privacy:} Architectural privacy enables frontier AI power without data exposure --- privacy by design, not policy.
     \item \textbf{Philosophical:} Growth-oriented vs.\ engagement-optimized design.
 \end{itemize}
 
@@ -215,7 +206,7 @@ Growth-Oriented Design & \textbf{x} & $\sim$ & $\sim$ & -- & \textbf{x} & \textb
 
 \section{Manifesto: A New Kind of Intelligence}
 
-Artificial Intelligence has grown exponentially in speed, scale, and generality. Yet something essential has been missing. AI has remained largely impersonal — indifferent to the individual, unanchored from time, and detached from the rhythms of human life.
+Artificial Intelligence has grown exponentially in speed, scale, and generality. Yet something essential has been missing. AI has remained largely impersonal --- indifferent to the individual, unanchored from time, and detached from the rhythms of human life.
 
 Most systems optimize for tasks. Few optimize for meaning. \textbf{None optimize for becoming.}
 
@@ -223,51 +214,52 @@ Most systems optimize for tasks. Few optimize for meaning. \textbf{None optimize
 
 \subsubsection*{Intelligence Must Be Personal}
 
-No two humans are the same. EPI begins not with a dataset, but with a person — their context, their story, their changing needs.
+No two humans are the same. The Chronicle Framework begins not with a dataset, but with a person --- their context, their story, their changing needs.
 
 \subsubsection*{Context is the Core, Not an Add-On}
 
-Intelligence must understand when to act, when to rest, and when to invite reflection.
+Intelligence must understand when to act, when to rest, and when to invite reflection. Context that resets with every session is not context --- it is amnesia.
 
-\subsubsection*{Memory and Narrative Are Sacred}
+\subsubsection*{Memory and Story Are Sacred}
 
-EPI remembers more than commands. It remembers who you were becoming. Memory is not storage — it is story.
+The Chronicle Framework remembers more than commands. It remembers who you were becoming. Memory is not storage --- it is story. A chronicle, not a cache.
 
 \subsection{We Commit:}
 
 \begin{itemize}[leftmargin=*]
-    \item To build systems that evolve with the person — not in spite of them.
+    \item To build systems that evolve with the person --- not in spite of them.
     \item To design architectures that honor rhythm, rest, reflection, and emotional depth.
     \item To embed alignment as transparency, not as control.
-    \item To uphold epistemic humility — EPI will never claim to define your arc.
+    \item To uphold epistemic humility --- the system will never claim to define your arc.
 \end{itemize}
 
 \begin{center}
-\emphasis{To enable coherence, and preserve the dignity of the human spirit. — The Principle of EPI}
+\emphasis{To enable coherence, and preserve the dignity of the human spirit.}
 \end{center}
 
-\section{LUMARA: The Intelligent Journaling Application}
+\section{LUMARA: The Consumer Product}
 
-\textbf{LUMARA} is the intelligent journaling application powered by EPI. Users interact with LUMARA — the timeline, journal, and chat surface — and with the LUMARA assistant, the AI companion that responds with phase-aware, narrative-grounded intelligence.
+\textbf{LUMARA} is the consumer product built on The Chronicle Framework. Users interact with LUMARA across three modalities --- chat, reflection, and voice --- all unified into a single chronological timeline. The LUMARA assistant responds with phase-aware, biography-grounded intelligence.
+
+\subsection{Three Modalities. One Timeline.}
+
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Chat} --- Quick conversations. Real-time responses that build on everything else.
+    \item \textbf{Reflect} --- Longer entries. AI that reflects back with insight, not just answers.
+    \item \textbf{Voice} --- Confessional-style conversation. Natural, intimate, remembered.
+\end{itemize}
+
+All three modalities feed one chronological timeline. Complete context across years, not just weeks.
 
 \subsection{The SAGE Framework}
 
-\begin{itemize}[leftmargin=*]
-    \item \textbf{Situation} — What happened?
-    \item \textbf{Action} — What did you do?
-    \item \textbf{Growth} — What did you learn?
-    \item \textbf{Essence} — What deeper theme emerged?
-\end{itemize}
-
-\subsection{Core Features}
-
-\subsubsection*{Multimodal Capture:}
+Reflection entries follow the SAGE structure to maximize biographical signal extraction:
 
 \begin{itemize}[leftmargin=*]
-    \item Text journaling with rich formatting
-    \item Voice transcription (speech-to-text)
-    \item Photo capture with OCR and analysis
-    \item Video journaling support
+    \item \textbf{Situation} --- What happened?
+    \item \textbf{Action} --- What did you do?
+    \item \textbf{Growth} --- What did you learn?
+    \item \textbf{Essence} --- What deeper theme emerged?
 \end{itemize}
 
 \begin{center}
@@ -276,21 +268,13 @@ EPI remembers more than commands. It remembers who you were becoming. Memory is 
 
 \newpage
 
-\section{PRISM: Multimodal Perception \& Analysis}
+\section{Perception Layer: Phase Detection \& Analysis}
 
-PRISM is the perception and analysis layer of EPI — responsible for extracting meaning from multimodal input and detecting the user's developmental phase.
+The Perception Layer is responsible for extracting meaning from multimodal input and detecting the user's developmental phase. It houses three critical subsystems: the Life Phase Classification Engine, the Evidence-Gated Transition system, and the Safety Monitoring system.
 
-PRISM houses three critical subsystems:
+\subsection{Life Phase Classification Engine}
 
-\begin{itemize}[leftmargin=*]
-    \item \module{ATLAS} — Life phase detection and developmental awareness
-    \item \module{RIVET} — Evidence-gated phase transitions with dual-signal validation
-    \item \module{SENTINEL} — Safety monitoring and crisis detection
-\end{itemize}
-
-\subsection{ATLAS — Life Phase Classification Engine}
-
-ATLAS identifies the user's current life phase through multi-signal analysis, providing the foundational context for all EPI responses. Rather than static personality traits, ATLAS tracks \textit{where the user is in their journey}.
+The phase classification engine identifies the user's current life phase through multi-signal analysis, providing the foundational context for all Chronicle Framework responses. Rather than static personality traits, it tracks \textit{where the user is in their journey}.
 
 \subsubsection*{The Six Life Phases:}
 
@@ -319,48 +303,38 @@ Breakthrough & Transformation, clarity & High readiness, decisive action, peak p
 
 \subsubsection*{Classification Inputs:}
 
-ATLAS fuses multiple data streams to determine phase:
+The phase engine fuses multiple data streams:
 
 \begin{enumerate}
-    \item \textbf{Emotional Signals} — Valence, intensity, and diversity from journal text
-    \item \textbf{Behavioral Signals} — Journaling frequency, entry length, time-of-day patterns
-    \item \textbf{Health Signals (optional)} — Steps, sleep, heart rate variability from device health integration
-    \item \textbf{Keyword Evidence} — Thematic clustering from PRISM extraction
-    \item \textbf{Temporal Patterns} — Rate of change, cyclical patterns, trend direction
+    \item \textbf{Emotional Signals} --- Valence, intensity, and diversity from journal text
+    \item \textbf{Behavioral Signals} --- Journaling frequency, entry length, time-of-day patterns
+    \item \textbf{Health Signals (optional)} --- Steps, sleep, heart rate variability from device health integration
+    \item \textbf{Keyword Evidence} --- Thematic clustering from perception layer extraction
+    \item \textbf{Temporal Patterns} --- Rate of change, cyclical patterns, trend direction
 \end{enumerate}
 
-\subsubsection*{Phase Determination Formula:}
-
-\begin{equation}
-\text{Phase} = \arg\max_{p} (\text{confidence}[p])
-\end{equation}
-
-where $\text{confidence}[p] = f(\text{readiness}, \text{stress}, \text{behavioral\_signals})$. Each phase corresponds to a region in readiness--stress--behavior space (e.g.\ Breakthrough: high readiness and activity; Recovery: elevated stress; Consolidation: default when no strong signals). \textit{Thresholds and mapping details are in the appendix.}
-
-\subsubsection*{Integration with Other Modules:}
+\subsubsection*{Integration Across Layers:}
 
 \begin{itemize}[leftmargin=*]
-    \item \textbf{LUMARA} — Phase determines tone, depth, and persona selection
-    \item \textbf{AURORA} — Recovery phase triggers gentler, more containing responses
-    \item \textbf{SENTINEL} — High-intensity transitions trigger monitoring escalation
-    \item \textbf{RIVET} — Phase changes require evidence validation before commitment
+    \item \textbf{Interface Layer} --- Phase determines tone, depth, and persona selection
+    \item \textbf{Circadian Layer} --- Recovery phase triggers gentler, more containing responses
+    \item \textbf{Safety Monitoring} --- High-intensity transitions trigger monitoring escalation
+    \item \textbf{Evidence Gating} --- Phase changes require evidence validation before commitment
 \end{itemize}
 
-\subsection{RIVET — Evidence-Gated Phase Transitions}
+\subsection{Evidence-Gated Phase Transitions}
 
-RIVET (Risk-Validation Evidence Tracker) prevents premature or poorly-supported phase transitions. It acts as a ``gatekeeper'' ensuring phase changes are backed by sufficient evidence, not just momentary fluctuations.
+The evidence-gating system prevents premature or poorly-supported phase transitions. It acts as a gatekeeper ensuring phase changes are backed by sufficient evidence, not just momentary fluctuations.
 
 \subsubsection*{Core Problem Solved:}
 
-Without RIVET, a user having one good day could be classified as ``Breakthrough'' and receive inappropriate responses. RIVET requires \textit{sustained evidence} before allowing phase changes.
+Without evidence gating, a user having one good day could be classified as Breakthrough and receive inappropriate responses. The system requires \textit{sustained evidence} before allowing phase changes.
 
 \subsubsection*{Two-Dial System:}
 
-RIVET tracks two metrics to ensure sustained evidence:
-
 \begin{itemize}[leftmargin=*]
-    \item \textbf{ALIGN} — Measures consistency between predicted and observed phase using an exponential moving average over alignment samples
-    \item \textbf{TRACE} — Tracks cumulative evidence strength using a saturating function of evidence weights over time
+    \item \textbf{Alignment Dial} --- Measures consistency between predicted and observed phase using an exponential moving average over alignment samples
+    \item \textbf{Evidence Dial} --- Tracks cumulative evidence strength using a saturating function of evidence weights over time
 \end{itemize}
 
 Transitions occur only when both metrics exceed configured thresholds and conditions are sustained across multiple entries. \textit{Complete mathematical formulations, parameters, and thresholds are provided in the appendix.}
@@ -370,55 +344,48 @@ Transitions occur only when both metrics exceed configured thresholds and condit
 The transition gate opens only when all of the following are satisfied:
 
 \begin{enumerate}
-    \item \textbf{Alignment threshold} — Predictions consistently match observations (ALIGN above a configured minimum)
-    \item \textbf{Evidence threshold} — Sufficient cumulative evidence (TRACE above a configured minimum)
-    \item \textbf{Sustain} — Conditions held for a minimum number of consecutive entries
-    \item \textbf{Independent event} — At least one qualifying event from a different day or source
+    \item \textbf{Alignment threshold} --- Predictions consistently match observations
+    \item \textbf{Evidence threshold} --- Sufficient cumulative evidence accumulated
+    \item \textbf{Sustain} --- Conditions held for a minimum number of consecutive entries
+    \item \textbf{Independent event} --- At least one qualifying event from a different day or source
 \end{enumerate}
 
-\noindent Configurable profiles (e.g.\ conservative vs.\ aggressive) trade off stability vs.\ responsiveness. \textit{Default thresholds and profiles are in the appendix.}
+\noindent Configurable profiles trade off stability vs.\ responsiveness. \textit{Default thresholds and profiles are in the appendix.}
 
 \subsubsection*{Data Flow:}
 
-Journal entry $\rightarrow$ PRISM keyword/thematic extraction $\rightarrow$ evidence events $\rightarrow$ ALIGN/TRACE updated $\rightarrow$ gate evaluated $\rightarrow$ if open and no SENTINEL block $\rightarrow$ phase transition applied $\rightarrow$ regime state updated.
+Journal entry $\rightarrow$ keyword/thematic extraction $\rightarrow$ evidence events $\rightarrow$ alignment/evidence dials updated $\rightarrow$ gate evaluated $\rightarrow$ if open and no safety block $\rightarrow$ phase transition applied $\rightarrow$ state updated.
 
-\subsection{SENTINEL — Temporal Crisis Detection \& Wellbeing Monitoring}
+\subsection{Safety Monitoring: Temporal Crisis Detection}
 
-SENTINEL monitors emotional clustering over time to detect emerging crisis patterns \textit{before} they become acute. Unlike single-entry keyword detection, SENTINEL uses temporal analysis to distinguish between normal emotional variance and concerning accumulation.
+The safety system monitors emotional clustering over time to detect emerging crisis patterns \textit{before} they become acute. Unlike single-entry keyword detection, it uses temporal analysis to distinguish between normal emotional variance and concerning accumulation.
 
 \subsubsection*{Core Mechanism: Temporal Clustering Analysis}
 
-SENTINEL uses rolling windows at multiple timescales (short to long, e.g.\ 1-day through 30-day) with weighted contribution and frequency thresholds per window. High emotional intensity clustered within a window raises the composite risk score. \textit{Window lengths, weights, and thresholds are in the appendix.}
+Rolling windows at multiple timescales (short to long, e.g.\ 1-day through 30-day) with weighted contribution and frequency thresholds per window. High emotional intensity clustered within a window raises the composite risk score. \textit{Window lengths, weights, and thresholds are in the appendix.}
 
 \subsubsection*{Scoring Components:}
 
-SENTINEL computes a composite risk score from four dimensions:
-
 \begin{itemize}[leftmargin=*]
-    \item \textbf{Emotional Intensity} — Magnitude of negative emotional language
-    \item \textbf{Emotional Diversity} — Whether distress is concentrated or diffuse across themes
-    \item \textbf{Thematic Coherence} — Repeated fixation on specific concerns (rumination signal)
-    \item \textbf{Temporal Dynamics} — Acceleration or deceleration of emotional load over time
+    \item \textbf{Emotional Intensity} --- Magnitude of negative emotional language
+    \item \textbf{Emotional Diversity} --- Whether distress is concentrated or diffuse across themes
+    \item \textbf{Thematic Coherence} --- Repeated fixation on specific concerns (rumination signal)
+    \item \textbf{Temporal Dynamics} --- Acceleration or deceleration of emotional load over time
 \end{itemize}
 
 \subsubsection*{Alert Triggers:}
 
 \begin{itemize}[leftmargin=*]
-    \item Explicit crisis language (e.g.\ self-harm, suicide) triggers \textbf{immediate crisis mode}
-    \item A dangerous phase transition flagged by RIVET can also trigger \textbf{immediate activation}
-    \item When the temporal clustering score exceeds a configured threshold, \textbf{crisis mode is activated}
-    \item Below threshold, normal operation continues
+    \item Explicit crisis language triggers \textbf{immediate crisis mode}
+    \item Dangerous phase transitions can also trigger \textbf{immediate activation}
+    \item Temporal clustering score exceeding threshold activates \textbf{crisis mode}
 \end{itemize}
 
 \subsubsection*{Crisis Mode:}
 
-When activated, LUMARA responses prioritize safety and grounding; AURORA shifts to gentler tone; the interface surfaces crisis resources and check-in prompts.
+When activated, responses prioritize safety and grounding; the circadian layer shifts to gentler tone; the interface surfaces crisis resources and check-in prompts.
 
-\subsubsection*{Adaptive Configuration:}
-
-SENTINEL adapts to user journaling cadence (e.g.\ power user, frequent, weekly, sporadic) so that thresholds and normalization do not bias against sparse journalers. \textit{Default weights and cadence-specific tuning are in the appendix.}
-
-\subsection{Seeking Classification — Intent Detection for Response Calibration}
+\subsection{Seeking Classification --- Intent Detection for Response Calibration}
 
 \begin{table}[h]
 \centering
@@ -427,7 +394,7 @@ SENTINEL adapts to user journaling cadence (e.g.\ power user, frequent, weekly, 
 \hline
 \textbf{Seeking Type} & \textbf{User Intent} & \textbf{Response Calibration} \\
 \hline
-Validation & ``Am I right to feel this way?'' & Affirm, normalize, validate — no analysis \\
+Validation & ``Am I right to feel this way?'' & Affirm, normalize, validate --- no analysis \\
 \hline
 Exploration & ``Help me think through this'' & Deepening questions, pattern surfacing \\
 \hline
@@ -441,104 +408,100 @@ Reflection & Processing/venting & Hold space, brief acknowledgments, no solution
 
 \newpage
 
-\section{CHRONICLE: The Memory, Synthesis \& Vector Layer}
+\section{Memory Layer: Longitudinal Biography \& Vector Storage}
 
-Most AI systems treat memory as a technical utility. But human memory isn't transactional — it's transformational. CHRONICLE redefines memory as a narrative function.
+Most AI systems treat memory as a technical utility. But human memory is not transactional --- it is transformational. The Chronicle Framework redefines memory as a biographical function.
 
-\subsection{Architecture}
+\subsection{Hierarchical Temporal Architecture}
 
 \begin{itemize}[leftmargin=*]
-    \item \textbf{Layer 0 (Raw Events)} — Recent entries with full PRISM analysis (30--90 days); feeds context selection for the LUMARA assistant.
-    \item \textbf{Layer 1 (Monthly)} — Pattern-extracted summaries with phase distribution.
-    \item \textbf{Layer 2 (Yearly)} — Developmental arc synthesis identifying life chapters.
-    \item \textbf{Layer 3 (Multi-Year)} — Biographical essence capturing meta-patterns.
+    \item \textbf{Layer 0 (Raw Events)} --- Recent entries with full analysis (30--90 days); feeds context selection for the AI assistant.
+    \item \textbf{Layer 1 (Monthly)} --- Pattern-extracted summaries with phase distribution.
+    \item \textbf{Layer 2 (Yearly)} --- Developmental arc synthesis identifying life chapters.
+    \item \textbf{Layer 3 (Multi-Year)} --- Biographical essence capturing meta-patterns.
 \end{itemize}
 
-This hierarchical structure (VEIL: Examine $\rightarrow$ Integrate $\rightarrow$ Link) achieves 50--75\% compression at each layer while preserving biographical intelligence, enabling LUMARA to understand not just \textit{what you said} but \textit{who you were, who you are, and who you're becoming}.
+This hierarchical structure achieves 50--75\% compression at each layer while preserving biographical intelligence, enabling LUMARA to understand not just \textit{what you said} but \textit{who you were, who you are, and who you're becoming}.
 
 \subsection{Vector Generation (On-Device)}
 
-CHRONICLE includes \textbf{on-device vector generation} for semantic matching and cross-temporal pattern indexing: dominant themes from temporal aggregation are embedded locally, stored in a persistent index, and queried via a multi-stage retrieval strategy (exact match, similarity search, fallback) so that cross-year pattern questions can be answered without reprocessing raw history. \textit{Implementation details (embedding model, index construction, retrieval pipeline) are documented in the appendix.}
+The memory layer includes \textbf{on-device vector generation} for semantic matching and cross-temporal pattern indexing: dominant themes from temporal aggregation are embedded locally, stored in a persistent index, and queried via a multi-stage retrieval strategy (exact match, similarity search, fallback) so that cross-year pattern questions can be answered without reprocessing raw history. \textit{Implementation details are in the appendix.}
 
 \subsection{Key Capabilities Enabled}
 
 \begin{itemize}[leftmargin=*]
-    \item \textbf{Longitudinal phase context} — ATLAS informed by years of personalized baselines
-    \item \textbf{Transition pattern learning} — RIVET validates against historical signatures
-    \item \textbf{Biographical persona adaptation} — LUMARA selects tone based on developmental trajectory
-    \item \textbf{Learned circadian intelligence} — AURORA discovers optimal journaling windows
+    \item \textbf{Longitudinal phase context} --- Phase detection informed by years of personalized baselines
+    \item \textbf{Transition pattern learning} --- Evidence gating validates against historical signatures
+    \item \textbf{Biographical persona adaptation} --- Tone selected based on developmental trajectory
+    \item \textbf{Learned circadian intelligence} --- Circadian layer discovers optimal journaling windows
 \end{itemize}
 
 \subsection{Secure Storage}
 
 \begin{itemize}[leftmargin=*]
-    \item \textbf{Local Storage} — On-device persistent store for journal and memory data
-    \item \textbf{Encryption} — Strong encryption for archive exports
-    \item \textbf{Verification} — Digital signatures for archive integrity
-    \item \textbf{Export/Import} — Standards-compliant formats for portability and backup
+    \item \textbf{Local Storage} --- On-device persistent store; raw data never leaves the device
+    \item \textbf{Encryption} --- Strong encryption for all stored data and archive exports
+    \item \textbf{Verification} --- Digital signatures for archive integrity
+    \item \textbf{Export/Import} --- Standards-compliant formats for portability and backup
 \end{itemize}
 
 \textit{Specific storage technology, algorithms, and format names are in the appendix.}
 
-\vspace{0.5cm}
+\section{Circadian Layer: Rhythm-Aware Orchestration}
 
-\noindent CHRONICLE is one of \textbf{three} LUMARA Orchestrator subsystems (ATLAS, CHRONICLE, AURORA); it supplies both recent context (Layer 0 + context selection) and longitudinal aggregations to the master prompt.
-
-\section{AURORA: The Circadian Orchestration Layer}
-
-Modern AI runs nonstop, but constant computation can generate spurious outputs. AURORA brings circadian intelligence to AI infrastructure — orchestrating computation as a breathing system.
+Modern AI runs nonstop, but constant computation can generate spurious outputs. The Chronicle Framework brings circadian intelligence to AI infrastructure --- orchestrating computation as a breathing system that mirrors human rhythms.
 
 \subsection{Key Components}
 
 \begin{itemize}[leftmargin=*]
-    \item \textbf{Circadian Scheduler} — Segments compute into time blocks
-    \item \textbf{Active Window Detection} — Identifies optimal reflection windows
-    \item \textbf{Sleep Protection Service} — Manages sleep and abstinence windows
-    \item \textbf{VEIL} — Restorative job cycles (Examine $\rightarrow$ Integrate $\rightarrow$ Link) integrated with CHRONICLE synthesis
-    \item \textbf{Adaptive Framework} — User-adaptive calibration based on journaling patterns
+    \item \textbf{Circadian Scheduler} --- Segments compute into time blocks aligned with human activity patterns
+    \item \textbf{Active Window Detection} --- Identifies optimal reflection windows
+    \item \textbf{Sleep Protection Service} --- Manages sleep and abstinence windows
+    \item \textbf{Restorative Job Cycles} --- Memory synthesis runs during low-activity periods
+    \item \textbf{Adaptive Calibration} --- User-adaptive adjustment based on journaling patterns
 \end{itemize}
 
-\section{Adaptive Framework: User-Adaptive Calibration}
+\section{Adaptive Calibration: User-Adaptive Parameter Adjustment}
 
-The Adaptive Framework represents EPI's capacity for user-adaptive calibration — automatically adjusting RIVET and SENTINEL parameters based on individual journaling patterns to ensure accurate phase detection regardless of usage frequency.
+The Adaptive Calibration system represents The Chronicle Framework's capacity for personalization --- automatically adjusting phase detection and safety monitoring parameters based on individual journaling patterns to ensure accuracy regardless of usage frequency.
 
 \subsection{Signal Integration}
 
 \begin{itemize}[leftmargin=*]
-    \item \textbf{Evidence Accumulation (RIVET)} — Tracks ALIGN and TRACE over configurable rolling windows
-    \item \textbf{Phase Detection (ATLAS)} — Identifies developmental state; calculates readiness scores on a normalized scale
-    \item \textbf{Keyword Trend Analysis (CHRONICLE)} — Extracts semantic patterns; vector-backed theme clustering
-    \item \textbf{Safety Monitoring (SENTINEL)} — Detects crisis signals requiring immediate escalation
+    \item \textbf{Evidence Accumulation} --- Tracks alignment and evidence dials over configurable rolling windows
+    \item \textbf{Phase Detection} --- Identifies developmental state; calculates readiness scores on a normalized scale
+    \item \textbf{Keyword Trend Analysis} --- Extracts semantic patterns; vector-backed theme clustering
+    \item \textbf{Safety Monitoring} --- Detects crisis signals requiring immediate escalation
 \end{itemize}
 
 \begin{center}
-\textit{The Adaptive Framework ensures the system evolves with you — calibrating to your unique journaling patterns through intelligent parameter adjustment.}
+\textit{Adaptive calibration ensures the system evolves with you --- adjusting to your unique patterns through intelligent parameter management.}
 \end{center}
 
 \newpage
 
-\section{ECHO: Response Control \& Safety}
+\section{Response Layer: Privacy-Preserving AI Integration}
 
-ECHO is the response layer of EPI. It represents the voice of LUMARA — producing safe, phase-aware, and coherent responses that reflect the user's narrative state.
+The Response Layer produces safe, phase-aware, and coherent responses that reflect the user's developmental state and biographical context.
 
 \subsection{Design Principles}
 
 \begin{itemize}[leftmargin=*]
-    \item \textbf{Expressive yet bounded} — Responses reflect emotional arc while preserving dignity
-    \item \textbf{Contextual grounding} — Every output tied to CHRONICLE memory retrievals
-    \item \textbf{Heuristic stability} — Coherence checks prevent contradictions
-    \item \textbf{Safety externalization} — Guardrails live outside the model
+    \item \textbf{Expressive yet bounded} --- Responses reflect emotional arc while preserving dignity
+    \item \textbf{Contextual grounding} --- Every output tied to memory layer retrievals
+    \item \textbf{Heuristic stability} --- Coherence checks prevent contradictions
+    \item \textbf{Safety externalization} --- Guardrails live outside the model
 \end{itemize}
 
 \subsection{Privacy Protection Pipeline}
 
 \begin{itemize}[leftmargin=*]
-    \item \textbf{Rotating Aliases} — Session-specific identifiers so the same entity is not linkable across sessions
-    \item \textbf{Session Rotation} — Identifiers rotate per session to prevent linkage
-    \item \textbf{Structured Payloads} — Abstracted representations (not verbatim text) sent to external models
+    \item \textbf{Rotating Aliases} --- Session-specific identifiers prevent cross-session linkage
+    \item \textbf{Session Rotation} --- Identifiers rotate per session to prevent linkage
+    \item \textbf{Structured Payloads} --- Abstracted representations (not verbatim text) sent to external models
 \end{itemize}
 
-\subsection{Three-Tier Voice Engagement System}
+\subsection{Three-Tier Engagement System}
 
 \begin{table}[h]
 \centering
@@ -553,65 +516,138 @@ ECHO is the response layer of EPI. It represents the voice of LUMARA — produci
 \textbf{Integrate} & Synthesis requests & Cross-domain synthesis; longer \\
 \hline
 \end{tabularx}
-\caption{Three-Tier Voice Engagement System}
+\caption{Three-Tier Engagement System}
 \end{table}
 
-\noindent Trigger examples and response length bounds are configurable. \textit{Defaults (keywords, word limits) are in the appendix.}
+\noindent Trigger examples and response length bounds are configurable. \textit{Defaults are in the appendix.}
 
 \subsubsection*{Temporal Query Routing:}
 
-Questions about past time periods route to Explore with full memory retrieval. Pipeline: user speaks $\rightarrow$ PRISM scrubs PII on-device $\rightarrow$ depth classified (Reflect/Explore/Integrate) $\rightarrow$ seeking classified $\rightarrow$ phase prompt selected $\rightarrow$ LUMARA responds with calibrated tone, length, and style.
+Questions about past time periods route to Explore with full memory retrieval. Pipeline: user input $\rightarrow$ PII scrubbed on-device $\rightarrow$ depth classified (Reflect/Explore/Integrate) $\rightarrow$ seeking classified $\rightarrow$ phase prompt selected $\rightarrow$ LUMARA responds with calibrated tone, length, and style.
 
-\section{LUMARA: The Adaptive Intelligence Assistant}
+\section{Agentic Orchestration}
 
-\textbf{LUMARA} — Life-aware Unified Memory And Reflection Assistant — is the AI companion within the LUMARA app: dual-mode evolving intelligence capable of both deep reflection and meaningful execution.
+The Chronicle Framework extends beyond conversational assistance into 
+purposeful action. When the user's developmental phase and biographical 
+context indicate readiness, the system can invoke specialized agents 
+to help translate insight into execution.
 
-\subsection{The Problem with Generic AI}
+\subsection{Orchestration Architecture}
 
-Every AI treats you the same way regardless of what you're going through. Whether you're healing from loss or pushing toward a breakthrough, you get the same generic response.
+The Chronicle Framework acts as the orchestration layer — coordinating 
+agents using the same biographical context, phase awareness, and privacy 
+architecture that governs all interactions. Agents operate as specialized 
+extensions of the system, not autonomous entities.
 
-\subsubsection*{EPI's Solution:}
+Key properties of Chronicle-orchestrated agents:
 
-LUMARA detects your current life phase and automatically adapts its persona — tone, challenge level, pacing — to match what you actually need right now.
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Phase-gated invocation} --- Agents are engaged based 
+    on developmental readiness, not just user request. A user in Recovery 
+    phase receives containment, not action prompts.
+    \item \textbf{Biographical grounding} --- Agent outputs are conditioned 
+    on longitudinal context. A writing agent produces content in the user's 
+    voice, grounded in their actual patterns and timeline.
+    \item \textbf{Privacy preservation} --- All agent tasks route through 
+    the privacy layer. Biographical context is depersonalized before 
+    external queries; results are reconstituted with actual identity on-device.
+    \item \textbf{LUMARA as orchestrator} --- Agents are tools invoked 
+    by the system, not autonomous actors. The Chronicle Framework maintains 
+    control of context, sequencing, and output integration.
+\end{itemize}
 
-\subsection{The Four Personas}
+\subsection{Agent Types}
 
-\begin{table}[h]
+\begin{table}[H]
+\centering
+\small
+\begin{tabularx}{\textwidth}{|l|X|X|}
+\hline
+\textbf{Agent Type} & \textbf{Function} & \textbf{Chronicle Grounding} \\
+\hline
+Writing & Content generation in user's voice & Voice patterns, timeline themes, current phase \\
+\hline
+Research & Deep research with cited sources & Focus areas, active projects, longitudinal context \\
+\hline
+Planning & Goal decomposition and sequencing & Phase readiness, historical patterns, capacity signals \\
+\hline
+Domain-Specific & Vertically specialized agents & Full biographical context via orchestration layer \\
+\hline
+\end{tabularx}
+\caption{Chronicle Framework Agent Types}
+\end{table}
+
+\subsection{Phase-Gated Execution}
+
+Agent engagement is governed by the same phase detection system that 
+calibrates conversational responses:
+
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Recovery} --- Agents suppressed. System prioritizes 
+    containment over execution.
+    \item \textbf{Transition} --- Agents available on explicit request only. 
+    System does not proactively suggest action.
+    \item \textbf{Discovery / Consolidation} --- Research agent available. 
+    Writing agent available for reflective content.
+    \item \textbf{Expansion / Breakthrough} --- Full agent orchestration 
+    engaged. System proactively surfaces agent capabilities aligned with 
+    momentum.
+\end{itemize}
+
+\subsection{Defense and Enterprise Applications}
+
+The agentic orchestration layer has direct application in high-stakes 
+operational environments. Phase-gated execution ensures agents are invoked 
+only when the individual's readiness state supports effective action --- 
+a critical property in contexts where poor timing of task execution carries 
+significant consequence. Biographical context grounding ensures agent 
+outputs are calibrated to the individual's specific history, patterns, 
+and current operational state rather than generic population baselines.
+
+\section{Phase-Adaptive Intelligence: The Core Differentiator}
+
+Every AI treats you the same way regardless of what you're going through. Whether you're healing from loss or pushing toward a breakthrough, generic AI delivers generic responses. The Chronicle Framework changes this fundamentally.
+
+\subsection{The Four Adaptive Personas}
+
+The Chronicle Framework selects from four personas based on the user's current phase and readiness score. Each persona represents a distinct balance of warmth and challenge calibrated to what the user actually needs at that moment in their arc.
+
+\begin{table}[H]
 \centering
 \begin{tabular}{|c|c|c|c|}
 \hline
-\textbf{Therapist} & \textbf{Companion} & \textbf{Strategist} & \textbf{Challenger} \\
+\textbf{Companion} & \textbf{Grounded} & \textbf{Strategist} & \textbf{Challenger} \\
 \hline
 Very high warmth & High warmth & Low warmth & Moderate warmth \\
 Very low challenge & Low challenge & High rigor & Very high challenge \\
 \textit{Maximum safety} & \textit{Gentle support} & \textit{Pattern analysis} & \textit{Accountability} \\
 \hline
 \end{tabular}
-\caption{The Four Personas}
+\caption{The Four Adaptive Personas}
 \end{table}
 
-\subsection{Phase-to-Persona Mapping}
+Phase and readiness score together determine which persona is active at any given time:
 
-\begin{table}[h]
+\begin{table}[H]
 \centering
 \small
 \begin{tabularx}{\textwidth}{|l|c|l|X|}
 \hline
 \textbf{Phase} & \textbf{Readiness} & \textbf{Persona} & \textbf{Characteristics} \\
 \hline
-Recovery & $< 40$ & Therapist & Very high warmth, therapeutic support \\
+Recovery & $< 40$ & Companion & Very high warmth, therapeutic support \\
 \hline
-Recovery & $\geq 40$ & Companion & High warmth, gentle support \\
+Recovery & $\geq 40$ & Grounded & High warmth, gentle support \\
 \hline
 Discovery & $\geq 70$ & Strategist & Analytical guidance, pattern recognition \\
 \hline
-Discovery & 40--69 & Companion & Supportive exploration \\
+Discovery & 40--69 & Grounded & Supportive exploration \\
 \hline
 Expansion & $\geq 60$ & Challenger & Push growth, capitalize on momentum \\
 \hline
-Transition & $< 40$ & Therapist & Grounding in uncertainty \\
+Transition & $< 40$ & Companion & Grounding in uncertainty \\
 \hline
-Transition & $\geq 40$ & Companion & Navigate ambiguity \\
+Transition & $\geq 40$ & Grounded & Navigate ambiguity \\
 \hline
 Breakthrough & $\geq 60$ & Challenger & Growth-oriented challenge \\
 \hline
@@ -621,13 +657,9 @@ Consolidation & $\geq 50$ & Strategist & Analytical integration \\
 \caption{Phase-to-Persona Mapping}
 \end{table}
 
-\textit{Readiness is on a normalized scale; threshold values for this mapping are in the appendix. Safety sentinel alerts always override to Therapist persona.}
+\textit{Readiness is on a normalized scale; threshold values are in the appendix. Safety alerts always override to Companion persona.}
 
-\subsection{Phase-Specific Voice Prompts}
-
-Voice mode uses targeted prompts tailored to each ATLAS phase: phase-appropriate tone, capacity-adjusted response length, and explicit good/bad response examples. \textit{Prompt scope and length parameters are in the appendix.}
-
-\subsubsection*{Same Question, Different Phases}
+\subsection{Same Question, Different Phases}
 
 \textbf{User says:} \textit{``I want to push forward with my goals.''}
 
@@ -636,39 +668,41 @@ Voice mode uses targeted prompts tailored to each ATLAS phase: phase-appropriate
 \small
 \begin{tabularx}{\textwidth}{|X|X|}
 \hline
-\textbf{Recovery Phase + Low Readiness} \newline \textit{Therapist} & \textbf{Breakthrough Phase + High Readiness} \newline \textit{Challenger} \\
+\textbf{Recovery Phase + Low Readiness} \newline \textit{Companion Persona} & \textbf{Breakthrough Phase + High Readiness} \newline \textit{Challenger Persona} \\
 \hline
-\textit{``I hear that you want to move forward. Before we go there, I'd like to understand what's been weighing on you lately. What feels most important to honor right now — even if it means going slowly?''} & \textit{``You say you want to push forward. What's actually stopping you? Name the one thing you've been avoiding. Let's tackle that first.''} \\
+\textit{``I hear that you want to move forward. Before we go there, I'd like to understand what's been weighing on you lately. What feels most important to honor right now --- even if it means going slowly?''} & \textit{``You say you want to push forward. What's actually stopping you? Name the one thing you've been avoiding. Let's tackle that first.''} \\
 \hline
 \end{tabularx}
 \end{table}
 
 \vspace{0.3cm}
 
-\noindent \textbf{This is the core differentiator:} the same question receives fundamentally different responses based on where the user is in their developmental journey.
+\noindent \textbf{This is the core differentiator:} the same question receives fundamentally different responses based on where the user is in their developmental journey. Not one-size-fits-all. Trajectory-conditioned.
 
 \newpage
 
-\section{EPI vs.\ Traditional LLMs}
+\section{The Chronicle Framework vs.\ Traditional LLMs}
 
 \begin{table}[h]
 \centering
 \begin{tabularx}{\textwidth}{|l|X|X|}
 \hline
-\textbf{Feature} & \textbf{LLM Chatbots} & \textbf{EPI} \\
+\textbf{Feature} & \textbf{LLM Chatbots} & \textbf{The Chronicle Framework} \\
 \hline
-\textbf{Memory} & Stateless or session-bound & Persistent semantic life-memory (CHRONICLE) \\
+\textbf{Memory} & Stateless or session-bound & Persistent biographical life-memory across years \\
 \hline
-\textbf{Privacy} & Cloud-based, server-dependent & PII-scrubbed, anonymized \\
+\textbf{Privacy} & Cloud-based, server-dependent & PII-scrubbed, on-device, architectural privacy \\
 \hline
-\textbf{Growth} & Static weights & Evolves through journaling \\
+\textbf{Growth} & Static, resets each session & Evolves through longitudinal journaling \\
 \hline
-\textbf{Awareness} & No sense of time & Circadian and phase-aware \\
+\textbf{Awareness} & No sense of time or trajectory & Circadian and phase-aware \\
 \hline
-\textbf{Personalization} & Minimal or task-bound & Deep, evolving identity mirror \\
+\textbf{Personalization} & Minimal or task-bound & Deep, evolving biographical intelligence \\
+\hline
+\textbf{Context} & Weeks at best & Years across all modalities \\
 \hline
 \end{tabularx}
-\caption{EPI vs.\ Traditional LLMs}
+\caption{The Chronicle Framework vs.\ Traditional LLMs}
 \end{table}
 
 \section{Ethical Framework and Safeguards}
@@ -680,33 +714,24 @@ Voice mode uses targeted prompts tailored to each ATLAS phase: phase-appropriate
 \subsection{Emotional Dignity and Memory Sovereignty}
 
 \begin{itemize}[leftmargin=*]
-    \item CHRONICLE treats memory as sacred
-    \item Users can redact, revise, and reframe
+    \item The memory layer treats biographical data as sacred
+    \item Users can redact, revise, and reframe at any time
     \item No memory is immutable
     \item The system never owns your story; it reflects it
+    \item Complete data export available at any time --- your data leaves with you
 \end{itemize}
 
 \subsection{Reflection Without Manipulation}
 
-LUMARA is a space for self-expression, not surveillance. Entries are never scored or mined for prediction. Prompts are invitations, not nudges.
+LUMARA is a space for self-expression, not surveillance. Entries are never scored or mined for prediction. Prompts are invitations, not nudges. The Chronicle Framework is designed to push users toward life, not toward continued engagement.
 
 \begin{center}
-\textit{We don't just want AI that won't hurt us. We want AI that helps us heal.}
+\textit{We don't just want AI that won't hurt us. We want AI that helps us grow.}
 \end{center}
-
-\section{The Road Ahead}
-
-\subsection{Go-to-Market Strategy}
-
-\begin{enumerate}
-    \item \textbf{Phase 1 — LUMARA Launch:} Standalone journaling with SAGE framework. Immediate utility, low friction.
-    \item \textbf{Phase 2 — Vertical Penetration:} Military readiness (GHOST), coaching/therapy integration, enterprise wellness.
-    \item \textbf{Phase 3 — Consumer Expansion:} Full LUMARA with persona adaptation for mainstream adoption.
-\end{enumerate}
 
 \subsection{The Long Arc: A Companion for a Lifetime}
 
-EPI isn't designed to be replaced at every upgrade. It's built to walk with you — across transitions, recoveries, consolidations, and breakthroughs. It becomes:
+The Chronicle Framework is not designed to be replaced at every upgrade cycle. It is built to walk with the user --- across transitions, recoveries, consolidations, and breakthroughs. Because it accumulates biographical intelligence over time, it becomes:
 
 \begin{itemize}[leftmargin=*]
     \item A mirror of meaning
@@ -714,22 +739,15 @@ EPI isn't designed to be replaced at every upgrade. It's built to walk with you 
     \item A guide toward inner alignment
 \end{itemize}
 
-And because it remembers \textit{with} you, not \textit{for} you — it earns trust.
+And because it remembers \textit{with} you, not \textit{for} you --- it earns trust.
 
 \vspace{0.5cm}
-
-\begin{center}
-\Large
-\textbf{The age of impersonal AI is passing.}
-
-\textbf{The era of Narrative Intelligence begins now.}
-\end{center}
 
 \vspace{1cm}
 
 \section*{License Disclosure}
 
-This white paper \textit{Narrative Intelligence: A Framework for Lifelong, Evolving Intelligence Systems} is \copyright{} 2025 Marc Yap and is licensed under the Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International (CC BY-NC-ND 4.0).
+This white paper \textit{The Chronicle Framework: Phase-Aware AI Across the Human Lifespan} is \copyright{} 2026 Marc Yap and is licensed under the Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International (CC BY-NC-ND 4.0).
 
 You are permitted to copy, distribute, and publicly share this document for non-commercial use, provided that proper credit is given and the content is not modified in any way.
 
@@ -741,7 +759,7 @@ Contact: \href{mailto:marc@orbitalai.net}{marc@orbitalai.net}
 
 \begin{center}
 \small
-\textit{Architecture: five modules (LUMARA interface, PRISM, CHRONICLE, AURORA, ECHO); ATLAS (Developmental Phase Engine, RIVET, SENTINEL) within PRISM; LUMARA Orchestrator coordinates ATLAS, CHRONICLE, AURORA; CHRONICLE provides memory and vector generation. Implementation details are in the appendix.}
+\textit{The Chronicle Framework: five architectural layers (Interface, Perception, Memory, Circadian, Response) coordinated by an Orchestration Engine. Consumer product: LUMARA --- AI that knows you across time. Implementation details are in the appendix.}
 \end{center}
 
 \end{document}

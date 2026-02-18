@@ -29,6 +29,7 @@ class DraftComposer {
     required WritingTimelineContext timelineContext,
     String? systemPromptPrefix,
     String? draftsAndArchiveSnippet,
+    String? customContentTypeDescription,
   }) async {
     final systemPrompt = _buildSystemPromptFromTemplate(
       prompt: prompt,
@@ -37,6 +38,7 @@ class DraftComposer {
       type: type,
       timelineContext: timelineContext,
       systemPromptPrefix: systemPromptPrefix,
+      customContentTypeDescription: customContentTypeDescription,
     );
     int maxTokens = 800;
     switch (type) {
@@ -47,6 +49,9 @@ class DraftComposer {
         maxTokens = 2500;
         break;
       case ContentType.technical:
+        maxTokens = 2000;
+        break;
+      case ContentType.custom:
         maxTokens = 2000;
         break;
     }
@@ -79,6 +84,7 @@ class DraftComposer {
     required ContentType type,
     required WritingTimelineContext timelineContext,
     String? systemPromptPrefix,
+    String? customContentTypeDescription,
   }) {
     final voicePatterns = _formatVoicePatterns(voice);
     final syntaxPatterns = voice.sentenceLength.description;
@@ -91,9 +97,9 @@ class DraftComposer {
         'Vulnerability ${tone.vulnerability.toStringAsFixed(2)}. '
         'CTA: ${tone.callToAction.description}.';
 
-    final platformGuidance = _getContentTypeGuidance(type);
-    final contentTypeLabel = _contentTypeLabel(type);
-    final platformLabel = _platformLabel(type);
+    final platformGuidance = _getContentTypeGuidance(type, customContentTypeDescription);
+    final contentTypeLabel = _contentTypeLabel(type, customContentTypeDescription);
+    final platformLabel = _platformLabel(type, customContentTypeDescription);
 
     final avgSentenceLength = voice.sentenceLength.averageLength > 0
         ? '${voice.sentenceLength.averageLength.toStringAsFixed(0)} words'
@@ -147,7 +153,7 @@ class DraftComposer {
     return parts.join('\n');
   }
 
-  String _contentTypeLabel(ContentType type) {
+  String _contentTypeLabel(ContentType type, [String? customDescription]) {
     switch (type) {
       case ContentType.linkedIn:
         return 'LinkedIn';
@@ -155,10 +161,14 @@ class DraftComposer {
         return 'Substack';
       case ContentType.technical:
         return 'Technical';
+      case ContentType.custom:
+        return customDescription?.trim().isNotEmpty == true
+            ? customDescription!
+            : 'Custom (user-specified)';
     }
   }
 
-  String _platformLabel(ContentType type) {
+  String _platformLabel(ContentType type, [String? customDescription]) {
     switch (type) {
       case ContentType.linkedIn:
         return 'LinkedIn';
@@ -166,10 +176,14 @@ class DraftComposer {
         return 'Substack';
       case ContentType.technical:
         return 'Technical docs';
+      case ContentType.custom:
+        return customDescription?.trim().isNotEmpty == true
+            ? customDescription!
+            : 'User-specified format';
     }
   }
 
-  String _getContentTypeGuidance(ContentType type) {
+  String _getContentTypeGuidance(ContentType type, [String? customDescription]) {
     switch (type) {
       case ContentType.linkedIn:
         return 'Length: 200-400 words. Structure: Hook → insight/story → takeaway. '
@@ -183,6 +197,10 @@ class DraftComposer {
         return 'Length: typically 500-2000 words. Structure: Overview → details → examples → summary. '
             'Tone: Clear, precise, authoritative but not sterile. '
             'Technical accuracy paramount. Clear explanations with examples. Avoid marketing speak.';
+      case ContentType.custom:
+        return customDescription?.trim().isNotEmpty == true
+            ? 'User-specified format and requirements: $customDescription'
+            : 'Follow the user\'s prompt for format, length, and tone.';
     }
   }
 

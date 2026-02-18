@@ -16,6 +16,7 @@
 ## Recent prompt-related changes
 
 | Date | Change | Source / doc |
+| 2026-02-17 | Doc sync v3.3.41: Dual CHRONICLE, Writing with LUMARA, timeline/feed; bug_tracker tracked | CONFIGURATION_MANAGEMENT.md |
 | 2026-02-16 | Doc sync v3.3.40: PROMPT_REFERENCES updated; agent_operating_system_prompt, lumara_intent_classifier, orchestration; bug_tracker tracked | CONFIGURATION_MANAGEMENT.md |
 | 2026-02-15 | Doc sync v3.3.39: Research/writing prompts expansion (research_prompts, writing_prompts); screen/tab refinements; prompt audit (no new files, content expanded); bug_tracker tracked | CONFIGURATION_MANAGEMENT.md |
 | 2026-02-15 | Doc sync v3.3.38: Writing drafts/research storage, archive/delete, ARCX agents export/import; prompt audit (no new prompts); bug_tracker tracked | CONFIGURATION_MANAGEMENT.md |

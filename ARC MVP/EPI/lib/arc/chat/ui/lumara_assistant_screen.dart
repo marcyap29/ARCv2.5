@@ -13,7 +13,7 @@ import 'lumara_quick_palette.dart';
 import 'lumara_settings_screen.dart';
 import 'writing_screen.dart';
 import 'research_screen.dart';
-import 'chat_draft_viewer_screen.dart';
+import 'package:my_app/ui/journal/journal_screen.dart';
 import 'package:my_app/lumara/agents/screens/research_report_detail_screen.dart';
 import 'package:my_app/lumara/agents/models/research_models.dart' as agents_research;
 import 'package:my_app/lumara/orchestrator/lumara_chat_orchestrator.dart';
@@ -1723,10 +1723,20 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
       children.add(
         ElevatedButton.icon(
           onPressed: () {
+            final content = ChatDraftCache.instance.get(draftId);
+            if (content == null) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Draft no longer available. Create a new one from LUMARA.')),
+              );
+              return;
+            }
             Navigator.push(
               context,
               MaterialPageRoute<void>(
-                builder: (context) => ChatDraftViewerScreen(draftId: draftId),
+                builder: (context) => JournalScreen(
+                  initialContent: content.draft.content,
+                  isViewOnly: false,
+                ),
               ),
             );
           },

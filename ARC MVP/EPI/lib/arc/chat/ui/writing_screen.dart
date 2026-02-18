@@ -7,11 +7,15 @@ import 'package:my_app/lumara/agents/writing/writing_agent.dart';
 import 'package:my_app/lumara/agents/writing/writing_draft_repository.dart';
 import 'package:my_app/lumara/agents/writing/writing_models.dart';
 import 'package:my_app/services/firebase_auth_service.dart';
+import 'package:my_app/lumara/agents/models/research_models.dart';
 
 /// Dedicated screen for the LUMARA Writing Agent.
 /// User enters a prompt and content type, then sees the generated draft and optional scores.
+/// [initialPrompt] pre-fills "What should we write about?" (e.g. from research report).
 class WritingScreen extends StatefulWidget {
-  const WritingScreen({super.key});
+  const WritingScreen({super.key, this.initialPrompt});
+
+  final String? initialPrompt;
 
   @override
   State<WritingScreen> createState() => _WritingScreenState();
@@ -19,6 +23,7 @@ class WritingScreen extends StatefulWidget {
 
 class _WritingScreenState extends State<WritingScreen> {
   final TextEditingController _promptController = TextEditingController();
+  final TextEditingController _customContentTypeController = TextEditingController();
   ContentType _contentType = ContentType.linkedIn;
   Draft? _draft;
   double? _voiceScore;
@@ -28,8 +33,50 @@ class _WritingScreenState extends State<WritingScreen> {
   String? _error;
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _applyInitialPrompt());
+  }
+
+  void _applyInitialPrompt() {
+    if (!mounted) return;
+    final args = ModalRoute.of(context)?.settings.arguments;
+    String? prompt;
+    if (widget.initialPrompt != null && widget.initialPrompt!.trim().isNotEmpty) {
+      prompt = widget.initialPrompt;
+    } else if (args is Map<String, dynamic>) {
+      if (args['initialPrompt'] is String) {
+        prompt = args['initialPrompt'] as String;
+      } else if (args['researchContext'] != null) {
+        final report = args['researchContext'];
+        if (report is ResearchReport) {
+          final buf = StringBuffer();
+          buf.writeln('# Research: ${report.query}');
+          buf.writeln();
+          buf.writeln(report.summary);
+          if (report.keyInsights.isNotEmpty) {
+            buf.writeln();
+            buf.writeln('Key insights:');
+            for (final i in report.keyInsights) {
+              buf.writeln('- ${i.statement}');
+            }
+          }
+          buf.writeln();
+          buf.writeln(report.detailedFindings);
+          prompt = buf.toString();
+        }
+      }
+    }
+    if (prompt != null && _promptController.text.trim().isEmpty) {
+      _promptController.text = prompt;
+      setState(() {});
+    }
+  }
+
+  @override
   void dispose() {
     _promptController.dispose();
+    _customContentTypeController.dispose();
     super.dispose();
   }
 
@@ -62,10 +109,14 @@ class _WritingScreenState extends State<WritingScreen> {
           );
         },
       );
+      final customDesc = _contentType == ContentType.custom
+          ? _customContentTypeController.text.trim()
+          : null;
       final composed = await agent.composeContent(
         userId: userId,
         prompt: prompt,
         type: _contentType,
+        customContentTypeDescription: customDesc?.isEmpty == true ? null : customDesc,
         maxCritiqueIterations: 2,
       );
       if (mounted) {
@@ -144,9 +195,26 @@ class _WritingScreenState extends State<WritingScreen> {
                 DropdownMenuItem(value: ContentType.linkedIn, child: Text('LinkedIn post')),
                 DropdownMenuItem(value: ContentType.substack, child: Text('Substack article')),
                 DropdownMenuItem(value: ContentType.technical, child: Text('Technical doc')),
+                DropdownMenuItem(
+                  value: ContentType.custom,
+                  child: Text('Fill in what you specifically want'),
+                ),
               ],
               onChanged: (v) => setState(() => _contentType = v ?? ContentType.linkedIn),
             ),
+            if (_contentType == ContentType.custom) ...[
+              const Gap(12),
+              TextField(
+                controller: _customContentTypeController,
+                decoration: const InputDecoration(
+                  labelText: 'Describe format and requirements',
+                  hintText: 'e.g. 500-word blog post, Twitter thread, email newsletter',
+                  border: OutlineInputBorder(),
+                  alignLabelWithHint: true,
+                ),
+                maxLines: 2,
+              ),
+            ],
             const Gap(24),
             FilledButton(
               onPressed: _loading ? null : _generate,

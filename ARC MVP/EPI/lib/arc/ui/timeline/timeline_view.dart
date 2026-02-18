@@ -57,6 +57,10 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
   bool _showScrollToTop = false;
   bool _showScrollToBottom = false;
 
+  // View: group by format (Writing, Research, Chat, Voice, Journal) with collapsible sections
+  bool _groupByFormat = false;
+  Set<String> _collapsedFormats = {};
+
   @override
   void initState() {
     super.initState();
@@ -635,6 +639,17 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
                       key: _timelineViewKey,
                       scrollController: _scrollController,
                       showArcformPreview: !_isArcformTimelineVisible && !_isSelectionMode,
+                      groupByFormat: _groupByFormat,
+                      collapsedFormats: _collapsedFormats,
+                      onToggleFormatSection: (formatKey) {
+                        setState(() {
+                          if (_collapsedFormats.contains(formatKey)) {
+                            _collapsedFormats = Set.from(_collapsedFormats)..remove(formatKey);
+                          } else {
+                            _collapsedFormats = Set.from(_collapsedFormats)..add(formatKey);
+                          }
+                        });
+                      },
                       onJumpToDate: _showJumpToDateDialog,
                       onRequestPreserveScrollPosition: _preserveScrollPosition,
                       onSelectionChanged: (isSelectionMode, selectedCount, totalEntries) {
@@ -821,6 +836,12 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
               }
                       });
                       break;
+                    case 'group_by_format':
+                      setState(() {
+                        _groupByFormat = !_groupByFormat;
+                        if (!_groupByFormat) _collapsedFormats = {};
+                      });
+                      break;
                     case 'favorites':
                       Navigator.push(
                         context,
@@ -866,6 +887,19 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
                         ),
                         const SizedBox(width: 12),
                         Text(_isSearchExpanded ? 'Hide Search' : 'Search Entries'),
+                      ],
+                    ),
+                  ),
+                  PopupMenuItem<String>(
+                    value: 'group_by_format',
+                    child: Row(
+                      children: [
+                        Icon(
+                          _groupByFormat ? Icons.view_stream : Icons.view_list,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 12),
+                        Text(_groupByFormat ? 'Chronological view' : 'Group by format'),
                       ],
                     ),
                   ),

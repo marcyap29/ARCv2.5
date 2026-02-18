@@ -124,8 +124,9 @@ This section is derived from the repo and [CHANGELOG.md](../CHANGELOG.md) to kee
 | Writing drafts storage, research persistence, archive/delete, ARCX agents | v3.3.38 | — | WritingDraftRepository (list/archive/delete); ResearchArtifactRepository JSON persist; Agents tab Active/Archived; ARCX export/import extensions/agents. |
 | Research/writing prompts expansion, screen and tab refinements | v3.3.39 | — | research_prompts.dart, writing_prompts.dart extended; research_screen, writing_screen, research_agent_tab, lumara_assistant_cubit, agents_screen. |
 | Agents expansion, Narrative Intelligence .tex, chats/settings, orchestration | v3.3.40 | — | agents_screen major; saved_chats_screen, lumara_settings_screen; arc/agents/drafts, agent_operating_system_prompt, lumara_intent_classifier, orchestration_violation_checker; DOCS .md→.tex. |
+| Dual CHRONICLE, Writing with LUMARA, timeline/feed, white paper .tex | v3.3.41 | — | lib/chronicle/dual/, dual_chronicle_view; LUMARA_DUAL_CHRONICLE_* docs; writing_with_lumara_screen; chat_draft_viewer_screen removed; timeline/feed/settings/journal updates. |
 
-**Source:** `git log --oneline`, [CHANGELOG.md](../CHANGELOG.md), terminal build log. Last synced: 2026-02-16.
+**Source:** `git log --oneline`, [CHANGELOG.md](../CHANGELOG.md), terminal build log. Last synced: 2026-02-17.
 
 ---
 
@@ -139,5 +140,5 @@ Individual bug records stay in [records/](records/); only the legacy multi-part 
 
 ---
 
-**Status**: ✅ Active - All resolved issues documented; Build & Platform: 5 records; Environment: 1 (Ollama). Doc sync v3.3.40: bug_tracker tracked.  
-**Last Updated**: 2026-02-16
+**Status**: ✅ Active - All resolved issues documented; Build & Platform: 5 records; Environment: 1 (Ollama). Doc sync v3.3.41: bug_tracker tracked.  
+**Last Updated**: 2026-02-17

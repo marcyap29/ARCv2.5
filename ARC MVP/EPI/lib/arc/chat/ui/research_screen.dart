@@ -136,7 +136,7 @@ class _ResearchScreenState extends State<ResearchScreen> {
               );
             },
             icon: const Icon(Icons.folder_open, size: 20),
-            label: const Text('My reports'),
+            label: const Text('My Research'),
           ),
         ],
       ),

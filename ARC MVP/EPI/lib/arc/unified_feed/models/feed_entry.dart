@@ -24,6 +24,9 @@ enum FeedEntryType {
 
   /// LUMARA-initiated observation, prompt, or check-in
   lumaraInitiative,
+
+  /// Research report from the LUMARA Research Agent
+  researchReport,
 }
 
 /// A single message within a conversation-type feed entry.
@@ -190,6 +193,8 @@ class FeedEntry {
         return 'Reflection';
       case FeedEntryType.lumaraInitiative:
         return 'LUMARA';
+      case FeedEntryType.researchReport:
+        return 'Research';
     }
   }
 

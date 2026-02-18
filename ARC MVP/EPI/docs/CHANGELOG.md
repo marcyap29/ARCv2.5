@@ -1,7 +1,7 @@
 # EPI LUMARA MVP - Changelog
 
-**Version:** 3.3.40
-**Last Updated:** February 16, 2026
+**Version:** 3.3.41
+**Last Updated:** February 17, 2026
 
 ---
 
@@ -14,6 +14,21 @@ This changelog has been split into parts for easier navigation:
 | **[CHANGELOG_part1.md](CHANGELOG_part1.md)** | Dec 2025 | v2.1.43 - v2.1.87 (Current) |
 | **[CHANGELOG_part2.md](CHANGELOG_part2.md)** | Nov 2025 | v2.1.28 - v2.1.42 |
 | **[CHANGELOG_part3.md](CHANGELOG_part3.md)** | Jan-Oct 2025 | v2.0.0 - v2.1.27 & Earlier |
+
+---
+
+## [3.3.41] - February 17, 2026
+
+### Dual CHRONICLE, Writing with LUMARA screen, timeline/feed/settings, white paper .tex
+
+- **Dual CHRONICLE:** New `lib/chronicle/dual/` (chronicle_dual, intelligence, models, repositories, services, storage); new `lib/shared/ui/chronicle/dual_chronicle_view.dart`; new `test/chronicle/dual/sacred_separation_test.dart`. DOCS: LUMARA_DUAL_CHRONICLE_COMPLETE_GUIDE.md, LUMARA_DUAL_CHRONICLE_IMPLEMENTATION.md, LUMARA_DUAL_CHRONICLE_WHEN_TO_ACTIVATE.md.
+- **Writing with LUMARA:** New `writing_with_lumara_screen.dart`; `chat_draft_viewer_screen.dart` removed. Writing screen and writing agent/draft_composer/writing_models updates.
+- **Timeline:** `timeline_cubit.dart`, `timeline_entry_model.dart`, `timeline_view.dart`, `interactive_timeline_view.dart` extended (+185 net interactive_timeline_view).
+- **Unified feed:** `feed_entry.dart`, `feed_repository.dart`, `feed_helpers.dart`, `expanded_entry_view.dart`, `unified_feed_screen.dart` updates.
+- **Settings & journal:** `settings_view.dart`, `journal_screen.dart`; `lumara_assistant_screen.dart`, `research_screen.dart`, `writing_screen.dart`; `agents_screen.dart` minor.
+- **DOCS:** NARRATIVE_INTELLIGENCE_WHITE_PAPER.tex updated (content/restructure).
+
+**Files:** 21 modified, 1 deleted (chat_draft_viewer_screen); 3 new DOCS (LUMARA_DUAL_CHRONICLE_*); new lib/chronicle/dual/, dual_chronicle_view, writing_with_lumara_screen, test/chronicle/dual/. bug_tracker tracked.
 
 ---
 
@@ -93,7 +108,7 @@ This changelog has been split into parts for easier navigation:
 
 ### LUMARA agents, orchestrator, CHRONICLE alignment, and settings refactor
 
-- **LUMARA agents:** New `lib/lumara/agents/` — research agent (query planner, search orchestrator, synthesis engine, CHRONICLE cross-reference, citation manager, web search tool), writing subsystem, content drafts; screens: `agents_tab_view`, `research_screen`, `writing_screen`, `chat_draft_viewer_screen`; `chronicle_theme_ignore_list_storage`. Orchestrator: `lumara_chat_orchestrator`, `chat_intent_classifier`, `research_report_adapter`.
+- **LUMARA agents:** New `lib/lumara/agents/` — research agent (query planner, search orchestrator, synthesis engine, CHRONICLE cross-reference, citation manager, web search tool), writing subsystem, content drafts; screens: `agents_tab_view`, `research_screen`, `writing_screen`, `writing_with_lumara_screen`; `chronicle_theme_ignore_list_storage`. Orchestrator: `lumara_chat_orchestrator`, `chat_intent_classifier`, `research_report_adapter`.
 - **LUMARA chat/settings:** `lumara_assistant_cubit` (+169), `lumara_assistant_screen`, `enhanced_lumara_api`; `lumara_settings_screen` major simplification (~-900 lines). Wispr/transcription config tweaks.
 - **CHRONICLE:** `chronicle_index` (+38), `pattern_query_router`, `related_entries_service`, `aggregation_repository`, `layer0_repository`; `pattern_index_viewer` updates. Intent/orchestrator: `intent_type`, `command_parser`.
 - **Home/settings:** `home_view`, `settings_view` minor updates.

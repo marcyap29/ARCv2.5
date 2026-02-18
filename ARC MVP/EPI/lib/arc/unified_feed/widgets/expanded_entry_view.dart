@@ -305,6 +305,8 @@ class ExpandedEntryView extends StatelessWidget {
         return _buildWrittenContent(context, fullEntry, includeSummaryInContent);
       case FeedEntryType.lumaraInitiative:
         return _buildLumaraInitiativeContent(context);
+      case FeedEntryType.researchReport:
+        return _buildWrittenContent(context, fullEntry, includeSummaryInContent);
     }
   }
 
@@ -979,6 +981,8 @@ class ExpandedEntryView extends StatelessWidget {
         return Icons.edit_note;
       case FeedEntryType.lumaraInitiative:
         return Icons.auto_awesome;
+      case FeedEntryType.researchReport:
+        return Icons.search;
     }
   }
 

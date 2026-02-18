@@ -49,7 +49,12 @@ class InteractiveTimelineView extends StatefulWidget {
   final AutoScrollController? scrollController; // Changed to AutoScrollController
   final bool showArcformPreview; // Whether to show arcform preview as first item
   final VoidCallback? onRequestPreserveScrollPosition;
-  
+  /// When true, group entries by format (Writing, Research, Chat, Voice, Journal) with collapsible sections.
+  final bool groupByFormat;
+  /// Which format sections are collapsed (e.g. {'chat', 'voice'}).
+  final Set<String> collapsedFormats;
+  /// Called when user toggles a format section expand/collapse.
+  final ValueChanged<String>? onToggleFormatSection;
   final ValueChanged<DateTime>? onVisibleEntryDateChanged;
 
   const InteractiveTimelineView({
@@ -61,6 +66,9 @@ class InteractiveTimelineView extends StatefulWidget {
     this.onVisibleEntryDateChanged,
     this.showArcformPreview = false,
     this.onRequestPreserveScrollPosition,
+    this.groupByFormat = false,
+    this.collapsedFormats = const {},
+    this.onToggleFormatSection,
   });
 
   @override
@@ -295,7 +303,171 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
 
 
   Widget _buildInteractiveTimeline() {
+    if (widget.groupByFormat) {
+      return _buildGroupedByFormatTimeline();
+    }
     return _build2DGridTimeline();
+  }
+
+  /// Order of format sections when grouping by format.
+  static const List<String> _formatOrder = ['writing', 'research', 'chat', 'voice', 'journal'];
+
+  IconData _formatIcon(String formatKey) {
+    switch (formatKey) {
+      case 'writing':
+        return Icons.edit_note;
+      case 'research':
+        return Icons.description;
+      case 'chat':
+        return Icons.chat_bubble_outline;
+      case 'voice':
+        return Icons.mic;
+      case 'journal':
+      default:
+        return Icons.edit;
+    }
+  }
+
+  String _formatSectionTitle(String formatKey) {
+    switch (formatKey) {
+      case 'writing':
+        return 'Writing';
+      case 'research':
+        return 'Research';
+      case 'chat':
+        return 'Chat';
+      case 'voice':
+        return 'Voice';
+      case 'journal':
+      default:
+        return 'Journal';
+    }
+  }
+
+  Widget _buildGroupedByFormatTimeline() {
+    if (_entries.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32.0),
+          child: Text(
+            'Your journal timeline is empty for now.\nAdd your first entry to see it appear here.',
+            style: bodyStyle(context).copyWith(color: kcSecondaryTextColor),
+            textAlign: TextAlign.center,
+          ),
+        ),
+      );
+    }
+
+    final grouped = <String, List<TimelineEntry>>{};
+    for (final e in _entries) {
+      final key = e.entryFormat ?? 'journal';
+      grouped.putIfAbsent(key, () => []).add(e);
+    }
+    for (final list in grouped.values) {
+      list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    }
+
+    final scrollController = _scrollController ?? PrimaryScrollController.maybeOf(context);
+    final sections = <Widget>[];
+
+    if (widget.showArcformPreview) {
+      sections.add(const CurrentPhaseArcformPreview());
+    }
+
+    for (final formatKey in _formatOrder) {
+      final list = grouped[formatKey];
+      if (list == null || list.isEmpty) continue;
+
+      final isCollapsed = widget.collapsedFormats.contains(formatKey);
+      sections.add(
+        Container(
+          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+          decoration: BoxDecoration(
+            color: kcSurfaceColor,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: kcBorderColor),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              InkWell(
+                onTap: () => widget.onToggleFormatSection?.call(formatKey),
+                borderRadius: BorderRadius.circular(12),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  child: Row(
+                    children: [
+                      Icon(_formatIcon(formatKey), size: 22, color: kcPrimaryColor),
+                      const SizedBox(width: 10),
+                      Text(
+                        _formatSectionTitle(formatKey),
+                        style: heading2Style(context).copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: kcPrimaryTextColor,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        '${list.length}',
+                        style: captionStyle(context).copyWith(color: kcSecondaryTextColor),
+                      ),
+                      const Spacer(),
+                      Icon(
+                        isCollapsed ? Icons.expand_more : Icons.expand_less,
+                        color: kcSecondaryTextColor,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              if (!isCollapsed)
+                ...list.map((entry) {
+                  Widget card = Container(
+                    margin: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+                    child: _buildTimelineEntryCard(entry, 0, 0),
+                  );
+                  if (!_isSelectionMode) {
+                    card = Dismissible(
+                      key: Key('entry_${entry.id}'),
+                      direction: DismissDirection.endToStart,
+                      background: Container(
+                        margin: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+                        decoration: BoxDecoration(
+                          color: kcDangerColor,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        alignment: Alignment.centerLeft,
+                        padding: const EdgeInsets.only(left: 20),
+                        child: const Row(
+                          children: [
+                            Icon(Icons.delete, color: Colors.white, size: 28),
+                            SizedBox(width: 12),
+                            Text('Delete', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                          ],
+                        ),
+                      ),
+                      confirmDismiss: (direction) async =>
+                          direction == DismissDirection.endToStart ? await _confirmDelete(entry) : false,
+                      onDismissed: (_) async => await _deleteSingleEntry(entry.id),
+                      child: card,
+                    );
+                  }
+                  return card;
+                }),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: _refreshTimeline,
+      child: ListView(
+        controller: scrollController,
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: sections,
+      ),
+    );
   }
 
   Widget _build2DGridTimeline() {
@@ -698,7 +870,16 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
                                 Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                if (entry.hasArcform)
+                                    if (entry.entryFormat == 'writing' || entry.entryFormat == 'research')
+                                      Padding(
+                                        padding: const EdgeInsets.only(right: 6),
+                                        child: Icon(
+                                          entry.entryFormat == 'writing' ? Icons.edit_note : Icons.description,
+                                          size: 16,
+                                          color: kcPrimaryColor,
+                                        ),
+                                      ),
+                                    if (entry.hasArcform)
                                   Icon(
                                     Icons.auto_awesome,
                                     size: 16,

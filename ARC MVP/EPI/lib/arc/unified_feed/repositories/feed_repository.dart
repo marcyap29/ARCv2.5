@@ -16,6 +16,9 @@ import 'package:my_app/arc/chat/chat/chat_repo_impl.dart';
 import 'package:my_app/arc/chat/chat/chat_models.dart';
 import 'package:my_app/models/journal_entry_model.dart';
 import 'package:my_app/core/constants/phase_colors.dart';
+import 'package:my_app/lumara/agents/services/agents_chronicle_service.dart';
+import 'package:my_app/lumara/agents/models/research_models.dart';
+import 'package:my_app/services/firebase_auth_service.dart';
 
 /// Aggregates multiple data sources into a unified feed.
 class FeedRepository {
@@ -30,6 +33,9 @@ class FeedRepository {
 
   /// Active conversation entry (the one currently in progress).
   FeedEntry? _activeConversation;
+
+  /// Cached research reports by id (for opening detail from feed).
+  final Map<String, ResearchReport> _researchReportCache = {};
 
   /// Whether the repository has been initialized.
   bool _initialized = false;
@@ -154,6 +160,20 @@ class FeedRepository {
         }
       } catch (e) {
         debugPrint('FeedRepository: Error loading chat sessions: $e');
+      }
+
+      // 2b. Load research reports (LUMARA Research Agent)
+      _researchReportCache.clear();
+      try {
+        final userId = FirebaseAuthService.instance.currentUser?.uid ?? 'default_user';
+        final reports = await AgentsChronicleService.instance.getResearchReports(userId, includeArchived: false);
+        debugPrint('FeedRepository: Loaded ${reports.length} research reports');
+        for (final report in reports) {
+          _researchReportCache[report.id] = report;
+          entries.add(_researchReportToFeedEntry(report));
+        }
+      } catch (e) {
+        debugPrint('FeedRepository: Error loading research reports: $e');
       }
 
       // 3. Include active conversation if present
@@ -297,6 +317,27 @@ class FeedRepository {
       metadata: session.metadata ?? {},
     );
   }
+
+  /// Convert a research report to a feed entry.
+  FeedEntry _researchReportToFeedEntry(ResearchReport report) {
+    final phase = report.phase.name;
+    final phaseColor = PhaseColors.getPhaseColor(phase);
+
+    return FeedEntry(
+      id: 'research_${report.id}',
+      type: FeedEntryType.researchReport,
+      timestamp: report.generatedAt,
+      state: EntryState.saved,
+      title: report.query,
+      content: report.summary,
+      phase: phase,
+      phaseColor: phaseColor,
+      metadata: {'researchReportId': report.id},
+    );
+  }
+
+  /// Get a research report by id (for opening detail from feed). Returns null if not in cache.
+  ResearchReport? getResearchReportById(String reportId) => _researchReportCache[reportId];
 
   /// Generate a title from journal entry content.
   String _generateTitle(JournalEntry entry) {

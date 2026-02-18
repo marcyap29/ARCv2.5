@@ -37,6 +37,7 @@ import 'package:my_app/arc/internal/mira/journal_repository.dart';
 import 'package:my_app/arc/chat/chat/chat_repo_impl.dart';
 import 'package:my_app/models/journal_entry_model.dart';
 import 'package:my_app/ui/journal/journal_screen.dart';
+import 'package:my_app/lumara/agents/screens/research_report_detail_screen.dart';
 import 'package:my_app/services/journal_session_cache.dart';
 import 'package:my_app/shared/ui/settings/settings_view.dart';
 import 'package:my_app/core/models/entry_mode.dart';
@@ -374,6 +375,22 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
   }
 
   void _onEntryTap(FeedEntry entry) {
+    // Research reports open in the research detail (timeline editor) screen
+    if (entry.type == FeedEntryType.researchReport) {
+      final reportId = entry.metadata['researchReportId'] as String?;
+      if (reportId != null) {
+        final report = _feedRepo.getResearchReportById(reportId);
+        if (report != null && mounted) {
+          Navigator.push(
+            context,
+            MaterialPageRoute<void>(
+              builder: (context) => ResearchReportDetailScreen(report: report),
+            ),
+          ).then((_) => _feedRepo.refresh());
+        }
+      }
+      return;
+    }
     // Navigate to expanded entry view
     Navigator.push(
       context,
@@ -1183,6 +1200,11 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
         );
       case FeedEntryType.lumaraInitiative:
         return LumaraPromptCard(
+          entry: entry,
+          onTap: onTap,
+        );
+      case FeedEntryType.researchReport:
+        return ReflectionCard(
           entry: entry,
           onTap: onTap,
         );

@@ -28,6 +28,7 @@ import 'package:my_app/shared/ui/settings/import_status_screen.dart';
 import 'package:my_app/shared/ui/settings/temporal_notification_settings_view.dart';
 import 'package:my_app/shared/ui/settings/chronicle_management_view.dart';
 import 'package:my_app/shared/ui/chronicle/chronicle_layers_viewer.dart';
+import 'package:my_app/shared/ui/chronicle/dual_chronicle_view.dart';
 import 'package:my_app/arc/phase/share/phase_share_service.dart';
 import 'package:my_app/arc/ui/health/health_view.dart';
 import 'package:file_picker/file_picker.dart';
@@ -932,6 +933,19 @@ class ChronicleFolderView extends StatelessWidget {
                   context,
                   MaterialPageRoute(
                     builder: (context) => const ChronicleManagementView(),
+                  ),
+                );
+              },
+            ),
+            _SettingsTile(
+              title: 'Timeline & Learning (Dual Chronicle)',
+              subtitle: 'Your timeline vs LUMARA’s learning; add insights to timeline or dismiss',
+              icon: Icons.auto_stories,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const DualChronicleView(),
                   ),
                 );
               },

@@ -7,6 +7,8 @@ enum ContentType {
   linkedIn,
   substack,
   technical,
+  /// User describes what they want in a free-text field.
+  custom,
 }
 
 /// Sentence structure description (from voice analysis).

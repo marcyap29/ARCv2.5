@@ -563,6 +563,22 @@ class TimelineCubit extends Cubit<TimelineState> {
         print('⚠️ TIMELINE: Entry ${entry.id} - NO LUMARA blocks in lumaraBlocks field - tag will NOT appear');
       }
 
+      // Entry format for timeline grouping: from metadata or infer from content
+      String? entryFormat = entry.metadata != null
+          ? entry.metadata!['entryFormat'] as String?
+          : null;
+      if (entryFormat == null || entryFormat.isEmpty) {
+        if (entry.audioUri != null && entry.audioUri!.isNotEmpty) {
+          entryFormat = 'voice';
+        } else if (finalMedia.any((m) => m.type == MediaType.audio)) {
+          entryFormat = 'voice';
+        } else if (entry.lumaraBlocks.isNotEmpty) {
+          entryFormat = 'chat';
+        } else {
+          entryFormat = 'journal';
+        }
+      }
+
       final timelineEntry = TimelineEntry(
         id: entry.id,
         date: _formatDate(entry.createdAt),
@@ -578,6 +594,7 @@ class TimelineCubit extends Cubit<TimelineState> {
         media: finalMedia, // Use reconstructed media if available
         hasLumaraBlocks: entry.lumaraBlocks.isNotEmpty, // Check if entry has LUMARA blocks
         createdAt: entry.createdAt, // Store original date for sorting
+        entryFormat: entryFormat,
       );
       
       return timelineEntry;

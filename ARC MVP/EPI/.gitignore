@@ -557,3 +557,13 @@ google-cloud-sdk/
 
 # Moonshine on-device model binaries (not used; excluded from repo)
 ios/Runner/moonshine_models/
+
+# Cursor IDE
+.cursor/
+
+# LaTeX build artifacts
+*.aux
+*.fdb_latexmk
+*.fls
+*.out
+DOCS/*.pdf

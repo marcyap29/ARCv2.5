@@ -27,6 +27,8 @@ class FeedHelpers {
         return Icons.edit_note;
       case FeedEntryType.lumaraInitiative:
         return Icons.auto_awesome;
+      case FeedEntryType.researchReport:
+        return Icons.search;
     }
   }
 
@@ -43,6 +45,8 @@ class FeedHelpers {
         return const Color(0xFF2563EB); // Blue
       case FeedEntryType.lumaraInitiative:
         return const Color(0xFF9B59B6); // Purple/violet
+      case FeedEntryType.researchReport:
+        return const Color(0xFF0D9488); // Teal
     }
   }
 

@@ -71,7 +71,7 @@ class _AgentsScreenState extends State<AgentsScreen> {
             tabs: const [
               Tab(text: 'Agents'),
               Tab(text: 'Drafts'),
-              Tab(text: 'Archive'),
+              Tab(text: 'Published'),
             ],
           ),
           actions: [
@@ -353,7 +353,7 @@ class _DraftCard extends StatelessWidget {
   }
 }
 
-/// Tab that lists archived drafts. Agents can use archive as swap/reference.
+/// Tab that lists published drafts. Published entries are saved to the timeline.
 class _ArchiveTab extends StatefulWidget {
   const _ArchiveTab();
 
@@ -381,15 +381,15 @@ class _ArchiveTabState extends State<_ArchiveTab> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.archive_outlined, size: 64, color: Colors.grey[400]),
+                Icon(Icons.publish_outlined, size: 64, color: Colors.grey[400]),
                 const SizedBox(height: 16),
                 Text(
-                  'No archived drafts',
+                  'No published entries',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(color: kcPrimaryTextColor),
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Archive drafts from the Drafts tab. Agents can use both drafts and archive as reference.',
+                  'Published entries are saved to the timeline. Move drafts here from the Drafts tab.',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(color: kcSecondaryColor),
                   textAlign: TextAlign.center,
                 ),

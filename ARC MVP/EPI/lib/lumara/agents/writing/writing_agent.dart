@@ -50,6 +50,7 @@ class WritingAgent {
     required String userId,
     required String prompt,
     required ContentType type,
+    String? customContentTypeDescription,
     String? phaseOverride,
     double? readinessOverride,
     int maxCritiqueIterations = 0,
@@ -97,6 +98,7 @@ class WritingAgent {
       timelineContext: timelineContext,
       systemPromptPrefix: systemPromptPrefix,
       draftsAndArchiveSnippet: draftsSnippet,
+      customContentTypeDescription: customContentTypeDescription,
     );
 
     double? voiceScore;
@@ -124,6 +126,7 @@ class WritingAgent {
         timelineContext: timelineContext,
         systemPromptPrefix: systemPromptPrefix,
         draftsAndArchiveSnippet: draftsSnippet,
+        customContentTypeDescription: customContentTypeDescription,
       );
       iterations++;
     }

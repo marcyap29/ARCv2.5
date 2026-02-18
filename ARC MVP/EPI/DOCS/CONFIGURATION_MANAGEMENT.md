@@ -1,7 +1,7 @@
 # Configuration Management & Documentation Tracking
 
 **Lead Configuration Management Analyst:** Active  
-**Last Updated:** February 16, 2026 (v3.3.40)  
+**Last Updated:** February 17, 2026 (v3.3.41)  
 **Status:** ✅ All Documents Synced with Repo
 
 ---
@@ -38,8 +38,8 @@ Prompt/role definitions: **Ultimate Documentation, Configuration Management and 
 
 | Document | Location | Last Reviewed | Status | Notes |
 |----------|----------|---------------|--------|-------|
-| ARCHITECTURE.md | `/DOCS/ARCHITECTURE.md` | 2026-02-16 | ✅ Synced | v3.3.40 - Doc sync |
-| CHANGELOG.md | `/DOCS/CHANGELOG.md` | 2026-02-16 | ✅ Synced | v3.3.40 - Agents expansion, paper .tex, chats/settings, orchestration |
+| ARCHITECTURE.md | `/DOCS/ARCHITECTURE.md` | 2026-02-17 | ✅ Synced | v3.3.41 - Doc sync |
+| CHANGELOG.md | `/DOCS/CHANGELOG.md` | 2026-02-17 | ✅ Synced | v3.3.41 - Dual CHRONICLE, Writing with LUMARA, timeline/feed |
 | PROMPT_REFERENCES.md | `/DOCS/PROMPT_REFERENCES.md` | 2026-02-16 | ✅ Synced | Updated; agent_operating_system_prompt, intent/orchestration refs |
 | PROMPT_TRACKER.md | `/DOCS/PROMPT_TRACKER.md` | 2026-02-15 | ✅ Synced | v1.4.0 - Agent prompts row |
 | bug_tracker.md | `/DOCS/bugtracker/bug_tracker.md` | 2026-02-15 | ✅ Synced | v3.2.6 - 35 records; tracked in doc sync |
@@ -84,6 +84,9 @@ Prompt/role definitions: **Ultimate Documentation, Configuration Management and 
 | NARRATIVE_INTELLIGENCE_OVERVIEW.md | DOCS/ | High-level Narrative Intelligence and LUMARA overview (general audience) — v3.3.33 |
 | CHRONICLE_PAPER_VS_IMPLEMENTATION.md | DOCS/ | Paper vs codebase alignment; suggested edits for CHRONICLE paper — v3.3.35 |
 | CHRONICLE-2026_02_15.md | DOCS/ | CHRONICLE snapshot/notes 2026-02-15 — v3.3.35 |
+| LUMARA_DUAL_CHRONICLE_COMPLETE_GUIDE.md | DOCS/ | Dual CHRONICLE complete guide — v3.3.41 |
+| LUMARA_DUAL_CHRONICLE_IMPLEMENTATION.md | DOCS/ | Dual CHRONICLE implementation — v3.3.41 |
+| LUMARA_DUAL_CHRONICLE_WHEN_TO_ACTIVATE.md | DOCS/ | Dual CHRONICLE when to activate — v3.3.41 |
 | CRISIS_SYSTEM_COMPLETE.md | DOCS/ | Crisis system feature spec |
 | PRIVACY_COMPLETE.md | DOCS/ | Privacy feature spec |
 | PHASE_RATING_COMPLETE.md | DOCS/ | Phase rating feature spec |
@@ -96,6 +99,25 @@ Prompt/role definitions: **Ultimate Documentation, Configuration Management and 
 ---
 
 ## Change Tracking Log
+
+### 2026-02-17 - Documentation & Git Backup run (v3.3.41; bug_tracker tracked)
+
+**Action:** Ran Documentation, Configuration Management and Git Backup workflow (claude.md §233–349) on the entire repo. Document updates include **bug_tracker** tracking.
+
+**PROMPT REFERENCES AUDIT:** No new prompt files; catalog current.
+
+**Git Backup — Identify what changed:** Dual CHRONICLE (lib/chronicle/dual/, dual_chronicle_view, test/chronicle/dual/); DOCS LUMARA_DUAL_CHRONICLE_COMPLETE_GUIDE, IMPLEMENTATION, WHEN_TO_ACTIVATE; writing_with_lumara_screen; chat_draft_viewer_screen removed; timeline (cubit, entry_model, view, interactive_timeline_view); unified feed (feed_entry, feed_repository, feed_helpers, expanded_entry_view, unified_feed_screen); settings_view, journal_screen; lumara_assistant_screen, research_screen, writing_screen; agents_screen, draft_composer, writing_agent, writing_models; NARRATIVE_INTELLIGENCE_WHITE_PAPER.tex updated.
+
+**Updates:**
+- **CHANGELOG.md:** Version 3.3.41; [3.3.41] Dual CHRONICLE, Writing with LUMARA, timeline/feed, white paper .tex.
+- **CONFIGURATION_MANAGEMENT.md:** This entry; inventory 2026-02-17; bug_tracker tracked.
+- **bug_tracker.md:** New row for v3.3.41; Last Updated 2026-02-17.
+- **PROMPT_TRACKER.md:** Doc sync v3.3.41 row.
+- **Additional DOCS:** LUMARA_DUAL_CHRONICLE_COMPLETE_GUIDE.md, LUMARA_DUAL_CHRONICLE_IMPLEMENTATION.md, LUMARA_DUAL_CHRONICLE_WHEN_TO_ACTIVATE.md added to inventory.
+
+**Status:** ✅ Commit, push main; merge test into main; push.
+
+---
 
 ### 2026-02-16 - Documentation & Git Backup run (v3.3.40; bug_tracker tracked)
 
