@@ -56,6 +56,9 @@ import 'package:my_app/models/reflection_session.dart';
 import 'package:my_app/services/assemblyai_service.dart';
 import 'package:my_app/arc/chat/voice/transcription/assemblyai_provider.dart';
 import 'package:my_app/mira/memory/sentence_extraction_util.dart';
+import 'package:my_app/services/firebase_auth_service.dart';
+import 'package:my_app/chronicle/dual/services/dual_chronicle_services.dart';
+import 'package:my_app/chronicle/dual/intelligence/interrupt/interrupt_decision_engine.dart';
 
 class JournalCaptureCubit extends Cubit<JournalCaptureState> {
   final JournalRepository _journalRepository;
@@ -578,6 +581,9 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
       // Emit saved state immediately - don't wait for background processing
       emit(JournalCaptureSaved());
 
+      // Run dual-chronicle agentic loop on reflection (fire-and-forget)
+      _runAgenticLoopForReflect(entry.content);
+
       // Process SAGE annotation in background (don't await)
       _processSAGEAnnotation(entry);
 
@@ -586,6 +592,44 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
     } catch (e) {
       emit(JournalCaptureError('Failed to save entry: ${e.toString()}'));
     }
+  }
+
+  /// Runs the agentic loop on saved reflection content (reflect modality). Non-blocking.
+  void _runAgenticLoopForReflect(String content) {
+    final userId = FirebaseAuthService.instance.currentUser?.uid ?? 'default_user';
+    UserPhaseService.getCurrentPhase().then((phase) {
+      final context = AgenticContext(
+        currentPhase: phase.isEmpty ? 'unknown' : phase,
+        readinessScore: 0.5,
+        seekingType: 'Reflection',
+        modality: AgenticModality.reflect,
+      );
+      DualChronicleServices.agenticLoopOrchestrator
+          .execute(userId, content, context)
+          .then((_) {
+        DualChronicleServices.lumaraChronicle
+            .recordLearningTrigger(userId, 'reflect', sourceSummary: _truncateForTrigger(content))
+            .catchError((e) => print('DualChronicle: recordLearningTrigger error: $e'));
+      }, onError: (e) => print('DualChronicle: Agentic loop (reflect) error: $e'));
+    }).catchError((_) {
+      final context = const AgenticContext(
+        readinessScore: 0.5,
+        modality: AgenticModality.reflect,
+      );
+      DualChronicleServices.agenticLoopOrchestrator
+          .execute(userId, content, context)
+          .then((_) {
+        DualChronicleServices.lumaraChronicle
+            .recordLearningTrigger(userId, 'reflect', sourceSummary: _truncateForTrigger(content))
+            .catchError((e) => print('DualChronicle: recordLearningTrigger error: $e'));
+      }, onError: (e) => print('DualChronicle: Agentic loop (reflect) error: $e'));
+    });
+  }
+
+  static String _truncateForTrigger(String text, [int maxLen = 80]) {
+    final t = text.trim();
+    if (t.length <= maxLen) return t;
+    return '${t.substring(0, maxLen)}…';
   }
 
   void saveEntryWithPhase({
@@ -681,6 +725,9 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
 
       // Emit saved state immediately - don't wait for background processing
       emit(JournalCaptureSaved());
+
+      // Run dual-chronicle agentic loop on reflection (fire-and-forget)
+      _runAgenticLoopForReflect(entry.content);
 
       // Process SAGE annotation in background (don't await)
       _processSAGEAnnotation(entry);
@@ -1002,6 +1049,8 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
       // Emit saved state immediately - don't wait for background processing
       emit(JournalCaptureSaved());
 
+      _runAgenticLoopForReflect(entry.content);
+
       // Process SAGE annotation in background (don't await)
       _processSAGEAnnotation(entry);
 
@@ -1083,6 +1132,8 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
       // Emit saved state immediately - don't wait for background processing
       emit(JournalCaptureSaved());
 
+      _runAgenticLoopForReflect(entry.content);
+
       // Process SAGE annotation in background (don't await)
       _processSAGEAnnotation(entry);
 
@@ -1159,6 +1210,8 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
 
       // Emit saved state immediately - don't wait for background processing
       emit(JournalCaptureSaved());
+
+      _runAgenticLoopForReflect(entry.content);
 
       // Process SAGE annotation in background (don't await)
       _processSAGEAnnotation(entry);
@@ -1374,6 +1427,8 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
 
       // Emit saved state
       emit(JournalCaptureSaved());
+
+      _runAgenticLoopForReflect(updatedEntry.content);
 
       // Process SAGE annotation in background
       _processSAGEAnnotation(updatedEntry);

@@ -224,7 +224,7 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
               });
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
-                  content: Text('Entry saved successfully'),
+                  content: Text('Entry saved. LUMARA is learning from it.'),
                   backgroundColor: kcSuccessColor,
                 ),
               );

@@ -169,24 +169,21 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
       // Subscribe to feed updates
       _feedSubscription = _feedRepo.feedStream.listen((entries) {
         if (mounted) {
-          final wasEmpty = _entries.isEmpty;
           setState(() {
             _entries = entries;
             _isLoading = false;
           });
-          // Notify parent when empty state changes
-          if (wasEmpty != entries.isEmpty) {
-            widget.onEmptyStateChanged?.call(entries.isEmpty);
-          }
+          // Notify parent: hide nav only when empty AND still showing welcome (so tabs show after "Get Started")
+          widget.onEmptyStateChanged?.call(_entries.isEmpty && _showWelcomeWhenEmpty);
         }
       });
 
       // Initialize and load data
       await _feedRepo.initialize();
 
-      // Report initial empty state to parent
+      // Report initial state: hide nav only when empty and welcome is shown
       if (mounted) {
-        widget.onEmptyStateChanged?.call(_entries.isEmpty);
+        widget.onEmptyStateChanged?.call(_entries.isEmpty && _showWelcomeWhenEmpty);
       }
     } catch (e) {
       debugPrint('UnifiedFeedScreen: Error initializing: $e');
@@ -587,9 +584,6 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
           // Greeting header
           SliverToBoxAdapter(child: _buildGreetingHeader()),
 
-          // Calendar + Settings row
-          SliverToBoxAdapter(child: _buildHeaderActions()),
-
           // Selection mode bar (Cancel / Delete selected)
           SliverToBoxAdapter(child: _buildSelectionModeBar()),
 
@@ -612,7 +606,7 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
             ),
           ),
 
-          // Phase info: Gantt-style diagram (days and phases) — below phase preview, above Chat|Reflect|Voice
+          // Phase journey: Timeline Visualization–style gantt (from Phase page)
           SliverToBoxAdapter(
             child: KeyedSubtree(
               key: ValueKey('phase_journey_$_phasePreviewRefreshKey'),
@@ -620,8 +614,11 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
             ),
           ),
 
-          // Chat | Reflect | Voice — above "Today", below phase preview
+          // Chat | Reflect | Voice
           SliverToBoxAdapter(child: _buildCommunicationActions()),
+
+          // Multiselect, calendar, settings — just above the timeline
+          SliverToBoxAdapter(child: _buildHeaderActions()),
 
           // Date context banner (when viewing a specific date)
           if (_currentViewingDate != null)
@@ -1335,7 +1332,6 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
         physics: const AlwaysScrollableScrollPhysics(),
         slivers: [
           SliverToBoxAdapter(child: _buildGreetingHeader()),
-          SliverToBoxAdapter(child: _buildHeaderActions()),
           SliverToBoxAdapter(child: _buildSelectionModeBar()),
           SliverToBoxAdapter(
             child: KeyedSubtree(
@@ -1361,6 +1357,7 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
             ),
           ),
           SliverToBoxAdapter(child: _buildCommunicationActions()),
+          SliverToBoxAdapter(child: _buildHeaderActions()),
           if (_currentViewingDate != null)
             SliverToBoxAdapter(child: _buildDateContextBanner()),
           SliverToBoxAdapter(child: _buildLumaraObservationBanner()),
@@ -1507,6 +1504,8 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
     return GestureDetector(
       onTap: () {
         setState(() => _showWelcomeWhenEmpty = false);
+        // Show main bottom tabs (LUMARA / Agents / Settings) even with no entries
+        widget.onEmptyStateChanged?.call(false);
       },
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
@@ -1706,6 +1705,88 @@ class _PhaseJourneyGanttCardState extends State<_PhaseJourneyGanttCard> {
     return '${date.month}/${date.day}/${date.year}';
   }
 
+  /// Timeline axis row matching Phase page "Timeline Visualization": start — NOW — end.
+  Widget _buildTimelineAxis(DateTime visibleStart, DateTime visibleEnd, ThemeData theme) {
+    return Row(
+      children: [
+        Text(
+          _formatShortDate(visibleStart),
+          style: theme.textTheme.bodySmall?.copyWith(
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        Expanded(
+          child: Container(
+            height: 1,
+            margin: const EdgeInsets.symmetric(horizontal: 4),
+            color: theme.dividerColor,
+          ),
+        ),
+        Text(
+          'NOW',
+          style: theme.textTheme.bodySmall?.copyWith(
+            fontWeight: FontWeight.bold,
+            color: theme.colorScheme.primary,
+          ),
+        ),
+        Expanded(
+          child: Container(
+            height: 1,
+            margin: const EdgeInsets.symmetric(horizontal: 4),
+            color: theme.dividerColor,
+          ),
+        ),
+        Text(
+          _formatShortDate(visibleEnd),
+          style: theme.textTheme.bodySmall?.copyWith(
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// TODAY marker below the bar, matching Phase page Timeline Visualization.
+  Widget _buildTimelineLabels(
+    BuildContext context,
+    DateTime visibleStart,
+    DateTime visibleEnd,
+    ThemeData theme,
+  ) {
+    final now = DateTime.now();
+    final totalDuration = visibleEnd.difference(visibleStart);
+    final nowProgress = totalDuration.inMilliseconds > 0
+        ? now.difference(visibleStart).inMilliseconds / totalDuration.inMilliseconds
+        : 0.0;
+
+    return SizedBox(
+      height: 20,
+      child: Stack(
+        children: [
+          if (nowProgress >= 0 && nowProgress <= 1)
+            Positioned(
+              left: (MediaQuery.of(context).size.width - 64) * nowProgress * 0.75,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primary,
+                  borderRadius: BorderRadius.circular(3),
+                ),
+                child: Text(
+                  'TODAY',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: Colors.white,
+                    fontSize: 9,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_loading || _regimes == null || _regimes!.isEmpty) {
@@ -1742,7 +1823,6 @@ class _PhaseJourneyGanttCardState extends State<_PhaseJourneyGanttCard> {
         child: InkWell(
           borderRadius: BorderRadius.circular(12),
           onTap: () async {
-            // Go directly to editable PhaseTimelineView (via PhaseAnalysisView's Timeline tab)
             await Navigator.push(
               context,
               MaterialPageRoute(
@@ -1756,11 +1836,11 @@ class _PhaseJourneyGanttCardState extends State<_PhaseJourneyGanttCard> {
             children: [
               Row(
                 children: [
-                  Icon(Icons.timeline, size: 20, color: kcPrimaryColor),
+                  Icon(Icons.view_timeline, size: 20, color: kcPrimaryColor),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'Your phase journey',
+                      'Timeline Visualization',
                       style: heading3Style(context).copyWith(
                         color: kcPrimaryTextColor,
                         fontWeight: FontWeight.w600,
@@ -1772,7 +1852,6 @@ class _PhaseJourneyGanttCardState extends State<_PhaseJourneyGanttCard> {
                     icon: const Icon(Icons.edit_calendar, size: 20),
                     tooltip: 'Edit phases',
                     onPressed: () async {
-                      // Edit button also goes to editable timeline
                       await Navigator.push(
                         context,
                         MaterialPageRoute(
@@ -1789,18 +1868,15 @@ class _PhaseJourneyGanttCardState extends State<_PhaseJourneyGanttCard> {
                   ),
                 ],
               ),
-              const SizedBox(height: 6),
-              Text(
-                'Days and phases over time',
-                style: bodyStyle(context).copyWith(
-                  color: kcSecondaryTextColor,
-                  fontSize: 12,
+              const SizedBox(height: 16),
+              _buildTimelineAxis(visibleStart, visibleEnd, theme),
+              const SizedBox(height: 8),
+              Container(
+                height: 60,
+                decoration: BoxDecoration(
+                  border: Border.all(color: theme.dividerColor),
+                  borderRadius: BorderRadius.circular(8),
                 ),
-              ),
-              const SizedBox(height: 12),
-              SizedBox(
-                height: 48,
-                width: double.infinity,
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(8),
                   child: CustomPaint(
@@ -1811,36 +1887,39 @@ class _PhaseJourneyGanttCardState extends State<_PhaseJourneyGanttCard> {
                       zoomLevel: 1.0,
                       theme: theme,
                     ),
+                    child: const SizedBox(width: double.infinity, height: 60),
                   ),
                 ),
               ),
-          const SizedBox(height: 8),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                _formatShortDate(visibleStart),
-                style: bodyStyle(context).copyWith(
-                  color: kcSecondaryTextColor,
-                  fontSize: 10,
-                ),
+              const SizedBox(height: 8),
+              _buildTimelineLabels(context, visibleStart, visibleEnd, theme),
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    _formatShortDate(visibleStart),
+                    style: bodyStyle(context).copyWith(
+                      color: kcSecondaryTextColor,
+                      fontSize: 10,
+                    ),
+                  ),
+                  Text(
+                    '$totalDays days • ${regimes.length} phases',
+                    style: bodyStyle(context).copyWith(
+                      color: kcSecondaryTextColor,
+                      fontSize: 10,
+                    ),
+                  ),
+                  Text(
+                    _formatShortDate(visibleEnd),
+                    style: bodyStyle(context).copyWith(
+                      color: kcSecondaryTextColor,
+                      fontSize: 10,
+                    ),
+                  ),
+                ],
               ),
-              Text(
-                '$totalDays days • ${regimes.length} phases',
-                style: bodyStyle(context).copyWith(
-                  color: kcSecondaryTextColor,
-                  fontSize: 10,
-                ),
-              ),
-              Text(
-                _formatShortDate(visibleEnd),
-                style: bodyStyle(context).copyWith(
-                  color: kcSecondaryTextColor,
-                  fontSize: 10,
-                ),
-              ),
-            ],
-          ),
             ],
           ),
         ),

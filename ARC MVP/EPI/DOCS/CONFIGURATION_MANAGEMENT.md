@@ -1,7 +1,7 @@
 # Configuration Management & Documentation Tracking
 
 **Lead Configuration Management Analyst:** Active  
-**Last Updated:** February 17, 2026 (v3.3.42)  
+**Last Updated:** February 17, 2026 (v3.3.43)  
 **Status:** ✅ All Documents Synced with Repo
 
 ---
@@ -38,8 +38,8 @@ Prompt/role definitions: **Ultimate Documentation, Configuration Management and 
 
 | Document | Location | Last Reviewed | Status | Notes |
 |----------|----------|---------------|--------|-------|
-| ARCHITECTURE.md | `/DOCS/ARCHITECTURE.md` | 2026-02-17 | ✅ Synced | v3.3.42 - Paper §2/archive ref; doc sync |
-| CHANGELOG.md | `/DOCS/CHANGELOG.md` | 2026-02-17 | ✅ Synced | v3.3.42 - Docs consolidation, LaTeX ignore, archive refs |
+| ARCHITECTURE.md | `/DOCS/ARCHITECTURE.md` | 2026-02-17 | ✅ Synced | v3.3.43 - Doc sync |
+| CHANGELOG.md | `/DOCS/CHANGELOG.md` | 2026-02-17 | ✅ Synced | v3.3.43 - Dual CHRONICLE UI, LUMARA, journal capture, onboarding, feed |
 | PROMPT_REFERENCES.md | `/DOCS/PROMPT_REFERENCES.md` | 2026-02-16 | ✅ Synced | Updated; agent_operating_system_prompt, intent/orchestration refs |
 | PROMPT_TRACKER.md | `/DOCS/PROMPT_TRACKER.md` | 2026-02-15 | ✅ Synced | v1.4.0 - Agent prompts row |
 | bug_tracker.md | `/DOCS/bugtracker/bug_tracker.md` | 2026-02-15 | ✅ Synced | v3.2.6 - 35 records; tracked in doc sync |
@@ -98,6 +98,24 @@ Prompt/role definitions: **Ultimate Documentation, Configuration Management and 
 
 ## Change Tracking Log
 
+### 2026-02-17 - Documentation & Git Backup run (v3.3.43; bug_tracker tracked)
+
+**Action:** Ran Documentation, Configuration Management and Git Backup workflow (claude.md §233–349) on the entire repo. Document updates include **bug_tracker** tracking.
+
+**PROMPT REFERENCES AUDIT:** No new prompt files; catalog current.
+
+**Git Backup — Identify what changed:** Dual CHRONICLE UI and services (dual_chronicle_view +311, agentic_loop_orchestrator, chronicle_models, lumara_chronicle_repository, dual_chronicle_services); lumara_assistant_cubit (+117); journal_capture_cubit (+55), journal_capture_view (core + ui); unified_feed_screen refactor (+187/−91); home_view, arc_onboarding_sequence; DOCS/ONBOARDING_TEXT.md.
+
+**Updates:**
+- **CHANGELOG.md:** Version 3.3.43; [3.3.43] Dual CHRONICLE UI, LUMARA assistant, journal capture, onboarding, unified feed.
+- **CONFIGURATION_MANAGEMENT.md:** This entry; inventory 2026-02-17; bug_tracker tracked.
+- **bug_tracker.md:** New row for v3.3.43; Last Updated 2026-02-17.
+- **PROMPT_TRACKER.md:** Doc sync v3.3.43 row.
+
+**Status:** ✅ Commit, push main; merge test into main; push.
+
+---
+
 ### 2026-02-17 - Documentation & Git Backup run (v3.3.42; bug_tracker tracked)
 
 **Action:** Ran Documentation, Configuration Management and Git Backup workflow (claude.md §233–349) on the entire repo. Document updates include **bug_tracker** tracking.
@@ -112,7 +130,7 @@ Prompt/role definitions: **Ultimate Documentation, Configuration Management and 
 - **bug_tracker.md:** New row for v3.3.42; Last Updated 2026-02-17.
 - **PROMPT_TRACKER.md:** Doc sync v3.3.42 row.
 
-**Status:** ✅ Commit, push main; merge test into main; push.
+**Status:** ✅ Committed.
 
 ---
 

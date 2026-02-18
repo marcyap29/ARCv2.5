@@ -62,13 +62,13 @@ class ArcOnboardingSequenceContent extends StatelessWidget {
               screenKey = 'lumara_intro';
               break;
             case OnboardingScreen.arcIntro:
-              // Redundant screen removed; show narrative intelligence if state ever lands here
-              currentScreen = const _NarrativeIntelligenceScreen();
-              screenKey = 'narrative_intelligence';
+              // Redundant screen removed; show LUMARA capabilities if state ever lands here
+              currentScreen = const _LumaraCapabilitiesScreen();
+              screenKey = 'lumara_capabilities';
               break;
             case OnboardingScreen.narrativeIntelligence:
-              currentScreen = const _NarrativeIntelligenceScreen();
-              screenKey = 'narrative_intelligence';
+              currentScreen = const _LumaraCapabilitiesScreen();
+              screenKey = 'lumara_capabilities';
               break;
             case OnboardingScreen.sentinelIntro:
               // Screen removed; show phase explanation if state ever lands here
@@ -189,9 +189,9 @@ class _LumaraIntroScreen extends StatelessWidget {
   }
 }
 
-/// Screen 3: Narrative Intelligence Concept
-class _NarrativeIntelligenceScreen extends StatelessWidget {
-  const _NarrativeIntelligenceScreen();
+/// Screen 2: LUMARA capabilities
+class _LumaraCapabilitiesScreen extends StatelessWidget {
+  const _LumaraCapabilitiesScreen();
 
   @override
   Widget build(BuildContext context) {
@@ -209,7 +209,7 @@ class _NarrativeIntelligenceScreen extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(
-                  "LUMARA runs on Narrative Intelligence — a new category beyond memory or AI assistance.",
+                  "What LUMARA does for you.",
                   style: heading1Style(context).copyWith(
                     color: Colors.white,
                     fontSize: 24,
@@ -218,17 +218,7 @@ class _NarrativeIntelligenceScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 24),
                 Text(
-                  "It tracks who you're becoming, not just what you've done. Patterns across months - even years. Phases of development. The arc of your thinking over time.",
-                  style: bodyStyle(context).copyWith(
-                    color: Colors.white.withOpacity(0.8),
-                    fontSize: 16,
-                    height: 1.6,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  "That's what makes every conversation different.",
+                  "I remember your story so we don't start from zero each time. I notice patterns in your entries over time — which phase you're in, what's shifting, what matters most. I match my tone and depth to where you actually are: calmer when you need rest, more direct when you're ready to move. That's how every conversation stays relevant.",
                   style: bodyStyle(context).copyWith(
                     color: Colors.white.withOpacity(0.8),
                     fontSize: 16,

@@ -30,17 +30,13 @@
 
 ---
 
-## Screen 3: Narrative Intelligence Concept
+## Screen 2: LUMARA Capabilities
 
 **Main Heading:**
-> ARC and LUMARA are built on something new: Narrative Intelligence.
+> What LUMARA does for you.
 
 **Body Text:**
-> Not just memory. Not just AI assistance.
-> 
-> Intelligence that tracks *who you're becoming*, not just what you've done. That understands developmental trajectories, not disconnected moments.
-> 
-> Your life has an arc. Let's follow it together.
+> I remember your story so we don't start from zero each time. I notice patterns in your entries over time — which phase you're in, what's shifting, what matters most. I match my tone and depth to where you actually are: calmer when you need rest, more direct when you're ready to move. That's how every conversation stays relevant.
 
 **Instruction:**
 > Tap to continue
@@ -117,9 +113,9 @@
 ## Complete Text Flow Summary
 
 1. **LUMARA Introduction**: Personal introduction, explains narrative arc understanding
-2. **ARC Introduction**: Platform introduction, privacy emphasis, local learning
-3. **Narrative Intelligence**: Concept introduction, developmental trajectories
-4. **SENTINEL Introduction**: Wellbeing monitoring explanation, crisis check-in notice
+2. **LUMARA Capabilities**: What LUMARA does — story memory, patterns, phase awareness, tone matching
+3. **Phase Explanation**: Understanding your phase, phase names, quiz intro
+4. *(SENTINEL Introduction removed from flow)*
 5. **Phase Quiz**: 5 conversational questions about current state
 6. **Phase Analysis**: Processing message ("Let me see your pattern...")
 7. **Phase Reveal**: Phase name, recognition statement, constellation explanation, tracking question

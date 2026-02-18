@@ -68,6 +68,9 @@ import 'package:my_app/lumara/agents/research/research_agent.dart';
 import 'package:my_app/lumara/agents/research/web_search_tool.dart';
 import 'package:my_app/lumara/agents/writing/writing_agent.dart';
 import 'package:my_app/lumara/agents/writing/writing_draft_repository.dart';
+import 'package:my_app/chronicle/dual/services/dual_chronicle_services.dart';
+import 'package:my_app/chronicle/dual/intelligence/agentic_loop_orchestrator.dart';
+import 'package:my_app/chronicle/dual/intelligence/interrupt/interrupt_decision_engine.dart';
 
 /// LUMARA Assistant Cubit State
 abstract class LumaraAssistantState {}
@@ -92,6 +95,10 @@ class LumaraAssistantLoaded extends LumaraAssistantState {
   final String? crossroadsCapturePromptText;
   // Crossroads: due outcome revisitation (show at conversation start)
   final DecisionCapture? pendingOutcomeCapture;
+  // Dual chronicle: pending agentic clarifying question (user's next message is the reply)
+  final String? pendingAgenticQuestion;
+  final String? pendingAgenticGapId;
+  final AgenticLoopContext? pendingAgenticLoopContext;
 
   LumaraAssistantLoaded({
     required this.messages,
@@ -106,6 +113,9 @@ class LumaraAssistantLoaded extends LumaraAssistantState {
     this.crossroadsCaptureStep,
     this.crossroadsCapturePromptText,
     this.pendingOutcomeCapture,
+    this.pendingAgenticQuestion,
+    this.pendingAgenticGapId,
+    this.pendingAgenticLoopContext,
   });
 
   LumaraAssistantLoaded copyWith({
@@ -121,6 +131,9 @@ class LumaraAssistantLoaded extends LumaraAssistantState {
     int? crossroadsCaptureStep,
     String? crossroadsCapturePromptText,
     DecisionCapture? pendingOutcomeCapture,
+    String? pendingAgenticQuestion,
+    String? pendingAgenticGapId,
+    AgenticLoopContext? pendingAgenticLoopContext,
   }) {
     return LumaraAssistantLoaded(
       messages: messages ?? this.messages,
@@ -135,6 +148,30 @@ class LumaraAssistantLoaded extends LumaraAssistantState {
       crossroadsCaptureStep: crossroadsCaptureStep ?? this.crossroadsCaptureStep,
       crossroadsCapturePromptText: crossroadsCapturePromptText ?? this.crossroadsCapturePromptText,
       pendingOutcomeCapture: pendingOutcomeCapture ?? this.pendingOutcomeCapture,
+      pendingAgenticQuestion: pendingAgenticQuestion ?? this.pendingAgenticQuestion,
+      pendingAgenticGapId: pendingAgenticGapId ?? this.pendingAgenticGapId,
+      pendingAgenticLoopContext: pendingAgenticLoopContext ?? this.pendingAgenticLoopContext,
+    );
+  }
+
+  /// Clear pending agentic interrupt (after user replied or cancelled).
+  LumaraAssistantLoaded clearedAgenticPending() {
+    return LumaraAssistantLoaded(
+      messages: messages,
+      scope: scope,
+      isProcessing: isProcessing,
+      currentSessionId: currentSessionId,
+      apiErrorMessage: apiErrorMessage,
+      notice: notice,
+      pendingCrossroadsSignal: pendingCrossroadsSignal,
+      pendingCrossroadsConfirmationText: pendingCrossroadsConfirmationText,
+      pendingCrossroadsUserMessage: pendingCrossroadsUserMessage,
+      crossroadsCaptureStep: crossroadsCaptureStep,
+      crossroadsCapturePromptText: crossroadsCapturePromptText,
+      pendingOutcomeCapture: pendingOutcomeCapture,
+      pendingAgenticQuestion: null,
+      pendingAgenticGapId: null,
+      pendingAgenticLoopContext: null,
     );
   }
 
@@ -153,6 +190,9 @@ class LumaraAssistantLoaded extends LumaraAssistantState {
       crossroadsCaptureStep: crossroadsCaptureStep,
       crossroadsCapturePromptText: crossroadsCapturePromptText,
       pendingOutcomeCapture: pendingOutcomeCapture,
+      pendingAgenticQuestion: pendingAgenticQuestion,
+      pendingAgenticGapId: pendingAgenticGapId,
+      pendingAgenticLoopContext: pendingAgenticLoopContext,
     );
   }
 
@@ -171,6 +211,9 @@ class LumaraAssistantLoaded extends LumaraAssistantState {
       crossroadsCaptureStep: null,
       crossroadsCapturePromptText: null,
       pendingOutcomeCapture: pendingOutcomeCapture,
+      pendingAgenticQuestion: pendingAgenticQuestion,
+      pendingAgenticGapId: pendingAgenticGapId,
+      pendingAgenticLoopContext: pendingAgenticLoopContext,
     );
   }
 
@@ -189,6 +232,9 @@ class LumaraAssistantLoaded extends LumaraAssistantState {
       crossroadsCaptureStep: crossroadsCaptureStep,
       crossroadsCapturePromptText: crossroadsCapturePromptText,
       pendingOutcomeCapture: null,
+      pendingAgenticQuestion: pendingAgenticQuestion,
+      pendingAgenticGapId: pendingAgenticGapId,
+      pendingAgenticLoopContext: pendingAgenticLoopContext,
     );
   }
 }
@@ -582,6 +628,37 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
       }
     }
 
+    // Dual chronicle: if we have a pending agentic clarifying question, treat this message as the user's reply
+    if (currentState.pendingAgenticQuestion != null &&
+        currentState.pendingAgenticGapId != null &&
+        currentState.pendingAgenticLoopContext != null) {
+      final userId = FirebaseAuthService.instance.currentUser?.uid ?? 'default_user';
+      final userMessage = LumaraMessage.user(content: text);
+      final replyMessages = [...currentState.messages, userMessage];
+      emit(currentState.copyWith(messages: replyMessages, isProcessing: true, apiErrorMessage: null, notice: null));
+      try {
+        final result = await DualChronicleServices.agenticLoopOrchestrator.continueAfterInterrupt(
+          userId,
+          currentState.pendingAgenticLoopContext!,
+          currentState.pendingAgenticQuestion!,
+          text,
+          currentState.pendingAgenticGapId!,
+        );
+        final assistantMessage = LumaraMessage.assistant(content: result.content ?? '');
+        final finalMessages = [...replyMessages, assistantMessage];
+        emit(currentState.clearedAgenticPending().copyWith(
+          messages: finalMessages,
+          isProcessing: false,
+        ));
+        await _addToChatSession(text, 'user', messageId: userMessage.id, timestamp: userMessage.timestamp);
+        await _addToChatSession(result.content ?? '', 'assistant');
+      } catch (e) {
+        print('LUMARA DualChronicle: continueAfterInterrupt error: $e');
+        emit(currentState.copyWith(isProcessing: false, apiErrorMessage: 'Something went wrong. Please try again.'));
+      }
+      return;
+    }
+
     // Save pending input in case of interruption
     await _savePendingInput(text, conversationMode: conversationMode, persona: effectivePersona);
 
@@ -607,6 +684,43 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
     await _addToChatSession(text, 'user', messageId: userMessage.id, timestamp: userMessage.timestamp);
 
     print('LUMARA Debug: Added user message, new count: ${updatedMessages.length}');
+
+    // Dual chronicle: run agentic loop (chat modality). If interrupt, show clarifying question and wait for reply.
+    final userId = FirebaseAuthService.instance.currentUser?.uid ?? 'default_user';
+    String phaseName = await UserPhaseService.getCurrentPhase();
+    if (phaseName.isEmpty) phaseName = 'unknown';
+    final agenticContext = AgenticContext(
+      currentPhase: phaseName,
+      readinessScore: 0.5,
+      modality: AgenticModality.chat,
+    );
+    try {
+      final loopResult = await DualChronicleServices.agenticLoopOrchestrator.execute(userId, text, agenticContext);
+      // Record that learning was triggered (transparency)
+      DualChronicleServices.lumaraChronicle
+          .recordLearningTrigger(userId, 'chat', sourceSummary: text.length > 80 ? '${text.substring(0, 80)}…' : text)
+          .catchError((e) => print('LUMARA DualChronicle: recordLearningTrigger error: $e'));
+      if (loopResult.type == 'interrupt' &&
+          loopResult.question != null &&
+          loopResult.gapId != null &&
+          loopResult.context != null) {
+        final assistantMsg = LumaraMessage.assistant(content: loopResult.question!);
+        final withQuestion = [...updatedMessages, assistantMsg];
+        final loopContext = AgenticLoopContext(userQuery: text, context: loopResult.context!);
+        emit(currentState.copyWith(
+          messages: withQuestion,
+          isProcessing: false,
+          pendingAgenticQuestion: loopResult.question,
+          pendingAgenticGapId: loopResult.gapId,
+          pendingAgenticLoopContext: loopContext,
+        ));
+        await _addToChatSession(loopResult.question!, 'assistant');
+        return;
+      }
+    } catch (e) {
+      print('LUMARA DualChronicle: agentic loop (chat) error: $e');
+      // Non-fatal: continue to normal API flow
+    }
 
     // Chat agent orchestration: classify intent; if research/writing run agent, else fall through to reflection
     final handled = await _tryChatAgentPath(text, updatedMessages, currentState, currentEntry);
@@ -2564,6 +2678,9 @@ Your exported MCP bundle can be imported into any MCP-compatible system, ensurin
       crossroadsCaptureStep: 1,
       crossroadsCapturePromptText: promptText,
       pendingOutcomeCapture: currentState.pendingOutcomeCapture,
+      pendingAgenticQuestion: currentState.pendingAgenticQuestion,
+      pendingAgenticGapId: currentState.pendingAgenticGapId,
+      pendingAgenticLoopContext: currentState.pendingAgenticLoopContext,
     ));
   }
 

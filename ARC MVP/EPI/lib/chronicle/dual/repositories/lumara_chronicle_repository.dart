@@ -20,6 +20,8 @@ class LumaraChronicleRepository {
   static const String _causalChains = 'inferences/causal_chains';
   static const String _patterns = 'inferences/patterns';
   static const String _relationships = 'inferences/relationships';
+  static const String _learningTriggersFile = 'learning_triggers.json';
+  static const int _maxLearningTriggers = 50;
 
   /// Record gap-fill event (learning moment).
   Future<void> addGapFillEvent(String userId, GapFillEvent event) async {
@@ -144,6 +146,44 @@ class LumaraChronicleRepository {
       }
     }
     return list;
+  }
+
+  /// Record that learning was triggered (agentic loop ran). Keeps last [_maxLearningTriggers].
+  Future<void> recordLearningTrigger(
+    String userId,
+    String modality, {
+    String? sourceSummary,
+  }) async {
+    final record = LearningTriggerRecord(
+      at: DateTime.now().toUtc(),
+      modality: modality,
+      sourceSummary: sourceSummary,
+    );
+    final list = await loadRecentLearningTriggers(userId, limit: _maxLearningTriggers);
+    list.insert(0, record);
+    final capped = list.take(_maxLearningTriggers).toList();
+    final data = {'triggers': capped.map((e) => e.toJson()).toList()};
+    await _storage.saveLumaraChronicle(userId, _learningTriggersFile, data);
+  }
+
+  /// Load recent learning triggers (newest first).
+  Future<List<LearningTriggerRecord>> loadRecentLearningTriggers(
+    String userId, {
+    int limit = 20,
+  }) async {
+    final json = await _storage.loadLumaraChronicle(userId, _learningTriggersFile);
+    if (json == null) return [];
+    final list = json['triggers'] as List?;
+    if (list == null) return [];
+    final records = <LearningTriggerRecord>[];
+    for (final e in list) {
+      if (e is Map) {
+        try {
+          records.add(LearningTriggerRecord.fromJson(Map<String, dynamic>.from(e)));
+        } catch (_) {}
+      }
+    }
+    return records.take(limit).toList();
   }
 
   /// Load all gap-fill events for user.

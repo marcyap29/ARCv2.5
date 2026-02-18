@@ -126,6 +126,7 @@ This section is derived from the repo and [CHANGELOG.md](../CHANGELOG.md) to kee
 | Agents expansion, Narrative Intelligence .tex, chats/settings, orchestration | v3.3.40 | — | agents_screen major; saved_chats_screen, lumara_settings_screen; arc/agents/drafts, agent_operating_system_prompt, lumara_intent_classifier, orchestration_violation_checker; DOCS .md→.tex. |
 | Dual CHRONICLE, Writing with LUMARA, timeline/feed, white paper .tex | v3.3.41 | — | lib/chronicle/dual/, dual_chronicle_view; LUMARA_DUAL_CHRONICLE_* docs; writing_with_lumara_screen; chat_draft_viewer_screen removed; timeline/feed/settings/journal updates. |
 | Docs: ARCHITECTURE paper/archive ref, LaTeX gitignore, Narrative/LUMARA archive | v3.3.42 | — | DOCS only: ARCHITECTURE.md §2 ref; NARRATIVE_INTELLIGENCE_PAPER_ARCHITECTURE_SECTION archived; .gitignore LaTeX artifacts; bug_tracker tracked. |
+| Dual CHRONICLE UI, LUMARA assistant, journal capture, onboarding, unified feed | v3.3.43 | — | dual_chronicle_view +311; lumara_assistant_cubit +117; journal_capture_cubit/view; unified_feed_screen refactor; home_view, arc_onboarding_sequence; ONBOARDING_TEXT. |
 
 **Source:** `git log --oneline`, [CHANGELOG.md](../CHANGELOG.md), terminal build log. Last synced: 2026-02-17.
 
@@ -141,5 +142,5 @@ Individual bug records stay in [records/](records/); only the legacy multi-part 
 
 ---
 
-**Status**: ✅ Active - All resolved issues documented; Build & Platform: 5 records; Environment: 1 (Ollama). Doc sync v3.3.42: bug_tracker tracked.  
+**Status**: ✅ Active - All resolved issues documented; Build & Platform: 5 records; Environment: 1 (Ollama). Doc sync v3.3.43: bug_tracker tracked.  
 **Last Updated**: 2026-02-17

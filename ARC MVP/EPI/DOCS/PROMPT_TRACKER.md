@@ -16,6 +16,7 @@
 ## Recent prompt-related changes
 
 | Date | Change | Source / doc |
+| 2026-02-17 | Doc sync v3.3.43: Dual CHRONICLE UI, LUMARA assistant, journal capture, onboarding, unified feed; bug_tracker tracked | CONFIGURATION_MANAGEMENT.md |
 | 2026-02-17 | Doc sync v3.3.42: ARCHITECTURE paper/archive ref, LaTeX gitignore, Narrative/LUMARA archive refs; bug_tracker tracked | CONFIGURATION_MANAGEMENT.md |
 | 2026-02-17 | Doc sync v3.3.41: Dual CHRONICLE, Writing with LUMARA, timeline/feed; bug_tracker tracked | CONFIGURATION_MANAGEMENT.md |
 | 2026-02-16 | Doc sync v3.3.40: PROMPT_REFERENCES updated; agent_operating_system_prompt, lumara_intent_classifier, orchestration; bug_tracker tracked | CONFIGURATION_MANAGEMENT.md |

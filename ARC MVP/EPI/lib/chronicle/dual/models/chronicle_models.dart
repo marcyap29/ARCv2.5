@@ -761,3 +761,30 @@ class GapFillEvent {
         promotedToAnnotation: promotedToAnnotation ?? this.promotedToAnnotation,
       );
 }
+
+/// Record that the agentic loop ran (learning was triggered). Used for transparency in the UI.
+class LearningTriggerRecord {
+  final DateTime at;
+  final String modality; // 'reflect' | 'chat'
+  final String? sourceSummary;
+
+  const LearningTriggerRecord({
+    required this.at,
+    required this.modality,
+    this.sourceSummary,
+  });
+
+  Map<String, dynamic> toJson() => {
+        'at': at.toIso8601String(),
+        'modality': modality,
+        if (sourceSummary != null) 'source': sourceSummary,
+      };
+
+  factory LearningTriggerRecord.fromJson(Map<String, dynamic> json) {
+    return LearningTriggerRecord(
+      at: DateTime.parse(json['at'] as String),
+      modality: json['modality'] as String,
+      sourceSummary: json['source'] as String?,
+    );
+  }
+}

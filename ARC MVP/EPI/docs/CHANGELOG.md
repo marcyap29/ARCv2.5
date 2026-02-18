@@ -1,6 +1,6 @@
 # EPI LUMARA MVP - Changelog
 
-**Version:** 3.3.42
+**Version:** 3.3.43
 **Last Updated:** February 17, 2026
 
 ---
@@ -14,6 +14,20 @@ This changelog has been split into parts for easier navigation:
 | **[CHANGELOG_part1.md](CHANGELOG_part1.md)** | Dec 2025 | v2.1.43 - v2.1.87 (Current) |
 | **[CHANGELOG_part2.md](CHANGELOG_part2.md)** | Nov 2025 | v2.1.28 - v2.1.42 |
 | **[CHANGELOG_part3.md](CHANGELOG_part3.md)** | Jan-Oct 2025 | v2.0.0 - v2.1.27 & Earlier |
+
+---
+
+## [3.3.43] - February 17, 2026
+
+### Dual CHRONICLE UI, LUMARA assistant, journal capture, onboarding, unified feed
+
+- **Dual CHRONICLE:** `dual_chronicle_view.dart` extended (+311); `agentic_loop_orchestrator.dart`, `chronicle_models.dart`, `lumara_chronicle_repository.dart`, `dual_chronicle_services.dart` updates (+96 net). Timeline & Learning (Dual Chronicle) UI and service wiring.
+- **LUMARA assistant:** `lumara_assistant_cubit.dart` extended (+117) — cubit logic and state.
+- **Journal capture:** `journal_capture_cubit.dart` (+55), `journal_capture_view.dart` (core + ui) updates.
+- **Unified feed:** `unified_feed_screen.dart` refactor (+187/−91).
+- **Home & onboarding:** `home_view.dart`, `arc_onboarding_sequence.dart` updates; `ONBOARDING_TEXT.md` updated.
+
+**Files:** 13 modified (DOCS/ONBOARDING_TEXT; lib/arc/chat/bloc, core, ui, unified_feed; lib/chronicle/dual; lib/shared/ui/chronicle, home, onboarding). bug_tracker tracked.
 
 ---
 

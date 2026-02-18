@@ -3,9 +3,8 @@
 // Executes the 7-step agentic loop while maintaining sacred separation.
 // User Chronicle is never modified automatically.
 
-import '../../models/chronicle_models.dart';
-import '../../repositories/user_chronicle_repository.dart';
-import '../../repositories/lumara_chronicle_repository.dart';
+import '../repositories/user_chronicle_repository.dart';
+import '../repositories/lumara_chronicle_repository.dart';
 import 'gap/gap_analyzer.dart';
 import 'gap/gap_classifier.dart';
 import 'interrupt/interrupt_decision_engine.dart';

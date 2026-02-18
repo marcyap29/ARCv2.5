@@ -73,8 +73,8 @@ class _HomeViewState extends State<HomeView> {
   // Shake to report bug
   StreamSubscription? _shakeSubscription;
   
-  /// Whether the unified feed is in empty/welcome state (no entries yet).
-  /// When true, the bottom nav is hidden so the welcome screen stands alone.
+  /// In unified feed mode: true = show welcome full-screen (hide bottom nav); false = show main tabs.
+  /// Becomes false when user has entries or when they tap "Get Started" (empty timeline with tabs).
   bool _feedIsEmpty = true;
 
   /// Phase Check-in shown this session (only prompt once per app open).
