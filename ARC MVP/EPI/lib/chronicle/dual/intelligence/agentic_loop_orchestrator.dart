@@ -5,6 +5,7 @@
 
 import '../repositories/user_chronicle_repository.dart';
 import '../repositories/lumara_chronicle_repository.dart';
+import '../repositories/intelligence_summary_repository.dart';
 import 'gap/gap_analyzer.dart';
 import 'gap/gap_classifier.dart';
 import 'interrupt/interrupt_decision_engine.dart';
@@ -48,12 +49,14 @@ class AgenticLoopOrchestrator {
     GapClassifier? gapClassifier,
     InterruptDecisionEngine? interruptEngine,
     ClarificationProcessor? clarificationProcessor,
+    IntelligenceSummaryRepository? intelligenceSummaryRepo,
   })  : _userRepo = userRepo ?? UserChronicleRepository(),
         _lumaraRepo = lumaraRepo ?? LumaraChronicleRepository(),
         _gapAnalyzer = gapAnalyzer ?? GapAnalyzer(),
         _gapClassifier = gapClassifier ?? GapClassifier(),
         _interruptEngine = interruptEngine ?? InterruptDecisionEngine(),
-        _clarificationProcessor = clarificationProcessor ?? ClarificationProcessor();
+        _clarificationProcessor = clarificationProcessor ?? ClarificationProcessor(),
+        _intelligenceSummaryRepo = intelligenceSummaryRepo;
 
   final UserChronicleRepository _userRepo;
   final LumaraChronicleRepository _lumaraRepo;
@@ -61,6 +64,7 @@ class AgenticLoopOrchestrator {
   final GapClassifier _gapClassifier;
   final InterruptDecisionEngine _interruptEngine;
   final ClarificationProcessor _clarificationProcessor;
+  final IntelligenceSummaryRepository? _intelligenceSummaryRepo;
 
   Future<LoopResult> execute(
     String userId,
@@ -98,6 +102,11 @@ class AgenticLoopOrchestrator {
       }
     }
 
+    // Layer 3: Mark Intelligence Summary stale so it regenerates (e.g. nightly)
+    _intelligenceSummaryRepo?.markStale(userId).catchError((e) {
+      // Non-fatal
+    });
+
     final content = _synthesizeResponse(layer0, inferred);
     return LoopResult(
       type: 'response',
@@ -121,6 +130,11 @@ class AgenticLoopOrchestrator {
       userResponse,
       gapId,
     );
+
+    // Layer 3: Mark Intelligence Summary stale after learning from clarification
+    _intelligenceSummaryRepo?.markStale(userId).catchError((e) {
+      // Non-fatal
+    });
 
     final layer0 = await _userRepo.queryLayer0(userId, originalContext.userQuery);
     final inferred = await _lumaraRepo.queryInferences(userId, originalContext.userQuery);

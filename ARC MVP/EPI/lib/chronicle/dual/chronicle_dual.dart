@@ -6,8 +6,10 @@
 // without explicit user approval.
 
 export 'models/chronicle_models.dart';
+export 'models/intelligence_summary_models.dart';
 export 'repositories/user_chronicle_repository.dart';
 export 'repositories/lumara_chronicle_repository.dart';
+export 'repositories/intelligence_summary_repository.dart';
 export 'storage/chronicle_storage.dart';
 export 'services/promotion_service.dart';
 export 'services/dual_chronicle_services.dart';

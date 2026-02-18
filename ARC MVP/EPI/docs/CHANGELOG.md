@@ -1,6 +1,6 @@
 # EPI LUMARA MVP - Changelog
 
-**Version:** 3.3.44
+**Version:** 3.3.45
 **Last Updated:** February 18, 2026
 
 ---
@@ -14,6 +14,17 @@ This changelog has been split into parts for easier navigation:
 | **[CHANGELOG_part1.md](CHANGELOG_part1.md)** | Dec 2025 | v2.1.43 - v2.1.87 (Current) |
 | **[CHANGELOG_part2.md](CHANGELOG_part2.md)** | Nov 2025 | v2.1.28 - v2.1.42 |
 | **[CHANGELOG_part3.md](CHANGELOG_part3.md)** | Jan-Oct 2025 | v2.0.0 - v2.1.27 & Earlier |
+
+---
+
+## [3.3.45] - February 18, 2026
+
+### Dual CHRONICLE intelligence summary, settings, DOCS LUMARA definitive overview
+
+- **Dual CHRONICLE:** Intelligence summary — new `intelligence_summary_models.dart`, `intelligence_summary_repository.dart`, `intelligence_summary_generator.dart`; new `intelligence_summary_view.dart`. `dual_chronicle_view.dart` extended (+356/−74); `agentic_loop_orchestrator.dart`, `dual_chronicle_services.dart`, `chronicle_dual.dart` updates. Settings: `settings_view.dart` (+14) for Timeline & Learning.
+- **DOCS:** New `LUMARA_DEFINITIVE_OVERVIEW.md`.
+
+**Files:** 5 modified, 4 new (lib/chronicle/dual/models, repositories, services; lib/shared/ui/chronicle), 1 new DOCS. bug_tracker tracked.
 
 ---
 

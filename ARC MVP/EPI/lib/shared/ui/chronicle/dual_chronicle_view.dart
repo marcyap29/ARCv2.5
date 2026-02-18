@@ -32,12 +32,16 @@ class _DualChronicleViewState extends State<DualChronicleView> {
   List<Pattern> _recentPatterns = [];
   bool _loading = true;
   String? _error;
+  /// Index of the learning trigger row whose "what is being learned" dropdown is open; null if none.
+  int? _expandedTriggerIndex;
 
   static const double _bodyFontSize = 13;
   static const double _sectionTitleFontSize = 14;
   static const int _maxRecentTriggers = 15;
   static const int _maxRecentGapFills = 10;
   static const int _maxRecentInferences = 5;
+  /// Time window (minutes) to match a trigger to gap-fill events for "what was learned".
+  static const int _triggerMatchWindowMinutes = 3;
 
   @override
   void initState() {
@@ -258,6 +262,14 @@ class _DualChronicleViewState extends State<DualChronicleView> {
               ),
             ],
           ),
+          const SizedBox(height: 6),
+          Text(
+            'Tap a trigger to see what LUMARA learned from it.',
+            style: bodyStyle(context).copyWith(
+              color: kcSecondaryTextColor,
+              fontSize: 12,
+            ),
+          ),
           const SizedBox(height: 8),
           Container(
             padding: const EdgeInsets.all(10),
@@ -268,59 +280,162 @@ class _DualChronicleViewState extends State<DualChronicleView> {
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: _recentTriggers.take(10).map((t) {
-                final at = t.at.isUtc ? t.at.toLocal() : t.at;
-                final timeStr = DateFormat('MMM d, h:mm a').format(at);
-                final modalityLabel = t.modality == 'reflect' ? 'Reflection' : 'Chat';
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 6),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        timeStr,
-                        style: bodyStyle(context).copyWith(
-                          color: kcSecondaryTextColor,
-                          fontSize: 12,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: t.modality == 'reflect'
-                              ? kcAccentColor.withValues(alpha: 0.2)
-                              : Colors.white.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          modalityLabel,
-                          style: bodyStyle(context).copyWith(
-                            color: kcPrimaryTextColor,
-                            fontSize: 11,
-                          ),
-                        ),
-                      ),
-                      if (t.sourceSummary != null && t.sourceSummary!.isNotEmpty) ...[
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            t.sourceSummary!,
-                            style: bodyStyle(context).copyWith(
-                              color: kcSecondaryTextColor,
-                              fontSize: 12,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                );
-              }).toList(),
+              children: [
+                for (int i = 0; i < _recentTriggers.length && i < 10; i++) _buildTriggerRow(i),
+              ],
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTriggerRow(int index) {
+    final t = _recentTriggers[index];
+    final at = t.at.isUtc ? t.at.toLocal() : t.at;
+    final timeStr = DateFormat('MMM d, h:mm a').format(at);
+    final modalityLabel = t.modality == 'reflect' ? 'Reflection' : 'Chat';
+    final isExpanded = _expandedTriggerIndex == index;
+    final matchingGapFills = _gapFillsNearTrigger(t);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        InkWell(
+          onTap: () {
+            setState(() {
+              _expandedTriggerIndex = isExpanded ? null : index;
+            });
+          },
+          borderRadius: BorderRadius.circular(8),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Icon(
+                  isExpanded ? Icons.expand_less : Icons.expand_more,
+                  color: kcSecondaryTextColor,
+                  size: 20,
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  timeStr,
+                  style: bodyStyle(context).copyWith(
+                    color: kcSecondaryTextColor,
+                    fontSize: 12,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: t.modality == 'reflect'
+                        ? kcAccentColor.withValues(alpha: 0.2)
+                        : Colors.white.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    modalityLabel,
+                    style: bodyStyle(context).copyWith(
+                      color: kcPrimaryTextColor,
+                      fontSize: 11,
+                    ),
+                  ),
+                ),
+                if (t.sourceSummary != null && t.sourceSummary!.isNotEmpty) ...[
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      t.sourceSummary!,
+                      style: bodyStyle(context).copyWith(
+                        color: kcSecondaryTextColor,
+                        fontSize: 12,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+        if (isExpanded) _buildTriggerDropdown(t, matchingGapFills),
+      ],
+    );
+  }
+
+  /// Gap-fill events recorded within [_triggerMatchWindowMinutes] minutes of the trigger.
+  List<GapFillEvent> _gapFillsNearTrigger(LearningTriggerRecord trigger) {
+    final triggerTime = trigger.at.isUtc ? trigger.at.toLocal() : trigger.at;
+    final window = Duration(minutes: _triggerMatchWindowMinutes);
+    return _recentGapFills.where((e) {
+      final eventTime = e.recordedAt.isUtc ? e.recordedAt.toLocal() : e.recordedAt;
+      return eventTime.difference(triggerTime).abs() <= window;
+    }).toList();
+  }
+
+  Widget _buildTriggerDropdown(LearningTriggerRecord trigger, List<GapFillEvent> matchingGapFills) {
+    return Container(
+      margin: const EdgeInsets.only(left: 28, bottom: 8, top: 2),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.25),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: kcAccentColor.withValues(alpha: 0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            'What is being learned from this trigger:',
+            style: bodyStyle(context).copyWith(
+              color: kcAccentColor,
+              fontWeight: FontWeight.w600,
+              fontSize: 12,
+            ),
+          ),
+          const SizedBox(height: 8),
+          if (matchingGapFills.isEmpty) ...[
+            Text(
+              trigger.sourceSummary != null && trigger.sourceSummary!.isNotEmpty
+                  ? 'Context: "${trigger.sourceSummary}"'
+                  : 'No detailed learning events recorded for this trigger yet. Learning may still be in progress or no new inferences were stored.',
+              style: bodyStyle(context).copyWith(
+                color: kcSecondaryTextColor,
+                fontSize: _bodyFontSize,
+              ),
+            ),
+          ] else ...[
+            for (final e in matchingGapFills) ...[
+              ..._formatSpecificLearningData(e).map((line) => Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '• ',
+                      style: bodyStyle(context).copyWith(color: kcAccentColor, fontSize: _bodyFontSize),
+                    ),
+                    Expanded(
+                      child: Text(
+                        line,
+                        style: bodyStyle(context).copyWith(
+                          color: kcPrimaryTextColor,
+                          fontSize: _bodyFontSize,
+                        ),
+                        maxLines: 4,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              )),
+              const SizedBox(height: 6),
+            ],
+          ],
         ],
       ),
     );
@@ -347,43 +462,138 @@ class _DualChronicleViewState extends State<DualChronicleView> {
               ),
             ],
           ),
+          const SizedBox(height: 6),
+          Text(
+            'Specific data LUMARA learned from each moment:',
+            style: bodyStyle(context).copyWith(
+              color: kcSecondaryTextColor,
+              fontSize: 12,
+            ),
+          ),
           const SizedBox(height: 8),
-          ..._recentGapFills.take(5).map((e) {
-            final timeStr = DateFormat('MMM d, h:mm a').format(e.recordedAt.isUtc ? e.recordedAt.toLocal() : e.recordedAt);
-            final typeLabel = _gapFillTypeLabel(e.type);
-            final summary = _gapFillSummary(e);
-            return Container(
-              margin: const EdgeInsets.only(bottom: 8),
-              padding: const EdgeInsets.all(10),
+          ..._recentGapFills.take(5).map((e) => _buildGapFillCard(e)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGapFillCard(GapFillEvent e) {
+    final timeStr = DateFormat('MMM d, h:mm a').format(e.recordedAt.isUtc ? e.recordedAt.toLocal() : e.recordedAt);
+    final typeLabel = _gapFillTypeLabel(e.type);
+    final summary = _gapFillSummary(e);
+    final specificData = _formatSpecificLearningData(e);
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(timeStr, style: bodyStyle(context).copyWith(color: kcSecondaryTextColor, fontSize: 11)),
+              const SizedBox(width: 8),
+              Text(typeLabel, style: bodyStyle(context).copyWith(color: kcAccentColor, fontSize: 11)),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            summary,
+            style: bodyStyle(context).copyWith(color: kcPrimaryTextColor, fontSize: _bodyFontSize),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+          if (specificData.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.05),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                color: Colors.black.withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(6),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      Text(timeStr, style: bodyStyle(context).copyWith(color: kcSecondaryTextColor, fontSize: 11)),
-                      const SizedBox(width: 8),
-                      Text(typeLabel, style: bodyStyle(context).copyWith(color: kcAccentColor, fontSize: 11)),
-                    ],
+                  Text(
+                    'What I learned (specific data):',
+                    style: bodyStyle(context).copyWith(
+                      color: kcAccentColor,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 11,
+                    ),
                   ),
                   const SizedBox(height: 4),
-                  Text(
-                    summary,
-                    style: bodyStyle(context).copyWith(color: kcPrimaryTextColor, fontSize: _bodyFontSize),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
+                  ...specificData.map((line) => Padding(
+                    padding: const EdgeInsets.only(bottom: 2),
+                    child: Text(
+                      line,
+                      style: bodyStyle(context).copyWith(
+                        color: kcSecondaryTextColor,
+                        fontSize: 12,
+                      ),
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  )),
                 ],
               ),
-            );
-          }),
+            ),
+          ],
         ],
       ),
     );
+  }
+
+  List<String> _formatSpecificLearningData(GapFillEvent e) {
+    final lines = <String>[];
+    final s = e.extractedSignal;
+    if (s.concepts.isNotEmpty) {
+      lines.add('Concepts: ${s.concepts.take(5).join(", ")}${s.concepts.length > 5 ? "…" : ""}');
+    }
+    if (s.causalChain != null) {
+      final c = s.causalChain!;
+      lines.add('Causal: "${c.trigger}" → "${c.response}"');
+      if (c.resolution != null && c.resolution!.isNotEmpty) {
+        lines.add('Resolution: ${c.resolution}');
+      }
+    }
+    if (s.pattern != null) {
+      final p = s.pattern!;
+      lines.add('Pattern: ${p.description} (${p.category})');
+    }
+    if (s.relationship != null) {
+      final r = s.relationship!;
+      lines.add('Relationship: ${r.entity} — ${r.role}');
+    }
+    if (s.value != null) {
+      final v = s.value!;
+      lines.add('Value: ${v.value} (${v.importance})');
+    }
+    if (e.process.clarifyingQuestion != null && e.process.clarifyingQuestion!.isNotEmpty) {
+      lines.add('Clarification Q: ${e.process.clarifyingQuestion}');
+    }
+    if (e.process.userResponse != null && e.process.userResponse!.isNotEmpty) {
+      lines.add('Your reply: ${e.process.userResponse!.length > 60 ? "${e.process.userResponse!.substring(0, 60)}…" : e.process.userResponse}');
+    }
+    final u = e.updates;
+    if (u.newInferences.isNotEmpty || u.updatedInferences.isNotEmpty || u.gapsFilled.isNotEmpty) {
+      final parts = <String>[];
+      if (u.newInferences.isNotEmpty) parts.add('${u.newInferences.length} new inference(s)');
+      if (u.updatedInferences.isNotEmpty) parts.add('${u.updatedInferences.length} updated');
+      if (u.gapsFilled.isNotEmpty) parts.add('${u.gapsFilled.length} gap(s) filled');
+      lines.add('Stored: ${parts.join(", ")}');
+    }
+    if (lines.isEmpty) {
+      lines.add('Gap: ${e.trigger.identifiedGap.description}');
+      if (e.trigger.identifiedGap.topic.isNotEmpty) {
+        lines.add('Topic: ${e.trigger.identifiedGap.topic}');
+      }
+    }
+    return lines;
   }
 
   String _gapFillTypeLabel(GapFillEventType type) {

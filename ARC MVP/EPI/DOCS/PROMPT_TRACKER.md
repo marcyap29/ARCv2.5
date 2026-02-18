@@ -16,6 +16,7 @@
 ## Recent prompt-related changes
 
 | Date | Change | Source / doc |
+| 2026-02-18 | Doc sync v3.3.45: Dual CHRONICLE intelligence summary, LUMARA definitive overview; bug_tracker tracked | CONFIGURATION_MANAGEMENT.md |
 | 2026-02-18 | Doc sync v3.3.44: CHRONICLE search (hybrid/BM25/semantic), unified feed, Arcform 3D; bug_tracker tracked | CONFIGURATION_MANAGEMENT.md |
 | 2026-02-17 | Doc sync v3.3.43: Dual CHRONICLE UI, LUMARA assistant, journal capture, onboarding, unified feed; bug_tracker tracked | CONFIGURATION_MANAGEMENT.md |
 | 2026-02-17 | Doc sync v3.3.42: ARCHITECTURE paper/archive ref, LaTeX gitignore, Narrative/LUMARA archive refs; bug_tracker tracked | CONFIGURATION_MANAGEMENT.md |
