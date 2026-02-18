@@ -380,7 +380,7 @@ On-device semantic indexing for cross-temporal pattern recognition.
 
 ## Related Documentation
 
-- [Narrative Intelligence White Paper](./NARRATIVE_INTELLIGENCE_WHITE_PAPER.md) — Framework document (architecture, VEIL cycle, subsystems, vector generation)
+- [Narrative Intelligence Overview](./NARRATIVE_INTELLIGENCE_OVERVIEW.md) — Framework overview (architecture, VEIL cycle, subsystems, vector generation). Formal paper: [NARRATIVE_INTELLIGENCE_WHITE_PAPER.tex](./NARRATIVE_INTELLIGENCE_WHITE_PAPER.tex).
 - [LUMARA Vision](./LUMARA_Vision.md) — Vision document
 - [Voice Mode Complete](./VOICE_MODE_COMPLETE.md) — Voice mode implementation
 - [Engagement Discipline](./Engagement_Discipline.md) — Engagement mode details

@@ -561,9 +561,11 @@ ios/Runner/moonshine_models/
 # Cursor IDE
 .cursor/
 
-# LaTeX build artifacts
+# LaTeX build artifacts (regenerate with pdflatex/latexmk on .tex)
 *.aux
 *.fdb_latexmk
 *.fls
 *.out
+*.log
+*.synctex.gz
 DOCS/*.pdf

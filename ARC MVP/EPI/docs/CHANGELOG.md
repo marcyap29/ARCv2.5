@@ -1,6 +1,6 @@
 # EPI LUMARA MVP - Changelog
 
-**Version:** 3.3.41
+**Version:** 3.3.42
 **Last Updated:** February 17, 2026
 
 ---
@@ -17,11 +17,25 @@ This changelog has been split into parts for easier navigation:
 
 ---
 
+## [3.3.42] - February 17, 2026
+
+### Docs: consolidation refs, ARCHITECTURE paper/archive ref, LaTeX artifacts gitignore
+
+- **ARCHITECTURE.md:** Paper §2 reference updated — formal source `NARRATIVE_INTELLIGENCE_WHITE_PAPER.tex` (§2); repo-aligned draft archived at `DOCS/archive/NARRATIVE_INTELLIGENCE_PAPER_ARCHITECTURE_SECTION.md`.
+- **NARRATIVE_INTELLIGENCE_PAPER_ARCHITECTURE_SECTION.md:** Removed from DOCS (content in .tex §2 and archive).
+- **LUMARA_ARCHITECTURE_SECTION.md:** Alignment with ARCHITECTURE.md confirmed; already in DOCS/archive.
+- **.gitignore:** LaTeX build artifacts — added `*.synctex.gz` and comment (regenerate with pdflatex/latexmk).
+- **bug_tracker:** Tracked for v3.3.42 doc sync.
+
+**Files:** DOCS only (.gitignore, ARCHITECTURE, CONFIGURATION_MANAGEMENT, CHANGELOG, bug_tracker, PROMPT_TRACKER; NARRATIVE_INTELLIGENCE_PAPER_ARCHITECTURE_SECTION deleted).
+
+---
+
 ## [3.3.41] - February 17, 2026
 
 ### Dual CHRONICLE, Writing with LUMARA screen, timeline/feed/settings, white paper .tex
 
-- **Dual CHRONICLE:** New `lib/chronicle/dual/` (chronicle_dual, intelligence, models, repositories, services, storage); new `lib/shared/ui/chronicle/dual_chronicle_view.dart`; new `test/chronicle/dual/sacred_separation_test.dart`. DOCS: LUMARA_DUAL_CHRONICLE_COMPLETE_GUIDE.md, LUMARA_DUAL_CHRONICLE_IMPLEMENTATION.md, LUMARA_DUAL_CHRONICLE_WHEN_TO_ACTIVATE.md.
+- **Dual CHRONICLE:** New `lib/chronicle/dual/` (chronicle_dual, intelligence, models, repositories, services, storage); new `lib/shared/ui/chronicle/dual_chronicle_view.dart`; new `test/chronicle/dual/sacred_separation_test.dart`. DOCS: LUMARA_DUAL_CHRONICLE_GUIDE.md (consolidated; prior COMPLETE_GUIDE, IMPLEMENTATION, WHEN_TO_ACTIVATE archived).
 - **Writing with LUMARA:** New `writing_with_lumara_screen.dart`; `chat_draft_viewer_screen.dart` removed. Writing screen and writing agent/draft_composer/writing_models updates.
 - **Timeline:** `timeline_cubit.dart`, `timeline_entry_model.dart`, `timeline_view.dart`, `interactive_timeline_view.dart` extended (+185 net interactive_timeline_view).
 - **Unified feed:** `feed_entry.dart`, `feed_repository.dart`, `feed_helpers.dart`, `expanded_entry_view.dart`, `unified_feed_screen.dart` updates.

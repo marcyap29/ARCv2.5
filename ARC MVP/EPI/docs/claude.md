@@ -7,7 +7,7 @@
 ### Recent Updates (v3.3.27)
 - **ARCHITECTURE.md Module Naming Refactor**: ARC → LUMARA (interface), MIRA → CHRONICLE (storage + synthesis + on-device embeddings). System diagram and all references updated. Executive Summary clarified: "5-module architecture: LUMARA (interface), PRISM, CHRONICLE, AURORA, ECHO."
 - **Pattern Index in Orchestrator**: `PatternQueryRouter` created during CHRONICLE init and passed to `ChronicleSubsystem`. Pattern-like intents route through vectorizer; results merged via `<chronicle_pattern_index>` tags. VEIL-CHRONICLE scheduler starts at app launch (`home_view.dart`). CHRONICLE Management UI: pattern index section with last-updated timestamp and manual rebuild.
-- **Narrative Intelligence White Paper**: `DOCS/NARRATIVE_INTELLIGENCE_WHITE_PAPER.md` — framework document (architecture, VEIL cycle, subsystems, vector generation, intellectual honesty, Crossroads).
+- **Narrative Intelligence**: `DOCS/NARRATIVE_INTELLIGENCE_OVERVIEW.md` — framework overview (architecture, VEIL cycle, subsystems, vector generation, intellectual honesty, Crossroads). Formal paper: `DOCS/NARRATIVE_INTELLIGENCE_WHITE_PAPER.tex`.
 
 ### Earlier Updates (v3.3.26)
 - **Crossroads Decision Capture**: New `lib/crossroads/` subsystem. RIVET-triggered decision detection (`RivetDecisionAnalyzer`) → confirmation prompt → four-step capture → CHRONICLE Layer 0 (`entry_type: "decision"`). Outcome revisitation via scheduled prompts. Monthly synthesis weaves decisions as inflection points. `QueryIntent.decisionArchaeology`. Export `decisions/` directory. Hive adapters 118/119.

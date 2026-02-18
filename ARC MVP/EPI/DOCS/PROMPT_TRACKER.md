@@ -1,7 +1,7 @@
 # Prompt Tracker
 
 **Version:** 1.4.0  
-**Last Updated:** February 15, 2026  
+**Last Updated:** February 17, 2026  
 **Purpose:** Prompt change tracking and quick reference. Full prompt catalog and version history live in [PROMPT_REFERENCES.md](PROMPT_REFERENCES.md).
 
 ---
@@ -16,6 +16,7 @@
 ## Recent prompt-related changes
 
 | Date | Change | Source / doc |
+| 2026-02-17 | Doc sync v3.3.42: ARCHITECTURE paper/archive ref, LaTeX gitignore, Narrative/LUMARA archive refs; bug_tracker tracked | CONFIGURATION_MANAGEMENT.md |
 | 2026-02-17 | Doc sync v3.3.41: Dual CHRONICLE, Writing with LUMARA, timeline/feed; bug_tracker tracked | CONFIGURATION_MANAGEMENT.md |
 | 2026-02-16 | Doc sync v3.3.40: PROMPT_REFERENCES updated; agent_operating_system_prompt, lumara_intent_classifier, orchestration; bug_tracker tracked | CONFIGURATION_MANAGEMENT.md |
 | 2026-02-15 | Doc sync v3.3.39: Research/writing prompts expansion (research_prompts, writing_prompts); screen/tab refinements; prompt audit (no new files, content expanded); bug_tracker tracked | CONFIGURATION_MANAGEMENT.md |

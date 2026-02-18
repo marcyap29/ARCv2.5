@@ -177,7 +177,7 @@ The *Narrative Intelligence* white paper (e.g. Narrative_Intelligence.pdf) descr
 | AURORA — Circadian Orchestration | `lib/aurora/` + `lib/arc/internal/aurora/` (VEIL, scheduling, reflection windows) |
 | ECHO — Response Control and Privacy | `lib/echo/` + `lib/arc/internal/echo/` (guard, PII, LLM integration) |
 
-So: the paper’s “ATLAS” is the Developmental Phase Engine; in EPI it is a **subsystem inside the PRISM module**. The LUMARA Orchestrator’s three subsystems (ATLAS, CHRONICLE, AURORA) feed the trajectory-conditioned prompt, which then passes through ECHO before the LLM. A repo-aligned §2 “System Architecture” text for the paper is in `DOCS/NARRATIVE_INTELLIGENCE_PAPER_ARCHITECTURE_SECTION.md`.
+So: the paper’s “ATLAS” is the Developmental Phase Engine; in EPI it is a **subsystem inside the PRISM module**. The LUMARA Orchestrator’s three subsystems (ATLAS, CHRONICLE, AURORA) feed the trajectory-conditioned prompt, which then passes through ECHO before the LLM. The formal paper is `DOCS/NARRATIVE_INTELLIGENCE_WHITE_PAPER.tex` (§2 System Architecture); a repo-aligned §2 draft was archived to `DOCS/archive/NARRATIVE_INTELLIGENCE_PAPER_ARCHITECTURE_SECTION.md`.
 
 ---
 

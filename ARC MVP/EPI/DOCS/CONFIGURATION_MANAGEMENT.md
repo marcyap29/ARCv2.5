@@ -1,7 +1,7 @@
 # Configuration Management & Documentation Tracking
 
 **Lead Configuration Management Analyst:** Active  
-**Last Updated:** February 17, 2026 (v3.3.41)  
+**Last Updated:** February 17, 2026 (v3.3.42)  
 **Status:** ✅ All Documents Synced with Repo
 
 ---
@@ -38,8 +38,8 @@ Prompt/role definitions: **Ultimate Documentation, Configuration Management and 
 
 | Document | Location | Last Reviewed | Status | Notes |
 |----------|----------|---------------|--------|-------|
-| ARCHITECTURE.md | `/DOCS/ARCHITECTURE.md` | 2026-02-17 | ✅ Synced | v3.3.41 - Doc sync |
-| CHANGELOG.md | `/DOCS/CHANGELOG.md` | 2026-02-17 | ✅ Synced | v3.3.41 - Dual CHRONICLE, Writing with LUMARA, timeline/feed |
+| ARCHITECTURE.md | `/DOCS/ARCHITECTURE.md` | 2026-02-17 | ✅ Synced | v3.3.42 - Paper §2/archive ref; doc sync |
+| CHANGELOG.md | `/DOCS/CHANGELOG.md` | 2026-02-17 | ✅ Synced | v3.3.42 - Docs consolidation, LaTeX ignore, archive refs |
 | PROMPT_REFERENCES.md | `/DOCS/PROMPT_REFERENCES.md` | 2026-02-16 | ✅ Synced | Updated; agent_operating_system_prompt, intent/orchestration refs |
 | PROMPT_TRACKER.md | `/DOCS/PROMPT_TRACKER.md` | 2026-02-15 | ✅ Synced | v1.4.0 - Agent prompts row |
 | bug_tracker.md | `/DOCS/bugtracker/bug_tracker.md` | 2026-02-15 | ✅ Synced | v3.2.6 - 35 records; tracked in doc sync |
@@ -54,8 +54,8 @@ Prompt/role definitions: **Ultimate Documentation, Configuration Management and 
 | Document | Location | Last Reviewed | Status | Notes |
 |----------|----------|---------------|--------|-------|
 | LUMARA_Vision.md | `/DOCS/LUMARA_Vision.md` | 2026-02-12 | ✅ Synced | Vision document (white paper) |
-| NARRATIVE_INTELLIGENCE_WHITE_PAPER.tex | `/DOCS/NARRATIVE_INTELLIGENCE_WHITE_PAPER.tex` | 2026-02-16 | ✅ Synced | LaTeX source for Narrative Intelligence paper (replaces .md; v3.3.40) |
-| NARRATIVE_INTELLIGENCE_PAPER_ARCHITECTURE_SECTION.md | `/DOCS/NARRATIVE_INTELLIGENCE_PAPER_ARCHITECTURE_SECTION.md` | 2026-02-14 | ✅ Synced | §2 System Architecture text for paper (repo-aligned; use in PDF) |
+| NARRATIVE_INTELLIGENCE_WHITE_PAPER.tex | `/DOCS/NARRATIVE_INTELLIGENCE_WHITE_PAPER.tex` | 2026-02-16 | ✅ Synced | LaTeX source for Narrative Intelligence paper (v3.3.40) |
+| NARRATIVE_INTELLIGENCE_OVERVIEW.md | `/DOCS/NARRATIVE_INTELLIGENCE_OVERVIEW.md` | 2026-02-17 | ✅ Synced | High-level framework overview (general audience); paper = .tex |
 | RIVET_ARCHITECTURE.md | `/DOCS/RIVET_ARCHITECTURE.md` | 2026-02-12 | ✅ Synced | RIVET algorithm spec (white paper) |
 | SENTINEL_ARCHITECTURE.md | `/DOCS/SENTINEL_ARCHITECTURE.md` | 2026-02-12 | ✅ Synced | SENTINEL algorithm spec (white paper) |
 
@@ -84,9 +84,7 @@ Prompt/role definitions: **Ultimate Documentation, Configuration Management and 
 | NARRATIVE_INTELLIGENCE_OVERVIEW.md | DOCS/ | High-level Narrative Intelligence and LUMARA overview (general audience) — v3.3.33 |
 | CHRONICLE_PAPER_VS_IMPLEMENTATION.md | DOCS/ | Paper vs codebase alignment; suggested edits for CHRONICLE paper — v3.3.35 |
 | CHRONICLE-2026_02_15.md | DOCS/ | CHRONICLE snapshot/notes 2026-02-15 — v3.3.35 |
-| LUMARA_DUAL_CHRONICLE_COMPLETE_GUIDE.md | DOCS/ | Dual CHRONICLE complete guide — v3.3.41 |
-| LUMARA_DUAL_CHRONICLE_IMPLEMENTATION.md | DOCS/ | Dual CHRONICLE implementation — v3.3.41 |
-| LUMARA_DUAL_CHRONICLE_WHEN_TO_ACTIVATE.md | DOCS/ | Dual CHRONICLE when to activate — v3.3.41 |
+| LUMARA_DUAL_CHRONICLE_GUIDE.md | DOCS/ | Dual CHRONICLE consolidated guide (when to activate, architecture, wiring, implementation, testing) — v3.3.41+ |
 | CRISIS_SYSTEM_COMPLETE.md | DOCS/ | Crisis system feature spec |
 | PRIVACY_COMPLETE.md | DOCS/ | Privacy feature spec |
 | PHASE_RATING_COMPLETE.md | DOCS/ | Phase rating feature spec |
@@ -100,22 +98,40 @@ Prompt/role definitions: **Ultimate Documentation, Configuration Management and 
 
 ## Change Tracking Log
 
+### 2026-02-17 - Documentation & Git Backup run (v3.3.42; bug_tracker tracked)
+
+**Action:** Ran Documentation, Configuration Management and Git Backup workflow (claude.md §233–349) on the entire repo. Document updates include **bug_tracker** tracking.
+
+**PROMPT REFERENCES AUDIT:** No new prompt files; catalog current.
+
+**Git Backup — Identify what changed:** DOCS-only: ARCHITECTURE.md paper §2/archive ref (formal paper .tex §2; repo-aligned draft in DOCS/archive/NARRATIVE_INTELLIGENCE_PAPER_ARCHITECTURE_SECTION.md); NARRATIVE_INTELLIGENCE_PAPER_ARCHITECTURE_SECTION.md removed from DOCS (archived); .gitignore LaTeX build artifacts (*.synctex.gz, comment); LUMARA_ARCHITECTURE_SECTION alignment confirmed (already in archive). No code changes.
+
+**Updates:**
+- **CHANGELOG.md:** Version 3.3.42; [3.3.42] Docs: consolidation refs, ARCHITECTURE paper/archive ref, LaTeX artifacts gitignore.
+- **CONFIGURATION_MANAGEMENT.md:** This entry; inventory 2026-02-17; bug_tracker tracked.
+- **bug_tracker.md:** New row for v3.3.42; Last Updated 2026-02-17.
+- **PROMPT_TRACKER.md:** Doc sync v3.3.42 row.
+
+**Status:** ✅ Commit, push main; merge test into main; push.
+
+---
+
 ### 2026-02-17 - Documentation & Git Backup run (v3.3.41; bug_tracker tracked)
 
 **Action:** Ran Documentation, Configuration Management and Git Backup workflow (claude.md §233–349) on the entire repo. Document updates include **bug_tracker** tracking.
 
 **PROMPT REFERENCES AUDIT:** No new prompt files; catalog current.
 
-**Git Backup — Identify what changed:** Dual CHRONICLE (lib/chronicle/dual/, dual_chronicle_view, test/chronicle/dual/); DOCS LUMARA_DUAL_CHRONICLE_COMPLETE_GUIDE, IMPLEMENTATION, WHEN_TO_ACTIVATE; writing_with_lumara_screen; chat_draft_viewer_screen removed; timeline (cubit, entry_model, view, interactive_timeline_view); unified feed (feed_entry, feed_repository, feed_helpers, expanded_entry_view, unified_feed_screen); settings_view, journal_screen; lumara_assistant_screen, research_screen, writing_screen; agents_screen, draft_composer, writing_agent, writing_models; NARRATIVE_INTELLIGENCE_WHITE_PAPER.tex updated.
+**Git Backup — Identify what changed:** Dual CHRONICLE (lib/chronicle/dual/, dual_chronicle_view, test/chronicle/dual/); DOCS LUMARA_DUAL_CHRONICLE_GUIDE (consolidated; COMPLETE_GUIDE, IMPLEMENTATION, WHEN_TO_ACTIVATE archived); writing_with_lumara_screen; chat_draft_viewer_screen removed; timeline (cubit, entry_model, view, interactive_timeline_view); unified feed (feed_entry, feed_repository, feed_helpers, expanded_entry_view, unified_feed_screen); settings_view, journal_screen; lumara_assistant_screen, research_screen, writing_screen; agents_screen, draft_composer, writing_agent, writing_models; NARRATIVE_INTELLIGENCE_WHITE_PAPER.tex updated.
 
 **Updates:**
 - **CHANGELOG.md:** Version 3.3.41; [3.3.41] Dual CHRONICLE, Writing with LUMARA, timeline/feed, white paper .tex.
 - **CONFIGURATION_MANAGEMENT.md:** This entry; inventory 2026-02-17; bug_tracker tracked.
 - **bug_tracker.md:** New row for v3.3.41; Last Updated 2026-02-17.
 - **PROMPT_TRACKER.md:** Doc sync v3.3.41 row.
-- **Additional DOCS:** LUMARA_DUAL_CHRONICLE_COMPLETE_GUIDE.md, LUMARA_DUAL_CHRONICLE_IMPLEMENTATION.md, LUMARA_DUAL_CHRONICLE_WHEN_TO_ACTIVATE.md added to inventory.
+- **Additional DOCS:** LUMARA_DUAL_CHRONICLE_GUIDE.md (consolidated guide); COMPLETE_GUIDE, IMPLEMENTATION, WHEN_TO_ACTIVATE archived to DOCS/archive/.
 
-**Status:** ✅ Commit, push main; merge test into main; push.
+**Status:** ✅ Committed (v3.3.41).
 
 ---
 

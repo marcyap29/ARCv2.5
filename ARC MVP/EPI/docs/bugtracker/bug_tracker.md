@@ -1,7 +1,7 @@
 # EPI MVP - Bug Tracker
 
 **Version:** 3.2.6  
-**Last Updated:** 2026-02-15  
+**Last Updated:** 2026-02-17  
 **Record count:** 35 individual bug records in [records/](records/). Index below matches all files in records/.
 
 ---
@@ -125,6 +125,7 @@ This section is derived from the repo and [CHANGELOG.md](../CHANGELOG.md) to kee
 | Research/writing prompts expansion, screen and tab refinements | v3.3.39 | — | research_prompts.dart, writing_prompts.dart extended; research_screen, writing_screen, research_agent_tab, lumara_assistant_cubit, agents_screen. |
 | Agents expansion, Narrative Intelligence .tex, chats/settings, orchestration | v3.3.40 | — | agents_screen major; saved_chats_screen, lumara_settings_screen; arc/agents/drafts, agent_operating_system_prompt, lumara_intent_classifier, orchestration_violation_checker; DOCS .md→.tex. |
 | Dual CHRONICLE, Writing with LUMARA, timeline/feed, white paper .tex | v3.3.41 | — | lib/chronicle/dual/, dual_chronicle_view; LUMARA_DUAL_CHRONICLE_* docs; writing_with_lumara_screen; chat_draft_viewer_screen removed; timeline/feed/settings/journal updates. |
+| Docs: ARCHITECTURE paper/archive ref, LaTeX gitignore, Narrative/LUMARA archive | v3.3.42 | — | DOCS only: ARCHITECTURE.md §2 ref; NARRATIVE_INTELLIGENCE_PAPER_ARCHITECTURE_SECTION archived; .gitignore LaTeX artifacts; bug_tracker tracked. |
 
 **Source:** `git log --oneline`, [CHANGELOG.md](../CHANGELOG.md), terminal build log. Last synced: 2026-02-17.
 
@@ -140,5 +141,5 @@ Individual bug records stay in [records/](records/); only the legacy multi-part 
 
 ---
 
-**Status**: ✅ Active - All resolved issues documented; Build & Platform: 5 records; Environment: 1 (Ollama). Doc sync v3.3.41: bug_tracker tracked.  
+**Status**: ✅ Active - All resolved issues documented; Build & Platform: 5 records; Environment: 1 (Ollama). Doc sync v3.3.42: bug_tracker tracked.  
 **Last Updated**: 2026-02-17
