@@ -7,7 +7,9 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:my_app/chronicle/dual/models/chronicle_models.dart';
+import 'package:my_app/chronicle/dual/repositories/lumara_chronicle_repository.dart';
 import 'package:my_app/chronicle/dual/services/dual_chronicle_services.dart';
+import 'package:my_app/chronicle/dual/services/lumara_connection_fade_preferences.dart';
 import 'package:my_app/chronicle/dual/services/promotion_service.dart';
 import 'package:my_app/services/firebase_auth_service.dart';
 import 'package:my_app/shared/app_colors.dart';
@@ -35,6 +37,9 @@ class _DualChronicleViewState extends State<DualChronicleView> {
   String? _error;
   /// Index of the learning trigger row whose "what is being learned" dropdown is open; null if none.
   int? _expandedTriggerIndex;
+  /// User's chosen connection memory window (days). Used for cutoff and "fades in" labels.
+  int _fadeDays = LumaraChronicleRepository.defaultCausalChainFadeDays;
+  ConnectionFadePreset _fadePreset = ConnectionFadePreset.defaultPreset;
 
   static const double _bodyFontSize = 13;
   static const double _sectionTitleFontSize = 14;
@@ -43,6 +48,31 @@ class _DualChronicleViewState extends State<DualChronicleView> {
   static const int _maxRecentInferences = 5;
   /// Time window (minutes) to match a trigger to gap-fill events for "what was learned".
   static const int _triggerMatchWindowMinutes = 3;
+
+  /// Describes how long ago an item was stored and how long until it fades from context.
+  static String storedAndFadesLabel(DateTime reference, int fadeDays) {
+    final now = DateTime.now();
+    final ref = reference.isUtc ? reference.toLocal() : reference;
+    final daysStored = now.difference(ref).inDays;
+    String stored;
+    if (daysStored <= 0) {
+      stored = 'Today';
+    } else if (daysStored == 1) {
+      stored = '1 day ago';
+    } else if (daysStored < 7) {
+      stored = '$daysStored days ago';
+    } else if (daysStored < 30) {
+      final w = (daysStored / 7).floor();
+      stored = w == 1 ? '1 week ago' : '$w weeks ago';
+    } else {
+      final m = (daysStored / 30).floor();
+      stored = m == 1 ? '1 month ago' : '$m months ago';
+    }
+    final fadeDate = ref.add(Duration(days: fadeDays));
+    final daysLeft = fadeDate.difference(now).inDays;
+    final fades = daysLeft <= 0 ? 'Faded' : 'Fades in $daysLeft days';
+    return 'Stored $stored • $fades';
+  }
 
   @override
   void initState() {
@@ -60,14 +90,19 @@ class _DualChronicleViewState extends State<DualChronicleView> {
       final lumaraRepo = DualChronicleServices.lumaraChronicle;
       final offers = DualChronicleServices.promotionService.getPendingOffers(_userId);
       final annotations = await chronicleAdapter.loadAnnotations(_userId);
-      final gapFills = await lumaraRepo.loadGapFillEvents(_userId);
+      final fadeDays = await LumaraConnectionFadePreferences.getFadeDays();
+      final fadeCutoff = DateTime.now().subtract(Duration(days: fadeDays));
+      final gapFills = await lumaraRepo.loadGapFillEvents(_userId, activeAfter: fadeCutoff);
       final triggers = await lumaraRepo.loadRecentLearningTriggers(_userId, limit: _maxRecentTriggers);
-      final causalChains = await lumaraRepo.loadCausalChains(_userId);
+      final causalChains = await lumaraRepo.loadCausalChains(_userId, activeAfter: fadeCutoff);
       final patterns = await lumaraRepo.loadPatterns(_userId);
       causalChains.sort((a, b) => b.lastObserved.compareTo(a.lastObserved));
       patterns.sort((a, b) => b.provenance.lastUpdated.compareTo(a.provenance.lastUpdated));
+      final preset = await LumaraConnectionFadePreferences.getPreset();
       if (mounted) {
         setState(() {
+          _fadeDays = fadeDays;
+          _fadePreset = preset;
           _pendingOffers = offers;
           _annotationCount = annotations.length;
           _gapFillCount = gapFills.length;
@@ -138,6 +173,7 @@ class _DualChronicleViewState extends State<DualChronicleView> {
                 children: [
                   _buildExplanation(),
                   if (_error != null) _buildError(),
+                  _buildConnectionMemoryWindow(),
                   _buildWhenLearningRuns(),
                   _buildIntelligenceSummaryCard(),
                   _buildRecentTriggers(),
@@ -195,6 +231,68 @@ class _DualChronicleViewState extends State<DualChronicleView> {
         style: bodyStyle(context).copyWith(
           color: kcDangerColor,
           fontSize: _bodyFontSize,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildConnectionMemoryWindow() {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.05),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.schedule, color: kcAccentColor, size: 18),
+                const SizedBox(width: 6),
+                Text(
+                  'Connection memory window',
+                  style: bodyStyle(context).copyWith(
+                    color: kcPrimaryTextColor,
+                    fontWeight: FontWeight.w600,
+                    fontSize: _sectionTitleFontSize,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'How long causal chains and learning moments stay in context before fading.',
+              style: bodyStyle(context).copyWith(
+                color: kcSecondaryTextColor,
+                fontSize: 12,
+              ),
+            ),
+            const SizedBox(height: 10),
+            DropdownButtonFormField<ConnectionFadePreset>(
+              value: _fadePreset,
+              decoration: InputDecoration(
+                labelText: 'Fade after',
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              ),
+              dropdownColor: kcBackgroundColor,
+              items: ConnectionFadePreset.values
+                  .map((p) => DropdownMenuItem(
+                        value: p,
+                        child: Text(p.label, style: bodyStyle(context).copyWith(color: kcPrimaryTextColor)),
+                      ))
+                  .toList(),
+              onChanged: (ConnectionFadePreset? value) async {
+                if (value == null) return;
+                await LumaraConnectionFadePreferences.setPreset(value);
+                if (mounted) _load();
+              },
+            ),
+          ],
         ),
       ),
     );
@@ -522,7 +620,7 @@ class _DualChronicleViewState extends State<DualChronicleView> {
           ),
           const SizedBox(height: 6),
           Text(
-            'Specific data LUMARA learned from each moment:',
+            'Specific data LUMARA learned from each moment. Each shows how long it\'s been stored and when it fades from context.',
             style: bodyStyle(context).copyWith(
               color: kcSecondaryTextColor,
               fontSize: 12,
@@ -557,6 +655,11 @@ class _DualChronicleViewState extends State<DualChronicleView> {
               const SizedBox(width: 8),
               Text(typeLabel, style: bodyStyle(context).copyWith(color: kcAccentColor, fontSize: 11)),
             ],
+          ),
+          const SizedBox(height: 2),
+          Text(
+            storedAndFadesLabel(e.recordedAt, _fadeDays),
+            style: bodyStyle(context).copyWith(color: kcSecondaryTextColor, fontSize: 10),
           ),
           const SizedBox(height: 4),
           Text(
@@ -692,6 +795,14 @@ class _DualChronicleViewState extends State<DualChronicleView> {
               ),
             ],
           ),
+          const SizedBox(height: 4),
+          Text(
+            'Causal chains and patterns from the last $_fadeDays days; each shows stored time and when it fades.',
+            style: bodyStyle(context).copyWith(
+              color: kcSecondaryTextColor,
+              fontSize: 12,
+            ),
+          ),
           const SizedBox(height: 8),
           Container(
             padding: const EdgeInsets.all(10),
@@ -706,17 +817,30 @@ class _DualChronicleViewState extends State<DualChronicleView> {
                 ..._recentCausalChains.map((c) {
                   final oneLine = '${c.trigger} → ${c.response}';
                   return Padding(
-                    padding: const EdgeInsets.only(bottom: 6),
-                    child: Row(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text('• ', style: bodyStyle(context).copyWith(color: kcAccentColor, fontSize: _bodyFontSize)),
-                        Expanded(
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('• ', style: bodyStyle(context).copyWith(color: kcAccentColor, fontSize: _bodyFontSize)),
+                            Expanded(
+                              child: Text(
+                                oneLine.length > 100 ? '${oneLine.substring(0, 100)}…' : oneLine,
+                                style: bodyStyle(context).copyWith(color: kcPrimaryTextColor, fontSize: _bodyFontSize),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.only(left: 14),
                           child: Text(
-                            oneLine.length > 100 ? '${oneLine.substring(0, 100)}…' : oneLine,
-                            style: bodyStyle(context).copyWith(color: kcPrimaryTextColor, fontSize: _bodyFontSize),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
+                            storedAndFadesLabel(c.lastObserved, _fadeDays),
+                            style: bodyStyle(context).copyWith(color: kcSecondaryTextColor, fontSize: 10),
                           ),
                         ),
                       ],
@@ -725,17 +849,30 @@ class _DualChronicleViewState extends State<DualChronicleView> {
                 }),
                 ..._recentPatterns.map((p) {
                   return Padding(
-                    padding: const EdgeInsets.only(bottom: 6),
-                    child: Row(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text('• ', style: bodyStyle(context).copyWith(color: kcAccentColor, fontSize: _bodyFontSize)),
-                        Expanded(
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('• ', style: bodyStyle(context).copyWith(color: kcAccentColor, fontSize: _bodyFontSize)),
+                            Expanded(
+                              child: Text(
+                                p.description.length > 100 ? '${p.description.substring(0, 100)}…' : p.description,
+                                style: bodyStyle(context).copyWith(color: kcPrimaryTextColor, fontSize: _bodyFontSize),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.only(left: 14),
                           child: Text(
-                            p.description.length > 100 ? '${p.description.substring(0, 100)}…' : p.description,
-                            style: bodyStyle(context).copyWith(color: kcPrimaryTextColor, fontSize: _bodyFontSize),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
+                            storedAndFadesLabel(p.provenance.lastUpdated, _fadeDays),
+                            style: bodyStyle(context).copyWith(color: kcSecondaryTextColor, fontSize: 10),
                           ),
                         ),
                       ],

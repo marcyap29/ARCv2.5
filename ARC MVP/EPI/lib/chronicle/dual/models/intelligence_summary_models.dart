@@ -55,6 +55,8 @@ class IntelligenceSummaryMetadata {
   final int totalEntries;
   final int totalPatterns;
   final int totalRelationships;
+  final int totalCausalChains;
+  final int totalLearningMoments;
   final TemporalSpan temporalSpan;
   final String confidenceLevel;
   final List<String> sectionsIncluded;
@@ -65,6 +67,8 @@ class IntelligenceSummaryMetadata {
     required this.totalEntries,
     required this.totalPatterns,
     required this.totalRelationships,
+    this.totalCausalChains = 0,
+    this.totalLearningMoments = 0,
     required this.temporalSpan,
     required this.confidenceLevel,
     required this.sectionsIncluded,
@@ -76,6 +80,8 @@ class IntelligenceSummaryMetadata {
         'total_entries': totalEntries,
         'total_patterns': totalPatterns,
         'total_relationships': totalRelationships,
+        'total_causal_chains': totalCausalChains,
+        'total_learning_moments': totalLearningMoments,
         'temporal_span': temporalSpan.toJson(),
         'confidence_level': confidenceLevel,
         'sections_included': sectionsIncluded,
@@ -88,6 +94,8 @@ class IntelligenceSummaryMetadata {
       totalEntries: json['total_entries'] as int? ?? 0,
       totalPatterns: json['total_patterns'] as int? ?? 0,
       totalRelationships: json['total_relationships'] as int? ?? 0,
+      totalCausalChains: json['total_causal_chains'] as int? ?? 0,
+      totalLearningMoments: json['total_learning_moments'] as int? ?? 0,
       temporalSpan: TemporalSpan.fromJson(
         json['temporal_span'] as Map<String, dynamic>? ?? {},
       ),

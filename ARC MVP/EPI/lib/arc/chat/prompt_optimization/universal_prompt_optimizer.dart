@@ -6,18 +6,23 @@
 import 'package:flutter/foundation.dart';
 import 'package:my_app/chronicle/dual/models/chronicle_models.dart';
 import 'package:my_app/chronicle/dual/repositories/lumara_chronicle_repository.dart';
+import 'package:my_app/chronicle/dual/services/lumara_connection_fade_preferences.dart';
 import 'prompt_optimization_types.dart';
 import 'readiness_calculator.dart';
 
-/// Selected context passed to formatting (patterns + relationships + state).
+/// Selected context passed to formatting (patterns, relationships, causal chains, learning moments + state).
 class SelectedContext {
   final List<Pattern> patterns;
   final List<RelationshipModel> relationships;
+  final List<CausalChain> causalChains;
+  final List<GapFillEvent> gapFillEvents;
   final CurrentState? state;
 
   const SelectedContext({
     this.patterns = const [],
     this.relationships = const [],
+    this.causalChains = const [],
+    this.gapFillEvents = const [],
     this.state,
   });
 }
@@ -44,7 +49,7 @@ class UniversalPromptOptimizer {
     switch (useCase) {
       case PromptUseCase.userChat:
         return const OptimizationStrategy(
-          contextNeeded: ContextRequirements(patterns: 5, relationships: 3, recentEntries: 0, state: true),
+          contextNeeded: ContextRequirements(patterns: 5, relationships: 3, causalChains: 8, gapFillEvents: 10, recentEntries: 0, state: true),
           outputFormat: OutputFormat.prose,
           maxTokens: 500,
           cacheable: true,
@@ -52,7 +57,7 @@ class UniversalPromptOptimizer {
         );
       case PromptUseCase.userReflect:
         return const OptimizationStrategy(
-          contextNeeded: ContextRequirements(patterns: 3, relationships: 2, recentEntries: 0, state: true),
+          contextNeeded: ContextRequirements(patterns: 3, relationships: 2, causalChains: 6, gapFillEvents: 8, recentEntries: 0, state: true),
           outputFormat: OutputFormat.prose,
           maxTokens: 200,
           cacheable: true,
@@ -60,7 +65,7 @@ class UniversalPromptOptimizer {
         );
       case PromptUseCase.userVoice:
         return const OptimizationStrategy(
-          contextNeeded: ContextRequirements(patterns: 2, relationships: 1, recentEntries: 0, state: true),
+          contextNeeded: ContextRequirements(patterns: 2, relationships: 1, causalChains: 5, gapFillEvents: 5, recentEntries: 0, state: true),
           outputFormat: OutputFormat.prose,
           maxTokens: 150,
           cacheable: true,
@@ -92,7 +97,7 @@ class UniversalPromptOptimizer {
         );
       case PromptUseCase.intelligenceSummary:
         return const OptimizationStrategy(
-          contextNeeded: ContextRequirements(patterns: 20, relationships: 10, recentEntries: 30, state: true),
+          contextNeeded: ContextRequirements(patterns: 20, relationships: 10, causalChains: 20, gapFillEvents: 30, recentEntries: 30, state: true),
           outputFormat: OutputFormat.prose,
           maxTokens: 16000,
           cacheable: false,
@@ -100,7 +105,7 @@ class UniversalPromptOptimizer {
         );
       case PromptUseCase.crisisDetection:
         return const OptimizationStrategy(
-          contextNeeded: ContextRequirements(patterns: 10, relationships: 5, recentEntries: 20, state: true),
+          contextNeeded: ContextRequirements(patterns: 10, relationships: 5, causalChains: 15, gapFillEvents: 15, recentEntries: 20, state: true),
           outputFormat: OutputFormat.json,
           maxTokens: 500,
           cacheable: false,
@@ -183,13 +188,34 @@ class UniversalPromptOptimizer {
         ? await _selectRelevantRelationships(userId, signals.entities, needed.relationships)
         : <RelationshipModel>[];
 
+    List<CausalChain> causalChains = const [];
+    if (needed.causalChains > 0) {
+      final fadeDays = await LumaraConnectionFadePreferences.getFadeDays();
+      final fadeCutoff = DateTime.now().subtract(Duration(days: fadeDays));
+      final all = await _lumaraRepo.loadCausalChains(userId, activeAfter: fadeCutoff);
+      causalChains = all.where((c) => c.status == InferenceStatus.active).take(needed.causalChains).toList();
+    }
+
+    List<GapFillEvent> gapFillEvents = const [];
+    if (needed.gapFillEvents > 0) {
+      final fadeDays = await LumaraConnectionFadePreferences.getFadeDays();
+      final fadeCutoff = DateTime.now().subtract(Duration(days: fadeDays));
+      gapFillEvents = (await _lumaraRepo.loadGapFillEvents(userId, activeAfter: fadeCutoff)).take(needed.gapFillEvents).toList();
+    }
+
     CurrentState? state;
     if (needed.state) {
       final readiness = await _readinessCalculator.getCurrent(userId);
       state = CurrentState(readiness: readiness);
     }
 
-    return SelectedContext(patterns: patterns, relationships: relationships, state: state);
+    return SelectedContext(
+      patterns: patterns,
+      relationships: relationships,
+      causalChains: causalChains,
+      gapFillEvents: gapFillEvents,
+      state: state,
+    );
   }
 
   QuerySignals _extractQuerySignals(String query) {
@@ -265,6 +291,19 @@ class UniversalPromptOptimizer {
         'name': r.entityName,
         'sentiment': r.role,
       }).toList(),
+      'causal_chains': context.causalChains.map((c) => {'trigger': c.trigger, 'response': c.response}).toList(),
+      'gap_fill_events': context.gapFillEvents.map((g) {
+        final s = g.extractedSignal;
+        String signal = '';
+        if (s.causalChain != null) {
+          signal = '${s.causalChain!.trigger} → ${s.causalChain!.response}';
+        } else if (s.pattern != null) {
+          signal = s.pattern!.description;
+        } else if (s.relationship != null) {
+          signal = '${s.relationship!.entity} (${s.relationship!.role})';
+        }
+        return {'query': g.trigger.originalQuery, 'signal': signal};
+      }).toList(),
       'readiness': context.state?.readiness,
     };
   }
@@ -276,6 +315,21 @@ class UniversalPromptOptimizer {
     }
     if (context.relationships.isNotEmpty) {
       parts.add('People: ${context.relationships.map((r) => '${r.entityName} (${r.role})').join(', ')}');
+    }
+    if (context.causalChains.isNotEmpty) {
+      parts.add('Causal links: ${context.causalChains.map((c) => '"${c.trigger}" → "${c.response}"').join('; ')}');
+    }
+    if (context.gapFillEvents.isNotEmpty) {
+      final moments = context.gapFillEvents.map((g) {
+        final s = g.extractedSignal;
+        if (s.causalChain != null) return '${s.causalChain!.trigger} → ${s.causalChain!.response}';
+        if (s.pattern != null) return s.pattern!.description;
+        if (s.relationship != null) return '${s.relationship!.entity} (${s.relationship!.role})';
+        return g.trigger.originalQuery.replaceAll('\n', ' ').length > 60
+            ? '${g.trigger.originalQuery.replaceAll('\n', ' ').substring(0, 60)}...'
+            : g.trigger.originalQuery.replaceAll('\n', ' ');
+      }).join('; ');
+      parts.add('Learning moments: $moments');
     }
     if (context.state != null) {
       parts.add('Readiness: ${context.state!.readiness}/100');

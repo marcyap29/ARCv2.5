@@ -26,7 +26,7 @@ class LumaraPromptLibrary {
       },
       "AURORA": {"purpose": "Circadian orchestration"},
       "VEIL": {"purpose": "Restorative pruning"},
-      "MIRA": {"purpose": "Semantic memory graph"},
+      "CHRONICLE Layer 0 Retrieval": {"purpose": "Timeline entry retrieval and context"},
       "MCP": {"purpose": "JSON bundle format"},
       "PRISM": {"purpose": "Multimodal analysis"},
       "LUMARA": {"purpose": "Conversational guide"}

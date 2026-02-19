@@ -39,6 +39,9 @@ import 'package:my_app/chronicle/storage/aggregation_repository.dart';
 import 'package:my_app/chronicle/storage/changelog_repository.dart';
 import 'package:my_app/chronicle/models/chronicle_layer.dart';
 import 'package:my_app/chronicle/models/chronicle_aggregation.dart';
+import 'package:my_app/chronicle/dual/services/dual_chronicle_services.dart';
+import 'package:my_app/chronicle/dual/models/chronicle_models.dart';
+import 'package:my_app/services/firebase_auth_service.dart';
 import 'package:my_app/arc/voice_notes/models/voice_note.dart';
 import 'package:my_app/arc/voice_notes/repositories/voice_note_repository.dart';
 import 'package:my_app/lumara/agents/research/research_artifact_repository.dart';
@@ -413,6 +416,10 @@ class ARCXImportServiceV2 {
         // Import CHRONICLE aggregations (monthly/yearly/multiyear .md files + changelog)
         onProgress?.call('Importing CHRONICLE aggregations...', _kPhaseRegimesEnd);
         final chronicleImported = await _importChronicle(payloadDir!, onProgress: onProgress);
+
+        // Import LUMARA Chronicle (causal chains, gap-fill events, patterns, relationships)
+        onProgress?.call('Importing LUMARA causal chains and learning moments...', _kPhaseRegimesEnd);
+        await _importLumaraChronicle(payloadDir!, onProgress: onProgress);
         
         // Import voice notes (Voice Notes tab)
         onProgress?.call('Importing voice notes...', _kPhaseRegimesEnd);
@@ -841,7 +848,9 @@ class ARCXImportServiceV2 {
         // Convert to JournalEntry
         final entry = await _convertEntryJsonToJournalEntry(entryJson);
         if (entry != null) {
-          await _journalRepo!.createJournalEntry(entry);
+          // Pass userId so CHRONICLE Layer 0 is populated for the current user on restore
+          final userId = FirebaseAuthService.instance.currentUser?.uid;
+          await _journalRepo!.createJournalEntry(entry, userId: userId);
           _entryIdMap[entryId] = entry.id;
           _importedEntryIds.add(entry.id);
           imported++;
@@ -1452,6 +1461,83 @@ class ARCXImportServiceV2 {
         'multiyear': 0,
         'changelog_entries': 0,
       };
+    }
+  }
+
+  /// Import LUMARA Chronicle from Chronicle/LUMARA/*.json (causal chains, gap-fills, patterns, relationships)
+  Future<void> _importLumaraChronicle(
+    Directory payloadDir, {
+    ImportProgressCallback? onProgress,
+  }) async {
+    try {
+      final lumaraDir = Directory(path.join(payloadDir.path, 'Chronicle', 'LUMARA'));
+      if (!await lumaraDir.exists()) {
+        print('ARCX Import V2: ⚠️ Chronicle/LUMARA directory not found, skipping LUMARA Chronicle import');
+        return;
+      }
+
+      final userId = FirebaseAuthService.instance.currentUser?.uid ?? 'default_user';
+      final repo = DualChronicleServices.lumaraChronicle;
+
+      final causalChainsFile = File(path.join(lumaraDir.path, 'causal_chains.json'));
+      if (await causalChainsFile.exists()) {
+        final list = jsonDecode(await causalChainsFile.readAsString()) as List<dynamic>;
+        for (final item in list) {
+          try {
+            final chain = CausalChain.fromJson(item as Map<String, dynamic>);
+            await repo.addCausalChain(userId, chain);
+          } catch (e) {
+            print('ARCX Import V2: ⚠️ Failed to import causal chain: $e');
+          }
+        }
+        onProgress?.call('Imported ${list.length} causal chains...', _kPhaseRegimesEnd);
+      }
+
+      final gapFillsFile = File(path.join(lumaraDir.path, 'gap_fill_events.json'));
+      if (await gapFillsFile.exists()) {
+        final list = jsonDecode(await gapFillsFile.readAsString()) as List<dynamic>;
+        for (final item in list) {
+          try {
+            final event = GapFillEvent.fromJson(item as Map<String, dynamic>);
+            await repo.addGapFillEvent(userId, event);
+          } catch (e) {
+            print('ARCX Import V2: ⚠️ Failed to import gap-fill event: $e');
+          }
+        }
+        onProgress?.call('Imported ${list.length} learning moments...', _kPhaseRegimesEnd);
+      }
+
+      final patternsFile = File(path.join(lumaraDir.path, 'patterns.json'));
+      if (await patternsFile.exists()) {
+        final list = jsonDecode(await patternsFile.readAsString()) as List<dynamic>;
+        for (final item in list) {
+          try {
+            final pattern = Pattern.fromJson(item as Map<String, dynamic>);
+            await repo.addPattern(userId, pattern);
+          } catch (e) {
+            print('ARCX Import V2: ⚠️ Failed to import pattern: $e');
+          }
+        }
+        onProgress?.call('Imported ${list.length} patterns...', _kPhaseRegimesEnd);
+      }
+
+      final relationshipsFile = File(path.join(lumaraDir.path, 'relationships.json'));
+      if (await relationshipsFile.exists()) {
+        final list = jsonDecode(await relationshipsFile.readAsString()) as List<dynamic>;
+        for (final item in list) {
+          try {
+            final rel = RelationshipModel.fromJson(item as Map<String, dynamic>);
+            await repo.addRelationship(userId, rel);
+          } catch (e) {
+            print('ARCX Import V2: ⚠️ Failed to import relationship: $e');
+          }
+        }
+        onProgress?.call('Imported ${list.length} relationships...', _kPhaseRegimesEnd);
+      }
+
+      print('ARCX Import V2: ✓ LUMARA Chronicle import complete');
+    } catch (e) {
+      print('ARCX Import V2: ⚠️ Error importing LUMARA Chronicle: $e');
     }
   }
 

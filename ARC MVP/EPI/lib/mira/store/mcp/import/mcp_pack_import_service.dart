@@ -24,6 +24,16 @@ import 'package:my_app/models/user_profile_model.dart';
 import 'package:my_app/state/journal_entry_state.dart';
 import 'package:my_app/arc/chat/chat/chat_repo.dart';
 import 'package:my_app/services/export_history_service.dart';
+import 'package:my_app/chronicle/core/chronicle_repos.dart';
+import 'package:my_app/chronicle/storage/changelog_repository.dart';
+import 'package:my_app/chronicle/models/chronicle_layer.dart';
+import 'package:my_app/chronicle/models/chronicle_aggregation.dart';
+import 'package:my_app/chronicle/dual/services/dual_chronicle_services.dart';
+import 'package:my_app/chronicle/dual/models/chronicle_models.dart';
+import 'package:my_app/services/firebase_auth_service.dart';
+import 'package:my_app/arc/voice_notes/models/voice_note.dart';
+import 'package:my_app/arc/voice_notes/repositories/voice_note_repository.dart';
+import 'package:my_app/lumara/agents/research/research_artifact_repository.dart';
 import 'package:uuid/uuid.dart';
 
 const _uuid = Uuid();
@@ -162,11 +172,23 @@ class McpPackImportService {
         }
       }
 
-      // Import extended data (Phase Regimes, Rivet, Sentinel, ArcForm, Favorites)
+      // Import extended data (Phase Regimes, Rivet, Sentinel, ArcForm, Favorites, Voice notes, Agents)
       try {
         await _importExtendedData(mcpDir);
       } catch (e) {
         print('⚠️ MCP Import: Failed to import extended data: $e');
+      }
+
+      // Import Chronicle and LUMARA Chronicle (match ARCX capability)
+      try {
+        await _importChronicle(mcpDir);
+      } catch (e) {
+        print('⚠️ MCP Import: Failed to import Chronicle: $e');
+      }
+      try {
+        await _importLumaraChronicle(mcpDir);
+      } catch (e) {
+        print('⚠️ MCP Import: Failed to import LUMARA Chronicle: $e');
       }
       
       // Log media cache statistics
@@ -1215,6 +1237,245 @@ class McpPackImportService {
       }
     } catch (e) {
       print('⚠️ MCP Import: Failed to import LUMARA favorites: $e');
+    }
+
+    // 6. Voice notes (match ARCX capability)
+    try {
+      final voiceNotesFile = File(path.join(extensionsDir.path, 'voice_notes.json'));
+      if (await voiceNotesFile.exists()) {
+        final content = await voiceNotesFile.readAsString();
+        final data = jsonDecode(content) as Map<String, dynamic>;
+        final notesJson = data['voice_notes'] as List<dynamic>? ?? [];
+        Box<VoiceNote> box;
+        if (Hive.isBoxOpen(VoiceNoteRepository.boxName)) {
+          box = Hive.box<VoiceNote>(VoiceNoteRepository.boxName);
+        } else {
+          box = await Hive.openBox<VoiceNote>(VoiceNoteRepository.boxName);
+        }
+        for (final noteJson in notesJson) {
+          try {
+            final m = noteJson as Map<String, dynamic>;
+            final note = VoiceNote(
+              id: m['id'] as String,
+              timestamp: DateTime.parse(m['timestamp'] as String),
+              transcription: m['transcription'] as String? ?? '',
+              tags: (m['tags'] as List<dynamic>?)?.cast<String>() ?? [],
+              archived: m['archived'] as bool? ?? false,
+              convertedToJournal: m['convertedToJournal'] as bool? ?? false,
+              convertedEntryId: m['convertedEntryId'] as String?,
+              durationMs: m['durationMs'] as int?,
+            );
+            await box.put(note.id, note);
+          } catch (e) {
+            print('⚠️ MCP Import: Failed to import voice note: $e');
+          }
+        }
+        print('📦 MCP Import: ✓ Imported ${notesJson.length} voice notes');
+      }
+    } catch (e) {
+      print('⚠️ MCP Import: Failed to import voice notes: $e');
+    }
+
+    // 7. Agents data: writing_drafts + research_artifacts.json (match ARCX capability)
+    try {
+      final agentsDir = Directory(path.join(extensionsDir.path, 'agents'));
+      if (await agentsDir.exists()) {
+        final sourceDrafts = Directory(path.join(agentsDir.path, 'writing_drafts'));
+        if (await sourceDrafts.exists()) {
+          final appDir = await getApplicationDocumentsDirectory();
+          final destDrafts = Directory(path.join(appDir.path, 'writing_drafts'));
+          await destDrafts.create(recursive: true);
+          await for (final entity in sourceDrafts.list(recursive: false)) {
+            if (entity is Directory) {
+              final userDir = Directory(path.join(destDrafts.path, path.basename(entity.path)));
+              await userDir.create(recursive: true);
+              await for (final file in entity.list(recursive: true)) {
+                if (file is File) {
+                  final rel = path.relative(file.path, from: entity.path);
+                  final destFile = File(path.join(userDir.path, rel));
+                  await destFile.parent.create(recursive: true);
+                  await destFile.writeAsBytes(await file.readAsBytes());
+                }
+              }
+            }
+          }
+          print('📦 MCP Import: ✓ Imported writing_drafts');
+        }
+        final researchFile = File(path.join(agentsDir.path, 'research_artifacts.json'));
+        if (await researchFile.exists()) {
+          final content = await researchFile.readAsString();
+          final data = jsonDecode(content) as Map<String, dynamic>;
+          final list = data['research_artifacts'] as List<dynamic>? ?? [];
+          final artifacts = list
+              .whereType<Map<String, dynamic>>()
+              .map((e) => StoredResearchArtifact.fromJson(e))
+              .toList();
+          await ResearchArtifactRepository.instance.replaceAllForImport(artifacts);
+          print('📦 MCP Import: ✓ Imported ${artifacts.length} research artifacts');
+        }
+      }
+    } catch (e) {
+      print('⚠️ MCP Import: Failed to import agents data: $e');
+    }
+  }
+
+  /// Import CHRONICLE aggregations from Chronicle/ (match ARCX capability)
+  Future<void> _importChronicle(Directory mcpDir) async {
+    try {
+      final chronicleDir = Directory(path.join(mcpDir.path, 'Chronicle'));
+      if (!await chronicleDir.exists()) return;
+      final aggregationRepo = ChronicleRepos.aggregation;
+      final changelogRepo = ChronicleRepos.changelog;
+      const userId = 'default_user';
+
+      ChronicleAggregation _parseAggregationFile(String content, ChronicleLayer layer, String period) {
+        if (!content.startsWith('---')) throw FormatException('Invalid aggregation format: missing frontmatter');
+        final parts = content.split('---');
+        if (parts.length < 3) throw FormatException('Invalid aggregation format: malformed frontmatter');
+        final frontmatter = parts[1].trim();
+        final markdown = parts.sublist(2).join('---').trim();
+        final metadata = <String, dynamic>{};
+        for (final line in frontmatter.split('\n')) {
+          if (line.contains(':')) {
+            final lineParts = line.split(':');
+            if (lineParts.length >= 2) {
+              final key = lineParts[0].trim();
+              final value = lineParts.sublist(1).join(':').trim();
+              if (key == 'entry_count' || key == 'version') metadata[key] = int.parse(value);
+              else if (key == 'compression_ratio') metadata[key] = double.parse(value);
+              else if (key == 'user_edited') metadata[key] = value.toLowerCase() == 'true';
+              else if (key == 'synthesis_date') metadata[key] = DateTime.parse(value);
+              else if (key == 'source_entry_ids') metadata[key] = value.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+            }
+          }
+        }
+        return ChronicleAggregation(
+          layer: layer,
+          period: period,
+          synthesisDate: metadata['synthesis_date'] as DateTime,
+          entryCount: metadata['entry_count'] as int,
+          compressionRatio: metadata['compression_ratio'] as double,
+          content: markdown,
+          sourceEntryIds: List<String>.from(metadata['source_entry_ids'] as List? ?? []),
+          userEdited: metadata['user_edited'] as bool? ?? false,
+          version: metadata['version'] as int? ?? 1,
+          userId: userId,
+        );
+      }
+
+      final monthlyDir = Directory(path.join(chronicleDir.path, 'monthly'));
+      if (await monthlyDir.exists()) {
+        for (final file in monthlyDir.listSync().whereType<File>().where((f) => f.path.endsWith('.md'))) {
+          try {
+            final content = await file.readAsString();
+            final period = path.basenameWithoutExtension(file.path);
+            final aggregation = _parseAggregationFile(content, ChronicleLayer.monthly, period);
+            await aggregationRepo.saveMonthly(userId, aggregation);
+          } catch (e) {
+            print('⚠️ MCP Import: Failed to import monthly aggregation ${file.path}: $e');
+          }
+        }
+      }
+      final yearlyDir = Directory(path.join(chronicleDir.path, 'yearly'));
+      if (await yearlyDir.exists()) {
+        for (final file in yearlyDir.listSync().whereType<File>().where((f) => f.path.endsWith('.md'))) {
+          try {
+            final content = await file.readAsString();
+            final period = path.basenameWithoutExtension(file.path);
+            final aggregation = _parseAggregationFile(content, ChronicleLayer.yearly, period);
+            await aggregationRepo.saveYearly(userId, aggregation);
+          } catch (e) {
+            print('⚠️ MCP Import: Failed to import yearly aggregation ${file.path}: $e');
+          }
+        }
+      }
+      final multiyearDir = Directory(path.join(chronicleDir.path, 'multiyear'));
+      if (await multiyearDir.exists()) {
+        for (final file in multiyearDir.listSync().whereType<File>().where((f) => f.path.endsWith('.md'))) {
+          try {
+            final content = await file.readAsString();
+            final period = path.basenameWithoutExtension(file.path);
+            final aggregation = _parseAggregationFile(content, ChronicleLayer.multiyear, period);
+            await aggregationRepo.saveMultiYear(userId, aggregation);
+          } catch (e) {
+            print('⚠️ MCP Import: Failed to import multi-year aggregation ${file.path}: $e');
+          }
+        }
+      }
+      final changelogFile = File(path.join(chronicleDir.path, 'changelog.jsonl'));
+      if (await changelogFile.exists()) {
+        final content = await changelogFile.readAsString();
+        for (final line in content.split('\n').where((line) => line.trim().isNotEmpty)) {
+          try {
+            final json = jsonDecode(line) as Map<String, dynamic>;
+            final entry = ChangelogEntry.fromJson(json);
+            await changelogRepo.log(userId: entry.userId, layer: entry.layer, action: entry.action, metadata: entry.metadata, error: entry.error);
+          } catch (e) {
+            print('⚠️ MCP Import: Failed to import changelog entry: $e');
+          }
+        }
+      }
+      print('📦 MCP Import: ✓ Imported CHRONICLE');
+    } catch (e) {
+      print('⚠️ MCP Import: Failed to import Chronicle: $e');
+    }
+  }
+
+  /// Import LUMARA Chronicle from Chronicle/LUMARA/*.json (match ARCX capability)
+  Future<void> _importLumaraChronicle(Directory mcpDir) async {
+    try {
+      final lumaraDir = Directory(path.join(mcpDir.path, 'Chronicle', 'LUMARA'));
+      if (!await lumaraDir.exists()) return;
+      final userId = FirebaseAuthService.instance.currentUser?.uid ?? 'default_user';
+      final repo = DualChronicleServices.lumaraChronicle;
+
+      final causalChainsFile = File(path.join(lumaraDir.path, 'causal_chains.json'));
+      if (await causalChainsFile.exists()) {
+        final list = jsonDecode(await causalChainsFile.readAsString()) as List<dynamic>;
+        for (final item in list) {
+          try {
+            await repo.addCausalChain(userId, CausalChain.fromJson(item as Map<String, dynamic>));
+          } catch (e) {
+            print('⚠️ MCP Import: Failed to import causal chain: $e');
+          }
+        }
+      }
+      final gapFillsFile = File(path.join(lumaraDir.path, 'gap_fill_events.json'));
+      if (await gapFillsFile.exists()) {
+        final list = jsonDecode(await gapFillsFile.readAsString()) as List<dynamic>;
+        for (final item in list) {
+          try {
+            await repo.addGapFillEvent(userId, GapFillEvent.fromJson(item as Map<String, dynamic>));
+          } catch (e) {
+            print('⚠️ MCP Import: Failed to import gap-fill event: $e');
+          }
+        }
+      }
+      final patternsFile = File(path.join(lumaraDir.path, 'patterns.json'));
+      if (await patternsFile.exists()) {
+        final list = jsonDecode(await patternsFile.readAsString()) as List<dynamic>;
+        for (final item in list) {
+          try {
+            await repo.addPattern(userId, Pattern.fromJson(item as Map<String, dynamic>));
+          } catch (e) {
+            print('⚠️ MCP Import: Failed to import pattern: $e');
+          }
+        }
+      }
+      final relationshipsFile = File(path.join(lumaraDir.path, 'relationships.json'));
+      if (await relationshipsFile.exists()) {
+        final list = jsonDecode(await relationshipsFile.readAsString()) as List<dynamic>;
+        for (final item in list) {
+          try {
+            await repo.addRelationship(userId, RelationshipModel.fromJson(item as Map<String, dynamic>));
+          } catch (e) {
+            print('⚠️ MCP Import: Failed to import relationship: $e');
+          }
+        }
+      }
+      print('📦 MCP Import: ✓ Imported LUMARA Chronicle');
+    } catch (e) {
+      print('⚠️ MCP Import: Failed to import LUMARA Chronicle: $e');
     }
   }
   

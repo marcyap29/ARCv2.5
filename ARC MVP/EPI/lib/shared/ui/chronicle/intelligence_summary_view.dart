@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:my_app/chronicle/dual/models/intelligence_summary_models.dart';
 import 'package:my_app/chronicle/dual/services/dual_chronicle_services.dart';
+import 'package:my_app/chronicle/dual/services/lumara_connection_fade_preferences.dart';
 import 'package:my_app/chronicle/dual/services/intelligence_summary_schedule_preferences.dart';
 import 'package:my_app/services/firebase_auth_service.dart';
 import 'package:my_app/shared/app_colors.dart';
@@ -32,6 +33,7 @@ class _IntelligenceSummaryViewState extends State<IntelligenceSummaryView> {
   String _scheduleLabel = 'Daily at 10:00 PM';
   String? _nextRefreshLabel;
   bool _scheduleLoaded = false;
+  int _fadeDays = defaultFadeDays;
 
   @override
   void initState() {
@@ -56,6 +58,7 @@ class _IntelligenceSummaryViewState extends State<IntelligenceSummaryView> {
         lastGenerated: lastGen,
       );
       final due = await IntelligenceSummarySchedulePreferences.isRunDue();
+      final fadeDays = await LumaraConnectionFadePreferences.getFadeDays();
       if (mounted) {
         setState(() {
           _summary = latest;
@@ -63,6 +66,7 @@ class _IntelligenceSummaryViewState extends State<IntelligenceSummaryView> {
           _scheduleLabel = '${cadence.label} at ${_formatTime(hour, minute)}';
           _nextRefreshLabel = DateFormat('MMM d, y • h:mm a').format(next.toLocal());
           _scheduleLoaded = true;
+          _fadeDays = fadeDays;
           _loading = false;
         });
         if (due && latest != null && !_regenerating) {
@@ -334,6 +338,14 @@ class _IntelligenceSummaryViewState extends State<IntelligenceSummaryView> {
             const SizedBox(height: 12),
             _buildScheduleCard(),
           ],
+          const SizedBox(height: 12),
+          Text(
+            'Connections (causal chains, learning moments, patterns) from the last $_fadeDays days are used; older ones fade from context.',
+            style: bodyStyle(context).copyWith(
+              color: kcSecondaryTextColor,
+              fontSize: 12,
+            ),
+          ),
           const SizedBox(height: 16),
           _buildMarkdownContent(summary.content),
           const SizedBox(height: 24),
@@ -432,8 +444,14 @@ class _IntelligenceSummaryViewState extends State<IntelligenceSummaryView> {
             'Based on',
             '${m.totalEntries} entries, ${m.temporalSpan.monthsCovered} months',
           ),
+          _metadataRow('Causal chains', '${m.totalCausalChains}'),
+          _metadataRow('Learning moments', '${m.totalLearningMoments}'),
           _metadataRow('Patterns', '${m.totalPatterns}'),
           _metadataRow('Relationships', '${m.totalRelationships}'),
+          _metadataRow(
+            'Active memory window',
+            '$_fadeDays days (older connections fade from context)',
+          ),
           _metadataRow('Version', '#${summary.version}'),
           _metadataRow('Generation', '${m.generationDurationMs} ms'),
         ],

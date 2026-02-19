@@ -94,16 +94,55 @@ class ClarificationProcessor {
     return false;
   }
 
+  static String _normalize(String s) => s.trim().toLowerCase();
+
   Future<List<CausalChain>> _createInferences(
     String userId,
     BiographicalSignal signal,
     GapFillEvent event,
   ) async {
-    final list = <CausalChain>[];
-    if (signal.causalChain != null) {
-      final c = signal.causalChain!;
-      final id = 'cc_${event.id}_${list.length}';
-      list.add(CausalChain(
+    if (signal.causalChain == null) return [];
+
+    final c = signal.causalChain!;
+    final allChains = await _lumaraRepo.loadCausalChains(userId, activeAfter: null);
+    CausalChain? match;
+    for (final existing in allChains) {
+      if (existing.status == InferenceStatus.active &&
+          _normalize(existing.trigger) == _normalize(c.trigger) &&
+          _normalize(existing.response) == _normalize(c.response)) {
+        match = existing;
+        break;
+      }
+    }
+
+    if (match != null) {
+      // Reinforce existing chain: bump lastObserved so it stays in "recent" memory
+      final updated = CausalChain(
+        id: match.id,
+        trigger: match.trigger,
+        response: match.response,
+        resolution: match.resolution ?? c.resolution,
+        confidence: (match.confidence + 0.8).clamp(0.0, 1.0),
+        evidence: match.evidence,
+        frequency: match.frequency == 'observed_once' ? 'recurring' : match.frequency,
+        lastObserved: event.recordedAt,
+        provenance: Provenance(
+          sourceEntries: match.provenance.sourceEntries,
+          gapFillEvents: match.provenance.gapFillEvents,
+          generatedAt: match.provenance.generatedAt,
+          lastUpdated: event.recordedAt,
+          algorithm: match.provenance.algorithm,
+        ),
+        status: match.status,
+        userValidated: match.userValidated,
+      );
+      await _lumaraRepo.updateCausalChain(userId, match.id, updated);
+      return [];
+    }
+
+    final id = 'cc_${event.id}_0';
+    return [
+      CausalChain(
         id: id,
         trigger: c.trigger,
         response: c.response,
@@ -118,8 +157,7 @@ class ClarificationProcessor {
           lastUpdated: event.recordedAt,
           algorithm: 'clarification',
         ),
-      ));
-    }
-    return list;
+      ),
+    ];
   }
 }

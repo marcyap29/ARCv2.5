@@ -6,6 +6,8 @@
 import 'package:my_app/models/phase_models.dart';
 import 'package:my_app/chronicle/dual/services/dual_chronicle_services.dart';
 import 'package:my_app/chronicle/dual/models/chronicle_models.dart';
+import 'package:my_app/chronicle/dual/repositories/lumara_chronicle_repository.dart';
+import 'package:my_app/chronicle/dual/services/lumara_connection_fade_preferences.dart';
 
 /// Minimum number of Chronicle items (after optional time filter) to return scores.
 /// Below this, returns null so caller keeps ATLAS-only behavior.
@@ -25,7 +27,9 @@ abstract final class ChroniclePhaseSignalService {
     try {
       final repo = DualChronicleServices.lumaraChronicle;
       final patterns = await repo.loadPatterns(userId);
-      final chains = await repo.loadCausalChains(userId);
+      final fadeDays = await LumaraConnectionFadePreferences.getFadeDays();
+      final fadeCutoff = DateTime.now().subtract(Duration(days: fadeDays));
+      final chains = await repo.loadCausalChains(userId, activeAfter: fadeCutoff);
       final relationships = await repo.loadRelationships(userId);
 
       final start = segmentStart;

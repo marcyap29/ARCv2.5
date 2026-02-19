@@ -1,6 +1,11 @@
 /// ARCX Manifest Model
-/// 
+///
 /// Represents the metadata and cryptographic information for an .arcx archive.
+///
+/// **Exports/imports are unchanged by CHRONICLE Layer 0 Retrieval.** In-app retrieval
+/// for LUMARA chat context now uses Layer 0 (timeline entries); ARCX scope and
+/// payload format remain the same: journal entries, chats, Chronicle aggregations,
+/// LUMARA JSON (causal chains, gap fills, etc.). No "MIRA" key in scope or manifest.
 library arcx_manifest;
 
 class ARCXManifest {
@@ -209,7 +214,11 @@ class ARCXScope {
   final int chronicleChangelogEntries;
   final int voiceNotesCount;
   final bool separateGroups;
-  
+  final int lumaraCausalChainsCount;
+  final int lumaraGapFillsCount;
+  final int lumaraPatternsCount;
+  final int lumaraRelationshipsCount;
+
   ARCXScope({
     required this.entriesCount,
     required this.chatsCount,
@@ -225,8 +234,12 @@ class ARCXScope {
     this.chronicleChangelogEntries = 0,
     this.voiceNotesCount = 0,
     required this.separateGroups,
+    this.lumaraCausalChainsCount = 0,
+    this.lumaraGapFillsCount = 0,
+    this.lumaraPatternsCount = 0,
+    this.lumaraRelationshipsCount = 0,
   });
-  
+
   factory ARCXScope.fromJson(Map<String, dynamic> json) {
     return ARCXScope(
       entriesCount: json['entries_count'] as int? ?? 0,
@@ -243,9 +256,13 @@ class ARCXScope {
       chronicleChangelogEntries: json['chronicle_changelog_entries'] as int? ?? 0,
       voiceNotesCount: json['voice_notes_count'] as int? ?? 0,
       separateGroups: json['separate_groups'] as bool? ?? false,
+      lumaraCausalChainsCount: json['lumara_causal_chains_count'] as int? ?? 0,
+      lumaraGapFillsCount: json['lumara_gap_fills_count'] as int? ?? 0,
+      lumaraPatternsCount: json['lumara_patterns_count'] as int? ?? 0,
+      lumaraRelationshipsCount: json['lumara_relationships_count'] as int? ?? 0,
     );
   }
-  
+
   Map<String, dynamic> toJson() {
     return {
       'entries_count': entriesCount,
@@ -262,6 +279,10 @@ class ARCXScope {
       'chronicle_changelog_entries': chronicleChangelogEntries,
       'voice_notes_count': voiceNotesCount,
       'separate_groups': separateGroups,
+      'lumara_causal_chains_count': lumaraCausalChainsCount,
+      'lumara_gap_fills_count': lumaraGapFillsCount,
+      'lumara_patterns_count': lumaraPatternsCount,
+      'lumara_relationships_count': lumaraRelationshipsCount,
     };
   }
 }

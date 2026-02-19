@@ -38,6 +38,8 @@ import 'package:my_app/chronicle/storage/aggregation_repository.dart';
 import 'package:my_app/chronicle/storage/changelog_repository.dart';
 import 'package:my_app/chronicle/models/chronicle_layer.dart';
 import 'package:my_app/chronicle/models/chronicle_aggregation.dart';
+import 'package:my_app/chronicle/dual/services/dual_chronicle_services.dart';
+import 'package:my_app/services/firebase_auth_service.dart';
 import 'package:my_app/arc/voice_notes/models/voice_note.dart';
 import 'package:my_app/arc/voice_notes/repositories/voice_note_repository.dart';
 import 'package:my_app/lumara/agents/research/research_artifact_repository.dart';
@@ -442,7 +444,11 @@ class ARCXExportServiceV2 {
       // Export CHRONICLE aggregations (monthly/yearly/multiyear .md files + changelog)
       onProgress?.call('Exporting CHRONICLE aggregations...');
       final chronicleExported = await _exportChronicle(payloadDir);
-      
+
+      // Export LUMARA Chronicle (causal chains, gap-fill events, patterns, relationships)
+      onProgress?.call('Exporting LUMARA causal chains and learning moments...');
+      final lumaraChronicleExported = await _exportLumaraChronicle(payloadDir);
+
       // Export voice notes (Voice Notes tab)
       int voiceNotesExported = 0;
       onProgress?.call('Exporting voice notes...');
@@ -486,6 +492,10 @@ class ARCXExportServiceV2 {
         chronicleYearlyCount: chronicleExported['yearly'] ?? 0,
         chronicleMultiyearCount: chronicleExported['multiyear'] ?? 0,
         chronicleChangelogEntries: chronicleExported['changelog_entries'] ?? 0,
+        lumaraCausalChainsCount: lumaraChronicleExported['causal_chains'] ?? 0,
+        lumaraGapFillsCount: lumaraChronicleExported['gap_fills'] ?? 0,
+        lumaraPatternsCount: lumaraChronicleExported['patterns'] ?? 0,
+        lumaraRelationshipsCount: lumaraChronicleExported['relationships'] ?? 0,
         voiceNotesCount: voiceNotesExported,
         separateGroups: false,
         options: options,
@@ -730,6 +740,10 @@ class ARCXExportServiceV2 {
           chronicleYearlyCount: 0,
           chronicleMultiyearCount: 0,
           chronicleChangelogEntries: 0,
+          lumaraCausalChainsCount: 0,
+          lumaraGapFillsCount: 0,
+          lumaraPatternsCount: 0,
+          lumaraRelationshipsCount: 0,
           voiceNotesCount: voiceNotesExported,
           separateGroups: true, // Indicates this is part of a separated export
           options: entriesChatsOptions,
@@ -909,6 +923,10 @@ class ARCXExportServiceV2 {
         chronicleYearlyCount: 0,
         chronicleMultiyearCount: 0,
         chronicleChangelogEntries: 0,
+        lumaraCausalChainsCount: 0,
+        lumaraGapFillsCount: 0,
+        lumaraPatternsCount: 0,
+        lumaraRelationshipsCount: 0,
         voiceNotesCount: voiceNotesExported,
         separateGroups: true,
         options: options,
@@ -1120,6 +1138,10 @@ class ARCXExportServiceV2 {
     int chronicleYearlyCount = 0,
     int chronicleMultiyearCount = 0,
     int chronicleChangelogEntries = 0,
+    int lumaraCausalChainsCount = 0,
+    int lumaraGapFillsCount = 0,
+    int lumaraPatternsCount = 0,
+    int lumaraRelationshipsCount = 0,
     int voiceNotesCount = 0,
     required bool separateGroups,
     required ARCXExportOptions options,
@@ -1163,6 +1185,10 @@ class ARCXExportServiceV2 {
         chronicleYearlyCount: chronicleYearlyCount,
         chronicleMultiyearCount: chronicleMultiyearCount,
         chronicleChangelogEntries: chronicleChangelogEntries,
+        lumaraCausalChainsCount: lumaraCausalChainsCount,
+        lumaraGapFillsCount: lumaraGapFillsCount,
+        lumaraPatternsCount: lumaraPatternsCount,
+        lumaraRelationshipsCount: lumaraRelationshipsCount,
         voiceNotesCount: voiceNotesCount,
         separateGroups: separateGroups,
       ),
@@ -2060,6 +2086,51 @@ class ARCXExportServiceV2 {
         'yearly': 0,
         'multiyear': 0,
         'changelog_entries': 0,
+      };
+    }
+  }
+
+  /// Export LUMARA Chronicle (causal chains, gap-fill events, patterns, relationships)
+  /// to Chronicle/LUMARA/ as JSON arrays. Returns counts map.
+  Future<Map<String, int>> _exportLumaraChronicle(Directory payloadDir) async {
+    try {
+      final lumaraDir = Directory(path.join(payloadDir.path, 'Chronicle', 'LUMARA'));
+      await lumaraDir.create(recursive: true);
+
+      final userId = FirebaseAuthService.instance.currentUser?.uid ?? 'default_user';
+      final repo = DualChronicleServices.lumaraChronicle;
+
+      final causalChains = await repo.loadCausalChains(userId);
+      final gapFills = await repo.loadGapFillEvents(userId);
+      final patterns = await repo.loadPatterns(userId);
+      final relationships = await repo.loadRelationships(userId);
+
+      final causalChainsFile = File(path.join(lumaraDir.path, 'causal_chains.json'));
+      await causalChainsFile.writeAsString(jsonEncode(causalChains.map((c) => c.toJson()).toList()));
+
+      final gapFillsFile = File(path.join(lumaraDir.path, 'gap_fill_events.json'));
+      await gapFillsFile.writeAsString(jsonEncode(gapFills.map((g) => g.toJson()).toList()));
+
+      final patternsFile = File(path.join(lumaraDir.path, 'patterns.json'));
+      await patternsFile.writeAsString(jsonEncode(patterns.map((p) => p.toJson()).toList()));
+
+      final relationshipsFile = File(path.join(lumaraDir.path, 'relationships.json'));
+      await relationshipsFile.writeAsString(jsonEncode(relationships.map((r) => r.toJson()).toList()));
+
+      print('ARCX Export V2: Exported LUMARA Chronicle: ${causalChains.length} causal chains, ${gapFills.length} gap-fills, ${patterns.length} patterns, ${relationships.length} relationships');
+      return {
+        'causal_chains': causalChains.length,
+        'gap_fills': gapFills.length,
+        'patterns': patterns.length,
+        'relationships': relationships.length,
+      };
+    } catch (e) {
+      print('ARCX Export V2: Error exporting LUMARA Chronicle: $e');
+      return {
+        'causal_chains': 0,
+        'gap_fills': 0,
+        'patterns': 0,
+        'relationships': 0,
       };
     }
   }

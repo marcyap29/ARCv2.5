@@ -22,6 +22,7 @@ import '../chat/chat_repo_impl.dart';
 import '../chat/chat_models.dart';
 import 'package:my_app/services/app_repos.dart';
 import 'package:my_app/chronicle/core/chronicle_repos.dart';
+import 'package:my_app/chronicle/layer0_retrieval/chronicle_layer0_retrieval_service.dart';
 import '../services/lumara_reflection_settings_service.dart';
 import 'package:my_app/models/journal_entry_model.dart';
 import '../../../services/pending_conversation_service.dart';
@@ -263,7 +264,9 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
   late final EnhancedLumaraApi _enhancedApi;
   final Analytics _analytics = Analytics();
 
-  // Enhanced MIRA Memory System
+  // CHRONICLE Layer 0 Retrieval (replaces MIRA for context retrieval)
+  ChronicleLayer0RetrievalService? _layer0RetrievalService;
+  // Enhanced MIRA Memory System (still used for store, stats, conflicts)
   EnhancedMiraMemoryService? _memoryService;
   String? _userId;
   String? _currentPhase;
@@ -1952,93 +1955,76 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
       }
     }
     
-    // If we have a query and memory service, use semantic search
-    if (userQuery != null && userQuery.isNotEmpty && _memoryService != null) {
+    // CHRONICLE Layer 0 Retrieval: relevant past entries for context
+    final retrievalUserId = FirebaseAuthService.instance.currentUser?.uid ?? _userId ?? 'default_user';
+    if (userQuery != null && userQuery.isNotEmpty && _layer0RetrievalService != null) {
       try {
         final settingsService = LumaraReflectionSettingsService.instance;
         final similarityThreshold = await settingsService.getSimilarityThreshold();
         final lookbackYears = await settingsService.getEffectiveLookbackYears();
         final maxMatches = await settingsService.getEffectiveMaxMatches();
-        final therapeuticEnabled = await settingsService.isTherapeuticPresenceEnabled();
-        final therapeuticDepthLevel = therapeuticEnabled 
-            ? await settingsService.getTherapeuticDepthLevel() 
-            : null;
         final crossModalEnabled = await settingsService.isCrossModalEnabled();
-        
-        print('LUMARA: Searching for relevant entries with query: "$userQuery"');
-        print('LUMARA: Settings - threshold: $similarityThreshold, lookback: $lookbackYears years, maxMatches: $maxMatches, depth: $therapeuticDepthLevel');
-        
-        final memoryResult = await _memoryService!.retrieveMemories(
+
+        print('CHRONICLE Layer 0 Retrieval: Searching for relevant entries with query: "$userQuery"');
+        print('CHRONICLE Layer 0 Retrieval: threshold: $similarityThreshold, lookback: $lookbackYears years, maxMatches: $maxMatches');
+
+        final memoryResult = await _layer0RetrievalService!.retrieveMemories(
+          userId: retrievalUserId,
           query: userQuery,
           domains: [MemoryDomain.personal, MemoryDomain.creative, MemoryDomain.learning],
           limit: maxMatches,
           similarityThreshold: similarityThreshold,
           lookbackYears: lookbackYears,
           maxMatches: maxMatches,
-          therapeuticDepthLevel: therapeuticDepthLevel,
           crossModalEnabled: crossModalEnabled,
         );
-        
-        print('LUMARA: Found ${memoryResult.nodes.length} semantically relevant nodes');
-        
-        // Store attribution traces from memory retrieval - these are the actual nodes used in context
+
+        print('CHRONICLE Layer 0 Retrieval: Found ${memoryResult.nodes.length} relevant nodes');
+
         attributionTraces.addAll(memoryResult.attributions);
-        print('LUMARA: Stored ${attributionTraces.length} attribution traces from memory nodes used in context');
-        
-        // Extract entry IDs from memory nodes and fetch full content
+        print('CHRONICLE Layer 0 Retrieval: Stored ${attributionTraces.length} attribution traces');
+
         for (final node in memoryResult.nodes) {
-          // Try to extract entry ID from node
-          // Entry nodes typically have their ID in the node.id or node.data
           String? entryId;
-          
-          // Check if node.data contains entry reference
           if (node.data.containsKey('original_entry_id')) {
             entryId = node.data['original_entry_id'] as String?;
           } else if (node.id.startsWith('entry:')) {
             entryId = node.id.replaceFirst('entry:', '');
           } else if (node.id.contains('_')) {
-            // Try to extract from ID format
             final parts = node.id.split('_');
-            if (parts.length > 1) {
-              entryId = parts.last;
-            }
+            if (parts.length > 1) entryId = parts.last;
           }
-          
-          // If we found an entry ID, try to get the full entry
+
           if (entryId != null && !addedEntryIds.contains(entryId)) {
             try {
               final allEntries = await _journalRepository.getAllJournalEntries();
               final entry = allEntries.firstWhere(
                 (e) => e.id == entryId,
-                orElse: () => allEntries.first, // Fallback
+                orElse: () => allEntries.first,
               );
-              
               if (entry.content.isNotEmpty) {
                 buffer.writeln(entry.content);
                 buffer.writeln('---');
                 addedEntryIds.add(entryId);
-                print('LUMARA: Added entry $entryId from semantic search');
+                print('CHRONICLE Layer 0 Retrieval: Added entry $entryId');
               }
             } catch (e) {
-              // If entry not found, use node narrative as fallback
               if (node.narrative.isNotEmpty && !addedEntryIds.contains(node.id)) {
                 buffer.writeln(node.narrative);
                 buffer.writeln('---');
                 addedEntryIds.add(node.id);
-                print('LUMARA: Added node ${node.id} narrative as fallback');
+                print('CHRONICLE Layer 0 Retrieval: Added node ${node.id} narrative as fallback');
               }
             }
           } else if (node.narrative.isNotEmpty && !addedEntryIds.contains(node.id)) {
-            // Use node narrative directly if no entry ID found
             buffer.writeln(node.narrative);
             buffer.writeln('---');
             addedEntryIds.add(node.id);
-            print('LUMARA: Added node ${node.id} narrative');
+            print('CHRONICLE Layer 0 Retrieval: Added node ${node.id} narrative');
           }
         }
       } catch (e) {
-        print('LUMARA: Error in semantic search: $e');
-        // Fall through to use recent entries
+        print('CHRONICLE Layer 0 Retrieval: Error: $e');
       }
     }
     
@@ -2342,40 +2328,43 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
 
   // MCP Memory System Methods
 
-  /// Initialize the Enhanced MIRA memory system
+  /// Initialize CHRONICLE Layer 0 Retrieval and Enhanced MIRA memory system
   Future<void> _initializeMemorySystem() async {
     try {
-      // Get user ID (simplified - in real implementation, get from user service)
-      _userId = 'user_${DateTime.now().millisecondsSinceEpoch}';
+      _userId = FirebaseAuthService.instance.currentUser?.uid ?? 'user_${DateTime.now().millisecondsSinceEpoch}';
+
+      // CHRONICLE Layer 0 Retrieval for relevant past entries in chat context
+      _layer0RetrievalService = ChronicleLayer0RetrievalService(
+        layer0Repo: ChronicleRepos.layer0,
+      );
+      print('CHRONICLE Layer 0 Retrieval: initialized');
 
       // Get current phase from context (using default scope for initialization)
       final context = await _contextProvider.buildContext(scope: LumaraScope.defaultScope);
       final currentPhase = _getCurrentPhaseFromContext(context);
-      _currentPhase = currentPhase; // Store for later use
+      _currentPhase = currentPhase;
 
-      // Initialize enhanced memory service
+      // Enhanced MIRA memory (store, stats, conflicts) — still used for recording messages
       _memoryService = EnhancedMiraMemoryService(
         miraService: MiraService.instance,
       );
-
       await _memoryService!.initialize(
         userId: _userId!,
-        sessionId: null, // Will be set when session is created
+        sessionId: null,
         currentPhase: currentPhase,
       );
 
-      // Update reflective query service with memory service
       _reflectiveQueryService.updateDependencies(
         memoryService: _memoryService,
         phaseHistory: PhaseHistoryRepository(),
       );
 
-      print('LUMARA Memory: Enhanced MIRA memory system initialized for user $_userId');
+      print('CHRONICLE Layer 0 Retrieval: memory system ready for user $_userId');
       if (currentPhase != null) {
-        print('LUMARA Memory: Current phase: $currentPhase');
+        print('CHRONICLE Layer 0 Retrieval: current phase: $currentPhase');
       }
     } catch (e) {
-      print('LUMARA Memory: Error initializing enhanced memory system: $e');
+      print('CHRONICLE Layer 0 Retrieval: Error initializing memory system: $e');
     }
   }
 
@@ -2388,18 +2377,18 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
     // TODO: Enhanced memory service handles sessions internally
     // Generate a session ID for UI tracking
     final sessionId = 'session_${DateTime.now().millisecondsSinceEpoch}';
-    print('LUMARA Memory: Using session $sessionId');
+    print('CHRONICLE Layer 0 Retrieval: Using session $sessionId');
     return sessionId;
   }
 
-  /// Record user message in enhanced MIRA memory
+  /// Record user message (CHRONICLE Layer 0 Retrieval / memory store)
   Future<void> _recordUserMessage(String content) async {
     if (_memoryService == null) return;
 
     try {
       final nodeId = await _memoryService!.storeMemory(
         content: content,
-        domain: MemoryDomain.personal, // User conversations are personal
+        domain: MemoryDomain.personal,
         privacy: PrivacyLevel.personal,
         source: 'LUMARA_Chat',
         metadata: {
@@ -2408,20 +2397,20 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
           'session_type': 'chat',
         },
       );
-      print('LUMARA Memory: Recorded user message (node: $nodeId)');
+      print('CHRONICLE Layer 0 Retrieval: Recorded user message (node: $nodeId)');
     } catch (e) {
-      print('LUMARA Memory: Error recording user message: $e');
+      print('CHRONICLE Layer 0 Retrieval: Error recording user message: $e');
     }
   }
 
-  /// Record assistant message in enhanced MIRA memory
+  /// Record assistant message (CHRONICLE Layer 0 Retrieval / memory store)
   Future<void> _recordAssistantMessage(String content) async {
     if (_memoryService == null) return;
 
     try {
       final nodeId = await _memoryService!.storeMemory(
         content: content,
-        domain: MemoryDomain.personal, // Assistant responses are personal
+        domain: MemoryDomain.personal,
         privacy: PrivacyLevel.personal,
         source: 'LUMARA_Assistant',
         metadata: {
@@ -2430,9 +2419,9 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
           'session_type': 'chat',
         },
       );
-      print('LUMARA Memory: Recorded assistant message (node: $nodeId)');
+      print('CHRONICLE Layer 0 Retrieval: Recorded assistant message (node: $nodeId)');
     } catch (e) {
-      print('LUMARA Memory: Error recording assistant message: $e');
+      print('CHRONICLE Layer 0 Retrieval: Error recording assistant message: $e');
     }
   }
 
@@ -2487,7 +2476,7 @@ The enhanced memory system provides user-sovereign, explainable memory with attr
 
       emit(currentState.copyWith(messages: updatedMessages));
 
-      print('LUMARA Memory: Handled enhanced command: $command');
+      print('CHRONICLE Layer 0 Retrieval: Handled enhanced command: $command');
     } catch (e) {
       final errorMessage = LumaraMessage.assistant(
         content: 'Error processing enhanced memory command: $e',
@@ -2499,18 +2488,18 @@ The enhanced memory system provides user-sovereign, explainable memory with attr
       ];
 
       emit(currentState.copyWith(messages: updatedMessages));
-      print('LUMARA Memory: Error handling enhanced command: $e');
+      print('CHRONICLE Layer 0 Retrieval: Error handling enhanced command: $e');
     }
   }
 
   /// Handle memory status command
   Future<String> _handleMemoryStatusCommand() async {
-    if (_memoryService == null) return 'Memory service not available.';
+    if (_memoryService == null) return 'CHRONICLE Layer 0 Retrieval service not available.';
 
     try {
       final stats = await _memoryService!.getMemoryStatistics();
 
-      return '''Memory System Status:
+      return '''CHRONICLE Layer 0 Retrieval — Memory Status:
 📊 **Statistics:**
 • Total Nodes: ${stats['total_nodes'] ?? 0}
 • Memory Domains: ${stats['active_domains'] ?? 0}
@@ -2520,7 +2509,7 @@ The enhanced memory system provides user-sovereign, explainable memory with attr
 
 🎯 **Current Phase:** ${_currentPhase ?? 'Unknown'}
 
-The enhanced memory system is actively learning from your interactions and providing attribution transparency for all responses.''';
+CHRONICLE Layer 0 Retrieval uses your timeline entries for context and provides attribution transparency for all responses.''';
     } catch (e) {
       return 'Error retrieving memory status: $e';
     }
@@ -2528,7 +2517,7 @@ The enhanced memory system is actively learning from your interactions and provi
 
   /// Handle memory conflicts command
   Future<String> _handleMemoryConflictsCommand() async {
-    if (_memoryService == null) return 'Memory service not available.';
+    if (_memoryService == null) return 'CHRONICLE Layer 0 Retrieval service not available.';
 
     try {
       final conflicts = await _memoryService!.getActiveConflicts();
@@ -2584,7 +2573,7 @@ Each domain has independent privacy controls and cross-domain synthesis rules. T
 
   /// Handle memory health command
   Future<String> _handleMemoryHealthCommand() async {
-    if (_memoryService == null) return 'Memory service not available.';
+    if (_memoryService == null) return 'CHRONICLE Layer 0 Retrieval service not available.';
 
     try {
       final health = await _memoryService!.getMemoryStatistics();
@@ -3363,7 +3352,7 @@ Available: ${yearsAgo} more year${yearsAgo > 1 ? 's' : ''} of history''';
 
     // TODO: Enhanced memory service manages sessions internally
     // Session switching not implemented yet
-    print('LUMARA Memory: Session switching not available in enhanced memory system');
+    print('CHRONICLE Layer 0 Retrieval: Session switching not available');
   }
 
   /// Delete a conversation session
@@ -3406,7 +3395,7 @@ Available: ${yearsAgo} more year${yearsAgo > 1 ? 's' : ''} of history''';
 
     // TODO: Enhanced memory service manages sessions internally
     // Session deletion not implemented yet
-    print('LUMARA Memory: Session deletion not available in enhanced memory system');
+    print('CHRONICLE Layer 0 Retrieval: Session deletion not available');
   }
 
   /// Handle reflective queries
@@ -3518,7 +3507,7 @@ Available: ${yearsAgo} more year${yearsAgo > 1 ? 's' : ''} of history''';
       try {
         return await _memoryService!.getMemoryStatistics();
       } catch (e) {
-        print('LUMARA Memory: Error getting memory stats: $e');
+        print('CHRONICLE Layer 0 Retrieval: Error getting memory stats: $e');
       }
     }
 

@@ -18,6 +18,14 @@ import 'package:archive/archive.dart';
 import 'package:archive/archive_io.dart';
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
+import 'package:my_app/chronicle/core/chronicle_repos.dart';
+import 'package:my_app/chronicle/models/chronicle_layer.dart';
+import 'package:my_app/chronicle/models/chronicle_aggregation.dart';
+import 'package:my_app/chronicle/dual/services/dual_chronicle_services.dart';
+import 'package:my_app/services/firebase_auth_service.dart';
+import 'package:my_app/arc/voice_notes/models/voice_note.dart';
+import 'package:my_app/arc/voice_notes/repositories/voice_note_repository.dart';
+import 'package:my_app/lumara/agents/research/research_artifact_repository.dart';
 import '../models/mcp_manifest.dart';
 
 /// MCP Pack Export Service for .mcpkg and .mcp/ formats
@@ -173,12 +181,24 @@ class McpPackExportService {
         }
       }
 
-      // Export extended data (Phase Regimes, Rivet, Sentinel, ArcForm, Favorites)
-      // These are placed in mcp/extensions/ to maintain backward compatibility while adding new data
+      // Export extended data (Phase Regimes, Rivet, Sentinel, ArcForm, Favorites, Voice notes, Agents)
+      // These are placed in mcp/extensions/ to match ARCX capability
       try {
         await _exportExtendedData(mcpDir);
       } catch (e) {
         print('⚠️ MCP Export: Failed to export extended data: $e');
+      }
+
+      // Export Chronicle and LUMARA Chronicle (at mcp/Chronicle/ to match ARCX payload)
+      try {
+        await _exportChronicle(mcpDir);
+      } catch (e) {
+        print('⚠️ MCP Export: Failed to export Chronicle: $e');
+      }
+      try {
+        await _exportLumaraChronicle(mcpDir);
+      } catch (e) {
+        print('⚠️ MCP Export: Failed to export LUMARA Chronicle: $e');
       }
 
       // Create manifest
@@ -1036,6 +1056,149 @@ class McpPackExportService {
       }
     } catch (e) {
       print('⚠️ MCP Export: Failed to export LUMARA favorites: $e');
+    }
+
+    // 6. Voice notes (match ARCX capability)
+    try {
+      Box<VoiceNote> box;
+      if (Hive.isBoxOpen(VoiceNoteRepository.boxName)) {
+        box = Hive.box<VoiceNote>(VoiceNoteRepository.boxName);
+      } else {
+        box = await Hive.openBox<VoiceNote>(VoiceNoteRepository.boxName);
+      }
+      final notes = box.values.toList();
+      if (notes.isNotEmpty) {
+        final list = notes.map((note) => {
+          'id': note.id,
+          'timestamp': note.timestamp.toIso8601String(),
+          'transcription': note.transcription,
+          'tags': note.tags,
+          'archived': note.archived,
+          'convertedToJournal': note.convertedToJournal,
+          'convertedEntryId': note.convertedEntryId,
+          'durationMs': note.durationMs,
+        }).toList();
+        final voiceNotesFile = File(path.join(extensionsDir.path, 'voice_notes.json'));
+        await voiceNotesFile.writeAsString(
+          JsonEncoder.withIndent('  ').convert({
+            'voice_notes': list,
+            'exported_at': DateTime.now().toUtc().toIso8601String(),
+            'version': '1.0',
+            'count': list.length,
+          }),
+        );
+        print('📦 MCP Export: Exported ${notes.length} voice notes');
+      }
+    } catch (e) {
+      print('⚠️ MCP Export: Failed to export voice notes: $e');
+    }
+
+    // 7. Agents data: writing_drafts tree + research_artifacts.json (match ARCX capability)
+    try {
+      final agentsDir = Directory(path.join(extensionsDir.path, 'agents'));
+      await agentsDir.create(recursive: true);
+      final appDir = await getApplicationDocumentsDirectory();
+      final sourceDrafts = Directory(path.join(appDir.path, 'writing_drafts'));
+      if (await sourceDrafts.exists()) {
+        final destDrafts = Directory(path.join(agentsDir.path, 'writing_drafts'));
+        await destDrafts.create(recursive: true);
+        await for (final entity in sourceDrafts.list(recursive: false)) {
+          if (entity is Directory) {
+            final userDir = Directory(path.join(destDrafts.path, path.basename(entity.path)));
+            await userDir.create(recursive: true);
+            await for (final file in entity.list(recursive: true)) {
+              if (file is File) {
+                final rel = path.relative(file.path, from: entity.path);
+                final destFile = File(path.join(userDir.path, rel));
+                await destFile.parent.create(recursive: true);
+                await destFile.writeAsBytes(await file.readAsBytes());
+              }
+            }
+          }
+        }
+        print('📦 MCP Export: Exported writing_drafts');
+      }
+      final artifacts = await ResearchArtifactRepository.instance.listAllForExport();
+      final list = artifacts.map((a) => a.toJson()).toList();
+      final researchFile = File(path.join(agentsDir.path, 'research_artifacts.json'));
+      await researchFile.writeAsString(
+        JsonEncoder.withIndent('  ').convert({
+          'research_artifacts': list,
+          'exported_at': DateTime.now().toUtc().toIso8601String(),
+          'version': '1.0',
+          'count': list.length,
+        }),
+      );
+      print('📦 MCP Export: Exported ${artifacts.length} research artifacts');
+    } catch (e) {
+      print('⚠️ MCP Export: Failed to export agents data: $e');
+    }
+  }
+
+  /// Export CHRONICLE aggregations to Chronicle/ (match ARCX payload layout)
+  Future<void> _exportChronicle(Directory mcpDir) async {
+    try {
+      final chronicleDir = Directory(path.join(mcpDir.path, 'Chronicle'));
+      await chronicleDir.create(recursive: true);
+      final aggregationRepo = ChronicleRepos.aggregation;
+      final changelogRepo = ChronicleRepos.changelog;
+      const userId = 'default_user';
+      final monthlyDir = Directory(path.join(chronicleDir.path, 'monthly'));
+      await monthlyDir.create(recursive: true);
+      final monthlyAggs = await aggregationRepo.getAllForLayer(userId: userId, layer: ChronicleLayer.monthly);
+      for (final agg in monthlyAggs) {
+        final file = File(path.join(monthlyDir.path, '${agg.period}.md'));
+        await file.writeAsString(_buildChronicleMarkdown(agg));
+      }
+      final yearlyDir = Directory(path.join(chronicleDir.path, 'yearly'));
+      await yearlyDir.create(recursive: true);
+      final yearlyAggs = await aggregationRepo.getAllForLayer(userId: userId, layer: ChronicleLayer.yearly);
+      for (final agg in yearlyAggs) {
+        final file = File(path.join(yearlyDir.path, '${agg.period}.md'));
+        await file.writeAsString(_buildChronicleMarkdown(agg));
+      }
+      final multiyearDir = Directory(path.join(chronicleDir.path, 'multiyear'));
+      await multiyearDir.create(recursive: true);
+      final multiyearAggs = await aggregationRepo.getAllForLayer(userId: userId, layer: ChronicleLayer.multiyear);
+      for (final agg in multiyearAggs) {
+        final file = File(path.join(multiyearDir.path, '${agg.period}.md'));
+        await file.writeAsString(_buildChronicleMarkdown(agg));
+      }
+      final changelogEntries = await changelogRepo.getAllEntries();
+      final changelogFile = File(path.join(chronicleDir.path, 'changelog.jsonl'));
+      await changelogFile.writeAsString(changelogEntries.map((e) => jsonEncode(e.toJson())).join('\n'));
+      print('📦 MCP Export: Exported CHRONICLE (${monthlyAggs.length} monthly, ${yearlyAggs.length} yearly, ${multiyearAggs.length} multiyear, ${changelogEntries.length} changelog)');
+    } catch (e) {
+      print('⚠️ MCP Export: Failed to export Chronicle: $e');
+    }
+  }
+
+  String _buildChronicleMarkdown(ChronicleAggregation agg) {
+    return '---\ntype: ${agg.layer.name}_aggregation\nperiod: ${agg.period}\nsynthesis_date: ${agg.synthesisDate.toIso8601String()}\nentry_count: ${agg.entryCount}\ncompression_ratio: ${agg.compressionRatio.toStringAsFixed(3)}\nuser_edited: ${agg.userEdited}\nversion: ${agg.version}\nsource_entry_ids: ${agg.sourceEntryIds.join(', ')}\n---\n\n${agg.content}';
+  }
+
+  /// Export LUMARA Chronicle to Chronicle/LUMARA/ (match ARCX payload layout)
+  Future<void> _exportLumaraChronicle(Directory mcpDir) async {
+    try {
+      final lumaraDir = Directory(path.join(mcpDir.path, 'Chronicle', 'LUMARA'));
+      await lumaraDir.create(recursive: true);
+      final userId = FirebaseAuthService.instance.currentUser?.uid ?? 'default_user';
+      final repo = DualChronicleServices.lumaraChronicle;
+      final causalChains = await repo.loadCausalChains(userId);
+      final gapFills = await repo.loadGapFillEvents(userId);
+      final patterns = await repo.loadPatterns(userId);
+      final relationships = await repo.loadRelationships(userId);
+      final causalChainsFile = File(path.join(lumaraDir.path, 'causal_chains.json'));
+      await causalChainsFile.writeAsString(jsonEncode(causalChains.map((c) => c.toJson()).toList()));
+      final gapFillsFile = File(path.join(lumaraDir.path, 'gap_fill_events.json'));
+      await gapFillsFile.writeAsString(jsonEncode(gapFills.map((g) => g.toJson()).toList()));
+      final patternsFile = File(path.join(lumaraDir.path, 'patterns.json'));
+      await patternsFile.writeAsString(jsonEncode(patterns.map((p) => p.toJson()).toList()));
+      final relationshipsFile = File(path.join(lumaraDir.path, 'relationships.json'));
+      await relationshipsFile.writeAsString(jsonEncode(relationships.map((r) => r.toJson()).toList()));
+      print('📦 MCP Export: Exported LUMARA Chronicle (${causalChains.length} causal chains, ${gapFills.length} gap-fills, ${patterns.length} patterns, ${relationships.length} relationships)');
+    } catch (e) {
+      print('⚠️ MCP Export: Failed to export LUMARA Chronicle: $e');
     }
   }
 

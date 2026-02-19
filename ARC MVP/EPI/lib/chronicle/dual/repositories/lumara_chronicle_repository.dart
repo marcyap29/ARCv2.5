@@ -23,6 +23,13 @@ class LumaraChronicleRepository {
   static const String _learningTriggersFile = 'learning_triggers.json';
   static const int _maxLearningTriggers = 50;
 
+  /// Default window (days) after which causal chains fade from context/summary.
+  /// Chains with lastObserved older than this are excluded from synthesis and prompts.
+  static const int defaultCausalChainFadeDays = 180;
+
+  /// Default window (days) after which learning moments (gap-fill events) fade from context/summary.
+  static const int defaultGapFillFadeDays = 180;
+
   /// Record gap-fill event (learning moment).
   Future<void> addGapFillEvent(String userId, GapFillEvent event) async {
     final subPath = '$_gapFills/${event.id}.json';
@@ -100,8 +107,13 @@ class LumaraChronicleRepository {
     await _storage.saveLumaraChronicle(userId, subPath, updated.toJson());
   }
 
-  /// Load all causal chains for user.
-  Future<List<CausalChain>> loadCausalChains(String userId) async {
+  /// Load causal chains for user. If [activeAfter] is set, only chains with
+  /// lastObserved >= activeAfter are returned (gradual fade from memory).
+  /// Pass null for export or when you need all (e.g. reinforcing existing chain).
+  Future<List<CausalChain>> loadCausalChains(
+    String userId, {
+    DateTime? activeAfter,
+  }) async {
     final dir = await _storage.getLumaraChronicleDir(userId, _causalChains);
     final files = await _storage.listJsonFiles(dir);
     final list = <CausalChain>[];
@@ -109,7 +121,10 @@ class LumaraChronicleRepository {
       final json = _tryDecode(await file.readAsString());
       if (json != null) {
         try {
-          list.add(CausalChain.fromJson(json));
+          final c = CausalChain.fromJson(json);
+          if (activeAfter == null || !c.lastObserved.isBefore(activeAfter)) {
+            list.add(c);
+          }
         } catch (_) {}
       }
     }
@@ -186,8 +201,13 @@ class LumaraChronicleRepository {
     return records.take(limit).toList();
   }
 
-  /// Load all gap-fill events for user.
-  Future<List<GapFillEvent>> loadGapFillEvents(String userId) async {
+  /// Load gap-fill events (learning moments) for user. If [activeAfter] is set,
+  /// only events with recordedAt >= activeAfter are returned (gradual fade).
+  /// Pass null for export or when you need all (e.g. promoted annotations).
+  Future<List<GapFillEvent>> loadGapFillEvents(
+    String userId, {
+    DateTime? activeAfter,
+  }) async {
     final dir = await _storage.getLumaraChronicleDir(userId, _gapFills);
     final files = await _storage.listJsonFiles(dir);
     final list = <GapFillEvent>[];
@@ -195,7 +215,10 @@ class LumaraChronicleRepository {
       final json = _tryDecode(await file.readAsString());
       if (json != null) {
         try {
-          list.add(GapFillEvent.fromJson(json));
+          final e = GapFillEvent.fromJson(json);
+          if (activeAfter == null || !e.recordedAt.isBefore(activeAfter)) {
+            list.add(e);
+          }
         } catch (_) {}
       }
     }
@@ -219,9 +242,14 @@ class LumaraChronicleRepository {
     return list;
   }
 
-  /// Query inferences by topic (simple text filter; semantic search can be layered).
-  Future<LumaraInferredResult> queryInferences(String userId, String query) async {
-    final causalChains = await loadCausalChains(userId);
+  /// Query inferences by topic. Pass [activeAfter] to restrict to recent
+  /// causal chains (fade); patterns/relationships are unfaded.
+  Future<LumaraInferredResult> queryInferences(
+    String userId,
+    String query, {
+    DateTime? activeAfter,
+  }) async {
+    final causalChains = await loadCausalChains(userId, activeAfter: activeAfter);
     final patterns = await loadPatterns(userId);
     final relationships = await loadRelationships(userId);
     final q = query.trim().toLowerCase();

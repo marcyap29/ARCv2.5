@@ -29,6 +29,8 @@ import 'package:my_app/chronicle/models/chronicle_aggregation.dart';
 import 'package:my_app/chronicle/models/query_plan.dart';
 import 'package:my_app/chronicle/dual/services/dual_chronicle_services.dart';
 import 'package:my_app/chronicle/dual/models/chronicle_models.dart';
+import 'package:my_app/chronicle/dual/repositories/lumara_chronicle_repository.dart';
+import 'package:my_app/chronicle/dual/services/lumara_connection_fade_preferences.dart';
 import '../models/reflective_node.dart';
 import '../models/lumara_reflection_options.dart' as models;
 import 'reflective_node_storage.dart';
@@ -1708,18 +1710,22 @@ class EnhancedLumaraApi {
     }
   }
 
-  /// Build a concise LUMARA CHRONICLE context string (patterns, causal chains, relationships, user-approved insights) for master prompt inference. Capped at ~2000 chars.
+  /// Build a concise LUMARA CHRONICLE context string (patterns, causal chains, relationships, learning moments, user-approved insights) for master prompt inference. Capped at ~2000 chars.
   Future<String?> _buildLumaraChronicleContext(String userId) async {
     try {
       final adapter = DualChronicleServices.chronicleQueryAdapter;
       final lumaraRepo = DualChronicleServices.lumaraChronicle;
       final annotations = await adapter.loadAnnotations(userId);
       final patterns = await lumaraRepo.loadPatterns(userId);
-      final chains = await lumaraRepo.loadCausalChains(userId);
+      final fadeDays = await LumaraConnectionFadePreferences.getFadeDays();
+      final fadeCutoff = DateTime.now().subtract(Duration(days: fadeDays));
+      final chains = await lumaraRepo.loadCausalChains(userId, activeAfter: fadeCutoff);
       final relationships = await lumaraRepo.loadRelationships(userId);
+      final gapFills = await lumaraRepo.loadGapFillEvents(userId, activeAfter: fadeCutoff);
       final activePatterns = patterns.where((p) => p.status == InferenceStatus.active).take(10).toList();
       final activeChains = chains.where((c) => c.status == InferenceStatus.active).take(8).toList();
       final activeRels = relationships.where((r) => r.status == InferenceStatus.active).take(8).toList();
+      final recentGapFills = gapFills.take(10).toList();
       final parts = <String>[];
       if (annotations.isNotEmpty) {
         parts.add('User-approved insights: ${annotations.take(5).map((a) => a.content.length > 80 ? "${a.content.substring(0, 80)}..." : a.content).join('; ')}');
@@ -1732,6 +1738,19 @@ class EnhancedLumaraApi {
       }
       if (activeRels.isNotEmpty) {
         parts.add('Relationships: ${activeRels.map((r) => '${r.entityName} (${r.role}): ${r.interactionPattern.length > 50 ? r.interactionPattern.substring(0, 50) + "..." : r.interactionPattern}').join('; ')}');
+      }
+      if (recentGapFills.isNotEmpty) {
+        final moments = recentGapFills.map((g) {
+          final q = g.trigger.originalQuery.replaceAll('\n', ' ').length > 50 ? '${g.trigger.originalQuery.replaceAll('\n', ' ').substring(0, 50)}...' : g.trigger.originalQuery.replaceAll('\n', ' ');
+          final s = g.extractedSignal;
+          String sig = '';
+          if (s.causalChain != null) sig = '${s.causalChain!.trigger} → ${s.causalChain!.response}';
+          else if (s.pattern != null) sig = s.pattern!.description;
+          else if (s.relationship != null) sig = '${s.relationship!.entity} (${s.relationship!.role})';
+          if (sig.length > 50) sig = '${sig.substring(0, 50)}...';
+          return sig.isNotEmpty ? '$q → $sig' : q;
+        }).join('; ');
+        parts.add('Learning moments: $moments');
       }
       if (parts.isEmpty) return null;
       final out = parts.join('\n');

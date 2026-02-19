@@ -43,7 +43,8 @@ class LumaraInlineApi {
     String? phase,
     String? userId,
   }) async {
-    PiiScrubber.rivetScrub(entryText); // Scrub for privacy
+    // SECURITY: Scrub PII before sending to API; use scrubbed text for the call
+    final scrubbed = PiiScrubber.rivetScrub(entryText);
     analytics.logLumaraEvent('softer_reflection_requested', data: {
       'intent': intent, 
       'phase': phase,
@@ -53,7 +54,7 @@ class LumaraInlineApi {
     // For now, use the standard reflection with a gentle phase hint
     final gentlePhase = phase == 'Recovery' ? phase : 'Recovery';
     final result = await _enhancedApi.generatePromptedReflection(
-      entryText: entryText,
+      entryText: scrubbed,
       intent: intent,
       phase: gentlePhase,
       userId: userId ?? 'default',
@@ -68,7 +69,8 @@ class LumaraInlineApi {
     String? phase,
     String? userId,
   }) async {
-    PiiScrubber.rivetScrub(entryText); // Scrub for privacy
+    // SECURITY: Scrub PII before sending to API; use scrubbed text for the call
+    final scrubbed = PiiScrubber.rivetScrub(entryText);
     analytics.logLumaraEvent('deeper_reflection_requested', data: {
       'intent': intent, 
       'phase': phase,
@@ -76,7 +78,7 @@ class LumaraInlineApi {
 
     // For deeper analysis, use the 'analyze' intent which should generate more analytical prompts
     final result = await _enhancedApi.generatePromptedReflection(
-      entryText: entryText,
+      entryText: scrubbed,
       intent: 'analyze', // Force analytical intent
       phase: phase,
       userId: userId ?? 'default',

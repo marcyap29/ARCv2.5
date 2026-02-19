@@ -1,7 +1,8 @@
 # DevSecOps Security Audit
 
-**Date:** 2026-02-09 (audit run)  
+**Date:** 2026-02-19 (audit run)  
 **Scope:** Full security audit — all 20 domains (PII/egress, auth, secrets, input, storage, network, logging, flags, dependencies, rate limit, errors, session, crypto, retention, compliance, permissions, sensitive UI, build/CI, audit trail, deep links).  
+**Intent:** Maximize security, minimize leakage, ensure users are protected.  
 **Reference:** `DOCS/claude.md` — DevSecOps Security Audit Role (Universal Prompt).
 
 ---
@@ -13,28 +14,31 @@
 | Egress path | Data sent | Scrubbed? | Bypass / notes |
 |-------------|-----------|-----------|----------------|
 | **gemini_send.dart** (Firebase `proxyGemini`) | `system`, `user` | ✅ Yes — PRISM scrub + optional correlation-resistant; `isSafeToSend` guard; `SecurityException` if PII remains | `skipTransformation` skips only correlation-resistant layer; scrubbing always runs first |
-| **gemini_send.dart** (streaming, direct Gemini URL) | `system`, `user` | ✅ Yes — same PRISM + `isSafeToSend` + `SecurityException` | Same as above |
-| **enhanced_lumara_api.dart** → geminiSend | Entry text, CHRONICLE context, system prompt | ✅ Yes — entry abstracted/scrubbed; CHRONICLE scrubbed (lines 738–750); geminiSend scrubs again | Restore via `chronicleReversibleMap` on response only (device) |
+| **gemini_send.dart** (streaming, direct Gemini URL) | `system`, `user` | ✅ Yes — same PRISM + `isSafeToSend` + `SecurityException` | ⚠️ **Streaming path uses client-side API key in URL** (no proxy); key not logged but exposed in process. Prefer proxy for streaming when available. |
+| **enhanced_lumara_api.dart** → geminiSend | Entry text, CHRONICLE context, system prompt | ✅ Yes — entry abstracted/scrubbed; CHRONICLE scrubbed (lines 857–868); geminiSend scrubs again | Restore via `chronicleReversibleMap` on response only (device) |
 | **voice_session_service.dart** → LUMARA handler | Transcript | ✅ Yes — `_prism.scrub(_currentTranscript)` before handler | Restore for TTS with `prismResult.reversibleMap` (local) |
 | **voice_journal/gemini_client.dart** | `scrubbedText` only | ✅ Yes — `isSafeToSend(scrubbedText)`; caller must scrub first | Documented: "Input text MUST be scrubbed by PRISM before calling" |
 | **lumara_assistant_cubit.dart** → geminiSend | `userMessage`, `systemPrompt` | ✅ Yes — geminiSend scrubs both | — |
 | **Chronicle synthesizers** → geminiSend | Journal entry content | ✅ Yes — geminiSend scrubs system + user | — |
 | **chronicle/query_router.dart** → geminiSend | Router prompt | ✅ Yes — geminiSend scrubs | — |
+| **LumaraInlineApi** (generatePromptedReflection, generateSofterReflection, generateDeeperReflection) | Entry text → EnhancedLumaraApi | ✅ Yes — **FIXED 2026-02-19:** All three paths now pass scrubbed text to `_enhancedApi.generatePromptedReflection`. Previously `generateSofterReflection` and `generateDeeperReflection` passed raw `entryText`; now use `PiiScrubber.rivetScrub(entryText)` and pass result | — |
 | **LumaraShareService** | — | N/A — UnimplementedError in Firebase-only mode | No live egress |
 | **lumara_veil_edge_integration.dart** | — | N/A — geminiSend call commented out | Active path uses fallback only |
 | **PrivacyGuardrailInterceptor** | system, user | Block-on-PII (no scrub) | Not used in main flow |
 | **AssemblyAI / STT** | Audio | N/A — transcript then scrubbed before LUMARA | — |
 
-**Reversible maps:** Local restore only; never in request payloads. `toJsonForRemote` omits `prism_reversible_map`.
+**Reversible maps:** Local restore only; never in request payloads. `VoiceConversationTurn.toRemoteJson()` and `VoiceSession.toRemoteJson()` omit `prism_reversible_map`; local JSON may include it for restore only — ensure backup/export flows that sync to cloud use remote serialization.
 
 ### 1.2 PII assertions verified
 
 - All paths to Gemini go through `gemini_send` or a layer that passes scrubbed text; `SecurityException` and `isSafeToSend` not bypassed; correlation-resistant applied only to scrubbed text.
-- **FeatureFlags.piiScrubbing** default `true`; if set `false`, raw text could be sent — keep default and document. **skipTransformation** does not skip scrubbing.
+- **FeatureFlags.piiScrubbing** default `true`; if set `false`, `PiiScrubber.rivetScrubWithMapping` returns raw text — **any code path using PiiScrubber when flag is off could send PII.** Keep default `true`; do not expose a UI to disable; document that changing it is unsafe.
+- **LumaraInlineApi** PII leak fixed: `generateSofterReflection` and `generateDeeperReflection` now pass scrubbed text to the enhanced API.
 
 ### 1.3 Red-team / test gaps
 
 - Add unit test: with mocked Firebase callable, assert payload to proxy contains no raw PII when input has PII (e.g. contains `[EMAIL_1]`-style tokens).
+- Add test: LumaraInlineApi `generateSofterReflection` / `generateDeeperReflection` with PII in entryText — assert only scrubbed text is passed to EnhancedLumaraApi.
 
 ---
 
@@ -49,12 +53,12 @@
 
 ## 3. Secrets & API Key Management
 
-- **Gemini API key:** Not sent from client for main path; `gemini_send.dart` uses Firebase `proxyGemini`; key is in Firebase secrets (`GEMINI_API_KEY`). Streaming path uses `LumaraAPIConfig`; `gemini_send` logs only `apiKey.isNotEmpty`, not the key itself.
+- **Gemini API key:** Non-streaming path uses Firebase `proxyGemini`; key stays in Firebase secrets (`GEMINI_API_KEY`). **Streaming path** (`geminiSendStream`) uses `LumaraAPIConfig` and builds URI with `key=$apiKey` — key is in process memory and in URL; not logged (only `apiKey.isNotEmpty` is logged). **Recommendation:** Prefer a streaming proxy (e.g. Firebase callable that streams) so the key never leaves the backend; or ensure streaming is only used when user has configured a key and accept client-side key for that path.
 - **Backend secrets:** `functions/index.js` uses `defineSecret` for `GEMINI_API_KEY`, `ASSEMBLYAI_API_KEY`, `STRIPE_*`; keys not in repo.
-- **AssemblyAI:** Token via callable `getAssemblyAIToken` (auth required); `lib/services/assemblyai_service.dart` caches with expiry. **Finding:** `assemblyai_provider.dart` logs token length and substring (`_token.substring(0, 10)`); reduce or remove in production.
-- **API config:** `lib/arc/chat/config/api_config.dart` uses masked key in debug (`$maskedKey`); no raw key in logs. Storage is runtime/preferences; confirm no commit of saved keys.
+- **AssemblyAI:** Token via callable `getAssemblyAIToken` (auth required); `lib/services/assemblyai_service.dart` caches with expiry. **Finding:** `assemblyai_provider.dart` logs token length and substring; reduce or remove in production.
+- **API config:** `lib/arc/chat/config/api_config.dart` uses masked key in debug; no raw key in logs. Keys stored in SharedPreferences; ensure no export/backup includes config with keys. `toJson` includes `apiKey` — only persist to secure/local storage.
 - **WisprFlow:** Logs URI and auth message with `replaceAll(_config.apiKey, '***')` — key redacted in logs.
-- **To audit:** Ensure no token substring or raw key in production logs; review `subscription_management_view` token preview (length + substring) for production build.
+- **Recommendation:** Ensure no token substring or raw key in production logs; guard all debugPrint/print that touch secrets with `kReleaseMode` or log level.
 
 ---
 
@@ -87,10 +91,10 @@
 
 ## 7. Logging & Observability
 
-- **Finding — PII in logs:** Several files log user identifiers or tokens: `firebase_auth_service.dart` and `subscription_service.dart` log email and UID in debugPrint; `subscription_management_view.dart` logs email and token length/preview; `unified_transcription_service.dart` logs currentUser email. These are acceptable for debug but **should be disabled or masked in production** (e.g. kReleaseMode or log level).
+- **Finding — PII in logs:** Several files log user identifiers or tokens: `firebase_auth_service.dart` and `subscription_service.dart` log email and UID in debugPrint; `subscription_management_view.dart` logs email and token length/preview; `unified_transcription_service.dart` logs currentUser email. `gemini_send.dart` uses `print()` for DEBUG GEMINI, PRISM redaction counts, and LOCAL AUDIT (window ID, token classes) — no raw user content but verbose. **Recommendation:** Guard all such logs with `kReleaseMode` or a log level so production builds do not emit PII, UID, email, or token hints.
 - **Token/keys:** API key is not logged raw; WisprFlow redacts key with `'***'`. AssemblyAI provider logs token substring — reduce for production. api_config uses masked key.
 - **Sentry:** Commented out in pubspec (`# sentry_flutter`); when enabled, ensure no PII or full request/response in breadcrumbs or context.
-- **Recommendation:** Use release-mode guards or log levels to avoid logging email/UID/token in production; avoid logging request/response bodies.
+- **Recommendation:** Use release-mode guards or log levels to avoid logging email/UID/token in production; avoid logging request/response bodies; remove or guard `print()` in production for security-sensitive files.
 
 ---
 
@@ -104,8 +108,8 @@
 
 ## 9. Dependencies & Supply Chain
 
-- **To audit:** Run `dart pub audit` (or equivalent) periodically; track known vulnerabilities in dependencies. Lockfile (e.g. `pubspec.lock`) committed for reproducible builds.
-- **Key packages:** Firebase, cloud_functions, http/io, Hive, etc. — note versions and any security-related release notes.
+- **Note:** Dart SDK does not ship `dart pub audit`; use `dart pub outdated` and/or external CVE/dependency checks (e.g. Dependabot, Snyk) to track known vulnerabilities. Lockfile (`pubspec.lock`) is committed for reproducible builds.
+- **Recommendation:** Run dependency checks periodically; upgrade critical packages when security advisories are published; document key packages (Firebase, cloud_functions, http/io, Hive) and their security posture.
 
 ---
 
@@ -143,6 +147,8 @@
 
 ## 14. Data Retention & Deletion
 
+- **Local deletion:** `SettingsCubit.deleteAllData(JournalRepository)` triggers delete of local journal data; reversible maps are device-only and deleted with app data. Chronicle and voice session data are stored locally; ensure "Delete All Data" and any account-deletion flow clear or anonymize all user data and do not leave reversible maps in backups.
+- **Backend:** If Firestore or other backend stores user data, ensure account deletion or "delete my data" removes or anonymizes it; exports/backups must not re-expose deleted content.
 - **To audit:** How long data is retained locally and on backend. User-initiated deletion (account delete, “delete my data”) — verify data and reversible maps are removed or anonymized; backups/exports do not re-expose deleted content. Document retention and deletion behavior.
 
 ---
@@ -169,9 +175,9 @@
 
 ## 18. Build, CI & Environment Separation
 
-- **Secrets:** Production API keys live in Firebase secrets (functions) and client-side in LumaraAPIConfig (user-configured); no hardcoded prod keys in repo. `String.fromEnvironment('GEMINI_API_KEY')` used only in echo guardrail (optional path).
+- **Secrets:** Production API keys live in Firebase secrets (functions) and client-side in LumaraAPIConfig (user-configured); no hardcoded prod keys in repo. `String.fromEnvironment('GEMINI_API_KEY')` and similar used for optional/dev paths; ensure dev/staging config does not use prod keys.
 - **Lockfile:** `pubspec.lock` present; dependencies pinned for reproducibility.
-- **To audit:** Run `dart pub audit` periodically; if CI exists (e.g. GitHub Actions), ensure secrets are in CI secrets manager, not in repo. Verify dev/staging Firebase project or config does not use prod keys.
+- **CI:** No GitHub Actions workflows found in repo; when CI is added, use secrets manager for any keys; never commit production secrets. Run dependency checks (e.g. `dart pub outdated`, Dependabot) periodically.
 
 ---
 
@@ -190,12 +196,26 @@
 
 ## Summary
 
-- **PII/egress:** Implemented and verified; all frontier-model paths scrub before send; reversible maps local-only; test gap: automated egress PII payload test.
+- **PII/egress:** Implemented and verified; all frontier-model paths scrub before send; reversible maps local-only. **Fixed:** LumaraInlineApi now passes scrubbed text in `generateSofterReflection` and `generateDeeperReflection`. Streaming path uses client-side API key — prefer proxy when possible.
 - **Auth:** Backend callables enforce `request.auth`; signOut clears subscription and AssemblyAI caches; token refresh and dispose in place.
-- **Secrets:** Gemini key in Firebase secrets; AssemblyAI via callable; API config masks keys in logs. Finding: token substring and email/UID in debug logs — mask or disable in production.
-- **Storage/crypto:** Flutter secure storage and Keychain/Secure Enclave used for sensitive data; no reversible maps in cloud/backup.
+- **Secrets:** Gemini key in Firebase secrets for non-streaming path; streaming uses LumaraAPIConfig. AssemblyAI via callable; API config masks keys in logs. Recommendation: mask or disable token substring and email/UID in production logs.
+- **Storage/crypto:** Flutter secure storage and Keychain/Secure Enclave used for sensitive data; no reversible maps in remote/backup payloads; `toRemoteJson()` correctly omits prism maps.
 - **Network:** No certificate validation disabled found.
 - **Session:** Logout clears token caches; ID token refresh and subscription cleanup verified.
 - **Rate limiting:** Client passes entryId/chatId; backend returns tier/limits; proxyGemini does not yet enforce rate limit in code — recommend adding or documenting where enforced.
 - **Deep links:** Internal only (patterns://); no external handler found.
-- **Remaining:** Sections 4, 14, 15, 17, 19 remain “to audit” for next run (input validation detail, data retention/deletion flows, compliance touchpoints, sensitive UI/clipboard, audit trail). Update this document when adding features or before release/security review.
+- **User protection:** Safe defaults (piiScrubbing = true); no UI to disable scrubbing; guard logs in production; LumaraInlineApi PII fix applied. Sections 4, 14, 15, 17, 19 remain “to audit” for next run (input validation detail, data retention/deletion flows, compliance touchpoints, sensitive UI/clipboard, audit trail). Update this document when adding features or before release/security review.
+
+---
+
+## Open Risks & Action Items (prioritized for user protection)
+
+| Priority | Item | Action |
+|----------|------|--------|
+| High | LumaraInlineApi PII leak | **Done** — generateSofterReflection and generateDeeperReflection now pass scrubbed text. |
+| Medium | Streaming path API key | Prefer Firebase streaming proxy so Gemini key never on client; or document and accept client key for streaming. |
+| Medium | Production logging | Guard debugPrint/print that log UID, email, token hints, or PII with kReleaseMode or log level. |
+| Medium | Rate limiting | Implement or document server-side rate limit in proxyGemini for free-tier users. |
+| Low | Egress payload test | Add automated test: proxy payload contains no raw PII when input has PII. |
+| Low | LumaraInlineApi test | Add test that softer/deeper reflection paths receive only scrubbed text. |
+| Low | Dependency checks | Use dart pub outdated and/or Dependabot/Snyk; no dart pub audit in SDK. |

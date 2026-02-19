@@ -1,6 +1,6 @@
 # EPI LUMARA MVP - Changelog
 
-**Version:** 3.3.48
+**Version:** 3.3.49
 **Last Updated:** February 19, 2026
 
 ---
@@ -14,6 +14,20 @@ This changelog has been split into parts for easier navigation:
 | **[CHANGELOG_part1.md](CHANGELOG_part1.md)** | Dec 2025 | v2.1.43 - v2.1.87 (Current) |
 | **[CHANGELOG_part2.md](CHANGELOG_part2.md)** | Nov 2025 | v2.1.28 - v2.1.42 |
 | **[CHANGELOG_part3.md](CHANGELOG_part3.md)** | Jan-Oct 2025 | v2.0.0 - v2.1.27 & Earlier |
+
+---
+
+## [3.3.49] - February 19, 2026
+
+### CHRONICLE layer0 retrieval, dual CHRONICLE/LUMARA, ARCX/MCP, DevSecOps audit; LumaraInlineApi PII fix
+
+- **CHRONICLE:** New `lib/chronicle/layer0_retrieval/chronicle_layer0_retrieval_service.dart`. Dual CHRONICLE: `agentic_loop_orchestrator.dart`, `clarification_processor.dart`, `intelligence_summary_models.dart`, `lumara_chronicle_repository.dart`, `intelligence_summary_generator.dart`; `dual_chronicle_view.dart`, `intelligence_summary_view.dart`; `chronicle_phase_signal_service.dart`. New: `lumara_connection_fade_preferences.dart`.
+- **LUMARA / prompts:** `lumara_assistant_cubit.dart`, `lumara_system_prompt.dart`, `prompt_library.dart`, `enhanced_lumara_api.dart`; `prompt_optimization_types.dart`, `universal_prompt_optimizer.dart`. **Security:** `lumara_inline_api.dart` — `generateSofterReflection` and `generateDeeperReflection` now pass scrubbed text to EnhancedLumaraApi (PII fix).
+- **ARCX / MCP:** `arcx_manifest.dart`, `arcx_export_service_v2.dart`, `arcx_import_service_v2.dart`; `mcp_pack_export_service.dart`, `mcp_pack_import_service.dart`.
+- **UI:** `current_phase_arcform_preview.dart`.
+- **DOCS:** `DEVSECOPS_SECURITY_AUDIT.md` — audit run 2026-02-19; LumaraInlineApi PII fix and egress checklist updated.
+
+**Files:** 22 modified, 2 new (layer0_retrieval_service, lumara_connection_fade_preferences). bug_tracker tracked.
 
 ---
 

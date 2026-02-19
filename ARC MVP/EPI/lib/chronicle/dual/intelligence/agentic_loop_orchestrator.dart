@@ -6,6 +6,7 @@
 import '../models/chronicle_models.dart';
 import '../repositories/lumara_chronicle_repository.dart';
 import '../repositories/intelligence_summary_repository.dart';
+import '../services/lumara_connection_fade_preferences.dart';
 import '../services/chronicle_query_adapter.dart';
 import '../services/lumara_comments_loader.dart';
 import 'gap/gap_analyzer.dart';
@@ -84,7 +85,10 @@ class AgenticLoopOrchestrator {
     }
 
     final layer0 = await _chronicleAdapter.queryLayer0(userId, query);
-    final inferred = await _lumaraRepo.queryInferences(userId, query);
+    final fadeDays = await LumaraConnectionFadePreferences.getFadeDays();
+    final fadeCutoff = DateTime.now().subtract(Duration(days: fadeDays));
+    final inferred = await _lumaraRepo.queryInferences(userId, query, activeAfter: fadeCutoff);
+    final gapFills = await _lumaraRepo.loadGapFillEvents(userId, activeAfter: fadeCutoff);
 
     final gapAnalysis = await _gapAnalyzer.analyze(query, layer0, inferred);
     final classified = await _gapClassifier.classify(
@@ -117,7 +121,7 @@ class AgenticLoopOrchestrator {
       // Non-fatal
     });
 
-    final content = _synthesizeResponse(layer0, inferred, lumaraContext);
+    final content = _synthesizeResponse(layer0, inferred, lumaraContext, gapFills);
     return LoopResult(
       type: 'response',
       content: content,
@@ -147,8 +151,11 @@ class AgenticLoopOrchestrator {
     });
 
     final layer0 = await _chronicleAdapter.queryLayer0(userId, originalContext.userQuery);
-    final inferred = await _lumaraRepo.queryInferences(userId, originalContext.userQuery);
-    final content = _synthesizeResponse(layer0, inferred, null);
+    final fadeDays = await LumaraConnectionFadePreferences.getFadeDays();
+    final fadeCutoff = DateTime.now().subtract(Duration(days: fadeDays));
+    final inferred = await _lumaraRepo.queryInferences(userId, originalContext.userQuery, activeAfter: fadeCutoff);
+    final gapFills = await _lumaraRepo.loadGapFillEvents(userId, activeAfter: fadeCutoff);
+    final content = _synthesizeResponse(layer0, inferred, null, gapFills);
 
     return LoopResult(
       type: 'response',
@@ -162,8 +169,8 @@ class AgenticLoopOrchestrator {
     UserChronicleLayer0Result layer0,
     LumaraInferredResult inferred, [
     String? lumaraCommentsContext,
+    List<GapFillEvent> gapFills = const [],
   ]) {
-    // In production, combine with LLM/synthesis; here return a simple summary.
     final parts = <String>[];
     if (lumaraCommentsContext != null && lumaraCommentsContext.trim().isNotEmpty) {
       parts.add('Prior LUMARA context available for inference.');
@@ -175,7 +182,22 @@ class AgenticLoopOrchestrator {
       parts.add('${layer0.annotations.length} approved insights.');
     }
     if (inferred.causalChains.isNotEmpty) {
-      parts.add('Patterns I have: ${inferred.causalChains.length} causal links.');
+      parts.add('Causal links I have: ${inferred.causalChains.take(8).map((c) => '"${c.trigger}" → "${c.response}"').join('; ')}.');
+    }
+    if (inferred.patterns.isNotEmpty) {
+      parts.add('Patterns: ${inferred.patterns.take(5).map((p) => p.description).join('; ')}.');
+    }
+    if (gapFills.isNotEmpty) {
+      final moments = gapFills.take(5).map((g) {
+        final s = g.extractedSignal;
+        if (s.causalChain != null) return '${s.causalChain!.trigger} → ${s.causalChain!.response}';
+        if (s.pattern != null) return s.pattern!.description;
+        if (s.relationship != null) return '${s.relationship!.entity} (${s.relationship!.role})';
+        return g.trigger.originalQuery.replaceAll('\n', ' ').length > 60
+            ? '${g.trigger.originalQuery.replaceAll('\n', ' ').substring(0, 60)}...'
+            : g.trigger.originalQuery.replaceAll('\n', ' ');
+      }).join('; ');
+      parts.add('Learning moments: $moments');
     }
     return parts.isEmpty
         ? 'I don\'t have much context yet. Tell me more when you\'re ready.'

@@ -16,6 +16,7 @@
 ## Recent prompt-related changes
 
 | Date | Change | Source / doc |
+| 2026-02-19 | Doc sync v3.3.49: CHRONICLE layer0, dual CHRONICLE/LUMARA, lumara_system_prompt/prompt_library/optimizer; LumaraInlineApi PII fix; bug_tracker tracked | CONFIGURATION_MANAGEMENT.md |
 | 2026-02-19 | Doc sync v3.3.48: Universal prompt optimization layer (80/20, provider-agnostic); UNIVERSAL_PROMPT_OPTIMIZATION.md; bug_tracker tracked | CONFIGURATION_MANAGEMENT.md |
 | 2026-02-19 | UNIVERSAL_PROMPT_OPTIMIZATION.md — prompt optimization use cases (userChat, userReflect, gapClassification, etc.), provider adapters; add to PROMPT_REFERENCES when consolidating | UNIVERSAL_PROMPT_OPTIMIZATION.md |
 | 2026-02-18 | Doc sync v3.3.47: Dual CHRONICLE refactor, PROMPT_REFERENCES +104, bugtracker index/audit; bug_tracker tracked | CONFIGURATION_MANAGEMENT.md |

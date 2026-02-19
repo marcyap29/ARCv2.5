@@ -16,6 +16,7 @@ import '../models/chronicle_models.dart';
 import '../models/intelligence_summary_models.dart';
 import '../repositories/lumara_chronicle_repository.dart';
 import '../repositories/intelligence_summary_repository.dart';
+import 'lumara_connection_fade_preferences.dart';
 import 'chronicle_query_adapter.dart';
 
 class IntelligenceSummaryGenerator {
@@ -84,9 +85,11 @@ class IntelligenceSummaryGenerator {
     final entries = await _chronicleAdapter.loadEntries(userId);
     final annotations = await _chronicleAdapter.loadAnnotations(userId);
     final patterns = await _lumaraRepo.loadPatterns(userId);
-    final causalChains = await _lumaraRepo.loadCausalChains(userId);
+    final fadeDays = await LumaraConnectionFadePreferences.getFadeDays();
+    final cutoff = DateTime.now().subtract(Duration(days: fadeDays));
+    final causalChains = await _lumaraRepo.loadCausalChains(userId, activeAfter: cutoff);
     final relationships = await _lumaraRepo.loadRelationships(userId);
-    final gapFills = await _lumaraRepo.loadGapFillEvents(userId);
+    final gapFills = await _lumaraRepo.loadGapFillEvents(userId, activeAfter: cutoff);
     final activePatterns = patterns.where((p) => p.status == InferenceStatus.active).toList();
     final activeChains = causalChains.where((c) => c.status == InferenceStatus.active).toList();
     final activeRels = relationships.where((r) => r.status == InferenceStatus.active).toList();
@@ -151,6 +154,8 @@ class IntelligenceSummaryGenerator {
         entriesAnalyzed: entries.length,
         patternsIdentified: activePatterns.length,
         relationshipsTracked: activeRels.length,
+        causalChainsCount: activeChains.length,
+        learningMomentsCount: gapFills.length,
         monthsCovered: monthsCovered,
         confidenceLevel: _confidenceLevel(entries.length, activePatterns.length, activeChains),
       ),
@@ -236,10 +241,14 @@ class IntelligenceSummaryGenerator {
 
   String _fallbackContent(BiographicalIntelligence i) {
     final s = i.stats;
+    final hasConnections = s.causalChainsCount > 0 || s.learningMomentsCount > 0 || s.patternsIdentified > 0 || s.relationshipsTracked > 0;
+    final connectionNote = hasConnections
+        ? ''
+        : '\n\nConnections (causal chains, learning moments, patterns) are built as you use **LUMARA chat and reflection**; they make future summaries richer.\n';
     return '''# Intelligence Summary
 
 ## About This Summary
-Based on **${s.entriesAnalyzed}** entries, **${s.patternsIdentified}** patterns, and **${s.relationshipsTracked}** relationships over **${s.monthsCovered}** months. Confidence: **${s.confidenceLevel}**.
+Based on **${s.entriesAnalyzed}** entries, **${s.causalChainsCount}** causal chains, and **${s.learningMomentsCount}** learning moments over **${s.monthsCovered}** months. Refined patterns: **${s.patternsIdentified}**; relationships: **${s.relationshipsTracked}**. Confidence: **${s.confidenceLevel}**.$connectionNote
 ''';
   }
 
@@ -263,6 +272,8 @@ Return ONLY the markdown, starting with "# Intelligence Summary". No preamble or
       totalEntries: i.user.totalEntries,
       totalPatterns: i.lumara.patterns.length,
       totalRelationships: i.lumara.relationships.length,
+      totalCausalChains: i.lumara.causalChains.length,
+      totalLearningMoments: i.lumara.gapFillEvents.length,
       temporalSpan: i.user.temporalSpan,
       confidenceLevel: i.stats.confidenceLevel,
       sectionsIncluded: const [
@@ -371,6 +382,8 @@ class IntelligenceStats {
   final int entriesAnalyzed;
   final int patternsIdentified;
   final int relationshipsTracked;
+  final int causalChainsCount;
+  final int learningMomentsCount;
   final int monthsCovered;
   final String confidenceLevel;
 
@@ -378,6 +391,8 @@ class IntelligenceStats {
     required this.entriesAnalyzed,
     required this.patternsIdentified,
     required this.relationshipsTracked,
+    required this.causalChainsCount,
+    required this.learningMomentsCount,
     required this.monthsCovered,
     required this.confidenceLevel,
   });

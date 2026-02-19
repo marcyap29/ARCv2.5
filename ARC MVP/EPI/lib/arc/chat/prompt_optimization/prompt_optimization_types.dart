@@ -37,12 +37,16 @@ enum OutputFormat {
 class ContextRequirements {
   final int patterns;
   final int relationships;
+  final int causalChains;
+  final int gapFillEvents;
   final int recentEntries;
   final bool state;
 
   const ContextRequirements({
     this.patterns = 0,
     this.relationships = 0,
+    this.causalChains = 0,
+    this.gapFillEvents = 0,
     this.recentEntries = 0,
     this.state = false,
   });

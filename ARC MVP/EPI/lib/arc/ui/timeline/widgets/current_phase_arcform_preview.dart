@@ -20,6 +20,7 @@ import 'package:my_app/prism/atlas/rivet/rivet_service.dart';
 import 'package:my_app/arc/ui/arcforms/phase_recommender.dart';
 import 'package:my_app/services/user_phase_service.dart';
 import 'package:my_app/prism/atlas/rivet/rivet_provider.dart';
+import 'package:my_app/core/constants/phase_colors.dart';
 
 /// Compact preview widget showing current phase Arcform visualization
 /// Uses the same architecture as Insights->Phase->Arcform visualizations
@@ -828,19 +829,31 @@ class FullScreenPhaseViewer extends StatelessWidget {
   }
 
   void _showInfo(BuildContext context) {
+    final canonicalPhase = arcform.phase.isEmpty
+        ? 'Discovery'
+        : arcform.phase.substring(0, 1).toUpperCase() + arcform.phase.substring(1).toLowerCase();
+    final phaseDescription = PhaseColors.getPhaseDescription(canonicalPhase);
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: Text('Phase Info', style: heading2Style(context)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Phase: ${arcform.phase}'),
-            const SizedBox(height: 16),
-            const Text('About this Phase:'),
-            Text(arcform.content ?? '', style: const TextStyle(fontSize: 12, fontStyle: FontStyle.italic)),
-          ],
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Phase: ${arcform.phase}', style: heading3Style(context)),
+              const SizedBox(height: 12),
+              Text(arcform.content ?? '', style: bodyStyle(context).copyWith(fontSize: 13, fontStyle: FontStyle.italic)),
+              if (phaseDescription.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                Text('About this phase:', style: bodyStyle(context).copyWith(fontWeight: FontWeight.w600, fontSize: 13)),
+                const SizedBox(height: 6),
+                Text('$canonicalPhase: $phaseDescription', style: bodyStyle(context).copyWith(fontSize: 13, height: 1.35)),
+              ],
+            ],
+          ),
         ),
         actions: [
           TextButton(
