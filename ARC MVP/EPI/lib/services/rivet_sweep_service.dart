@@ -20,6 +20,8 @@ import 'phase_regime_service.dart';
 import 'package:my_app/arc/ui/arcforms/phase_recommender.dart';
 import 'atlas_phase_decision_service.dart';
 import 'phase_sentinel_integration.dart';
+import 'chronicle_phase_signal_service.dart';
+import 'firebase_auth_service.dart';
 
 class RivetSweepService {
   // final SemanticSimilarityService _similarityService; // TODO: Implement
@@ -34,6 +36,8 @@ class RivetSweepService {
   static const double _hysteresisThreshold = 0.15;
   static const int _maxRegimesPerYear = 12; // Maximum 12 regimes per year (monthly average)
   static const int _minRegimesPerYear = 4; // Minimum 4 regimes per year (seasonal)
+  /// Weight for Chronicle phase scores when fusing with ATLAS (0 = ATLAS only, 1 = Chronicle only).
+  static const double _chronicleFusionWeight = 0.35;
 
   RivetSweepService(AnalyticsService analytics);
 
@@ -51,8 +55,12 @@ class RivetSweepService {
     return unphasedCount >= 20 || regimesNeedingAttention.isNotEmpty;
   }
 
-  /// Run RIVET Sweep analysis
-  Future<RivetSweepResult> analyzeEntries(List<JournalEntry> entries) async {
+  /// Run RIVET Sweep analysis.
+  /// If [userId] is provided, Chronicle (LUMARA) phase scores are fused with ATLAS for proposals.
+  Future<RivetSweepResult> analyzeEntries(
+    List<JournalEntry> entries, {
+    String? userId,
+  }) async {
         AnalyticsService.trackEvent('rivet_sweep.analysis_started', properties: {
       'entry_count': entries.length,
     });
@@ -72,8 +80,8 @@ class RivetSweepService {
       // 3. Create segments from change points
       final segments = _createSegments(entries, changePoints);
       
-      // 4. Infer phases for each segment
-      final proposals = await _inferSegmentPhases(segments);
+      // 4. Infer phases for each segment (ATLAS + optional Chronicle fusion)
+      final proposals = await _inferSegmentPhases(segments, userId);
       
       // 5. Apply hysteresis and minimum dwell
       final finalProposals = _applyHysteresisAndMinDwell(proposals);
@@ -389,33 +397,61 @@ class RivetSweepService {
     return segments;
   }
 
-  /// Infer phases for segments using RIVET classifier
-  /// Analyzes all entries in each segment and detects trends across consecutive entries
-  Future<List<PhaseSegmentProposal>> _inferSegmentPhases(List<EntrySegment> segments) async {
+  /// Infer phases for segments using RIVET classifier.
+  /// When [userId] is non-null, Chronicle phase scores are fused with ATLAS for the proposal.
+  Future<List<PhaseSegmentProposal>> _inferSegmentPhases(
+    List<EntrySegment> segments, [
+    String? userId,
+  ]) async {
     final proposals = <PhaseSegmentProposal>[];
-    
+    PhaseLabel? prevProposedPhase;
+
     for (final segment in segments) {
       if (segment.entries.isEmpty) continue;
-      
+
       // Sort entries chronologically to analyze trends
       final sortedEntries = List<JournalEntry>.from(segment.entries)
         ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
-      
+
       // Analyze phase trends across consecutive entries in this segment
       final phaseTrends = _analyzePhaseTrends(sortedEntries);
-      
-      // Determine the dominant phase for this segment based on trends
+
+      // Determine the dominant phase for this segment based on trends (used when no Chronicle fusion)
       final dominantPhase = _determineDominantPhase(phaseTrends, sortedEntries);
       final confidence = _calculateTrendConfidence(phaseTrends, sortedEntries);
-      
+
       // Aggregate content and keywords from all entries in segment
       final content = sortedEntries.map((e) => e.content).join(' ');
       final keywords = sortedEntries.expand((e) => e.keywords).toList();
-      
+
+      // ATLAS scores for this segment (used for fusion or as fallback)
+      final atlasScores = AtlasPhaseDecisionService.generatePhaseScores(
+        content: content,
+        keywords: keywords,
+      );
+
+      PhaseLabel proposedLabel = dominantPhase;
+      if (userId != null) {
+        final chronicleScores = await ChroniclePhaseSignalService.getPhaseScores(
+          userId,
+          segmentStart: segment.start,
+          segmentEnd: segment.end,
+        );
+        if (chronicleScores != null) {
+          final fusedScores = _fusePhaseScores(atlasScores, chronicleScores);
+          final decided = AtlasPhaseDecisionService.decidePhaseForEntry(
+            scores: fusedScores,
+            prevPhase: prevProposedPhase,
+          );
+          if (decided != null) proposedLabel = decided;
+        }
+      }
+      prevProposedPhase = proposedLabel;
+
       proposals.add(PhaseSegmentProposal(
         start: segment.start,
         end: segment.end,
-        proposedLabel: dominantPhase,
+        proposedLabel: proposedLabel,
         confidence: confidence,
         signals: {
           'entry_count': sortedEntries.length.toDouble(),
@@ -427,8 +463,23 @@ class RivetSweepService {
         topKeywords: _extractTopKeywords(keywords),
       ));
     }
-    
+
     return proposals;
+  }
+
+  /// Fuse ATLAS and Chronicle phase score maps with fixed weight.
+  Map<PhaseLabel, double> _fusePhaseScores(
+    Map<PhaseLabel, double> atlasScores,
+    Map<PhaseLabel, double> chronicleScores,
+  ) {
+    const w = _chronicleFusionWeight;
+    final fused = <PhaseLabel, double>{};
+    for (final phase in PhaseLabel.values) {
+      final a = atlasScores[phase] ?? 0.1;
+      final c = chronicleScores[phase] ?? 0.1;
+      fused[phase] = (1 - w) * a + w * c;
+    }
+    return fused;
   }
 
   /// Analyze phase trends across consecutive entries to detect patterns
@@ -928,7 +979,8 @@ Future<int> runAutoPhaseAnalysis() async {
 
     final analyticsService = AnalyticsService();
     final rivetSweepService = RivetSweepService(analyticsService);
-    final result = await rivetSweepService.analyzeEntries(entries);
+    final userId = FirebaseAuthService.instance.currentUser?.uid;
+    final result = await rivetSweepService.analyzeEntries(entries, userId: userId);
 
     final proposals = result.approvableProposals;
     if (proposals.isEmpty) {

@@ -222,7 +222,7 @@ class LumaraNotificationService {
     }
 
     // Use the most confident window
-    windows.sort((a, b) => b.confidence.compareTo(a.confidence));
+    windows.sort((a, b) => (b?.confidence ?? 0.0).compareTo((a?.confidence ?? 0.0)));
     final bestWindow = windows.first;
 
     return DateTime(

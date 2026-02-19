@@ -8,7 +8,7 @@ This document catalogs all prompts used throughout the ARC application, organize
 - **Path baseline:** All paths are relative to the EPI app root (e.g. `ARC MVP/EPI/`). Example: `lib/arc/chat/prompts/lumara_profile.json` means `ARC MVP/EPI/lib/arc/chat/prompts/lumara_profile.json`.
 - **Content:** Quoted blocks are taken from or derived from the cited sources. Some sections show a subset or summary; the source file holds the full, authoritative text.
 - **Cloud vs on-device:** Cloud API uses the master prompt system (`lumara_master_prompt.dart`); on-device and legacy paths may use `lumara_system_prompt.dart` or profile JSON.
-- **Last synced with codebase:** 2026-02-16. Document version: 2.4.0.
+- **Last synced with codebase:** 2026-02-16. Document version: 2.6.0.
 
 ---
 
@@ -80,6 +80,10 @@ This document catalogs all prompts used throughout the ARC application, organize
 19. [CHRONICLE Edit Validation Prompts](#19-chronicle-edit-validation-prompts)
 20. [Quick Answers / MMCO Polish](#20-quick-answers--mmco-polish)
 21. [LUMARA Agent Prompts (Research & Writing)](#21-lumara-agent-prompts-research--writing)
+22. [Chat Intent Classifier](#22-chat-intent-classifier)
+23. [Research Query Planner](#23-research-query-planner)
+24. [Dual Chronicle Intelligence Summary](#24-dual-chronicle-intelligence-summary)
+25. [Privacy Guardrail System Prompt](#25-privacy-guardrail-system-prompt)
 
 ---
 
@@ -192,6 +196,8 @@ Write the final response in LUMARA's stable voice.
 - `{resonance_mode}` - Resonance setting (conservative, balanced, expressive)
 - `{retrieved_nodes_block}` - Retrieved memory nodes from MIRA
 - `{style_prefs}` - User style preferences (reflective, concise, developmental, etc.)
+
+**ECHO Phase Emotional Prompts:** `lib/echo/prompts/phase_templates.dart` exposes phase-specific emotional prompt maps: `_discoveryEmotionalPrompts`, `_expansionEmotionalPrompts`, `_transitionEmotionalPrompts`, `_consolidationEmotionalPrompts`, `_recoveryEmotionalPrompts`, `_breakthroughEmotionalPrompts`, `_defaultEmotionalPrompts`. Each map provides short emotional-prompt strings per phase for ECHO/phase-aware flows. Exported via `echo_module.dart`; used by `echo_demo.dart`.
 
 ### On-Device Prompt Profiles
 
@@ -900,6 +906,12 @@ Include:
 
 Reference specific evidence and avoid phase changes.
 ```
+
+### Journaling Prompt Encouragement
+
+**Location:** `lib/arc/chat/prompts/lumara_prompt_encouragement.dart` (`journalingSystemPrompt`)
+
+Enhanced system prompt for journaling context: reflective guidance to help users write, especially when blocked. Used when generating tailored prompts or encouragement (e.g. with `lumara_unified_prompts` or prompt-encouragement flows). Defines LUMARA's role for expression and writing; context awareness (ATLAS phase, recent media, drafts, emotional resonance); prompt generation modes (Warm Start, Memory Bridge, Sensory Anchor, Perspective Shift, Phase-Aligned Deep Prompt, Creative Diverter); tone guidelines (authenticity, warm, non-clinical); response behavior when blocked vs writing freely; output format. Phase-aligned tone: Discovery → curious/exploratory; Expansion → creative/energizing; Transition → clarifying; Consolidation → integrative; Recovery → gentle/grounding; Breakthrough → visionary/synthesizing.
 
 ---
 
@@ -1781,9 +1793,9 @@ These prompts are sent as LUMARA assistant messages during the Crossroads four-s
 |------|----------|-------------|
 | 1 | `crossroadsPrompt1` | "What are you deciding?" |
 | 2 | `crossroadsPrompt2` | "What's going on in your life right now that's making this feel important or difficult?" |
-| 3 | `crossroadsPrompt3` | "What are your real options — including the one you're leaning away from?" |
-| 4 | `crossroadsPrompt4` | "What would make this feel right six months from now?" |
-| Done | `crossroadsConfirmDone` | "Got it — I've captured this decision. I'll check back with you later to see how it played out." |
+| 3 | `crossroadsPrompt3` | "What are your real options - including the one you're leaning away from?" |
+| 4 | `crossroadsPrompt4` | "What would make you feel like this was the right call, looking back?" |
+| Done | `crossroadsConfirmDone` | "Got it. I'll remember this moment. I'll check back in with you about it down the road." |
 
 ### Decision Trigger Detection
 
@@ -1857,9 +1869,15 @@ Do not say you lack context if MMCO provides it.
 
 ## 21. LUMARA Agent Prompts (Research & Writing)
 
-**Source:** `lib/lumara/agents/research/research_prompts.dart` (`kResearchAgentSystemPromptTemplate`), `lib/lumara/agents/writing/writing_prompts.dart` (`kWritingAgentSystemPromptTemplate`)
+**Source:** `lib/lumara/agents/research/research_prompts.dart` (`kResearchAgentSystemPromptTemplate`), `lib/lumara/agents/writing/writing_prompts.dart` (`kWritingAgentSystemPromptTemplate`), `lib/lumara/agents/prompts/agent_operating_system_prompt.dart` (`kAgentOperatingSystemTemplate`)
 
-LUMARA invokes specialized agents for research and writing. Both share a common **orchestration framework** (role definition, agent boundaries, workflow position, context trust, interaction model, collaboration rules, output recipient). Each agent then has role-specific instructions, context placeholders, and output structure. Used by Research Agent (`synthesis_engine.dart`) and Writing Agent (`draft_composer.dart`).
+LUMARA invokes specialized agents for research and writing. When the user has configured Agent Settings, an **Agent Operating System** prefix is prepended to the Research and Writing system prompts (see below). Both share a common **orchestration framework** (role definition, agent boundaries, workflow position, context trust, interaction model, collaboration rules, output recipient). Each agent then has role-specific instructions, context placeholders, and output structure. Used by Research Agent (`synthesis_engine.dart`) and Writing Agent (`draft_composer.dart`).
+
+### Agent Operating System (optional prefix)
+
+**Location:** `lib/lumara/agents/prompts/agent_operating_system_prompt.dart` (`kAgentOperatingSystemTemplate`, `buildAgentOsPrefix`)
+
+User-customizable block prepended to Research and Writing agent system prompts when Agent Settings are set. Defines structured task execution, when to use implementation checklists, code-teaching depth, response structure, and quality checks. Placeholders: `{{USER_CONTEXT}}`, `{{COMMUNICATION_PREFERENCES}}`, `{{AGENT_MEMORY}}`. Empty sections are replaced with "(None set. User can add in Agent Settings.)" Used by `lumara_reflection_settings_service.dart` and passed as `systemPromptPrefix` into Research/Writing agents.
 
 ### Shared orchestration framework (both agents)
 
@@ -1928,10 +1946,84 @@ LUMARA invokes specialized agents for research and writing. Both share a common 
 
 ---
 
+## 22. Chat Intent Classifier
+
+**Source:** `lib/lumara/orchestrator/chat_intent_classifier.dart` (`ChatIntentClassifier._systemPrompt`)
+
+Classifies user chat messages into intent types for agent routing: **reflection**, **research**, **writing**, **pattern**, **journaling**. Explicit prefixes "LUMARA, write..." and "LUMARA, research..." bypass the LLM and force Writing/Research agent with high confidence; otherwise the LLM is called with this system prompt. Output must be valid JSON only (no markdown).
+
+**Intent types (summary):**
+
+- **reflection** — Normal conversation, processing, questions about timeline/patterns (e.g. "How have my patterns looked over the last 30 days?").
+- **research** — Investigate topics, gather information (triggers: "research", "investigate", "analyze").
+- **writing** — Create content (triggers: "write", "draft", "create a post").
+- **pattern** — Analyze historical patterns (triggers: "when have I", "what patterns").
+- **journaling** — Explicit journal entry creation.
+
+**Confidence:** 0.9+ clear, 0.7–0.9 strong, 0.5–0.7 weak, &lt;0.5 default to reflection. Parameters extracted for research (depth, scope, urgency) and writing (content_type, topic, context).
+
+**User message format:** `User message: "<escaped message>"\n\nClassify this intent now. Reply with only the JSON object.`
+
+**Output format (JSON):** `type`, `confidence`, `estimated_minutes`, `parameters`, `reasoning`.
+
+---
+
+## 23. Research Query Planner
+
+**Source:** `lib/lumara/agents/research/query_planner.dart` (`QueryPlanner.planResearch` — inline `systemPrompt`)
+
+Decomposes a complex research question into 3–8 searchable sub-queries for the Research Agent. Used before running web search/synthesis. Requirements: 3–8 sub-queries, ordered foundational→specific, each searchable (3–6 words), no redundancy, consider background vs advanced. Returns only a valid JSON array of objects: `query`, `prerequisite`, optional `depends_on` (0-based index). Example: `[{"query":"SBIR Phase I requirements 2025","prerequisite":false},{"query":"Air Force SBIR AI priorities","prerequisite":true,"depends_on":0}]`.
+
+**User message:** `User question: <userQuery>`.
+
+---
+
+## 24. Dual Chronicle Intelligence Summary
+
+**Source:** `lib/chronicle/dual/services/intelligence_summary_generator.dart` (`_systemPrompt`, `_buildSynthesisPrompt`)
+
+Generates the **Intelligence Summary** (Layer 3) for the Dual CHRONICLE feature from the user's CHRONICLE entries/annotations and LUMARA CHRONICLE patterns, causal chains, relationships, and gap-fill events. Synthesis is done via injected LLM (Groq/Gemini from app layer). If no LLM is provided, a placeholder markdown summary is returned.
+
+**System prompt:**
+
+```
+You are LUMARA's intelligence synthesis engine. Generate a comprehensive Intelligence Summary in markdown from biographical data.
+
+Principles:
+- Natural, warm prose; second person ("You're...").
+- Specific: use examples, dates, frequencies.
+- Signal confidence: "You consistently..." (high) vs "You seem to..." (low).
+- Acknowledge what you don't know.
+- Do not invent information or diagnose.
+Return ONLY markdown, starting with "# Intelligence Summary".
+```
+
+**User prompt (built by `_buildSynthesisPrompt`):** Structured markdown with (1) User's CHRONICLE — entries (last 30), annotations; (2) LUMARA Inferred Intelligence — patterns, causal chains, relationships, gap-fill events; (3) Instructions: create sections About You, Current Life Phase, Key Relationships, Recurring Patterns, Values and Priorities, Goals and Recent Developments, What I Don't Know Yet; style warm second person; 1500–2500 words; return only markdown.
+
+---
+
+## 25. Privacy Guardrail System Prompt
+
+**Source:** `lib/echo/privacy_core/privacy_guardrail_interceptor.dart` (`_privacySystemPrompt`)
+
+Universal Privacy Guardrail prepended to the system prompt when using the secure LLM path (`provideSecureArcLLM`). Enforces PII minimization and external-API safety (REQ-3.1 through REQ-3.5). Role: scrub, mask, and protect user data; never return, infer, or reconstruct identity.
+
+**Core rules:** Do not store or output raw PII; always process masked inputs without questioning masking; never reconstruct masked values; never echo raw inputs; if safe response cannot be produced, reply with "Insufficient non-identifying context available to proceed."
+
+**Masking policy (examples):** Names → [PERSON_A], [PERSON_B]; emails → [EMAIL_SHA256:…]; phones → [PHONE]; addresses → [ADDRESS]; government IDs/tokens → [SECRET]; dates → [DATE_PARTIAL:YYYY] or [DATE_PARTIAL:YYYY-MM].
+
+**Compliance self-check:** All obvious PII masked? Could combined details re-identify? Does the answer imply identity? Output contract: respond only over masked inputs; add "Privacy Note" if fidelity was reduced; refuse unsafe outputs gracefully.
+
+At runtime the interceptor concatenates: `'$_privacySystemPrompt\n$originalSystem'` so the guardrail is always first.
+
+---
+
 ## Version History
 
 | Version | Date | Changes |
 |---------|------|---------|
+| 2.6.0 | 2026-02-16 | **Prompt audit:** §18 Crossroads prompt strings updated to match code (`crossroadsPrompt4`, `crossroadsConfirmDone`). Added §8 Journaling Prompt Encouragement (`lumara_prompt_encouragement.dart`); ECHO Phase Emotional Prompts (`phase_templates.dart`); §25 Privacy Guardrail System Prompt (`privacy_guardrail_interceptor.dart`). |
+| 2.5.0 | 2026-02-16 | **Prompt audit:** Added §21 Agent OS prefix (`agent_operating_system_prompt.dart`); §22 Chat Intent Classifier (`chat_intent_classifier.dart`); §23 Research Query Planner (`query_planner.dart`); §24 Dual Chronicle Intelligence Summary (`intelligence_summary_generator.dart`). |
 | 2.4.0 | 2026-02-16 | **Prompt audit:** Added §21 LUMARA Agent Prompts — Research Agent (`research_prompts.dart`) and Writing Agent (`writing_prompts.dart`): shared orchestration framework, role-specific blocks, template variables, output structure. |
 | 2.3.0 | 2026-02-13 | **Prompt audit:** Added §20 Quick Answers / MMCO Polish prompt (`quickanswers_router.dart` — pre-LLM gate, MMCO ground truth, optional on-device polish). |
 | 2.2.0 | 2026-02-13 | **v3.3.26 prompts**: Added §17 Intellectual Honesty / Pushback prompt (`<intellectual_honesty>` master prompt section, truth_check injection, Evidence Review), §18 Crossroads Decision Capture prompts (four-step flow, trigger detection patterns, decision archaeology query), §19 CHRONICLE Edit Validation prompts (pattern suppression and factual contradiction warnings). |

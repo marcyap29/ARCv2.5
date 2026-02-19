@@ -45,6 +45,7 @@ import 'package:my_app/core/models/entry_mode.dart';
 import 'package:my_app/shared/ui/settings/settings_view.dart';
 import 'package:my_app/lumara/agents/screens/agents_screen.dart';
 import 'package:my_app/services/rivet_sweep_service.dart' show runAutoPhaseAnalysis;
+import 'package:my_app/chronicle/dual/services/dual_chronicle_services.dart';
 import 'package:my_app/chronicle/integration/veil_chronicle_factory.dart';
 import 'package:my_app/chronicle/scheduling/synthesis_scheduler.dart' show SynthesisTier;
 import 'package:my_app/services/phase_check_in_service.dart';
@@ -368,6 +369,24 @@ class _HomeViewState extends State<HomeView> {
                   }
                 } catch (e) {
                   debugPrint('Auto phase analysis after import failed: $e');
+                }
+
+                // Run Intelligence Summary after backup/import so user can see LUMARA synthesis from restored data
+                final userId = FirebaseAuthService.instance.currentUser?.uid ?? 'default_user';
+                try {
+                  final generator = DualChronicleServices.intelligenceSummaryGenerator;
+                  await generator.generateSummary(userId);
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Intelligence Summary updated'),
+                        backgroundColor: Colors.green,
+                        duration: Duration(seconds: 2),
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  debugPrint('Intelligence Summary after import failed: $e');
                 }
               });
             } else if (state.error != null) {

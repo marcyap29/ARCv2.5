@@ -1,11 +1,13 @@
 // lib/chronicle/dual/intelligence/agentic_loop_orchestrator.dart
 //
-// Executes the 7-step agentic loop while maintaining sacred separation.
-// User Chronicle is never modified automatically.
+// Executes the 7-step agentic loop. User context from CHRONICLE (Layer 0 + promoted);
+// all learnings stored in LUMARA CHRONICLE. User's CHRONICLE is never modified.
 
-import '../repositories/user_chronicle_repository.dart';
+import '../models/chronicle_models.dart';
 import '../repositories/lumara_chronicle_repository.dart';
 import '../repositories/intelligence_summary_repository.dart';
+import '../services/chronicle_query_adapter.dart';
+import '../services/lumara_comments_loader.dart';
 import 'gap/gap_analyzer.dart';
 import 'gap/gap_classifier.dart';
 import 'interrupt/interrupt_decision_engine.dart';
@@ -43,37 +45,45 @@ class LoopResult {
 
 class AgenticLoopOrchestrator {
   AgenticLoopOrchestrator({
-    UserChronicleRepository? userRepo,
+    ChronicleQueryAdapter? chronicleAdapter,
     LumaraChronicleRepository? lumaraRepo,
     GapAnalyzer? gapAnalyzer,
     GapClassifier? gapClassifier,
     InterruptDecisionEngine? interruptEngine,
     ClarificationProcessor? clarificationProcessor,
     IntelligenceSummaryRepository? intelligenceSummaryRepo,
-  })  : _userRepo = userRepo ?? UserChronicleRepository(),
+    LumaraCommentsLoader? lumaraCommentsLoader,
+  })  : _chronicleAdapter = chronicleAdapter ?? ChronicleQueryAdapter(),
         _lumaraRepo = lumaraRepo ?? LumaraChronicleRepository(),
         _gapAnalyzer = gapAnalyzer ?? GapAnalyzer(),
         _gapClassifier = gapClassifier ?? GapClassifier(),
         _interruptEngine = interruptEngine ?? InterruptDecisionEngine(),
         _clarificationProcessor = clarificationProcessor ?? ClarificationProcessor(),
-        _intelligenceSummaryRepo = intelligenceSummaryRepo;
+        _intelligenceSummaryRepo = intelligenceSummaryRepo,
+        _lumaraCommentsLoader = lumaraCommentsLoader;
 
-  final UserChronicleRepository _userRepo;
+  final ChronicleQueryAdapter _chronicleAdapter;
   final LumaraChronicleRepository _lumaraRepo;
   final GapAnalyzer _gapAnalyzer;
   final GapClassifier _gapClassifier;
   final InterruptDecisionEngine _interruptEngine;
   final ClarificationProcessor _clarificationProcessor;
   final IntelligenceSummaryRepository? _intelligenceSummaryRepo;
+  final LumaraCommentsLoader? _lumaraCommentsLoader;
 
   Future<LoopResult> execute(
     String userId,
     String query,
-    AgenticContext context,
-  ) async {
+    AgenticContext context, {
+    String? lumaraCommentsContext,
+  }) async {
     final start = DateTime.now();
+    String? lumaraContext = lumaraCommentsContext;
+    if (lumaraContext == null && _lumaraCommentsLoader != null) {
+      lumaraContext = await _lumaraCommentsLoader!.load(userId);
+    }
 
-    final layer0 = await _userRepo.queryLayer0(userId, query);
+    final layer0 = await _chronicleAdapter.queryLayer0(userId, query);
     final inferred = await _lumaraRepo.queryInferences(userId, query);
 
     final gapAnalysis = await _gapAnalyzer.analyze(query, layer0, inferred);
@@ -95,7 +105,7 @@ class AgenticLoopOrchestrator {
       }
     }
 
-    // Update LUMARA Chronicle only (e.g. mark searchable gaps filled if we had deeper search)
+    // Update LUMARA CHRONICLE only (e.g. mark searchable gaps filled if we had deeper search)
     for (final gap in classified.searchableGaps) {
       if (gap.status == 'open') {
         await _lumaraRepo.updateGap(userId, gap.id, gap.copyWith(status: 'filled'));
@@ -107,7 +117,7 @@ class AgenticLoopOrchestrator {
       // Non-fatal
     });
 
-    final content = _synthesizeResponse(layer0, inferred);
+    final content = _synthesizeResponse(layer0, inferred, lumaraContext);
     return LoopResult(
       type: 'response',
       content: content,
@@ -136,9 +146,9 @@ class AgenticLoopOrchestrator {
       // Non-fatal
     });
 
-    final layer0 = await _userRepo.queryLayer0(userId, originalContext.userQuery);
+    final layer0 = await _chronicleAdapter.queryLayer0(userId, originalContext.userQuery);
     final inferred = await _lumaraRepo.queryInferences(userId, originalContext.userQuery);
-    final content = _synthesizeResponse(layer0, inferred);
+    final content = _synthesizeResponse(layer0, inferred, null);
 
     return LoopResult(
       type: 'response',
@@ -150,10 +160,14 @@ class AgenticLoopOrchestrator {
 
   String _synthesizeResponse(
     UserChronicleLayer0Result layer0,
-    LumaraInferredResult inferred,
-  ) {
+    LumaraInferredResult inferred, [
+    String? lumaraCommentsContext,
+  ]) {
     // In production, combine with LLM/synthesis; here return a simple summary.
     final parts = <String>[];
+    if (lumaraCommentsContext != null && lumaraCommentsContext.trim().isNotEmpty) {
+      parts.add('Prior LUMARA context available for inference.');
+    }
     if (layer0.entries.isNotEmpty) {
       parts.add('From your timeline: ${layer0.entries.length} relevant entries.');
     }

@@ -23,6 +23,7 @@ import 'package:my_app/prism/atlas/rivet/rivet_provider.dart';
 import 'package:my_app/prism/atlas/rivet/rivet_service.dart';
 import 'package:my_app/arc/ui/arcforms/phase_recommender.dart';
 import 'package:my_app/services/user_phase_service.dart';
+import 'package:my_app/services/firebase_auth_service.dart';
 import 'package:my_app/ui/splash/animated_phase_shape.dart';
 
 class PhaseAnalysisView extends StatefulWidget {
@@ -420,8 +421,9 @@ class _PhaseAnalysisViewState extends State<PhaseAnalysisView> {
         }
       }
 
-      // Run analysis
-      final result = await rivetSweepService.analyzeEntries(journalEntries);
+      // Run analysis (userId enables Chronicle fusion with ATLAS)
+      final userId = FirebaseAuthService.instance.currentUser?.uid;
+      final result = await rivetSweepService.analyzeEntries(journalEntries, userId: userId);
 
       // Auto-apply all approvable proposals (no wizard needed)
       final proposals = result.approvableProposals;

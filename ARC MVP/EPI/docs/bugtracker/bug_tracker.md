@@ -1,8 +1,10 @@
 # EPI MVP - Bug Tracker
 
-**Version:** 3.2.6  
-**Last Updated:** 2026-02-17  
+**Version:** 3.2.7  
+**Last Updated:** 2026-02-18  
 **Record count:** 35 individual bug records in [records/](records/). Index below matches all files in records/.
+
+**Master index & format:** For overview, document structure, standardized bug entry format, and maintenance procedures see [BUGTRACKER_MASTER_INDEX.md](BUGTRACKER_MASTER_INDEX.md). New records should follow the BUG-[ID] format (🐛🔧🎯📋) when possible; see audit [BUGTRACKER_AUDIT_REPORT.md](BUGTRACKER_AUDIT_REPORT.md).
 
 ---
 
@@ -130,6 +132,7 @@ This section is derived from the repo and [CHANGELOG.md](../CHANGELOG.md) to kee
 | CHRONICLE search (hybrid/BM25/semantic), unified feed, Arcform 3D | v3.3.44 | — | lib/chronicle/search/ (9 files); unified_feed_screen; simplified_arcform_view_3d; LUMARA_ARCHITECTURE_SECTION archive. |
 | Dual CHRONICLE intelligence summary, settings, LUMARA definitive overview | v3.3.45 | — | intelligence_summary_* (models, repo, generator, view); dual_chronicle_view +356/−74; agentic_loop_orchestrator, dual_chronicle_services, chronicle_dual; settings_view; LUMARA_DEFINITIVE_OVERVIEW.md. |
 | Google Drive folder picker, local backup settings, home; DOCS cleanup | v3.3.46 | — | google_drive_service, drive_folder_picker_screen, local_backup_settings_view, home_view; removed redundant LUMARA_DUAL_CHRONICLE_* (3) from DOCS (canonical = LUMARA_DUAL_CHRONICLE_GUIDE.md; originals in archive). |
+| Dual CHRONICLE refactor, intelligence summary, search, prompts, phase/Arcform | v3.3.47 | — | user_chronicle_repository removed; chronicle_query_adapter, schedule prefs, lumara_comments_loader, chronicle_phase_signal_service, lumara_comments_context_loader; dual_chronicle_view, intelligence_summary_view; PROMPT_REFERENCES +104; BUGTRACKER_MASTER_INDEX, BUGTRACKER_AUDIT_REPORT. |
 
 **Source:** `git log --oneline`, [CHANGELOG.md](../CHANGELOG.md), terminal build log. Last synced: 2026-02-18.
 
@@ -145,5 +148,5 @@ Individual bug records stay in [records/](records/); only the legacy multi-part 
 
 ---
 
-**Status**: ✅ Active - All resolved issues documented; Build & Platform: 5 records; Environment: 1 (Ollama). Doc sync v3.3.46: bug_tracker tracked.  
+**Status**: ✅ Active - All resolved issues documented; Build & Platform: 5 records; Environment: 1 (Ollama). Doc sync v3.3.47: bug_tracker tracked.  
 **Last Updated**: 2026-02-18

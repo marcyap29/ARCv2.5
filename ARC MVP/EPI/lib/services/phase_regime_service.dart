@@ -14,6 +14,7 @@ import 'package:my_app/prism/atlas/rivet/rivet_provider.dart';
 import 'package:my_app/prism/pipelines/prism_joiner.dart';
 import 'package:my_app/mira/store/mcp/mcp_fs.dart';
 import 'package:my_app/arc/chat/chat/chat_repo_impl.dart';
+import 'package:my_app/services/firebase_auth_service.dart';
 
 class PhaseRegimeService {
   static const String _regimesBoxName = 'phase_regimes';
@@ -744,8 +745,9 @@ class PhaseRegimeService {
     }
 
     try {
-      final result = await _rivetSweep.analyzeEntries(entries);
-      
+      final userId = FirebaseAuthService.instance.currentUser?.uid;
+      final result = await _rivetSweep.analyzeEntries(entries, userId: userId);
+
       // Auto-apply high confidence segments
       if (result.autoAssign.isNotEmpty) {
         await _rivetSweep.applyProposals(result.autoAssign, phaseIndex);

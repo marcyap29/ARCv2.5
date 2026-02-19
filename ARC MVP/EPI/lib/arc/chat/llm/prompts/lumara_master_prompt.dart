@@ -35,8 +35,9 @@ class LumaraMasterPrompt {
   /// all behavioral parameters from ATLAS, VEIL, FAVORITES, PRISM, THERAPY MODE, and ENGAGEMENT DISCIPLINE
   /// [entryText] - The current journal entry text to respond to
   /// [baseContext] - Optional historical context (past entries, mood, phase) - Required if mode = rawBacked
-  /// [chronicleContext] - Optional CHRONICLE aggregation context - Required if mode = chronicleBacked
+  /// [chronicleContext] - Optional CHRONICLE (user's) aggregation context - Required if mode = chronicleBacked
   /// [chronicleLayers] - Optional list of CHRONICLE layer names (for attribution)
+  /// [lumaraChronicleContext] - Optional LUMARA CHRONICLE context (patterns, causal chains, relationships, user-approved insights) for inference
   /// [mode] - Prompt mode (defaults to rawBacked for backward compatibility)
   /// [modeSpecificInstructions] - Optional mode-specific instructions (conversation mode, regenerate, etc.)
   static String getMasterPrompt(
@@ -45,6 +46,7 @@ class LumaraMasterPrompt {
     String? baseContext,
     String? chronicleContext,
     List<String>? chronicleLayers, // Layer display names for attribution
+    String? lumaraChronicleContext, // LUMARA CHRONICLE: inferred patterns, causal chains, relationships, promoted insights
     LumaraPromptMode mode = LumaraPromptMode.rawBacked, // Default to raw for backward compatibility
     String? modeSpecificInstructions,
   }) {
@@ -84,7 +86,7 @@ Current date (human readable): {current_date_formatted}
 {recent_entries_list}
 </recent_entries>
 
-${_buildContextSection(mode: mode, baseContext: baseContext, chronicleContext: chronicleContext, chronicleLayers: chronicleLayers)}
+${_buildContextSection(mode: mode, baseContext: baseContext, chronicleContext: chronicleContext, chronicleLayers: chronicleLayers, lumaraChronicleContext: lumaraChronicleContext)}
 
 **CRITICAL: TEMPORAL CONTEXT USAGE**
 - Use the current date above to calculate relative dates correctly
@@ -3576,11 +3578,12 @@ PRISM: You receive sanitized input. Respond to the semantic meaning directly. Ne
 VOICE: Answer first. Stay conversational. Respect the word limit and engagement mode above. Use the context in the user message below.''';
   }
 
-  /// Build the user message for voice (split payload): mode instructions + chronicle + current transcript.
+  /// Build the user message for voice (split payload): mode instructions + chronicle + LUMARA CHRONICLE (when provided) + current transcript.
   static String buildVoiceUserMessage({
     required String entryText,
     String? modeSpecificInstructions,
     String? chronicleMiniContext,
+    String? lumaraChronicleContext,
   }) {
     final parts = <String>[];
     if (modeSpecificInstructions != null && modeSpecificInstructions.isNotEmpty) {
@@ -3588,6 +3591,10 @@ VOICE: Answer first. Stay conversational. Respect the word limit and engagement 
     }
     if (chronicleMiniContext != null && chronicleMiniContext.isNotEmpty) {
       parts.add('CHRONICLE CONTEXT (temporal summary – "how have I been" / patterns):\n$chronicleMiniContext');
+    }
+    if (lumaraChronicleContext != null && lumaraChronicleContext.trim().isNotEmpty) {
+      final capped = lumaraChronicleContext.length > 500 ? '${lumaraChronicleContext.substring(0, 500)}...' : lumaraChronicleContext;
+      parts.add('LUMARA CHRONICLE (inferred patterns/relationships – use for inference):\n$capped');
     }
     parts.add('Current user input to respond to:\n$entryText');
     return parts.join('\n\n');
@@ -3616,12 +3623,14 @@ VOICE: Answer first. Stay conversational. Respect the word limit and engagement 
   }
 
   /// Build the user message for master (non-voice) split payload: recent entries + context + current entry.
+  /// [lumaraChronicleContext] - Optional LUMARA CHRONICLE (patterns, causal chains, relationships, approved insights) for inference.
   static String buildMasterUserMessage({
     required String entryText,
     required List<Map<String, dynamic>> recentEntries,
     String? baseContext,
     String? chronicleContext,
     List<String>? chronicleLayers,
+    String? lumaraChronicleContext,
     required LumaraPromptMode mode,
     required DateTime currentDate,
     String? modeSpecificInstructions,
@@ -3652,6 +3661,7 @@ VOICE: Answer first. Stay conversational. Respect the word limit and engagement 
       baseContext: baseContext,
       chronicleContext: chronicleContext,
       chronicleLayers: chronicleLayers,
+      lumaraChronicleContext: lumaraChronicleContext,
     );
     final dateStr = currentDate.toIso8601String().split('T')[0];
     final buffer = StringBuffer();
@@ -3689,29 +3699,32 @@ VOICE: Answer first. Stay conversational. Respect the word limit and engagement 
     return buffer.toString();
   }
 
-  /// Build context section based on prompt mode
+  /// Build context section based on prompt mode.
+  /// When [lumaraChronicleContext] is provided, it is appended in all modes so inference uses both
+  /// CHRONICLE (user's temporal aggregations) and LUMARA CHRONICLE (patterns, causal chains, relationships, approved insights).
   static String _buildContextSection({
     required LumaraPromptMode mode,
     String? baseContext,
     String? chronicleContext,
     List<String>? chronicleLayers,
+    String? lumaraChronicleContext,
   }) {
+    String mainSection;
     switch (mode) {
       case LumaraPromptMode.chronicleBacked:
-        if (chronicleContext == null || chronicleContext.isEmpty) return '';
-        return '''
+        if (chronicleContext == null || chronicleContext.isEmpty) mainSection = '';
+        else mainSection = '''
 $chronicleContext
 
 **CHRONICLE Mode:** Using pre-synthesized temporal aggregations from ${chronicleLayers?.join(', ') ?? 'CHRONICLE'}.
 When citing information, reference the layer and period (e.g., "monthly aggregation for January 2025").
 Include specific entry IDs when CHRONICLE references them (e.g., "entries #001, #007, #015").
 ''';
+        break;
 
       case LumaraPromptMode.rawBacked:
-        if (baseContext == null || baseContext.isEmpty) {
-          return '';
-        }
-        return '''
+        if (baseContext == null || baseContext.isEmpty) mainSection = '';
+        else mainSection = '''
 <historical_context>
 The following raw journal entries provide context for this query:
 
@@ -3722,6 +3735,7 @@ $baseContext
 Extract patterns and themes from the provided entries.
 Reference specific entry dates or IDs when citing information.
 ''';
+        break;
 
       case LumaraPromptMode.hybrid:
         final parts = <String>[];
@@ -3741,9 +3755,20 @@ $baseContext
 </supporting_entries>
 ''');
         }
-        if (parts.isEmpty) return '';
-        return parts.join('\n') + '\n**Hybrid Mode:** Using both CHRONICLE aggregations and specific supporting entries.';
+        mainSection = parts.isEmpty ? '' : parts.join('\n') + '\n**Hybrid Mode:** Using both CHRONICLE aggregations and specific supporting entries.';
+        break;
     }
+    if (lumaraChronicleContext != null && lumaraChronicleContext.trim().isNotEmpty) {
+      mainSection = mainSection + '''
+<lumara_chronicle>
+LUMARA CHRONICLE (inferred patterns, causal chains, relationships, user-approved insights — use for inference):
+$lumaraChronicleContext
+</lumara_chronicle>
+
+**Inference:** Use both CHRONICLE (user timeline/aggregations above) and LUMARA CHRONICLE (this block) when reasoning. Do not invent patterns; cite what is provided.
+''';
+    }
+    return mainSection;
   }
 
   /// Build CHRONICLE mini-context for voice mode

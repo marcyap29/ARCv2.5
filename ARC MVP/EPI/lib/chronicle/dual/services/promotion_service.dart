@@ -1,10 +1,10 @@
 // lib/chronicle/dual/services/promotion_service.dart
 //
-// Manages user-controlled promotion of gap-fill events to timeline.
-// This is the ONLY way system insights get added to User Chronicle.
+// Manages user-controlled promotion of gap-fill events. On approve, only
+// LUMARA CHRONICLE is updated (promotedToAnnotation); approved insights
+// are read from LUMARA CHRONICLE by ChronicleQueryAdapter. User's CHRONICLE is never written to.
 
 import '../models/chronicle_models.dart';
-import '../repositories/user_chronicle_repository.dart';
 import '../repositories/lumara_chronicle_repository.dart';
 
 class PromotionOffer {
@@ -49,21 +49,18 @@ class PromotionOfferStore {
 
 class PromotionService {
   PromotionService({
-    UserChronicleRepository? userChronicleRepo,
     LumaraChronicleRepository? lumaraChronicleRepo,
     PromotionOfferStore? offerStore,
-  })  : _userRepo = userChronicleRepo ?? UserChronicleRepository(),
-        _lumaraRepo = lumaraChronicleRepo ?? LumaraChronicleRepository(),
+  })  : _lumaraRepo = lumaraChronicleRepo ?? LumaraChronicleRepository(),
         _offerStore = offerStore ?? PromotionOfferStore();
 
-  final UserChronicleRepository _userRepo;
   final LumaraChronicleRepository _lumaraRepo;
   final PromotionOfferStore _offerStore;
 
   /// Called when a promotable event is created; creates offer and notifies (e.g. UI).
   OnPromotionOffered? onPromotionOffered;
 
-  /// Offer promotion to user. Does NOT modify User Chronicle.
+  /// Offer promotion to user. Does not write to any chronicle.
   Future<void> offerPromotion(String userId, GapFillEvent gapFillEvent) async {
     final suggestedContent = _generateAnnotationContent(gapFillEvent);
     final offer = PromotionOffer(
@@ -78,7 +75,8 @@ class PromotionService {
     print('[Promotion] Waiting for user decision (approve or dismiss)');
   }
 
-  /// User approves: add annotation to User Chronicle and mark event as promoted.
+  /// User approves: mark event as promoted in LUMARA CHRONICLE only. Approved
+  /// insights appear via ChronicleQueryAdapter.loadAnnotations().
   Future<UserAnnotation> approvePromotion(String userId, String gapFillEventId) async {
     final event = await _lumaraRepo.getGapFillEvent(userId, gapFillEventId);
     if (event == null) throw Exception('Gap-fill event not found: $gapFillEventId');
@@ -86,41 +84,40 @@ class PromotionService {
       throw Exception('This event is not promotable');
     }
 
+    final now = DateTime.now();
+    final annotationId = 'ann_${event.id}_${now.millisecondsSinceEpoch}';
     final content = _generateAnnotationContent(event);
     final annotation = UserAnnotation(
-      id: 'ann_${event.id}_${DateTime.now().millisecondsSinceEpoch}',
-      timestamp: DateTime.now(),
+      id: annotationId,
+      timestamp: now,
       content: content,
       source: AnnotationSource.lumara_gap_fill,
       provenance: UserAnnotationProvenance(
         gapFillEventId: event.id,
         userApproved: true,
-        approvedAt: DateTime.now(),
+        approvedAt: now,
       ),
       editable: true,
     );
 
-    await _userRepo.addAnnotation(userId, annotation);
-
     final updated = event.copyWith(
       promotedToAnnotation: PromotedToAnnotation(
-        annotationId: annotation.id,
-        promotedAt: DateTime.now(),
+        annotationId: annotationId,
+        promotedAt: now,
       ),
     );
     await _lumaraRepo.updateGapFillEvent(userId, gapFillEventId, updated);
 
     _offerStore.clear(userId, gapFillEventId);
-    print('[Promotion] Annotation added to User Chronicle: ${annotation.id}');
-    print('[Promotion] Promotion complete. Timeline updated.');
+    print('[Promotion] Marked as promoted in LUMARA CHRONICLE: ${event.id}');
     return annotation;
   }
 
-  /// User dismisses: timeline unchanged, learning retained in LUMARA Chronicle.
+  /// User dismisses: timeline unchanged, learning retained in LUMARA CHRONICLE.
   Future<void> dismissPromotion(String userId, String gapFillEventId) async {
     _offerStore.clear(userId, gapFillEventId);
     print('[Promotion] User dismissed promotion: $gapFillEventId');
-    print('[Promotion] Timeline unchanged. Learning retained in LUMARA Chronicle.');
+    print('[Promotion] Timeline unchanged. Learning retained in LUMARA CHRONICLE.');
   }
 
   List<PromotionOffer> getPendingOffers(String userId) {

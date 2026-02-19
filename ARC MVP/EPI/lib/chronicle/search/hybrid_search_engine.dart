@@ -8,10 +8,10 @@
 //     topK: 10,
 //     enableReranking: true,
 //   ));
-//   // Then fetch full entries for results.map((r) => r.id) via UserChronicleRepository.
+//   // Then fetch full entries for results.map((r) => r.id) via ChronicleQueryAdapter.
 
 import '../dual/models/chronicle_models.dart';
-import '../dual/repositories/user_chronicle_repository.dart';
+import '../dual/services/chronicle_query_adapter.dart';
 import '../embeddings/embedding_service.dart';
 import 'bm25_index.dart';
 import 'chronicle_search_models.dart';
@@ -41,16 +41,16 @@ class HybridSearchOptions {
 /// Hybrid search engine: BM25 + semantic + RRF, optional rerank.
 class HybridSearchEngine {
   HybridSearchEngine({
-    required UserChronicleRepository userRepo,
+    required ChronicleQueryAdapter chronicleAdapter,
     required EmbeddingService embeddingService,
     ChronicleRerankService? rerankService,
     AdaptiveFusionEngine? fusionEngine,
-  })  : _userRepo = userRepo,
+  })  : _chronicleAdapter = chronicleAdapter,
         _embedding = embeddingService,
-        _rerankService = rerankService ?? ChronicleRerankService(userRepo: userRepo),
+        _rerankService = rerankService ?? ChronicleRerankService(chronicleAdapter: chronicleAdapter),
         _fusionEngine = fusionEngine ?? AdaptiveFusionEngine();
 
-  final UserChronicleRepository _userRepo;
+  final ChronicleQueryAdapter _chronicleAdapter;
   final EmbeddingService _embedding;
   final ChronicleRerankService _rerankService;
   final AdaptiveFusionEngine _fusionEngine;
@@ -81,7 +81,7 @@ class HybridSearchEngine {
     String query, {
     HybridSearchOptions options = const HybridSearchOptions(),
   }) async {
-    final entries = await _userRepo.loadEntries(userId);
+    final entries = await _chronicleAdapter.loadEntries(userId);
     if (entries.isEmpty) return [];
 
     final indexable = entries.map((e) => IndexableEntry(id: e.id, text: e.content)).toList();

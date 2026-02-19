@@ -1,7 +1,7 @@
 # Configuration Management & Documentation Tracking
 
 **Lead Configuration Management Analyst:** Active  
-**Last Updated:** February 18, 2026 (v3.3.46)  
+**Last Updated:** February 18, 2026 (v3.3.47)  
 **Status:** ✅ All Documents Synced with Repo
 
 ---
@@ -39,10 +39,10 @@ Prompt/role definitions: **Ultimate Documentation, Configuration Management and 
 | Document | Location | Last Reviewed | Status | Notes |
 |----------|----------|---------------|--------|-------|
 | ARCHITECTURE.md | `/DOCS/ARCHITECTURE.md` | 2026-02-17 | ✅ Synced | v3.3.43 - Doc sync |
-| CHANGELOG.md | `/DOCS/CHANGELOG.md` | 2026-02-18 | ✅ Synced | v3.3.46 - Drive/backup UI, DOCS cleanup |
+| CHANGELOG.md | `/DOCS/CHANGELOG.md` | 2026-02-18 | ✅ Synced | v3.3.47 - Dual CHRONICLE refactor, prompts, bugtracker index/audit |
 | PROMPT_REFERENCES.md | `/DOCS/PROMPT_REFERENCES.md` | 2026-02-16 | ✅ Synced | Updated; agent_operating_system_prompt, intent/orchestration refs |
 | PROMPT_TRACKER.md | `/DOCS/PROMPT_TRACKER.md` | 2026-02-15 | ✅ Synced | v1.4.0 - Agent prompts row |
-| bug_tracker.md | `/DOCS/bugtracker/bug_tracker.md` | 2026-02-15 | ✅ Synced | v3.2.6 - 35 records; tracked in doc sync |
+| bug_tracker.md | `/DOCS/bugtracker/bug_tracker.md` | 2026-02-18 | ✅ Synced | v3.2.6 - 35 records; BUGTRACKER_MASTER_INDEX, BUGTRACKER_AUDIT_REPORT — v3.3.47 |
 | FEATURES.md | `/DOCS/FEATURES.md` | 2026-02-15 | ✅ Synced | v3.3.38 - Writing/research agents storage & export/import |
 | README.md | `/DOCS/README.md` | 2026-02-07 | ✅ Synced | Key docs table with purpose and when to read |
 | claude.md | `/DOCS/claude.md` | 2026-02-13 | ✅ Synced | TOC — Prompts; consolidated Doc/Config/Git Backup prompt; TOC aligned with current sections |
@@ -94,10 +94,30 @@ Prompt/role definitions: **Ultimate Documentation, Configuration Management and 
 | revenuecat/REVENUECAT_INTEGRATION.md | DOCS/revenuecat/ | RevenueCat integration guide |
 | stripe/README.md | DOCS/stripe/ | Stripe doc index (3 active docs) |
 | Export and Import Architecture/ | DOCS/ | BACKUP_SYSTEM.md + IMPORT_EXPORT_UI_SPEC.md |
+| BUGTRACKER_MASTER_INDEX.md | DOCS/bugtracker/ | Bug tracker master index — v3.3.47 |
+| BUGTRACKER_AUDIT_REPORT.md | DOCS/bugtracker/ | Bug tracker audit report — v3.3.47 |
 
 ---
 
 ## Change Tracking Log
+
+### 2026-02-18 - Documentation & Git Backup run (v3.3.47; bug_tracker tracked)
+
+**Action:** Ran Documentation, Configuration Management and Git Backup workflow (claude.md §233–349) on the entire repo. Document updates include **bug_tracker** tracking.
+
+**PROMPT REFERENCES AUDIT:** PROMPT_REFERENCES.md extended (+104); catalog updated.
+
+**Git Backup — Identify what changed:** Dual CHRONICLE refactor (user_chronicle_repository removed; chronicle_query_adapter, intelligence_summary_schedule_preferences, lumara_comments_loader; chronicle_phase_signal_service, lumara_comments_context_loader); agentic_loop_orchestrator, dual_chronicle_services, intelligence_summary_generator/repository, promotion_service; dual_chronicle_view, intelligence_summary_view; CHRONICLE search (rerank, search, reranker, hybrid_search_engine); lumara_master_prompt, enhanced_lumara_api; phase/Arcform (phase_colors, phase_regime_service, rivet_sweep_service, phase_analysis_view, simplified_arcform_view_3d); settings/drive/home/journal/notification; DOCS CHRONICLE_COMPLETE, LUMARA_DEFINITIVE_OVERVIEW, LUMARA_DUAL_CHRONICLE_GUIDE; bugtracker BUGTRACKER_MASTER_INDEX, BUGTRACKER_AUDIT_REPORT. No additional cleanup (redundant Dual Chronicle docs already removed in v3.3.46).
+
+**Updates:**
+- **CHANGELOG.md:** Version 3.3.47; [3.3.47] Dual CHRONICLE refactor, intelligence summary, search, prompts, phase/Arcform, bugtracker index/audit.
+- **CONFIGURATION_MANAGEMENT.md:** This entry; inventory 2026-02-18; BUGTRACKER_MASTER_INDEX, BUGTRACKER_AUDIT_REPORT added; bug_tracker tracked.
+- **bug_tracker.md:** New row for v3.3.47; Last Updated 2026-02-18.
+- **PROMPT_TRACKER.md:** Doc sync v3.3.47 row; PROMPT_REFERENCES update noted.
+
+**Status:** ✅ Commit, push main; merge test into main; push.
+
+---
 
 ### 2026-02-18 - Documentation & Git Backup run (v3.3.46; bug_tracker tracked; DOCS cleanup)
 

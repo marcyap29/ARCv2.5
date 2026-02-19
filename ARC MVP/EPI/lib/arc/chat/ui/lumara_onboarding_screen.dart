@@ -55,8 +55,7 @@ class LumaraOnboardingScreen extends StatelessWidget {
                           final iconSize = (constraints.maxWidth * 0.4).clamp(200.0, 600.0);
                           return LumaraIcon(
                             size: iconSize,
-                color: theme.colorScheme.primary,
-                            strokeWidth: (iconSize / 100).clamp(2.0, 6.0),
+                            color: theme.colorScheme.primary,
                           );
                         },
                       ),

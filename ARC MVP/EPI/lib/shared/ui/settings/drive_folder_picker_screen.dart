@@ -6,10 +6,11 @@ import 'package:my_app/services/google_drive_service.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
 
-/// Result of the picker: list of selected folder IDs (empty if cancelled).
+/// Result of the picker: selected folder IDs and/or selected file IDs for import.
 class DriveFolderPickerResult {
   final List<String> selectedFolderIds;
-  const DriveFolderPickerResult(this.selectedFolderIds);
+  final List<String> selectedFileIds;
+  const DriveFolderPickerResult(this.selectedFolderIds, [this.selectedFileIds = const []]);
 }
 
 /// Result when picking a single folder for sync (e.g. "Use this folder for sync").
@@ -41,9 +42,33 @@ class _DriveFolderPickerScreenState extends State<DriveFolderPickerScreen> {
   String? _error;
   /// Selected folder IDs (for multi-folder import).
   final Set<String> _selectedFolderIds = {};
+  /// Selected file IDs (for multi-file import; .arcx, .zip, manifest .json, .txt, .md).
+  final Set<String> _selectedFileIds = {};
   bool _creatingFolder = false;
 
+  static bool _isImportableFile(String name) {
+    return name.endsWith('.arcx') || name.endsWith('.zip') ||
+        name.endsWith('.txt') || name.endsWith('.md') ||
+        (name.startsWith('arc_backup_manifest_') && name.endsWith('.json'));
+  }
+
   String get _currentFolderId => _folderStack.last.$1;
+
+  String _selectionCountText() {
+    final f = _selectedFolderIds.length;
+    final files = _selectedFileIds.length;
+    if (f > 0 && files > 0) return '$f folder(s), $files file(s)';
+    if (f > 0) return '$f folder(s) selected';
+    return '$files file(s) selected';
+  }
+
+  String _importButtonLabel() {
+    final f = _selectedFolderIds.length;
+    final files = _selectedFileIds.length;
+    if (f > 0 && files > 0) return 'Import from $f folder(s) + $files file(s)';
+    if (f > 0) return 'Import from $f folder(s)';
+    return 'Import $files file(s)';
+  }
 
   @override
   void initState() {
@@ -223,12 +248,12 @@ class _DriveFolderPickerScreenState extends State<DriveFolderPickerScreen> {
               icon: const Icon(Icons.check, size: 20),
               label: const Text('Use this folder'),
             )
-          else if (_selectedFolderIds.isNotEmpty)
+          else if (_selectedFolderIds.isNotEmpty || _selectedFileIds.isNotEmpty)
             Padding(
               padding: const EdgeInsets.only(right: 8),
               child: Center(
                 child: Text(
-                  '${_selectedFolderIds.length} selected',
+                  _selectionCountText(),
                   style: bodyStyle(context).copyWith(
                     color: kcAccentColor,
                     fontSize: 14,
@@ -300,17 +325,39 @@ class _DriveFolderPickerScreenState extends State<DriveFolderPickerScreen> {
                     );
                   }
 
-                  // File row (no checkbox; just show)
+                  // File row: checkbox if importable, else just show
+                  final importable = id != null && _isImportableFile(name);
+                  final fileSelected = _selectedFileIds.contains(id);
                   return ListTile(
-                    leading: Icon(
-                      _iconForFile(name),
-                      color: kcSecondaryTextColor,
-                      size: 28,
+                    leading: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (importable)
+                          Checkbox(
+                            value: fileSelected,
+                            onChanged: (v) {
+                              setState(() {
+                                if (v == true) {
+                                  _selectedFileIds.add(id);
+                                } else {
+                                  _selectedFileIds.remove(id);
+                                }
+                              });
+                            },
+                            activeColor: kcAccentColor,
+                          ),
+                        if (importable) const SizedBox(width: 0),
+                        Icon(
+                          _iconForFile(name),
+                          color: importable ? kcPrimaryTextColor : kcSecondaryTextColor,
+                          size: 28,
+                        ),
+                      ],
                     ),
                     title: Text(
                       name,
                       style: bodyStyle(context).copyWith(
-                        color: kcSecondaryTextColor,
+                        color: importable ? kcPrimaryTextColor : kcSecondaryTextColor,
                         fontSize: 14,
                       ),
                     ),
@@ -349,7 +396,7 @@ class _DriveFolderPickerScreenState extends State<DriveFolderPickerScreen> {
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         Text(
-                          'Select folders to import from. We\'ll import backup files (.arcx, .zip) and text files (.txt, .md) as LUMARA entries.',
+                          'Select folders and/or individual files to import. Backup files (.arcx, .zip) and text files (.txt, .md) can be chosen per file.',
                           style: bodyStyle(context).copyWith(
                             color: kcSecondaryTextColor,
                             fontSize: 12,
@@ -357,16 +404,19 @@ class _DriveFolderPickerScreenState extends State<DriveFolderPickerScreen> {
                         ),
                         const SizedBox(height: 12),
                         FilledButton.icon(
-                          onPressed: _selectedFolderIds.isEmpty
+                          onPressed: _selectedFolderIds.isEmpty && _selectedFileIds.isEmpty
                               ? null
                               : () => Navigator.of(context).pop(
-                                    DriveFolderPickerResult(_selectedFolderIds.toList()),
+                                    DriveFolderPickerResult(
+                                      _selectedFolderIds.toList(),
+                                      _selectedFileIds.toList(),
+                                    ),
                                   ),
                           icon: const Icon(Icons.download_done, size: 20),
                           label: Text(
-                            _selectedFolderIds.isEmpty
-                                ? 'Select folders above'
-                                : 'Import from ${_selectedFolderIds.length} folder(s)',
+                            _selectedFolderIds.isEmpty && _selectedFileIds.isEmpty
+                                ? 'Select folders or files above'
+                                : _importButtonLabel(),
                           ),
                           style: FilledButton.styleFrom(
                             backgroundColor: kcAccentColor,

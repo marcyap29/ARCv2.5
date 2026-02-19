@@ -1,6 +1,6 @@
 # EPI LUMARA MVP - Changelog
 
-**Version:** 3.3.46
+**Version:** 3.3.47
 **Last Updated:** February 18, 2026
 
 ---
@@ -14,6 +14,21 @@ This changelog has been split into parts for easier navigation:
 | **[CHANGELOG_part1.md](CHANGELOG_part1.md)** | Dec 2025 | v2.1.43 - v2.1.87 (Current) |
 | **[CHANGELOG_part2.md](CHANGELOG_part2.md)** | Nov 2025 | v2.1.28 - v2.1.42 |
 | **[CHANGELOG_part3.md](CHANGELOG_part3.md)** | Jan-Oct 2025 | v2.0.0 - v2.1.27 & Earlier |
+
+---
+
+## [3.3.47] - February 18, 2026
+
+### Dual CHRONICLE refactor, intelligence summary, search, prompts, phase/Arcform, bugtracker index/audit
+
+- **Dual CHRONICLE:** `user_chronicle_repository.dart` removed (replaced by adapter/query path); `chronicle_dual.dart`, `agentic_loop_orchestrator.dart`, `dual_chronicle_services.dart`, `intelligence_summary_generator.dart`, `intelligence_summary_repository.dart`, `promotion_service.dart`; `gap_analyzer.dart`, `clarification_processor.dart`; `chronicle_models.dart`. New: `chronicle_query_adapter.dart`, `intelligence_summary_schedule_preferences.dart`, `lumara_comments_loader.dart`; `chronicle_phase_signal_service.dart`, `lumara_comments_context_loader.dart`. `dual_chronicle_view.dart`, `intelligence_summary_view.dart` extended. Sacred separation test simplified.
+- **CHRONICLE search:** `chronicle_rerank_service.dart`, `chronicle_search.dart`, `feature_based_reranker.dart`, `hybrid_search_engine.dart` updates.
+- **LUMARA / prompts:** `lumara_master_prompt.dart`, `enhanced_lumara_api.dart`; `lumara_onboarding_screen.dart`, `lumara_settings_welcome_screen.dart`; `PROMPT_REFERENCES.md` extended (+104).
+- **Phase / Arcform:** `phase_colors.dart`, `phase_regime_service.dart`, `rivet_sweep_service.dart`; `phase_analysis_view.dart`, `phase_analysis_settings_view.dart`; `simplified_arcform_view_3d.dart`, `animated_arcform_view.dart`.
+- **Settings / home / drive:** `settings_view.dart`, `simplified_settings_view.dart`, `google_drive_settings_view.dart`, `drive_folder_picker_screen.dart`, `home_view.dart`; `journal_capture_view_*`, `notification_service.dart`.
+- **DOCS:** `CHRONICLE_COMPLETE.md`, `LUMARA_DEFINITIVE_OVERVIEW.md`, `LUMARA_DUAL_CHRONICLE_GUIDE.md` updates. Bugtracker: new `BUGTRACKER_MASTER_INDEX.md`, `BUGTRACKER_AUDIT_REPORT.md`. iOS project file updates.
+
+**Files:** 42 modified, 1 deleted (user_chronicle_repository), 6+ new (adapters, loaders, schedule prefs, chat_draft_viewer_screen; bugtracker index/audit). bug_tracker tracked.
 
 ---
 

@@ -12,6 +12,7 @@ import 'package:my_app/chronicle/dual/services/promotion_service.dart';
 import 'package:my_app/services/firebase_auth_service.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
+import 'package:my_app/shared/ui/chronicle/intelligence_summary_view.dart';
 
 class DualChronicleView extends StatefulWidget {
   const DualChronicleView({super.key});
@@ -55,10 +56,10 @@ class _DualChronicleViewState extends State<DualChronicleView> {
       _error = null;
     });
     try {
-      final userRepo = DualChronicleServices.userChronicle;
+      final chronicleAdapter = DualChronicleServices.chronicleQueryAdapter;
       final lumaraRepo = DualChronicleServices.lumaraChronicle;
       final offers = DualChronicleServices.promotionService.getPendingOffers(_userId);
-      final annotations = await userRepo.loadAnnotations(_userId);
+      final annotations = await chronicleAdapter.loadAnnotations(_userId);
       final gapFills = await lumaraRepo.loadGapFillEvents(_userId);
       final triggers = await lumaraRepo.loadRecentLearningTriggers(_userId, limit: _maxRecentTriggers);
       final causalChains = await lumaraRepo.loadCausalChains(_userId);
@@ -119,7 +120,7 @@ class _DualChronicleViewState extends State<DualChronicleView> {
         elevation: 0,
         leading: const BackButton(color: kcPrimaryTextColor),
         title: Text(
-          'Timeline & Learning',
+          'LUMARA Analysis',
           style: heading3Style(context).copyWith(
             color: kcPrimaryTextColor,
             fontWeight: FontWeight.bold,
@@ -138,6 +139,7 @@ class _DualChronicleViewState extends State<DualChronicleView> {
                   _buildExplanation(),
                   if (_error != null) _buildError(),
                   _buildWhenLearningRuns(),
+                  _buildIntelligenceSummaryCard(),
                   _buildRecentTriggers(),
                   _buildRecentLearningActivity(),
                   _buildRecentInferences(),
@@ -162,7 +164,7 @@ class _DualChronicleViewState extends State<DualChronicleView> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Two chronicles',
+            'CHRONICLE and LUMARA',
             style: bodyStyle(context).copyWith(
               color: kcPrimaryTextColor,
               fontWeight: FontWeight.w600,
@@ -171,9 +173,9 @@ class _DualChronicleViewState extends State<DualChronicleView> {
           ),
           const SizedBox(height: 6),
           Text(
-            "Your timeline contains only what you've written or explicitly approved. "
-            "LUMARA's learning lives in a separate space. When something is worth adding, "
-            "you'll see an offer here and can choose Add to Timeline or Dismiss.",
+            "Your timeline is backed by CHRONICLE (layers 0–3). LUMARA's learning lives in LUMARA CHRONICLE. "
+            "When something is worth adding, you'll see an offer here; Add to Timeline "
+            "marks it as approved in LUMARA CHRONICLE, or you can Dismiss.",
             style: bodyStyle(context).copyWith(
               color: kcSecondaryTextColor,
               height: 1.35,
@@ -236,6 +238,62 @@ class _DualChronicleViewState extends State<DualChronicleView> {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildIntelligenceSummaryCard() {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: InkWell(
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const IntelligenceSummaryView(),
+            ),
+          );
+        },
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.05),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.psychology, color: kcAccentColor, size: 20),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Intelligence Summary',
+                      style: bodyStyle(context).copyWith(
+                        color: kcPrimaryTextColor,
+                        fontWeight: FontWeight.w600,
+                        fontSize: _sectionTitleFontSize,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Readable synthesis of LUMARA learning (Layer 3); tap to view or regenerate',
+                      style: bodyStyle(context).copyWith(
+                        color: kcSecondaryTextColor,
+                        height: 1.35,
+                        fontSize: _bodyFontSize,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(Icons.chevron_right, color: kcSecondaryTextColor, size: 22),
+            ],
+          ),
         ),
       ),
     );

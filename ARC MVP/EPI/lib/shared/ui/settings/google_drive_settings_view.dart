@@ -816,7 +816,7 @@ class _GoogleDriveSettingsViewState extends State<GoogleDriveSettingsView> {
         builder: (context) => const DriveFolderPickerScreen(),
       ),
     );
-    if (result == null || result.selectedFolderIds.isEmpty || !mounted) return;
+    if (result == null || (result.selectedFolderIds.isEmpty && result.selectedFileIds.isEmpty) || !mounted) return;
 
     setState(() => _importing = true);
     try {
@@ -830,6 +830,14 @@ class _GoogleDriveSettingsViewState extends State<GoogleDriveSettingsView> {
             seenIds.add(id);
             allFiles.add(f);
           }
+        }
+      }
+      for (final fileId in result.selectedFileIds) {
+        if (seenIds.contains(fileId)) continue;
+        final file = await _driveService.getFileMetadata(fileId);
+        if (file != null) {
+          seenIds.add(fileId);
+          allFiles.add(file);
         }
       }
 
@@ -888,7 +896,7 @@ class _GoogleDriveSettingsViewState extends State<GoogleDriveSettingsView> {
         final totalImported = importedBackups + importedText;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(buf.isEmpty ? 'No importable files in selected folders.' : buf.toString().trim()),
+            content: Text(buf.isEmpty ? 'No importable files in your selection.' : buf.toString().trim()),
             backgroundColor: totalImported > 0 ? Colors.green : Colors.orange,
           ),
         );

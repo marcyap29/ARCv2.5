@@ -13,6 +13,7 @@ import 'package:my_app/services/rivet_sweep_service.dart';
 import 'package:my_app/services/analytics_service.dart';
 import 'package:my_app/arc/core/journal_repository.dart';
 import 'package:my_app/services/phase_sentinel_integration.dart';
+import 'package:my_app/services/firebase_auth_service.dart';
 import 'package:my_app/ui/phase/phase_check_in_bottom_sheet.dart';
 import 'package:my_app/services/phase_check_in_service.dart';
 
@@ -419,7 +420,8 @@ class _PhaseAnalysisSettingsViewState extends State<PhaseAnalysisSettingsView> {
 
       final analyticsService = AnalyticsService();
       final rivetSweepService = RivetSweepService(analyticsService);
-      final result = await rivetSweepService.analyzeEntries(journalEntries);
+      final userId = FirebaseAuthService.instance.currentUser?.uid;
+      final result = await rivetSweepService.analyzeEntries(journalEntries, userId: userId);
       final proposals = result.approvableProposals;
 
       if (proposals.isEmpty) {

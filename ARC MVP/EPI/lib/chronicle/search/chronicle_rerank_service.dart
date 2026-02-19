@@ -2,9 +2,9 @@
 //
 // Optional reranking for chronicle search results.
 // When [enableReranking] is true, RRF results are reranked using FeatureBasedReranker.
-// Backed by UserChronicleRepository for entry lookup.
+// Backed by ChronicleQueryAdapter for entry lookup.
 
-import '../dual/repositories/user_chronicle_repository.dart';
+import '../dual/services/chronicle_query_adapter.dart';
 import 'chronicle_search_models.dart';
 import 'feature_based_reranker.dart';
 import 'rerank_context_builder.dart';
@@ -12,10 +12,10 @@ import 'rerank_context_builder.dart';
 /// Service to optionally rerank chronicle search results using biographical features.
 /// Pass [HybridSearchResult] list from RRF fusion (or from a simple scored list); returns [RerankResult]s.
 class ChronicleRerankService {
-  ChronicleRerankService({UserChronicleRepository? userRepo})
-      : _userRepo = userRepo ?? UserChronicleRepository();
+  ChronicleRerankService({ChronicleQueryAdapter? chronicleAdapter})
+      : _chronicleAdapter = chronicleAdapter ?? ChronicleQueryAdapter();
 
-  final UserChronicleRepository _userRepo;
+  final ChronicleQueryAdapter _chronicleAdapter;
 
   /// Rerank [rrfResults] for [userId] and [query].
   /// If [enableReranking] is false or [rrfResults] is empty, returns results as [RerankResult]s with rerankScore = rrfScore.
@@ -57,7 +57,7 @@ class ChronicleRerankService {
   }
 
   Future<ChronicleEntryForRerank?> _getEntry(String userId, String id) async {
-    final entries = await _userRepo.loadEntries(userId);
+    final entries = await _chronicleAdapter.loadEntries(userId);
     for (final e in entries) {
       if (e.id == id) return ChronicleEntryForRerank.fromUserEntry(e);
     }

@@ -27,6 +27,8 @@ import 'package:my_app/chronicle/storage/aggregation_repository.dart';
 import 'package:my_app/chronicle/models/chronicle_layer.dart';
 import 'package:my_app/chronicle/models/chronicle_aggregation.dart';
 import 'package:my_app/chronicle/models/query_plan.dart';
+import 'package:my_app/chronicle/dual/services/dual_chronicle_services.dart';
+import 'package:my_app/chronicle/dual/models/chronicle_models.dart';
 import '../models/reflective_node.dart';
 import '../models/lumara_reflection_options.dart' as models;
 import 'reflective_node_storage.dart';
@@ -940,6 +942,19 @@ class EnhancedLumaraApi {
               }
             }
           }
+
+          // LUMARA CHRONICLE: load inferred patterns, causal chains, relationships, user-approved insights for inference
+          String? lumaraChronicleContext;
+          if (userId != null && userId.isNotEmpty) {
+            try {
+              lumaraChronicleContext = await _buildLumaraChronicleContext(userId);
+              if (lumaraChronicleContext != null && lumaraChronicleContext.isNotEmpty) {
+                print('✅ EnhancedLumaraApi: LUMARA CHRONICLE context loaded for inference');
+              }
+            } catch (e) {
+              print('⚠️ EnhancedLumaraApi: LUMARA CHRONICLE context failed (non-fatal): $e');
+            }
+          }
           
           // Combine provided chat context with recent chats
           final allChats = <String>[];
@@ -1203,11 +1218,12 @@ class EnhancedLumaraApi {
               recentEntries: null,
               currentDate: now,
             );
-            // User: turn-specific context (mode instructions + chronicle + transcript)
+            // User: turn-specific context (mode instructions + chronicle + LUMARA CHRONICLE + transcript)
             String userMessage = LumaraMasterPrompt.buildVoiceUserMessage(
               entryText: request.userText,
               modeSpecificInstructions: voiceModeInstructions.isNotEmpty ? voiceModeInstructions : null,
               chronicleMiniContext: chronicleMiniContext,
+              lumaraChronicleContext: lumaraChronicleContext,
             );
             // Cap combined size so system + user stay under maxChars
             final maxUserChars = (maxChars - systemPrompt.length).clamp(100, maxChars);
@@ -1229,6 +1245,7 @@ class EnhancedLumaraApi {
               baseContext: baseContext,
               chronicleContext: chronicleContext,
               chronicleLayers: chronicleLayerNames,
+              lumaraChronicleContext: lumaraChronicleContext,
               mode: promptMode,
               currentDate: now,
               modeSpecificInstructions: modeSpecificInstructions.isNotEmpty ? modeSpecificInstructions : null,
@@ -1660,6 +1677,39 @@ class EnhancedLumaraApi {
         return scoring.EntryType.voice;
       default:
         return scoring.EntryType.journal;
+    }
+  }
+
+  /// Build a concise LUMARA CHRONICLE context string (patterns, causal chains, relationships, user-approved insights) for master prompt inference. Capped at ~2000 chars.
+  Future<String?> _buildLumaraChronicleContext(String userId) async {
+    try {
+      final adapter = DualChronicleServices.chronicleQueryAdapter;
+      final lumaraRepo = DualChronicleServices.lumaraChronicle;
+      final annotations = await adapter.loadAnnotations(userId);
+      final patterns = await lumaraRepo.loadPatterns(userId);
+      final chains = await lumaraRepo.loadCausalChains(userId);
+      final relationships = await lumaraRepo.loadRelationships(userId);
+      final activePatterns = patterns.where((p) => p.status == InferenceStatus.active).take(10).toList();
+      final activeChains = chains.where((c) => c.status == InferenceStatus.active).take(8).toList();
+      final activeRels = relationships.where((r) => r.status == InferenceStatus.active).take(8).toList();
+      final parts = <String>[];
+      if (annotations.isNotEmpty) {
+        parts.add('User-approved insights: ${annotations.take(5).map((a) => a.content.length > 80 ? "${a.content.substring(0, 80)}..." : a.content).join('; ')}');
+      }
+      if (activePatterns.isNotEmpty) {
+        parts.add('Patterns: ${activePatterns.map((p) => p.description.length > 60 ? "${p.description.substring(0, 60)}..." : p.description).join('; ')}');
+      }
+      if (activeChains.isNotEmpty) {
+        parts.add('Causal links: ${activeChains.map((c) => '"${c.trigger.length > 40 ? c.trigger.substring(0, 40) + "..." : c.trigger}" → "${c.response.length > 40 ? c.response.substring(0, 40) + "..." : c.response}"').join('; ')}');
+      }
+      if (activeRels.isNotEmpty) {
+        parts.add('Relationships: ${activeRels.map((r) => '${r.entityName} (${r.role}): ${r.interactionPattern.length > 50 ? r.interactionPattern.substring(0, 50) + "..." : r.interactionPattern}').join('; ')}');
+      }
+      if (parts.isEmpty) return null;
+      final out = parts.join('\n');
+      return out.length > 2000 ? out.substring(0, 2000) : out;
+    } catch (_) {
+      return null;
     }
   }
 

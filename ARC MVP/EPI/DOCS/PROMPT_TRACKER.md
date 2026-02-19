@@ -1,7 +1,7 @@
 # Prompt Tracker
 
 **Version:** 1.4.0  
-**Last Updated:** February 17, 2026  
+**Last Updated:** February 18, 2026  
 **Purpose:** Prompt change tracking and quick reference. Full prompt catalog and version history live in [PROMPT_REFERENCES.md](PROMPT_REFERENCES.md).
 
 ---
@@ -16,6 +16,8 @@
 ## Recent prompt-related changes
 
 | Date | Change | Source / doc |
+| 2026-02-18 | Doc sync v3.3.47: Dual CHRONICLE refactor, PROMPT_REFERENCES +104, bugtracker index/audit; bug_tracker tracked | CONFIGURATION_MANAGEMENT.md |
+| 2026-02-18 | PROMPT_REFERENCES.md extended (+104) — prompt catalog update | PROMPT_REFERENCES.md |
 | 2026-02-18 | Doc sync v3.3.46: Drive/backup UI, DOCS cleanup (redundant Dual Chronicle docs removed); bug_tracker tracked | CONFIGURATION_MANAGEMENT.md |
 | 2026-02-18 | Doc sync v3.3.45: Dual CHRONICLE intelligence summary, LUMARA definitive overview; bug_tracker tracked | CONFIGURATION_MANAGEMENT.md |
 | 2026-02-18 | Doc sync v3.3.44: CHRONICLE search (hybrid/BM25/semantic), unified feed, Arcform 3D; bug_tracker tracked | CONFIGURATION_MANAGEMENT.md |

@@ -1,6 +1,6 @@
 // lib/chronicle/search/feature_based_reranker.dart
 //
-// Feature-based reranker for LUMARA chronicle search.
+// Feature-based reranker for LUMARA CHRONICLE search.
 // Reranks top-N RRF results using biographical features (entity, temporal, theme, recency).
 // Optional enhancement: enable when complex/ambiguous queries need better precision.
 

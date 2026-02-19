@@ -1,6 +1,6 @@
 // lib/chronicle/dual/repositories/intelligence_summary_repository.dart
 //
-// Persistence for Intelligence Summary (Layer 3). Stored under LUMARA chronicle.
+// Persistence for Intelligence Summary (Layer 3). Stored under LUMARA CHRONICLE.
 
 import 'dart:convert';
 import '../models/intelligence_summary_models.dart';
@@ -68,7 +68,7 @@ class IntelligenceSummaryRepository {
         summary.userId, _latestFile, summary.toJson());
   }
 
-  /// Mark summary as stale (needs regeneration after LUMARA Chronicle update).
+  /// Mark summary as stale (needs regeneration after LUMARA CHRONICLE update).
   Future<void> markStale(String userId) async {
     await _storage.saveLumaraChronicle(userId, _staleFile, {
       'stale': true,

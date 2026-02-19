@@ -57,7 +57,7 @@ The cost isn’t just inconvenience. It’s **missing a kind of intelligence tha
 
 **LUMARA is AI that knows you across time.**
 
-LUMARA is the consumer product built on **The Chronicle Framework**: an architecture that gives AI **longitudinal, phase-aware intelligence** while keeping your data under your control. In practice, that means:
+LUMARA is the consumer product built on **The CHRONICLE Framework**. CHRONICLE = **C**hronological **R**ecall **O**ptimization via **N**ative **I**mitation of **C**onsolidated **L**ongitudinal **E**xperience (the memory architecture backing your timeline and LUMARA's learning). **Your CHRONICLE is SACRED** — LUMARA never modifies it. LUMARA has its own CHRONICLE where it stores what it learns. In practice, that means:
 
 ### 1. One timeline, three ways to connect
 
@@ -128,7 +128,7 @@ So you can use strong AI **without handing over your actual words and identity**
 | **Awareness of you** | Same tone for everyone | Phase-aware: adapts to where you are in life |
 | **Privacy** | Often cloud-based, tied to your raw data | Designed so frontier AI never sees your raw words |
 | **Growth** | Static or reset each session | Understanding deepens as you journal and live |
-| **Story** | No coherent narrative of you over time | One timeline: chat, reflect, voice → your chronicle |
+| **Story** | No coherent narrative of you over time | One timeline: chat, reflect, voice → your CHRONICLE |
 | **Control** | System decides what to store and use | You approve what gets added to your timeline |
 
 ---
@@ -152,8 +152,8 @@ LUMARA is for anyone who wants:
 - **Consequence:** You stay alone with your story—no single intelligence that knows you across time and adapts to your arc.
 - **Solution:** LUMARA—AI that knows you across time, with phase-aware responses, biographical memory, active learning under your control, and privacy by design.
 
-*LUMARA: AI that knows you across time. Built on The Chronicle Framework. Your story, your timeline, your control.*
+*LUMARA: AI that knows you across time. Built on The CHRONICLE Framework. Your story, your timeline, your control.*
 
 ---
 
-*This overview is aligned with The Chronicle Framework whitepaper (Phase-Aware AI Across the Human Lifespan) and the EPI/LUMARA documentation in this repository. Consumer product: LUMARA. Architecture: The Chronicle Framework.*
+*This overview is aligned with The CHRONICLE Framework whitepaper (Phase-Aware AI Across the Human Lifespan) and the EPI/LUMARA documentation in this repository. Consumer product: LUMARA. Architecture: The CHRONICLE Framework.*

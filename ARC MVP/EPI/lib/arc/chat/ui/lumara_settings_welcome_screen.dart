@@ -45,7 +45,6 @@ class LumaraSettingsWelcomeScreen extends StatelessWidget {
                   LumaraIcon(
                     size: iconSize,
                     color: theme.colorScheme.primary,
-                    strokeWidth: (iconSize / 100).clamp(2.0, 6.0),
                   ),
               
               const SizedBox(height: 48),

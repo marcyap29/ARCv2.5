@@ -1,10 +1,9 @@
 // lib/chronicle/dual/intelligence/interrupt/clarification_processor.dart
 //
 // Processes user responses to clarifying questions.
-// Records learning in LUMARA Chronicle only; offers promotion to User Chronicle.
+// Records learning in LUMARA CHRONICLE only; offers promotion (user's CHRONICLE is never written to).
 
 import '../../models/chronicle_models.dart';
-import '../../repositories/user_chronicle_repository.dart';
 import '../../repositories/lumara_chronicle_repository.dart';
 import '../../services/promotion_service.dart';
 
@@ -20,17 +19,14 @@ class ClarificationProcessingResult {
   });
 }
 
-/// Processes clarifications; writes only to LUMARA Chronicle.
+/// Processes clarifications; writes only to LUMARA CHRONICLE.
 class ClarificationProcessor {
   ClarificationProcessor({
-    UserChronicleRepository? userChronicleRepo,
     LumaraChronicleRepository? lumaraChronicleRepo,
     PromotionService? promotionService,
-  })  : _userRepo = userChronicleRepo ?? UserChronicleRepository(),
-        _lumaraRepo = lumaraChronicleRepo ?? LumaraChronicleRepository(),
+  })  : _lumaraRepo = lumaraChronicleRepo ?? LumaraChronicleRepository(),
         _promotionService = promotionService ?? PromotionService();
 
-  final UserChronicleRepository _userRepo;
   final LumaraChronicleRepository _lumaraRepo;
   final PromotionService _promotionService;
 

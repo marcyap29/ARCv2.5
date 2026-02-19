@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:my_app/data/models/media_item.dart';
-import 'package:my_app/arc/core/media/media_strip.dart';
+import 'package:my_app/arc/internal/prism/media/media_strip.dart';
 
 // Import multimodal integration
 import 'package:my_app/mira/store/mcp/orchestrator/multimodal_integration_service.dart';

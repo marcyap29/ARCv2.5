@@ -164,6 +164,18 @@ class UserAnnotation {
   }
 }
 
+/// Result of querying user's CHRONICLE Layer 0 + promoted annotations (from LUMARA CHRONICLE).
+/// Used by agentic loop, gap analyzer, and intelligence summary.
+class UserChronicleLayer0Result {
+  final List<UserEntry> entries;
+  final List<UserAnnotation> annotations;
+
+  UserChronicleLayer0Result({
+    required this.entries,
+    required this.annotations,
+  });
+}
+
 // ============================================================================
 // LUMARA'S CHRONICLE - LEARNING SPACE
 // ============================================================================

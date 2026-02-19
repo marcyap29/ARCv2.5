@@ -21,7 +21,6 @@ import 'package:my_app/models/memory_focus_preset.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:my_app/ui/subscription/subscription_management_view.dart';
 import 'package:my_app/services/firebase_auth_service.dart';
-import 'package:my_app/shared/ui/settings/verify_backup_screen.dart';
 import 'package:my_app/shared/ui/settings/local_backup_settings_view.dart';
 import 'package:my_app/shared/ui/settings/google_drive_settings_view.dart';
 import 'package:my_app/shared/ui/settings/import_status_screen.dart';
@@ -29,7 +28,6 @@ import 'package:my_app/shared/ui/settings/temporal_notification_settings_view.da
 import 'package:my_app/shared/ui/settings/chronicle_management_view.dart';
 import 'package:my_app/shared/ui/chronicle/chronicle_layers_viewer.dart';
 import 'package:my_app/shared/ui/chronicle/dual_chronicle_view.dart';
-import 'package:my_app/shared/ui/chronicle/intelligence_summary_view.dart';
 import 'package:my_app/arc/phase/share/phase_share_service.dart';
 import 'package:my_app/arc/ui/health/health_view.dart';
 import 'package:file_picker/file_picker.dart';
@@ -497,20 +495,6 @@ class ImportExportFolderView extends StatelessWidget {
                 ),
               ),
             ),
-            _SettingsTile(
-              title: 'Verify',
-              subtitle: 'Obtain detailed info on backup files',
-              icon: Icons.folder,
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const VerifyBackupScreen(),
-                  ),
-                );
-              },
-            ),
-            const SizedBox(height: 8),
             Padding(
               padding: const EdgeInsets.only(left: 4, bottom: 6),
               child: Text(
@@ -939,7 +923,7 @@ class ChronicleFolderView extends StatelessWidget {
               },
             ),
             _SettingsTile(
-              title: 'Timeline & Learning (Dual Chronicle)',
+              title: 'LUMARA Analysis',
               subtitle: 'Your timeline vs LUMARA’s learning; add insights to timeline or dismiss',
               icon: Icons.auto_stories,
               onTap: () {
@@ -947,19 +931,6 @@ class ChronicleFolderView extends StatelessWidget {
                   context,
                   MaterialPageRoute(
                     builder: (context) => const DualChronicleView(),
-                  ),
-                );
-              },
-            ),
-            _SettingsTile(
-              title: 'Intelligence Summary',
-              subtitle: 'Readable synthesis of LUMARA learning (Layer 3); regenerate on demand',
-              icon: Icons.psychology,
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const IntelligenceSummaryView(),
                   ),
                 );
               },

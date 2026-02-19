@@ -1,61 +1,69 @@
 // lib/chronicle/dual/services/intelligence_summary_generator.dart
 //
-// Generates the Intelligence Summary (Layer 3) from User + LUMARA chronicles.
-// Synthesis is done via an injected LLM (Groq/Gemini from app layer).
+// Generates the Intelligence Summary (Layer 3) from CHRONICLE Layer 0 (entries),
+// Layers 1–3 (monthly, yearly, multi-year summaries), and LUMARA CHRONICLE
+// (patterns, promoted insights). Output is coherent, user-readable narrative.
+// Uses Groq via LumaraAPIConfig.
 
 import 'dart:convert';
 import 'package:crypto/crypto.dart';
+import 'package:my_app/arc/chat/config/api_config.dart';
+import 'package:my_app/arc/chat/services/groq_service.dart';
+import 'package:my_app/chronicle/core/chronicle_repos.dart';
+import 'package:my_app/chronicle/models/chronicle_aggregation.dart';
+import 'package:my_app/chronicle/models/chronicle_layer.dart';
 import '../models/chronicle_models.dart';
 import '../models/intelligence_summary_models.dart';
-import '../repositories/user_chronicle_repository.dart';
 import '../repositories/lumara_chronicle_repository.dart';
 import '../repositories/intelligence_summary_repository.dart';
-
-/// Callback to generate markdown via app's LLM (Groq/Gemini). Optional; if null, generation returns placeholder.
-typedef IntelligenceSummaryLLM = Future<String> Function(
-  String systemPrompt,
-  String userPrompt, {
-  int? maxTokens,
-});
+import 'chronicle_query_adapter.dart';
 
 class IntelligenceSummaryGenerator {
   IntelligenceSummaryGenerator({
-    required UserChronicleRepository userRepo,
+    required ChronicleQueryAdapter chronicleAdapter,
     required LumaraChronicleRepository lumaraRepo,
     required IntelligenceSummaryRepository summaryRepo,
-    IntelligenceSummaryLLM? generate,
-  })  : _userRepo = userRepo,
+  })  : _chronicleAdapter = chronicleAdapter,
         _lumaraRepo = lumaraRepo,
-        _summaryRepo = summaryRepo,
-        _generate = generate;
+        _summaryRepo = summaryRepo;
 
-  final UserChronicleRepository _userRepo;
+  final ChronicleQueryAdapter _chronicleAdapter;
   final LumaraChronicleRepository _lumaraRepo;
   final IntelligenceSummaryRepository _summaryRepo;
-  final IntelligenceSummaryLLM? _generate;
+
+  /// Optional: set to include CHRONICLE Layer 1–3 (monthly, yearly, multi-year) in synthesis.
+  static const int maxMonthlySummaries = 6;
+  static const int maxYearlySummaries = 2;
+  static const int maxMultiyearSummaries = 1;
 
   /// Generate the full Intelligence Summary for [userId]. Saves and archives previous version.
+  /// Uses Groq (LUMARA standard API) when configured; otherwise returns a short stats-only summary.
   Future<IntelligenceSummary> generateSummary(String userId) async {
     final startTime = DateTime.now();
     final intelligence = await _gatherIntelligence(userId);
-    String content;
-    if (_generate != null) {
-      try {
-        content = await _generate!(
-          _systemPrompt,
-          _buildSynthesisPrompt(intelligence),
+    String content = _fallbackContent(intelligence);
+    bool usedGroq = false;
+    try {
+      await LumaraAPIConfig.instance.initialize();
+      final groqKey = LumaraAPIConfig.instance.getApiKey(LLMProvider.groq);
+      if (groqKey != null && groqKey.isNotEmpty) {
+        final groq = GroqService(apiKey: groqKey);
+        final result = await groq.generateContent(
+          prompt: _buildSynthesisPrompt(intelligence),
+          systemPrompt: _systemPrompt,
+          temperature: 0.3,
           maxTokens: 4096,
         );
-        content = content.trim();
-        if (content.isEmpty) content = _placeholderContent(intelligence);
-      } catch (e) {
-        print('[IntelligenceSummary] LLM failed: $e');
-        content = _placeholderContent(intelligence);
+        final trimmed = result.trim();
+        if (trimmed.isNotEmpty) {
+          content = trimmed;
+          usedGroq = true;
+        }
       }
-    } else {
-      content = _placeholderContent(intelligence);
+    } catch (e) {
+      print('[IntelligenceSummary] Groq generation failed: $e');
     }
-    final metadata = _buildMetadata(intelligence, startTime);
+    final metadata = _buildMetadata(intelligence, startTime, usedGroq);
     final nextVersion = await _getNextVersion(userId);
     final summary = IntelligenceSummary(
       userId: userId,
@@ -73,8 +81,8 @@ class IntelligenceSummaryGenerator {
   }
 
   Future<BiographicalIntelligence> _gatherIntelligence(String userId) async {
-    final entries = await _userRepo.loadEntries(userId);
-    final annotations = await _userRepo.loadAnnotations(userId);
+    final entries = await _chronicleAdapter.loadEntries(userId);
+    final annotations = await _chronicleAdapter.loadAnnotations(userId);
     final patterns = await _lumaraRepo.loadPatterns(userId);
     final causalChains = await _lumaraRepo.loadCausalChains(userId);
     final relationships = await _lumaraRepo.loadRelationships(userId);
@@ -82,6 +90,32 @@ class IntelligenceSummaryGenerator {
     final activePatterns = patterns.where((p) => p.status == InferenceStatus.active).toList();
     final activeChains = causalChains.where((c) => c.status == InferenceStatus.active).toList();
     final activeRels = relationships.where((r) => r.status == InferenceStatus.active).toList();
+
+    // CHRONICLE Layers 1–3: monthly, yearly, multi-year summaries (when available)
+    List<ChronicleAggregation> monthly = [];
+    List<ChronicleAggregation> yearly = [];
+    List<ChronicleAggregation> multiyear = [];
+    try {
+      final aggRepo = ChronicleRepos.aggregation;
+      final monthlyPeriods = await aggRepo.listPeriods(ChronicleLayer.monthly);
+      for (final period in monthlyPeriods.take(maxMonthlySummaries)) {
+        final a = await aggRepo.loadLayer(userId: userId, layer: ChronicleLayer.monthly, period: period);
+        if (a != null) monthly.add(a);
+      }
+      final yearlyPeriods = await aggRepo.listPeriods(ChronicleLayer.yearly);
+      for (final period in yearlyPeriods.take(maxYearlySummaries)) {
+        final a = await aggRepo.loadLayer(userId: userId, layer: ChronicleLayer.yearly, period: period);
+        if (a != null) yearly.add(a);
+      }
+      final multiyearPeriods = await aggRepo.listPeriods(ChronicleLayer.multiyear);
+      for (final period in multiyearPeriods.take(maxMultiyearSummaries)) {
+        final a = await aggRepo.loadLayer(userId: userId, layer: ChronicleLayer.multiyear, period: period);
+        if (a != null) multiyear.add(a);
+      }
+    } catch (e) {
+      print('[IntelligenceSummary] Could not load CHRONICLE Layer 1–3: $e');
+    }
+
     DateTime? earliest;
     DateTime? latest;
     for (final e in entries) {
@@ -108,6 +142,11 @@ class IntelligenceSummaryGenerator {
         relationships: activeRels,
         gapFillEvents: gapFills.take(50).toList(),
       ),
+      chronicleLayers: ChronicleLayersIntelligence(
+        monthly: monthly,
+        yearly: yearly,
+        multiyear: multiyear,
+      ),
       stats: IntelligenceStats(
         entriesAnalyzed: entries.length,
         patternsIdentified: activePatterns.length,
@@ -131,19 +170,38 @@ class IntelligenceSummaryGenerator {
 
   String _buildSynthesisPrompt(BiographicalIntelligence i) {
     final sb = StringBuffer();
-    sb.writeln('Generate a comprehensive Intelligence Summary in markdown.');
+    sb.writeln('Synthesize a coherent, user-readable Intelligence Summary in markdown from the following. Only the user will see this; it is their personal project memory.');
     sb.writeln();
-    sb.writeln('# User Chronicle');
+    sb.writeln('# Layer 0: User content (chats, reflections, voice, documents)');
     sb.writeln('## Entries (last 30 by recency, excerpted)');
     for (final e in i.user.entries.take(30)) {
       sb.writeln('- [${e.timestamp.toIso8601String()}] (${e.modality.name}): ${e.content.replaceAll('\n', ' ').length > 200 ? "${e.content.substring(0, 200)}..." : e.content}');
     }
-    sb.writeln('## Annotations (approved insights)');
+    sb.writeln('## Annotations (user-approved insights)');
     for (final a in i.user.annotations.take(20)) {
       sb.writeln('- ${a.content.replaceAll('\n', ' ').length > 150 ? "${a.content.substring(0, 150)}..." : a.content}');
     }
+    if (i.chronicleLayers.monthly.isNotEmpty || i.chronicleLayers.yearly.isNotEmpty || i.chronicleLayers.multiyear.isNotEmpty) {
+      sb.writeln();
+      sb.writeln('# CHRONICLE Layers 1–3: Monthly, yearly, multi-year summaries');
+      for (final m in i.chronicleLayers.monthly) {
+        sb.writeln('## Monthly (${m.period})');
+        sb.writeln(m.content.length > 1200 ? '${m.content.substring(0, 1200)}...' : m.content);
+        sb.writeln();
+      }
+      for (final y in i.chronicleLayers.yearly) {
+        sb.writeln('## Yearly (${y.period})');
+        sb.writeln(y.content.length > 1500 ? '${y.content.substring(0, 1500)}...' : y.content);
+        sb.writeln();
+      }
+      for (final my in i.chronicleLayers.multiyear) {
+        sb.writeln('## Multi-year (${my.period})');
+        sb.writeln(my.content.length > 1500 ? '${my.content.substring(0, 1500)}...' : my.content);
+        sb.writeln();
+      }
+    }
     sb.writeln();
-    sb.writeln('# LUMARA Inferred Intelligence');
+    sb.writeln('# LUMARA inferred intelligence');
     sb.writeln('## Patterns (${i.lumara.patterns.length})');
     for (final p in i.lumara.patterns.take(15)) {
       sb.writeln('- ${p.description} (${p.category}, confidence: ${p.confidence})');
@@ -162,45 +220,44 @@ class IntelligenceSummaryGenerator {
     }
     sb.writeln();
     sb.writeln('# Instructions');
-    sb.writeln('Create a markdown document with these sections:');
-    sb.writeln('1. **About You** - Core identity, current focus (2-3 paragraphs)');
-    sb.writeln('2. **Current Life Phase** - Readiness, trajectory (1-2 paragraphs)');
-    sb.writeln('3. **Key Relationships** - Important people and patterns');
-    sb.writeln('4. **Recurring Patterns** - Behavioral/emotional themes');
-    sb.writeln('5. **Values and Priorities** - Inferred from entries');
-    sb.writeln('6. **Goals and Recent Developments** - Short-term and current');
-    sb.writeln('7. **What I Don\'t Know Yet** - Explicit gaps');
-    sb.writeln('Style: warm, second person ("You\'re..."). 1500-2500 words. Return ONLY the markdown.');
+    sb.writeln('Create ONE coherent markdown document with these exact section headers. Write in clear, readable prose (third person or second person). Be specific: names, dates, patterns. 1500–2500 words. Return ONLY the markdown.');
+    sb.writeln();
+    sb.writeln('1. **Purpose & context** — What this person is building or pursuing; their role, vision, and how they describe it.');
+    sb.writeln('2. **Current state** — Where things stand now: product, validation, team, timeline, concrete milestones.');
+    sb.writeln('3. **On the horizon** — Near-term plans, roadmap, next steps, and what they are considering.');
+    sb.writeln('4. **Key learnings & principles** — What they have learned; beliefs and principles that guide their approach.');
+    sb.writeln('5. **Approach & patterns** — How they work: habits, tools, decision-making style, recurring themes.');
+    sb.writeln('6. **Tools & resources** — Stack, tools, key relationships, and resources they rely on.');
+    sb.writeln('7. **What I don\'t know yet** — Explicit gaps, uncertainties, or areas with little signal.');
+    sb.writeln();
+    sb.writeln('Style: natural, coherent narrative. Do not invent facts. Signal confidence ("consistently" vs "seems to"). Return ONLY the markdown, starting with "# Intelligence Summary".');
     return sb.toString();
   }
 
-  String _placeholderContent(BiographicalIntelligence i) {
+  String _fallbackContent(BiographicalIntelligence i) {
     final s = i.stats;
     return '''# Intelligence Summary
-*Generated from your timeline and LUMARA's learning (no LLM available for full synthesis).*
 
 ## About This Summary
 Based on **${s.entriesAnalyzed}** entries, **${s.patternsIdentified}** patterns, and **${s.relationshipsTracked}** relationships over **${s.monthsCovered}** months. Confidence: **${s.confidenceLevel}**.
-
-## Next Steps
-Enable an API key (Groq or Gemini) in LUMARA settings to generate a full natural-language Intelligence Summary. Until then, you can see raw learning in **Timeline & Learning (Dual Chronicle)**.
 ''';
   }
 
   static const String _systemPrompt = '''
-You are LUMARA's intelligence synthesis engine. Generate a comprehensive Intelligence Summary in markdown from biographical data.
+You are LUMARA's intelligence synthesis engine. You generate a single, coherent Intelligence Summary that only the user sees—like a project memory or briefing derived from their Layer 0 (chats, reflections, voice, documents), CHRONICLE Layers 1–3 (monthly, yearly, multi-year summaries), and LUMARA's inferred patterns and relationships.
 
-Principles:
-- Natural, warm prose; second person ("You're...").
-- Specific: use examples, dates, frequencies.
-- Signal confidence: "You consistently..." (high) vs "You seem to..." (low).
-- Acknowledge what you don't know.
-- Do not invent information or diagnose.
-Return ONLY markdown, starting with "# Intelligence Summary".
+Output must be:
+- Coherent and user-readable: one continuous narrative, not bullet soup.
+- Structured with the exact section headers provided (Purpose & context, Current state, On the horizon, Key learnings & principles, Approach & patterns, Tools & resources, What I don't know yet).
+- Specific: names, dates, frequencies, concrete examples where the data supports it.
+- Honest about confidence: "consistently" / "clearly" when strong signal; "seems to" / "has mentioned" when weaker. Acknowledge gaps explicitly in "What I don't know yet".
+- Factual: do not invent or diagnose. Only synthesize from the provided inputs.
+
+Return ONLY the markdown, starting with "# Intelligence Summary". No preamble or meta-commentary.
 ''';
 
   IntelligenceSummaryMetadata _buildMetadata(
-      BiographicalIntelligence i, DateTime startTime) {
+      BiographicalIntelligence i, DateTime startTime, bool usedGroq) {
     final durationMs = DateTime.now().difference(startTime).inMilliseconds;
     return IntelligenceSummaryMetadata(
       totalEntries: i.user.totalEntries,
@@ -209,21 +266,24 @@ Return ONLY markdown, starting with "# Intelligence Summary".
       temporalSpan: i.user.temporalSpan,
       confidenceLevel: i.stats.confidenceLevel,
       sectionsIncluded: const [
-        'aboutYou', 'currentPhase', 'relationships', 'patterns',
-        'values', 'goals', 'recentDevelopments', 'unknowns',
+        'purposeAndContext', 'currentState', 'onTheHorizon',
+        'keyLearningsAndPrinciples', 'approachAndPatterns', 'toolsAndResources',
+        'whatIDontKnowYet',
       ],
       generationDurationMs: durationMs,
-      modelUsed: _generate != null ? 'groq_or_gemini' : 'placeholder',
+      modelUsed: usedGroq ? 'groq' : 'fallback',
     );
   }
 
   Map<String, SectionMeta> _extractSectionMetadata(String content) {
     final now = DateTime.now().toUtc();
+    final sectionNames = [
+      'purposeAndContext', 'currentState', 'onTheHorizon',
+      'keyLearningsAndPrinciples', 'approachAndPatterns', 'toolsAndResources',
+      'whatIDontKnowYet',
+    ];
     final sections = <String, SectionMeta>{};
-    for (final name in [
-      'aboutYou', 'currentPhase', 'relationships', 'patterns',
-      'values', 'goals', 'recentDevelopments', 'unknowns',
-    ]) {
+    for (final name in sectionNames) {
       sections[name] = SectionMeta(lastUpdated: now, confidence: 0.7);
     }
     return sections;
@@ -253,14 +313,28 @@ Return ONLY markdown, starting with "# Intelligence Summary".
   }
 }
 
+class ChronicleLayersIntelligence {
+  final List<ChronicleAggregation> monthly;
+  final List<ChronicleAggregation> yearly;
+  final List<ChronicleAggregation> multiyear;
+
+  ChronicleLayersIntelligence({
+    required this.monthly,
+    required this.yearly,
+    required this.multiyear,
+  });
+}
+
 class BiographicalIntelligence {
   final UserIntelligence user;
   final LumaraIntelligence lumara;
+  final ChronicleLayersIntelligence chronicleLayers;
   final IntelligenceStats stats;
 
   BiographicalIntelligence({
     required this.user,
     required this.lumara,
+    required this.chronicleLayers,
     required this.stats,
   });
 }

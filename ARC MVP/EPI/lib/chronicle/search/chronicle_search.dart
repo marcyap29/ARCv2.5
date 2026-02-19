@@ -1,6 +1,6 @@
 // lib/chronicle/search/chronicle_search.dart
 //
-// LUMARA chronicle search: models and feature-based reranking.
+// LUMARA CHRONICLE search: models and feature-based reranking.
 // When HybridSearchEngine (BM25 + semantic + RRF) is implemented,
 // pass its results to FeatureBasedReranker for optional reranking.
 

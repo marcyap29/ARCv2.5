@@ -1,12 +1,12 @@
 // test/chronicle/dual/sacred_separation_test.dart
 //
-// CRITICAL: Tests that the User's Chronicle is never written to by the system
-// without explicit user approval.
+// Tests that approved insights live only in LUMARA CHRONICLE (promoted);
+// User's CHRONICLE is SACRED. ChronicleQueryAdapter reads entries from user's CHRONICLE Layer0 and annotations from LUMARA CHRONICLE.
 
 import 'dart:io';
 
 import 'package:my_app/chronicle/dual/models/chronicle_models.dart';
-import 'package:my_app/chronicle/dual/repositories/user_chronicle_repository.dart';
+import 'package:my_app/chronicle/dual/services/chronicle_query_adapter.dart';
 import 'package:my_app/chronicle/dual/repositories/lumara_chronicle_repository.dart';
 import 'package:my_app/chronicle/dual/storage/chronicle_storage.dart';
 import 'package:my_app/chronicle/dual/services/promotion_service.dart';
@@ -16,15 +16,18 @@ import 'package:test/test.dart';
 void main() {
   late Directory tempDir;
   late ChronicleStorage storage;
-  late UserChronicleRepository userRepo;
   late LumaraChronicleRepository lumaraRepo;
+  late ChronicleQueryAdapter chronicleAdapter;
   const userId = 'test_user_sacred';
 
   setUp(() async {
     tempDir = await Directory.systemTemp.createTemp('chronicle_dual_test');
     storage = ChronicleStorage(testBaseDirectory: tempDir);
-    userRepo = UserChronicleRepository(storage);
     lumaraRepo = LumaraChronicleRepository(storage);
+    chronicleAdapter = ChronicleQueryAdapter(
+      lumaraRepo: lumaraRepo,
+      loadEntriesOverride: (_) async => [], // No CHRONICLE Layer0 in test
+    );
   });
 
   tearDown(() async {
@@ -34,84 +37,10 @@ void main() {
   });
 
   group('Sacred Separation', () {
-    test('system cannot write non-user-authored entries to user chronicle', () async {
-      final entry = UserEntry(
-        id: 'e1',
-        timestamp: DateTime.now(),
-        type: UserEntryType.reflect,
-        content: 'test',
-        modality: UserEntryModality.reflect,
-        authoredBy: 'system',
-      );
-
-      expect(
-        () => userRepo.addEntry(userId, entry),
-        throwsA(isA<SacredChronicleViolation>()),
-      );
-    });
-
-    test('annotations require explicit user approval', () async {
-      final annotation = UserAnnotation(
-        id: 'a1',
-        timestamp: DateTime.now(),
-        content: 'test insight',
-        source: AnnotationSource.lumara_gap_fill,
-        provenance: UserAnnotationProvenance(
-          gapFillEventId: 'gf1',
-          userApproved: false,
-          approvedAt: DateTime.now(),
-        ),
-        editable: true,
-      );
-
-      expect(
-        () => userRepo.addAnnotation(userId, annotation),
-        throwsA(isA<SacredChronicleViolation>()),
-      );
-    });
-
-    test('user-authored entry is accepted', () async {
-      final entry = UserEntry(
-        id: 'e_user',
-        timestamp: DateTime.now(),
-        type: UserEntryType.reflect,
-        content: 'I reflected on this',
-        modality: UserEntryModality.reflect,
-        authoredBy: 'user',
-      );
-
-      await userRepo.addEntry(userId, entry);
-      final layer0 = await userRepo.queryLayer0(userId, '');
-      expect(layer0.entries.length, 1);
-      expect(layer0.entries.first.authoredBy, 'user');
-    });
-
-    test('user-approved annotation is accepted', () async {
-      final annotation = UserAnnotation(
-        id: 'a_approved',
-        timestamp: DateTime.now(),
-        content: 'Approved insight',
-        source: AnnotationSource.lumara_gap_fill,
-        provenance: UserAnnotationProvenance(
-          gapFillEventId: 'gf1',
-          userApproved: true,
-          approvedAt: DateTime.now(),
-        ),
-        editable: true,
-      );
-
-      await userRepo.addAnnotation(userId, annotation);
-      final layer0 = await userRepo.queryLayer0(userId, '');
-      expect(layer0.annotations.length, 1);
-      expect(layer0.annotations.first.provenance.userApproved, true);
-    });
-
-    test('gap-fill events recorded in LUMARA chronicle only', () async {
+    test('gap-fill events recorded in LUMARA CHRONICLE only', () async {
       final processor = ClarificationProcessor(
-        userChronicleRepo: userRepo,
         lumaraChronicleRepo: lumaraRepo,
         promotionService: PromotionService(
-          userChronicleRepo: userRepo,
           lumaraChronicleRepo: lumaraRepo,
         ),
       );
@@ -138,8 +67,8 @@ void main() {
         gap.id,
       );
 
-      final userEntries = await userRepo.loadEntries(userId);
-      final userAnnotations = await userRepo.loadAnnotations(userId);
+      final userEntries = await chronicleAdapter.loadEntries(userId);
+      final userAnnotations = await chronicleAdapter.loadAnnotations(userId);
       final lumaraEvents = await lumaraRepo.loadGapFillEvents(userId);
 
       expect(userEntries.length, 0);
@@ -147,9 +76,8 @@ void main() {
       expect(lumaraEvents.length, 1);
     });
 
-    test('promotion creates annotation only on approval', () async {
+    test('promotion marks event as promoted in LUMARA CHRONICLE only', () async {
       final promotionService = PromotionService(
-        userChronicleRepo: userRepo,
         lumaraChronicleRepo: lumaraRepo,
       );
 
@@ -185,19 +113,18 @@ void main() {
       );
       await lumaraRepo.addGapFillEvent(userId, event);
 
-      expect((await userRepo.loadAnnotations(userId)).length, 0);
+      expect((await chronicleAdapter.loadAnnotations(userId)).length, 0);
 
       await promotionService.approvePromotion(userId, event.id);
 
-      final annotations = await userRepo.loadAnnotations(userId);
+      final annotations = await chronicleAdapter.loadAnnotations(userId);
       expect(annotations.length, 1);
       expect(annotations.first.provenance.userApproved, true);
       expect(annotations.first.provenance.gapFillEventId, event.id);
     });
 
-    test('dismissing promotion leaves timeline unchanged', () async {
+    test('dismissing promotion leaves approved list unchanged', () async {
       final promotionService = PromotionService(
-        userChronicleRepo: userRepo,
         lumaraChronicleRepo: lumaraRepo,
       );
 
@@ -227,21 +154,20 @@ void main() {
 
       await promotionService.dismissPromotion(userId, event.id);
 
-      final annotations = await userRepo.loadAnnotations(userId);
+      final annotations = await chronicleAdapter.loadAnnotations(userId);
       expect(annotations.length, 0);
 
       final events = await lumaraRepo.loadGapFillEvents(userId);
       expect(events.length, 1);
     });
 
-    test('user can delete annotation without affecting LUMARA chronicle', () async {
+    test('approved insight remains in LUMARA CHRONICLE after promotion', () async {
       final promotionService = PromotionService(
-        userChronicleRepo: userRepo,
         lumaraChronicleRepo: lumaraRepo,
       );
 
       final gap = Gap(
-        id: 'gap_del',
+        id: 'gap_keep',
         type: GapType.causal_gap,
         severity: GapSeverity.medium,
         description: 'Why',
@@ -253,7 +179,7 @@ void main() {
         status: 'open',
       );
       final event = GapFillEvent(
-        id: 'gf_del',
+        id: 'gf_keep',
         type: GapFillEventType.clarification,
         trigger: GapFillEventTrigger(originalQuery: 'q', identifiedGap: gap),
         process: GapFillEventProcess(userResponse: 'Stress'),
@@ -268,13 +194,12 @@ void main() {
       await lumaraRepo.addGapFillEvent(userId, event);
       final annotation = await promotionService.approvePromotion(userId, event.id);
 
-      await userRepo.deleteAnnotation(userId, annotation.id);
-
-      expect((await userRepo.loadAnnotations(userId)).length, 0);
+      expect((await chronicleAdapter.loadAnnotations(userId)).length, 1);
 
       final kept = await lumaraRepo.getGapFillEvent(userId, event.id);
       expect(kept, isNotNull);
       expect(kept!.promotedToAnnotation, isNotNull);
+      expect(kept.promotedToAnnotation!.annotationId, annotation.id);
     });
   });
 }

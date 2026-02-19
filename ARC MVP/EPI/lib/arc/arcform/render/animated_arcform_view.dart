@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'constellation_arcform_renderer.dart';
+import '../../ui/arcforms/constellation/constellation_arcform_renderer.dart';
 
 /// Animated wrapper around ConstellationArcformRenderer.
 ///

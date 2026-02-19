@@ -5,10 +5,9 @@
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:my_app/arc/chat/config/api_config.dart';
-import 'package:my_app/arc/chat/services/groq_service.dart';
 import 'package:my_app/chronicle/dual/models/intelligence_summary_models.dart';
 import 'package:my_app/chronicle/dual/services/dual_chronicle_services.dart';
+import 'package:my_app/chronicle/dual/services/intelligence_summary_schedule_preferences.dart';
 import 'package:my_app/services/firebase_auth_service.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
@@ -30,36 +29,14 @@ class _IntelligenceSummaryViewState extends State<IntelligenceSummaryView> {
   bool _regenerating = false;
   String? _error;
   bool _showMetadata = false;
-
-  static bool _llmRegistered = false;
+  String _scheduleLabel = 'Daily at 10:00 PM';
+  String? _nextRefreshLabel;
+  bool _scheduleLoaded = false;
 
   @override
   void initState() {
     super.initState();
     _load();
-    _registerLLMIfNeeded();
-  }
-
-  void _registerLLMIfNeeded() {
-    if (_llmRegistered) return;
-    _llmRegistered = true;
-    LumaraAPIConfig.instance.initialize().then((_) {
-      final config = LumaraAPIConfig.instance.getConfig(LLMProvider.groq);
-      final apiKey = config?.apiKey;
-      if (apiKey != null && apiKey.isNotEmpty) {
-        DualChronicleServices.registerIntelligenceSummaryLLM(
-          (systemPrompt, userPrompt, {maxTokens}) async {
-            final groq = GroqService(apiKey: apiKey);
-            return groq.generateContent(
-              prompt: userPrompt,
-              systemPrompt: systemPrompt,
-              temperature: 0.3,
-              maxTokens: maxTokens ?? 4096,
-            );
-          },
-        );
-      }
-    }).catchError((_) {});
   }
 
   Future<void> _load() async {
@@ -71,12 +48,28 @@ class _IntelligenceSummaryViewState extends State<IntelligenceSummaryView> {
       final repo = DualChronicleServices.intelligenceSummaryRepo;
       final latest = await repo.getLatest(_userId);
       final history = await repo.getVersionHistory(_userId);
+      final cadence = await IntelligenceSummarySchedulePreferences.getCadence();
+      final hour = await IntelligenceSummarySchedulePreferences.getHour();
+      final minute = await IntelligenceSummarySchedulePreferences.getMinute();
+      final lastGen = await IntelligenceSummarySchedulePreferences.getLastGeneratedAt();
+      final next = await IntelligenceSummarySchedulePreferences.getNextScheduledTime(
+        lastGenerated: lastGen,
+      );
+      final due = await IntelligenceSummarySchedulePreferences.isRunDue();
       if (mounted) {
         setState(() {
           _summary = latest;
           _versionHistory = history;
+          _scheduleLabel = '${cadence.label} at ${_formatTime(hour, minute)}';
+          _nextRefreshLabel = DateFormat('MMM d, y • h:mm a').format(next.toLocal());
+          _scheduleLoaded = true;
           _loading = false;
         });
+        if (due && latest != null && !_regenerating) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) _regenerateNow();
+          });
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -88,14 +81,99 @@ class _IntelligenceSummaryViewState extends State<IntelligenceSummaryView> {
     }
   }
 
+  String _formatTime(int hour, int minute) {
+    final h = hour % 12 == 0 ? 12 : hour % 12;
+    final am = hour < 12;
+    return '$h:${minute.toString().padLeft(2, '0')} ${am ? 'AM' : 'PM'}';
+  }
+
+  Future<void> _showScheduleDialog() async {
+    var cadence = await IntelligenceSummarySchedulePreferences.getCadence();
+    var hour = await IntelligenceSummarySchedulePreferences.getHour();
+    var minute = await IntelligenceSummarySchedulePreferences.getMinute();
+    if (!mounted) return;
+    final picked = await showDialog<({IntelligenceSummaryCadence c, int h, int m})>(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setDialogState) {
+            return AlertDialog(
+              title: const Text('Refresh schedule'),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Auto-refresh Intelligence Summary (only you see it).',
+                      style: bodyStyle(ctx).copyWith(color: kcSecondaryTextColor),
+                    ),
+                    const SizedBox(height: 16),
+                    DropdownButtonFormField<IntelligenceSummaryCadence>(
+                      value: cadence,
+                      decoration: const InputDecoration(labelText: 'Frequency'),
+                      items: IntelligenceSummaryCadence.values
+                          .map((c) => DropdownMenuItem(
+                                value: c,
+                                child: Text(c.label),
+                              ))
+                          .toList(),
+                      onChanged: (v) {
+                        if (v != null) {
+                          cadence = v;
+                          setDialogState(() {});
+                        }
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    ListTile(
+                      title: Text('Time: ${_formatTime(hour, minute)}'),
+                      trailing: const Icon(Icons.access_time),
+                      onTap: () async {
+                        final t = await showTimePicker(
+                          context: ctx,
+                          initialTime: TimeOfDay(hour: hour, minute: minute),
+                        );
+                        if (t != null) {
+                          hour = t.hour;
+                          minute = t.minute;
+                          setDialogState(() {});
+                        }
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(ctx).pop(),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton(
+                  onPressed: () => Navigator.of(ctx).pop((c: cadence, h: hour, m: minute)),
+                  child: const Text('Save'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+    if (picked != null && mounted) {
+      await IntelligenceSummarySchedulePreferences.setCadence(picked.c);
+      await IntelligenceSummarySchedulePreferences.setHour(picked.h);
+      await IntelligenceSummarySchedulePreferences.setMinute(picked.m);
+      await _load();
+    }
+  }
+
   Future<void> _regenerateNow() async {
     setState(() {
       _regenerating = true;
       _error = null;
     });
     try {
-      final generator = DualChronicleServices.intelligenceSummaryGenerator;
-      final summary = await generator.generateSummary(_userId);
+      final summary = await DualChronicleServices.generateIntelligenceSummaryWithGapAnalysis(_userId);
       if (mounted) {
         setState(() {
           _summary = summary;
@@ -105,7 +183,7 @@ class _IntelligenceSummaryViewState extends State<IntelligenceSummaryView> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Intelligence Summary updated'),
+              content: Text('Intelligence Summary updated; gap analysis ran.'),
               backgroundColor: kcSuccessColor,
             ),
           );
@@ -190,6 +268,21 @@ class _IntelligenceSummaryViewState extends State<IntelligenceSummaryView> {
             ),
             textAlign: TextAlign.center,
           ),
+          const SizedBox(height: 12),
+          Text(
+            'Requires: Groq API key (Settings → LUMARA → API & providers). '
+            'Uses Layer 0 (chats, reflections, voice), CHRONICLE Layers 1–3 (monthly, yearly, multi-year) when available, and LUMARA\'s learned patterns.',
+            style: bodyStyle(context).copyWith(
+              color: kcSecondaryTextColor,
+              height: 1.35,
+              fontSize: 12,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          if (_scheduleLoaded) ...[
+            const SizedBox(height: 16),
+            _buildScheduleCard(),
+          ],
           const SizedBox(height: 24),
           FilledButton.icon(
             onPressed: _regenerating ? null : _regenerateNow,
@@ -237,6 +330,10 @@ class _IntelligenceSummaryViewState extends State<IntelligenceSummaryView> {
             ),
           ),
           if (_showMetadata) _buildMetadataCard(summary),
+          if (_scheduleLoaded) ...[
+            const SizedBox(height: 12),
+            _buildScheduleCard(),
+          ],
           const SizedBox(height: 16),
           _buildMarkdownContent(summary.content),
           const SizedBox(height: 24),
@@ -266,6 +363,53 @@ class _IntelligenceSummaryViewState extends State<IntelligenceSummaryView> {
             ],
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildScheduleCard() {
+    return InkWell(
+      onTap: _showScheduleDialog,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.05),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.schedule, color: kcAccentColor, size: 20),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Refresh: $_scheduleLabel',
+                    style: bodyStyle(context).copyWith(
+                      color: kcPrimaryTextColor,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13,
+                    ),
+                  ),
+                  if (_nextRefreshLabel != null) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      'Next: $_nextRefreshLabel',
+                      style: bodyStyle(context).copyWith(
+                        color: kcSecondaryTextColor,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            Icon(Icons.edit, size: 18, color: kcSecondaryTextColor),
+          ],
+        ),
       ),
     );
   }

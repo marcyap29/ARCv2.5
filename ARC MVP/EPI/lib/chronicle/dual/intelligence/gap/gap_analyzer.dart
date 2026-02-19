@@ -1,10 +1,9 @@
 // lib/chronicle/dual/intelligence/gap/gap_analyzer.dart
 //
 // Gap Analyzer: systematic gap analysis between required and available knowledge.
-// Operates READ-ONLY on User Chronicle and LUMARA Chronicle.
+// Operates READ-ONLY on user's CHRONICLE and LUMARA CHRONICLE.
 
 import '../../models/chronicle_models.dart';
-import '../../repositories/user_chronicle_repository.dart';
 import '../../repositories/lumara_chronicle_repository.dart';
 
 class RequiredKnowledge {

@@ -17,6 +17,7 @@
 		1F3EEF702E93526C009BFF74 /* llama_wrapper.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 1F3EEF6B2E93526C009BFF74 /* llama_wrapper.cpp */; };
 		1F3EEF712E93526C009BFF74 /* CapabilityRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F3EEF692E93526C009BFF74 /* CapabilityRouter.swift */; };
 		1F3EEF712E93526C009BFF75 /* epi_logger.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 1F3EEF6C2E93526C009BFF75 /* epi_logger.cpp */; };
+		1F3EEF752E93526C009BFF74 /* NativeEmbeddingChannel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F3EEF762E93526C009BFF74 /* NativeEmbeddingChannel.swift */; };
 		1F3EEF812E9353BE009BFF74 /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1F3EEF7E2E9353BE009BFF74 /* Metal.framework */; };
 		1F3EEF822E9353BE009BFF74 /* Accelerate.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1F3EEF7F2E9353BE009BFF74 /* Accelerate.framework */; };
 		1F3EEF832E9353BE009BFF74 /* MetalKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1F3EEF802E9353BE009BFF74 /* MetalKit.framework */; };
@@ -39,7 +40,6 @@
 		PHOTOLIB001 /* PhotoLibraryService.swift in Sources */ = {isa = PBXBuildFile; fileRef = PHOTOLIB002 /* PhotoLibraryService.swift */; };
 		SHAKEDET001 /* ShakeDetectorPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = SHAKEDET002 /* ShakeDetectorPlugin.swift */; };
 		VISIONIMPL001 /* VisionApiImpl.swift in Sources */ = {isa = PBXBuildFile; fileRef = VISIONIMPL002 /* VisionApiImpl.swift */; };
-		1F3EEF752E93526C009BFF74 /* NativeEmbeddingChannel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F3EEF762E93526C009BFF74 /* NativeEmbeddingChannel.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -93,6 +93,7 @@
 		1F3EEF6D2E93526C009BFF75 /* PigeonShims.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shims/PigeonShims.swift; sourceTree = "<group>"; };
 		1F3EEF6D2E93526C009BFF76 /* epi_logger.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Runner/epi_logger.h; sourceTree = "<group>"; };
 		1F3EEF722E9352C3009BFF74 /* llama.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = llama.xcframework; path = Runner/Vendor/llama.xcframework; sourceTree = "<group>"; };
+		1F3EEF762E93526C009BFF74 /* NativeEmbeddingChannel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeEmbeddingChannel.swift; sourceTree = "<group>"; };
 		1F3EEF7E2E9353BE009BFF74 /* Metal.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Metal.framework; path = System/Library/Frameworks/Metal.framework; sourceTree = SDKROOT; };
 		1F3EEF7F2E9353BE009BFF74 /* Accelerate.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Accelerate.framework; path = System/Library/Frameworks/Accelerate.framework; sourceTree = SDKROOT; };
 		1F3EEF802E9353BE009BFF74 /* MetalKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = MetalKit.framework; path = System/Library/Frameworks/MetalKit.framework; sourceTree = SDKROOT; };
@@ -127,7 +128,6 @@
 		PHOTOLIB002 /* PhotoLibraryService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoLibraryService.swift; sourceTree = "<group>"; };
 		SHAKEDET002 /* ShakeDetectorPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShakeDetectorPlugin.swift; sourceTree = "<group>"; };
 		VISIONIMPL002 /* VisionApiImpl.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisionApiImpl.swift; sourceTree = "<group>"; };
-		1F3EEF762E93526C009BFF74 /* NativeEmbeddingChannel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeEmbeddingChannel.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -317,8 +317,6 @@
 			dependencies = (
 			);
 			name = Runner;
-			packageProductDependencies = (
-			);
 			productName = Runner;
 			productReference = 97C146EE1CF9000F007C117D /* Runner.app */;
 			productType = "com.apple.product-type.application";
@@ -353,8 +351,6 @@
 				Base,
 			);
 			mainGroup = 97C146E51CF9000F007C117D;
-			packageReferences = (
-			);
 			productRefGroup = 97C146EF1CF9000F007C117D /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
@@ -630,7 +626,7 @@
 				CODE_SIGN_ENTITLEMENTS = Runner/Runner.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 3.0;
+				CURRENT_PROJECT_VERSION = 10;
 				DEVELOPMENT_TEAM = 87W73WQSPF;
 				ENABLE_BITCODE = NO;
 				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = arm64;
@@ -638,7 +634,7 @@
 				"FRAMEWORK_SEARCH_PATHS[sdk=iphonesimulator*]" = "$(inherited)";
 				HEADER_SEARCH_PATHS = "$(PROJECT_DIR)/Runner/Vendor/llama.xcframework/ios-arm64/Headers";
 				INFOPLIST_FILE = Runner/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = ARC;
+				INFOPLIST_KEY_CFBundleDisplayName = LUMARA;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				IPHONEOS_DEPLOYMENT_TARGET = 16;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -850,7 +846,7 @@
 				CODE_SIGN_ENTITLEMENTS = Runner/Runner.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 3.0;
+				CURRENT_PROJECT_VERSION = 10;
 				DEVELOPMENT_TEAM = 87W73WQSPF;
 				ENABLE_BITCODE = NO;
 				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = arm64;
@@ -858,7 +854,7 @@
 				"FRAMEWORK_SEARCH_PATHS[sdk=iphonesimulator*]" = "$(inherited)";
 				HEADER_SEARCH_PATHS = "$(PROJECT_DIR)/Runner/Vendor/llama.xcframework/ios-arm64/Headers";
 				INFOPLIST_FILE = Runner/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = ARC;
+				INFOPLIST_KEY_CFBundleDisplayName = LUMARA;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				IPHONEOS_DEPLOYMENT_TARGET = 16;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -905,7 +901,7 @@
 				CODE_SIGN_ENTITLEMENTS = Runner/Runner.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 3.0;
+				CURRENT_PROJECT_VERSION = 10;
 				DEVELOPMENT_TEAM = 87W73WQSPF;
 				ENABLE_BITCODE = NO;
 				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = arm64;
@@ -913,7 +909,7 @@
 				"FRAMEWORK_SEARCH_PATHS[sdk=iphonesimulator*]" = "$(inherited)";
 				HEADER_SEARCH_PATHS = "$(PROJECT_DIR)/Runner/Vendor/llama.xcframework/ios-arm64/Headers";
 				INFOPLIST_FILE = Runner/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = ARC;
+				INFOPLIST_KEY_CFBundleDisplayName = LUMARA;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				IPHONEOS_DEPLOYMENT_TARGET = 16;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -984,12 +980,6 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
-
-/* Begin XCRemoteSwiftPackageReference section */
-/* End XCRemoteSwiftPackageReference section */
-
-/* Begin XCSwiftPackageProductDependency section */
-/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 97C146E61CF9000F007C117D /* Project object */;
 }

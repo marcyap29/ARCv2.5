@@ -23,6 +23,7 @@ import 'package:my_app/models/phase_models.dart';
 import 'package:my_app/services/user_phase_service.dart';
 import 'package:my_app/shared/ui/onboarding/phase_quiz_v2_screen.dart';
 import 'package:my_app/prism/atlas/rivet/rivet_provider.dart';
+import 'package:my_app/core/constants/phase_colors.dart';
 
 /// Simplified ARCForms view with 3D constellation renderer
 class SimplifiedArcformView3D extends StatefulWidget {
@@ -52,6 +53,7 @@ class _SimplifiedArcformView3DState extends State<SimplifiedArcformView3D> {
   Set<String> _userExperiencedPhases = {}; // Track phases user has been in
   Map<String, DateTime> _mostRecentPastPhases = {}; // Track most recent date for each past phase
   final Map<String, GlobalKey> _arcformRepaintBoundaryKeys = {}; // Keys for capturing Arcform images
+  final Set<String> _expandedPhaseDefinitions = {}; // Which phase definition rows are expanded
 
   @override
   void initState() {
@@ -426,44 +428,32 @@ class _SimplifiedArcformView3DState extends State<SimplifiedArcformView3D> {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: cardOnly ? MainAxisSize.min : MainAxisSize.max,
             children: [
-              // Header with constellation icon
+              // Header: constellation icon + color-coded phase badge only (no white phase name text)
               Row(
                 children: [
                   Icon(
                     Icons.auto_awesome,
                     color: kcPrimaryColor,
-                    size: 20, // Reduced from 24
+                    size: 20,
                   ),
-                  const SizedBox(width: 6), // Reduced from 8
-                  Expanded(
-                    child: Text(
-                      '$phaseHint Phase',
-                      style: heading3Style(context).copyWith(
-                        fontSize: 16, // Reduced font size
-                        fontWeight: FontWeight.w600,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  const SizedBox(width: 4), // Add spacing before chip
+                  const SizedBox(width: 8),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3), // Reduced padding
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
                       color: _getPhaseColor(phaseHint).withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(10), // Reduced from 12
+                      borderRadius: BorderRadius.circular(10),
                       border: Border.all(color: _getPhaseColor(phaseHint).withOpacity(0.3)),
                     ),
                     child: Text(
                       phaseHint.toUpperCase(),
                       style: TextStyle(
                         color: _getPhaseColor(phaseHint),
-                        fontSize: 9, // Reduced from 10
+                        fontSize: 10,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                   ),
-                  const SizedBox(width: 8),
+                  const Spacer(),
                   IconButton(
                     icon: const Icon(Icons.share_outlined, size: 18),
                     color: kcSecondaryTextColor,
@@ -474,6 +464,8 @@ class _SimplifiedArcformView3DState extends State<SimplifiedArcformView3D> {
                   ),
                 ],
               ),
+              // Expandable phase definition (caret + description)
+              _buildExpandablePhaseDefinition(phaseHint),
               const SizedBox(height: 12),
               // 3D Constellation Preview
               Container(
@@ -537,6 +529,56 @@ class _SimplifiedArcformView3DState extends State<SimplifiedArcformView3D> {
                 _buildChangePhaseButton(phaseHint),
                 _buildPastPhasesSection(phaseHint),
                 _buildExamplePhasesSection(phaseHint),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Expandable phase definition: caret underneath phase name hints expandability; tap to show description.
+  Widget _buildExpandablePhaseDefinition(String phaseHint) {
+    final isExpanded = _expandedPhaseDefinitions.contains(phaseHint);
+    final canonicalPhase = phaseHint.isEmpty
+        ? 'Discovery'
+        : phaseHint.substring(0, 1).toUpperCase() + phaseHint.substring(1).toLowerCase();
+    final description = PhaseColors.getPhaseDescription(canonicalPhase);
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () {
+          setState(() {
+            if (isExpanded) {
+              _expandedPhaseDefinitions.remove(phaseHint);
+            } else {
+              _expandedPhaseDefinitions.add(phaseHint);
+            }
+          });
+        },
+        borderRadius: BorderRadius.circular(6),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                isExpanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+                size: 22,
+                color: kcSecondaryTextColor,
+              ),
+              if (isExpanded && description.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Text(
+                  '$canonicalPhase: $description',
+                  style: bodyStyle(context).copyWith(
+                    fontSize: 13,
+                    color: kcPrimaryTextColor.withOpacity(0.9),
+                    height: 1.35,
+                  ),
+                ),
               ],
             ],
           ),

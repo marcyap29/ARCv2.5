@@ -1,5 +1,9 @@
 # CHRONICLE: Temporal Aggregation Memory Architecture
 
+**CHRONICLE** = **C**hronological **R**ecall **O**ptimization via **N**ative **I**mitation of **C**onsolidated **L**ongitudinal **E**xperience.
+
+This document describes the **user's CHRONICLE** (layers 0–3): the temporal aggregation memory that backs the user's timeline. **The user's CHRONICLE is SACRED.** It shall not be modified by LUMARA under any circumstances. LUMARA has its own CHRONICLE (same acronym) where it stores inferences, gaps, and gap-fill events; LUMARA reads from the user's CHRONICLE only.
+
 **Version:** 2.0  
 **Last Updated:** January 2025  
 **Status:** ✅ Complete (Phases 1-5 + VEIL Integration)
@@ -24,7 +28,7 @@
 
 ## Executive Summary
 
-CHRONICLE is a temporal aggregation memory architecture that enables LUMARA to maintain longitudinal biographical intelligence by progressively consolidating journal entries into hierarchical temporal layers. The system reduces context requirements by 50-75% for temporal queries while enabling biographical analysis across unlimited time horizons.
+CHRONICLE (the user's, as described here) is a temporal aggregation memory architecture that enables LUMARA to maintain longitudinal biographical intelligence by progressively consolidating journal entries into hierarchical temporal layers. LUMARA reads from it only; it never writes to the user's CHRONICLE. The system reduces context requirements by 50-75% for temporal queries while enabling biographical analysis across unlimited time horizons.
 
 **Key Innovation:** CHRONICLE synthesis IS the automated implementation of the VEIL narrative integration cycle, not a separate system.
 
