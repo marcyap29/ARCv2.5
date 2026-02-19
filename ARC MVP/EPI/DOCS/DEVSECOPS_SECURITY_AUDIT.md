@@ -213,9 +213,9 @@
 | Priority | Item | Action |
 |----------|------|--------|
 | High | LumaraInlineApi PII leak | **Done** — generateSofterReflection and generateDeeperReflection now pass scrubbed text. |
-| Medium | Streaming path API key | Prefer Firebase streaming proxy so Gemini key never on client; or document and accept client key for streaming. |
-| Medium | Production logging | Guard debugPrint/print that log UID, email, token hints, or PII with kReleaseMode or log level. |
-| Medium | Rate limiting | Implement or document server-side rate limit in proxyGemini for free-tier users. |
-| Low | Egress payload test | Add automated test: proxy payload contains no raw PII when input has PII. |
-| Low | LumaraInlineApi test | Add test that softer/deeper reflection paths receive only scrubbed text. |
+| Medium | Streaming path API key | Documented in `geminiSendStream` doc comment; prefer non-streaming proxy when possible. |
+| Medium | Production logging | **Done** — gemini_send, firebase_auth_service, subscription_service, assemblyai_service guard print/debugPrint with `kDebugMode`. |
+| Medium | Rate limiting | **Done** — proxyGemini enforces free-tier daily limit (50/day) via Firestore `lumaraDailyUsage`. |
+| Low | Egress payload test | **Done** — `test/services/egress_pii_and_lumara_inline_test.dart`: PrismAdapter and PiiScrubber egress tests. |
+| Low | LumaraInlineApi test | **Done** — same file: rivetScrub used for softer/deeper reflection removes PII. |
 | Low | Dependency checks | Use dart pub outdated and/or Dependabot/Snyk; no dart pub audit in SDK. |

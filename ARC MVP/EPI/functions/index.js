@@ -191,8 +191,12 @@ exports.getAssemblyAIToken = onCall(
   }
 );
 
+/** Free-tier daily LUMARA call limit (enforced server-side) */
+const FREE_TIER_DAILY_LUMARA_LIMIT = 50;
+
 /**
- * Proxy Gemini API calls - hides API key from client
+ * Proxy Gemini API calls - hides API key from client.
+ * Rate limiting: free-tier users are limited to FREE_TIER_DAILY_LUMARA_LIMIT calls per day (enforced here).
  */
 exports.proxyGemini = onCall(
   {
@@ -208,6 +212,29 @@ exports.proxyGemini = onCall(
     const { system, user, jsonExpected } = request.data;
     const uid = request.auth.uid;
     const email = request.auth.token.email;
+
+    // Rate limiting for free-tier users (server-side enforcement)
+    const db = getFirestore();
+    const userRef = db.collection("users").doc(uid);
+    const userDoc = await userRef.get();
+    const userData = userDoc.exists ? userDoc.data() : {};
+    const tier = userData.subscriptionTier === "premium" && userData.subscriptionStatus === "active" ? "premium" : "free";
+    if (tier === "free") {
+      const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+      const usage = userData.lumaraDailyUsage || {};
+      if (usage.date === today && (usage.count || 0) >= FREE_TIER_DAILY_LUMARA_LIMIT) {
+        console.log(`proxyGemini: Free-tier daily limit reached for user ${uid}`);
+        throw new HttpsError(
+          "resource-exhausted",
+          `Daily limit of ${FREE_TIER_DAILY_LUMARA_LIMIT} LUMARA requests reached. Upgrade to premium for unlimited use.`
+        );
+      }
+      const newCount = usage.date === today ? (usage.count || 0) + 1 : 1;
+      await userRef.set(
+        { lumaraDailyUsage: { date: today, count: newCount } },
+        { merge: true }
+      );
+    }
 
     // Debug logging for parameter validation
     console.log('proxyGemini: Received data:', {

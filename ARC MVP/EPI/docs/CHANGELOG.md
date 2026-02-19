@@ -1,6 +1,6 @@
 # EPI LUMARA MVP - Changelog
 
-**Version:** 3.3.49
+**Version:** 3.3.50
 **Last Updated:** February 19, 2026
 
 ---
@@ -14,6 +14,19 @@ This changelog has been split into parts for easier navigation:
 | **[CHANGELOG_part1.md](CHANGELOG_part1.md)** | Dec 2025 | v2.1.43 - v2.1.87 (Current) |
 | **[CHANGELOG_part2.md](CHANGELOG_part2.md)** | Nov 2025 | v2.1.28 - v2.1.42 |
 | **[CHANGELOG_part3.md](CHANGELOG_part3.md)** | Jan-Oct 2025 | v2.0.0 - v2.1.27 & Earlier |
+
+---
+
+## [3.3.50] - February 19, 2026
+
+### Egress PII & LumaraInlineApi security tests; backend, auth, gemini_send, subscription, AssemblyAI
+
+- **Security tests:** New `test/services/egress_pii_and_lumara_inline_test.dart` — egress PII scrubbing (PrismAdapter, PiiScrubber.rivetScrub); LumaraInlineApi softer/deeper reflection paths use scrubbed text only (addresses DevSecOps audit test gaps).
+- **Backend:** `functions/index.js` updates.
+- **Services:** `firebase_auth_service.dart`, `gemini_send.dart`, `subscription_service.dart`, `assemblyai_service.dart` refactors/updates.
+- **DOCS:** `DEVSECOPS_SECURITY_AUDIT.md` — test coverage and assertions updated.
+
+**Files:** 6 modified, 1 new (egress_pii_and_lumara_inline_test). bug_tracker tracked.
 
 ---
 

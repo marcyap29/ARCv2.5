@@ -135,6 +135,7 @@ This section is derived from the repo and [CHANGELOG.md](../CHANGELOG.md) to kee
 | Dual CHRONICLE refactor, intelligence summary, search, prompts, phase/Arcform | v3.3.47 | — | user_chronicle_repository removed; chronicle_query_adapter, schedule prefs, lumara_comments_loader, chronicle_phase_signal_service, lumara_comments_context_loader; dual_chronicle_view, intelligence_summary_view; PROMPT_REFERENCES +104; BUGTRACKER_MASTER_INDEX, BUGTRACKER_AUDIT_REPORT. |
 | Universal prompt optimization layer (80/20, provider-agnostic) | v3.3.48 | — | lib/arc/chat/prompt_optimization/ (optimizer, provider_manager, response_cache, universal_response_generator, Groq/OpenAI/Claude adapters); DOCS/UNIVERSAL_PROMPT_OPTIMIZATION.md; enhanced_lumara_api. |
 | CHRONICLE layer0, dual CHRONICLE/LUMARA, ARCX/MCP, DevSecOps audit; LumaraInlineApi PII fix | v3.3.49 | — | chronicle_layer0_retrieval_service; agentic_loop_orchestrator, clarification_processor, intelligence_summary_*, lumara_chronicle_repository, dual_chronicle_view, intelligence_summary_view; lumara_connection_fade_preferences; lumara_inline_api PII fix; arcx_* / mcp_pack_*; DEVSECOPS_SECURITY_AUDIT.md. |
+| Egress PII & LumaraInlineApi security tests; backend, auth, gemini_send, subscription, AssemblyAI | v3.3.50 | — | test/services/egress_pii_and_lumara_inline_test.dart; functions/index.js; firebase_auth_service, gemini_send, subscription_service, assemblyai_service; DEVSECOPS_SECURITY_AUDIT.md. |
 
 **Source:** `git log --oneline`, [CHANGELOG.md](../CHANGELOG.md), terminal build log. Last synced: 2026-02-19.
 
@@ -150,5 +151,5 @@ Individual bug records stay in [records/](records/); only the legacy multi-part 
 
 ---
 
-**Status**: ✅ Active - All resolved issues documented; Build & Platform: 5 records; Environment: 1 (Ollama). Doc sync v3.3.49: bug_tracker tracked.  
+**Status**: ✅ Active - All resolved issues documented; Build & Platform: 5 records; Environment: 1 (Ollama). Doc sync v3.3.50: bug_tracker tracked.  
 **Last Updated**: 2026-02-19

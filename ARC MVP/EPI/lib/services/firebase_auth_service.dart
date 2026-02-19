@@ -45,7 +45,7 @@ class FirebaseAuthService {
   /// Initialize Firebase Auth with proper Firebase app instance
   Future<void> initialize() async {
     try {
-      debugPrint('🔐 FirebaseAuthService: Starting initialization...');
+      if (kDebugMode) debugPrint('🔐 FirebaseAuthService: Starting initialization...');
       
       // Ensure Firebase is ready first
       final firebaseService = FirebaseService.instance;
@@ -53,7 +53,7 @@ class FirebaseAuthService {
 
       // Get Firebase Auth instance from the initialized app
       _auth = firebaseService.getAuth();
-      debugPrint('🔐 FirebaseAuthService: Auth instance obtained');
+      if (kDebugMode) debugPrint('🔐 FirebaseAuthService: Auth instance obtained');
 
       // Initialize Google Sign-In (7.x API - singleton pattern)
       _googleSignIn = GoogleSignIn.instance;
@@ -64,33 +64,33 @@ class FirebaseAuthService {
         // Configure for web platform
         clientId: kIsWeb ? const String.fromEnvironment('GOOGLE_OAUTH_CLIENT_ID') : null,
       );
-      debugPrint('🔐 FirebaseAuthService: Google Sign-In configured');
+      if (kDebugMode) debugPrint('🔐 FirebaseAuthService: Google Sign-In configured');
 
       // Check current auth state with detailed debugging
       final currentUser = _auth!.currentUser;
-      debugPrint('🔐 FirebaseAuthService: Current user before check: ${currentUser?.uid ?? "NULL"}');
+      if (kDebugMode) debugPrint('🔐 FirebaseAuthService: Current user before check: ${currentUser?.uid ?? "NULL"}');
 
       if (currentUser != null) {
-        debugPrint('🔐 FirebaseAuthService: 📊 USER AUTH STATE:');
-        debugPrint('  UID: ${currentUser.uid}');
-        debugPrint('  Email: ${currentUser.email ?? "No email"}');
-        debugPrint('  isAnonymous: ${currentUser.isAnonymous}');
-        debugPrint('  emailVerified: ${currentUser.emailVerified}');
-        debugPrint('  providerData: ${currentUser.providerData.map((p) => p.providerId).toList()}');
+        if (kDebugMode) debugPrint('🔐 FirebaseAuthService: 📊 USER AUTH STATE:');
+        if (kDebugMode) debugPrint('  UID: ${currentUser.uid}');
+        if (kDebugMode) debugPrint('  Email: ${currentUser.email ?? "No email"}');
+        if (kDebugMode) debugPrint('  isAnonymous: ${currentUser.isAnonymous}');
+        if (kDebugMode) debugPrint('  emailVerified: ${currentUser.emailVerified}');
+        if (kDebugMode) debugPrint('  providerData: ${currentUser.providerData.map((p) => p.providerId).toList()}');
 
         // If user is anonymous but we want real authentication for premium features
         if (currentUser.isAnonymous) {
-          debugPrint('🔐 FirebaseAuthService: ⚠️ USER IS ANONYMOUS - Premium features unavailable');
-          debugPrint('🔐 FirebaseAuthService: 💡 Use Google Sign-In for full access');
+          if (kDebugMode) debugPrint('🔐 FirebaseAuthService: ⚠️ USER IS ANONYMOUS - Premium features unavailable');
+          if (kDebugMode) debugPrint('🔐 FirebaseAuthService: 💡 Use Google Sign-In for full access');
         } else {
-          debugPrint('🔐 FirebaseAuthService: ✅ Real authenticated user detected');
+          if (kDebugMode) debugPrint('🔐 FirebaseAuthService: ✅ Real authenticated user detected');
           // Force refresh auth state for auto-restored sessions
           await _refreshAuthState(currentUser);
         }
       } else {
-        debugPrint('🔐 FirebaseAuthService: ⚠️ No user signed in');
-        debugPrint('🔐 FirebaseAuthService: 💡 Anonymous sign-in disabled - use Google Sign-In for premium features');
-        debugPrint('🔐 FirebaseAuthService: 💡 Some features may be limited without authentication');
+        if (kDebugMode) debugPrint('🔐 FirebaseAuthService: ⚠️ No user signed in');
+        if (kDebugMode) debugPrint('🔐 FirebaseAuthService: 💡 Anonymous sign-in disabled - use Google Sign-In for premium features');
+        if (kDebugMode) debugPrint('🔐 FirebaseAuthService: 💡 Some features may be limited without authentication');
 
         // REMOVED: Automatic anonymous sign-in for better premium account handling
         // Users should explicitly sign in with Google for premium features
@@ -99,13 +99,13 @@ class FirebaseAuthService {
       // Set up automatic token refresh listener
       _setupTokenRefreshListener();
 
-      debugPrint('🔐 FirebaseAuthService: ✅ Initialized successfully');
+      if (kDebugMode) debugPrint('🔐 FirebaseAuthService: ✅ Initialized successfully');
 
       // Show detailed auth state after initialization
       debugAuthState();
     } catch (e, stackTrace) {
-      debugPrint('🔐 FirebaseAuthService: ❌ Failed to initialize: $e');
-      debugPrint('🔐 FirebaseAuthService: Stack trace: $stackTrace');
+      if (kDebugMode) debugPrint('🔐 FirebaseAuthService: ❌ Failed to initialize: $e');
+      if (kDebugMode) debugPrint('🔐 FirebaseAuthService: Stack trace: $stackTrace');
       rethrow;
     }
   }
@@ -131,7 +131,7 @@ class FirebaseAuthService {
         throw Exception('Google Sign-In not initialized. Please configure OAuth in Firebase Console.');
       }
 
-      debugPrint('FirebaseAuthService: Starting Google Sign-In...');
+      if (kDebugMode) debugPrint('FirebaseAuthService: Starting Google Sign-In...');
 
       // Trigger the authentication flow (7.x API uses authenticate() with scopeHint)
       GoogleSignInAccount? googleUser;
@@ -140,7 +140,7 @@ class FirebaseAuthService {
           scopeHint: ['email', 'profile'],
         );
       } catch (e) {
-        debugPrint('FirebaseAuthService: Google Sign-In trigger failed: $e');
+        if (kDebugMode) debugPrint('FirebaseAuthService: Google Sign-In trigger failed: $e');
         // Check for common configuration errors
         final errorString = e.toString().toLowerCase();
         if (errorString.contains('client id') || 
@@ -158,7 +158,7 @@ class FirebaseAuthService {
       // In 7.x, authenticate() throws on cancellation, doesn't return null
       // If we get here, authentication succeeded
 
-      debugPrint('FirebaseAuthService: Google user signed in: ${googleUser.email}');
+      if (kDebugMode) debugPrint('FirebaseAuthService: Google user signed in: ${googleUser.email}');
 
       // Obtain the auth details from the request
       final GoogleSignInAuthentication googleAuth = googleUser.authentication;
@@ -177,7 +177,7 @@ class FirebaseAuthService {
           accessToken = authorization.accessToken;
         }
       } catch (e) {
-        debugPrint('FirebaseAuthService: Could not get access token: $e');
+        if (kDebugMode) debugPrint('FirebaseAuthService: Could not get access token: $e');
       }
       
       // If authorizationForScopes returned null, try authorizeScopes (requires user interaction)
@@ -188,7 +188,7 @@ class FirebaseAuthService {
           );
           accessToken = authorization.accessToken;
         } catch (e2) {
-          debugPrint('FirebaseAuthService: Could not get access token via authorizeScopes: $e2');
+          if (kDebugMode) debugPrint('FirebaseAuthService: Could not get access token via authorizeScopes: $e2');
         }
       }
 
@@ -210,15 +210,15 @@ class FirebaseAuthService {
       // Otherwise, sign in normally
       final UserCredential userCredential = await auth.signInWithCredential(credential);
 
-      debugPrint('FirebaseAuthService: Successfully signed in to Firebase: ${userCredential.user?.email}');
+      if (kDebugMode) debugPrint('FirebaseAuthService: Successfully signed in to Firebase: ${userCredential.user?.email}');
 
       // CRITICAL: Reload user to ensure all claims and tokens are fresh
       if (userCredential.user != null) {
         try {
           await userCredential.user!.reload();
-          debugPrint('FirebaseAuthService: ✅ User reloaded successfully');
+          if (kDebugMode) debugPrint('FirebaseAuthService: ✅ User reloaded successfully');
         } catch (e) {
-          debugPrint('FirebaseAuthService: ⚠️ User reload failed (non-critical): $e');
+          if (kDebugMode) debugPrint('FirebaseAuthService: ⚠️ User reload failed (non-critical): $e');
         }
       }
 
@@ -233,7 +233,7 @@ class FirebaseAuthService {
     } on Exception {
       rethrow;
     } catch (e) {
-      debugPrint('FirebaseAuthService: Google Sign-In failed unexpectedly: $e');
+      if (kDebugMode) debugPrint('FirebaseAuthService: Google Sign-In failed unexpectedly: $e');
       throw Exception('Google Sign-In is not available. Please use Email sign-in instead.');
     }
   }
@@ -265,7 +265,7 @@ class FirebaseAuthService {
         throw Exception('Sign in with Apple is not available on this device.');
       }
 
-      debugPrint('FirebaseAuthService: Starting Sign in with Apple...');
+      if (kDebugMode) debugPrint('FirebaseAuthService: Starting Sign in with Apple...');
 
       final rawNonce = _generateNonce();
       final hashedNonce = _sha256ofString(rawNonce);
@@ -299,13 +299,13 @@ class FirebaseAuthService {
 
       final userCredential = await auth.signInWithCredential(credential);
 
-      debugPrint('FirebaseAuthService: Successfully signed in with Apple: ${userCredential.user?.email}');
+      if (kDebugMode) debugPrint('FirebaseAuthService: Successfully signed in with Apple: ${userCredential.user?.email}');
 
       if (userCredential.user != null) {
         try {
           await userCredential.user!.reload();
         } catch (e) {
-          debugPrint('FirebaseAuthService: ⚠️ User reload failed (non-critical): $e');
+          if (kDebugMode) debugPrint('FirebaseAuthService: ⚠️ User reload failed (non-critical): $e');
         }
       }
 
@@ -315,16 +315,16 @@ class FirebaseAuthService {
       return userCredential;
     } on SignInWithAppleAuthorizationException catch (e) {
       if (e.code == AuthorizationErrorCode.canceled) {
-        debugPrint('FirebaseAuthService: User canceled Sign in with Apple');
+        if (kDebugMode) debugPrint('FirebaseAuthService: User canceled Sign in with Apple');
         return null;
       }
-      debugPrint('FirebaseAuthService: Apple Sign-In authorization error: ${e.code} - ${e.message}');
+      if (kDebugMode) debugPrint('FirebaseAuthService: Apple Sign-In authorization error: ${e.code} - ${e.message}');
       rethrow;
     } catch (e) {
       if (e is FirebaseAuthException) {
-        debugPrint('FirebaseAuthService: Apple Sign-In Firebase error: ${e.code} - ${e.message}');
+        if (kDebugMode) debugPrint('FirebaseAuthService: Apple Sign-In Firebase error: ${e.code} - ${e.message}');
       } else {
-        debugPrint('FirebaseAuthService: Apple Sign-In failed: $e');
+        if (kDebugMode) debugPrint('FirebaseAuthService: Apple Sign-In failed: $e');
       }
       rethrow;
     }
@@ -339,29 +339,29 @@ class FirebaseAuthService {
     try {
       final user = currentUser;
       if (user == null || !user.isAnonymous) {
-        debugPrint('FirebaseAuthService: Cannot link - no anonymous user');
+        if (kDebugMode) debugPrint('FirebaseAuthService: Cannot link - no anonymous user');
         return null;
       }
 
-      debugPrint('FirebaseAuthService: Linking anonymous account ${user.uid} with credential...');
+      if (kDebugMode) debugPrint('FirebaseAuthService: Linking anonymous account ${user.uid} with credential...');
 
       final UserCredential userCredential = await user.linkWithCredential(credential);
 
-      debugPrint('FirebaseAuthService: ✅ Successfully linked anonymous account to ${userCredential.user?.email}');
-      debugPrint('FirebaseAuthService: User UID preserved: ${userCredential.user?.uid}');
+      if (kDebugMode) debugPrint('FirebaseAuthService: ✅ Successfully linked anonymous account to ${userCredential.user?.email}');
+      if (kDebugMode) debugPrint('FirebaseAuthService: User UID preserved: ${userCredential.user?.uid}');
 
       return userCredential;
     } on FirebaseAuthException catch (e) {
       if (e.code == 'credential-already-in-use') {
         // The credential is already associated with a different account
         // Sign in with the existing account instead
-        debugPrint('FirebaseAuthService: Credential already in use, signing in to existing account');
+        if (kDebugMode) debugPrint('FirebaseAuthService: Credential already in use, signing in to existing account');
         return await auth.signInWithCredential(credential);
       }
-      debugPrint('FirebaseAuthService: Link failed: ${e.code} - ${e.message}');
+      if (kDebugMode) debugPrint('FirebaseAuthService: Link failed: ${e.code} - ${e.message}');
       rethrow;
     } catch (e) {
-      debugPrint('FirebaseAuthService: Link failed: $e');
+      if (kDebugMode) debugPrint('FirebaseAuthService: Link failed: $e');
       rethrow;
     }
   }
@@ -374,11 +374,11 @@ class FirebaseAuthService {
     try {
       final user = currentUser;
       if (user == null || !user.isAnonymous) {
-        debugPrint('FirebaseAuthService: Cannot link - no anonymous user');
+        if (kDebugMode) debugPrint('FirebaseAuthService: Cannot link - no anonymous user');
         return null;
       }
 
-      debugPrint('FirebaseAuthService: Linking anonymous account with email: $email');
+      if (kDebugMode) debugPrint('FirebaseAuthService: Linking anonymous account with email: $email');
 
       final credential = EmailAuthProvider.credential(
         email: email,
@@ -387,14 +387,14 @@ class FirebaseAuthService {
 
       final UserCredential userCredential = await user.linkWithCredential(credential);
 
-      debugPrint('FirebaseAuthService: ✅ Successfully linked anonymous account to email');
+      if (kDebugMode) debugPrint('FirebaseAuthService: ✅ Successfully linked anonymous account to email');
       return userCredential;
     } on FirebaseAuthException catch (e) {
       if (e.code == 'email-already-in-use') {
-        debugPrint('FirebaseAuthService: Email already in use');
+        if (kDebugMode) debugPrint('FirebaseAuthService: Email already in use');
         // User should sign in with existing account instead
       }
-      debugPrint('FirebaseAuthService: Email link failed: ${e.code} - ${e.message}');
+      if (kDebugMode) debugPrint('FirebaseAuthService: Email link failed: ${e.code} - ${e.message}');
       rethrow;
     }
   }
@@ -405,15 +405,15 @@ class FirebaseAuthService {
     required String password,
   }) async {
     try {
-      debugPrint('FirebaseAuthService: Signing in with email: $email');
+      if (kDebugMode) debugPrint('FirebaseAuthService: Signing in with email: $email');
       final userCredential = await auth.signInWithEmailAndPassword(
         email: email,
         password: password
       );
-      debugPrint('FirebaseAuthService: Email sign-in successful');
+      if (kDebugMode) debugPrint('FirebaseAuthService: Email sign-in successful');
       return userCredential;
     } catch (e) {
-      debugPrint('FirebaseAuthService: Email sign-in failed: $e');
+      if (kDebugMode) debugPrint('FirebaseAuthService: Email sign-in failed: $e');
       rethrow;
     }
   }
@@ -424,15 +424,15 @@ class FirebaseAuthService {
     required String password,
   }) async {
     try {
-      debugPrint('FirebaseAuthService: Creating account for: $email');
+      if (kDebugMode) debugPrint('FirebaseAuthService: Creating account for: $email');
       final userCredential = await auth.createUserWithEmailAndPassword(
         email: email,
         password: password
       );
-      debugPrint('FirebaseAuthService: Account creation successful');
+      if (kDebugMode) debugPrint('FirebaseAuthService: Account creation successful');
       return userCredential;
     } catch (e) {
-      debugPrint('FirebaseAuthService: Account creation failed: $e');
+      if (kDebugMode) debugPrint('FirebaseAuthService: Account creation failed: $e');
       rethrow;
     }
   }
@@ -441,30 +441,30 @@ class FirebaseAuthService {
   Future<void> signOut() async {
     try {
       final user = currentUser;
-      debugPrint('FirebaseAuthService: 🚪 Signing out...');
-      debugPrint('  Current user: ${user?.email ?? user?.uid ?? "NULL"}');
-      debugPrint('  Was anonymous: ${user?.isAnonymous ?? false}');
+      if (kDebugMode) debugPrint('FirebaseAuthService: 🚪 Signing out...');
+      if (kDebugMode) debugPrint('  Current user: ${user?.email ?? user?.uid ?? "NULL"}');
+      if (kDebugMode) debugPrint('  Was anonymous: ${user?.isAnonymous ?? false}');
 
       // Sign out from Google if signed in
       if (_googleSignIn != null) {
-        debugPrint('FirebaseAuthService: 🔄 Signing out from Google...');
+        if (kDebugMode) debugPrint('FirebaseAuthService: 🔄 Signing out from Google...');
         await _googleSignIn!.signOut();
       }
 
       // Sign out from Firebase
-      debugPrint('FirebaseAuthService: 🔄 Signing out from Firebase...');
+      if (kDebugMode) debugPrint('FirebaseAuthService: 🔄 Signing out from Firebase...');
       await auth.signOut();
 
       // Clear subscription cache to ensure fresh data on next login
-      debugPrint('FirebaseAuthService: 🧹 Clearing subscription cache...');
+      if (kDebugMode) debugPrint('FirebaseAuthService: 🧹 Clearing subscription cache...');
       SubscriptionService.instance.clearCache();
 
       // Clear AssemblyAI cache
       AssemblyAIService.instance.clearCache();
 
-      debugPrint('FirebaseAuthService: ✅ Sign out successful - use Google Sign-In for premium features');
+      if (kDebugMode) debugPrint('FirebaseAuthService: ✅ Sign out successful - use Google Sign-In for premium features');
     } catch (e) {
-      debugPrint('FirebaseAuthService: ❌ Sign out failed: $e');
+      if (kDebugMode) debugPrint('FirebaseAuthService: ❌ Sign out failed: $e');
       rethrow;
     }
   }
@@ -480,7 +480,7 @@ class FirebaseAuthService {
 
       return await user.getIdToken(forceRefresh);
     } catch (e) {
-      debugPrint('FirebaseAuthService: Failed to get ID token: $e');
+      if (kDebugMode) debugPrint('FirebaseAuthService: Failed to get ID token: $e');
       return null;
     }
   }
@@ -496,17 +496,17 @@ class FirebaseAuthService {
     if (user == null) return;
 
     try {
-      debugPrint('🔄 FirebaseAuthService: Refreshing auth state for user: ${user.email}');
+      if (kDebugMode) debugPrint('🔄 FirebaseAuthService: Refreshing auth state for user: ${user.email}');
 
       // Force refresh the ID token
       await user.getIdToken(true);
-      debugPrint('✅ FirebaseAuthService: Auth token refreshed successfully');
+      if (kDebugMode) debugPrint('✅ FirebaseAuthService: Auth token refreshed successfully');
 
       // RevenueCat: sync user ID for cross-device entitlement (in-app purchases)
       try {
         await RevenueCatService.instance.logIn(user.uid);
       } catch (e) {
-        debugPrint('⚠️ FirebaseAuthService: RevenueCat logIn (non-fatal): $e');
+        if (kDebugMode) debugPrint('⚠️ FirebaseAuthService: RevenueCat logIn (non-fatal): $e');
       }
 
       // Clear any cached subscription data so it re-fetches with new auth
@@ -514,21 +514,21 @@ class FirebaseAuthService {
         // Import is done at top of file, safely call the method
         final subscriptionService = SubscriptionService.instance;
         subscriptionService.clearCache();
-        debugPrint('🗑️ FirebaseAuthService: Cleared subscription cache');
+        if (kDebugMode) debugPrint('🗑️ FirebaseAuthService: Cleared subscription cache');
       } catch (e) {
-        debugPrint('⚠️ FirebaseAuthService: Could not clear subscription cache: $e');
+        if (kDebugMode) debugPrint('⚠️ FirebaseAuthService: Could not clear subscription cache: $e');
       }
 
       // Clear AssemblyAI cache to remove old user tokens
       try {
         AssemblyAIService().clearCache();
-        debugPrint('🗑️ FirebaseAuthService: Cleared AssemblyAI cache');
+        if (kDebugMode) debugPrint('🗑️ FirebaseAuthService: Cleared AssemblyAI cache');
       } catch (e) {
-        debugPrint('⚠️ FirebaseAuthService: Could not clear AssemblyAI cache: $e');
+        if (kDebugMode) debugPrint('⚠️ FirebaseAuthService: Could not clear AssemblyAI cache: $e');
       }
 
     } catch (e) {
-      debugPrint('❌ FirebaseAuthService: Failed to refresh auth state: $e');
+      if (kDebugMode) debugPrint('❌ FirebaseAuthService: Failed to refresh auth state: $e');
     }
   }
 
@@ -538,36 +538,36 @@ class FirebaseAuthService {
   /// Force check current authentication state and print detailed debug info
   void debugAuthState() {
     final user = currentUser;
-    debugPrint('🔍 FIREBASE AUTH DEBUG STATE:');
-    debugPrint('================================');
+    if (kDebugMode) debugPrint('🔍 FIREBASE AUTH DEBUG STATE:');
+    if (kDebugMode) debugPrint('================================');
     if (user != null) {
-      debugPrint('✅ User is signed in');
-      debugPrint('  UID: ${user.uid}');
-      debugPrint('  Email: ${user.email ?? "No email"}');
-      debugPrint('  Display Name: ${user.displayName ?? "No display name"}');
-      debugPrint('  isAnonymous: ${user.isAnonymous}');
-      debugPrint('  emailVerified: ${user.emailVerified}');
-      debugPrint('  Provider Data: ${user.providerData.map((p) => '${p.providerId}:${p.email}').toList()}');
-      debugPrint('  isSignedIn: $isSignedIn');
-      debugPrint('  hasRealAccount: $hasRealAccount');
+      if (kDebugMode) debugPrint('✅ User is signed in');
+      if (kDebugMode) debugPrint('  UID: ${user.uid}');
+      if (kDebugMode) debugPrint('  Email: ${user.email ?? "No email"}');
+      if (kDebugMode) debugPrint('  Display Name: ${user.displayName ?? "No display name"}');
+      if (kDebugMode) debugPrint('  isAnonymous: ${user.isAnonymous}');
+      if (kDebugMode) debugPrint('  emailVerified: ${user.emailVerified}');
+      if (kDebugMode) debugPrint('  Provider Data: ${user.providerData.map((p) => '${p.providerId}:${p.email}').toList()}');
+      if (kDebugMode) debugPrint('  isSignedIn: $isSignedIn');
+      if (kDebugMode) debugPrint('  hasRealAccount: $hasRealAccount');
 
       if (user.isAnonymous) {
-        debugPrint('⚠️ PROBLEM: User is anonymous - premium features unavailable');
-        debugPrint('💡 SOLUTION: Use Google Sign-In for premium access');
+        if (kDebugMode) debugPrint('⚠️ PROBLEM: User is anonymous - premium features unavailable');
+        if (kDebugMode) debugPrint('💡 SOLUTION: Use Google Sign-In for premium access');
       } else {
-        debugPrint('✅ Real authenticated user - premium features should work');
+        if (kDebugMode) debugPrint('✅ Real authenticated user - premium features should work');
       }
     } else {
-      debugPrint('❌ No user signed in');
-      debugPrint('💡 SOLUTION: Sign in with Google for premium features');
+      if (kDebugMode) debugPrint('❌ No user signed in');
+      if (kDebugMode) debugPrint('💡 SOLUTION: Sign in with Google for premium features');
     }
-    debugPrint('================================');
+    if (kDebugMode) debugPrint('================================');
   }
 
   /// Force sign out completely and clear all cached data
   Future<void> forceSignOutAndClear() async {
     try {
-      debugPrint('🧹 FORCE SIGN OUT: Starting complete cleanup...');
+      if (kDebugMode) debugPrint('🧹 FORCE SIGN OUT: Starting complete cleanup...');
 
       await signOut();
 
@@ -577,11 +577,11 @@ class FirebaseAuthService {
       // Clear AssemblyAI cache
       AssemblyAIService().clearCache();
 
-      debugPrint('🧹 FORCE SIGN OUT: Complete cleanup finished');
-      debugPrint('💡 Now sign in with Google for premium access');
+      if (kDebugMode) debugPrint('🧹 FORCE SIGN OUT: Complete cleanup finished');
+      if (kDebugMode) debugPrint('💡 Now sign in with Google for premium access');
 
     } catch (e) {
-      debugPrint('❌ FORCE SIGN OUT failed: $e');
+      if (kDebugMode) debugPrint('❌ FORCE SIGN OUT failed: $e');
     }
   }
 
@@ -597,17 +597,17 @@ class FirebaseAuthService {
     _idTokenSubscription = _auth!.idTokenChanges().listen(
       (User? user) {
         if (user != null && !user.isAnonymous) {
-          debugPrint('🔄 FirebaseAuthService: ID token changed - auto-refreshing for user: ${user.email}');
+          if (kDebugMode) debugPrint('🔄 FirebaseAuthService: ID token changed - auto-refreshing for user: ${user.email}');
           // Token was automatically refreshed by Firebase
           // No need to force refresh - Firebase handles this automatically
         }
       },
       onError: (error) {
-        debugPrint('⚠️ FirebaseAuthService: Token refresh listener error: $error');
+        if (kDebugMode) debugPrint('⚠️ FirebaseAuthService: Token refresh listener error: $error');
       },
     );
 
-    debugPrint('✅ FirebaseAuthService: Automatic token refresh listener set up');
+    if (kDebugMode) debugPrint('✅ FirebaseAuthService: Automatic token refresh listener set up');
   }
 
   /// Refresh authentication token (called on app resume or when needed)
@@ -620,18 +620,18 @@ class FirebaseAuthService {
       // Get token without forcing refresh - Firebase will auto-refresh if expired
       // This is more efficient than forcing refresh every time
       await user.getIdToken(false);
-      debugPrint('✅ FirebaseAuthService: Token refreshed (if needed)');
+      if (kDebugMode) debugPrint('✅ FirebaseAuthService: Token refreshed (if needed)');
     } catch (e) {
-      debugPrint('⚠️ FirebaseAuthService: Token refresh failed: $e');
+      if (kDebugMode) debugPrint('⚠️ FirebaseAuthService: Token refresh failed: $e');
       // If token refresh fails, try forcing a refresh
       try {
         final user = currentUser;
         if (user != null && !user.isAnonymous) {
           await user.getIdToken(true);
-          debugPrint('✅ FirebaseAuthService: Token force-refreshed successfully');
+          if (kDebugMode) debugPrint('✅ FirebaseAuthService: Token force-refreshed successfully');
         }
       } catch (forceError) {
-        debugPrint('❌ FirebaseAuthService: Force token refresh also failed: $forceError');
+        if (kDebugMode) debugPrint('❌ FirebaseAuthService: Force token refresh also failed: $forceError');
       }
     }
   }

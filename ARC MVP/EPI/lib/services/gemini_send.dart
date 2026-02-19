@@ -6,6 +6,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:my_app/services/llm_bridge_adapter.dart';
 import 'package:my_app/arc/chat/config/api_config.dart';
 import 'package:my_app/services/lumara/pii_scrub.dart';
@@ -34,14 +35,14 @@ Future<String> geminiSend({
   bool skipTransformation = false, // Skip transformation if entry already abstracted
 }) async {
   // No longer need local API key - using Firebase proxy
-  print('DEBUG GEMINI: Using Firebase proxy for API key');
+  if (kDebugMode) print('DEBUG GEMINI: Using Firebase proxy for API key');
 
   // Check if this is a Bible question - if so, we need to preserve Bible names and skip transformation
   final isBibleQuestion = user.contains('[BIBLE_CONTEXT]') || user.contains('[BIBLE_VERSE_CONTEXT]');
   
   // Auto-skip transformation for Bible questions to preserve context instructions
   if (isBibleQuestion && !skipTransformation) {
-    print('DEBUG GEMINI: ⚠️ Bible question detected - auto-enabling skipTransformation');
+    if (kDebugMode) print('DEBUG GEMINI: ⚠️ Bible question detected - auto-enabling skipTransformation');
     skipTransformation = true;
   }
   
@@ -59,21 +60,18 @@ Future<String> geminiSend({
   };
   
   if (userPrismResult.hadPII || systemPrismResult.hadPII) {
-    print('PRISM: Scrubbed PII before cloud API call');
+    if (kDebugMode) print('PRISM: Scrubbed PII before cloud API call');
     if (userPrismResult.hadPII) {
-      print('PRISM: User text - Found ${userPrismResult.redactionCount} PII items');
-      if (isBibleQuestion) {
+      if (kDebugMode) print('PRISM: User text - Found ${userPrismResult.redactionCount} PII items');
+      if (isBibleQuestion && kDebugMode) {
         print('PRISM: ⚠️ Bible question detected - checking if Bible names were scrubbed');
-        // Check if Bible names were scrubbed
         final scrubbedText = userPrismResult.scrubbedText.toLowerCase();
         if (scrubbedText.contains('[name_') && (scrubbedText.contains('habakkuk') || scrubbedText.contains('prophet'))) {
           print('PRISM: ⚠️ WARNING: Bible name may have been scrubbed!');
         }
       }
     }
-    if (systemPrismResult.hadPII) {
-      print('PRISM: System prompt - Found ${systemPrismResult.redactionCount} PII items');
-    }
+    if (systemPrismResult.hadPII && kDebugMode) print('PRISM: System prompt - Found ${systemPrismResult.redactionCount} PII items');
   }
 
   // SECURITY: Validate scrubbing passed
@@ -85,11 +83,11 @@ Future<String> geminiSend({
   // Step 2: Correlation-Resistant Transformation
   // Skip transformation if entry text already abstracted (e.g., journal entries)
   String transformedUserText;
-  print('DEBUG GEMINI: skipTransformation flag: $skipTransformation');
+  if (kDebugMode) print('DEBUG GEMINI: skipTransformation flag: $skipTransformation');
   if (skipTransformation) {
     // Entry text already abstracted, use scrubbed version directly
     transformedUserText = userPrismResult.scrubbedText;
-    print('DEBUG GEMINI: ✅ Skipping transformation - using scrubbed text directly (length: ${transformedUserText.length})');
+    if (kDebugMode) print('DEBUG GEMINI: ✅ Skipping transformation - using scrubbed text directly (length: ${transformedUserText.length})');
   } else {
     // Transform user text to structured payload
     final userTransformation = await prismAdapter.transformToCorrelationResistant(
@@ -100,9 +98,11 @@ Future<String> geminiSend({
     );
     transformedUserText = userTransformation.cloudPayloadBlock.toJsonString();
     
-    // Log local audit blocks (NEVER SEND TO SERVER)
-    print('LOCAL AUDIT: User - Window ID: ${userTransformation.localAuditBlock.windowId}');
-    print('LOCAL AUDIT: User - Token classes: ${userTransformation.localAuditBlock.tokenClassCounts}');
+    // Log local audit blocks (NEVER SEND TO SERVER) — debug only
+    if (kDebugMode) {
+      print('LOCAL AUDIT: User - Window ID: ${userTransformation.localAuditBlock.windowId}');
+      print('LOCAL AUDIT: User - Token classes: ${userTransformation.localAuditBlock.tokenClassCounts}');
+    }
     }
 
   // Transform system prompt if it had PII, otherwise use as-is
@@ -134,9 +134,9 @@ Future<String> geminiSend({
         'not on restating what the user wrote.';
   }
 
-  print('DEBUG GEMINI: Using Firebase proxy with ${skipTransformation ? 'abstracted (NO TRANSFORMATION)' : 'correlation-resistant'} payload');
-  if (skipTransformation) {
-    print('DEBUG GEMINI: ✅ Transformation skipped - user text preserved as-is');
+  if (kDebugMode) {
+    print('DEBUG GEMINI: Using Firebase proxy with ${skipTransformation ? 'abstracted (NO TRANSFORMATION)' : 'correlation-resistant'} payload');
+    if (skipTransformation) print('DEBUG GEMINI: ✅ Transformation skipped - user text preserved as-is');
   }
 
   // Build request body for Firebase proxy
@@ -150,14 +150,14 @@ Future<String> geminiSend({
   };
 
   try {
-    print('DEBUG GEMINI: Calling Firebase proxyGemini function...');
+    if (kDebugMode) print('DEBUG GEMINI: Calling Firebase proxyGemini function...');
     
     // Call Firebase proxy function
     final functions = FirebaseService.instance.getFunctions();
     final callable = functions.httpsCallable('proxyGemini');
     final result = await callable.call(requestData);
     
-    print('DEBUG GEMINI: Got response from Firebase proxy');
+    if (kDebugMode) print('DEBUG GEMINI: Got response from Firebase proxy');
     
     final data = (result.data as Map<Object?, Object?>).cast<String, dynamic>();
 
@@ -176,21 +176,19 @@ Future<String> geminiSend({
     } else if (data['response'] is String) {
       rawResult = data['response'] as String;
     } else {
-      print('DEBUG GEMINI: No candidates or response string in proxy result');
+      if (kDebugMode) print('DEBUG GEMINI: No candidates or response string in proxy result');
       return '';
     }
     
     // PRISM: Restore original PII in the response
     final restoredResult = PiiScrubber.restore(rawResult, combinedReversibleMap);
     
-    if (restoredResult != rawResult) {
-      print('PRISM: Restored PII in response (restored ${combinedReversibleMap.length} items)');
-    }
+    if (restoredResult != rawResult && kDebugMode) print('PRISM: Restored PII in response (restored ${combinedReversibleMap.length} items)');
     
-    print('DEBUG GEMINI: Successfully parsed response, result length: ${restoredResult.length}');
+    if (kDebugMode) print('DEBUG GEMINI: Successfully parsed response, result length: ${restoredResult.length}');
     return restoredResult;
   } on FirebaseFunctionsException catch (e) {
-    print('DEBUG GEMINI: Firebase Functions error: ${e.code} - ${e.message}');
+    if (kDebugMode) print('DEBUG GEMINI: Firebase Functions error: ${e.code} - ${e.message}');
     
     // Re-throw usage limit errors with clean message (no [firebase_functions/...] prefix)
     if (e.code == 'resource-exhausted' || e.code == 'permission-denied' || e.code == 'unauthenticated') {
@@ -200,7 +198,7 @@ Future<String> geminiSend({
     
     throw Exception('Connection to AI failed: ${e.message}');
   } catch (e) {
-    print('DEBUG GEMINI: Error in geminiSend: $e');
+    if (kDebugMode) print('DEBUG GEMINI: Error in geminiSend: $e');
     throw Exception('Connection to AI failed: $e');
   }
 }
@@ -208,22 +206,29 @@ Future<String> geminiSend({
 /// Streams a single-turn request to Gemini with an optional system instruction.
 /// Yields text chunks as they arrive from the API.
 /// PRISM scrubbing is applied before sending, and each chunk is restored.
+///
+/// **Security note:** This path uses the API key from [LumaraAPIConfig] (client-side)
+/// because Firebase callables do not support streaming responses. Prefer the
+/// non-streaming [geminiSend] (Firebase proxy) when streaming is not required,
+/// so the key never leaves the backend.
 Stream<String> geminiSendStream({
   required String system,
   required String user,
   bool jsonExpected = false,
 }) async* {
-  // Get API key from LumaraAPIConfig instead of environment variable
+  // Get API key from LumaraAPIConfig (client-side; see doc above)
   final apiConfig = LumaraAPIConfig.instance;
   await apiConfig.initialize();
   final geminiConfig = apiConfig.getConfig(LLMProvider.gemini);
   final apiKey = geminiConfig?.apiKey ?? '';
   
-  print('DEBUG GEMINI STREAM: API Key available: ${apiKey.isNotEmpty}');
-  print('DEBUG GEMINI STREAM: Gemini config available: ${geminiConfig?.isAvailable}');
+  if (kDebugMode) {
+    print('DEBUG GEMINI STREAM: API Key available: ${apiKey.isNotEmpty}');
+    print('DEBUG GEMINI STREAM: Gemini config available: ${geminiConfig?.isAvailable}');
+  }
 
   if (apiKey.isEmpty) {
-    print('DEBUG GEMINI STREAM: No API key found, throwing StateError');
+    if (kDebugMode) print('DEBUG GEMINI STREAM: No API key found, throwing StateError');
     throw StateError('No cloud AI API key configured. Add a Groq or Gemini API key in Settings → LUMARA Settings.');
   }
 
@@ -240,14 +245,10 @@ Stream<String> geminiSendStream({
     ...systemPrismResult.reversibleMap,
   };
   
-  if (userPrismResult.hadPII || systemPrismResult.hadPII) {
+  if ((userPrismResult.hadPII || systemPrismResult.hadPII) && kDebugMode) {
     print('PRISM: Scrubbed PII before cloud API stream call');
-    if (userPrismResult.hadPII) {
-      print('PRISM: User text - Found ${userPrismResult.redactionCount} PII items');
-    }
-    if (systemPrismResult.hadPII) {
-      print('PRISM: System prompt - Found ${systemPrismResult.redactionCount} PII items');
-    }
+    if (userPrismResult.hadPII) print('PRISM: User text - Found ${userPrismResult.redactionCount} PII items');
+    if (systemPrismResult.hadPII) print('PRISM: System prompt - Found ${systemPrismResult.redactionCount} PII items');
   }
 
   // SECURITY: Validate scrubbing passed
@@ -281,7 +282,7 @@ Stream<String> geminiSendStream({
     'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:streamGenerateContent?key=$apiKey&alt=sse',
   );
 
-  print('DEBUG GEMINI STREAM: Using streaming endpoint');
+  if (kDebugMode) print('DEBUG GEMINI STREAM: Using streaming endpoint');
 
   final body = {
     if (transformedSystem.trim().isNotEmpty)
@@ -304,17 +305,17 @@ Stream<String> geminiSendStream({
 
   final client = HttpClient();
   try {
-    print('DEBUG GEMINI STREAM: Opening streaming request...');
+    if (kDebugMode) print('DEBUG GEMINI STREAM: Opening streaming request...');
     final request = await client.postUrl(uri);
     request.headers.set(HttpHeaders.contentTypeHeader, 'application/json; charset=utf-8');
     request.write(jsonEncode(body));
 
     final response = await request.close();
-    print('DEBUG GEMINI STREAM: Got response, status code: ${response.statusCode}');
+    if (kDebugMode) print('DEBUG GEMINI STREAM: Got response, status code: ${response.statusCode}');
 
     if (response.statusCode != 200) {
       final errorBody = await response.transform(utf8.decoder).join();
-      print('DEBUG GEMINI STREAM: Error response: $errorBody');
+      if (kDebugMode) print('DEBUG GEMINI STREAM: Error response: $errorBody');
       throw HttpException('Cloud AI error: ${response.statusCode}\n$errorBody');
     }
 
@@ -347,14 +348,14 @@ Stream<String> geminiSendStream({
               }
             }
           } catch (e) {
-            print('DEBUG GEMINI STREAM: Error parsing chunk: $e');
+            if (kDebugMode) print('DEBUG GEMINI STREAM: Error parsing chunk: $e');
             // Continue processing other chunks
           }
         }
       }
     }
 
-    print('DEBUG GEMINI STREAM: Stream completed');
+    if (kDebugMode) print('DEBUG GEMINI STREAM: Stream completed');
   } finally {
     client.close(force: true);
   }
@@ -363,7 +364,7 @@ Stream<String> geminiSendStream({
 /// Convenience factory to obtain an ArcLLM instance backed by Gemini.
 /// PRIORITY 2: Using Firebase proxy for API key management
 ArcLLM provideArcLLM() {
-  print('ArcLLM Provider: Using Firebase proxy for Gemini API');
+  if (kDebugMode) print('ArcLLM Provider: Using Firebase proxy for Gemini API');
   
   return ArcLLM(
     send: ({

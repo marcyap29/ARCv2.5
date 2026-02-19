@@ -93,7 +93,7 @@ class SubscriptionService {
 
   /// Clear cached subscription data (call after authentication changes)
   void clearCache() {
-    debugPrint('SubscriptionService: 🗑️ Clearing subscription cache');
+    if (kDebugMode) debugPrint('SubscriptionService: 🗑️ Clearing subscription cache');
     _cachedTier = null;
     _cacheExpiry = null;
   }
@@ -102,12 +102,12 @@ class SubscriptionService {
   Future<SubscriptionTier> getSubscriptionTier({bool forceRefresh = false}) async {
     // Check cache first (unless forcing refresh)
     if (!forceRefresh && _cachedTier != null && _cacheExpiry != null && DateTime.now().isBefore(_cacheExpiry!)) {
-      debugPrint('SubscriptionService: Using cached tier: $_cachedTier');
+      if (kDebugMode) debugPrint('SubscriptionService: Using cached tier: $_cachedTier');
       return _cachedTier!;
     }
 
     if (forceRefresh) {
-      debugPrint('SubscriptionService: Force refresh requested - clearing cache');
+      if (kDebugMode) debugPrint('SubscriptionService: Force refresh requested - clearing cache');
       _cachedTier = null;
       _cacheExpiry = null;
     }
@@ -115,24 +115,24 @@ class SubscriptionService {
     try {
       // Check if user is signed in with detailed debugging
       final authService = FirebaseAuthService.instance;
-      debugPrint('SubscriptionService: 📊 AUTH STATE CHECK:');
-      debugPrint('  isSignedIn: ${authService.isSignedIn}');
-      debugPrint('  hasRealAccount: ${authService.hasRealAccount}');
-      debugPrint('  isAnonymous: ${authService.isAnonymous}');
-      debugPrint('  currentUser: ${authService.currentUser?.email ?? authService.currentUser?.uid ?? "NULL"}');
+      if (kDebugMode) debugPrint('SubscriptionService: 📊 AUTH STATE CHECK:');
+      if (kDebugMode) debugPrint('  isSignedIn: ${authService.isSignedIn}');
+      if (kDebugMode) debugPrint('  hasRealAccount: ${authService.hasRealAccount}');
+      if (kDebugMode) debugPrint('  isAnonymous: ${authService.isAnonymous}');
+      if (kDebugMode) debugPrint('  currentUser: ${authService.currentUser?.email ?? authService.currentUser?.uid ?? "NULL"}');
 
       if (!authService.isSignedIn) {
-        debugPrint('SubscriptionService: ❌ User not signed in, defaulting to free tier');
+        if (kDebugMode) debugPrint('SubscriptionService: ❌ User not signed in, defaulting to free tier');
         return SubscriptionTier.free;
       }
 
       if (authService.isAnonymous) {
-        debugPrint('SubscriptionService: ⚠️ User is anonymous, cannot access premium features');
-        debugPrint('SubscriptionService: 💡 Sign in with Google for premium subscription access');
+        if (kDebugMode) debugPrint('SubscriptionService: ⚠️ User is anonymous, cannot access premium features');
+        if (kDebugMode) debugPrint('SubscriptionService: 💡 Sign in with Google for premium subscription access');
         return SubscriptionTier.free;
       }
 
-      debugPrint('SubscriptionService: ✅ Real user authenticated, fetching subscription from Firebase...');
+      if (kDebugMode) debugPrint('SubscriptionService: ✅ Real user authenticated, fetching subscription from Firebase...');
 
       // Try to get from Firebase Functions first
       final tier = await _fetchFromFirebase();
@@ -146,17 +146,17 @@ class SubscriptionService {
 
       return tier;
     } catch (e) {
-      debugPrint('SubscriptionService: Error fetching subscription tier: $e');
+      if (kDebugMode) debugPrint('SubscriptionService: Error fetching subscription tier: $e');
 
       // Fallback to local cache
       final localTier = await _getFromLocalCache();
       if (localTier != null) {
-        debugPrint('SubscriptionService: Using local cache');
+        if (kDebugMode) debugPrint('SubscriptionService: Using local cache');
         return localTier;
       }
 
       // Ultimate fallback
-      debugPrint('SubscriptionService: Defaulting to free tier');
+      if (kDebugMode) debugPrint('SubscriptionService: Defaulting to free tier');
       return SubscriptionTier.free;
     }
   }
@@ -171,9 +171,9 @@ class SubscriptionService {
         try {
           // Don't force refresh - Firebase automatically refreshes expired tokens
           await currentUser.getIdToken(false);
-          debugPrint('SubscriptionService: ✅ Token ready for Function call');
+          if (kDebugMode) debugPrint('SubscriptionService: ✅ Token ready for Function call');
         } catch (e) {
-          debugPrint('SubscriptionService: ⚠️ Token check failed: $e');
+          if (kDebugMode) debugPrint('SubscriptionService: ⚠️ Token check failed: $e');
           // Continue anyway - Firebase Functions will handle auth errors
         }
       }
@@ -181,27 +181,27 @@ class SubscriptionService {
       final functions = FirebaseService.instance.getFunctions();
       final callable = functions.httpsCallable('getUserSubscription');
 
-      debugPrint('SubscriptionService: 🔗 Calling Firebase Function: getUserSubscription');
+      if (kDebugMode) debugPrint('SubscriptionService: 🔗 Calling Firebase Function: getUserSubscription');
 
       final result = await callable.call();
       final data = result.data as Map<String, dynamic>;
 
-      debugPrint('SubscriptionService: 📦 Firebase Function response: $data');
+      if (kDebugMode) debugPrint('SubscriptionService: 📦 Firebase Function response: $data');
 
       final tierString = data['tier'] as String?;
-      debugPrint('SubscriptionService: 🎯 Tier from Firebase: $tierString');
+      if (kDebugMode) debugPrint('SubscriptionService: 🎯 Tier from Firebase: $tierString');
 
       SubscriptionTier tier;
       switch (tierString?.toLowerCase()) {
         case 'premium':
-          debugPrint('SubscriptionService: ✅ Premium tier confirmed (Stripe)!');
+          if (kDebugMode) debugPrint('SubscriptionService: ✅ Premium tier confirmed (Stripe)!');
           return SubscriptionTier.premium;
         case 'free':
-          debugPrint('SubscriptionService: ℹ️ Free tier from Stripe');
+          if (kDebugMode) debugPrint('SubscriptionService: ℹ️ Free tier from Stripe');
           tier = SubscriptionTier.free;
           break;
         default:
-          debugPrint('SubscriptionService: ⚠️ Unknown tier "$tierString", defaulting to free');
+          if (kDebugMode) debugPrint('SubscriptionService: ⚠️ Unknown tier "$tierString", defaulting to free');
           tier = SubscriptionTier.free;
       }
 
@@ -210,19 +210,19 @@ class SubscriptionService {
         try {
           final hasIapPro = await RevenueCatService.instance.hasArcProAccess();
           if (hasIapPro) {
-            debugPrint('SubscriptionService: ✅ Premium via in-app purchase (ARC Pro)');
+            if (kDebugMode) debugPrint('SubscriptionService: ✅ Premium via in-app purchase (ARC Pro)');
             return SubscriptionTier.premium;
           }
         } catch (e) {
-          debugPrint('SubscriptionService: RevenueCat check (non-fatal): $e');
+          if (kDebugMode) debugPrint('SubscriptionService: RevenueCat check (non-fatal): $e');
         }
       }
       return tier;
     } catch (e) {
-      debugPrint('SubscriptionService: ❌ Firebase Functions call failed: $e');
-      debugPrint('SubscriptionService: 🔍 Error type: ${e.runtimeType}');
+      if (kDebugMode) debugPrint('SubscriptionService: ❌ Firebase Functions call failed: $e');
+      if (kDebugMode) debugPrint('SubscriptionService: 🔍 Error type: ${e.runtimeType}');
       if (e.toString().contains('UNAUTHENTICATED')) {
-        debugPrint('SubscriptionService: 🚫 Authentication error - user may need to sign in again');
+        if (kDebugMode) debugPrint('SubscriptionService: 🚫 Authentication error - user may need to sign in again');
       }
       rethrow;
     }
@@ -235,7 +235,7 @@ class SubscriptionService {
       await prefs.setString('subscription_tier', tier.name);
       await prefs.setInt('subscription_cache_time', DateTime.now().millisecondsSinceEpoch);
     } catch (e) {
-      debugPrint('SubscriptionService: Failed to cache locally: $e');
+      if (kDebugMode) debugPrint('SubscriptionService: Failed to cache locally: $e');
     }
   }
 
@@ -261,7 +261,7 @@ class SubscriptionService {
         orElse: () => SubscriptionTier.free,
       );
     } catch (e) {
-      debugPrint('SubscriptionService: Failed to get from local cache: $e');
+      if (kDebugMode) debugPrint('SubscriptionService: Failed to get from local cache: $e');
       return null;
     }
   }
@@ -291,18 +291,18 @@ class SubscriptionService {
     try {
       // Check authentication first
       final authService = FirebaseAuthService.instance;
-      debugPrint('SubscriptionService: 🔐 AUTH CHECK for checkout:');
-      debugPrint('  isSignedIn: ${authService.isSignedIn}');
-      debugPrint('  hasRealAccount: ${authService.hasRealAccount}');
-      debugPrint('  isAnonymous: ${authService.isAnonymous}');
+      if (kDebugMode) debugPrint('SubscriptionService: 🔐 AUTH CHECK for checkout:');
+      if (kDebugMode) debugPrint('  isSignedIn: ${authService.isSignedIn}');
+      if (kDebugMode) debugPrint('  hasRealAccount: ${authService.hasRealAccount}');
+      if (kDebugMode) debugPrint('  isAnonymous: ${authService.isAnonymous}');
 
       if (!authService.isSignedIn) {
-        debugPrint('SubscriptionService: ❌ User not signed in, cannot create checkout session');
+        if (kDebugMode) debugPrint('SubscriptionService: ❌ User not signed in, cannot create checkout session');
         throw Exception('Please sign in to subscribe to premium');
       }
 
       if (authService.isAnonymous) {
-        debugPrint('SubscriptionService: ❌ Anonymous user cannot subscribe');
+        if (kDebugMode) debugPrint('SubscriptionService: ❌ Anonymous user cannot subscribe');
         throw Exception('Please sign in with Google to subscribe to premium');
       }
 
@@ -317,12 +317,12 @@ class SubscriptionService {
         throw Exception('Anonymous users cannot subscribe. Please sign in with Google.');
       }
       
-      debugPrint('SubscriptionService: ✅ User authenticated: ${currentUser.uid}');
+      if (kDebugMode) debugPrint('SubscriptionService: ✅ User authenticated: ${currentUser.uid}');
 
       // Verify auth state one more time before making the call
       final finalAuthCheck = FirebaseAuthService.instance;
       if (!finalAuthCheck.hasRealAccount) {
-        debugPrint('SubscriptionService: ❌ Final auth check failed - user still anonymous');
+        if (kDebugMode) debugPrint('SubscriptionService: ❌ Final auth check failed - user still anonymous');
         throw Exception('Please sign in with Google to subscribe. Authentication is required.');
       }
 
@@ -340,9 +340,9 @@ class SubscriptionService {
       // Ensure token is fresh (Firebase will auto-refresh if expired)
       try {
         await freshUser.getIdToken(true); // Force refresh to ensure token is valid
-        debugPrint('SubscriptionService: ✅ Token refreshed and ready for Function call');
+        if (kDebugMode) debugPrint('SubscriptionService: ✅ Token refreshed and ready for Function call');
       } catch (e) {
-        debugPrint('SubscriptionService: ⚠️ Token refresh failed: $e');
+        if (kDebugMode) debugPrint('SubscriptionService: ⚠️ Token refresh failed: $e');
         throw Exception('Authentication token is required. Please sign in again.');
       }
       
@@ -353,18 +353,18 @@ class SubscriptionService {
       final functions = FirebaseService.instance.getFunctions();
       final callable = functions.httpsCallable('createCheckoutSession');
       
-      debugPrint('SubscriptionService: 🔗 Using FirebaseService Functions instance (same as getUserSubscription)');
+      if (kDebugMode) debugPrint('SubscriptionService: 🔗 Using FirebaseService Functions instance (same as getUserSubscription)');
 
-      debugPrint('SubscriptionService: 💳 Creating Stripe checkout session (${interval.apiValue})');
-      debugPrint('SubscriptionService: 🔐 Auth context:');
-      debugPrint('  User ID: ${freshUser.uid}');
-      debugPrint('  Email: ${freshUser.email ?? "No email"}');
-      debugPrint('  isAnonymous: ${freshUser.isAnonymous}');
+      if (kDebugMode) debugPrint('SubscriptionService: 💳 Creating Stripe checkout session (${interval.apiValue})');
+      if (kDebugMode) debugPrint('SubscriptionService: 🔐 Auth context:');
+      if (kDebugMode) debugPrint('  User ID: ${freshUser.uid}');
+      if (kDebugMode) debugPrint('  Email: ${freshUser.email ?? "No email"}');
+      if (kDebugMode) debugPrint('  isAnonymous: ${freshUser.isAnonymous}');
       
       // Make the callable request
       // Firebase automatically includes the auth token in the request headers
       // Using the same pattern as getUserSubscription which works correctly
-      debugPrint('SubscriptionService: 📞 Calling Firebase Function createCheckoutSession...');
+      if (kDebugMode) debugPrint('SubscriptionService: 📞 Calling Firebase Function createCheckoutSession...');
       
       dynamic result;
       try {
@@ -375,15 +375,15 @@ class SubscriptionService {
         }).timeout(
           const Duration(seconds: 60), // Increased to match function timeout
           onTimeout: () {
-            debugPrint('SubscriptionService: ❌ Function call timed out after 60 seconds');
+            if (kDebugMode) debugPrint('SubscriptionService: ❌ Function call timed out after 60 seconds');
             throw Exception('Request timed out. The server may be experiencing issues. Please try again.');
           },
         );
       } catch (error) {
-        debugPrint('SubscriptionService: ❌ Firebase Function error: $error');
-        debugPrint('SubscriptionService: Error type: ${error.runtimeType}');
+        if (kDebugMode) debugPrint('SubscriptionService: ❌ Firebase Function error: $error');
+        if (kDebugMode) debugPrint('SubscriptionService: Error type: ${error.runtimeType}');
         if (error is Exception) {
-          debugPrint('SubscriptionService: Error message: ${error.toString()}');
+          if (kDebugMode) debugPrint('SubscriptionService: Error message: ${error.toString()}');
         }
         
         // Handle Firebase-specific errors
@@ -402,13 +402,13 @@ class SubscriptionService {
         throw Exception('Failed to create checkout session: ${error.toString()}');
       }
       
-      debugPrint('SubscriptionService: ✅ Function call succeeded');
+      if (kDebugMode) debugPrint('SubscriptionService: ✅ Function call succeeded');
 
       final data = result.data as Map<String, dynamic>;
       final checkoutUrl = (data['url'] ?? data['checkoutUrl']) as String?;
 
       if (checkoutUrl != null && checkoutUrl.isNotEmpty) {
-        debugPrint('SubscriptionService: 🚀 Launching checkout URL: $checkoutUrl');
+        if (kDebugMode) debugPrint('SubscriptionService: 🚀 Launching checkout URL: $checkoutUrl');
 
         final uri = Uri.parse(checkoutUrl);
 
@@ -423,15 +423,15 @@ class SubscriptionService {
 
           return true;
         } else {
-          debugPrint('SubscriptionService: ❌ Could not launch checkout URL');
+          if (kDebugMode) debugPrint('SubscriptionService: ❌ Could not launch checkout URL');
           throw Exception('Could not launch checkout URL');
         }
       }
 
-      debugPrint('SubscriptionService: ❌ No checkout URL received');
+      if (kDebugMode) debugPrint('SubscriptionService: ❌ No checkout URL received');
       return false;
     } catch (e) {
-      debugPrint('SubscriptionService: ❌ Failed to create checkout session: $e');
+      if (kDebugMode) debugPrint('SubscriptionService: ❌ Failed to create checkout session: $e');
       rethrow;
     }
   }
@@ -442,7 +442,7 @@ class SubscriptionService {
       final functions = FirebaseService.instance.getFunctions();
       final callable = functions.httpsCallable('createPortalSession');
 
-      debugPrint('SubscriptionService: 🏢 Creating customer portal session');
+      if (kDebugMode) debugPrint('SubscriptionService: 🏢 Creating customer portal session');
 
       final result = await callable.call({
         'returnUrl': 'arc://settings',
@@ -452,7 +452,7 @@ class SubscriptionService {
       final portalUrl = data['url'] as String?;
 
       if (portalUrl != null && portalUrl.isNotEmpty) {
-        debugPrint('SubscriptionService: 🚀 Launching portal URL: $portalUrl');
+        if (kDebugMode) debugPrint('SubscriptionService: 🚀 Launching portal URL: $portalUrl');
 
         final uri = Uri.parse(portalUrl);
 
@@ -464,14 +464,14 @@ class SubscriptionService {
 
           return true;
         } else {
-          debugPrint('SubscriptionService: ❌ Could not launch portal URL');
+          if (kDebugMode) debugPrint('SubscriptionService: ❌ Could not launch portal URL');
         }
       }
 
-      debugPrint('SubscriptionService: ❌ No portal URL received');
+      if (kDebugMode) debugPrint('SubscriptionService: ❌ No portal URL received');
       return false;
     } catch (e) {
-      debugPrint('SubscriptionService: ❌ Failed to create portal session: $e');
+      if (kDebugMode) debugPrint('SubscriptionService: ❌ Failed to create portal session: $e');
       return false;
     }
   }
@@ -479,7 +479,7 @@ class SubscriptionService {
   /// Cancel subscription (deprecated - use Customer Portal instead)
   @deprecated
   Future<bool> cancelSubscription() async {
-    debugPrint('SubscriptionService: ⚠️ cancelSubscription is deprecated, use openCustomerPortal() instead');
+    if (kDebugMode) debugPrint('SubscriptionService: ⚠️ cancelSubscription is deprecated, use openCustomerPortal() instead');
     return await openCustomerPortal();
   }
 
@@ -492,7 +492,7 @@ class SubscriptionService {
       final result = await callable.call();
       return result.data as Map<String, dynamic>;
     } catch (e) {
-      debugPrint('SubscriptionService: Failed to get subscription details: $e');
+      if (kDebugMode) debugPrint('SubscriptionService: Failed to get subscription details: $e');
       return null;
     }
   }

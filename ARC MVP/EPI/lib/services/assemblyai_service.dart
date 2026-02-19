@@ -7,6 +7,7 @@
 
 import 'dart:async';
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:flutter/foundation.dart';
 import '../arc/chat/voice/transcription/transcription_provider.dart';
 import 'firebase_service.dart';
 import 'firebase_auth_service.dart';
@@ -29,7 +30,7 @@ class AssemblyAIService {
         _functions = FirebaseService.instance.getFunctions();
       } catch (e) {
         // Fallback to default instance if FirebaseService not ready
-        print('AssemblyAIService: Using default Firebase Functions instance (FirebaseService not ready)');
+        if (kDebugMode) print('AssemblyAIService: Using default Firebase Functions instance (FirebaseService not ready)');
         _functions = FirebaseFunctions.instance;
       }
     }
@@ -56,7 +57,7 @@ class AssemblyAIService {
       await _fetchToken();
       return _cachedTier ?? SttTier.free;
     } catch (e) {
-      print('AssemblyAIService: Error getting user tier: $e');
+      if (kDebugMode) print('AssemblyAIService: Error getting user tier: $e');
       return SttTier.free;
     }
   }
@@ -95,27 +96,27 @@ class AssemblyAIService {
       // Check if user is authenticated
       final authService = FirebaseAuthService.instance;
       if (!authService.isSignedIn) {
-        print('AssemblyAIService: User not authenticated, cannot fetch token');
+        if (kDebugMode) print('AssemblyAIService: User not authenticated, cannot fetch token');
         return null;
       }
       
       // Force refresh auth token to ensure it's valid
       final currentUser = authService.currentUser;
       if (currentUser == null) {
-        print('AssemblyAIService: No current user, cannot fetch token');
+        if (kDebugMode) print('AssemblyAIService: No current user, cannot fetch token');
         return null;
       }
       
       // Refresh ID token to ensure it's valid for the function call
       try {
         await currentUser.getIdToken(true); // Force refresh
-        print('AssemblyAIService: Auth token refreshed');
+        if (kDebugMode) print('AssemblyAIService: Auth token refreshed');
       } catch (e) {
-        print('AssemblyAIService: Failed to refresh auth token: $e');
+        if (kDebugMode) print('AssemblyAIService: Failed to refresh auth token: $e');
         return null;
       }
       
-      print('AssemblyAIService: Fetching token from Firebase (user: ${currentUser.uid})...');
+      if (kDebugMode) print('AssemblyAIService: Fetching token from Firebase (user: ${currentUser.uid})...');
       
       final callable = _functionsInstance.httpsCallable('getAssemblyAIToken');
       final result = await callable.call<Map<String, dynamic>>();
@@ -133,7 +134,7 @@ class AssemblyAIService {
       
       // Check eligibility
       if (!eligibleForCloud || token == null || token.isEmpty) {
-        print('AssemblyAIService: User not eligible for cloud STT (tier: $tier)');
+        if (kDebugMode) print('AssemblyAIService: User not eligible for cloud STT (tier: $tier)');
         _cachedToken = null;
         _tokenExpiry = null;
         return null;
@@ -145,17 +146,17 @@ class AssemblyAIService {
           ? DateTime.fromMillisecondsSinceEpoch(expiresAt)
           : DateTime.now().add(const Duration(hours: 1));
       
-      print('AssemblyAIService: Token fetched successfully (tier: $tier, expires: $_tokenExpiry)');
+      if (kDebugMode) print('AssemblyAIService: Token fetched successfully (tier: $tier, expires: $_tokenExpiry)');
       return _cachedToken;
       
     } on FirebaseFunctionsException catch (e) {
-      print('AssemblyAIService: Firebase error: ${e.code} - ${e.message}');
+      if (kDebugMode) print('AssemblyAIService: Firebase error: ${e.code} - ${e.message}');
       if (e.code == 'not-found') {
-        print('AssemblyAIService: Function "getAssemblyAIToken" not found. '
+        if (kDebugMode) print('AssemblyAIService: Function "getAssemblyAIToken" not found. '
             'This may mean the Firebase function is not deployed. '
             'Falling back to on-device transcription.');
       } else if (e.code == 'unauthenticated') {
-        print('AssemblyAIService: User not authenticated. '
+        if (kDebugMode) print('AssemblyAIService: User not authenticated. '
             'Please sign in to use cloud transcription. '
             'Falling back to on-device transcription.');
       }
@@ -163,7 +164,7 @@ class AssemblyAIService {
       _tokenExpiry = null;
       return null;
     } catch (e) {
-      print('AssemblyAIService: Error fetching token: $e');
+      if (kDebugMode) print('AssemblyAIService: Error fetching token: $e');
       _cachedToken = null;
       _tokenExpiry = null;
       return null;
