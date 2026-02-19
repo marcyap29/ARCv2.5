@@ -41,6 +41,7 @@ class _DriveFolderPickerScreenState extends State<DriveFolderPickerScreen> {
   String? _error;
   /// Selected folder IDs (for multi-folder import).
   final Set<String> _selectedFolderIds = {};
+  bool _creatingFolder = false;
 
   String get _currentFolderId => _folderStack.last.$1;
 
@@ -96,6 +97,93 @@ class _DriveFolderPickerScreenState extends State<DriveFolderPickerScreen> {
     nav.pop(DriveSyncFolderResult(_currentFolderId, _folderStack.last.$2));
   }
 
+  Future<void> _showCreateFolderDialog(BuildContext context) async {
+    final controller = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+    final name = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: kcSurfaceColor,
+        title: Text(
+          'New folder',
+          style: bodyStyle(ctx).copyWith(color: kcPrimaryTextColor, fontWeight: FontWeight.w600),
+        ),
+        content: Form(
+          key: formKey,
+          child: TextFormField(
+            controller: controller,
+            autofocus: true,
+            decoration: InputDecoration(
+              labelText: 'Folder name',
+              labelStyle: TextStyle(color: kcSecondaryTextColor),
+              hintText: 'e.g. LUMARA Backups',
+              hintStyle: TextStyle(color: kcSecondaryTextColor.withOpacity(0.7)),
+              enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.white24)),
+              focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: kcAccentColor)),
+            ),
+            style: TextStyle(color: kcPrimaryTextColor),
+            validator: (v) {
+              if (v == null || v.trim().isEmpty) return 'Enter a folder name';
+              return null;
+            },
+            onFieldSubmitted: (v) => Navigator.of(ctx).maybePop(v.trim().isEmpty ? null : v.trim()),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: Text('Cancel', style: TextStyle(color: kcSecondaryTextColor)),
+          ),
+          FilledButton(
+            onPressed: () {
+              if (formKey.currentState?.validate() ?? false) {
+                final name = controller.text.trim();
+                Navigator.of(ctx).pop(name);
+              }
+            },
+            style: FilledButton.styleFrom(backgroundColor: kcAccentColor, foregroundColor: Colors.white),
+            child: const Text('Create'),
+          ),
+        ],
+      ),
+    );
+    if (name == null || name.isEmpty || !mounted) return;
+
+    setState(() => _creatingFolder = true);
+    try {
+      final result = await _drive.createFolder(
+        parentFolderId: _currentFolderId,
+        folderName: name,
+      );
+      if (!mounted) return;
+      if (result != null) {
+        await _loadCurrentFolder();
+        // Navigate into the new folder so the user can use it immediately
+        _navigateInto(result.id, result.name);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Created "${result.name}"'),
+              backgroundColor: Colors.green,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Could not create folder. Check your connection and try again.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } finally {
+      if (mounted) setState(() => _creatingFolder = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final title = _folderStack.last.$2;
@@ -118,6 +206,17 @@ class _DriveFolderPickerScreenState extends State<DriveFolderPickerScreen> {
         backgroundColor: kcSurfaceColor,
         foregroundColor: kcPrimaryTextColor,
         actions: [
+          IconButton(
+            icon: _creatingFolder
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: kcAccentColor),
+                  )
+                : const Icon(Icons.create_new_folder),
+            tooltip: 'Create new folder here',
+            onPressed: _creatingFolder ? null : () => _showCreateFolderDialog(context),
+          ),
           if (widget.useAsSyncFolder)
             TextButton.icon(
               onPressed: () => _confirmSyncFolder(context),

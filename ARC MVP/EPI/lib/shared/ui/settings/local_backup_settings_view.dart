@@ -11,10 +11,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:accessing_security_scoped_resource/accessing_security_scoped_resource.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
-// TODO: Backup services not yet implemented
-// import 'package:my_app/services/local_backup_settings_service.dart';
-// import 'package:my_app/services/local_backup_service.dart';
-// import 'package:my_app/services/scheduled_local_backup_service.dart';
+import 'package:my_app/services/scheduled_local_backup_service.dart';
 import 'package:my_app/arc/core/journal_repository.dart';
 import 'package:my_app/arc/chat/chat/chat_repo_impl.dart';
 import 'package:my_app/services/phase_regime_service.dart';
@@ -57,6 +54,7 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
   bool _scheduleEnabled = false;
   String _scheduleFrequency = 'daily';
   String _scheduleTime = '02:00';
+  bool _scheduleUploadToDrive = false;
   DateTime? _lastBackup;
   bool _isBackingUp = false;
   String _backupProgress = '';
@@ -95,6 +93,9 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
     super.dispose();
   }
 
+  /// Default folder name for local backups (when using app documents).
+  static const String kDefaultBackupFolderName = 'LUMARA Backup';
+
   // SharedPreferences keys for local backup settings persistence
   static const String _keyBackupEnabled = 'local_backup_enabled';
   static const String _keyBackupPath = 'local_backup_path';
@@ -102,6 +103,7 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
   static const String _keyScheduleEnabled = 'local_backup_schedule_enabled';
   static const String _keyScheduleFrequency = 'local_backup_schedule_frequency';
   static const String _keyScheduleTime = 'local_backup_schedule_time';
+  static const String _keyScheduleUploadToDrive = 'local_backup_schedule_upload_to_drive';
   static const String _keyLastBackup = 'local_backup_last_backup';
   static const String _keyUsePasswordEncryption = 'local_backup_use_password_encryption';
   static const String _keyBackupPathIsAppDocuments = 'local_backup_path_is_app_documents';
@@ -119,6 +121,7 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
       final scheduleEnabled = prefs.getBool(_keyScheduleEnabled) ?? false;
       final scheduleFrequency = prefs.getString(_keyScheduleFrequency) ?? 'daily';
       final scheduleTime = prefs.getString(_keyScheduleTime) ?? '02:00';
+      final scheduleUploadToDrive = prefs.getBool(_keyScheduleUploadToDrive) ?? false;
       final lastBackupMillis = prefs.getInt(_keyLastBackup);
       final lastBackup = lastBackupMillis != null 
           ? DateTime.fromMillisecondsSinceEpoch(lastBackupMillis) 
@@ -134,6 +137,7 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
         _scheduleEnabled = scheduleEnabled;
         _scheduleFrequency = scheduleFrequency;
         _scheduleTime = scheduleTime;
+        _scheduleUploadToDrive = scheduleUploadToDrive;
         _lastBackup = lastBackup;
         _usePasswordEncryption = usePasswordEncryption;
         _isLoading = false;
@@ -333,7 +337,7 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
   Future<void> _useAppDocumentsFolder() async {
     try {
       final appDocDir = await getApplicationDocumentsDirectory();
-      final backupDir = Directory(path.join(appDocDir.path, 'LUMARA_Backups'));
+      final backupDir = Directory(path.join(appDocDir.path, kDefaultBackupFolderName));
       
       // Create directory if it doesn't exist
       if (!await backupDir.exists()) {
@@ -401,14 +405,14 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
     return false;
   }
 
-  /// Returns the backup folder to use. If none is set, defaults to App Documents / LUMARA_Backups
+  /// Returns the backup folder to use. If none is set, defaults to App Documents / LUMARA Backup
   /// and persists it so the UI shows the default.
   Future<String> _getEffectiveBackupPath() async {
     if (_backupPath != null && _backupPath!.isNotEmpty) {
       return _backupPath!;
     }
     final appDocDir = await getApplicationDocumentsDirectory();
-    final backupDir = Directory(path.join(appDocDir.path, 'LUMARA_Backups'));
+    final backupDir = Directory(path.join(appDocDir.path, kDefaultBackupFolderName));
     if (!await backupDir.exists()) {
       await backupDir.create(recursive: true);
     }
@@ -439,7 +443,7 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
     if (enabled && _isEnabled && _backupPath != null) {
       await _startScheduledBackups();
     } else {
-      // ScheduledLocalBackupService.instance.stop();
+      ScheduledLocalBackupService.instance.stop();
     }
   }
 
@@ -456,9 +460,6 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
   }
 
   Future<void> _startScheduledBackups() async {
-    // TODO: Backup services not yet implemented
-    return;
-    /*
     try {
       final analyticsService = AnalyticsService();
       final rivetSweepService = RivetSweepService(analyticsService);
@@ -476,7 +477,12 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
     } catch (e) {
       print('Local Backup Settings: Error starting scheduled backups: $e');
     }
-    */
+  }
+
+  Future<void> _setScheduleUploadToDrive(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_keyScheduleUploadToDrive, value);
+    setState(() => _scheduleUploadToDrive = value);
   }
 
   Future<void> _triggerManualBackup() async {
@@ -910,7 +916,7 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
   /// Continue export into the current backup folder: scan existing exports (via index),
   /// diff against current app data, and export only the delta into that set.
   Future<void> _performContinueExport() async {
-    // Default to App Documents / LUMARA_Backups when no folder is set
+    // Default to App Documents / LUMARA Backup when no folder is set
     final backupPath = await _getEffectiveBackupPath();
     if (!mounted) return;
     if (_usePasswordEncryption && (_exportPassword == null || _exportPassword!.isEmpty)) {
@@ -1566,7 +1572,7 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
         await _startScheduledBackups();
       }
     } else {
-      // ScheduledLocalBackupService.instance.stop();
+      ScheduledLocalBackupService.instance.stop();
     }
   }
 
@@ -1707,7 +1713,7 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
                             children: [
                               Text(
                                 _backupPathIsAppDocuments
-                                    ? 'App Documents (LUMARA_Backups)'
+                                    ? 'App Documents (LUMARA Backup)'
                                     : (_backupPath ?? 'No folder selected'),
                                 style: TextStyle(color: Colors.grey[400]),
                                 maxLines: 2,
@@ -1892,6 +1898,19 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
                                   style: const TextStyle(color: Colors.white),
                                 ),
                               ),
+                            ),
+                            SwitchListTile(
+                              title: const Text(
+                                'Upload to Google Drive after backup',
+                                style: TextStyle(color: Colors.white),
+                              ),
+                              subtitle: const Text(
+                                'Upload the backup to your LUMARA Backups folder on Drive',
+                                style: TextStyle(color: Colors.grey),
+                              ),
+                              value: _scheduleUploadToDrive,
+                              onChanged: _setScheduleUploadToDrive,
+                              activeColor: kcAccentColor,
                             ),
                           ],
                         ],
@@ -2800,7 +2819,7 @@ class _LocalBackupSettingsViewState extends State<LocalBackupSettingsView> {
     List<JournalEntry> selectedEntries,
     List<ChatSession> selectedChats,
   ) async {
-    // Default to App Documents / LUMARA_Backups when no folder is set (path used when selective backup is implemented)
+    // Default to App Documents / LUMARA Backup when no folder is set (path used when selective backup is implemented)
     final backupPath = await _getEffectiveBackupPath();
     if (!mounted) return;
     assert(backupPath.isNotEmpty, 'Effective backup path must be set');

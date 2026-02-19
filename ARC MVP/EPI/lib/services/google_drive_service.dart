@@ -248,6 +248,31 @@ class GoogleDriveService {
     return '$y-$m-$d';
   }
 
+  /// Create a new folder on Drive under [parentFolderId] with [folderName].
+  /// Returns the created folder's id and name, or null on failure.
+  Future<({String id, String name})?> createFolder({
+    required String parentFolderId,
+    required String folderName,
+  }) async {
+    _requireDriveApi();
+    final name = folderName.trim();
+    if (name.isEmpty) return null;
+    try {
+      final file = drive.File();
+      file.name = name;
+      file.mimeType = 'application/vnd.google-apps.folder';
+      file.parents = [parentFolderId];
+      final created = await _driveApi!.files.create(file);
+      final id = created.id;
+      final createdName = created.name ?? name;
+      if (id == null || id.isEmpty) return null;
+      return (id: id, name: createdName);
+    } catch (e) {
+      debugPrint('GoogleDriveService: createFolder failed: $e');
+      return null;
+    }
+  }
+
   /// List files in the given folder (or app folder if [folderId] is null).
   /// Use [folderId] of [rootFolderId] to list the top-level "My Drive" contents.
   static const String rootFolderId = 'root';

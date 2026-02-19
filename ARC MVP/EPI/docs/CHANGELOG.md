@@ -1,6 +1,6 @@
 # EPI LUMARA MVP - Changelog
 
-**Version:** 3.3.45
+**Version:** 3.3.46
 **Last Updated:** February 18, 2026
 
 ---
@@ -14,6 +14,17 @@ This changelog has been split into parts for easier navigation:
 | **[CHANGELOG_part1.md](CHANGELOG_part1.md)** | Dec 2025 | v2.1.43 - v2.1.87 (Current) |
 | **[CHANGELOG_part2.md](CHANGELOG_part2.md)** | Nov 2025 | v2.1.28 - v2.1.42 |
 | **[CHANGELOG_part3.md](CHANGELOG_part3.md)** | Jan-Oct 2025 | v2.0.0 - v2.1.27 & Earlier |
+
+---
+
+## [3.3.46] - February 18, 2026
+
+### Google Drive folder picker, local backup settings, home; DOCS cleanup (redundant Dual Chronicle docs removed)
+
+- **Backup/Drive:** `google_drive_service.dart` (+25); `drive_folder_picker_screen.dart` extended (+99); `local_backup_settings_view.dart` refactor (+51/−16); `home_view.dart` (+35). Drive folder selection and local backup settings UI.
+- **DOCS cleanup:** Removed redundant `LUMARA_DUAL_CHRONICLE_COMPLETE_GUIDE.md`, `LUMARA_DUAL_CHRONICLE_IMPLEMENTATION.md`, `LUMARA_DUAL_CHRONICLE_WHEN_TO_ACTIVATE.md` from DOCS (superseded by `LUMARA_DUAL_CHRONICLE_GUIDE.md`; originals remain in `DOCS/archive/`).
+
+**Files:** 4 modified, 3 DOCS deleted (redundant Dual Chronicle docs). bug_tracker tracked.
 
 ---
 

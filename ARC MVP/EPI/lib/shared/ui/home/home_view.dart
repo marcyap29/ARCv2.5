@@ -49,6 +49,9 @@ import 'package:my_app/chronicle/integration/veil_chronicle_factory.dart';
 import 'package:my_app/chronicle/scheduling/synthesis_scheduler.dart' show SynthesisTier;
 import 'package:my_app/services/phase_check_in_service.dart';
 import 'package:my_app/ui/phase/phase_check_in_bottom_sheet.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:my_app/services/scheduled_local_backup_service.dart';
+import 'package:my_app/arc/chat/chat/chat_repo_impl.dart';
 
 // Debug flag for showing RIVET engineering labels
 const bool kShowRivetDebugLabels = false;
@@ -118,6 +121,38 @@ class _HomeViewState extends State<HomeView> {
     // Start VEIL–CHRONICLE scheduler (monthly synthesis + pattern index / vectorizer)
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _startVeilChronicleScheduler();
+    });
+
+    // Start scheduled local backup (nightly backup + optional Google Drive upload) if enabled
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Future.delayed(const Duration(seconds: 3), () async {
+        if (!mounted) return;
+        try {
+          final prefs = await SharedPreferences.getInstance();
+          final backupEnabled = prefs.getBool('local_backup_enabled') ?? false;
+          final scheduleEnabled = prefs.getBool('local_backup_schedule_enabled') ?? false;
+          if (!backupEnabled || !scheduleEnabled) return;
+          final journalRepo = context.read<JournalRepository>();
+          final analyticsService = AnalyticsService();
+          final rivetSweepService = RivetSweepService(analyticsService);
+          final phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
+          await phaseRegimeService.initialize();
+          final chatRepo = ChatRepoImpl.instance;
+          await chatRepo.initialize();
+          await ScheduledLocalBackupService.instance.start(
+            journalRepo: journalRepo,
+            chatRepo: chatRepo,
+            phaseRegimeService: phaseRegimeService,
+          );
+          if (kDebugMode) {
+            print('✅ Scheduled backup service started (nightly backup + optional Drive upload)');
+          }
+        } catch (e) {
+          if (kDebugMode) {
+            print('⚠️ Scheduled backup service failed to start: $e');
+          }
+        }
+      });
     });
     
       if (widget.initialTab != 0) {

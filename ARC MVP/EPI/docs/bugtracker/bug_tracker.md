@@ -129,6 +129,7 @@ This section is derived from the repo and [CHANGELOG.md](../CHANGELOG.md) to kee
 | Dual CHRONICLE UI, LUMARA assistant, journal capture, onboarding, unified feed | v3.3.43 | — | dual_chronicle_view +311; lumara_assistant_cubit +117; journal_capture_cubit/view; unified_feed_screen refactor; home_view, arc_onboarding_sequence; ONBOARDING_TEXT. |
 | CHRONICLE search (hybrid/BM25/semantic), unified feed, Arcform 3D | v3.3.44 | — | lib/chronicle/search/ (9 files); unified_feed_screen; simplified_arcform_view_3d; LUMARA_ARCHITECTURE_SECTION archive. |
 | Dual CHRONICLE intelligence summary, settings, LUMARA definitive overview | v3.3.45 | — | intelligence_summary_* (models, repo, generator, view); dual_chronicle_view +356/−74; agentic_loop_orchestrator, dual_chronicle_services, chronicle_dual; settings_view; LUMARA_DEFINITIVE_OVERVIEW.md. |
+| Google Drive folder picker, local backup settings, home; DOCS cleanup | v3.3.46 | — | google_drive_service, drive_folder_picker_screen, local_backup_settings_view, home_view; removed redundant LUMARA_DUAL_CHRONICLE_* (3) from DOCS (canonical = LUMARA_DUAL_CHRONICLE_GUIDE.md; originals in archive). |
 
 **Source:** `git log --oneline`, [CHANGELOG.md](../CHANGELOG.md), terminal build log. Last synced: 2026-02-18.
 
@@ -144,5 +145,5 @@ Individual bug records stay in [records/](records/); only the legacy multi-part 
 
 ---
 
-**Status**: ✅ Active - All resolved issues documented; Build & Platform: 5 records; Environment: 1 (Ollama). Doc sync v3.3.45: bug_tracker tracked.  
+**Status**: ✅ Active - All resolved issues documented; Build & Platform: 5 records; Environment: 1 (Ollama). Doc sync v3.3.46: bug_tracker tracked.  
 **Last Updated**: 2026-02-18
