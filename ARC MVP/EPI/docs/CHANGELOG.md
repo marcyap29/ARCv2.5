@@ -1,7 +1,7 @@
 # EPI LUMARA MVP - Changelog
 
-**Version:** 3.3.47
-**Last Updated:** February 18, 2026
+**Version:** 3.3.48
+**Last Updated:** February 19, 2026
 
 ---
 
@@ -14,6 +14,18 @@ This changelog has been split into parts for easier navigation:
 | **[CHANGELOG_part1.md](CHANGELOG_part1.md)** | Dec 2025 | v2.1.43 - v2.1.87 (Current) |
 | **[CHANGELOG_part2.md](CHANGELOG_part2.md)** | Nov 2025 | v2.1.28 - v2.1.42 |
 | **[CHANGELOG_part3.md](CHANGELOG_part3.md)** | Jan-Oct 2025 | v2.0.0 - v2.1.27 & Earlier |
+
+---
+
+## [3.3.48] - February 19, 2026
+
+### Universal prompt optimization layer (80/20, provider-agnostic); enhanced_lumara_api
+
+- **Prompt optimization:** New `lib/arc/chat/prompt_optimization/` — provider-agnostic optimization (smart context, structured output, response cache). Components: `universal_prompt_optimizer.dart`, `universal_response_generator.dart`, `provider_manager.dart`, `response_cache.dart`, `readiness_calculator.dart`, `prompt_optimization_types.dart`; providers: `provider_adapter.dart`, `groq_adapter.dart`, `openai_adapter.dart`, `claude_adapter.dart`; UI: `provider_settings_section.dart`. Use cases: userChat, userReflect, userVoice, gapClassification, patternExtraction, seekingDetection, intelligenceSummary, crisisDetection.
+- **DOCS:** New `DOCS/UNIVERSAL_PROMPT_OPTIMIZATION.md` (80/20 framework, architecture, code locations, use cases, integration).
+- **LUMARA API:** `enhanced_lumara_api.dart` updated for optimization layer integration.
+
+**Files:** 1 modified (enhanced_lumara_api), 1 new DOCS, 12 new (prompt_optimization/). bug_tracker tracked.
 
 ---
 

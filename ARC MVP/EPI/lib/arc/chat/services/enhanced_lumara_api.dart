@@ -68,6 +68,7 @@ import 'package:my_app/lumara/agents/writing/writing_draft_repository.dart';
 import 'arc_subsystem.dart';
 import 'atlas_subsystem.dart';
 import 'aurora_subsystem.dart';
+import 'package:my_app/arc/chat/prompt_optimization/prompt_optimization.dart';
 
 /// Result of generating a reflection with attribution traces
 class ReflectionResult {
@@ -140,6 +141,17 @@ class EnhancedLumaraApi {
 
   /// Lazy-built when [FeatureFlags.useOrchestrator] is true and CHRONICLE is initialized.
   LumaraOrchestrator? _orchestrator;
+
+  /// Universal prompt optimizer for master-prompt chronicle context (query-relevant, use-case-sized).
+  UniversalPromptOptimizer? _promptOptimizer;
+
+  UniversalPromptOptimizer get _getPromptOptimizer {
+    _promptOptimizer ??= UniversalPromptOptimizer(
+      lumaraChronicleRepo: DualChronicleServices.lumaraChronicle,
+      readinessCalculator: DefaultReadinessCalculator(),
+    );
+    return _promptOptimizer!;
+  }
   
   // LLM Provider tracking (for logging only - we use Groq primary, geminiSend fallback)
   LLMProviderBase? _llmProvider;
@@ -943,16 +955,32 @@ class EnhancedLumaraApi {
             }
           }
 
-          // LUMARA CHRONICLE: load inferred patterns, causal chains, relationships, user-approved insights for inference
+          // LUMARA CHRONICLE: use universal optimizer (query-relevant, use-case-sized) with fallback to legacy builder
           String? lumaraChronicleContext;
           if (userId != null && userId.isNotEmpty) {
             try {
-              lumaraChronicleContext = await _buildLumaraChronicleContext(userId);
+              final useCase = skipHeavyProcessing
+                  ? PromptUseCase.userVoice
+                  : PromptUseCase.userReflect;
+              lumaraChronicleContext = await _getPromptOptimizer.getChronicleContextForMasterPrompt(
+                userId,
+                request.userText,
+                useCase,
+                maxChars: 2000,
+              );
+              if (lumaraChronicleContext == null || lumaraChronicleContext.isEmpty) {
+                lumaraChronicleContext = await _buildLumaraChronicleContext(userId);
+              } else {
+                print('✅ EnhancedLumaraApi: LUMARA CHRONICLE context from universal optimizer ($useCase)');
+              }
               if (lumaraChronicleContext != null && lumaraChronicleContext.isNotEmpty) {
                 print('✅ EnhancedLumaraApi: LUMARA CHRONICLE context loaded for inference');
               }
             } catch (e) {
               print('⚠️ EnhancedLumaraApi: LUMARA CHRONICLE context failed (non-fatal): $e');
+              try {
+                lumaraChronicleContext = await _buildLumaraChronicleContext(userId);
+              } catch (_) {}
             }
           }
           
