@@ -139,6 +139,7 @@ This section is derived from the repo and [CHANGELOG.md](../CHANGELOG.md) to kee
 | Journal capture, journal repository, dual CHRONICLE (agentic loop, dual_chronicle_view) | v3.3.51 | — | journal_capture_cubit, journal_repository (mira); agentic_loop_orchestrator, dual_chronicle_view. |
 | Google Drive sync folder push; Drive settings; unified feed; MCP export/management; DOCS checklist | v3.3.52 | — | sync_folder_push_screen; google_drive_service, google_drive_settings_view; unified_feed_screen; mcp_export_screen, mcp_management_screen; CONFIGURATION_MANAGEMENT, claude.md. |
 | iOS project (Runner.xcodeproj) | v3.3.53 | — | ios/Runner.xcodeproj/project.pbxproj. |
+| PDF content service; journal, CHRONICLE layer0, MCP orchestrators, media alt text; pubspec | v3.3.54 | — | pdf_content_service; journal_capture_cubit, journal_screen, layer0_populator; chat_multimodal_processor, ios_vision_orchestrator; media_alt_text_generator; pubspec. |
 
 **Source:** `git log --oneline`, [CHANGELOG.md](../CHANGELOG.md), terminal build log. Last synced: 2026-02-19.
 
@@ -154,5 +155,5 @@ Individual bug records stay in [records/](records/); only the legacy multi-part 
 
 ---
 
-**Status**: ✅ Active - All resolved issues documented; Build & Platform: 5 records; Environment: 1 (Ollama). Doc sync v3.3.53: bug_tracker tracked.  
+**Status**: ✅ Active - All resolved issues documented; Build & Platform: 5 records; Environment: 1 (Ollama). Doc sync v3.3.54: bug_tracker tracked.  
 **Last Updated**: 2026-02-19

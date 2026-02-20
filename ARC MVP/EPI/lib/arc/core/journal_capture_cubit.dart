@@ -2503,6 +2503,28 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
             }
           }
         }
+        // Photo creation date from EXIF (e.g. "January 2025") for LUMARA context
+        final capturedAtStr = analysis['capturedAt'] as String?;
+        if (capturedAtStr != null && capturedAtStr.isNotEmpty) {
+          final dt = DateTime.tryParse(capturedAtStr);
+          if (dt != null) {
+            const months = ['January', 'February', 'March', 'April', 'May', 'June',
+              'July', 'August', 'September', 'October', 'November', 'December'];
+            if (dt.month >= 1 && dt.month <= 12) {
+              keywords.add('${months[dt.month - 1]} ${dt.year}');
+            }
+          }
+        }
+        // GPS / location: add "geotagged" when coordinates present so LUMARA knows place matters
+        final gps = analysis['gps'] as Map?;
+        final location = analysis['location'] as String?;
+        if (gps != null && gps.isNotEmpty) keywords.add('geotagged');
+        if (location != null && location.trim().isNotEmpty && location.length < 50) {
+          // If it looks like coordinates, we already added "geotagged"; else might be place name
+          if (!RegExp(r'^-?\d+\.\d+').hasMatch(location)) {
+            keywords.add(location.trim());
+          }
+        }
       }
       // File name stem for file attachments (e.g. "report" from report.pdf)
       if (item.type == MediaType.file && item.altText != null) {

@@ -1,5 +1,9 @@
+import 'dart:io';
+
+import '../../../data/models/media_item.dart';
 import '../../../models/journal_entry_model.dart';
 import '../../../prism/atlas/phase/phase_history_repository.dart';
+import '../../../core/services/pdf_content_service.dart';
 import '../../../crossroads/models/decision_capture.dart';
 import 'layer0_repository.dart';
 import 'raw_entry_schema.dart';
@@ -27,13 +31,46 @@ class Layer0Populator {
   }) async {
     try {
       // Backwards compatibility: safe content and keywords (legacy Hive entries may have null)
-      final content = _safeContent(journalEntry);
-      final keywords = _safeKeywords(journalEntry);
+      String content = _safeContent(journalEntry);
+      List<String> keywords = List<String>.from(_safeKeywords(journalEntry));
+
+      // Enrich from PDF attachments so LUMARA can read text and infer from images for chronicle
+      for (final media in journalEntry.media) {
+        if (media.type != MediaType.file) continue;
+        final path = media.uri.replaceFirst(RegExp(r'^file://'), '');
+        final isPdf = path.toLowerCase().endsWith('.pdf') ||
+            (media.altText?.toLowerCase().endsWith('.pdf') ?? false);
+        if (!isPdf) continue;
+        try {
+          final file = File(path);
+          if (!await file.exists()) continue;
+          final result = await PdfContentService.extractForChronicle(
+            path,
+            includePageImageAnalysis: true,
+          );
+          if (!result.hasContent) continue;
+          final name = media.altText ?? path.split(RegExp(r'[/\\]')).last;
+          content += '\n\n[Attachment: $name]\n';
+          if (result.text.trim().isNotEmpty) {
+            content += result.text.trim();
+          }
+          if (result.pageImageInsights.trim().isNotEmpty) {
+            content += '\n\n[From PDF pages]\n${result.pageImageInsights.trim()}';
+          }
+          for (final k in result.keywords) {
+            if (k.length > 1 && !keywords.contains(k) && keywords.length < 50) {
+              keywords.add(k);
+            }
+          }
+        } catch (_) {
+          // Non-fatal: skip this attachment
+        }
+      }
 
       // 1. Get phase history entry if available
       final phaseHistory = await PhaseHistoryRepository.getEntryByJournalId(journalEntry.id);
 
-      // 2. Extract metadata
+      // 2. Extract metadata (word count from enriched content)
       final wordCount = content.isEmpty ? 0 : content.split(RegExp(r'\s+')).where((s) => s.isNotEmpty).length;
       final mediaList = journalEntry.media;
       final mediaIds = mediaList.isNotEmpty
@@ -46,7 +83,7 @@ class Layer0Populator {
         mediaAttachments: mediaIds,
       );
 
-      // 3. Extract analysis data
+      // 3. Extract analysis data (with PDF-derived keywords)
       final analysis = RawEntryAnalysis(
         atlasPhase: _getEffectivePhase(journalEntry, phaseHistory),
         atlasScores: phaseHistory?.phaseScores,

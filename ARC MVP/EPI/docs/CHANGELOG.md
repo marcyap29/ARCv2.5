@@ -1,6 +1,6 @@
 # EPI LUMARA MVP - Changelog
 
-**Version:** 3.3.53
+**Version:** 3.3.54
 **Last Updated:** February 19, 2026
 
 ---
@@ -14,6 +14,20 @@ This changelog has been split into parts for easier navigation:
 | **[CHANGELOG_part1.md](CHANGELOG_part1.md)** | Dec 2025 | v2.1.43 - v2.1.87 (Current) |
 | **[CHANGELOG_part2.md](CHANGELOG_part2.md)** | Nov 2025 | v2.1.28 - v2.1.42 |
 | **[CHANGELOG_part3.md](CHANGELOG_part3.md)** | Jan-Oct 2025 | v2.0.0 - v2.1.27 & Earlier |
+
+---
+
+## [3.3.54] - February 19, 2026
+
+### PDF content service; journal capture, CHRONICLE layer0, MCP orchestrators, media alt text, journal screen; pubspec
+
+- **New:** `lib/core/services/pdf_content_service.dart`.
+- **Journal / CHRONICLE:** `journal_capture_cubit.dart`, `journal_screen.dart`; `layer0_populator.dart` (CHRONICLE storage).
+- **MCP:** `chat_multimodal_processor.dart`, `ios_vision_orchestrator.dart` (mira/store/mcp/orchestrator).
+- **Media:** `media_alt_text_generator.dart` updates.
+- **Dependencies:** `pubspec.yaml`, `pubspec.lock`, `.flutter-plugins-dependencies`.
+
+**Files:** 8 modified, 1 new (pdf_content_service). bug_tracker tracked.
 
 ---
 

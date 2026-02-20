@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:my_app/arc/chat/chat/content_parts.dart';
 import 'package:my_app/arc/chat/chat/chat_models.dart';
+import 'package:my_app/core/services/pdf_content_service.dart';
 import 'ocp_services.dart';
 
 /// Multimodal processor for chat messages
@@ -171,7 +172,8 @@ class ChatMultimodalProcessor {
     }
   }
 
-  /// Extract text and keywords from PDF, .md, Doc for analysis and entry keywords
+  /// Extract text and keywords from PDF, .md, Doc for analysis and entry keywords.
+  /// For PDFs, uses [PdfContentService] so LUMARA reads text and infers from images in the PDF.
   Future<({String extractedText, List<String> keywords, Map<String, dynamic> metadata})> _extractDocumentText(String uri, String mime) async {
     final metadata = <String, dynamic>{
       'mime': mime,
@@ -185,23 +187,34 @@ class ChatMultimodalProcessor {
       final bytes = await file.readAsBytes();
       metadata['sizeBytes'] = bytes.length;
       String raw = '';
-      if (mime == 'text/markdown' || uri.toLowerCase().endsWith('.md')) {
+      final List<String> keywords = [];
+
+      if (mime == 'application/pdf' || uri.toLowerCase().endsWith('.pdf')) {
+        final result = await PdfContentService.extractForChronicle(
+          file.path,
+          includePageImageAnalysis: true,
+        );
+        raw = result.text;
+        if (result.pageImageInsights.trim().isNotEmpty) {
+          raw += '${raw.isEmpty ? '' : '\n\n'}[From PDF pages]\n${result.pageImageInsights}';
+        }
+        keywords.addAll(result.keywords);
+      } else if (mime == 'text/markdown' || uri.toLowerCase().endsWith('.md')) {
         raw = String.fromCharCodes(bytes);
       }
-      // PDF and Word would require packages (e.g. pdf_text, docx); for now capture filename as keyword
-      final fileName = uri.split('/').last;
-      final List<String> keywords = [];
-      if (fileName.isNotEmpty) {
+
+      final fileName = uri.split(RegExp(r'[/\\]')).last;
+      if (fileName.isNotEmpty && keywords.length < 30) {
         final stem = fileName.replaceAll(RegExp(r'\.(pdf|md|docx?)$', caseSensitive: false), '');
-        if (stem.length > 1) keywords.add(stem);
+        if (stem.length > 1 && !keywords.contains(stem)) keywords.insert(0, stem);
       }
-      if (raw.trim().isNotEmpty) {
+      if (raw.trim().isNotEmpty && keywords.length < 30) {
         final words = raw.split(RegExp(r'\s+')).where((w) => w.length > 2).take(100);
         for (final w in words) {
-          if (w.length > 3 && keywords.length < 20) keywords.add(w);
+          if (w.length > 3 && keywords.length < 30) keywords.add(w);
         }
       }
-      return (extractedText: raw, keywords: keywords, metadata: metadata);
+      return (extractedText: raw, keywords: keywords.take(30).toList(), metadata: metadata);
     } catch (e) {
       return (extractedText: '', keywords: <String>[], metadata: {...metadata, 'error': e.toString()});
     }

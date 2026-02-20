@@ -16,6 +16,7 @@
 ## Recent prompt-related changes
 
 | Date | Change | Source / doc |
+| 2026-02-19 | Doc sync v3.3.54: PDF content service, journal/CHRONICLE/MCP/media, pubspec; bug_tracker tracked | CONFIGURATION_MANAGEMENT.md |
 | 2026-02-19 | Doc sync v3.3.53: iOS project (Runner.xcodeproj); bug_tracker tracked | CONFIGURATION_MANAGEMENT.md |
 | 2026-02-19 | Doc sync v3.3.52: Google Drive sync push, MCP export/management, DOCS checklist; bug_tracker tracked | CONFIGURATION_MANAGEMENT.md |
 | 2026-02-19 | Doc sync v3.3.51: Journal capture, journal repository, dual CHRONICLE (agentic loop, dual_chronicle_view); bug_tracker tracked | CONFIGURATION_MANAGEMENT.md |

@@ -95,10 +95,15 @@ class MediaAltTextGenerator {
     return buffer.toString();
   }
 
-  /// Generate concise alt text for UI display
+  /// Generate concise alt text for UI display (6-10 keywords for LUMARA)
   ///
-  /// Shorter version suitable for inline display in journal entries
-  static String? generateConcise(Map<String, dynamic>? analysisData) {
+  /// Shorter version suitable for inline display in journal entries.
+  /// Includes labels, faces, objects, OCR-derived words, and optional date/location.
+  static String? generateConcise(
+    Map<String, dynamic>? analysisData, {
+    DateTime? capturedAt,
+    String? location,
+  }) {
     if (analysisData == null || analysisData.isEmpty) {
       return 'Photo (no longer available)';
     }
@@ -106,23 +111,24 @@ class MediaAltTextGenerator {
     final labels = analysisData['labels'] as List? ?? [];
     final objects = analysisData['objects'] as List? ?? [];
     final faces = analysisData['faces'] as List? ?? [];
+    final ocrData = analysisData['ocr'] as Map? ?? {};
+    final ocrText = (ocrData['fullText'] as String? ?? '').trim();
 
     final keywords = <String>[];
 
-    // Limit to top 3-5 keywords total
-    // Priority: labels (2) -> faces (1) -> objects (1-2)
+    // Target 6-10 keywords: labels (3) -> faces (1) -> objects (3-4) -> OCR words (2-3)
     if (labels.isNotEmpty) {
       keywords.addAll(
-        labels.take(2).map((label) => _extractLabel(label)),
+        labels.take(3).map((label) => _extractLabel(label)).where((l) => l.isNotEmpty),
       );
     }
 
-    if (faces.isNotEmpty && keywords.length < 5) {
+    if (faces.isNotEmpty && keywords.length < 10) {
       keywords.add(faces.length == 1 ? '1 person' : '${faces.length} people');
     }
 
-    if (objects.isNotEmpty && keywords.length < 5) {
-      final remaining = 5 - keywords.length;
+    if (objects.isNotEmpty && keywords.length < 10) {
+      final remaining = (10 - keywords.length).clamp(0, 4);
       keywords.addAll(
         objects
             .take(remaining)
@@ -131,28 +137,53 @@ class MediaAltTextGenerator {
       );
     }
 
-    // Limit to exactly 3-5 keywords
-    final finalKeywords = keywords.take(5).toList();
+    // Add 2-3 significant words from OCR (length > 2, not pure numbers)
+    if (ocrText.isNotEmpty && keywords.length < 10) {
+      final words = ocrText.split(RegExp(r'\s+'))
+          .where((w) => w.length > 2 && w.length < 20)
+          .where((w) => !RegExp(r'^\d+$').hasMatch(w))
+          .take(3);
+      for (final w in words) {
+        if (keywords.length >= 10) break;
+        final cleaned = w.replaceAll(RegExp(r'[^\w\-]'), '');
+        if (cleaned.length > 1 && !keywords.contains(cleaned)) {
+          keywords.add(cleaned);
+        }
+      }
+    }
+
+    // Ensure at least 6 keywords when we have content, cap at 10
+    final finalKeywords = keywords.take(10).toList();
     if (finalKeywords.length < 3 && finalKeywords.isNotEmpty) {
-      // Pad with "scene" if less than 3
       while (finalKeywords.length < 3 && finalKeywords.length < keywords.length) {
         finalKeywords.add('scene');
       }
     }
 
-    if (finalKeywords.isEmpty) {
-      return 'Photo';
+    final parts = <String>[];
+    if (finalKeywords.isNotEmpty) {
+      parts.add(finalKeywords.join(', '));
+    }
+    if (capturedAt != null) {
+      parts.add('taken ${_formatDate(capturedAt)}');
+    }
+    if (location != null && location.isNotEmpty) {
+      parts.add('at $location');
     }
 
-    return 'Photo: ${finalKeywords.join(', ')}';
+    if (parts.isEmpty) return 'Photo';
+    return 'Photo: ${parts.join(' · ')}';
   }
 
-  /// Generate 3-5 keyword alternate text for photos
-  static String generateAltText(Map<String, dynamic>? analysisData) {
-    final concise = generateConcise(analysisData);
+  /// Generate 6-10 keyword alternate text for photos (with optional date/location)
+  static String generateAltText(
+    Map<String, dynamic>? analysisData, {
+    DateTime? capturedAt,
+    String? location,
+  }) {
+    final concise = generateConcise(analysisData, capturedAt: capturedAt, location: location);
     if (concise == null) return 'Photo';
-    
-    // Remove "Photo: " prefix if present
+    // Remove "Photo: " prefix if present for backward compatibility
     return concise.replaceFirst('Photo: ', '');
   }
 

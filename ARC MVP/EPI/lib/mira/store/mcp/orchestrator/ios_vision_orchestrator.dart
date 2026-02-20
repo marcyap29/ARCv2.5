@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'package:image/image.dart' as img;
 import 'package:crypto/crypto.dart';
+import 'package:exif/exif.dart';
 import 'package:my_app/arc/chat/llm/bridge.pigeon.dart';
 
 /// iOS Vision Framework Orchestrator - Pure on-device computer vision
@@ -74,6 +75,18 @@ class IOSVisionOrchestrator {
       print('🔧 Extracting visual features...');
       final featureResult = await _extractFeatures(imageBytes);
       results['features'] = featureResult;
+
+      // 5b. EXIF metadata (creation date, GPS) for LUMARA context
+      print('📅 Reading EXIF metadata...');
+      final exifMeta = await _extractExifMetadata(imageBytes);
+      results['exif'] = exifMeta['exif'] ?? {};
+      results['gps'] = exifMeta['gps'] ?? {};
+      if (exifMeta['capturedAt'] != null) {
+        results['capturedAt'] = (exifMeta['capturedAt'] as DateTime).toIso8601String();
+      }
+      if (exifMeta['location'] != null) {
+        results['location'] = exifMeta['location'];
+      }
 
       // 6. Generate comprehensive summary
       final summary = _generateComprehensiveSummary(
@@ -190,6 +203,119 @@ class IOSVisionOrchestrator {
       print('iOS Vision image classification failed: $e');
       return [];
     }
+  }
+
+  /// Extract EXIF metadata (creation date, GPS) for LUMARA photo context
+  Future<Map<String, dynamic>> _extractExifMetadata(Uint8List imageBytes) async {
+    final out = <String, dynamic>{'exif': <String, String>{}, 'gps': <String, double>{}};
+    try {
+      final data = await readExifFromBytes(imageBytes);
+      if (data.isEmpty) return out;
+
+      // Skip thumbnail entries
+      final skipKeys = ['JPEGThumbnail', 'TIFFThumbnail'];
+      final exif = <String, String>{};
+      for (final entry in data.entries) {
+        if (skipKeys.contains(entry.key)) continue;
+        final p = entry.value.printable;
+        if (p.isNotEmpty && p.length < 500) exif[entry.key] = p;
+      }
+      out['exif'] = exif;
+
+      // Parse creation date (EXIF format often "2024:01:15 12:30:00")
+      final dateKeys = ['DateTimeOriginal', 'DateTime', 'CreateDate', 'ModifyDate'];
+      for (final k in dateKeys) {
+        final tag = data[k] ?? _findExifTag(data, k);
+        if (tag == null) continue;
+        final str = tag.printable.trim();
+        if (str.isEmpty) continue;
+        final normalized = str.replaceFirst(RegExp(r'^(\d{4}):(\d{2}):(\d{2})\s+(\d{2}):(\d{2}):(\d{2})'), '\$1-\$2-\$3T\$4:\$5:\$6');
+        try {
+          out['capturedAt'] = DateTime.parse(normalized);
+          break;
+        } catch (_) {
+          try {
+            out['capturedAt'] = DateTime.parse(str);
+            break;
+          } catch (_) {}
+        }
+      }
+
+      // Parse GPS (exif package may use GPSLatitude/GPSLongitude or keys ending with these)
+      double? lat;
+      double? lon;
+      IfdTag? gpsLat = data['GPSLatitude'];
+      IfdTag? gpsLon = data['GPSLongitude'];
+      gpsLat ??= _findExifTag(data, 'Latitude');
+      gpsLon ??= _findExifTag(data, 'Longitude');
+      if (gpsLat != null && gpsLon != null) {
+        try {
+          final latVal = _parseExifGpsValue(gpsLat);
+          final lonVal = _parseExifGpsValue(gpsLon);
+          if (latVal != null && lonVal != null) {
+            final latRef = (data['GPSLatitudeRef'] ?? _findExifTag(data, 'LatitudeRef'))?.printable ?? 'N';
+            final lonRef = (data['GPSLongitudeRef'] ?? _findExifTag(data, 'LongitudeRef'))?.printable ?? 'E';
+            lat = latRef.toUpperCase().startsWith('S') ? -latVal : latVal;
+            lon = lonRef.toUpperCase().startsWith('W') ? -lonVal : lonVal;
+          }
+        } catch (e) {
+          print('iOS Vision: GPS parse error: $e');
+        }
+      }
+      if (lat != null && lon != null) {
+        (out['gps'] as Map<String, double>)['latitude'] = lat;
+        (out['gps'] as Map<String, double>)['longitude'] = lon;
+        out['location'] = '${lat.toStringAsFixed(4)}, ${lon.toStringAsFixed(4)}';
+      }
+    } catch (e) {
+      print('iOS Vision: EXIF extraction failed: $e');
+    }
+    return out;
+  }
+
+  double? _parseExifGpsValue(IfdTag tag) {
+    try {
+      // Try printable first (e.g. "37.7749" or "37 deg 46' 29.64\" N")
+      final p = tag.printable.trim();
+      final numMatch = RegExp(r'[\d.+-]+').firstMatch(p);
+      if (numMatch != null) {
+        final v = double.tryParse(numMatch.group(0)!);
+        if (v != null && v >= -90 && v <= 90) return v;
+      }
+      // IfdValues for rational (degrees, minutes, seconds)
+      final list = tag.values.toList();
+      if (list.length >= 1) {
+        final d = _rationalToDouble(list[0]);
+        if (d != null && list.length >= 3) {
+          final m = _rationalToDouble(list[1]);
+          final s = _rationalToDouble(list[2]);
+          if (m != null && s != null) return d + m / 60 + s / 3600;
+          return d;
+        }
+        return d;
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  double? _rationalToDouble(dynamic v) {
+    if (v is int) return v.toDouble();
+    if (v.toString().contains('/')) {
+      final parts = v.toString().split('/');
+      if (parts.length == 2) {
+        final n = double.tryParse(parts[0].trim());
+        final d = double.tryParse(parts[1].trim());
+        if (n != null && d != null && d != 0) return n / d;
+      }
+    }
+    return double.tryParse(v.toString());
+  }
+
+  IfdTag? _findExifTag(Map<String, IfdTag> data, String suffix) {
+    for (final e in data.entries) {
+      if (e.key.endsWith(suffix)) return e.value;
+    }
+    return null;
   }
 
   /// Extract visual features (basic image analysis)

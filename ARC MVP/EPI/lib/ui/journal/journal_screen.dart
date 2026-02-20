@@ -47,6 +47,7 @@ import 'package:my_app/arc/core/journal_repository.dart';
 import '../../arc/core/widgets/keyword_analysis_view.dart';
 import 'package:my_app/arc/ui/timeline/timeline_cubit.dart';
 import 'package:my_app/core/services/draft_cache_service.dart';
+import 'package:my_app/core/services/pdf_content_service.dart';
 import 'package:my_app/core/services/photo_library_service.dart';
 import 'package:my_app/aurora/services/circadian_profile_service.dart';
 import 'package:my_app/data/models/media_item.dart';
@@ -5976,7 +5977,8 @@ $originalEntryTextToInclude
     }
   }
 
-  /// Handle file selection (PDF, .md, Doc, Docx) — explicitly enabled for conversations/entries
+  /// Handle file selection (PDF, .md, Doc, Docx) — explicitly enabled for conversations/entries.
+  /// For PDFs, extracts text and page-image insights so LUMARA can read and infer for chronicle.
   Future<void> _handleFile() async {
     try {
       _analytics.logJournalEvent('file_button_pressed');
@@ -5986,6 +5988,7 @@ $originalEntryTextToInclude
         allowMultiple: true,
       );
       if (result != null && result.files.isNotEmpty) {
+        int added = 0;
         for (final platformFile in result.files) {
           final path = platformFile.path;
           if (path == null || path.isEmpty) continue;
@@ -5996,6 +5999,36 @@ $originalEntryTextToInclude
           else if (ext == 'md') mimeType = 'text/markdown';
           else if (ext == 'doc') mimeType = 'application/msword';
           else if (ext == 'docx') mimeType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+
+          String? extractedText;
+          if (ext == 'pdf') {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Reading PDF: $fileName…'),
+                  duration: const Duration(seconds: 2),
+                ),
+              );
+            }
+            final pdfResult = await PdfContentService.extractForChronicle(
+              path,
+              includePageImageAnalysis: true,
+            );
+            if (pdfResult.hasContent) {
+              extractedText = pdfResult.text.trim();
+              if (pdfResult.pageImageInsights.trim().isNotEmpty) {
+                extractedText += '\n\n[From PDF pages]\n${pdfResult.pageImageInsights.trim()}';
+              }
+            }
+          } else if (ext == 'md') {
+            try {
+              final file = File(path);
+              if (await file.exists()) {
+                extractedText = await file.readAsString();
+              }
+            } catch (_) {}
+          }
+
           final fileAttachment = FileAttachment(
             type: 'file',
             filePath: path,
@@ -6003,15 +6036,23 @@ $originalEntryTextToInclude
             mimeType: mimeType,
             timestamp: DateTime.now().millisecondsSinceEpoch,
             fileId: 'file_${DateTime.now().millisecondsSinceEpoch}_${fileName.hashCode}',
+            extractedText: extractedText,
           );
-          setState(() {
-            _entryState.addFileAttachment(fileAttachment);
-          });
+          if (mounted) {
+            setState(() {
+              _entryState.addFileAttachment(fileAttachment);
+            });
+          }
+          added++;
         }
-        if (mounted) {
+        if (mounted && added > 0) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Added ${result.files.length} file(s)'),
+              content: Text(
+                added == 1
+                    ? 'Added 1 file. Content will be used for reflection and timeline.'
+                    : 'Added $added files.',
+              ),
               duration: const Duration(seconds: 2),
             ),
           );
@@ -6317,18 +6358,30 @@ $originalEntryTextToInclude
       if (result['success'] == true) {
         print('DEBUG: Photo analysis successful');
 
-        // Generate alt text from analysis (3-5 keywords)
-        final altText = MediaAltTextGenerator.generateAltText(result);
+        // Parse EXIF date if present for richer alt text
+        DateTime? capturedAt;
+        final capturedAtStr = result['capturedAt'] as String?;
+        if (capturedAtStr != null && capturedAtStr.isNotEmpty) {
+          capturedAt = DateTime.tryParse(capturedAtStr);
+        }
+        final location = result['location'] as String?;
+
+        // Generate alt text from analysis (6-10 keywords + date/location when available)
+        final altText = MediaAltTextGenerator.generateAltText(
+          result,
+          capturedAt: capturedAt,
+          location: location,
+        );
 
         // Generate unique photo ID
         final photoId = 'photo_${DateTime.now().millisecondsSinceEpoch}';
 
-        // Store the original picked path directly - no copying yet
+        // Store the original picked path directly - no copying yet (analysisResult includes exif, gps, capturedAt, location)
         final photoAttachment = PhotoAttachment(
           type: 'photo_analysis',
           imagePath: imagePath, // Use original picked path
           analysisResult: result,
-          timestamp: DateTime.now().millisecondsSinceEpoch,
+          timestamp: capturedAt?.millisecondsSinceEpoch ?? DateTime.now().millisecondsSinceEpoch,
           altText: altText,
           photoId: photoId,
           sha256: null, // Will be generated when entry is saved
