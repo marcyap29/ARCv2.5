@@ -202,9 +202,9 @@ class JournalRepository {
       final box = await _ensureBox();
       await box.put(entry.id, entry);
       print('🔍 JournalRepository: Successfully saved entry ${entry.id} to database');
-      
-      // Populate Layer 0 for CHRONICLE (if enabled)
-      _populateLayer0IfEnabled(entry, userId);
+
+      // Populate Layer 0 before returning so the agentic loop (inference check) sees the new entry
+      await _populateLayer0IfEnabled(entry, userId);
 
       // Invalidate CHRONICLE context cache for this user/period so next reflection sees new content
       final effectiveUserId = userId ?? FirebaseAuthService.instance.currentUser?.uid ?? 'default_user';

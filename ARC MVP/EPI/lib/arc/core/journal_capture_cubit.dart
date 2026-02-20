@@ -595,8 +595,10 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
   }
 
   /// Runs the agentic loop on saved reflection content (reflect modality). Non-blocking.
+  /// Inference check is local (no Groq); connections are created when the user answers clarifying questions.
   void _runAgenticLoopForReflect(String content) {
     final userId = FirebaseAuthService.instance.currentUser?.uid ?? 'default_user';
+    print('LUMARA learning: Entry submitted for inference check (agentic loop).');
     UserPhaseService.getCurrentPhase().then((phase) {
       final context = AgenticContext(
         currentPhase: phase.isEmpty ? 'unknown' : phase,
@@ -606,11 +608,14 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
       );
       DualChronicleServices.agenticLoopOrchestrator
           .execute(userId, content, context)
-          .then((_) {
-        DualChronicleServices.lumaraChronicle
+          .then((result) {
+        print('LUMARA learning: Agentic loop completed (type=${result.type}, duration=${result.durationMs}ms).');
+        return DualChronicleServices.lumaraChronicle
             .recordLearningTrigger(userId, 'reflect', sourceSummary: _truncateForTrigger(content))
-            .catchError((e) => print('DualChronicle: recordLearningTrigger error: $e'));
-      }, onError: (e) => print('DualChronicle: Agentic loop (reflect) error: $e'));
+            .then((_) {
+          print('LUMARA learning: Learning trigger recorded (reflect).');
+        });
+      }, onError: (e) => print('LUMARA learning: Agentic loop (reflect) error: $e'));
     }).catchError((_) {
       final context = const AgenticContext(
         readinessScore: 0.5,
@@ -618,11 +623,14 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
       );
       DualChronicleServices.agenticLoopOrchestrator
           .execute(userId, content, context)
-          .then((_) {
-        DualChronicleServices.lumaraChronicle
+          .then((result) {
+        print('LUMARA learning: Agentic loop completed (type=${result.type}, duration=${result.durationMs}ms).');
+        return DualChronicleServices.lumaraChronicle
             .recordLearningTrigger(userId, 'reflect', sourceSummary: _truncateForTrigger(content))
-            .catchError((e) => print('DualChronicle: recordLearningTrigger error: $e'));
-      }, onError: (e) => print('DualChronicle: Agentic loop (reflect) error: $e'));
+            .then((_) {
+          print('LUMARA learning: Learning trigger recorded (reflect).');
+        });
+      }, onError: (e) => print('LUMARA learning: Agentic loop (reflect) error: $e'));
     });
   }
 

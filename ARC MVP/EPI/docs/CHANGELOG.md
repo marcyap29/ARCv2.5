@@ -1,6 +1,6 @@
 # EPI LUMARA MVP - Changelog
 
-**Version:** 3.3.50
+**Version:** 3.3.51
 **Last Updated:** February 19, 2026
 
 ---
@@ -14,6 +14,17 @@ This changelog has been split into parts for easier navigation:
 | **[CHANGELOG_part1.md](CHANGELOG_part1.md)** | Dec 2025 | v2.1.43 - v2.1.87 (Current) |
 | **[CHANGELOG_part2.md](CHANGELOG_part2.md)** | Nov 2025 | v2.1.28 - v2.1.42 |
 | **[CHANGELOG_part3.md](CHANGELOG_part3.md)** | Jan-Oct 2025 | v2.0.0 - v2.1.27 & Earlier |
+
+---
+
+## [3.3.51] - February 19, 2026
+
+### Journal capture, journal repository, dual CHRONICLE (agentic loop, dual_chronicle_view)
+
+- **Journal:** `journal_capture_cubit.dart`, `journal_repository.dart` (lib/arc/internal/mira) updates.
+- **Dual CHRONICLE:** `agentic_loop_orchestrator.dart`, `dual_chronicle_view.dart` updates.
+
+**Files:** 4 modified. bug_tracker tracked.
 
 ---
 

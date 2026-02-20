@@ -79,6 +79,7 @@ class AgenticLoopOrchestrator {
     String? lumaraCommentsContext,
   }) async {
     final start = DateTime.now();
+    print('LUMARA learning: Agentic loop started (query length=${query.length}).');
     String? lumaraContext = lumaraCommentsContext;
     if (lumaraContext == null && _lumaraCommentsLoader != null) {
       lumaraContext = await _lumaraCommentsLoader!.load(userId);
@@ -90,15 +91,20 @@ class AgenticLoopOrchestrator {
     final inferred = await _lumaraRepo.queryInferences(userId, query, activeAfter: fadeCutoff);
     final gapFills = await _lumaraRepo.loadGapFillEvents(userId, activeAfter: fadeCutoff);
 
+    print('LUMARA learning: Layer0 entries=${layer0.entries.length}, causal chains=${inferred.causalChains.length}, gap fills=${gapFills.length}.');
+
     final gapAnalysis = await _gapAnalyzer.analyze(query, layer0, inferred);
     final classified = await _gapClassifier.classify(
       gapAnalysis.identifiedGaps,
       userId,
     );
 
+    print('LUMARA learning: Gaps identified=${gapAnalysis.gapCount}, clarification=${classified.clarificationGaps.length}, interrupt offered=${classified.clarificationGaps.isNotEmpty}.');
+
     if (classified.clarificationGaps.isNotEmpty) {
       final decision = await _interruptEngine.shouldInterrupt(context, classified);
       if (decision.shouldInterrupt && decision.question != null && decision.gapId != null) {
+        print('LUMARA learning: Interrupt with clarifying question (gapId=${decision.gapId}).');
         return LoopResult(
           type: 'interrupt',
           question: decision.question,
@@ -122,11 +128,13 @@ class AgenticLoopOrchestrator {
     });
 
     final content = _synthesizeResponse(layer0, inferred, lumaraContext, gapFills);
+    final durationMs = DateTime.now().difference(start).inMilliseconds;
+    print('LUMARA learning: Agentic loop finished (response, ${durationMs}ms). No Groq used for inference.');
     return LoopResult(
       type: 'response',
       content: content,
       context: context,
-      durationMs: DateTime.now().difference(start).inMilliseconds,
+      durationMs: durationMs,
     );
   }
 

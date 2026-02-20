@@ -426,6 +426,15 @@ class _DualChronicleViewState extends State<DualChronicleView> {
               fontSize: 12,
             ),
           ),
+          const SizedBox(height: 4),
+          Text(
+            'Inference check runs automatically after each reflection (local; no API call). New connections are created when you answer clarifying questions.',
+            style: bodyStyle(context).copyWith(
+              color: kcSecondaryTextColor.withOpacity(0.85),
+              fontSize: 11,
+              fontStyle: FontStyle.italic,
+            ),
+          ),
           const SizedBox(height: 8),
           Container(
             padding: const EdgeInsets.all(10),
