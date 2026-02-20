@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 70;
+	objectVersion = 54;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -12,11 +12,11 @@
 		1F25018D2EAFB56500BCAD8B /* ARCXFileProtection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F25018C2EAFB56500BCAD8B /* ARCXFileProtection.swift */; };
 		1F25018E2EAFB56500BCAD8B /* ARCXCrypto.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F25018B2EAFB56500BCAD8B /* ARCXCrypto.swift */; };
 		1F3EEF6E2E93526C009BFF74 /* PrismScrubber.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F3EEF6D2E93526C009BFF74 /* PrismScrubber.swift */; };
-		1F3EEF6E2E93526C009BFF76 /* Shims/PigeonShims.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F3EEF6D2E93526C009BFF75 /* Shims/PigeonShims.swift */; };
-		1F3EEF6F2E93526C009BFF74 /* Runner/LlamaBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F3EEF6C2E93526C009BFF74 /* Runner/LlamaBridge.swift */; };
-		1F3EEF702E93526C009BFF74 /* Runner/llama_wrapper.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 1F3EEF6B2E93526C009BFF74 /* Runner/llama_wrapper.cpp */; };
+		1F3EEF6E2E93526C009BFF76 /* PigeonShims.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F3EEF6D2E93526C009BFF75 /* PigeonShims.swift */; };
+		1F3EEF6F2E93526C009BFF74 /* LlamaBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F3EEF6C2E93526C009BFF74 /* LlamaBridge.swift */; };
+		1F3EEF702E93526C009BFF74 /* llama_wrapper.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 1F3EEF6B2E93526C009BFF74 /* llama_wrapper.cpp */; };
 		1F3EEF712E93526C009BFF74 /* CapabilityRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F3EEF692E93526C009BFF74 /* CapabilityRouter.swift */; };
-		1F3EEF712E93526C009BFF75 /* Runner/epi_logger.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 1F3EEF6C2E93526C009BFF75 /* Runner/epi_logger.cpp */; };
+		1F3EEF712E93526C009BFF75 /* epi_logger.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 1F3EEF6C2E93526C009BFF75 /* epi_logger.cpp */; };
 		1F3EEF752E93526C009BFF74 /* NativeEmbeddingChannel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F3EEF762E93526C009BFF74 /* NativeEmbeddingChannel.swift */; };
 		1F3EEF812E9353BE009BFF74 /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1F3EEF7E2E9353BE009BFF74 /* Metal.framework */; };
 		1F3EEF822E9353BE009BFF74 /* Accelerate.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1F3EEF7F2E9353BE009BFF74 /* Accelerate.framework */; };
@@ -86,12 +86,12 @@
 		1F25018C2EAFB56500BCAD8B /* ARCXFileProtection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ARCXFileProtection.swift; sourceTree = "<group>"; };
 		1F3EEF692E93526C009BFF74 /* CapabilityRouter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CapabilityRouter.swift; sourceTree = "<group>"; };
 		1F3EEF6A2E93526C009BFF74 /* llama_wrapper.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = llama_wrapper.h; sourceTree = "<group>"; };
-		1F3EEF6B2E93526C009BFF74 /* Runner/llama_wrapper.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Runner/llama_wrapper.cpp; sourceTree = "<group>"; };
-		1F3EEF6C2E93526C009BFF74 /* Runner/LlamaBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Runner/LlamaBridge.swift; sourceTree = "<group>"; };
-		1F3EEF6C2E93526C009BFF75 /* Runner/epi_logger.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Runner/epi_logger.cpp; sourceTree = "<group>"; };
+		1F3EEF6B2E93526C009BFF74 /* llama_wrapper.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Runner/llama_wrapper.cpp; sourceTree = "<group>"; };
+		1F3EEF6C2E93526C009BFF74 /* LlamaBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Runner/LlamaBridge.swift; sourceTree = "<group>"; };
+		1F3EEF6C2E93526C009BFF75 /* epi_logger.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Runner/epi_logger.cpp; sourceTree = "<group>"; };
 		1F3EEF6D2E93526C009BFF74 /* PrismScrubber.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrismScrubber.swift; sourceTree = "<group>"; };
-		1F3EEF6D2E93526C009BFF75 /* Shims/PigeonShims.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shims/PigeonShims.swift; sourceTree = "<group>"; };
-		1F3EEF6D2E93526C009BFF76 /* Runner/epi_logger.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Runner/epi_logger.h; sourceTree = "<group>"; };
+		1F3EEF6D2E93526C009BFF75 /* PigeonShims.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shims/PigeonShims.swift; sourceTree = "<group>"; };
+		1F3EEF6D2E93526C009BFF76 /* epi_logger.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Runner/epi_logger.h; sourceTree = "<group>"; };
 		1F3EEF722E9352C3009BFF74 /* llama.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = llama.xcframework; path = Runner/Vendor/llama.xcframework; sourceTree = "<group>"; };
 		1F3EEF762E93526C009BFF74 /* NativeEmbeddingChannel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeEmbeddingChannel.swift; sourceTree = "<group>"; };
 		1F3EEF7E2E9353BE009BFF74 /* Metal.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Metal.framework; path = System/Library/Frameworks/Metal.framework; sourceTree = SDKROOT; };
@@ -131,7 +131,17 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		1F1328292E999508006FD793 /* ARC_Widget */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = ARC_Widget; sourceTree = "<group>"; };
+		1F1328292E999508006FD793 /* ARC_Widget */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+			);
+			explicitFileTypes = {
+			};
+			explicitFolders = (
+			);
+			path = ARC_Widget;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -200,10 +210,10 @@
 				1F25018C2EAFB56500BCAD8B /* ARCXFileProtection.swift */,
 				1F3EEF692E93526C009BFF74 /* CapabilityRouter.swift */,
 				1F3EEF6A2E93526C009BFF74 /* llama_wrapper.h */,
-				1F3EEF6B2E93526C009BFF74 /* Runner/llama_wrapper.cpp */,
-				1F3EEF6C2E93526C009BFF75 /* Runner/epi_logger.cpp */,
-				1F3EEF6D2E93526C009BFF76 /* Runner/epi_logger.h */,
-				1F3EEF6C2E93526C009BFF74 /* Runner/LlamaBridge.swift */,
+				1F3EEF6B2E93526C009BFF74 /* llama_wrapper.cpp */,
+				1F3EEF6C2E93526C009BFF75 /* epi_logger.cpp */,
+				1F3EEF6D2E93526C009BFF76 /* epi_logger.h */,
+				1F3EEF6C2E93526C009BFF74 /* LlamaBridge.swift */,
 				1F3EEF6D2E93526C009BFF74 /* PrismScrubber.swift */,
 				9740EEB11CF90186004384FC /* Flutter */,
 				97C146F01CF9000F007C117D /* Runner */,
@@ -247,7 +257,7 @@
 				AD02F52095DB446494429964 /* LumaraPromptSystem.swift */,
 				4700A91B00044A52AA765055 /* MiraMemoryStore.swift */,
 				74858FAD1ED2DC5600515810 /* Runner-Bridging-Header.h */,
-				1F3EEF6D2E93526C009BFF75 /* Shims/PigeonShims.swift */,
+				1F3EEF6D2E93526C009BFF75 /* PigeonShims.swift */,
 			);
 			path = Runner;
 			sourceTree = "<group>";
@@ -457,13 +467,9 @@
 			inputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-Runner/Pods-Runner-resources-${CONFIGURATION}-input-files.xcfilelist",
 			);
-			inputPaths = (
-			);
 			name = "[CP] Copy Pods Resources";
 			outputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-Runner/Pods-Runner-resources-${CONFIGURATION}-output-files.xcfilelist",
-			);
-			outputPaths = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
@@ -478,13 +484,9 @@
 			inputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-Runner/Pods-Runner-frameworks-${CONFIGURATION}-input-files.xcfilelist",
 			);
-			inputPaths = (
-			);
 			name = "[CP] Embed Pods Frameworks";
 			outputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-Runner/Pods-Runner-frameworks-${CONFIGURATION}-output-files.xcfilelist",
-			);
-			outputPaths = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
@@ -513,13 +515,13 @@
 				0943C7D7E64F4B5CBCE6F988 /* Bridge.pigeon.swift in Sources */,
 				89D3A75FAAA641AA8EB27E61 /* LumaraPromptSystem.swift in Sources */,
 				D1754AEF759146E8920F2B30 /* MiraMemoryStore.swift in Sources */,
-				1F3EEF6E2E93526C009BFF76 /* Shims/PigeonShims.swift in Sources */,
+				1F3EEF6E2E93526C009BFF76 /* PigeonShims.swift in Sources */,
 				1F3EEF6E2E93526C009BFF74 /* PrismScrubber.swift in Sources */,
 				1F25018D2EAFB56500BCAD8B /* ARCXFileProtection.swift in Sources */,
 				1F25018E2EAFB56500BCAD8B /* ARCXCrypto.swift in Sources */,
-				1F3EEF6F2E93526C009BFF74 /* Runner/LlamaBridge.swift in Sources */,
-				1F3EEF702E93526C009BFF74 /* Runner/llama_wrapper.cpp in Sources */,
-				1F3EEF712E93526C009BFF75 /* Runner/epi_logger.cpp in Sources */,
+				1F3EEF6F2E93526C009BFF74 /* LlamaBridge.swift in Sources */,
+				1F3EEF702E93526C009BFF74 /* llama_wrapper.cpp in Sources */,
+				1F3EEF712E93526C009BFF75 /* epi_logger.cpp in Sources */,
 				1F3EEF712E93526C009BFF74 /* CapabilityRouter.swift in Sources */,
 				1498D2341E8E89220040F4C2 /* GeneratedPluginRegistrant.m in Sources */,
 				VISIONIMPL001 /* VisionApiImpl.swift in Sources */,
