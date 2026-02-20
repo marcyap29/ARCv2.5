@@ -1,7 +1,7 @@
 # Configuration Management & Documentation Tracking
 
 **Lead Configuration Management Analyst:** Active  
-**Last Updated:** February 19, 2026 (v3.3.51)  
+**Last Updated:** February 19, 2026 (v3.3.52)  
 **Status:** ✅ All Documents Synced with Repo
 
 ---
@@ -30,6 +30,13 @@ Per the **Documentation, Configuration Management and Git Backup** role (see [cl
 
 Prompt/role definitions: **Ultimate Documentation, Configuration Management and Git Backup Prompt** in [claude.md](claude.md).
 
+**Documentation update checklist (every Doc/Config/Git Backup run):** Update or explicitly confirm:
+- **CHANGELOG.md** — new version entry
+- **CONFIGURATION_MANAGEMENT.md** — this change log entry + inventory as needed
+- **bug_tracker.md** — new row in Recent code changes; Last Updated
+- **PROMPT_TRACKER.md** — new doc-sync row (or "no prompt changes"); Last Updated if needed
+- **ARCHITECTURE.md** — when there are structural changes (new/removed modules, data flow)
+
 ---
 
 ## Documentation Inventory
@@ -39,7 +46,7 @@ Prompt/role definitions: **Ultimate Documentation, Configuration Management and 
 | Document | Location | Last Reviewed | Status | Notes |
 |----------|----------|---------------|--------|-------|
 | ARCHITECTURE.md | `/DOCS/ARCHITECTURE.md` | 2026-02-17 | ✅ Synced | v3.3.43 - Doc sync |
-| CHANGELOG.md | `/DOCS/CHANGELOG.md` | 2026-02-19 | ✅ Synced | v3.3.51 - Journal capture/repository, dual CHRONICLE (agentic loop, dual_chronicle_view) |
+| CHANGELOG.md | `/DOCS/CHANGELOG.md` | 2026-02-19 | ✅ Synced | v3.3.52 - Google Drive sync push, MCP export/management, DOCS checklist |
 | PROMPT_REFERENCES.md | `/DOCS/PROMPT_REFERENCES.md` | 2026-02-16 | ✅ Synced | Updated; agent_operating_system_prompt, intent/orchestration refs |
 | PROMPT_TRACKER.md | `/DOCS/PROMPT_TRACKER.md` | 2026-02-15 | ✅ Synced | v1.4.0 - Agent prompts row |
 | bug_tracker.md | `/DOCS/bugtracker/bug_tracker.md` | 2026-02-18 | ✅ Synced | v3.2.6 - 35 records; BUGTRACKER_MASTER_INDEX, BUGTRACKER_AUDIT_REPORT — v3.3.47 |
@@ -101,6 +108,25 @@ Prompt/role definitions: **Ultimate Documentation, Configuration Management and 
 ---
 
 ## Change Tracking Log
+
+### 2026-02-19 - Documentation & Git Backup run (v3.3.52; bug_tracker tracked)
+
+**Action:** Ran Documentation, Configuration Management and Git Backup workflow (claude.md §233–349) on the entire repo. Document updates include **bug_tracker** tracking.
+
+**PROMPT REFERENCES AUDIT:** No prompt catalog changes in this set.
+
+**Git Backup — Identify what changed:** New sync_folder_push_screen.dart (push synced timeline entries back to Drive folder); google_drive_service, google_drive_settings_view; unified_feed_screen; mcp_export_screen, mcp_management_screen; DOCS CONFIGURATION_MANAGEMENT (checklist), claude.md (required-every-run); iOS project. No cleanup (archive/merge/delete) required.
+
+**Updates:**
+- **CHANGELOG.md:** Version 3.3.52; [3.3.52] Google Drive sync push, MCP export/management, DOCS checklist.
+- **CONFIGURATION_MANAGEMENT.md:** This entry; bug_tracker tracked.
+- **bug_tracker.md:** New row for v3.3.52; Last Updated 2026-02-19.
+- **PROMPT_TRACKER.md:** Doc sync v3.3.52 row (no prompt changes).
+- **ARCHITECTURE.md:** No structural changes this set.
+
+**Status:** ✅ Commit, push main; merge test into main; push.
+
+---
 
 ### 2026-02-19 - Documentation & Git Backup run (v3.3.51; bug_tracker tracked)
 

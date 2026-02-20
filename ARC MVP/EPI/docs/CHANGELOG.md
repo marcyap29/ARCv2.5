@@ -1,6 +1,6 @@
 # EPI LUMARA MVP - Changelog
 
-**Version:** 3.3.51
+**Version:** 3.3.52
 **Last Updated:** February 19, 2026
 
 ---
@@ -14,6 +14,20 @@ This changelog has been split into parts for easier navigation:
 | **[CHANGELOG_part1.md](CHANGELOG_part1.md)** | Dec 2025 | v2.1.43 - v2.1.87 (Current) |
 | **[CHANGELOG_part2.md](CHANGELOG_part2.md)** | Nov 2025 | v2.1.28 - v2.1.42 |
 | **[CHANGELOG_part3.md](CHANGELOG_part3.md)** | Jan-Oct 2025 | v2.0.0 - v2.1.27 & Earlier |
+
+---
+
+## [3.3.52] - February 19, 2026
+
+### Google Drive sync folder push screen; Drive settings; unified feed; MCP export/management; DOCS checklist
+
+- **Google Drive:** New `sync_folder_push_screen.dart` — push timeline entries (previously synced from Drive) back to the sync folder; `google_drive_service.dart`, `google_drive_settings_view.dart` updates.
+- **Unified feed:** `unified_feed_screen.dart` updates.
+- **MCP:** `mcp_export_screen.dart`, `mcp_management_screen.dart` updates.
+- **DOCS:** CONFIGURATION_MANAGEMENT.md — documentation update checklist (PROMPT_TRACKER, bug_tracker, ARCHITECTURE); claude.md — Step 2 required-every-run note for PROMPT_TRACKER, bug_tracker, ARCHITECTURE.
+- **iOS:** Runner.xcodeproj/project.pbxproj.
+
+**Files:** 8 modified, 1 new (sync_folder_push_screen). bug_tracker tracked.
 
 ---
 

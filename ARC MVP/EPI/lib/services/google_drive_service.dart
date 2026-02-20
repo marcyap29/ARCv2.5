@@ -26,17 +26,21 @@ class SyncedTxtRecord {
   final String driveFileId;
   final String journalEntryId;
   final String? modifiedTimeIso; // Drive file modifiedTime when we last synced
+  /// Folder ID this file was synced from (for filtering "push to Drive" by current sync folder).
+  final String? syncFolderId;
 
   SyncedTxtRecord({
     required this.driveFileId,
     required this.journalEntryId,
     this.modifiedTimeIso,
+    this.syncFolderId,
   });
 
   Map<String, dynamic> toJson() => {
         'driveFileId': driveFileId,
         'journalEntryId': journalEntryId,
         'modifiedTimeIso': modifiedTimeIso,
+        if (syncFolderId != null && syncFolderId!.isNotEmpty) 'syncFolderId': syncFolderId,
       };
 
   static SyncedTxtRecord? fromJson(dynamic map) {
@@ -48,6 +52,7 @@ class SyncedTxtRecord {
       driveFileId: driveFileId,
       journalEntryId: journalEntryId ?? '',
       modifiedTimeIso: map['modifiedTimeIso']?.toString(),
+      syncFolderId: map['syncFolderId']?.toString(),
     );
   }
 }
@@ -394,14 +399,18 @@ class GoogleDriveService {
   }
 
   /// Records of synced .txt files (driveFileId → journalEntryId + modifiedTime) for create/update.
-  Future<List<SyncedTxtRecord>> getSyncedTxtRecords() async {
+  /// If [syncFolderId] is provided, only returns records that were synced from that folder.
+  Future<List<SyncedTxtRecord>> getSyncedTxtRecords({String? syncFolderId}) async {
     final prefs = await SharedPreferences.getInstance();
     final json = prefs.getString(_kPrefSyncedTxtRecords);
     if (json != null && json.isNotEmpty) {
       try {
         final list = jsonDecode(json) as List<dynamic>?;
         if (list != null) {
-          final records = list.map((e) => SyncedTxtRecord.fromJson(e)).whereType<SyncedTxtRecord>().toList();
+          var records = list.map((e) => SyncedTxtRecord.fromJson(e)).whereType<SyncedTxtRecord>().toList();
+          if (syncFolderId != null && syncFolderId.isNotEmpty) {
+            records = records.where((r) => r.syncFolderId == syncFolderId).toList();
+          }
           if (records.isNotEmpty) return records;
         }
       } catch (_) {}
@@ -412,7 +421,7 @@ class GoogleDriveService {
       try {
         final list = jsonDecode(oldJson) as List<dynamic>?;
         if (list != null && list.isNotEmpty) {
-          return list.map((e) => SyncedTxtRecord(driveFileId: e.toString(), journalEntryId: '', modifiedTimeIso: null)).toList();
+          return list.map((e) => SyncedTxtRecord(driveFileId: e.toString(), journalEntryId: '', modifiedTimeIso: null, syncFolderId: null)).toList();
         }
       } catch (_) {}
     }
@@ -506,6 +515,7 @@ final title = (pair.file.name ?? 'Note').replaceAll(RegExp(r'\.(txt|md)$'), '').
               driveFileId: fileId,
               journalEntryId: record.journalEntryId,
               modifiedTimeIso: driveModified.toIso8601String(),
+              syncFolderId: folderId,
             );
             createdOrUpdated++;
             continue;
@@ -545,6 +555,7 @@ final title = (pair.file.name ?? 'Note').replaceAll(RegExp(r'\.(txt|md)$'), '').
           driveFileId: fileId,
           journalEntryId: entry.id,
           modifiedTimeIso: driveModified != null ? driveModified.toIso8601String() : null,
+          syncFolderId: folderId,
         );
         createdOrUpdated++;
       } catch (e) {
@@ -645,6 +656,75 @@ final title = (pair.file.name ?? 'Note').replaceAll(RegExp(r'\.(txt|md)$'), '').
       uploadMedia: media,
     );
     return created.id!;
+  }
+
+  /// Update an existing Drive file's content (and optionally name). Used to push timeline entry back to Drive.
+  /// Returns the updated file's modifiedTime as ISO string, or null.
+  Future<String?> updateFileContent(String fileId, String content, {String? fileName}) async {
+    _requireDriveApi();
+    final dir = Directory.systemTemp;
+    final name = fileName ?? 'note.txt';
+    final ext = name.contains('.') ? '' : '.txt';
+    final localPath = '${dir.path}/gdrive_update_${DateTime.now().millisecondsSinceEpoch}_${path.basename(name)}$ext';
+    final file = File(localPath);
+    try {
+      await file.writeAsString(content, encoding: utf8);
+      final len = await file.length();
+      final driveFile = drive.File();
+      if (fileName != null && fileName.isNotEmpty) driveFile.name = fileName;
+      final media = drive.Media(file.openRead(), len);
+      final updated = await _driveApi!.files.update(
+        driveFile,
+        fileId,
+        uploadMedia: media,
+      );
+      final mod = updated.modifiedTime;
+      if (mod != null) return mod.toIso8601String();
+      return null;
+    } finally {
+      try {
+        await file.delete();
+      } catch (_) {}
+    }
+  }
+
+  /// Push a journal entry's content back to the linked Drive file. Strips trailing #googledrive #X hashtags for clean .txt.
+  /// Updates the synced record's modifiedTimeIso. Returns true on success.
+  Future<bool> pushEntryContentToDrive({
+    required JournalEntry entry,
+    required String driveFileId,
+    required JournalRepository journalRepo,
+  }) async {
+    final content = entry.content.trim();
+    // Strip trailing sync hashtags so the .txt on Drive stays clean
+    final withoutHashtags = content
+        .replaceAll(RegExp(r'\s*#googledrive\s*'), ' ')
+        .replaceAll(RegExp(r'\s*#[a-zA-Z0-9_]+\s*$'), '')
+        .trim();
+    final body = withoutHashtags.isEmpty ? content : withoutHashtags;
+    final fileName = '${entry.title.replaceAll(RegExp(r'[/\\:*?"<>|]'), '_').trim()}.txt';
+    try {
+      await updateFileContent(driveFileId, body, fileName: fileName);
+      final records = await getSyncedTxtRecords();
+      final byDriveId = <String, SyncedTxtRecord>{};
+      for (final r in records) {
+        byDriveId[r.driveFileId] = r;
+      }
+      final existing = byDriveId[driveFileId];
+      if (existing != null) {
+        byDriveId[driveFileId] = SyncedTxtRecord(
+          driveFileId: driveFileId,
+          journalEntryId: existing.journalEntryId,
+          modifiedTimeIso: DateTime.now().toIso8601String(),
+          syncFolderId: existing.syncFolderId,
+        );
+        await _saveSyncedTxtRecords(byDriveId.values.toList());
+      }
+      return true;
+    } catch (e) {
+      debugPrint('GoogleDriveService: pushEntryContentToDrive failed: $e');
+      return false;
+    }
   }
 
   /// Download a Drive file to a local path.

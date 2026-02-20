@@ -24,6 +24,7 @@ import 'package:my_app/mira/store/mcp/import/mcp_pack_import_service.dart';
 import 'package:my_app/arc/ui/timeline/timeline_cubit.dart';
 import 'package:my_app/shared/ui/home/home_view.dart';
 import 'package:my_app/shared/ui/settings/drive_folder_picker_screen.dart';
+import 'package:my_app/shared/ui/settings/sync_folder_push_screen.dart';
 import 'package:googleapis/drive/v3.dart' as drive;
 import 'package:intl/intl.dart';
 
@@ -1475,7 +1476,7 @@ class _GoogleDriveSettingsViewState extends State<GoogleDriveSettingsView> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Choose a Google Drive folder. Add .txt or .md files there, then tap Sync to import them into the Timeline with #googledrive and a hashtag from the folder name (e.g. #BYOK).',
+            'Choose a Google Drive folder. Add .txt or .md files there, then tap Sync to import them into the Timeline with #googledrive and a hashtag from the folder name (e.g. #BYOK). You can also push changes from the timeline back to the same folder.',
             style: bodyStyle(context).copyWith(color: kcSecondaryTextColor, fontSize: 12),
           ),
           const SizedBox(height: 12),
@@ -1503,15 +1504,45 @@ class _GoogleDriveSettingsViewState extends State<GoogleDriveSettingsView> {
             ],
           ),
           const SizedBox(height: 12),
-          FilledButton.icon(
-            onPressed: (_syncingTxt || _syncFolderName == null) ? null : _syncTxtFromDrive,
-            icon: _syncingTxt
-                ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                : const Icon(Icons.sync, size: 18),
-            label: Text(_syncingTxt ? 'Syncing...' : 'Sync'),
-            style: FilledButton.styleFrom(backgroundColor: kcAccentColor, foregroundColor: Colors.white),
+          Row(
+            children: [
+              Expanded(
+                child: FilledButton.icon(
+                  onPressed: (_syncingTxt || _syncFolderName == null) ? null : _syncTxtFromDrive,
+                  icon: _syncingTxt
+                      ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                      : const Icon(Icons.sync, size: 18),
+                  label: Text(_syncingTxt ? 'Syncing...' : 'Sync'),
+                  style: FilledButton.styleFrom(backgroundColor: kcAccentColor, foregroundColor: Colors.white),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: (_syncingTxt || _syncFolderName == null) ? null : _openPushToDrive,
+                  icon: const Icon(Icons.upload, size: 18),
+                  label: const Text('Push to Drive'),
+                  style: OutlinedButton.styleFrom(foregroundColor: kcAccentColor),
+                ),
+              ),
+            ],
           ),
         ],
+      ),
+    );
+  }
+
+  /// Open screen to select synced entries and push their content back to the Drive sync folder.
+  Future<void> _openPushToDrive() async {
+    final folderId = await _driveService.getSyncFolderId();
+    if (folderId == null || folderId.isEmpty || !mounted) return;
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (context) => SyncFolderPushScreen(
+          journalRepo: widget.journalRepo,
+          syncFolderId: folderId,
+          syncFolderName: _syncFolderName ?? 'Sync folder',
+        ),
       ),
     );
   }

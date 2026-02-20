@@ -97,6 +97,15 @@ class McpManagementScreen extends StatelessWidget {
                   color: Colors.blue,
                   onTap: () => _navigateToZipExport(context),
                 ),
+                const SizedBox(height: 12),
+                _buildActionCard(
+                  context,
+                  title: 'Export as Text (.txt)',
+                  subtitle: 'Export journal entries as plain .txt files. One file per entry; good for sync or sharing individual documents.',
+                  icon: Icons.description,
+                  color: Colors.teal,
+                  onTap: () => _navigateToTxtExport(context),
+                ),
               ],
             ),
 
@@ -122,6 +131,16 @@ class McpManagementScreen extends StatelessWidget {
       context,
       MaterialPageRoute(
         builder: (context) => const McpExportScreen(initialFormat: 'zip'),
+      ),
+    );
+  }
+
+  /// Navigate to export screen (.txt format)
+  void _navigateToTxtExport(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const McpExportScreen(initialFormat: 'txt'),
       ),
     );
   }

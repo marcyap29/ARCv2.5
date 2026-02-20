@@ -310,10 +310,12 @@ For each change identified, update the appropriate documents:
 | `CONFIGURATION_MANAGEMENT.md` | Documentation inventory table (reviewed dates, status, notes) |
 | `FEATURES.md` | Any new or modified features |
 | `ARCHITECTURE.md` | Structural changes (new/removed modules, changed data flow) |
-| `bugtracker/` (e.g. `bug_tracker_part1.md`) | New bugs found or resolved |
-| `PROMPT_TRACKER.md` | Any prompt changes |
+| `bugtracker/` (e.g. `bug_tracker.md`) | New bugs found or resolved; **every run:** add Recent code changes row for the release and refresh Last Updated |
+| `PROMPT_TRACKER.md` | Any prompt changes; **every run:** add doc-sync row for the release (or note no prompt changes) |
 | `backend.md` | Backend/service changes |
 | `README.md` | Project overview or key docs list if needed |
+
+**Required every run:** Update **PROMPT_TRACKER.md**, **bug_tracker.md** (bugtracker/), and **ARCHITECTURE.md** (when there are structural changes) along with CHANGELOG and CONFIGURATION_MANAGEMENT so all stay in sync. For PROMPT_TRACKER and bug_tracker, at minimum add a doc-sync / Recent code changes row and refresh Last Updated; for ARCHITECTURE, update content when modules or data flow change.
 
 **Rules:** Only update documents where repo changes are relevant; preserve existing formatting and conventions; use the same version numbering scheme as in `CHANGELOG.md`; keep entries concise and factual.
 

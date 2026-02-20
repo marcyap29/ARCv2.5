@@ -16,6 +16,7 @@
 ## Recent prompt-related changes
 
 | Date | Change | Source / doc |
+| 2026-02-19 | Doc sync v3.3.52: Google Drive sync push, MCP export/management, DOCS checklist; bug_tracker tracked | CONFIGURATION_MANAGEMENT.md |
 | 2026-02-19 | Doc sync v3.3.51: Journal capture, journal repository, dual CHRONICLE (agentic loop, dual_chronicle_view); bug_tracker tracked | CONFIGURATION_MANAGEMENT.md |
 | 2026-02-19 | Doc sync v3.3.50: Egress PII/LumaraInlineApi security tests; backend, auth, gemini_send, subscription, AssemblyAI; bug_tracker tracked | CONFIGURATION_MANAGEMENT.md |
 | 2026-02-19 | Doc sync v3.3.49: CHRONICLE layer0, dual CHRONICLE/LUMARA, lumara_system_prompt/prompt_library/optimizer; LumaraInlineApi PII fix; bug_tracker tracked | CONFIGURATION_MANAGEMENT.md |

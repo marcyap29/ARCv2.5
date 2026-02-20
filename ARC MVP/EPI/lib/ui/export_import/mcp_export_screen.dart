@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:path_provider/path_provider.dart';
+import 'dart:convert';
+import 'dart:io';
 import 'package:path/path.dart' as path;
 import 'package:share_plus/share_plus.dart';
-import 'dart:io';
 import '../../shared/app_colors.dart';
 import '../../shared/text_style.dart';
 import 'package:my_app/arc/core/journal_repository.dart';
@@ -20,7 +21,7 @@ import 'package:intl/intl.dart';
 
 /// MCP Export Screen - Create MCP Package (.mcpkg)
 class McpExportScreen extends StatefulWidget {
-  final String? initialFormat; // 'arcx' or 'zip' - optional format pre-selection
+  final String? initialFormat; // 'arcx', 'zip', or 'txt' - optional format pre-selection
   
   const McpExportScreen({super.key, this.initialFormat});
 
@@ -30,7 +31,7 @@ class McpExportScreen extends StatefulWidget {
 
 class _McpExportScreenState extends State<McpExportScreen> {
   bool _isExporting = false;
-  String _exportFormat = 'arcx'; // 'arcx' or 'zip'
+  String _exportFormat = 'arcx'; // 'arcx', 'zip', or 'txt'
   int _entryCount = 0;
   int _photoCount = 0;
   int _chatCount = 0;
@@ -185,6 +186,69 @@ class _McpExportScreenState extends State<McpExportScreen> {
       
       // Show progress dialog
       _showProgressDialog(progressNotifier);
+
+      // .txt export: plain text files, one per entry (date-filtered)
+      if (_exportFormat == 'txt') {
+        DateTime? startDate;
+        DateTime? endDate;
+        switch (_dateRangeSelection) {
+          case 'custom':
+            startDate = _customStartDate;
+            if (_customEndDate != null) {
+              endDate = DateTime(
+                _customEndDate!.year,
+                _customEndDate!.month,
+                _customEndDate!.day,
+                23,
+                59,
+                59,
+                999,
+              );
+            }
+            break;
+          case 'all':
+          default:
+            break;
+        }
+        List<JournalEntry> filteredEntries = entries;
+        if (startDate != null || endDate != null) {
+          filteredEntries = entries.where((entry) {
+            if (startDate != null && entry.createdAt.isBefore(startDate)) return false;
+            if (endDate != null && entry.createdAt.isAfter(endDate)) return false;
+            return true;
+          }).toList();
+        }
+        if (filteredEntries.isEmpty) {
+          if (mounted) Navigator.of(context).pop();
+          setState(() => _isExporting = false);
+          _showErrorDialog('No entries in the selected range.');
+          return;
+        }
+        progressNotifier.value = 'Writing .txt files...';
+        final outputDir = await getApplicationDocumentsDirectory();
+        final exportDir = Directory(path.join(outputDir.path, 'Exports', 'txt_${DateTime.now().millisecondsSinceEpoch}'));
+        await exportDir.create(recursive: true);
+        final safeName = (String s) => s.replaceAll(RegExp(r'[/\\:*?"<>|]'), '_').trim();
+        final files = <XFile>[];
+        for (var i = 0; i < filteredEntries.length; i++) {
+          final e = filteredEntries[i];
+          final name = e.title.isEmpty ? 'entry_$i' : safeName(e.title);
+          final file = File(path.join(exportDir.path, '$name.txt'));
+          await file.writeAsString(e.content, encoding: utf8);
+          files.add(XFile(file.path));
+        }
+        if (mounted) Navigator.of(context).pop();
+        setState(() => _isExporting = false);
+        if (files.isEmpty) return;
+        await Share.shareXFiles(
+          files,
+          text: files.length == 1 ? 'Exported as .txt' : 'Exported ${files.length} entries as .txt',
+        );
+        if (mounted) {
+          _showSuccessDialog('Exported ${files.length} ${files.length == 1 ? 'entry' : 'entries'} as .txt');
+        }
+        return;
+      }
 
       // ARCX for secure format or when password is set (ZIP + password => .arcx for compatibility)
       if (_exportFormat == 'arcx' || (_exportFormat == 'zip' && _usePasswordEncryption)) {
@@ -682,17 +746,15 @@ class _McpExportScreenState extends State<McpExportScreen> {
     );
   }
 
-  Widget _buildSummaryRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label, style: bodyStyle(context)),
-          Text(value, style: bodyStyle(context).copyWith(fontWeight: FontWeight.bold)),
-        ],
-      ),
-    );
+  String _buildSummaryLine() {
+    final n = _useMultiSelect && _selectedEntryIds.isNotEmpty
+        ? _selectedEntryIds.length
+        : _entryCount;
+    if (_exportFormat == 'txt') return '$n ${n == 1 ? 'entry' : 'entries'}';
+    final parts = ['$n entries', '$_photoCount photos'];
+    if (_chatCount > 0) parts.add('$_chatCount chats');
+    if (_favoritesCount > 0) parts.add('$_favoritesCount favorites');
+    return parts.join(' · ');
   }
 
   void _showPasswordDialog() {
@@ -814,6 +876,38 @@ class _McpExportScreenState extends State<McpExportScreen> {
     );
   }
 
+  void _showSuccessDialog(String message) {
+    showDialog(
+      context: context,
+      barrierColor: Colors.black54,
+      builder: (context) => AlertDialog(
+        backgroundColor: kcSurfaceColor,
+        title: Row(
+          children: [
+            const Icon(Icons.check_circle, color: Colors.green),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Export complete',
+                style: heading2Style(context).copyWith(color: kcPrimaryTextColor),
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          message,
+          style: bodyStyle(context).copyWith(color: kcPrimaryTextColor),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text('OK', style: bodyStyle(context).copyWith(color: kcAccentColor)),
+          ),
+        ],
+      ),
+    );
+  }
+
   /// Trigger Google Drive upload if enabled
 
   @override
@@ -833,229 +927,163 @@ class _McpExportScreenState extends State<McpExportScreen> {
           children: [
             // Description
 
-            // Security (ARCX and ZIP: with password, ZIP is saved as .arcx for compatibility)
+            // Security: only for ARCX/ZIP
             if (_exportFormat == 'arcx' || _exportFormat == 'zip') ...[
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.green.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.green.withOpacity(0.3)),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        const Icon(Icons.security, color: Colors.green, size: 20),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            'Security & Privacy Settings',
-                            style: heading3Style(context).copyWith(
-                              color: Colors.green,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                  _buildOptionTile(
-                    title: 'Encrypt with password',
-                    subtitle: _exportFormat == 'zip'
-                        ? 'Saves as .arcx so you can open on any device (you’ll need the password to restore)'
-                        : 'Portable backup you can open on any device (you’ll need the password to restore)',
-                    value: _usePasswordEncryption,
-                    onChanged: (value) {
-                      setState(() {
-                        _usePasswordEncryption = value;
-                        if (!value) {
-                          _exportPassword = null;
-                        } else if (_exportPassword == null) {
-                          _showPasswordDialog();
-                        }
-                      });
-                    },
-                  ),
-                    if (_usePasswordEncryption && _exportPassword != null)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 8, left: 16),
-                        child: Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.green[50],
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: Colors.green[200]!),
-                          ),
-                          child: Row(
-                            children: [
-                              const Icon(Icons.lock, size: 16, color: Colors.green),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  'Password set',
-                                  style: bodyStyle(context),
-                                ),
-                              ),
-                              TextButton(
-                                onPressed: _showPasswordDialog,
-                                child: const Text('Change'),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
+              _buildOptionTile(
+                title: 'Encrypt with password',
+                subtitle: _exportFormat == 'zip'
+                    ? 'Save as .arcx; restore with password on any device'
+                    : 'Restore on any device with password',
+                value: _usePasswordEncryption,
+                onChanged: (value) {
+                  setState(() {
+                    _usePasswordEncryption = value;
+                    if (!value) {
+                      _exportPassword = null;
+                    } else if (_exportPassword == null) {
+                      _showPasswordDialog();
+                    }
+                  });
+                },
               ),
-              const SizedBox(height: 24),
+              if (_usePasswordEncryption && _exportPassword != null)
+                Padding(
+                  padding: const EdgeInsets.only(left: 16, top: 4),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.lock, size: 16, color: Colors.green),
+                      const SizedBox(width: 8),
+                      Text('Password set', style: bodyStyle(context).copyWith(fontSize: 13)),
+                      const SizedBox(width: 8),
+                      TextButton(
+                        onPressed: _showPasswordDialog,
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                        child: const Text('Change'),
+                      ),
+                    ],
+                  ),
+                ),
+              const SizedBox(height: 16),
             ],
 
-            // Advanced Export Options (Date Range) - Available for both formats
+            // Single options card: date range, choose entries, media pack (ARCX only)
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.05),
+                color: Colors.white.withValues(alpha: 0.05),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.white.withOpacity(0.1)),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Advanced Export Options',
-                    style: heading3Style(context).copyWith(
-                      color: kcPrimaryTextColor,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Date Range',
+                    'Date range',
                     style: bodyStyle(context).copyWith(
                       color: kcPrimaryTextColor,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 6),
                   _buildDateRangeSelector(),
-                  const SizedBox(height: 24),
-                  Text(
-                    'Media Pack Target Size',
-                    style: bodyStyle(context).copyWith(
-                      color: kcPrimaryTextColor,
-                      fontWeight: FontWeight.w500,
-                    ),
+                  const SizedBox(height: 16),
+                  _buildOptionTile(
+                    title: 'Choose specific entries',
+                    subtitle: _useMultiSelect
+                        ? '${_selectedEntryIds.length} selected'
+                        : 'Export all entries in range',
+                    value: _useMultiSelect,
+                    onChanged: (value) {
+                      setState(() {
+                        _useMultiSelect = value;
+                        if (!value) _resetExportState();
+                      });
+                    },
                   ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Slider(
-                          value: _mediaPackTargetSizeMB.toDouble(),
-                          min: 50,
-                          max: 500,
-                          divisions: 9,
-                          label: '$_mediaPackTargetSizeMB MB',
-                          onChanged: (value) {
-                            setState(() {
-                              _mediaPackTargetSizeMB = value.round();
-                            });
-                          },
-                        ),
+                  if (_exportFormat == 'arcx') ...[
+                    const SizedBox(height: 16),
+                    Text(
+                      'Media pack size',
+                      style: bodyStyle(context).copyWith(
+                        color: kcPrimaryTextColor,
+                        fontWeight: FontWeight.w500,
                       ),
-                      SizedBox(
-                        width: 60,
-                        child: Text(
-                          '$_mediaPackTargetSizeMB MB',
-                          style: bodyStyle(context),
-                          textAlign: TextAlign.right,
-                        ),
-                      ),
-                    ],
-                  ),
-                  Text(
-                    'Media files will be organized into packs of approximately $_mediaPackTargetSizeMB MB each',
-                    style: captionStyle(context).copyWith(
-                      color: Colors.grey[600],
                     ),
-                  ),
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Slider(
+                            value: _mediaPackTargetSizeMB.toDouble(),
+                            min: 50,
+                            max: 500,
+                            divisions: 9,
+                            label: '$_mediaPackTargetSizeMB MB',
+                            onChanged: (value) {
+                              setState(() => _mediaPackTargetSizeMB = value.round());
+                            },
+                          ),
+                        ),
+                        SizedBox(
+                          width: 52,
+                          child: Text(
+                            '$_mediaPackTargetSizeMB MB',
+                            style: bodyStyle(context).copyWith(fontSize: 13),
+                            textAlign: TextAlign.right,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ],
               ),
             ),
-            const SizedBox(height: 24),
 
-            // Options
-            Text(
-              'Export Options',
-              style: heading2Style(context).copyWith(
-                color: kcPrimaryTextColor,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: 12),
-
-            // Multi-select option
-            _buildOptionTile(
-              title: 'Select specific entries',
-              subtitle: 'Choose which entries to export (default: all entries)',
-              value: _useMultiSelect,
-              onChanged: (value) {
-                setState(() {
-                  _useMultiSelect = value;
-                  if (!value) {
-                    // Reset all export state when disabling multi-select
-                    _resetExportState();
-                  }
-                });
-              },
-            ),
-
-            // Entry selection list (shown when multi-select is enabled)
             if (_useMultiSelect) ...[
               const SizedBox(height: 12),
               Container(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.05),
+                  color: Colors.white.withValues(alpha: 0.05),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.white.withOpacity(0.1)),
+                  border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
                 ),
-                constraints: const BoxConstraints(maxHeight: 300),
+                constraints: const BoxConstraints(maxHeight: 220),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          'Select Entries (${_selectedEntryIds.length}/${_allEntries.length})',
-                          style: heading3Style(context),
+                          '${_selectedEntryIds.length} of ${_allEntries.length} selected',
+                          style: bodyStyle(context).copyWith(fontSize: 13),
                         ),
-                        if (_selectedEntryIds.length > 0)
+                        if (_selectedEntryIds.isNotEmpty)
                           TextButton(
-                            onPressed: () {
-                              setState(() {
-                                _selectedEntryIds.clear();
-                              });
-                            },
+                            onPressed: () => setState(() => _selectedEntryIds.clear()),
+                            style: TextButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(horizontal: 8),
+                              minimumSize: Size.zero,
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            ),
                             child: const Text('Clear'),
                           ),
                       ],
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 4),
                     Expanded(
                       child: ListView.builder(
                         itemCount: _allEntries.length,
                         itemBuilder: (context, index) {
                           final entry = _allEntries[index];
                           final isSelected = _selectedEntryIds.contains(entry.id);
-                          final dateStr = '${entry.createdAt.month}/${entry.createdAt.day}/${entry.createdAt.year}';
-                          final preview = entry.content.length > 50 
-                              ? '${entry.content.substring(0, 50)}...' 
-                              : entry.content;
-                          
+                          final dateStr = DateFormat.yMMMd().format(entry.createdAt);
                           return CheckboxListTile(
                             value: isSelected,
                             onChanged: (value) {
@@ -1069,15 +1097,18 @@ class _McpExportScreenState extends State<McpExportScreen> {
                             },
                             title: Text(
                               dateStr,
-                              style: bodyStyle(context).copyWith(fontWeight: FontWeight.bold),
+                              style: bodyStyle(context).copyWith(fontSize: 13),
                             ),
                             subtitle: Text(
-                              preview,
-                              style: bodyStyle(context).copyWith(fontSize: 12),
+                              entry.title.isEmpty
+                                  ? (entry.content.length > 40 ? '${entry.content.substring(0, 40)}...' : entry.content)
+                                  : entry.title,
+                              style: bodyStyle(context).copyWith(fontSize: 12, color: kcSecondaryTextColor),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
                             dense: true,
+                            contentPadding: EdgeInsets.zero,
                           );
                         },
                       ),
@@ -1087,41 +1118,15 @@ class _McpExportScreenState extends State<McpExportScreen> {
               ),
             ],
 
-            const SizedBox(height: 24),
+            const SizedBox(height: 20),
 
-            // Summary
+            // One-line summary
             Text(
-              'Export Summary',
-              style: heading2Style(context).copyWith(
-                color: kcPrimaryTextColor,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: 12),
-
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.05),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.white.withOpacity(0.1)),
-              ),
-              child: Column(
-                children: [
-                  _buildSummaryRow(
-                    'Entries:', 
-                    _useMultiSelect && _selectedEntryIds.isNotEmpty
-                        ? '${_selectedEntryIds.length} selected'
-                        : '$_entryCount (all)',
-                  ),
-                  _buildSummaryRow('Photos:', '$_photoCount'),
-                  _buildSummaryRow('Chats:', '$_chatCount'),
-                  _buildSummaryRow('LUMARA Favorites:', '$_favoritesCount'),
-                ],
-              ),
+              _buildSummaryLine(),
+              style: captionStyle(context).copyWith(color: kcSecondaryTextColor),
             ),
 
-            const SizedBox(height: 32),
+            const SizedBox(height: 20),
 
             // Export button
             SizedBox(
@@ -1129,7 +1134,11 @@ class _McpExportScreenState extends State<McpExportScreen> {
               child: ElevatedButton(
                 onPressed: _isExporting ? null : _exportMcpPackage,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: _exportFormat == 'zip' ? Colors.blue : kcAccentColor,
+                  backgroundColor: _exportFormat == 'zip'
+                      ? Colors.blue
+                      : _exportFormat == 'txt'
+                          ? Colors.teal
+                          : kcAccentColor,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(
@@ -1153,7 +1162,11 @@ class _McpExportScreenState extends State<McpExportScreen> {
                         ],
                       )
                     : Text(
-                        _exportFormat == 'arcx' ? 'Create Secure Archive (.arcx)' : 'Create Zip File (.zip)',
+                        _exportFormat == 'txt'
+                            ? 'Create Text Files (.txt)'
+                            : _exportFormat == 'arcx'
+                                ? 'Create Secure Archive (.arcx)'
+                                : 'Create Zip File (.zip)',
                         style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                       ),
               ),
@@ -1170,114 +1183,103 @@ class _McpExportScreenState extends State<McpExportScreen> {
     required bool value,
     required ValueChanged<bool> onChanged,
   }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withOpacity(0.1)),
+    return ListTile(
+      title: Text(title, style: bodyStyle(context).copyWith(fontWeight: FontWeight.w500)),
+      subtitle: Text(subtitle, style: bodyStyle(context).copyWith(fontSize: 12, color: kcSecondaryTextColor)),
+      trailing: Switch(
+        value: value,
+        onChanged: onChanged,
+        activeColor: kcAccentColor,
       ),
-      child: ListTile(
-        title: Text(title, style: heading3Style(context)),
-        subtitle: Text(subtitle, style: bodyStyle(context)),
-        trailing: Switch(
-          value: value,
-          onChanged: onChanged,
-          activeColor: kcAccentColor,
-        ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      ),
+      contentPadding: EdgeInsets.zero,
+      dense: true,
     );
   }
 
 
   Widget _buildDateRangeSelector() {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withOpacity(0.1)),
-      ),
-      child: Column(
-        children: [
-          RadioListTile<String>(
-            title: Text('All entries', style: bodyStyle(context)),
-            value: 'all',
-            groupValue: _dateRangeSelection,
-            onChanged: (value) {
-              setState(() {
-                _dateRangeSelection = value!;
-              });
-            },
-            activeColor: kcAccentColor,
-          ),
-          RadioListTile<String>(
-            title: Text('Custom date range', style: bodyStyle(context)),
-            value: 'custom',
-            groupValue: _dateRangeSelection,
-            onChanged: (value) {
-              setState(() {
-                _dateRangeSelection = value!;
-              });
-            },
-            activeColor: kcAccentColor,
-          ),
-          if (_dateRangeSelection == 'custom') ...[
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Column(
-                children: [
-                  ListTile(
-                    title: Text('Start Date', style: bodyStyle(context).copyWith(fontSize: 14)),
-                    subtitle: Text(
-                      _customStartDate != null
-                          ? DateFormat('yyyy-MM-dd').format(_customStartDate!)
-                          : 'Not set',
-                      style: bodyStyle(context).copyWith(fontSize: 12),
-                    ),
-                    trailing: const Icon(Icons.calendar_today, size: 20),
-                    onTap: () async {
-                      final date = await showDatePicker(
-                        context: context,
-                        initialDate: _customStartDate ?? DateTime.now(),
-                        firstDate: DateTime(2000),
-                        lastDate: DateTime.now(),
-                      );
-                      if (date != null) {
-                        setState(() {
-                          _customStartDate = date;
-                        });
-                      }
-                    },
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        RadioListTile<String>(
+          title: Text('All entries', style: bodyStyle(context).copyWith(fontSize: 14)),
+          value: 'all',
+          groupValue: _dateRangeSelection,
+          onChanged: (value) {
+            setState(() => _dateRangeSelection = value!);
+          },
+          activeColor: kcAccentColor,
+          dense: true,
+          contentPadding: EdgeInsets.zero,
+        ),
+        RadioListTile<String>(
+          title: Text('Custom range', style: bodyStyle(context).copyWith(fontSize: 14)),
+          value: 'custom',
+          groupValue: _dateRangeSelection,
+          onChanged: (value) {
+            setState(() => _dateRangeSelection = value!);
+          },
+          activeColor: kcAccentColor,
+          dense: true,
+          contentPadding: EdgeInsets.zero,
+        ),
+        if (_dateRangeSelection == 'custom') ...[
+          const SizedBox(height: 4),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () async {
+                    final date = await showDatePicker(
+                      context: context,
+                      initialDate: _customStartDate ?? DateTime.now(),
+                      firstDate: DateTime(2000),
+                      lastDate: DateTime.now(),
+                    );
+                    if (date != null) setState(() => _customStartDate = date);
+                  },
+                  icon: const Icon(Icons.calendar_today, size: 18),
+                  label: Text(
+                    _customStartDate != null
+                        ? DateFormat.yMMMd().format(_customStartDate!)
+                        : 'Start',
+                    style: bodyStyle(context).copyWith(fontSize: 13),
                   ),
-                  ListTile(
-                    title: Text('End Date', style: bodyStyle(context).copyWith(fontSize: 14)),
-                    subtitle: Text(
-                      _customEndDate != null
-                          ? DateFormat('yyyy-MM-dd').format(_customEndDate!)
-                          : 'Not set',
-                      style: bodyStyle(context).copyWith(fontSize: 12),
-                    ),
-                    trailing: const Icon(Icons.calendar_today, size: 20),
-                    onTap: () async {
-                      final date = await showDatePicker(
-                        context: context,
-                        initialDate: _customEndDate ?? DateTime.now(),
-                        firstDate: _customStartDate ?? DateTime(2000),
-                        lastDate: DateTime.now(),
-                      );
-                      if (date != null) {
-                        setState(() {
-                          _customEndDate = date;
-                        });
-                      }
-                    },
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: kcPrimaryTextColor,
+                    padding: const EdgeInsets.symmetric(vertical: 10),
                   ),
-                ],
+                ),
               ),
-            ),
-          ],
+              const SizedBox(width: 8),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () async {
+                    final date = await showDatePicker(
+                      context: context,
+                      initialDate: _customEndDate ?? _customStartDate ?? DateTime.now(),
+                      firstDate: _customStartDate ?? DateTime(2000),
+                      lastDate: DateTime.now(),
+                    );
+                    if (date != null) setState(() => _customEndDate = date);
+                  },
+                  icon: const Icon(Icons.calendar_today, size: 18),
+                  label: Text(
+                    _customEndDate != null
+                        ? DateFormat.yMMMd().format(_customEndDate!)
+                        : 'End',
+                    style: bodyStyle(context).copyWith(fontSize: 13),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: kcPrimaryTextColor,
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ],
-      ),
+      ],
     );
   }
 

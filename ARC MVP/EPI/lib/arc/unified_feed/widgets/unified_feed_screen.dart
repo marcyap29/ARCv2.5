@@ -14,6 +14,7 @@
 /// Behind feature flag: FeatureFlags.USE_UNIFIED_FEED
 
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -890,6 +891,15 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
                   _exportSelectedAsZip();
                 },
               ),
+              ListTile(
+                leading: const Icon(Icons.description, color: kcPrimaryColor),
+                title: const Text('Text file (.txt)'),
+                subtitle: const Text('Plain text, one file per entry; good for sync'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _exportSelectedAsTxt();
+                },
+              ),
             ],
           ),
         ),
@@ -960,6 +970,43 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Export failed: $e'), backgroundColor: Colors.red));
       }
+    }
+  }
+
+  Future<void> _exportSelectedAsTxt() async {
+    final journalIds = _getSelectedJournalEntryIds();
+    if (journalIds.isEmpty || !mounted) return;
+    final journalRepo = context.read<JournalRepository>();
+    final entries = <JournalEntry>[];
+    for (final id in journalIds) {
+      final entry = await journalRepo.getJournalEntryById(id);
+      if (entry != null) entries.add(entry);
+    }
+    if (entries.isEmpty) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No entries could be loaded')));
+      return;
+    }
+    final appDir = await getApplicationDocumentsDirectory();
+    final exportDir = Directory(path.join(appDir.path, 'exports', 'txt_${DateTime.now().millisecondsSinceEpoch}'));
+    await exportDir.create(recursive: true);
+    final safeName = (String s) => s.replaceAll(RegExp(r'[/\\:*?"<>|]'), '_').trim();
+    final files = <XFile>[];
+    for (var i = 0; i < entries.length; i++) {
+      final e = entries[i];
+      final name = e.title.isEmpty ? 'entry_$i' : safeName(e.title);
+      final fileName = '$name.txt';
+      final file = File(path.join(exportDir.path, fileName));
+      await file.writeAsString(e.content, encoding: utf8);
+      files.add(XFile(file.path));
+    }
+    if (!mounted) return;
+    if (files.length == 1) {
+      await Share.shareXFiles(files, text: 'Exported as .txt');
+    } else {
+      await Share.shareXFiles(files, text: 'Exported ${files.length} entries as .txt');
+    }
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Exported ${files.length} ${files.length == 1 ? 'entry' : 'entries'} as .txt')));
     }
   }
 
