@@ -1,8 +1,8 @@
 # EPI MVP - Bug Tracker
 
-**Version:** 3.2.9  
+**Version:** 3.3.0  
 **Last Updated:** 2026-02-20  
-**Record count:** 35 individual bug records in [records/](records/). Index below matches all files in records/.
+**Record count:** 38 individual bug records in [records/](records/). Index below matches all files in records/.
 
 **Master index & format:** For overview, document structure, standardized bug entry format, and maintenance procedures see [BUGTRACKER_MASTER_INDEX.md](BUGTRACKER_MASTER_INDEX.md). New records should follow the BUG-[ID] format (🐛🔧🎯📋) when possible; see audit [BUGTRACKER_AUDIT_REPORT.md](BUGTRACKER_AUDIT_REPORT.md).
 
@@ -37,10 +37,12 @@ Detailed bug reports are available in the [records/](records/) directory:
 - [lumara-temporal-context-incorrect-dates.md](records/lumara-temporal-context-incorrect-dates.md) - **HIGH:** Incorrect date references in reflections (v3.2.2) ✅ RESOLVED
 - [gemini-api-empty-user-string.md](records/gemini-api-empty-user-string.md) - **CRITICAL:** Empty user string rejection in journal reflections (v3.2.2) ✅ RESOLVED
 - [lumara-user-prompt-override.md](records/lumara-user-prompt-override.md) - **CRITICAL:** User prompt overriding master prompt constraints (v3.0) ✅ RESOLVED
+- [lumara-inline-api-pii-egress.md](records/lumara-inline-api-pii-egress.md) - **CRITICAL:** LumaraInlineApi softer/deeper reflection paths bypassed PRISM scrub (v3.3.49) ✅ RESOLVED BUG-PRISM-001
 - [lumara-response-cutoff.md](records/lumara-response-cutoff.md) - Response truncation issues
 - [lumara-subject-drift-and-repetitive-endings.md](records/lumara-subject-drift-and-repetitive-endings.md) - Subject focus and ending phrase issues
 - [lumara-integration-formatting.md](records/lumara-integration-formatting.md) - Formatting and integration bugs
 - [lumara-settings-refresh-loop.md](records/lumara-settings-refresh-loop.md) - Settings refresh issues
+- [journal-context-current-entry-duplication.md](records/journal-context-current-entry-duplication.md) - **MEDIUM:** Journal context included current entry twice as "OLDER ENTRY" (v3.3.56) ✅ RESOLVED BUG-JOURNAL-001
 
 ### Timeline & UI Issues
 - [timeline-infinite-rebuild-loop.md](records/timeline-infinite-rebuild-loop.md) - Timeline rebuild performance
@@ -79,6 +81,9 @@ Detailed bug reports are available in the [records/](records/) directory:
 
 ### Environment / Tooling
 - [ollama-serve-address-in-use-and-quit-command.md](records/ollama-serve-address-in-use-and-quit-command.md) - Ollama: port 11434 already in use; `ollama quit` unknown command
+
+### CHRONICLE Issues
+- [chronicle-yearly-routing-early-year.md](records/chronicle-yearly-routing-early-year.md) - **HIGH:** Yearly layer routing returned empty context in Jan–Mar; early-year fallback to monthly (v3.3.56) ✅ RESOLVED BUG-CHRONICLE-001
 
 ### Feature-Specific Issues
 - [constellation-zero-stars-display.md](records/constellation-zero-stars-display.md) - Constellation visualization
@@ -134,14 +139,14 @@ This section is derived from the repo and [CHANGELOG.md](../CHANGELOG.md) to kee
 | Google Drive folder picker, local backup settings, home; DOCS cleanup | v3.3.46 | — | google_drive_service, drive_folder_picker_screen, local_backup_settings_view, home_view; removed redundant LUMARA_DUAL_CHRONICLE_* (3) from DOCS (canonical = LUMARA_DUAL_CHRONICLE_GUIDE.md; originals in archive). |
 | Dual CHRONICLE refactor, intelligence summary, search, prompts, phase/Arcform | v3.3.47 | — | user_chronicle_repository removed; chronicle_query_adapter, schedule prefs, lumara_comments_loader, chronicle_phase_signal_service, lumara_comments_context_loader; dual_chronicle_view, intelligence_summary_view; PROMPT_REFERENCES +104; BUGTRACKER_MASTER_INDEX, BUGTRACKER_AUDIT_REPORT. |
 | Universal prompt optimization layer (80/20, provider-agnostic) | v3.3.48 | — | lib/arc/chat/prompt_optimization/ (optimizer, provider_manager, response_cache, universal_response_generator, Groq/OpenAI/Claude adapters); DOCS/UNIVERSAL_PROMPT_OPTIMIZATION.md; enhanced_lumara_api. |
-| CHRONICLE layer0, dual CHRONICLE/LUMARA, ARCX/MCP, DevSecOps audit; LumaraInlineApi PII fix | v3.3.49 | — | chronicle_layer0_retrieval_service; agentic_loop_orchestrator, clarification_processor, intelligence_summary_*, lumara_chronicle_repository, dual_chronicle_view, intelligence_summary_view; lumara_connection_fade_preferences; lumara_inline_api PII fix; arcx_* / mcp_pack_*; DEVSECOPS_SECURITY_AUDIT.md. |
-| Egress PII & LumaraInlineApi security tests; backend, auth, gemini_send, subscription, AssemblyAI | v3.3.50 | — | test/services/egress_pii_and_lumara_inline_test.dart; functions/index.js; firebase_auth_service, gemini_send, subscription_service, assemblyai_service; DEVSECOPS_SECURITY_AUDIT.md. |
+| CHRONICLE layer0, dual CHRONICLE/LUMARA, ARCX/MCP, DevSecOps audit; LumaraInlineApi PII fix | v3.3.49 | [lumara-inline-api-pii-egress.md](records/lumara-inline-api-pii-egress.md) ✅ | chronicle_layer0_retrieval_service; lumara_inline_api PII fix (BUG-PRISM-001 — unscrubed text bypassed PRISM before cloud send); arcx_* / mcp_pack_*; DEVSECOPS_SECURITY_AUDIT.md. |
+| Egress PII & LumaraInlineApi security tests; backend, auth, gemini_send, subscription, AssemblyAI | v3.3.50 | [lumara-inline-api-pii-egress.md](records/lumara-inline-api-pii-egress.md) ✅ | egress_pii_and_lumara_inline_test.dart verifies BUG-PRISM-001 fix; firebase_auth_service, gemini_send, subscription_service, assemblyai_service; DEVSECOPS_SECURITY_AUDIT.md. |
 | Journal capture, journal repository, dual CHRONICLE (agentic loop, dual_chronicle_view) | v3.3.51 | — | journal_capture_cubit, journal_repository (mira); agentic_loop_orchestrator, dual_chronicle_view. |
 | Google Drive sync folder push; Drive settings; unified feed; MCP export/management; DOCS checklist | v3.3.52 | — | sync_folder_push_screen; google_drive_service, google_drive_settings_view; unified_feed_screen; mcp_export_screen, mcp_management_screen; CONFIGURATION_MANAGEMENT, claude.md. |
 | iOS project (Runner.xcodeproj) | v3.3.53 | — | ios/Runner.xcodeproj/project.pbxproj. |
 | PDF content service; journal, CHRONICLE layer0, MCP orchestrators, media alt text; pubspec | v3.3.54 | — | pdf_content_service; journal_capture_cubit, journal_screen, layer0_populator; chat_multimodal_processor, ios_vision_orchestrator; media_alt_text_generator; pubspec. |
 | Repo dir rename ARC MVP → ARC_MVP; prompt audit PROMPT_REFERENCES v2.7.0 | v3.3.55 | — | Filesystem rename committed; no code changes. ECHO On-Device LLM system prompt (prompt_templates.dart) added to PROMPT_REFERENCES. |
-| PRISM context compression; CHRONICLE date-aware routing; LUMARA token caps; landscape orientation | v3.3.56 | — | prism_adapter extractKeyPoints/compressAndScrub; enhanced_lumara_api 40K/60K caps; query_router month≥4 yearly rule; context_builder budget fix; journal/writing/draft screens landscape support. |
+| PRISM context compression; CHRONICLE date-aware routing; LUMARA token caps; landscape orientation | v3.3.56 | [chronicle-yearly-routing-early-year.md](records/chronicle-yearly-routing-early-year.md) ✅ [journal-context-current-entry-duplication.md](records/journal-context-current-entry-duplication.md) ✅ | prism_adapter extractKeyPoints/compressAndScrub; enhanced_lumara_api 40K/60K caps; query_router month≥4 yearly rule (BUG-CHRONICLE-001); context_builder budget fix; journal dedup fix (BUG-JOURNAL-001); landscape support. |
 
 **Source:** `git log --oneline`, [CHANGELOG.md](../CHANGELOG.md), terminal build log. Last synced: 2026-02-20.
 
@@ -157,5 +162,5 @@ Individual bug records stay in [records/](records/); only the legacy multi-part 
 
 ---
 
-**Status**: ✅ Active - All resolved issues documented; Build & Platform: 5 records; Environment: 1 (Ollama). Doc sync v3.3.56: bug_tracker tracked.  
+**Status**: ✅ Active - All resolved issues documented; Build & Platform: 5 records; Environment: 1 (Ollama); CHRONICLE: 1 (BUG-CHRONICLE-001 ✅); Privacy: 1 (BUG-PRISM-001 ✅). Bugtracker-consolidator run 2026-02-20: 3 new records added (38 total).  
 **Last Updated**: 2026-02-20

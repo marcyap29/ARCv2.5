@@ -1,8 +1,8 @@
 # EPI MVP – Bugtracker Master Index
 
-**Document Version:** 1.2.0  
-**Last Updated:** 2026-02-18  
-**Change Summary:** Consolidator run: canonical master index in bugtracker root; 35 records; sync with bug_tracker.md and audit report  
+**Document Version:** 1.3.0  
+**Last Updated:** 2026-02-20  
+**Change Summary:** Bugtracker-consolidator run 2026-02-20: 3 new records added (BUG-PRISM-001, BUG-CHRONICLE-001, BUG-JOURNAL-001); record count 35 → 38; CHRONICLE category tag added; master index synced  
 **Editor:** Bugtracker-consolidator (DOCS/claude.md)
 
 ---
@@ -11,9 +11,9 @@
 
 This is the **canonical master index** for the EPI MVP Bug Tracker. The bugtracker consolidates all bug information into a standardized, versioned structure with a primary category index, individual records, and chronological/chronicle-style parts.
 
-### Consolidation Statistics (2026-02-18)
+### Consolidation Statistics (2026-02-20)
 
-- **Individual records:** 35 detailed bug reports in [records/](records/)
+- **Individual records:** 38 detailed bug reports in [records/](records/)
 - **Primary index:** [bug_tracker.md](bug_tracker.md) — category index, links to all records, recent code changes table
 - **Changelog-style parts:** [bug_tracker_part1.md](bug_tracker_part1.md), [bug_tracker_part2.md](bug_tracker_part2.md), [bug_tracker_part3.md](bug_tracker_part3.md) (by date range)
 - **Audit:** [BUGTRACKER_AUDIT_REPORT.md](BUGTRACKER_AUDIT_REPORT.md) — full inventory and format analysis
@@ -27,11 +27,11 @@ This is the **canonical master index** for the EPI MVP Bug Tracker. The bugtrack
 
 | Document | Coverage | Description |
 |----------|----------|-------------|
-| **[bug_tracker.md](bug_tracker.md)** | Main index | Category index (LUMARA, Timeline & UI, Export/Import, etc.), links to all 35 records, recent code changes, archive note. **Start here.** |
+| **[bug_tracker.md](bug_tracker.md)** | Main index | Category index (LUMARA, Timeline & UI, Export/Import, CHRONICLE, etc.), links to all 38 records, recent code changes, archive note. **Start here.** |
 | **[bug_tracker_part1.md](bug_tracker_part1.md)** | Dec 2025 – Jan 2026 | v2.1.43 – v2.1.86 (recent) |
 | **[bug_tracker_part2.md](bug_tracker_part2.md)** | Nov 2025 | v2.1.27 – v2.1.42 |
 | **[bug_tracker_part3.md](bug_tracker_part3.md)** | Jan – Oct 2025 | v2.0.0 – v2.1.26 & earlier |
-| **records/** | Per-bug | 35 detailed bug reports; each linked from bug_tracker.md |
+| **records/** | Per-bug | 38 detailed bug reports; each linked from bug_tracker.md |
 | **[BUGTRACKER_AUDIT_REPORT.md](BUGTRACKER_AUDIT_REPORT.md)** | Audit | Inventory, format analysis, recommendations (consolidator Phase 1) |
 | **archive/** | Legacy | BUG_TRACKER_MASTER_INDEX (superseded by this file), BUG_TRACKER_PART1_CRITICAL, Bug_Tracker.md, Bug_Tracker-1..9 |
 
@@ -51,6 +51,8 @@ This is the **canonical master index** for the EPI MVP Bug Tracker. The bugtrack
 - `#voice` – Voice chat  
 - `#subscription` – Payment/subscription  
 - `#ios` – iOS-specific  
+- `#chronicle` – CHRONICLE layer / aggregation / routing  
+- `#privacy` – PII / PRISM scrubbing / egress  
 - `#cloud-functions` – Firebase backend  
 - `#build` – Build / Dart / tooling  
 
@@ -148,8 +150,8 @@ Common fix types observed across records (details in [archive/BUG_TRACKER_PART1_
   - MAJOR: Restructure or new part.  
   - MINOR: New bugs or significant updates.  
   - PATCH: Typo, link, or small correction.  
-- **This document:** 1.2.0 (2026-02-18).  
-- **bug_tracker.md:** Own version (e.g. 3.2.6); keep “Last Updated” and record count in sync.
+- **This document:** 1.3.0 (2026-02-20).  
+- **bug_tracker.md:** Own version (e.g. 3.3.0); keep “Last Updated” and record count in sync.
 
 ### Regular maintenance
 
@@ -174,6 +176,6 @@ Common fix types observed across records (details in [archive/BUG_TRACKER_PART1_
 
 ---
 
-**Last synchronized:** 2026-02-18  
-**Next review due:** 2026-03-18  
-**Master index version:** 1.2.0
+**Last synchronized:** 2026-02-20  
+**Next review due:** 2026-03-20  
+**Master index version:** 1.3.0

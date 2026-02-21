@@ -1,8 +1,8 @@
 # Bugtracker Consolidation Audit Report
 
-**Document Version:** 1.0.0  
-**Last Updated:** 2026-02-18  
-**Change Summary:** Initial audit per bugtracker-consolidator prompt (DOCS/claude.md)  
+**Document Version:** 1.1.0  
+**Last Updated:** 2026-02-20  
+**Change Summary:** Consolidator run 2026-02-20: 3 new records created (BUG-PRISM-001, BUG-CHRONICLE-001, BUG-JOURNAL-001); record count 35 → 38; inventory updated  
 **Methodology:** Phase 1 – Comprehensive scan, archive mining, format analysis, data inventory
 
 ---
@@ -124,7 +124,9 @@ Each bug entry should use:
 - **Reporter/Implementer:** Often “User”, “Session”, “Development Team”, or omitted; acceptable for internal use.
 - **Verification status:** Many records use ✅ RESOLVED or “Confirmed fixed” without a formal verification date; adding “Verification Date” where known would align with the standard.
 
-No **loss of bug data** was identified; all 35 records are referenced from the main index and files are present.
+No **loss of bug data** was identified; all 38 records are referenced from the main index and files are present.
+
+**Consolidator run 2026-02-20 additions:** Three records created for previously undocumented bug fixes: `lumara-inline-api-pii-egress.md` (BUG-PRISM-001 — CRITICAL PII egress via LumaraInlineApi, fixed v3.3.49/v3.3.50), `chronicle-yearly-routing-early-year.md` (BUG-CHRONICLE-001 — HIGH empty yearly context Jan–Mar, fixed v3.3.56), `journal-context-current-entry-duplication.md` (BUG-JOURNAL-001 — MEDIUM current entry duplicated as OLDER ENTRY, fixed v3.3.56). Two new component tags added: `#chronicle`, `#privacy`.
 
 ---
 
@@ -156,5 +158,5 @@ No **loss of bug data** was identified; all 35 records are referenced from the m
 
 ---
 
-**Next Review:** Align with BUGTRACKER_MASTER_INDEX.md “Next Review Due” (e.g. 2026-03-18).  
+**Next Review:** Align with BUGTRACKER_MASTER_INDEX.md "Next Review Due" (2026-03-20).
 **Documentation Updated:** 2026-02-18
