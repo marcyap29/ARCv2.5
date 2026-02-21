@@ -4,7 +4,7 @@ import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { logger } from "firebase-functions";
 import { admin } from "../admin";
 import { ModelRouter } from "../modelRouter";
-import { checkRateLimit } from "../rateLimiter";
+import { checkUnifiedDailyLimit, checkRateLimit } from "../rateLimiter";
 import { createLLMClient } from "../llmClients";
 import {
   SubscriptionTier,
@@ -56,9 +56,20 @@ export const generateJournalPrompts = onCall(
       // Support both 'plan' and 'subscriptionTier' fields
       const plan = user.plan || user.subscriptionTier?.toLowerCase() || "free";
       const tier: SubscriptionTier = (plan === "pro" ? "PAID" : "FREE") as SubscriptionTier;
+      const userEmail = request.auth?.token?.email as string | undefined;
 
-      // Check rate limit (primary quota enforcement)
-      const rateLimitCheck = await checkRateLimit(userId);
+      // Unified daily limit: 50 total LUMARA requests/day (chat + reflections + voice)
+      const dailyCheck = await checkUnifiedDailyLimit(userId, userEmail);
+      if (!dailyCheck.allowed) {
+        throw new HttpsError(
+          "resource-exhausted",
+          dailyCheck.error?.message || "Daily limit reached",
+          dailyCheck.error
+        );
+      }
+
+      // Per-minute spam protection
+      const rateLimitCheck = await checkRateLimit(userId, userEmail);
       if (!rateLimitCheck.allowed) {
         throw new HttpsError(
           "resource-exhausted",

@@ -4,8 +4,8 @@ import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { logger } from "firebase-functions";
 import { admin } from "../admin";
 import { ModelRouter } from "../modelRouter";
-import { checkCanSendMessage, incrementMessageCount } from "../quotaGuards";
-import { checkRateLimit } from "../rateLimiter";
+import { incrementMessageCount } from "../quotaGuards";
+import { checkUnifiedDailyLimit, checkRateLimit } from "../rateLimiter";
 import { createLLMClient } from "../llmClients";
 import { enforceAuth } from "../authGuard";
 import {
@@ -62,7 +62,8 @@ export const sendChatMessage = onCall(
     // Enforce authentication (supports anonymous trial)
     const authResult = await enforceAuth(request);
     const { userId, isAnonymous, user } = authResult;
-    
+    const userEmail = request.auth?.token?.email as string | undefined;
+
     logger.info(`Sending chat message in thread ${threadId} for user ${userId} (anonymous: ${isAnonymous})`);
 
     try {
@@ -70,23 +71,23 @@ export const sendChatMessage = onCall(
       const plan = user.plan || user.subscriptionTier?.toLowerCase() || "free";
       const tier: SubscriptionTier = (plan === "pro" ? "PAID" : "FREE") as SubscriptionTier;
 
-      // Check rate limit (primary quota enforcement) - 4 per conversation
-      const rateLimitCheck = await checkRateLimit(userId, threadId);  // Pass threadId as conversationId
+      // Unified daily limit: 50 total LUMARA requests/day (chat + reflections + voice)
+      const dailyCheck = await checkUnifiedDailyLimit(userId, userEmail);
+      if (!dailyCheck.allowed) {
+        throw new HttpsError(
+          "resource-exhausted",
+          dailyCheck.error?.message || "Daily limit reached",
+          dailyCheck.error
+        );
+      }
+
+      // Per-minute spam protection
+      const rateLimitCheck = await checkRateLimit(userId, userEmail);
       if (!rateLimitCheck.allowed) {
         throw new HttpsError(
           "resource-exhausted",
           rateLimitCheck.error?.message || "Rate limit exceeded",
           rateLimitCheck.error
-        );
-      }
-
-      // Check legacy per-thread quota (secondary, for backward compatibility)
-      const quotaCheck = await checkCanSendMessage(userId, threadId);
-      if (!quotaCheck.allowed) {
-        throw new HttpsError(
-          "resource-exhausted",
-          quotaCheck.error?.message || "Quota limit reached",
-          quotaCheck.error
         );
       }
 

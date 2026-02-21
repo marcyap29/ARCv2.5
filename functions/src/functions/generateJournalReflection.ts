@@ -3,9 +3,9 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { logger } from "firebase-functions";
 import { ModelRouter } from "../modelRouter";
-import { checkRateLimit } from "../rateLimiter";
+import { checkUnifiedDailyLimit, checkRateLimit } from "../rateLimiter";
 import { createLLMClient } from "../llmClients";
-import { enforceAuth, checkJournalEntryLimit } from "../authGuard";
+import { enforceAuth } from "../authGuard";
 import {
   SubscriptionTier,
 } from "../types";
@@ -73,24 +73,27 @@ export const generateJournalReflection = onCall(
     // Enforce authentication (supports anonymous trial)
     const authResult = await enforceAuth(request);
     const { userId, isAnonymous, isPremium, user } = authResult;
+    const userEmail = request.auth?.token?.email as string | undefined;
 
     logger.info(`Generating journal reflection for user ${userId} (anonymous: ${isAnonymous}, premium: ${isPremium})`);
-
-    // Check per-entry limit for in-journal LUMARA (if entryId provided)
-    if (entryId) {
-      const limitResult = await checkJournalEntryLimit(userId, entryId, isPremium);
-      logger.info(`Journal entry limit check: ${limitResult.remaining} remaining for entry ${entryId}`);
-      } else {
-      logger.warn(`No entryId provided - skipping per-entry limit check`);
-      }
 
     try {
       // Support both 'plan' and 'subscriptionTier' fields
       const plan = user.plan || user.subscriptionTier?.toLowerCase() || "free";
       const tier: SubscriptionTier = (plan === "pro" ? "PAID" : "FREE") as SubscriptionTier;
 
-      // Check rate limit (primary quota enforcement) - 4 per conversation
-      const rateLimitCheck = await checkRateLimit(userId, entryId);  // Pass entryId as conversationId
+      // Unified daily limit: 50 total LUMARA requests/day (chat + reflections + voice)
+      const dailyCheck = await checkUnifiedDailyLimit(userId, userEmail);
+      if (!dailyCheck.allowed) {
+        throw new HttpsError(
+          "resource-exhausted",
+          dailyCheck.error?.message || "Daily limit reached",
+          dailyCheck.error
+        );
+      }
+
+      // Per-minute spam protection
+      const rateLimitCheck = await checkRateLimit(userId, userEmail);
       if (!rateLimitCheck.allowed) {
         throw new HttpsError(
           "resource-exhausted",

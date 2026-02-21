@@ -12,6 +12,7 @@ const db = admin.firestore();
  */
 export const ADMIN_EMAILS = [
   "marcyap@orbitalai.net",
+  "marcyap@fastmail.com",
 ];
 
 /**

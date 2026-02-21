@@ -4,8 +4,8 @@ import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { logger } from "firebase-functions";
 import { admin } from "../admin";
 import { ModelRouter } from "../modelRouter";
-import { checkCanAnalyzeEntry, incrementAnalysisCount } from "../quotaGuards";
-import { checkRateLimit } from "../rateLimiter";
+import { incrementAnalysisCount } from "../quotaGuards";
+import { checkUnifiedDailyLimit, checkRateLimit } from "../rateLimiter";
 import { createLLMClient } from "../llmClients";
 import {
   SubscriptionTier,
@@ -77,6 +77,7 @@ export const analyzeJournalEntry = onCall(
       // Support both 'plan' and 'subscriptionTier' fields
       const plan = user.plan || user.subscriptionTier?.toLowerCase() || "free";
       const tier: SubscriptionTier = (plan === "pro" ? "PAID" : "FREE") as SubscriptionTier;
+      const userEmail = request.auth?.token?.email as string | undefined;
       
       // Check if testing account
       const isTestingAccount = user.isTestingAccount || false;
@@ -262,23 +263,23 @@ This will expire automatically. In the meantime, please reach out:
       else {
         logger.info('✓ Safe for Gemini - proceeding to API');
         
-        // Check rate limit (primary quota enforcement) - 4 per conversation
-        const rateLimitCheck = await checkRateLimit(userId, entryId);
+        // Unified daily limit: 50 total LUMARA requests/day (chat + reflections + voice)
+        const dailyCheck = await checkUnifiedDailyLimit(userId, userEmail);
+        if (!dailyCheck.allowed) {
+          throw new HttpsError(
+            "resource-exhausted",
+            dailyCheck.error?.message || "Daily limit reached",
+            dailyCheck.error
+          );
+        }
+
+        // Per-minute spam protection
+        const rateLimitCheck = await checkRateLimit(userId, userEmail);
         if (!rateLimitCheck.allowed) {
           throw new HttpsError(
             "resource-exhausted",
             rateLimitCheck.error?.message || "Rate limit exceeded",
             rateLimitCheck.error
-          );
-        }
-
-        // Check legacy per-entry quota (secondary, for backward compatibility)
-        const quotaCheck = await checkCanAnalyzeEntry(userId, entryId);
-        if (!quotaCheck.allowed) {
-          throw new HttpsError(
-            "resource-exhausted",
-            quotaCheck.error?.message || "Quota limit reached",
-            quotaCheck.error
           );
         }
 
