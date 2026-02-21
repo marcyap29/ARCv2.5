@@ -1,7 +1,7 @@
 # Configuration Management & Documentation Tracking
 
 **Lead Configuration Management Analyst:** Active  
-**Last Updated:** February 20, 2026 (v3.3.55)  
+**Last Updated:** February 20, 2026 (v3.3.56)  
 **Status:** ✅ All Documents Synced with Repo
 
 ---
@@ -45,11 +45,11 @@ Prompt/role definitions: **Ultimate Documentation, Configuration Management and 
 
 | Document | Location | Last Reviewed | Status | Notes |
 |----------|----------|---------------|--------|-------|
-| ARCHITECTURE.md | `/DOCS/ARCHITECTURE.md` | 2026-02-17 | ✅ Synced | v3.3.43 - Doc sync |
-| CHANGELOG.md | `/DOCS/CHANGELOG.md` | 2026-02-20 | ✅ Synced | v3.3.55 - Dir rename ARC MVP → ARC_MVP; prompt audit v2.7.0 |
+| ARCHITECTURE.md | `/DOCS/ARCHITECTURE.md` | 2026-02-20 | ✅ Synced | v3.3.56 - PRISM context compression, prism_adapter.dart description updated |
+| CHANGELOG.md | `/DOCS/CHANGELOG.md` | 2026-02-20 | ✅ Synced | v3.3.56 - PRISM compression, CHRONICLE routing, LUMARA token caps, landscape |
 | PROMPT_REFERENCES.md | `/DOCS/PROMPT_REFERENCES.md` | 2026-02-20 | ✅ Synced | v2.7.0 - ECHO On-Device LLM system prompt (Qwen adapter, prompt_templates.dart) |
-| PROMPT_TRACKER.md | `/DOCS/PROMPT_TRACKER.md` | 2026-02-20 | ✅ Synced | v1.4.0 - Doc sync v3.3.55 row added |
-| bug_tracker.md | `/DOCS/bugtracker/bug_tracker.md` | 2026-02-20 | ✅ Synced | v3.2.7 - Recent code changes: v3.3.55 row added |
+| PROMPT_TRACKER.md | `/DOCS/PROMPT_TRACKER.md` | 2026-02-20 | ✅ Synced | v1.4.0 - Doc sync v3.3.56 row added |
+| bug_tracker.md | `/DOCS/bugtracker/bug_tracker.md` | 2026-02-20 | ✅ Synced | v3.2.8 - Recent code changes: v3.3.56 row added |
 | FEATURES.md | `/DOCS/FEATURES.md` | 2026-02-15 | ✅ Synced | v3.3.38 - Writing/research agents storage & export/import |
 | README.md | `/DOCS/README.md` | 2026-02-07 | ✅ Synced | Key docs table with purpose and when to read |
 | claude.md | `/DOCS/claude.md` | 2026-02-13 | ✅ Synced | TOC — Prompts; consolidated Doc/Config/Git Backup prompt; TOC aligned with current sections |
@@ -108,6 +108,20 @@ Prompt/role definitions: **Ultimate Documentation, Configuration Management and 
 ---
 
 ## Change Tracking Log
+
+### 2026-02-20 - Documentation & Git Backup run (v3.3.56; PRISM compression, CHRONICLE routing, LUMARA token caps; bug_tracker tracked)
+
+**Action:** Ran Documentation, Configuration Management and Git Backup workflow (claude.md §233–349).
+
+**PROMPT REFERENCES AUDIT:** No new prompt files. None of the 7 changed files define new LLM prompts (changes are code logic and PII utility methods).
+
+**Git Backup — Identify what changed (since v3.3.55):** 7 files modified — `prism_adapter.dart` (context compression: `extractKeyPoints`, `compressAndScrub`), `enhanced_lumara_api.dart` (Chronicle 40K cap, entry compression, 60K non-voice cap, debug), `query_router.dart` (date-aware layer routing, month ≥ 4 for yearly, recency/long-term signals), `context_builder.dart` (_compressForSpeed budget-check fix), `journal_screen.dart` (landscape, extractKeyPoints, dedup, userId fallback), `writing_screen.dart` (landscape), `new_draft_screen.dart` (landscape).
+
+**Updates:** CHANGELOG.md v3.3.56; ARCHITECTURE.md (PRISM Context Compression, prism_adapter.dart description); CONFIGURATION_MANAGEMENT.md this entry; PROMPT_TRACKER.md doc sync v3.3.56 row; bug_tracker.md new row v3.3.56.
+
+**Status:** ✅ Commit, push main.
+
+---
 
 ### 2026-02-20 - Documentation & Git Backup run (v3.3.55; dir rename + prompt audit; bug_tracker tracked)
 

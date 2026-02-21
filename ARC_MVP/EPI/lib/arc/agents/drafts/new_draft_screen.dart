@@ -27,6 +27,11 @@ class _NewDraftScreenState extends State<NewDraftScreen> {
   @override
   void initState() {
     super.initState();
+    SystemChrome.setPreferredOrientations([
+      DeviceOrientation.portraitUp,
+      DeviceOrientation.landscapeLeft,
+      DeviceOrientation.landscapeRight,
+    ]);
     final d = widget.draft;
     if (d != null) {
       _titleController.text = d.title;
@@ -38,6 +43,7 @@ class _NewDraftScreenState extends State<NewDraftScreen> {
   void dispose() {
     _titleController.dispose();
     _contentController.dispose();
+    SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
     super.dispose();
   }
 

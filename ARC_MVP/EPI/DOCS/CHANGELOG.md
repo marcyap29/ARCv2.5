@@ -1,6 +1,6 @@
 # EPI LUMARA MVP - Changelog
 
-**Version:** 3.3.55
+**Version:** 3.3.56
 **Last Updated:** February 20, 2026
 
 ---
@@ -14,6 +14,21 @@ This changelog has been split into parts for easier navigation:
 | **[CHANGELOG_part1.md](CHANGELOG_part1.md)** | Dec 2025 | v2.1.43 - v2.1.87 (Current) |
 | **[CHANGELOG_part2.md](CHANGELOG_part2.md)** | Nov 2025 | v2.1.28 - v2.1.42 |
 | **[CHANGELOG_part3.md](CHANGELOG_part3.md)** | Jan-Oct 2025 | v2.0.0 - v2.1.27 & Earlier |
+
+---
+
+## [3.3.56] - February 20, 2026
+
+### PRISM context compression; CHRONICLE date-aware routing; LUMARA token caps; landscape orientation
+
+- **PRISM — Context Compression (`prism_adapter.dart`):** New `PrismAdapter.extractKeyPoints()` static method (sentence-extraction heuristic: first sentence, high-signal emotional/decision sentences, last sentence; configurable char/sentence caps). New `compressAndScrub()` instance method (compress then PII-scrub, safe for cloud).
+- **LUMARA API (`enhanced_lumara_api.dart`):** CHRONICLE context hard cap 40 K chars before PII scrub (prevents yearly-aggregation token overflow). Current entry and Layer 0 history entries now compressed via `extractKeyPoints` (600/400 chars) before assembly. Non-voice user payload hard cap 60 K chars. Added V23 payload debug prints.
+- **CHRONICLE — Layer Routing (`query_router.dart`):** Date-aware Yearly routing — `ChronicleLayer.yearly` only when `month ≥ 4`; early-year falls back to Monthly. New recency signals (`recently`, `this week`, etc.) → Monthly. New long-term signals (`over the years`, `multi-year`, etc.) → Multi-year. Same rule applied to integrate mode. `currentDate` parameter added for testability.
+- **CHRONICLE — Context Builder (`context_builder.dart`):** Fixed `_compressForSpeed` token-budget check — check now runs at loop start so headers are never added after budget is exhausted.
+- **Journal Screen (`journal_screen.dart`):** Landscape support (`SystemChrome.setPreferredOrientations`). Older-entry context uses `extractKeyPoints` (400 chars/4 sentences). Current-entry deduplication fix (prevent current entry appearing as "OLDER ENTRY"). `userId` fallback to `FirebaseAuthService.instance.currentUser?.uid`.
+- **Writing Screen & New Draft Screen (`writing_screen.dart`, `new_draft_screen.dart`):** Landscape support (`SystemChrome.setPreferredOrientations`; reset to portrait on `dispose`).
+
+**Files:** 7 modified. bug_tracker tracked.
 
 ---
 

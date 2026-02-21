@@ -859,6 +859,14 @@ class EnhancedLumaraApi {
             }
           }
 
+          // Hard cap Chronicle context to ~10K tokens (40K chars) before PII scrub.
+          // Protects against uncompressed yearly aggregations blowing up the payload.
+          const _maxChronicleChars = 40000;
+          if (chronicleContext != null && chronicleContext.length > _maxChronicleChars) {
+            print('⚠️ EnhancedLumaraApi: CHRONICLE context truncated from ${chronicleContext.length} to $_maxChronicleChars chars');
+            chronicleContext = '${chronicleContext.substring(0, _maxChronicleChars)}\n\n[Chronicle context truncated — full history available on deeper query]';
+          }
+
           // Scrub CHRONICLE context before sending to cloud (PiiScrubber/PrismAdapter); restore PII when response returns
           final chroniclePrism = PrismAdapter();
           final chronicleContextChecked = chronicleContext;
@@ -915,15 +923,37 @@ class EnhancedLumaraApi {
 
             baseContextParts.addAll(contextParts);
             baseContextParts.add('');
-            baseContextParts.add('**CURRENT ENTRY (PRIMARY FOCUS - WRITTEN TODAY, $todayDateStr)**: ${request.userText}');
+            // Use a key-point excerpt of the current entry here (full text is
+            // already in entryText / buildMasterUserMessage as the PRIMARY FOCUS).
+            final _currentEntryExcerpt = PrismAdapter.extractKeyPoints(
+              request.userText,
+              maxChars: 600,
+              maxSentences: 5,
+            );
+            baseContextParts.add('**CURRENT ENTRY (PRIMARY FOCUS - WRITTEN TODAY, $todayDateStr)**: $_currentEntryExcerpt');
             baseContextParts.add('');
             baseContextParts.add('**HISTORICAL CONTEXT (Use for pattern recognition with dated examples)**:');
-            baseContextParts.add('**NOTE**: The journal entries listed below (with "-" bullets) are PAST entries from your journal history. The CURRENT ENTRY above (marked "PRIMARY FOCUS - WRITTEN TODAY") is being written TODAY ($todayDateStr) and is NOT a past entry.');
-            // Use ARC from orchestrator when present, else context selector entries
+            baseContextParts.add('**NOTE**: The journal entries listed below are PAST entries (key points only, PII anonymised). The CURRENT ENTRY above is being written TODAY ($todayDateStr).');
+            // Use ARC from orchestrator when present, else context selector entries.
+            // Layer 0 entries are compressed to key-point excerpts (~400 chars each) via
+            // PrismAdapter before the full payload is PII-scrubbed.  This combines:
+            //   • Chronicle Layer 1 (yearly/monthly aggregation above) — temporal arc
+            //   • Layer 0 excerpts below — recent specific texture
+            // Together they give rich dual-layer context without bloating the payload.
             if (entryContentsFromArc != null) {
-              baseContextParts.addAll(entryContentsFromArc.map((s) => '- $s'));
+              baseContextParts.addAll(entryContentsFromArc.map((s) {
+                final excerpt = PrismAdapter.extractKeyPoints(s, maxChars: 400, maxSentences: 4);
+                return '- $excerpt';
+              }));
             } else {
-              baseContextParts.addAll(recentJournalEntries.map((e) => '- ${e.content}'));
+              baseContextParts.addAll(recentJournalEntries.map((e) {
+                final excerpt = PrismAdapter.extractKeyPoints(
+                  e.content,
+                  maxChars: 400,
+                  maxSentences: 4,
+                );
+                return '- $excerpt';
+              }));
             }
             
             baseContext = baseContextParts.join('\n\n');
@@ -1274,6 +1304,15 @@ class EnhancedLumaraApi {
           } else {
             // Non-voice: split payload for lower latency — short system + user = context + entry
             systemPrompt = LumaraMasterPrompt.getMasterPromptSystemOnly(simplifiedControlStateJson, now);
+            print('🔍 LUMARA V23 Payload Debug:');
+            print('  promptMode: $promptMode');
+            print('  entryText: ${request.userText.length} chars');
+            print('  recentEntries: ${recentEntries.length} entries (metadata only)');
+            print('  baseContext: ${baseContext?.length ?? 0} chars');
+            print('  chronicleContext: ${chronicleContext?.length ?? 0} chars');
+            print('  lumaraChronicleContext: ${lumaraChronicleContext?.length ?? 0} chars');
+            print('  modeSpecificInstructions: ${modeSpecificInstructions.length} chars');
+            print('  systemPrompt: ${systemPrompt.length} chars');
             userPromptForApi = LumaraMasterPrompt.buildMasterUserMessage(
               entryText: request.userText,
               recentEntries: recentEntries,
@@ -1285,6 +1324,13 @@ class EnhancedLumaraApi {
               currentDate: now,
               modeSpecificInstructions: modeSpecificInstructions.isNotEmpty ? modeSpecificInstructions : null,
             );
+            // Hard cap: non-voice user payload at ~60K chars (~15K tokens). Covers ~30 long journal
+            // entries + full Chronicle context with a healthy buffer; prevents runaway payloads.
+            const _maxNonVoiceUserChars = 60000;
+            if (userPromptForApi.length > _maxNonVoiceUserChars) {
+              print('⚠️ LUMARA V23: User payload truncated from ${userPromptForApi.length} to $_maxNonVoiceUserChars chars');
+              userPromptForApi = '${userPromptForApi.substring(0, _maxNonVoiceUserChars)}\n\n[Context truncated to stay within token budget]';
+            }
             print('🔵 LUMARA V23: Non-voice split payload: system=${systemPrompt.length} chars, user=${userPromptForApi.length} chars');
             if (chronicleContext != null) {
               print('🔵 LUMARA V23: CHRONICLE context included in user message (${chronicleLayerNames?.join(', ') ?? 'unknown layers'})');
@@ -2295,7 +2341,12 @@ Stay within target length naturally. Quality over quantity.
         'amazing how',
         'incredible',
         'truly inspiring',
-        'profound',
+        // 'profound' alone is too broad — it's authentic emotional language.
+        // Only flag it in sycophantic compounds.
+        'profound insight',
+        'profound realization',
+        'profound observation',
+        'so profound',
         'you\'re absolutely right',
         'what a',
         'such a great',

@@ -94,6 +94,118 @@ class PrismAdapter {
     return PiiScrubber.containsPii(text);
   }
 
+  // ─────────────────────────────────────────────────────────────────────
+  // PRISM CONTEXT COMPRESSION
+  //
+  // Extracts key sentences from a journal entry and scrubs PII from the
+  // result.  The AI receives compact, anonymised context that preserves
+  // emotional + relational meaning while protecting identity.  PRISM uses
+  // token replacement (not deletion), so "John at Disneyland" becomes
+  // "[PERSON_1] at [PLACE_1]" — full context, zero identification.
+  // ─────────────────────────────────────────────────────────────────────
+
+  /// Extract the most contextually important sentences from a journal entry,
+  /// then scrub PII from the result.
+  ///
+  /// [content]    Raw journal entry text.
+  /// [maxChars]   Hard cap on the output (default 400 chars).
+  /// [maxSentences] Maximum number of sentences to keep (default 4).
+  ///
+  /// Returns a [PrismResult] whose [scrubbedText] is safe to send to cloud
+  /// APIs, and whose [reversibleMap] stays on-device for response restoration.
+  PrismResult compressAndScrub(
+    String content, {
+    int maxChars = 400,
+    int maxSentences = 4,
+  }) {
+    final excerpt = _extractKeyPoints(content, maxChars: maxChars, maxSentences: maxSentences);
+    return scrub(excerpt);
+  }
+
+  /// Extract key points without scrubbing (useful when the caller applies
+  /// a single PRISM pass over the whole payload later).
+  static String extractKeyPoints(
+    String content, {
+    int maxChars = 400,
+    int maxSentences = 4,
+  }) {
+    return _extractKeyPoints(content, maxChars: maxChars, maxSentences: maxSentences);
+  }
+
+  /// Internal sentence-extraction heuristic.
+  ///
+  /// Priority order:
+  ///   1. First sentence (sets the scene / main topic)
+  ///   2. Any sentence containing high-signal emotional or decision words
+  ///   3. Last non-empty sentence (often a resolution or forward-looking thought)
+  ///
+  /// Sentences are de-duplicated and the result is hard-capped at [maxChars].
+  static String _extractKeyPoints(
+    String content, {
+    required int maxChars,
+    required int maxSentences,
+  }) {
+    if (content.trim().isEmpty) return '';
+
+    // Split into sentences on common terminators.
+    final rawSentences = content
+        .split(RegExp(r'(?<=[.!?])\s+'))
+        .map((s) => s.trim())
+        .where((s) => s.length > 15) // skip fragments
+        .toList();
+
+    if (rawSentences.isEmpty) {
+      // No sentence boundaries — take the first maxChars chars.
+      return content.length <= maxChars
+          ? content
+          : '${content.substring(0, maxChars - 3)}...';
+    }
+
+    // High-signal emotional / decision keywords.
+    const _signals = [
+      'feel', 'felt', 'feeling', 'emotion', 'scared', 'afraid', 'excited',
+      'happy', 'sad', 'anxious', 'overwhelm', 'relief', 'proud', 'frustrated',
+      'confus', 'worried', 'grateful', 'disappoint', 'hopeful', 'nervous',
+      'decided', 'decision', 'realized', 'realise', 'noticed', 'learned',
+      'thought', 'wonder', 'struggling', 'difficult', 'important', 'need to',
+      'want to', 'going to', 'plan', 'goal', 'hope', 'wish',
+    ];
+
+    bool _isHighSignal(String s) {
+      final lower = s.toLowerCase();
+      return _signals.any((kw) => lower.contains(kw));
+    }
+
+    final selected = <String>[];
+    final seen = <String>{};
+
+    void _add(String s) {
+      if (selected.length >= maxSentences) return;
+      if (seen.contains(s)) return;
+      selected.add(s);
+      seen.add(s);
+    }
+
+    // 1. Always include the first sentence.
+    _add(rawSentences.first);
+
+    // 2. High-signal sentences (skip if already added as first/last).
+    for (final s in rawSentences.skip(1).take(rawSentences.length - 1)) {
+      if (_isHighSignal(s)) _add(s);
+      if (selected.length >= maxSentences - 1) break;
+    }
+
+    // 3. Last sentence (if not already included).
+    if (rawSentences.length > 1) _add(rawSentences.last);
+
+    // Join and cap at maxChars.
+    var result = selected.join(' ');
+    if (result.length > maxChars) {
+      result = '${result.substring(0, maxChars - 3)}...';
+    }
+    return result;
+  }
+
   /// Validate that text is properly scrubbed (contains no raw PII)
   /// 
   /// Use this as a guardrail before sending to external services

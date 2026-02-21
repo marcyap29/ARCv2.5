@@ -34,21 +34,26 @@ class ChronicleQueryRouter {
       return plan;
     }
 
-    // Integrate: yearly only, fast, allow drill-down (no LLM intent call)
+    // Integrate: use Yearly (L2) if April or later (3+ months synthesised),
+    // otherwise fall back to Monthly (L1) so the context is actually populated.
     if (mode == EngagementMode.integrate) {
       final dateFilter = extractDateFilter(query);
-      final strategy = 'Use yearly aggregation(s) for fast integrate; drill-down to monthly if needed';
+      final now = DateTime.now();
+      final integrateLayer =
+          now.month >= 4 ? ChronicleLayer.yearly : ChronicleLayer.monthly;
+      final layerLabel = now.month >= 4 ? 'yearly' : 'monthly';
       final plan = QueryPlan.chronicle(
         intent: QueryIntent.temporalQuery,
-        layers: [ChronicleLayer.yearly],
-        strategy: strategy,
+        layers: [integrateLayer],
+        strategy: 'Use $layerLabel aggregation(s) for fast integrate; drill-down available.',
         drillDown: true,
         dateFilter: dateFilter,
-        instructions: 'Connect current situation to broader patterns. Reference yearly themes. Suggest drill-down if user wants specific details.',
-        voiceInstructions: 'Connect to yearly themes. Drill-down available.',
+        instructions:
+            'Connect current situation to broader patterns. Reference $layerLabel themes. Suggest drill-down if user wants specific details.',
+        voiceInstructions: 'Connect to $layerLabel themes. Drill-down available.',
         speedTarget: ResponseSpeed.fast,
       );
-      print('🔀 ChronicleQueryRouter: Plan (integrate/fast): $plan');
+      print('🔀 ChronicleQueryRouter: Plan (integrate/fast, layer=$layerLabel): $plan');
       return plan;
     }
 
@@ -69,7 +74,12 @@ class ChronicleQueryRouter {
       return plan;
     }
 
-    final (layers, speedTarget) = _selectLayersForMode(intent, mode, query);
+    final (layers, speedTarget) = _selectLayersForMode(
+      intent,
+      mode,
+      query,
+      currentDate: DateTime.now(),
+    );
 
     if (layers.isEmpty) {
       final plan = QueryPlan.rawEntry(
@@ -109,10 +119,11 @@ class ChronicleQueryRouter {
   (List<ChronicleLayer>, ResponseSpeed) _selectLayersForMode(
     QueryIntent intent,
     EngagementMode? mode,
-    String query,
-  ) {
+    String query, {
+    DateTime? currentDate,
+  }) {
     if (mode == EngagementMode.reflect) {
-      final layer = _inferReflectLayer(query, intent);
+      final layer = _inferReflectLayer(query, intent, currentDate: currentDate ?? DateTime.now());
       return ([layer], ResponseSpeed.fast);
     }
     // Legacy: no mode, use full selectLayers and normal speed
@@ -121,23 +132,63 @@ class ChronicleQueryRouter {
     return (layers, speedTarget);
   }
 
-  /// Infer single layer for reflect mode from query and intent (monthly vs yearly).
-  ChronicleLayer _inferReflectLayer(String query, QueryIntent intent) {
+  /// Infer the single Chronicle layer best suited for a reflect-mode query.
+  ///
+  /// Decision logic:
+  ///  1. **Recency signals** in the query ("recently", "this week", etc.)
+  ///     → Layer 1 (Monthly) — or Layer 0 via rawEntry fallback.
+  ///  2. **Long-term signals** ("over the years", "long-term", "since I started")
+  ///     → Layer 3 (Multi-year).
+  ///  3. **Explicit year reference** OR pattern/trajectory/inflection intents
+  ///     → Layer 2 (Yearly) **only if the current month is April or later**
+  ///       (months 1-3 mean the current-year yearly aggregation hasn't had
+  ///       3+ monthly files synthesised yet, so it will be empty or stale).
+  ///       Falls back to Layer 1 (Monthly) early in the year.
+  ///  4. **Explicit month reference** → Layer 1 (Monthly).
+  ///  5. **Default** → Layer 1 (Monthly).
+  ChronicleLayer _inferReflectLayer(
+    String query,
+    QueryIntent intent, {
+    required DateTime currentDate,
+  }) {
     final lower = query.toLowerCase();
-    if (lower.contains(RegExp(r'\b(this\s+)?year\b|20\d{2}'))) {
-      return ChronicleLayer.yearly;
+    final month = currentDate.month;
+
+    // ── Recency signals → Monthly (L1) is freshest ──────────────────────
+    final isRecent = lower.contains(
+      RegExp(r'\b(recently|lately|this\s+week|past\s+few\s+days|yesterday|today|right\s+now)\b'),
+    );
+    if (isRecent) return ChronicleLayer.monthly;
+
+    // ── Long-term signals → Multi-year (L3) ──────────────────────────────
+    final isLongTerm = lower.contains(
+      RegExp(r'\b(long.?term|over\s+the\s+years|since\s+i\s+started|years\s+ago|multi.?year|all\s+time)\b'),
+    );
+    if (isLongTerm) return ChronicleLayer.multiyear;
+
+    // ── Explicit month name or "this month" → Monthly (L1) ───────────────
+    final asksForMonth = lower.contains(
+      RegExp(
+        r'\b(this\s+)?month\b|january|february|march|april|may|june|july|august|september|october|november|december',
+      ),
+    );
+    if (asksForMonth) return ChronicleLayer.monthly;
+
+    // ── Explicit year keyword OR year-oriented intent ─────────────────────
+    // Only route to Yearly (L2) if enough monthly files can exist.
+    // The YearlySynthesizer needs ≥3 months, so April (month 4) is the
+    // earliest the current-year file is likely to be valid.
+    final asksForYear = lower.contains(RegExp(r'\b(this\s+)?year\b|20\d{2}'));
+    final isYearlyIntent = intent == QueryIntent.patternIdentification ||
+        intent == QueryIntent.developmentalTrajectory ||
+        intent == QueryIntent.inflectionPoint;
+
+    if (asksForYear || isYearlyIntent) {
+      return month >= 4 ? ChronicleLayer.yearly : ChronicleLayer.monthly;
     }
-    if (lower.contains(RegExp(r'\b(this\s+)?month\b|january|february|march|april|may|june|july|august|september|october|november|december'))) {
-      return ChronicleLayer.monthly;
-    }
-    switch (intent) {
-      case QueryIntent.patternIdentification:
-      case QueryIntent.developmentalTrajectory:
-      case QueryIntent.inflectionPoint:
-        return ChronicleLayer.yearly;
-      default:
-        return ChronicleLayer.monthly;
-    }
+
+    // ── Default ───────────────────────────────────────────────────────────
+    return ChronicleLayer.monthly;
   }
 
   /// Classify query intent using LLM

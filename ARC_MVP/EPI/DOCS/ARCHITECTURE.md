@@ -212,7 +212,7 @@ So: the paper’s “ATLAS” is the Developmental Phase Engine; in EPI it is a 
     - `notification_service.dart` - Time Echo and Active Window reminders
     - `memory_notification_service.dart` - Memory-based notifications
   - `echo/` - PII & Security (ECHO Internal)
-    - `prism_adapter.dart` - PRISM adapter for PII scrubbing
+    - `prism_adapter.dart` - PRISM adapter: PII scrubbing + context compression (`extractKeyPoints`, `compressAndScrub`)
     - `correlation_resistant_transformer.dart` - Correlation-resistant transformation
     - `voice_pipeline.dart` - Secure voice processing pipeline
     - `privacy_redactor.dart` - Privacy redaction for chat
@@ -592,6 +592,7 @@ Update last export date and tracked IDs/hashes
 - **PRISM Scrubbing**: Two-layer PII protection system
   - Layer 1: PRISM scrubbing (tokens like `[EMAIL_1]`, `[NAME_1]`)
   - Layer 2: Correlation-resistant transformation (rotating aliases like `PERSON(H:7c91f2, S:⟡K3)`)
+- **PRISM Context Compression** (v3.3.56): `PrismAdapter.extractKeyPoints()` compresses journal entries to key sentences (first, high-signal emotional/decision, last) before PII scrubbing; caps payload at configurable char/sentence limits. `compressAndScrub()` combines both steps. Used in LUMARA API and Journal Screen to bound token usage without discarding meaning.
 - **Structured Payloads**: JSON abstractions instead of verbatim text
 - **Session Rotation**: Identifiers rotate per session to prevent linkage
 - **Encryption**: AES-256-GCM for ARCX archives

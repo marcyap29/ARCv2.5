@@ -35,6 +35,11 @@ class _WritingScreenState extends State<WritingScreen> {
   @override
   void initState() {
     super.initState();
+    SystemChrome.setPreferredOrientations([
+      DeviceOrientation.portraitUp,
+      DeviceOrientation.landscapeLeft,
+      DeviceOrientation.landscapeRight,
+    ]);
     WidgetsBinding.instance.addPostFrameCallback((_) => _applyInitialPrompt());
   }
 
@@ -77,6 +82,7 @@ class _WritingScreenState extends State<WritingScreen> {
   void dispose() {
     _promptController.dispose();
     _customContentTypeController.dispose();
+    SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
     super.dispose();
   }
 

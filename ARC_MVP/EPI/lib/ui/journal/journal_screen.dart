@@ -23,6 +23,8 @@ import 'package:my_app/services/lumara/lumara_inline_api.dart';
 import 'package:my_app/arc/chat/services/enhanced_lumara_api.dart';
 import 'package:my_app/arc/chat/services/reflection_handler.dart';
 import 'package:my_app/services/firebase_service.dart';
+import 'package:my_app/services/firebase_auth_service.dart';
+import 'package:my_app/arc/internal/echo/prism_adapter.dart';
 import 'package:my_app/repositories/reflection_session_repository.dart';
 import 'package:my_app/aurora/reflection/aurora_reflection_service.dart';
 import 'package:my_app/arc/chat/reflection/reflection_pattern_analyzer.dart';
@@ -221,6 +223,11 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
   @override
   void initState() {
     super.initState();
+    SystemChrome.setPreferredOrientations([
+      DeviceOrientation.portraitUp,
+      DeviceOrientation.landscapeLeft,
+      DeviceOrientation.landscapeRight,
+    ]);
     // REMOVED: _lumaraApi initialization - using _enhancedLumaraApi exclusively
     // _lumaraApi = LumaraInlineApi(_analytics);
     _enhancedLumaraApi = EnhancedLumaraApi(_analytics);
@@ -599,6 +606,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     // Clean up thumbnails when journal screen is closed
     _thumbnailCache.clearAllThumbnails();
     
+    SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
     super.dispose();
   }
 
@@ -726,8 +734,11 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
         _memoryService = EnhancedMiraMemoryService(
           miraService: MiraService.instance,
         );
+        // Use the Firebase Auth UID so Firestore rules match request.auth.uid
+        final memoryUserId = FirebaseAuthService.instance.currentUser?.uid
+            ?? 'anon_${DateTime.now().millisecondsSinceEpoch}';
         await _memoryService!.initialize(
-          userId: 'user_${DateTime.now().millisecondsSinceEpoch}',
+          userId: memoryUserId,
           sessionId: null,
           currentPhase: _entryState.phase ?? 'Discovery',
         );
@@ -1396,7 +1407,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
       List<AttributionTrace>? attributionTraces;
 
       final entryId = _currentEntryId;
-      final userId = userProfile?.id ?? '';
+      final userId = FirebaseAuthService.instance.currentUser?.uid ?? userProfile?.id ?? '';
       final userQuery = richContext['entryText'] ?? '';
       final options = lumara_models.LumaraReflectionOptions(
         preferQuestionExpansion: false, // Default = Claude-like; use Explore/Integrate for rich context
@@ -4818,6 +4829,12 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     buffer.writeln(currentEntryText);
     buffer.writeln('=== END CURRENT ENTRY ===');
     buffer.writeln('');
+
+    // Prevent the current entry from appearing again as "(OLDER ENTRY)" in
+    // the history loops below.
+    if (widget.existingEntry?.id != null) {
+      addedEntryIds.add(widget.existingEntry!.id);
+    }
     
     // If we have a query and memory service, use semantic search
     // Use _textController.text as query source (most up-to-date text)
@@ -4873,10 +4890,18 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
                 );
                 
                 if (entry.content.isNotEmpty) {
-                  // Include date to help LUMARA understand entry chronology
+                  // Include date to help LUMARA understand entry chronology.
+                  // Compress to key points only — PRISM token-replaces PII in
+                  // the full payload before the cloud call, so meaning is fully
+                  // preserved while keeping the payload compact.
                   final dateStr = _formatDateForContext(entry.createdAt);
+                  final excerpt = PrismAdapter.extractKeyPoints(
+                    entry.content,
+                    maxChars: 400,
+                    maxSentences: 4,
+                  );
                   buffer.writeln('Date: $dateStr (OLDER ENTRY)');
-                  buffer.writeln(entry.content);
+                  buffer.writeln(excerpt);
                   buffer.writeln('---');
                   addedEntryIds.add(entryId);
                 }
@@ -4909,10 +4934,14 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
       for (final entry in loadedEntries) {
         if (!addedEntryIds.contains(entry.id) && recentCount < 10) {
           if (entry.content.isNotEmpty) {
-            // Include date to help LUMARA understand entry chronology
             final dateStr = _formatDateForContext(entry.createdAt);
+            final excerpt = PrismAdapter.extractKeyPoints(
+              entry.content,
+              maxChars: 400,
+              maxSentences: 4,
+            );
             buffer.writeln('Date: $dateStr (OLDER ENTRY)');
-            buffer.writeln(entry.content);
+            buffer.writeln(excerpt);
             buffer.writeln('---');
             addedEntryIds.add(entry.id);
             recentCount++;
@@ -5843,7 +5872,7 @@ $originalEntryTextToInclude
         entryText: fullText,
         intent: 'journal',
         phase: _entryState.phase,
-        userId: userProfile?.id,
+        userId: FirebaseAuthService.instance.currentUser?.uid ?? userProfile?.id,
         includeExpansionQuestions: false,
         mood: null,
         chronoContext: null,

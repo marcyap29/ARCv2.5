@@ -161,12 +161,17 @@ class ChronicleContextBuilder {
   }
 
   /// Compress aggregation to target token count while preserving structure.
+  /// Headers and bullets are included in priority order but ALL contribute to the token budget.
   String _compressForSpeed(ChronicleAggregation agg, {required int targetTokens}) {
     final lines = agg.content.split('\n');
     final result = <String>[];
     var tokenEstimate = 0;
 
     for (final line in lines) {
+      if (tokenEstimate >= targetTokens) {
+        result.add('\n[Additional details available on request]');
+        break;
+      }
       if (line.startsWith('#')) {
         result.add(line);
         tokenEstimate += line.length ~/ 4;
@@ -183,10 +188,6 @@ class ChronicleContextBuilder {
           result.add('$firstSentence.');
           tokenEstimate += firstSentence.length ~/ 4;
         }
-      }
-      if (tokenEstimate >= targetTokens) {
-        result.add('\n[Additional details available on request]');
-        break;
       }
     }
     return result.join('\n');

@@ -159,3 +159,6 @@ ios-llm/
 
 # Large assets
 assets/models/functions/.env.arc-epi
+node_modules/
+package-lock.json
+package.json

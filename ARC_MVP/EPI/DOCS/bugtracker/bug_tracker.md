@@ -1,6 +1,6 @@
 # EPI MVP - Bug Tracker
 
-**Version:** 3.2.8  
+**Version:** 3.2.9  
 **Last Updated:** 2026-02-20  
 **Record count:** 35 individual bug records in [records/](records/). Index below matches all files in records/.
 
@@ -141,6 +141,7 @@ This section is derived from the repo and [CHANGELOG.md](../CHANGELOG.md) to kee
 | iOS project (Runner.xcodeproj) | v3.3.53 | — | ios/Runner.xcodeproj/project.pbxproj. |
 | PDF content service; journal, CHRONICLE layer0, MCP orchestrators, media alt text; pubspec | v3.3.54 | — | pdf_content_service; journal_capture_cubit, journal_screen, layer0_populator; chat_multimodal_processor, ios_vision_orchestrator; media_alt_text_generator; pubspec. |
 | Repo dir rename ARC MVP → ARC_MVP; prompt audit PROMPT_REFERENCES v2.7.0 | v3.3.55 | — | Filesystem rename committed; no code changes. ECHO On-Device LLM system prompt (prompt_templates.dart) added to PROMPT_REFERENCES. |
+| PRISM context compression; CHRONICLE date-aware routing; LUMARA token caps; landscape orientation | v3.3.56 | — | prism_adapter extractKeyPoints/compressAndScrub; enhanced_lumara_api 40K/60K caps; query_router month≥4 yearly rule; context_builder budget fix; journal/writing/draft screens landscape support. |
 
 **Source:** `git log --oneline`, [CHANGELOG.md](../CHANGELOG.md), terminal build log. Last synced: 2026-02-20.
 
@@ -156,5 +157,5 @@ Individual bug records stay in [records/](records/); only the legacy multi-part 
 
 ---
 
-**Status**: ✅ Active - All resolved issues documented; Build & Platform: 5 records; Environment: 1 (Ollama). Doc sync v3.3.55: bug_tracker tracked.  
+**Status**: ✅ Active - All resolved issues documented; Build & Platform: 5 records; Environment: 1 (Ollama). Doc sync v3.3.56: bug_tracker tracked.  
 **Last Updated**: 2026-02-20
