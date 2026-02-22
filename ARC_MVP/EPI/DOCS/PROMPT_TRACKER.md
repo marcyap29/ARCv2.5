@@ -1,7 +1,7 @@
 # Prompt Tracker
 
-**Version:** 1.4.0  
-**Last Updated:** February 20, 2026  
+**Version:** 1.5.0  
+**Last Updated:** February 22, 2026  
 **Purpose:** Prompt change tracking and quick reference. Full prompt catalog and version history live in [PROMPT_REFERENCES.md](PROMPT_REFERENCES.md).
 
 ---
@@ -16,6 +16,7 @@
 ## Recent prompt-related changes
 
 | Date | Change | Source / doc |
+| 2026-02-22 | Doc sync (Documentation & Git Backup run); prompt audit — no new prompts; CONFIGURATION_MANAGEMENT, bug_tracker refresh | CONFIGURATION_MANAGEMENT.md |
 | 2026-02-20 | Doc sync v3.3.56: PRISM compression, CHRONICLE date-aware routing, LUMARA token caps, landscape orientation; no prompt changes | CONFIGURATION_MANAGEMENT.md |
 | 2026-02-20 | Prompt audit v2.7.0: added §1 ECHO On-Device LLM System Prompt (Qwen adapter) — `lib/echo/providers/llm/prompt_templates.dart`; dir rename ARC MVP → ARC_MVP committed (v3.3.55) | PROMPT_REFERENCES.md v2.7.0 |
 | 2026-02-19 | Doc sync v3.3.54: PDF content service, journal/CHRONICLE/MCP/media, pubspec; bug_tracker tracked | CONFIGURATION_MANAGEMENT.md |
