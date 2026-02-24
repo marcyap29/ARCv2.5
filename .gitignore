@@ -161,4 +161,7 @@ ios-llm/
 assets/models/functions/.env.arc-epi
 node_modules/
 package-lock.json
+# Keep functions lock file so Firebase deploy (npm ci) has a in-sync lockfile
+!functions/package-lock.json
 package.json
+.vercel
