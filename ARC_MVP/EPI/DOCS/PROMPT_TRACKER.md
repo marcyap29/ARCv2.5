@@ -1,6 +1,6 @@
 # Prompt Tracker
 
-**Version:** 1.5.0  
+**Version:** 1.6.0  
 **Last Updated:** February 22, 2026  
 **Purpose:** Prompt change tracking and quick reference. Full prompt catalog and version history live in [PROMPT_REFERENCES.md](PROMPT_REFERENCES.md).
 
@@ -16,6 +16,7 @@
 ## Recent prompt-related changes
 
 | Date | Change | Source / doc |
+| 2026-02-22 | Doc sync v3.3.57: Firebase Functions Node 22 LTS, package-lock; no prompt changes | CONFIGURATION_MANAGEMENT.md |
 | 2026-02-22 | Doc sync (Documentation & Git Backup run); prompt audit — no new prompts; CONFIGURATION_MANAGEMENT, bug_tracker refresh | CONFIGURATION_MANAGEMENT.md |
 | 2026-02-20 | Doc sync v3.3.56: PRISM compression, CHRONICLE date-aware routing, LUMARA token caps, landscape orientation; no prompt changes | CONFIGURATION_MANAGEMENT.md |
 | 2026-02-20 | Prompt audit v2.7.0: added §1 ECHO On-Device LLM System Prompt (Qwen adapter) — `lib/echo/providers/llm/prompt_templates.dart`; dir rename ARC MVP → ARC_MVP committed (v3.3.55) | PROMPT_REFERENCES.md v2.7.0 |
@@ -52,7 +53,7 @@
 | 2026-01-31 | Document scope and sources; LUMARA source note (lumara_system_prompt vs lumara_master_prompt, lumara_profile.json) | PROMPT_REFERENCES.md v1.8.0 |
 | 2026-01-30 | CHRONICLE prompts (Query Classifier, VEIL EXAMINE); Backend (Firebase) prompts; Voice Journal Entry Creation | PROMPT_REFERENCES.md v1.7.0 |
 | 2026-01-24 | REFLECT → DEFAULT mode; Layer 2.5–2.7 (Direct Answer, Context Retrieval, Mode Switching) | PROMPT_REFERENCES.md v1.6.0 |
-| 2026-01-23 | Template variables, ECHO variables, Bible context blocks, on-device variants, voice phase word limits, session summary | PROMPT_REFERENCES.md v1.5.0 |
+| 2026-01-23 | Template variables, ECHO variables, on-device variants, voice phase word limits, session summary | PROMPT_REFERENCES.md v1.5.0 |
 
 ---
 

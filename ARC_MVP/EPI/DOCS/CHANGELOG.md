@@ -1,7 +1,7 @@
 # EPI LUMARA MVP - Changelog
 
-**Version:** 3.3.56
-**Last Updated:** February 20, 2026
+**Version:** 3.3.57
+**Last Updated:** February 22, 2026
 
 ---
 
@@ -14,6 +14,17 @@ This changelog has been split into parts for easier navigation:
 | **[CHANGELOG_part1.md](CHANGELOG_part1.md)** | Dec 2025 | v2.1.43 - v2.1.87 (Current) |
 | **[CHANGELOG_part2.md](CHANGELOG_part2.md)** | Nov 2025 | v2.1.28 - v2.1.42 |
 | **[CHANGELOG_part3.md](CHANGELOG_part3.md)** | Jan-Oct 2025 | v2.0.0 - v2.1.27 & Earlier |
+
+---
+
+## [3.3.57] - February 22, 2026
+
+### Firebase Functions: Node 22 LTS; package-lock regeneration
+
+- **Firebase Functions:** Downgrade to Node 22 LTS; `package-lock.json` regenerated for npm ci sync (npm v10).
+- **Files:** `ARC_MVP/EPI/functions/` (package.json engine, package-lock.json).
+
+**Files:** functions/ (Node 22 LTS, lockfile). bug_tracker tracked.
 
 ---
 

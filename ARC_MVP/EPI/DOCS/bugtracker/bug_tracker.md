@@ -148,6 +148,7 @@ This section is derived from the repo and [CHANGELOG.md](../CHANGELOG.md) to kee
 | Repo dir rename ARC MVP → ARC_MVP; prompt audit PROMPT_REFERENCES v2.7.0 | v3.3.55 | — | Filesystem rename committed; no code changes. ECHO On-Device LLM system prompt (prompt_templates.dart) added to PROMPT_REFERENCES. |
 | PRISM context compression; CHRONICLE date-aware routing; LUMARA token caps; landscape orientation | v3.3.56 | [chronicle-yearly-routing-early-year.md](records/chronicle-yearly-routing-early-year.md) ✅ [journal-context-current-entry-duplication.md](records/journal-context-current-entry-duplication.md) ✅ | prism_adapter extractKeyPoints/compressAndScrub; enhanced_lumara_api 40K/60K caps; query_router month≥4 yearly rule (BUG-CHRONICLE-001); context_builder budget fix; journal dedup fix (BUG-JOURNAL-001); landscape support. |
 | Documentation & Git Backup run (doc sync) | — | — | 2026-02-22: prompt audit (no new prompts); CONFIGURATION_MANAGEMENT, PROMPT_TRACKER, bug_tracker Last Updated refresh. |
+| Firebase Functions Node 22 LTS; package-lock regeneration | v3.3.57 | — | functions/: downgrade to Node 22 LTS; package-lock.json regenerated for npm ci sync (npm v10). |
 
 **Source:** `git log --oneline`, [CHANGELOG.md](../CHANGELOG.md), terminal build log. Last synced: 2026-02-22.
 
