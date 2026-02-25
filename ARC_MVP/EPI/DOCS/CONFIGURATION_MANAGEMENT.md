@@ -1,7 +1,7 @@
 # Configuration Management & Documentation Tracking
 
 **Lead Configuration Management Analyst:** Active  
-**Last Updated:** February 22, 2026 (v3.3.57)  
+**Last Updated:** February 24, 2026 (doc sync 2026-02-24)  
 **Status:** ✅ All Documents Synced with Repo
 
 ---
@@ -47,8 +47,8 @@ Prompt/role definitions: **Ultimate Documentation, Configuration Management and 
 |----------|----------|---------------|--------|-------|
 | ARCHITECTURE.md | `/DOCS/ARCHITECTURE.md` | 2026-02-20 | ✅ Synced | v3.3.56 - PRISM context compression, prism_adapter.dart description updated |
 | CHANGELOG.md | `/DOCS/CHANGELOG.md` | 2026-02-22 | ✅ Synced | v3.3.57 - Firebase Functions Node 22 LTS, package-lock regeneration |
-| PROMPT_REFERENCES.md | `/DOCS/PROMPT_REFERENCES.md` | 2026-02-20 | ✅ Synced | v2.7.0 - ECHO On-Device LLM system prompt (Qwen adapter, prompt_templates.dart) |
-| PROMPT_TRACKER.md | `/DOCS/PROMPT_TRACKER.md` | 2026-02-22 | ✅ Synced | v1.5.0 - Doc sync 2026-02-22 row added |
+| PROMPT_REFERENCES.md | `/DOCS/PROMPT_REFERENCES.md` | 2026-02-24 | ✅ Synced | v2.8.0 - LUMARA Groq Cached Prompt (lumara_groq_cached_prompt.dart, groq_send.dart) |
+| PROMPT_TRACKER.md | `/DOCS/PROMPT_TRACKER.md` | 2026-02-24 | ✅ Synced | v1.7.0 - Doc sync 2026-02-24 row added |
 | bug_tracker.md | `/DOCS/bugtracker/bug_tracker.md` | 2026-02-22 | ✅ Synced | v3.3.0 - Last Updated refresh; doc-sync run 2026-02-22 |
 | FEATURES.md | `/DOCS/FEATURES.md` | 2026-02-15 | ✅ Synced | v3.3.38 - Writing/research agents storage & export/import |
 | README.md | `/DOCS/README.md` | 2026-02-07 | ✅ Synced | Key docs table with purpose and when to read |
@@ -107,6 +107,20 @@ Prompt/role definitions: **Ultimate Documentation, Configuration Management and 
 ---
 
 ## Change Tracking Log
+
+### 2026-02-24 - Documentation & Git Backup run (prompt audit v2.8.0)
+
+**Action:** Ran Documentation, Configuration Management and Git Backup workflow (claude.md orchestrator + sub-agents + reviewer).
+
+**PROMPT REFERENCES AUDIT:** Found one new prompt source: `lib/arc/chat/llm/prompts/lumara_groq_cached_prompt.dart` (LUMARA Groq Cached Prompt — `lumaraStableSystemPrompt`, `buildLumaraDynamicContext`). Used by `groq_send.dart` for Groq prefix caching. Added to PROMPT_REFERENCES.md as new System Prompts subsection. Version bumped to 2.8.0.
+
+**Git Backup — Identify what changed:** No new commits since last doc run (769d31336). Working tree has extensive uncommitted changes (DOCS, lib, functions); this doc run documents the prompt audit only.
+
+**Updates:** PROMPT_REFERENCES.md v2.8.0; PROMPT_TRACKER.md v1.7.0 + doc-sync row; CONFIGURATION_MANAGEMENT.md this entry + inventory; bug_tracker.md Last Updated refresh.
+
+**Status:** ✅ Ready for commit (docs only).
+
+---
 
 ### 2026-02-22 - Documentation & Git Backup run (v3.3.57; Firebase Functions Node 22 LTS)
 

@@ -1,7 +1,7 @@
 # EPI MVP - Bug Tracker
 
 **Version:** 3.3.0  
-**Last Updated:** 2026-02-22  
+**Last Updated:** 2026-02-24  
 **Record count:** 38 individual bug records in [records/](records/). Index below matches all files in records/.
 
 **Master index & format:** For overview, document structure, standardized bug entry format, and maintenance procedures see [BUGTRACKER_MASTER_INDEX.md](BUGTRACKER_MASTER_INDEX.md). New records should follow the BUG-[ID] format (🐛🔧🎯📋) when possible; see audit [BUGTRACKER_AUDIT_REPORT.md](BUGTRACKER_AUDIT_REPORT.md).
@@ -149,8 +149,9 @@ This section is derived from the repo and [CHANGELOG.md](../CHANGELOG.md) to kee
 | PRISM context compression; CHRONICLE date-aware routing; LUMARA token caps; landscape orientation | v3.3.56 | [chronicle-yearly-routing-early-year.md](records/chronicle-yearly-routing-early-year.md) ✅ [journal-context-current-entry-duplication.md](records/journal-context-current-entry-duplication.md) ✅ | prism_adapter extractKeyPoints/compressAndScrub; enhanced_lumara_api 40K/60K caps; query_router month≥4 yearly rule (BUG-CHRONICLE-001); context_builder budget fix; journal dedup fix (BUG-JOURNAL-001); landscape support. |
 | Documentation & Git Backup run (doc sync) | — | — | 2026-02-22: prompt audit (no new prompts); CONFIGURATION_MANAGEMENT, PROMPT_TRACKER, bug_tracker Last Updated refresh. |
 | Firebase Functions Node 22 LTS; package-lock regeneration | v3.3.57 | — | functions/: downgrade to Node 22 LTS; package-lock.json regenerated for npm ci sync (npm v10). |
+| Documentation & Git Backup run (prompt audit) | — | — | 2026-02-24: PROMPT_REFERENCES v2.8.0 — LUMARA Groq Cached Prompt (lumara_groq_cached_prompt.dart) added; PROMPT_TRACKER, CONFIGURATION_MANAGEMENT, bug_tracker refresh. |
 
-**Source:** `git log --oneline`, [CHANGELOG.md](../CHANGELOG.md), terminal build log. Last synced: 2026-02-22.
+**Source:** `git log --oneline`, [CHANGELOG.md](../CHANGELOG.md), terminal build log. Last synced: 2026-02-24.
 
 ---
 
@@ -165,4 +166,4 @@ Individual bug records stay in [records/](records/); only the legacy multi-part 
 ---
 
 **Status**: ✅ Active - All resolved issues documented; Build & Platform: 5 records; Environment: 1 (Ollama); CHRONICLE: 1 (BUG-CHRONICLE-001 ✅); Privacy: 1 (BUG-PRISM-001 ✅). Bugtracker-consolidator run 2026-02-20: 3 new records added (38 total).  
-**Last Updated**: 2026-02-22
+**Last Updated**: 2026-02-24

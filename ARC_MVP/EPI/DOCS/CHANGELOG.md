@@ -1,7 +1,7 @@
 # EPI LUMARA MVP - Changelog
 
-**Version:** 3.3.57
-**Last Updated:** February 22, 2026
+**Version:** 3.3.58
+**Last Updated:** February 24, 2026
 
 ---
 
@@ -14,6 +14,17 @@ This changelog has been split into parts for easier navigation:
 | **[CHANGELOG_part1.md](CHANGELOG_part1.md)** | Dec 2025 | v2.1.43 - v2.1.87 (Current) |
 | **[CHANGELOG_part2.md](CHANGELOG_part2.md)** | Nov 2025 | v2.1.28 - v2.1.42 |
 | **[CHANGELOG_part3.md](CHANGELOG_part3.md)** | Jan-Oct 2025 | v2.0.0 - v2.1.27 & Earlier |
+
+---
+
+## [3.3.58] - February 24, 2026
+
+### Prompt audit: PROMPT_REFERENCES v2.8.0 — LUMARA Groq Cached Prompt
+
+- **PROMPT_REFERENCES.md:** Added LUMARA Groq Cached Prompt — `lib/arc/chat/llm/prompts/lumara_groq_cached_prompt.dart` (`lumaraStableSystemPrompt`, `buildLumaraDynamicContext`). Stable prefix for Groq caching (~50% cached input discount); used by `groq_send.dart`.
+- **Docs:** CONFIGURATION_MANAGEMENT, PROMPT_TRACKER, bug_tracker refreshed.
+
+**Files:** DOCS/ (PROMPT_REFERENCES, PROMPT_TRACKER, CONFIGURATION_MANAGEMENT, bug_tracker).
 
 ---
 
