@@ -70,9 +70,19 @@ So “what is in the master prompt” for context is either:
 - recent_entries + historical_context block, or  
 - recent_entries + chronicle block + supporting_entries block.
 
-Implementation: `_buildContextSection(mode, baseContext, chronicleContext, chronicleLayers)` in `lumara_master_prompt.dart` (lines ~3137–3190).
+Implementation: `_buildContextSection(mode, baseContext, chronicleContext, chronicleLayers, lumaraChronicleContext)` in `lumara_master_prompt.dart` (lines ~3702–3772).
 
-### 2.4 Temporal and safety rules
+### 2.4 LUMARA CHRONICLE (lumaraChronicleContext)
+
+A separate, optional block **LUMARA CHRONICLE** is supplied via **lumaraChronicleContext**. It contains query-relevant patterns, causal chains, relationships, and user-approved insights. Unlike the mode-dependent chronicle/raw blocks above, **lumaraChronicleContext is appended in all modes** (chronicleBacked, rawBacked, hybrid) when non-empty, so the model can use both CHRONICLE (temporal aggregations) and LUMARA CHRONICLE (inference patterns) together.
+
+- **Source:** When available, **UniversalPromptOptimizer.getChronicleContextForMasterPrompt(userId, userText, useCase, maxChars: 2000)** builds this string (use-case-sized, query-relevant). Fallback: **\_buildLumaraChronicleContext(userId)** in `enhanced_lumara_api.dart` so behavior is unchanged if the optimizer is unavailable.
+- **Use cases:** Voice → `PromptUseCase.userVoice` (smaller slice); reflection/chat → `PromptUseCase.userReflect`.
+- **Placement:** In `_buildContextSection`, when `lumaraChronicleContext` is non-empty it is appended as `<lumara_chronicle>...</lumara_chronicle>` with instructions to use both CHRONICLE and LUMARA CHRONICLE when reasoning.
+
+See **UNIVERSAL_PROMPT_OPTIMIZATION.md** for the optimizer layer, provider-agnostic strategy, and integration checklist.
+
+### 2.5 Temporal and safety rules
 
 - **CRITICAL: TEMPORAL CONTEXT USAGE** — Use current date for “yesterday”/“last week”; never date the “current entry” in the past; current entry is PRIMARY FOCUS, written TODAY.
 - **WORD LIMIT ENFORCEMENT** — Respect `responseMode.maxWords` (or no limit if `noWordLimit` / `max_sentences == -1`).
@@ -80,13 +90,13 @@ Implementation: `_buildContextSection(mode, baseContext, chronicleContext, chron
 - **LUMARA CONVERSATIONAL INTELLIGENCE** — Phase, phase stability, emotional intensity, recent patterns, interaction mode, engagement mode.
 - **&lt;intellectual_honesty&gt;** — When to push back (factual contradiction with journal, pattern denial, recent-entry contradiction) vs when not (reframing, evolving perspective, ambiguous patterns); “Both/And” technique; cite entries with dates.
 
-### 2.5 Layered behavior (crisis, phase, tone, etc.)
+### 2.6 Layered behavior (crisis, phase, tone, etc.)
 
 - **LAYER 1:** Crisis detection and hard safety (crisis protocol, 988, Crisis Text Line, 911; do not continue conversation after).
 - **LAYER 2:** Phase + intensity calibration (tone matrix by phase × emotional intensity).
 - Further layers: persona-specific instructions, engagement discipline, response structure, banned phrases, pattern-recognition rules, etc.
 
-### 2.6 Current task block
+### 2.7 Current task block
 
 - **CURRENT TASK**  
   Optional “HISTORICAL CONTEXT” (same as baseContext when present), then **CURRENT ENTRY TO RESPOND TO (WRITTEN TODAY - &lt;date&gt;)** with the actual entry text.  
@@ -188,16 +198,18 @@ So **vectorization** = on-device embeddings + index + PatternQueryRouter. Its **
    - **Legacy:** Query router → plan → if usesChronicle, context builder → `chronicleContext`; else raw; voice may only get mini-context.  
 4. **Base context (raw)**  
    - If mode is rawBacked or hybrid, build `baseContext` from recent journal entries (and optionally drill-down supporting entries).  
-5. **Master prompt build**  
+5. **LUMARA CHRONICLE (lumaraChronicleContext)**  
+   - **Enhanced LUMARA API:** For reflection/voice, call `UniversalPromptOptimizer.getChronicleContextForMasterPrompt(userId, request.userText, useCase, maxChars: 2000)`; on null/empty or on exception, fall back to `_buildLumaraChronicleContext(userId)`. This string is passed as `lumaraChronicleContext` into the master prompt and appended in all modes (see §2.4).  
+6. **Master prompt build**  
    - **Split payload (typical for reflection):**  
      - System: `getMasterPromptSystemOnly(controlStateJson, now)`.  
-     - User: `buildMasterUserMessage(entryText, recentEntries, baseContext, chronicleContext, chronicleLayers, mode, currentDate, modeSpecificInstructions)`.  
-   - Inside that, `_buildContextSection(mode, baseContext, chronicleContext, chronicleLayers)` injects the correct block (chronicle only / raw only / hybrid).  
-6. **Optional injections**  
+     - User: `buildMasterUserMessage(entryText, recentEntries, baseContext, chronicleContext, chronicleLayers, lumaraChronicleContext, mode, currentDate, modeSpecificInstructions)`.  
+   - Inside that, `_buildContextSection(mode, baseContext, chronicleContext, chronicleLayers, lumaraChronicleContext)` injects the chronicle/raw block and appends the LUMARA CHRONICLE block when present.  
+7. **Optional injections**  
    - Mode-specific instructions (conversation mode, regenerate, tone).  
    - ATLAS/AURORA context (orchestrator).  
    - truth_check block (ChronicleContradictionChecker) when user claim contradicts journal.  
-7. **API call**  
+8. **API call**  
    - System prompt + user message sent to LLM (e.g. Groq/Gemini).  
    - Model sees control state, recent entries, **chronicle and/or raw context**, current entry, and all behavioral rules in one coherent prompt.
 
@@ -317,16 +329,18 @@ switch (mode) {
 | Index (vectorization) | `lib/chronicle/index/chronicle_index_builder.dart` | `ChronicleIndexBuilder`, `updateIndexAfterSynthesis` |
 | Embeddings | `lib/chronicle/embeddings/` | `EmbeddingService`, local embedding service |
 | Merging pattern + aggregations | `lib/lumara/subsystems/chronicle_subsystem.dart` | `ChronicleSubsystem.query` (patternContext + fullContext) |
-| Using context in API | `lib/arc/chat/services/enhanced_lumara_api.dart` | CHRONICLE/orchestrator block (~662–805), baseContext (~825–868), prompt build (~1097–1172) |
+| Using context in API | `lib/arc/chat/services/enhanced_lumara_api.dart` | CHRONICLE/orchestrator block (~662–805), baseContext (~825–868), lumaraChronicleContext (~992–1019, optimizer + fallback), prompt build (~1097–1172) |
+| LUMARA CHRONICLE (optimizer) | `lib/arc/chat/prompt_optimization/universal_prompt_optimizer.dart` | `getChronicleContextForMasterPrompt` |
 | Chat (full prompt) | `lib/arc/chat/bloc/lumara_assistant_cubit.dart` | `_buildSystemPrompt` → `LumaraMasterPrompt.getMasterPrompt` |
 
 ---
 
 ## 8. Summary
 
-- **Master prompt** = identity + **control state JSON** + current/recent context + **context section** (chronicle and/or raw) + safety/tone/behavior rules + current task (entry + optional instructions).  
+- **Master prompt** = identity + **control state JSON** + current/recent context + **context section** (chronicle and/or raw, plus optional **LUMARA CHRONICLE**) + safety/tone/behavior rules + current task (entry + optional instructions).  
 - **CHRONICLE** = temporal aggregations (Layer 1/2/3) formatted by `ChronicleContextBuilder`; that string (and optional pattern block) is **chronicleContext** fed into the master prompt.  
+- **LUMARA CHRONICLE** = **lumaraChronicleContext**: query-relevant patterns, causal chains, relationships, approved insights. Built by `UniversalPromptOptimizer.getChronicleContextForMasterPrompt` (or legacy `_buildLumaraChronicleContext`); appended in **all** modes via `_buildContextSection`. See **UNIVERSAL_PROMPT_OPTIMIZATION.md**.  
 - **Vectorization** = on-device embeddings + cross-temporal pattern index + `PatternQueryRouter`; its output is a text block that is merged with aggregation context in the CHRONICLE subsystem and then passed as part of **chronicleContext** (or as the only CHRONICLE content for pattern-only plans).  
-- **Modes** (chronicleBacked / rawBacked / hybrid) decide whether the prompt sees only CHRONICLE, only raw, or both; the same `_buildContextSection` and `buildMasterUserMessage` logic place that content in the prompt so the model can follow temporal and citation rules.
+- **Modes** (chronicleBacked / rawBacked / hybrid) decide whether the prompt sees only CHRONICLE, only raw, or both; **lumaraChronicleContext** is appended in all modes when present.
 
-This document should be read together with `CHRONICLE_PROMPT_REFERENCE.md`, `CHRONICLE_CONTEXT_FOR_CLAUDE.md` (if present), and `PROMPT_REFERENCES.md` §16 (Master Prompt Architecture) for full detail on CHRONICLE layers, token targets, and prompt structure.
+This document should be read together with **UNIVERSAL_PROMPT_OPTIMIZATION.md** (optimizer and LUMARA CHRONICLE integration), `CHRONICLE_PROMPT_REFERENCE.md`, `CHRONICLE_CONTEXT_FOR_CLAUDE.md` (if present), and `PROMPT_REFERENCES.md` §16 (Master Prompt Architecture) for full detail on CHRONICLE layers, token targets, and prompt structure.

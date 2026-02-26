@@ -1,8 +1,8 @@
 # EPI MVP - Bug Tracker
 
-**Version:** 3.3.0  
-**Last Updated:** 2026-02-24  
-**Record count:** 38 individual bug records in [records/](records/). Index below matches all files in records/.
+**Version:** 3.4.0  
+**Last Updated:** 2026-02-25  
+**Record count:** 39 individual bug records in [records/](records/). Index below matches all files in records/.
 
 **Master index & format:** For overview, document structure, standardized bug entry format, and maintenance procedures see [BUGTRACKER_MASTER_INDEX.md](BUGTRACKER_MASTER_INDEX.md). New records should follow the BUG-[ID] format (🐛🔧🎯📋) when possible; see audit [BUGTRACKER_AUDIT_REPORT.md](BUGTRACKER_AUDIT_REPORT.md).
 
@@ -34,6 +34,7 @@ This bug tracker has been split into parts for easier navigation:
 Detailed bug reports are available in the [records/](records/) directory:
 
 ### LUMARA Issues
+- [lumara-gtm-double-groq-call.md](records/lumara-gtm-double-groq-call.md) - **MEDIUM:** GTMSessionFetcher "already running" — duplicate proxyGroq calls via `_tryChatAgentPath` + TCP dirty state (2026-02-24) ✅ FIXED BUG-LUMARA-GTM-001
 - [lumara-temporal-context-incorrect-dates.md](records/lumara-temporal-context-incorrect-dates.md) - **HIGH:** Incorrect date references in reflections (v3.2.2) ✅ RESOLVED
 - [gemini-api-empty-user-string.md](records/gemini-api-empty-user-string.md) - **CRITICAL:** Empty user string rejection in journal reflections (v3.2.2) ✅ RESOLVED
 - [lumara-user-prompt-override.md](records/lumara-user-prompt-override.md) - **CRITICAL:** User prompt overriding master prompt constraints (v3.0) ✅ RESOLVED
@@ -151,7 +152,10 @@ This section is derived from the repo and [CHANGELOG.md](../CHANGELOG.md) to kee
 | Firebase Functions Node 22 LTS; package-lock regeneration | v3.3.57 | — | functions/: downgrade to Node 22 LTS; package-lock.json regenerated for npm ci sync (npm v10). |
 | Documentation & Git Backup run (prompt audit) | — | — | 2026-02-24: PROMPT_REFERENCES v2.8.0 — LUMARA Groq Cached Prompt (lumara_groq_cached_prompt.dart) added; PROMPT_TRACKER, CONFIGURATION_MANAGEMENT, bug_tracker refresh. |
 
-**Source:** `git log --oneline`, [CHANGELOG.md](../CHANGELOG.md), terminal build log. Last synced: 2026-02-24.
+| GTMSessionFetcher duplicate proxyGroq call | 2026-02-24 | [lumara-gtm-double-groq-call.md](records/lumara-gtm-double-groq-call.md) ✅ | BUG-LUMARA-GTM-001 — `_tryChatAgentPath` always invoked groqSend for LLM intent classification, producing a second proxyGroq call triggering GTMSessionFetcher "already running" after TCP error. Fix 1: keyword pre-filter skips LLM classifier for non-agent messages. Fix 2: `_savePendingInput` moved before first await. Fix 3: retry on `[firebase_functions/internal]` in `groq_send.dart`. |
+| Bugtracker consolidator run | — | — | 2026-02-25: BUG-LUMARA-GTM-001 indexed; record count 38 → 39; BUGTRACKER_AUDIT_REPORT, BUGTRACKER_MASTER_INDEX, bug_tracker refreshed. |
+
+**Source:** `git log --oneline`, [CHANGELOG.md](../CHANGELOG.md), terminal build log. Last synced: 2026-02-25.
 
 ---
 
@@ -165,5 +169,5 @@ Individual bug records stay in [records/](records/); only the legacy multi-part 
 
 ---
 
-**Status**: ✅ Active - All resolved issues documented; Build & Platform: 5 records; Environment: 1 (Ollama); CHRONICLE: 1 (BUG-CHRONICLE-001 ✅); Privacy: 1 (BUG-PRISM-001 ✅). Bugtracker-consolidator run 2026-02-20: 3 new records added (38 total).  
-**Last Updated**: 2026-02-24
+**Status**: ✅ Active - All resolved issues documented; Build & Platform: 5 records; Environment: 1 (Ollama); CHRONICLE: 1 (BUG-CHRONICLE-001 ✅); Privacy: 1 (BUG-PRISM-001 ✅); LUMARA chat/networking: 1 (BUG-LUMARA-GTM-001 ✅). Bugtracker-consolidator run 2026-02-25: 1 new record indexed (39 total).  
+**Last Updated**: 2026-02-25

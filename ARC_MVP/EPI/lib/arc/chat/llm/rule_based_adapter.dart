@@ -140,15 +140,11 @@ ${context.summary}''';
   
   /// Generate prompt suggestions
   String _generatePromptSuggestion(ContextWindow context) {
-    final phaseData = context.nodes.where((n) => n['type'] == 'phase').firstOrNull;
-    final currentPhase = phaseData?['text'] ?? 'Discovery';
-    
     return '''Here are some journal prompts for tonight:
 
-**Phase: $currentPhase**
 • What new insights did you gain today?
-• How did today's experiences align with your current phase?
 • What patterns are you noticing in your thoughts?
+• What felt significant about today?
 
 **General Reflection**
 • What am I grateful for today?

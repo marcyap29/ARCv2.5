@@ -17,6 +17,7 @@ const db = admin_1.admin.firestore();
  */
 exports.ADMIN_EMAILS = [
     "marcyap@orbitalai.net",
+    "marcyap@fastmail.com",
 ];
 /**
  * Check if an email has admin privileges

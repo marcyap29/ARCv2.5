@@ -11,6 +11,7 @@ import 'package:my_app/shared/ui/settings/voiceover_preference_service.dart';
 import 'package:my_app/shared/ui/widgets/engagement_mode_selector.dart';
 import 'package:my_app/arc/chat/services/lumara_reflection_settings_service.dart';
 import 'package:my_app/models/engagement_discipline.dart';
+import 'package:my_app/shared/widgets/lumara_thinking_dialog.dart';
 
 /// Inline reflection block that appears within journal entries
 class InlineReflectionBlock extends StatefulWidget {
@@ -168,40 +169,11 @@ class _InlineReflectionBlockState extends State<InlineReflectionBlock> with Sing
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Reflection content or loading indicator
+              // Reflection content or loading indicator (same as chat)
               if (widget.isLoading)
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2.5,
-                              valueColor: AlwaysStoppedAnimation<Color>(
-                                theme.colorScheme.primary,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              'LUMARA is thinking...',
-                              style: theme.textTheme.bodyMedium?.copyWith(
-                                color: theme.colorScheme.secondary,
-                                fontStyle: FontStyle.italic,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
+                LumaraThinkingIndicator(
+                  customMessage: widget.loadingMessage,
+                  showProgressBar: false,
                 )
               else ...[
                 // Mode indicator badge

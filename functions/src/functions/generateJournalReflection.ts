@@ -53,7 +53,7 @@ export const generateJournalReflection = onCall(
   async (request) => {
     const {
       entryText,
-      entryId, // For per-entry usage limit tracking
+      entryId: _entryId, // For per-entry usage limit tracking (reserved)
       phase,
       mood,
       chronoContext,

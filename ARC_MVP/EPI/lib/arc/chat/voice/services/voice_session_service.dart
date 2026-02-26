@@ -636,8 +636,7 @@ class VoiceSessionService {
         seeking: seekingResult.seeking,
       );
       
-      final modeName = engagementMode == EngagementMode.reflect ? 'REFLECT' :
-                      engagementMode == EngagementMode.explore ? 'EXPLORE' : 'INTEGRATE';
+      final modeName = engagementMode == EngagementMode.reflect ? 'REFLECT' : 'DEEPER';
       debugPrint('VoiceSession: Using $modeName mode with Master Unified Prompt (matches written mode)');
       debugPrint('VoiceSession: Max words: ${VoiceResponseConfig.getMaxWords(engagementMode)}');
       

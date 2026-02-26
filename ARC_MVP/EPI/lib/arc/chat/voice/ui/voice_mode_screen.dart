@@ -17,7 +17,6 @@ import '../services/voice_session_service.dart';
 import '../services/voice_usage_service.dart';
 import '../models/voice_session.dart';
 import '../storage/voice_timeline_storage.dart';
-import '../../../../models/phase_models.dart';
 import '../../../../models/engagement_discipline.dart';
 import 'package:hive/hive.dart';
 import 'package:uuid/uuid.dart';
@@ -400,24 +399,6 @@ class _VoiceModeScreenState extends State<VoiceModeScreen> {
     }
   }
   
-  Color _getPhaseColor(PhaseLabel phase) {
-    // Colors matching the rest of the app (see calendar_week_timeline.dart)
-    switch (phase) {
-      case PhaseLabel.discovery:
-        return const Color(0xFF7C3AED); // Purple
-      case PhaseLabel.expansion:
-        return const Color(0xFF059669); // Green
-      case PhaseLabel.transition:
-        return const Color(0xFFD97706); // Orange
-      case PhaseLabel.consolidation:
-        return const Color(0xFF2563EB); // Blue
-      case PhaseLabel.recovery:
-        return const Color(0xFFDC2626); // Red
-      case PhaseLabel.breakthrough:
-        return const Color(0xFFFBBF24); // Yellow/Amber
-    }
-  }
-  
   void _showError(String error) {
     if (!mounted) return;
     
@@ -538,8 +519,6 @@ class _VoiceModeScreenState extends State<VoiceModeScreen> {
             // Foreground: scrolling chat + controls
             Column(
               children: [
-                _buildPhaseIndicator(),
-                const SizedBox(height: 8),
                 _buildEngagementModeDropdown(),
                 const SizedBox(height: 4),
                 _buildUsageIndicator(),
@@ -698,39 +677,6 @@ class _VoiceModeScreenState extends State<VoiceModeScreen> {
     );
   }
 
-  Widget _buildPhaseIndicator() {
-    final phase = widget.sessionService.currentPhase;
-    final phaseColor = _getPhaseColor(phase);
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: BoxDecoration(
-        color: phaseColor.withOpacity(0.2),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            Icons.circle,
-            size: 12,
-            color: phaseColor,
-          ),
-          const SizedBox(width: 8),
-          Text(
-            phase.name.toUpperCase(),
-            style: TextStyle(
-              color: phaseColor,
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 1.2,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildEngagementModeDropdown() {
     final effectiveMode = _voiceEngagementOverride ?? EngagementMode.reflect;
     final label = _voiceEngagementOverride == null
@@ -789,15 +735,13 @@ class _VoiceModeScreenState extends State<VoiceModeScreen> {
             subtitle: Text('Auto from what you say', style: TextStyle(color: Colors.white54, fontSize: 11)),
           ),
         ),
-        ...EngagementMode.values.map((mode) {
+        ...[EngagementMode.reflect, EngagementMode.deeper].map((mode) {
           final isSelected = _voiceEngagementOverride == mode;
           return PopupMenuItem<Object>(
             value: mode,
             child: ListTile(
               leading: Icon(
-                mode == EngagementMode.reflect ? Icons.auto_awesome
-                    : mode == EngagementMode.explore ? Icons.explore
-                    : Icons.integration_instructions,
+                mode == EngagementMode.reflect ? Icons.auto_awesome : Icons.integration_instructions,
                 size: 20,
                 color: isSelected ? Colors.blue : Colors.white70,
               ),

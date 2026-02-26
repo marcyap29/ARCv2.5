@@ -46,8 +46,14 @@ exports.generateJournalPrompts = (0, https_1.onCall)({
         // Support both 'plan' and 'subscriptionTier' fields
         const plan = user.plan || user.subscriptionTier?.toLowerCase() || "free";
         const tier = (plan === "pro" ? "PAID" : "FREE");
-        // Check rate limit (primary quota enforcement)
-        const rateLimitCheck = await (0, rateLimiter_1.checkRateLimit)(userId);
+        const userEmail = request.auth?.token?.email;
+        // Unified daily limit: 50 total LUMARA requests/day (chat + reflections + voice)
+        const dailyCheck = await (0, rateLimiter_1.checkUnifiedDailyLimit)(userId, userEmail);
+        if (!dailyCheck.allowed) {
+            throw new https_1.HttpsError("resource-exhausted", dailyCheck.error?.message || "Daily limit reached", dailyCheck.error);
+        }
+        // Per-minute spam protection
+        const rateLimitCheck = await (0, rateLimiter_1.checkRateLimit)(userId, userEmail);
         if (!rateLimitCheck.allowed) {
             throw new https_1.HttpsError("resource-exhausted", rateLimitCheck.error?.message || "Rate limit exceeded", rateLimitCheck.error);
         }

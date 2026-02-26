@@ -237,30 +237,7 @@ class _AttributionDisplayWidgetState extends State<AttributionDisplayWidget> {
             ),
           ],
           
-          // Phase context (if available)
-          if (trace.phaseContext != null && trace.phaseContext!.isNotEmpty) ...[
-            const SizedBox(height: 4),
-            Row(
-              children: [
-                Icon(
-                  Icons.auto_awesome,
-                  size: 12,
-                  color: _getPhaseColor(trace.phaseContext!),
-                ),
-                const SizedBox(width: 4),
-                Expanded(
-                  child: Text(
-                    'Phase: ${trace.phaseContext}',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: _getPhaseColor(trace.phaseContext!),
-                      fontWeight: FontWeight.w500,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
-            ),
-          ],
+          // Phase context: kept for internal/trace use but not shown to user (AI still has phase for calibration)
           
           // Reasoning (if available)
           if (trace.reasoning != null) ...[

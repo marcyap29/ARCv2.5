@@ -1,12 +1,12 @@
 /// Expanded Entry View
 ///
-/// Full-screen detail view for any feed entry. Shows phase indicator,
-/// full content, themes, related entries (from CHRONICLE), and LUMARA notes.
+/// Full-screen detail view for any feed entry. Shows full content,
+/// themes, related entries (from CHRONICLE), and LUMARA notes.
 /// Navigated to when user taps a card in the feed.
+/// Phase display removed (reposition: phases not shown to user.)
 
 import 'package:flutter/material.dart';
 import 'package:my_app/shared/app_colors.dart';
-import 'package:my_app/core/constants/phase_colors.dart';
 import 'package:my_app/arc/unified_feed/models/feed_entry.dart';
 import 'package:my_app/arc/unified_feed/utils/feed_helpers.dart';
 import 'package:my_app/arc/unified_feed/widgets/feed_media_thumbnails.dart';
@@ -18,6 +18,8 @@ import 'package:my_app/services/firebase_auth_service.dart';
 import 'package:my_app/state/journal_entry_state.dart';
 import 'package:my_app/ui/journal/journal_screen.dart';
 import 'package:my_app/ui/widgets/full_image_viewer.dart';
+import 'package:my_app/arc/chat/chat/chat_repo_impl.dart';
+import 'package:my_app/arc/chat/chat/ui/session_view.dart';
 
 class ExpandedEntryView extends StatelessWidget {
   final FeedEntry entry;
@@ -89,9 +91,7 @@ class ExpandedEntryView extends StatelessWidget {
                 const SizedBox(height: 24),
               ],
 
-              // 3. Entry: phase, date, content (user + LUMARA interweaved), themes, LUMARA note
-              if (entry.phase != null) _buildPhaseCard(context),
-              if (entry.phase != null) const SizedBox(height: 16),
+              // 3. Entry: date, content (user + LUMARA interweaved), themes, LUMARA note
               _buildDateHeader(context),
               const SizedBox(height: 16),
               _buildContent(context, fullEntry, !showSummaryAtTop),
@@ -164,56 +164,6 @@ class ExpandedEntryView extends StatelessWidget {
           },
         );
       }).toList(),
-    );
-  }
-
-  Widget _buildPhaseCard(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: (entry.phaseColor ?? Colors.grey).withOpacity(0.08),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: (entry.phaseColor ?? Colors.grey).withOpacity(0.2),
-        ),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.trending_up, color: entry.phaseColor ?? kcSecondaryTextColor),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Phase: ${entry.phase}',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    color: entry.phaseColor ?? kcSecondaryTextColor,
-                    fontSize: 15,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  PhaseColors.getPhaseDescription(entry.phase!),
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: kcSecondaryTextColor.withOpacity(0.7),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          IconButton(
-            icon: Icon(
-              Icons.info_outline,
-              size: 20,
-              color: kcSecondaryTextColor.withOpacity(0.5),
-            ),
-            onPressed: () => _showPhaseInfo(context),
-          ),
-        ],
-      ),
     );
   }
 
@@ -993,6 +943,22 @@ class ExpandedEntryView extends StatelessWidget {
   }
 
   Future<void> _editEntry(BuildContext context) async {
+    // For saved/active conversations: open chat to continue (SessionView has edit/copy for user messages)
+    final sessionId = entry.chatSessionId;
+    if ((entry.type == FeedEntryType.savedConversation ||
+            entry.type == FeedEntryType.activeConversation) &&
+        sessionId != null &&
+        sessionId.isNotEmpty) {
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (context) => SessionView(
+            sessionId: sessionId,
+            chatRepo: ChatRepoImpl.instance,
+          ),
+        ),
+      );
+      return;
+    }
     final journalEntryId = entry.journalEntryId;
     if (journalEntryId == null || journalEntryId.isEmpty) {
       if (context.mounted) {
@@ -1028,8 +994,13 @@ class ExpandedEntryView extends StatelessWidget {
 
   Future<void> _onDeleteTapped(BuildContext context) async {
     Navigator.pop(context); // close the bottom sheet
+    final sessionId = entry.chatSessionId;
     final journalEntryId = entry.journalEntryId;
-    if (journalEntryId == null || journalEntryId.isEmpty) {
+    final canDeleteChat = sessionId != null && sessionId.isNotEmpty &&
+        (entry.type == FeedEntryType.savedConversation || entry.type == FeedEntryType.activeConversation);
+    final canDeleteJournal = journalEntryId != null && journalEntryId.isNotEmpty;
+
+    if (!canDeleteChat && !canDeleteJournal) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('This entry cannot be deleted from here.')),
@@ -1041,9 +1012,11 @@ class ExpandedEntryView extends StatelessWidget {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: kcSurfaceColor,
-        title: const Text('Delete entry?'),
-        content: const Text(
-          'This journal entry will be permanently deleted. This action cannot be undone.',
+        title: Text(canDeleteChat ? 'Delete conversation?' : 'Delete entry?'),
+        content: Text(
+          canDeleteChat
+              ? 'This conversation will be permanently deleted from chat history. This action cannot be undone.'
+              : 'This journal entry will be permanently deleted. This action cannot be undone.',
         ),
         actions: [
           TextButton(
@@ -1060,13 +1033,19 @@ class ExpandedEntryView extends StatelessWidget {
     );
     if (!context.mounted || confirmed != true) return;
     try {
-      final journalRepo = JournalRepository();
-      await journalRepo.deleteJournalEntry(journalEntryId);
+      if (canDeleteChat) {
+        await ChatRepoImpl.instance.initialize();
+        await ChatRepoImpl.instance.deleteSession(sessionId);
+      }
+      if (canDeleteJournal) {
+        final journalRepo = JournalRepository();
+        await journalRepo.deleteJournalEntry(journalEntryId);
+      }
       if (!context.mounted) return;
       onEntryDeleted?.call();
       Navigator.pop(context); // close expanded view and return to feed
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Entry deleted')),
+        const SnackBar(content: Text('Deleted')),
       );
     } catch (e) {
       if (context.mounted) {
@@ -1110,29 +1089,6 @@ class ExpandedEntryView extends StatelessWidget {
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  void _showPhaseInfo(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: kcSurfaceColor,
-        title: Text(
-          'About "${entry.phase}" Phase',
-          style: const TextStyle(color: kcPrimaryTextColor),
-        ),
-        content: Text(
-          PhaseColors.getPhaseDescription(entry.phase!),
-          style: TextStyle(color: kcSecondaryTextColor.withOpacity(0.8)),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Got it'),
-          ),
-        ],
       ),
     );
   }

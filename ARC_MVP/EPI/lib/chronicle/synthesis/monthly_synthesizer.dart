@@ -202,10 +202,10 @@ $entriesText
 
 Output JSON array of themes:''';
 
-      final response = await geminiSend(
+      final response = await lumaraSend(
         system: systemPrompt,
         user: userPrompt,
-        jsonExpected: true,
+        skipTransformation: true,
       );
 
       // Parse JSON response and filter out non-themes (e.g. "That", "What")
@@ -304,10 +304,10 @@ $entriesText
 $decisionSection
 Write a detailed narrative of what happened and what mattered this month, preserving specific names, places, events, and projects from the entries. If decision captures are listed, weave them in as inflection points.''';
 
-      final response = await geminiSend(
+      final response = await lumaraSend(
         system: systemPrompt,
         user: userPrompt,
-        jsonExpected: false,
+        skipTransformation: true,
       );
       final trimmed = response.trim();
       return trimmed.isNotEmpty ? trimmed : '';

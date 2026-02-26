@@ -385,6 +385,14 @@ Future<void> bootstrap({
           try {
             await FirebaseAuthService.instance.initialize();
             logger.d('Firebase Auth initialized successfully');
+
+            // If the user is already signed in, warm up the Cloud Functions
+            // TCP connection (ping) so the first proxyGroq call doesn't hit
+            // a cold/stale GTMSessionFetcher.  Fire-and-forget — don't block startup.
+            if (FirebaseAuthService.instance.currentUser != null) {
+              FirebaseService.instance.warmUpConnection();
+            }
+
             // RevenueCat for in-app purchases (iOS). Stripe = web (see DOCS/PAYMENTS_CLARIFICATION.md).
             try {
               await RevenueCatService.instance.configure(

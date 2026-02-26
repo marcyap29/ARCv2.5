@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:my_app/arc/chat/data/context_scope.dart';
 import 'package:my_app/services/user_phase_service.dart';
 import 'package:my_app/services/app_repos.dart';
@@ -191,12 +192,12 @@ class ContextProvider {
     try {
       // Get all journal entries from repository
       final allEntries = await _journalRepository.getAllJournalEntries();
-      print('LUMARA Context: Found ${allEntries.length} total journal entries');
+      if (kDebugMode) debugPrint('LUMARA Context: Found ${allEntries.length} total journal entries');
 
       // Debug: Print details of first few entries
       for (int i = 0; i < allEntries.length && i < 5; i++) {
         final entry = allEntries[i];
-        print('LUMARA Context: Entry $i - ID: ${entry.id}, Date: ${entry.createdAt}, Phase: ${entry.metadata?['phase']}, Content length: ${entry.content.length}');
+        if (kDebugMode) debugPrint('LUMARA Context: Entry $i - ID: ${entry.id}, Date: ${entry.createdAt}, Phase: ${entry.metadata?['phase']}, Content length: ${entry.content.length}');
       }
 
       // Sort by creation date (newest first)
@@ -204,7 +205,7 @@ class ContextProvider {
 
       // Take the most recent entries up to maxEntries
       final recentEntries = allEntries.take(maxEntries).toList();
-      print('LUMARA Context: Using ${recentEntries.length} recent entries for context');
+      if (kDebugMode) debugPrint('LUMARA Context: Using ${recentEntries.length} recent entries for context');
 
       for (final entry in recentEntries) {
         entries.add({
@@ -223,9 +224,9 @@ class ContextProvider {
         });
       }
 
-      print('LUMARA Context: Created ${entries.length} journal context nodes');
+      if (kDebugMode) debugPrint('LUMARA Context: Created ${entries.length} journal context nodes');
     } catch (e) {
-      print('LUMARA Context: Error getting journal entries: $e');
+      if (kDebugMode) debugPrint('LUMARA Context: Error getting journal entries: $e');
       // Return empty list on error
     }
 
@@ -248,7 +249,7 @@ class ContextProvider {
         currentPhase = currentRegime.label.toString().split('.').last;
         // Capitalize first letter
         currentPhase = currentPhase[0].toUpperCase() + currentPhase.substring(1);
-        print('ContextProvider: Using current phase from PhaseRegimeService: $currentPhase');
+        if (kDebugMode) debugPrint('ContextProvider: Using current phase from PhaseRegimeService: $currentPhase');
       } else {
         // Fallback: get most recent regime if no current ongoing regime
         final allRegimes = phaseRegimeService.phaseIndex.allRegimes;
@@ -257,21 +258,21 @@ class ContextProvider {
           final mostRecentRegime = sortedRegimes.first;
           currentPhase = mostRecentRegime.label.toString().split('.').last;
           currentPhase = currentPhase[0].toUpperCase() + currentPhase.substring(1);
-          print('ContextProvider: No current regime, using most recent: $currentPhase');
+          if (kDebugMode) debugPrint('ContextProvider: No current regime, using most recent: $currentPhase');
         } else {
           // Final fallback to UserPhaseService
           currentPhase = await UserPhaseService.getCurrentPhase();
-          print('ContextProvider: No regimes found, using UserPhaseService: $currentPhase');
+          if (kDebugMode) debugPrint('ContextProvider: No regimes found, using UserPhaseService: $currentPhase');
         }
       }
     } catch (e) {
-      print('ContextProvider: Error getting phase from PhaseRegimeService: $e');
+      if (kDebugMode) debugPrint('ContextProvider: Error getting phase from PhaseRegimeService: $e');
       // Fallback to UserPhaseService
       currentPhase = await UserPhaseService.getCurrentPhase();
-      print('ContextProvider: Fallback to UserPhaseService: $currentPhase');
+      if (kDebugMode) debugPrint('ContextProvider: Fallback to UserPhaseService: $currentPhase');
     }
     
-    print('ContextProvider: Final current phase: $currentPhase');
+    if (kDebugMode) debugPrint('ContextProvider: Final current phase: $currentPhase');
 
     final phaseNodes = <Map<String, dynamic>>[];
 
@@ -299,13 +300,13 @@ class ContextProvider {
       // Sort by creation date (newest first)
       entriesWithPhases.sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
-      print('ContextProvider: Found ${entriesWithPhases.length} entries with phases');
+      if (kDebugMode) debugPrint('ContextProvider: Found ${entriesWithPhases.length} entries with phases');
 
       // Debug: Print entries with phases
       for (final entry in entriesWithPhases.take(5)) {
         final contentPreview = entry.content.length > 50 ? entry.content.substring(0, 50) : entry.content;
         final analyzedPhase = entry.metadata?['phase'] ?? _determinePhaseFromContent(entry);
-        print('ContextProvider: Entry with phase - Date: ${entry.createdAt}, Phase: $analyzedPhase (from ${entry.metadata?['phase'] != null ? 'metadata' : 'content'}), Content: "$contentPreview..."');
+        if (kDebugMode) debugPrint('ContextProvider: Entry with phase - Date: ${entry.createdAt}, Phase: $analyzedPhase (from ${entry.metadata?['phase'] != null ? 'metadata' : 'content'}), Content: "$contentPreview..."');
       }
 
       // Add unique phases from entries as history (excluding current phase)
@@ -336,9 +337,9 @@ class ContextProvider {
         }
       }
 
-      print('ContextProvider: Added $historyIndex historical phases from real entries');
+      if (kDebugMode) debugPrint('ContextProvider: Added $historyIndex historical phases from real entries');
     } catch (e) {
-      print('ContextProvider: Error getting phase history: $e');
+      if (kDebugMode) debugPrint('ContextProvider: Error getting phase history: $e');
     }
 
     return phaseNodes;

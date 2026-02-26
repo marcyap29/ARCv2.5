@@ -179,8 +179,8 @@ class LumaraContextSelector {
     switch (mode) {
       case EngagementMode.reflect:
         return _applyReflectSampling(entries, maxCount, currentDate);
+      case EngagementMode.deeper:
       case EngagementMode.explore:
-        return _applyExploreSampling(entries, maxCount, currentDate);
       case EngagementMode.integrate:
         return _applyIntegrateSampling(entries, maxCount, currentDate);
     }
@@ -305,7 +305,7 @@ class LumaraContextSelector {
     // - In INTEGRATE mode, prioritize entries from current phase
     // - Include entries from adjacent phases for context
     
-    if (mode == EngagementMode.integrate) {
+    if (mode == EngagementMode.deeper) {
       final phaseEntries = entries.where((e) => e.metadata?['phase'] != null).toList();
       final otherEntries = entries.where((e) => e.metadata?['phase'] == null).toList();
 

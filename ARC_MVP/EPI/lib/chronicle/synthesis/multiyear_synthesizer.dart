@@ -344,10 +344,10 @@ $yearlySummaries
 
 Write a narrative summary for this $yearCount-year period ($period) that preserves key specifics (people, projects, turning points) from the yearly summaries:''';
 
-      final response = await geminiSend(
+      final response = await lumaraSend(
         system: systemPrompt,
         user: userPrompt,
-        jsonExpected: false,
+        skipTransformation: true,
       );
       return response.trim();
     } catch (e) {

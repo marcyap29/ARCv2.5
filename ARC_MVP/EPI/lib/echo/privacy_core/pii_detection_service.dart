@@ -70,31 +70,6 @@ class PIIDetectionService {
     'wilson', 'anderson', 'thomas', 'taylor', 'moore', 'jackson', 'martin'
   ];
 
-  // Bible names whitelist - these should NEVER be scrubbed as PII
-  static const List<String> _bibleNamesWhitelist = [
-    // Old Testament characters
-    'adam', 'eve', 'cain', 'abel', 'noah', 'abraham', 'sarah', 'isaac', 'rebecca',
-    'jacob', 'esau', 'joseph', 'moses', 'aaron', 'joshua', 'gideon', 'samson',
-    'david', 'saul', 'solomon', 'jonathan', 'ruth', 'naomi', 'boaz', 'esther',
-    'mordecai', 'job', 'elijah', 'elisha', 'isaiah', 'jeremiah', 'ezekiel',
-    'daniel', 'hosea', 'joel', 'amos', 'obadiah', 'jonah', 'micah', 'nahum',
-    'habakkuk', 'zephaniah', 'haggai', 'zechariah', 'malachi', 'nehemiah', 'ezra',
-    // New Testament characters
-    'jesus', 'christ', 'mary', 'joseph', 'peter', 'paul', 'john', 'james',
-    'andrew', 'philip', 'bartholomew', 'thomas', 'matthew', 'jude', 'simon',
-    'judas', 'luke', 'mark', 'timothy', 'titus', 'philemon', 'barnabas', 'stephen',
-    'priscilla', 'aquila', 'apollos', 'silas', 'lydia', 'cornelius',
-    // Bible books (common capitalized forms)
-    'genesis', 'exodus', 'leviticus', 'numbers', 'deuteronomy', 'joshua', 'judges',
-    'ruth', 'samuel', 'kings', 'chronicles', 'ezra', 'nehemiah', 'esther', 'job',
-    'psalm', 'psalms', 'proverbs', 'ecclesiastes', 'song', 'isaiah', 'jeremiah',
-    'lamentations', 'ezekiel', 'daniel', 'hosea', 'joel', 'amos', 'obadiah',
-    'jonah', 'micah', 'nahum', 'habakkuk', 'zephaniah', 'haggai', 'zechariah',
-    'malachi', 'matthew', 'mark', 'luke', 'john', 'acts', 'romans', 'corinthians',
-    'galatians', 'ephesians', 'philippians', 'colossians', 'thessalonians', 'timothy',
-    'titus', 'philemon', 'hebrews', 'james', 'peter', 'jude', 'revelation',
-  ];
-
   PIIDetectionService({this.sensitivityLevel = SensitivityLevel.normal});
 
   /// Main detection method (REQ-1.5: <500ms processing time)
@@ -205,33 +180,12 @@ class PIIDetectionService {
   List<PIIMatch> _detectNames(String text) {
     final matches = <PIIMatch>[];
 
-    // Check if this is Bible-related content - if so, skip name detection for Bible names
-    final isBibleContent = text.toLowerCase().contains('[bible_context]') || 
-                          text.toLowerCase().contains('[bible_verse_context]') ||
-                          text.toLowerCase().contains('bible') ||
-                          text.toLowerCase().contains('prophet') ||
-                          text.toLowerCase().contains('scripture');
-
     // Pattern for capitalized words that could be names
     final namePattern = RegExp(r'\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\b');
 
     for (final match in namePattern.allMatches(text)) {
       final nameText = match.group(0)!.toLowerCase();
       final words = nameText.split(' ');
-
-      // Skip if this is a Bible name and we're in Bible context
-      if (isBibleContent) {
-        bool isBibleName = false;
-        for (final word in words) {
-          if (_bibleNamesWhitelist.contains(word)) {
-            isBibleName = true;
-            break;
-          }
-        }
-        if (isBibleName) {
-          continue; // Skip this match - it's a Bible name, not PII
-        }
-      }
 
       double confidence = 0.0;
 

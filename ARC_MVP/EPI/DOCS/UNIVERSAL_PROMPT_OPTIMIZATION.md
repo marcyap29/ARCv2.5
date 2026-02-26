@@ -1,6 +1,6 @@
 # Universal Prompt Optimization – 80/20 Framework
 
-This document describes LUMARA’s **provider-agnostic** prompt optimization layer and how it fits into the app.
+This document describes LUMARA’s **provider-agnostic** prompt optimization layer and how it fits into the app. For how the master prompt is built, what it contains, and how CHRONICLE/vectorization feed it (including where **LUMARA CHRONICLE** fits), see **MASTER_PROMPT_CHRONICLE_VECTORIZATION.md**.
 
 ## Principles
 
@@ -85,13 +85,16 @@ Provider selection UI is already in LUMARA Settings (API card). The optional `Pr
 
 ## Master prompt integration
 
-The **master prompt** (`LumaraMasterPrompt`) receives chronicle context via `lumaraChronicleContext`. That string is now built by the universal optimizer when possible:
+The **master prompt** (`LumaraMasterPrompt`) receives two kinds of temporal/pattern context:
 
-- **Enhanced LUMARA API** (`enhanced_lumara_api.dart`): Before building the master prompt, it calls `UniversalPromptOptimizer.getChronicleContextForMasterPrompt(userId, request.userText, useCase, maxChars: 2000)`.
+1. **CHRONICLE context** (`chronicleContext`) — temporal aggregations (and optional pattern index) from the CHRONICLE subsystem or legacy query path; mode-dependent (chronicleBacked / rawBacked / hybrid). See **MASTER_PROMPT_CHRONICLE_VECTORIZATION.md** for how this is built and injected.
+2. **LUMARA CHRONICLE** (`lumaraChronicleContext`) — query-relevant patterns, causal chains, relationships, and user-approved insights. This block is **appended in all prompt modes** when non-empty. The universal optimizer supplies it when possible:
+
+- **Enhanced LUMARA API** (`enhanced_lumara_api.dart`): Before building the master prompt, it calls `UniversalPromptOptimizer.getChronicleContextForMasterPrompt(userId, request.userText, useCase, maxChars: 2000)` and passes the result as `lumaraChronicleContext` into `buildMasterUserMessage` / `buildVoiceUserMessage`.
 - **Use case:** `skipHeavyProcessing` (voice) → `PromptUseCase.userVoice` (2 patterns, 1 relationship); otherwise `PromptUseCase.userReflect` (3 patterns, 2 relationships). Context is query-relevant (entities, emotions, topics) and capped at 2000 chars.
 - **Fallback:** If the optimizer returns null or throws, the legacy `_buildLumaraChronicleContext(userId)` is used so behavior is unchanged when the optimizer is unavailable.
 
-The master prompt template and control state are unchanged; only the **chronicle slice** is optimizer-driven (smaller, more relevant, use-case-sized).
+The master prompt template and control state are unchanged; only the **LUMARA CHRONICLE slice** (the `lumaraChronicleContext` block) is optimizer-driven—smaller, more relevant, and use-case-sized. For full master prompt structure, CHRONICLE, and vectorization, see **MASTER_PROMPT_CHRONICLE_VECTORIZATION.md**.
 
 ## Checklist (implementation status)
 

@@ -5,7 +5,6 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 import '../../../services/gemini_send.dart';
-import '../../../services/groq_send.dart';
 import '../../../services/firebase_service.dart';
 import '../../../services/firebase_auth_service.dart';
 import 'groq_service.dart';
@@ -158,7 +157,7 @@ class EnhancedLumaraApi {
     return _promptOptimizer!;
   }
   
-  // LLM Provider tracking (for logging only - we use Groq primary, geminiSend fallback)
+  // LLM Provider tracking (for logging only - we use Groq primary)
   LLMProviderBase? _llmProvider;
   LumaraAPIConfig? _apiConfig;
   GroqService? _groqService;
@@ -529,11 +528,11 @@ class EnhancedLumaraApi {
         print('LUMARA: Skipping node matching and context retrieval for voice mode');
       }
       
-      // 4. Always use Gemini API directly - no fallbacks, no hard-coded messages
-      print('LUMARA Enhanced API v2.3: Calling Gemini API directly (no fallbacks)');
+      // 4. Call cloud API — no hard-coded fallbacks
+      print('LUMARA Enhanced API v2.3: Calling Groq API (no hard-coded fallbacks)');
       print('LUMARA v2.3 Options: toneMode=${request.options.toneMode.name}, regenerate=${request.options.regenerate}, preferQuestionExpansion=${request.options.preferQuestionExpansion}, conversationMode=${request.options.conversationMode?.name}');
       
-      // Always call Gemini API - same as main LUMARA chat
+      // Always call Groq API — same as main LUMARA chat
       try {
           // Step 1: Transform entry text for privacy protection (LOCAL ONLY)
           // This creates an abstract description instead of sending verbatim text
@@ -616,8 +615,8 @@ class EnhancedLumaraApi {
             contextParts.add('\n$mediaContext');
           }
           
-          // Use Gemini API directly via geminiSend() - same as main LUMARA chat
-          print('LUMARA Enhanced API v2.3: Calling Gemini API directly (same as main chat)');
+          // Call Groq API via proxyGroq — same path as main LUMARA chat
+          print('LUMARA Enhanced API v2.3: Calling Groq API (same as main chat)');
           
           // Get Memory Focus preset and Engagement Mode for context selection
           // Skip context selection if skipHeavyProcessing is true (or when ARC from orchestrator)
@@ -923,37 +922,15 @@ class EnhancedLumaraApi {
 
             baseContextParts.addAll(contextParts);
             baseContextParts.add('');
-            // Use a key-point excerpt of the current entry here (full text is
-            // already in entryText / buildMasterUserMessage as the PRIMARY FOCUS).
-            final _currentEntryExcerpt = PrismAdapter.extractKeyPoints(
-              request.userText,
-              maxChars: 600,
-              maxSentences: 5,
-            );
-            baseContextParts.add('**CURRENT ENTRY (PRIMARY FOCUS - WRITTEN TODAY, $todayDateStr)**: $_currentEntryExcerpt');
+            baseContextParts.add('**CURRENT ENTRY (PRIMARY FOCUS - WRITTEN TODAY, $todayDateStr)**: ${request.userText}');
             baseContextParts.add('');
             baseContextParts.add('**HISTORICAL CONTEXT (Use for pattern recognition with dated examples)**:');
-            baseContextParts.add('**NOTE**: The journal entries listed below are PAST entries (key points only, PII anonymised). The CURRENT ENTRY above is being written TODAY ($todayDateStr).');
-            // Use ARC from orchestrator when present, else context selector entries.
-            // Layer 0 entries are compressed to key-point excerpts (~400 chars each) via
-            // PrismAdapter before the full payload is PII-scrubbed.  This combines:
-            //   • Chronicle Layer 1 (yearly/monthly aggregation above) — temporal arc
-            //   • Layer 0 excerpts below — recent specific texture
-            // Together they give rich dual-layer context without bloating the payload.
+            baseContextParts.add('**NOTE**: The journal entries listed below (with "-" bullets) are PAST entries from your journal history. The CURRENT ENTRY above (marked "PRIMARY FOCUS - WRITTEN TODAY") is being written TODAY ($todayDateStr) and is NOT a past entry.');
+            // Use ARC from orchestrator when present, else context selector entries
             if (entryContentsFromArc != null) {
-              baseContextParts.addAll(entryContentsFromArc.map((s) {
-                final excerpt = PrismAdapter.extractKeyPoints(s, maxChars: 400, maxSentences: 4);
-                return '- $excerpt';
-              }));
+              baseContextParts.addAll(entryContentsFromArc.map((s) => '- $s'));
             } else {
-              baseContextParts.addAll(recentJournalEntries.map((e) {
-                final excerpt = PrismAdapter.extractKeyPoints(
-                  e.content,
-                  maxChars: 400,
-                  maxSentences: 4,
-                );
-                return '- $excerpt';
-              }));
+              baseContextParts.addAll(recentJournalEntries.map((e) => '- ${e.content}'));
             }
             
             baseContext = baseContextParts.join('\n\n');
@@ -1304,15 +1281,6 @@ class EnhancedLumaraApi {
           } else {
             // Non-voice: split payload for lower latency — short system + user = context + entry
             systemPrompt = LumaraMasterPrompt.getMasterPromptSystemOnly(simplifiedControlStateJson, now);
-            print('🔍 LUMARA V23 Payload Debug:');
-            print('  promptMode: $promptMode');
-            print('  entryText: ${request.userText.length} chars');
-            print('  recentEntries: ${recentEntries.length} entries (metadata only)');
-            print('  baseContext: ${baseContext?.length ?? 0} chars');
-            print('  chronicleContext: ${chronicleContext?.length ?? 0} chars');
-            print('  lumaraChronicleContext: ${lumaraChronicleContext?.length ?? 0} chars');
-            print('  modeSpecificInstructions: ${modeSpecificInstructions.length} chars');
-            print('  systemPrompt: ${systemPrompt.length} chars');
             userPromptForApi = LumaraMasterPrompt.buildMasterUserMessage(
               entryText: request.userText,
               recentEntries: recentEntries,
@@ -1345,8 +1313,8 @@ class EnhancedLumaraApi {
           
           onProgress?.call('Calling cloud API...');
 
-          // Primary: proxyGemini when signed in. Fallback: proxyGroq, then direct Groq/Gemini.
-          String? geminiResponse;
+          // Primary: proxyGroq (GPT-OSS 120B) when signed in. Fallback: direct Groq API key.
+          String? llmResponse;
           int retryCount = 0;
           const maxRetries = 2;
           final firebaseReady = await FirebaseService.instance.ensureReady();
@@ -1354,115 +1322,59 @@ class EnhancedLumaraApi {
           final useProxy = firebaseReady && signedIn;
           final useDirectGroq = !useProxy && _groq != null;
           final temperature = _temperatureForMode(engagementMode);
-          print('LUMARA: Using ${useProxy ? "proxyGemini first (Groq fallback)" : useDirectGroq ? "direct Groq (API key)" : "Gemini"} for reflection');
+          print('LUMARA: Using ${useProxy ? "proxyGroq (GPT-OSS 120B)" : useDirectGroq ? "direct Groq (API key)" : "unavailable"} for reflection');
 
-          while (retryCount <= maxRetries && geminiResponse == null) {
+          while (retryCount <= maxRetries && llmResponse == null) {
             try {
-              // 1. When signed in: try proxyGemini first, then proxyGroq on failure
+              // 1. When signed in: proxyGroq (GPT-OSS 120B primary)
               if (useProxy) {
-                // 1a. proxyGemini (primary)
                 try {
-                  geminiResponse = await geminiSend(
+                  llmResponse = await lumaraSend(
                     system: systemPrompt,
                     user: userPromptForApi,
-                    jsonExpected: false,
+                    temperature: temperature,
+                    maxTokens: 4096,
                     entryId: entryId,
-                    intent: 'journal_reflection',
                     skipTransformation: true,
                   );
-                  if (geminiResponse != null && geminiResponse.isNotEmpty) {
-                    print('LUMARA: proxyGemini response received (length: ${geminiResponse.length})');
+                  if (llmResponse != null && llmResponse.isNotEmpty) {
+                    print('LUMARA: proxyGroq response received (length: ${llmResponse.length})');
                     break;
                   }
-                } catch (geminiErr) {
-                  print('LUMARA: proxyGemini failed, falling back to proxyGroq: $geminiErr');
-                }
-                // 1b. proxyGroq (fallback when signed in)
-                if (geminiResponse == null || geminiResponse.isEmpty) {
-                  try {
-                    geminiResponse = await groqSend(
-                      user: userPromptForApi,
-                      system: systemPrompt.isNotEmpty ? systemPrompt : null,
-                      temperature: temperature,
-                      maxTokens: 4096,
-                      entryId: entryId,
-                    );
-                    if (geminiResponse != null && geminiResponse.isNotEmpty) {
-                      print('LUMARA: proxyGroq fallback response received (length: ${geminiResponse.length})');
-                      break;
-                    }
-                  } catch (groqErr) {
-                    print('LUMARA: proxyGroq fallback also failed: $groqErr');
-                  }
+                } catch (groqErr) {
+                  print('LUMARA: proxyGroq failed: $groqErr');
                 }
               }
-              // 2. When not signed in: try direct Groq if API key set
-              if (geminiResponse == null && useDirectGroq) {
+              // 2. When not signed in: direct Groq via API key
+              if (llmResponse == null && useDirectGroq) {
                 try {
                   if (onStreamChunk != null) {
                     final buffer = StringBuffer();
                     await for (final chunk in _groq!.generateContentStream(
                       prompt: userPromptForApi,
                       systemPrompt: systemPrompt,
-                      model: GroqModel.llama33_70b,
+                      model: GroqModel.gptOss120b,
                       temperature: temperature,
                     )) {
                       buffer.write(chunk);
                       onStreamChunk(chunk);
                     }
-                    geminiResponse = buffer.toString();
+                    llmResponse = buffer.toString();
                   } else {
-                    geminiResponse = await _groq!.generateContent(
+                    llmResponse = await _groq!.generateContent(
                       prompt: userPromptForApi,
                       systemPrompt: systemPrompt,
-                      model: GroqModel.llama33_70b,
+                      model: GroqModel.gptOss120b,
                       temperature: temperature,
                     );
                   }
-                  if (geminiResponse != null && geminiResponse.isNotEmpty) {
-                    print('LUMARA: direct Groq response received (length: ${geminiResponse.length})');
+                  if (llmResponse != null && llmResponse.isNotEmpty) {
+                    print('LUMARA: direct Groq response received (length: ${llmResponse.length})');
                     break;
                   }
                 } catch (groqErr) {
-                  print('LUMARA: direct Groq failed, falling back to Gemini: $groqErr');
+                  print('LUMARA: direct Groq failed: $groqErr');
                 }
-              }
-              // 3. Fallback to Gemini (proxy when signed in, direct when not)
-              if (geminiResponse == null || geminiResponse.isEmpty) {
-                if (onStreamChunk != null) {
-                  try {
-                    final buffer = StringBuffer();
-                    await for (final chunk in geminiSendStream(
-                      system: systemPrompt,
-                      user: userPromptForApi,
-                    )) {
-                      buffer.write(chunk);
-                      onStreamChunk(chunk);
-                    }
-                    geminiResponse = buffer.toString();
-                  } catch (streamErr) {
-                    print('LUMARA: Gemini stream not available ($streamErr), using non-streaming');
-                    geminiResponse = await geminiSend(
-                      system: systemPrompt,
-                      user: userPromptForApi,
-                      jsonExpected: false,
-                      entryId: entryId,
-                      intent: 'journal_reflection',
-                      skipTransformation: true,
-                    );
-                    onStreamChunk(geminiResponse);
-                  }
-                } else {
-                  geminiResponse = await geminiSend(
-                    system: systemPrompt,
-                    user: userPromptForApi,
-                    jsonExpected: false,
-                    entryId: entryId,
-                    intent: 'journal_reflection',
-                    skipTransformation: true,
-                  );
-                }
-                print('LUMARA: Gemini API response received (length: ${geminiResponse.length})');
               }
               onProgress?.call('Processing response...');
               break;
@@ -1483,18 +1395,18 @@ class EnhancedLumaraApi {
             }
           }
 
-          if (geminiResponse == null) {
-            throw Exception('Failed to generate response from cloud API (Groq/Gemini)');
+          if (llmResponse == null) {
+            throw Exception('Failed to generate response from cloud API (Groq)');
           }
 
           // Restore PII in response when CHRONICLE context was scrubbed before send
           if (chronicleReversibleMap.isNotEmpty) {
-            geminiResponse = chroniclePrism.restore(geminiResponse, chronicleReversibleMap);
+            llmResponse = chroniclePrism.restore(llmResponse, chronicleReversibleMap);
           }
           
           onProgress?.call('Finalizing insights...');
-          print('LUMARA Enhanced API v2.3: ✓ Gemini API call completed');
-          print('LUMARA Enhanced API v2.3: Response length: ${geminiResponse.length}');
+          print('LUMARA Enhanced API v2.3: ✓ Groq API call completed');
+          print('LUMARA Enhanced API v2.3: Response length: ${llmResponse.length}');
           
           // Score the response using the scoring heuristic
           final priorKeywords = matches
@@ -1503,7 +1415,7 @@ class EnhancedLumaraApi {
               .toList();
           final matchedHints = matches.take(1).map((m) => m.id).toList();
           
-          var scoredResponse = geminiResponse;
+          var scoredResponse = llmResponse;
           
           // Validate and enforce word limit BEFORE scoring
           final words = scoredResponse.trim().split(RegExp(r'\s+'));
@@ -1699,7 +1611,7 @@ class EnhancedLumaraApi {
           _analytics.logLumaraEvent('reflection_generated_v23', data: {
             'matches': matches.length,
             'top_similarity': matches.isNotEmpty ? matches.first.similarity : 0,
-            'gemini_generated': true,
+            'groq_generated': true,
             'toneMode': request.options.toneMode.name,
             'regenerate': request.options.regenerate,
             'preferQuestionExpansion': request.options.preferQuestionExpansion,
@@ -1849,9 +1761,7 @@ class EnhancedLumaraApi {
     }
   }
 
-  // Removed unused helper methods - we use Gemini API directly now
-
-  // All hardcoded fallback methods removed - we only use Gemini API directly (same as main LUMARA chat)
+  // All hardcoded fallback methods removed - we only use Groq API (proxyGroq / direct key)
 
   /// Get status for compatibility with existing code
   Map<String, dynamic> getStatus() {
@@ -1991,7 +1901,7 @@ class EnhancedLumaraApi {
     }
   }
 
-  /// Fallback method to call local Gemini API when Firebase backend fails
+  /// Fallback method (unused — proxyGroq handles all inference)
 
   /// Generate a direct, factual response for simple questions
   Future<ReflectionResult> _generateFactualResponse(
@@ -2018,11 +1928,10 @@ Instructions:
 Respond now:''';
 
     try {
-      final response = await geminiSend(
+      final response = await lumaraSend(
         system: 'You are LUMARA, an AI assistant providing direct, factual answers.',
         user: factualPrompt,
-        intent: 'factual_answer',
-        skipTransformation: true, // Skip transformation for direct factual responses
+        skipTransformation: true,
       );
 
       if (response.isNotEmpty) {
@@ -2067,11 +1976,10 @@ Instructions:
 Respond now:''';
 
     try {
-      final response = await geminiSend(
+      final response = await lumaraSend(
         system: 'You are LUMARA, providing brief, warm acknowledgments to simple updates.',
         user: conversationalPrompt,
-        intent: 'conversational_ack',
-        skipTransformation: true, // Skip transformation for brief conversational responses
+        skipTransformation: true,
       );
 
       if (response.isNotEmpty) {
@@ -2129,6 +2037,11 @@ Respond now:''';
       sentences: 4,
       words: 120,
       description: 'Claude-like: direct, concise answer. No cross-entry dump.',
+    ),
+    EngagementMode.deeper: const ResponseLengthTarget(
+      sentences: 10,
+      words: 400,
+      description: 'Patterns and synthesis with entry links',
     ),
     EngagementMode.explore: const ResponseLengthTarget(
       sentences: 10,
@@ -2341,12 +2254,7 @@ Stay within target length naturally. Quality over quantity.
         'amazing how',
         'incredible',
         'truly inspiring',
-        // 'profound' alone is too broad — it's authentic emotional language.
-        // Only flag it in sycophantic compounds.
-        'profound insight',
-        'profound realization',
-        'profound observation',
-        'so profound',
+        'profound',
         'you\'re absolutely right',
         'what a',
         'such a great',

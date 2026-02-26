@@ -74,11 +74,17 @@ exports.proxyGemini = (0, https_1.onCall)({
         if (error instanceof https_1.HttpsError) {
             throw error;
         }
-        firebase_functions_1.logger.error(`Gemini proxy error:`, error);
-        if (error.message?.includes("429") || error.message?.includes("quota")) {
+        const errMsg = error?.message ?? String(error);
+        const errStr = typeof error === "object" ? JSON.stringify(error, null, 0).slice(0, 500) : String(error);
+        firebase_functions_1.logger.error("Gemini proxy error:", errMsg, errStr);
+        if (errMsg.includes("429") || errMsg.includes("quota")) {
             throw new https_1.HttpsError("resource-exhausted", "Rate limit exceeded. Please try again later.");
         }
-        throw new https_1.HttpsError("internal", `Gemini API error: ${error.message || "Unknown error"}`);
+        // Surface a clearer message; avoid leaking internals
+        const userMsg = errMsg && errMsg !== "INTERNAL" && errMsg.length < 200
+            ? `Gemini API error: ${errMsg}`
+            : "AI service error. Try again or use a shorter message.";
+        throw new https_1.HttpsError("internal", userMsg);
     }
 });
 //# sourceMappingURL=proxyGemini.js.map

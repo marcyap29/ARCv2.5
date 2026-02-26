@@ -1,5 +1,67 @@
 import 'package:flutter/material.dart';
 
+/// Inline indicator used when LUMARA is thinking (Reflect sessions, chat, etc.).
+/// Use this for inline placement; use [LumaraThinkingDialog] for an overlay dialog.
+class LumaraThinkingIndicator extends StatelessWidget {
+  final String? customMessage;
+  final bool showProgressBar;
+
+  const LumaraThinkingIndicator({
+    super.key,
+    this.customMessage,
+    this.showProgressBar = true,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.5,
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    theme.colorScheme.primary,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  customMessage ?? 'LUMARA is thinking...',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.secondary,
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (showProgressBar) ...[
+            const SizedBox(height: 12),
+            LinearProgressIndicator(
+              minHeight: 4,
+              borderRadius: BorderRadius.circular(2),
+              valueColor: AlwaysStoppedAnimation<Color>(
+                theme.colorScheme.primary,
+              ),
+              backgroundColor: theme.colorScheme.surfaceContainerHighest,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
 /// A dialog that shows LUMARA is thinking, matching the style from the chat interface
 class LumaraThinkingDialog extends StatelessWidget {
   final String? customMessage;
@@ -27,45 +89,9 @@ class LumaraThinkingDialog extends StatelessWidget {
             ),
           ],
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2.5,
-                    valueColor: AlwaysStoppedAnimation<Color>(
-                      Theme.of(context).colorScheme.primary,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    customMessage ?? 'LUMARA is thinking...',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Theme.of(context).colorScheme.secondary,
-                      fontStyle: FontStyle.italic,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            // Progress meter
-            LinearProgressIndicator(
-              minHeight: 4,
-              borderRadius: BorderRadius.circular(2),
-              valueColor: AlwaysStoppedAnimation<Color>(
-                Theme.of(context).colorScheme.primary,
-              ),
-              backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
-            ),
-          ],
+        child: LumaraThinkingIndicator(
+          customMessage: customMessage,
+          showProgressBar: true,
         ),
       ),
     );

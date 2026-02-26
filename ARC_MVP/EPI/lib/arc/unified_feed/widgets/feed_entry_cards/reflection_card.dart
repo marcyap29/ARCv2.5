@@ -72,7 +72,7 @@ class ReflectionCard extends StatelessWidget {
           ],
           const SizedBox(height: 8),
 
-          // Metadata row: creation date · phase · mood · media · timestamp
+          // Metadata row: creation date · mood · media · timestamp (phase hidden for reposition)
           Row(
             children: [
               Text(
@@ -85,18 +85,6 @@ class ReflectionCard extends StatelessWidget {
               const SizedBox(width: 8),
               Text('·', style: TextStyle(color: kcSecondaryTextColor.withOpacity(0.4))),
               const SizedBox(width: 8),
-              if (entry.phase != null) ...[
-                Text(
-                  entry.phase!,
-                  style: TextStyle(
-                    color: entry.phaseColor ?? kcSecondaryTextColor,
-                    fontSize: 12,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Text('·', style: TextStyle(color: kcSecondaryTextColor.withOpacity(0.4))),
-                const SizedBox(width: 8),
-              ],
               if (entry.mood != null && entry.mood!.isNotEmpty) ...[
                 Text(
                   entry.mood!,

@@ -310,6 +310,8 @@ class LumaraResponseScoring {
 
 }
 
-/// Minimum resonance threshold
-const double minResonance = 0.62;
+/// Minimum resonance threshold for reflection responses.
+/// Responses below this trigger auto-fix (minimal ECHO tightening).
+/// Lowered from 0.62 to reduce false triggers; prompt guidance improved for higher natural scores.
+const double minResonance = 0.50;
 

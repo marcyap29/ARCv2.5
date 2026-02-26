@@ -1,5 +1,9 @@
 # LUMARA Onboarding Text - Complete Collection
 
+Onboarding is **personality-only** for the user: it lets them set how LUMARA talks and works with them. Phases are for **internal use by the model only** and are not introduced or revealed in onboarding.
+
+---
+
 ## Screen 1: LUMARA Introduction
 
 **Main Heading:**
@@ -15,110 +19,83 @@
 
 ---
 
-## Screen 2: ARC Introduction
-
-**Main Heading:**
-> Welcome to ARC.
-
-**Body Text:**
-> This is where you journal, reflect, and talk with me. Write what matters. Your words stay on your device—private by design, powerful by architecture.
-> 
-> ARC learns your patterns locally, then helps me give you insights that understand your whole story.
-
-**Instruction:**
-> Tap to continue
-
----
-
 ## Screen 2: LUMARA Capabilities
 
 **Main Heading:**
 > What LUMARA does for you.
 
 **Body Text:**
-> I remember your story so we don't start from zero each time. I notice patterns in your entries over time — which phase you're in, what's shifting, what matters most. I match my tone and depth to where you actually are: calmer when you need rest, more direct when you're ready to move. That's how every conversation stays relevant.
+> I remember your story so we don't start from zero each time. I notice patterns in your entries over time—what's shifting, what matters most. I match my tone and depth to where you actually are: calmer when you need rest, more direct when you're ready to move. That's how every conversation stays relevant.
 
-**Instruction:**
-> Tap to continue
+**Primary Button:**
+> Set how we'll work together
 
----
+**Secondary:**
+> Jump in →
 
-## Screen 4: SENTINEL Introduction
-
-**Main Heading:**
-> One more thing.
-
-**Body Text:**
-> I'm designed to notice patterns in your writing—including when things might be getting harder than usual.
-> 
-> If I detect sustained distress, sudden intensity, or language suggesting crisis, I'll check in directly. Not to judge, but because staying silent wouldn't be right.
-
-**Instruction:**
-> Tap to continue
+*(Both go to Personality Setup.)*
 
 ---
 
-## Screen 5: Phase Detection Quiz (Questions)
+## Screen 3: Personality Setup
 
-**Question 1:**
-> Let's start simple—where are you right now? One sentence.
+**Screen Heading:**
+> How we'll work together
 
-**Question 2:**
-> What's been occupying your thoughts lately?
+**Subheading:**
+> A few quick choices so I match how you like to work.
 
-**Question 3:**
-> When did this start mattering to you?
+**Choice questions (single selection each):**
 
-**Question 4:**
-> Is this feeling getting stronger, quieter, or shifting into something else?
+1. **How should I talk to you?**
+   - Casual and direct
+   - Warm and encouraging
+   - Professional and precise
+   - Adapt to my mood
 
-**Question 5:**
-> What changes if this resolves? Or if it doesn't?
+2. **When you disagree or think I'm wrong?**
+   - Call me out directly
+   - Gently offer another perspective
+   - Only if I ask
+   - Never, just support me
 
----
+3. **How much do you say at once?**
+   - Short and punchy
+   - Balanced
+   - Detailed and thorough
 
-## Screen 6: Phase Analysis (Processing)
+4. **When I'm struggling, what do I need most?**
+   - Help me think it through
+   - Practical next steps
+   - Just to be heard first
+   - Push me to keep going
 
-**Text:**
-> Let me see your pattern...
+5. **What annoys you most in an AI?**
+   - Sycophantic praise
+   - Wishy-washy non-answers
+   - Unsolicited advice
+   - Over-explaining obvious things
 
----
+**Free text:**
 
-## Screen 7: Phase Reveal
+6. **What should I call you?**
+   - Placeholder: "Your name or nickname"
 
-**Main Heading:**
-> You're in [PHASE NAME].
-
-**Recognition Statement** (varies by phase):
-- **Discovery**: "You're exploring new territory, asking questions about where you are and what comes next."
-- **Expansion**: "You're building momentum, actively growing and expanding what you've started."
-- **Transition**: "You're in motion, shifting between what was and what's emerging."
-- **Consolidation**: "You're integrating and stabilizing, making what you've learned part of your foundation."
-- **Recovery**: "You're healing and rebuilding, moving forward from a difficult place."
-- **Breakthrough**: "You've reached a moment of clarity, seeing something that changes how you understand your situation."
-
-**Body Text:**
-> Your phase constellation will fill with words and patterns as you journal. This is how ARC visualizes your narrative structure over time.
-
-**Tracking Question Section:**
-> The question you're living:
-> 
-> [TRACKING QUESTION - extracted from user's Q5 response or phase-specific default]
+7. **Anything else about how you want to work together?**
+   - Placeholder: "Optional"
 
 **Button:**
 > Enter ARC
 
 ---
 
-## Complete Text Flow Summary
+## Complete Text Flow Summary (user-facing)
 
-1. **LUMARA Introduction**: Personal introduction, explains narrative arc understanding
-2. **LUMARA Capabilities**: What LUMARA does — story memory, patterns, phase awareness, tone matching
-3. **Phase Explanation**: Understanding your phase, phase names, quiz intro
-4. *(SENTINEL Introduction removed from flow)*
-5. **Phase Quiz**: 5 conversational questions about current state
-6. **Phase Analysis**: Processing message ("Let me see your pattern...")
-7. **Phase Reveal**: Phase name, recognition statement, constellation explanation, tracking question
+1. **LUMARA Introduction**: Personal introduction, narrative arc understanding.
+2. **LUMARA Capabilities**: What LUMARA does—story memory, patterns, tone matching. CTA: "Set how we'll work together" or "Jump in".
+3. **Personality Setup**: 7 questions (5 choices + name + optional notes). Generates LUMARA baseline config, sets default phase internally, then Enter ARC → app home.
+
+Phases are **not** shown to the user in onboarding; they are used internally by the model only.
 
 ---
 
@@ -126,12 +103,11 @@
 
 - **Warm but not syrupy**: Perceptive friend, not therapist
 - **Efficient**: No corporate onboarding bloat
-- **Specific**: When revealing phase, prove you understood with concrete observation
-- **Mysterious without being cryptic**: Hint at depth without explaining everything
+- **Specific**: When asking personality questions, keep copy clear and conversational
 
 ---
 
-## Recognition Statements by Phase
+## Phase reference (internal use only — not shown in onboarding)
 
 ### Discovery
 "You're exploring new territory, asking questions about where you are and what comes next."
@@ -173,4 +149,4 @@
 ### Breakthrough
 "What did you realize?"
 
-*Note: The tracking question is ideally extracted from the user's response to Question 5, but falls back to these defaults if needed.*
+*Phases, recognition statements, and tracking questions are for internal model use only. They are not displayed in the user-facing onboarding flow.*

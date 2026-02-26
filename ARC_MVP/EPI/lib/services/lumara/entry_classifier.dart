@@ -87,7 +87,7 @@ class EntryClassifier {
       return EntryType.metaAnalysis;
     }
 
-    // PRIORITY 2: Factual questions (short, clarification-seeking)
+    // PRIORITY 2: Factual questions (short, clarification-seeking, or direct educational)
     if (wordCount < 100 && hasQuestionMark) {
       final factualTriggers = [
         'does this make sense',
@@ -98,10 +98,41 @@ class EntryClassifier {
         'is my understanding',
         'does newton',
         'is newton',
+        // Direct educational/factual (answer directly per master prompt; do not treat as journal)
+        'what is the calculation of',
+        'what is the formula for',
+        'how do you calculate',
+        'how do i calculate',
+        'how do we calculate',
+        'calculation of ',
+        'formula for ',
+        'define ',  // e.g. "define density"
+        'what is the definition of',
+        'what is the difference between',
+        'how does * work',  // pattern: "how does [concept] work"
       ];
 
-      if (factualTriggers.any((trigger) => lowerText.contains(trigger))) {
-        print('LUMARA Classifier: Detected factual question via trigger: ${factualTriggers.where((t) => lowerText.contains(t)).first}');
+      if (factualTriggers.any((trigger) {
+        if (trigger.contains('*')) {
+          final pattern = trigger.replaceAll('*', r'\w+');
+          return RegExp(pattern).hasMatch(lowerText);
+        }
+        return lowerText.contains(trigger);
+      })) {
+        print('LUMARA Classifier: Detected factual question via trigger (educational/direct)');
+        return EntryType.factual;
+      }
+
+      // "What is X?" / "How do you X?" when short and no personal/emotional language → factual
+      if (wordCount <= 25 &&
+          (lowerText.startsWith('what is ') ||
+              lowerText.startsWith('how do you ') ||
+              lowerText.startsWith('how does ') ||
+              lowerText.startsWith('why does ')) &&
+          !lowerText.contains('your take') &&
+          !lowerText.contains('my ') &&
+          emotionalDensity < 0.1) {
+        print('LUMARA Classifier: Detected short direct factual question (what/how/why)');
         return EntryType.factual;
       }
 
@@ -443,23 +474,23 @@ class EntryClassifier {
     final triggers = <String>[];
     double confidence = 0.0;
 
-    // PRIORITY 1: Check for INTEGRATE mode triggers (synthesis requests)
+    // PRIORITY 1: Check for synthesis/connect triggers → Deeper
     if (_containsIntegrationLanguage(lowerText)) {
       triggers.add('integration_request');
       confidence = 0.9;
       return VoiceDepthResult(
-        depth: EngagementMode.integrate,
+        depth: EngagementMode.deeper,
         confidence: confidence,
         triggers: triggers,
       );
     }
 
-    // PRIORITY 2: Check for EXPLORE mode triggers (pattern/analysis requests)
+    // PRIORITY 2: Check for exploration/pattern triggers → Deeper
     if (_containsExplorationLanguage(lowerText)) {
       triggers.add('exploration_request');
       confidence = 0.85;
       return VoiceDepthResult(
-        depth: EngagementMode.explore,
+        depth: EngagementMode.deeper,
         confidence: confidence,
         triggers: triggers,
       );
@@ -752,10 +783,10 @@ class EntryClassifier {
     switch (mode) {
       case EngagementMode.reflect:
         return 'Default (Casual Conversation)';
+      case EngagementMode.deeper:
       case EngagementMode.explore:
-        return 'Explore (Pattern Analysis)';
       case EngagementMode.integrate:
-        return 'Integrate (Synthesis)';
+        return 'Deeper (Patterns & Synthesis)';
     }
   }
 

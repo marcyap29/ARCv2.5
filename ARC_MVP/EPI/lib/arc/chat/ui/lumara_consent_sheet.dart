@@ -74,16 +74,6 @@ class _LumaraConsentSheetState extends State<LumaraConsentSheet> {
           ),
           
           _buildScopeToggle(
-            'Phase Data',
-            'Access your developmental phase information',
-            _scope.phase,
-            (value) => setState(() {
-              _scope = _scope.copyWith(phase: value);
-            }),
-            Icons.timeline,
-          ),
-          
-          _buildScopeToggle(
             'Arcform Responses',
             'Access your Arcform responses for insights',
             _scope.arcforms,

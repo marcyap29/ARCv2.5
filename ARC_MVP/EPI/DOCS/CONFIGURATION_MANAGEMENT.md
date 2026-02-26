@@ -1,7 +1,7 @@
 # Configuration Management & Documentation Tracking
 
 **Lead Configuration Management Analyst:** Active  
-**Last Updated:** February 24, 2026 (doc sync 2026-02-24)  
+**Last Updated:** February 25, 2026 (doc sync 2026-02-25)  
 **Status:** ✅ All Documents Synced with Repo
 
 ---
@@ -45,15 +45,15 @@ Prompt/role definitions: **Ultimate Documentation, Configuration Management and 
 
 | Document | Location | Last Reviewed | Status | Notes |
 |----------|----------|---------------|--------|-------|
-| ARCHITECTURE.md | `/DOCS/ARCHITECTURE.md` | 2026-02-20 | ✅ Synced | v3.3.56 - PRISM context compression, prism_adapter.dart description updated |
-| CHANGELOG.md | `/DOCS/CHANGELOG.md` | 2026-02-22 | ✅ Synced | v3.3.57 - Firebase Functions Node 22 LTS, package-lock regeneration |
-| PROMPT_REFERENCES.md | `/DOCS/PROMPT_REFERENCES.md` | 2026-02-24 | ✅ Synced | v2.8.0 - LUMARA Groq Cached Prompt (lumara_groq_cached_prompt.dart, groq_send.dart) |
-| PROMPT_TRACKER.md | `/DOCS/PROMPT_TRACKER.md` | 2026-02-24 | ✅ Synced | v1.7.0 - Doc sync 2026-02-24 row added |
-| bug_tracker.md | `/DOCS/bugtracker/bug_tracker.md` | 2026-02-22 | ✅ Synced | v3.3.0 - Last Updated refresh; doc-sync run 2026-02-22 |
-| FEATURES.md | `/DOCS/FEATURES.md` | 2026-02-15 | ✅ Synced | v3.3.38 - Writing/research agents storage & export/import |
-| README.md | `/DOCS/README.md` | 2026-02-07 | ✅ Synced | Key docs table with purpose and when to read |
-| claude.md | `/DOCS/claude.md` | 2026-02-13 | ✅ Synced | TOC — Prompts; consolidated Doc/Config/Git Backup prompt; TOC aligned with current sections |
-| backend.md | `/DOCS/backend.md` | 2026-02-11 | ✅ Synced | v3.3 - proxyGroq (Groq primary), proxyGemini (fallback), Firebase, Stripe |
+| ARCHITECTURE.md | `/DOCS/ARCHITECTURE.md` | 2026-02-25 | ✅ Synced | v3.3.59 - LUMARA vision reposition, GPT-OSS 120B, phase de-emphasis |
+| CHANGELOG.md | `/DOCS/CHANGELOG.md` | 2026-02-25 | ✅ Synced | v3.3.59 - LUMARA vision reposition, GPT-OSS 120B, master prompt, personality, Bible removed |
+| PROMPT_REFERENCES.md | `/DOCS/PROMPT_REFERENCES.md` | 2026-02-25 | ✅ Synced | v2.9.0 - prompts_arc rewrite, master prompt personality/phase de-emphasis, Bible removed, GPT-OSS |
+| PROMPT_TRACKER.md | `/DOCS/PROMPT_TRACKER.md` | 2026-02-25 | ✅ Synced | v1.8.0 - Doc sync 2026-02-25 row (v3.3.59 prompt changes) |
+| bug_tracker.md | `/DOCS/bugtracker/bug_tracker.md` | 2026-02-25 | ✅ Synced | v3.4.0 - 39 records; lumara-gtm-double-groq-call record; Last Updated 2026-02-25 |
+| FEATURES.md | `/DOCS/FEATURES.md` | 2026-02-25 | ✅ Synced | v3.3.59 - GPT-OSS 120B, personality onboarding, dual-mode prompt, CHRONICLE search, phase de-emphasis |
+| README.md | `/DOCS/README.md` | 2026-02-25 | ✅ Synced | Key docs table with purpose and when to read |
+| claude.md | `/DOCS/claude.md` | 2026-02-25 | ✅ Synced | Updated context guide; Doc/Config/Git Backup prompt |
+| backend.md | `/DOCS/backend.md` | 2026-02-25 | ✅ Synced | v3.3.59 - GPT-OSS 120B primary, proxyGroq direct HTTP, lumaraSend unified entry, geminiSend deprecated |
 | git.md | `/DOCS/git.md` | 2026-02-07 | ✅ Synced | Git history and key phases |
 
 ### White Papers & Specifications
@@ -103,10 +103,26 @@ Prompt/role definitions: **Ultimate Documentation, Configuration Management and 
 | BUGTRACKER_MASTER_INDEX.md | DOCS/bugtracker/ | Bug tracker master index — v3.3.47 |
 | BUGTRACKER_AUDIT_REPORT.md | DOCS/bugtracker/ | Bug tracker audit report — v3.3.47 |
 | UNIVERSAL_PROMPT_OPTIMIZATION.md | DOCS/ | Universal prompt optimization 80/20 framework, provider-agnostic layer — v3.3.48 |
+| LUMARA_Vision_Reposition.md | DOCS/ | LUMARA vision reposition rationale and current state — v3.3.59 |
+| MASTER_PROMPT_SHORTENING.md | DOCS/ | Dual-mode master prompt architecture (conversation vs detailed analysis) — v3.3.59 |
 
 ---
 
 ## Change Tracking Log
+
+### 2026-02-25 - Documentation & Git Backup run (v3.3.59; LUMARA vision reposition, GPT-OSS 120B, prompt audit v2.9.0)
+
+**Action:** Ran Documentation, Configuration Management and Git Backup workflow (claude.md §233–451 orchestrator + sub-agents + reviewer).
+
+**PROMPT REFERENCES AUDIT:** Significant prompt changes in v3.3.59: (1) `prompts_arc.dart` system prompt rewritten — identity changed from "ARC's journaling copilot" to "LUMARA, a personal AI inside a private journaling app"; journal context awareness and direct-answer directives added; **Bible retrieval instructions removed** (entire Bible module deleted). (2) `lumara_master_prompt.dart` — new `USER PERSONALITY CONFIG` and `INFERRED PREFERENCES` control state blocks for personalized expression; phase de-emphasis directive ("do not name or cite phase labels to the user"); all "Claude" / "Claude-quality" references replaced with "natural" / "conversational"; new `<response_shape>` section for journal reflections. (3) Default model changed to GPT-OSS 120B in `groq_send.dart`. (4) `lumara_cloud_generate.dart` simplified to 2-tier (proxyGroq → direct Groq; Gemini fallback removed). §7 Faith/Biblical Scholar: note added that Bible module was removed; mentor profile retained. PROMPT_REFERENCES.md bumped to v2.9.0.
+
+**Git Backup — Identify what changed (since v3.3.58 / 2026-02-24):** 105 files changed (~2,750 additions, ~4,318 deletions). Key changes: GPT-OSS 120B primary LLM (`groq_send.dart` direct HTTP, `lumaraSend` unified entry, `geminiSend` deprecated); Bible module removed (3 Dart files + doc deleted); master prompt shortened (dual-mode: conversation + detailed analysis); personality onboarding (7-question quiz, `PersonalitySetupScreen`, `personalityConfig`/`inferredPreferences` in control state); phase de-emphasis (timeline, feed, cards, home tabs — phase info removed from all user-facing UI); engagement mode simplification (`deeper` replaces `explore`+`integrate`); PRISM compression removed from API path; Firebase connection warm-up; onboarding redesign (2 screens, phase quiz removed from default flow); CHRONICLE synthesis adjustments; PII detection reduced; journal/settings/consent/agents UI simplified. New files: `LUMARA_Vision_Reposition.md`, `MASTER_PROMPT_SHORTENING.md`, `lumara-gtm-double-groq-call.md` bug record, `lumara_chat_redesign_screen.dart`, `personality_setup_screen.dart`. Deleted: `bible_api_service.dart`, `bible_retrieval_helper.dart`, `bible_terminology_library.dart`, `BIBLE_RETRIEVAL_IMPLEMENTATION.md`.
+
+**Updates:** CHANGELOG.md v3.3.59; ARCHITECTURE.md v3.3.59; FEATURES.md v3.3.59 (GPT-OSS 120B, personality onboarding, dual-mode prompt, CHRONICLE search/intelligence summary, phase de-emphasis, Bible removed, engagement simplification); backend.md v3.3.59 (GPT-OSS 120B, lumaraSend, geminiSend deprecated); PROMPT_REFERENCES.md v2.9.0; PROMPT_TRACKER.md v1.8.0 + doc-sync row; CONFIGURATION_MANAGEMENT.md this entry + inventory; bug_tracker.md v3.4.0 (already updated). New docs added to inventory: LUMARA_Vision_Reposition.md, MASTER_PROMPT_SHORTENING.md.
+
+**Status:** ✅ Ready for commit and push.
+
+---
 
 ### 2026-02-24 - Documentation & Git Backup run (prompt audit v2.8.0)
 

@@ -95,11 +95,15 @@ class LumaraReflectionOptions {
   /// Conversation mode for continuation dialogues
   final ConversationMode? conversationMode;
 
+  /// When true, use full master prompt (Detailed Analysis); when false, use short prompt (perceptive with context).
+  final bool useDetailedAnalysis;
+
   LumaraReflectionOptions({
-    this.preferQuestionExpansion = false, // Default = Claude-like; use Explore/Integrate for rich context
+    this.preferQuestionExpansion = false, // Default = natural; use Explore/Integrate for rich context
     this.toneMode = ToneMode.normal,
     this.regenerate = false,
     this.conversationMode,
+    this.useDetailedAnalysis = false,
   });
 
   Map<String, dynamic> toJson() => {
@@ -107,6 +111,7 @@ class LumaraReflectionOptions {
     'toneMode': toneMode.name,
     'regenerate': regenerate,
     'conversationMode': conversationMode?.name,
+    'useDetailedAnalysis': useDetailedAnalysis,
   };
 
   factory LumaraReflectionOptions.fromJson(Map<String, dynamic> json) => LumaraReflectionOptions(
@@ -129,6 +134,7 @@ class LumaraReflectionOptions {
             }
           })()
         : null,
+    useDetailedAnalysis: json['useDetailedAnalysis'] as bool? ?? false,
   );
 }
 

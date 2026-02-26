@@ -2,6 +2,8 @@
 // Firebase initialization and readiness service
 
 import 'dart:async';
+import 'dart:io';
+
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_functions/cloud_functions.dart';
@@ -170,6 +172,50 @@ class FirebaseService {
     } catch (e) {
       print('FirebaseService: Failed to ensure readiness: $e');
       return false;
+    }
+  }
+
+  // ── Connection warm-up ──────────────────────────────────────────────
+  bool _connectionWarmed = false;
+  Completer<bool>? _warmUpCompleter;
+
+  /// Whether the Cloud Functions connection has been warmed up.
+  bool get isConnectionWarmed => _connectionWarmed;
+
+  /// Makes a lightweight HTTP HEAD to the Cloud Functions host to warm the
+  /// TCP connection pool. Uses dart:io [HttpClient] (same as [groqSend])
+  /// so the connection is reused for subsequent requests.
+  ///
+  /// Safe to call multiple times — only the first call fires the request.
+  Future<bool> warmUpConnection() async {
+    if (_connectionWarmed) return true;
+    if (_warmUpCompleter != null) return _warmUpCompleter!.future;
+
+    _warmUpCompleter = Completer<bool>();
+    try {
+      final client = HttpClient();
+      try {
+        final uri = Uri.parse('https://us-central1-arc-epi.cloudfunctions.net/');
+        final request = await client.headUrl(uri);
+        final response = await request.close().timeout(
+          const Duration(seconds: 8),
+          onTimeout: () => throw TimeoutException('warm-up timed out'),
+        );
+        // Any HTTP response (even 404) means the TCP connection is live
+        await response.drain<void>();
+      } finally {
+        client.close();
+      }
+      _connectionWarmed = true;
+      print('FirebaseService: Connection warm-up OK ✓');
+      _warmUpCompleter!.complete(true);
+      return true;
+    } catch (e) {
+      print('FirebaseService: Connection warm-up failed (non-fatal): $e');
+      _warmUpCompleter!.complete(false);
+      return false;
+    } finally {
+      _warmUpCompleter = null;
     }
   }
 }

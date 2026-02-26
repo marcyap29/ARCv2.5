@@ -40,14 +40,14 @@ import 'package:my_app/models/journal_entry_model.dart';
 import 'package:my_app/ui/journal/journal_screen.dart';
 import 'package:my_app/lumara/agents/screens/research_report_detail_screen.dart';
 import 'package:my_app/services/journal_session_cache.dart';
-import 'package:my_app/shared/ui/settings/settings_view.dart';
 import 'package:my_app/core/models/entry_mode.dart';
-import 'package:my_app/shared/ui/onboarding/phase_quiz_v2_screen.dart';
+import 'package:my_app/arc/chat/ui/lumara_settings_screen.dart';
+import 'package:my_app/arc/chat/chat/ui/enhanced_chats_screen.dart';
+import 'package:my_app/arc/chat/chat/enhanced_chat_repo_impl.dart';
 import 'package:my_app/arc/unified_feed/widgets/import_options_sheet.dart';
-import 'package:my_app/arc/chat/ui/lumara_assistant_screen.dart';
+import 'package:my_app/arc/chat/ui/lumara_chat_redesign_screen.dart';
 import 'package:my_app/ui/phase/phase_analysis_view.dart';
 import 'package:my_app/ui/phase/phase_timeline_view.dart';
-import 'package:my_app/ui/phase/simplified_arcform_view_3d.dart';
 import 'package:my_app/models/phase_models.dart';
 import 'package:my_app/shared/text_style.dart';
 import 'package:my_app/mira/store/arcx/services/arcx_export_service_v2.dart';
@@ -594,33 +594,6 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
           // Selection mode bar (Cancel / Delete selected)
           SliverToBoxAdapter(child: _buildSelectionModeBar()),
 
-          // Phase card: same widget as Phase page (header + 3D constellation only); tap opens full Phase page
-          SliverToBoxAdapter(
-            child: KeyedSubtree(
-              key: ValueKey('phase_preview_$_phasePreviewRefreshKey'),
-              child: SimplifiedArcformView3D(
-                cardOnly: true,
-                onCardTap: () async {
-                  await Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const PhaseAnalysisView(),
-                    ),
-                  );
-                  if (mounted) setState(() => _phasePreviewRefreshKey++);
-                },
-              ),
-            ),
-          ),
-
-          // Phase journey: Timeline Visualization–style gantt (from Phase page)
-          SliverToBoxAdapter(
-            child: KeyedSubtree(
-              key: ValueKey('phase_journey_$_phasePreviewRefreshKey'),
-              child: _PhaseJourneyGanttCard(),
-            ),
-          ),
-
           // Chat | Reflect | Voice
           SliverToBoxAdapter(child: _buildCommunicationActions()),
 
@@ -695,9 +668,10 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 4),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Image.asset(
                 'assets/icon/LUMARA_Sigil.png',
@@ -710,13 +684,11 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
                 },
               ),
               const SizedBox(width: 10),
-              const Text(
+              Text(
                 'LUMARA',
-                style: TextStyle(
+                style: heading1Style(context).copyWith(
                   color: kcPrimaryTextColor,
-                  fontSize: 22,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 1.2,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
             ],
@@ -772,21 +744,15 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
             tooltip: 'Timeline',
             onPressed: _openTimelineModal,
           ),
-          // Settings
+          // Settings: LUMARA settings + Chat history
           IconButton(
             icon: Icon(
               Icons.settings_outlined,
               color: kcSecondaryTextColor.withOpacity(0.6),
               size: 20,
             ),
-            tooltip: 'Settings',
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (context) => const SettingsView()),
-              );
-            },
+            tooltip: 'LUMARA & Chat',
+            onPressed: () => _showLumaraSettingsAndHistory(context),
           ),
         ],
       ),
@@ -1156,12 +1122,58 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
     );
   }
 
-  /// Open LUMARA chat to a new conversation (no auto-submit of reflection or previous message).
+  /// Show LUMARA settings and Chat history options (from gear in LUMARA tab).
+  void _showLumaraSettingsAndHistory(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: kcSurfaceColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.auto_awesome, color: kcPrimaryTextColor),
+              title: const Text('LUMARA settings', style: TextStyle(color: kcPrimaryTextColor)),
+              onTap: () {
+                Navigator.pop(ctx);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const LumaraSettingsScreen(),
+                  ),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.history, color: kcPrimaryTextColor),
+              title: const Text('Chat history', style: TextStyle(color: kcPrimaryTextColor)),
+              onTap: () {
+                Navigator.pop(ctx);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => EnhancedChatsScreen(
+                      chatRepo: EnhancedChatRepoImpl(ChatRepoImpl.instance),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Open LUMARA chat (redesign: hero, suggestions, simple input) to a new conversation.
   void _openLumaraChat() {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => const LumaraAssistantScreen(),
+        builder: (context) => const LumaraChatRedesignScreen(),
       ),
     );
   }
@@ -1385,29 +1397,6 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
           SliverToBoxAdapter(child: _buildGreetingHeader()),
           SliverToBoxAdapter(child: _buildHeaderActions()),
           SliverToBoxAdapter(child: _buildSelectionModeBar()),
-          SliverToBoxAdapter(
-            child: KeyedSubtree(
-              key: ValueKey('phase_preview_$_phasePreviewRefreshKey'),
-              child: SimplifiedArcformView3D(
-                cardOnly: true,
-                onCardTap: () async {
-                  await Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const PhaseAnalysisView(),
-                    ),
-                  );
-                  if (mounted) setState(() => _phasePreviewRefreshKey++);
-                },
-              ),
-            ),
-          ),
-          SliverToBoxAdapter(
-            child: KeyedSubtree(
-              key: ValueKey('phase_journey_$_phasePreviewRefreshKey'),
-              child: _PhaseJourneyGanttCard(),
-            ),
-          ),
           SliverToBoxAdapter(child: _buildCommunicationActions()),
           if (_currentViewingDate != null)
             SliverToBoxAdapter(child: _buildDateContextBanner()),
@@ -1449,14 +1438,8 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
                 color: kcSecondaryTextColor.withOpacity(0.5),
                 size: 24,
               ),
-              tooltip: 'Settings',
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (context) => const SettingsView()),
-                );
-              },
+              tooltip: 'LUMARA & Chat',
+              onPressed: () => _showLumaraSettingsAndHistory(context),
             ),
           ),
 
@@ -1505,10 +1488,6 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
 
                   // Get started — go to empty timeline (Chat / Reflect / Voice)
                   _buildGetStartedButton(),
-                  const SizedBox(height: 20),
-
-                  // Phase Quiz button — prominent, centered
-                  _buildPhaseQuizButton(),
                   const SizedBox(height: 48),
 
                   // Import section
@@ -1574,49 +1553,6 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
               'Get started',
               style: TextStyle(
                 color: kcPrimaryColor,
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0.3,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  /// Prominent Phase Quiz button for the welcome screen.
-  Widget _buildPhaseQuizButton() {
-    return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-              builder: (context) => const PhaseQuizV2Screen()),
-        );
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
-        decoration: BoxDecoration(
-          gradient: kcPrimaryGradient,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: kcPrimaryColor.withOpacity(0.3),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: const Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.insights, color: Colors.white, size: 22),
-            SizedBox(width: 10),
-            Text(
-              'Discover Your Phase',
-              style: TextStyle(
-                color: Colors.white,
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
                 letterSpacing: 0.3,

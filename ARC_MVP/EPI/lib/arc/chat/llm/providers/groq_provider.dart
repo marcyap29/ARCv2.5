@@ -7,7 +7,7 @@ import '../../config/api_config.dart';
 import '../../services/groq_service.dart';
 import 'package:my_app/services/firebase_service.dart';
 import 'package:my_app/services/firebase_auth_service.dart';
-import 'package:my_app/services/groq_send.dart';
+import 'package:my_app/services/gemini_send.dart';
 
 /// Groq API provider - primary for LUMARA
 class GroqProvider extends LLMProviderBase {
@@ -38,12 +38,13 @@ class GroqProvider extends LLMProviderBase {
     final signedIn = FirebaseAuthService.instance.isSignedIn;
 
     if (firebaseReady && signedIn) {
-      return groqSend(
+      return lumaraSend(
+        system: systemPrompt,
         user: userPrompt,
-        system: systemPrompt.isNotEmpty ? systemPrompt : null,
         temperature: 0.7,
         chatId: chatId,
         entryId: entryId,
+        skipTransformation: true,
       );
     }
 

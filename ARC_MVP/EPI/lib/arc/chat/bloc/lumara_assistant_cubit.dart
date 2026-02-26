@@ -6,7 +6,7 @@ import 'package:my_app/arc/chat/data/context_provider.dart';
 import 'package:my_app/arc/chat/data/models/lumara_message.dart';
 import 'package:my_app/arc/chat/llm/llm_adapter.dart';
 import 'package:my_app/arc/chat/llm/rule_based_adapter.dart'; // For InsightKind enum
-import 'package:my_app/services/gemini_send.dart';
+import 'package:my_app/services/gemini_send.dart'; // provideArcLLM, lumaraSend
 import 'package:my_app/services/llm_bridge_adapter.dart';
 import '../services/enhanced_lumara_api.dart';
 import '../services/progressive_memory_loader.dart';
@@ -34,7 +34,6 @@ import '../data/models/pushback_evidence.dart';
 import '../services/lumara_control_state_builder.dart';
 import '../services/reflective_query_service.dart';
 import '../services/reflective_query_formatter.dart';
-import '../services/bible_retrieval_helper.dart';
 import 'package:my_app/prism/atlas/phase/phase_history_repository.dart';
 import 'package:my_app/aurora/services/circadian_profile_service.dart';
 import 'package:my_app/services/sentinel/sentinel_analyzer.dart';
@@ -72,6 +71,7 @@ import 'package:my_app/lumara/agents/writing/writing_draft_repository.dart';
 import 'package:my_app/chronicle/dual/services/dual_chronicle_services.dart';
 import 'package:my_app/chronicle/dual/intelligence/agentic_loop_orchestrator.dart';
 import 'package:my_app/chronicle/dual/intelligence/interrupt/interrupt_decision_engine.dart';
+import 'package:my_app/arc/internal/echo/prism_adapter.dart';
 
 /// LUMARA Assistant Cubit State
 abstract class LumaraAssistantState {}
@@ -100,6 +100,10 @@ class LumaraAssistantLoaded extends LumaraAssistantState {
   final String? pendingAgenticQuestion;
   final String? pendingAgenticGapId;
   final AgenticLoopContext? pendingAgenticLoopContext;
+  /// When true, use full master prompt (Detailed Analysis); when false, use short prompt (perceptive with context).
+  final bool useDetailedAnalysis;
+  /// Live status messages shown in the thinking bubble while processing.
+  final List<String> processingSteps;
 
   LumaraAssistantLoaded({
     required this.messages,
@@ -117,6 +121,8 @@ class LumaraAssistantLoaded extends LumaraAssistantState {
     this.pendingAgenticQuestion,
     this.pendingAgenticGapId,
     this.pendingAgenticLoopContext,
+    this.useDetailedAnalysis = false,
+    this.processingSteps = const [],
   });
 
   LumaraAssistantLoaded copyWith({
@@ -135,6 +141,8 @@ class LumaraAssistantLoaded extends LumaraAssistantState {
     String? pendingAgenticQuestion,
     String? pendingAgenticGapId,
     AgenticLoopContext? pendingAgenticLoopContext,
+    bool? useDetailedAnalysis,
+    List<String>? processingSteps,
   }) {
     return LumaraAssistantLoaded(
       messages: messages ?? this.messages,
@@ -152,6 +160,8 @@ class LumaraAssistantLoaded extends LumaraAssistantState {
       pendingAgenticQuestion: pendingAgenticQuestion ?? this.pendingAgenticQuestion,
       pendingAgenticGapId: pendingAgenticGapId ?? this.pendingAgenticGapId,
       pendingAgenticLoopContext: pendingAgenticLoopContext ?? this.pendingAgenticLoopContext,
+      useDetailedAnalysis: useDetailedAnalysis ?? this.useDetailedAnalysis,
+      processingSteps: processingSteps ?? this.processingSteps,
     );
   }
 
@@ -173,6 +183,7 @@ class LumaraAssistantLoaded extends LumaraAssistantState {
       pendingAgenticQuestion: null,
       pendingAgenticGapId: null,
       pendingAgenticLoopContext: null,
+      useDetailedAnalysis: useDetailedAnalysis,
     );
   }
 
@@ -194,6 +205,7 @@ class LumaraAssistantLoaded extends LumaraAssistantState {
       pendingAgenticQuestion: pendingAgenticQuestion,
       pendingAgenticGapId: pendingAgenticGapId,
       pendingAgenticLoopContext: pendingAgenticLoopContext,
+      useDetailedAnalysis: useDetailedAnalysis,
     );
   }
 
@@ -215,6 +227,7 @@ class LumaraAssistantLoaded extends LumaraAssistantState {
       pendingAgenticQuestion: pendingAgenticQuestion,
       pendingAgenticGapId: pendingAgenticGapId,
       pendingAgenticLoopContext: pendingAgenticLoopContext,
+      useDetailedAnalysis: useDetailedAnalysis,
     );
   }
 
@@ -236,6 +249,7 @@ class LumaraAssistantLoaded extends LumaraAssistantState {
       pendingAgenticQuestion: pendingAgenticQuestion,
       pendingAgenticGapId: pendingAgenticGapId,
       pendingAgenticLoopContext: pendingAgenticLoopContext,
+      useDetailedAnalysis: useDetailedAnalysis,
     );
   }
 }
@@ -333,7 +347,7 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
        _chatRepo = ChatRepoImpl.instance,
        _chatPhaseService = ChatPhaseService(ChatRepoImpl.instance),
        super(LumaraAssistantInitial()) {
-    // Initialize ArcLLM with Gemini integration
+    // Initialize ArcLLM with Groq integration (GPT-OSS 120B via proxyGroq)
     _arcLLM = provideArcLLM();
     // Initialize enhanced LUMARA API
     _enhancedApi = EnhancedLumaraApi(_analytics);
@@ -376,7 +390,7 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
 
     // Add welcome message (only automated message allowed)
     // Split into paragraphs for better readability
-    final welcomeContent = "Hello! I'm LUMARA, your personal assistant.\n\nI can help you understand your patterns, explain your current phase, and provide insights about your journey.\n\nWhat would you like to know?";
+    final welcomeContent = "Hello! I'm LUMARA, your personal AI. I can help with what you need, when you need it — and when you want, I can use your journal and history for more personal answers.\n\nWhat would you like to know?";
 
       final List<LumaraMessage> messages = [
         LumaraMessage.assistant(content: welcomeContent),
@@ -464,8 +478,30 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
     }
   }
 
+  /// Set whether to use full master prompt (Detailed Analysis) or short prompt (perceptive with context).
+  void setDetailedAnalysis(bool value) {
+    final currentState = state;
+    if (currentState is LumaraAssistantLoaded) {
+      emit(currentState.copyWith(useDetailedAnalysis: value));
+    }
+  }
+
+  /// Appends a human-readable processing step to the thinking bubble.
+  void _emitStep(String step) {
+    final s = state;
+    if (s is LumaraAssistantLoaded && s.isProcessing) {
+      emit(s.copyWith(processingSteps: [...s.processingSteps, step]));
+    }
+  }
+
   /// Resubmit a pending input (called when user wants to retry after interruption)
   Future<void> resubmitPendingInput() async {
+    final currentState = state;
+    if (currentState is LumaraAssistantLoaded && currentState.isProcessing) {
+      print('LUMARA Chat: Already processing — skipping resubmitPendingInput');
+      return;
+    }
+
     final pendingInput = await PendingConversationService.getPendingInput();
     if (pendingInput == null || pendingInput.mode != 'chat') {
       print('LUMARA Chat: No pending chat input to resubmit');
@@ -511,10 +547,31 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
 
     final currentState = state;
     if (currentState is! LumaraAssistantLoaded) return;
+    if (currentState.isProcessing) {
+      print('LUMARA Chat: Already processing — ignoring duplicate sendMessage call');
+      return;
+    }
+
+    // Add user message to chat immediately (optimistic) so it appears like a normal chat
+    final userMessage = LumaraMessage.user(content: text);
+    final updatedMessages = [...currentState.messages, userMessage];
+    if (currentState.pendingAgenticQuestion == null) {
+      emit(currentState.copyWith(
+        messages: updatedMessages,
+        isProcessing: true,
+        apiErrorMessage: null,
+        notice: null,
+      ));
+      // Save pending input immediately after setting isProcessing=true — no async
+      // gap between the guard check and the save, so resubmitPendingInput can never
+      // observe a pending input with isProcessing=false.
+      await _savePendingInput(text, conversationMode: conversationMode, persona: persona);
+    }
 
     // Crossroads: allow one confirmation per turn; clear when starting new message
     _crossroadsService.clearSurfacedThisTurn();
 
+    _emitStep('Preparing your message…');
     print('LUMARA Debug: Sending message: "$text"');
     print('LUMARA Debug: Current message count: ${currentState.messages.length}');
     if (conversationMode != null) {
@@ -527,6 +584,7 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
     // ═══════════════════════════════════════════════════════════
     // STEP 1: CHECK SENTINEL FOR CRISIS (HIGHEST PRIORITY)
     // ═══════════════════════════════════════════════════════════
+    _emitStep('Checking safety systems…');
     String? effectivePersona = persona;
     bool safetyOverride = false;
     
@@ -581,23 +639,6 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
       return;
     }
     
-    // Check for Bible verse requests and fetch verses to include in context
-    String? bibleVerses;
-    try {
-      print('LUMARA: Checking for Bible request in message: "${text.substring(0, text.length > 50 ? 50 : text.length)}..."');
-      bibleVerses = await BibleRetrievalHelper.fetchVersesForRequest(text);
-      if (bibleVerses != null) {
-        print('LUMARA: ✅ Fetched Bible context for request');
-        print('LUMARA: Bible context length: ${bibleVerses.length}');
-        print('LUMARA: Bible context preview: ${bibleVerses.substring(0, bibleVerses.length > 200 ? 200 : bibleVerses.length)}...');
-      } else {
-        print('LUMARA: ⚠️ No Bible context returned (not detected as Bible request)');
-      }
-    } catch (e, stackTrace) {
-      print('LUMARA: ❌ Error fetching Bible verses: $e');
-      print('LUMARA: Stack trace: $stackTrace');
-    }
-
     // ═══════════════════════════════════════════════════════════
     // CROSSROADS: Decision trigger detection (one prompt per turn)
     // ═══════════════════════════════════════════════════════════
@@ -618,11 +659,15 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
           final shouldSurface = await _crossroadsService.shouldSurfaceCrossroadsPrompt(signal: signal, userId: userId);
           if (shouldSurface) {
             final confirmationText = _crossroadsService.buildConfirmationPrompt(signal);
-            emit(currentState.copyWith(
-              pendingCrossroadsSignal: signal,
-              pendingCrossroadsConfirmationText: confirmationText,
-              pendingCrossroadsUserMessage: text,
-            ));
+            // Use current state so optimistic user message is preserved in UI
+            final s = state;
+            if (s is LumaraAssistantLoaded) {
+              emit(s.copyWith(
+                pendingCrossroadsSignal: signal,
+                pendingCrossroadsConfirmationText: confirmationText,
+                pendingCrossroadsUserMessage: text,
+              ));
+            }
             return;
           }
         }
@@ -661,21 +706,6 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
       }
       return;
     }
-
-    // Save pending input in case of interruption
-    await _savePendingInput(text, conversationMode: conversationMode, persona: effectivePersona);
-
-    // Add user message to UI immediately and set isProcessing to show loading indicator
-    final userMessage = LumaraMessage.user(content: text);
-    final updatedMessages = [...currentState.messages, userMessage];
-
-    // Emit state with isProcessing: true immediately to show loading indicator
-    emit(currentState.copyWith(
-      messages: updatedMessages,
-      isProcessing: true,
-      apiErrorMessage: null, // Clear any previous error message when starting new message
-      notice: null, // Clear AURORA notice when starting new message
-    ));
 
     // Ensure we have an active chat session (auto-create if needed)
     await _ensureActiveChatSession(text);
@@ -762,14 +792,16 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
       print('LUMARA Debug: Is manual selection: $isManualSelection');
 
       // Use Groq or Gemini with full journal context (ArcLLM chat) - Cloud API only
-      // Retry logic: 3 attempts total (initial + 2 retries)
-      const maxAttempts = 3;
+      // Single attempt only — enhanced_lumara_api already handles 503 retries internally.
+      // Multiple outer retries caused concurrent proxyGroq calls (GTMSessionFetcher "already running").
+      const maxAttempts = 1;
       Exception? lastError;
       
       for (int attempt = 1; attempt <= maxAttempts; attempt++) {
         try {
           print('LUMARA Debug: [Cloud API] Attempt $attempt/$maxAttempts - Attempting Groq/Gemini with journal context...');
           
+          _emitStep('Loading journal context…');
           // Get context for Gemini (using current scope from state)
           final context = await _contextProvider.buildContext(scope: currentState.scope);
           final contextResult = await _buildEntryContext(
@@ -779,15 +811,11 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
           );
           final entryText = contextResult['context'] as String;
           final contextAttributionTraces = contextResult['attributionTraces'] as List<AttributionTrace>;
+          _emitStep('Retrieved ${contextAttributionTraces.length} memory nodes');
           final phaseHint = _buildPhaseHint(context);
           final keywords = _buildKeywordsContext(context);
           
-          // Include Bible verses in user intent if fetched
-          String userIntent = text;
-          if (bibleVerses != null && bibleVerses.isNotEmpty) {
-            userIntent = '$text\n\n[BIBLE_VERSE_CONTEXT]\n$bibleVerses\n[/BIBLE_VERSE_CONTEXT]';
-            print('LUMARA: Including Bible verses in ArcLLM context');
-          }
+          final String userIntent = text;
           
           // ═══════════════════════════════════════════════════════════
           // STEP 2: DETECT CONVERSATION MODE FROM TEXT (if not provided)
@@ -931,6 +959,7 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
           // ═══════════════════════════════════════════════════════════
           // STEP 4: FALLBACK TO STANDARD ArcLLM CHAT
           // ═══════════════════════════════════════════════════════════
+          _emitStep('Scrubbing PII and sending to AI…');
           // Use ArcLLM to call Gemini directly with all journal context
           final response = await _arcLLM.chat(
             userIntent: userIntent,
@@ -940,6 +969,7 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
           );
           
           print('LUMARA Debug: [Cloud API] ✓ Response received on attempt $attempt, length: ${response.length}');
+          _emitStep('Response received — linking ${contextAttributionTraces.length} memory sources…');
           
           // Use attribution traces from context building (the actual memory nodes used)
           var attributionTraces = contextAttributionTraces;
@@ -1248,22 +1278,6 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
     print('LUMARA Debug: Attribution traces from context: ${contextAttributionTraces.length}');
     print('LUMARA Debug: Chat session ID for rate limiting: $currentChatSessionId');
 
-    // Check for Bible verse requests and fetch verses to include in context (for streaming path)
-    String? bibleVerses;
-    try {
-      print('LUMARA: Checking for Bible request in streaming path: "${text.substring(0, text.length > 50 ? 50 : text.length)}..."');
-      bibleVerses = await BibleRetrievalHelper.fetchVersesForRequest(text);
-      if (bibleVerses != null && bibleVerses.isNotEmpty) {
-        print('LUMARA: ✅ Fetched Bible verses for streaming request (length: ${bibleVerses.length})');
-        print('LUMARA: Bible verses preview: ${bibleVerses.substring(0, bibleVerses.length > 300 ? 300 : bibleVerses.length)}...');
-      } else {
-        print('LUMARA: ⚠️ No Bible verses returned (null or empty)');
-      }
-    } catch (e, stackTrace) {
-      print('LUMARA: ❌ Error fetching Bible verses for streaming: $e');
-      print('LUMARA: Stack trace: $stackTrace');
-    }
-
     // Real-time pushback: if user message looks like a claim, check against CHRONICLE and inject truth_check
     var effectiveSystemPrompt = systemPrompt;
     ContradictionResult? pushbackContradiction;
@@ -1287,28 +1301,14 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
       }
     }
 
-    // Use Firebase proxy with chatId for per-chat rate limiting
-    // (replaces streaming to enable backend rate limiting)
+    // Use lumaraSend (PRISM + proxyGroq) with chatId for per-chat rate limiting
     String responseText;
 
     try {
-      // Include Bible verses in user message if fetched (for streaming path)
-      String userMessage = text;
-      if (bibleVerses != null && bibleVerses.isNotEmpty) {
-        userMessage = '$text\n\n[BIBLE_VERSE_CONTEXT]\n$bibleVerses\n[/BIBLE_VERSE_CONTEXT]';
-        print('LUMARA: Including Bible verses in streaming context');
-      }
-      
-      // Skip transformation for Bible questions to preserve [BIBLE_CONTEXT] instructions
-      final isBibleQuestion = userMessage.contains('[BIBLE_CONTEXT]') || userMessage.contains('[BIBLE_VERSE_CONTEXT]');
-      
-      // Call Firebase proxy with chatId for rate limiting
-      responseText = await geminiSend(
+      responseText = await lumaraSend(
         system: effectiveSystemPrompt,
-        user: userMessage,
-        chatId: currentChatSessionId, // For per-chat usage limit tracking
-        skipTransformation: isBibleQuestion, // Skip transformation to preserve Bible context instructions
-        intent: isBibleQuestion ? 'bible_query' : 'chat',
+        user: text,
+        chatId: currentChatSessionId,
       );
 
       // Update the UI with the full response
@@ -1447,6 +1447,22 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
     }
   }
 
+  /// True if the user message text requests detailed/full analysis (for this turn only).
+  static bool _userMessageRequestsDetailedAnalysis(String? text) {
+    if (text == null || text.trim().isEmpty) return false;
+    const phrases = [
+      'detailed analysis',
+      'deep dive',
+      'break down my patterns',
+      'analyze my patterns',
+      'full analysis',
+      'in-depth analysis',
+      'full master prompt',
+    ];
+    final lower = text.trim().toLowerCase();
+    return phrases.any((p) => lower.contains(p));
+  }
+
   /// Build system prompt using unified master prompt with control state
   Future<String> _buildSystemPrompt(String? entryText, String? phaseHint, String? keywords, {String? userMessage}) async {
     // Build PRISM activity context from entry text and keywords
@@ -1482,7 +1498,7 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
     };
     
     // Build unified control state JSON (pass user message for dynamic persona/response mode detection)
-    // Written chat: no length limit for Reflect, Explore, Integrate (Claude-style)
+    // Written chat: no length limit for Reflect, Explore, Integrate (natural default)
     final controlStateJson = await LumaraControlStateBuilder.buildControlState(
       userId: _userId,
       prismActivity: prismActivity,
@@ -1499,12 +1515,23 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
       baseContext = 'Recent keywords: $keywords';
     }
     
+    // Effective detailed analysis for this turn: toggle on or phrase in user message
+    final loadedState = state is LumaraAssistantLoaded ? state as LumaraAssistantLoaded : null;
+    final useDetailedAnalysisForThisTurn = (loadedState?.useDetailedAnalysis ?? false) ||
+        _userMessageRequestsDetailedAnalysis(userMessage);
+
     // Get unified master prompt (for chat, the "entry text" is the user message)
-    String masterPrompt = LumaraMasterPrompt.getMasterPrompt(
-      controlStateJson,
-      entryText: userMessage ?? '',
-      baseContext: baseContext,
-    );
+    String masterPrompt = useDetailedAnalysisForThisTurn
+        ? LumaraMasterPrompt.getMasterPrompt(
+            controlStateJson,
+            entryText: userMessage ?? '',
+            baseContext: baseContext,
+          )
+        : LumaraMasterPrompt.getMasterPromptChatOnly(
+            controlStateJson,
+            entryText: userMessage ?? '',
+            baseContext: baseContext,
+          );
     
     // Inject current date/time context for temporal grounding
     // (No recent entries for chat mode, but date context is still important)
@@ -1841,7 +1868,7 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
     
     // Add welcome message (only automated message allowed)
     // Split into paragraphs for better readability
-    const welcomeContent = "Hello! I'm LUMARA, your personal assistant.\n\nI can help you understand your patterns, explain your current phase, and provide insights about your journey.\n\nWhat would you like to know?";
+    const welcomeContent = "Hello! I'm LUMARA, your personal AI. I can help with what you need, when you need it — and when you want, I can use your journal and history for more personal answers.\n\nWhat would you like to know?";
     
     final List<LumaraMessage> messages = [
       LumaraMessage.assistant(content: welcomeContent),
@@ -1884,7 +1911,12 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
     if (currentEntry != null) {
       print('LUMARA: [Tier 1] Adding current journal entry with highest weight');
       buffer.writeln('=== CURRENT ENTRY (PRIMARY SOURCE) ===');
-      buffer.writeln(currentEntry.content);
+      final currentExcerpt = PrismAdapter.extractKeyPoints(
+        currentEntry.content,
+        maxChars: 600,
+        maxSentences: 5,
+      );
+      buffer.writeln(currentExcerpt);
       
       // Include media content (OCR, captions, transcripts)
       if (currentEntry.media.isNotEmpty) {
@@ -2003,7 +2035,12 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
                 orElse: () => allEntries.first,
               );
               if (entry.content.isNotEmpty) {
-                buffer.writeln(entry.content);
+                final excerpt = PrismAdapter.extractKeyPoints(
+                  entry.content,
+                  maxChars: 400,
+                  maxSentences: 4,
+                );
+                buffer.writeln(excerpt);
                 buffer.writeln('---');
                 addedEntryIds.add(entryId);
                 print('CHRONICLE Layer 0 Retrieval: Added entry $entryId');
@@ -2036,7 +2073,12 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
     for (final entry in loadedEntries) {
       if (!addedEntryIds.contains(entry.id) && recentCount < 10) {
         if (entry.content.isNotEmpty) {
-          buffer.writeln(entry.content);
+          final entryExcerpt = PrismAdapter.extractKeyPoints(
+            entry.content,
+            maxChars: 400,
+            maxSentences: 4,
+          );
+          buffer.writeln(entryExcerpt);
           buffer.writeln('---');
           addedEntryIds.add(entry.id);
           
@@ -2170,7 +2212,7 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
     final currentPhase = currentPhaseNodes.first['text'] as String?;
     if (currentPhase == null) return null;
 
-    print('LUMARA Debug: Using current phase from Phase tab: $currentPhase');
+    print('LUMARA Debug: Using current phase from context: $currentPhase');
 
     // Build phase context with current phase prioritized
     final phaseContext = <String, dynamic>{
@@ -2507,8 +2549,6 @@ The enhanced memory system provides user-sovereign, explainable memory with attr
 
 🧠 **Health Score:** ${((stats['health_score'] ?? 0.0) * 100).toInt()}%
 
-🎯 **Current Phase:** ${_currentPhase ?? 'Unknown'}
-
 CHRONICLE Layer 0 Retrieval uses your timeline entries for context and provides attribution transparency for all responses.''';
     } catch (e) {
       return 'Error retrieving memory status: $e';
@@ -2670,6 +2710,7 @@ Your exported MCP bundle can be imported into any MCP-compatible system, ensurin
       pendingAgenticQuestion: currentState.pendingAgenticQuestion,
       pendingAgenticGapId: currentState.pendingAgenticGapId,
       pendingAgenticLoopContext: currentState.pendingAgenticLoopContext,
+      useDetailedAnalysis: currentState.useDetailedAnalysis,
     ));
   }
 
@@ -2794,7 +2835,7 @@ Your exported MCP bundle can be imported into any MCP-compatible system, ensurin
               maxTokens: maxTokens ?? 600,
             );
           }
-          return geminiSend(system: systemPrompt, user: userPrompt);
+          return lumaraSend(system: systemPrompt, user: userPrompt);
         },
       );
 
@@ -2857,6 +2898,26 @@ Your exported MCP bundle can be imported into any MCP-compatible system, ensurin
     LumaraAssistantLoaded currentState,
     JournalEntry? currentEntry,
   ) async {
+    // Fast pre-filter: skip LLM classification (and its groqSend call) for messages
+    // that clearly aren't research/writing tasks. This avoids a back-to-back
+    // proxyGroq call immediately before the main response call, which triggers the
+    // GTMSessionFetcher "was already running" warning on iOS (BUG-LUMARA-GTM-001).
+    final lowerText = text.toLowerCase().trim();
+    final mightNeedAgent = lowerText.length > 15 && (
+      lowerText.contains('research') ||
+      lowerText.contains('write ') ||
+      lowerText.contains('draft ') ||
+      lowerText.contains('article') ||
+      lowerText.contains('essay') ||
+      lowerText.contains('report') ||
+      lowerText.contains('search for') ||
+      lowerText.contains('find information') ||
+      lowerText.contains('look up') ||
+      lowerText.contains('summarize') ||
+      lowerText.contains('compile')
+    );
+    if (!mightNeedAgent) return false;
+
     final orchestrator = await _getChatOrchestrator();
     if (orchestrator == null) return false;
     final intent = await orchestrator.classifyIntent(text);
@@ -3048,10 +3109,10 @@ Your exported MCP bundle can be imported into any MCP-compatible system, ensurin
       if (role == 'assistant') {
         _chatPhaseService
             .classifySessionPhase(currentChatSessionId!)
-            .catchError((e) { print('ChatPhase: classification error: $e'); return null; });
+            .catchError((e) { if (kDebugMode) debugPrint('ChatPhase: classification error: $e'); return null; });
       }
     } catch (e) {
-      print('LUMARA Chat: Error adding message to session: $e');
+      if (kDebugMode) debugPrint('LUMARA Chat: Error adding message to session: $e');
     }
   }
 
@@ -3161,7 +3222,7 @@ Your exported MCP bundle can be imported into any MCP-compatible system, ensurin
     }
   }
   
-  /// Create a summary using LLM (Gemini)
+  /// Create a summary using LLM (Groq)
   Future<String> _createConversationSummaryWithLLM(List<ChatMessage> messages) async {
     try {
       // Build conversation text
@@ -3170,7 +3231,7 @@ Your exported MCP bundle can be imported into any MCP-compatible system, ensurin
         return '$role: ${m.textContent}';
       }).join('\n\n');
 
-      // Use Gemini to create a concise summary
+      // Use Groq (GPT-OSS 120B) to create a concise summary
       final summaryPrompt = '''Summarize the following conversation in 2-3 paragraphs, highlighting:
 1. Main topics discussed
 2. Key insights or decisions
@@ -3181,10 +3242,10 @@ $conversationText
 
 Summary:''';
 
-      final summary = await geminiSend(
+      final summary = await lumaraSend(
         system: 'You are a helpful assistant that creates concise conversation summaries.',
         user: summaryPrompt,
-        jsonExpected: false,
+        skipTransformation: true,
       );
 
       return summary.trim();
@@ -3497,7 +3558,37 @@ Available: ${yearsAgo} more year${yearsAgo > 1 ? 's' : ''} of history''';
     if (lowerText.contains('suggest next steps') || lowerText.contains('next steps')) {
       return models.ConversationMode.nextSteps;
     }
-    
+
+    // Personal history / synthesis queries — route through enhanced API (LumaraMasterPrompt)
+    // so the model has full access to journal context and understands the query type.
+    final historySummaryPatterns = [
+      'tell me about my',
+      'what have i been',
+      'how has my',
+      'how have i been',
+      'summarize my',
+      'summary of my',
+      'what patterns',
+      'what do you see in my',
+      'what themes',
+      'overview of my',
+      'recap of my',
+      'this month',
+      'this week',
+      'this year',
+      'last month',
+      'last week',
+      'recently',
+      'lately',
+      'my journal',
+      'my entries',
+      'what have i written',
+      'what did i write',
+    ];
+    if (historySummaryPatterns.any((p) => lowerText.contains(p))) {
+      return models.ConversationMode.reflectDeeply;
+    }
+
     return null; // No mode detected, use default
   }
 

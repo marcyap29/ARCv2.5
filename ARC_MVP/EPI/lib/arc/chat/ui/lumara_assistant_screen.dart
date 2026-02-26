@@ -35,6 +35,7 @@ import 'package:my_app/models/journal_entry_model.dart';
 import 'package:my_app/arc/core/journal_repository.dart';
 import '../services/favorites_service.dart';
 import 'package:my_app/shared/widgets/lumara_icon.dart';
+import 'package:my_app/shared/widgets/lumara_thinking_dialog.dart';
 import '../data/models/lumara_favorite.dart';
 import 'package:my_app/shared/ui/settings/favorites_management_view.dart';
 import 'package:my_app/shared/ui/settings/settings_view.dart';
@@ -42,11 +43,9 @@ import '../voice/audio_io.dart';
 import '../chat/chat_models.dart';
 import 'package:my_app/ui/subscription/lumara_subscription_status.dart';
 import 'package:my_app/services/firebase_auth_service.dart';
-import 'package:my_app/arc/chat/services/lumara_reflection_settings_service.dart';
 // Removed persona selector widget - personas accessed through different UI
 import 'package:my_app/services/sentinel/crisis_mode.dart';
 import 'package:my_app/arc/chat/models/lumara_reflection_options.dart' as models;
-import 'package:my_app/models/engagement_discipline.dart';
 
 /// Main LUMARA Assistant screen
 class LumaraAssistantScreen extends StatefulWidget {
@@ -601,20 +600,15 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
                   }
                 }
 
-                // Handle scrolling for new messages
+                // Handle scrolling for new messages and thinking bubble
                 if (state is LumaraAssistantLoaded) {
-                  // We can't easily access 'previous' state here without listenWhen, 
-                  // but we can check if the last message is new or if we are processing.
-                  // A better approach for scrolling is often to trigger it when the list changes.
-                  // However, since we want specific behavior for "new answer", we can check:
-                  if (state.messages.isNotEmpty) {
+                  if (state.isProcessing) {
+                    // Scroll to reveal the thinking bubble
+                    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
+                  } else if (state.messages.isNotEmpty) {
                     final lastMessage = state.messages.last;
-                    if (lastMessage.role == 'user') {
+                    if (lastMessage.role == 'user' || lastMessage.role == 'assistant') {
                       _scrollToBottom();
-                    } else if (lastMessage.role == 'assistant' && state.isProcessing) {
-                      // If assistant is processing (streaming/typing), just nudge scroll
-                      // We might need a flag to ensure we only do this once per response start
-                      // For now, let's rely on the fact that this listener fires on state changes.
                     }
                   }
                 }
@@ -764,7 +758,7 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
                     return _buildEmptyState();
                   }
                   
-                  // Show messages with loading indicator at the bottom when processing
+                  // Show messages with thinking bubble inline at the bottom when processing
                   return Stack(
                     children: [
                       Column(
@@ -775,15 +769,16 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
                         child: ListView.builder(
                           controller: _scrollController,
                           padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-                          itemCount: state.messages.length,
+                          itemCount: state.messages.length + (state.isProcessing ? 1 : 0),
                           itemBuilder: (context, index) {
+                            if (state.isProcessing && index == state.messages.length) {
+                              return _buildThinkingBubble(context);
+                            }
                             final message = state.messages[index];
                             return _buildMessageBubble(message);
                           },
                         ),
                       ),
-                      // Show progress indicator at bottom when processing
-                      if (state.isProcessing) _buildLoadingIndicator(context),
                         ],
                       ),
                       // Floating scroll-to-top button (appears when scrolled down)
@@ -928,47 +923,96 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
     );
   }
 
-  /// Build loading indicator widget (reusable)
+  /// Build loading indicator: same as Reflect session (LUMARA is thinking).
   Widget _buildLoadingIndicator(BuildContext context) {
+    return const LumaraThinkingIndicator();
+  }
+
+  /// Inline thinking bubble with live status steps.
+  Widget _buildThinkingBubble(BuildContext context) {
+    final cubitState = context.watch<LumaraAssistantCubit>().state;
+    final steps = (cubitState is LumaraAssistantLoaded)
+        ? cubitState.processingSteps
+        : <String>[];
+
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
+      key: const ValueKey('lumara_thinking_bubble'),
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2.5,
-                  valueColor: AlwaysStoppedAnimation<Color>(
-                    Theme.of(context).colorScheme.primary,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  'LUMARA is thinking...',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.secondary,
-                    fontStyle: FontStyle.italic,
-                  ),
-                ),
-              ),
-            ],
+          const Padding(
+            padding: EdgeInsets.only(top: 8),
+            child: LumaraIcon(size: 32),
           ),
-          const SizedBox(height: 12),
-          // Progress meter
-          LinearProgressIndicator(
-            minHeight: 4,
-            borderRadius: BorderRadius.circular(2),
-            valueColor: AlwaysStoppedAnimation<Color>(
-              Theme.of(context).colorScheme.primary,
+          const Gap(8),
+          Flexible(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              decoration: BoxDecoration(
+                color: Colors.grey[100],
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(18),
+                  topRight: Radius.circular(18),
+                  bottomLeft: Radius.circular(4),
+                  bottomRight: Radius.circular(18),
+                ),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Completed steps (faded)
+                  for (int i = 0; i < (steps.length > 1 ? steps.length - 1 : 0); i++)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 4),
+                      child: Row(
+                        children: [
+                          Icon(Icons.check_circle_outline, size: 14, color: Colors.grey[400]),
+                          const Gap(6),
+                          Expanded(
+                            child: Text(
+                              steps[i],
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey[400],
+                                fontStyle: FontStyle.italic,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  // Current step (prominent, with spinner)
+                  Row(
+                    children: [
+                      SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            Theme.of(context).colorScheme.primary,
+                          ),
+                        ),
+                      ),
+                      const Gap(6),
+                      Expanded(
+                        child: Text(
+                          steps.isNotEmpty ? steps.last : 'LUMARA is thinking…',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Theme.of(context).colorScheme.secondary,
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
-            backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
           ),
         ],
       ),
@@ -1221,47 +1265,32 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
                   // Enhanced Attribution display for assistant messages
                   if (!isUser && message.attributionTraces != null && message.attributionTraces!.isNotEmpty) ...[
                     const Gap(8),
-                    Builder(
-                      builder: (context) {
-                        print('LumaraAssistantScreen: Rendering attribution display for message ${message.id} with ${message.attributionTraces!.length} traces');
-
-                        // Try to get enhanced attribution data
-                        return FutureBuilder(
-                          future: _getEnhancedAttributionTrace(message.id),
-                          builder: (context, snapshot) {
-                            if (snapshot.hasData && snapshot.data != null) {
-                              // Use enhanced attribution widget
-                              return _buildEnhancedAttributionDisplay(
-                                snapshot.data!,
-                                message.id,
-                                message.attributionTraces!,
-                              );
-                            } else {
-                              // Fall back to legacy attribution widget
-                              return AttributionDisplayWidget(
-                                traces: message.attributionTraces!,
-                                responseId: message.id,
-                                onWeightChanged: (trace, newWeight) {
-                                  _handleAttributionWeightChange(message.id, trace, newWeight);
-                                },
-                                onExcludeMemory: (trace) {
-                                  _handleMemoryExclusion(message.id, trace);
-                                },
-                              );
-                            }
+                    FutureBuilder(
+                      future: _getEnhancedAttributionTrace(message.id),
+                      builder: (context, snapshot) {
+                        if (snapshot.hasData && snapshot.data != null) {
+                          return _buildEnhancedAttributionDisplay(
+                            snapshot.data!,
+                            message.id,
+                            message.attributionTraces!,
+                          );
+                        }
+                        return AttributionDisplayWidget(
+                          traces: message.attributionTraces!,
+                          responseId: message.id,
+                          showDetailedView: false,
+                          onWeightChanged: (trace, newWeight) {
+                            _handleAttributionWeightChange(message.id, trace, newWeight);
+                          },
+                          onExcludeMemory: (trace) {
+                            _handleMemoryExclusion(message.id, trace);
                           },
                         );
                       },
                     ),
                   ],
                   if (!isUser && (message.attributionTraces == null || message.attributionTraces!.isEmpty)) ...[
-                    // Debug: Show why attributions aren't showing
-                    Builder(
-                      builder: (context) {
-                        print('LumaraAssistantScreen: Message ${message.id} - attributionTraces is null or empty (null: ${message.attributionTraces == null}, empty: ${message.attributionTraces?.isEmpty ?? true})');
-                        return const SizedBox.shrink();
-                      },
-                    ),
+                    const SizedBox.shrink(),
                   ],
                   
                   // Web source indicator
@@ -1434,19 +1463,19 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
                 ),
               ),
               IconButton(
-                icon: const LumaraIcon(size: 20),
-                padding: const EdgeInsets.all(8),
-                constraints: const BoxConstraints(),
-                onPressed: _sendCurrentMessage,
-                tooltip: 'Send',
-              ),
-              IconButton(
                 key: _modeMenuKey,
                 icon: const Icon(Icons.expand_more, size: 20),
                 padding: const EdgeInsets.all(8),
                 constraints: const BoxConstraints(),
                 onPressed: _showEngagementModeMenu,
-                tooltip: 'Choose engagement mode',
+                tooltip: 'Response style: Conversation / Detailed analysis',
+              ),
+              IconButton(
+                icon: const LumaraIcon(size: 20),
+                padding: const EdgeInsets.all(8),
+                constraints: const BoxConstraints(),
+                onPressed: _sendCurrentMessage,
+                tooltip: 'Send',
               ),
               IconButton(
                 icon: const Icon(Icons.palette, size: 20),
@@ -1555,6 +1584,7 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
     setState(() => _isInputVisible = true);
   }
 
+  /// Caret menu: choose response style — Conversation (perceptive) or Detailed analysis.
   Future<void> _showEngagementModeMenu() async {
     final anchorContext = _modeMenuKey.currentContext;
     final overlay = Overlay.of(context);
@@ -1566,12 +1596,10 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
 
     final offset = box.localToGlobal(Offset.zero, ancestor: overlayBox);
 
-    // Get current engagement settings
-    final settingsService = LumaraReflectionSettingsService.instance;
-    final currentSettings = await settingsService.getEngagementSettings();
-    final currentMode = currentSettings.activeMode;
+    final cubit = context.read<LumaraAssistantCubit>();
+    final useDetailed = cubit.state is LumaraAssistantLoaded && (cubit.state as LumaraAssistantLoaded).useDetailedAnalysis;
 
-    final selection = await showMenu<EngagementMode>(
+    final selection = await showMenu<bool>(
       context: context,
       position: RelativeRect.fromLTRB(
         offset.dx,
@@ -1579,53 +1607,56 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
         overlayBox.size.width - offset.dx - box.size.width,
         overlayBox.size.height - offset.dy - box.size.height,
       ),
-      items: EngagementMode.values.map((mode) {
-        final isSelected = mode == currentMode;
-        return PopupMenuItem<EngagementMode>(
-          value: mode,
+      items: [
+        PopupMenuItem<bool>(
+          value: false,
           child: Row(
             children: [
-              if (isSelected)
-                Icon(Icons.check, size: 18, color: Colors.blue)
-              else
-                const SizedBox(width: 18),
+              if (!useDetailed) Icon(Icons.check, size: 18, color: Colors.blue) else const SizedBox(width: 18),
               const SizedBox(width: 8),
-              Expanded(
+              const Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(
-                      mode.displayName,
-                      style: TextStyle(
-                        fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                      ),
-                    ),
-                    Text(
-                      mode.description,
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: Colors.grey[600],
-                      ),
-                    ),
+                    Text('Conversation (perceptive)', style: TextStyle(fontWeight: FontWeight.w500)),
+                    Text('Short prompt, natural friend-like replies.', style: TextStyle(fontSize: 11, color: Colors.grey)),
                   ],
                 ),
               ),
             ],
           ),
-        );
-      }).toList(),
+        ),
+        PopupMenuItem<bool>(
+          value: true,
+          child: Row(
+            children: [
+              if (useDetailed) Icon(Icons.check, size: 18, color: Colors.blue) else const SizedBox(width: 18),
+              const SizedBox(width: 8),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text('Detailed analysis', style: TextStyle(fontWeight: FontWeight.w500)),
+                    Text('Full master prompt, temporal/phase-aware analysis.', style: TextStyle(fontSize: 11, color: Colors.grey)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
 
     if (selection == null) return;
 
-    // Update conversation override (per-session)
-    final updated = currentSettings.copyWith(conversationOverride: selection);
-    await settingsService.setEngagementSettings(updated);
+    cubit.setDetailedAnalysis(selection);
     if (!mounted) return;
-
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Engagement mode set to ${selection.displayName}')),
+      SnackBar(
+        content: Text(selection ? 'Response style: Detailed analysis' : 'Response style: Conversation (perceptive)'),
+      ),
     );
   }
 
@@ -1920,36 +1951,24 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
   }
 
   Future<void> _sendMessage(String message) async {
-    // Get current entry - prioritize widget's currentEntry, then try to get most recent entry
-    JournalEntry? entryToUse = _currentEntry;
-    
-    // If no entry provided, try to get the most recent entry as fallback
-    // This ensures we always have context from the user's journal
-    if (entryToUse == null) {
-      entryToUse = await _getMostRecentEntry();
-      if (entryToUse != null) {
-        print('LUMARA: Using most recent entry ${entryToUse.id} as context');
-      }
-    } else {
-      print('LUMARA: Using provided current entry ${entryToUse.id} as context');
-    }
-    
     // Map persona to conversation mode (enhanced API uses modes, not direct persona)
     models.ConversationMode? personaMode = _personaToConversationMode(_selectedPersona);
-    
+
     // Detect conversation mode from message text (overrides persona mode if detected)
     models.ConversationMode? detectedMode = _detectConversationModeFromText(message);
-    
+
     // Use detected mode if present, otherwise use persona mode
     final finalMode = detectedMode ?? personaMode;
-    
-    // Note: If entryToUse is still null, sendMessage will work without current entry
-    // The weighted context system will still use recent LUMARA responses and other entries
+
+    // Fire the cubit immediately so the user bubble appears without delay.
+    // currentEntry is optional — the cubit's context system loads journal
+    // entries independently.  Use the cached _currentEntry if available;
+    // don't block on an async storage read.
     context.read<LumaraAssistantCubit>().sendMessage(
       message,
-      currentEntry: entryToUse,
+      currentEntry: _currentEntry,
       conversationMode: finalMode,
-      persona: null, // Persona is determined by conversation mode in enhanced API
+      persona: null,
     );
   }
   

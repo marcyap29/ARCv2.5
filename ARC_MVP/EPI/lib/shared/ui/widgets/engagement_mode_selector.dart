@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:my_app/models/engagement_discipline.dart';
 
-/// Widget for selecting engagement mode (Reflect, Explore, Integrate)
+/// Widget for selecting engagement mode (Default, Deeper)
 class EngagementModeSelector extends StatelessWidget {
   final EngagementMode selectedMode;
   final ValueChanged<EngagementMode> onModeChanged;
@@ -31,13 +31,8 @@ class EngagementModeSelector extends StatelessWidget {
           icon: Icon(Icons.auto_awesome, size: 16),
         ),
         ButtonSegment(
-          value: EngagementMode.explore,
-          label: Text('Explore'),
-          icon: Icon(Icons.explore, size: 16),
-        ),
-        ButtonSegment(
-          value: EngagementMode.integrate,
-          label: Text('Integrate'),
+          value: EngagementMode.deeper,
+          label: Text('Deeper'),
           icon: Icon(Icons.integration_instructions, size: 16),
         ),
       ],
@@ -67,13 +62,8 @@ class EngagementModeSelector extends StatelessWidget {
               icon: Icon(Icons.auto_awesome),
             ),
             ButtonSegment(
-              value: EngagementMode.explore,
-              label: Text('Explore'),
-              icon: Icon(Icons.explore),
-            ),
-            ButtonSegment(
-              value: EngagementMode.integrate,
-              label: Text('Integrate'),
+              value: EngagementMode.deeper,
+              label: Text('Deeper'),
               icon: Icon(Icons.integration_instructions),
             ),
           ],
@@ -96,11 +86,11 @@ class EngagementModeSelector extends StatelessWidget {
   String _getModeDescription(EngagementMode mode) {
     switch (mode) {
       case EngagementMode.reflect:
-        return 'Quick insights, no questions';
+        return 'Quick insights, up to one reference';
+      case EngagementMode.deeper:
       case EngagementMode.explore:
-        return 'Patterns + 1 connecting question';
       case EngagementMode.integrate:
-        return 'Full synthesis across domains';
+        return 'Patterns, connections, and synthesis across your history';
     }
   }
 }
@@ -145,8 +135,8 @@ class EngagementModeBadge extends StatelessWidget {
     switch (mode) {
       case EngagementMode.reflect:
         return Icons.auto_awesome;
+      case EngagementMode.deeper:
       case EngagementMode.explore:
-        return Icons.explore;
       case EngagementMode.integrate:
         return Icons.integration_instructions;
     }
@@ -156,8 +146,8 @@ class EngagementModeBadge extends StatelessWidget {
     switch (mode) {
       case EngagementMode.reflect:
         return Colors.blue;
+      case EngagementMode.deeper:
       case EngagementMode.explore:
-        return Colors.orange;
       case EngagementMode.integrate:
         return Colors.purple;
     }

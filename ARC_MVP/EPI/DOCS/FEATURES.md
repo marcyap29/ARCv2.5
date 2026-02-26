@@ -1,7 +1,7 @@
 # EPI MVP - Comprehensive Features Guide
 
-**Version:** 3.3.38
-**Last Updated:** February 15, 2026
+**Version:** 3.3.59
+**Last Updated:** February 25, 2026
 
 ---
 
@@ -195,7 +195,7 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 - Multimodal understanding
 - **Unified Feed integration (v3.3.19)**: `initialMessage` parameter auto-sends most recent journal entry to LUMARA for reflection when opened from feed. Back-arrow navigation (replaces drawer). "New Chat" removed from popup menu.
 - **Streaming Responses (v3.3.23)**: LUMARA reflections stream to the UI in real-time as chunks arrive from the cloud API. LUMARA inline blocks update progressively via `onStreamChunk` callback, showing "Streaming..." status. Falls back to non-streaming if direct API key unavailable.
-- **Groq Primary LLM Provider (v3.3.24)**: LUMARA now uses **Groq** (Llama 3.3 70B / Mixtral 8x7b) as the primary cloud LLM, with Gemini as fallback. Streaming and non-streaming support. Mode-aware temperature (explore: 0.8, integrate: 0.7, reflect: 0.6). Firebase `proxyGroq` Cloud Function hides API key from client.
+- **Groq Primary LLM Provider (v3.3.24, updated v3.3.59)**: LUMARA uses **Groq** as the primary cloud LLM. Default model: **GPT-OSS 120B** (v3.3.59; previously Llama 3.3 70B). Also supports GPT-OSS 20B and Llama 3.3 70B. Direct HTTP POST bypasses GTMSessionFetcher. Firebase `proxyGroq` Cloud Function hides API key; model allowlist enforced server-side. Gemini demoted from active fallback to deprecated.
 - **Chat Phase Classification (v3.3.25)**: LUMARA chat sessions are automatically classified into ATLAS phases using the same inference pipeline as journal entries. Phase displayed in session app bar (tappable for manual override). Phase chips on chat list cards. Chat sessions contribute to phase regime building. Backfill support for existing chats.
 - **3D Constellation Phase Card (v3.3.25)**: `SimplifiedArcformView3D(cardOnly: true)` replaces the legacy phase preview in the Unified Feed, showing the 3D constellation card (header + interactive constellation). Tapping opens the full Phase Analysis page.
 - **Crossroads Decision Capture (v3.3.26)**: RIVET detects decision moments in chat messages (five phrase categories weighted by ATLAS phase). Confirmation prompt → four-step capture flow → CHRONICLE Layer 0 storage as `entry_type: "decision"`. Monthly synthesis weaves decisions as inflection points. Outcome revisitation via scheduled prompts. `QueryIntent.decisionArchaeology` for decision history queries. Export includes `decisions/` directory.
@@ -204,6 +204,20 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 - **CHRONICLE Edit Validation (v3.3.26)**: `EditValidator` detects pattern suppression and factual contradictions when users edit synthesis content. Surfaces warnings with "keep pattern with different wording / note why removing / proceed anyway" options.
 - **CHRONICLE Import (v3.3.26)**: Import aggregations from a previously exported directory. New "Import Aggregations" button in CHRONICLE Management.
 - **LUMARA Agents: Writing Drafts & Research (v3.3.38)**: Writing Agent drafts stored in `writing_drafts/{userId}/` with status (draft/finished), archive, and delete. Research reports persisted to `research_artifacts.json` with archive/delete. Agents tab: Active and Archived sections; card actions (Mark finished, Archive/Unarchive, Delete with confirm); Created date and metadata. ARCX and ZIP export/import include `extensions/agents/writing_drafts/` and `research_artifacts.json` so drafts and research reports are backed up and restorable.
+- **LUMARA Agents Expansion (v3.3.39–v3.3.40)**: Research/writing prompt expansion (research_prompts.dart, writing_prompts.dart); Agent OS prefix, Chat Intent Classifier, Research Query Planner, Dual Chronicle Intelligence Summary generator added to orchestration layer.
+- **Dual CHRONICLE (v3.3.41–v3.3.47)**: Full dual CHRONICLE system — agentic loop orchestrator, intelligence summary generation/scheduling, CHRONICLE search (hybrid BM25 + semantic + adaptive fusion + reranking), dual_chronicle_view, writing with LUMARA, and CHRONICLE phase signal service.
+- **CHRONICLE Search (v3.3.44)**: Hybrid search engine combining BM25 lexical index, semantic embeddings, and adaptive fusion. Feature-based reranker for relevance scoring. Integrated into unified feed and LUMARA query pipeline.
+- **CHRONICLE Intelligence Summary (v3.3.45–v3.3.47)**: Automated intelligence summary generation from CHRONICLE data. Models, repository, generator, scheduling preferences, and dedicated intelligence summary view.
+- **Universal Prompt Optimization (v3.3.48)**: 80/20 provider-agnostic prompt optimization layer. Use cases (userChat, userReflect, gapClassification, etc.), provider adapters (Groq, OpenAI, Claude), response cache, readiness calculator. See `UNIVERSAL_PROMPT_OPTIMIZATION.md`.
+- **CHRONICLE Layer 0 Retrieval (v3.3.49)**: Dedicated Layer 0 retrieval service; dual CHRONICLE/LUMARA integration; ARCX/MCP export/import updates.
+- **Google Drive Sync Push (v3.3.52)**: Push synced timeline entries back to Google Drive folder. MCP export/management screens.
+- **PRISM Context Compression (v3.3.56)**: `PrismAdapter.extractKeyPoints()` for CHRONICLE date-aware routing; LUMARA token caps; landscape orientation support.
+- **GPT-OSS 120B Primary LLM (v3.3.59)**: Default model changed from Llama 3.3 70B to GPT-OSS 120B (via Groq). `groqSend` uses direct HTTP POST (bypasses GTMSessionFetcher). `lumaraSend` unified entry point with PRISM pipeline. Gemini fallback removed from active code paths. Firebase connection warm-up at app startup.
+- **Personality Onboarding (v3.3.59)**: 7-question personality quiz during onboarding (tone, disagreement style, response length, emotional support, avoid list, user name, notes). Answers stored deterministically (no LLM). `personalityConfig` and `inferredPreferences` injected into control state.
+- **Dual-Mode Master Prompt (v3.3.59)**: Conversation mode (`getMasterPromptChatOnly`) for normal chat; Detailed Analysis mode (`getMasterPrompt`) for deep temporal/phase analysis. Toggle via `useDetailedAnalysis` flag. Phase de-emphasis: phases remain under the hood (ATLAS, RIVET, SENTINEL) but not surfaced to users.
+- **Bible Module Removed (v3.3.59)**: Dedicated Bible retrieval API (bible_api_service, bible_retrieval_helper, bible_terminology_library) deleted. Bible instructions removed from prompts. LUMARA answers Bible questions from training data.
+- **Phase De-Emphasis (v3.3.59)**: Phases no longer shown in user-facing UI (timeline, feed cards, expanded entry view, home tabs). Phase legend, phase chips, phase-colored borders removed. LUMARA internally calibrates on phase data but does not reference phase names in conversation.
+- **Engagement Mode Simplification (v3.3.59)**: New `deeper` mode replaces separate `explore` and `integrate`. Two-mode UX: Default (reflect) and Deeper.
 - **CHRONICLE Schedule Preferences (v3.3.26)**: User-selectable synthesis cadence (Daily / Weekly / Monthly) via FilterChip in settings. VEIL scheduler adapts run interval accordingly.
 - **Expanded Entry View (v3.3.26)**: Full journal entry loaded to show interleaved writer text + LUMARA reflection blocks + user comments. Related entries section shows real linked entries (tappable). LUMARA's note section shows actual overview/blocks content.
 - **Journal View-Only Improvements (v3.3.26)**: Read-only LUMARA blocks (no action buttons). Paragraph formatting for writer text and user comments. View-only continuation field shows saved comment text.
@@ -368,21 +382,6 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
   - **In-Chat Responses**: Fixed 3 sentences per paragraph (simplified from variable 3-5)
   - **Consistent Structure**: Predictable paragraph organization for better mobile reading
   - **Performance Optimization**: Streamlined paragraph logic for improved response generation
-- **Bible Reference Retrieval** (v2.1.63): Automatic Bible verse and chapter retrieval using HelloAO Bible API
-  - **Intelligent Detection**: Comprehensive terminology library detects Bible-related queries (66 books, prophets, characters, events, concepts)
-  - **Automatic Verse Fetching**: When users ask about Bible topics, LUMARA automatically fetches relevant verses from HelloAO API
-  - **Character-to-Book Resolution**: Automatically resolves prophet/character names (e.g., "Habakkuk the prophet") to their corresponding Bible books
-  - **Multiple Formats Supported**: Handles specific verses ("John 3:16"), chapters ("Genesis 1"), books, or general topics
-  - **Translation Support**: Multiple Bible translations available (default: BSB - Berean Study Bible)
-  - **Privacy Protection**: Bible names whitelisted in PRISM to prevent false PII scrubbing
-  - **Context Preservation**: Bible questions automatically skip correlation-resistant transformation to preserve verse context
-  - **Usage Examples**:
-    - "Tell me about Habakkuk the prophet" → Fetches Habakkuk chapter 1
-    - "What does John 3:16 say?" → Fetches specific verse
-    - "What is the book of Romans about?" → Fetches Romans chapter 1
-    - "Tell me about the prophet Isaiah" → Fetches Isaiah chapter 1
-  - **API Integration**: Uses `bible.helloao.org` API for accurate, authoritative Bible content
-  - **Error Handling**: Graceful fallback to general context if API unavailable
 - **Web Access** (Opt-In): Safe, scoped web search when information unavailable internally
   - **10-Rule Safety Layer**: Comprehensive safety framework governing all web searches
     1. Primary Source Priority: Always prioritizes user's personal context (journal, chats, patterns) before web search
@@ -459,11 +458,12 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 
 ### Cloud AI Fallback
 
-**Groq API (v3.3.24 — Primary)**
-- Primary cloud LLM provider via Llama 3.3 70B (128K context) + Mixtral 8x7b (32K context) backup
-- Streaming and non-streaming generation
-- Firebase `proxyGroq` Cloud Function hides API key from client
-- Direct API key option in LUMARA Settings for non-Firebase scenarios
+**Groq API (v3.3.24, updated v3.3.59 — Primary)**
+- Primary cloud LLM provider; default model: **GPT-OSS 120B** (v3.3.59). Also supports GPT-OSS 20B and Llama 3.3 70B (128K context)
+- Direct HTTP POST to `proxyGroq` (bypasses GTMSessionFetcher on iOS)
+- Retry with escalating back-off (4s, 6s) on connection pool errors
+- Firebase `proxyGroq` Cloud Function hides API key; model allowlist enforced server-side
+- Firebase connection warm-up at app startup (`FirebaseService.warmUpConnection()`)
 - Mode-aware temperature adjustment per engagement mode
 
 **Gemini API (Fallback)**

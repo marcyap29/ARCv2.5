@@ -1,7 +1,8 @@
 /// Saved Conversation Card
 ///
 /// Displays a saved conversation in the feed using BaseFeedCard.
-/// Shows first exchange preview, exchange count, phase indicator, and expand chevron.
+/// Shows first exchange preview, exchange count, and expand chevron.
+/// Phase display removed (reposition: phases not shown to user.)
 
 import 'package:flutter/material.dart';
 import 'package:my_app/shared/app_colors.dart';
@@ -63,7 +64,7 @@ class SavedConversationCard extends StatelessWidget {
             ),
           const SizedBox(height: 10),
 
-          // Metadata row: creation date · exchanges · phase
+          // Metadata row: creation date · exchanges (phase hidden for reposition)
           Row(
             children: [
               Text(
@@ -83,18 +84,6 @@ class SavedConversationCard extends StatelessWidget {
                   fontSize: 12,
                 ),
               ),
-              if (entry.phase != null) ...[
-                const SizedBox(width: 8),
-                Text('·', style: TextStyle(color: kcSecondaryTextColor.withOpacity(0.4))),
-                const SizedBox(width: 8),
-                Text(
-                  entry.phase!,
-                  style: TextStyle(
-                    color: entry.phaseColor ?? kcSecondaryTextColor,
-                    fontSize: 12,
-                  ),
-                ),
-              ],
               const Spacer(),
               if (entry.isPinned) ...[
                 const SizedBox(width: 6),

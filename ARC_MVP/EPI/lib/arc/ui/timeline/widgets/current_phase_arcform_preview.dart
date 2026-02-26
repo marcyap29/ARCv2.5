@@ -717,7 +717,7 @@ class _CompactArcformPreviewState extends State<_CompactArcformPreview> {
                     const SizedBox(width: 8),
                     Flexible(
                       child: Text(
-                        _currentPhase ?? phaseHint,
+                        'Your constellation',
                         style: heading3Style(context).copyWith(
                           color: kcPrimaryTextColor,
                           fontWeight: FontWeight.w600,
@@ -837,20 +837,16 @@ class FullScreenPhaseViewer extends StatelessWidget {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Phase Info', style: heading2Style(context)),
+        title: Text('Constellation', style: heading2Style(context)),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Phase: ${arcform.phase}', style: heading3Style(context)),
-              const SizedBox(height: 12),
               Text(arcform.content ?? '', style: bodyStyle(context).copyWith(fontSize: 13, fontStyle: FontStyle.italic)),
               if (phaseDescription.isNotEmpty) ...[
                 const SizedBox(height: 16),
-                Text('About this phase:', style: bodyStyle(context).copyWith(fontWeight: FontWeight.w600, fontSize: 13)),
-                const SizedBox(height: 6),
-                Text('$canonicalPhase: $phaseDescription', style: bodyStyle(context).copyWith(fontSize: 13, height: 1.35)),
+                Text(phaseDescription, style: bodyStyle(context).copyWith(fontSize: 13, height: 1.35)),
               ],
             ],
           ),

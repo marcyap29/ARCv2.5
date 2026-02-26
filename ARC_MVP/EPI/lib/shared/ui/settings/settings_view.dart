@@ -8,7 +8,6 @@ import 'package:my_app/shared/ui/settings/memory_snapshot_management_view.dart';
 import 'package:my_app/shared/ui/settings/conflict_management_view.dart';
 import 'package:my_app/shared/ui/settings/favorites_management_view.dart';
 import 'package:my_app/shared/ui/settings/advanced_settings_view.dart';
-import 'package:my_app/shared/ui/settings/phase_analysis_settings_view.dart';
 import 'package:my_app/shared/ui/settings/voiceover_preference_service.dart';
 import 'package:my_app/shared/ui/settings/throttle_settings_view.dart';
 import 'package:my_app/shared/ui/settings/health_readiness_view.dart';
@@ -121,19 +120,7 @@ class _SettingsViewState extends State<SettingsView> {
               ),
             ),
 
-            // 5. Phase Analysis (Phase Analysis card + Phase Statistics card)
-            _buildFolderTile(
-              context,
-              title: 'Phase Analysis',
-              subtitle: 'Phase detection and statistics',
-              icon: Icons.auto_awesome,
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const PhaseAnalysisSettingsView()),
-              ),
-            ),
-
-            // 6. Advanced Settings (own card, below Phase Analysis)
+            // 5. Advanced Settings
             _buildAdvancedSettingsCard(context),
 
             // 7. Health & Readiness (Available to everyone by default)
@@ -1469,7 +1456,6 @@ class _LumaraFolderViewState extends State<LumaraFolderView> {
             _buildWebSearchToggle(),
             // Voice Responses Toggle
             _buildVoiceResponsesToggle(),
-            // Phase Share Settings
             _buildPhaseShareToggle(),
             // Temporal Notifications
             _SettingsTile(
@@ -2007,7 +1993,7 @@ class _LumaraFolderViewState extends State<LumaraFolderView> {
             ),
           ),
           const Divider(height: 1, color: Colors.white12),
-          ...EngagementMode.values.map((mode) => _buildEngagementModeOption(mode)),
+          ...[EngagementMode.reflect, EngagementMode.deeper].map((mode) => _buildEngagementModeOption(mode)),
         ],
       ),
     );
@@ -2345,14 +2331,14 @@ class _LumaraFolderViewState extends State<LumaraFolderView> {
       ),
       child: SwitchListTile(
         title: Text(
-          'Phase Share Prompts',
+          'Transition Share Prompts',
           style: heading3Style(context).copyWith(
             color: kcPrimaryTextColor,
             fontWeight: FontWeight.w500,
           ),
         ),
         subtitle: Text(
-          'Show prompts to share phase transitions',
+          'Show prompts to share life transitions',
           style: bodyStyle(context).copyWith(
             color: kcSecondaryTextColor,
             fontSize: 12,

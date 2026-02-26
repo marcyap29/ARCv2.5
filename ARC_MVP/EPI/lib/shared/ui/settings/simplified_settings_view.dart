@@ -532,7 +532,6 @@ class _SimplifiedSettingsViewState extends State<SimplifiedSettingsView> {
                 // Include Media Toggle (KEPT)
                 _buildIncludeMediaToggle(),
 
-                // Phase Share Settings
                 _buildPhaseShareToggle(),
 
                 // Temporal Notifications
@@ -733,14 +732,14 @@ class _SimplifiedSettingsViewState extends State<SimplifiedSettingsView> {
       ),
       child: SwitchListTile(
         title: Text(
-          'Phase Share Prompts',
+          'Transition Share Prompts',
           style: heading3Style(context).copyWith(
             color: kcPrimaryTextColor,
             fontWeight: FontWeight.w500,
           ),
         ),
         subtitle: Text(
-          'Show prompts to share phase transitions',
+          'Show prompts to share life transitions',
           style: bodyStyle(context).copyWith(
             color: kcSecondaryTextColor,
             fontSize: 12,

@@ -682,6 +682,33 @@ class LumaraControlStateBuilder {
     state['temporalAwareness'] = temporalAwareness;
 
     // ============================================================
+    // M. USER PERSONALITY CONFIG (baseline from onboarding)
+    // ============================================================
+    final personalityConfig = <String, dynamic>{};
+    try {
+      final settingsService = LumaraReflectionSettingsService.instance;
+      final configString = await settingsService.getPersonalityConfig();
+      final userName = await settingsService.getUserName();
+      if (configString != null && configString.isNotEmpty) {
+        personalityConfig['config'] = configString;
+      }
+      if (userName.isNotEmpty) {
+        personalityConfig['userName'] = userName;
+      }
+      if (personalityConfig.isNotEmpty) {
+        state['personalityConfig'] = personalityConfig;
+      }
+
+      // Inferred preferences (overrides; high confidence overrides baseline)
+      final inferred = await settingsService.getInferredPreferences();
+      if (inferred.isNotEmpty) {
+        state['inferredPreferences'] = inferred;
+      }
+    } catch (e) {
+      print('LUMARA Control State: Error loading personality config: $e');
+    }
+
+    // ============================================================
     // Final computed behavioral parameters
     // ============================================================
     // These are derived from the above signals AND persona

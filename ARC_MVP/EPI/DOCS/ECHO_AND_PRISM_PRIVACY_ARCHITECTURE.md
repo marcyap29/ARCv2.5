@@ -148,7 +148,7 @@ PRISM detects:
 - **Email Addresses**: `[EMAIL_1]`, `[EMAIL_2]`, etc.
 - **Phone Numbers**: `[PHONE_1]`, `[PHONE_2]`, etc.
 - **Physical Addresses**: `[ADDRESS_1]`, `[ADDRESS_2]`, etc.
-- **Names**: `[NAME_1]`, `[NAME_2]`, etc. (Bible names whitelisted)
+- **Names**: `[NAME_1]`, `[NAME_2]`, etc.
 - **Dates**: `[DATE_MMYYYY]` (day masked)
 - **Organizations**: `[ORG_1]`, `[ORG_2]`, etc.
 - **Social Media Handles**: `[HANDLE_1]`, `[HANDLE_2]`, etc.

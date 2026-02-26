@@ -75,7 +75,7 @@ class _ReasonPickerState extends State<ReasonPicker>
         actions: [
           IconButton(
             onPressed: () {
-              // Use callback to navigate to Phase tab if available, otherwise pop
+              // Use callback if provided, otherwise pop
               if (widget.onExitToPhase != null) {
                 widget.onExitToPhase!();
               } else {

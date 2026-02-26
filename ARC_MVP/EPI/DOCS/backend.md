@@ -1,8 +1,8 @@
 # Backend Architecture & Setup
 
-**Version:** 3.3
-**Last Updated:** February 11, 2026
-**Status:** ✅ Production Ready with Adaptive Framework, Companion-First LUMARA, Validation & Logging, Health Integration, AssemblyAI v3, Internet Access, Enhanced Classification-Aware PRISM Privacy Protection, Stripe Integration (web), RevenueCat (in-app purchases), Local Backup Services, and Groq API Proxy
+**Version:** 3.3.59
+**Last Updated:** February 25, 2026
+**Status:** ✅ Production Ready with Adaptive Framework, Companion-First LUMARA, Validation & Logging, Health Integration, AssemblyAI v3, Internet Access, Enhanced Classification-Aware PRISM Privacy Protection, Stripe Integration (web), RevenueCat (in-app purchases), Local Backup Services, and Groq API Proxy (GPT-OSS 120B primary)
 
 ---
 
@@ -25,9 +25,9 @@ Client (Flutter)
   ↓
 LUMARA (On-Device Logic)
   ↓
-Firebase Cloud Function (proxyGroq → proxyGemini fallback)
+Firebase Cloud Function (proxyGroq — GPT-OSS 120B default)
   ↓
-Groq API / Gemini API (with secured API keys)
+Groq API (GPT-OSS 120B / 20B / Llama 3.3 70B)
 ```
 
 ### Key Benefits
@@ -35,60 +35,39 @@ Groq API / Gemini API (with secured API keys)
 - ✅ **API keys hidden** in Firebase Functions (Groq and Gemini secrets)
 - ✅ **LUMARA runs on-device** - maintains full journal access (chat + in-journal reflections)
 - ✅ **No user configuration** - API key management is transparent
-- ✅ **Dual-provider resilience** - Groq primary (Llama 3.3 70B / Mixtral), Gemini fallback
+- ✅ **Dual-provider resilience** - Groq primary (GPT-OSS 120B / 20B / Llama 3.3 70B), Gemini fallback
 - ✅ **Simple proxy pattern** - Firebase functions forward requests with the API key
 - ✅ **Full data access** - LUMARA can still read local Hive database
 - ✅ **Both LUMARA modes working** - Chat assistant and in-journal reflections both use proxy
 
 ### Implementation
 
-**Client Side (`lib/services/gemini_send.dart`):**
+**Client Side (`lib/services/groq_send.dart` — v3.3.59):**
 ```dart
-Future<String> geminiSend({
-  required String system,
+Future<String> groqSend({
   required String user,
-  bool jsonExpected = false,
-  String intent = 'chat',
-  bool skipTransformation = false, // Skip if entry already abstracted
+  String? system,
+  String model = 'openai/gpt-oss-120b',
+  double temperature = 0.7,
+  int? maxTokens,
 }) async {
-  // Step 1: PRISM scrubbing - local PII detection and masking
-  final prismAdapter = PrismAdapter();
-  final userPrismResult = prismAdapter.scrub(user);
-  final systemPrismResult = prismAdapter.scrub(system);
-  
-  // Step 2: Correlation-resistant transformation (if not skipped)
-  String transformedUserText;
-  if (skipTransformation) {
-    // Entry already abstracted, use scrubbed version directly
-    transformedUserText = userPrismResult.scrubbedText;
-  } else {
-    // Transform to structured JSON payload
-    final userTransformation = await prismAdapter.transformToCorrelationResistant(
-      prismScrubbedText: userPrismResult.scrubbedText,
-      intent: intent,
-      prismResult: userPrismResult,
-    );
-    transformedUserText = userTransformation.cloudPayloadBlock.toJsonString();
-  }
-  
-  // Call Firebase proxy function
-  final functions = FirebaseService.instance.getFunctions();
-  final callable = functions.httpsCallable('proxyGemini');
-  
-  final result = await callable.call({
-    'system': transformedSystem,
-    'user': transformedUserText, // Either structured JSON or abstracted text
-    'jsonExpected': jsonExpected,
-  });
-  
-  // Restore PII in response for local display
-  final restoredResponse = prismAdapter.restore(
-    result.data['response'],
-    userPrismResult.reversibleMap,
-  );
-  
-  return restoredResponse;
+  // Direct HTTP POST to proxyGroq (bypasses GTMSessionFetcher on iOS)
+  final idToken = await FirebaseAuthService.instance.currentUser!.getIdToken();
+  final client = HttpClient();
+  final request = await client.postUrl(Uri.parse(proxyGroqUrl));
+  request.headers.set('Authorization', 'Bearer $idToken');
+  request.write(jsonEncode({'data': requestData}));
+  // Retry up to 2× with escalating back-off on connection pool errors
 }
+```
+
+**Unified Entry Point (`lumaraSend` — v3.3.59):**
+Pipeline: PRISM scrub → optional correlation-resistant transformation → `groqSend` (proxyGroq) → PII restore. Replaces direct `geminiSend` calls for all chat/reflection flows. `geminiSend` / `geminiSendStream` marked `@Deprecated`.
+
+**Legacy Client Side (`lib/services/gemini_send.dart` — deprecated):**
+```dart
+@Deprecated('Use groqSend/lumaraSend instead. All inference routed through proxyGroq.')
+Future<String> geminiSend({...}) async { ... }
 ```
 
 **Journal Entry Flow (`lib/arc/chat/services/enhanced_lumara_api.dart`):**

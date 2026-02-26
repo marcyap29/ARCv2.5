@@ -8,7 +8,7 @@ This document catalogs all prompts used throughout the ARC application, organize
 - **Path baseline:** All paths are relative to the EPI app root (e.g. `ARC MVP/EPI/`). Example: `lib/arc/chat/prompts/lumara_profile.json` means `ARC MVP/EPI/lib/arc/chat/prompts/lumara_profile.json`.
 - **Content:** Quoted blocks are taken from or derived from the cited sources. Some sections show a subset or summary; the source file holds the full, authoritative text.
 - **Cloud vs on-device:** Cloud API uses the master prompt system (`lumara_master_prompt.dart`); on-device and legacy paths may use `lumara_system_prompt.dart` or profile JSON.
-- **Last synced with codebase:** 2026-02-24. Document version: 2.8.0.
+- **Last synced with codebase:** 2026-02-25. Document version: 2.9.0.
 
 ---
 
@@ -866,6 +866,8 @@ Step 3: Mode selection
 **Location:** `lib/arc/chat/prompts/lumara_profile.json`
 
 ### Faith/Biblical Scholar
+
+> **Note (v3.3.59):** The dedicated Bible retrieval module (`bible_api_service.dart`, `bible_retrieval_helper.dart`, `bible_terminology_library.dart`) was removed in v3.3.59. Bible-specific prompt instructions were removed from `prompts_arc.dart`. LUMARA answers Bible questions from its training data rather than a dedicated API. The mentor profile below remains in `lumara_profile.json` for general faith-related guidance.
 
 ```
 Scope: Christian theology, biblical languages (high-level), exegesis, spiritual practices.
@@ -2058,6 +2060,7 @@ At runtime the interceptor concatenates: `'$_privacySystemPrompt\n$originalSyste
 
 | Version | Date | Changes |
 |---------|------|---------|
+| 2.9.0 | 2026-02-25 | **v3.3.59 prompt changes:** (1) `prompts_arc.dart` system prompt rewritten — "ARC's journaling copilot" → "LUMARA, a personal AI inside a private journaling app"; added journal context awareness, direct answer directives; **Bible retrieval instructions removed** (module deleted). (2) `lumara_master_prompt.dart` — new `USER PERSONALITY CONFIG` and `INFERRED PREFERENCES` control state blocks; phase de-emphasis ("do not name or cite phase labels to the user"); all "Claude" / "Claude-quality" references → "natural" / "conversational"; new `<response_shape>` section for journal reflections. (3) GPT-OSS 120B default model in `groq_send.dart` (was Llama 3.3 70B). (4) `lumara_cloud_generate.dart` simplified to 2-tier (proxyGroq → direct Groq; Gemini fallback removed). (5) §7 Faith/Biblical Scholar: note added — Bible module removed, mentor profile retained. |
 | 2.8.0 | 2026-02-24 | **Prompt audit:** Added LUMARA Groq Cached Prompt — `lib/arc/chat/llm/prompts/lumara_groq_cached_prompt.dart` (`lumaraStableSystemPrompt`, `buildLumaraDynamicContext`). Stable prefix for Groq caching (~50% cached input discount); used by `groq_send.dart`. |
 | 2.7.0 | 2026-02-20 | **Prompt audit:** Added §1 ECHO On-Device LLM System Prompt (Qwen Adapter) — `lib/echo/providers/llm/prompt_templates.dart` (`PromptTemplates.systemPrompt`, task templates for weekly_summary/rising_patterns/phase_rationale/compare_period/prompt_suggestion/chat, few-shot examples, context formatter). Used by ECHO Qwen/Gemma on-device adapter via `qwen_adapter.dart`. |
 | 2.6.0 | 2026-02-16 | **Prompt audit:** §18 Crossroads prompt strings updated to match code (`crossroadsPrompt4`, `crossroadsConfirmDone`). Added §8 Journaling Prompt Encouragement (`lumara_prompt_encouragement.dart`); ECHO Phase Emotional Prompts (`phase_templates.dart`); §25 Privacy Guardrail System Prompt (`privacy_guardrail_interceptor.dart`). |

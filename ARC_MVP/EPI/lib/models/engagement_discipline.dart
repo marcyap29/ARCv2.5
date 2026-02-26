@@ -4,9 +4,12 @@
 /// user-controlled engagement boundaries while preserving temporal intelligence.
 
 enum EngagementMode {
-  reflect,   // Surface patterns and stop - minimal follow-up
-  explore,   // Surface patterns and invite deeper examination
-  integrate  // Synthesize across domains and time horizons
+  reflect,    // Default: direct, concise, minimal connections
+  deeper,     // Connect things: patterns, links, synthesis across entries and time
+  // ignore: constant_identifier_names
+  explore,    // Legacy alias for deeper — kept for backward source compatibility
+  // ignore: constant_identifier_names
+  integrate,  // Legacy alias for deeper — kept for backward source compatibility
 }
 
 extension EngagementModeExtension on EngagementMode {
@@ -14,29 +17,33 @@ extension EngagementModeExtension on EngagementMode {
     switch (this) {
       case EngagementMode.reflect:
         return 'Default';
+      case EngagementMode.deeper:
       case EngagementMode.explore:
-        return 'Explore';
       case EngagementMode.integrate:
-        return 'Integrate';
+        return 'Deeper';
     }
   }
 
   String get description {
     switch (this) {
       case EngagementMode.reflect:
-        return 'Like Claude: direct, concise answers. No cross-entry links or long context unless you switch to Explore or Integrate.';
+        return 'Direct, concise answers. Up to one link to your history; switch to Deeper for more connections.';
+      case EngagementMode.deeper:
       case EngagementMode.explore:
-        return 'Surface patterns and invite deeper examination. Links to other entries and CHRONICLE. Best for active sense-making.';
       case EngagementMode.integrate:
-        return 'Synthesize across domains and time horizons. Pours out connections and links. Best for holistic understanding.';
+        return 'Surface patterns, link to other entries and CHRONICLE, and synthesize across domains and time. Best when you want connections.';
     }
   }
 
   /// Convert to string for JSON serialization
   String toJson() => toString();
 
-  /// Create from string for JSON deserialization
+  /// Create from string for JSON deserialization. Maps legacy explore/integrate to deeper.
   static EngagementMode fromJson(String value) {
+    final normalized = value.trim().toLowerCase();
+    if (normalized.contains('explore') || normalized.contains('integrate')) {
+      return EngagementMode.deeper;
+    }
     return EngagementMode.values.firstWhere(
       (mode) => mode.toString() == value,
       orElse: () => EngagementMode.reflect,
@@ -142,22 +149,22 @@ class ResponseDiscipline {
   
   /// Get effective maxTemporalConnections based on mode
   int getEffectiveMaxTemporalConnections(EngagementMode mode) {
-    return maxTemporalConnections ?? _getModeValue(mode, reflect: 1, explore: 2, integrate: 3);
+    return maxTemporalConnections ?? _getModeValue(mode, reflect: 1, deeper: 3);
   }
 
   /// Get effective maxExplorativeQuestions based on mode
   int getEffectiveMaxExplorativeQuestions(EngagementMode mode) {
-    return maxExplorativeQuestions ?? _getModeValue(mode, reflect: 0, explore: 1, integrate: 2);
+    return maxExplorativeQuestions ?? _getModeValue(mode, reflect: 0, deeper: 2);
   }
 
-  int _getModeValue(EngagementMode mode, {required int reflect, required int explore, required int integrate}) {
+  int _getModeValue(EngagementMode mode, {required int reflect, required int deeper}) {
     switch (mode) {
       case EngagementMode.reflect:
         return reflect;
+      case EngagementMode.deeper:
       case EngagementMode.explore:
-        return explore;
       case EngagementMode.integrate:
-        return integrate;
+        return deeper;
     }
   }
 
@@ -237,7 +244,7 @@ class EngagementSettings {
   int get maxQuestionsPerResponse => activeMode == EngagementMode.reflect ? 0 : 1;
 
   /// Derived: Allow cross-domain synthesis based on mode
-  bool get allowCrossDomainSynthesis => activeMode == EngagementMode.integrate;
+  bool get allowCrossDomainSynthesis => activeMode == EngagementMode.deeper;
 
   Map<String, dynamic> toJson() => {
     'defaultMode': defaultMode.toString(),
@@ -249,16 +256,17 @@ class EngagementSettings {
   };
 
   factory EngagementSettings.fromJson(Map<String, dynamic> json) {
+    final modeRaw = json['defaultMode'] as String?;
+    final defaultMode = modeRaw != null
+        ? EngagementModeExtension.fromJson(modeRaw)
+        : EngagementMode.reflect;
+    final overrideRaw = json['conversationOverride'] as String?;
+    final conversationOverride = overrideRaw != null
+        ? EngagementModeExtension.fromJson(overrideRaw)
+        : null;
     return EngagementSettings(
-      defaultMode: EngagementMode.values.firstWhere(
-        (e) => e.toString() == json['defaultMode'],
-        orElse: () => EngagementMode.reflect,
-      ),
-      conversationOverride: json['conversationOverride'] != null
-          ? EngagementMode.values.firstWhere(
-              (e) => e.toString() == json['conversationOverride'],
-            )
-          : null,
+      defaultMode: defaultMode,
+      conversationOverride: conversationOverride,
       synthesisPreferences: SynthesisPreferences.fromJson(
         json['synthesisPreferences'] ?? {},
       ),
@@ -381,15 +389,8 @@ class EngagementBehaviorComputer {
           'question_propensity': 0.1,   // Few questions
         };
 
+      case EngagementMode.deeper:
       case EngagementMode.explore:
-        return {
-          'engagement_intensity': 0.6,  // Moderate engagement
-          'explorative_tendency': 0.7,  // High exploration
-          'synthesis_tendency': 0.4,    // Limited synthesis
-          'stopping_threshold': 0.5,    // Moderate stopping
-          'question_propensity': 0.5,   // Some questions
-        };
-
       case EngagementMode.integrate:
         return {
           'engagement_intensity': 0.8,  // High engagement

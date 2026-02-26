@@ -49,7 +49,7 @@ class UserPhaseService {
       }
       return userBox.get('profile');
     } catch (e) {
-      print('DEBUG: Error getting user profile: $e');
+      if (kDebugMode) debugPrint('UserPhaseService: Error getting user profile: $e');
       return null;
     }
   }
@@ -62,20 +62,16 @@ class UserPhaseService {
       
       if (userProfile?.onboardingCurrentSeason != null && 
           userProfile!.onboardingCurrentSeason!.isNotEmpty) {
-        print('DEBUG: Using phase from UserProfile: ${userProfile.onboardingCurrentSeason}');
         return userProfile.onboardingCurrentSeason!;
       }
       // Fallback: currentPhase (set with onboardingCurrentSeason in forceUpdatePhase)
       if (userProfile?.currentPhase != null && userProfile!.currentPhase.isNotEmpty) {
-        print('DEBUG: Using phase from UserProfile.currentPhase: ${userProfile.currentPhase}');
         return userProfile.currentPhase;
       }
       
       // Only fall back to snapshots if no UserProfile phase exists
       // AND the user has completed onboarding (to avoid using stale data)
       if (userProfile?.onboardingCompleted == true) {
-        print('DEBUG: User completed onboarding but no phase set, checking snapshots');
-        
         Box<ArcformSnapshot> box;
         if (Hive.isBoxOpen(_snapshotsBoxName)) {
           box = Hive.box<ArcformSnapshot>(_snapshotsBoxName);
@@ -89,18 +85,16 @@ class UserPhaseService {
           allSnapshots.sort((a, b) => b.createdAt.compareTo(a.createdAt));
           
           final mostRecent = allSnapshots.first;
-          print('DEBUG: Using phase from arcform snapshot: ${mostRecent.phase}');
           return mostRecent.phase;
         }
       }
       
       // No default: quiz is the starting phase; if no phase is found, return empty.
       // RIVET/regimes fill out over time; gate open determines a new phase after the starting one.
-      print('DEBUG: No phase found (quiz is starting phase; no phase set yet)');
       return '';
       
     } catch (e) {
-      print('DEBUG: Error getting current phase: $e');
+      if (kDebugMode) debugPrint('UserPhaseService: Error getting current phase: $e');
       return '';
     }
   }

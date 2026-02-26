@@ -568,7 +568,9 @@ class TimelineCubit extends Cubit<TimelineState> {
           ? entry.metadata!['entryFormat'] as String?
           : null;
       if (entryFormat == null || entryFormat.isEmpty) {
-        if (entry.audioUri != null && entry.audioUri!.isNotEmpty) {
+        if (entry.tags.any((t) => t.toLowerCase() == 'reflection')) {
+          entryFormat = 'reflection';
+        } else if (entry.audioUri != null && entry.audioUri!.isNotEmpty) {
           entryFormat = 'voice';
         } else if (finalMedia.any((m) => m.type == MediaType.audio)) {
           entryFormat = 'voice';
@@ -578,7 +580,6 @@ class TimelineCubit extends Cubit<TimelineState> {
           entryFormat = 'journal';
         }
       }
-
       final timelineEntry = TimelineEntry(
         id: entry.id,
         date: _formatDate(entry.createdAt),
@@ -595,6 +596,7 @@ class TimelineCubit extends Cubit<TimelineState> {
         hasLumaraBlocks: entry.lumaraBlocks.isNotEmpty, // Check if entry has LUMARA blocks
         createdAt: entry.createdAt, // Store original date for sorting
         entryFormat: entryFormat,
+        importSource: entry.importSource,
       );
       
       return timelineEntry;

@@ -57,6 +57,7 @@ exports.analyzeJournalEntry = (0, https_1.onCall)({
         // Support both 'plan' and 'subscriptionTier' fields
         const plan = user.plan || user.subscriptionTier?.toLowerCase() || "free";
         const tier = (plan === "pro" ? "PAID" : "FREE");
+        const userEmail = request.auth?.token?.email;
         // Check if testing account
         const isTestingAccount = user.isTestingAccount || false;
         // ============================================
@@ -217,15 +218,15 @@ This will expire automatically. In the meantime, please reach out:
         // Safe to use Gemini
         else {
             firebase_functions_1.logger.info('✓ Safe for Gemini - proceeding to API');
-            // Check rate limit (primary quota enforcement) - 4 per conversation
-            const rateLimitCheck = await (0, rateLimiter_1.checkRateLimit)(userId, entryId);
+            // Unified daily limit: 50 total LUMARA requests/day (chat + reflections + voice)
+            const dailyCheck = await (0, rateLimiter_1.checkUnifiedDailyLimit)(userId, userEmail);
+            if (!dailyCheck.allowed) {
+                throw new https_1.HttpsError("resource-exhausted", dailyCheck.error?.message || "Daily limit reached", dailyCheck.error);
+            }
+            // Per-minute spam protection
+            const rateLimitCheck = await (0, rateLimiter_1.checkRateLimit)(userId, userEmail);
             if (!rateLimitCheck.allowed) {
                 throw new https_1.HttpsError("resource-exhausted", rateLimitCheck.error?.message || "Rate limit exceeded", rateLimitCheck.error);
-            }
-            // Check legacy per-entry quota (secondary, for backward compatibility)
-            const quotaCheck = await (0, quotaGuards_1.checkCanAnalyzeEntry)(userId, entryId);
-            if (!quotaCheck.allowed) {
-                throw new https_1.HttpsError("resource-exhausted", quotaCheck.error?.message || "Quota limit reached", quotaCheck.error);
             }
             // Select model (internal only - Gemini by default)
             const modelFamily = await modelRouter_1.ModelRouter.selectModelWithFailover(tier, "journal_analysis");

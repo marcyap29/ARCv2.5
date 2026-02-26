@@ -14,6 +14,7 @@ enum OnboardingScreen {
   phaseQuiz,
   phaseAnalysis,
   phaseReveal,
+  personalitySetup,
   complete,
 }
 

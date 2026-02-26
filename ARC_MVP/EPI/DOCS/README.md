@@ -1,6 +1,6 @@
 # DOCS
 
-Documentation for the EPI ARC MVP.
+Documentation for the EPI LUMARA MVP.
 
 ## Key documents
 
@@ -10,12 +10,14 @@ Use this list to orient quickly. For full inventory and sync status, see [CONFIG
 |----------|---------|--------------|
 | **[CONFIGURATION_MANAGEMENT.md](CONFIGURATION_MANAGEMENT.md)** | Central hub for documentation and configuration tracking; inventory of key docs and change log. | First stop for sync status and what changed. |
 | **[claude.md](claude.md)** | Context guide for EPI; includes the **Documentation & Configuration Management Role (Universal Prompt)** (see that section) for adopting the docs/config manager role. | Onboarding; keeping docs accurate and non-redundant. |
-| **[CHANGELOG.md](CHANGELOG.md)** | Version history and release notes. | What changed and when. |
+| **[CHANGELOG.md](CHANGELOG.md)** | Version history and release notes (v3.3.59 current). | What changed and when. |
 | **[ARCHITECTURE.md](ARCHITECTURE.md)** | High-level architecture (5 modules, data flow, stack). | System structure and design. |
 | **[FEATURES.md](FEATURES.md)** | Comprehensive feature list and capabilities. | Capability and integration details. |
 | **[UI_UX.md](UI_UX.md)** | UI/UX patterns and components. | Before making UI changes. |
 | **[bugtracker/](bugtracker/)** | Bug tracker (records and index). | Known issues, fixes, and resolution status. |
 | **[PROMPT_REFERENCES.md](PROMPT_REFERENCES.md)** | Full prompt catalog and version history. | Prompt content and source files. |
 | **[PROMPT_TRACKER.md](PROMPT_TRACKER.md)** | Prompt change tracking; quick reference. | Recent prompt changes; links to PROMPT_REFERENCES. |
+| **[LUMARA_Vision_Reposition.md](LUMARA_Vision_Reposition.md)** | LUMARA vision reposition (Feb 2026): companion + full context, phases de-emphasized. | Product direction and UI rationale. |
+| **[MASTER_PROMPT_SHORTENING.md](MASTER_PROMPT_SHORTENING.md)** | Dual prompt mode: Conversation (short) and Detailed Analysis (full). | Understanding master prompt architecture. |
 
 Prompt/role definitions: see **Documentation & Configuration Management Role** in [claude.md](claude.md).

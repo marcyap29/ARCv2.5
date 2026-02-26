@@ -117,6 +117,9 @@ class LumaraReflectionSettingsService {
   // Engagement discipline keys
   static const String _keyEngagementSettings = 'lumara_engagement_settings';
   static const String _keyConversationEngagementOverride = 'lumara_conversation_engagement_override';
+
+  /// Response style: Detailed Analysis (full prompt) vs Conversation (short prompt)
+  static const String _keyUseDetailedAnalysis = 'lumara_use_detailed_analysis';
   
   // Memory Focus preset key
   static const String _keyMemoryFocusPreset = 'lumara_memory_focus_preset';
@@ -125,6 +128,14 @@ class LumaraReflectionSettingsService {
   static const String _keyAgentOsUserContext = 'lumara_agent_os_user_context';
   static const String _keyAgentOsCommunication = 'lumara_agent_os_communication';
   static const String _keyAgentOsMemory = 'lumara_agent_os_memory';
+
+  // Personality config (from onboarding 7 questions; baseline for LUMARA expression)
+  static const String _keyPersonalityConfig = 'lumara_personality_config';
+  static const String _keyPersonalityRawAnswers = 'lumara_personality_raw_answers';
+  static const String _keyUserName = 'lumara_user_name';
+
+  // Inferred preferences (overrides over time; high confidence overrides baseline)
+  static const String _keyInferredPreferences = 'lumara_inferred_preferences';
 
   /// Initialize the service
   Future<void> initialize() async {
@@ -278,6 +289,129 @@ class LumaraReflectionSettingsService {
   Future<void> setLumaraPersona(LumaraPersona persona) async {
     await initialize();
     await _prefs!.setString(_keyLumaraPersona, persona.name);
+  }
+
+  // ─── Personality config (baseline from onboarding 7 questions) ───
+
+  /// Get stored personality config string (generated template). Null if never set.
+  Future<String?> getPersonalityConfig() async {
+    await initialize();
+    return _prefs!.getString(_keyPersonalityConfig);
+  }
+
+  /// Set personality config string (e.g. from deterministic generation).
+  Future<void> setPersonalityConfig(String config) async {
+    await initialize();
+    await _prefs!.setString(_keyPersonalityConfig, config);
+  }
+
+  /// Get raw onboarding answers for regeneration. Null if never set.
+  Future<Map<String, dynamic>?> getPersonalityRawAnswers() async {
+    await initialize();
+    final json = _prefs!.getString(_keyPersonalityRawAnswers);
+    if (json == null) return null;
+    try {
+      final decoded = jsonDecode(json) as Map<String, dynamic>?;
+      return decoded;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Set raw answers (for regeneration without LLM).
+  Future<void> setPersonalityRawAnswers(Map<String, dynamic> answers) async {
+    await initialize();
+    await _prefs!.setString(_keyPersonalityRawAnswers, jsonEncode(answers));
+  }
+
+  /// Get user's preferred name (what LUMARA should call them). Empty if not set.
+  Future<String> getUserName() async {
+    await initialize();
+    return _prefs!.getString(_keyUserName) ?? '';
+  }
+
+  /// Set user's preferred name.
+  Future<void> setUserName(String name) async {
+    await initialize();
+    await _prefs!.setString(_keyUserName, name.trim());
+  }
+
+  /// Generate personality config from onboarding answers (deterministic) and persist.
+  /// Keys: tone, disagreement, responseLength, emotionalSupport, avoid, userName, userNotes.
+  Future<void> generateAndSavePersonalityConfig(Map<String, dynamic> answers) async {
+    await initialize();
+    final tone = _str(answers['tone']);
+    final disagreement = _str(answers['disagreement']);
+    final responseLength = _str(answers['responseLength']);
+    final emotionalSupport = _str(answers['emotionalSupport']);
+    final avoid = _str(answers['avoid']);
+    final userName = _str(answers['userName']);
+    final userNotes = _str(answers['userNotes']);
+
+    final buffer = StringBuffer();
+    buffer.writeln('**Tone:** $tone');
+    buffer.writeln('**Disagreement Style:** $disagreement');
+    buffer.writeln('**Response Length:** $responseLength');
+    buffer.writeln('**Emotional Support Style:** $emotionalSupport');
+    buffer.writeln('**Avoid:** $avoid');
+    if (userNotes.isNotEmpty) buffer.writeln('**User Notes:** $userNotes');
+    if (userName.isNotEmpty) buffer.writeln('**Name:** $userName');
+
+    final config = buffer.toString().trim();
+    await setPersonalityConfig(config);
+    await setPersonalityRawAnswers(answers);
+    if (userName.isNotEmpty) await setUserName(userName);
+  }
+
+  static String _str(dynamic v) {
+    if (v == null) return '';
+    if (v is String) return v.trim();
+    return v.toString().trim();
+  }
+
+  // ─── Inferred preferences (overrides over time) ───
+
+  /// Inferred preference entry: preference text and confidence (high | medium | low).
+  static List<Map<String, dynamic>> _parseInferredPreferences(String? json) {
+    if (json == null || json.isEmpty) return [];
+    try {
+      final list = jsonDecode(json) as List<dynamic>?;
+      if (list == null) return [];
+      return list
+          .map((e) => e is Map<String, dynamic>
+              ? Map<String, dynamic>.from(e)
+              : <String, dynamic>{})
+          .where((e) => (e['preference'] is String) && (e['confidence'] is String))
+          .toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  /// Get all inferred preferences.
+  Future<List<Map<String, dynamic>>> getInferredPreferences() async {
+    await initialize();
+    final json = _prefs!.getString(_keyInferredPreferences);
+    return _parseInferredPreferences(json);
+  }
+
+  /// Add or update an inferred preference (by preference text). Confidence: "high" | "medium" | "low".
+  Future<void> addOrUpdateInferredPreference(String preference, String confidence) async {
+    await initialize();
+    final list = await getInferredPreferences();
+    final normalized = confidence.toLowerCase();
+    final valid = ['high', 'medium', 'low'].contains(normalized) ? normalized : 'medium';
+    final updated = list.where((e) => e['preference'] != preference).toList();
+    updated.add({'preference': preference, 'confidence': valid});
+    await _prefs!.setString(_keyInferredPreferences, jsonEncode(updated));
+  }
+
+  /// Remove an inferred preference by text.
+  Future<void> removeInferredPreference(String preference) async {
+    await initialize();
+    final list = await getInferredPreferences();
+    final updated = list.where((e) => e['preference'] != preference).toList();
+    await _prefs!.setString(_keyInferredPreferences, jsonEncode(updated));
   }
 
   /// Response length mode (short | medium | long)
@@ -590,6 +724,18 @@ class LumaraReflectionSettingsService {
   /// Clear conversation override to return to default mode
   Future<void> clearConversationEngagementOverride() async {
     await setConversationEngagementOverride(null);
+  }
+
+  /// Get whether to use full master prompt (Detailed Analysis) for reflections (default: false).
+  Future<bool> getUseDetailedAnalysis() async {
+    await initialize();
+    return _prefs!.getBool(_keyUseDetailedAnalysis) ?? false;
+  }
+
+  /// Set whether to use full master prompt (Detailed Analysis) for reflections.
+  Future<void> setUseDetailedAnalysis(bool value) async {
+    await initialize();
+    await _prefs!.setBool(_keyUseDetailedAnalysis, value);
   }
 
   /// Get effective engagement settings with conversation override applied

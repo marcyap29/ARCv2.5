@@ -7,7 +7,6 @@ import 'package:my_app/arc/ui/timeline/widgets/calendar_week_timeline.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
 import 'package:my_app/arc/ui/timeline/timeline_entry_model.dart';
-import 'package:my_app/models/phase_models.dart';
 import 'package:my_app/arc/ui/timeline/favorite_journal_entries_view.dart';
 import 'package:my_app/shared/ui/settings/settings_view.dart';
 import 'package:scroll_to_index/scroll_to_index.dart';
@@ -626,19 +625,13 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
                               ),
                             ),
                           ),
-                        if (_isArcformTimelineVisible)
-                          SliverToBoxAdapter(
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                              child: _buildPhaseLegendDropdown(context),
-                            ),
-                          ),
+                        // Phase legend removed (reposition: phases not shown to user)
                       ];
                     },
                     body: InteractiveTimelineView(
                       key: _timelineViewKey,
                       scrollController: _scrollController,
-                      showArcformPreview: !_isArcformTimelineVisible && !_isSelectionMode,
+                      showArcformPreview: false, // Phase window hidden from user (reposition)
                       groupByFormat: _groupByFormat,
                       collapsedFormats: _collapsedFormats,
                       onToggleFormatSection: (formatKey) {
@@ -779,8 +772,8 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
           ),
           IconButton(
             icon: const Icon(Icons.help_outline),
-            tooltip: 'Phase Legend & Tips',
-            onPressed: _showPhaseLegendSheet,
+            tooltip: 'Timeline tips',
+            onPressed: _showTimelineTipsSheet,
           ),
         if (_isSelectionMode) ...[
           IconButton(
@@ -1066,145 +1059,8 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
     );
   }
 
-  Widget _buildPhaseLegendDropdown(BuildContext context) {
-    final theme = Theme.of(context);
-    return Card(
-      elevation: 3,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: ExpansionTile(
-        title: Row(
-          children: [
-            Icon(Icons.palette, color: theme.colorScheme.primary, size: 20),
-            const SizedBox(width: 8),
-            Text(
-              'Phase Legend',
-              style: theme.textTheme.titleMedium
-                  ?.copyWith(fontWeight: FontWeight.bold),
-            ),
-          ],
-        ),
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Wrap(
-                  spacing: 12,
-                  runSpacing: 8,
-                  children: [
-                    // All phase labels
-                    ...PhaseLabel.values.map((label) {
-                      final color = _phaseColor(label);
-                      return Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Container(
-                            width: 16,
-                            height: 16,
-                            decoration: BoxDecoration(
-                              color: color.withOpacity(0.7),
-                              border: Border.all(color: color, width: 2),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            label.name.toUpperCase(),
-                            style: theme.textTheme.bodySmall,
-                          ),
-                        ],
-                      );
-                    }).toList(),
-                    // No Phase / Unknown Phase entry
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(
-                          width: 16,
-                          height: 16,
-                          decoration: BoxDecoration(
-                            color: kcSecondaryTextColor.withOpacity(0.7),
-                            border: Border.all(color: kcSecondaryTextColor, width: 2),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          'NO PHASE',
-                          style: theme.textTheme.bodySmall,
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                const Divider(),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    _buildLegendSource(theme,
-                        label: 'User Set',
-                        color: theme.colorScheme.primary,
-                        filled: true),
-                    const SizedBox(width: 16),
-                    _buildLegendSource(theme,
-                        label: 'RIVET Detected',
-                        color: Colors.grey,
-                        filled: false),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                _buildPhaseTutorial(theme),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Color _phaseColor(PhaseLabel label) {
-    switch (label) {
-      case PhaseLabel.discovery:
-        return const Color(0xFF7C3AED);
-      case PhaseLabel.expansion:
-        return const Color(0xFF059669);
-      case PhaseLabel.transition:
-        return const Color(0xFFD97706);
-      case PhaseLabel.consolidation:
-        return const Color(0xFF2563EB);
-      case PhaseLabel.recovery:
-        return const Color(0xFFDC2626);
-      case PhaseLabel.breakthrough:
-        return const Color(0xFFFBBF24);
-    }
-  }
-
-  Widget _buildLegendSource(ThemeData theme,
-      {required String label, required Color color, required bool filled}) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: 12,
-          height: 12,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: filled ? Colors.white : Colors.transparent,
-            border: Border.all(color: color, width: 2),
-          ),
-        ),
-        const SizedBox(width: 6),
-        Text(
-          label,
-          style: theme.textTheme.bodySmall,
-        ),
-      ],
-    );
-  }
-
-  void _showPhaseLegendSheet() {
+  /// Timeline tips (phase legend removed for reposition).
+  void _showTimelineTipsSheet() {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -1213,32 +1069,29 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
       builder: (context) {
-        final theme = Theme.of(context);
         return SafeArea(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-            child: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      const Icon(Icons.palette),
-                      const SizedBox(width: 8),
-                      Text('Phase Legend', style: heading2Style(context)),
-                    ],
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.help_outline),
+                    const SizedBox(width: 8),
+                    Text('Timeline tips', style: heading2Style(context)),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Scroll to explore your entries. Tap the format bar on the left of an entry to open the arcform timeline. Long-press an entry for options. Use the menu to jump to a date, group by format, or export.',
+                  style: bodyStyle(context).copyWith(
+                    color: kcSecondaryTextColor,
+                    height: 1.5,
                   ),
-                  const SizedBox(height: 12),
-                  _buildPhaseLegendDropdown(context),
-                  const SizedBox(height: 16),
-                  Text(
-                    'How phases work',
-                    style: heading3Style(context),
-                  ),
-                  const SizedBox(height: 8),
-                  _buildPhaseTutorial(theme),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         );
@@ -1246,80 +1099,6 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
     );
   }
 
-  Widget _buildPhaseTutorial(ThemeData theme) {
-    const descriptions = {
-      PhaseLabel.discovery: 'Exploration, hypothesis, early signals.',
-      PhaseLabel.expansion: 'Scaling effort, momentum, higher output.',
-      PhaseLabel.transition: 'Shifts, pivots, reorientation and tradeoffs.',
-      PhaseLabel.consolidation: 'Stabilizing, documenting, paying down debt.',
-      PhaseLabel.recovery: 'Rest, repair, restoring energy and clarity.',
-      PhaseLabel.breakthrough: 'Non-linear leap, synthesis, strong insight.',
-    };
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: descriptions.entries.map((entry) {
-        final color = _phaseColor(entry.key);
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 10),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 12,
-                height: 12,
-                margin: const EdgeInsets.only(top: 4),
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.2),
-                  border: Border.all(color: color, width: 2),
-                  shape: BoxShape.circle,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      _phaseLabelToTitle(entry.key),
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: kcPrimaryTextColor,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      entry.value,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: kcSecondaryTextColor,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        );
-      }).toList(),
-    );
-  }
-
-  String _phaseLabelToTitle(PhaseLabel label) {
-    switch (label) {
-      case PhaseLabel.discovery:
-        return 'Discovery';
-      case PhaseLabel.expansion:
-        return 'Expansion';
-      case PhaseLabel.transition:
-        return 'Transition';
-      case PhaseLabel.consolidation:
-        return 'Consolidation';
-      case PhaseLabel.recovery:
-        return 'Recovery';
-      case PhaseLabel.breakthrough:
-        return 'Breakthrough';
-    }
-  }
 }
 
 // Delegate for pinned calendar week header

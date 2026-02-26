@@ -9,6 +9,7 @@ import 'package:my_app/arc/chat/ui/research_screen.dart';
 import 'package:my_app/arc/chat/ui/writing_screen.dart';
 import 'package:my_app/lumara/agents/services/agents_connection_service.dart';
 import 'package:my_app/shared/app_colors.dart';
+import 'package:my_app/shared/text_style.dart';
 
 /// Main Agents screen: single list of agents with connection status.
 /// Each card shows Connected/Not connected and one-tap Use or Connect.
@@ -58,12 +59,14 @@ class _AgentsScreenState extends State<AgentsScreen> {
         appBar: AppBar(
           backgroundColor: kcBackgroundColor,
           elevation: 0,
+          centerTitle: true,
+          iconTheme: const IconThemeData(color: kcPrimaryTextColor),
           title: Text(
             'Agents',
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: kcPrimaryTextColor,
-                ),
+            style: heading1Style(context).copyWith(
+              color: kcPrimaryTextColor,
+              fontWeight: FontWeight.bold,
+            ),
           ),
           bottom: TabBar(
             labelColor: kcPrimaryColor,

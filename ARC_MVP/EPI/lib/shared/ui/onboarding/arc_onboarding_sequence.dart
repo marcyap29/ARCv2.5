@@ -1,5 +1,5 @@
 // lib/shared/ui/onboarding/arc_onboarding_sequence.dart
-// ARC Onboarding Sequence - New conversational phase detection flow
+// ARC Onboarding Sequence - Personality onboarding (phases are internal model use only, not shown to user)
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -14,6 +14,7 @@ import 'widgets/phase_explanation_screen.dart';
 // import 'widgets/phase_quiz_screen.dart'; // DEPRECATED
 import 'widgets/phase_analysis_screen.dart';
 import 'widgets/phase_reveal_screen.dart';
+import 'widgets/personality_setup_screen.dart';
 import 'phase_quiz_v2_screen.dart';
 
 /// Main onboarding sequence widget
@@ -94,6 +95,10 @@ class ArcOnboardingSequenceContent extends StatelessWidget {
               );
               screenKey = 'phase_reveal';
               break;
+            case OnboardingScreen.personalitySetup:
+              currentScreen = const PersonalitySetupScreen();
+              screenKey = 'personality_setup';
+              break;
             case OnboardingScreen.complete:
               // Navigation handled by listener
               currentScreen = const Center(child: CircularProgressIndicator());
@@ -106,7 +111,8 @@ class ArcOnboardingSequenceContent extends StatelessWidget {
               state.currentScreen == OnboardingScreen.arcIntro ||
               state.currentScreen == OnboardingScreen.narrativeIntelligence ||
               state.currentScreen == OnboardingScreen.sentinelIntro ||
-              state.currentScreen == OnboardingScreen.phaseExplanation) {
+              state.currentScreen == OnboardingScreen.phaseExplanation ||
+              state.currentScreen == OnboardingScreen.personalitySetup) {
             return AnimatedSwitcher(
               duration: const Duration(milliseconds: 1600),
               switchInCurve: const Cubic(0.25, 0.1, 0.25, 1.0), // Custom eased curve
@@ -131,7 +137,7 @@ class ArcOnboardingSequenceContent extends StatelessWidget {
   }
 }
 
-/// Screen 1: LUMARA Introduction (first screen after splash)
+/// Screen 1: LUMARA Intro — capability + trust, first impression
 class _LumaraIntroScreen extends StatelessWidget {
   const _LumaraIntroScreen();
 
@@ -139,45 +145,188 @@ class _LumaraIntroScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      body: GestureDetector(
-        onTap: () => context.read<ArcOnboardingCubit>().nextScreen(),
-        child: SafeArea(
-          child: _LayeredScreenContent(
-            gradientColors: [
-              kcPrimaryColor.withOpacity(0.3),
-              Colors.black,
-            ],
+      body: SafeArea(
+        child: _LayeredScreenContent(
+          gradientColors: [
+            kcPrimaryColor.withOpacity(0.3),
+            Colors.black,
+          ],
+          child: SingleChildScrollView(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // Pulsing LUMARA symbol (standardized size)
-                const LumaraPulsingSymbol(size: 120),
-                const SizedBox(height: 48),
-                // Text
                 Text(
-                  "Hi, I'm LUMARA.",
+                  'LUMARA',
                   style: heading1Style(context).copyWith(
                     color: Colors.white,
-                    fontSize: 24,
+                    fontSize: 26,
+                    fontWeight: FontWeight.w300,
+                    letterSpacing: 10,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                const LumaraPulsingSymbol(size: 100),
+                const SizedBox(height: 32),
+                Text(
+                  'Frontier AI that actually knows you — and keeps it that way.',
+                  style: heading1Style(context).copyWith(
+                    color: Colors.white,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Powered by the same models behind the best AI on the market. Your data stays on your device, encrypted, never used to train anything. Context activates only when you ask for it.',
+                  style: bodyStyle(context).copyWith(
+                    color: Colors.white.withOpacity(0.85),
+                    fontSize: 15,
+                    height: 1.5,
                   ),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 24),
+                _SupportLine(icon: Icons.lock_outline, text: 'Your data lives on your device. Always.'),
+                const SizedBox(height: 10),
+                _SupportLine(icon: Icons.flash_on_outlined, text: 'Frontier model capability — no compromises.'),
+                const SizedBox(height: 10),
+                _SupportLine(icon: Icons.psychology_outlined, text: 'Full context when you want it. Nothing shared without your say.'),
+                const SizedBox(height: 32),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () => context.read<ArcOnboardingCubit>().nextScreen(),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: kcPrimaryColor,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: const Text('Get started'),
+                  ),
+                ),
+                const SizedBox(height: 16),
                 Text(
-                  "Share what's on your mind. I build context from your entries over time — your patterns, your phases, the decisions you're working through. Over time, responses get more relevant to where you actually are. Not a fresh start every session. Intelligence that compounds.",
-                  style: bodyStyle(context).copyWith(
-                    color: Colors.white.withOpacity(0.8),
-                    fontSize: 16,
-                    height: 1.6,
+                  'No account required to explore. Context features unlock after your first journal entry.',
+                  style: captionStyle(context).copyWith(
+                    color: Colors.white.withOpacity(0.5),
+                    fontSize: 12,
                   ),
                   textAlign: TextAlign.center,
                 ),
-                const SizedBox(height: 48),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SupportLine extends StatelessWidget {
+  final IconData icon;
+  final String text;
+
+  const _SupportLine({required this.icon, required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, color: kcPrimaryColor, size: 20),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            text,
+            style: bodyStyle(context).copyWith(
+              color: Colors.white.withOpacity(0.9),
+              fontSize: 14,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Screen 2: What Makes LUMARA Different — concrete value pillars
+class _LumaraCapabilitiesScreen extends StatelessWidget {
+  const _LumaraCapabilitiesScreen();
+
+  @override
+  Widget build(BuildContext context) {
+    final cubit = context.read<ArcOnboardingCubit>();
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: SafeArea(
+        child: _LayeredScreenContent(
+          gradientColors: [
+            kcPrimaryColor.withOpacity(0.2),
+            Colors.black,
+          ],
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
                 Text(
-                  'Tap to continue',
+                  'Most AI forgets you the moment you close the app.',
+                  style: heading1Style(context).copyWith(
+                    color: Colors.white,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'LUMARA remembers — but only when you want it to. Your journal, your patterns, your history. Available on demand. Private by design.',
                   style: bodyStyle(context).copyWith(
-                    color: Colors.white.withOpacity(0.5),
-                    fontSize: 14,
+                    color: Colors.white.withOpacity(0.85),
+                    fontSize: 15,
+                    height: 1.5,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 28),
+                _PillarCard(
+                  title: 'Full context, on your terms.',
+                  body: 'Bring your journal and history into any conversation with one tap. Or don\'t. LUMARA waits for you — it never assumes.',
+                ),
+                const SizedBox(height: 14),
+                _PillarCard(
+                  title: 'Your data never leaves without you.',
+                  body: 'Everything stays on your device. When LUMARA needs to think, sensitive details are scrubbed before anything reaches the cloud. Encrypted at rest. Yours completely.',
+                ),
+                const SizedBox(height: 14),
+                _PillarCard(
+                  title: 'Frontier capability, no compromises.',
+                  body: 'LUMARA runs on the same models powering the best AI available. Privacy architecture doesn\'t mean settling for less. It means you get both.',
+                ),
+                const SizedBox(height: 28),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () => cubit.startPersonalitySetup(),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: kcPrimaryColor,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: const Text('Set how we\'ll work together'),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextButton(
+                  onPressed: () => cubit.startPersonalitySetup(),
+                  child: Text(
+                    'Jump in →',
+                    style: bodyStyle(context).copyWith(
+                      color: Colors.white.withOpacity(0.7),
+                      fontSize: 15,
+                    ),
                   ),
                 ),
               ],
@@ -189,55 +338,43 @@ class _LumaraIntroScreen extends StatelessWidget {
   }
 }
 
-/// Screen 2: LUMARA capabilities
-class _LumaraCapabilitiesScreen extends StatelessWidget {
-  const _LumaraCapabilitiesScreen();
+class _PillarCard extends StatelessWidget {
+  final String title;
+  final String body;
+
+  const _PillarCard({required this.title, required this.body});
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      body: GestureDetector(
-        onTap: () => context.read<ArcOnboardingCubit>().nextScreen(),
-        child: SafeArea(
-          child: _LayeredScreenContent(
-            gradientColors: [
-              kcPrimaryColor.withOpacity(0.2),
-              Colors.black,
-            ],
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  "What LUMARA does for you.",
-                  style: heading1Style(context).copyWith(
-                    color: Colors.white,
-                    fontSize: 24,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 24),
-                Text(
-                  "I remember your story so we don't start from zero each time. I notice patterns in your entries over time — which phase you're in, what's shifting, what matters most. I match my tone and depth to where you actually are: calmer when you need rest, more direct when you're ready to move. That's how every conversation stays relevant.",
-                  style: bodyStyle(context).copyWith(
-                    color: Colors.white.withOpacity(0.8),
-                    fontSize: 16,
-                    height: 1.6,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 48),
-                Text(
-                  'Tap to continue',
-                  style: bodyStyle(context).copyWith(
-                    color: Colors.white.withOpacity(0.5),
-                    fontSize: 14,
-                  ),
-                ),
-              ],
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.06),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white.withOpacity(0.08)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: bodyStyle(context).copyWith(
+              color: Colors.white,
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
             ),
           ),
-        ),
+          const SizedBox(height: 6),
+          Text(
+            body,
+            style: bodyStyle(context).copyWith(
+              color: Colors.white.withOpacity(0.8),
+              fontSize: 14,
+              height: 1.45,
+            ),
+          ),
+        ],
       ),
     );
   }

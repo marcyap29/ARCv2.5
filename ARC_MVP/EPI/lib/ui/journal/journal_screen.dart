@@ -786,6 +786,12 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     _generateLumaraReflection();
   }
 
+  /// Selection from the caret menu: either engagement (Reflect/Deeper) or response style (Conversation/Detailed analysis).
+  static const _kCaretEngagementReflect = 0;
+  static const _kCaretEngagementDeeper = 1;
+  static const _kCaretResponseConversation = 2;
+  static const _kCaretResponseDetailed = 3;
+
   Future<void> _showEngagementModeMenu(BuildContext context) async {
     final anchorContext = _engagementModeMenuKey.currentContext;
     final overlay = Overlay.of(context);
@@ -797,12 +803,12 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
 
     final offset = box.localToGlobal(Offset.zero, ancestor: overlayBox);
 
-    // Get current engagement settings
     final settingsService = LumaraReflectionSettingsService.instance;
     final currentSettings = await settingsService.getEngagementSettings();
     final currentMode = currentSettings.activeMode;
+    final useDetailed = await settingsService.getUseDetailedAnalysis();
 
-    final selection = await showMenu<EngagementMode>(
+    final selection = await showMenu<int>(
       context: context,
       position: RelativeRect.fromLTRB(
         offset.dx,
@@ -810,13 +816,52 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
         overlayBox.size.width - offset.dx - box.size.width,
         overlayBox.size.height - offset.dy - box.size.height,
       ),
-      items: EngagementMode.values.map((mode) {
-        final isSelected = mode == currentMode;
-        return PopupMenuItem<EngagementMode>(
-          value: mode,
+      items: [
+        // Engagement section
+        ...[EngagementMode.reflect, EngagementMode.deeper].map((mode) {
+          final value = mode == EngagementMode.reflect ? _kCaretEngagementReflect : _kCaretEngagementDeeper;
+          final isSelected = mode == currentMode;
+          return PopupMenuItem<int>(
+            value: value,
+            child: Row(
+              children: [
+                if (isSelected)
+                  Icon(Icons.check, size: 18, color: Colors.blue)
+                else
+                  const SizedBox(width: 18),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'Engagement: ${mode.displayName}',
+                        style: TextStyle(
+                          fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                        ),
+                      ),
+                      Text(
+                        mode.description,
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          );
+        }),
+        const PopupMenuDivider(),
+        // Response style section
+        PopupMenuItem<int>(
+          value: _kCaretResponseConversation,
           child: Row(
             children: [
-              if (isSelected)
+              if (!useDetailed)
                 Icon(Icons.check, size: 18, color: Colors.blue)
               else
                 const SizedBox(width: 18),
@@ -827,37 +872,78 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      mode.displayName,
+                      'Response style: Conversation (perceptive)',
                       style: TextStyle(
-                        fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                        fontWeight: !useDetailed ? FontWeight.w600 : FontWeight.normal,
                       ),
                     ),
                     Text(
-                      mode.description,
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: Colors.grey[600],
-                      ),
+                      'Short prompt, natural friend-like replies.',
+                      style: TextStyle(fontSize: 11, color: Colors.grey[600]),
                     ),
                   ],
                 ),
               ),
             ],
           ),
-        );
-      }).toList(),
+        ),
+        PopupMenuItem<int>(
+          value: _kCaretResponseDetailed,
+          child: Row(
+            children: [
+              if (useDetailed)
+                Icon(Icons.check, size: 18, color: Colors.blue)
+              else
+                const SizedBox(width: 18),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Response style: Detailed analysis',
+                      style: TextStyle(
+                        fontWeight: useDetailed ? FontWeight.w600 : FontWeight.normal,
+                      ),
+                    ),
+                    Text(
+                      'Full master prompt, temporal/phase-aware analysis.',
+                      style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
 
     if (selection == null) return;
 
-    // Update conversation override (per-session)
-    final updated = currentSettings.copyWith(conversationOverride: selection);
-    await settingsService.setEngagementSettings(updated);
-    if (!mounted) return;
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Engagement mode set to ${selection.displayName}')),
-    );
+    if (selection == _kCaretEngagementReflect || selection == _kCaretEngagementDeeper) {
+      final mode = selection == _kCaretEngagementReflect ? EngagementMode.reflect : EngagementMode.deeper;
+      final updated = currentSettings.copyWith(conversationOverride: mode);
+      await settingsService.setEngagementSettings(updated);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Engagement mode set to ${mode.displayName}')),
+      );
+    } else {
+      final useDetailedAnalysis = selection == _kCaretResponseDetailed;
+      await settingsService.setUseDetailedAnalysis(useDetailedAnalysis);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            useDetailedAnalysis
+                ? 'Response style set to Detailed analysis'
+                : 'Response style set to Conversation (perceptive)',
+          ),
+        ),
+      );
+    }
   }
 
   void _onLumaraLongPress() async {
@@ -1409,10 +1495,12 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
       final entryId = _currentEntryId;
       final userId = FirebaseAuthService.instance.currentUser?.uid ?? userProfile?.id ?? '';
       final userQuery = richContext['entryText'] ?? '';
+      final useDetailedAnalysis = await LumaraReflectionSettingsService.instance.getUseDetailedAnalysis();
       final options = lumara_models.LumaraReflectionOptions(
-        preferQuestionExpansion: false, // Default = Claude-like; use Explore/Integrate for rich context
+        preferQuestionExpansion: false, // Default = natural; use Explore/Integrate for rich context
         toneMode: lumara_models.ToneMode.normal,
         regenerate: false,
+        useDetailedAnalysis: useDetailedAnalysis,
       );
       void onProgressMsg(String message) {
         if (mounted) {
@@ -2797,187 +2885,12 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
             },
           ),
           const SizedBox(height: 12),
-          
-          // Phase override dropdown
-          _buildPhaseOverrideSection(theme),
+          // Phase override section hidden (reposition: phases not shown to user)
         ],
       ),
     );
   }
   
-  /// Build phase override section for existing entries
-  Widget _buildPhaseOverrideSection(ThemeData theme) {
-    // Use local override state if available, otherwise use widget.existingEntry
-    final entry = _currentEntryOverride ?? widget.existingEntry;
-    if (entry == null) return const SizedBox.shrink();
-    
-    // Ensure legacyPhaseTag is populated for older entries (and save if needed)
-    final entryWithLegacy = entry.ensureLegacyPhaseTag();
-    if (entryWithLegacy != entry && _currentEntryOverride == null) {
-      // Save the entry with legacyPhaseTag populated (only if not already overridden)
-      WidgetsBinding.instance.addPostFrameCallback((_) async {
-        await _journalRepository.updateJournalEntry(entryWithLegacy);
-      });
-    }
-    
-    // Normalize phase value to match dropdown format (capitalized)
-    final rawPhase = entryWithLegacy.computedPhase ?? 'Discovery';
-    final currentPhase = rawPhase.isEmpty 
-        ? 'Discovery'
-        : rawPhase[0].toUpperCase() + rawPhase.substring(1).toLowerCase();
-    final isManual = entryWithLegacy.isPhaseManuallyOverridden;
-    
-    // Available phase options (must match dropdown items exactly)
-    const availablePhases = [
-      'Discovery',
-      'Expansion',
-      'Transition',
-      'Consolidation',
-      'Recovery',
-      'Breakthrough',
-    ];
-    
-    // Ensure currentPhase matches one of the available phases
-    final normalizedPhase = availablePhases.contains(currentPhase) 
-        ? currentPhase 
-        : 'Discovery';
-    
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Icon(
-              Icons.auto_awesome,
-              size: 16,
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-            const SizedBox(width: 8),
-            Text(
-              'Phase',
-              style: theme.textTheme.labelMedium?.copyWith(
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-            const Spacer(),
-            if (isManual)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.secondaryContainer,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  'Manual',
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: theme.colorScheme.onSecondaryContainer,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              )
-            else
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.primaryContainer.withOpacity(0.5),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  'Auto',
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: theme.colorScheme.onPrimaryContainer,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        Row(
-          children: [
-            Expanded(
-              child: DropdownButtonFormField<String>(
-                value: normalizedPhase,
-                decoration: InputDecoration(
-                  labelText: 'Phase',
-                  hintText: 'Select phase',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                ),
-                items: availablePhases.map((phase) {
-                  return DropdownMenuItem<String>(
-                    value: phase,
-                    child: Text(phase),
-                  );
-                }).toList(),
-                onChanged: (String? newPhase) {
-                  if (newPhase != null) {
-                    _updateEntryPhaseOverride(entryWithLegacy, newPhase);
-                  }
-                },
-              ),
-            ),
-            if (isManual) ...[
-              const SizedBox(width: 8),
-              TextButton.icon(
-                onPressed: () => _resetPhaseToAuto(entryWithLegacy),
-                icon: const Icon(Icons.refresh, size: 16),
-                label: const Text('Reset to Auto'),
-                style: TextButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                ),
-              ),
-            ],
-          ],
-        ),
-      ],
-    );
-  }
-  
-  /// Update entry phase override
-  Future<void> _updateEntryPhaseOverride(JournalEntry entry, String newPhase) async {
-    try {
-      final updatedEntry = entry.copyWith(
-        userPhaseOverride: newPhase,
-        isPhaseLocked: true,
-      );
-      
-      await _journalRepository.updateJournalEntry(updatedEntry);
-      
-      setState(() {
-        _hasBeenModified = true;
-        _currentEntryOverride = updatedEntry;  // Update local state to reflect change
-      });
-      
-      print('DEBUG: Updated entry ${entry.id} phase override to: $newPhase');
-    } catch (e) {
-      print('ERROR: Failed to update phase override: $e');
-    }
-  }
-  
-  /// Reset phase to auto-detected
-  Future<void> _resetPhaseToAuto(JournalEntry entry) async {
-    try {
-      final updatedEntry = entry.copyWith(
-        userPhaseOverride: null,
-        isPhaseLocked: false,
-      );
-      
-      await _journalRepository.updateJournalEntry(updatedEntry);
-      
-      setState(() {
-        _hasBeenModified = true;
-        _currentEntryOverride = updatedEntry;  // Update local state to reflect change
-      });
-      
-      print('DEBUG: Reset entry ${entry.id} phase to auto-detected');
-    } catch (e) {
-      print('ERROR: Failed to reset phase: $e');
-    }
-  }
-
   /// Build content showing photos, videos, and reflections (without duplicating text)
   List<Widget> _buildInterleavedContent(ThemeData theme) {
     final widgets = <Widget>[];

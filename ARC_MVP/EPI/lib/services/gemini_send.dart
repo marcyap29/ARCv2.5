@@ -8,6 +8,7 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:my_app/services/llm_bridge_adapter.dart';
+import 'package:my_app/services/groq_send.dart';
 import 'package:my_app/arc/chat/config/api_config.dart';
 import 'package:my_app/services/lumara/pii_scrub.dart';
 import 'package:my_app/services/firebase_service.dart';
@@ -89,16 +90,104 @@ Future<String> _geminiDirectGenerateContent({
   }
 }
 
-/// Sends a single-turn request to Gemini with an optional system instruction.
-/// Returns the concatenated text from candidates[0].content.parts[].text.
-/// PRISM scrubbing and correlation-resistant transformation applied before sending.
-/// Responses are restored with original PII for local display.
-/// 
-/// For in-journal LUMARA, pass [entryId] to enforce per-entry usage limits.
-/// For in-chat LUMARA, pass [chatId] to enforce per-chat usage limits.
-/// 
-/// [skipTransformation]: If true, skips correlation-resistant transformation.
-/// Use this when the entry text has already been abstracted (e.g., journal entries).
+/// Unified LUMARA send: PRISM scrub, optional transformation, proxyGroq, PII restore.
+/// Use this for all chat/reflection flows that may contain user PII.
+Future<String> lumaraSend({
+  required String system,
+  required String user,
+  bool jsonExpected = false,
+  String? entryId,
+  String? chatId,
+  String intent = 'chat',
+  bool skipTransformation = false,
+  double temperature = 0.7,
+  int? maxTokens,
+}) async {
+  if (kDebugMode) print('LUMARA Send: PRISM scrub → groqSend → PII restore');
+
+  // Bible questions: preserve names, skip transformation
+  final isBibleQuestion = user.contains('[BIBLE_CONTEXT]') || user.contains('[BIBLE_VERSE_CONTEXT]');
+  if (isBibleQuestion && !skipTransformation) {
+    skipTransformation = true;
+  }
+
+  // Step 1: PRISM scrub
+  final prismAdapter = PrismAdapter();
+  final userPrismResult = prismAdapter.scrub(user);
+  final systemPrismResult = system.trim().isNotEmpty
+      ? prismAdapter.scrub(system)
+      : PrismResult(scrubbedText: system, reversibleMap: {}, findings: []);
+
+  final combinedReversibleMap = <String, String>{
+    ...userPrismResult.reversibleMap,
+    ...systemPrismResult.reversibleMap,
+  };
+
+  if (userPrismResult.hadPII || systemPrismResult.hadPII) {
+    if (kDebugMode) print('PRISM: Scrubbed PII before send (user: ${userPrismResult.redactionCount}, system: ${systemPrismResult.redactionCount})');
+  }
+
+  if (!prismAdapter.isSafeToSend(userPrismResult.scrubbedText) ||
+      (system.trim().isNotEmpty && !prismAdapter.isSafeToSend(systemPrismResult.scrubbedText))) {
+    throw SecurityException('SECURITY: PII still detected after PRISM scrubbing');
+  }
+
+  // Step 2: Optional correlation-resistant transformation
+  String transformedUserText;
+  String transformedSystem = systemPrismResult.scrubbedText;
+
+  if (skipTransformation) {
+    transformedUserText = userPrismResult.scrubbedText;
+  } else {
+    final userTransformation = await prismAdapter.transformToCorrelationResistant(
+      prismScrubbedText: userPrismResult.scrubbedText,
+      intent: intent,
+      prismResult: userPrismResult,
+      rotationWindow: RotationWindow.session,
+    );
+    transformedUserText = userTransformation.cloudPayloadBlock.toJsonString();
+
+    final hasSystemPrismTokens = RegExp(r'\[(EMAIL|PHONE|NAME|ADDRESS|SSN|CARD|ORG|HANDLE|DATE|COORD|ID|API_KEY)_\d+\]')
+        .hasMatch(systemPrismResult.scrubbedText);
+    if (hasSystemPrismTokens && systemPrismResult.hadPII && system.trim().isNotEmpty) {
+      final systemTransformation = await prismAdapter.transformToCorrelationResistant(
+        prismScrubbedText: systemPrismResult.scrubbedText,
+        intent: 'system_prompt',
+        prismResult: systemPrismResult,
+        rotationWindow: RotationWindow.session,
+      );
+      transformedSystem = systemTransformation.cloudPayloadBlock.toJsonString();
+    }
+
+    if (transformedSystem == systemPrismResult.scrubbedText) {
+      transformedSystem += '\n\n**IMPORTANT**: The user input you receive is a structured privacy-preserving payload (JSON format). '
+          'The "semantic_summary" field contains an abstract description of the user\'s entry, NOT verbatim text. '
+          'NEVER quote or repeat the semantic_summary verbatim. Use it to understand themes and meaning, '
+          'then craft your response naturally without repeating the user\'s words.';
+    }
+  }
+
+  // Step 3: Call proxyGroq
+  final rawResponse = await groqSend(
+    user: transformedUserText,
+    system: transformedSystem.isNotEmpty ? transformedSystem : null,
+    temperature: temperature,
+    maxTokens: maxTokens,
+    entryId: entryId,
+    chatId: chatId,
+  );
+
+  // Step 4: Restore PII in response
+  final restored = PiiScrubber.restore(rawResponse, combinedReversibleMap);
+  if (restored != rawResponse && kDebugMode) {
+    print('PRISM: Restored PII in response (${combinedReversibleMap.length} items)');
+  }
+  return restored;
+}
+
+/// DEPRECATED: No longer called from active code paths.
+/// Use [lumaraSend] (PRISM + groqSend) or [groqSend] (raw) instead.
+@Deprecated('Use lumaraSend() for PII protection, or groqSend() for raw.')
 Future<String> geminiSend({
   required String system,
   required String user,
@@ -278,14 +367,9 @@ Future<String> geminiSend({
   }
 }
 
-/// Streams a single-turn request to Gemini with an optional system instruction.
-/// Yields text chunks as they arrive from the API.
-/// PRISM scrubbing is applied before sending, and each chunk is restored.
-///
-/// **Security note:** This path uses the API key from [LumaraAPIConfig] (client-side)
-/// because Firebase callables do not support streaming responses. Prefer the
-/// non-streaming [geminiSend] (Firebase proxy) when streaming is not required,
-/// so the key never leaves the backend.
+/// DEPRECATED: No longer called from active code paths.
+/// All inference is now routed through [groqSend] (proxyGroq / GPT-OSS 120B).
+@Deprecated('Use groqSend() instead. proxyGroq (GPT-OSS 120B) is the primary engine.')
 Stream<String> geminiSendStream({
   required String system,
   required String user,
@@ -436,10 +520,9 @@ Stream<String> geminiSendStream({
   }
 }
 
-/// Convenience factory to obtain an ArcLLM instance backed by Gemini.
-/// PRIORITY 2: Using Firebase proxy for API key management
+/// Convenience factory to obtain an ArcLLM instance backed by lumaraSend (PRISM + proxyGroq).
 ArcLLM provideArcLLM() {
-  if (kDebugMode) print('ArcLLM Provider: Using Firebase proxy for Gemini API');
+  if (kDebugMode) print('ArcLLM Provider: Using lumaraSend (PRISM + proxyGroq)');
   
   return ArcLLM(
     send: ({
@@ -448,10 +531,11 @@ ArcLLM provideArcLLM() {
       List<String>? history,
       bool jsonExpected = false,
     }) async {
-      return await geminiSend(
+      return await lumaraSend(
         system: system,
         user: user,
         jsonExpected: jsonExpected,
+        skipTransformation: false, // Full PRISM + transformation for chat
       );
     },
   );

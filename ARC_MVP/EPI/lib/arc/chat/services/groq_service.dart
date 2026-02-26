@@ -1,11 +1,13 @@
 // lib/arc/chat/services/groq_service.dart
-// Groq API service for LUMARA: Llama 3.3 70B (fallback when Gemini unavailable)
+// Groq API service for LUMARA: GPT-OSS 120B primary, GPT-OSS 20B fast, Llama 3.3 70B fallback
 
 import 'dart:async';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 enum GroqModel {
+  gptOss120b('openai/gpt-oss-120b', 131072),
+  gptOss20b('openai/gpt-oss-20b', 131072),
   llama33_70b('llama-3.3-70b-versatile', 128000),
   mixtral_8x7b('mixtral-8x7b-32768', 32768);
 
@@ -24,7 +26,7 @@ class GroqService {
   Future<String> generateContent({
     required String prompt,
     String? systemPrompt,
-    GroqModel model = GroqModel.llama33_70b,
+    GroqModel model = GroqModel.gptOss120b,
     double temperature = 0.7,
     int? maxTokens,
     bool fallbackToMixtral = false, // Mixtral removed; kept for API compatibility
@@ -42,7 +44,7 @@ class GroqService {
   Stream<String> generateContentStream({
     required String prompt,
     String? systemPrompt,
-    GroqModel model = GroqModel.llama33_70b,
+    GroqModel model = GroqModel.gptOss120b,
     double temperature = 0.7,
     int? maxTokens,
   }) async* {

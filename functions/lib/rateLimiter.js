@@ -1,33 +1,104 @@
 "use strict";
 // rateLimiter.ts - Rate limiting for FREE tier users
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.FREE_TIER_DAILY_LUMARA_LIMIT = void 0;
+exports.checkUnifiedDailyLimit = checkUnifiedDailyLimit;
 exports.checkRateLimit = checkRateLimit;
 const admin_1 = require("./admin");
 const config_1 = require("./config");
-// FREE_MAX_REQUESTS_PER_DAY removed - using conversation-based limits instead
 const db = admin_1.admin.firestore();
+/** Unified daily request limit for free tier users (chat + reflections + voice) */
+exports.FREE_TIER_DAILY_LUMARA_LIMIT = 50;
+/** Emails that are always exempt from rate limiting */
+const EXEMPT_EMAILS = [
+    "marcyap@orbitalai.net",
+    "marcyap@fastmail.com",
+];
 /**
- * Check if user can make a request based on rate limits
+ * Check and enforce the unified daily LUMARA limit (50 requests/day).
  *
- * Rules:
- * - FREE tier:
- *   - Max 4 requests per conversation (entryId or chatId)
- *   - Max 3 requests per minute (global)
- * - PAID/PRO tier: Unlimited
+ * This single pool covers ALL free-tier LUMARA interactions:
+ * chat messages, journal reflections, journal analyses, and prompt generation.
+ * Uses the same `lumaraDailyUsage` Firestore field as proxyGemini so all
+ * call paths share one counter.
  *
- * This is the primary quota enforcement mechanism.
+ * - Exempt emails: unlimited
+ * - Premium (plan=pro / subscriptionTier=PAID / throttleUnlocked): unlimited
+ * - Free: max FREE_TIER_DAILY_LUMARA_LIMIT per calendar day (UTC)
  */
-async function checkRateLimit(userId, conversationId // entryId for journal, chatId for chat
-) {
+async function checkUnifiedDailyLimit(userId, userEmail) {
     try {
-        // Load or create user document
+        // Exempt emails bypass all limits
+        if (userEmail && EXEMPT_EMAILS.includes(userEmail.toLowerCase())) {
+            return { allowed: true };
+        }
+        const userRef = db.collection("users").doc(userId);
+        const userDoc = await userRef.get();
+        let userData = {};
+        if (!userDoc.exists) {
+            // Auto-create new user with free tier
+            const newUser = {
+                userId,
+                plan: "free",
+                subscriptionTier: "FREE",
+                createdAt: admin_1.admin.firestore.FieldValue.serverTimestamp(),
+                updatedAt: admin_1.admin.firestore.FieldValue.serverTimestamp(),
+            };
+            await userRef.set(newUser);
+        }
+        else {
+            userData = userDoc.data();
+        }
+        // Premium / unlocked users: unlimited
+        const isPremium = userData.plan === "pro" ||
+            userData.subscriptionTier === "PAID" ||
+            userData.throttleUnlocked === true;
+        if (isPremium) {
+            return { allowed: true };
+        }
+        // Check and increment daily usage (shared with proxyGemini via lumaraDailyUsage)
+        const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD UTC
+        const usage = userData.lumaraDailyUsage || {};
+        const currentCount = usage.date === today ? (usage.count || 0) : 0;
+        if (currentCount >= exports.FREE_TIER_DAILY_LUMARA_LIMIT) {
+            return {
+                allowed: false,
+                error: {
+                    code: "DAILY_LIMIT_REACHED",
+                    message: `Daily limit of ${exports.FREE_TIER_DAILY_LUMARA_LIMIT} LUMARA requests reached. Upgrade to premium for unlimited access.`,
+                    currentUsage: currentCount,
+                    limit: exports.FREE_TIER_DAILY_LUMARA_LIMIT,
+                    upgradeRequired: true,
+                    tier: "FREE",
+                    retryAfter: 0,
+                },
+            };
+        }
+        await userRef.set({ lumaraDailyUsage: { date: today, count: currentCount + 1 } }, { merge: true });
+        return { allowed: true };
+    }
+    catch (error) {
+        console.error("Error checking unified daily limit:", error);
+        // Fail open to avoid blocking users on infrastructure errors
+        return { allowed: true };
+    }
+}
+/**
+ * Per-minute spam protection (applies to free users only).
+ * Does NOT enforce the daily quota — use checkUnifiedDailyLimit for that.
+ */
+async function checkRateLimit(userId, userEmail) {
+    try {
+        // Exempt emails bypass all limits
+        if (userEmail && EXEMPT_EMAILS.includes(userEmail.toLowerCase())) {
+            return { allowed: true };
+        }
         const userRef = db.collection("users").doc(userId);
         const userDoc = await userRef.get();
         let user;
         if (!userDoc.exists) {
-            // Auto-create new user with free tier
             user = {
-                userId: userId,
+                userId,
                 plan: "free",
                 subscriptionTier: "FREE",
                 createdAt: admin_1.admin.firestore.FieldValue.serverTimestamp(),
@@ -38,75 +109,18 @@ async function checkRateLimit(userId, conversationId // entryId for journal, cha
         else {
             user = userDoc.data();
         }
-        // Support both 'plan' and 'subscriptionTier' fields
-        const userPlan = user.plan;
-        const userTier = user.subscriptionTier;
-        let plan = "free";
-        if (userPlan === "pro") {
-            plan = "pro";
-        }
-        else if (userTier === "PAID") {
-            plan = "pro";
-        }
-        const isPro = plan === "pro";
-        // Pro/Paid tier: Unlimited
+        // Premium / unlocked: unlimited
+        const isPro = user.plan === "pro" ||
+            user.subscriptionTier === "PAID" ||
+            user.throttleUnlocked === true;
         if (isPro) {
             return { allowed: true };
         }
-        // Check if throttle is unlocked via password (dev/admin feature)
-        if (user.throttleUnlocked === true) {
-            return { allowed: true };
-        }
         const now = admin_1.admin.firestore.Timestamp.now();
-        // If conversationId provided, check per-conversation limit (4 per conversation)
-        if (conversationId) {
-            const conversationLimitRef = db.collection("rateLimits").doc(`${userId}_conv_${conversationId}`);
-            const conversationLimitDoc = await conversationLimitRef.get();
-            let conversationLimit;
-            if (!conversationLimitDoc.exists) {
-                // First request for this conversation - initialize
-                conversationLimit = {
-                    userId,
-                    requestsToday: 0,
-                    requestsLastMinute: 0,
-                    lastRequestTimestamp: now,
-                    lastMinuteWindowStart: now,
-                    lastDayWindowStart: now,
-                    updatedAt: now,
-                };
-                await conversationLimitRef.set(conversationLimit);
-            }
-            else {
-                conversationLimit = conversationLimitDoc.data();
-            }
-            const maxPerConversation = 4; // 4 requests per conversation
-            // Check per-conversation limit
-            if (conversationLimit.requestsToday >= maxPerConversation) {
-                return {
-                    allowed: false,
-                    error: {
-                        code: "RATE_LIMIT_CONVERSATION_EXCEEDED",
-                        message: `You've reached the limit of ${maxPerConversation} LUMARA requests per conversation. Upgrade to Pro for unlimited access.`,
-                        currentUsage: conversationLimit.requestsToday,
-                        limit: maxPerConversation,
-                        upgradeRequired: true,
-                        tier: "FREE",
-                        retryAfter: 0,
-                    },
-                };
-            }
-            // Increment per-conversation counter
-            conversationLimit.requestsToday += 1;
-            conversationLimit.lastRequestTimestamp = now;
-            conversationLimit.updatedAt = now;
-            await conversationLimitRef.set(conversationLimit, { merge: true });
-        }
-        // Check global per-minute limit (applies to all requests)
         const rateLimitRef = db.collection("rateLimits").doc(`${userId}_global`);
         const rateLimitDoc = await rateLimitRef.get();
         let rateLimit;
         if (!rateLimitDoc.exists) {
-            // First request - initialize
             rateLimit = {
                 userId,
                 requestsToday: 0,
@@ -121,15 +135,12 @@ async function checkRateLimit(userId, conversationId // entryId for journal, cha
         else {
             rateLimit = rateLimitDoc.data();
         }
-        // Check if we need to reset minute window
         const oneMinuteAgo = new Date(now.toMillis() - 60 * 1000);
-        // Reset minute window if needed
         if (rateLimit.lastMinuteWindowStart.toMillis() < oneMinuteAgo.getTime()) {
             rateLimit.requestsLastMinute = 0;
             rateLimit.lastMinuteWindowStart = now;
         }
         const maxPerMinute = parseInt(config_1.FREE_MAX_REQUESTS_PER_MINUTE.value(), 10);
-        // Check per-minute limit
         if (rateLimit.requestsLastMinute >= maxPerMinute) {
             const nextReset = new Date(rateLimit.lastMinuteWindowStart.toMillis() + 60 * 1000);
             const retryAfter = Math.ceil((nextReset.getTime() - Date.now()) / 1000);
@@ -137,16 +148,15 @@ async function checkRateLimit(userId, conversationId // entryId for journal, cha
                 allowed: false,
                 error: {
                     code: "RATE_LIMIT_MINUTE_EXCEEDED",
-                    message: `Rate limit exceeded: ${maxPerMinute} requests per minute. Please wait ${retryAfter} seconds or upgrade to Pro.`,
+                    message: `Too many requests: please wait ${retryAfter} seconds before trying again.`,
                     currentUsage: rateLimit.requestsLastMinute,
                     limit: maxPerMinute,
-                    upgradeRequired: true,
+                    upgradeRequired: false,
                     tier: "FREE",
                     retryAfter: retryAfter > 0 ? retryAfter : 0,
                 },
             };
         }
-        // Allowed - increment global minute counter
         rateLimit.requestsLastMinute += 1;
         rateLimit.lastRequestTimestamp = now;
         rateLimit.updatedAt = now;
@@ -155,17 +165,7 @@ async function checkRateLimit(userId, conversationId // entryId for journal, cha
     }
     catch (error) {
         console.error("Error checking rate limit:", error);
-        return {
-            allowed: false,
-            error: {
-                code: "RATE_LIMIT_CHECK_ERROR",
-                message: "Error checking rate limit",
-                currentUsage: 0,
-                limit: 0,
-                upgradeRequired: false,
-                tier: "FREE",
-            },
-        };
+        return { allowed: true };
     }
 }
 //# sourceMappingURL=rateLimiter.js.map

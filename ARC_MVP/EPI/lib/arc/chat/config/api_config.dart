@@ -70,9 +70,13 @@ class LumaraAPIConfig {
   final Map<LLMProvider, LLMProviderConfig> _configs = {};
   SharedPreferences? _prefs;
   LLMProvider? _manualProvider; // User's manually selected provider
+  bool _initialized = false;
 
-  /// Initialize the API configuration
-  Future<void> initialize() async {
+  /// Initialize the API configuration.
+  /// Skips if already initialized unless [force] is true (e.g. after key changes).
+  Future<void> initialize({bool force = false}) async {
+    if (_initialized && !force) return;
+    
     debugPrint('LUMARA API: Initializing API configuration...');
     
     try {
@@ -104,8 +108,9 @@ class LumaraAPIConfig {
       final bestProvider = getBestProvider();
       debugPrint('LUMARA API: Final initialization complete - Best provider (Cloud APIs prioritized): ${bestProvider?.name ?? 'None'}');
       
-      // Log detailed provider status for debugging
+      // Log detailed provider status on first init only
       _logDetailedProviderStatus();
+      _initialized = true;
     } catch (e) {
       debugPrint('LUMARA API: Initialization error: $e');
       rethrow;
@@ -473,8 +478,7 @@ class LumaraAPIConfig {
         final updatedConfig = _configs[provider];
         debugPrint('LUMARA API: After update - ${config.name} available: ${updatedConfig?.isAvailable}');
         
-        // Log detailed status for debugging
-        _logDetailedProviderStatus();
+        _logDetailedProviderStatus(verbose: true);
       } catch (e) {
         debugPrint('LUMARA API: Error updating API key for ${config.name}: $e');
         rethrow;
@@ -540,30 +544,40 @@ class LumaraAPIConfig {
   Future<void> refreshProviderAvailability() async {
     debugPrint('LUMARA API: Force refreshing all provider availability...');
     await _detectAvailableProviders();
-    _logDetailedProviderStatus();
+    _logDetailedProviderStatus(verbose: true);
   }
 
-  /// Log detailed provider status for debugging
-  void _logDetailedProviderStatus() {
-    debugPrint('LUMARA API: === DETAILED PROVIDER STATUS ===');
-    for (final config in _configs.values) {
-      final apiKeyLength = config.apiKey?.length ?? 0;
-      final apiKeyMasked = config.apiKey?.isNotEmpty == true 
-          ? '${config.apiKey!.substring(0, config.apiKey!.length > 8 ? 4 : 0)}...${config.apiKey!.substring(config.apiKey!.length - 4)}'
-          : 'none';
-      
-      debugPrint('LUMARA API: ${config.name}:');
-      debugPrint('LUMARA API:   - Available: ${config.isAvailable}');
-      debugPrint('LUMARA API:   - Internal: ${config.isInternal}');
-      debugPrint('LUMARA API:   - API Key: $apiKeyMasked (length: $apiKeyLength)');
-      debugPrint('LUMARA API:   - Base URL: ${config.baseUrl ?? 'none'}');
-    }
-    
+  /// Force re-initialization (e.g. after API key changes from outside)
+  void markNeedsReinit() => _initialized = false;
+
+  /// Log detailed provider status for debugging.
+  /// Full per-provider dump only when [verbose] is true (e.g. after key changes);
+  /// otherwise prints a compact one-line summary.
+  void _logDetailedProviderStatus({bool verbose = false}) {
     final availableProviders = getAvailableProviders();
     final bestProvider = getBestProvider();
-    debugPrint('LUMARA API: Available providers: ${availableProviders.map((p) => p.name).join(', ')}');
-    debugPrint('LUMARA API: Best provider: ${bestProvider?.name ?? 'None'}');
-    debugPrint('LUMARA API: === END PROVIDER STATUS ===');
+    final unavailable = _configs.values.where((c) => !c.isAvailable).map((c) => c.name);
+
+    if (verbose) {
+      debugPrint('LUMARA API: === DETAILED PROVIDER STATUS ===');
+      for (final config in _configs.values) {
+        final apiKeyLength = config.apiKey?.length ?? 0;
+        final apiKeyMasked = config.apiKey?.isNotEmpty == true
+            ? '${config.apiKey!.substring(0, config.apiKey!.length > 8 ? 4 : 0)}...${config.apiKey!.substring(config.apiKey!.length - 4)}'
+            : 'none';
+
+        debugPrint('LUMARA API: ${config.name}:');
+        debugPrint('LUMARA API:   - Available: ${config.isAvailable}');
+        debugPrint('LUMARA API:   - Internal: ${config.isInternal}');
+        debugPrint('LUMARA API:   - API Key: $apiKeyMasked (length: $apiKeyLength)');
+        debugPrint('LUMARA API:   - Base URL: ${config.baseUrl ?? 'none'}');
+      }
+      debugPrint('LUMARA API: === END PROVIDER STATUS ===');
+    }
+
+    debugPrint('LUMARA API: Available: [${availableProviders.map((p) => p.name).join(', ')}] | '
+        'Best: ${bestProvider?.name ?? 'None'} | '
+        'Unavailable: ${unavailable.isEmpty ? 'none' : unavailable.join(', ')}');
   }
 
   /// Clear all saved API keys (for debugging)

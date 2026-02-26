@@ -8,6 +8,7 @@ import 'package:my_app/models/phase_models.dart';
 import 'package:my_app/models/journal_entry_model.dart';
 import 'package:my_app/state/journal_entry_state.dart';
 import 'package:my_app/services/user_phase_service.dart';
+import 'package:my_app/arc/chat/services/lumara_reflection_settings_service.dart';
 import 'package:hive/hive.dart';
 import 'package:logger/logger.dart';
 
@@ -36,7 +37,8 @@ class ArcOnboardingCubit extends Cubit<ArcOnboardingState> {
         next = OnboardingScreen.narrativeIntelligence;
         break;
       case OnboardingScreen.narrativeIntelligence:
-        next = OnboardingScreen.phaseExplanation;
+        // Onboarding is personality-only; phases are for internal model use only. Go to personality setup.
+        next = OnboardingScreen.personalitySetup;
         break;
       case OnboardingScreen.sentinelIntro:
         // Screen removed; skip to phase explanation
@@ -48,6 +50,7 @@ class ArcOnboardingCubit extends Cubit<ArcOnboardingState> {
       case OnboardingScreen.phaseQuiz:
       case OnboardingScreen.phaseAnalysis:
       case OnboardingScreen.phaseReveal:
+      case OnboardingScreen.personalitySetup:
       case OnboardingScreen.complete:
         return; // Don't advance from these screens
     }
@@ -187,7 +190,35 @@ class ArcOnboardingCubit extends Cubit<ArcOnboardingState> {
     }
   }
 
+  /// Navigate from phase reveal to personality setup (7 questions).
+  void startPersonalitySetup() {
+    emit(state.copyWith(currentScreen: OnboardingScreen.personalitySetup));
+  }
+
+  /// Persist personality answers, generate config, set default phase (internal use only), then complete onboarding.
+  Future<void> completePersonalityAndOnboarding(Map<String, dynamic> answers) async {
+    try {
+      await LumaraReflectionSettingsService.instance.generateAndSavePersonalityConfig(answers);
+    } catch (e) {
+      _logger.e('Error saving personality config: $e');
+    }
+    // Set default phase for internal model use only (not shown to user).
+    try {
+      await _setUserPhase(PhaseLabel.discovery);
+    } catch (e) {
+      _logger.e('Error setting default phase: $e');
+    }
+    await UserPhaseService.setOnboardingCompleted(true);
+    emit(state.copyWith(currentScreen: OnboardingScreen.complete));
+  }
+
   void completeOnboarding() async {
+    await UserPhaseService.setOnboardingCompleted(true);
+    emit(state.copyWith(currentScreen: OnboardingScreen.complete));
+  }
+
+  /// Complete onboarding from capabilities screen (no phase flow). Companion reposition.
+  Future<void> completeOnboardingFromCapabilities() async {
     await UserPhaseService.setOnboardingCompleted(true);
     emit(state.copyWith(currentScreen: OnboardingScreen.complete));
   }

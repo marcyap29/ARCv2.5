@@ -350,7 +350,7 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
     final currentPhase = currentPhaseNodes.first['text'] as String?;
     if (currentPhase == null) return null;
 
-    print('LUMARA Debug: Using current phase from Phase tab: $currentPhase');
+    print('LUMARA Debug: Using current phase from context: $currentPhase');
 
     // Build phase context with current phase prioritized
     final phaseContext = <String, dynamic>{

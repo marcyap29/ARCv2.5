@@ -367,6 +367,12 @@ exports.proxyGroq = onCall(
       throw new HttpsError("unauthenticated", "The function must be called while authenticated.");
     }
 
+    // Fast warm-up path: client sends { _ping: true } at app startup to
+    // establish the TCP connection (iOS GTMSessionFetcher). No Groq call.
+    if (request.data?._ping) {
+      return { ok: true, ts: Date.now() };
+    }
+
     const { system, user, model, temperature, maxTokens, entryId, chatId } = request.data || {};
     const uid = request.auth.uid;
     const email = request.auth.token.email;
@@ -394,7 +400,8 @@ exports.proxyGroq = onCall(
       throw new HttpsError("internal", "Groq API key not configured");
     }
 
-    const modelId = "llama-3.3-70b-versatile"; // Mixtral removed; Llama 3.3 70B is the only Groq model
+    const allowedModels = ['openai/gpt-oss-20b', 'openai/gpt-oss-120b', 'llama-3.3-70b-versatile'];
+    const modelId = (typeof model === 'string' && allowedModels.includes(model)) ? model : 'openai/gpt-oss-120b';
     const messages = [];
     if (systemStr.trim().length > 0) {
       messages.push({ role: "system", content: systemStr });

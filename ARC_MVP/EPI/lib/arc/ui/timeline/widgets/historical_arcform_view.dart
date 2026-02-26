@@ -238,16 +238,6 @@ class _HistoricalArcformViewState extends State<HistoricalArcformView> {
             ),
           ),
           
-          const SizedBox(height: 32),
-
-          // Phase info
-          _buildInfoCard(
-            'Phase',
-            phase ?? 'Unknown',
-            Icons.psychology,
-            _getPhaseColor(phase),
-          ),
-
           const SizedBox(height: 24),
 
           // Keywords section
@@ -342,66 +332,6 @@ class _HistoricalArcformViewState extends State<HistoricalArcformView> {
         ],
       ),
     );
-  }
-
-  Widget _buildInfoCard(String title, String value, IconData icon, Color color) {
-    return Container(
-      padding: const EdgeInsets.all(16.0),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.3)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(icon, color: color, size: 16),
-              const SizedBox(width: 8),
-              Text(
-                title,
-                style: captionStyle(context).copyWith(
-                  color: color,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 12,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            value,
-            style: bodyStyle(context).copyWith(
-              fontWeight: FontWeight.w600,
-              fontSize: 16,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-
-  Color _getPhaseColor(String? phase) {
-    if (phase == null) return kcSecondaryTextColor;
-    
-    switch (phase.toLowerCase()) {
-      case 'discovery':
-        return const Color(0xFF4F46E5); // Blue
-      case 'expansion':
-        return const Color(0xFF7C3AED); // Purple  
-      case 'transition':
-        return const Color(0xFF059669); // Green
-      case 'consolidation':
-        return const Color(0xFFD97706); // Orange
-      case 'recovery':
-        return const Color(0xFFDC2626); // Red
-      case 'breakthrough':
-        return const Color(0xFF7C2D12); // Brown
-      default:
-        return kcSecondaryTextColor;
-    }
   }
 
   void _showSnapshotInfo() {

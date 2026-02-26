@@ -15,7 +15,6 @@ import 'package:flutter/foundation.dart';
 import 'package:my_app/core/services/photo_library_service.dart';
 import 'dart:math' as math;
 import 'package:my_app/shared/ui/journal/unified_journal_view.dart';
-import 'package:my_app/shared/ui/insights/unified_insights_view.dart';
 import 'package:my_app/ui/journal/journal_screen.dart';
 import 'package:my_app/services/journal_session_cache.dart';
 import 'package:my_app/arc/chat/ui/lumara_assistant_screen.dart';
@@ -95,7 +94,6 @@ class _HomeViewState extends State<HomeView> {
     }
     return const [
       TabItem(icon: Icons.psychology, text: 'LUMARA'),
-      TabItem(icon: Icons.insights, text: 'Phase'),
       TabItem(icon: Icons.chat_bubble_outline, text: 'Conversations'),
     ];
   }
@@ -104,7 +102,7 @@ class _HomeViewState extends State<HomeView> {
     if (core_flags.FeatureFlags.USE_UNIFIED_FEED) {
       return const ['LUMARA', 'Agents', 'Settings'];
     }
-    return const ['LUMARA', 'Phase', 'Conversations'];
+    return const ['LUMARA', 'Conversations'];
   }
 
   @override
@@ -161,7 +159,7 @@ class _HomeViewState extends State<HomeView> {
       } else if (core_flags.FeatureFlags.USE_UNIFIED_FEED) {
         _homeCubit.changeTab(0); // Unified feed is the default in new mode
       } else {
-        _homeCubit.changeTab(2); // Set Journal tab as default (index 2 in legacy mode)
+        _homeCubit.changeTab(1); // Set Conversations (Journal) tab as default in legacy mode
       }
 
     // Check photo permissions and refresh timeline if granted
@@ -314,14 +312,9 @@ class _HomeViewState extends State<HomeView> {
             // Track tab navigation
             AnalyticsService.trackTabNavigation(_tabNames[state.selectedIndex]);
             
-            // Refresh timeline when switching to Journal tab (only in legacy mode)
-            if (!core_flags.FeatureFlags.USE_UNIFIED_FEED && state.selectedIndex == 0) {
+            // Refresh timeline when switching to Journal/Conversations tab (only in legacy mode)
+            if (!core_flags.FeatureFlags.USE_UNIFIED_FEED && state.selectedIndex == 1) {
               context.read<TimelineCubit>().refreshEntries();
-            }
-            
-            // Refresh phase cache when switching to Phase tab (index 1)
-            if (state.selectedIndex == 1) {
-              _refreshPhaseCache();
             }
           }
         },
@@ -535,22 +528,9 @@ class _HomeViewState extends State<HomeView> {
           },
         );
       case 1:
-        return const UnifiedInsightsView();
-      case 2:
         return const UnifiedJournalView();
       default:
         return const UnifiedJournalView();
-    }
-  }
-
-  /// Refresh the phase cache when Phase tab is opened
-  Future<void> _refreshPhaseCache() async {
-    try {
-      // Import the UserPhaseService
-      final currentPhase = await UserPhaseService.getCurrentPhase();
-      print('DEBUG: Refreshed phase cache from Phase tab: $currentPhase');
-    } catch (e) {
-      print('DEBUG: Error refreshing phase cache from Phase tab: $e');
     }
   }
 

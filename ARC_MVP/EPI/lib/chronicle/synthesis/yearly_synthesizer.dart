@@ -378,10 +378,10 @@ $monthlySummaries
 
 Write a narrative year-in-review for $year that preserves important specifics (people, projects, events) from the monthly summaries:''';
 
-      final response = await geminiSend(
+      final response = await lumaraSend(
         system: systemPrompt,
         user: userPrompt,
-        jsonExpected: false,
+        skipTransformation: true,
       );
       return response.trim();
     } catch (e) {

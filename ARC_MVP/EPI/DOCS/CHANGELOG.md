@@ -1,7 +1,7 @@
 # EPI LUMARA MVP - Changelog
 
-**Version:** 3.3.58
-**Last Updated:** February 24, 2026
+**Version:** 3.3.59
+**Last Updated:** February 25, 2026
 
 ---
 
@@ -14,6 +14,105 @@ This changelog has been split into parts for easier navigation:
 | **[CHANGELOG_part1.md](CHANGELOG_part1.md)** | Dec 2025 | v2.1.43 - v2.1.87 (Current) |
 | **[CHANGELOG_part2.md](CHANGELOG_part2.md)** | Nov 2025 | v2.1.28 - v2.1.42 |
 | **[CHANGELOG_part3.md](CHANGELOG_part3.md)** | Jan-Oct 2025 | v2.0.0 - v2.1.27 & Earlier |
+
+---
+
+## [3.3.59] - February 25, 2026
+
+### LUMARA Vision Reposition; GPT-OSS 120B primary; master prompt shortening; personality onboarding; Bible module removed; UI de-emphasis of phases
+
+Major reposition of LUMARA from "Phase-Aware AI agent" to "Lifetime personal AI with frontier capability and full context, private by design." Phases remain under the hood (ATLAS, RIVET, SENTINEL) but are de-emphasized in all user-facing UI.
+
+#### LLM Provider: GPT-OSS 120B primary (Groq)
+- **`proxyGroq` Cloud Function:** Now accepts `openai/gpt-oss-120b` (default), `openai/gpt-oss-20b`, and `llama-3.3-70b-versatile`. Model allowlist enforced server-side.
+- **`groqSend` (client):** Default model changed from `llama-3.3-70b-versatile` to `openai/gpt-oss-120b`. Retries up to 2× with escalating back-off (4s, 6s) on iOS GTMSessionFetcher "already running" errors (`firebase_functions/internal`). Waits for connection warm-up before first real call.
+- **`lumaraSend` (new unified entry point):** Replaces direct `geminiSend` calls for all chat/reflection flows. Pipeline: PRISM scrub → optional correlation-resistant transformation → `groqSend` (proxyGroq) → PII restore. Handles Bible question detection, security exceptions, and reversible PII maps.
+- **`geminiSend` / `geminiSendStream`:** Marked `@Deprecated`; no longer called from active code paths. All inference routed through `groqSend`.
+- **`provideArcLLM`:** Now backed by `lumaraSend` (PRISM + proxyGroq) instead of `geminiSend`.
+- **`lumara_cloud_generate.dart`:** Simplified from 3-tier fallback (proxyGroq → proxyGemini → direct Gemini) to 2-tier (proxyGroq → direct Groq API key). Gemini fallback removed.
+- **`enhanced_lumara_api.dart`:** Primary path changed from `proxyGemini` to `proxyGroq` (GPT-OSS 120B). Variable renamed `geminiResponse` → `llmResponse`. Gemini fallback chain removed; simplified retry logic. Debug payload prints removed.
+- **`proxyGemini.ts`:** Improved error handling — clearer user-facing messages, avoids leaking internals.
+
+#### Firebase Connection Warm-Up
+- **`FirebaseService.warmUpConnection()`:** Pings `proxyGroq` with `{ _ping: true }` at app startup to establish the iOS GTMSessionFetcher TCP connection before real requests. `isConnectionWarmed` getter; `proxyGroq` Cloud Function returns `{ ok, ts }` for ping.
+- **`bootstrap.dart`:** Fires warm-up on app startup.
+
+#### Bible Module Removed
+- **Deleted:** `bible_api_service.dart`, `bible_retrieval_helper.dart`, `bible_terminology_library.dart` (1,181 lines). Bible retrieval section removed from master prompt (~137 lines). `BibleRetrievalHelper` calls removed from `LumaraAssistantCubit`. Bible-specific instructions removed from `llm_bridge_adapter.dart`.
+- **Doc deleted:** `BIBLE_RETRIEVAL_IMPLEMENTATION.md`.
+- **Retained:** `lumaraSend` still detects `[BIBLE_CONTEXT]` tags and skips transformation for Bible questions (users can still ask Bible questions — LUMARA answers from its training data rather than a dedicated API).
+
+#### Master Prompt Shortening & Dual Mode
+- **Two prompt modes:** (1) **Conversation** (short prompt via `getMasterPromptChatOnly`) — default for normal chat; (2) **Detailed Analysis** (full `getMasterPrompt`) — on demand for deep temporal/phase analysis.
+- **`getMasterPromptChatOnly` (new):** Short master prompt for chat with context injection but without the full 3,100-line temporal/engagement/persona blocks.
+- **`useDetailedAnalysis` flag:** Added to `LumaraAssistantLoaded` state; toggle via `setDetailedAnalysis()`. Controls which prompt variant is used.
+- **Phase references internalized:** Master prompt now says "Current Context (internal calibration only — do not name or cite phase labels to the user)"; explicit instruction to never tell users their phase name.
+- **Claude references removed:** All "like Claude" / "Claude-quality" phrasing replaced with "natural" / "conversational" throughout the master prompt.
+- **New `<response_shape>` section:** For journal reflections — ground in user's themes/words without sycophancy, include 1–2 reflective questions, reference patterns when relevant, end openly, keep tone grounded.
+- **USER PERSONALITY CONFIG block:** Master prompt now reads `personalityConfig` (baseline) and `inferredPreferences` (overrides) from control state for personalized expression.
+- **Doc added:** `MASTER_PROMPT_SHORTENING.md` — explains the two-mode architecture and build order.
+
+#### Personality Onboarding
+- **New `PersonalitySetupScreen`:** 7-question personality quiz during onboarding (tone preference, disagreement style, response length, emotional support, avoid list, user name, user notes). Answers stored via `LumaraReflectionSettingsService`.
+- **`LumaraReflectionSettingsService` expanded:** New keys for `personalityConfig`, `personalityRawAnswers`, `userName`, `inferredPreferences`, `useDetailedAnalysis`. Deterministic config generation from raw answers (no LLM required).
+- **`LumaraControlStateBuilder`:** Injects `personalityConfig` and `inferredPreferences` into control state JSON.
+- **`ArcOnboardingSequence`:** New `OnboardingScreen.personalitySetup` step with animated transition.
+- **`ArcOnboardingCubit` / `ArcOnboardingState`:** Added personality setup screen enum and flow.
+
+#### Onboarding Redesign
+- **Screen 1 (LUMARA Intro):** Redesigned — "Frontier AI that actually knows you — and keeps it that way"; 3 icon lines (data on device, frontier capability, full context); "Get started" button replaces tap-to-continue.
+- **Screen 2 (Capabilities):** "Most AI forgets you the moment you close the app. LUMARA remembers — but only when you want it to." Three pillars: Full context on your terms, Data never leaves, Frontier capability. "See how it works" / "Jump in" buttons.
+- **Phase quiz removed from default onboarding path.**
+
+#### LUMARA Vision Reposition (UI De-Emphasis of Phases)
+- **Timeline (`timeline_view.dart`):** Phase legend dropdown removed; phase-colored Arcform preview hidden (`showArcformPreview: false`). Entries show format/source, not phase. "Phase Legend & Tips" → "Timeline tips".
+- **Interactive timeline (`interactive_timeline_view.dart`):** Phase window and phase preview card removed from the UI.
+- **Historical Arcform view:** Phase-related display removed (70 lines).
+- **Timeline entry model:** Phase tag display fields simplified (42 lines changed).
+- **Unified feed (`unified_feed_screen.dart`):** Phase preview card and phase Gantt removed from feed. Simplified header and greeting.
+- **Feed entry cards:** Phase-colored borders and phase chips removed from `active_conversation_card`, `reflection_card`, `saved_conversation_card`, `voice_memo_card`.
+- **Expanded entry view:** Phase display removed; simplified to format/source display.
+- **Home view:** Phase tab removed; LUMARA + Conversations only.
+- **Current phase Arcform preview:** Simplified (phase chip hidden).
+- **LUMARA assistant screen:** Simplified layout.
+- **LUMARA splash screen:** Phase-related animations reduced (122 lines simplified).
+- **Voice mode screen:** Phase display and phase-specific voice prompts simplified.
+- **Chat welcome:** "Hello! I'm LUMARA, your personal AI. I can help with what you need…"
+- **Doc added:** `LUMARA_Vision_Reposition.md` — documents the reposition rationale and current state.
+
+#### Engagement Mode Simplification
+- **`EngagementMode` enum:** New `deeper` mode replaces separate `explore` and `integrate`. `explore` and `integrate` kept as legacy aliases mapping to `deeper`. Two-mode UX: Default (reflect) and Deeper (deeper).
+- **`EngagementModeSelector` widget:** Updated for 2-mode display.
+- **`ResponseDiscipline`:** `_getModeValue` now takes `reflect` and `deeper` instead of three modes.
+- **CHRONICLE `query_router.dart`:** Simplified — `integrate` mode now always uses yearly aggregation (no early-year monthly fallback). `_inferReflectLayer` simplified: removed date-aware routing (recency signals, long-term signals, early-year monthly fallback); uses simpler layer selection.
+
+#### PRISM Context Compression Removed from API Path
+- **`enhanced_lumara_api.dart`:** Removed `PrismAdapter.extractKeyPoints()` calls for current entry and Layer 0 history entries. Full entry text and full Layer 0 content now sent (compression handled at prompt level instead of payload level).
+
+#### API Config & Logging
+- **`LumaraAPIConfig`:** `initialize()` now skips if already initialized (`_initialized` flag) unless `force: true`. `markNeedsReinit()` for external callers. Verbose provider logging only on key changes; compact one-line summary otherwise.
+
+#### Other Changes
+- **LUMARA thinking dialog:** Redesigned/simplified (104 lines changed).
+- **Journal screen:** Simplified layout (311 lines changed); inline reflection blocks simplified.
+- **Settings views:** Phase-related settings hidden; simplified.
+- **CHRONICLE synthesis prompts:** Minor adjustments to monthly, yearly, multiyear synthesizers.
+- **PII detection service:** Reduced (46 lines removed).
+- **ECHO prompt templates:** Minor adjustments.
+- **Agents screen:** Minor UI simplification.
+- **Emotion/reason pickers:** Minor updates.
+- **Consent sheet:** Phase-related content removed.
+- **Attribution display widget:** Simplified.
+- **`ONBOARDING_TEXT.md`:** Rewritten to reflect new onboarding copy.
+- **`UNIVERSAL_PROMPT_OPTIMIZATION.md`:** Minor adjustments.
+- **`ECHO_AND_PRISM_PRIVACY_ARCHITECTURE.md`:** Minor update.
+- **`MASTER_PROMPT_CHRONICLE_VECTORIZATION.md`:** Updated to reflect dual-mode prompt architecture.
+- **Bugtracker:** New record `lumara-gtm-double-groq-call.md` (GTMSessionFetcher issue); audit report updated.
+- **New UI file:** `lumara_chat_redesign_screen.dart` (in progress).
+- **Backend functions:** `proxyGemini.ts` improved error handling; `generateJournalReflection.ts` minor fix; compiled JS outputs updated.
+- **iOS:** `Podfile.lock` updated.
+
+**Files:** 102 modified, 5 new, 4 deleted (~2,482 additions, ~4,256 deletions). bug_tracker tracked.
 
 ---
 

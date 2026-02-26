@@ -637,9 +637,6 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
                       debugPrint('Current scope.journal: ${scope.journal}');
                       cubit.toggleScope('journal');
                     }),
-                    _buildScopeChip(theme, 'Phase', scope.phase, () {
-                      cubit.toggleScope('phase');
-                    }),
                     _buildScopeChip(theme, 'ARCForms', scope.arcforms, () {
                       cubit.toggleScope('arcforms');
                     }),

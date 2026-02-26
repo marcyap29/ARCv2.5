@@ -7,17 +7,11 @@ import 'package:hive/hive.dart';
 import 'package:my_app/models/user_profile_model.dart';
 import 'package:my_app/shared/ui/home/home_view.dart';
 import 'package:my_app/services/firebase_auth_service.dart';
-import 'package:my_app/services/phase_regime_service.dart';
-import 'package:my_app/services/analytics_service.dart';
-import 'package:my_app/services/rivet_sweep_service.dart';
 import 'package:my_app/ui/auth/sign_in_screen.dart';
-import 'package:my_app/ui/splash/animated_phase_shape.dart';
 import 'package:my_app/shared/ui/onboarding/arc_onboarding_sequence.dart';
 import 'package:my_app/arc/core/journal_repository.dart';
-import 'package:my_app/services/user_phase_service.dart';
-import 'package:my_app/prism/atlas/rivet/rivet_provider.dart';
 
-/// Splash screen with LUMARA logo and animated phase shape
+/// Splash screen with LUMARA logo (phase shape removed for reposition)
 class LumaraSplashScreen extends StatefulWidget {
   const LumaraSplashScreen({super.key});
 
@@ -28,13 +22,8 @@ class LumaraSplashScreen extends StatefulWidget {
 class _LumaraSplashScreenState extends State<LumaraSplashScreen> 
     with SingleTickerProviderStateMixin {
   Timer? _timer;
-  /// Safeguard: if phase load hangs, still navigate after this delay so app never sticks on splash/white.
+  /// Safeguard: if init hangs, still navigate after this delay so app never sticks on splash/white.
   Timer? _safeguardTimer;
-  /// Only used when _userHasPhase is true; never default to Discovery for display.
-  String _currentPhase = '';
-  bool _phaseLoaded = false;
-  /// True only when a phase has been designated (profile or regime). When false, show only the LUMARA logo.
-  bool _userHasPhase = false;
   bool _hasNavigated = false;
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
@@ -65,75 +54,12 @@ class _LumaraSplashScreenState extends State<LumaraSplashScreen>
   }
 
   Future<void> _loadCurrentPhase() async {
-    try {
-      // Use same source as Phase Page: profile (quiz/manual) first, then regime; empty when none set
-      final profilePhase = await UserPhaseService.getCurrentPhase();
-      print('DEBUG: _loadCurrentPhase - getCurrentPhase returned: "$profilePhase"');
-      // Do not backfill UserProfile from entries here — splash is display-only. Phase Page / onboarding set profile.
-
-      final analyticsService = AnalyticsService();
-      final rivetSweepService = RivetSweepService(analyticsService);
-      final phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
-      await phaseRegimeService.initialize();
-
-      bool rivetGateOpen = false;
-      try {
-        final rivetProvider = RivetProvider();
-        if (!rivetProvider.isAvailable) {
-          await rivetProvider.initialize('default_user');
-        }
-        rivetGateOpen = rivetProvider.service?.wouldGateOpen() ?? false;
-      } catch (_) {}
-
-      String? regimePhase;
-      final currentRegime = phaseRegimeService.phaseIndex.currentRegime;
-      final allRegimes = phaseRegimeService.phaseIndex.allRegimes;
-      if (currentRegime != null) {
-        regimePhase = currentRegime.label.toString().split('.').last;
-      } else if (allRegimes.isNotEmpty) {
-        final sortedRegimes = List.from(allRegimes)
-          ..sort((a, b) => b.start.compareTo(a.start));
-        regimePhase = sortedRegimes.first.label.toString().split('.').last;
-      }
-
-      final displayPhase = UserPhaseService.getDisplayPhase(
-        regimePhase: regimePhase,
-        rivetGateOpen: rivetGateOpen,
-        profilePhase: profilePhase,
-      );
-      
-      // Brand new users with no phase see NO phase shape (empty displayPhase)
-      // Only show phase shape when we have an actual phase from regime or profile
-      final hasPhase = displayPhase.isNotEmpty;
-      final phase = hasPhase
-          ? displayPhase[0].toUpperCase() + displayPhase.substring(1).toLowerCase()
-          : ''; // No default - brand new users see LUMARA logo only
-
-      if (mounted) {
-        setState(() {
-          _userHasPhase = hasPhase;
-          _currentPhase = phase;
-          _phaseLoaded = true;
-        });
-        _startTimer();
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _userHasPhase = false;
-          _phaseLoaded = true;
-        });
-        _startTimer();
-      }
-    }
+    // Phase display removed for reposition; minimal init then start timer
+    if (mounted) _startTimer();
   }
 
   void _startTimer() {
-    // Logo-only: 3s. With phase shape: 8s to admire the animation.
-    final duration = _userHasPhase
-        ? const Duration(seconds: 8)
-        : const Duration(seconds: 3);
-    _timer = Timer(duration, () {
+    _timer = Timer(const Duration(seconds: 3), () {
       if (mounted) {
         _checkAuthAndNavigate();
       }
@@ -236,43 +162,33 @@ class _LumaraSplashScreenState extends State<LumaraSplashScreen>
         child: SafeArea(
           child: LayoutBuilder(
             builder: (context, constraints) {
-              // Calculate logo size based on screen width (use 50% of screen width, min 150px, max 300px)
               final logoSize = (constraints.maxWidth * 0.5).clamp(150.0, 300.0);
-              // Phase shape size (slightly smaller than logo)
-              final shapeSize = logoSize * 0.8;
-              
               return FadeTransition(
                 opacity: _fadeAnimation,
                 child: Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      // LUMARA logo (always shown)
+                      Text(
+                        'LUMARA',
+                        style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w300,
+                          letterSpacing: 12,
+                        ) ?? const TextStyle(
+                          fontSize: 28,
+                          color: Colors.white,
+                          fontWeight: FontWeight.w300,
+                          letterSpacing: 12,
+                        ),
+                      ),
+                      const SizedBox(height: 24),
                       Image.asset(
                         'assets/icon/LUMARA_Sigil.png',
                         width: logoSize,
                         height: logoSize,
                         fit: BoxFit.contain,
                       ),
-                      // Phase shape and label only when user has a phase (not first-time / no regime)
-                      if (_phaseLoaded && _userHasPhase) ...[
-                        const SizedBox(height: 24),
-                        AnimatedPhaseShape(
-                          phase: _currentPhase,
-                          size: shapeSize,
-                          rotationDuration: const Duration(seconds: 10),
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          _currentPhase,
-                          style: TextStyle(
-                            color: Colors.white.withOpacity(0.5),
-                            fontSize: 14,
-                            fontWeight: FontWeight.w300,
-                            letterSpacing: 2,
-                          ),
-                        ),
-                      ],
                     ],
                   ),
                 ),

@@ -1,8 +1,8 @@
 # Bugtracker Consolidation Audit Report
 
-**Document Version:** 1.1.0  
-**Last Updated:** 2026-02-20  
-**Change Summary:** Consolidator run 2026-02-20: 3 new records created (BUG-PRISM-001, BUG-CHRONICLE-001, BUG-JOURNAL-001); record count 35 → 38; inventory updated  
+**Document Version:** 1.2.0  
+**Last Updated:** 2026-02-25  
+**Change Summary:** Consolidator run 2026-02-25: 1 new record indexed (BUG-LUMARA-GTM-001 — lumara-gtm-double-groq-call.md); record count 38 → 39; inventory updated  
 **Methodology:** Phase 1 – Comprehensive scan, archive mining, format analysis, data inventory
 
 ---
@@ -24,10 +24,11 @@ The EPI MVP bugtracker has been audited against the bugtracker-consolidator meth
 | **bug_tracker_part2.md** | DOCS/bugtracker/ | Chronological: Nov 2025 (v2.1.27–v2.1.42) | — |
 | **bug_tracker_part3.md** | DOCS/bugtracker/ | Chronological: Jan–Oct 2025 (v2.0.0–v2.1.26 & earlier) | — |
 
-### 2.2 Individual Bug Records (35 files)
+### 2.2 Individual Bug Records (39 files)
 
 All in **DOCS/bugtracker/records/**:
 
+- lumara-gtm-double-groq-call.md *(BUG-LUMARA-GTM-001 — added 2026-02-25)*
 - build-fixes-session-feb-2026.md  
 - ollama-serve-address-in-use-and-quit-command.md  
 - ios-build-rivet-models-keywords-set-type.md  
@@ -63,6 +64,9 @@ All in **DOCS/bugtracker/records/**:
 - stripe-checkout-unauthenticated.md  
 - lumara-temporal-context-incorrect-dates.md  
 - gemini-api-empty-user-string.md  
+- lumara-inline-api-pii-egress.md  
+- chronicle-yearly-routing-early-year.md  
+- journal-context-current-entry-duplication.md  
 
 ### 2.3 Archive
 
@@ -128,6 +132,8 @@ No **loss of bug data** was identified; all 38 records are referenced from the m
 
 **Consolidator run 2026-02-20 additions:** Three records created for previously undocumented bug fixes: `lumara-inline-api-pii-egress.md` (BUG-PRISM-001 — CRITICAL PII egress via LumaraInlineApi, fixed v3.3.49/v3.3.50), `chronicle-yearly-routing-early-year.md` (BUG-CHRONICLE-001 — HIGH empty yearly context Jan–Mar, fixed v3.3.56), `journal-context-current-entry-duplication.md` (BUG-JOURNAL-001 — MEDIUM current entry duplicated as OLDER ENTRY, fixed v3.3.56). Two new component tags added: `#chronicle`, `#privacy`.
 
+**Consolidator run 2026-02-25 additions:** One record indexed: `lumara-gtm-double-groq-call.md` (BUG-LUMARA-GTM-001 — MEDIUM GTMSessionFetcher "already running" warning caused by duplicate proxyGroq calls via `_tryChatAgentPath` LLM classifier + TCP dirty-state; fixed 2026-02-24 with keyword pre-filter, `_savePendingInput` race fix, and `groqSend` retry). No new component tags. Record count 38 → 39.
+
 ---
 
 ## 5. Historical Timeline and Evolution
@@ -153,10 +159,10 @@ No **loss of bug data** was identified; all 38 records are referenced from the m
 - **Comprehensive scan:** Done (all bugtracker dirs, archive, CHANGELOG, DOCS references).
 - **Archive mining:** Done (archive list and role of each document).
 - **Format analysis:** Done (mandatory structure vs current state by asset).
-- **Data inventory:** Done (35 records listed; primary and archive documents listed).
+- **Data inventory:** Done (39 records listed; primary and archive documents listed).
 - **Zero information loss:** Confirmed (no bugs removed; master index and audit report add traceability).
 
 ---
 
 **Next Review:** Align with BUGTRACKER_MASTER_INDEX.md "Next Review Due" (2026-03-20).
-**Documentation Updated:** 2026-02-18
+**Documentation Updated:** 2026-02-25

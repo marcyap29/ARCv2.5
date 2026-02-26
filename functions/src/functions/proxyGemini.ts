@@ -90,19 +90,21 @@ export const proxyGemini = onCall(
         throw error;
       }
       
-      logger.error(`Gemini proxy error:`, error);
+      const errMsg = error?.message ?? String(error);
+      const errStr = typeof error === "object" ? JSON.stringify(error, null, 0).slice(0, 500) : String(error);
+      logger.error("Gemini proxy error:", errMsg, errStr);
       
-      if (error.message?.includes("429") || error.message?.includes("quota")) {
+      if (errMsg.includes("429") || errMsg.includes("quota")) {
         throw new HttpsError(
           "resource-exhausted",
           "Rate limit exceeded. Please try again later."
         );
       }
-      
-      throw new HttpsError(
-        "internal",
-        `Gemini API error: ${error.message || "Unknown error"}`
-      );
+      // Surface a clearer message; avoid leaking internals
+      const userMsg = errMsg && errMsg !== "INTERNAL" && errMsg.length < 200
+        ? `Gemini API error: ${errMsg}`
+        : "AI service error. Try again or use a shorter message.";
+      throw new HttpsError("internal", userMsg);
     }
   }
 );

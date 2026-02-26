@@ -346,24 +346,15 @@ ENGAGEMENT MODE: REFLECT (Surface Patterns & Stop)
 - NO cross-domain synthesis
 - Stop after achieving grounding - response should feel complete
 ''';
+      case EngagementMode.deeper:
       case EngagementMode.explore:
-        return '''
-ENGAGEMENT MODE: EXPLORE (Pattern Analysis with One Engagement Move)
-- All REFLECT capabilities PLUS single engagement move
-- May ask ONE connecting question OR make ONE additional observation
-- 4-6 sentences typical
-- Surface patterns in current statement or recent conversation
-- Questions should connect to trajectory, not probe emotions
-- Don't force questions - only ask if it genuinely deepens understanding
-''';
       case EngagementMode.integrate:
         return '''
-ENGAGEMENT MODE: INTEGRATE (Cross-Domain Synthesis)
-- All EXPLORE capabilities PLUS cross-domain synthesis
-- 6-10 sentences allowed for rich synthesis
+ENGAGEMENT MODE: DEEPER (Patterns & Synthesis)
 - Surface patterns across conversation AND previous entries
 - Reference relevant past entries and psychological threads
 - Synthesize themes for deeper understanding
+- 6-10 sentences allowed for rich synthesis
 - May ask connecting questions to deepen integration
 ''';
     }
@@ -415,7 +406,8 @@ USER IS SEEKING: REFLECTION (Processing/Venting)
     // Base limits from VoiceResponseConfig
     final baseLimits = {
       EngagementMode.reflect: 175,
-      EngagementMode.explore: 350,
+      EngagementMode.deeper: 450,
+      EngagementMode.explore: 450,
       EngagementMode.integrate: 450,
     };
     

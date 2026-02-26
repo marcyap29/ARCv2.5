@@ -56,7 +56,7 @@ class _EmotionPickerState extends State<EmotionPicker>
         elevation: 0,
         leading: IconButton(
           onPressed: () {
-            // Use callback to navigate to Phase tab if available, otherwise pop
+            // Use callback if provided, otherwise pop
             if (widget.onExitToPhase != null) {
               widget.onExitToPhase!();
             } else {

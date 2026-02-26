@@ -129,7 +129,7 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
     return BlocListener<TimelineCubit, TimelineState>(
       listener: (context, state) {
         // Removed automatic phase quiz trigger when timeline is empty
-        // Users can now manually change their phase in the timeline or phase tab
+        // Timeline state listener
       },
       child: BlocBuilder<TimelineCubit, TimelineState>(
         builder: (context, state) {
@@ -310,7 +310,7 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
   }
 
   /// Order of format sections when grouping by format.
-  static const List<String> _formatOrder = ['writing', 'research', 'chat', 'voice', 'journal'];
+  static const List<String> _formatOrder = ['writing', 'research', 'chat', 'voice', 'reflection', 'import', 'journal'];
 
   IconData _formatIcon(String formatKey) {
     switch (formatKey) {
@@ -322,6 +322,10 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
         return Icons.chat_bubble_outline;
       case 'voice':
         return Icons.mic;
+      case 'reflection':
+        return Icons.auto_awesome;
+      case 'import':
+        return Icons.folder_open;
       case 'journal':
       default:
         return Icons.edit;
@@ -338,6 +342,10 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
         return 'Chat';
       case 'voice':
         return 'Voice';
+      case 'reflection':
+        return 'Reflection';
+      case 'import':
+        return 'Import';
       case 'journal':
       default:
         return 'Journal';
@@ -360,7 +368,9 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
 
     final grouped = <String, List<TimelineEntry>>{};
     for (final e in _entries) {
-      final key = e.entryFormat ?? 'journal';
+      final key = (e.importSource != null && e.importSource!.isNotEmpty && e.importSource != 'NATIVE')
+          ? 'import'
+          : (e.entryFormat ?? 'journal');
       grouped.putIfAbsent(key, () => []).add(e);
     }
     for (final list in grouped.values) {
@@ -754,7 +764,7 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
 
   Widget _buildTimelineEntryCard(TimelineEntry entry, int periodIndex, int entryIndex) {
     final isSelected = _selectedEntryIds.contains(entry.id);
-    final phaseColor = _getPhaseColor(entry.phase);
+    final formatColor = _getFormatBarColor(entry);
 
     return GestureDetector(
       onTap: () => _onEntryTap(entry),
@@ -785,7 +795,7 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Phase-colored bar on the left (clickable)
+              // Format bar on the left (clickable for ARCForm timeline)
             Tooltip(
               message: 'Open ARCForm timeline',
               child: GestureDetector(
@@ -803,7 +813,7 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
                         child: Container(
                           width: 10,
                           decoration: BoxDecoration(
-                            color: phaseColor,
+                            color: formatColor,
                             borderRadius: const BorderRadius.only(
                               topLeft: Radius.circular(12),
                               bottomLeft: Radius.circular(12),
@@ -816,7 +826,7 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
                         child: RotatedBox(
                           quarterTurns: 3,
                           child: Text(
-                            _getPhaseDisplayName(entry.phase),
+                            entry.formatDisplayLabel.toUpperCase(),
                             style: captionStyle(context).copyWith(
                               fontSize: 9,
                               color: Colors.white,
@@ -1043,7 +1053,7 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
                                 ),
                                 const SizedBox(width: 8),
                                 Text(
-                                  entry.phase ?? 'No Phase',
+                                  entry.formatDisplayLabel,
                                   style: captionStyle(context).copyWith(
                                     color: kcSecondaryTextColor,
                                     fontSize: 12,
@@ -1366,78 +1376,37 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
     }
   }
 
-
-  Color _getPhaseColor(String? phase) {
-    if (phase == null) return kcSecondaryTextColor;
-
-    final normalized = phase
-        .replaceAll('#', '')
-        .replaceAll('_', ' ')
-        .trim()
-        .toLowerCase();
-
-    switch (normalized) {
-      case 'discovery':
-        return const Color(0xFF7C3AED); // Purple
-      case 'expansion':
-        return const Color(0xFF059669); // Green
-      case 'transition':
-        return const Color(0xFFD97706); // Orange
-      case 'consolidation':
-        return const Color(0xFF2563EB); // Blue
-      case 'recovery':
-        return const Color(0xFFDC2626); // Red
-      case 'breakthrough':
-        return const Color(0xFFFBBF24); // Yellow
-      default:
-        return kcSecondaryTextColor;
+  /// Bar color by entry format/source (no phase).
+  Color _getFormatBarColor(TimelineEntry entry) {
+    if (entry.importSource != null && entry.importSource!.isNotEmpty && entry.importSource != 'NATIVE') {
+      return const Color(0xFFD97706); // Orange for imports
     }
-  }
-
-  String _getPhaseDisplayName(String? phase) {
-    if (phase == null) return 'UNKNOWN';
-
-    final normalized = phase
-        .replaceAll('#', '')
-        .replaceAll('_', ' ')
-        .trim()
-        .toLowerCase();
-
-    switch (normalized) {
-      case 'discovery':
-        return 'DISCOVERY';
-      case 'expansion':
-        return 'EXPANSION';
-      case 'transition':
-        return 'TRANSITION';
-      case 'consolidation':
-        return 'CONSOLIDATION';
-      case 'recovery':
-        return 'RECOVERY';
-      case 'breakthrough':
-        return 'BREAKTHROUGH';
+    switch (entry.entryFormat) {
+      case 'chat':
+        return const Color(0xFF2563EB); // Blue for CHAT
+      case 'voice':
+        return const Color(0xFF059669); // Green for Voice
+      case 'reflection':
+        return const Color(0xFF7C3AED); // Purple for Reflection
+      case 'writing':
+        return const Color(0xFF0EA5E9); // Sky for Writing
+      case 'research':
+        return const Color(0xFF6366F1); // Indigo for Research
+      case 'journal':
       default:
-        return 'UNKNOWN';
+        return kcPrimaryColor.withOpacity(0.6);
     }
   }
 
   Widget _buildEntryDetailsWithPhaseShape(
       TimelineEntry entry, bool isCurrentEntry, bool isSelected) {
-    final phaseColor = _getPhaseColor(entry.phase);
-
     return Column(
       children: [
-        // Phase name above the entry
-        if (entry.phase != null) ...[
-          _buildPhaseDisplay(entry.phase!, phaseColor, isCurrentEntry),
-          const SizedBox(height: 16),
-        ],
-
-        // Entry type label
+        // Entry format label (CHAT, Voice, Reflection, Import, Journal, etc.)
         Text(
-          'CONVERSATION',
+          entry.formatDisplayLabel.toUpperCase(),
           style: captionStyle(context).copyWith(
-            fontSize: 10.5, // Reduced by 1/8 from 12 to 10.5
+            fontSize: 10.5,
             fontWeight: FontWeight.w600,
             letterSpacing: 1.2,
             color: isCurrentEntry
@@ -1501,69 +1470,6 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
         ],
       ],
     );
-  }
-
-  Widget _buildPhaseDisplay(
-      String phase, Color phaseColor, bool isCurrentEntry) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: phaseColor.withOpacity(isCurrentEntry ? 0.2 : 0.1),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: phaseColor.withOpacity(isCurrentEntry ? 0.8 : 0.5),
-          width: isCurrentEntry ? 2 : 1,
-        ),
-        boxShadow: isCurrentEntry
-            ? [
-                BoxShadow(
-                  color: phaseColor.withOpacity(0.3),
-                  blurRadius: 8,
-                  spreadRadius: 1,
-                ),
-              ]
-            : null,
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            _getPhaseIcon(phase),
-            color: phaseColor.withOpacity(isCurrentEntry ? 1.0 : 0.7),
-            size: isCurrentEntry ? 16 : 14,
-          ),
-          const SizedBox(width: 6),
-          Text(
-            phase.toUpperCase(),
-            style: captionStyle(context).copyWith(
-              color: phaseColor.withOpacity(isCurrentEntry ? 1.0 : 0.8),
-              fontSize: isCurrentEntry ? 12 : 11,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 0.5,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  IconData _getPhaseIcon(String phase) {
-    switch (phase.toLowerCase()) {
-      case 'discovery':
-        return Icons.explore;
-      case 'expansion':
-        return Icons.local_florist;
-      case 'transition':
-        return Icons.trending_up;
-      case 'consolidation':
-        return Icons.grid_view;
-      case 'recovery':
-        return Icons.healing;
-      case 'breakthrough':
-        return Icons.auto_fix_high;
-      default:
-        return Icons.circle;
-    }
   }
 
   Widget _buildTimelineFooter() {
@@ -2805,55 +2711,25 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
 
 
 
-  /// Show phase change dialog
+  /// Show context settings hint (phase change dialog removed for reposition)
   void _showPhaseChangeDialog() {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: Text(
-          'Change Phase',
+          'Context',
           style: heading2Style(context),
         ),
         content: Text(
-          'Select your current phase of life. This will affect your arcform patterns and insights.',
+          'You can adjust what data LUMARA uses in LUMARA settings.',
           style: bodyStyle(context),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              // Navigate to phase tab for phase change
-              // This will allow the user to change their phase using the existing phase change UI
-              _navigateToPhaseTab();
-            },
-            child: const Text('Change Phase'),
+            child: const Text('OK'),
           ),
         ],
-      ),
-    );
-  }
-
-  /// Navigate to phase tab for phase change
-  void _navigateToPhaseTab() {
-    // This will be handled by the parent widget (HomeView) to switch to the phase tab
-    // The phase tab already has the phase change functionality
-    // We can emit an event or use a callback to notify the parent
-    print('DEBUG: Navigate to phase tab for phase change');
-    // For now, we'll just show a message that they should go to the phase tab
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('Go to the Phase tab to change your phase'),
-        action: SnackBarAction(
-          label: 'Go to Phase',
-          onPressed: () {
-            // This would need to be implemented by the parent widget
-            print('DEBUG: User wants to go to phase tab');
-          },
-        ),
       ),
     );
   }

@@ -1,8 +1,8 @@
 # EPI LUMARA MVP - Architecture Overview
 
-**Version:** 3.3.38
-**Last Updated:** February 15, 2026
-**Status:** ✅ Production Ready - MVP Fully Operational with Companion-First LUMARA, Reflection Session Safety System, RevenueCat In-App Purchases, Voice Sigil State Machine, Simplified Settings, Health Integration, AssemblyAI v3, Web Access Safety, Correlation-Resistant PII Protection, Bible Reference Retrieval, Google Drive Backup, Temporal Notifications, Enhanced Incremental Backups, Automatic First Export, Sequential Export Numbering, Local Backup Services, and Timeline Pagination
+**Version:** 3.3.59
+**Last Updated:** February 25, 2026
+**Status:** ✅ Production Ready - MVP Fully Operational with Companion-First LUMARA (GPT-OSS 120B primary), LUMARA Vision Reposition (phases de-emphasized in UI), Personality Onboarding, Dual Prompt Mode, Reflection Session Safety System, RevenueCat In-App Purchases, Voice Sigil State Machine, Simplified Settings, Health Integration, AssemblyAI v3, Web Access Safety, Correlation-Resistant PII Protection, Google Drive Backup, Temporal Notifications, Enhanced Incremental Backups, and Timeline Pagination
 
 ---
 
@@ -25,7 +25,6 @@ EPI (Evolving Personal Intelligence) is a Flutter-based intelligent journaling a
 - ✅ **Health→LUMARA Integration (v2.1.52)**: Sleep/energy signals influence LUMARA behavior
 - ✅ **LUMARA Web Access Safety Layer (v2.1.57)**: Comprehensive 10-rule safety framework for Google Search integration
 - ✅ **LUMARA Journal Context Order Fix (v2.1.58)**: Chronological context ordering - LUMARA only sees content above its position
-- ✅ **LUMARA Bible Reference Retrieval (v2.1.63)**: Automatic Bible verse and chapter retrieval using HelloAO Bible API with intelligent detection and privacy protection
 - ✅ **Google Drive Backup Integration (v2.1.64)**: Automatic cloud backups to Google Drive with OAuth authentication, scheduled backups, and export integration
 - ✅ **Stripe Integration Setup (v2.1.76)**: Complete Stripe payment integration with checkout, customer portal, and webhook handlers. Comprehensive documentation and setup guides
 - ✅ **Incremental Backup System (v2.1.77)**: Space-efficient incremental backups with export history tracking, media deduplication, and 90%+ size reduction
@@ -75,6 +74,12 @@ EPI (Evolving Personal Intelligence) is a Flutter-based intelligent journaling a
 - ✅ **Phase Check-In (v3.3.29, enhanced v3.3.30)**: Monthly phase recalibration — PhaseCheckInService (reminder preference; configurable 14/30/60-day cadence; 7-day re-show after dismiss). Display phase: profile first, then regime (RIVET gate respected). PhaseCheckIn Hive model; bottom sheet to confirm phase or run 3-question diagnostic. HomeView shows check-in once per session when due; Phase Analysis Settings: "Show reminder when due" and interval selector.
 - ✅ **Voice transcription cleanup (v3.3.31)**: TranscriptCleanupService (filler words, misrecognitions); spec VOICE_TRANSCRIPTION_MOONSHINE_SPEC.md. Apple On-Device Speech primary; Wispr Flow optional. Unified feed and HomeView updates.
 - ✅ **LUMARA Agents Storage & Export (v3.3.38)**: Writing drafts file-based (`writing_drafts/{userId}/`); research artifacts JSON-persisted (`research_artifacts.json`). List, archive, delete, mark finished in UI. ARCX export/import includes `extensions/agents/writing_drafts/` and `research_artifacts.json`.
+- ✅ **LUMARA Vision Reposition (v3.3.59)**: Repositioned from "Phase-Aware AI agent" to "Lifetime personal AI with frontier capability and full context, private by design." Phases remain under the hood (ATLAS, RIVET, SENTINEL) for intelligence calibration; de-emphasized in all user-facing UI (no phase tab, phase window, phase timeline, or phase tags). Onboarding redesigned: Intro → Capabilities → Personality Setup → complete.
+- ✅ **GPT-OSS 120B Primary LLM (v3.3.59)**: Groq GPT-OSS 120B as primary LLM via `proxyGroq` Cloud Function. `lumaraSend` unified entry point (PRISM scrub → groqSend → PII restore). `geminiSend` / `geminiSendStream` deprecated. Firebase connection warm-up for iOS GTMSessionFetcher stability.
+- ✅ **Master Prompt Dual Mode (v3.3.59)**: Two prompt modes — Conversation (short, default) and Detailed Analysis (full, on demand). `getMasterPromptChatOnly` for chat; `getMasterPrompt` for deep analysis. Phase labels internalized (never shown to user). USER PERSONALITY CONFIG and INFERRED PREFERENCES blocks in master prompt.
+- ✅ **Personality Onboarding (v3.3.59)**: 7-question personality quiz during onboarding (tone, disagreement, response length, emotional support, avoid list, name, notes). Deterministic config generation. Stored via `LumaraReflectionSettingsService`; injected into control state for personalized LUMARA expression.
+- ✅ **Engagement Mode Simplification (v3.3.59)**: Two modes — Default (reflect) and Deeper (replaces explore+integrate). Legacy `explore`/`integrate` kept as aliases.
+- ✅ **Bible Module Removed (v3.3.59)**: `bible_api_service.dart`, `bible_retrieval_helper.dart`, `bible_terminology_library.dart` deleted (1,181 lines). Bible retrieval section removed from master prompt. Users can still ask Bible questions (answered from model training data).
 - ✅ **RIVET Reset on User Phase Change (v3.3.20)**: `PhaseRegimeService.changeCurrentPhase()` and `UserPhaseService.forceUpdatePhase()` reset RIVET so gate closes and fresh evidence accumulates.
 - ✅ **Voice Session: Auto-Endpoint Disabled (v3.3.20)**: Voice recording no longer auto-stops on silence; user must tap to end turn (prevents premature cutoff).
 - ✅ **Privacy Settings: Inline PII Scrub Demo (v3.3.20)**: Real-time PII scrubbing demo in Privacy Settings; shows scrubbed output and redaction count.
@@ -219,27 +224,24 @@ So: the paper’s “ATLAS” is the Developmental Phase Engine; in EPI it is a 
 - `chat/` - LUMARA conversational AI
   - `services/reflective_query_service.dart` - EPI-standard reflective queries
   - `services/reflective_query_formatter.dart` - Response formatting
-  - `services/bible_api_service.dart` - HelloAO Bible API integration
   - `services/temporal_notification_service.dart` - Multi-cadence notification scheduling
   - `services/notification_content_generator.dart` - Notification content generation
   - `services/google_drive_service.dart` - Google Drive API integration with OAuth
   - `services/backup_upload_service.dart` - Backup creation and upload orchestration
   - `services/scheduled_backup_service.dart` - Periodic backup scheduling
   - `services/google_drive_backup_settings_service.dart` - Persistent settings storage
-  - `services/bible_retrieval_helper.dart` - Bible query detection and verse fetching
-  - `services/bible_terminology_library.dart` - Comprehensive Bible terminology database
   - `models/reflective_query_models.dart` - Query result models
   - `models/notification_models.dart` - Notification data models
 - `arcform/` - 3D visualization and analysis forms
 - `core/` - Journal entry processing and state management
 - `ui/` - Journaling interface components
 - `privacy/` - Privacy demonstration UI
-- `unified_feed/` - **(v3.3.23, feature-flagged)** Merged LUMARA chat + Conversations feed
+- `unified_feed/` - **(v3.3.23+)** Merged LUMARA chat + Conversations feed (phase de-emphasized v3.3.59)
   - `models/` - `FeedEntry` (5 types, `mediaItems`, preview strips summary header), `FeedMessage`, `EntryState`
-  - `repositories/feed_repository.dart` - Aggregates journal, chat, voice note data; pagination; phase colors; `computedPhase`; `createdAt` timestamp
+  - `repositories/feed_repository.dart` - Aggregates journal, chat, voice note data; pagination; `createdAt` timestamp
   - `services/` - `ConversationManager` (lifecycle + auto-save), `AutoSaveService`, `ContextualGreetingService` (deprecated v2.2), `UniversalImporterService`
   - `utils/feed_helpers.dart` - Date grouping, icons, `contentWithoutPhaseHashtags()` (preserves newlines), `extractSummary()`, `formatEntryCreationDate()`
-  - `widgets/` - `UnifiedFeedScreen` (deletion, batch select/export, LUMARA chat, phase preview, interactive Gantt, static greeting, scroll-to-top/bottom navigation, pull-to-refresh fires notifiers), `ExpandedEntryView` (media, edit, delete, paragraph rendering with dividers and summary overlap detection), `FeedMediaThumbnails`, `ImportOptionsSheet`, `BaseFeedCard`, 5 card types, `timeline/`
+  - `widgets/` - `UnifiedFeedScreen` (deletion, batch select/export, LUMARA chat, static greeting, scroll-to-top/bottom navigation, pull-to-refresh; phase preview and Gantt removed v3.3.59), `ExpandedEntryView` (media, edit, delete, paragraph rendering with dividers and summary overlap detection), `FeedMediaThumbnails`, `ImportOptionsSheet`, `BaseFeedCard`, 5 card types, `timeline/`
 
 **Key Features:**
 - Journal entry capture and editing
@@ -346,12 +348,12 @@ So: the paper’s “ATLAS” is the Developmental Phase Engine; in EPI it is a 
 - `test/services/lumara/entry_classifier_test.dart` - Comprehensive test suite
 
 **Key Features:**
-- LLM integration (Groq primary / Gemini fallback, on-device Qwen)
+- LLM integration (Groq GPT-OSS 120B primary via `lumaraSend` / `groqSend`; Gemini deprecated; on-device Qwen)
 - Response safety checks
 - Privacy filtering
 - Context management
-- Prompt engineering
-- **Engagement Discipline System** (v2.1.75): User-controlled engagement modes (Reflect/Explore/Integrate) with synthesis boundaries and response discipline settings
+- Prompt engineering — dual mode: Conversation (short `getMasterPromptChatOnly`) and Detailed Analysis (full `getMasterPrompt`)
+- **Engagement Discipline System** (v2.1.75, simplified v3.3.59): Two engagement modes — Default (reflect) and Deeper (replaces explore+integrate) with synthesis boundaries and response discipline settings
 
 ### 5. Subscription & Payment Module (v2.1.76+)
 
@@ -448,23 +450,20 @@ These patterns reflect the Code Simplifier full-repo consolidation (see `DOCS/CO
 - **Crypto**: crypto, pointycastle
 
 ### AI Integration
-- **Cloud LLM (Primary)**: Groq API — Llama 3.3 70B (128K context) with Mixtral 8x7b (32K context) backup. Via `proxyGroq` Firebase Cloud Function or direct API key.
-- **Cloud LLM (Fallback)**: Gemini API (Google) — used when Groq unavailable or fails.
+- **Cloud LLM (Primary)**: Groq API — GPT-OSS 120B (default), GPT-OSS 20B (fast), Llama 3.3 70B (fallback). Via `proxyGroq` Firebase Cloud Function or direct API key. Model allowlist enforced server-side.
+- **Cloud LLM (Deprecated)**: Gemini API (Google) — `geminiSend` / `geminiSendStream` marked `@Deprecated`; not called from active code paths.
+- **Unified LLM Entry Point**: `lumaraSend()` — PRISM scrub → optional correlation-resistant transformation → `groqSend` (proxyGroq) → PII restore. Replaces direct `geminiSend` calls for all chat/reflection flows.
+- **Firebase Connection Warm-Up**: `FirebaseService.warmUpConnection()` pings `proxyGroq` at app startup to establish iOS GTMSessionFetcher TCP connection before real requests. `groqSend` waits for warm-up and retries (2×, 4s/6s back-off) on transient internal errors.
 - **On-Device**: llama.cpp with Qwen models
 - **Embeddings**: Qwen3-Embedding-0.6B
 - **Vision**: Qwen2.5-VL-3B
-- **Bible API**: HelloAO Bible API (`bible.helloao.org`) for accurate Bible verse retrieval
-  - Automatic detection of Bible-related queries using comprehensive terminology library
-  - Character-to-book resolution for prophets and biblical figures
-  - Privacy-protected (Bible names whitelisted in PRISM)
-  - Context-preserving (skips correlation-resistant transformation for Bible questions)
 - **Entry Classification System**: Intelligent classification of user entries to optimize LUMARA responses
   - **5 Entry Types**: Factual, Reflective, Analytical, Conversational, Meta-Analysis
   - **Pre-Processing Classification**: Classification happens before LUMARA processing to prevent over-synthesis
   - **Response Mode Optimization**: Different response modes with appropriate word limits and context scoping
   - **Pattern Detection**: Emotional density, first-person density, technical indicators, and meta-analysis patterns
   - **Classification Logging**: Firebase-based analytics for monitoring and improving classification accuracy
-- **Companion-First LUMARA System (v2.1.87)**: Complete architectural overhaul implementing Companion-first persona selection
+- **Companion-First LUMARA System (v2.1.87, enhanced v3.3.59)**: Complete architectural overhaul implementing Companion-first persona selection
   - **Persona Distribution Target**: 50-60% Companion, 25-35% Strategist, 10-15% Therapist, <5% Challenger
   - **Backend-Only Personas**: No manual persona selection - all decisions made by system based on entry classification and user state
   - **Strict Anti-Over-Referencing**: Maximum 1 past reference for personal Companion responses, maximum 3 for project content
@@ -473,6 +472,8 @@ These patterns reflect the Code Simplifier full-repo consolidation (see `DOCS/CO
   - **Safety Escalation Hierarchy**: Sentinel alerts → High distress → User intent → Entry type → Default Companion
   - **Validation System**: Comprehensive response validation with Firebase logging for violations and persona distribution monitoring
   - **Simplified Settings**: Removed overwhelming options (manual persona, therapeutic depth, response length) while preserving essential controls
+  - **Personality Onboarding (v3.3.59)**: 7-question personality quiz during onboarding captures tone, disagreement style, response length, emotional support, avoid list, user name, and user notes. Deterministic config generation (no LLM). `personalityConfig` and `inferredPreferences` injected into control state; master prompt uses these as baseline for LUMARA expression.
+  - **Dual Prompt Mode (v3.3.59)**: Conversation (short prompt, default) and Detailed Analysis (full prompt, on demand). Phase labels internalized — never shown to user.
 - **Enhanced PRISM Privacy System**: Classification-aware privacy protection with improved semantic analysis
   - **Dual Privacy Strategy**: Classification-aware PRISM preserves semantic content for factual entries while using full abstraction for personal/emotional content
   - **Technical Content Detection**: On-device recognition of mathematics, physics, computer science, engineering topics with subject-specific summarization
@@ -647,8 +648,8 @@ Update last export date and tracked IDs/hashes
 - **ECHO Response**: LLM integration
 
 ### External APIs
-- **Groq API**: Primary cloud LLM provider (Llama 3.3 70B / Mixtral 8x7b)
-- **Gemini API**: Fallback cloud LLM provider
+- **Groq API**: Primary cloud LLM provider (GPT-OSS 120B / GPT-OSS 20B / Llama 3.3 70B)
+- **Gemini API**: Deprecated; not called from active code paths
 - **HealthKit**: iOS health data (planned)
 - **Google Fit**: Android health data (planned)
 
@@ -828,6 +829,6 @@ User Launch → Anonymous Auth (Auto) → 5 Free Requests → Sign-In Prompt
 ---
 
 **Status**: ✅ Production Ready
-**Last Updated**: February 8, 2026
-**Version**: 3.3.16
+**Last Updated**: February 25, 2026
+**Version**: 3.3.59
 

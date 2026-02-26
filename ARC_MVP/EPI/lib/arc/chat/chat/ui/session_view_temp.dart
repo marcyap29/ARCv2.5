@@ -494,7 +494,6 @@ class _SessionViewState extends State<SessionView> {
         spacing: 8,
         children: [
           _buildScopeChip('Journal', _scope.journal, () => _toggleScope('journal')),
-          _buildScopeChip('Phase', _scope.phase, () => _toggleScope('phase')),
           _buildScopeChip('Arcforms', _scope.arcforms, () => _toggleScope('arcforms')),
           _buildScopeChip('Voice', _scope.voice, () => _toggleScope('voice')),
           _buildScopeChip('Media', _scope.media, () => _toggleScope('media')),

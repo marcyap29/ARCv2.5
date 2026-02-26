@@ -291,31 +291,24 @@ class TemporalNotificationService {
           break;
           
         case 'monthly_review':
-          // Navigate to Phase tab (index 1) in HomeView
-          // Since we can't directly control tabs, navigate to home and show a message
           navigator.pushAndRemoveUntil(
-            MaterialPageRoute(builder: (context) => const HomeView(initialTab: 1)),
+            MaterialPageRoute(builder: (context) => const HomeView(initialTab: 0)),
             (route) => false,
           );
-          // TODO: Show monthly review dialog or bottom sheet when review screens are created
           break;
           
         case 'six_month_arc':
-          // Navigate to Phase tab (index 1) in HomeView
           navigator.pushAndRemoveUntil(
-            MaterialPageRoute(builder: (context) => const HomeView(initialTab: 1)),
+            MaterialPageRoute(builder: (context) => const HomeView(initialTab: 0)),
             (route) => false,
           );
-          // TODO: Show 6-month arc view when review screens are created
           break;
           
         case 'yearly_summary':
-          // Navigate to Phase tab (index 1) in HomeView
           navigator.pushAndRemoveUntil(
-            MaterialPageRoute(builder: (context) => const HomeView(initialTab: 1)),
+            MaterialPageRoute(builder: (context) => const HomeView(initialTab: 0)),
             (route) => false,
           );
-          // TODO: Show yearly summary when review screens are created
           break;
           
         default:
