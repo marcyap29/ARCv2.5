@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
 import 'package:my_app/arc/chat/services/favorites_service.dart';
 import 'package:my_app/arc/chat/data/models/lumara_favorite.dart';
 import 'package:my_app/arc/ui/timeline/favorite_journal_entries_view.dart';
-import 'package:my_app/arc/chat/chat/ui/session_view.dart';
+import 'package:my_app/arc/chat/bloc/lumara_assistant_cubit.dart';
+import 'package:my_app/arc/chat/ui/lumara_chat_redesign_screen.dart';
 import 'package:my_app/arc/chat/chat/chat_repo_impl.dart';
 import 'package:my_app/arc/chat/chat/chat_models.dart';
 import 'package:my_app/arc/chat/chat/enhanced_chat_repo_impl.dart';
-import 'package:my_app/services/subscription_service.dart';
 
 /// Screen for managing LUMARA favorites
 class FavoritesManagementView extends StatefulWidget {
@@ -472,27 +473,18 @@ class _FavoritesManagementViewState extends State<FavoritesManagementView> with 
             return;
           }
           
-          // Navigate directly to the chat session
-          // SessionView will handle:
-          // - Loading the session (including archived sessions)
-          // - Auto-restoring archived sessions if needed
-          // - Auto-saving conversations to history
-          // - Error handling if session doesn't exist
           if (mounted) {
+            try {
+              await context.read<LumaraAssistantCubit>().switchToSession(sessionId);
+            } catch (_) {}
+            if (!mounted) return;
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => SessionView(
-                  sessionId: sessionId,
-                  chatRepo: ChatRepoImpl.instance,
-                ),
+                builder: (context) => const LumaraChatRedesignScreen(),
               ),
             ).then((_) {
-              // Reload when returning to refresh any changes
-              // (SessionView auto-saves, so we want to see updated state)
-              if (mounted) {
-                _loadFavorites();
-              }
+              if (mounted) _loadFavorites();
             });
           }
         },
@@ -667,7 +659,7 @@ class _FavoritesManagementViewState extends State<FavoritesManagementView> with 
             padding: const EdgeInsets.all(16),
             child: Row(
               children: [
-                Icon(
+                const Icon(
                   Icons.star,
                   color: kcAccentColor,
                   size: 20,

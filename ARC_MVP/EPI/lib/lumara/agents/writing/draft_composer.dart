@@ -225,8 +225,7 @@ class DraftComposer {
       final afterContext = raw.substring(contextIdx + contextSignalsMarker.length);
       final endContext = afterContext.indexOf('---');
       if (endContext >= 0) {
-        contextSignalsUsed = 'Context signals used:'
-            + afterContext.substring(0, endContext).trim();
+        contextSignalsUsed = 'Context signals used:${afterContext.substring(0, endContext).trim()}';
       }
       final metaMatch = _footerMetadata.firstMatch(raw);
       if (metaMatch != null) {

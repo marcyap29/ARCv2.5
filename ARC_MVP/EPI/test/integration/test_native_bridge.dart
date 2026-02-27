@@ -2,19 +2,23 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 void main() {
-  runApp(MyApp());
+  runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
+    return const MaterialApp(
       home: NativeBridgeTest(),
     );
   }
 }
 
 class NativeBridgeTest extends StatefulWidget {
+  const NativeBridgeTest({super.key});
+
   @override
   _NativeBridgeTestState createState() => _NativeBridgeTestState();
 }
@@ -50,18 +54,18 @@ class _NativeBridgeTestState extends State<NativeBridgeTest> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Native Bridge Test')),
+      appBar: AppBar(title: const Text('Native Bridge Test')),
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text('Native Bridge Test', style: TextStyle(fontSize: 24)),
-            SizedBox(height: 20),
+            const Text('Native Bridge Test', style: TextStyle(fontSize: 24)),
+            const SizedBox(height: 20),
             Text(_result, textAlign: TextAlign.center),
-            SizedBox(height: 20),
+            const SizedBox(height: 20),
             ElevatedButton(
               onPressed: _testNativeBridge,
-              child: Text('Test Native Bridge'),
+              child: const Text('Test Native Bridge'),
             ),
           ],
         ),

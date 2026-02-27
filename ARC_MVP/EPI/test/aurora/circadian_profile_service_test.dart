@@ -1,10 +1,11 @@
 /// Tests for AURORA Circadian Profile Service
 /// 
 /// Tests for CircadianProfileService chronotype detection and rhythm analysis
+library;
 
 import 'package:flutter_test/flutter_test.dart';
-import '../../lib/aurora/services/circadian_profile_service.dart';
-import '../../lib/models/journal_entry_model.dart';
+import 'package:my_app/aurora/services/circadian_profile_service.dart';
+import 'package:my_app/models/journal_entry_model.dart';
 
 void main() {
   group('CircadianProfileService', () {
@@ -193,12 +194,12 @@ JournalEntry _createJournalEntry({required int hour}) {
     content: 'Test content for hour $hour',
     createdAt: entryTime,
     updatedAt: entryTime,
-    tags: [],
+    tags: const [],
     mood: 'neutral',
     audioUri: null,
-    media: [],
+    media: const [],
     sageAnnotation: null,
-    keywords: [],
+    keywords: const [],
     emotion: null,
     emotionReason: null,
     metadata: null,

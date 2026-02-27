@@ -32,7 +32,7 @@ class MockRivetSweepService implements RivetSweepService {
 
   @override
   Future<RivetSweepResult> analyzeEntries(List<JournalEntry> entries) async {
-    return RivetSweepResult(
+    return const RivetSweepResult(
       autoAssign: [],
       review: [],
       lowConfidence: [],
@@ -155,22 +155,22 @@ void main() {
       
       // Verify first regime
       final regime1Node = phaseRegimeNodes.firstWhere(
-        (node) => node.metadata?['phase_regime_id'] == 'regime_1'
+        (node) => node.metadata['phase_regime_id'] == 'regime_1'
       );
       expect(regime1Node.phaseHint, equals(PhaseHint.discovery));
-      expect(regime1Node.metadata?['phase_label'], equals('discovery'));
-      expect(regime1Node.metadata?['phase_source'], equals('user'));
-      expect(regime1Node.metadata?['is_ongoing'], equals(false));
+      expect(regime1Node.metadata['phase_label'], equals('discovery'));
+      expect(regime1Node.metadata['phase_source'], equals('user'));
+      expect(regime1Node.metadata['is_ongoing'], equals(false));
       
       // Verify second regime
       final regime2Node = phaseRegimeNodes.firstWhere(
-        (node) => node.metadata?['phase_regime_id'] == 'regime_2'
+        (node) => node.metadata['phase_regime_id'] == 'regime_2'
       );
       expect(regime2Node.phaseHint, equals(PhaseHint.expansion));
-      expect(regime2Node.metadata?['phase_label'], equals('expansion'));
-      expect(regime2Node.metadata?['phase_source'], equals('rivet'));
-      expect(regime2Node.metadata?['confidence'], equals(0.85));
-      expect(regime2Node.metadata?['is_ongoing'], equals(true));
+      expect(regime2Node.metadata['phase_label'], equals('expansion'));
+      expect(regime2Node.metadata['phase_source'], equals('rivet'));
+      expect(regime2Node.metadata['confidence'], equals(0.85));
+      expect(regime2Node.metadata['is_ongoing'], equals(true));
     });
 
     test('should maintain phase regime relationships in MCP', () async {

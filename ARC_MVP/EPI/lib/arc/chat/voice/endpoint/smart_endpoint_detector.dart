@@ -6,6 +6,7 @@
 /// - Filler word handling
 /// - Visual commitment window
 /// - User override support (tap to force end, speak to cancel)
+library;
 
 import 'dart:async';
 import 'package:flutter/foundation.dart';

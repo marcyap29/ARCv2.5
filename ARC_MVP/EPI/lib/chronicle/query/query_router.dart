@@ -37,7 +37,7 @@ class ChronicleQueryRouter {
     // Integrate: yearly only, fast, allow drill-down (no LLM intent call)
     if (mode == EngagementMode.integrate) {
       final dateFilter = extractDateFilter(query);
-      final strategy = 'Use yearly aggregation(s) for fast integrate; drill-down to monthly if needed';
+      const strategy = 'Use yearly aggregation(s) for fast integrate; drill-down to monthly if needed';
       final plan = QueryPlan.chronicle(
         intent: QueryIntent.temporalQuery,
         layers: [ChronicleLayer.yearly],
@@ -143,7 +143,7 @@ class ChronicleQueryRouter {
   /// Classify query intent using LLM
   Future<QueryIntent> _classifyIntent(String query) async {
     try {
-      final systemPrompt = '''You are a query classifier for a journaling AI system.
+      const systemPrompt = '''You are a query classifier for a journaling AI system.
 Classify user queries into one of these intents:
 
 - specific_recall: Asking about a specific date, event, or entry (e.g., "What did I write last Tuesday?", "Tell me about my entry on January 15")

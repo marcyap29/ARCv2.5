@@ -87,8 +87,8 @@ Future<File> _createTestMcpFile() async {
     version: '1.0.0',
     createdAt: DateTime.now().toUtc(),
     storageProfile: 'test',
-    counts: McpCounts(),
-    checksums: McpChecksums(
+    counts: const McpCounts(),
+    checksums: const McpChecksums(
       nodesJsonl: 'abc123',
       edgesJsonl: 'def456',
       pointersJsonl: 'ghi789',
@@ -105,7 +105,7 @@ Future<File> _createTestMcpFile() async {
       metadata: {'source': 'ARC'},
       timestamp: DateTime.now().toUtc(),
       schemaVersion: '1.0.0',
-      provenance: McpProvenance(source: 'test'),
+      provenance: const McpProvenance(source: 'test'),
     ),
     McpNode(
       id: 'chat-1',
@@ -114,7 +114,7 @@ Future<File> _createTestMcpFile() async {
       metadata: {'source': 'LUMARA_Assistant'},
       timestamp: DateTime.now().toUtc(),
       schemaVersion: '1.0.0',
-      provenance: McpProvenance(source: 'test'),
+      provenance: const McpProvenance(source: 'test'),
     ),
     McpNode(
       id: 'other-1',
@@ -123,7 +123,7 @@ Future<File> _createTestMcpFile() async {
       metadata: {},
       timestamp: DateTime.now().toUtc(),
       schemaVersion: '1.0.0',
-      provenance: McpProvenance(source: 'test'),
+      provenance: const McpProvenance(source: 'test'),
     ),
   ];
   

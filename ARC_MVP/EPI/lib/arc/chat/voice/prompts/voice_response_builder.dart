@@ -6,6 +6,7 @@
 /// - Includes conversation history from current session
 /// - Respects phase-adaptive tone
 /// - Adds response length guidance
+library;
 
 import 'package:flutter/foundation.dart';
 import '../models/voice_session.dart';

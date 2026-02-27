@@ -892,16 +892,16 @@ class _PhaseChangeReadinessCardState extends State<PhaseChangeReadinessCard> {
 
     final remaining = <String>[];
     if (entriesNeeded > 0) {
-      remaining.add('${entriesNeeded} more qualifying ${entriesNeeded == 1 ? 'entry' : 'entries'}');
+      remaining.add('$entriesNeeded more qualifying ${entriesNeeded == 1 ? 'entry' : 'entries'}');
     }
     if (needsIndependent) {
       remaining.add('Evidence from a different day');
     }
     if (alignmentNeeded > 0) {
-      remaining.add('${alignmentNeeded}% alignment evidence');
+      remaining.add('$alignmentNeeded% alignment evidence');
     }
     if (traceNeeded > 0) {
-      remaining.add('${traceNeeded}% supporting data');
+      remaining.add('$traceNeeded% supporting data');
     }
 
     final isReady = remaining.isEmpty;
@@ -932,7 +932,7 @@ class _PhaseChangeReadinessCardState extends State<PhaseChangeReadinessCard> {
                   isReady
                       ? 'All requirements met. Keep journaling to confirm $targetPhase.'
                       : _getGuidanceBannerMessage(align, trace, entries, hasIndependent, targetPhase),
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontWeight: FontWeight.w600,
                     color: Colors.white,
                   ),
@@ -1144,9 +1144,9 @@ class _PhaseChangeReadinessCardState extends State<PhaseChangeReadinessCard> {
           final gap = ((0.6 - _rivetState!.align) * 100).toInt();
           final currentAlign = (_rivetState!.align * 100).toInt();
           if (isVeryClose && gap <= 1) {
-            allRequirements.add('Your entries are ${currentAlign}% aligned with the new phase - just need ${gap}% more alignment. Try writing about themes that match the new phase more closely.');
+            allRequirements.add('Your entries are $currentAlign% aligned with the new phase - just need $gap% more alignment. Try writing about themes that match the new phase more closely.');
           } else if (isVeryClose) {
-            allRequirements.add('Your entries are ${currentAlign}% aligned - need ${gap}% more. Focus on writing about experiences that match the new phase\'s characteristics.');
+            allRequirements.add('Your entries are $currentAlign% aligned - need $gap% more. Focus on writing about experiences that match the new phase\'s characteristics.');
           } else {
             allRequirements.add('Increase alignment by $gap% - ensure your entries match predicted phase patterns.');
           }
@@ -1156,9 +1156,9 @@ class _PhaseChangeReadinessCardState extends State<PhaseChangeReadinessCard> {
           final gap = ((0.6 - _rivetState!.trace) * 100).toInt();
           final currentTrace = (_rivetState!.trace * 100).toInt();
           if (isVeryClose && gap <= 1) {
-            allRequirements.add('Evidence quality is at ${currentTrace}% - just ${gap}% more needed. Keep journaling to build a stronger pattern.');
+            allRequirements.add('Evidence quality is at $currentTrace% - just $gap% more needed. Keep journaling to build a stronger pattern.');
           } else if (isVeryClose) {
-            allRequirements.add('Evidence quality is at ${currentTrace}% - need ${gap}% more. Continue journaling regularly to strengthen the pattern.');
+            allRequirements.add('Evidence quality is at $currentTrace% - need $gap% more. Continue journaling regularly to strengthen the pattern.');
           } else {
             allRequirements.add('Build evidence trace by $gap% - continue journaling to accumulate validation data.');
           }
@@ -1186,7 +1186,7 @@ class _PhaseChangeReadinessCardState extends State<PhaseChangeReadinessCard> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Flexible(
+            const Flexible(
               child: Text(
               'Readiness Progress',
               style: TextStyle(
@@ -1478,7 +1478,7 @@ class _PhaseChangeReadinessCardState extends State<PhaseChangeReadinessCard> {
             children: [
               Icon(Icons.checklist, color: Colors.blue.shade600, size: 22),
               const SizedBox(width: 10),
-              Expanded(
+              const Expanded(
                 child: Text(
                 'Validation Requirements',
                 style: TextStyle(

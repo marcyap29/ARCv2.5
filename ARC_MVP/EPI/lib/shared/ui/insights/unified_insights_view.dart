@@ -15,9 +15,9 @@ class _UnifiedInsightsViewState extends State<UnifiedInsightsView> {
   @override
   Widget build(BuildContext context) {
     // Directly show PhaseAnalysisView - no tabs needed
-    return Scaffold(
+    return const Scaffold(
       body: SafeArea(
-        child: const PhaseAnalysisView(),
+        child: PhaseAnalysisView(),
       ),
     );
   }

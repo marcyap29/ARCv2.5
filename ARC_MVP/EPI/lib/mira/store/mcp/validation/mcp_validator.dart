@@ -283,13 +283,13 @@ class McpValidator {
     try {
       // Check if zip file exists and is readable
       if (!await zipFile.exists()) {
-        return ValidationResult(isValid: false, errors: ['ZIP file does not exist']);
+        return const ValidationResult(isValid: false, errors: ['ZIP file does not exist']);
       }
 
       // Check if zip contains valid MCP bundle
       final isValidBundle = await ZipUtils.isValidMcpBundle(zipFile);
       if (!isValidBundle) {
-        return ValidationResult(
+        return const ValidationResult(
           isValid: false, 
           errors: ['ZIP file does not contain a valid MCP bundle (missing required files)']
         );

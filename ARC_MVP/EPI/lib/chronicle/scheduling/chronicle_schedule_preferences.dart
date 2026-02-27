@@ -46,7 +46,7 @@ const String _kChronicleScheduleCadenceKey = 'chronicle_schedule_cadence';
 
 /// Persists and reads the user's chosen synthesis schedule cadence.
 class ChronicleSchedulePreferences {
-  static ChronicleScheduleCadence _defaultCadence = ChronicleScheduleCadence.daily;
+  static const ChronicleScheduleCadence _defaultCadence = ChronicleScheduleCadence.daily;
 
   /// Get stored cadence (defaults to daily).
   static Future<ChronicleScheduleCadence> getCadence() async {

@@ -9,6 +9,7 @@
 ///
 /// Deduplicates against existing entries before saving.
 /// Triggers CHRONICLE backfill after import for temporal intelligence.
+library;
 
 import 'dart:io';
 import 'dart:convert';

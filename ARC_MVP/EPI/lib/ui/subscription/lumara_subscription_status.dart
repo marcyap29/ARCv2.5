@@ -8,9 +8,9 @@ class LumaraSubscriptionStatus extends StatefulWidget {
   final bool compact;
 
   const LumaraSubscriptionStatus({
-    Key? key,
+    super.key,
     this.compact = false,
-  }) : super(key: key);
+  });
 
   @override
   State<LumaraSubscriptionStatus> createState() => _LumaraSubscriptionStatusState();

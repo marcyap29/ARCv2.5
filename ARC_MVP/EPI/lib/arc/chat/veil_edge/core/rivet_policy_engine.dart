@@ -3,6 +3,7 @@
 /// Manages alignment and stability tracking for VEIL-EDGE phase transitions.
 /// Implements the policy requirements for phase changes and safe mode triggers.
 /// Now includes AURORA circadian-aware policy hooks.
+library;
 
 import 'dart:math';
 import '../models/veil_edge_models.dart';

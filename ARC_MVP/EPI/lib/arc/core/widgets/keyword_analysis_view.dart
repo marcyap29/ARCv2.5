@@ -1035,7 +1035,7 @@ class _KeywordAnalysisViewState extends State<KeywordAnalysisView>
     if (parts.length > 1) {
       // Replace the last part with the suggestion
       parts[parts.length - 1] = suggestion;
-      _keywordController.text = parts.join(', ') + ', ';
+      _keywordController.text = '${parts.join(', ')}, ';
     } else {
       // Replace entire text with suggestion
       _keywordController.text = '$suggestion, ';

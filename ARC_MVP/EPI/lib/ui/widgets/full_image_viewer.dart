@@ -196,13 +196,13 @@ class _FullImageViewerState extends State<FullImageViewer> {
         _fullResImageData!,
         fit: BoxFit.contain,
         errorBuilder: (context, error, stackTrace) {
-          return Center(
+          return const Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.broken_image, color: Colors.white54, size: 64),
-                const SizedBox(height: 16),
-                const Text(
+                Icon(Icons.broken_image, color: Colors.white54, size: 64),
+                SizedBox(height: 16),
+                Text(
                   'Failed to load image',
                   style: TextStyle(color: Colors.white70),
                 ),
@@ -230,13 +230,13 @@ class _FullImageViewerState extends State<FullImageViewer> {
           File(_fallbackPath!.replaceFirst('file://', '')),
           fit: BoxFit.contain,
           errorBuilder: (context, error, stackTrace) {
-            return Center(
+            return const Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.broken_image, color: Colors.white54, size: 64),
-                  const SizedBox(height: 16),
-                  const Text(
+                  Icon(Icons.broken_image, color: Colors.white54, size: 64),
+                  SizedBox(height: 16),
+                  Text(
                     'Failed to load image',
                     style: TextStyle(color: Colors.white70),
                   ),
@@ -251,13 +251,13 @@ class _FullImageViewerState extends State<FullImageViewer> {
           File(_fallbackPath!),
           fit: BoxFit.contain,
           errorBuilder: (context, error, stackTrace) {
-            return Center(
+            return const Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.broken_image, color: Colors.white54, size: 64),
-                  const SizedBox(height: 16),
-                  const Text(
+                  Icon(Icons.broken_image, color: Colors.white54, size: 64),
+                  SizedBox(height: 16),
+                  Text(
                     'Failed to load image',
                     style: TextStyle(color: Colors.white70),
                   ),

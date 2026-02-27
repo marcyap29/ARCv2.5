@@ -2,9 +2,9 @@
 /// 
 /// Uses the `record` package to capture raw audio from the microphone
 /// and stream it in PCM format suitable for AssemblyAI's WebSocket API.
+library;
 
 import 'dart:async';
-import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:record/record.dart';
 

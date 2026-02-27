@@ -141,9 +141,9 @@ class _ArcformRendererViewContentState extends State<ArcformRendererViewContent>
                 size: 18,
               ),
               const SizedBox(width: 8),
-              Text(
+              const Text(
                 'Constellation Arcform',
-                style: const TextStyle(
+                style: TextStyle(
                   color: Colors.white,
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
@@ -503,9 +503,9 @@ class _ArcformRendererViewContentState extends State<ArcformRendererViewContent>
     showDialog(
       context: context,
       barrierColor: Colors.black.withOpacity(0.7),
-      builder: (context) => Dialog(
+      builder: (context) => const Dialog(
         backgroundColor: Colors.transparent,
-        insetPadding: const EdgeInsets.all(16),
+        insetPadding: EdgeInsets.all(16),
         child: SingleChildScrollView(
           child: ArcformLegendWidget(),
         ),
@@ -559,10 +559,10 @@ class _ArcformRendererViewContentState extends State<ArcformRendererViewContent>
                           size: 24,
                         ),
                         const SizedBox(width: 12),
-                        Expanded(
+                        const Expanded(
                           child: Text(
                             'Constellation Arcform',
-                            style: const TextStyle(
+                            style: TextStyle(
                               color: Colors.white,
                               fontSize: 20,
                               fontWeight: FontWeight.bold,

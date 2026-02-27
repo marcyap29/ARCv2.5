@@ -2,7 +2,6 @@
 // Conflict resolution service for EPI memory system
 // Handles contradictions, inconsistencies, and memory conflicts with user dignity
 
-import '../core/schema.dart';
 import 'enhanced_memory_schema.dart';
 
 /// Service for detecting and resolving memory conflicts and contradictions
@@ -27,7 +26,7 @@ class ConflictResolutionService {
   /// Initialize conflict detection rules
   void _initializeDetectionRules() {
     // Semantic contradiction detection
-    _detectionRules['semantic_contradiction'] = ConflictDetectionRule(
+    _detectionRules['semantic_contradiction'] = const ConflictDetectionRule(
       id: 'semantic_contradiction',
       name: 'Semantic Contradiction',
       description: 'Detects when memories contain contradictory information',
@@ -41,7 +40,7 @@ class ConflictResolutionService {
     );
 
     // Temporal inconsistency detection
-    _detectionRules['temporal_inconsistency'] = ConflictDetectionRule(
+    _detectionRules['temporal_inconsistency'] = const ConflictDetectionRule(
       id: 'temporal_inconsistency',
       name: 'Temporal Inconsistency',
       description: 'Detects timeline inconsistencies in memories',
@@ -54,7 +53,7 @@ class ConflictResolutionService {
     );
 
     // Emotional contradiction detection
-    _detectionRules['emotional_contradiction'] = ConflictDetectionRule(
+    _detectionRules['emotional_contradiction'] = const ConflictDetectionRule(
       id: 'emotional_contradiction',
       name: 'Emotional Contradiction',
       description: 'Detects conflicting emotional states about same topic',
@@ -67,7 +66,7 @@ class ConflictResolutionService {
     );
 
     // Value system conflicts
-    _detectionRules['value_conflict'] = ConflictDetectionRule(
+    _detectionRules['value_conflict'] = const ConflictDetectionRule(
       id: 'value_conflict',
       name: 'Value System Conflict',
       description: 'Detects conflicts with core values or beliefs',
@@ -80,7 +79,7 @@ class ConflictResolutionService {
     );
 
     // Phase transition conflicts
-    _detectionRules['phase_conflict'] = ConflictDetectionRule(
+    _detectionRules['phase_conflict'] = const ConflictDetectionRule(
       id: 'phase_conflict',
       name: 'Phase Transition Conflict',
       description: 'Detects memories that conflict with current ATLAS phase',
@@ -96,7 +95,7 @@ class ConflictResolutionService {
   /// Initialize resolution strategies
   void _initializeResolutionStrategies() {
     // High-dignity user confirmation strategy
-    _resolutionStrategies[ConflictType.factual] = ResolutionStrategy(
+    _resolutionStrategies[ConflictType.factual] = const ResolutionStrategy(
       type: ConflictType.factual,
       approach: ResolutionApproach.user_confirmation,
       prompt: ResolutionPrompt.dignified_clarification,
@@ -105,7 +104,7 @@ class ConflictResolutionService {
     );
 
     // Temporal reconciliation strategy
-    _resolutionStrategies[ConflictType.temporal] = ResolutionStrategy(
+    _resolutionStrategies[ConflictType.temporal] = const ResolutionStrategy(
       type: ConflictType.temporal,
       approach: ResolutionApproach.timeline_reconciliation,
       prompt: ResolutionPrompt.timeline_clarification,
@@ -114,7 +113,7 @@ class ConflictResolutionService {
     );
 
     // Emotional evolution strategy
-    _resolutionStrategies[ConflictType.emotional] = ResolutionStrategy(
+    _resolutionStrategies[ConflictType.emotional] = const ResolutionStrategy(
       type: ConflictType.emotional,
       approach: ResolutionApproach.evolution_acknowledgment,
       prompt: ResolutionPrompt.growth_recognition,
@@ -123,7 +122,7 @@ class ConflictResolutionService {
     );
 
     // Value system integration strategy
-    _resolutionStrategies[ConflictType.value_system] = ResolutionStrategy(
+    _resolutionStrategies[ConflictType.value_system] = const ResolutionStrategy(
       type: ConflictType.value_system,
       approach: ResolutionApproach.integration_synthesis,
       prompt: ResolutionPrompt.wisdom_integration,
@@ -132,7 +131,7 @@ class ConflictResolutionService {
     );
 
     // Phase-aware reconciliation strategy
-    _resolutionStrategies[ConflictType.phase] = ResolutionStrategy(
+    _resolutionStrategies[ConflictType.phase] = const ResolutionStrategy(
       type: ConflictType.phase,
       approach: ResolutionApproach.phase_contextual,
       prompt: ResolutionPrompt.phase_awareness,
@@ -503,10 +502,10 @@ I've noticed something in your memories that might need clarification.
 Two of your reflections seem to have different perspectives:
 
 From ${nodeA.createdAt.toLocal().toString().split(' ')[0]}:
-"${nodeA.narrative.length > 150 ? nodeA.narrative.substring(0, 150) + '...' : nodeA.narrative}"
+"${nodeA.narrative.length > 150 ? '${nodeA.narrative.substring(0, 150)}...' : nodeA.narrative}"
 
 From ${nodeB.createdAt.toLocal().toString().split(' ')[0]}:
-"${nodeB.narrative.length > 150 ? nodeB.narrative.substring(0, 150) + '...' : nodeB.narrative}"
+"${nodeB.narrative.length > 150 ? '${nodeB.narrative.substring(0, 150)}...' : nodeB.narrative}"
 
 How would you like me to understand this? Both perspectives are valid parts of your journey.
 ''';
@@ -517,10 +516,10 @@ How would you like me to understand this? Both perspectives are valid parts of y
 I want to honor the complexity of your experience. I've noticed two reflections that seem to hold different truths:
 
 Earlier reflection (${nodeA.createdAt.toLocal().toString().split(' ')[0]}):
-"${nodeA.narrative.length > 120 ? nodeA.narrative.substring(0, 120) + '...' : nodeA.narrative}"
+"${nodeA.narrative.length > 120 ? '${nodeA.narrative.substring(0, 120)}...' : nodeA.narrative}"
 
 Recent reflection (${nodeB.createdAt.toLocal().toString().split(' ')[0]}):
-"${nodeB.narrative.length > 120 ? nodeB.narrative.substring(0, 120) + '...' : nodeB.narrative}"
+"${nodeB.narrative.length > 120 ? '${nodeB.narrative.substring(0, 120)}...' : nodeB.narrative}"
 
 Both hold meaning in your story. Would you like to help me understand how these perspectives relate to each other?
 ''';
@@ -532,9 +531,9 @@ I'm seeing an interesting pattern in your timeline that I'd like to understand b
 
 These two memories seem to have a temporal relationship that isn't quite clear to me:
 
-${nodeA.createdAt.toLocal().toString().split(' ')[0]}: "${nodeA.narrative.length > 100 ? nodeA.narrative.substring(0, 100) + '...' : nodeA.narrative}"
+${nodeA.createdAt.toLocal().toString().split(' ')[0]}: "${nodeA.narrative.length > 100 ? '${nodeA.narrative.substring(0, 100)}...' : nodeA.narrative}"
 
-${nodeB.createdAt.toLocal().toString().split(' ')[0]}: "${nodeB.narrative.length > 100 ? nodeB.narrative.substring(0, 100) + '...' : nodeB.narrative}"
+${nodeB.createdAt.toLocal().toString().split(' ')[0]}: "${nodeB.narrative.length > 100 ? '${nodeB.narrative.substring(0, 100)}...' : nodeB.narrative}"
 
 How do these experiences connect in your journey?
 ''';
@@ -545,10 +544,10 @@ How do these experiences connect in your journey?
 I can see growth happening in your reflections, and I want to honor that evolution:
 
 Earlier feeling (${nodeA.createdAt.toLocal().toString().split(' ')[0]}):
-"${nodeA.narrative.length > 120 ? nodeA.narrative.substring(0, 120) + '...' : nodeA.narrative}"
+"${nodeA.narrative.length > 120 ? '${nodeA.narrative.substring(0, 120)}...' : nodeA.narrative}"
 
 Current feeling (${nodeB.createdAt.toLocal().toString().split(' ')[0]}):
-"${nodeB.narrative.length > 120 ? nodeB.narrative.substring(0, 120) + '...' : nodeB.narrative}"
+"${nodeB.narrative.length > 120 ? '${nodeB.narrative.substring(0, 120)}...' : nodeB.narrative}"
 
 This looks like emotional growth to me. How do you see this change in yourself?
 ''';
@@ -559,10 +558,10 @@ This looks like emotional growth to me. How do you see this change in yourself?
 I'm witnessing the depth of your wisdom as you navigate complex truths:
 
 One part of your understanding:
-"${nodeA.narrative.length > 120 ? nodeA.narrative.substring(0, 120) + '...' : nodeA.narrative}"
+"${nodeA.narrative.length > 120 ? '${nodeA.narrative.substring(0, 120)}...' : nodeA.narrative}"
 
 Another part of your understanding:
-"${nodeB.narrative.length > 120 ? nodeB.narrative.substring(0, 120) + '...' : nodeB.narrative}"
+"${nodeB.narrative.length > 120 ? '${nodeB.narrative.substring(0, 120)}...' : nodeB.narrative}"
 
 How do these different aspects of your wisdom work together?
 ''';
@@ -573,10 +572,10 @@ How do these different aspects of your wisdom work together?
 I notice these reflections might represent different phases of your journey:
 
 From your ${nodeA.phaseContext ?? 'earlier'} phase:
-"${nodeA.narrative.length > 120 ? nodeA.narrative.substring(0, 120) + '...' : nodeA.narrative}"
+"${nodeA.narrative.length > 120 ? '${nodeA.narrative.substring(0, 120)}...' : nodeA.narrative}"
 
 From your ${nodeB.phaseContext ?? 'current'} phase:
-"${nodeB.narrative.length > 120 ? nodeB.narrative.substring(0, 120) + '...' : nodeB.narrative}"
+"${nodeB.narrative.length > 120 ? '${nodeB.narrative.substring(0, 120)}...' : nodeB.narrative}"
 
 How do you see your growth between these different phases?
 ''';

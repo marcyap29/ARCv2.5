@@ -102,7 +102,7 @@ class ArcOnboardingCubit extends Cubit<ArcOnboardingState> {
     } catch (e, stackTrace) {
       _logger.e('Error completing quiz: $e\nStackTrace: $stackTrace');
       // Default to Discovery phase on error
-      final defaultAnalysis = PhaseAnalysis(
+      const defaultAnalysis = PhaseAnalysis(
         phase: PhaseLabel.discovery,
         confidence: ConfidenceLevel.low,
         recognitionStatement: "Let's begin your journey.",
@@ -158,13 +158,13 @@ class ArcOnboardingCubit extends Cubit<ArcOnboardingState> {
         content: '', // Empty content - conversation is in lumaraBlocks
         createdAt: now,
         updatedAt: now,
-        tags: ['onboarding', 'phase_detection'],
+        tags: const ['onboarding', 'phase_detection'],
         mood: 'Reflective',
         audioUri: null,
         sageAnnotation: null,
-        keywords: [],
+        keywords: const [],
         lumaraBlocks: lumaraBlocks, // Store conversation as LUMARA blocks
-        metadata: {
+        metadata: const {
           'onboarding': true,
           'phase_detection': true,
           'conversation_format': true,
@@ -243,7 +243,7 @@ class ArcOnboardingCubit extends Cubit<ArcOnboardingState> {
       const PhaseLabel phase = PhaseLabel.discovery;
 
       // Create analysis for Discovery phase
-      final defaultAnalysis = PhaseAnalysis(
+      const defaultAnalysis = PhaseAnalysis(
         phase: phase,
         confidence: ConfidenceLevel.low,
         recognitionStatement: "Welcome. Your phase constellation will fill with words and patterns as you journal.",
@@ -263,7 +263,7 @@ class ArcOnboardingCubit extends Cubit<ArcOnboardingState> {
     } catch (e, stackTrace) {
       _logger.e('Error skipping quiz with phase: $e\nStackTrace: $stackTrace');
       // Still try to set Discovery on error
-      final defaultAnalysis = PhaseAnalysis(
+      const defaultAnalysis = PhaseAnalysis(
         phase: PhaseLabel.discovery,
         confidence: ConfidenceLevel.low,
         recognitionStatement: "Welcome. Let's begin your journey.",

@@ -57,7 +57,7 @@ class DecayConfig {
   });
 
   /// Get default decay configuration
-  factory DecayConfig.defaultConfig() => DecayConfig(
+  factory DecayConfig.defaultConfig() => const DecayConfig(
     halfLife: 30.0, // 30 days half-life
     phaseMultipliers: {
       'Discovery': 0.5,      // 50% slower decay

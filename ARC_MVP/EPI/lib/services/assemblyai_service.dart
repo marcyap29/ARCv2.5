@@ -4,6 +4,7 @@
 /// - Fetching temporary tokens from Firebase
 /// - Caching tokens with expiration
 /// - Checking user eligibility for cloud transcription
+library;
 
 import 'dart:async';
 import 'package:cloud_functions/cloud_functions.dart';
@@ -152,13 +153,17 @@ class AssemblyAIService {
     } on FirebaseFunctionsException catch (e) {
       if (kDebugMode) print('AssemblyAIService: Firebase error: ${e.code} - ${e.message}');
       if (e.code == 'not-found') {
-        if (kDebugMode) print('AssemblyAIService: Function "getAssemblyAIToken" not found. '
+        if (kDebugMode) {
+          print('AssemblyAIService: Function "getAssemblyAIToken" not found. '
             'This may mean the Firebase function is not deployed. '
             'Falling back to on-device transcription.');
+        }
       } else if (e.code == 'unauthenticated') {
-        if (kDebugMode) print('AssemblyAIService: User not authenticated. '
+        if (kDebugMode) {
+          print('AssemblyAIService: User not authenticated. '
             'Please sign in to use cloud transcription. '
             'Falling back to on-device transcription.');
+        }
       }
       _cachedToken = null;
       _tokenExpiry = null;

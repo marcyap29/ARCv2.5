@@ -451,7 +451,7 @@ class ComprehensiveCVOrchestrator {
     // Add feature summary
     final kp = featureResult['kp'] as int? ?? 0;
     if (kp > 0) {
-      parts.add('Features: ${kp} keypoints');
+      parts.add('Features: $kp keypoints');
     }
 
     if (parts.isEmpty) {

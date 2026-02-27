@@ -5,6 +5,7 @@
 /// - Premium/Founders: Unlimited
 /// 
 /// Usage is stored locally and resets on the first of each month.
+library;
 
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';

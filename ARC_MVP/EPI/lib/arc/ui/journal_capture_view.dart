@@ -42,7 +42,7 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
   final ImagePicker _imagePicker = ImagePicker();
   
   // Manual keywords (matches regular journal mode architecture)
-  List<String> _manualKeywords = [];
+  final List<String> _manualKeywords = [];
 
   @override
   void initState() {
@@ -80,7 +80,7 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
           // final imageBytes = await imageFile.readAsBytes();
           // final ocrText = await _ocrService.extractText(imageBytes);
           // TODO: Implement OCR when service is available
-          final ocrText = null; // OCR service not available
+          const ocrText = null; // OCR service not available
           if (ocrText != null && ocrText.isNotEmpty) {
             // Show OCR text insert dialog
             if (mounted) {
@@ -501,11 +501,11 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
                                     borderRadius: BorderRadius.circular(12),
                                     border: Border.all(color: Colors.green.withOpacity(0.3)),
                                   ),
-                                  child: Row(
+                                  child: const Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
                                       Icon(Icons.check_circle, color: Colors.green, size: 16),
-                                      const SizedBox(width: 4),
+                                      SizedBox(width: 4),
                                       Text(
                                         'Working',
                                         style: TextStyle(

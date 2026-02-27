@@ -6,7 +6,7 @@ import 'package:my_app/arc/chat/data/context_provider.dart';
 import 'package:my_app/arc/chat/data/models/lumara_message.dart';
 import 'package:my_app/arc/chat/llm/llm_adapter.dart';
 import 'package:my_app/arc/chat/llm/rule_based_adapter.dart'; // For InsightKind enum
-import 'package:my_app/services/gemini_send.dart'; // provideArcLLM, lumaraSend
+import 'package:my_app/services/gemini_send.dart'; // lumaraSend
 import 'package:my_app/services/llm_bridge_adapter.dart';
 import '../services/enhanced_lumara_api.dart';
 import '../services/progressive_memory_loader.dart';
@@ -274,7 +274,6 @@ class LumaraAssistantPaused extends LumaraAssistantState {
 class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
   final ContextProvider _contextProvider;
   final LLMAdapter _llmAdapter;
-  late final ArcLLM _arcLLM;
   late final EnhancedLumaraApi _enhancedApi;
   final Analytics _analytics = Analytics();
 
@@ -347,8 +346,6 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
        _chatRepo = ChatRepoImpl.instance,
        _chatPhaseService = ChatPhaseService(ChatRepoImpl.instance),
        super(LumaraAssistantInitial()) {
-    // Initialize ArcLLM with Groq integration (GPT-OSS 120B via proxyGroq)
-    _arcLLM = provideArcLLM();
     // Initialize enhanced LUMARA API
     _enhancedApi = EnhancedLumaraApi(_analytics);
     // Initialize progressive memory loader
@@ -390,7 +387,7 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
 
     // Add welcome message (only automated message allowed)
     // Split into paragraphs for better readability
-    final welcomeContent = "Hello! I'm LUMARA, your personal AI. I can help with what you need, when you need it — and when you want, I can use your journal and history for more personal answers.\n\nWhat would you like to know?";
+    const welcomeContent = "Hello! I'm LUMARA, your personal AI. I can help with what you need, when you need it — and when you want, I can use your journal and history for more personal answers.\n\nWhat would you like to know?";
 
       final List<LumaraMessage> messages = [
         LumaraMessage.assistant(content: welcomeContent),
@@ -487,9 +484,16 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
   }
 
   /// Appends a human-readable processing step to the thinking bubble.
-  void _emitStep(String step) {
+  /// When [allowDuplicate] is false (default), skips if step equals the last step
+  /// (e.g. for "Streaming…" from onStreamChunk to avoid spamming).
+  void _emitStep(String step, {bool allowDuplicate = false}) {
     final s = state;
     if (s is LumaraAssistantLoaded && s.isProcessing) {
+      if (!allowDuplicate &&
+          s.processingSteps.isNotEmpty &&
+          s.processingSteps.last == step) {
+        return;
+      }
       emit(s.copyWith(processingSteps: [...s.processingSteps, step]));
     }
   }
@@ -561,6 +565,7 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
         isProcessing: true,
         apiErrorMessage: null,
         notice: null,
+        processingSteps: ['LUMARA is thinking...'], // Initial step to match reflection UX
       ));
       // Save pending input immediately after setting isProcessing=true — no async
       // gap between the guard check and the save, so resubmitPendingInput can never
@@ -755,7 +760,8 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
       // Non-fatal: continue to normal API flow
     }
 
-    // Chat agent orchestration: classify intent; if research/writing run agent, else fall through to reflection
+    // Chat agent orchestration: Research and Writing agents run FIRST.
+    // If intent is research/writing, agents run and we return; else fall through to Enhanced API.
     final handled = await _tryChatAgentPath(text, updatedMessages, currentState, currentEntry);
     if (handled) return;
 
@@ -791,51 +797,18 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
       print('LUMARA Debug: Best provider: ${bestProvider?.name ?? 'none'}');
       print('LUMARA Debug: Is manual selection: $isManualSelection');
 
-      // Use Groq or Gemini with full journal context (ArcLLM chat) - Cloud API only
-      // Single attempt only — enhanced_lumara_api already handles 503 retries internally.
-      // Multiple outer retries caused concurrent proxyGroq calls (GTMSessionFetcher "already running").
-      const maxAttempts = 1;
-      Exception? lastError;
-      
-      for (int attempt = 1; attempt <= maxAttempts; attempt++) {
-        try {
-          print('LUMARA Debug: [Cloud API] Attempt $attempt/$maxAttempts - Attempting Groq/Gemini with journal context...');
-          
-          _emitStep('Loading journal context…');
-          // Get context for Gemini (using current scope from state)
-          final context = await _contextProvider.buildContext(scope: currentState.scope);
-          final contextResult = await _buildEntryContext(
-            context, 
-            userQuery: text,
-            currentEntry: currentEntry,
-          );
-          final entryText = contextResult['context'] as String;
-          final contextAttributionTraces = contextResult['attributionTraces'] as List<AttributionTrace>;
-          _emitStep('Retrieved ${contextAttributionTraces.length} memory nodes');
-          final phaseHint = _buildPhaseHint(context);
-          final keywords = _buildKeywordsContext(context);
-          
-          final String userIntent = text;
-          
-          // ═══════════════════════════════════════════════════════════
-          // STEP 2: DETECT CONVERSATION MODE FROM TEXT (if not provided)
-          // ═══════════════════════════════════════════════════════════
-          models.ConversationMode? detectedMode = conversationMode;
-          if (detectedMode == null) {
-            detectedMode = _detectConversationModeFromText(text);
-          }
-          
-          // ═══════════════════════════════════════════════════════════
-          // STEP 3: USE ENHANCED LUMARA API IF CONVERSATION MODE OR SAFETY OVERRIDE
-          // ═══════════════════════════════════════════════════════════
-          // Use enhanced API when: conversation mode specified, safety override, or persona not companion
-          if (detectedMode != null || safetyOverride || effectivePersona != 'companion') {
-            print('LUMARA Chat: Using enhanced_lumara_api with mode: ${detectedMode?.name}, safetyOverride: $safetyOverride, persona: $effectivePersona');
+      // Chat ALWAYS uses Enhanced LUMARA API (ChronicleContextBuilder + LumaraMasterPrompt).
+      // ArcLLM/ArcPrompts path removed — it produced generic answers.
+      try {
+        print('LUMARA Chat: Using enhanced_lumara_api (ChronicleContextBuilder + LumaraMasterPrompt)');
+        
+        models.ConversationMode? detectedMode = conversationMode;
+        detectedMode ??= _detectConversationModeFromText(text);
             
-            try {
-              // Convert phase hint JSON to PhaseHint enum
-              models.PhaseHint? phaseHintEnum;
-              if (phaseHint != null && phaseHint != 'null') {
+        // Convert phase hint JSON to PhaseHint enum
+        models.PhaseHint? phaseHintEnum;
+        final phaseHint = _buildPhaseHint(await _contextProvider.buildContext(scope: currentState.scope));
+        if (phaseHint != null && phaseHint != 'null') {
                 try {
                   final phaseData = jsonDecode(phaseHint) as Map<String, dynamic>;
                   final phaseName = phaseData['phase'] as String?;
@@ -845,14 +818,13 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
                       orElse: () => models.PhaseHint.consolidation,
                     );
                   }
-                } catch (e) {
-                  print('LUMARA Chat: Error parsing phase hint: $e');
-                }
-              }
-              
-              // Build reflection request
-              final request = models.LumaraReflectionRequest(
-                userText: userIntent,
+          } catch (e) {
+            print('LUMARA Chat: Error parsing phase hint: $e');
+          }
+        }
+
+        final request = models.LumaraReflectionRequest(
+          userText: text,
                 phaseHint: phaseHintEnum,
                 entryType: models.EntryType.chat,
                 priorKeywords: [],
@@ -878,7 +850,7 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
               if (currentEntry != null && userId != null && userId.isNotEmpty) {
                 final handler = await _getReflectionHandler();
                 final response = await handler.handleReflectionRequest(
-                  userQuery: userIntent,
+                  userQuery: text,
                   entryId: currentEntry.id,
                   userId: userId,
                   sessionId: _currentReflectionSessionId,
@@ -888,6 +860,8 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
                     regenerate: false,
                     preferQuestionExpansion: false,
                   ),
+                  onProgress: (msg) => _emitStep(msg),
+                  onStreamChunk: (_) => _emitStep('Streaming…'),
                 );
 
                 if (response.isPaused) {
@@ -908,6 +882,8 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
                 final result = await _enhancedApi.generatePromptedReflectionV23(
                   request: request,
                   userId: userId,
+                  onProgress: (msg) => _emitStep(msg),
+                  onStreamChunk: (_) => _emitStep('Streaming…'),
                 );
                 reflectionText = result.reflection;
                 attributionTraces = result.attributionTraces;
@@ -950,123 +926,20 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
               
               print('LUMARA Chat: Enhanced API complete');
               return;
-            } catch (e) {
-              print('LUMARA Chat: Enhanced API failed: $e');
-              // Fall through to ArcLLM chat as fallback
-            }
-          }
-          
-          // ═══════════════════════════════════════════════════════════
-          // STEP 4: FALLBACK TO STANDARD ArcLLM CHAT
-          // ═══════════════════════════════════════════════════════════
-          _emitStep('Scrubbing PII and sending to AI…');
-          // Use ArcLLM to call Gemini directly with all journal context
-          final response = await _arcLLM.chat(
-            userIntent: userIntent,
-            entryText: entryText,
-            phaseHintJson: phaseHint,
-            lastKeywordsJson: keywords,
-          );
-          
-          print('LUMARA Debug: [Cloud API] ✓ Response received on attempt $attempt, length: ${response.length}');
-          _emitStep('Response received — linking ${contextAttributionTraces.length} memory sources…');
-          
-          // Use attribution traces from context building (the actual memory nodes used)
-          var attributionTraces = contextAttributionTraces;
-          print('LUMARA Debug: Using ${attributionTraces.length} attribution traces from context building');
-          
-          // Enrich attribution traces with actual journal entry content
-          if (attributionTraces.isNotEmpty) {
-            attributionTraces = await _enrichAttributionTraces(attributionTraces);
-            print('LUMARA Debug: Enriched ${attributionTraces.length} attribution traces with journal entry content');
-          }
-          
-          // Append phase information from attribution traces to response
-          final enhancedResponse = _appendPhaseInfoFromAttributions(response, attributionTraces, context);
-          
-          // Record assistant response in MCP memory
-          await _recordAssistantMessage(enhancedResponse);
-          
-          // Create assistant message first to get ID
-          final assistantMessage = LumaraMessage.assistant(
-            content: enhancedResponse,
-            attributionTraces: attributionTraces,
-          );
-          
-          // Add assistant response to chat session (preserve ID for favorites)
-          await _addToChatSession(enhancedResponse, 'assistant', messageId: assistantMessage.id, timestamp: assistantMessage.timestamp);
-          
-          // Check if we should suggest loading more history
-          var finalMessages = [...updatedMessages, assistantMessage];
-          
-          if (hasMoreHistory() && _queryNeedsMoreHistory(text)) {
-            final suggestionMsg = _generateLoadMoreSuggestionMessage();
-            if (suggestionMsg.isNotEmpty) {
-              final suggestionMessage = LumaraMessage.system(content: suggestionMsg);
-              finalMessages = [...finalMessages, suggestionMessage];
-            }
-          }
-          
-          // Speak response if voiceover is enabled
-          _speakResponseIfEnabled(enhancedResponse);
-          
-          emit(currentState.copyWith(
-            messages: finalMessages,
-            isProcessing: false,
-            apiErrorMessage: null, // Clear any previous error message
-          ));
-          
-          // Clear pending input when response completes successfully
-          await PendingConversationService.clearPendingInput();
-          
-          print('LUMARA Debug: [Cloud API] Complete - personalized response generated');
-          return; // Exit early - Groq/Gemini succeeded
         } catch (e) {
-          lastError = e is Exception ? e : Exception(e.toString());
+          print('LUMARA Chat: Enhanced API failed: $e');
           final errorString = e.toString();
-          print('LUMARA Debug: [Cloud API] Attempt $attempt/$maxAttempts failed: $errorString');
-          
-          // Check if this is an auth/trial error - don't retry, show immediately
-          if (errorString.contains('ANONYMOUS_TRIAL_EXPIRED') ||
+          final isAuthError = errorString.contains('ANONYMOUS_TRIAL_EXPIRED') ||
               errorString.contains('free trial') ||
               errorString.contains('permission-denied') ||
-              errorString.contains('unauthenticated')) {
-            print('LUMARA Debug: Auth/trial error detected - showing dialog');
-            emit(currentState.copyWith(
-              messages: updatedMessages,
-              isProcessing: false,
-              apiErrorMessage: errorString,
-            ));
-            return;
-          }
-          
-          // If this is not the last attempt, wait before retrying
-          if (attempt < maxAttempts) {
-            // Exponential backoff: 1s, 2s
-            final delaySeconds = attempt;
-            print('LUMARA Debug: [Cloud API] Waiting ${delaySeconds}s before retry...');
-            await Future.delayed(Duration(seconds: delaySeconds));
-          }
+              errorString.contains('unauthenticated');
+          emit(currentState.copyWith(
+            messages: updatedMessages,
+            isProcessing: false,
+            apiErrorMessage: isAuthError ? errorString : 'LUMARA cannot answer at the moment. Please try again later.',
+          ));
+          return;
         }
-      }
-      
-      // All retries failed - show graceful error message
-      print('LUMARA Debug: [Cloud API] All $maxAttempts attempts failed. Last error: $lastError');
-      print('LUMARA Debug: Cloud API only mode - no automated responses');
-
-      // Check if last error was auth-related
-      final lastErrorString = lastError?.toString() ?? '';
-      final isAuthError = lastErrorString.contains('ANONYMOUS_TRIAL_EXPIRED') ||
-          lastErrorString.contains('free trial') ||
-          lastErrorString.contains('permission-denied') ||
-          lastErrorString.contains('unauthenticated');
-
-      // Emit error state with message for snackbar
-      emit(currentState.copyWith(
-        isProcessing: false,
-        apiErrorMessage: isAuthError ? lastErrorString : 'LUMARA cannot answer at the moment. Please try again later.',
-      ));
-      return;
     } catch (e) {
       final errorString = e.toString();
       print('LUMARA Debug: Cloud API failed: $errorString');
@@ -1104,31 +977,42 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
 
     final targetMessage = currentState.messages[targetIndex];
     final previousUserMessage = _findPreviousUserMessage(currentState.messages, startIndex: targetIndex);
-    final fallbackIntent = 'Please continue the previous reflection exactly where it stopped.';
+    const fallbackIntent = 'Please continue the previous reflection exactly where it stopped.';
     final userIntent = previousUserMessage?.content ?? fallbackIntent;
 
     emit(currentState.copyWith(isProcessing: true, apiErrorMessage: null));
 
     try {
-      final context = await _contextProvider.buildContext(scope: currentState.scope);
-      final contextResult = await _buildEntryContext(
-        context,
-        userQuery: userIntent,
-        currentEntry: currentEntry,
-      );
-      final entryText = contextResult['context'] as String;
-      var attributionTraces = contextResult['attributionTraces'] as List<AttributionTrace>;
-      final phaseHint = _buildPhaseHint(context);
-      final keywords = _buildKeywordsContext(context);
+      final continuationPrompt = '''Please continue the previous reflection exactly where it stopped. Resume without restating earlier paragraphs.
 
-      final response = await _arcLLM.chat(
-        userIntent: userIntent,
-        entryText: entryText,
-        phaseHintJson: phaseHint,
-        lastKeywordsJson: keywords,
-        isContinuation: true,
-        previousAssistantReply: targetMessage.content,
+Previous assistant text:
+"""
+${targetMessage.content}
+"""
+
+Continue naturally.''';
+      final authService = FirebaseAuthService.instance;
+      final userId = authService.currentUser?.uid;
+      final request = models.LumaraReflectionRequest(
+        userText: continuationPrompt,
+        phaseHint: null,
+        entryType: models.EntryType.chat,
+        priorKeywords: [],
+        matchedNodeHints: [],
+        mediaCandidates: [],
+        options: models.LumaraReflectionOptions(
+          conversationMode: models.ConversationMode.continueThought,
+          toneMode: models.ToneMode.normal,
+          regenerate: false,
+          preferQuestionExpansion: false,
+        ),
       );
+      final result = await _enhancedApi.generatePromptedReflectionV23(
+        request: request,
+        userId: userId,
+      );
+      final response = result.reflection;
+      var attributionTraces = result.attributionTraces;
 
       if (attributionTraces.isNotEmpty) {
         attributionTraces = await _enrichAttributionTraces(attributionTraces);
@@ -1544,6 +1428,7 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
         'DO NOT say "Based on X entries..." or "Your current phase is...".\n'
         'DO NOT surface phase metadata or CHRONICLE stats in response text.\n'
         'Respond like a trusted friend. Conversational. Direct. Personal.\n'
+        'Answer questions directly with substance—avoid generic or deflecting responses.\n'
         'NEVER respond in third person about LUMARA. NEVER write product copy unless asked.\n'
         '</response_style>\n';
 
@@ -2104,7 +1989,7 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
       }
     }
     if (recentCount > 0) {
-      print('LUMARA: Created ${recentCount} attribution traces for recent entries from progressive loader');
+      print('LUMARA: Created $recentCount attribution traces for recent entries from progressive loader');
     }
     
     // TIER 3 (LOWEST WEIGHT): Other earlier entries/chats from other sessions
@@ -2266,73 +2151,65 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
           excerptLower.contains("[journal entry content") ||
           excerptLower.contains("[memory reference");
       
-      if (isLumaraResponse || excerpt.isEmpty) {
-        // Try to extract entry ID from node reference
-        String? entryId;
-        
-        // Try different ID patterns
-        if (trace.nodeRef.startsWith('entry:')) {
-          entryId = trace.nodeRef.replaceFirst('entry:', '');
-        } else if (trace.nodeRef.contains('_')) {
-          final parts = trace.nodeRef.split('_');
-          if (parts.length > 1) {
-            entryId = parts.last;
-          }
-        } else {
-          // Try to extract from the excerpt placeholder
-          final entryIdMatch = RegExp(r'entry\s+([a-zA-Z0-9_-]+)').firstMatch(excerpt);
-          if (entryIdMatch != null) {
-            entryId = entryIdMatch.group(1);
-          }
-        }
-        
-        // If we found an entry ID, try to get the actual journal entry
-        if (entryId != null) {
+      // Try to extract entry ID from node reference (for displayTitle and clickable link)
+      String? entryId;
+      if (trace.nodeRef.startsWith('entry:')) {
+        entryId = trace.nodeRef.replaceFirst('entry:', '');
+      } else if (trace.nodeRef.contains('_')) {
+        final parts = trace.nodeRef.split('_');
+        if (parts.length > 1) entryId = parts.last;
+      } else if (excerpt.isNotEmpty) {
+        final entryIdMatch = RegExp(r'entry\s+([a-zA-Z0-9_-]+)').firstMatch(excerpt);
+        if (entryIdMatch != null) entryId = entryIdMatch.group(1);
+      }
+
+      if (entryId != null) {
+        try {
+          final allEntries = await _journalRepository.getAllJournalEntries();
+          JournalEntry entry;
           try {
-            final allEntries = await _journalRepository.getAllJournalEntries();
-            JournalEntry entry;
+            entry = allEntries.firstWhere((e) => e.id == entryId);
+          } catch (e) {
             try {
-              entry = allEntries.firstWhere((e) => e.id == entryId);
-            } catch (e) {
-              // If exact match not found, try partial match
-              try {
-                final entryIdNonNull = entryId; // We know it's not null here
-                entry = allEntries.firstWhere(
-                  (e) => e.id.contains(entryIdNonNull) || entryIdNonNull.contains(e.id),
-                );
-              } catch (e2) {
-                // Fallback: skip this trace if entry not found
-                enrichedTraces.add(trace);
-                continue;
-              }
+              final entryIdNonNull = entryId;
+              entry = allEntries.firstWhere(
+                (e) => e.id.contains(entryIdNonNull) || entryIdNonNull.contains(e.id),
+              );
+            } catch (e2) {
+              enrichedTraces.add(enrichedTrace);
+              continue;
             }
-            
+          }
+
+          final displayTitle = entry.title.isNotEmpty ? entry.title : entry.content.split('\n').first.trim();
+          final safeTitle = displayTitle.length > 60 ? '${displayTitle.substring(0, 57)}...' : displayTitle;
+          String newExcerpt = trace.excerpt ?? '';
+
+          if (isLumaraResponse || excerpt.isEmpty) {
             if (entry.content.isNotEmpty) {
-              // Extract 2-3 most relevant sentences instead of just first 200 chars
-              // Use trace reasoning or relation as query context for relevance
               final queryContext = trace.reasoning ?? trace.relation;
-              final actualContent = extractRelevantSentences(
+              newExcerpt = extractRelevantSentences(
                 entry.content,
                 query: queryContext,
                 maxSentences: 3,
               );
-              
-              enrichedTrace = AttributionTrace(
-                nodeRef: trace.nodeRef,
-                relation: trace.relation,
-                confidence: trace.confidence,
-                timestamp: trace.timestamp,
-                reasoning: trace.reasoning,
-                phaseContext: trace.phaseContext,
-                excerpt: actualContent,
-              );
-              
-              print('LUMARA Chat: Enriched trace ${trace.nodeRef} with ${actualContent.split(RegExp(r'[.!?]+')).where((s) => s.trim().isNotEmpty).length} relevant sentences (${actualContent.length} chars)');
+              print('LUMARA Chat: Enriched trace ${trace.nodeRef} with excerpt (${newExcerpt.length} chars)');
             }
-          } catch (e) {
-            print('LUMARA Chat: Could not find entry $entryId for trace ${trace.nodeRef}: $e');
-            // Keep original trace if entry not found
           }
+
+          enrichedTrace = AttributionTrace(
+            nodeRef: trace.nodeRef,
+            relation: trace.relation,
+            confidence: trace.confidence,
+            timestamp: trace.timestamp,
+            reasoning: trace.reasoning,
+            phaseContext: trace.phaseContext,
+            excerpt: newExcerpt.isNotEmpty ? newExcerpt : trace.excerpt,
+            entryId: entry.id,
+            displayTitle: safeTitle,
+          );
+        } catch (e) {
+          print('LUMARA Chat: Could not find entry $entryId for trace ${trace.nodeRef}: $e');
         }
       }
       
@@ -2672,7 +2549,9 @@ Your exported MCP bundle can be imported into any MCP-compatible system, ensurin
     final currentState = state;
     if (currentState is! LumaraAssistantLoaded ||
         currentState.pendingCrossroadsSignal == null ||
-        currentState.pendingCrossroadsConfirmationText == null) return;
+        currentState.pendingCrossroadsConfirmationText == null) {
+      return;
+    }
 
     final signal = currentState.pendingCrossroadsSignal!;
     final phaseLabel = PhaseLabel.values.firstWhere(
@@ -2973,6 +2852,7 @@ Your exported MCP bundle can be imported into any MCP-compatible system, ensurin
         userId: userId,
         message: text,
         onProgressUpdate: (progressText) {
+          _emitStep(progressText); // Show in thinking bubble (same as reflection mode)
           final s = state;
           if (s is LumaraAssistantLoaded && s.messages.isNotEmpty) {
             final last = s.messages.last;
@@ -3274,10 +3154,10 @@ Summary:''';
     final assistantMessages = messages.where((m) => m.role == 'assistant').map((m) => m.textContent).toList();
     
     return '''**Key Topics Discussed:**
-${userMessages.take(5).map((m) => '• ${m.length > 100 ? m.substring(0, 100) + '...' : m}').join('\n')}
+${userMessages.take(5).map((m) => '• ${m.length > 100 ? '${m.substring(0, 100)}...' : m}').join('\n')}
 
 **Assistant Responses:**
-${assistantMessages.take(3).map((m) => '• ${m.length > 150 ? m.substring(0, 150) + '...' : m}').join('\n')}
+${assistantMessages.take(3).map((m) => '• ${m.length > 150 ? '${m.substring(0, 150)}...' : m}').join('\n')}
 
 *This conversation was automatically compacted to improve performance. The full conversation history is preserved in the MCP memory system.*''';
   }
@@ -3290,7 +3170,7 @@ ${assistantMessages.take(3).map((m) => '• ${m.length > 150 ? m.substring(0, 15
     if (loaded) {
       final loadedYears = _memoryLoader.getLoadedYears();
       final entryCount = _memoryLoader.getLoadedEntryCount();
-      print('LUMARA: Loaded ${entryCount} entries from years: $loadedYears');
+      print('LUMARA: Loaded $entryCount entries from years: $loadedYears');
     }
     
     return loaded;
@@ -3328,10 +3208,10 @@ ${assistantMessages.take(3).map((m) => '• ${m.length > 150 ? m.substring(0, 15
     
     final yearsAgo = DateTime.now().year - nextUnloaded;
     
-    return '''Would you like me to search through ${yearsAgo} years of your archive for more comprehensive insights? 
+    return '''Would you like me to search through $yearsAgo years of your archive for more comprehensive insights? 
 
 Currently loaded: ${loadedYears.length} year${loadedYears.length > 1 ? 's' : ''} (${loadedYears.first}-${loadedYears.last})
-Available: ${yearsAgo} more year${yearsAgo > 1 ? 's' : ''} of history''';
+Available: $yearsAgo more year${yearsAgo > 1 ? 's' : ''} of history''';
   }
   
   /// Get currently loaded years
@@ -3365,7 +3245,7 @@ Available: ${yearsAgo} more year${yearsAgo > 1 ? 's' : ''} of history''';
     }
     
     // Re-answer the original question with expanded context
-    await Future.delayed(Duration(milliseconds: 500)); // Brief pause to show loading
+    await Future.delayed(const Duration(milliseconds: 500)); // Brief pause to show loading
     
     await sendMessage(originalQuestion);
   }
@@ -3407,13 +3287,29 @@ Available: ${yearsAgo} more year${yearsAgo > 1 ? 's' : ''} of history''';
     return [];
   }
 
-  /// Switch to a different conversation session
+  /// Load an existing chat session and switch to it (for continuing a saved conversation).
+  /// Used when opening chat from timeline/feed edit pen — same UX as main Chat button.
   Future<void> switchToSession(String sessionId) async {
-    if (_memoryService == null) return;
-
-    // TODO: Enhanced memory service manages sessions internally
-    // Session switching not implemented yet
-    print('CHRONICLE Layer 0 Retrieval: Session switching not available');
+    try {
+      await _chatRepo.initialize();
+      final session = await _chatRepo.getSession(sessionId);
+      if (session == null) {
+        print('LUMARA Chat: Session $sessionId not found');
+        return;
+      }
+      final chatMessages = await _chatRepo.getMessages(sessionId, lazy: false);
+      final lumaraMessages = chatMessages.map((m) => LumaraMessage.fromChatMessage(m)).toList();
+      currentChatSessionId = sessionId;
+      const scope = LumaraScope.defaultScope;
+      emit(LumaraAssistantLoaded(
+        messages: lumaraMessages,
+        scope: scope,
+        currentSessionId: sessionId,
+      ));
+      print('LUMARA Chat: Loaded session $sessionId (${lumaraMessages.length} messages)');
+    } catch (e) {
+      print('LUMARA Chat: Error switching to session $sessionId: $e');
+    }
   }
 
   /// Delete a conversation session

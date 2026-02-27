@@ -1,4 +1,3 @@
-import 'package:flutter/services.dart';
 import 'package:my_app/data/models/media_item.dart';
 import 'package:my_app/models/journal_entry_model.dart';
 import 'package:my_app/core/services/photo_library_service.dart';
@@ -18,7 +17,7 @@ class LazyPhotoRelinkService {
 
   /// Check if entry has real media (not just placeholders)
   static bool hasRealMedia(JournalEntry entry) =>
-      entry.media.any((m) => !(m.uri?.startsWith('placeholder://') ?? true));
+      entry.media.any((m) => !(m.uri.startsWith('placeholder://') ?? true));
 
   /// Extract photo IDs from text
   static List<String> extractPhotoIds(String? text) =>
@@ -89,7 +88,7 @@ class LazyPhotoRelinkService {
       if (creationDate != null) {
                final photoMetadata = PhotoMetadata(
                  localIdentifier: localId ?? '',
-                 creationDate: creationDate != null ? DateTime.tryParse(creationDate) : null,
+                 creationDate: DateTime.tryParse(creationDate),
                  filename: _asString(found, 'original_filename'),
                  fileSize: (found['file_size'] is int) ? found['file_size'] as int : null,
                  pixelWidth: (found['pixel_width'] is int) ? found['pixel_width'] as int : null,
@@ -144,7 +143,7 @@ class LazyPhotoRelinkService {
     final map = <String, MediaItem>{for (final m in current) m.id: m};
     
     for (final m in real) {
-      map[m.id] = m.uri?.startsWith('placeholder://') == true
+      map[m.id] = m.uri.startsWith('placeholder://') == true
           ? (map[m.id] ?? m)  // keep existing if it's already real
           : m;                 // overwrite placeholder with real
     }
@@ -200,10 +199,10 @@ class LazyPhotoRelinkService {
     try {
       final resolved = await reconstructMediaFromText(
         text: entry.content ?? '',
-        nodeMetadata: (entry.metadata as Map<String, dynamic>?) ?? const {},
+        nodeMetadata: entry.metadata ?? const {},
       );
 
-      final real = resolved.where((m) => !(m.uri?.startsWith('placeholder://') ?? true)).toList();
+      final real = resolved.where((m) => !(m.uri.startsWith('placeholder://') ?? true)).toList();
       if (real.isNotEmpty) {
         final merged = mergeMedia(entry.media, resolved);
         final updated = entry.copyWith(media: merged);

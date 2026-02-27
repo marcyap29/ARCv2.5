@@ -294,7 +294,7 @@ class LumaraResponseScoring {
   /// Helper: Jaccard similarity
   static double _jaccard(Set<String> a, Set<String> b) {
     final inter = a.where((x) => b.contains(x)).length;
-    final union = <String>[...a, ...b].toSet().length;
+    final union = <String>{...a, ...b}.length;
     return union == 0 ? 0 : inter / union;
   }
 

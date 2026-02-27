@@ -3,6 +3,7 @@
 /// Displays a LUMARA-initiated observation, check-in, or prompt in the feed.
 /// These are proactive entries where LUMARA reaches out based on patterns
 /// detected by CHRONICLE/VEIL/SENTINEL systems.
+library;
 
 import 'package:flutter/material.dart';
 import 'package:my_app/shared/app_colors.dart';
@@ -146,7 +147,7 @@ class LumaraPromptCard extends StatelessWidget {
             const SizedBox(width: 6),
             Text(
               label,
-              style: TextStyle(
+              style: const TextStyle(
                 color: kcPrimaryColor,
                 fontSize: 12,
                 fontWeight: FontWeight.w600,

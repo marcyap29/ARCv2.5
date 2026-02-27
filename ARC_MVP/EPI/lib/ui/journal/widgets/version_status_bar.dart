@@ -1,10 +1,10 @@
 /// Version Status Bar Widget
 ///
 /// Displays draft state, version info, and action buttons for versioning system
+library;
 
 import 'package:flutter/material.dart';
 import 'package:my_app/core/services/journal_version_service.dart';
-import 'package:my_app/core/services/draft_cache_service.dart';
 
 class VersionStatusBar extends StatelessWidget {
   final String? entryId;

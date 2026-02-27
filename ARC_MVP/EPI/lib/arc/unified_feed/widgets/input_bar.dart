@@ -3,6 +3,7 @@
 /// The unified input bar at the bottom of the feed screen.
 /// Provides text input, voice recording trigger, and attachment options.
 /// This replaces the separate input areas from the old chat and journal screens.
+library;
 
 import 'package:flutter/material.dart';
 import 'package:my_app/shared/app_colors.dart';

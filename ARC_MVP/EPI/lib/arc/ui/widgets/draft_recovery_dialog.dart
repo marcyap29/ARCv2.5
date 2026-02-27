@@ -1,6 +1,7 @@
 /// Draft Recovery Dialog
 ///
 /// Shows users options to recover unsaved drafts when they return to journaling
+library;
 
 import 'package:flutter/material.dart';
 import 'package:my_app/core/services/draft_cache_service.dart';
@@ -36,7 +37,7 @@ class DraftRecoveryDialog extends StatelessWidget {
             // Header
             Row(
               children: [
-                Icon(
+                const Icon(
                   Icons.restore,
                   color: kcPrimaryColor,
                   size: 24,
@@ -69,7 +70,7 @@ class DraftRecoveryDialog extends StatelessWidget {
                 children: [
                   Row(
                     children: [
-                      Icon(
+                      const Icon(
                         Icons.drafts,
                         size: 16,
                         color: kcSecondaryTextColor,
@@ -83,7 +84,7 @@ class DraftRecoveryDialog extends StatelessWidget {
                       ),
                       const Spacer(),
                       if (recoverableDraft.mediaItems.isNotEmpty) ...[
-                        Icon(
+                        const Icon(
                           Icons.attachment,
                           size: 16,
                           color: kcSecondaryTextColor,
@@ -175,7 +176,7 @@ class DraftRecoveryDialog extends StatelessWidget {
                             Navigator.of(context).pop();
                             onViewHistory!();
                           },
-                          icon: Icon(
+                          icon: const Icon(
                             Icons.history,
                             size: 18,
                             color: kcSecondaryTextColor,
@@ -198,7 +199,7 @@ class DraftRecoveryDialog extends StatelessWidget {
                           Navigator.of(context).pop();
                           _showDiscardConfirmation(context);
                         },
-                        icon: Icon(
+                        icon: const Icon(
                           Icons.delete_outline,
                           size: 18,
                           color: kcDangerColor,
@@ -386,7 +387,7 @@ class _DraftHistorySheetState extends State<DraftHistorySheet> {
             padding: const EdgeInsets.all(24),
             child: Row(
               children: [
-                Icon(
+                const Icon(
                   Icons.history,
                   color: kcPrimaryColor,
                 ),
@@ -461,7 +462,7 @@ class _DraftHistorySheetState extends State<DraftHistorySheet> {
             padding: const EdgeInsets.only(top: 8),
             child: Row(
               children: [
-                Icon(
+                const Icon(
                   Icons.schedule,
                   size: 14,
                   color: kcSecondaryTextColor,
@@ -475,7 +476,7 @@ class _DraftHistorySheetState extends State<DraftHistorySheet> {
                 ),
                 if (draft.mediaItems.isNotEmpty) ...[
                   const SizedBox(width: 16),
-                  Icon(
+                  const Icon(
                     Icons.attachment,
                     size: 14,
                     color: kcSecondaryTextColor,
@@ -496,7 +497,7 @@ class _DraftHistorySheetState extends State<DraftHistorySheet> {
               Navigator.of(context).pop();
               widget.onRestoreDraft(draft);
             },
-            icon: Icon(
+            icon: const Icon(
               Icons.restore,
               color: kcPrimaryColor,
             ),

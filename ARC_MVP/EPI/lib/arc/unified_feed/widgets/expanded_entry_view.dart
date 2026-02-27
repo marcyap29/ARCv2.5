@@ -4,8 +4,10 @@
 /// themes, related entries (from CHRONICLE), and LUMARA notes.
 /// Navigated to when user taps a card in the feed.
 /// Phase display removed (reposition: phases not shown to user.)
+library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/arc/unified_feed/models/feed_entry.dart';
 import 'package:my_app/arc/unified_feed/utils/feed_helpers.dart';
@@ -19,7 +21,8 @@ import 'package:my_app/state/journal_entry_state.dart';
 import 'package:my_app/ui/journal/journal_screen.dart';
 import 'package:my_app/ui/widgets/full_image_viewer.dart';
 import 'package:my_app/arc/chat/chat/chat_repo_impl.dart';
-import 'package:my_app/arc/chat/chat/ui/session_view.dart';
+import 'package:my_app/arc/chat/bloc/lumara_assistant_cubit.dart';
+import 'package:my_app/arc/chat/ui/lumara_chat_redesign_screen.dart';
 
 class ExpandedEntryView extends StatelessWidget {
   final FeedEntry entry;
@@ -78,7 +81,7 @@ class ExpandedEntryView extends StatelessWidget {
 
               // 2. Pictures / media
               if (entry.mediaItems.isNotEmpty) ...[
-                Text(
+                const Text(
                   'Media',
                   style: TextStyle(
                     color: kcPrimaryTextColor,
@@ -230,7 +233,7 @@ class ExpandedEntryView extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
+        const Text(
           'Summary',
           style: TextStyle(
             color: kcPrimaryTextColor,
@@ -431,7 +434,7 @@ class ExpandedEntryView extends StatelessWidget {
         ),
         const SizedBox(height: 16),
         // Transcript
-        Text(
+        const Text(
           'Transcript',
           style: TextStyle(
             color: kcPrimaryTextColor,
@@ -477,7 +480,7 @@ class ExpandedEntryView extends StatelessWidget {
           body.isNotEmpty &&
           !body.trimLeft().startsWith(summary.substring(0, (summary.length * 0.6).round().clamp(0, summary.length)))) {
         children.addAll([
-          Text(
+          const Text(
             'Summary',
             style: TextStyle(
               color: kcPrimaryTextColor,
@@ -532,7 +535,7 @@ class ExpandedEntryView extends StatelessWidget {
 
     if (showSummary) {
       children.addAll([
-        Text(
+        const Text(
           'Summary',
           style: TextStyle(
             color: kcPrimaryTextColor,
@@ -572,7 +575,7 @@ class ExpandedEntryView extends StatelessWidget {
                 child: const Icon(Icons.auto_awesome, size: 14, color: Colors.white),
               ),
               const SizedBox(width: 8),
-              Text(
+              const Text(
                 'LUMARA',
                 style: TextStyle(
                   color: kcPrimaryTextColor,
@@ -746,7 +749,7 @@ class ExpandedEntryView extends StatelessWidget {
                   children: [
                     Text(
                       title,
-                      style: TextStyle(
+                      style: const TextStyle(
                         color: kcPrimaryTextColor,
                         fontSize: 14,
                         fontWeight: FontWeight.w500,
@@ -943,18 +946,22 @@ class ExpandedEntryView extends StatelessWidget {
   }
 
   Future<void> _editEntry(BuildContext context) async {
-    // For saved/active conversations: open chat to continue (SessionView has edit/copy for user messages)
+    // For saved/active conversations: open same chat UI as main Chat button (LumaraChatRedesignScreen)
     final sessionId = entry.chatSessionId;
     if ((entry.type == FeedEntryType.savedConversation ||
             entry.type == FeedEntryType.activeConversation) &&
         sessionId != null &&
         sessionId.isNotEmpty) {
+      try {
+        final cubit = context.read<LumaraAssistantCubit>();
+        await cubit.switchToSession(sessionId);
+      } catch (_) {
+        // Cubit may not be in tree; screen will handle
+      }
+      if (!context.mounted) return;
       Navigator.of(context).push(
         MaterialPageRoute<void>(
-          builder: (context) => SessionView(
-            sessionId: sessionId,
-            chatRepo: ChatRepoImpl.instance,
-          ),
+          builder: (context) => const LumaraChatRedesignScreen(),
         ),
       );
       return;
@@ -1159,7 +1166,7 @@ class _RelatedEntriesByThemeSectionState extends State<_RelatedEntriesByThemeSec
                         Expanded(
                           child: Text(
                             themeLabel,
-                            style: TextStyle(
+                            style: const TextStyle(
                               color: kcPrimaryTextColor,
                               fontSize: 14,
                               fontWeight: FontWeight.w600,
@@ -1205,7 +1212,7 @@ class _RelatedEntriesByThemeSectionState extends State<_RelatedEntriesByThemeSec
                                       children: [
                                         Text(
                                           title,
-                                          style: TextStyle(
+                                          style: const TextStyle(
                                             color: kcPrimaryTextColor,
                                             fontSize: 13,
                                             fontWeight: FontWeight.w500,

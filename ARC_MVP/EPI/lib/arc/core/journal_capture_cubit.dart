@@ -197,7 +197,7 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
         return null;
       } else if (sentences.length > 3) {
         // If too long, take first 3 sentences
-        final firstThree = sentences.take(3).join('. ') + '.';
+        final firstThree = '${sentences.take(3).join('. ')}.';
         return firstThree;
       }
       
@@ -617,7 +617,7 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
         });
       }, onError: (e) => print('LUMARA learning: Agentic loop (reflect) error: $e'));
     }).catchError((_) {
-      final context = const AgenticContext(
+      const context = AgenticContext(
         readinessScore: 0.5,
         modality: AgenticModality.reflect,
       );

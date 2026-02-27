@@ -86,7 +86,7 @@ class Seeded {
 
   /// Create a child RNG with a derived seed
   Seeded derive(String suffix) {
-    return Seeded('${_state}:$suffix');
+    return Seeded('$_state:$suffix');
   }
 }
 

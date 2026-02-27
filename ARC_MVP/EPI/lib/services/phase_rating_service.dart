@@ -1,5 +1,6 @@
 /// Centralized service for calculating operational readiness ratings
 /// Combines phase detection with health data to produce 10-100 readiness scores
+library;
 import 'package:my_app/services/phase_rating_ranges.dart';
 import 'package:my_app/services/health_data_service.dart';
 import 'package:my_app/services/phase_aware_analysis_service.dart';

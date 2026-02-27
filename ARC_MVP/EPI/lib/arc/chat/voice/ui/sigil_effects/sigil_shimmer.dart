@@ -2,6 +2,7 @@
 /// 
 /// CustomPainter that renders a traveling light effect along the sigil paths.
 /// Creates an ethereal, living quality to the sigil.
+library;
 
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
@@ -86,7 +87,7 @@ class SigilShimmer extends CustomPainter {
       canvas.drawCircle(shimmerPos, 12, shimmerPaint);
       
       // Draw trailing effect
-      final trailCount = 3;
+      const trailCount = 3;
       for (int j = 1; j <= trailCount; j++) {
         final trailProgress = (shimmerProgress - j * 0.05).clamp(0.0, 1.0);
         final trailDistance = state == VoiceSigilState.speaking

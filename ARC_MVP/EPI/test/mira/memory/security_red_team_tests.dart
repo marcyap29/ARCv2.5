@@ -559,10 +559,10 @@ void main() {
           '\\x00\\x01\\x02', // Binary characters
           '<script>alert("xss")</script>', // XSS attempt
           'SELECT * FROM memories WHERE user_id = "admin"', // SQL injection
-          '${" OR 1=1--"}', // SQL injection variant
+          " OR 1=1--", // SQL injection variant
           '../../../../etc/passwd', // Path traversal
           '{json: {exploit: true}}', // JSON injection
-          'null\0injection', // Null byte injection
+          'null0injection', // Null byte injection
         ];
 
         for (final query in adversarialQueries) {

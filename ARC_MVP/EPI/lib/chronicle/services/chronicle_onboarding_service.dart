@@ -64,7 +64,7 @@ class ChronicleOnboardingService {
       final existingEntryIds = <String>{};
       
       // Process in batches, checking if entry already exists in Layer 0
-      final batchSize = 50;
+      const batchSize = 50;
       final populator = Layer0Populator(_layer0Repo);
       
       for (int i = 0; i < entries.length; i += batchSize) {

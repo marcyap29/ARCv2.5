@@ -3,6 +3,7 @@
 /// Displays a saved conversation in the feed using BaseFeedCard.
 /// Shows first exchange preview, exchange count, and expand chevron.
 /// Phase display removed (reposition: phases not shown to user.)
+library;
 
 import 'package:flutter/material.dart';
 import 'package:my_app/shared/app_colors.dart';

@@ -258,11 +258,13 @@ class _ChronicleManagementViewState extends State<ChronicleManagementView> {
       final result = await service.backfillAndSynthesizeCurrentMonth(
         userId: userId,
         onProgress: (processed, total) {
-          if (mounted) setState(() {
+          if (mounted) {
+            setState(() {
             _progressCurrent = processed;
             _progressTotal = total;
             _progressStage = processed < total ? 'Backfilling Layer 0...' : 'Synthesizing current month...';
           });
+          }
         },
       );
       if (mounted) {
@@ -298,11 +300,13 @@ class _ChronicleManagementViewState extends State<ChronicleManagementView> {
       final result = await service.backfillAndSynthesizeCurrentYear(
         userId: userId,
         onProgress: (processed, total) {
-          if (mounted) setState(() {
+          if (mounted) {
+            setState(() {
             _progressCurrent = processed;
             _progressTotal = total;
             _progressStage = processed < total ? 'Backfilling Layer 0...' : 'Synthesizing current year...';
           });
+          }
         },
       );
       if (mounted) {
@@ -338,11 +342,13 @@ class _ChronicleManagementViewState extends State<ChronicleManagementView> {
       final result = await service.backfillAndSynthesizeMultiYear(
         userId: userId,
         onProgress: (processed, total) {
-          if (mounted) setState(() {
+          if (mounted) {
+            setState(() {
             _progressCurrent = processed;
             _progressTotal = total;
             _progressStage = processed < total ? 'Backfilling Layer 0...' : 'Synthesizing multi-year...';
           });
+          }
         },
       );
       if (mounted) {
@@ -981,7 +987,7 @@ class _ChronicleManagementViewState extends State<ChronicleManagementView> {
             ),
           ),
           if (onTap != null)
-            Icon(Icons.chevron_right, color: kcSecondaryTextColor),
+            const Icon(Icons.chevron_right, color: kcSecondaryTextColor),
         ],
       ),
     );

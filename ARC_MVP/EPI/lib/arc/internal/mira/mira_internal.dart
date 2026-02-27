@@ -2,6 +2,7 @@
 /// 
 /// Barrel export for MIRA internal module
 /// Provides memory management and file security within ARC
+library;
 
 export 'memory_loader.dart';
 export 'reflective_storage.dart';

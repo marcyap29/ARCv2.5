@@ -5,6 +5,7 @@
 /// 
 /// The actual prompts are built in:
 /// - voice_session_service.dart: Uses Master Unified Prompt with voice mode instructions
+library;
 
 import '../../../../models/engagement_discipline.dart';
 

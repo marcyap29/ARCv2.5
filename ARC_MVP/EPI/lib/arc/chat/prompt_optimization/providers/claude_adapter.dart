@@ -70,7 +70,7 @@ class ClaudeAdapter implements ProviderAdapter {
   Future<bool> isAvailable() async {
     if (apiKey.isEmpty) return false;
     try {
-      final r = CompletionRequest(system: 'You are helpful.', user: 'Say "ok"', maxTokens: 5, useCase: PromptUseCase.gapClassification);
+      const r = CompletionRequest(system: 'You are helpful.', user: 'Say "ok"', maxTokens: 5, useCase: PromptUseCase.gapClassification);
       await complete(r);
       return true;
     } catch (_) {

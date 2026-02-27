@@ -201,7 +201,7 @@ class AttributionService {
       citationParts.add(relationDescription);
     }
 
-    return citationParts.join(', ') + '.';
+    return '${citationParts.join(', ')}.';
   }
 
   /// Get memory usage statistics
@@ -305,7 +305,7 @@ class AttributionService {
 
     return '''
 Response Attribution Summary:
-${citationText}
+$citationText
 
 Memory Usage: ${trace.traces.length} references
 Confidence: ${(confidenceScore * 100).toStringAsFixed(1)}%

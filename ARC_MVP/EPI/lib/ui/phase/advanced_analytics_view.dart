@@ -270,9 +270,9 @@ class _AdvancedAnalyticsViewState extends State<AdvancedAnalyticsView> {
   }
 
   Widget _buildAuroraTab() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
-      child: const Column(
+    return const SingleChildScrollView(
+      padding: EdgeInsets.all(20),
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           AuroraCard(),
@@ -282,9 +282,9 @@ class _AdvancedAnalyticsViewState extends State<AdvancedAnalyticsView> {
   }
 
   Widget _buildVeilTab() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
-      child: const Column(
+    return const SingleChildScrollView(
+      padding: EdgeInsets.all(20),
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           VeilCard(),
@@ -296,9 +296,9 @@ class _AdvancedAnalyticsViewState extends State<AdvancedAnalyticsView> {
   }
 
   Widget _buildSentinelTab() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
-      child: const Column(
+    return const SingleChildScrollView(
+      padding: EdgeInsets.all(20),
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SentinelAnalysisView(),

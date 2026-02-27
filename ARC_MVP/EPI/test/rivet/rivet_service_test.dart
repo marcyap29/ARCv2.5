@@ -1,5 +1,4 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:uuid/uuid.dart';
 import 'package:my_app/prism/atlas/rivet/rivet_models.dart';
 import 'package:my_app/prism/atlas/rivet/rivet_service.dart';
 
@@ -146,7 +145,7 @@ void main() {
       final event = testEvents.first;
       
       // Test legacy ingest method
-      final decision = await service.ingest(event);
+      final decision = service.ingest(event);
       expect(decision, isA<RivetGateDecision>());
       
       // Test legacy getCurrentState method
@@ -190,7 +189,7 @@ void main() {
       
       // Try to modify the returned list
       final history = service.stateHistory;
-      expect(() => history.add(service.currentState!), throwsA(isA<UnsupportedError>()));
+      expect(() => history.add(service.currentState), throwsA(isA<UnsupportedError>()));
     });
   });
 }

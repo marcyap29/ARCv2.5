@@ -10,6 +10,7 @@
 /// - RIVET policy engine for alignment tracking
 /// - LUMARA integration for chat responses
 /// - Complete API for cloud deployment
+library;
 
 // Core models
 export 'models/veil_edge_models.dart';

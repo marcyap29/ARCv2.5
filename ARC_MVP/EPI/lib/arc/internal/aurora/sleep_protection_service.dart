@@ -93,7 +93,7 @@ class SleepProtectionService {
   }
 
   SleepWindow _getDefaultSleepWindow() {
-    return SleepWindow(
+    return const SleepWindow(
       startHour: _defaultSleepStart,
       endHour: _defaultSleepEnd,
       confidence: 0.5,

@@ -53,8 +53,8 @@ void main() {
       final session = await chatService.createSession(subject: 'Test Session');
       
       final contentParts = [
-        TextContentPart(text: 'Check out this image:'),
-        MediaContentPart(
+        const TextContentPart(text: 'Check out this image:'),
+        const MediaContentPart(
           mime: 'image/jpeg',
           pointer: MediaPointer(
             uri: 'photos://test-image-123',
@@ -94,7 +94,7 @@ void main() {
     test('should handle PRISM analysis', () async {
       final session = await chatService.createSession(subject: 'Test Session');
       
-      final prismSummary = PrismSummary(
+      const prismSummary = PrismSummary(
         captions: ['A beautiful sunset'],
         objects: ['sun', 'clouds', 'horizon'],
         emotion: EmotionData(
@@ -106,8 +106,8 @@ void main() {
       );
 
       final contentParts = [
-        TextContentPart(text: 'I saw this amazing sunset:'),
-        PrismContentPart(summary: prismSummary),
+        const TextContentPart(text: 'I saw this amazing sunset:'),
+        const PrismContentPart(summary: prismSummary),
       ];
 
       final message = await chatService.sendMessage(
@@ -184,20 +184,20 @@ void main() {
 
   group('Content Parts Tests', () {
     test('should create text content part', () {
-      final part = TextContentPart(text: 'Hello, world!');
+      const part = TextContentPart(text: 'Hello, world!');
       
       expect(part.mime, equals('text/plain'));
       expect(part.text, equals('Hello, world!'));
     });
 
     test('should create media content part', () {
-      final pointer = MediaPointer(
+      const pointer = MediaPointer(
         uri: 'photos://test-image',
         role: 'primary',
         metadata: {'width': 1920},
       );
       
-      final part = MediaContentPart(
+      const part = MediaContentPart(
         mime: 'image/jpeg',
         pointer: pointer,
         alt: 'Test image',
@@ -210,19 +210,19 @@ void main() {
     });
 
     test('should create PRISM content part', () {
-      final emotion = EmotionData(
+      const emotion = EmotionData(
         valence: 0.7,
         arousal: 0.5,
         dominantEmotion: 'happy',
       );
       
-      final summary = PrismSummary(
+      const summary = PrismSummary(
         captions: ['A happy moment'],
         emotion: emotion,
         objects: ['smile', 'sunshine'],
       );
       
-      final part = PrismContentPart(summary: summary);
+      const part = PrismContentPart(summary: summary);
       
       expect(part.mime, equals('application/x-prism+json'));
       expect(part.summary.emotion?.valence, equals(0.7));
@@ -230,12 +230,12 @@ void main() {
 
     test('should serialize and deserialize content parts', () {
       final parts = [
-        TextContentPart(text: 'Hello'),
-        MediaContentPart(
+        const TextContentPart(text: 'Hello'),
+        const MediaContentPart(
           mime: 'image/jpeg',
           pointer: MediaPointer(uri: 'photos://test'),
         ),
-        PrismContentPart(
+        const PrismContentPart(
           summary: PrismSummary(
             captions: ['Test caption'],
             emotion: EmotionData(valence: 0.5, arousal: 0.5),
@@ -253,8 +253,8 @@ void main() {
 
     test('should extract text from content parts', () {
       final parts = [
-        TextContentPart(text: 'Hello'),
-        TextContentPart(text: 'world!'),
+        const TextContentPart(text: 'Hello'),
+        const TextContentPart(text: 'world!'),
       ];
       
       final text = ContentPartUtils.extractText(parts);
@@ -262,10 +262,10 @@ void main() {
     });
 
     test('should detect media in content parts', () {
-      final textParts = [TextContentPart(text: 'Hello')];
+      final textParts = [const TextContentPart(text: 'Hello')];
       final mediaParts = [
-        TextContentPart(text: 'Hello'),
-        MediaContentPart(
+        const TextContentPart(text: 'Hello'),
+        const MediaContentPart(
           mime: 'image/jpeg',
           pointer: MediaPointer(uri: 'photos://test'),
         ),

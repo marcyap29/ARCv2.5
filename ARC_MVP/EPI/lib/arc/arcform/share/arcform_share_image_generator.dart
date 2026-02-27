@@ -5,7 +5,6 @@
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'arcform_share_models.dart';
 
 /// Service for generating platform-specific Arcform share images
@@ -506,9 +505,9 @@ class ArcformShareImageGenerator {
     const watermark = 'Created with ARC';
     
     final textPainter = TextPainter(
-      text: TextSpan(
+      text: const TextSpan(
         text: watermark,
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 12,
           fontWeight: FontWeight.w400,
           color: Color(0x99FFFFFF), // 60% opacity white on black background

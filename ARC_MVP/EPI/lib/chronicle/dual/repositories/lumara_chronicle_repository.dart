@@ -260,7 +260,7 @@ class LumaraChronicleRepository {
         relationships: relationships,
       );
     }
-    final match = (String text) =>
+    bool match(String text) =>
         text.toLowerCase().contains(q);
     return LumaraInferredResult(
       causalChains: causalChains

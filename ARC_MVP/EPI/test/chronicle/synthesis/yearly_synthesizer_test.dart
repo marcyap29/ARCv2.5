@@ -2,8 +2,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:my_app/chronicle/synthesis/yearly_synthesizer.dart';
 import 'package:my_app/chronicle/storage/aggregation_repository.dart';
 import 'package:my_app/chronicle/storage/changelog_repository.dart';
-import 'package:my_app/chronicle/models/chronicle_aggregation.dart';
-import 'package:my_app/chronicle/models/chronicle_layer.dart';
 
 void main() {
   group('YearlySynthesizer', () {

@@ -166,7 +166,7 @@ class FallbackOCPOrchestrator {
     
     // Sample some pixels to look for high contrast areas (typical of text)
     int highContrastPixels = 0;
-    final sampleSize = 100; // Sample 100 pixels
+    const sampleSize = 100; // Sample 100 pixels
     
     for (int i = 0; i < sampleSize; i++) {
       final x = (i * width / sampleSize).round() % width;
@@ -440,7 +440,7 @@ class FallbackOCPOrchestrator {
     // Add feature summary
     final kp = featureResult['kp'] as int? ?? 0;
     if (kp > 0) {
-      parts.add('Features: ${kp} keypoints');
+      parts.add('Features: $kp keypoints');
     }
 
     if (parts.isEmpty) {

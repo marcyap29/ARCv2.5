@@ -17,8 +17,8 @@ class ChatSessionNode extends McpNode {
   final String retention;
 
   const ChatSessionNode({
-    required String id,
-    required DateTime timestamp,
+    required super.id,
+    required super.timestamp,
     required this.title,
     this.isArchived = false,
     this.archivedAt,
@@ -26,16 +26,12 @@ class ChatSessionNode extends McpNode {
     this.tags = const [],
     this.messageCount = 0,
     this.retention = 'auto-archive-30d',
-    String schemaVersion = 'node.v1',
+    super.schemaVersion,
     McpProvenance? provenance,
-    Map<String, dynamic>? metadata,
+    super.metadata,
   }) : super(
-          id: id,
           type: 'ChatSession',
-          timestamp: timestamp,
-          schemaVersion: schemaVersion,
           provenance: provenance ?? const McpProvenance(source: 'LUMARA', device: 'unknown'),
-          metadata: metadata,
         );
 
   @override
@@ -89,22 +85,18 @@ class ChatMessageNode extends McpNode {
   final int order;
 
   const ChatMessageNode({
-    required String id,
-    required DateTime timestamp,
+    required super.id,
+    required super.timestamp,
     required this.role,
     required this.text,
     this.mimeType = 'text/plain',
     this.order = 0,
-    String schemaVersion = 'node.v1',
+    super.schemaVersion,
     McpProvenance? provenance,
-    Map<String, dynamic>? metadata,
+    super.metadata,
   }) : super(
-          id: id,
           type: 'ChatMessage',
-          timestamp: timestamp,
-          schemaVersion: schemaVersion,
           provenance: provenance ?? const McpProvenance(source: 'LUMARA', device: 'unknown'),
-          metadata: metadata,
         );
 
   @override
@@ -150,12 +142,14 @@ class DraftEntryNode extends McpNode {
   final DateTime? lastModified;
   final int wordCount;
   final List<String> tags;
+  @override
   final String? phaseHint;
+  @override
   final Map<String, double> emotions;
 
   const DraftEntryNode({
-    required String id,
-    required DateTime timestamp,
+    required super.id,
+    required super.timestamp,
     required this.content,
     this.title,
     this.isAutoSaved = false,
@@ -164,16 +158,12 @@ class DraftEntryNode extends McpNode {
     this.tags = const [],
     this.phaseHint,
     this.emotions = const {},
-    String schemaVersion = 'node.v1',
+    super.schemaVersion,
     McpProvenance? provenance,
-    Map<String, dynamic>? metadata,
+    super.metadata,
   }) : super(
-          id: id,
           type: 'DraftEntry',
-          timestamp: timestamp,
-          schemaVersion: schemaVersion,
           provenance: provenance ?? const McpProvenance(source: 'ARC', device: 'unknown'),
-          metadata: metadata,
         );
 
   @override
@@ -233,8 +223,8 @@ class LumaraEnhancedJournalNode extends McpNode {
   final String? lumaraContext;
 
   const LumaraEnhancedJournalNode({
-    required String id,
-    required DateTime timestamp,
+    required super.id,
+    required super.timestamp,
     required this.content,
     this.rosebud,
     this.lumaraInsights = const [],
@@ -243,16 +233,12 @@ class LumaraEnhancedJournalNode extends McpNode {
     this.emotionalAnalysis = const {},
     this.suggestedKeywords = const [],
     this.lumaraContext,
-    String schemaVersion = 'node.v1',
+    super.schemaVersion,
     McpProvenance? provenance,
-    Map<String, dynamic>? metadata,
+    super.metadata,
   }) : super(
-          id: id,
           type: 'LumaraEnhancedJournal',
-          timestamp: timestamp,
-          schemaVersion: schemaVersion,
           provenance: provenance ?? const McpProvenance(source: 'LUMARA', device: 'unknown'),
-          metadata: metadata,
         );
 
   @override
@@ -304,22 +290,15 @@ class ChatEdge extends McpEdge {
   final String? relationType;
 
   const ChatEdge({
-    required String source,
-    required String target,
-    required String relation,
-    required DateTime timestamp,
+    required super.source,
+    required super.target,
+    required super.relation,
+    required super.timestamp,
     this.order,
     this.relationType,
-    String schemaVersion = 'edge.v1',
-    Map<String, dynamic>? metadata,
-  }) : super(
-          source: source,
-          target: target,
-          relation: relation,
-          timestamp: timestamp,
-          schemaVersion: schemaVersion,
-          metadata: metadata,
-        );
+    super.schemaVersion,
+    super.metadata,
+  });
 
   @override
   Map<String, dynamic> toJson() {

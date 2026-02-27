@@ -4,9 +4,7 @@ import 'package:crypto/crypto.dart';
 import 'package:path/path.dart' as path;
 import '../models/mcp_schemas.dart';
 import '../export/manifest_builder.dart';
-import '../export/checksum_utils.dart';
 import '../export/zip_utils.dart';
-import 'mcp_validator.dart';
 
 /// Service for automatically repairing common MCP bundle issues
 class McpBundleRepairService {
@@ -466,7 +464,7 @@ class McpBundleRepairService {
         
         if (result.success) {
           // Create a new zip file with the repaired bundle
-          final repairedZipFile = File('${zipFile.path.replaceAll('.zip', '_repaired.zip')}');
+          final repairedZipFile = File(zipFile.path.replaceAll('.zip', '_repaired.zip'));
           await ZipUtils.zipDirectory(tempDir, zipFileName: repairedZipFile.path);
           
           repairs.add(BundleRepair(

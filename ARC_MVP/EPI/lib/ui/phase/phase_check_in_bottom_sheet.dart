@@ -103,7 +103,7 @@ class _PhaseCheckInContentState extends State<_PhaseCheckInContent> {
               children: [
                 Text(
                   'Step $_step of ${_totalSteps()}',
-                  style: TextStyle(
+                  style: const TextStyle(
                     color: kcSecondaryTextColor,
                     fontSize: 14,
                   ),
@@ -243,7 +243,7 @@ class _PhaseCheckInContentState extends State<_PhaseCheckInContent> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(
+        const Text(
           'Quick diagnostic (3 questions)',
           style: TextStyle(
             fontSize: 18,
@@ -370,7 +370,7 @@ class _PhaseCheckInContentState extends State<_PhaseCheckInContent> {
           const SizedBox(height: 12),
           Text(
             'Previous phase: $_currentPhase',
-            style: TextStyle(color: kcSecondaryTextColor, fontSize: 14),
+            style: const TextStyle(color: kcSecondaryTextColor, fontSize: 14),
           ),
           Text(
             'New phase: $suggested',
@@ -430,7 +430,7 @@ class _PhaseCheckInContentState extends State<_PhaseCheckInContent> {
   }
 
   Widget _buildManualPickerStep() {
-    final phases = PhaseLabel.values;
+    const phases = PhaseLabel.values;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -531,7 +531,7 @@ class _PhaseCheckInContentState extends State<_PhaseCheckInContent> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Icon(Icons.check_circle, size: 64, color: kcSuccessColor),
+        const Icon(Icons.check_circle, size: 64, color: kcSuccessColor),
         const SizedBox(height: 16),
         Text(
           'Phase updated to $_currentPhase',

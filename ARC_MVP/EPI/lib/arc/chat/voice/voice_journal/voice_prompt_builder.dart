@@ -3,6 +3,7 @@
 /// Builds the unified voice mode system prompt that integrates with
 /// the LUMARA Master Unified Prompt system while adding voice-specific
 /// behavioral adaptations.
+library;
 
 import 'dart:convert';
 import '../../services/lumara_control_state_builder.dart';

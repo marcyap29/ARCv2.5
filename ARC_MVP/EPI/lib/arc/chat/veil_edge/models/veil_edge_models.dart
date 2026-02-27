@@ -3,6 +3,7 @@
 /// A fast, cloud-orchestrated variant of VEIL that maintains restorative rhythm
 /// without on-device fine-tuning. Functions as a prompt-switching policy layer,
 /// routing user context through ATLAS → RIVET → SENTINEL to select phase-pair playbooks.
+library;
 
 
 /// ATLAS state representing current phase and confidence

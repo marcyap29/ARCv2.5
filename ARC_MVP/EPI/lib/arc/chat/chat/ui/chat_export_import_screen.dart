@@ -6,7 +6,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
-import '../chat_category_models.dart';
+import '../chat_export_models.dart';
 import '../enhanced_chat_repo.dart';
 
 /// Screen for exporting and importing chat data
@@ -82,7 +82,7 @@ class _ChatExportImportScreenState extends State<ChatExportImportScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Export your chat history, categories, and settings to a file that can be imported later or shared with others.',
+              'Export your chat history to a file that can be imported later or shared with others.',
               style: bodyStyle(context).copyWith(color: kcTextSecondaryColor),
             ),
             const SizedBox(height: 16),
@@ -113,7 +113,7 @@ class _ChatExportImportScreenState extends State<ChatExportImportScreen> {
                     label: const Text('Export Selected'),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: kcPrimaryColor,
-                      side: BorderSide(color: kcPrimaryColor),
+                      side: const BorderSide(color: kcPrimaryColor),
                     ),
                   ),
                 ),
@@ -175,7 +175,7 @@ class _ChatExportImportScreenState extends State<ChatExportImportScreen> {
                   label: const Text('Options'),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: kcPrimaryColor,
-                    side: BorderSide(color: kcPrimaryColor),
+                    side: const BorderSide(color: kcPrimaryColor),
                   ),
                 ),
               ],
@@ -238,7 +238,7 @@ class _ChatExportImportScreenState extends State<ChatExportImportScreen> {
       // Share the file
       await Share.shareXFiles(
         [XFile(file.path)],
-        text: 'LUMARA Chat Export - ${exportData.sessions.length} sessions, ${exportData.categories.length} categories',
+        text: 'LUMARA Chat Export - ${exportData.sessions.length} sessions',
       );
 
       setState(() {

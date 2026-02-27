@@ -9,7 +9,7 @@ void main() {
     late MethodChannel mockChannel;
     
     setUp(() {
-      mockChannel = MethodChannel('photo_library_service');
+      mockChannel = const MethodChannel('photo_library_service');
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(mockChannel, (MethodCall methodCall) async {
         switch (methodCall.method) {

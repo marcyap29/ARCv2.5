@@ -122,7 +122,7 @@ class _CustomTabBarState extends State<CustomTabBar> {
               height: 24,
               fit: BoxFit.contain,
               errorBuilder: (context, error, stackTrace) {
-                return Icon(
+                return const Icon(
                   Icons.psychology,
                   size: 24,
                   color: textColor,
@@ -156,7 +156,7 @@ class _CustomTabBarState extends State<CustomTabBar> {
           height: 28,
           fit: BoxFit.contain,
           errorBuilder: (context, error, stackTrace) {
-            return Icon(
+            return const Icon(
               Icons.psychology,
               size: 28,
               color: textColor,

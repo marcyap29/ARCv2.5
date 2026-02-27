@@ -1,5 +1,6 @@
 /// Utility functions for repairing corrupted MCP files by separating chat and journal data.
 /// All functions are pure and unit-testable.
+library;
 
 import 'dart:io';
 import 'dart:convert';
@@ -148,8 +149,8 @@ class McpFileRepair {
         version: '1.0.0',
         createdAt: DateTime.now().toUtc(),
         storageProfile: 'test',
-        counts: McpCounts(),
-        checksums: McpChecksums(
+        counts: const McpCounts(),
+        checksums: const McpChecksums(
           nodesJsonl: '',
           edgesJsonl: '',
           pointersJsonl: '',

@@ -2,6 +2,7 @@
 ///
 /// Simple demonstration of the ECHO system's capabilities for generating
 /// dignified, phase-aware responses that embody LUMARA's voice.
+library;
 
 import 'echo_integration.dart';
 import 'prompts/phase_templates.dart';
@@ -35,7 +36,7 @@ class EchoDemo {
     print('=====================================\n');
 
     final phases = ['Discovery', 'Expansion', 'Transition', 'Consolidation', 'Recovery', 'Breakthrough'];
-    final sampleUtterance = 'I\'m feeling uncertain about what comes next in my life';
+    const sampleUtterance = 'I\'m feeling uncertain about what comes next in my life';
 
     for (final phase in phases) {
       print('🔸 $phase Phase:');
@@ -70,7 +71,7 @@ class EchoDemo {
     print('🎭 LUMARA VOICE CHARACTERISTICS');
     print('===============================\n');
 
-    final voiceCharacteristics = LumaraVoiceController.voiceCharacteristics;
+    const voiceCharacteristics = LumaraVoiceController.voiceCharacteristics;
 
     for (final entry in voiceCharacteristics.entries) {
       print('${entry.key.toUpperCase()}: ${entry.value}');
@@ -133,7 +134,7 @@ class EchoDemo {
     final phaseTemplate = PhaseTemplates.getPhaseTemplate(detectedPhase);
     final emotionalPrompts = PhaseTemplates.getEmotionalResonancePrompts(detectedPhase);
 
-    print('Applied Phase Template: ${detectedPhase}');
+    print('Applied Phase Template: $detectedPhase');
     print('Emotional Resonance Options: ${emotionalPrompts.keys.join(', ')}');
     print('');
 

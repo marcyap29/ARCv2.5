@@ -9,6 +9,7 @@
 /// - SPEAKING: LUMARA speaking with outward-flowing particles
 /// 
 /// Uses the white LUMARA sigil image as the center element
+library;
 
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
@@ -488,37 +489,37 @@ class VoiceSigilStateLabel extends StatelessWidget {
     switch (state) {
       case VoiceSigilState.idle:
         if (hasConversationStarted) {
-          return _StateLabelInfo(
+          return const _StateLabelInfo(
             primary: 'Tap to continue',
             secondary: 'Or tap Finish to end conversation',
           );
         }
-        return _StateLabelInfo(
+        return const _StateLabelInfo(
           primary: 'Tap to talk to LUMARA',
           secondary: null,
         );
       case VoiceSigilState.listening:
-        return _StateLabelInfo(
+        return const _StateLabelInfo(
           primary: 'Listening...',
           secondary: 'Tap when you\'re done',
         );
       case VoiceSigilState.commitment:
-        return _StateLabelInfo(
+        return const _StateLabelInfo(
           primary: 'Processing...',
           secondary: null,
         );
       case VoiceSigilState.accelerating:
-        return _StateLabelInfo(
+        return const _StateLabelInfo(
           primary: 'Almost ready...',
           secondary: null,
         );
       case VoiceSigilState.thinking:
-        return _StateLabelInfo(
+        return const _StateLabelInfo(
           primary: 'LUMARA is thinking...',
           secondary: null,
         );
       case VoiceSigilState.speaking:
-        return _StateLabelInfo(
+        return const _StateLabelInfo(
           primary: 'LUMARA',
           secondary: null,
         );

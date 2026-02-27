@@ -470,7 +470,7 @@ class _ARCXImportProgressScreenState extends State<ARCXImportProgressScreen> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  '${_entriesImported ?? 0} entries imported\n${_photosImported ?? 0} photos imported${_chatSessionsImported != null && _chatSessionsImported! > 0 ? '\n${_chatSessionsImported} chat sessions imported' : ''}',
+                  '${_entriesImported ?? 0} entries imported\n${_photosImported ?? 0} photos imported${_chatSessionsImported != null && _chatSessionsImported! > 0 ? '\n$_chatSessionsImported chat sessions imported' : ''}',
                   style: bodyStyle(context).copyWith(
                     color: kcSecondaryTextColor,
                   ),
@@ -529,8 +529,7 @@ class _ARCXImportProgressScreenState extends State<ARCXImportProgressScreen> {
                 _buildSummaryRow(
                   'Entries restored:',
                   result.entriesTotalInArchive != null
-                      ? '${result.entriesImported} of ${result.entriesTotalInArchive}'
-                          + (result.entriesFailed != null && result.entriesFailed! > 0 ? ' (${result.entriesFailed} failed)' : '')
+                      ? '${result.entriesImported} of ${result.entriesTotalInArchive}${result.entriesFailed != null && result.entriesFailed! > 0 ? ' (${result.entriesFailed} failed)' : ''}'
                       : '${result.entriesImported}',
                 ),
                 _buildSummaryRow('Media restored:', '${result.mediaImported}'),

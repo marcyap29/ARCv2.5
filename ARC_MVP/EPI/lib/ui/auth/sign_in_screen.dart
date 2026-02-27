@@ -360,8 +360,8 @@ class _SignInScreenState extends State<SignInScreen> {
                 Row(
                 children: [
                     Expanded(child: Divider(color: kcSecondaryTextColor.withOpacity(0.3))),
-                  Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                  const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 16),
                     child: Text('or', style: TextStyle(color: kcSecondaryTextColor)),
                   ),
                     Expanded(child: Divider(color: kcSecondaryTextColor.withOpacity(0.3))),
@@ -465,7 +465,7 @@ class _SignInScreenState extends State<SignInScreen> {
                     alignment: Alignment.centerRight,
                     child: TextButton(
                       onPressed: _isLoading ? null : _resetPassword,
-                      child: Text(
+                      child: const Text(
                         'Forgot Password?',
                         style: TextStyle(color: kcAccentColor),
                       ),
@@ -509,12 +509,12 @@ class _SignInScreenState extends State<SignInScreen> {
                   ),
                     child: Row(
                       children: [
-                        Icon(Icons.error_outline, color: kcDangerColor, size: 20),
+                        const Icon(Icons.error_outline, color: kcDangerColor, size: 20),
                         const SizedBox(width: 8),
                         Expanded(
                   child: Text(
                     _errorMessage!,
-                    style: TextStyle(color: kcDangerColor),
+                    style: const TextStyle(color: kcDangerColor),
                           ),
                         ),
                       ],
@@ -530,13 +530,13 @@ class _SignInScreenState extends State<SignInScreen> {
                   children: [
                     Text(
                       _isSignUp ? 'Already have an account?' : "Don't have an account?",
-                      style: TextStyle(color: kcSecondaryTextColor),
+                      style: const TextStyle(color: kcSecondaryTextColor),
                     ),
               TextButton(
                       onPressed: _isLoading ? null : _toggleMode,
                 child: Text(
                         _isSignUp ? 'Sign In' : 'Sign Up',
-                        style: TextStyle(
+                        style: const TextStyle(
                           color: kcAccentColor,
                           fontWeight: FontWeight.w600,
                         ),

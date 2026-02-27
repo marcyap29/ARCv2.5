@@ -7,8 +7,8 @@
 /// - Recent activity patterns
 /// - Current phase (if available)
 /// - Last conversation recency
+library;
 
-import 'package:flutter/foundation.dart';
 
 /// Generates contextual greetings for the unified feed header.
 class ContextualGreetingService {

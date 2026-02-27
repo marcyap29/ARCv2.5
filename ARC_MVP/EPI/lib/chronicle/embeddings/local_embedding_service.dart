@@ -12,6 +12,7 @@ class LocalEmbeddingService extends EmbeddingService {
   Interpreter? _interpreter;
   bool _initialized = false;
 
+  @override
   Future<void> initialize() async {
     if (_initialized) return;
 
@@ -38,6 +39,7 @@ class LocalEmbeddingService extends EmbeddingService {
   }
 
   /// Generate 512-dimensional embedding for text
+  @override
   Future<List<double>> embed(String text) async {
     if (!_initialized) await initialize();
 
@@ -45,7 +47,7 @@ class LocalEmbeddingService extends EmbeddingService {
     // No manual tokenization needed!
 
     final input = [text]; // Just wrap string in array
-    final dim = EmbeddingService.embeddingDimension;
+    const dim = EmbeddingService.embeddingDimension;
     final output = _reshape2D(List<double>.filled(dim, 0.0), 1, dim);
 
     _interpreter!.run(input, output);
@@ -62,6 +64,7 @@ class LocalEmbeddingService extends EmbeddingService {
   }
 
   /// Batch embed multiple texts
+  @override
   Future<Map<String, List<double>>> embedBatch(List<String> texts) async {
     final results = <String, List<double>>{};
 
@@ -84,6 +87,7 @@ class LocalEmbeddingService extends EmbeddingService {
     return dotProduct;
   }
 
+  @override
   void dispose() {
     _interpreter?.close();
     _initialized = false;

@@ -238,7 +238,7 @@ class McpNodeFactory {
       keywords: entry.keywords,
       narrative: narrative,
       emotions: emotions,
-      provenance: McpProvenance(
+      provenance: const McpProvenance(
         source: 'ARC',
         device: 'unknown',
       ),

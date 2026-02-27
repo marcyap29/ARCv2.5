@@ -50,6 +50,7 @@
 /// // To switch modes:
 /// service.switchMode(VoiceMode.chat);
 /// ```
+library;
 
 // Core state management
 export 'voice_journal_state.dart';

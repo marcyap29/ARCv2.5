@@ -13,6 +13,7 @@
 /// - Only scrubbed text goes to Gemini
 /// - PRISM reversible map stays local
 /// - No raw text in logs
+library;
 
 import 'dart:async';
 import 'package:flutter/foundation.dart';

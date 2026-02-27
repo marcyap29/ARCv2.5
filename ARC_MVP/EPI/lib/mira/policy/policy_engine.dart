@@ -157,7 +157,7 @@ class PolicyEngine {
   /// Get default policy rules
   static List<PolicyRule> _getDefaultRules() => [
     // Personal domain - high privacy
-    PolicyRule(
+    const PolicyRule(
       id: 'personal_high_privacy',
       name: 'Personal High Privacy',
       description: 'Personal memories with high privacy protection',
@@ -168,7 +168,7 @@ class PolicyEngine {
     ),
     
     // Work domain - moderate privacy
-    PolicyRule(
+    const PolicyRule(
       id: 'work_moderate_privacy',
       name: 'Work Moderate Privacy',
       description: 'Work memories with moderate privacy protection',
@@ -179,7 +179,7 @@ class PolicyEngine {
     ),
     
     // Health domain - maximum privacy
-    PolicyRule(
+    const PolicyRule(
       id: 'health_maximum_privacy',
       name: 'Health Maximum Privacy',
       description: 'Health memories with maximum privacy protection',
@@ -190,7 +190,7 @@ class PolicyEngine {
     ),
     
     // Creative domain - open sharing
-    PolicyRule(
+    const PolicyRule(
       id: 'creative_open_sharing',
       name: 'Creative Open Sharing',
       description: 'Creative memories for open sharing',
@@ -201,7 +201,7 @@ class PolicyEngine {
     ),
     
     // Finance domain - maximum security
-    PolicyRule(
+    const PolicyRule(
       id: 'finance_maximum_security',
       name: 'Finance Maximum Security',
       description: 'Finance memories with maximum security',
@@ -255,7 +255,7 @@ class PolicyEngine {
 
     _logConsent(actor, purpose, '${domain.name}:${privacyLevel.name}', false, 
         'No rule conditions satisfied');
-    return PolicyDecision(
+    return const PolicyDecision(
       allowed: false,
       reason: 'No rule conditions satisfied',
       conditions: ['conditions_not_met'],

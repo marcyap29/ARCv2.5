@@ -126,7 +126,7 @@ class OrphanDetector {
 
     // Load nodes
     final nodes = <Map<String, dynamic>>[];
-    await for (final line in nodesFile.openRead().transform(utf8.decoder).transform(LineSplitter())) {
+    await for (final line in nodesFile.openRead().transform(utf8.decoder).transform(const LineSplitter())) {
       if (line.trim().isNotEmpty) {
         nodes.add(jsonDecode(line) as Map<String, dynamic>);
       }
@@ -134,7 +134,7 @@ class OrphanDetector {
 
     // Load pointers
     final pointers = <Map<String, dynamic>>[];
-    await for (final line in pointersFile.openRead().transform(utf8.decoder).transform(LineSplitter())) {
+    await for (final line in pointersFile.openRead().transform(utf8.decoder).transform(const LineSplitter())) {
       if (line.trim().isNotEmpty) {
         pointers.add(jsonDecode(line) as Map<String, dynamic>);
       }
@@ -142,7 +142,7 @@ class OrphanDetector {
 
     // Load edges
     final edges = <Map<String, dynamic>>[];
-    await for (final line in edgesFile.openRead().transform(utf8.decoder).transform(LineSplitter())) {
+    await for (final line in edgesFile.openRead().transform(utf8.decoder).transform(const LineSplitter())) {
       if (line.trim().isNotEmpty) {
         edges.add(jsonDecode(line) as Map<String, dynamic>);
       }
@@ -307,21 +307,21 @@ class OrphanDetector {
 
     // Load data
     final nodes = <Map<String, dynamic>>[];
-    await for (final line in nodesFile.openRead().transform(utf8.decoder).transform(LineSplitter())) {
+    await for (final line in nodesFile.openRead().transform(utf8.decoder).transform(const LineSplitter())) {
       if (line.trim().isNotEmpty) {
         nodes.add(jsonDecode(line) as Map<String, dynamic>);
       }
     }
 
     final pointers = <Map<String, dynamic>>[];
-    await for (final line in pointersFile.openRead().transform(utf8.decoder).transform(LineSplitter())) {
+    await for (final line in pointersFile.openRead().transform(utf8.decoder).transform(const LineSplitter())) {
       if (line.trim().isNotEmpty) {
         pointers.add(jsonDecode(line) as Map<String, dynamic>);
       }
     }
 
     final edges = <Map<String, dynamic>>[];
-    await for (final line in edgesFile.openRead().transform(utf8.decoder).transform(LineSplitter())) {
+    await for (final line in edgesFile.openRead().transform(utf8.decoder).transform(const LineSplitter())) {
       if (line.trim().isNotEmpty) {
         edges.add(jsonDecode(line) as Map<String, dynamic>);
       }

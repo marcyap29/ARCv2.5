@@ -6,6 +6,7 @@
 ///
 /// NOTE: This class is now deprecated in favor of the new PromptProfileManager system.
 /// Use OnDevicePromptService.createSystemPrompt() instead.
+library;
 
 import 'prompt_profile_manager.dart';
 

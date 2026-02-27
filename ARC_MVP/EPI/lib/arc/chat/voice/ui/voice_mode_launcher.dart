@@ -2,6 +2,7 @@
 /// 
 /// Simple button to activate voice mode
 /// Can be added as a FloatingActionButton, button, or card
+library;
 
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -186,7 +187,7 @@ class VoiceModeCard extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(
+              const Icon(
                 Icons.mic,
                 size: 48,
                 color: Colors.deepPurple,

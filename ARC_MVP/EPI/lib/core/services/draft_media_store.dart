@@ -3,6 +3,7 @@
 /// Content-addressed storage for draft media with no compression.
 /// Originals are stored bit-exactly by SHA-256 hash.
 /// Thumbnails are generated separately for UI performance.
+library;
 
 import 'dart:io';
 import 'dart:convert';
@@ -148,7 +149,7 @@ class DraftMediaStore {
         _refCounts[hash] = 1;
         await _saveRefCounts();
         
-        debugPrint('DraftMediaStore: Stored new blob $hash (${sizeBytes} bytes)');
+        debugPrint('DraftMediaStore: Stored new blob $hash ($sizeBytes bytes)');
       }
 
       // Generate thumbnail if enabled and applicable
@@ -388,7 +389,7 @@ class DraftMediaStore {
   }
 
   String _getThumbPath(String hash, int maxW, int maxH) {
-    return path.join(_thumbsDir!.path, '${hash}_w${maxW}_h${maxH}.jpg');
+    return path.join(_thumbsDir!.path, '${hash}_w${maxW}_h$maxH.jpg');
   }
 
   /// Compute hash using streaming for large files (avoids loading entire file into memory)
@@ -499,7 +500,7 @@ class DraftMediaStore {
       await thumb.parent.create(recursive: true);
       await thumb.writeAsBytes(thumbBytes);
       
-      debugPrint('DraftMediaStore: Generated thumbnail ${thumbWidth}x${thumbHeight} for ${original.path}');
+      debugPrint('DraftMediaStore: Generated thumbnail ${thumbWidth}x$thumbHeight for ${original.path}');
     } catch (e) {
       debugPrint('DraftMediaStore: Error generating image thumbnail: $e');
       rethrow;

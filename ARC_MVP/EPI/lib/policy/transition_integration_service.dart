@@ -9,6 +9,7 @@
 /// - Provide telemetry and debugging information
 /// - Manage phase transitions and notifications
 /// - Integrate with existing journal capture cubit
+library;
 
 import 'dart:async';
 import 'package:uuid/uuid.dart';

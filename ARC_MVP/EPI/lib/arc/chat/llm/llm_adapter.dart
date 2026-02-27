@@ -22,7 +22,7 @@ class LLMAdapter implements ModelAdapter {
     }
     
     if (!_available) {
-      return "Error: LLMAdapter not available - ${_reason}";
+      return "Error: LLMAdapter not available - $_reason";
     }
     
     String testPrompt;
@@ -53,10 +53,7 @@ class LLMAdapter implements ModelAdapter {
       final response = result.text.trim();
       final isCorrect = response == expectedResponse;
       
-      return "Canary Test ($testType): ${isCorrect ? 'PASS' : 'FAIL'}\n" +
-             "Expected: '$expectedResponse'\n" +
-             "Actual: '$response'\n" +
-             "Hash: ${sha256Of(testPrompt)}";
+      return "Canary Test ($testType): ${isCorrect ? 'PASS' : 'FAIL'}\n" "Expected: '$expectedResponse'\n" "Actual: '$response'\n" "Hash: ${sha256Of(testPrompt)}";
     } catch (e) {
       return "Canary Test ($testType): ERROR - $e";
     }
@@ -205,7 +202,7 @@ class LLMAdapter implements ModelAdapter {
       if (useMinimalPrompt) {
         // Fast path: minimal prompt for quick responses
         debugPrint('⚡ Using MINIMAL prompt for quick chat');
-        final systemMessage = "You are LUMARA, a helpful and friendly AI assistant. Keep your responses brief and natural.";
+        const systemMessage = "You are LUMARA, a helpful and friendly AI assistant. Keep your responses brief and natural.";
         optimizedPrompt = ChatTemplates.getTemplate(
           _activeModelId ?? 'Llama-3.2-3b-Instruct-Q4_K_M.gguf',
           systemMessage: ChatTemplates.toAscii(systemMessage),

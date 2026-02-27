@@ -167,12 +167,12 @@ class _GoogleDriveSettingsViewState extends State<GoogleDriveSettingsView> {
           );
         } else if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Text(
+            const SnackBar(
+              content: Text(
                 'No .arcx or .zip files found here. If the folder has backup files, try selecting it again (the system may need to grant access).',
               ),
               backgroundColor: Colors.orange,
-              duration: const Duration(seconds: 4),
+              duration: Duration(seconds: 4),
             ),
           );
         }
@@ -380,12 +380,12 @@ class _GoogleDriveSettingsViewState extends State<GoogleDriveSettingsView> {
                 _uploadFolderProgress = '';
               });
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: const Text(
+                const SnackBar(
+                  content: Text(
                     'Folder access was denied (system privacy). Tap "Browse" to select the folder again, then Upload.',
                   ),
                   backgroundColor: Colors.orange,
-                  duration: const Duration(seconds: 5),
+                  duration: Duration(seconds: 5),
                 ),
               );
             }
@@ -863,8 +863,11 @@ class _GoogleDriveSettingsViewState extends State<GoogleDriveSettingsView> {
         if (!mounted) break;
         try {
           final r = await _performImportFromDriveFile(file);
-          if (r.success) importedBackups++;
-          else lastError = r.error;
+          if (r.success) {
+            importedBackups++;
+          } else {
+            lastError = r.error;
+          }
         } catch (e) {
           lastError = e.toString();
         }
@@ -874,8 +877,11 @@ class _GoogleDriveSettingsViewState extends State<GoogleDriveSettingsView> {
         if (manifests.any((m) => m.id == file.id)) continue;
         try {
           final r = await _performImportFromDriveFile(file);
-          if (r.success) importedBackups++;
-          else lastError = r.error;
+          if (r.success) {
+            importedBackups++;
+          } else {
+            lastError = r.error;
+          }
         } catch (e) {
           lastError = e.toString();
         }

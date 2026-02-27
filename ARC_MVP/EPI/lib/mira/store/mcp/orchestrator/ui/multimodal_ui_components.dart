@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:photo_manager/photo_manager.dart';
 import 'package:audioplayers/audioplayers.dart';
 
 import '../mcp_pointer_service.dart';
@@ -330,9 +329,9 @@ class _McpPointerPopupState extends State<McpPointerPopup> {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text(
+                const Text(
                   'Audio Recording',
-                  style: const TextStyle(fontWeight: FontWeight.bold),
+                  style: TextStyle(fontWeight: FontWeight.bold),
                 ),
                 if (widget.pointer.descriptor.duration != null)
                   Text(
@@ -370,9 +369,9 @@ class _McpPointerPopupState extends State<McpPointerPopup> {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text(
+                const Text(
                   'File Attachment',
-                  style: const TextStyle(fontWeight: FontWeight.bold),
+                  style: TextStyle(fontWeight: FontWeight.bold),
                 ),
                 Text(
                   widget.pointer.descriptor.mimeType ?? 'unknown',
@@ -592,7 +591,7 @@ class McpPointerGallery extends StatelessWidget {
       return const SizedBox.shrink();
     }
 
-    return Container(
+    return SizedBox(
       height: _getGalleryHeight(),
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
@@ -630,7 +629,7 @@ class McpPointerGallery extends StatelessWidget {
       context: context,
       builder: (context) => McpPointerPopup(
         pointer: pointer,
-        extractedData: {}, // TODO: Pass actual extracted data
+        extractedData: const {}, // TODO: Pass actual extracted data
       ),
     );
   }

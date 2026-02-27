@@ -1,9 +1,6 @@
-import 'dart:convert';
 import 'package:image_picker/image_picker.dart';
-import 'package:photo_manager/photo_manager.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
 
 import 'multimodal_orchestrator_commands.dart';
@@ -28,7 +25,7 @@ class MultimodalMcpOrchestrator {
       case 'user tapped audio icon in journal entry':
         return _generateAudioFlow();
       default:
-        return OrchestratorCommandEnvelope(commands: []);
+        return const OrchestratorCommandEnvelope(commands: []);
     }
   }
 
@@ -53,7 +50,7 @@ class MultimodalMcpOrchestrator {
           success: false,
           error: e.toString(),
           critical: true,
-          data: {},
+          data: const {},
         ));
         break;
       }
@@ -67,7 +64,7 @@ class MultimodalMcpOrchestrator {
 
   /// Generate photo attachment flow
   OrchestratorCommandEnvelope _generatePhotoFlow() {
-    return OrchestratorCommandEnvelope(
+    return const OrchestratorCommandEnvelope(
       commands: [
         RequestPermissionsCommand(target: 'photos'),
         OpenPickerCommand(kind: 'photo', multi: true),
@@ -78,7 +75,7 @@ class MultimodalMcpOrchestrator {
 
   /// Generate video attachment flow
   OrchestratorCommandEnvelope _generateVideoFlow() {
-    return OrchestratorCommandEnvelope(
+    return const OrchestratorCommandEnvelope(
       commands: [
         RequestPermissionsCommand(target: 'photos'),
         OpenPickerCommand(kind: 'video', multi: true),
@@ -89,7 +86,7 @@ class MultimodalMcpOrchestrator {
 
   /// Generate audio attachment flow
   OrchestratorCommandEnvelope _generateAudioFlow() {
-    return OrchestratorCommandEnvelope(
+    return const OrchestratorCommandEnvelope(
       commands: [
         RequestPermissionsCommand(target: 'microphone'),
         OpenPickerCommand(kind: 'audio', multi: false),
@@ -160,7 +157,7 @@ class MultimodalMcpOrchestrator {
         success: false,
         error: e.toString(),
         critical: true,
-        data: {},
+        data: const {},
       );
     }
   }
@@ -205,7 +202,7 @@ class MultimodalMcpOrchestrator {
         success: false,
         error: e.toString(),
         critical: true,
-        data: {},
+        data: const {},
       );
     }
   }
@@ -253,7 +250,7 @@ class MultimodalMcpOrchestrator {
         success: false,
         error: e.toString(),
         critical: false,
-        data: {},
+        data: const {},
       );
     }
   }
@@ -312,7 +309,7 @@ class MultimodalMcpOrchestrator {
         success: false,
         error: e.toString(),
         critical: false,
-        data: {},
+        data: const {},
       );
     }
   }
@@ -353,7 +350,7 @@ class MultimodalMcpOrchestrator {
         success: false,
         error: e.toString(),
         critical: false,
-        data: {},
+        data: const {},
       );
     }
   }
@@ -383,7 +380,7 @@ class MultimodalMcpOrchestrator {
         success: false,
         error: e.toString(),
         critical: false,
-        data: {},
+        data: const {},
       );
     }
   }
@@ -418,7 +415,7 @@ class MultimodalMcpOrchestrator {
         success: false,
         error: e.toString(),
         critical: false,
-        data: {},
+        data: const {},
       );
     }
   }
@@ -444,7 +441,7 @@ class MultimodalMcpOrchestrator {
         success: false,
         error: e.toString(),
         critical: false,
-        data: {},
+        data: const {},
       );
     }
   }
@@ -470,7 +467,7 @@ class MultimodalMcpOrchestrator {
         success: false,
         error: e.toString(),
         critical: false,
-        data: {},
+        data: const {},
       );
     }
   }
@@ -495,7 +492,7 @@ class MultimodalMcpOrchestrator {
         success: false,
         error: e.toString(),
         critical: false,
-        data: {},
+        data: const {},
       );
     }
   }
@@ -521,7 +518,7 @@ class MultimodalMcpOrchestrator {
         success: false,
         error: e.toString(),
         critical: false,
-        data: {},
+        data: const {},
       );
     }
   }

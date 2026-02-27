@@ -238,7 +238,7 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
               if (currentText.isEmpty) {
                 _textController.text = transcription;
               } else {
-                _textController.text = currentText + '\n\n' + transcription;
+                _textController.text = '$currentText\n\n$transcription';
               }
 
               // Move cursor to end and focus the main text field
@@ -768,7 +768,7 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
             ),
             child: Row(
               children: [
-                Icon(Icons.check_circle, color: kcSuccessColor, size: 24),
+                const Icon(Icons.check_circle, color: kcSuccessColor, size: 24),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(

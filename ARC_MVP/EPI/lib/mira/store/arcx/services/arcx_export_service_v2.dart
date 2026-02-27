@@ -6,7 +6,6 @@ library arcx_export_service_v2;
 
 import 'dart:io';
 import 'dart:convert';
-import 'dart:typed_data';
 import 'dart:async';
 import 'package:crypto/crypto.dart';
 import 'package:archive/archive.dart';
@@ -34,8 +33,6 @@ import 'package:hive/hive.dart';
 import 'package:my_app/services/export_history_service.dart';
 import 'package:flutter/foundation.dart';
 import 'package:my_app/chronicle/core/chronicle_repos.dart';
-import 'package:my_app/chronicle/storage/aggregation_repository.dart';
-import 'package:my_app/chronicle/storage/changelog_repository.dart';
 import 'package:my_app/chronicle/models/chronicle_layer.dart';
 import 'package:my_app/chronicle/models/chronicle_aggregation.dart';
 import 'package:my_app/chronicle/dual/services/dual_chronicle_services.dart';
@@ -566,7 +563,7 @@ class ARCXExportServiceV2 {
         media: [],
         links: links,
         options: options,
-        exportId: '${exportId}-entries',
+        exportId: '$exportId-entries',
         exportedAt: exportedAt,
         outputDir: outputDir,
         password: password,
@@ -587,7 +584,7 @@ class ARCXExportServiceV2 {
         media: [],
         links: links,
         options: options,
-        exportId: '${exportId}-chats',
+        exportId: '$exportId-chats',
         exportedAt: exportedAt,
         outputDir: outputDir,
         password: password,
@@ -607,7 +604,7 @@ class ARCXExportServiceV2 {
         media: media,
         links: links,
         options: options,
-        exportId: '${exportId}-media',
+        exportId: '$exportId-media',
         exportedAt: exportedAt,
         outputDir: outputDir,
         password: password,
@@ -649,7 +646,7 @@ class ARCXExportServiceV2 {
       onProgress?.call('Exporting ${entries.length} entries and ${chats.length} chats...');
       
       final appDocDir = await getApplicationDocumentsDirectory();
-      final tempDir = Directory(path.join(appDocDir.path, 'arcx_export_${exportId}-entries-chats'));
+      final tempDir = Directory(path.join(appDocDir.path, 'arcx_export_$exportId-entries-chats'));
       await tempDir.create(recursive: true);
       final payloadDir = Directory(path.join(tempDir.path, 'payload'));
       await payloadDir.create(recursive: true);
@@ -726,7 +723,7 @@ class ARCXExportServiceV2 {
         );
         
         final manifest = _createManifest(
-          exportId: '${exportId}-entries-chats',
+          exportId: '$exportId-entries-chats',
           exportedAt: exportedAt,
           entriesCount: entriesExported,
           chatsCount: chatsExported,
@@ -758,7 +755,7 @@ class ARCXExportServiceV2 {
           payloadDir: payloadDir,
           manifest: manifest,
           outputDir: outputDir,
-          exportId: '${exportId}-entries-chats',
+          exportId: '$exportId-entries-chats',
           password: password,
           onProgress: onProgress,
           compression: entriesChatsOptions.compression,
@@ -798,7 +795,7 @@ class ARCXExportServiceV2 {
         media: media,
         links: links,
         options: mediaOptions,
-        exportId: '${exportId}-media',
+        exportId: '$exportId-media',
         exportedAt: exportedAt,
         outputDir: outputDir,
         password: password,
@@ -834,7 +831,7 @@ class ARCXExportServiceV2 {
     int? exportNumber,
   }) async {
     final appDocDir = await getApplicationDocumentsDirectory();
-    final tempDir = Directory(path.join(appDocDir.path, 'arcx_export_${exportId}'));
+    final tempDir = Directory(path.join(appDocDir.path, 'arcx_export_$exportId'));
     await tempDir.create(recursive: true);
     final payloadDir = Directory(path.join(tempDir.path, 'payload'));
     await payloadDir.create(recursive: true);
@@ -1235,7 +1232,7 @@ class ARCXExportServiceV2 {
       final slugKey = '$dateBucket/$slug';
       if (usedSlugs.containsKey(slugKey)) {
         usedSlugs[slugKey] = (usedSlugs[slugKey] ?? 0) + 1;
-        slug = '${slug}-${usedSlugs[slugKey]}';
+        slug = '$slug-${usedSlugs[slugKey]}';
       } else {
         usedSlugs[slugKey] = 0;
       }
@@ -1411,7 +1408,7 @@ class ARCXExportServiceV2 {
     try {
       final edgesFile = File(path.join(payloadDir.path, 'edges.jsonl'));
       final edgesLines = edges.map((e) => jsonEncode(e)).toList();
-      await edgesFile.writeAsString(edgesLines.join('\n') + '\n');
+      await edgesFile.writeAsString('${edgesLines.join('\n')}\n');
       print('ARCX Export V2: Exported ${edges.length} edges to edges.jsonl');
     } catch (e) {
       print('ARCX Export V2: Error exporting edges: $e');
@@ -1876,7 +1873,7 @@ class ARCXExportServiceV2 {
 
       final favoritesFile = File(path.join(extensionsDir.path, 'lumara_favorites.json'));
       await favoritesFile.writeAsString(
-        JsonEncoder.withIndent('  ').convert({
+        const JsonEncoder.withIndent('  ').convert({
           'lumara_favorites': enrichedFavorites, // Already enriched with phase info
           'exported_at': DateTime.now().toIso8601String(),
           'version': '1.2', // Updated to include phase information
@@ -1939,7 +1936,7 @@ class ARCXExportServiceV2 {
 
       final file = File(path.join(extensionsDir.path, 'voice_notes.json'));
       await file.writeAsString(
-        JsonEncoder.withIndent('  ').convert({
+        const JsonEncoder.withIndent('  ').convert({
           'voice_notes': list,
           'exported_at': DateTime.now().toUtc().toIso8601String(),
           'version': '1.0',
@@ -1973,12 +1970,12 @@ class ARCXExportServiceV2 {
           if (entity is Directory) {
             final userDir = Directory(path.join(destDrafts.path, path.basename(entity.path)));
             await userDir.create(recursive: true);
-            await for (final file in (entity as Directory).list(recursive: true)) {
+            await for (final file in (entity).list(recursive: true)) {
               if (file is File) {
                 final rel = path.relative(file.path, from: entity.path);
                 final destFile = File(path.join(userDir.path, rel));
                 await destFile.parent.create(recursive: true);
-                await destFile.writeAsBytes(await (file as File).readAsBytes());
+                await destFile.writeAsBytes(await (file).readAsBytes());
               }
             }
           }
@@ -1991,7 +1988,7 @@ class ARCXExportServiceV2 {
       final list = artifacts.map((a) => a.toJson()).toList();
       final researchFile = File(path.join(agentsDir.path, 'research_artifacts.json'));
       await researchFile.writeAsString(
-        JsonEncoder.withIndent('  ').convert({
+        const JsonEncoder.withIndent('  ').convert({
           'research_artifacts': list,
           'exported_at': DateTime.now().toUtc().toIso8601String(),
           'version': '1.0',
@@ -2315,7 +2312,7 @@ user_id: ${aggregation.userId}
           
           // Write filtered data if any lines matched
           if (filteredHealthData.isNotEmpty) {
-            await destFile.writeAsString(filteredHealthData.join('\n') + '\n');
+            await destFile.writeAsString('${filteredHealthData.join('\n')}\n');
             fileCount++;
             print('ARCX Export V2: Filtered health stream: $filename (${filteredHealthData.length} lines)');
           }
@@ -3060,7 +3057,7 @@ user_id: ${aggregation.userId}
     var currentChats = <ChatSession>[];
     var currentSize = 0;
     
-    debugPrint('ARCX Chunking: Target chunk size: ${chunkSizeMB}MB (${chunkSizeBytes} bytes)');
+    debugPrint('ARCX Chunking: Target chunk size: ${chunkSizeMB}MB ($chunkSizeBytes bytes)');
     debugPrint('ARCX Chunking: Processing ${entries.length} entries and ${chats.length} chats');
     onProgress?.call('Analyzing ${entries.length} entries for chunking...');
     
@@ -3319,8 +3316,9 @@ user_id: ${aggregation.userId}
         ArchiveFile? manifestFile;
         ArchiveFile? encryptedArchive;
         for (final f in archive) {
-          if (f.name == 'manifest.json') manifestFile = f;
-          else if (f.name == 'archive.arcx') encryptedArchive = f;
+          if (f.name == 'manifest.json') {
+            manifestFile = f;
+          } else if (f.name == 'archive.arcx') encryptedArchive = f;
         }
         if (manifestFile == null || encryptedArchive == null) continue;
         final manifestJson = jsonDecode(utf8.decode(manifestFile.content as List<int>)) as Map<String, dynamic>;

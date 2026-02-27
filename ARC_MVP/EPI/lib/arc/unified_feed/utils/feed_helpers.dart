@@ -3,6 +3,7 @@
 /// Utility functions for the unified feed system.
 /// Includes date formatting, content truncation, type detection,
 /// and other shared helpers.
+library;
 
 import 'package:flutter/material.dart';
 import 'package:my_app/core/constants/phase_colors.dart';

@@ -5,6 +5,7 @@
 /// - Adds grace period instead of full reset
 /// - Differentiates between "thinking pause" vs "done speaking"
 /// - Prevents premature endpoint detection during natural speech
+library;
 
 /// Filler word types
 enum FillerType {
@@ -33,24 +34,24 @@ class FillerWordHandler {
   /// Database of filler words with their types and grace periods
   static final List<FillerWord> _fillerWords = [
     // Thinking sounds - longest grace period (they're still thinking)
-    FillerWord(word: 'um', type: FillerType.thinkingSound, gracePeriod: Duration(milliseconds: 1000)),
-    FillerWord(word: 'uh', type: FillerType.thinkingSound, gracePeriod: Duration(milliseconds: 1000)),
-    FillerWord(word: 'er', type: FillerType.thinkingSound, gracePeriod: Duration(milliseconds: 1000)),
-    FillerWord(word: 'ah', type: FillerType.thinkingSound, gracePeriod: Duration(milliseconds: 1000)),
-    FillerWord(word: 'hmm', type: FillerType.thinkingSound, gracePeriod: Duration(milliseconds: 1000)),
+    const FillerWord(word: 'um', type: FillerType.thinkingSound, gracePeriod: Duration(milliseconds: 1000)),
+    const FillerWord(word: 'uh', type: FillerType.thinkingSound, gracePeriod: Duration(milliseconds: 1000)),
+    const FillerWord(word: 'er', type: FillerType.thinkingSound, gracePeriod: Duration(milliseconds: 1000)),
+    const FillerWord(word: 'ah', type: FillerType.thinkingSound, gracePeriod: Duration(milliseconds: 1000)),
+    const FillerWord(word: 'hmm', type: FillerType.thinkingSound, gracePeriod: Duration(milliseconds: 1000)),
     
     // Soft fillers - medium grace period
-    FillerWord(word: 'like', type: FillerType.softFiller, gracePeriod: Duration(milliseconds: 800)),
-    FillerWord(word: 'you know', type: FillerType.softFiller, gracePeriod: Duration(milliseconds: 800)),
-    FillerWord(word: 'i mean', type: FillerType.softFiller, gracePeriod: Duration(milliseconds: 800)),
-    FillerWord(word: 'kind of', type: FillerType.softFiller, gracePeriod: Duration(milliseconds: 800)),
-    FillerWord(word: 'sort of', type: FillerType.softFiller, gracePeriod: Duration(milliseconds: 800)),
+    const FillerWord(word: 'like', type: FillerType.softFiller, gracePeriod: Duration(milliseconds: 800)),
+    const FillerWord(word: 'you know', type: FillerType.softFiller, gracePeriod: Duration(milliseconds: 800)),
+    const FillerWord(word: 'i mean', type: FillerType.softFiller, gracePeriod: Duration(milliseconds: 800)),
+    const FillerWord(word: 'kind of', type: FillerType.softFiller, gracePeriod: Duration(milliseconds: 800)),
+    const FillerWord(word: 'sort of', type: FillerType.softFiller, gracePeriod: Duration(milliseconds: 800)),
     
     // Connectors - shorter grace period (might be transitioning)
-    FillerWord(word: 'so', type: FillerType.connector, gracePeriod: Duration(milliseconds: 600)),
-    FillerWord(word: 'well', type: FillerType.connector, gracePeriod: Duration(milliseconds: 600)),
-    FillerWord(word: 'and', type: FillerType.connector, gracePeriod: Duration(milliseconds: 600)),
-    FillerWord(word: 'but', type: FillerType.connector, gracePeriod: Duration(milliseconds: 600)),
+    const FillerWord(word: 'so', type: FillerType.connector, gracePeriod: Duration(milliseconds: 600)),
+    const FillerWord(word: 'well', type: FillerType.connector, gracePeriod: Duration(milliseconds: 600)),
+    const FillerWord(word: 'and', type: FillerType.connector, gracePeriod: Duration(milliseconds: 600)),
+    const FillerWord(word: 'but', type: FillerType.connector, gracePeriod: Duration(milliseconds: 600)),
   ];
   
   /// Default grace period for unrecognized fillers

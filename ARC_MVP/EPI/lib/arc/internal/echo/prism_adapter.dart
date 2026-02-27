@@ -6,6 +6,7 @@
 /// - Raw transcript stays LOCAL ONLY
 /// - This module performs local PII detection and masking
 /// - Now includes correlation-resistant transformation layer
+library;
 
 import '../../../../services/lumara/pii_scrub.dart';
 import 'correlation_resistant_transformer.dart';
@@ -36,7 +37,7 @@ class PrismResult {
 
   @override
   String toString() => 
-    'PRISM: ${redactionCount} redactions [${findings.join(", ")}]';
+    'PRISM: $redactionCount redactions [${findings.join(", ")}]';
 }
 
 /// PRISM Adapter - wraps existing PII scrubber for voice pipeline
@@ -162,7 +163,7 @@ class PrismAdapter {
     }
 
     // High-signal emotional / decision keywords.
-    const _signals = [
+    const signals = [
       'feel', 'felt', 'feeling', 'emotion', 'scared', 'afraid', 'excited',
       'happy', 'sad', 'anxious', 'overwhelm', 'relief', 'proud', 'frustrated',
       'confus', 'worried', 'grateful', 'disappoint', 'hopeful', 'nervous',
@@ -171,15 +172,15 @@ class PrismAdapter {
       'want to', 'going to', 'plan', 'goal', 'hope', 'wish',
     ];
 
-    bool _isHighSignal(String s) {
+    bool isHighSignal(String s) {
       final lower = s.toLowerCase();
-      return _signals.any((kw) => lower.contains(kw));
+      return signals.any((kw) => lower.contains(kw));
     }
 
     final selected = <String>[];
     final seen = <String>{};
 
-    void _add(String s) {
+    void add(String s) {
       if (selected.length >= maxSentences) return;
       if (seen.contains(s)) return;
       selected.add(s);
@@ -187,16 +188,16 @@ class PrismAdapter {
     }
 
     // 1. Always include the first sentence.
-    _add(rawSentences.first);
+    add(rawSentences.first);
 
     // 2. High-signal sentences (skip if already added as first/last).
     for (final s in rawSentences.skip(1).take(rawSentences.length - 1)) {
-      if (_isHighSignal(s)) _add(s);
+      if (isHighSignal(s)) add(s);
       if (selected.length >= maxSentences - 1) break;
     }
 
     // 3. Last sentence (if not already included).
-    if (rawSentences.length > 1) _add(rawSentences.last);
+    if (rawSentences.length > 1) add(rawSentences.last);
 
     // Join and cap at maxChars.
     var result = selected.join(' ');
@@ -253,7 +254,7 @@ class VoiceJournalSecurityGuard {
   static void validateBeforeGemini(String text) {
     // Check 1: No raw PII
     if (_adapter.containsPII(text)) {
-      throw SecurityException(
+      throw const SecurityException(
         'SECURITY VIOLATION: Attempted to send unscrubbed PII to Gemini. '
         'Text must be processed through PRISM before sending.'
       );
@@ -262,7 +263,7 @@ class VoiceJournalSecurityGuard {
     // Check 2: If using transformer, validate alias format
     if (_transformer != null) {
       if (!_transformer!.isSafeToSendEnhanced(text)) {
-        throw SecurityException(
+        throw const SecurityException(
           'SECURITY VIOLATION: Text contains PRISM tokens that should have been '
           'transformed to rotating aliases. Use transformToCorrelationResistant() first.'
         );

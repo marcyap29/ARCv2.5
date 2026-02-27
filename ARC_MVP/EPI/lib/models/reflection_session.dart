@@ -37,7 +37,7 @@ class ReflectionSession extends HiveObject {
     required String entryId,
   }) {
     return ReflectionSession(
-      id: Uuid().v4(),
+      id: const Uuid().v4(),
       userId: userId,
       entryId: entryId,
       startTime: DateTime.now(),

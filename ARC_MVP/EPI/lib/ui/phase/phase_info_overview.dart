@@ -194,7 +194,7 @@ class PhaseInfoOverview extends StatelessWidget {
           children: [
             Row(
               children: [
-                Icon(Icons.auto_awesome, color: Colors.blue),
+                const Icon(Icons.auto_awesome, color: Colors.blue),
                 const SizedBox(width: 12),
                 Text(
                   'RIVET System',
@@ -261,7 +261,7 @@ class PhaseInfoOverview extends StatelessWidget {
           children: [
             Row(
               children: [
-                Icon(Icons.shield, color: Colors.red),
+                const Icon(Icons.shield, color: Colors.red),
                 const SizedBox(width: 12),
                 Text(
                   'SENTINEL System',
@@ -410,7 +410,7 @@ class PhaseInfoOverview extends StatelessWidget {
           Container(
             width: 32,
             height: 32,
-            decoration: BoxDecoration(
+            decoration: const BoxDecoration(
               color: Colors.blue,
               shape: BoxShape.circle,
             ),
@@ -562,7 +562,7 @@ class PhaseInfoOverview extends StatelessWidget {
           children: [
             Row(
               children: [
-                Icon(Icons.quiz, color: Colors.purple),
+                const Icon(Icons.quiz, color: Colors.purple),
                 const SizedBox(width: 12),
                 Text(
                   'Phase Self-Assessment',

@@ -32,7 +32,7 @@ class OnboardingCompleteScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               // Success icon
-              Icon(
+              const Icon(
                 Icons.check_circle,
                 size: 64,
                 color: Colors.green,
@@ -74,7 +74,7 @@ class OnboardingCompleteScreen extends StatelessWidget {
                     children: [
                       Row(
                         children: [
-                          Icon(
+                          const Icon(
                             Icons.article,
                             color: kcPrimaryColor,
                             size: 20,
@@ -226,7 +226,7 @@ class OnboardingCompleteScreen extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 8),
       child: Row(
         children: [
-          Icon(Icons.check, size: 16, color: Colors.green),
+          const Icon(Icons.check, size: 16, color: Colors.green),
           const SizedBox(width: 8),
           Expanded(
             child: Text(

@@ -113,7 +113,7 @@ class JournalScreen extends StatefulWidget {
 class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserver {
   final TextEditingController _textController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
-  JournalEntryState _entryState = JournalEntryState();
+  final JournalEntryState _entryState = JournalEntryState();
   final Analytics _analytics = Analytics();
   late final LumaraInlineApi _lumaraApi;
   late final EnhancedLumaraApi _enhancedLumaraApi;
@@ -184,6 +184,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
   // Track loading states for LUMARA reflections (by block index)
   final Map<int, bool> _lumaraLoadingStates = {};
   final Map<int, String?> _lumaraLoadingMessages = {};
+  final Map<int, List<String>> _lumaraLoadingSteps = {};
   
   // UI state management
   bool _showKeywordsDiscovered = false;
@@ -795,7 +796,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
   Future<void> _showEngagementModeMenu(BuildContext context) async {
     final anchorContext = _engagementModeMenuKey.currentContext;
     final overlay = Overlay.of(context);
-    if (anchorContext == null || overlay == null) return;
+    if (anchorContext == null) return;
 
     final box = anchorContext.findRenderObject() as RenderBox?;
     final overlayBox = overlay.context.findRenderObject() as RenderBox?;
@@ -826,7 +827,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
             child: Row(
               children: [
                 if (isSelected)
-                  Icon(Icons.check, size: 18, color: Colors.blue)
+                  const Icon(Icons.check, size: 18, color: Colors.blue)
                 else
                   const SizedBox(width: 18),
                 const SizedBox(width: 8),
@@ -862,7 +863,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
           child: Row(
             children: [
               if (!useDetailed)
-                Icon(Icons.check, size: 18, color: Colors.blue)
+                const Icon(Icons.check, size: 18, color: Colors.blue)
               else
                 const SizedBox(width: 18),
               const SizedBox(width: 8),
@@ -892,7 +893,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
           child: Row(
             children: [
               if (useDetailed)
-                Icon(Icons.check, size: 18, color: Colors.blue)
+                const Icon(Icons.check, size: 18, color: Colors.blue)
               else
                 const SizedBox(width: 18),
               const SizedBox(width: 8),
@@ -1040,7 +1041,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     
     try {
       // Get context from past entries, chats, and phase
-      final scope = LumaraScope.defaultScope;
+      const scope = LumaraScope.defaultScope;
       final contextProvider = ContextProvider(scope);
       contextWindow = await contextProvider.buildContext(
         daysBack: 30,
@@ -1058,7 +1059,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
       final journalNodes = contextWindow.nodes.where((n) => n['type'] == 'journal').toList();
       recentEntries = journalNodes.take(5).map((n) {
         final text = n['text'] as String? ?? '';
-        return text.length > 200 ? text.substring(0, 200) + '...' : text;
+        return text.length > 200 ? '${text.substring(0, 200)}...' : text;
       }).toList();
       
       final chatNodes = contextWindow.nodes.where((n) => n['type'] == 'chat').toList();
@@ -1082,13 +1083,11 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
           await _showPromptSelectionDialog(initialPrompts, recentEntries, recentChats, currentPhase);
         } else {
           // Fallback to local prompt generation
-          if (contextWindow != null) {
-            final contextAwarePrompts = _generateContextAwarePrompts(contextWindow, currentPhase);
-            final traditionalPrompts = _getTraditionalPrompts();
-            final allPrompts = [...contextAwarePrompts, ...traditionalPrompts];
-            await _showPromptSelectionDialog(allPrompts, recentEntries, recentChats, currentPhase);
-          }
-        }
+          final contextAwarePrompts = _generateContextAwarePrompts(contextWindow, currentPhase);
+          final traditionalPrompts = _getTraditionalPrompts();
+          final allPrompts = [...contextAwarePrompts, ...traditionalPrompts];
+          await _showPromptSelectionDialog(allPrompts, recentEntries, recentChats, currentPhase);
+                }
       }
     } catch (e) {
       // LUMARA prompt generation error - fallback to local
@@ -1176,7 +1175,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     // Time-based prompts
     final daysSinceStart = context.startDate.difference(DateTime.now()).inDays.abs();
     if (daysSinceStart > 7) {
-      prompts.add('Looking back over the past ${daysSinceStart} days, what patterns do you notice?');
+      prompts.add('Looking back over the past $daysSinceStart days, what patterns do you notice?');
     }
     
     return prompts;
@@ -1355,7 +1354,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Please write something first before asking LUMARA to reflect'),
+              content: const Text('Please write something first before asking LUMARA to reflect'),
               backgroundColor: Theme.of(context).colorScheme.primary,
             ),
           );
@@ -1369,7 +1368,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Connection to AI isn\'t working. Configure Groq or Gemini in Settings.'),
+              content: const Text('Connection to AI isn\'t working. Configure Groq or Gemini in Settings.'),
               backgroundColor: Theme.of(context).colorScheme.error,
               action: SnackBarAction(
                 label: 'Settings',
@@ -1378,12 +1377,12 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => LumaraSettingsScreen(),
+                      builder: (context) => const LumaraSettingsScreen(),
                     ),
                   );
                 },
               ),
-              duration: Duration(seconds: 5),
+              duration: const Duration(seconds: 5),
             ),
           );
         }
@@ -1474,6 +1473,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
           _entryState.blocks.add(placeholderBlock);
           _lumaraLoadingStates[blockIndex] = true;
           _lumaraLoadingMessages[blockIndex] = 'LUMARA is thinking...';
+          _lumaraLoadingSteps[blockIndex] = ['LUMARA is thinking...'];
         });
 
         // Auto-scroll to bottom to show the thinking indicator
@@ -1504,7 +1504,13 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
       );
       void onProgressMsg(String message) {
         if (mounted) {
-          setState(() => _lumaraLoadingMessages[blockIndex] = message);
+          setState(() {
+            _lumaraLoadingMessages[blockIndex] = message;
+            final steps = _lumaraLoadingSteps[blockIndex] ?? [];
+            if (steps.isEmpty || steps.last != message) {
+              _lumaraLoadingSteps[blockIndex] = [...steps, message];
+            }
+          });
         }
       }
 
@@ -1517,6 +1523,10 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
               content: streamBuffer.toString(),
             );
             _lumaraLoadingMessages[blockIndex] = 'Streaming...';
+          final steps = _lumaraLoadingSteps[blockIndex] ?? [];
+          if (steps.isEmpty || steps.last != 'Streaming...') {
+            _lumaraLoadingSteps[blockIndex] = [...steps, 'Streaming...'];
+          }
           });
         }
       }
@@ -1569,8 +1579,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
           primaryTrace = attributionTraces.first;
         }
         
-        if (primaryTrace != null && 
-            primaryTrace.phaseContext != null && 
+        if (primaryTrace.phaseContext != null && 
             primaryTrace.phaseContext!.isNotEmpty) {
           // Capitalize first letter to match expected format (Discovery, Consolidation, etc.)
           currentPhaseFromAttribution = primaryTrace.phaseContext![0].toUpperCase() + 
@@ -1588,6 +1597,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
           );
           _lumaraLoadingStates.remove(blockIndex);
           _lumaraLoadingMessages.remove(blockIndex);
+          _lumaraLoadingSteps.remove(blockIndex);
         });
       }
       
@@ -1636,6 +1646,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
           _entryState.blocks.removeAt(newBlockIndex!);
           _lumaraLoadingStates.remove(newBlockIndex);
           _lumaraLoadingMessages.remove(newBlockIndex);
+          _lumaraLoadingSteps.remove(newBlockIndex);
         });
       }
 
@@ -1668,12 +1679,12 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => LumaraSettingsScreen(),
+                      builder: (context) => const LumaraSettingsScreen(),
                     ),
                   );
                 },
               ),
-              duration: Duration(seconds: 5),
+              duration: const Duration(seconds: 5),
             ),
           );
         }
@@ -1723,7 +1734,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
       await _createMockImageFile(); // Create mock file for OCR (not yet implemented)
       // TODO: OCR service not yet implemented
       // final extractedText = await _ocrService.extractText(mockImageFile);
-      final extractedText = ''; // Placeholder until OCR is implemented
+      const extractedText = ''; // Placeholder until OCR is implemented
       
       // Create scan attachment
       final attachment = ScanAttachment(
@@ -1808,7 +1819,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     // Handle invalid cursor position (e.g., -1)
     if (cursorPosition < 0 || cursorPosition > currentText.length) {
       // Default to end of text if cursor position is invalid
-      final newText = currentText + '\n\n$text';
+      final newText = '$currentText\n\n$text';
       _textController.text = newText;
       _textController.selection = TextSelection.collapsed(
         offset: currentText.length + text.length + 2,
@@ -2021,7 +2032,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
   }
 
   Widget _buildPhotoSelectionControls() {
-    final photoCount = _entryState.attachments.where((attachment) => attachment is PhotoAttachment).length;
+    final photoCount = _entryState.attachments.whereType<PhotoAttachment>().length;
     
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -2384,8 +2395,8 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
                         ),
 
                       // Scan attachments (OCR text) - shown separately
-                      ..._entryState.attachments.where((a) => a is ScanAttachment).map((attachment) {
-                        return _buildScanAttachment(attachment as ScanAttachment);
+                      ..._entryState.attachments.whereType<ScanAttachment>().map((attachment) {
+                        return _buildScanAttachment(attachment);
                       }),
                     ],
                   ),
@@ -2485,7 +2496,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
                               Builder(
                                 key: _engagementModeMenuKey,
                                 builder: (context) => IconButton(
-                                  icon: Icon(Icons.expand_more, size: 18),
+                                  icon: const Icon(Icons.expand_more, size: 18),
                                   padding: const EdgeInsets.all(4),
                                   constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
                                   onPressed: () => _showEngagementModeMenu(context),
@@ -2749,7 +2760,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceVariant.withOpacity(0.3),
+        color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.3),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: theme.colorScheme.outline.withOpacity(0.2),
@@ -2969,13 +2980,14 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
       
       // Add the reflection block
       // Generate a unique ID for favorites tracking using timestamp
-      final blockId = 'journal_${block.timestamp}_${index}';
+      final blockId = 'journal_${block.timestamp}_$index';
       widgets.add(InlineReflectionBlock(
         content: block.content,
         intent: block.intent,
         phase: block.phase,
         isLoading: _lumaraLoadingStates[index] ?? false,
         loadingMessage: _lumaraLoadingMessages[index],
+        processingSteps: _lumaraLoadingSteps[index],
         attributionTraces: block.attributionTraces,
         blockId: blockId,
         readOnly: widget.isViewOnly && !_isEditMode,
@@ -3117,8 +3129,9 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
 
   Widget _buildFileAttachmentChip(FileAttachment file, int index, ThemeData theme) {
     IconData icon = Icons.insert_drive_file;
-    if (file.fileName.toLowerCase().endsWith('.pdf')) icon = Icons.picture_as_pdf;
-    else if (file.fileName.toLowerCase().endsWith('.md')) icon = Icons.description;
+    if (file.fileName.toLowerCase().endsWith('.pdf')) {
+      icon = Icons.picture_as_pdf;
+    } else if (file.fileName.toLowerCase().endsWith('.md')) icon = Icons.description;
     return GestureDetector(
       onTap: () async {
         final path = file.filePath.replaceFirst(RegExp(r'^file://'), '');
@@ -3468,9 +3481,9 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     final seconds = duration.inSeconds.remainder(60);
     
     if (hours > 0) {
-      return '${hours}:${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+      return '$hours:${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
     } else {
-      return '${minutes}:${seconds.toString().padLeft(2, '0')}';
+      return '$minutes:${seconds.toString().padLeft(2, '0')}';
     }
   }
 
@@ -3509,7 +3522,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
       if (!success && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Could not open video player. Please try opening the file manually.'),
+            content: const Text('Could not open video player. Please try opening the file manually.'),
             backgroundColor: Theme.of(context).colorScheme.error,
             duration: const Duration(seconds: 3),
           ),
@@ -4931,7 +4944,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
       
       // Calculate how many recent exchanges to include with full detail
       // Include last 2-3 exchanges in full, summarize older ones
-      final recentExchangesToInclude = 3; // Include last 3 exchanges in full detail
+      const recentExchangesToInclude = 3; // Include last 3 exchanges in full detail
       final startIndex = totalBlocks > recentExchangesToInclude 
           ? totalBlocks - recentExchangesToInclude 
           : 0;
@@ -4951,12 +4964,12 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
         if (isRecent) {
           // Include recent exchanges in full detail with high weight
           if (block.content.isNotEmpty) {
-            userCommentsBuffer.writeln('\n[LUMARA Response ${i + 1} - ${distanceFromCurrent} exchange(s) ago - Weight: ${weight.toStringAsFixed(2)}]:');
+            userCommentsBuffer.writeln('\n[LUMARA Response ${i + 1} - $distanceFromCurrent exchange(s) ago - Weight: ${weight.toStringAsFixed(2)}]:');
             userCommentsBuffer.writeln(block.content);
           }
           
           if (block.userComment != null && block.userComment!.trim().isNotEmpty) {
-            userCommentsBuffer.writeln('\n[USER Comment ${i + 1} - ${distanceFromCurrent} exchange(s) ago - Weight: ${weight.toStringAsFixed(2)}]:');
+            userCommentsBuffer.writeln('\n[USER Comment ${i + 1} - $distanceFromCurrent exchange(s) ago - Weight: ${weight.toStringAsFixed(2)}]:');
             userCommentsBuffer.writeln(block.userComment);
             if (distanceFromCurrent == 1) {
               userCommentsBuffer.writeln('(HIGHEST PRIORITY - This is the most recent user input - address it directly)');
@@ -4970,7 +4983,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
             final commentPreview = block.userComment!.length > 100 
                 ? '${block.userComment!.substring(0, 100)}...' 
                 : block.userComment!;
-            userCommentsBuffer.writeln('\n[Earlier User Comment ${i + 1} - ${distanceFromCurrent} exchange(s) ago - Low Weight: ${weight.toStringAsFixed(2)} - Summary Only]:');
+            userCommentsBuffer.writeln('\n[Earlier User Comment ${i + 1} - $distanceFromCurrent exchange(s) ago - Low Weight: ${weight.toStringAsFixed(2)} - Summary Only]:');
             userCommentsBuffer.writeln(commentPreview);
             userCommentsBuffer.writeln('(Context only - do not focus on this)');
           }
@@ -5016,7 +5029,7 @@ $originalEntryTextToInclude
 8. **DO reference earlier context** only when directly relevant to the current exchange
 9. Build on the conversation thread naturally, like a real conversation with 1-2 turns of context''';
       
-      print('Journal: Included ${currentBlockIndex} previous blocks with decreasing weights (most recent: 1.0, original entry: ${originalEntryWeight.toStringAsFixed(2)})');
+      print('Journal: Included $currentBlockIndex previous blocks with decreasing weights (most recent: 1.0, original entry: ${originalEntryWeight.toStringAsFixed(2)})');
     }
     
     context['entryText'] = baseEntryText;
@@ -5231,6 +5244,7 @@ $originalEntryTextToInclude
     setState(() {
       _lumaraLoadingStates[index] = true;
       _lumaraLoadingMessages[index] = 'Regenerating reflection...';
+      _lumaraLoadingSteps[index] = ['Regenerating reflection...'];
     });
 
     try {
@@ -5260,6 +5274,10 @@ $originalEntryTextToInclude
           if (mounted) {
             setState(() {
               _lumaraLoadingMessages[index] = message;
+              final steps = _lumaraLoadingSteps[index] ?? [];
+              if (steps.isEmpty || steps.last != message) {
+                _lumaraLoadingSteps[index] = [...steps, message];
+              }
             });
           }
         },
@@ -5290,6 +5308,7 @@ $originalEntryTextToInclude
         // Clear loading state
         _lumaraLoadingStates[index] = false;
         _lumaraLoadingMessages[index] = null;
+        _lumaraLoadingSteps.remove(index);
       });
       
       _analytics.logLumaraEvent('inline_reflection_regenerated');
@@ -5300,6 +5319,7 @@ $originalEntryTextToInclude
         // Clear loading state on error
         _lumaraLoadingStates[index] = false;
         _lumaraLoadingMessages[index] = null;
+        _lumaraLoadingSteps.remove(index);
       });
       
       if (mounted) {
@@ -5427,6 +5447,7 @@ $originalEntryTextToInclude
     setState(() {
       _lumaraLoadingStates[newBlockIndex] = true;
       _lumaraLoadingMessages[newBlockIndex] = loadingMessage;
+      _lumaraLoadingSteps[newBlockIndex] = [loadingMessage];
       _entryState.blocks.add(placeholderBlock);
     });
 
@@ -5465,6 +5486,10 @@ $originalEntryTextToInclude
           if (mounted) {
             setState(() {
               _lumaraLoadingMessages[newBlockIndex] = message;
+              final steps = _lumaraLoadingSteps[newBlockIndex] ?? [];
+              if (steps.isEmpty || steps.last != message) {
+                _lumaraLoadingSteps[newBlockIndex] = [...steps, message];
+              }
             });
           }
         },
@@ -5497,6 +5522,7 @@ $originalEntryTextToInclude
         // Clear loading state for this block
         _lumaraLoadingStates[newBlockIndex] = false;
         _lumaraLoadingMessages[newBlockIndex] = null;
+        _lumaraLoadingSteps.remove(newBlockIndex);
       });
       
       // Persist blocks to entry immediately if editing existing entry
@@ -5544,6 +5570,7 @@ $originalEntryTextToInclude
         }
         _lumaraLoadingStates[newBlockIndex] = false;
         _lumaraLoadingMessages[newBlockIndex] = null;
+        _lumaraLoadingSteps.remove(newBlockIndex);
       });
       
       if (mounted) {
@@ -5818,7 +5845,7 @@ $originalEntryTextToInclude
         return overviewText;
       } else if (sentences.length > 5) {
         // If too long, take first 5 sentences
-        final firstFive = sentences.take(5).join('. ') + '.';
+        final firstFive = '${sentences.take(5).join('. ')}.';
         return firstFive;
       }
       
@@ -5943,8 +5970,9 @@ $originalEntryTextToInclude
           final fileName = platformFile.name;
           final ext = fileName.split('.').last.toLowerCase();
           String mimeType = 'application/octet-stream';
-          if (ext == 'pdf') mimeType = 'application/pdf';
-          else if (ext == 'md') mimeType = 'text/markdown';
+          if (ext == 'pdf') {
+            mimeType = 'application/pdf';
+          } else if (ext == 'md') mimeType = 'text/markdown';
           else if (ext == 'doc') mimeType = 'application/msword';
           else if (ext == 'docx') mimeType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 
@@ -6367,7 +6395,7 @@ $originalEntryTextToInclude
     try {
       // TODO: OCR service not yet implemented
       // final extractedText = await _ocrService.extractText(imageFile);
-      final extractedText = ''; // Placeholder until OCR is implemented
+      const extractedText = ''; // Placeholder until OCR is implemented
       if (extractedText.isNotEmpty) {
         // Create ScanAttachment for the attachments list
         final scanAttachment = ScanAttachment(
@@ -6385,9 +6413,9 @@ $originalEntryTextToInclude
         
         // Show a brief confirmation
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
+          const SnackBar(
             content: Text('Keywords extracted: $extractedText'),
-            duration: const Duration(seconds: 2),
+            duration: Duration(seconds: 2),
           ),
         );
       } else {

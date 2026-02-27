@@ -973,10 +973,10 @@ class _HealthSettingsDialogState extends State<HealthSettingsDialog> {
                 Expanded(
                   child: TextButton(
                     onPressed: onOverride,
-                    child: const Text('Override'),
                     style: TextButton.styleFrom(
                       foregroundColor: Colors.grey,
                     ),
+                    child: const Text('Override'),
                   ),
                 ),
               ],

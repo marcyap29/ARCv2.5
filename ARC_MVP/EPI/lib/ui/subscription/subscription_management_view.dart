@@ -344,7 +344,7 @@ class _PricingSelectorState extends State<PricingSelector> {
 }
 
 class SubscriptionManagementView extends StatefulWidget {
-  const SubscriptionManagementView({Key? key}) : super(key: key);
+  const SubscriptionManagementView({super.key});
 
   @override
   State<SubscriptionManagementView> createState() => _SubscriptionManagementViewState();
@@ -624,7 +624,7 @@ class _SubscriptionManagementViewState extends State<SubscriptionManagementView>
                       // Debug: Ensure button is visible
                       if (kDebugMode) ...[
                         const SizedBox(height: 8),
-                        Text(
+                        const Text(
                           'Debug: Premium check = false, showing pricing',
                           style: TextStyle(fontSize: 10, color: Colors.grey),
                         ),

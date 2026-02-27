@@ -693,7 +693,7 @@ class McpImportService {
               keywords: [],
               narrative: null,
               phaseHint: null,
-              provenance: McpProvenance(
+              provenance: const McpProvenance(
                 source: 'mcp_import',
                 app: 'EPI',
                 importMethod: 'journal_zip',
@@ -1569,7 +1569,7 @@ class McpImportService {
           }
         }
         
-        print('🔍 MCP Import: Successfully extracted ${mediaItems.length} media items (${newMediaCount} new, ${reusedMediaCount} reused) by type: $mediaByType');
+        print('🔍 MCP Import: Successfully extracted ${mediaItems.length} media items ($newMediaCount new, $reusedMediaCount reused) by type: $mediaByType');
         return mediaItems;
       }
     }
@@ -1610,7 +1610,7 @@ class McpImportService {
               }
             }
           }
-          print('🔍 MCP Import: Successfully extracted ${mediaItems.length} media items (${newMediaCount} new, ${reusedMediaCount} reused) from journal_entry metadata');
+          print('🔍 MCP Import: Successfully extracted ${mediaItems.length} media items ($newMediaCount new, $reusedMediaCount reused) from journal_entry metadata');
           return mediaItems;
         }
       }

@@ -101,7 +101,7 @@ class SimpleMcpService {
 
         final manifestFile = File(path.join(outputDir.path, 'manifest.json'));
         await manifestFile.writeAsString(
-          JsonEncoder.withIndent('  ').convert(manifest),
+          const JsonEncoder.withIndent('  ').convert(manifest),
         );
         
         print('🔍 Simple MCP: Created minimal export with no journal entries');
@@ -310,7 +310,7 @@ class SimpleMcpService {
 
     final manifestFile = File(path.join(outputDir.path, 'manifest.json'));
     await manifestFile.writeAsString(
-      JsonEncoder.withIndent('  ').convert(manifest),
+      const JsonEncoder.withIndent('  ').convert(manifest),
     );
 
     print('🔍 Simple MCP: Export completed');

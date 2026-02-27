@@ -9,6 +9,7 @@
 /// - Phase indicator
 /// - Haptic feedback on interactions
 /// - Real-time transcript display
+library;
 
 import 'dart:async';
 import 'package:flutter/material.dart';
@@ -51,7 +52,7 @@ class _VoiceModeScreenState extends State<VoiceModeScreen> {
   String _currentTranscript = '';
   String _lastLumaraResponse = '';
   int _turnCount = 0;
-  double _audioLevel = 0.0;
+  final double _audioLevel = 0.0;
   CommitmentLevel? _commitmentLevel;
   bool _isFirstTurn = true;
 
@@ -274,9 +275,9 @@ class _VoiceModeScreenState extends State<VoiceModeScreen> {
         content: transcription.trim(),
         createdAt: now,
         updatedAt: now,
-        tags: ['voice', 'timeline'],
+        tags: const ['voice', 'timeline'],
         mood: '',
-        metadata: {'fromVoiceNote': true},
+        metadata: const {'fromVoiceNote': true},
       );
       await journalRepository.createJournalEntry(entry);
       debugPrint('VoiceModeScreen: Added to timeline (entry ID: $entryId)');
@@ -497,7 +498,7 @@ class _VoiceModeScreenState extends State<VoiceModeScreen> {
               padding: const EdgeInsets.only(right: 16),
               child: Center(
                 child: Text(
-                  '${_turnCount} turn${_turnCount != 1 ? 's' : ''}',
+                  '$_turnCount turn${_turnCount != 1 ? 's' : ''}',
                   style: TextStyle(
                     color: Colors.white.withOpacity(0.7),
                     fontSize: 14,

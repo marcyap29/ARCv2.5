@@ -276,7 +276,7 @@ class MultimodalOrchestratorBloc extends Bloc<MultimodalOrchestratorEvent, Multi
           success: false,
           error: e.toString(),
           critical: true,
-          data: {},
+          data: const {},
         ));
         break;
       }

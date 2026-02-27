@@ -12,6 +12,7 @@
 ///
 /// App bar actions: Timeline (calendar), Voice memo, Settings
 /// Behind feature flag: FeatureFlags.USE_UNIFIED_FEED
+library;
 
 import 'dart:async';
 import 'dart:convert';
@@ -46,6 +47,7 @@ import 'package:my_app/arc/chat/chat/ui/enhanced_chats_screen.dart';
 import 'package:my_app/arc/chat/chat/enhanced_chat_repo_impl.dart';
 import 'package:my_app/arc/unified_feed/widgets/import_options_sheet.dart';
 import 'package:my_app/arc/chat/ui/lumara_chat_redesign_screen.dart';
+import 'package:my_app/arc/chat/bloc/lumara_assistant_cubit.dart';
 import 'package:my_app/ui/phase/phase_analysis_view.dart';
 import 'package:my_app/ui/phase/phase_timeline_view.dart';
 import 'package:my_app/models/phase_models.dart';
@@ -491,7 +493,7 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
                                   const SizedBox(width: 6),
                                   Text(
                                     _showScrollToBottom ? 'Jump to bottom' : 'Jump to top',
-                                    style: TextStyle(
+                                    style: const TextStyle(
                                       color: kcPrimaryColor,
                                       fontSize: 13,
                                       fontWeight: FontWeight.w500,
@@ -785,8 +787,8 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
           if (n > 0) ...[
             TextButton.icon(
               onPressed: () => _showExportOptions(),
-              icon: Icon(Icons.upload_file, size: 20, color: kcPrimaryTextColor),
-              label: Text('Export ($n)', style: TextStyle(color: kcPrimaryTextColor, fontWeight: FontWeight.w600)),
+              icon: const Icon(Icons.upload_file, size: 20, color: kcPrimaryTextColor),
+              label: Text('Export ($n)', style: const TextStyle(color: kcPrimaryTextColor, fontWeight: FontWeight.w600)),
             ),
             const SizedBox(width: 8),
             TextButton.icon(
@@ -955,7 +957,7 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
     final appDir = await getApplicationDocumentsDirectory();
     final exportDir = Directory(path.join(appDir.path, 'exports', 'txt_${DateTime.now().millisecondsSinceEpoch}'));
     await exportDir.create(recursive: true);
-    final safeName = (String s) => s.replaceAll(RegExp(r'[/\\:*?"<>|]'), '_').trim();
+    String safeName(String s) => s.replaceAll(RegExp(r'[/\\:*?"<>|]'), '_').trim();
     final files = <XFile>[];
     for (var i = 0; i < entries.length; i++) {
       final e = entries[i];
@@ -1103,7 +1105,7 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
           _buildEmptyStateAction(
             icon: Icons.chat_bubble_outline,
             label: 'Chat',
-            onTap: _openLumaraChat,
+            onTap: () => _openLumaraChat(),
           ),
           const SizedBox(width: 16),
           _buildEmptyStateAction(
@@ -1168,8 +1170,27 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
     );
   }
 
-  /// Open LUMARA chat (redesign: hero, suggestions, simple input) to a new conversation.
-  void _openLumaraChat() {
+  /// Open main LUMARA chat — same screen whether from Chat box or LUMARA tab.
+  /// If no chats were spoken recently (24h), starts a clean chat.
+  Future<void> _openLumaraChat() async {
+    final chatRepo = ChatRepoImpl.instance;
+    await chatRepo.initialize();
+
+    final sessions = await chatRepo.listActive();
+    const recentThreshold = Duration(hours: 24);
+    final cutoff = DateTime.now().subtract(recentThreshold);
+    final hasRecentChat = sessions.any((s) => s.updatedAt.isAfter(cutoff));
+
+    if (!hasRecentChat) {
+      try {
+        final cubit = context.read<LumaraAssistantCubit>();
+        await cubit.startNewChat();
+      } catch (_) {
+        // Cubit may not be initialized yet; screen will handle it
+      }
+    }
+
+    if (!mounted) return;
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -1189,12 +1210,12 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
       ),
       child: Row(
         children: [
-          Icon(Icons.calendar_today, size: 16, color: kcPrimaryColor),
+          const Icon(Icons.calendar_today, size: 16, color: kcPrimaryColor),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
               'Viewing: ${_getViewingContextTitle()}',
-              style: TextStyle(
+              style: const TextStyle(
                 color: kcPrimaryColor,
                 fontSize: 13,
                 fontWeight: FontWeight.w500,
@@ -1862,7 +1883,7 @@ class _PhaseJourneyGanttCardState extends State<_PhaseJourneyGanttCard> {
             children: [
               Row(
                 children: [
-                  Icon(Icons.view_timeline, size: 20, color: kcPrimaryColor),
+                  const Icon(Icons.view_timeline, size: 20, color: kcPrimaryColor),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(

@@ -2,6 +2,7 @@
 ///
 /// Periodically checks all journal entries for duplicate keywords
 /// and removes them, preserving the first occurrence's case.
+library;
 
 import 'package:flutter/foundation.dart';
 import 'package:my_app/arc/core/journal_repository.dart';

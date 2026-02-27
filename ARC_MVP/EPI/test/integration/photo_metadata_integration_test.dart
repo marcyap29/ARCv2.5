@@ -58,7 +58,7 @@ void main() {
     
     test('PhotoMetadata handles missing data gracefully', () {
       // Simulate metadata with some missing fields
-      final partialMetadata = PhotoMetadata(
+      const partialMetadata = PhotoMetadata(
         localIdentifier: 'PARTIAL-ID',
         filename: 'PARTIAL.JPG',
         // Missing: creationDate, fileSize, dimensions, hash
@@ -86,7 +86,7 @@ void main() {
       // Simulate a 2MB photo
       const photoSizeBytes = 2 * 1024 * 1024; // 2MB
       
-      final metadata = PhotoMetadata(
+      const metadata = PhotoMetadata(
         localIdentifier: 'LARGE-PHOTO-ID',
         filename: 'LARGE_PHOTO.JPG',
         fileSize: photoSizeBytes,
@@ -103,8 +103,8 @@ void main() {
       // Metadata should be much smaller than the original photo
       expect(metadataSizeBytes, lessThan(photoSizeBytes ~/ 100)); // At least 100x smaller
       
-      print('Photo size: ${photoSizeBytes} bytes');
-      print('Metadata size: ${metadataSizeBytes} bytes');
+      print('Photo size: $photoSizeBytes bytes');
+      print('Metadata size: $metadataSizeBytes bytes');
       print('Compression ratio: ${photoSizeBytes / metadataSizeBytes}x');
       
       // Should be under 1KB for metadata
@@ -112,7 +112,7 @@ void main() {
     });
     
     test('PhotoMetadata supports copyWith for updates', () {
-      final original = PhotoMetadata(
+      const original = PhotoMetadata(
         localIdentifier: 'ORIGINAL-ID',
         filename: 'ORIGINAL.JPG',
         fileSize: 1000000,

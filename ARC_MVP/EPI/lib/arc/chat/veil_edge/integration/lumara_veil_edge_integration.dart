@@ -3,6 +3,7 @@
 /// Integrates VEIL-EDGE with the existing LUMARA chat system to provide
 /// phase-reactive restorative responses.
 /// Updated to use unified LUMARA prompt system (EPI v2.1)
+library;
 
 import 'dart:async';
 import 'dart:convert';
@@ -401,7 +402,7 @@ class LumaraVeilEdgeIntegration {
 
   /// Create fallback message on error
   Future<ChatMessage> _createFallbackMessage(String sessionId, String userMessage, String error) async {
-    final fallbackResponse = "I'm here to help, but I'm experiencing some technical difficulties. "
+    const fallbackResponse = "I'm here to help, but I'm experiencing some technical difficulties. "
         "Please try again, and I'll do my best to support you.";
     
     final chatMessage = ChatMessage(

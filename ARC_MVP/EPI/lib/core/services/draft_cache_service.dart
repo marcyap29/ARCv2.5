@@ -2,6 +2,7 @@
 ///
 /// Provides automatic persistence of journal drafts to prevent data loss
 /// when users switch away, shut down, or experience app crashes.
+library;
 
 import 'dart:async';
 import 'dart:convert';

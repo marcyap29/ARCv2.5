@@ -3,12 +3,12 @@
 /// Displays an ongoing (unsaved) conversation in the unified feed.
 /// Shows a pulsing indicator, message count, and the latest exchange.
 /// Uses BaseFeedCard with active-green left border (phase display removed).
+library;
 
 import 'package:flutter/material.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/arc/unified_feed/models/feed_entry.dart';
 import 'package:my_app/arc/unified_feed/utils/feed_helpers.dart';
-import 'base_feed_card.dart';
 
 class ActiveConversationCard extends StatelessWidget {
   final FeedEntry entry;
@@ -61,7 +61,7 @@ class ActiveConversationCard extends StatelessWidget {
                   children: [
                     _buildActiveIndicator(),
                     const SizedBox(width: 8),
-                    Text(
+                    const Text(
                       'Active Conversation',
                       style: TextStyle(
                         color: kcPrimaryColor,
@@ -134,11 +134,11 @@ class ActiveConversationCard extends StatelessWidget {
                             color: kcPrimaryColor.withOpacity(0.15),
                             borderRadius: BorderRadius.circular(8),
                           ),
-                          child: Row(
+                          child: const Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Icon(Icons.save_outlined, size: 14, color: kcPrimaryColor),
-                              const SizedBox(width: 4),
+                              SizedBox(width: 4),
                               Text(
                                 'Save',
                                 style: TextStyle(

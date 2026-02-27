@@ -503,7 +503,7 @@ class _ArcformTimelineViewState extends State<ArcformTimelineView> {
         phase: phaseName,
         skin: skin,
         title: '$phaseName Constellation',
-        content: 'ARCForm for ${phaseName} phase (${_formatDate(regime.start)} - ${regime.end != null ? _formatDate(regime.end!) : 'ongoing'})',
+        content: 'ARCForm for $phaseName phase (${_formatDate(regime.start)} - ${regime.end != null ? _formatDate(regime.end!) : 'ongoing'})',
         createdAt: regime.start,
         id: 'regime_${regime.id}',
       );

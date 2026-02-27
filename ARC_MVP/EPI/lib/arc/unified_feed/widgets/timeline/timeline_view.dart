@@ -3,6 +3,7 @@
 /// Year/month browser for navigating the user's journal history.
 /// Shows collapsible year cards with activity bars and month rows.
 /// Each month shows entry count, dominant phase, and phase-colored bar.
+library;
 
 import 'dart:math';
 import 'package:flutter/material.dart';

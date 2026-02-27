@@ -26,7 +26,7 @@ class PhaseQuizV2 {
   /// The 8 onboarding questions
   static final List<QuizQuestion> questions = [
     // Q1: Current Phase
-    QuizQuestion(
+    const QuizQuestion(
       id: 'current_phase',
       text: 'Which best describes where you are right now?',
       subtitle: 'Choose the one that resonates most',
@@ -43,7 +43,7 @@ class PhaseQuizV2 {
     ),
     
     // Q2: Primary Focus (multi-select, max 3)
-    QuizQuestion(
+    const QuizQuestion(
       id: 'primary_focus',
       text: 'What occupies most of your mental energy lately?',
       subtitle: 'Select up to 3',
@@ -65,7 +65,7 @@ class PhaseQuizV2 {
     ),
     
     // Q3: Temporal Context
-    QuizQuestion(
+    const QuizQuestion(
       id: 'inflection_timing',
       text: 'When did your current situation begin taking shape?',
       category: QuizCategory.temporal,
@@ -80,7 +80,7 @@ class PhaseQuizV2 {
     ),
     
     // Q4: Emotional State
-    QuizQuestion(
+    const QuizQuestion(
       id: 'emotional_state',
       text: 'How would you describe your emotional state lately?',
       category: QuizCategory.emotional,
@@ -96,7 +96,7 @@ class PhaseQuizV2 {
     ),
     
     // Q5: Momentum Direction
-    QuizQuestion(
+    const QuizQuestion(
       id: 'momentum',
       text: 'How does this feel over time?',
       category: QuizCategory.momentum,
@@ -111,7 +111,7 @@ class PhaseQuizV2 {
     ),
     
     // Q6: Stakes
-    QuizQuestion(
+    const QuizQuestion(
       id: 'stakes',
       text: 'What feels most at stake right now?',
       subtitle: 'What matters most about this situation?',
@@ -129,7 +129,7 @@ class PhaseQuizV2 {
     ),
     
     // Q7: Behavioral Pattern
-    QuizQuestion(
+    const QuizQuestion(
       id: 'approach_style',
       text: 'How do you tend to approach challenges?',
       category: QuizCategory.behavioral,
@@ -144,7 +144,7 @@ class PhaseQuizV2 {
     ),
     
     // Q8: Support Context
-    QuizQuestion(
+    const QuizQuestion(
       id: 'support',
       text: 'How would you describe your support system?',
       category: QuizCategory.support,
@@ -178,7 +178,7 @@ class PhaseQuizV2 {
       content: entryContent,
       createdAt: now,
       updatedAt: now,
-      tags: ['onboarding', 'phase_quiz_v2', 'inaugural'],
+      tags: const ['onboarding', 'phase_quiz_v2', 'inaugural'],
       mood: _mapEmotionalStateToMood(profile.emotionalState),
       keywords: profile.dominantThemes,
       emotion: _mapEmotionalState(profile.emotionalState),

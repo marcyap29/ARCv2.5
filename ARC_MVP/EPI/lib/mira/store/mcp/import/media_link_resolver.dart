@@ -16,10 +16,10 @@ class MediaLinkResolver {
     }
 
     // Look for journal_v1.mcp.zip in the bundle directory
-    final journalZip = File('${_bundleDir}/journal_v1.mcp.zip');
+    final journalZip = File('$_bundleDir/journal_v1.mcp.zip');
     if (await journalZip.exists()) {
       // Extract to a temporary directory for thumbnail access
-      final tempDir = Directory('${_bundleDir}/journal_extracted');
+      final tempDir = Directory('$_bundleDir/journal_extracted');
       if (await tempDir.exists()) {
         await tempDir.delete(recursive: true);
       }

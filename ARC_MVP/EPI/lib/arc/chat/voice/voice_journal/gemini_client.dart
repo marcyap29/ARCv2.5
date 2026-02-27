@@ -4,6 +4,7 @@
 /// IMPORTANT: Only scrubbed (PII-free) text should ever be sent to Gemini.
 /// 
 /// Uses the existing EnhancedLumaraApi for Firebase-proxied Gemini calls.
+library;
 
 import 'dart:async';
 import 'package:flutter/foundation.dart';
@@ -121,9 +122,7 @@ class GeminiJournalClient {
       final response = result.reflection;
       
       // Track first token timing (approximation since we don't have streaming)
-      if (_metrics.firstGeminiToken == null) {
-        _metrics.firstGeminiToken = DateTime.now();
-      }
+      _metrics.firstGeminiToken ??= DateTime.now();
       
       // Simulate streaming by chunking the response
       if (onChunk != null) {
@@ -236,9 +235,7 @@ VOICE MODE ADAPTATIONS
       final response = result.reflection;
       
       // Track first token timing (approximation since we don't have streaming)
-      if (_metrics.firstGeminiToken == null) {
-        _metrics.firstGeminiToken = DateTime.now();
-      }
+      _metrics.firstGeminiToken ??= DateTime.now();
       
       // Simulate streaming by chunking the response
       if (onChunk != null) {
@@ -269,7 +266,7 @@ VOICE MODE ADAPTATIONS
   Future<void> _simulateStreaming(String response, OnGeminiChunk onChunk) async {
     // Split response into words and group into chunks
     final words = response.split(' ');
-    final chunkSize = 3; // Words per chunk
+    const chunkSize = 3; // Words per chunk
     
     for (int i = 0; i < words.length; i += chunkSize) {
       final end = (i + chunkSize > words.length) ? words.length : i + chunkSize;
@@ -365,7 +362,7 @@ class VoiceJournalConversation {
     
     // SECURITY: Validate scrubbing passed
     if (!_prism.isSafeToSend(scrubResult.scrubbedText)) {
-      throw SecurityException(
+      throw const SecurityException(
         'SECURITY: PRISM scrubbing failed - PII still detected in text'
       );
     }

@@ -21,8 +21,8 @@ void main() {
           entryId: 'entry1',
           timestamp: DateTime(2025, 1, 1),
           content: 'Test content 1',
-          metadata: RawEntryMetadata(wordCount: 10),
-          analysis: RawEntryAnalysis(
+          metadata: const RawEntryMetadata(wordCount: 10),
+          analysis: const RawEntryAnalysis(
             extractedThemes: ['career', 'anxiety'],
             keywords: ['work', 'stress'],
           ),
@@ -31,8 +31,8 @@ void main() {
           entryId: 'entry2',
           timestamp: DateTime(2025, 1, 2),
           content: 'Test content 2',
-          metadata: RawEntryMetadata(wordCount: 10),
-          analysis: RawEntryAnalysis(
+          metadata: const RawEntryMetadata(wordCount: 10),
+          analysis: const RawEntryAnalysis(
             extractedThemes: ['career', 'motivation'],
             keywords: ['work', 'goal'],
           ),
@@ -41,8 +41,8 @@ void main() {
           entryId: 'entry3',
           timestamp: DateTime(2025, 1, 3),
           content: 'Test content 3',
-          metadata: RawEntryMetadata(wordCount: 10),
-          analysis: RawEntryAnalysis(
+          metadata: const RawEntryMetadata(wordCount: 10),
+          analysis: const RawEntryAnalysis(
             extractedThemes: ['career'],
             keywords: ['work'],
           ),
@@ -63,8 +63,8 @@ void main() {
           entryId: 'entry1',
           timestamp: DateTime(2025, 1, 1),
           content: 'Test',
-          metadata: RawEntryMetadata(wordCount: 10),
-          analysis: RawEntryAnalysis(
+          metadata: const RawEntryMetadata(wordCount: 10),
+          analysis: const RawEntryAnalysis(
             atlasPhase: 'Expansion',
             extractedThemes: [],
           ),
@@ -73,8 +73,8 @@ void main() {
           entryId: 'entry2',
           timestamp: DateTime(2025, 1, 2),
           content: 'Test',
-          metadata: RawEntryMetadata(wordCount: 10),
-          analysis: RawEntryAnalysis(
+          metadata: const RawEntryMetadata(wordCount: 10),
+          analysis: const RawEntryAnalysis(
             atlasPhase: 'Expansion',
             extractedThemes: [],
           ),
@@ -83,8 +83,8 @@ void main() {
           entryId: 'entry3',
           timestamp: DateTime(2025, 1, 3),
           content: 'Test',
-          metadata: RawEntryMetadata(wordCount: 10),
-          analysis: RawEntryAnalysis(
+          metadata: const RawEntryMetadata(wordCount: 10),
+          analysis: const RawEntryAnalysis(
             atlasPhase: 'Consolidation',
             extractedThemes: [],
           ),
@@ -103,8 +103,8 @@ void main() {
           entryId: 'entry1',
           timestamp: DateTime(2025, 1, 1),
           content: 'Test',
-          metadata: RawEntryMetadata(wordCount: 10),
-          analysis: RawEntryAnalysis(
+          metadata: const RawEntryMetadata(wordCount: 10),
+          analysis: const RawEntryAnalysis(
             sentinelScore: SentinelScore(
               emotionalIntensity: 0.5,
               frequency: 0.6,
@@ -117,8 +117,8 @@ void main() {
           entryId: 'entry2',
           timestamp: DateTime(2025, 1, 2),
           content: 'Test',
-          metadata: RawEntryMetadata(wordCount: 10),
-          analysis: RawEntryAnalysis(
+          metadata: const RawEntryMetadata(wordCount: 10),
+          analysis: const RawEntryAnalysis(
             sentinelScore: SentinelScore(
               emotionalIntensity: 0.7,
               frequency: 0.8,
@@ -142,8 +142,8 @@ void main() {
           entryId: 'entry1',
           timestamp: DateTime(2025, 1, 1),
           content: 'Test',
-          metadata: RawEntryMetadata(wordCount: 10),
-          analysis: RawEntryAnalysis(
+          metadata: const RawEntryMetadata(wordCount: 10),
+          analysis: const RawEntryAnalysis(
             atlasPhase: 'Expansion',
             extractedThemes: [],
           ),
@@ -152,8 +152,8 @@ void main() {
           entryId: 'entry2',
           timestamp: DateTime(2025, 1, 2),
           content: 'Test',
-          metadata: RawEntryMetadata(wordCount: 10),
-          analysis: RawEntryAnalysis(
+          metadata: const RawEntryMetadata(wordCount: 10),
+          analysis: const RawEntryAnalysis(
             atlasPhase: 'Consolidation',
             extractedThemes: [],
           ),

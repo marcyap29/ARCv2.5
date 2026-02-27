@@ -33,12 +33,12 @@ void main() {
         entryId: 'test_entry_1',
         timestamp: DateTime.now(),
         content: 'Test journal entry content',
-        metadata: RawEntryMetadata(
+        metadata: const RawEntryMetadata(
           wordCount: 5,
           voiceTranscribed: false,
           mediaAttachments: [],
         ),
-        analysis: RawEntryAnalysis(
+        analysis: const RawEntryAnalysis(
           extractedThemes: ['test_theme'],
           keywords: ['test', 'entry'],
         ),
@@ -54,8 +54,8 @@ void main() {
         entryId: 'test_entry_1',
         timestamp: DateTime(2025, 1, 15, 10, 30),
         content: 'Test content',
-        metadata: RawEntryMetadata(wordCount: 2),
-        analysis: RawEntryAnalysis(
+        metadata: const RawEntryMetadata(wordCount: 2),
+        analysis: const RawEntryAnalysis(
           extractedThemes: ['theme1'],
           keywords: ['keyword1'],
         ),

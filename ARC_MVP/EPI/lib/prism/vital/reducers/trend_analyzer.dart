@@ -5,16 +5,16 @@ class TrendAnalyzer {
     if (windows.length < 3) return const [];
     final tags = <String>[];
 
-    double? _seriesAvg(List<double?> xs) {
+    double? seriesAvg(List<double?> xs) {
       final vs = xs.whereType<double>().toList();
       if (vs.isEmpty) return null;
       return vs.reduce((a, b) => a + b) / vs.length;
     }
 
     final last3 = windows.sublist(windows.length - 3);
-    final hrAvg = _seriesAvg(last3.map((w) => w.reduced.avgHr).toList());
-    final hrvAvg = _seriesAvg(last3.map((w) => w.reduced.hrvMedian).toList());
-    final sleepEffAvg = _seriesAvg(last3.map((w) => w.reduced.sleepEfficiency).toList());
+    final hrAvg = seriesAvg(last3.map((w) => w.reduced.avgHr).toList());
+    final hrvAvg = seriesAvg(last3.map((w) => w.reduced.hrvMedian).toList());
+    final sleepEffAvg = seriesAvg(last3.map((w) => w.reduced.sleepEfficiency).toList());
 
     if (sleepEffAvg != null) {
       if (sleepEffAvg >= 0.9) tags.add('sleep_high_efficiency');

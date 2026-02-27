@@ -2,6 +2,7 @@
 /// 
 /// Defines the structure of raw entries stored in Layer 0.
 /// This matches the specification from the CHRONICLE architecture document.
+library;
 
 /// Source type for Layer 0 entries (journal vs Crossroads decision).
 enum ChronicleEntryType {

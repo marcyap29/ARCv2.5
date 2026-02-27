@@ -15,7 +15,7 @@ class DignifiedTextService {
   Future<void> initialize() async {
     if (_initialized) return;
     
-    final scope = LumaraScope(journal: true, phase: true);
+    const scope = LumaraScope(journal: true, phase: true);
     final contextProvider = ContextProvider(scope);
     _echoService = EchoService(contextProvider: contextProvider);
     _initialized = true;

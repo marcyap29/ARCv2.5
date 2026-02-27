@@ -1,5 +1,6 @@
 /// Compact media thumbnail strip for feed cards.
 /// Shows a horizontal row of thumbnails for entry media (photos, video, file).
+library;
 
 import 'dart:io';
 import 'dart:typed_data';

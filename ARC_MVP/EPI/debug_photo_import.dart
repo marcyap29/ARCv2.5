@@ -8,7 +8,7 @@ void main() async {
   print('============================');
   
   // Test photo placeholder regex
-  final testContent = 'Test\n\n[PHOTO:photo_1760552888277]\n[PHOTO:photo_1760552888947]';
+  const testContent = 'Test\n\n[PHOTO:photo_1760552888277]\n[PHOTO:photo_1760552888947]';
   final photoPlaceholderRegex = RegExp(r'\[PHOTO:([^\]]+)\]');
   final matches = photoPlaceholderRegex.allMatches(testContent);
   

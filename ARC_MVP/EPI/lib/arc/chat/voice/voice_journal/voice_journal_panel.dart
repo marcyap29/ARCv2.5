@@ -7,6 +7,7 @@
 /// - Live transcript display
 /// - Processing state indicators
 /// - LUMARA response display
+library;
 
 import 'dart:async';
 import 'package:flutter/material.dart';
@@ -351,10 +352,10 @@ class _VoiceJournalPanelState extends State<VoiceJournalPanel>
               if (transcript.isNotEmpty) const SizedBox(height: 16),
               Row(
                 children: [
-                  Icon(
+                  const Icon(
                     Icons.auto_awesome,
                     size: 16,
-                    color: const Color(0xFF7C3AED), // Purple icon for LUMARA (same as journal mode)
+                    color: Color(0xFF7C3AED), // Purple icon for LUMARA (same as journal mode)
                   ),
                   const SizedBox(width: 8),
                   Text(

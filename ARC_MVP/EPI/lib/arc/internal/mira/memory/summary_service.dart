@@ -462,6 +462,6 @@ class SummaryService {
     final words = text.split(' ');
     if (words.length <= wordLimit) return text;
 
-    return words.take(wordLimit).join(' ') + '...';
+    return '${words.take(wordLimit).join(' ')}...';
   }
 }

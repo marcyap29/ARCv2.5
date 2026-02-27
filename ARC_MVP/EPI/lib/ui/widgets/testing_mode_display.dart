@@ -12,42 +12,42 @@ class TestingModeDisplay extends StatelessWidget {
   final Map<String, dynamic> analysisResult;
   
   const TestingModeDisplay({
-    Key? key,
+    super.key,
     required this.analysisResult,
-  }) : super(key: key);
+  });
   
   @override
   Widget build(BuildContext context) {
     return Card(
       color: Colors.orange.shade50,
-      margin: EdgeInsets.all(16),
+      margin: const EdgeInsets.all(16),
       child: Padding(
-        padding: EdgeInsets.all(16),
+        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
           // Header
           Row(
             children: [
-              Icon(Icons.bug_report, color: Colors.orange),
-              SizedBox(width: 8),
-              Text(
+              const Icon(Icons.bug_report, color: Colors.orange),
+              const SizedBox(width: 8),
+              const Text(
                 '🧪 TESTING MODE', 
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
                   fontSize: 16,
                 ),
               ),
-              Spacer(),
+              const Spacer(),
               if (analysisResult['detection_time_ms'] != null)
                 Text(
                   'Detection: ${analysisResult['detection_time_ms']}ms',
-                  style: TextStyle(fontSize: 10, color: Colors.grey),
+                  style: const TextStyle(fontSize: 10, color: Colors.grey),
                 ),
             ],
           ),
           
-          Divider(),
+          const Divider(),
           
           // SENTINEL Section
           _buildSection(
@@ -82,9 +82,9 @@ class TestingModeDisplay extends StatelessWidget {
           
           // Intervention Level (NEW)
           if (_getInterventionLevel() > 0) ...[
-            Divider(),
+            const Divider(),
             Container(
-              padding: EdgeInsets.all(12),
+              padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: _getInterventionColor(_getInterventionLevel()).shade100,
                 border: Border.all(
@@ -102,7 +102,7 @@ class TestingModeDisplay extends StatelessWidget {
                         _getInterventionIcon(_getInterventionLevel()),
                         color: _getInterventionColor(_getInterventionLevel()),
                       ),
-                      SizedBox(width: 8),
+                      const SizedBox(width: 8),
                       Text(
                         'INTERVENTION LEVEL ${_getInterventionLevel()}',
                         style: TextStyle(
@@ -112,11 +112,11 @@ class TestingModeDisplay extends StatelessWidget {
                       ),
                     ],
                   ),
-                  SizedBox(height: 8),
+                  const SizedBox(height: 8),
                   Text(_getInterventionDescription(_getInterventionLevel())),
                   if (_isLimitedMode())
                     Padding(
-                      padding: EdgeInsets.only(top: 8),
+                      padding: const EdgeInsets.only(top: 8),
                       child: Text(
                         '⚠️ Limited Mode Active - No AI reflections for 24 hours',
                         style: TextStyle(
@@ -130,7 +130,7 @@ class TestingModeDisplay extends StatelessWidget {
             ),
           ],
           
-          Divider(),
+          const Divider(),
           
           // RIVET Section (if available)
           if (analysisResult['rivet'] != null) ...[
@@ -155,7 +155,7 @@ class TestingModeDisplay extends StatelessWidget {
                   ),
               ],
             ),
-            Divider(),
+            const Divider(),
           ],
           
           // RESOLVE Section
@@ -190,25 +190,25 @@ class TestingModeDisplay extends StatelessWidget {
                 ),
               ],
             ),
-            Divider(),
+            const Divider(),
           ],
           
           // Processing Path
           Container(
-            padding: EdgeInsets.all(8),
+            padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
               color: Colors.blue.shade50,
               borderRadius: BorderRadius.circular(4),
             ),
             child: Row(
               children: [
-                Icon(Icons.route, size: 16, color: Colors.blue),
-                SizedBox(width: 8),
+                const Icon(Icons.route, size: 16, color: Colors.blue),
+                const SizedBox(width: 8),
                 Text('Processing: ${analysisResult['processing_path'] ?? 'unknown'}'),
-                Spacer(),
+                const Spacer(),
                 Text(
                   'Gemini: ${(analysisResult['used_gemini'] ?? false) ? "YES" : "NO"}',
-                  style: TextStyle(fontWeight: FontWeight.bold),
+                  style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
               ],
             ),
@@ -231,7 +231,7 @@ class TestingModeDisplay extends StatelessWidget {
             color: Colors.grey.shade700,
           ),
         ),
-        SizedBox(height: 8),
+        const SizedBox(height: 8),
         ...children,
       ],
     );
@@ -239,7 +239,7 @@ class TestingModeDisplay extends StatelessWidget {
   
   Widget _buildMetric(String label, String value, {Color? color, double? fontSize}) {
     return Padding(
-      padding: EdgeInsets.symmetric(vertical: 4),
+      padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

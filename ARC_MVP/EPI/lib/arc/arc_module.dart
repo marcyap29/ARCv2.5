@@ -31,6 +31,7 @@
 /// final cubit = JournalCaptureCubit(repository);
 /// await cubit.createEntry(...);
 /// ```
+library;
 
 // Core journaling functionality
 // State management and UI for journal entry capture and editing

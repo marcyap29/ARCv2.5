@@ -59,8 +59,9 @@ Future<ARCXFileScanResult> scanArcxFile({
     ArchiveFile? manifestFile;
     ArchiveFile? encryptedArchive;
     for (final f in archive) {
-      if (f.name == 'manifest.json') manifestFile = f;
-      else if (f.name == 'archive.arcx') encryptedArchive = f;
+      if (f.name == 'manifest.json') {
+        manifestFile = f;
+      } else if (f.name == 'archive.arcx') encryptedArchive = f;
     }
     if (manifestFile == null || encryptedArchive == null) {
       return ARCXFileScanResult(filePath: arcxPath, fileSizeBytes: size, error: 'Invalid ARCX: manifest or archive missing');

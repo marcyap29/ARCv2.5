@@ -1,6 +1,7 @@
 /// LUMARA Test Harness for On-Device LLM A/B Testing
 /// 
 /// Tests different models with standardized prompts to compare performance
+library;
 
 import 'dart:convert';
 import 'package:flutter/foundation.dart';

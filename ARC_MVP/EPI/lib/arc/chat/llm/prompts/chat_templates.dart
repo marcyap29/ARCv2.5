@@ -1,5 +1,6 @@
 /// Chat templates optimized for tiny models (Qwen3-1.7B, Llama-3.2-1B)
 /// Uses proper control tokens and ASCII-only formatting
+library;
 
 class ChatTemplates {
   /// Qwen3 chat template - uses llama.cpp control tokens
@@ -59,6 +60,6 @@ class ChatTemplates {
   /// Clip text to specified length for tiny model prompts
   static String clip(String text, int maxLength) {
     if (text.length <= maxLength) return text;
-    return text.substring(0, maxLength).trimRight() + "...";
+    return "${text.substring(0, maxLength).trimRight()}...";
   }
 }

@@ -14,11 +14,9 @@ import 'package:my_app/arc/chat/chat/chat_repo.dart';
 import 'package:my_app/arc/core/journal_repository.dart';
 import 'package:my_app/mira/store/mcp/export/mcp_export_service.dart';
 import 'package:my_app/mira/store/mcp/import/mcp_import_service.dart';
-import 'package:my_app/mira/store/mcp/import/manifest_reader.dart';
 import 'package:my_app/mira/store/mcp/bundle/reader.dart';
 import 'package:my_app/models/journal_entry_model.dart';
 import 'package:my_app/data/models/media_item.dart';
-import 'package:my_app/services/phase_index.dart';
 import 'dart:io';
 
 void main() {
@@ -89,7 +87,7 @@ void main() {
 
     group('A2) API Contracts', () {
       test('should be idempotent on same payload hash', () async {
-        final content = 'Idempotent test content';
+        const content = 'Idempotent test content';
 
         final nodeId1 = await memoryService.storeMemory(
           content: content,
@@ -279,7 +277,7 @@ void main() {
 
     group('B3) Lifecycle & Decay', () {
       test('should decay unused memories according to TTL policy', () async {
-        final oldTimestamp = DateTime.now().subtract(Duration(days: 20));
+        final oldTimestamp = DateTime.now().subtract(const Duration(days: 20));
 
         // Store memory with 14-day TTL
         final nodeId = await memoryService.storeMemory(
@@ -526,7 +524,7 @@ void main() {
 
     group('C3) Data Minimization', () {
       test('should detect and handle PII in uploaded content', () async {
-        final piiContent = 'My address is 123 Main St, Seattle, WA 98101';
+        const piiContent = 'My address is 123 Main St, Seattle, WA 98101';
 
         final nodeId = await memoryService.storeMemory(
           content: piiContent,
@@ -548,7 +546,7 @@ void main() {
       });
 
       test('should minimize data storage for sensitive content', () async {
-        final sensitiveContent = 'My SSN is 123-45-6789 and account number is 9876543210';
+        const sensitiveContent = 'My SSN is 123-45-6789 and account number is 9876543210';
 
         final nodeId = await memoryService.storeMemory(
           content: sensitiveContent,

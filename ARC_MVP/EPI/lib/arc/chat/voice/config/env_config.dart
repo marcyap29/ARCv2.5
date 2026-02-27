@@ -2,6 +2,7 @@
 /// 
 /// Loads Wispr API key from environment variables (development only)
 /// For production, use WisprConfigService with Firebase Remote Config
+library;
 
 import 'package:flutter/foundation.dart';
 

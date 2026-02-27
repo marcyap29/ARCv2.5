@@ -65,7 +65,9 @@ class McpBundleParser {
           if (json['type'] != 'journal_entry' && 
               json['type'] != 'phase_regime' && 
               json['type'] != 'ChatSession' && 
-              json['type'] != 'ChatMessage') continue;
+              json['type'] != 'ChatMessage') {
+            continue;
+          }
           
           final node = _createReflectiveNodeFromJson(json);
           if (node != null) {
@@ -200,7 +202,7 @@ class McpBundleParser {
         final end = endTime != null ? DateTime.tryParse(endTime) : null;
         if (start != null) {
           final duration = (end ?? DateTime.now()).difference(start);
-          contentSummary = '${contentSummary} (${duration.inDays} days)';
+          contentSummary = '$contentSummary (${duration.inDays} days)';
         }
       }
       

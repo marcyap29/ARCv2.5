@@ -31,7 +31,6 @@ import 'package:my_app/chronicle/models/chronicle_aggregation.dart';
 import 'package:my_app/chronicle/models/query_plan.dart';
 import 'package:my_app/chronicle/dual/services/dual_chronicle_services.dart';
 import 'package:my_app/chronicle/dual/models/chronicle_models.dart';
-import 'package:my_app/chronicle/dual/repositories/lumara_chronicle_repository.dart';
 import 'package:my_app/chronicle/dual/services/lumara_connection_fade_preferences.dart';
 import '../models/reflective_node.dart';
 import '../models/lumara_reflection_options.dart' as models;
@@ -457,9 +456,13 @@ class EnhancedLumaraApi {
       // HANDLE DIFFERENT RESPONSE MODES
       // ===========================================================
 
+      // Chat requests (entryType.chat) ALWAYS use full pipeline with ChronicleContextBuilder
+      // for synthesized context — skip factual/conversational fast paths.
+      final isChatRequest = request.entryType == models.EntryType.chat;
+
       // When skipHeavyProcessing is true, use Master Prompt for ALL entry types
-      // Otherwise, use fast paths for factual/conversational
-      if (!skipHeavyProcessing) {
+      // For chat, always use full pipeline (ChronicleContextBuilder). Otherwise use fast paths for factual/conversational.
+      if (!skipHeavyProcessing && !isChatRequest) {
       if (entryType == EntryType.factual) {
         // FACTUAL MODE: Direct answer without full LUMARA processing
         return await _generateFactualResponse(request, responseMode, onProgress);
@@ -756,7 +759,7 @@ class EnhancedLumaraApi {
                   final writingData = orchResult.getSubsystemData('WRITING');
                   final draft = writingData?['draft'];
                   if (draft != null && draft is String) {
-                    final draftStr = draft as String;
+                    final draftStr = draft;
                     print('✅ EnhancedLumaraApi: Returning WRITING draft (${draftStr.length} chars)');
                     return ReflectionResult(
                       reflection: draftStr,
@@ -860,10 +863,10 @@ class EnhancedLumaraApi {
 
           // Hard cap Chronicle context to ~10K tokens (40K chars) before PII scrub.
           // Protects against uncompressed yearly aggregations blowing up the payload.
-          const _maxChronicleChars = 40000;
-          if (chronicleContext != null && chronicleContext.length > _maxChronicleChars) {
-            print('⚠️ EnhancedLumaraApi: CHRONICLE context truncated from ${chronicleContext.length} to $_maxChronicleChars chars');
-            chronicleContext = '${chronicleContext.substring(0, _maxChronicleChars)}\n\n[Chronicle context truncated — full history available on deeper query]';
+          const maxChronicleChars = 40000;
+          if (chronicleContext != null && chronicleContext.length > maxChronicleChars) {
+            print('⚠️ EnhancedLumaraApi: CHRONICLE context truncated from ${chronicleContext.length} to $maxChronicleChars chars');
+            chronicleContext = '${chronicleContext.substring(0, maxChronicleChars)}\n\n[Chronicle context truncated — full history available on deeper query]';
           }
 
           // Scrub CHRONICLE context before sending to cloud (PiiScrubber/PrismAdapter); restore PII when response returns
@@ -895,7 +898,7 @@ class EnhancedLumaraApi {
               try {
                 final range = queryPlan.layer0DateRange!;
                 final layer0Entries = await _layer0Repo!.getEntriesInRange(
-                  userId!,
+                  userId,
                   range.start,
                   range.end,
                 );
@@ -1110,7 +1113,7 @@ class EnhancedLumaraApi {
           print('');
           print('📊 RESPONSE PARAMETERS:');
           print('   Persona: $selectedPersona');
-          print('   Engagement Mode: ${engagementMode != null ? engagementMode.name : "reflect"}');
+          print('   Engagement Mode: ${engagementMode.name}');
           print('   Safety Override: $safetyOverride');
           print('   Target Words: ${responseParams.targetWords}');
           print('   Target Sentences: ${responseParams.targetSentences}');
@@ -1150,7 +1153,7 @@ class EnhancedLumaraApi {
               if (isWrittenUnlimited) 'noWordLimit': true,
             },
             'engagement': {
-              'mode': engagementMode != null ? engagementMode.name : 'reflect',
+              'mode': engagementMode.name,
             },
             'entryClassification': entryClassification,
             'sentinel': sentinelScore != null ? {
@@ -1292,12 +1295,25 @@ class EnhancedLumaraApi {
               currentDate: now,
               modeSpecificInstructions: modeSpecificInstructions.isNotEmpty ? modeSpecificInstructions : null,
             );
-            // Hard cap: non-voice user payload at ~60K chars (~15K tokens). Covers ~30 long journal
-            // entries + full Chronicle context with a healthy buffer; prevents runaway payloads.
-            const _maxNonVoiceUserChars = 60000;
-            if (userPromptForApi.length > _maxNonVoiceUserChars) {
-              print('⚠️ LUMARA V23: User payload truncated from ${userPromptForApi.length} to $_maxNonVoiceUserChars chars');
-              userPromptForApi = '${userPromptForApi.substring(0, _maxNonVoiceUserChars)}\n\n[Context truncated to stay within token budget]';
+            // Groq on_demand: 8k tokens/request limit (~24–28k chars total). Cap both system and user.
+            // Previous uncapped payload caused 413 "Request too large" (48k tokens requested).
+            const maxTotalChars = 24000; // ~6k tokens, leaves headroom
+            const maxSystemChars = 10000; // Identity, control state, core rules
+            const maxUserChars = 14000;  // Context + current entry
+            if (systemPrompt.length > maxSystemChars) {
+              systemPrompt = '${systemPrompt.substring(0, maxSystemChars)}\n\n[System prompt truncated for Groq 8k token limit — core instructions preserved]';
+              print('⚠️ LUMARA V23: System prompt truncated to $maxSystemChars chars (Groq 8k token limit)');
+            }
+            if (userPromptForApi.length > maxUserChars) {
+              // Preserve tail: current entry + RESPOND NOW are at the end. Truncate from the start.
+              final originalLen = userPromptForApi.length;
+              final tail = userPromptForApi.substring(userPromptForApi.length - maxUserChars);
+              userPromptForApi = '[Recent entries and CHRONICLE context truncated for token limit.]\n\n$tail';
+              print('⚠️ LUMARA V23: User payload truncated from $originalLen to ${userPromptForApi.length} chars (current entry preserved)');
+            }
+            final totalChars = systemPrompt.length + userPromptForApi.length;
+            if (totalChars > maxTotalChars) {
+              print('⚠️ LUMARA V23: Combined payload $totalChars chars exceeds target $maxTotalChars — Groq may still accept if under ~32k');
             }
             print('🔵 LUMARA V23: Non-voice split payload: system=${systemPrompt.length} chars, user=${userPromptForApi.length} chars');
             if (chronicleContext != null) {
@@ -1305,7 +1321,7 @@ class EnhancedLumaraApi {
             }
           }
           
-          print('🔵 LUMARA V23: Unified prompt length: ${systemPrompt.length}');
+          print('🔵 LUMARA V23: Unified prompt length: ${systemPrompt.length} (total with user: ${systemPrompt.length + userPromptForApi.length})');
           print('🔵 LUMARA V23: Persona=$selectedPersona, maxWords=$maxWords, patternExamples=$minPatternExamples-$maxPatternExamples');
           if (safetyOverride) {
             print('🚨 LUMARA V23: SAFETY OVERRIDE ACTIVE - Therapist mode forced');
@@ -1317,6 +1333,7 @@ class EnhancedLumaraApi {
           String? llmResponse;
           int retryCount = 0;
           const maxRetries = 2;
+          Object? lastError;
           final firebaseReady = await FirebaseService.instance.ensureReady();
           final signedIn = FirebaseAuthService.instance.isSignedIn;
           final useProxy = firebaseReady && signedIn;
@@ -1325,6 +1342,7 @@ class EnhancedLumaraApi {
           print('LUMARA: Using ${useProxy ? "proxyGroq (GPT-OSS 120B)" : useDirectGroq ? "direct Groq (API key)" : "unavailable"} for reflection');
 
           while (retryCount <= maxRetries && llmResponse == null) {
+            lastError = null;
             try {
               // 1. When signed in: proxyGroq (GPT-OSS 120B primary)
               if (useProxy) {
@@ -1337,11 +1355,13 @@ class EnhancedLumaraApi {
                     entryId: entryId,
                     skipTransformation: true,
                   );
-                  if (llmResponse != null && llmResponse.isNotEmpty) {
+                  if (llmResponse.isNotEmpty) {
                     print('LUMARA: proxyGroq response received (length: ${llmResponse.length})');
                     break;
                   }
+                  llmResponse = null;
                 } catch (groqErr) {
+                  lastError = groqErr;
                   print('LUMARA: proxyGroq failed: $groqErr');
                 }
               }
@@ -1368,17 +1388,30 @@ class EnhancedLumaraApi {
                       temperature: temperature,
                     );
                   }
-                  if (llmResponse != null && llmResponse.isNotEmpty) {
+                  if (llmResponse.isNotEmpty) {
                     print('LUMARA: direct Groq response received (length: ${llmResponse.length})');
                     break;
                   }
+                  llmResponse = null;
                 } catch (groqErr) {
+                  lastError = groqErr;
                   print('LUMARA: direct Groq failed: $groqErr');
                 }
               }
-              onProgress?.call('Processing response...');
-              break;
+              // Both failed — retry or give up
+              if (llmResponse == null) {
+                retryCount++;
+                if (retryCount > maxRetries) {
+                  break;
+                }
+                onProgress?.call('Retrying API... ($retryCount/$maxRetries)');
+                await Future.delayed(const Duration(seconds: 2));
+              } else {
+                onProgress?.call('Processing response...');
+                break;
+              }
             } catch (e) {
+              lastError = e;
               retryCount++;
               if (retryCount > maxRetries) {
                 print('LUMARA: Cloud API error after $maxRetries retries: $e');
@@ -1396,7 +1429,10 @@ class EnhancedLumaraApi {
           }
 
           if (llmResponse == null) {
-            throw Exception('Failed to generate response from cloud API (Groq)');
+            final errMsg = lastError != null
+                ? 'Cloud API failed: $lastError'
+                : 'Failed to generate response from cloud API (Groq). Sign in for proxy access, or add a Groq API key in Settings.';
+            throw Exception(errMsg);
           }
 
           // Restore PII in response when CHRONICLE context was scrubbed before send
@@ -1735,18 +1771,19 @@ class EnhancedLumaraApi {
         parts.add('Patterns: ${activePatterns.map((p) => p.description.length > 60 ? "${p.description.substring(0, 60)}..." : p.description).join('; ')}');
       }
       if (activeChains.isNotEmpty) {
-        parts.add('Causal links: ${activeChains.map((c) => '"${c.trigger.length > 40 ? c.trigger.substring(0, 40) + "..." : c.trigger}" → "${c.response.length > 40 ? c.response.substring(0, 40) + "..." : c.response}"').join('; ')}');
+        parts.add('Causal links: ${activeChains.map((c) => '"${c.trigger.length > 40 ? "${c.trigger.substring(0, 40)}..." : c.trigger}" → "${c.response.length > 40 ? "${c.response.substring(0, 40)}..." : c.response}"').join('; ')}');
       }
       if (activeRels.isNotEmpty) {
-        parts.add('Relationships: ${activeRels.map((r) => '${r.entityName} (${r.role}): ${r.interactionPattern.length > 50 ? r.interactionPattern.substring(0, 50) + "..." : r.interactionPattern}').join('; ')}');
+        parts.add('Relationships: ${activeRels.map((r) => '${r.entityName} (${r.role}): ${r.interactionPattern.length > 50 ? "${r.interactionPattern.substring(0, 50)}..." : r.interactionPattern}').join('; ')}');
       }
       if (recentGapFills.isNotEmpty) {
         final moments = recentGapFills.map((g) {
           final q = g.trigger.originalQuery.replaceAll('\n', ' ').length > 50 ? '${g.trigger.originalQuery.replaceAll('\n', ' ').substring(0, 50)}...' : g.trigger.originalQuery.replaceAll('\n', ' ');
           final s = g.extractedSignal;
           String sig = '';
-          if (s.causalChain != null) sig = '${s.causalChain!.trigger} → ${s.causalChain!.response}';
-          else if (s.pattern != null) sig = s.pattern!.description;
+          if (s.causalChain != null) {
+            sig = '${s.causalChain!.trigger} → ${s.causalChain!.response}';
+          } else if (s.pattern != null) sig = s.pattern!.description;
           else if (s.relationship != null) sig = '${s.relationship!.entity} (${s.relationship!.role})';
           if (sig.length > 50) sig = '${sig.substring(0, 50)}...';
           return sig.isNotEmpty ? '$q → $sig' : q;
@@ -1993,7 +2030,7 @@ Respond now:''';
     } catch (e) {
       print('Error generating conversational response: $e');
       // Fallback response
-      return ReflectionResult(
+      return const ReflectionResult(
         reflection: "Thanks for sharing that with me.",
         attributionTraces: [],
       );

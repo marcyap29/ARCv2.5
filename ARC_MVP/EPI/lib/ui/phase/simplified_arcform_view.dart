@@ -2,10 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
 import '../../shared/app_colors.dart';
 import '../../shared/text_style.dart';
-import 'package:my_app/arc/arcform/models/arcform_models.dart';
-import 'package:my_app/arc/arcform/layouts/layouts_3d.dart';
-import 'package:my_app/arc/arcform/render/arcform_renderer_3d.dart';
-import 'phase_arcform_3d_screen.dart';
 
 /// Simplified ARCForms view - read-only constellation display
 class SimplifiedArcformView extends StatefulWidget {
@@ -157,7 +153,7 @@ class _SimplifiedArcformViewState extends State<SimplifiedArcformView> {
             // Header with constellation icon
             Row(
               children: [
-                Icon(
+                const Icon(
                   Icons.auto_awesome,
                   color: kcPrimaryColor,
                   size: 24,
@@ -205,7 +201,7 @@ class _SimplifiedArcformViewState extends State<SimplifiedArcformView> {
                     ),
                     Text(
                       '${keywords.length} stars',
-                      style: TextStyle(
+                      style: const TextStyle(
                         color: kcSecondaryTextColor,
                         fontSize: 10,
                       ),
@@ -219,7 +215,7 @@ class _SimplifiedArcformViewState extends State<SimplifiedArcformView> {
             
             // Keywords as constellation points
             if (keywords.isNotEmpty) ...[
-              Text(
+              const Text(
                 'Constellation Points:',
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
@@ -240,7 +236,7 @@ class _SimplifiedArcformViewState extends State<SimplifiedArcformView> {
                   ),
                   child: Text(
                     keyword,
-                    style: TextStyle(
+                    style: const TextStyle(
                       color: kcPrimaryColor,
                       fontSize: 11,
                       fontWeight: FontWeight.w500,
@@ -252,7 +248,7 @@ class _SimplifiedArcformViewState extends State<SimplifiedArcformView> {
                 const SizedBox(height: 4),
                 Text(
                   '+${keywords.length - 8} more points',
-                  style: TextStyle(
+                  style: const TextStyle(
                     color: kcSecondaryTextColor,
                     fontSize: 10,
                     fontStyle: FontStyle.italic,

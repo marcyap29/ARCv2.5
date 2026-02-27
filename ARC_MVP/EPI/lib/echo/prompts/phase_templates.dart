@@ -3,6 +3,7 @@
 /// Provides detailed phase-aware prompt templates that adapt LUMARA's
 /// response style to match the user's current ATLAS phase while maintaining
 /// dignity and developmental appropriateness.
+library;
 
 class PhaseTemplates {
   /// Get phase-specific response enhancement template

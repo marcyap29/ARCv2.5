@@ -155,10 +155,10 @@ class LumaraAPIConfig {
   /// Load configurations from environment and storage
   Future<void> _loadConfigs() async {
     // Groq: fallback for LUMARA (Llama 3.3 70B)
-    final groqApiKey = const String.fromEnvironment('GROQ_API_KEY');
+    const groqApiKey = String.fromEnvironment('GROQ_API_KEY');
     debugPrint('LUMARA API: Loading Groq API key from environment: ${groqApiKey.isNotEmpty ? 'Found' : 'Not found'}');
 
-    _configs[LLMProvider.groq] = LLMProviderConfig(
+    _configs[LLMProvider.groq] = const LLMProviderConfig(
       provider: LLMProvider.groq,
       name: 'Groq (Llama 3.3 70B)',
       apiKey: groqApiKey,
@@ -167,10 +167,10 @@ class LumaraAPIConfig {
     );
 
     // External API providers - load defaults from environment
-    final geminiApiKey = const String.fromEnvironment('GEMINI_API_KEY');
+    const geminiApiKey = String.fromEnvironment('GEMINI_API_KEY');
     debugPrint('LUMARA API: Loading Gemini API key from environment: ${geminiApiKey.isNotEmpty ? 'Found' : 'Not found'}');
 
-    _configs[LLMProvider.gemini] = LLMProviderConfig(
+    _configs[LLMProvider.gemini] = const LLMProviderConfig(
       provider: LLMProvider.gemini,
       name: 'Google Gemini',
       apiKey: geminiApiKey,
@@ -178,34 +178,34 @@ class LumaraAPIConfig {
       isInternal: false,
     );
 
-    _configs[LLMProvider.openai] = LLMProviderConfig(
+    _configs[LLMProvider.openai] = const LLMProviderConfig(
       provider: LLMProvider.openai,
       name: 'OpenAI GPT',
-      apiKey: const String.fromEnvironment('OPENAI_API_KEY'),
+      apiKey: String.fromEnvironment('OPENAI_API_KEY'),
       baseUrl: 'https://api.openai.com/v1',
       isInternal: false,
     );
 
-    _configs[LLMProvider.anthropic] = LLMProviderConfig(
+    _configs[LLMProvider.anthropic] = const LLMProviderConfig(
       provider: LLMProvider.anthropic,
       name: 'Anthropic Claude',
-      apiKey: const String.fromEnvironment('ANTHROPIC_API_KEY'),
+      apiKey: String.fromEnvironment('ANTHROPIC_API_KEY'),
       baseUrl: 'https://api.anthropic.com/v1',
       isInternal: false,
     );
 
-    _configs[LLMProvider.venice] = LLMProviderConfig(
+    _configs[LLMProvider.venice] = const LLMProviderConfig(
       provider: LLMProvider.venice,
       name: 'Venice AI',
-      apiKey: const String.fromEnvironment('VENICE_API_KEY'),
+      apiKey: String.fromEnvironment('VENICE_API_KEY'),
       baseUrl: 'https://api.venice.ai/v1',
       isInternal: false,
     );
 
-    _configs[LLMProvider.openrouter] = LLMProviderConfig(
+    _configs[LLMProvider.openrouter] = const LLMProviderConfig(
       provider: LLMProvider.openrouter,
       name: 'OpenRouter',
-      apiKey: const String.fromEnvironment('OPENROUTER_API_KEY'),
+      apiKey: String.fromEnvironment('OPENROUTER_API_KEY'),
       baseUrl: 'https://openrouter.ai/api/v1',
       isInternal: false,
     );

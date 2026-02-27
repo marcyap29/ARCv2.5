@@ -7,9 +7,9 @@
 /// - Chunks audio into 1-second segments
 /// - Provides audio level stream for visualizations
 /// - Handles platform differences (iOS/Android)
+library;
 
 import 'dart:async';
-import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:record/record.dart';
 

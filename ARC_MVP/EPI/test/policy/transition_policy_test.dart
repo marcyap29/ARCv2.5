@@ -2,6 +2,7 @@
 /// 
 /// Tests cover all decision paths, edge cases, and integration scenarios
 /// for the unified ATLAS/RIVET/SENTINEL transition policy.
+library;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:my_app/policy/transition_policy.dart';
@@ -31,7 +32,7 @@ void main() {
           hysteresisBlocked: false,
         );
 
-        final rivet = RivetSnapshot(
+        const rivet = RivetSnapshot(
           align: 0.65, // Above threshold
           trace: 0.65, // Above threshold
           sustainCount: 3, // Above threshold
@@ -76,7 +77,7 @@ void main() {
           hysteresisBlocked: false,
         );
 
-        final rivet = RivetSnapshot(
+        const rivet = RivetSnapshot(
           align: 0.65,
           trace: 0.65,
           sustainCount: 3,
@@ -120,7 +121,7 @@ void main() {
           hysteresisBlocked: false,
         );
 
-        final rivet = RivetSnapshot(
+        const rivet = RivetSnapshot(
           align: 0.65,
           trace: 0.65,
           sustainCount: 3,
@@ -164,7 +165,7 @@ void main() {
           hysteresisBlocked: false,
         );
 
-        final rivet = RivetSnapshot(
+        const rivet = RivetSnapshot(
           align: 0.5, // Below threshold
           trace: 0.5, // Below threshold
           sustainCount: 1, // Below threshold
@@ -212,7 +213,7 @@ void main() {
           hysteresisBlocked: false,
         );
 
-        final rivet = RivetSnapshot(
+        const rivet = RivetSnapshot(
           align: 0.65,
           trace: 0.65,
           sustainCount: 3,
@@ -269,7 +270,7 @@ void main() {
           hysteresisBlocked: false,
         );
 
-        final rivet = RivetSnapshot(
+        const rivet = RivetSnapshot(
           align: 0.65,
           trace: 0.65,
           sustainCount: 3,
@@ -306,11 +307,11 @@ void main() {
     group('Risk Decay', () {
       test('should apply risk decay based on time', () {
         // Arrange
-        final policy = TransitionPolicy(TransitionPolicyConfig(
+        final policy = TransitionPolicy(const TransitionPolicyConfig(
           riskDecayRate: 0.1, // 10% decay per day
         ));
 
-        final riskScore = 0.5;
+        const riskScore = 0.5;
         final lastAnalysisAt = DateTime.now().subtract(const Duration(days: 2));
 
         // Act
@@ -323,11 +324,11 @@ void main() {
 
       test('should not decay risk if analysis is recent', () {
         // Arrange
-        final policy = TransitionPolicy(TransitionPolicyConfig(
+        final policy = TransitionPolicy(const TransitionPolicyConfig(
           riskDecayRate: 0.1,
         ));
 
-        final riskScore = 0.5;
+        const riskScore = 0.5;
         final lastAnalysisAt = DateTime.now().subtract(const Duration(hours: 1));
 
         // Act
@@ -352,7 +353,7 @@ void main() {
 
       test('should detect invalid threshold ranges', () {
         // Arrange
-        final invalidConfig = TransitionPolicyConfig(
+        const invalidConfig = TransitionPolicyConfig(
           atlasMargin: 1.5, // Invalid: > 1.0
           rivetAlign: -0.1, // Invalid: < 0.0
           riskThreshold: 2.0, // Invalid: > 1.0
@@ -380,7 +381,7 @@ void main() {
 
       test('should reject unsafe configurations', () {
         // Arrange
-        final unsafeConfig = TransitionPolicyConfig(
+        const unsafeConfig = TransitionPolicyConfig(
           atlasMargin: 0.3, // Too permissive
           rivetAlign: 0.3, // Too permissive
           riskThreshold: 0.8, // Too restrictive
@@ -428,7 +429,7 @@ void main() {
 
       test('should create custom policy', () {
         // Arrange
-        final customConfig = TransitionPolicyConfig(
+        const customConfig = TransitionPolicyConfig(
           atlasMargin: 0.7,
           rivetAlign: 0.8,
         );
@@ -454,7 +455,7 @@ void main() {
           hysteresisBlocked: false,
         );
 
-        final rivet = RivetSnapshot(
+        const rivet = RivetSnapshot(
           align: 0.65,
           trace: 0.65,
           sustainCount: 3,

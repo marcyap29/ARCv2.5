@@ -15,6 +15,7 @@
 /// - Only scrubbed text goes to Gemini
 /// - PRISM reversible map stays local
 /// - No raw text in logs
+library;
 
 /// Voice mode types
 enum VoiceMode {

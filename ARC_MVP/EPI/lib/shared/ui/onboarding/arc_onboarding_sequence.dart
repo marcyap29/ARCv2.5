@@ -187,11 +187,11 @@ class _LumaraIntroScreen extends StatelessWidget {
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 24),
-                _SupportLine(icon: Icons.lock_outline, text: 'Your data lives on your device. Always.'),
+                const _SupportLine(icon: Icons.lock_outline, text: 'Your data lives on your device. Always.'),
                 const SizedBox(height: 10),
-                _SupportLine(icon: Icons.flash_on_outlined, text: 'Frontier model capability — no compromises.'),
+                const _SupportLine(icon: Icons.flash_on_outlined, text: 'Frontier model capability — no compromises.'),
                 const SizedBox(height: 10),
-                _SupportLine(icon: Icons.psychology_outlined, text: 'Full context when you want it. Nothing shared without your say.'),
+                const _SupportLine(icon: Icons.psychology_outlined, text: 'Full context when you want it. Nothing shared without your say.'),
                 const SizedBox(height: 32),
                 SizedBox(
                   width: double.infinity,
@@ -290,17 +290,17 @@ class _LumaraCapabilitiesScreen extends StatelessWidget {
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 28),
-                _PillarCard(
+                const _PillarCard(
                   title: 'Full context, on your terms.',
                   body: 'Bring your journal and history into any conversation with one tap. Or don\'t. LUMARA waits for you — it never assumes.',
                 ),
                 const SizedBox(height: 14),
-                _PillarCard(
+                const _PillarCard(
                   title: 'Your data never leaves without you.',
                   body: 'Everything stays on your device. When LUMARA needs to think, sensitive details are scrubbed before anything reaches the cloud. Encrypted at rest. Yours completely.',
                 ),
                 const SizedBox(height: 14),
-                _PillarCard(
+                const _PillarCard(
                   title: 'Frontier capability, no compromises.',
                   body: 'LUMARA runs on the same models powering the best AI available. Privacy architecture doesn\'t mean settling for less. It means you get both.',
                 ),

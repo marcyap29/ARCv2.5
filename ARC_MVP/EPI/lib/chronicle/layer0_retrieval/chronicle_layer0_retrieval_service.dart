@@ -218,7 +218,7 @@ class ChronicleLayer0RetrievalService {
   }
 
   MemoryRetrievalResult _emptyResult() {
-    return MemoryRetrievalResult(
+    return const MemoryRetrievalResult(
       nodes: [],
       attributions: [],
       totalFound: 0,

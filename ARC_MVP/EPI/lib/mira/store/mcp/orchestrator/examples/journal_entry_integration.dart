@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../multimodal_orchestrator_bloc.dart';
-import '../multimodal_orchestrator_commands.dart';
 import '../ui/multimodal_ui_components.dart';
 import '../../models/mcp_schemas.dart';
 
@@ -430,7 +429,7 @@ class _JournalEntryMultimodalIntegrationState extends State<JournalEntryMultimod
       child: BlocBuilder<MultimodalOrchestratorBloc, MultimodalOrchestratorState>(
         builder: (context, state) {
           if (state is MultimodalOrchestratorExecuting) {
-            return Container(
+            return SizedBox(
               height: 4,
               child: LinearProgressIndicator(
                 value: state.progress,

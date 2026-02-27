@@ -153,7 +153,7 @@ class PhaseAwareAnalysisService {
         .key;
     
     final maxScore = phaseScores[primaryPhase] ?? 0.0;
-    final totalWords = words.length > 0 ? words.length : 1;
+    final totalWords = words.isNotEmpty ? words.length : 1;
     final confidence = (maxScore / totalWords * 100).clamp(0.0, 100.0) / 100.0; // Normalize to 0.0-1.0
 
     // Extract indicators

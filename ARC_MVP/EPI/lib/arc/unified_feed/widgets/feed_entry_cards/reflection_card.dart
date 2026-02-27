@@ -2,6 +2,7 @@
 ///
 /// Displays a text-based reflection in the unified feed using BaseFeedCard.
 /// Shows content preview, phase indicator (via left border), mood, media, themes on expand.
+library;
 
 import 'package:flutter/material.dart';
 import 'package:my_app/shared/app_colors.dart';

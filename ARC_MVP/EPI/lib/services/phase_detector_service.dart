@@ -172,7 +172,7 @@ class PhaseDetectorService {
       ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
     // Get entries from last N days
-    final cutoffDate = DateTime.now().subtract(Duration(days: _lookbackDays));
+    final cutoffDate = DateTime.now().subtract(const Duration(days: _lookbackDays));
     final recentByDate = sorted.where(
       (entry) => entry.createdAt.isAfter(cutoffDate)
     ).toList();

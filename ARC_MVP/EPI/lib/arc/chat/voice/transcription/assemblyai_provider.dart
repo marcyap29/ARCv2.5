@@ -2,11 +2,11 @@
 /// 
 /// Uses AssemblyAI's Streaming Speech-to-Text API v3 for high-accuracy
 /// real-time transcription. Requires network connectivity and valid token.
+library;
 
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'transcription_provider.dart';
 import 'audio_stream_capture.dart';

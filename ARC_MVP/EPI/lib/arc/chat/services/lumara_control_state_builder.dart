@@ -2,6 +2,7 @@
 /// 
 /// Builds the unified control state JSON that governs all LUMARA behavior.
 /// Combines signals from ATLAS, VEIL, FAVORITES, PRISM, and THERAPY MODE.
+library;
 
 import 'dart:convert';
 import 'package:hive/hive.dart';

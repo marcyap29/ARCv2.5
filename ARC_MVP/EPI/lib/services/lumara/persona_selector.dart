@@ -3,6 +3,7 @@
 ///
 /// CRITICAL: Companion is now primary persona (50-60% usage)
 /// Other personas are escalations only when needed
+library;
 
 import 'entry_classifier.dart';
 import 'user_intent.dart';

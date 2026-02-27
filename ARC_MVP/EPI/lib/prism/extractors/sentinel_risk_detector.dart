@@ -155,7 +155,7 @@ class SentinelRiskDetector {
     SentinelConfig config = _defaultConfig,
   }) {
     if (entries.isEmpty) {
-      return SentinelAnalysis(
+      return const SentinelAnalysis(
         riskLevel: RiskLevel.minimal,
         riskScore: 0.0,
         patterns: [],
@@ -174,7 +174,7 @@ class SentinelRiskDetector {
       ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
 
     if (filteredEntries.isEmpty) {
-      return SentinelAnalysis(
+      return const SentinelAnalysis(
         riskLevel: RiskLevel.minimal,
         riskScore: 0.0,
         patterns: [],

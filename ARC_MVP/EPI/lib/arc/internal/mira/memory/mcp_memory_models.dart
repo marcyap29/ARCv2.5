@@ -92,12 +92,12 @@ class ConversationSession extends McpRecord {
   final Map<String, dynamic> meta;
 
   ConversationSession({
-    required String id,
-    required DateTime timestamp,
+    required super.id,
+    required super.timestamp,
     required this.title,
     this.tags = const [],
     this.meta = const {},
-  }) : super(type: 'conversation.session', id: id, timestamp: timestamp);
+  }) : super(type: 'conversation.session');
 
   @override
   Map<String, dynamic> toJson() => {
@@ -128,14 +128,14 @@ class ConversationMessage extends McpRecord {
   final String parent; // session ID
 
   ConversationMessage({
-    required String id,
-    required DateTime timestamp,
+    required super.id,
+    required super.timestamp,
     required this.role,
     required this.content,
     required this.originalHash,
     this.redactionRef,
     required this.parent,
-  }) : super(type: 'conversation.message', id: id, timestamp: timestamp);
+  }) : super(type: 'conversation.message');
 
   @override
   Map<String, dynamic> toJson() => {
@@ -177,8 +177,8 @@ class ConversationSummary extends McpRecord {
   final String parent; // session ID
 
   ConversationSummary({
-    required String id,
-    required DateTime timestamp,
+    required super.id,
+    required super.timestamp,
     this.method = 'map-reduce-v3',
     required this.window,
     required this.content,
@@ -186,7 +186,7 @@ class ConversationSummary extends McpRecord {
     this.openLoops = const [],
     this.phaseSignals = const {},
     required this.parent,
-  }) : super(type: 'conversation.summary', id: id, timestamp: timestamp);
+  }) : super(type: 'conversation.summary');
 
   @override
   Map<String, dynamic> toJson() => {
@@ -245,13 +245,13 @@ class PrivacyRedaction extends McpRecord {
   final RedactionScope scope;
 
   PrivacyRedaction({
-    required String id,
-    required DateTime timestamp,
+    required super.id,
+    required super.timestamp,
     this.policy = 'pii.v2',
     required this.original,
     required this.replacement,
     required this.scope,
-  }) : super(type: 'privacy.redaction', id: id, timestamp: timestamp);
+  }) : super(type: 'privacy.redaction');
 
   @override
   Map<String, dynamic> toJson() => {

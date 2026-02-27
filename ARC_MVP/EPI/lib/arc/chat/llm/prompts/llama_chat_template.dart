@@ -1,6 +1,7 @@
 /// Llama Chat Template Formatter
 /// 
 /// Formats prompts according to Llama-3.2-Instruct chat template specification
+library;
 
 class LlamaChatTemplate {
   static const String bosToken = "<|begin_of_text|>";

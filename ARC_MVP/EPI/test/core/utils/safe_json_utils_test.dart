@@ -1,6 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:my_app/core/utils/safe_json_utils.dart';
-import 'dart:convert';
 
 void main() {
   group('Safe JSON Utils', () {
@@ -118,13 +117,13 @@ void main() {
 
     group('safeJsonDecode', () {
       test('decodes valid JSON string', () {
-        final jsonString = '{"key": "value"}';
+        const jsonString = '{"key": "value"}';
         final result = safeJsonDecode(jsonString);
         expect(result, {'key': 'value'});
       });
 
       test('returns null for invalid JSON', () {
-        final invalidJson = 'not valid json';
+        const invalidJson = 'not valid json';
         final result = safeJsonDecode(invalidJson);
         expect(result, null);
       });

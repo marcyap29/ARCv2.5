@@ -248,9 +248,9 @@ class _DiscoveryPopupState extends State<DiscoveryPopup>
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                               ),
-                              child: Text(
+                              child: const Text(
                                 'Explore This',
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),

@@ -34,7 +34,7 @@ class LumaraNotificationService {
     JournalEntry? sourceEntry,
   }) async {
     final reminders = <TimeEchoNotification>[];
-    final intervals = TimeEchoInterval.values;
+    const intervals = TimeEchoInterval.values;
 
     for (final interval in intervals) {
       final targetDate = _calculateTargetDate(baseDate, interval);
@@ -114,7 +114,7 @@ class LumaraNotificationService {
     if (sourceEntry != null) {
       // Use entry content
       final preview = sourceEntry.content.length > 100
-          ? sourceEntry.content.substring(0, 100) + '...'
+          ? '${sourceEntry.content.substring(0, 100)}...'
           : sourceEntry.content;
 
       return 'Time Echo: $intervalText ago, you wrote:\n\n"$preview"\n\n'

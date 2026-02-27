@@ -100,19 +100,19 @@ class FirebaseService {
   }
 
   FirebaseOptions? _loadEnvOptions() {
-    final apiKey = const String.fromEnvironment('FIREBASE_API_KEY', defaultValue: '');
-    final appId = const String.fromEnvironment('FIREBASE_APP_ID', defaultValue: '');
-    final projectId = const String.fromEnvironment('FIREBASE_PROJECT_ID', defaultValue: '');
-    final messagingSenderId = const String.fromEnvironment('FIREBASE_MESSAGING_SENDER_ID', defaultValue: '');
+    const apiKey = String.fromEnvironment('FIREBASE_API_KEY', defaultValue: '');
+    const appId = String.fromEnvironment('FIREBASE_APP_ID', defaultValue: '');
+    const projectId = String.fromEnvironment('FIREBASE_PROJECT_ID', defaultValue: '');
+    const messagingSenderId = String.fromEnvironment('FIREBASE_MESSAGING_SENDER_ID', defaultValue: '');
 
     if (apiKey.isEmpty || appId.isEmpty || projectId.isEmpty || messagingSenderId.isEmpty) {
       print('FirebaseService: Env options not found or incomplete (apiKey/appId/projectId/messagingSenderId)');
       return null;
     }
 
-    final storageBucket = const String.fromEnvironment('FIREBASE_STORAGE_BUCKET', defaultValue: '');
-    final databaseUrl = const String.fromEnvironment('FIREBASE_DATABASE_URL', defaultValue: '');
-    final measurementId = const String.fromEnvironment('FIREBASE_MEASUREMENT_ID', defaultValue: '');
+    const storageBucket = String.fromEnvironment('FIREBASE_STORAGE_BUCKET', defaultValue: '');
+    const databaseUrl = String.fromEnvironment('FIREBASE_DATABASE_URL', defaultValue: '');
+    const measurementId = String.fromEnvironment('FIREBASE_MEASUREMENT_ID', defaultValue: '');
 
     return FirebaseOptions(
       apiKey: apiKey,
@@ -140,7 +140,7 @@ class FirebaseService {
       print('FirebaseService: Functions service ready');
     } catch (e) {
       print('FirebaseService: Functions service not ready: $e');
-      throw e;
+      rethrow;
     }
   }
 

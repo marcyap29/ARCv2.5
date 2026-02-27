@@ -1,10 +1,11 @@
 /// Tests for VEIL-EDGE Router with AURORA Integration
 /// 
 /// Tests for time-aware policy weights and circadian routing
+library;
 
 import 'package:flutter_test/flutter_test.dart';
-import '../../lib/lumara/veil_edge/core/veil_edge_router.dart';
-import '../../lib/lumara/veil_edge/models/veil_edge_models.dart';
+import 'package:my_app/lumara/veil_edge/core/veil_edge_router.dart';
+import 'package:my_app/lumara/veil_edge/models/veil_edge_models.dart';
 
 void main() {
   group('VeilEdgeRouter with AURORA', () {

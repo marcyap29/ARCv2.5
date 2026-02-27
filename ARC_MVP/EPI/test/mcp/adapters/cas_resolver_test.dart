@@ -183,7 +183,7 @@ void main() {
 
       test('should respect content size limit', () async {
         // Arrange
-        final config = CasResolverConfig(
+        const config = CasResolverConfig(
           maxContentSize: 100, // Small limit
           trustedRemotes: ['https://cas.example.com'],
         );

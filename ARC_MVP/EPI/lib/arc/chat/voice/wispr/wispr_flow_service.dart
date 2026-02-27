@@ -6,11 +6,11 @@
 /// - Receives partial and final transcripts in real-time
 /// - Auto-reconnects on connection loss
 /// - Tracks latency metrics
+library;
 
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math' show sqrt;
-import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:web_socket_channel/status.dart' as status;
@@ -309,9 +309,7 @@ class WisprFlowService {
       return;
     }
     
-    if (_metrics.firstAudioSent == null) {
-      _metrics.firstAudioSent = DateTime.now();
-    }
+    _metrics.firstAudioSent ??= DateTime.now();
     
     // Encode audio as base64
     final encodedAudio = base64Encode(audioData);
@@ -344,7 +342,7 @@ class WisprFlowService {
     
     // Log every 10th packet to avoid spam
     if (_audioPacketIndex % 10 == 0) {
-      debugPrint('WisprFlow: Sent ${_audioPacketIndex} audio packets (volume: ${volume.toStringAsFixed(3)})');
+      debugPrint('WisprFlow: Sent $_audioPacketIndex audio packets (volume: ${volume.toStringAsFixed(3)})');
     }
   }
   
@@ -389,7 +387,7 @@ class WisprFlowService {
       'total_packets': _audioPacketIndex,
     };
     
-    debugPrint('WisprFlow: Committing session with ${_audioPacketIndex} packets...');
+    debugPrint('WisprFlow: Committing session with $_audioPacketIndex packets...');
     _sendMessage(commitMessage);
     debugPrint('WisprFlow: Commit message sent, waiting for final transcript...');
     

@@ -86,7 +86,7 @@ class _SimpleLumaraSettingsScreenState extends State<SimpleLumaraSettingsScreen>
       context: context,
       builder: (context) => AlertDialog(
         title: Text('Delete $modelName?'),
-        content: Text('This will permanently delete the downloaded model. You can download it again later if needed.'),
+        content: const Text('This will permanently delete the downloaded model. You can download it again later if needed.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
@@ -185,7 +185,7 @@ class _SimpleLumaraSettingsScreenState extends State<SimpleLumaraSettingsScreen>
                       ),
                       child: Row(
                         children: [
-                          Icon(
+                          const Icon(
                             Icons.check_circle,
                             color: Colors.green,
                           ),
@@ -193,7 +193,7 @@ class _SimpleLumaraSettingsScreenState extends State<SimpleLumaraSettingsScreen>
                           Expanded(
                             child: Text(
                               providerName,
-                              style: TextStyle(
+                              style: const TextStyle(
                                 color: Colors.green,
                                 fontWeight: FontWeight.bold,
                               ),
@@ -292,7 +292,7 @@ class _SimpleLumaraSettingsScreenState extends State<SimpleLumaraSettingsScreen>
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: theme.colorScheme.surfaceVariant.withOpacity(0.3),
+                color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.3),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Column(
@@ -471,6 +471,11 @@ class _SimpleLumaraSettingsScreenState extends State<SimpleLumaraSettingsScreen>
               else if (!isDownloading)
                 ElevatedButton(
                   onPressed: _isLoading ? null : () => _startDownload(modelId, name, url),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: theme.colorScheme.primary,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  ),
                   child: _isLoading
                       ? const SizedBox(
                           width: 16,
@@ -478,23 +483,18 @@ class _SimpleLumaraSettingsScreenState extends State<SimpleLumaraSettingsScreen>
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
                       : const Text('Download'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: theme.colorScheme.primary,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  ),
                 )
               else
                 OutlinedButton(
                   onPressed: () {
                     // TODO: Implement cancel download
                   },
-                  child: const Text('Cancel'),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: theme.colorScheme.error,
                     side: BorderSide(color: theme.colorScheme.error),
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   ),
+                  child: const Text('Cancel'),
                 ),
             ],
           ),

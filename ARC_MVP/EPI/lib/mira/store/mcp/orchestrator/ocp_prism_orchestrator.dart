@@ -1,8 +1,3 @@
-import 'dart:convert';
-import 'dart:io';
-import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'orchestrator_command_mapper.dart';
 import 'mcp_pointer_service.dart';
 import 'enhanced_ocp_services.dart';

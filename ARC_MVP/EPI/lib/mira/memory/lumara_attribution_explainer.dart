@@ -74,9 +74,9 @@ I generated this response using my general knowledge and reasoning abilities, wi
       final description = _getSourceTypeDescription(sourceType);
 
       if (count == 1) {
-        breakdown.add('${icon} 1 $description');
+        breakdown.add('$icon 1 $description');
       } else {
-        breakdown.add('${icon} $count ${description}s');
+        breakdown.add('$icon $count ${description}s');
       }
 
       if (includeDetailedBreakdown) {
@@ -135,9 +135,9 @@ I generated this response using my general knowledge and reasoning abilities, wi
       final description = _getSourceTypeDescription(targetType);
 
       if (refs.length == 1) {
-        explanation.writeln('${icon} 1 related $description');
+        explanation.writeln('$icon 1 related $description');
       } else {
-        explanation.writeln('${icon} ${refs.length} related ${description}s');
+        explanation.writeln('$icon ${refs.length} related ${description}s');
       }
 
       // Add specific cross-reference descriptions
@@ -209,9 +209,9 @@ This transparency ensures you maintain sovereignty over your personal data while
     final icon = _getSourceTypeIcon(trace.sourceType);
 
     return '''
-## Why This ${sourceDesc} Was Selected
+## Why This $sourceDesc Was Selected
 
-${icon} **Source**: ${sourceDesc}
+$icon **Source**: $sourceDesc
 🎯 **Relevance**: ${_getRelationDescription(trace.relation)}
 📊 **Confidence**: ${trace.confidenceLevel.label} (${(trace.confidence * 100).toStringAsFixed(1)}%)
 ${trace.reasoning != null ? '💭 **Reasoning**: ${trace.reasoning}' : ''}

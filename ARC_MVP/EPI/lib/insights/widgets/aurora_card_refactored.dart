@@ -76,7 +76,7 @@ class _AuroraCardRefactoredState extends State<AuroraCardRefactored> {
 
   @override
   Widget build(BuildContext context) {
-    final circadianContext = _circadianContext ?? CircadianContext(
+    final circadianContext = _circadianContext ?? const CircadianContext(
       window: 'afternoon',
       chronotype: 'balanced',
       rhythmScore: 0.5,
@@ -120,8 +120,8 @@ class _AuroraCardRefactoredState extends State<AuroraCardRefactored> {
     return GenericSystemCard(
       config: config,
       isLoading: _isLoading,
-      expandableSections: ['Available Chronotypes', 'Available Time Windows'],
-      expandableContent: {
+      expandableSections: const ['Available Chronotypes', 'Available Time Windows'],
+      expandableContent: const {
         'Available Chronotypes': [
           'Morning - Peak activity before 11 AM',
           'Balanced - Peak activity 11 AM - 5 PM',

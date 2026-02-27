@@ -2,6 +2,7 @@
 /// 
 /// Shared path geometry for the LUMARA sigil visual effects.
 /// Defines the paths along which particles flow and shimmer travels.
+library;
 
 import 'dart:math' as math;
 import 'dart:ui';

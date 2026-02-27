@@ -124,7 +124,7 @@ class _ChatNavigationDrawerState extends State<ChatNavigationDrawer>
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Failed to rename chat')),
+            const SnackBar(content: Text('Failed to rename chat')),
           );
         }
       }
@@ -158,7 +158,7 @@ class _ChatNavigationDrawerState extends State<ChatNavigationDrawer>
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Failed to delete chat')),
+            const SnackBar(content: Text('Failed to delete chat')),
           );
         }
       }
@@ -307,7 +307,7 @@ class _ChatNavigationDrawerState extends State<ChatNavigationDrawer>
   }
 
   Widget _buildSavedChatItem(LumaraFavorite favorite) {
-    final isSelected = false; // Saved chats don't have session IDs to match
+    const isSelected = false; // Saved chats don't have session IDs to match
     return ListTile(
       leading: const Icon(Icons.star, size: 20, color: Colors.amber),
       title: Text(

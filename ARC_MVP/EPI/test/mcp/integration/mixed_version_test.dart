@@ -2,8 +2,6 @@ import 'dart:io';
 import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:my_app/mira/store/mcp/adapters/from_mira.dart';
-import 'package:my_app/mira/store/mcp/import/mcp_import_service.dart';
-import 'package:my_app/mira/store/mcp/export/chat_exporter.dart';
 import 'package:my_app/mira/core/schema.dart';
 import 'package:my_app/mira/nodes/chat_session_node.dart';
 import 'package:my_app/mira/nodes/chat_message_node.dart';
@@ -77,7 +75,7 @@ void main() {
 
       // Validate session record
       expect(sessionMcp, isNotNull);
-      expect(sessionMcp!['schema_version'], equals('node.v2'));
+      expect(sessionMcp['schema_version'], equals('node.v2'));
       expect(sessionMcp['kind'], equals('node'));
       expect(sessionMcp['type'], equals('ChatSession'));
       expect(sessionMcp['content'], isA<Map>());
@@ -86,7 +84,7 @@ void main() {
       // Validate message records
       for (final messageMcp in messageMcps) {
         expect(messageMcp, isNotNull);
-        expect(messageMcp!['schema_version'], equals('node.v2'));
+        expect(messageMcp['schema_version'], equals('node.v2'));
         expect(messageMcp['kind'], equals('node'));
         expect(messageMcp['type'], equals('ChatMessage'));
         expect(messageMcp['content'], isA<Map>());
@@ -107,14 +105,14 @@ void main() {
 
       // Validate entry record
       expect(entryMcp, isNotNull);
-      expect(entryMcp!['schema_version'], equals('node.v1'));
+      expect(entryMcp['schema_version'], equals('node.v1'));
       expect(entryMcp['type'], equals('entry'));
       expect(entryMcp['content_summary'], isA<String>());
       expect(entryMcp['keywords'], isA<List>());
 
       // Validate keyword record
       expect(keywordMcp, isNotNull);
-      expect(keywordMcp!['schema_version'], equals('node.v1'));
+      expect(keywordMcp['schema_version'], equals('node.v1'));
       expect(keywordMcp['type'], equals('keyword'));
       expect(keywordMcp['content_summary'], contains('Keyword node:'));
     });
@@ -133,7 +131,7 @@ void main() {
 
       // Validate edge record
       expect(edgeMcp, isNotNull);
-      expect(edgeMcp!['schema_version'], equals('edge.v1'));
+      expect(edgeMcp['schema_version'], equals('edge.v1'));
       expect(edgeMcp['kind'], equals('edge'));
       expect(edgeMcp['type'], equals('contains'));
       expect(edgeMcp['source_id'], equals('session:test_session'));
@@ -187,7 +185,7 @@ void main() {
       final sessionMcp = MiraToMcpAdapter.nodeToMcp(sessionNode);
 
       // Validate required fields for AJV schema compliance
-      expect(sessionMcp!['kind'], equals('node'));
+      expect(sessionMcp['kind'], equals('node'));
       expect(sessionMcp['type'], equals('ChatSession'));
       expect(sessionMcp['id'], startsWith('session:'));
       expect(sessionMcp['timestamp'], matches(RegExp(r'^\d{4}-\d{2}-\d{2}T')));

@@ -519,7 +519,7 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Jumped to entry from ${targetEntry.createdAt.toString().split(' ')[0]} (${daysDiff} days ${targetDateOnly.isBefore(entryDateOnly) ? 'after' : 'before'} target date)'),
+          content: Text('Jumped to entry from ${targetEntry.createdAt.toString().split(' ')[0]} ($daysDiff days ${targetDateOnly.isBefore(entryDateOnly) ? 'after' : 'before'} target date)'),
           duration: const Duration(seconds: 3),
         ),
       );
@@ -860,13 +860,13 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
                   }
                 },
                 itemBuilder: (BuildContext context) => [
-                  PopupMenuItem<String>(
+                  const PopupMenuItem<String>(
                     value: 'jump_to_date',
                     child: Row(
                       children: [
-                        const Icon(Icons.calendar_today, size: 20),
-                        const SizedBox(width: 12),
-                        const Text('Jump to Date'),
+                        Icon(Icons.calendar_today, size: 20),
+                        SizedBox(width: 12),
+                        Text('Jump to Date'),
                       ],
                     ),
                   ),
@@ -896,33 +896,33 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
                       ],
                     ),
                   ),
-                  PopupMenuItem<String>(
+                  const PopupMenuItem<String>(
                     value: 'favorites',
                     child: Row(
                       children: [
-                        const Icon(Icons.bookmark, color: Color(0xFF2196F3), size: 20),
-                        const SizedBox(width: 12),
-                        const Text('Favorite Journal Entries'),
+                        Icon(Icons.bookmark, color: Color(0xFF2196F3), size: 20),
+                        SizedBox(width: 12),
+                        Text('Favorite Journal Entries'),
                       ],
                     ),
                   ),
-                  PopupMenuItem<String>(
+                  const PopupMenuItem<String>(
                     value: 'select_mode',
                     child: Row(
                       children: [
-                        const Icon(Icons.checklist, size: 20),
-                        const SizedBox(width: 12),
-                        const Text('Select Mode'),
+                        Icon(Icons.checklist, size: 20),
+                        SizedBox(width: 12),
+                        Text('Select Mode'),
                       ],
                     ),
                   ),
-                  PopupMenuItem<String>(
+                  const PopupMenuItem<String>(
                     value: 'settings',
                     child: Row(
                       children: [
-                        const Icon(Icons.settings, size: 20),
-                        const SizedBox(width: 12),
-                        const Text('Settings'),
+                        Icon(Icons.settings, size: 20),
+                        SizedBox(width: 12),
+                        Text('Settings'),
                       ],
                     ),
                   ),
@@ -983,15 +983,15 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
                 fillColor: kcSurfaceColor,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: kcBorderColor),
+                  borderSide: const BorderSide(color: kcBorderColor),
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: kcBorderColor),
+                  borderSide: const BorderSide(color: kcBorderColor),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: kcPrimaryColor, width: 2),
+                  borderSide: const BorderSide(color: kcPrimaryColor, width: 2),
                 ),
                     contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   ),

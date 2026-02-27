@@ -641,7 +641,7 @@ class _CompactArcformPreviewState extends State<_CompactArcformPreview> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(
+              const Icon(
                 Icons.auto_awesome_outlined,
                 color: kcSecondaryTextColor,
                 size: 32,
@@ -709,7 +709,7 @@ class _CompactArcformPreviewState extends State<_CompactArcformPreview> {
                 padding: const EdgeInsets.all(12),
                 child: Row(
                   children: [
-                    Icon(
+                    const Icon(
                       Icons.auto_awesome,
                       color: kcPrimaryColor,
                       size: 18,
@@ -727,7 +727,7 @@ class _CompactArcformPreviewState extends State<_CompactArcformPreview> {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    Icon(
+                    const Icon(
                       Icons.open_in_full,
                       size: 18,
                       color: kcSecondaryTextColor,

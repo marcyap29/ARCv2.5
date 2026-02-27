@@ -3,7 +3,6 @@
 // Implements VEIL hooks for natural memory decay, reinforcement, and pruning
 
 import 'dart:math';
-import '../core/schema.dart';
 import 'enhanced_memory_schema.dart';
 
 /// Service for managing memory lifecycle, decay, and reinforcement
@@ -28,83 +27,83 @@ class LifecycleManagementService {
   /// Initialize default decay strategies for each domain
   void _initializeDefaultStrategies() {
     // Personal memories - gradual decay but strong reinforcement potential
-    _decayStrategies[MemoryDomain.personal] = DecayStrategy(
+    _decayStrategies[MemoryDomain.personal] = const DecayStrategy(
       baseDecayRate: 0.02, // 2% per month
       reinforcementSensitivity: 0.8,
       minRetentionScore: 0.1,
-      maxAge: const Duration(days: 365 * 5),
+      maxAge: Duration(days: 365 * 5),
       decayFunction: DecayFunction.logarithmic,
     );
 
     // Work memories - faster decay, less emotional attachment
-    _decayStrategies[MemoryDomain.work] = DecayStrategy(
+    _decayStrategies[MemoryDomain.work] = const DecayStrategy(
       baseDecayRate: 0.05, // 5% per month
       reinforcementSensitivity: 0.6,
       minRetentionScore: 0.2,
-      maxAge: const Duration(days: 365 * 3),
+      maxAge: Duration(days: 365 * 3),
       decayFunction: DecayFunction.exponential,
     );
 
     // Health memories - very slow decay, high importance
-    _decayStrategies[MemoryDomain.health] = DecayStrategy(
+    _decayStrategies[MemoryDomain.health] = const DecayStrategy(
       baseDecayRate: 0.01, // 1% per month
       reinforcementSensitivity: 0.9,
       minRetentionScore: 0.05,
-      maxAge: const Duration(days: 365 * 10),
+      maxAge: Duration(days: 365 * 10),
       decayFunction: DecayFunction.linear,
     );
 
     // Creative memories - very slow decay, inspiration value
-    _decayStrategies[MemoryDomain.creative] = DecayStrategy(
+    _decayStrategies[MemoryDomain.creative] = const DecayStrategy(
       baseDecayRate: 0.015, // 1.5% per month
       reinforcementSensitivity: 0.85,
       minRetentionScore: 0.1,
-      maxAge: const Duration(days: 365 * 10),
+      maxAge: Duration(days: 365 * 10),
       decayFunction: DecayFunction.logarithmic,
     );
 
     // Learning memories - moderate decay, knowledge building
-    _decayStrategies[MemoryDomain.learning] = DecayStrategy(
+    _decayStrategies[MemoryDomain.learning] = const DecayStrategy(
       baseDecayRate: 0.03, // 3% per month
       reinforcementSensitivity: 0.75,
       minRetentionScore: 0.15,
-      maxAge: const Duration(days: 365 * 7),
+      maxAge: Duration(days: 365 * 7),
       decayFunction: DecayFunction.spaced_repetition,
     );
 
     // Relationship memories - slow decay, emotional significance
-    _decayStrategies[MemoryDomain.relationships] = DecayStrategy(
+    _decayStrategies[MemoryDomain.relationships] = const DecayStrategy(
       baseDecayRate: 0.02, // 2% per month
       reinforcementSensitivity: 0.85,
       minRetentionScore: 0.1,
-      maxAge: const Duration(days: 365 * 8),
+      maxAge: Duration(days: 365 * 8),
       decayFunction: DecayFunction.logarithmic,
     );
 
     // Finance memories - structured decay with regulatory compliance
-    _decayStrategies[MemoryDomain.finance] = DecayStrategy(
+    _decayStrategies[MemoryDomain.finance] = const DecayStrategy(
       baseDecayRate: 0.01, // 1% per month
       reinforcementSensitivity: 0.5,
       minRetentionScore: 0.3,
-      maxAge: const Duration(days: 365 * 7),
+      maxAge: Duration(days: 365 * 7),
       decayFunction: DecayFunction.step_wise,
     );
 
     // Spiritual memories - very slow decay, deep meaning
-    _decayStrategies[MemoryDomain.spiritual] = DecayStrategy(
+    _decayStrategies[MemoryDomain.spiritual] = const DecayStrategy(
       baseDecayRate: 0.005, // 0.5% per month
       reinforcementSensitivity: 0.95,
       minRetentionScore: 0.05,
-      maxAge: const Duration(days: 365 * 15),
+      maxAge: Duration(days: 365 * 15),
       decayFunction: DecayFunction.logarithmic,
     );
 
     // Meta memories - moderate decay, system housekeeping
-    _decayStrategies[MemoryDomain.meta] = DecayStrategy(
+    _decayStrategies[MemoryDomain.meta] = const DecayStrategy(
       baseDecayRate: 0.08, // 8% per month
       reinforcementSensitivity: 0.4,
       minRetentionScore: 0.3,
-      maxAge: const Duration(days: 365 * 2),
+      maxAge: Duration(days: 365 * 2),
       decayFunction: DecayFunction.exponential,
     );
   }
@@ -520,8 +519,9 @@ class DecayStrategy {
         break;
       case DecayFunction.step_wise:
         // Step-wise decay (e.g., for financial records)
-        if (ageInMonths < 12) decay = 1.0;
-        else if (ageInMonths < 36) decay = 0.8;
+        if (ageInMonths < 12) {
+          decay = 1.0;
+        } else if (ageInMonths < 36) decay = 0.8;
         else if (ageInMonths < 84) decay = 0.6;
         else decay = 0.3;
         break;

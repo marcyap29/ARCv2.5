@@ -19,6 +19,7 @@
 /// **No Conflict**: These are complementary:
 /// - Context Selection: "Which parts of the journey?" (horizontal - time/phases)
 /// - Polymeta: "What to remember from those parts?" (vertical - domain/confidence)
+library;
 
 import '../../../models/journal_entry_model.dart';
 import '../../../models/memory_focus_preset.dart';
@@ -157,7 +158,7 @@ class LumaraContextSelector {
   Future<List<JournalEntry>> _getEntriesInWindow(DateTime cutoffDate, DateTime currentDate) async {
     try {
       final allEntries = await _journalRepo.getAllJournalEntries();
-      final endDate = currentDate.add(Duration(days: 1));
+      final endDate = currentDate.add(const Duration(days: 1));
 
       return allEntries
           .where((entry) => entry.createdAt.isAfter(cutoffDate) && entry.createdAt.isBefore(endDate))
@@ -194,7 +195,7 @@ class LumaraContextSelector {
   ) {
     if (entries.isEmpty) return [];
 
-    final recentCutoff = currentDate.subtract(Duration(days: 14));
+    final recentCutoff = currentDate.subtract(const Duration(days: 14));
     final recentEntries = entries.where((e) => e.createdAt.isAfter(recentCutoff)).toList();
     final olderEntries = entries.where((e) => !e.createdAt.isAfter(recentCutoff)).toList();
 

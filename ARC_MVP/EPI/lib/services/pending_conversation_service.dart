@@ -3,6 +3,7 @@
 /// Tracks user inputs that were submitted but didn't receive a response
 /// (e.g., due to phone call, app crash, network error).
 /// Allows resubmission of these inputs.
+library;
 
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';

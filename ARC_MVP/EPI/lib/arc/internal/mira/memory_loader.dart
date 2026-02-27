@@ -9,8 +9,8 @@ class ProgressiveMemoryLoader {
   final JournalRepository _journalRepository;
   
   // Track what's loaded
-  Set<int> _loadedYears = {};
-  int _currentYear = DateTime.now().year;
+  final Set<int> _loadedYears = {};
+  final int _currentYear = DateTime.now().year;
   
   // Cache of loaded entries by year
   final Map<int, List<JournalEntry>> _yearCache = {};

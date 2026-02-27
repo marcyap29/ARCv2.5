@@ -215,8 +215,8 @@ class _VeilCardRefactoredState extends State<VeilCardRefactored> with WidgetsBin
     return GenericSystemCard(
       config: config,
       isLoading: _isLoading,
-      expandableSections: ['Available Strategies', 'Available Blocks', 'Available Variants'],
-      expandableContent: {
+      expandableSections: const ['Available Strategies', 'Available Blocks', 'Available Variants'],
+      expandableContent: const {
         'Available Strategies': [
           'Exploration (Discovery ↔ Breakthrough)',
           'Bridge (Transition ↔ Discovery)',

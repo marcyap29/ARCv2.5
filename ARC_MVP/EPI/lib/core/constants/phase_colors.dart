@@ -2,6 +2,7 @@
 ///
 /// Centralized phase color definitions used across the unified feed,
 /// timeline, and card borders. Consistent with ATLAS phase labels.
+library;
 
 import 'package:flutter/material.dart';
 

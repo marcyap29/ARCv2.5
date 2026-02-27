@@ -1,17 +1,10 @@
-import 'dart:convert';
-import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:photo_manager/photo_manager.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:crypto/crypto.dart';
-import 'package:mime/mime.dart';
 
 import 'multimodal_orchestrator_commands.dart';
 import 'ocp_services.dart';
 import 'mcp_pointer_service.dart';
-import '../models/mcp_schemas.dart';
 
 /// Helper service to map orchestrator commands to concrete Flutter calls
 class OrchestratorCommandMapper {
@@ -54,7 +47,7 @@ class OrchestratorCommandMapper {
             success: false,
             error: e.toString(),
             critical: true,
-            data: {},
+            data: const {},
           ),
         ],
         overallSuccess: false,
@@ -105,7 +98,7 @@ class OrchestratorCommandMapper {
             success: false,
             error: e.toString(),
             critical: true,
-            data: {},
+            data: const {},
           ),
         ],
         overallSuccess: false,
@@ -169,7 +162,7 @@ class OrchestratorCommandMapper {
             success: false,
             error: e.toString(),
             critical: true,
-            data: {},
+            data: const {},
           ),
         ],
         overallSuccess: false,
@@ -204,7 +197,7 @@ class OrchestratorCommandMapper {
             success: false,
             error: e.toString(),
             critical: false,
-            data: {},
+            data: const {},
           ),
         ],
         overallSuccess: false,
@@ -246,7 +239,7 @@ class OrchestratorCommandMapper {
             success: false,
             error: e.toString(),
             critical: false,
-            data: {},
+            data: const {},
           ),
         ],
         overallSuccess: false,
@@ -281,7 +274,7 @@ class OrchestratorCommandMapper {
             success: false,
             error: e.toString(),
             critical: false,
-            data: {},
+            data: const {},
           ),
         ],
         overallSuccess: false,
@@ -323,7 +316,7 @@ class OrchestratorCommandMapper {
             success: false,
             error: e.toString(),
             critical: false,
-            data: {},
+            data: const {},
           ),
         ],
         overallSuccess: false,
@@ -358,7 +351,7 @@ class OrchestratorCommandMapper {
             success: false,
             error: e.toString(),
             critical: false,
-            data: {},
+            data: const {},
           ),
         ],
         overallSuccess: false,
@@ -395,7 +388,7 @@ class OrchestratorCommandMapper {
             success: false,
             error: e.toString(),
             critical: false,
-            data: {},
+            data: const {},
           ),
         ],
         overallSuccess: false,
@@ -433,7 +426,7 @@ class OrchestratorCommandMapper {
             success: false,
             error: e.toString(),
             critical: false,
-            data: {},
+            data: const {},
           ),
         ],
         overallSuccess: false,
@@ -470,7 +463,7 @@ class OrchestratorCommandMapper {
             success: false,
             error: e.toString(),
             critical: false,
-            data: {},
+            data: const {},
           ),
         ],
         overallSuccess: false,
@@ -508,7 +501,7 @@ class OrchestratorCommandMapper {
             success: false,
             error: e.toString(),
             critical: false,
-            data: {},
+            data: const {},
           ),
         ],
         overallSuccess: false,

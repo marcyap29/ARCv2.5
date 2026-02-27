@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'entry_classifier.dart';
 import 'response_mode.dart';
@@ -135,7 +134,7 @@ class ClassificationLogger {
   /// Truncate text for storage
   static String _truncateText(String text, int maxLength) {
     if (text.length <= maxLength) return text;
-    return text.substring(0, maxLength - 3) + '...';
+    return '${text.substring(0, maxLength - 3)}...';
   }
 }
 

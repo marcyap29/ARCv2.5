@@ -1,17 +1,18 @@
 /// Integration Tests for AURORA Circadian Integration
 /// 
 /// Tests the complete integration of AURORA with VEIL-EDGE and LUMARA
+library;
 
 import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
-import '../../lib/aurora/services/circadian_profile_service.dart';
-import '../../lib/aurora/models/circadian_context.dart';
-import '../../lib/lumara/veil_edge/services/veil_edge_service.dart';
-import '../../lib/lumara/veil_edge/models/veil_edge_models.dart';
-import '../../lib/lumara/veil_edge/integration/lumara_veil_edge_integration.dart';
-import '../../lib/lumara/chat/chat_repo.dart';
-import '../../lib/lumara/chat/chat_models.dart';
-import '../../lib/models/journal_entry_model.dart';
+import 'package:my_app/aurora/services/circadian_profile_service.dart';
+import 'package:my_app/aurora/models/circadian_context.dart';
+import 'package:my_app/lumara/veil_edge/services/veil_edge_service.dart';
+import 'package:my_app/lumara/veil_edge/models/veil_edge_models.dart';
+import 'package:my_app/lumara/veil_edge/integration/lumara_veil_edge_integration.dart';
+import 'package:my_app/lumara/chat/chat_repo.dart';
+import 'package:my_app/lumara/chat/chat_models.dart';
+import 'package:my_app/models/journal_entry_model.dart';
 
 void main() {
   group('AURORA Integration Tests', () {
@@ -256,7 +257,7 @@ void main() {
       });
 
       test('should generate prompts with circadian guidance', () async {
-        final circadianContext = CircadianContext(
+        const circadianContext = CircadianContext(
           window: 'morning',
           chronotype: 'morning',
           rhythmScore: 0.8,
@@ -384,12 +385,12 @@ JournalEntry _createJournalEntry({required int hour}) {
     content: 'Test content for hour $hour',
     createdAt: entryTime,
     updatedAt: entryTime,
-    tags: [],
+    tags: const [],
     mood: 'neutral',
     audioUri: null,
-    media: [],
+    media: const [],
     sageAnnotation: null,
-    keywords: [],
+    keywords: const [],
     emotion: null,
     emotionReason: null,
     metadata: null,

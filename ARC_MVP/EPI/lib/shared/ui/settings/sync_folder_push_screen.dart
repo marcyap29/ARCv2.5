@@ -126,10 +126,10 @@ class _SyncFolderPushScreenState extends State<SyncFolderPushScreen> {
               onPressed: _selectedEntryIds.length == _items.length
                   ? () => setState(() => _selectedEntryIds.clear())
                   : () => setState(() => _selectedEntryIds.addAll(_items.map((e) => e.entry.id))),
-              icon: Icon(Icons.select_all, size: 20, color: kcAccentColor),
+              icon: const Icon(Icons.select_all, size: 20, color: kcAccentColor),
               label: Text(
                 _selectedEntryIds.length == _items.length ? 'Clear' : 'Select all',
-                style: TextStyle(color: kcAccentColor),
+                style: const TextStyle(color: kcAccentColor),
               ),
             ),
         ],
@@ -143,7 +143,7 @@ class _SyncFolderPushScreenState extends State<SyncFolderPushScreen> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.folder_off, size: 64, color: kcSecondaryTextColor),
+                        const Icon(Icons.folder_off, size: 64, color: kcSecondaryTextColor),
                         const SizedBox(height: 16),
                         Text(
                           'No entries from this sync folder',
@@ -163,9 +163,9 @@ class _SyncFolderPushScreenState extends State<SyncFolderPushScreen> {
               : Column(
                   children: [
                     if (_pushing)
-                      LinearProgressIndicator(
+                      const LinearProgressIndicator(
                         backgroundColor: kcSurfaceAltColor,
-                        valueColor: const AlwaysStoppedAnimation<Color>(kcAccentColor),
+                        valueColor: AlwaysStoppedAnimation<Color>(kcAccentColor),
                       ),
                     if (_pushProgress.isNotEmpty)
                       Padding(

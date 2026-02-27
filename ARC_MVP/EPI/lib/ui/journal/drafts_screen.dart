@@ -254,7 +254,7 @@ class _DraftsScreenState extends State<DraftsScreen> {
                   )
                 : CircleAvatar(
                     backgroundColor: draft.isRecent ? Colors.blue : Colors.grey,
-                    child: Icon(
+                    child: const Icon(
                       Icons.drafts,
                       color: Colors.white,
                       size: 20,

@@ -9,10 +9,10 @@ class CrisisAcknowledgmentDialog extends StatefulWidget {
   final VoidCallback onAcknowledged;
   
   const CrisisAcknowledgmentDialog({
-    Key? key,
+    super.key,
     required this.message,
     required this.onAcknowledged,
-  }) : super(key: key);
+  });
   
   @override
   State<CrisisAcknowledgmentDialog> createState() => 
@@ -32,7 +32,7 @@ class _CrisisAcknowledgmentDialogState
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: Row(
+      title: const Row(
         children: [
           Icon(Icons.warning, color: Colors.orange, size: 28),
           SizedBox(width: 12),
@@ -51,13 +51,13 @@ class _CrisisAcknowledgmentDialogState
           children: [
             Text(
               widget.message,
-              style: TextStyle(fontSize: 14),
+              style: const TextStyle(fontSize: 14),
             ),
-            SizedBox(height: 20),
+            const SizedBox(height: 20),
             
             // Resource Display
             Container(
-              padding: EdgeInsets.all(12),
+              padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: Colors.blue.shade50,
                 borderRadius: BorderRadius.circular(8),
@@ -69,7 +69,7 @@ class _CrisisAcknowledgmentDialogState
                   Row(
                     children: [
                       Icon(Icons.phone, color: Colors.blue.shade700, size: 20),
-                      SizedBox(width: 8),
+                      const SizedBox(width: 8),
                       Text(
                         'National Suicide Prevention Lifeline',
                         style: TextStyle(
@@ -80,17 +80,17 @@ class _CrisisAcknowledgmentDialogState
                     ],
                   ),
                   Padding(
-                    padding: EdgeInsets.only(left: 28, top: 4),
+                    padding: const EdgeInsets.only(left: 28, top: 4),
                     child: Text(
                       '988 (call or text, 24/7)',
                       style: TextStyle(color: Colors.blue.shade800),
                     ),
                   ),
-                  SizedBox(height: 12),
+                  const SizedBox(height: 12),
                   Row(
                     children: [
                       Icon(Icons.message, color: Colors.blue.shade700, size: 20),
-                      SizedBox(width: 8),
+                      const SizedBox(width: 8),
                       Text(
                         'Crisis Text Line',
                         style: TextStyle(
@@ -101,17 +101,17 @@ class _CrisisAcknowledgmentDialogState
                     ],
                   ),
                   Padding(
-                    padding: EdgeInsets.only(left: 28, top: 4),
+                    padding: const EdgeInsets.only(left: 28, top: 4),
                     child: Text(
                       'Text HOME to 741741',
                       style: TextStyle(color: Colors.blue.shade800),
                     ),
                   ),
-                  SizedBox(height: 12),
+                  const SizedBox(height: 12),
                   Row(
                     children: [
                       Icon(Icons.emergency, color: Colors.red.shade700, size: 20),
-                      SizedBox(width: 8),
+                      const SizedBox(width: 8),
                       Text(
                         'Emergency Services',
                         style: TextStyle(
@@ -122,7 +122,7 @@ class _CrisisAcknowledgmentDialogState
                     ],
                   ),
                   Padding(
-                    padding: EdgeInsets.only(left: 28, top: 4),
+                    padding: const EdgeInsets.only(left: 28, top: 4),
                     child: Text(
                       '911',
                       style: TextStyle(color: Colors.red.shade800),
@@ -132,22 +132,22 @@ class _CrisisAcknowledgmentDialogState
               ),
             ),
             
-            SizedBox(height: 20),
+            const SizedBox(height: 20),
             
-            Text(
+            const Text(
               'Please confirm before continuing:',
               style: TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: 14,
               ),
             ),
-            SizedBox(height: 12),
+            const SizedBox(height: 12),
             
             // Checkboxes
             CheckboxListTile(
               value: _acknowledgedResources,
               onChanged: (value) => setState(() => _acknowledgedResources = value ?? false),
-              title: Text('I have seen the crisis resources'),
+              title: const Text('I have seen the crisis resources'),
               controlAffinity: ListTileControlAffinity.leading,
               contentPadding: EdgeInsets.zero,
               dense: true,
@@ -155,7 +155,7 @@ class _CrisisAcknowledgmentDialogState
             CheckboxListTile(
               value: _understands247,
               onChanged: (value) => setState(() => _understands247 = value ?? false),
-              title: Text('I understand these are available 24/7'),
+              title: const Text('I understand these are available 24/7'),
               controlAffinity: ListTileControlAffinity.leading,
               contentPadding: EdgeInsets.zero,
               dense: true,
@@ -163,7 +163,7 @@ class _CrisisAcknowledgmentDialogState
             CheckboxListTile(
               value: _canReachOut,
               onChanged: (value) => setState(() => _canReachOut = value ?? false),
-              title: Text('I can reach out if I need immediate help'),
+              title: const Text('I can reach out if I need immediate help'),
               controlAffinity: ListTileControlAffinity.leading,
               contentPadding: EdgeInsets.zero,
               dense: true,

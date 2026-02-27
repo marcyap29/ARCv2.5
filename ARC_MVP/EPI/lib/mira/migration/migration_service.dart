@@ -2,8 +2,6 @@
 // MIRA Migration Service for v0.1 to v0.2 compatibility
 // Handles automatic detection, migration, and backward compatibility
 
-import 'dart:convert';
-import 'dart:io';
 import '../core/schema.dart' as v1;
 import '../core/schema_v2.dart';
 import '../core/migrations.dart';
@@ -61,7 +59,7 @@ class MigrationService {
     final version = _detectVersion(data);
     
     if (version == CURRENT_VERSION) {
-      return MigrationResult(
+      return const MigrationResult(
         success: true,
         nodesMigrated: 0,
         edgesMigrated: 0,
@@ -430,7 +428,7 @@ class MigrationManager {
   /// Run migration if needed
   Future<MigrationResult?> migrateIfNeeded(Map<String, dynamic> data) async {
     final version = MigrationService._detectVersion(data);
-    final targetVersion = MigrationService.CURRENT_VERSION;
+    const targetVersion = MigrationService.CURRENT_VERSION;
     
     if (version == targetVersion) {
       return null; // No migration needed

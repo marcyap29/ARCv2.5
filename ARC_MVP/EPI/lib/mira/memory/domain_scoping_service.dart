@@ -2,7 +2,6 @@
 // Domain scoping service for EPI memory system
 // Implements separate "memory buckets" with controlled cross-domain synthesis
 
-import '../core/schema.dart';
 import 'enhanced_memory_schema.dart';
 
 /// Service for managing scoped memory domains and controlled access
@@ -23,92 +22,92 @@ class DomainScopingService {
   /// Initialize default domain policies
   void _initializeDefaultPolicies() {
     // Personal domain - high privacy, limited sharing
-    _domainPolicies[MemoryDomain.personal] = DomainPolicy(
+    _domainPolicies[MemoryDomain.personal] = const DomainPolicy(
       domain: MemoryDomain.personal,
       accessLevel: AccessLevel.strict,
       allowCrossDomainSynthesis: false,
       requiresExplicitConsent: true,
-      retentionPeriod: const Duration(days: 365 * 5), // 5 years
+      retentionPeriod: Duration(days: 365 * 5), // 5 years
       encryptionRequired: true,
     );
 
     // Work domain - moderate privacy, professional context
-    _domainPolicies[MemoryDomain.work] = DomainPolicy(
+    _domainPolicies[MemoryDomain.work] = const DomainPolicy(
       domain: MemoryDomain.work,
       accessLevel: AccessLevel.moderate,
       allowCrossDomainSynthesis: true,
       requiresExplicitConsent: false,
-      retentionPeriod: const Duration(days: 365 * 3), // 3 years
+      retentionPeriod: Duration(days: 365 * 3), // 3 years
       encryptionRequired: false,
     );
 
     // Health domain - maximum privacy
-    _domainPolicies[MemoryDomain.health] = DomainPolicy(
+    _domainPolicies[MemoryDomain.health] = const DomainPolicy(
       domain: MemoryDomain.health,
       accessLevel: AccessLevel.maximum,
       allowCrossDomainSynthesis: false,
       requiresExplicitConsent: true,
-      retentionPeriod: const Duration(days: 365 * 7), // 7 years
+      retentionPeriod: Duration(days: 365 * 7), // 7 years
       encryptionRequired: true,
     );
 
     // Creative domain - open sharing, inspiration focus
-    _domainPolicies[MemoryDomain.creative] = DomainPolicy(
+    _domainPolicies[MemoryDomain.creative] = const DomainPolicy(
       domain: MemoryDomain.creative,
       accessLevel: AccessLevel.open,
       allowCrossDomainSynthesis: true,
       requiresExplicitConsent: false,
-      retentionPeriod: const Duration(days: 365 * 10), // 10 years
+      retentionPeriod: Duration(days: 365 * 10), // 10 years
       encryptionRequired: false,
     );
 
     // Learning domain - knowledge building
-    _domainPolicies[MemoryDomain.learning] = DomainPolicy(
+    _domainPolicies[MemoryDomain.learning] = const DomainPolicy(
       domain: MemoryDomain.learning,
       accessLevel: AccessLevel.moderate,
       allowCrossDomainSynthesis: true,
       requiresExplicitConsent: false,
-      retentionPeriod: const Duration(days: 365 * 10), // 10 years
+      retentionPeriod: Duration(days: 365 * 10), // 10 years
       encryptionRequired: false,
     );
 
     // Relationships domain - high privacy
-    _domainPolicies[MemoryDomain.relationships] = DomainPolicy(
+    _domainPolicies[MemoryDomain.relationships] = const DomainPolicy(
       domain: MemoryDomain.relationships,
       accessLevel: AccessLevel.strict,
       allowCrossDomainSynthesis: false,
       requiresExplicitConsent: true,
-      retentionPeriod: const Duration(days: 365 * 5), // 5 years
+      retentionPeriod: Duration(days: 365 * 5), // 5 years
       encryptionRequired: true,
     );
 
     // Finance domain - maximum security
-    _domainPolicies[MemoryDomain.finance] = DomainPolicy(
+    _domainPolicies[MemoryDomain.finance] = const DomainPolicy(
       domain: MemoryDomain.finance,
       accessLevel: AccessLevel.maximum,
       allowCrossDomainSynthesis: false,
       requiresExplicitConsent: true,
-      retentionPeriod: const Duration(days: 365 * 7), // 7 years
+      retentionPeriod: Duration(days: 365 * 7), // 7 years
       encryptionRequired: true,
     );
 
     // Spiritual domain - personal, respectful handling
-    _domainPolicies[MemoryDomain.spiritual] = DomainPolicy(
+    _domainPolicies[MemoryDomain.spiritual] = const DomainPolicy(
       domain: MemoryDomain.spiritual,
       accessLevel: AccessLevel.strict,
       allowCrossDomainSynthesis: false,
       requiresExplicitConsent: true,
-      retentionPeriod: const Duration(days: 365 * 10), // 10 years
+      retentionPeriod: Duration(days: 365 * 10), // 10 years
       encryptionRequired: true,
     );
 
     // Meta domain - system level, moderate access
-    _domainPolicies[MemoryDomain.meta] = DomainPolicy(
+    _domainPolicies[MemoryDomain.meta] = const DomainPolicy(
       domain: MemoryDomain.meta,
       accessLevel: AccessLevel.moderate,
       allowCrossDomainSynthesis: true,
       requiresExplicitConsent: false,
-      retentionPeriod: const Duration(days: 365 * 2), // 2 years
+      retentionPeriod: Duration(days: 365 * 2), // 2 years
       encryptionRequired: false,
     );
   }

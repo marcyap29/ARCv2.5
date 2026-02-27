@@ -128,7 +128,7 @@ class _AuroraCardState extends State<AuroraCard> {
       );
     }
 
-    final circadianContext = _circadianContext ?? CircadianContext(
+    final circadianContext = _circadianContext ?? const CircadianContext(
       window: 'afternoon',
       chronotype: 'balanced',
       rhythmScore: 0.5,

@@ -14,6 +14,7 @@
 /// Outputs:
 /// - Block A: LOCAL-ONLY (never transmit) - audit and confirmation
 /// - Block B: CLOUD-PAYLOAD (safe to transmit) - structured JSON abstraction
+library;
 
 import 'dart:convert';
 import 'dart:math';
@@ -274,7 +275,7 @@ class CorrelationResistantTransformer {
     
     if (availableSymbols.isEmpty) {
       // If pool exhausted, generate alphanumeric fallback
-      final chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
       final symbol = List.generate(2, (_) => chars[_random.nextInt(chars.length)]).join();
       return symbol;
     }
@@ -449,8 +450,9 @@ class CorrelationResistantTransformer {
     if (RegExp(r'\b(calculus|mathematics|physics|science|engineering|algorithm|formula|equation|theory|hypothesis|research|analysis|data|statistics|probability|chemistry|biology|computer|programming|code|software|technical|academic)\b').hasMatch(lowerText)) {
       // Extract specific technical subjects for better context
       String? subject;
-      if (RegExp(r'\b(calculus|derivative|integral|mathematics|math)\b').hasMatch(lowerText)) subject = 'mathematics';
-      else if (RegExp(r'\b(physics|mechanics|thermodynamics|quantum|relativity)\b').hasMatch(lowerText)) subject = 'physics';
+      if (RegExp(r'\b(calculus|derivative|integral|mathematics|math)\b').hasMatch(lowerText)) {
+        subject = 'mathematics';
+      } else if (RegExp(r'\b(physics|mechanics|thermodynamics|quantum|relativity)\b').hasMatch(lowerText)) subject = 'physics';
       else if (RegExp(r'\b(programming|code|software|algorithm|computer)\b').hasMatch(lowerText)) subject = 'computer science';
       else if (RegExp(r'\b(chemistry|chemical|biology|biological)\b').hasMatch(lowerText)) subject = 'science';
       else if (RegExp(r'\b(engineering|technical|analysis|research)\b').hasMatch(lowerText)) subject = 'technical analysis';
@@ -590,7 +592,7 @@ class CorrelationResistantTransformer {
   }) async {
     // SECURITY: Validate input is safe
     if (!_prism.isSafeToSend(prismScrubbedText)) {
-      throw SecurityException(
+      throw const SecurityException(
         'SECURITY VIOLATION: Input text failed isSafeToSend() check. '
         'Text must be properly scrubbed before transformation.',
       );

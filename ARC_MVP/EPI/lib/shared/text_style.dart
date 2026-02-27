@@ -77,7 +77,7 @@ TextStyle primaryActionStyle(BuildContext context) => const TextStyle(
     );
 
 // Secondary Actions (less prominent actions)
-TextStyle secondaryActionStyle(BuildContext context) => TextStyle(
+TextStyle secondaryActionStyle(BuildContext context) => const TextStyle(
       fontSize: 16,
       fontWeight: FontWeight.w600,
       color: kcAccentColor,

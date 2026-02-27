@@ -3,6 +3,7 @@
 /// Removes chat sessions with fewer than [minLumaraResponses] assistant messages
 /// from device-key-encrypted .arcx files. Only works on this device's exports
 /// (same key used for encryptAEAD/decryptAEAD).
+library;
 
 import 'dart:convert';
 import 'dart:typed_data';
@@ -88,7 +89,7 @@ Future<ARCXCleanResult> cleanArcxFile({
     final ciphertext = Uint8List.fromList(encryptedPayload.content as List<int>);
     plaintextZip = await ARCXCryptoService.decryptAEAD(ciphertext);
   } catch (e) {
-    return ARCXCleanResult(
+    return const ARCXCleanResult(
       success: false,
       error: 'Decryption failed. This file may have been created on another device.',
     );

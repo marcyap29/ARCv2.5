@@ -1,6 +1,5 @@
 import 'dart:math' as math;
 import 'package:my_app/arc/chat/chat/chat_models.dart';
-import 'package:my_app/arc/chat/chat/content_parts.dart';
 
 /// RIVET-lite validator for chat message readiness
 /// Provides lightweight coherence and consistency checks
@@ -274,7 +273,7 @@ class ChatRivetLite {
     // Simple consistency check based on keyword overlap with facts
     final messageKeywords = _extractKeywords(message);
     final factKeywords = facts.values
-        .where((value) => value is String)
+        .whereType<String>()
         .map((value) => value.toString().toLowerCase())
         .where((word) => word.length > 3)
         .toSet();

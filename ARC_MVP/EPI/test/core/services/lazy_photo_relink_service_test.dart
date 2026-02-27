@@ -30,7 +30,7 @@ void main() {
           createdAt: DateTime.now(),
           updatedAt: DateTime.now(),
           emotion: 'neutral',
-          tags: [],
+          tags: const [],
           mood: 'neutral',
           media: [
             MediaItem(
@@ -52,7 +52,7 @@ void main() {
           createdAt: DateTime.now(),
           updatedAt: DateTime.now(),
           emotion: 'neutral',
-          tags: [],
+          tags: const [],
           mood: 'neutral',
           media: [
             MediaItem(
@@ -74,9 +74,9 @@ void main() {
           createdAt: DateTime.now(),
           updatedAt: DateTime.now(),
           emotion: 'neutral',
-          tags: [],
+          tags: const [],
           mood: 'neutral',
-          media: [],
+          media: const [],
         );
         expect(LazyPhotoRelinkService.hasRealMedia(entry), false);
       });
@@ -171,7 +171,7 @@ void main() {
           createdAt: DateTime.now(),
           updatedAt: DateTime.now(),
           emotion: 'neutral',
-          tags: [],
+          tags: const [],
           mood: 'neutral',
           media: [
             MediaItem(
@@ -193,9 +193,9 @@ void main() {
           createdAt: DateTime.now(),
           updatedAt: DateTime.now(),
           emotion: 'neutral',
-          tags: [],
+          tags: const [],
           mood: 'neutral',
-          media: [],
+          media: const [],
         );
         expect(LazyPhotoRelinkService.shouldAttemptRelink(entry), false);
       });
@@ -208,7 +208,7 @@ void main() {
           createdAt: DateTime.now(),
           updatedAt: DateTime.now(),
           emotion: 'neutral',
-          tags: [],
+          tags: const [],
           mood: 'neutral',
           media: [
             MediaItem(

@@ -35,7 +35,6 @@ import 'package:my_app/services/export_history_service.dart';
 import 'arcx_checkpoint_service.dart';
 import 'arcx_import_set_index_service.dart';
 import 'package:my_app/chronicle/core/chronicle_repos.dart';
-import 'package:my_app/chronicle/storage/aggregation_repository.dart';
 import 'package:my_app/chronicle/storage/changelog_repository.dart';
 import 'package:my_app/chronicle/models/chronicle_layer.dart';
 import 'package:my_app/chronicle/models/chronicle_aggregation.dart';
@@ -232,29 +231,29 @@ class ARCXImportServiceV2 {
         final manifestJson = jsonDecode(utf8.decode(manifestFile.content as List<int>)) as Map<String, dynamic>;
         manifest = ARCXManifest.fromJson(manifestJson);
         
-        final isNewFormat = manifest!.arcxVersion == '1.2';
+        final isNewFormat = manifest.arcxVersion == '1.2';
         
         if (!isNewFormat) {
           throw Exception('This import service only supports ARCX 1.2 format. Please use the legacy import service for older formats.');
         }
         
-        if (!manifest!.validate()) {
+        if (!manifest.validate()) {
           throw Exception('Invalid ARCX 1.2 manifest structure. This archive may be corrupted.');
         }
         
-        print('ARCX Import V2: ✓ Manifest validated (ARCX ${manifest!.arcxVersion})');
+        print('ARCX Import V2: ✓ Manifest validated (ARCX ${manifest.arcxVersion})');
         await Future.delayed(_kYieldDuration);
         
         // Step 3: Verify signature
         onProgress?.call('Verifying signature...', _kPhaseLoad);
         
-        if (manifest!.signatureB64.isNotEmpty && manifest!.signerPubkeyFpr.isNotEmpty) {
-          final mj = manifest!.toJson();
+        if (manifest.signatureB64.isNotEmpty && manifest.signerPubkeyFpr.isNotEmpty) {
+          final mj = manifest.toJson();
           mj['signature_b64'] = '';
           final manifestBytes = utf8.encode(jsonEncode(mj));
           final isValid = await ARCXCryptoService.verifySignature(
             Uint8List.fromList(manifestBytes),
-            manifest!.signatureB64,
+            manifest.signatureB64,
           );
           if (!isValid) {
             print('ARCX Import V2: ⚠️ Signature verification failed - continuing anyway (signature optional for ARCX 1.2)');
@@ -269,10 +268,10 @@ class ARCXImportServiceV2 {
         onProgress?.call('Verifying archive integrity...', _kPhaseVerify);
         final ciphertext = Uint8List.fromList(encryptedArchive.content as List<int>);
         
-        if (manifest!.sha256.isNotEmpty) {
+        if (manifest.sha256.isNotEmpty) {
           final ciphertextHash = sha256.convert(ciphertext);
           final ciphertextHashB64 = base64Encode(ciphertextHash.bytes);
-          if (ciphertextHashB64 != manifest!.sha256) {
+          if (ciphertextHashB64 != manifest.sha256) {
             print('ARCX Import V2: ⚠️ Ciphertext hash mismatch - continuing anyway');
           } else {
             print('ARCX Import V2: ✓ Ciphertext hash verified');
@@ -286,14 +285,14 @@ class ARCXImportServiceV2 {
         Uint8List plaintextZip;
         
         try {
-          if (manifest!.isPasswordEncrypted) {
-            if (manifest!.saltB64 == null || manifest!.saltB64!.isEmpty) {
+          if (manifest.isPasswordEncrypted) {
+            if (manifest.saltB64 == null || manifest.saltB64!.isEmpty) {
               throw Exception('Password encryption requires salt but none provided');
             }
             if (password == null || password.isEmpty) {
               throw Exception('This archive requires a password. Please provide a password to decrypt it.');
             }
-            final saltBytes = base64Decode(manifest!.saltB64!);
+            final saltBytes = base64Decode(manifest.saltB64!);
             final salt = Uint8List.fromList(saltBytes);
             plaintextZip = await ARCXCryptoService.decryptWithPassword(ciphertext, password, salt);
             print('ARCX Import V2: ✓ Decrypted with password');
@@ -305,7 +304,7 @@ class ARCXImportServiceV2 {
           final msg = e.toString().toLowerCase();
           // CryptoKit Error 3 = authentication failure (wrong key or corrupted)
           if (msg.contains('decrypt') && (msg.contains('cryptokit') || msg.contains('crytptokit') || msg.contains('error 3') || msg.contains('authentication'))) {
-            if (manifest!.isPasswordEncrypted) {
+            if (manifest.isPasswordEncrypted) {
               throw Exception(
                 'Could not decrypt this backup. The password may be wrong, or the file may be damaged.\n\n'
                 'Try the password you used when creating the backup. If you don’t remember it, you’ll need a backup that was created with a password you know.',
@@ -333,7 +332,7 @@ class ARCXImportServiceV2 {
         
         for (final file in payloadArchive) {
           if (file.isFile) {
-            final outFile = File(path.join(payloadDir!.path, file.name));
+            final outFile = File(path.join(payloadDir.path, file.name));
             await outFile.create(recursive: true);
             await outFile.writeAsBytes(file.content as List<int>);
           }
@@ -348,19 +347,19 @@ class ARCXImportServiceV2 {
           arcxPath: arcxPath,
           arcxFileLastModifiedMs: stat.modified.millisecondsSinceEpoch,
           arcxFileSize: stat.size,
-          payloadDirPath: payloadDir!.path,
+          payloadDirPath: payloadDir.path,
           createdAtIso: DateTime.now().toUtc().toIso8601String(),
         ));
         didWriteCheckpoint = true;
         
         // Step 7: Validate checksums if enabled
-        if (options.validateChecksums && manifest!.checksumsInfo?.enabled == true) {
+        if (options.validateChecksums && manifest.checksumsInfo?.enabled == true) {
           onProgress?.call('Validating checksums...', _kPhaseExtract);
-          await _validateChecksums(payloadDir!, manifest!.checksumsInfo!.file);
+          await _validateChecksums(payloadDir, manifest.checksumsInfo!.file);
         }
-      } else if (manifest != null && options.validateChecksums && manifest!.checksumsInfo?.enabled == true) {
+      } else if (manifest != null && options.validateChecksums && manifest.checksumsInfo?.enabled == true) {
         onProgress?.call('Validating checksums...', _kPhaseExtract);
-        await _validateChecksums(payloadDir, manifest!.checksumsInfo!.file);
+        await _validateChecksums(payloadDir, manifest.checksumsInfo!.file);
       }
       
       // Step 8: Import in order: Media first, then Phase Regimes (for entry tagging), then Entries, then Chats
@@ -371,7 +370,7 @@ class ARCXImportServiceV2 {
         final warnings = <String>[];
         
         // Import Media
-        final mediaDir = Directory(path.join(payloadDir!.path, 'Media'));
+        final mediaDir = Directory(path.join(payloadDir.path, 'Media'));
         if (await mediaDir.exists()) {
           onProgress?.call('Importing media...', _kPhaseExtract);
           mediaImported = await _importMedia(
@@ -391,7 +390,7 @@ class ARCXImportServiceV2 {
         
         if (_phaseRegimeService != null) {
           phaseRegimesImported = await _importPhaseRegimes(
-            payloadDir: payloadDir!,
+            payloadDir: payloadDir,
             onProgress: onProgress,
           );
           
@@ -405,32 +404,32 @@ class ARCXImportServiceV2 {
           }
           
           // Import RIVET state, Sentinel state, ArcForm timeline, and LUMARA favorites alongside phase regimes
-          rivetStatesImported = await _importRivetState(payloadDir!, onProgress: onProgress);
-          sentinelStatesImported = await _importSentinelState(payloadDir!, onProgress: onProgress);
-          arcformSnapshotsImported = await _importArcFormTimeline(payloadDir!, onProgress: onProgress);
+          rivetStatesImported = await _importRivetState(payloadDir, onProgress: onProgress);
+          sentinelStatesImported = await _importSentinelState(payloadDir, onProgress: onProgress);
+          arcformSnapshotsImported = await _importArcFormTimeline(payloadDir, onProgress: onProgress);
         }
         
         // Import LUMARA favorites (doesn't require phaseRegimeService)
-        lumaraFavoritesImported = await _importLumaraFavorites(payloadDir!, onProgress: onProgress);
+        lumaraFavoritesImported = await _importLumaraFavorites(payloadDir, onProgress: onProgress);
         
         // Import CHRONICLE aggregations (monthly/yearly/multiyear .md files + changelog)
         onProgress?.call('Importing CHRONICLE aggregations...', _kPhaseRegimesEnd);
-        final chronicleImported = await _importChronicle(payloadDir!, onProgress: onProgress);
+        final chronicleImported = await _importChronicle(payloadDir, onProgress: onProgress);
 
         // Import LUMARA Chronicle (causal chains, gap-fill events, patterns, relationships)
         onProgress?.call('Importing LUMARA causal chains and learning moments...', _kPhaseRegimesEnd);
-        await _importLumaraChronicle(payloadDir!, onProgress: onProgress);
+        await _importLumaraChronicle(payloadDir, onProgress: onProgress);
         
         // Import voice notes (Voice Notes tab)
         onProgress?.call('Importing voice notes...', _kPhaseRegimesEnd);
-        await _importVoiceNotes(payloadDir!, onProgress: onProgress);
+        await _importVoiceNotes(payloadDir, onProgress: onProgress);
         
         // Import agents data (writing drafts + research artifacts)
         onProgress?.call('Importing agents data...', _kPhaseRegimesEnd);
-        await _importAgentsData(payloadDir!, onProgress: onProgress);
+        await _importAgentsData(payloadDir, onProgress: onProgress);
         
         // Import Entries AFTER phase regimes so they can be tagged correctly
-        final entriesDir = Directory(path.join(payloadDir!.path, 'Entries'));
+        final entriesDir = Directory(path.join(payloadDir.path, 'Entries'));
         if (await entriesDir.exists()) {
           onProgress?.call('Importing entries...', _kPhaseRegimesEnd);
           entriesImported = await _importEntries(
@@ -449,7 +448,7 @@ class ARCXImportServiceV2 {
         }
         
         // Import Chats
-        final chatsDir = Directory(path.join(payloadDir!.path, 'Chats'));
+        final chatsDir = Directory(path.join(payloadDir.path, 'Chats'));
         if (await chatsDir.exists()) {
           onProgress?.call('Importing chats...', _kPhaseEntriesEnd);
           chatsImported = await _importChats(
@@ -566,7 +565,7 @@ class ARCXImportServiceV2 {
       final frac = (i + 1) / total;
       onProgress?.call('Importing ${i + 1}/$total: ${path.basename(arcxPath)}...', frac);
       try {
-        final result = await this.import(
+        final result = await import(
           arcxPath: arcxPath,
           options: options,
           password: password,
@@ -1233,7 +1232,7 @@ class ARCXImportServiceV2 {
         }
       }
       
-      print('ARCX Import V2: ✓ Imported LUMARA favorites (${importedAnswers} answers, ${importedChats} chats, ${importedEntries} entries, $skippedCount skipped)');
+      print('ARCX Import V2: ✓ Imported LUMARA favorites ($importedAnswers answers, $importedChats chats, $importedEntries entries, $skippedCount skipped)');
       return {
         'answers': importedAnswers,
         'chats': importedChats,
@@ -1277,19 +1276,19 @@ class ARCXImportServiceV2 {
       int multiyearCount = 0;
       
       // Helper function to parse markdown with frontmatter
-      ChronicleAggregation _parseAggregationFile(
+      ChronicleAggregation parseAggregationFile(
         String content,
         ChronicleLayer layer,
         String period,
       ) {
         // Split frontmatter and markdown
         if (!content.startsWith('---')) {
-          throw FormatException('Invalid aggregation format: missing frontmatter');
+          throw const FormatException('Invalid aggregation format: missing frontmatter');
         }
 
         final parts = content.split('---');
         if (parts.length < 3) {
-          throw FormatException('Invalid aggregation format: malformed frontmatter');
+          throw const FormatException('Invalid aggregation format: malformed frontmatter');
         }
 
         final frontmatter = parts[1].trim();
@@ -1347,7 +1346,7 @@ class ARCXImportServiceV2 {
             final content = await file.readAsString();
             final period = path.basenameWithoutExtension(file.path);
             
-            final aggregation = _parseAggregationFile(
+            final aggregation = parseAggregationFile(
               content,
               ChronicleLayer.monthly,
               period,
@@ -1375,7 +1374,7 @@ class ARCXImportServiceV2 {
             final content = await file.readAsString();
             final period = path.basenameWithoutExtension(file.path);
             
-            final aggregation = _parseAggregationFile(
+            final aggregation = parseAggregationFile(
               content,
               ChronicleLayer.yearly,
               period,
@@ -1403,7 +1402,7 @@ class ARCXImportServiceV2 {
             final content = await file.readAsString();
             final period = path.basenameWithoutExtension(file.path);
             
-            final aggregation = _parseAggregationFile(
+            final aggregation = parseAggregationFile(
               content,
               ChronicleLayer.multiyear,
               period,
@@ -1621,12 +1620,12 @@ class ARCXImportServiceV2 {
           if (entity is Directory) {
             final userDir = Directory(path.join(destDrafts.path, path.basename(entity.path)));
             await userDir.create(recursive: true);
-            await for (final file in (entity as Directory).list(recursive: true)) {
+            await for (final file in (entity).list(recursive: true)) {
               if (file is File) {
                 final rel = path.relative(file.path, from: entity.path);
                 final destFile = File(path.join(userDir.path, rel));
                 await destFile.parent.create(recursive: true);
-                await destFile.writeAsBytes(await (file as File).readAsBytes());
+                await destFile.writeAsBytes(await (file).readAsBytes());
               }
             }
           }
@@ -1724,7 +1723,7 @@ class ARCXImportServiceV2 {
           errors++;
         }
         
-      } catch (e, stackTrace) {
+      } catch (e) {
         print('ARCX Import V2: ✗ Error importing chat ${entity.path}: $e');
         errors++;
       }
@@ -2330,9 +2329,9 @@ class ARCXImportServiceV2 {
       await exportHistoryService.recordExport(record);
       
       print('ARCX Import V2: ✅ Created export record #$exportNumber');
-      print('  - Entries: ${_importedEntryIds.length} (${entriesImported} imported)');
-      print('  - Chats: ${_importedChatIds.length} (${chatsImported} imported)');
-      print('  - Media: ${_importedMediaHashes.length} (${mediaImported} imported)');
+      print('  - Entries: ${_importedEntryIds.length} ($entriesImported imported)');
+      print('  - Chats: ${_importedChatIds.length} ($chatsImported imported)');
+      print('  - Media: ${_importedMediaHashes.length} ($mediaImported imported)');
       
       // Clear tracking variables
       _importedEntryIds.clear();

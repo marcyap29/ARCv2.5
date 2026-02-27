@@ -140,13 +140,13 @@ class _DriveFolderPickerScreenState extends State<DriveFolderPickerScreen> {
             autofocus: true,
             decoration: InputDecoration(
               labelText: 'Folder name',
-              labelStyle: TextStyle(color: kcSecondaryTextColor),
+              labelStyle: const TextStyle(color: kcSecondaryTextColor),
               hintText: 'e.g. LUMARA Backups',
               hintStyle: TextStyle(color: kcSecondaryTextColor.withOpacity(0.7)),
-              enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.white24)),
-              focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: kcAccentColor)),
+              enabledBorder: const UnderlineInputBorder(borderSide: BorderSide(color: Colors.white24)),
+              focusedBorder: const UnderlineInputBorder(borderSide: BorderSide(color: kcAccentColor)),
             ),
-            style: TextStyle(color: kcPrimaryTextColor),
+            style: const TextStyle(color: kcPrimaryTextColor),
             validator: (v) {
               if (v == null || v.trim().isEmpty) return 'Enter a folder name';
               return null;
@@ -157,7 +157,7 @@ class _DriveFolderPickerScreenState extends State<DriveFolderPickerScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
-            child: Text('Cancel', style: TextStyle(color: kcSecondaryTextColor)),
+            child: const Text('Cancel', style: TextStyle(color: kcSecondaryTextColor)),
           ),
           FilledButton(
             onPressed: () {

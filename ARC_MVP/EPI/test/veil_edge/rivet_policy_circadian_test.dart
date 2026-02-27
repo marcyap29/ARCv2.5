@@ -1,11 +1,12 @@
 /// Tests for RIVET Policy Engine with AURORA Integration
 /// 
 /// Tests for circadian-aware policy violations and recommendations
+library;
 
 import 'package:flutter_test/flutter_test.dart';
-import '../../lib/lumara/veil_edge/core/rivet_policy_engine.dart';
-import '../../lib/lumara/veil_edge/models/veil_edge_models.dart';
-import '../../lib/aurora/models/circadian_context.dart';
+import 'package:my_app/lumara/veil_edge/core/rivet_policy_engine.dart';
+import 'package:my_app/lumara/veil_edge/models/veil_edge_models.dart';
+import 'package:my_app/aurora/models/circadian_context.dart';
 
 void main() {
   group('RivetPolicyEngine with AURORA', () {
@@ -18,7 +19,7 @@ void main() {
     group('circadian-aware alignment calculation', () {
       test('should apply evening fragmented rhythm adjustment', () {
         final log = _createLogSchema(ease: 4, mood: 4, energy: 4);
-        final circadianContext = CircadianContext(
+        const circadianContext = CircadianContext(
           window: 'evening',
           chronotype: 'balanced',
           rhythmScore: 0.3, // Fragmented
@@ -32,7 +33,7 @@ void main() {
 
       test('should apply morning person boost', () {
         final log = _createLogSchema(ease: 4, mood: 4, energy: 4);
-        final circadianContext = CircadianContext(
+        const circadianContext = CircadianContext(
           window: 'morning',
           chronotype: 'morning',
           rhythmScore: 0.7,
@@ -46,7 +47,7 @@ void main() {
 
       test('should apply evening person boost', () {
         final log = _createLogSchema(ease: 4, mood: 4, energy: 4);
-        final circadianContext = CircadianContext(
+        const circadianContext = CircadianContext(
           window: 'evening',
           chronotype: 'evening',
           rhythmScore: 0.7,
@@ -70,7 +71,7 @@ void main() {
 
     group('circadian-aware policy violations', () {
       test('should adjust threshold for fragmented evening rhythm', () {
-        final circadianContext = CircadianContext(
+        const circadianContext = CircadianContext(
           window: 'evening',
           chronotype: 'balanced',
           rhythmScore: 0.3, // Fragmented
@@ -87,7 +88,7 @@ void main() {
       });
 
       test('should adjust threshold for morning person in morning', () {
-        final circadianContext = CircadianContext(
+        const circadianContext = CircadianContext(
           window: 'morning',
           chronotype: 'morning',
           rhythmScore: 0.7,
@@ -104,7 +105,7 @@ void main() {
       });
 
       test('should adjust phase change threshold for evening fragmented rhythm', () {
-        final circadianContext = CircadianContext(
+        const circadianContext = CircadianContext(
           window: 'evening',
           chronotype: 'balanced',
           rhythmScore: 0.3, // Fragmented
@@ -122,7 +123,7 @@ void main() {
       });
 
       test('should adjust phase change threshold for morning person in morning', () {
-        final circadianContext = CircadianContext(
+        const circadianContext = CircadianContext(
           window: 'morning',
           chronotype: 'morning',
           rhythmScore: 0.7,
@@ -142,7 +143,7 @@ void main() {
 
     group('circadian-aware recommendations', () {
       test('should provide evening-specific recommendations for fragmented rhythm', () {
-        final circadianContext = CircadianContext(
+        const circadianContext = CircadianContext(
           window: 'evening',
           chronotype: 'balanced',
           rhythmScore: 0.3, // Fragmented
@@ -159,7 +160,7 @@ void main() {
       });
 
       test('should provide morning-specific recommendations', () {
-        final circadianContext = CircadianContext(
+        const circadianContext = CircadianContext(
           window: 'morning',
           chronotype: 'evening', // Mismatch
           rhythmScore: 0.6,
@@ -171,7 +172,7 @@ void main() {
       });
 
       test('should provide evening-specific recommendations', () {
-        final circadianContext = CircadianContext(
+        const circadianContext = CircadianContext(
           window: 'evening',
           chronotype: 'morning', // Mismatch
           rhythmScore: 0.6,
@@ -183,7 +184,7 @@ void main() {
       });
 
       test('should provide gentle evening recommendations', () {
-        final circadianContext = CircadianContext(
+        const circadianContext = CircadianContext(
           window: 'evening',
           chronotype: 'balanced',
           rhythmScore: 0.6,
@@ -195,7 +196,7 @@ void main() {
       });
 
       test('should provide rhythm coherence recommendations', () {
-        final circadianContext = CircadianContext(
+        const circadianContext = CircadianContext(
           window: 'morning',
           chronotype: 'balanced',
           rhythmScore: 0.3, // Fragmented
@@ -209,7 +210,7 @@ void main() {
 
     group('circadian-aware phase change policy', () {
       test('should allow phase change for morning person in morning', () {
-        final circadianContext = CircadianContext(
+        const circadianContext = CircadianContext(
           window: 'morning',
           chronotype: 'morning',
           rhythmScore: 0.7,
@@ -226,7 +227,7 @@ void main() {
       });
 
       test('should deny phase change for evening fragmented rhythm', () {
-        final circadianContext = CircadianContext(
+        const circadianContext = CircadianContext(
           window: 'evening',
           chronotype: 'balanced',
           rhythmScore: 0.3, // Fragmented
@@ -243,7 +244,7 @@ void main() {
       });
 
       test('should adjust threshold for evening fragmented rhythm', () {
-        final circadianContext = CircadianContext(
+        const circadianContext = CircadianContext(
           window: 'evening',
           chronotype: 'balanced',
           rhythmScore: 0.3, // Fragmented
@@ -260,7 +261,7 @@ void main() {
       });
 
       test('should adjust threshold for morning person in morning', () {
-        final circadianContext = CircadianContext(
+        const circadianContext = CircadianContext(
           window: 'morning',
           chronotype: 'morning',
           rhythmScore: 0.7,
@@ -280,7 +281,7 @@ void main() {
     group('processLog with circadian context', () {
       test('should include circadian context in response', () {
         final log = _createLogSchema(ease: 4, mood: 4, energy: 4);
-        final circadianContext = CircadianContext(
+        const circadianContext = CircadianContext(
           window: 'morning',
           chronotype: 'morning',
           rhythmScore: 0.8,

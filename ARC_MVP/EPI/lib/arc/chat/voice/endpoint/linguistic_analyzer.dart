@@ -5,6 +5,7 @@
 /// - Incomplete trailing patterns ("and", "but", "because", etc.)
 /// - Complete thought patterns ("that's it", "that's all", "I think")
 /// - Returns confidence: definitelyComplete, definitelyIncomplete, or uncertain
+library;
 
 import 'package:flutter/foundation.dart';
 

@@ -1,14 +1,15 @@
 /// Tests for AURORA Circadian Context Models
 /// 
 /// Tests for CircadianContext and CircadianProfile models
+library;
 
 import 'package:flutter_test/flutter_test.dart';
-import '../../lib/aurora/models/circadian_context.dart';
+import 'package:my_app/aurora/models/circadian_context.dart';
 
 void main() {
   group('CircadianContext', () {
     test('should create with valid parameters', () {
-      final context = CircadianContext(
+      const context = CircadianContext(
         window: 'morning',
         chronotype: 'morning',
         rhythmScore: 0.75,
@@ -20,19 +21,19 @@ void main() {
     });
 
     test('should identify time windows correctly', () {
-      final morningContext = CircadianContext(
+      const morningContext = CircadianContext(
         window: 'morning',
         chronotype: 'balanced',
         rhythmScore: 0.5,
       );
 
-      final afternoonContext = CircadianContext(
+      const afternoonContext = CircadianContext(
         window: 'afternoon',
         chronotype: 'balanced',
         rhythmScore: 0.5,
       );
 
-      final eveningContext = CircadianContext(
+      const eveningContext = CircadianContext(
         window: 'evening',
         chronotype: 'balanced',
         rhythmScore: 0.5,
@@ -52,19 +53,19 @@ void main() {
     });
 
     test('should identify chronotypes correctly', () {
-      final morningPerson = CircadianContext(
+      const morningPerson = CircadianContext(
         window: 'morning',
         chronotype: 'morning',
         rhythmScore: 0.5,
       );
 
-      final eveningPerson = CircadianContext(
+      const eveningPerson = CircadianContext(
         window: 'evening',
         chronotype: 'evening',
         rhythmScore: 0.5,
       );
 
-      final balancedPerson = CircadianContext(
+      const balancedPerson = CircadianContext(
         window: 'afternoon',
         chronotype: 'balanced',
         rhythmScore: 0.5,
@@ -84,13 +85,13 @@ void main() {
     });
 
     test('should identify rhythm coherence correctly', () {
-      final fragmentedRhythm = CircadianContext(
+      const fragmentedRhythm = CircadianContext(
         window: 'evening',
         chronotype: 'balanced',
         rhythmScore: 0.3,
       );
 
-      final coherentRhythm = CircadianContext(
+      const coherentRhythm = CircadianContext(
         window: 'morning',
         chronotype: 'morning',
         rhythmScore: 0.7,
@@ -104,7 +105,7 @@ void main() {
     });
 
     test('should serialize and deserialize correctly', () {
-      final original = CircadianContext(
+      const original = CircadianContext(
         window: 'evening',
         chronotype: 'evening',
         rhythmScore: 0.65,
@@ -119,19 +120,19 @@ void main() {
     });
 
     test('should implement equality correctly', () {
-      final context1 = CircadianContext(
+      const context1 = CircadianContext(
         window: 'morning',
         chronotype: 'morning',
         rhythmScore: 0.8,
       );
 
-      final context2 = CircadianContext(
+      const context2 = CircadianContext(
         window: 'morning',
         chronotype: 'morning',
         rhythmScore: 0.8,
       );
 
-      final context3 = CircadianContext(
+      const context3 = CircadianContext(
         window: 'evening',
         chronotype: 'morning',
         rhythmScore: 0.8,

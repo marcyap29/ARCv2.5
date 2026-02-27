@@ -1,6 +1,4 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 /// Test script to verify LUMARA integration with Qwen model
 /// This can be run to test the LUMARA prompt system and MIRA memory

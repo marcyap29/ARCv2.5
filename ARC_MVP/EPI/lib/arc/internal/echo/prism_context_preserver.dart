@@ -4,6 +4,7 @@
 /// conversational structure for cloud API effectiveness.
 /// 
 /// Core principle: Strip identifiers, preserve meaning and structure.
+library;
 
 import 'prism_adapter.dart';
 

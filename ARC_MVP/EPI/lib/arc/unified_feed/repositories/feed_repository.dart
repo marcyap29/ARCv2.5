@@ -6,6 +6,7 @@
 /// Supports pagination (before/after), type filtering, and active conversation
 /// detection. This is a read-through layer - all writes go through the
 /// original repositories; this provides a unified view.
+library;
 
 import 'dart:async';
 import 'package:flutter/foundation.dart';

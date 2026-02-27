@@ -312,15 +312,15 @@ class _ArcformShareSheetState extends State<ArcformShareSheet> {
                 fillColor: kcSurfaceAltColor,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: kcBorderColor),
+                  borderSide: const BorderSide(color: kcBorderColor),
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: kcBorderColor),
+                  borderSide: const BorderSide(color: kcBorderColor),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: kcPrimaryColor),
+                  borderSide: const BorderSide(color: kcPrimaryColor),
                 ),
               ),
               onChanged: (value) {

@@ -2,6 +2,7 @@
 /// 
 /// This wraps the existing AudioIO functionality as a TranscriptionProvider
 /// for seamless integration with the transcription router.
+library;
 
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'transcription_provider.dart';

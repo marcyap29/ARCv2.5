@@ -30,54 +30,54 @@ void main() {
 
     group('canHandle', () {
       test('returns true for temporalQuery', () {
-        final intent = CommandIntent(type: IntentType.temporalQuery, rawQuery: 'Tell me about January');
+        const intent = CommandIntent(type: IntentType.temporalQuery, rawQuery: 'Tell me about January');
         expect(subsystem.canHandle(intent), isTrue);
       });
 
       test('returns true for patternAnalysis', () {
-        final intent = CommandIntent(type: IntentType.patternAnalysis, rawQuery: 'What themes recur?');
+        const intent = CommandIntent(type: IntentType.patternAnalysis, rawQuery: 'What themes recur?');
         expect(subsystem.canHandle(intent), isTrue);
       });
 
       test('returns true for developmentalArc', () {
-        final intent = CommandIntent(type: IntentType.developmentalArc, rawQuery: 'How have I changed?');
+        const intent = CommandIntent(type: IntentType.developmentalArc, rawQuery: 'How have I changed?');
         expect(subsystem.canHandle(intent), isTrue);
       });
 
       test('returns true for historicalParallel', () {
-        final intent = CommandIntent(type: IntentType.historicalParallel, rawQuery: 'Have I dealt with this before?');
+        const intent = CommandIntent(type: IntentType.historicalParallel, rawQuery: 'Have I dealt with this before?');
         expect(subsystem.canHandle(intent), isTrue);
       });
 
       test('returns true for comparison', () {
-        final intent = CommandIntent(type: IntentType.comparison, rawQuery: 'Compare 2024 vs 2025');
+        const intent = CommandIntent(type: IntentType.comparison, rawQuery: 'Compare 2024 vs 2025');
         expect(subsystem.canHandle(intent), isTrue);
       });
 
       test('returns true for decisionSupport', () {
-        final intent = CommandIntent(type: IntentType.decisionSupport, rawQuery: 'Decision support for launch');
+        const intent = CommandIntent(type: IntentType.decisionSupport, rawQuery: 'Decision support for launch');
         expect(subsystem.canHandle(intent), isTrue);
       });
 
       test('returns false for usagePatterns', () {
-        final intent = CommandIntent(type: IntentType.usagePatterns, rawQuery: 'Show usage patterns');
+        const intent = CommandIntent(type: IntentType.usagePatterns, rawQuery: 'Show usage patterns');
         expect(subsystem.canHandle(intent), isFalse);
       });
 
       test('returns false for optimalTiming', () {
-        final intent = CommandIntent(type: IntentType.optimalTiming, rawQuery: 'When is best time?');
+        const intent = CommandIntent(type: IntentType.optimalTiming, rawQuery: 'When is best time?');
         expect(subsystem.canHandle(intent), isFalse);
       });
 
       test('returns false for recentContext', () {
-        final intent = CommandIntent(type: IntentType.recentContext, rawQuery: 'Recent context');
+        const intent = CommandIntent(type: IntentType.recentContext, rawQuery: 'Recent context');
         expect(subsystem.canHandle(intent), isFalse);
       });
     });
 
     group('query', () {
       test('returns error when userId is null', () async {
-        final intent = CommandIntent(
+        const intent = CommandIntent(
           type: IntentType.temporalQuery,
           rawQuery: 'Tell me about my month',
           userId: null,
@@ -89,7 +89,7 @@ void main() {
       });
 
       test('returns error when userId is empty', () async {
-        final intent = CommandIntent(
+        const intent = CommandIntent(
           type: IntentType.temporalQuery,
           rawQuery: 'Tell me about my month',
           userId: '',

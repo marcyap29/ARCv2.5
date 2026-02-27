@@ -320,7 +320,7 @@ class MigrationService {
     }
 
     final fromVersion = detectVersion(data);
-    final toVersion = '0.2.0';
+    const toVersion = '0.2.0';
 
     final migration = MigrationRegistry.getMigration(fromVersion, toVersion);
     if (migration == null) {

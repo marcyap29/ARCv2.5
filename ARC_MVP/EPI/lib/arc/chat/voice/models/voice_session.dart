@@ -4,6 +4,7 @@
 /// - VoiceSession: Complete voice conversation with multiple turns
 /// - VoiceConversationTurn: Single exchange (user speaks, LUMARA responds)
 /// - Privacy settings and metadata
+library;
 
 import 'package:equatable/equatable.dart';
 import '../../../../models/phase_models.dart';

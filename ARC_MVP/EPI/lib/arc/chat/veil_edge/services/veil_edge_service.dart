@@ -2,6 +2,7 @@
 /// 
 /// Main orchestration service that coordinates routing, prompt generation,
 /// and RIVET policy management for the VEIL-EDGE system with AURORA integration.
+library;
 
 import '../models/veil_edge_models.dart';
 import '../core/veil_edge_router.dart';

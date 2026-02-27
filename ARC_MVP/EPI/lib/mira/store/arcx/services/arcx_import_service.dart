@@ -471,7 +471,7 @@ class ARCXImportService {
             
             final chatImportResult = await enhancedImportService.importBundle(
               payloadDir,
-              McpImportOptions(
+              const McpImportOptions(
                 strictMode: false,
                 maxErrors: 100,
               ),
@@ -703,7 +703,7 @@ class ARCXImportService {
             }
           } catch (e) {
             // Log errors but continue processing other media items
-            print('ARCX Import: ⚠️ ERROR creating media item for entry ${originalId}: $e');
+            print('ARCX Import: ⚠️ ERROR creating media item for entry $originalId: $e');
             // Continue processing other media items - don't let one failure stop the entry
           }
         }
@@ -711,8 +711,8 @@ class ARCXImportService {
       
       // IMPORTANT: Always import the entry, even if media items failed
       // Media failures don't prevent entry import - entries can exist without media
-      if (mediaData.length > 0 && mediaItems.isEmpty) {
-        print('ARCX Import: ⚠️ WARNING: Entry ${originalId} had ${mediaData.length} media items but none could be mapped!');
+      if (mediaData.isNotEmpty && mediaItems.isEmpty) {
+        print('ARCX Import: ⚠️ WARNING: Entry $originalId had ${mediaData.length} media items but none could be mapped!');
         print('   Photo mapping contains ${photoMapping.length} photos');
         print('   First media item filename: ${mediaData[0] is Map ? (mediaData[0] as Map<String, dynamic>)['filename'] : 'N/A'}');
       }

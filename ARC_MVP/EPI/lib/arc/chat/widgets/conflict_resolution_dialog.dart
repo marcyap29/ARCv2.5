@@ -273,22 +273,22 @@ class _ConflictResolutionDialogState extends State<ConflictResolutionDialog> {
     switch (widget.conflictType) {
       case ConflictType.factual:
         return [
-          ResolutionOption(
+          const ResolutionOption(
             value: UserResolution.prefer_newer,
             title: 'Keep the newer memory',
             description: 'The more recent information is likely more accurate',
           ),
-          ResolutionOption(
+          const ResolutionOption(
             value: UserResolution.prefer_older,
             title: 'Keep the older memory',
             description: 'The original information is more reliable',
           ),
-          ResolutionOption(
+          const ResolutionOption(
             value: UserResolution.keep_both,
             title: 'Keep both memories',
             description: 'Both perspectives might be valid in different contexts',
           ),
-          ResolutionOption(
+          const ResolutionOption(
             value: UserResolution.custom_explanation,
             title: 'Provide my own explanation',
             description: 'I\'ll explain how these memories relate to each other',
@@ -296,12 +296,12 @@ class _ConflictResolutionDialogState extends State<ConflictResolutionDialog> {
         ];
       case ConflictType.temporal:
         return [
-          ResolutionOption(
+          const ResolutionOption(
             value: UserResolution.keep_both,
             title: 'Reconcile timeline',
             description: 'These events happened at different times',
           ),
-          ResolutionOption(
+          const ResolutionOption(
             value: UserResolution.keep_both,
             title: 'Keep both memories',
             description: 'Both events are important to remember',
@@ -309,12 +309,12 @@ class _ConflictResolutionDialogState extends State<ConflictResolutionDialog> {
         ];
       case ConflictType.emotional:
         return [
-          ResolutionOption(
+          const ResolutionOption(
             value: UserResolution.keep_both,
             title: 'Acknowledge emotional growth',
             description: 'My feelings have evolved over time',
           ),
-          ResolutionOption(
+          const ResolutionOption(
             value: UserResolution.keep_both,
             title: 'Keep both emotional states',
             description: 'Both feelings are valid parts of my journey',
@@ -322,12 +322,12 @@ class _ConflictResolutionDialogState extends State<ConflictResolutionDialog> {
         ];
       case ConflictType.value_system:
         return [
-          ResolutionOption(
+          const ResolutionOption(
             value: UserResolution.merge_insights,
             title: 'Integrate both perspectives',
             description: 'These values can coexist and complement each other',
           ),
-          ResolutionOption(
+          const ResolutionOption(
             value: UserResolution.keep_both,
             title: 'Keep both value systems',
             description: 'My values have complexity and nuance',
@@ -335,12 +335,12 @@ class _ConflictResolutionDialogState extends State<ConflictResolutionDialog> {
         ];
       case ConflictType.phase:
         return [
-          ResolutionOption(
+          const ResolutionOption(
             value: UserResolution.contextual_both,
             title: 'Contextualize by phase',
             description: 'These memories reflect different growth phases',
           ),
-          ResolutionOption(
+          const ResolutionOption(
             value: UserResolution.keep_both,
             title: 'Keep both phase memories',
             description: 'Both phases are important parts of my journey',

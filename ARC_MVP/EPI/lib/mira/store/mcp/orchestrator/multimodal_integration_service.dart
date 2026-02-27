@@ -5,7 +5,6 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:crypto/crypto.dart';
 import 'package:mime/mime.dart';
 
-import 'mcp_pointer_service.dart';
 import '../models/mcp_schemas.dart';
 
 /// Simple integration service for multimodal functionality
@@ -124,20 +123,20 @@ class MultimodalIntegrationService {
     );
     
     // Create privacy settings
-    final privacy = McpPrivacy(
+    const privacy = McpPrivacy(
       containsPii: false,
       facesDetected: false,
       sharingPolicy: 'private',
     );
     
     // Create provenance
-    final provenance = McpProvenance(
+    const provenance = McpProvenance(
       source: 'EPI_Multimodal_Integration',
       device: 'EPI_Device',
     );
     
     // Create sampling manifest
-    final samplingManifest = McpSamplingManifest(
+    const samplingManifest = McpSamplingManifest(
       keyframes: [],
       spans: [],
       metadata: {},
@@ -164,7 +163,7 @@ class MultimodalIntegrationService {
       id: 'audio_${DateTime.now().millisecondsSinceEpoch}',
       mediaType: 'audio',
       sourceUri: 'placeholder://audio',
-      descriptor: McpDescriptor(
+      descriptor: const McpDescriptor(
         mimeType: 'audio/m4a',
         length: 0,
         metadata: {},
@@ -174,16 +173,16 @@ class MultimodalIntegrationService {
         bytes: 0,
         createdAt: DateTime.now(),
       ),
-      privacy: McpPrivacy(
+      privacy: const McpPrivacy(
         containsPii: false,
         facesDetected: false,
         sharingPolicy: 'private',
       ),
-      provenance: McpProvenance(
+      provenance: const McpProvenance(
         source: 'EPI_Multimodal_Integration',
         device: 'EPI_Device',
       ),
-      samplingManifest: McpSamplingManifest(
+      samplingManifest: const McpSamplingManifest(
         keyframes: [],
         spans: [],
         metadata: {},

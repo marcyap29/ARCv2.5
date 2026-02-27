@@ -129,7 +129,7 @@ class MiraBasics {
 
   MiraBasics(this.journalRepo, this.memoryRepo, this.settings);
 
-  String _clip(String s, int n) => s.length <= n ? s : (s.substring(0, n).trimRight() + "...");
+  String _clip(String s, int n) => s.length <= n ? s : ("${s.substring(0, n).trimRight()}...");
   
   String _ascii(String s) => s
     .replaceAll("'", "'")
@@ -444,7 +444,7 @@ class QuickAnswers {
       final date = e.createdAt; // client can humanize later
       final tagLine = e.tags.isEmpty ? "" : "  [${e.tags.take(3).join(', ')}]";
       final phase = e.phase == null ? "" : " (${e.phase})";
-      return "- ${date}${phase}${tagLine}\n  ${e.text}";
+      return "- $date$phase$tagLine\n  ${e.text}";
     }).join("\n");
     return "Recent entries:\n$rows";
   }

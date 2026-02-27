@@ -4,9 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
 import 'package:my_app/arc/chat/chat/chat_models.dart';
 import 'package:my_app/arc/chat/chat/chat_repo_impl.dart';
-import 'package:my_app/mira/store/mcp/export/mcp_export_service.dart';
 import 'package:my_app/mira/store/mcp/import/mcp_import_service.dart';
-import 'package:my_app/mira/store/mcp/models/mcp_schemas.dart';
 import 'package:my_app/mira/mira_service.dart';
 import 'package:my_app/models/journal_entry_model.dart';
 
@@ -237,9 +235,9 @@ void main() {
             content: 'Today I had a great conversation with LUMARA about testing.',
             createdAt: DateTime.now(),
             updatedAt: DateTime.now(),
-            tags: ['journal', 'testing'],
+            tags: const ['journal', 'testing'],
             mood: 'Excited',
-            metadata: {'phase': 'Discovery'},
+            metadata: const {'phase': 'Discovery'},
           ),
         ];
 

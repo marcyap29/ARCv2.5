@@ -1,7 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:my_app/prism/atlas/rivet/rivet_storage.dart';
 import 'package:my_app/prism/atlas/rivet/rivet_models.dart';
-import 'package:hive/hive.dart';
 
 void main() {
   group('RivetBox', () {
@@ -52,7 +51,7 @@ void main() {
 
     group('save', () {
       test('saves state without errors', () async {
-        final state = const RivetState(
+        const state = RivetState(
           align: 0.5,
           trace: 0.3,
           sustainCount: 5,

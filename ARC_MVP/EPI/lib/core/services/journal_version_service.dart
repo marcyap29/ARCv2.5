@@ -2,6 +2,7 @@
 ///
 /// Manages immutable versions and draft state for journal entries.
 /// Implements single-draft-per-entry, content-hash-based autosave, and versioning.
+library;
 
 import 'dart:async';
 import 'dart:convert';

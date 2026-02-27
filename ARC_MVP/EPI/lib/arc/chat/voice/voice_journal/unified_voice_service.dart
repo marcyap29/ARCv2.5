@@ -12,6 +12,7 @@
 /// Mode-specific behavior:
 /// - JOURNAL: Saves to journal repository only
 /// - CHAT: Saves to chat history only
+library;
 
 import 'dart:async';
 import 'dart:convert';

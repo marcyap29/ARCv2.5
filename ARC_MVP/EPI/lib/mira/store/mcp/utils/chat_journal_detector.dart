@@ -1,5 +1,6 @@
 /// Utility functions for detecting and separating chat messages from journal entries
 /// in MCP data structures. All functions are pure and unit-testable.
+library;
 
 import 'package:my_app/mira/store/mcp/models/mcp_schemas.dart';
 import 'package:my_app/models/journal_entry_model.dart';

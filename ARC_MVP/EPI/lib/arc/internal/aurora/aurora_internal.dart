@@ -2,6 +2,7 @@
 /// 
 /// Barrel export for AURORA internal module
 /// Handles time-based user activity patterns
+library;
 
 export 'active_window_detector.dart';
 export 'sleep_protection_service.dart';

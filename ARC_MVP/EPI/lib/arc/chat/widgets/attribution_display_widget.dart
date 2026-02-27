@@ -3,6 +3,9 @@
 
 import 'package:flutter/material.dart';
 import 'package:my_app/mira/memory/enhanced_memory_schema.dart';
+import 'package:my_app/arc/unified_feed/widgets/expanded_entry_view.dart';
+import 'package:my_app/arc/internal/mira/journal_repository.dart';
+import 'package:my_app/arc/unified_feed/utils/feed_helpers.dart';
 
 /// Widget that displays memory attribution traces for a response
 class AttributionDisplayWidget extends StatefulWidget {
@@ -147,6 +150,60 @@ class _AttributionDisplayWidgetState extends State<AttributionDisplayWidget> {
     );
   }
 
+  Widget _buildTraceTitle(BuildContext context, AttributionTrace trace) {
+    final label = trace.displayTitle ?? trace.nodeRef;
+    final entryId = trace.entryId ?? _parseEntryIdFromNodeRef(trace.nodeRef);
+    
+    if (entryId != null && entryId.isNotEmpty) {
+      return InkWell(
+        onTap: () => _openEntryPreview(context, entryId),
+        child: Text(
+          'Memory: $label',
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+            fontWeight: FontWeight.w600,
+            color: Theme.of(context).colorScheme.primary,
+            decoration: TextDecoration.underline,
+            decorationColor: Theme.of(context).colorScheme.primary,
+          ),
+          overflow: TextOverflow.ellipsis,
+        ),
+      );
+    }
+    return Text(
+      'Memory: $label',
+      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+        fontWeight: FontWeight.w600,
+      ),
+      overflow: TextOverflow.ellipsis,
+    );
+  }
+
+  String? _parseEntryIdFromNodeRef(String nodeRef) {
+    if (nodeRef.startsWith('entry:')) {
+      return nodeRef.replaceFirst('entry:', '');
+    }
+    if (nodeRef.contains('_')) {
+      final parts = nodeRef.split('_');
+      if (parts.length > 1) return parts.last;
+    }
+    return null;
+  }
+
+  Future<void> _openEntryPreview(BuildContext context, String entryId) async {
+    final entry = await JournalRepository().getJournalEntryById(entryId);
+    if (entry != null && context.mounted) {
+      final feedEntry = FeedHelpers.journalEntryToFeedEntry(entry);
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (ctx) => ExpandedEntryView(
+            entry: feedEntry,
+            onEntryDeleted: () {},
+          ),
+        ),
+      );
+    }
+  }
+
   Widget _buildTraceItem(AttributionTrace trace) {
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
@@ -162,7 +219,7 @@ class _AttributionDisplayWidgetState extends State<AttributionDisplayWidget> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Memory reference and relation
+          // Memory reference and relation (show entry title if available, make clickable)
           Row(
             children: [
               Icon(
@@ -172,13 +229,7 @@ class _AttributionDisplayWidgetState extends State<AttributionDisplayWidget> {
               ),
               const SizedBox(width: 8),
               Expanded(
-                child: Text(
-                  'Memory: ${trace.nodeRef}',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
+                child: _buildTraceTitle(context, trace),
               ),
               const SizedBox(width: 4),
               Text(
@@ -301,12 +352,8 @@ class _AttributionDisplayWidgetState extends State<AttributionDisplayWidget> {
 
   Widget _buildSummaryStats() {
     final relationCounts = <String, int>{};
-    final phaseCounts = <String, int>{};
     for (final trace in widget.traces) {
       relationCounts[trace.relation] = (relationCounts[trace.relation] ?? 0) + 1;
-      if (trace.phaseContext != null && trace.phaseContext!.isNotEmpty) {
-        phaseCounts[trace.phaseContext!] = (phaseCounts[trace.phaseContext!] ?? 0) + 1;
-      }
     }
 
     return Container(
@@ -326,7 +373,6 @@ class _AttributionDisplayWidgetState extends State<AttributionDisplayWidget> {
             ),
           ),
           const SizedBox(height: 4),
-          // Relation counts
           ...relationCounts.entries.map((entry) => Padding(
             padding: const EdgeInsets.only(bottom: 2),
             child: Row(
@@ -347,39 +393,6 @@ class _AttributionDisplayWidgetState extends State<AttributionDisplayWidget> {
               ],
             ),
           )),
-          // Phase counts (if any)
-          if (phaseCounts.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            Text(
-              'Phases',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: 4),
-            ...phaseCounts.entries.map((entry) => Padding(
-              padding: const EdgeInsets.only(bottom: 2),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.auto_awesome,
-                    size: 12,
-                    color: _getPhaseColor(entry.key),
-                  ),
-                  const SizedBox(width: 4),
-                  Expanded(
-                    child: Text(
-                      '${entry.key}: ${entry.value}',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: _getPhaseColor(entry.key),
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ],
-              ),
-            )),
-          ],
         ],
       ),
     );
@@ -431,22 +444,4 @@ class _AttributionDisplayWidgetState extends State<AttributionDisplayWidget> {
     ).join(' ');
   }
 
-  Color _getPhaseColor(String phase) {
-    switch (phase.toLowerCase()) {
-      case 'discovery':
-        return Colors.blue;
-      case 'expansion':
-        return Colors.green;
-      case 'transition':
-        return Colors.orange;
-      case 'consolidation':
-        return Colors.purple;
-      case 'recovery':
-        return Colors.teal;
-      case 'breakthrough':
-        return Colors.amber;
-      default:
-        return Colors.grey;
-    }
-  }
 }

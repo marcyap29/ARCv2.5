@@ -5,6 +5,7 @@
 /// - Opacity increases to show commitment level
 /// - Smooth animations for natural feel
 /// - Phase-adaptive colors
+library;
 
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
@@ -37,7 +38,7 @@ class CommitmentRingPainter extends CustomPainter {
     // Calculate current radius (contracts inward)
     // When commitmentLevel = 0.0: radius = maxRadius
     // When commitmentLevel = 1.0: radius = maxRadius * 0.3 (shrinks to 30% of max)
-    final minRadiusScale = 0.3;
+    const minRadiusScale = 0.3;
     final radiusScale = 1.0 - (commitmentLevel * (1.0 - minRadiusScale));
     final currentRadius = maxRadius * radiusScale;
     
@@ -60,7 +61,7 @@ class CommitmentRingPainter extends CustomPainter {
         ..color = phaseColor.withOpacity(opacity * 0.3)
         ..style = PaintingStyle.stroke
         ..strokeWidth = strokeWidth * 2
-        ..maskFilter = MaskFilter.blur(BlurStyle.normal, 4);
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4);
       
       canvas.drawCircle(center, currentRadius, glowPaint);
     }
@@ -125,7 +126,7 @@ class ShimmerPainter extends CustomPainter {
     final radius = size.width * 0.35;
     
     // Create accelerating ripples
-    final rippleCount = 3;
+    const rippleCount = 3;
     
     for (int i = 0; i < rippleCount; i++) {
       final rippleProgress = (animationValue + (i * 0.33)) % 1.0;

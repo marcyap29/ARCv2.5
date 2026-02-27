@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+
+import 'package:my_app/arc/ui/quick_actions_service.dart';
 import '../../core/mcp/orchestrator/multimodal_integration_service.dart';
 
 /// iOS Widget Extension and Quick Actions Integration
 class IOSWidgetQuickActionsIntegration {
   static const MethodChannel _widgetChannel = MethodChannel('ios_widget_extension');
-  static const MethodChannel _quickActionsChannel = MethodChannel('quick_actions');
   
   /// Initialize both widget extension and quick actions
   static Future<void> initialize() async {
@@ -13,8 +14,8 @@ class IOSWidgetQuickActionsIntegration {
       // Initialize widget extension
       await _widgetChannel.invokeMethod('initializeWidget');
       
-      // Initialize quick actions
-      await _quickActionsChannel.invokeMethod('initializeQuickActions');
+      // Initialize quick actions (single source: quick_actions_service.dart)
+      await QuickActionsService.initialize();
       
       print('iOS Widget Extension and Quick Actions initialized successfully');
     } catch (e) {
@@ -49,13 +50,9 @@ class IOSWidgetQuickActionsIntegration {
     }
   }
   
-  /// Handle quick action selection
+  /// Handle quick action selection (delegates to QuickActionsService)
   static Future<void> handleQuickAction(String actionId) async {
-    try {
-      await _quickActionsChannel.invokeMethod('handleQuickAction', {'actionId': actionId});
-    } catch (e) {
-      print('Failed to handle quick action: $e');
-    }
+    await QuickActionsService.handleQuickAction(actionId);
   }
 }
 
@@ -487,33 +484,33 @@ class _WidgetInstallationScreenState extends State<WidgetInstallationScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('iOS Widget Installation'),
-        content: SingleChildScrollView(
+        content: const SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text(
+              Text(
                 'To install the iOS widget:',
                 style: TextStyle(fontWeight: FontWeight.w600),
               ),
-              const SizedBox(height: 12),
-              const Text('1. Long press on your home screen'),
-              const Text('2. Tap the "+" button in the top-left corner'),
-              const Text('3. Search for "EPI Journal"'),
-              const Text('4. Select the widget size you prefer'),
-              const Text('5. Tap "Add Widget"'),
-              const Text('6. Position the widget on your home screen'),
-              const SizedBox(height: 12),
-              const Text(
+              SizedBox(height: 12),
+              Text('1. Long press on your home screen'),
+              Text('2. Tap the "+" button in the top-left corner'),
+              Text('3. Search for "EPI Journal"'),
+              Text('4. Select the widget size you prefer'),
+              Text('5. Tap "Add Widget"'),
+              Text('6. Position the widget on your home screen'),
+              SizedBox(height: 12),
+              Text(
                 'The widget will show:',
                 style: TextStyle(fontWeight: FontWeight.w600),
               ),
-              const SizedBox(height: 8),
-              const Text('• Quick "New Entry" button'),
-              const Text('• Quick "Photo" button'),
-              const Text('• Quick "Voice" button'),
-              const Text('• Last entry preview'),
-              const Text('• Media count display'),
+              SizedBox(height: 8),
+              Text('• Quick "New Entry" button'),
+              Text('• Quick "Photo" button'),
+              Text('• Quick "Voice" button'),
+              Text('• Last entry preview'),
+              Text('• Media count display'),
             ],
           ),
         ),

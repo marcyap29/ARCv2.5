@@ -25,7 +25,6 @@ import 'package:my_app/core/sync/sync_item_adapter.dart';
 import 'package:my_app/arc/chat/llm/model_progress_service.dart';
 import 'package:my_app/arc/chat/llm/bridge.pigeon.dart' as pigeon;
 import 'package:my_app/arc/chat/chat/chat_models.dart';
-import 'package:my_app/arc/chat/chat/chat_category_models.dart';
 import 'package:my_app/arc/chat/data/models/lumara_favorite.dart';
 import 'package:my_app/arc/voice_notes/models/voice_note.dart';
 import 'package:my_app/chronicle/storage/layer0_repository.dart';
@@ -244,19 +243,6 @@ Future<void> _registerHiveAdapters() async {
     if (!Hive.isAdapterRegistered(70)) {
       Hive.registerAdapter(ChatMessageAdapter());
       logger.d('✅ Registered ChatMessageAdapter (ID: 70)');
-    }
-    // Chat category adapters
-    if (!Hive.isAdapterRegistered(72)) {
-      Hive.registerAdapter(ChatCategoryAdapter());
-      logger.d('✅ Registered ChatCategoryAdapter (ID: 72)');
-    }
-    if (!Hive.isAdapterRegistered(73)) {
-      Hive.registerAdapter(ChatSessionCategoryAdapter());
-      logger.d('✅ Registered ChatSessionCategoryAdapter (ID: 73)');
-    }
-    if (!Hive.isAdapterRegistered(74)) {
-      Hive.registerAdapter(ChatExportDataAdapter());
-      logger.d('✅ Registered ChatExportDataAdapter (ID: 74)');
     }
     // Favorites adapter
     if (!Hive.isAdapterRegistered(80)) {

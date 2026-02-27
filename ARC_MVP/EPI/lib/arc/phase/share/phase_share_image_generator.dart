@@ -4,7 +4,6 @@
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'phase_share_models.dart';
 import '../../../models/phase_models.dart';
 
@@ -369,7 +368,7 @@ class PhaseShareImageGenerator {
       color: Colors.grey.shade500,
       fontWeight: FontWeight.w500,
     );
-    final text = 'Tracked with ARC';
+    const text = 'Tracked with ARC';
     final painter = TextPainter(
       text: TextSpan(text: text, style: style),
       textDirection: TextDirection.ltr,

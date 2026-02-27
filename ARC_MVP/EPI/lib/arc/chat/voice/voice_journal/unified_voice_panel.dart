@@ -2,6 +2,7 @@
 /// 
 /// A single UI component for both Voice Journal and Voice Chat modes.
 /// The UI adapts based on the current mode.
+library;
 
 import 'dart:async';
 import 'dart:math' as math;
@@ -806,7 +807,7 @@ class _EqualizerPainter extends CustomPainter {
     
     final centerX = size.width / 2;
     final centerY = size.height / 2;
-    final totalBarWidth = (barCount * barWidth) + ((barCount - 1) * barSpacing);
+    const totalBarWidth = (barCount * barWidth) + ((barCount - 1) * barSpacing);
     final startX = centerX - (totalBarWidth / 2);
     
     // Create equalizer bars with independent animations

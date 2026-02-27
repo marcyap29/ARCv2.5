@@ -5,6 +5,7 @@
 /// - INWARD toward center when LISTENING (collecting words)
 /// - OUTWARD from center when SPEAKING (emanating response)
 /// - ORBITAL around center when IDLE (ambient presence)
+library;
 
 import 'dart:math' as math;
 import 'package:flutter/material.dart';

@@ -217,8 +217,9 @@ Output JSON array of themes:''';
         if (name.isEmpty || _isNonTheme(name)) continue;
         final confidenceStr = (map['confidence'] as String? ?? 'medium').toLowerCase();
         double confidence = 0.5;
-        if (confidenceStr == 'high') confidence = 0.9;
-        else if (confidenceStr == 'medium') confidence = 0.7;
+        if (confidenceStr == 'high') {
+          confidence = 0.9;
+        } else if (confidenceStr == 'medium') confidence = 0.7;
         else confidence = 0.5;
         final entryIds = List<String>.from(map['entry_ids'] as List? ?? []);
 
@@ -286,7 +287,7 @@ Output JSON array of themes:''';
           .map((e) => e.content.substring(0, e.content.length > 1200 ? 1200 : e.content.length))
           .join('\n\n---\n\n');
 
-      final systemPrompt = '''You write detailed month-in-review summaries for a personal journaling app (memory files the owner will read).
+      const systemPrompt = '''You write detailed month-in-review summaries for a personal journaling app (memory files the owner will read).
 Based only on the journal entry content and any DECISION CAPTURES provided, write a detailed narrative in third person that:
 - Preserves concrete details: specific names, places, events, dates, and projects from the entries. Pull out and include specific details, not generic summaries.
 - Covers what actually happened this month (events, routines, changes), what the person was focused on or struggling with, multiple themes (work, family, health, projects), and notable emotional or relational themes.

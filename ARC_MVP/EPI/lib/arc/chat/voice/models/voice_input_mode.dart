@@ -3,6 +3,7 @@
 /// Defines how the user interacts with voice mode:
 /// - pushToTalk: Hold to talk, release to process (default, recommended)
 /// - handsFree: Smart endpoint detection for accessibility
+library;
 
 enum VoiceInputMode {
   /// Push-to-talk mode (default, recommended)

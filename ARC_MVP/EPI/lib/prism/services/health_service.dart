@@ -354,10 +354,6 @@ class HealthIngest {
   static num? _getNumericValue(HealthDataPoint p) {
     final value = p.value;
 
-    if (value == null) {
-      return null;
-    }
-
     // Try direct num cast first
     try {
       if (value is int || value is double) {

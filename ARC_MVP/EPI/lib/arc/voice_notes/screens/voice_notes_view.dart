@@ -414,7 +414,7 @@ class _VoiceNotesViewState extends State<VoiceNotesView> {
         content: note.transcription,
         createdAt: note.timestamp,
         updatedAt: DateTime.now(),
-        tags: ['voice', 'timeline'],
+        tags: const ['voice', 'timeline'],
         mood: '',
         metadata: {'fromVoiceNote': true, 'voiceNoteId': note.id},
       );

@@ -10,14 +10,14 @@ import 'package:my_app/services/user_phase_service.dart';
 import 'package:my_app/services/analytics_service.dart';
 import 'package:my_app/services/phase_regime_service.dart';
 import 'package:my_app/services/phase_service_registry.dart';
-import 'package:my_app/services/rivet_sweep_service.dart';
+import 'package:my_app/services/rivet_sweep_service.dart' show runAutoPhaseAnalysis;
 import 'package:flutter/foundation.dart';
 import 'package:my_app/core/services/photo_library_service.dart';
 import 'dart:math' as math;
 import 'package:my_app/shared/ui/journal/unified_journal_view.dart';
 import 'package:my_app/ui/journal/journal_screen.dart';
 import 'package:my_app/services/journal_session_cache.dart';
-import 'package:my_app/arc/chat/ui/lumara_assistant_screen.dart';
+import 'package:my_app/arc/chat/ui/lumara_chat_redesign_screen.dart';
 import 'package:my_app/arc/chat/bloc/lumara_assistant_cubit.dart';
 import 'package:my_app/arc/chat/data/context_provider.dart';
 import 'package:my_app/arc/chat/data/context_scope.dart';
@@ -43,7 +43,6 @@ import 'package:my_app/arc/unified_feed/widgets/unified_feed_screen.dart';
 import 'package:my_app/core/models/entry_mode.dart';
 import 'package:my_app/shared/ui/settings/settings_view.dart';
 import 'package:my_app/lumara/agents/screens/agents_screen.dart';
-import 'package:my_app/services/rivet_sweep_service.dart' show runAutoPhaseAnalysis;
 import 'package:my_app/chronicle/dual/services/dual_chronicle_services.dart';
 import 'package:my_app/chronicle/integration/veil_chronicle_factory.dart';
 import 'package:my_app/chronicle/scheduling/synthesis_scheduler.dart' show SynthesisTier;
@@ -132,10 +131,7 @@ class _HomeViewState extends State<HomeView> {
           final scheduleEnabled = prefs.getBool('local_backup_schedule_enabled') ?? false;
           if (!backupEnabled || !scheduleEnabled) return;
           final journalRepo = context.read<JournalRepository>();
-          final analyticsService = AnalyticsService();
-          final rivetSweepService = RivetSweepService(analyticsService);
-          final phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
-          await phaseRegimeService.initialize();
+          final phaseRegimeService = await PhaseServiceRegistry.phaseRegimeService;
           final chatRepo = ChatRepoImpl.instance;
           await chatRepo.initialize();
           await ScheduledLocalBackupService.instance.start(
@@ -509,7 +505,7 @@ class _HomeViewState extends State<HomeView> {
               final cubit = BlocProvider.of<LumaraAssistantCubit>(builderContext, listen: false);
               return BlocProvider.value(
                 value: cubit,
-                child: const LumaraAssistantScreen(),
+                child: const LumaraChatRedesignScreen(),
               );
             } catch (e) {
               // If provider not available, create a local one
@@ -522,7 +518,7 @@ class _HomeViewState extends State<HomeView> {
                     contextProvider: contextProvider,
                   )..initialize();
                 },
-                child: const LumaraAssistantScreen(),
+                child: const LumaraChatRedesignScreen(),
               );
             }
           },

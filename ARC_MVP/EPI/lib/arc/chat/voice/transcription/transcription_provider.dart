@@ -3,6 +3,7 @@
 /// This abstraction allows seamless switching between:
 /// - AssemblyAI cloud streaming (high accuracy)
 /// - On-device transcription (offline fallback)
+library;
 
 /// A single segment of transcribed text
 class TranscriptSegment {

@@ -251,7 +251,7 @@ class _DualChronicleViewState extends State<DualChronicleView> {
           children: [
             Row(
               children: [
-                Icon(Icons.schedule, color: kcAccentColor, size: 18),
+                const Icon(Icons.schedule, color: kcAccentColor, size: 18),
                 const SizedBox(width: 6),
                 Text(
                   'Connection memory window',
@@ -273,7 +273,7 @@ class _DualChronicleViewState extends State<DualChronicleView> {
             ),
             const SizedBox(height: 10),
             DropdownButtonFormField<ConnectionFadePreset>(
-              value: _fadePreset,
+              initialValue: _fadePreset,
               decoration: InputDecoration(
                 labelText: 'Fade after',
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
@@ -313,7 +313,7 @@ class _DualChronicleViewState extends State<DualChronicleView> {
           children: [
             Row(
               children: [
-                Icon(Icons.auto_awesome, color: kcAccentColor, size: 20),
+                const Icon(Icons.auto_awesome, color: kcAccentColor, size: 20),
                 const SizedBox(width: 8),
                 Text(
                   'When learning runs',
@@ -363,7 +363,7 @@ class _DualChronicleViewState extends State<DualChronicleView> {
           ),
           child: Row(
             children: [
-              Icon(Icons.psychology, color: kcAccentColor, size: 20),
+              const Icon(Icons.psychology, color: kcAccentColor, size: 20),
               const SizedBox(width: 8),
               Expanded(
                 child: Column(
@@ -389,7 +389,7 @@ class _DualChronicleViewState extends State<DualChronicleView> {
                   ],
                 ),
               ),
-              Icon(Icons.chevron_right, color: kcSecondaryTextColor, size: 22),
+              const Icon(Icons.chevron_right, color: kcSecondaryTextColor, size: 22),
             ],
           ),
         ),
@@ -406,7 +406,7 @@ class _DualChronicleViewState extends State<DualChronicleView> {
         children: [
           Row(
             children: [
-              Icon(Icons.schedule, color: kcSecondaryTextColor, size: 18),
+              const Icon(Icons.schedule, color: kcSecondaryTextColor, size: 18),
               const SizedBox(width: 6),
               Text(
                 'Recent learning triggers',
@@ -534,7 +534,7 @@ class _DualChronicleViewState extends State<DualChronicleView> {
   /// Gap-fill events recorded within [_triggerMatchWindowMinutes] minutes of the trigger.
   List<GapFillEvent> _gapFillsNearTrigger(LearningTriggerRecord trigger) {
     final triggerTime = trigger.at.isUtc ? trigger.at.toLocal() : trigger.at;
-    final window = Duration(minutes: _triggerMatchWindowMinutes);
+    const window = Duration(minutes: _triggerMatchWindowMinutes);
     return _recentGapFills.where((e) {
       final eventTime = e.recordedAt.isUtc ? e.recordedAt.toLocal() : e.recordedAt;
       return eventTime.difference(triggerTime).abs() <= window;
@@ -615,7 +615,7 @@ class _DualChronicleViewState extends State<DualChronicleView> {
         children: [
           Row(
             children: [
-              Icon(Icons.lightbulb_outline, color: kcWarningColor, size: 18),
+              const Icon(Icons.lightbulb_outline, color: kcWarningColor, size: 18),
               const SizedBox(width: 6),
               Text(
                 "LUMARA's recent learning activity",
@@ -792,7 +792,7 @@ class _DualChronicleViewState extends State<DualChronicleView> {
         children: [
           Row(
             children: [
-              Icon(Icons.psychology, color: kcAccentColor, size: 18),
+              const Icon(Icons.psychology, color: kcAccentColor, size: 18),
               const SizedBox(width: 6),
               Text(
                 'Recent inferences',

@@ -16,7 +16,7 @@ class ArcformDemo {
       'excitement', 'enthusiasm', 'energy'
     ];
 
-    final skin = ArcformSkin(seed: 304987231);
+    const skin = ArcformSkin(seed: 304987231);
     
     // Generate 3D layout
     final nodes = layout3D(

@@ -8,11 +8,11 @@ class EngagementModeSelector extends StatelessWidget {
   final bool compact;
 
   const EngagementModeSelector({
-    Key? key,
+    super.key,
     required this.selectedMode,
     required this.onModeChanged,
     this.compact = false,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -24,7 +24,7 @@ class EngagementModeSelector extends StatelessWidget {
 
   Widget _buildCompactSelector(BuildContext context) {
     return SegmentedButton<EngagementMode>(
-      segments: [
+      segments: const [
         ButtonSegment(
           value: EngagementMode.reflect,
           label: Text('Default'),
@@ -55,7 +55,7 @@ class EngagementModeSelector extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         SegmentedButton<EngagementMode>(
-          segments: [
+          segments: const [
             ButtonSegment(
               value: EngagementMode.reflect,
               label: Text('Default'),
@@ -99,12 +99,12 @@ class EngagementModeSelector extends StatelessWidget {
 class EngagementModeBadge extends StatelessWidget {
   final EngagementMode mode;
 
-  const EngagementModeBadge({Key? key, required this.mode}) : super(key: key);
+  const EngagementModeBadge({super.key, required this.mode});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
         color: _getModeColor(mode).withOpacity(0.1),
         borderRadius: BorderRadius.circular(12),

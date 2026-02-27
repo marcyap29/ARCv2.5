@@ -66,7 +66,7 @@ void main() {
         themeSummary: 'some theme',
         embedding: embedding,
         confidence: 0.8,
-        evidenceRefs: [],
+        evidenceRefs: const [],
       );
 
       final result = await matcher.findMatch(queryTheme: theme, index: index);
@@ -82,8 +82,8 @@ void main() {
       final cluster = ThemeCluster(
         clusterId: 'test_1',
         canonicalLabel: 'product launch anxiety',
-        aliases: ['product launch anxiety'],
-        appearances: [],
+        aliases: const ['product launch anxiety'],
+        appearances: const [],
         insights: PatternInsights.empty(),
         canonicalEmbedding: embedding,
         firstSeen: DateTime.now(),
@@ -92,8 +92,8 @@ void main() {
       final index = ChronicleIndex(
         themeClusters: {cluster.clusterId: cluster},
         labelToClusterId: {cluster.canonicalLabel: cluster.clusterId},
-        pendingEchoes: {},
-        arcs: {},
+        pendingEchoes: const {},
+        arcs: const {},
         lastUpdated: DateTime.now(),
       );
       final queryTheme = DominantTheme(
@@ -101,7 +101,7 @@ void main() {
         themeSummary: 'anxiety around product launch',
         embedding: await embedder.embed('anxiety around product launch'),
         confidence: 0.9,
-        evidenceRefs: [],
+        evidenceRefs: const [],
       );
 
       final result = await matcher.findMatch(queryTheme: queryTheme, index: index);

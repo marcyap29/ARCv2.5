@@ -3,6 +3,7 @@
 /// Mandatory post-ASR pass: remove filler words, fix common misrecognitions,
 /// correct repetitions and false starts, light grammatical cleanup.
 /// Preserves semantic meaning; target <10ms per utterance.
+library;
 
 class TranscriptCleanupService {
   TranscriptCleanupService() : _fillerWords = _buildFillerSet();

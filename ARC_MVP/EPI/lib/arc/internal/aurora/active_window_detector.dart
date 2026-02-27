@@ -22,7 +22,7 @@ class ActiveWindowDetector {
     }
 
     // Filter to recent entries (last 60 days)
-    final cutoffDate = DateTime.now().subtract(Duration(days: _observationPeriodDays));
+    final cutoffDate = DateTime.now().subtract(const Duration(days: _observationPeriodDays));
     final recentEntries = allEntries.where((e) => 
       e.createdAt.isAfter(cutoffDate)
     ).toList();

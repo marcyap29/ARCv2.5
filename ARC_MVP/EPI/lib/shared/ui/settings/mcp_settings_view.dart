@@ -299,7 +299,7 @@ class _McpSettingsViewContent extends StatelessWidget {
         final now = DateTime.now();
         final dateStr = '${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}';
         final timeStr = '${now.hour.toString().padLeft(2, '0')}${now.minute.toString().padLeft(2, '0')}${now.second.toString().padLeft(2, '0')}';
-        final bundleId = 'mcp_${dateStr}_${timeStr}';
+        final bundleId = 'mcp_${dateStr}_$timeStr';
 
         // Create ZIP of the export directory
         final zipFile = await ZipUtils.zipDirectory(
@@ -605,7 +605,7 @@ class _McpSettingsViewContent extends StatelessWidget {
       final filePath = '${destDir.path}/${file.name}';
       final outputFile = File(filePath);
 
-      print('🔧 Processing file: ${file.name} -> ${filePath}');
+      print('🔧 Processing file: ${file.name} -> $filePath');
 
       // Ensure parent directory exists
       final parentDir = outputFile.parent;
@@ -629,7 +629,7 @@ class _McpSettingsViewContent extends StatelessWidget {
         // Verify the file was created
         if (await outputFile.exists()) {
           final actualSize = await outputFile.length();
-          print('✅ File verified: ${file.name} (${actualSize} bytes)');
+          print('✅ File verified: ${file.name} ($actualSize bytes)');
         } else {
           print('❌ File creation failed: ${file.name}');
         }

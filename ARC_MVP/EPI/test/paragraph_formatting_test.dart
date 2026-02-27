@@ -218,7 +218,7 @@ List<String> formatIntoParagraphs(String content) {
 
         // Add second sentence if available
         if (i + 1 < sentences.length) {
-          paragraphText += ' ' + sentences[i + 1];
+          paragraphText += ' ${sentences[i + 1]}';
         }
 
         paragraphs.add(paragraphText.trim());

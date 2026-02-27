@@ -2,6 +2,7 @@
 /// 
 /// CustomPainter that renders pulsing dots at intersection nodes.
 /// These appear during the THINKING state to show LUMARA processing.
+library;
 
 import 'dart:math' as math;
 import 'package:flutter/material.dart';

@@ -30,7 +30,7 @@ class PhaseTimelineView extends StatefulWidget {
 class _PhaseTimelineViewState extends State<PhaseTimelineView> {
   DateTime _visibleStart = DateTime.now().subtract(const Duration(days: 365));
   DateTime _visibleEnd = DateTime.now().add(const Duration(days: 30));
-  double _zoomLevel = 1.0;
+  final double _zoomLevel = 1.0;
 
   @override
   void initState() {
@@ -137,7 +137,7 @@ class _PhaseTimelineViewState extends State<PhaseTimelineView> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.error_outline, size: 48, color: Colors.red),
+              const Icon(Icons.error_outline, size: 48, color: Colors.red),
               const SizedBox(height: 16),
               Text(
                 'Error loading timeline',
@@ -202,7 +202,7 @@ class _PhaseTimelineViewState extends State<PhaseTimelineView> {
                   padding: const EdgeInsets.all(32.0),
                   child: Column(
                     children: [
-                      Icon(Icons.info_outline, size: 48, color: Colors.grey),
+                      const Icon(Icons.info_outline, size: 48, color: Colors.grey),
                       const SizedBox(height: 16),
                       Text(
                         'No phase regimes yet',
@@ -243,7 +243,7 @@ class _PhaseTimelineViewState extends State<PhaseTimelineView> {
                     ),
                     child: GestureDetector(
                       onTapDown: (details) => _handleTimelineTap(details, regimes),
-                      child: Container(
+                      child: const SizedBox(
                         width: double.infinity,
                         height: 60, // Reduced by 1/2 from 120 to 60
                       ),
@@ -315,7 +315,7 @@ class _PhaseTimelineViewState extends State<PhaseTimelineView> {
           child: Center(
             child: Column(
               children: [
-                Icon(Icons.info_outline, size: 32, color: Colors.grey),
+                const Icon(Icons.info_outline, size: 32, color: Colors.grey),
                 const SizedBox(height: 8),
                 Text(
                   'No phase regimes yet',
@@ -791,8 +791,8 @@ class _PhaseTimelineViewState extends State<PhaseTimelineView> {
                           isOngoing = value == false;
                           if (isOngoing) {
                             endDate = null;
-                          } else if (endDate == null) {
-                            endDate = DateTime.now();
+                          } else {
+                            endDate ??= DateTime.now();
                           }
                         });
                       },
@@ -992,8 +992,8 @@ class _PhaseTimelineViewState extends State<PhaseTimelineView> {
                           isOngoing = value == false;
                           if (isOngoing) {
                             endDate = null;
-                          } else if (endDate == null) {
-                            endDate = DateTime.now();
+                          } else {
+                            endDate ??= DateTime.now();
                           }
                         });
                       },
@@ -1537,7 +1537,7 @@ class _PhaseTimelineViewState extends State<PhaseTimelineView> {
         if (mounted) {
           setState(() {});
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
+            const SnackBar(
               content: Text('Phases merged successfully'),
               backgroundColor: Colors.green,
             ),
@@ -1790,7 +1790,7 @@ class _PhaseTimelineViewState extends State<PhaseTimelineView> {
       if (mounted) {
         setState(() {});
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
+          const SnackBar(
             content: Text('Regime dates updated'),
             backgroundColor: Colors.green,
           ),

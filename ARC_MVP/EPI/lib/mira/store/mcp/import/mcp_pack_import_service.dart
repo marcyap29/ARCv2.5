@@ -547,7 +547,7 @@ class McpPackImportService {
                     'altText': mediaJson['altText'] ?? metadata['altText'],
                     'ocrText': mediaJson['ocrText'] ?? metadata['ocrText'],
                   };
-                  print('📋 Enhanced media ${mediaId} with metadata from photo metadata file');
+                  print('📋 Enhanced media $mediaId with metadata from photo metadata file');
                 }
                 
                 final mediaItem = await _createMediaItemFromJson(enhancedMediaJson, photoMapping, entryJson['id'] as String? ?? 'unknown');
@@ -569,7 +569,7 @@ class McpPackImportService {
                     print('✅ Added media item ${mediaItem.id} to entry ${entryJson['id']}');
                   }
                 } else {
-                  print('⚠️ Skipped media item ${mediaId} - file not found during import');
+                  print('⚠️ Skipped media item $mediaId - file not found during import');
                 }
               } catch (e, stackTrace) {
                 print('⚠️ ERROR creating media item for entry ${entryJson['id']}: $e');
@@ -579,7 +579,7 @@ class McpPackImportService {
             }
           }
           
-          if (mediaData.length > 0 && mediaItems.isEmpty) {
+          if (mediaData.isNotEmpty && mediaItems.isEmpty) {
             print('⚠️ Entry ${entryJson['id']} had ${mediaData.length} media items but none could be mapped!');
             print('   Photo mapping contains ${photoMapping.length} photos');
             print('   First media item filename: ${mediaData[0] is Map ? (mediaData[0] as Map<String, dynamic>)['filename'] : 'N/A'}');
@@ -907,9 +907,7 @@ class McpPackImportService {
 
       // Extract analysis data (try multiple field names)
       Map<String, dynamic>? analysisData = mediaJson['analysisData'] as Map<String, dynamic>?;
-      if (analysisData == null) {
-        analysisData = mediaJson['analysis_data'] as Map<String, dynamic>?;
-      }
+      analysisData ??= mediaJson['analysis_data'] as Map<String, dynamic>?;
       if (analysisData == null && mediaJson.containsKey('features')) {
         analysisData = {'features': mediaJson['features']};
       }
@@ -927,9 +925,7 @@ class McpPackImportService {
 
       // Extract sizeBytes
       int? sizeBytes = mediaJson['sizeBytes'] as int?;
-      if (sizeBytes == null) {
-        sizeBytes = mediaJson['size_bytes'] as int?;
-      }
+      sizeBytes ??= mediaJson['size_bytes'] as int?;
       if (sizeBytes == null && mediaJson['size'] != null) {
         sizeBytes = mediaJson['size'] as int?;
       }
@@ -1231,7 +1227,7 @@ class McpPackImportService {
           }
         }
         
-        print('📦 MCP Import: ✓ Imported LUMARA favorites (${importedAnswers} answers, ${importedChats} chats, ${importedEntries} entries, $skippedCount skipped)');
+        print('📦 MCP Import: ✓ Imported LUMARA favorites ($importedAnswers answers, $importedChats chats, $importedEntries entries, $skippedCount skipped)');
       } else {
         print('📦 MCP Import: ⚠️ lumara_favorites.json not found, skipping LUMARA favorites');
       }
@@ -1328,10 +1324,10 @@ class McpPackImportService {
       final changelogRepo = ChronicleRepos.changelog;
       const userId = 'default_user';
 
-      ChronicleAggregation _parseAggregationFile(String content, ChronicleLayer layer, String period) {
-        if (!content.startsWith('---')) throw FormatException('Invalid aggregation format: missing frontmatter');
+      ChronicleAggregation parseAggregationFile(String content, ChronicleLayer layer, String period) {
+        if (!content.startsWith('---')) throw const FormatException('Invalid aggregation format: missing frontmatter');
         final parts = content.split('---');
-        if (parts.length < 3) throw FormatException('Invalid aggregation format: malformed frontmatter');
+        if (parts.length < 3) throw const FormatException('Invalid aggregation format: malformed frontmatter');
         final frontmatter = parts[1].trim();
         final markdown = parts.sublist(2).join('---').trim();
         final metadata = <String, dynamic>{};
@@ -1341,8 +1337,9 @@ class McpPackImportService {
             if (lineParts.length >= 2) {
               final key = lineParts[0].trim();
               final value = lineParts.sublist(1).join(':').trim();
-              if (key == 'entry_count' || key == 'version') metadata[key] = int.parse(value);
-              else if (key == 'compression_ratio') metadata[key] = double.parse(value);
+              if (key == 'entry_count' || key == 'version') {
+                metadata[key] = int.parse(value);
+              } else if (key == 'compression_ratio') metadata[key] = double.parse(value);
               else if (key == 'user_edited') metadata[key] = value.toLowerCase() == 'true';
               else if (key == 'synthesis_date') metadata[key] = DateTime.parse(value);
               else if (key == 'source_entry_ids') metadata[key] = value.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
@@ -1369,7 +1366,7 @@ class McpPackImportService {
           try {
             final content = await file.readAsString();
             final period = path.basenameWithoutExtension(file.path);
-            final aggregation = _parseAggregationFile(content, ChronicleLayer.monthly, period);
+            final aggregation = parseAggregationFile(content, ChronicleLayer.monthly, period);
             await aggregationRepo.saveMonthly(userId, aggregation);
           } catch (e) {
             print('⚠️ MCP Import: Failed to import monthly aggregation ${file.path}: $e');
@@ -1382,7 +1379,7 @@ class McpPackImportService {
           try {
             final content = await file.readAsString();
             final period = path.basenameWithoutExtension(file.path);
-            final aggregation = _parseAggregationFile(content, ChronicleLayer.yearly, period);
+            final aggregation = parseAggregationFile(content, ChronicleLayer.yearly, period);
             await aggregationRepo.saveYearly(userId, aggregation);
           } catch (e) {
             print('⚠️ MCP Import: Failed to import yearly aggregation ${file.path}: $e');
@@ -1395,7 +1392,7 @@ class McpPackImportService {
           try {
             final content = await file.readAsString();
             final period = path.basenameWithoutExtension(file.path);
-            final aggregation = _parseAggregationFile(content, ChronicleLayer.multiyear, period);
+            final aggregation = parseAggregationFile(content, ChronicleLayer.multiyear, period);
             await aggregationRepo.saveMultiYear(userId, aggregation);
           } catch (e) {
             print('⚠️ MCP Import: Failed to import multi-year aggregation ${file.path}: $e');
@@ -1527,9 +1524,9 @@ class McpPackImportService {
       await exportHistoryService.recordExport(record);
       
       print('MCP Import: ✅ Created export record #$exportNumber');
-      print('  - Entries: ${_importedEntryIds.length} (${entriesImported} imported)');
-      print('  - Chats: ${_importedChatIds.length} (${chatsImported} imported)');
-      print('  - Media: ${_importedMediaHashes.length} (${mediaImported} imported)');
+      print('  - Entries: ${_importedEntryIds.length} ($entriesImported imported)');
+      print('  - Chats: ${_importedChatIds.length} ($chatsImported imported)');
+      print('  - Media: ${_importedMediaHashes.length} ($mediaImported imported)');
       
       // Clear tracking variables
       _importedEntryIds.clear();

@@ -44,7 +44,7 @@ class AppWidget extends StatefulWidget {
 
 class _AppWidgetState extends State<AppWidget> {
   final List<McpPointer> _recentMedia = [];
-  String _lastEntry = '';
+  final String _lastEntry = '';
 
   @override
   Widget build(BuildContext context) {

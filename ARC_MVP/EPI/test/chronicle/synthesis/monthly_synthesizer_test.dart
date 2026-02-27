@@ -3,7 +3,6 @@ import 'package:my_app/chronicle/synthesis/monthly_synthesizer.dart';
 import 'package:my_app/chronicle/storage/layer0_repository.dart';
 import 'package:my_app/chronicle/storage/aggregation_repository.dart';
 import 'package:my_app/chronicle/storage/changelog_repository.dart';
-import 'package:my_app/chronicle/storage/raw_entry_schema.dart';
 
 void main() {
   group('MonthlySynthesizer', () {

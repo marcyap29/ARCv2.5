@@ -490,7 +490,7 @@ class McpExportService {
           
           pointers.add(pointer);
         } else {
-          print('⚠️ Photo reference ${photoRef} not found in entry media');
+          print('⚠️ Photo reference $photoRef not found in entry media');
         }
       }
     }
@@ -1098,7 +1098,7 @@ class McpExportService {
         emotions: {
           'confidence': regime.confidence ?? 1.0,
         },
-        provenance: McpProvenance(
+        provenance: const McpProvenance(
           source: 'ARC',
           app: 'EPI',
           importMethod: 'phase_regime',
@@ -1122,9 +1122,9 @@ class McpExportService {
       // Create edges to anchored entries
       for (final entryId in regime.anchors) {
         final edge = McpEdge(
-          id: 'edge_${regime.id}_${entryId}',
+          id: 'edge_${regime.id}_$entryId',
           source: 'phase_regime_${regime.id}',
-          target: 'entry_${entryId}',
+          target: 'entry_$entryId',
           relation: 'anchors',
           timestamp: regime.start,
           weight: 1.0,
@@ -1208,7 +1208,7 @@ class McpExportService {
 
         // Create RIVET state node
         final rivetNode = McpNode(
-          id: 'rivet_state_${userId}',
+          id: 'rivet_state_$userId',
           type: 'rivet_state',
           timestamp: DateTime.now(),
           contentSummary: 'RIVET State: ALIGN=${rivetState.align.toStringAsFixed(3)}, TRACE=${rivetState.trace.toStringAsFixed(3)}',
@@ -1223,7 +1223,7 @@ class McpExportService {
             'align': rivetState.align,
             'trace': rivetState.trace,
           },
-          provenance: McpProvenance(
+          provenance: const McpProvenance(
             source: 'ARC',
             app: 'EPI',
             importMethod: 'rivet_state',
@@ -1262,13 +1262,13 @@ class McpExportService {
         timestamp: DateTime.now(),
         contentSummary: 'Sentinel safety monitoring state',
         keywords: ['sentinel', 'safety', 'monitoring'],
-        narrative: McpNarrative(
+        narrative: const McpNarrative(
           situation: 'Safety monitoring system state',
           action: 'Risk detection and alerting',
           growth: 'User safety protection',
           essence: 'Sentinel monitoring active',
         ),
-        provenance: McpProvenance(
+        provenance: const McpProvenance(
           source: 'ARC',
           app: 'EPI',
           importMethod: 'sentinel_state',
@@ -1321,7 +1321,7 @@ class McpExportService {
             growth: 'Visual pattern recognition',
             essence: snapshot.notes,
           ),
-          provenance: McpProvenance(
+          provenance: const McpProvenance(
             source: 'ARC',
             app: 'EPI',
             importMethod: 'arcform_snapshot',
@@ -1392,7 +1392,7 @@ class McpExportService {
             growth: 'Personalized AI interaction',
             essence: favorite.content,
           ),
-          provenance: McpProvenance(
+          provenance: const McpProvenance(
             source: 'LUMARA',
             app: 'EPI',
             importMethod: 'lumara_favorite',
@@ -1459,13 +1459,13 @@ class McpExportService {
         timestamp: DateTime.now().toUtc(),
         contentSummary: 'LUMARA reflection and interaction settings',
         keywords: ['lumara', 'settings', 'preferences', 'reflection'],
-        narrative: McpNarrative(
+        narrative: const McpNarrative(
           situation: 'LUMARA configuration and preferences',
           action: 'AI interaction customization',
           growth: 'Personalized reflection experience',
           essence: 'User preferences for LUMARA behavior',
         ),
-        provenance: McpProvenance(
+        provenance: const McpProvenance(
           source: 'LUMARA',
           app: 'EPI',
           importMethod: 'lumara_settings',

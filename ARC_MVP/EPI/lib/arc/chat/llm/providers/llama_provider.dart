@@ -40,7 +40,7 @@ class LlamaProvider extends LLMProviderBase {
       final bridge = LumaraNative();
       
       // First, ensure the model is initialized
-      final modelPath = 'Llama-3.2-3b-Instruct-Q4_K_M.gguf';
+      const modelPath = 'Llama-3.2-3b-Instruct-Q4_K_M.gguf';
       final initialized = await bridge.initModel(modelPath);
       
       if (!initialized) {

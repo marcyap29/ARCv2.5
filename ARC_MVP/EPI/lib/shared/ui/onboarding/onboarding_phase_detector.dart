@@ -345,7 +345,7 @@ class OnboardingPhaseDetector {
     // Extract the core concern from Q5
     if (q5.isNotEmpty) {
       // Try to extract a meaningful question from their response
-      return q5.length > 50 ? q5.substring(0, 50) + '...' : q5;
+      return q5.length > 50 ? '${q5.substring(0, 50)}...' : q5;
     }
 
     // Default questions by phase

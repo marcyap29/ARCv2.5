@@ -10,11 +10,11 @@ class MemoryNotificationWidget extends StatelessWidget {
   final VoidCallback? onDismiss;
 
   const MemoryNotificationWidget({
-    Key? key,
+    super.key,
     required this.memory,
     this.onTap,
     this.onDismiss,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -224,11 +224,11 @@ class MemoryNotificationsContainer extends StatelessWidget {
   final Function(MemoryNotification)? onMemoryDismiss;
 
   const MemoryNotificationsContainer({
-    Key? key,
+    super.key,
     required this.memories,
     this.onMemoryTap,
     this.onMemoryDismiss,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

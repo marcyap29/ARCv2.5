@@ -173,7 +173,7 @@ class _PhaseAnalysisSettingsViewState extends State<PhaseAnalysisSettingsView> {
                   Switch(
                     value: _phaseCheckInReminderEnabled,
                     onChanged: _setPhaseCheckInReminder,
-                    activeColor: kcAccentColor,
+                    activeThumbColor: kcAccentColor,
                   ),
                 ],
               ),
@@ -257,7 +257,7 @@ class _PhaseAnalysisSettingsViewState extends State<PhaseAnalysisSettingsView> {
                     padding: const EdgeInsets.only(bottom: 12.0),
                     child: Row(
                       children: [
-                        Icon(Icons.schedule, size: 16, color: kcSecondaryTextColor),
+                        const Icon(Icons.schedule, size: 16, color: kcSecondaryTextColor),
                         const SizedBox(width: 6),
                         Text(
                           'Last analysis: ${_formatDateTime(snapshot.data!)}',

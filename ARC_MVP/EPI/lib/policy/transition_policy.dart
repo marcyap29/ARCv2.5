@@ -8,6 +8,7 @@
 /// The policy unifies sustainment semantics, finalizes thresholds, completes
 /// independence checks, caps novelty, wires risk into ingest, and provides
 /// full telemetry for debugging and transparency.
+library;
 
 import 'dart:math' as math;
 import 'package:my_app/prism/atlas/phase/phase_tracker.dart';

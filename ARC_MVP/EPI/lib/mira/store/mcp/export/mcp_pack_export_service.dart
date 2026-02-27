@@ -410,7 +410,7 @@ class McpPackExportService {
     if (usedSlugs != null) {
       if (usedSlugs.containsKey(slugKey)) {
         usedSlugs[slugKey] = (usedSlugs[slugKey] ?? 0) + 1;
-        slug = '${slug}-${usedSlugs[slugKey]}';
+        slug = '$slug-${usedSlugs[slugKey]}';
       } else {
         usedSlugs[slugKey] = 0;
       }
@@ -747,7 +747,7 @@ class McpPackExportService {
 
         // Write filtered data if any lines matched
         if (filteredHealthData.isNotEmpty) {
-          await destFile.writeAsString(filteredHealthData.join('\n') + '\n');
+          await destFile.writeAsString('${filteredHealthData.join('\n')}\n');
           fileCount++;
           print('📦 MCP Export: Filtered health stream: $filename (${filteredHealthData.length} lines)');
         }
@@ -889,7 +889,7 @@ class McpPackExportService {
         // Add new edges
         final edgesLines = edges.map((e) => jsonEncode(e)).toList();
         final allEdges = [...existingEdges, ...edgesLines];
-        await edgesFile.writeAsString(allEdges.join('\n') + '\n');
+        await edgesFile.writeAsString('${allEdges.join('\n')}\n');
       }
 
       return {'sessionCount': sessionCount, 'messageCount': messageCount};
@@ -1033,7 +1033,7 @@ class McpPackExportService {
       if (allFavorites.isNotEmpty) {
         final favoritesFile = File(path.join(extensionsDir.path, 'lumara_favorites.json'));
         await favoritesFile.writeAsString(
-          JsonEncoder.withIndent('  ').convert({
+          const JsonEncoder.withIndent('  ').convert({
             'lumara_favorites': allFavorites.map((f) {
               final map = <String, dynamic>{
                 'id': f.id,
@@ -1080,7 +1080,7 @@ class McpPackExportService {
         }).toList();
         final voiceNotesFile = File(path.join(extensionsDir.path, 'voice_notes.json'));
         await voiceNotesFile.writeAsString(
-          JsonEncoder.withIndent('  ').convert({
+          const JsonEncoder.withIndent('  ').convert({
             'voice_notes': list,
             'exported_at': DateTime.now().toUtc().toIso8601String(),
             'version': '1.0',
@@ -1122,7 +1122,7 @@ class McpPackExportService {
       final list = artifacts.map((a) => a.toJson()).toList();
       final researchFile = File(path.join(agentsDir.path, 'research_artifacts.json'));
       await researchFile.writeAsString(
-        JsonEncoder.withIndent('  ').convert({
+        const JsonEncoder.withIndent('  ').convert({
           'research_artifacts': list,
           'exported_at': DateTime.now().toUtc().toIso8601String(),
           'version': '1.0',

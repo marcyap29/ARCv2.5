@@ -2,6 +2,7 @@
 /// 
 /// Barrel export for PRISM internal module
 /// Provides analysis of text and media within ARC
+library;
 
 export 'theme_analysis_service.dart';
 export 'keyword_extraction_service.dart';

@@ -12,7 +12,6 @@ import 'package:my_app/mira/store/mcp/bundle/reader.dart';
 import 'package:my_app/mira/store/mcp/bundle/manifest.dart';
 import 'package:my_app/mira/store/mcp/export/mcp_export_service.dart';
 import 'package:my_app/mira/store/mcp/import/mcp_import_service.dart';
-import 'package:my_app/mira/store/mcp/models/mcp_schemas.dart';
 import 'package:my_app/arc/chat/chat/chat_repo.dart';
 import 'package:my_app/data/models/media_item.dart';
 import 'package:my_app/models/journal_entry_model.dart';

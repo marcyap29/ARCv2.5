@@ -11,6 +11,7 @@
 /// - Web access (important privacy setting)
 /// - Cross-modal/media analysis (capability toggle)
 /// - Lookback years (in advanced settings)
+library;
 
 import 'package:hive/hive.dart';
 

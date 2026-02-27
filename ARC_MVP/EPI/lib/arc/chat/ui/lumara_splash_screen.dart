@@ -85,7 +85,7 @@ class _LumaraSplashScreenState extends State<LumaraSplashScreen>
           _hasNavigated = true;
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(
-              builder: (context) => HomeView(),
+              builder: (context) => const HomeView(),
             ),
           );
         }

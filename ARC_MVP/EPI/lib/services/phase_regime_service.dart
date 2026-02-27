@@ -444,7 +444,7 @@ class PhaseRegimeService {
     for (final overlappingRegime in overlappingRegimes) {
       // If the overlapping regime is ongoing and starts before the new regime
       if (overlappingRegime.isOngoing && overlappingRegime.start.isBefore(start)) {
-        print('🔄 Ending ongoing regime ${_getPhaseLabelName(overlappingRegime.label)} at ${start} to make way for ${_getPhaseLabelName(label)}');
+        print('🔄 Ending ongoing regime ${_getPhaseLabelName(overlappingRegime.label)} at $start to make way for ${_getPhaseLabelName(label)}');
         final endedRegime = overlappingRegime.copyWith(
           end: start,
           updatedAt: DateTime.now(),
@@ -1074,7 +1074,7 @@ class PhaseRegimeService {
       // If oldLabel is provided, prioritize removing that one
       final oldHashtag = oldLabel != null ? '#${_getPhaseLabelName(oldLabel).toLowerCase()}' : null;
       
-      print('DEBUG: Updating hashtags for regime ${regime.id} (${newPhaseName})');
+      print('DEBUG: Updating hashtags for regime ${regime.id} ($newPhaseName)');
       print('DEBUG: Found ${entries.length} entries in date range');
       
       int updatedCount = 0;

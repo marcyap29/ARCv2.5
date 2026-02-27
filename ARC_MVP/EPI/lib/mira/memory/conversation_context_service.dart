@@ -114,14 +114,16 @@ class ConversationContextService {
     double confidence = 0.4; // Base confidence for conversation context
 
     // Recency boost (more recent = higher confidence)
-    if (recencyIndex == 0) confidence += 0.4; // Most recent message
-    else if (recencyIndex == 1) confidence += 0.3; // Second most recent
+    if (recencyIndex == 0) {
+      confidence += 0.4; // Most recent message
+    } else if (recencyIndex == 1) confidence += 0.3; // Second most recent
     else if (recencyIndex <= 3) confidence += 0.2; // Within last 3 messages
     else if (recencyIndex <= 5) confidence += 0.1; // Within last 5 messages
 
     // Time-based adjustment
-    if (minutesSince <= 5) confidence += 0.2; // Very recent (last 5 minutes)
-    else if (minutesSince <= 30) confidence += 0.1; // Recent (last 30 minutes)
+    if (minutesSince <= 5) {
+      confidence += 0.2; // Very recent (last 5 minutes)
+    } else if (minutesSince <= 30) confidence += 0.1; // Recent (last 30 minutes)
     else if (minutesSince > 120) confidence -= 0.1; // Older than 2 hours
 
     // Content relevance (simple keyword matching)
@@ -131,8 +133,9 @@ class ConversationContextService {
         .where((word) => messageWords.contains(word) && word.length > 3)
         .length;
 
-    if (commonWords > 3) confidence += 0.2;
-    else if (commonWords > 1) confidence += 0.1;
+    if (commonWords > 3) {
+      confidence += 0.2;
+    } else if (commonWords > 1) confidence += 0.1;
 
     // Message type adjustment
     if (message.role == LumaraMessageRole.assistant) {
@@ -243,9 +246,9 @@ class ConversationContextService {
 
     // Return best sentence or truncated content
     if (bestSentence.length <= 200) {
-      return bestSentence.trim() + '.';
+      return '${bestSentence.trim()}.';
     } else {
-      return content.substring(0, 197).trim() + '...';
+      return '${content.substring(0, 197).trim()}...';
     }
   }
 
@@ -254,8 +257,9 @@ class ConversationContextService {
     double weight = confidence;
 
     // Recency adjustment
-    if (recencyIndex == 0) weight *= 1.0; // Most recent gets full weight
-    else if (recencyIndex <= 2) weight *= 0.8; // Recent messages get high weight
+    if (recencyIndex == 0) {
+      weight *= 1.0; // Most recent gets full weight
+    } else if (recencyIndex <= 2) weight *= 0.8; // Recent messages get high weight
     else if (recencyIndex <= 5) weight *= 0.6; // Older messages get medium weight
     else weight *= 0.4; // Much older messages get low weight
 
@@ -289,7 +293,7 @@ class ConversationContextService {
   static String _getTimeDescription(int minutesSince) {
     if (minutesSince < 1) return 'just now';
     if (minutesSince < 5) return 'a few minutes ago';
-    if (minutesSince < 15) return '${minutesSince} minutes ago';
+    if (minutesSince < 15) return '$minutesSince minutes ago';
     if (minutesSince < 60) return '${(minutesSince / 15).round() * 15} minutes ago';
     if (minutesSince < 120) return 'about an hour ago';
     return '${(minutesSince / 60).round()} hours ago';

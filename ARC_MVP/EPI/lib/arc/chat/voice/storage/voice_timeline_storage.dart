@@ -5,6 +5,7 @@
 /// - Formats transcript as conversation
 /// - Stores session metadata
 /// - Integrates with existing timeline system
+library;
 
 import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
@@ -47,7 +48,7 @@ class VoiceTimelineStorage {
         content: transcript,
         createdAt: session.startTime,
         updatedAt: session.endTime ?? DateTime.now(),
-        tags: ['voice', 'conversation', 'lumara'],
+        tags: const ['voice', 'conversation', 'lumara'],
         mood: '', // Can be inferred from phase
         phase: session.detectedPhase.name,
         autoPhase: session.detectedPhase.name,

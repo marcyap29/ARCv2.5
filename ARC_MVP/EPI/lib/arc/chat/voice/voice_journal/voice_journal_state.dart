@@ -9,6 +9,7 @@
 /// - SPEAKING: TTS playing LUMARA's response
 /// - SAVED: Journal entry saved successfully
 /// - ERROR: Something went wrong
+library;
 
 import 'package:flutter/foundation.dart';
 

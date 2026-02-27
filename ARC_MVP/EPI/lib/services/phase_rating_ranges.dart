@@ -13,7 +13,7 @@ class PhaseRatingRanges {
 
   /// Get the rating range for a phase
   static Range getRange(String phaseName) {
-    return _ranges[phaseName.toLowerCase()] ?? Range(55, 70); // Default to reflection range
+    return _ranges[phaseName.toLowerCase()] ?? const Range(55, 70); // Default to reflection range
   }
 
   /// Get minimum rating for a phase

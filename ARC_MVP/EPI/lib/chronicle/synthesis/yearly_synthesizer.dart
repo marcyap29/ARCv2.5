@@ -351,7 +351,7 @@ class YearlySynthesizer {
     final prevThemes = _extractThemes(prevYearAgg.content);
     final prevChapters = RegExp(r'## Chapter \d+').allMatches(prevYearAgg.content).length;
 
-    return 'Compared to $prevYear: ${prevChapters} chapters, ${prevThemes.length} major themes';
+    return 'Compared to $prevYear: $prevChapters chapters, ${prevThemes.length} major themes';
   }
 
   /// Generate narrative year-in-review from monthly summaries (memory-style, readable by owner).
@@ -368,7 +368,7 @@ class YearlySynthesizer {
         return '**${_formatMonthName(agg.period)}:**\n$narrative';
       }).join('\n\n');
 
-      final systemPrompt = '''You write year-in-review memory summaries for a personal journaling app. The owner will read these like "Purpose & context" memory.
+      const systemPrompt = '''You write year-in-review memory summaries for a personal journaling app. The owner will read these like "Purpose & context" memory.
 Given the monthly summaries below, synthesize the year while preserving important specifics from the monthly aggregations: people, projects, events, and throughlines. Write 3–5 flowing paragraphs (or more if the year is dense) that integrate what happened, what the person was becoming or struggling with, and key themes—include concrete details and names/events where the monthly text provides them, not only high-level summary. Write in third person. No bullet lists in the main narrative—use prose only.
 Target readability: Flesch-Kincaid grade level 8. Use clear sentences and common words. Do not mention "References," entry IDs, or internal metadata. This text may be privacy-scrubbed when sent to cloud and restored in responses.''';
 

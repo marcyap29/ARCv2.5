@@ -74,7 +74,7 @@ class _PhaseQuizV2ScreenState extends State<PhaseQuizV2Screen> {
               LinearProgressIndicator(
                 value: (_currentQuestionIndex + 1) / PhaseQuizV2.questions.length,
                 backgroundColor: Colors.white.withOpacity(0.2),
-                valueColor: AlwaysStoppedAnimation<Color>(kcPrimaryColor),
+                valueColor: const AlwaysStoppedAnimation<Color>(kcPrimaryColor),
                 minHeight: 4,
               ),
               const SizedBox(height: 8),
@@ -175,7 +175,7 @@ class _PhaseQuizV2ScreenState extends State<PhaseQuizV2Screen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          CircularProgressIndicator(
+          const CircularProgressIndicator(
             valueColor: AlwaysStoppedAnimation<Color>(kcPrimaryColor),
           ),
           const SizedBox(height: 24),

@@ -3,9 +3,9 @@
 /// Backends: Wispr Flow (optional, via Settings) → Apple On-Device (primary).
 /// A mandatory cleanup pass (filler removal, corrections) is applied to final transcripts
 /// before PRISM.
+library;
 
 import 'dart:async';
-import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'ondevice_provider.dart';
 import 'transcription_provider.dart';

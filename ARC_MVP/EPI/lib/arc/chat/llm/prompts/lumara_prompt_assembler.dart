@@ -4,6 +4,7 @@
 /// 
 /// NOTE: This is for on-device LLMs only. Cloud API uses the master prompt system.
 /// This assembler is kept for backward compatibility with on-device models.
+library;
 
 import 'lumara_system_prompt.dart';
 import 'lumara_task_templates.dart';

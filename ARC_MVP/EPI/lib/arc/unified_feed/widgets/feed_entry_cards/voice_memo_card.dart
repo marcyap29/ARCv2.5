@@ -2,6 +2,7 @@
 ///
 /// Displays a voice memo/recording in the unified feed using BaseFeedCard.
 /// Shows waveform placeholder, duration, transcript preview.
+library;
 
 import 'package:flutter/material.dart';
 import 'package:my_app/shared/app_colors.dart';

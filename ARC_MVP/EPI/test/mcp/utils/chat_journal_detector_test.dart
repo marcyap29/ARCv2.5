@@ -14,7 +14,7 @@ void main() {
           metadata: {'source': 'ARC'},
           timestamp: DateTime.now().toUtc(),
           schemaVersion: '1.0.0',
-          provenance: McpProvenance(source: 'test'),
+          provenance: const McpProvenance(source: 'test'),
         );
 
         expect(ChatJournalDetector.isChatMessageNode(node), true);
@@ -28,7 +28,7 @@ void main() {
           metadata: {'source': 'LUMARA_Chat'},
           timestamp: DateTime.now().toUtc(),
           schemaVersion: '1.0.0',
-          provenance: McpProvenance(source: 'test'),
+          provenance: const McpProvenance(source: 'test'),
         );
 
         expect(ChatJournalDetector.isChatMessageNode(node), true);
@@ -45,7 +45,7 @@ void main() {
           },
           timestamp: DateTime.now().toUtc(),
           schemaVersion: '1.0.0',
-          provenance: McpProvenance(source: 'test'),
+          provenance: const McpProvenance(source: 'test'),
         );
 
         expect(ChatJournalDetector.isChatMessageNode(node), true);
@@ -59,7 +59,7 @@ void main() {
           metadata: {'source': 'ARC'},
           timestamp: DateTime.now().toUtc(),
           schemaVersion: '1.0.0',
-          provenance: McpProvenance(source: 'test'),
+          provenance: const McpProvenance(source: 'test'),
         );
 
         expect(ChatJournalDetector.isChatMessageNode(node), false);
@@ -74,12 +74,12 @@ void main() {
           content: 'I\'m here to help you with your questions. How can I assist you today?',
           createdAt: DateTime.now(),
           updatedAt: DateTime.now(),
-          tags: [],
+          tags: const [],
           mood: 'neutral',
           phase: 'Discovery',
-          keywords: [],
-          media: [],
-          metadata: {'source': 'ARC'},
+          keywords: const [],
+          media: const [],
+          metadata: const {'source': 'ARC'},
         );
 
         expect(ChatJournalDetector.isChatMessageEntry(entry), true);
@@ -92,12 +92,12 @@ void main() {
           content: 'Can you help me understand this?',
           createdAt: DateTime.now(),
           updatedAt: DateTime.now(),
-          tags: [],
+          tags: const [],
           mood: 'neutral',
           phase: 'Discovery',
-          keywords: [],
-          media: [],
-          metadata: {'source': 'LUMARA_Assistant'},
+          keywords: const [],
+          media: const [],
+          metadata: const {'source': 'LUMARA_Assistant'},
         );
 
         expect(ChatJournalDetector.isChatMessageEntry(entry), true);
@@ -110,12 +110,12 @@ void main() {
           content: 'Today was a productive day. I completed several important tasks and felt accomplished.',
           createdAt: DateTime.now(),
           updatedAt: DateTime.now(),
-          tags: [],
+          tags: const [],
           mood: 'happy',
           phase: 'Discovery',
-          keywords: ['productive', 'accomplished'],
-          media: [],
-          metadata: {'source': 'ARC'},
+          keywords: const ['productive', 'accomplished'],
+          media: const [],
+          metadata: const {'source': 'ARC'},
         );
 
         expect(ChatJournalDetector.isChatMessageEntry(entry), false);
@@ -131,12 +131,12 @@ void main() {
             content: 'I had a great day today.',
             createdAt: DateTime.now(),
             updatedAt: DateTime.now(),
-            tags: [],
+            tags: const [],
             mood: 'happy',
             phase: 'Discovery',
-            keywords: [],
-            media: [],
-            metadata: {'source': 'ARC'},
+            keywords: const [],
+            media: const [],
+            metadata: const {'source': 'ARC'},
           ),
           JournalEntry(
             id: 'chat-1',
@@ -144,12 +144,12 @@ void main() {
             content: 'Hello! I\'m LUMARA, your personal assistant.',
             createdAt: DateTime.now(),
             updatedAt: DateTime.now(),
-            tags: [],
+            tags: const [],
             mood: 'neutral',
             phase: 'Discovery',
-            keywords: [],
-            media: [],
-            metadata: {'source': 'LUMARA_Assistant'},
+            keywords: const [],
+            media: const [],
+            metadata: const {'source': 'LUMARA_Assistant'},
           ),
           JournalEntry(
             id: 'chat-2',
@@ -157,12 +157,12 @@ void main() {
             content: 'Tell me about my patterns',
             createdAt: DateTime.now(),
             updatedAt: DateTime.now(),
-            tags: [],
+            tags: const [],
             mood: 'neutral',
             phase: 'Discovery',
-            keywords: [],
-            media: [],
-            metadata: {'source': 'LUMARA_Chat'},
+            keywords: const [],
+            media: const [],
+            metadata: const {'source': 'LUMARA_Chat'},
           ),
         ];
 
@@ -185,7 +185,7 @@ void main() {
             metadata: {'source': 'ARC'},
             timestamp: DateTime.now().toUtc(),
             schemaVersion: '1.0.0',
-            provenance: McpProvenance(source: 'test'),
+            provenance: const McpProvenance(source: 'test'),
           ),
           McpNode(
             id: 'chat-1',
@@ -194,7 +194,7 @@ void main() {
             metadata: {'source': 'LUMARA_Assistant'},
             timestamp: DateTime.now().toUtc(),
             schemaVersion: '1.0.0',
-            provenance: McpProvenance(source: 'test'),
+            provenance: const McpProvenance(source: 'test'),
           ),
           McpNode(
             id: 'other-1',
@@ -203,7 +203,7 @@ void main() {
             metadata: {},
             timestamp: DateTime.now().toUtc(),
             schemaVersion: '1.0.0',
-            provenance: McpProvenance(source: 'test'),
+            provenance: const McpProvenance(source: 'test'),
           ),
         ];
 

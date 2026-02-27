@@ -528,9 +528,11 @@ class _FullScreenVideoPlayerScreenState extends State<FullScreenVideoPlayerScree
       // Auto-play; ignore play() errors so we still show the first frame
       try {
         await _controller!.play();
-        if (mounted) setState(() {
+        if (mounted) {
+          setState(() {
           _isPlaying = true;
         });
+        }
       } catch (e) {
         print('Error playing video: $e');
         // Still show frame; user can tap play

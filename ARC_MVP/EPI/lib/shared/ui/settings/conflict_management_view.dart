@@ -217,7 +217,7 @@ class _ConflictManagementViewState extends State<ConflictManagementView> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
+          const Icon(
             Icons.check_circle_outline,
             size: 64,
             color: Colors.green,
@@ -244,7 +244,7 @@ class _ConflictManagementViewState extends State<ConflictManagementView> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
+          const Icon(
             Icons.error_outline,
             size: 64,
             color: Colors.red,
@@ -355,8 +355,7 @@ class _ConflictManagementViewState extends State<ConflictManagementView> {
         _buildDetailRow('Type', _formatConflictType(ConflictType.values.firstWhere((t) => t.name == conflict.conflictType))),
         _buildDetailRow('Severity', _formatSeverity(_getSeverityFromDouble(conflict.severity))),
         _buildDetailRow('Detected', _formatDate(conflict.detected)),
-        if (conflict.description != null)
-          _buildDetailRow('Description', conflict.description!),
+        _buildDetailRow('Description', conflict.description),
       ],
     );
   }
@@ -433,7 +432,7 @@ class _ConflictManagementViewState extends State<ConflictManagementView> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Conflict Details'),
+        title: const Text('Conflict Details'),
         content: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -443,8 +442,7 @@ class _ConflictManagementViewState extends State<ConflictManagementView> {
               _buildDetailRow('Type', _formatConflictType(ConflictType.values.firstWhere((t) => t.name == conflict.conflictType))),
               _buildDetailRow('Severity', _formatSeverity(_getSeverityFromDouble(conflict.severity))),
               _buildDetailRow('Detected', _formatDate(conflict.detected)),
-              if (conflict.description != null)
-                _buildDetailRow('Description', conflict.description!),
+              _buildDetailRow('Description', conflict.description),
             ],
           ),
         ),

@@ -3,6 +3,7 @@
 /// Tracks export history for incremental backups.
 /// Stores last export date, exported entry/chat/media IDs, and media hashes
 /// for deduplication across exports.
+library;
 
 import 'dart:convert';
 import 'package:flutter/foundation.dart';

@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
 import '../chat_models.dart';
 import '../enhanced_chat_repo.dart';
 import '../chat_repo_impl.dart';
-import 'session_view.dart';
+import '../../bloc/lumara_assistant_cubit.dart';
+import '../../ui/lumara_chat_redesign_screen.dart';
 import '../../services/favorites_service.dart';
 import '../../data/models/lumara_favorite.dart';
 
@@ -251,9 +253,7 @@ class _SavedChatsScreenState extends State<SavedChatsScreen> {
                           _toggleFavoriteSelection(favorite.id);
                           return;
                         }
-                        // Always allow navigation - SessionView will handle restoration
                         if (actualSession.id.isNotEmpty) {
-                          // If session is archived, restore it first
                           if (sessionExists && actualSession.isArchived) {
                             try {
                               await widget.chatRepo.archiveSession(actualSession.id, false);
@@ -262,14 +262,14 @@ class _SavedChatsScreenState extends State<SavedChatsScreen> {
                               print('Error restoring archived session: $e');
                             }
                           }
-                          
+                          try {
+                            await context.read<LumaraAssistantCubit>().switchToSession(actualSession.id);
+                          } catch (_) {}
+                          if (!context.mounted) return;
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => SessionView(
-                                sessionId: actualSession.id,
-                                chatRepo: ChatRepoImpl.instance,
-                              ),
+                              builder: (context) => const LumaraChatRedesignScreen(),
                             ),
                           ).then((_) => _loadData());
                         } else {

@@ -151,7 +151,7 @@ class _AppState extends State<App> {
           // LUMARA Assistant cubit
           BlocProvider(
             create: (context) {
-              final scope = arc_scope.LumaraScope.defaultScope;
+              const scope = arc_scope.LumaraScope.defaultScope;
               final contextProvider = arc_context.ContextProvider(scope);
 
               return arc_cubit.LumaraAssistantCubit(
@@ -200,7 +200,7 @@ class _AppState extends State<App> {
                 );
               default:
                 return MaterialPageRoute(
-                  builder: (context) => HomeView(),
+                  builder: (context) => const HomeView(),
                   settings: settings,
                 );
             }

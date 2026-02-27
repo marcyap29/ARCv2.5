@@ -21,6 +21,7 @@ class HealthRefreshTimeOfDay {
     );
   }
 
+  @override
   String toString() => '${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}';
 
   bool isSameTime(DateTime dateTime) {

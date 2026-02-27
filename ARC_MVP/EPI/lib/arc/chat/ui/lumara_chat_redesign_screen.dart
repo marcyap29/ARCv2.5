@@ -2,6 +2,7 @@
 ///
 /// Mockup-style chat: Back + LUMARA title, hero block when empty,
 /// suggestion buttons, simple input bar. Uses same LumaraAssistantCubit as main chat.
+library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -13,6 +14,8 @@ import 'package:my_app/arc/chat/chat/ui/enhanced_chats_screen.dart';
 import 'package:my_app/arc/chat/chat/enhanced_chat_repo_impl.dart';
 import 'package:my_app/arc/chat/chat/chat_repo_impl.dart';
 import 'package:my_app/shared/widgets/lumara_icon.dart';
+import 'package:my_app/shared/widgets/lumara_thinking_dialog.dart';
+import 'package:my_app/arc/chat/widgets/attribution_display_widget.dart';
 
 class LumaraChatRedesignScreen extends StatefulWidget {
   final String? initialMessage;
@@ -63,6 +66,22 @@ class _LumaraChatRedesignScreenState extends State<LumaraChatRedesignScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            ListTile(
+              leading: const Icon(Icons.add_circle_outline, color: kcPrimaryTextColor),
+              title: const Text('Start new chat',
+                  style: TextStyle(color: kcPrimaryTextColor)),
+              subtitle: const Text('Current chat moves to timeline',
+                  style: TextStyle(color: kcSecondaryTextColor, fontSize: 12)),
+              onTap: () async {
+                Navigator.pop(ctx);
+                await context.read<LumaraAssistantCubit>().startNewChat();
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('New chat started')),
+                  );
+                }
+              },
+            ),
             ListTile(
               leading: const Icon(Icons.history, color: kcPrimaryTextColor),
               title: const Text('Chat history',
@@ -165,19 +184,30 @@ class _LumaraChatRedesignScreenState extends State<LumaraChatRedesignScreen> {
                   );
                 }
 
-                final messages = state is LumaraAssistantLoaded ? state.messages : <LumaraMessage>[];
-                final showHero = messages.isEmpty;
+                final loadedState = state is LumaraAssistantLoaded ? state : null;
+                final messages = loadedState?.messages ?? <LumaraMessage>[];
+                final showHero = messages.isEmpty && (loadedState?.isProcessing != true);
 
                 if (showHero) {
                   return _buildHeroAndSuggestions(context);
                 }
 
+                final isProcessing = loadedState?.isProcessing ?? false;
+                final processingSteps = loadedState?.processingSteps ?? [];
+
                 return ListView.builder(
                   controller: _scrollController,
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  itemCount: messages.length,
+                  itemCount: messages.length + (isProcessing ? 1 : 0),
                   itemBuilder: (context, index) {
-                    return _buildMessageBubble(messages[index]);
+                    if (index < messages.length) {
+                      return _buildMessageBubble(messages[index]);
+                    }
+                    return LumaraThinkingIndicator(
+                      customMessage: 'LUMARA is thinking...',
+                      showProgressBar: false,
+                      processingSteps: processingSteps.isNotEmpty ? processingSteps : ['LUMARA is thinking...'],
+                    );
                   },
                 );
               },
@@ -374,6 +404,11 @@ class _LumaraChatRedesignScreenState extends State<LumaraChatRedesignScreen> {
                       height: 1.4,
                     ),
                   ),
+                  if (!isUser && message.attributionTraces != null && message.attributionTraces!.isNotEmpty)
+                    AttributionDisplayWidget(
+                      traces: message.attributionTraces!,
+                      responseId: message.id,
+                    ),
                 ],
               ),
             ),
@@ -392,7 +427,7 @@ class _LumaraChatRedesignScreenState extends State<LumaraChatRedesignScreen> {
         top: 8,
         bottom: 8 + MediaQuery.of(context).padding.bottom,
       ),
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         color: kcSurfaceColor,
         border: Border(top: BorderSide(color: kcBorderColor)),
       ),
@@ -415,7 +450,7 @@ class _LumaraChatRedesignScreenState extends State<LumaraChatRedesignScreen> {
                 hintStyle: TextStyle(color: kcSecondaryTextColor.withOpacity(0.8)),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(24),
-                  borderSide: BorderSide(color: kcBorderColor),
+                  borderSide: const BorderSide(color: kcBorderColor),
                 ),
                 contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 isDense: true,
@@ -451,7 +486,7 @@ class _LumaraChatRedesignScreenState extends State<LumaraChatRedesignScreen> {
   Future<void> _showResponseStyleMenu() async {
     final anchorContext = _responseStyleMenuKey.currentContext;
     final overlay = Overlay.of(context);
-    if (anchorContext == null || overlay == null) return;
+    if (anchorContext == null) return;
 
     final box = anchorContext.findRenderObject() as RenderBox?;
     final overlayBox = overlay.context.findRenderObject() as RenderBox?;
@@ -474,7 +509,7 @@ class _LumaraChatRedesignScreenState extends State<LumaraChatRedesignScreen> {
           value: false,
           child: Row(
             children: [
-              if (!useDetailed) Icon(Icons.check, size: 18, color: Colors.blue) else const SizedBox(width: 18),
+              if (!useDetailed) const Icon(Icons.check, size: 18, color: Colors.blue) else const SizedBox(width: 18),
               const SizedBox(width: 8),
               const Expanded(
                 child: Column(
@@ -493,7 +528,7 @@ class _LumaraChatRedesignScreenState extends State<LumaraChatRedesignScreen> {
           value: true,
           child: Row(
             children: [
-              if (useDetailed) Icon(Icons.check, size: 18, color: Colors.blue) else const SizedBox(width: 18),
+              if (useDetailed) const Icon(Icons.check, size: 18, color: Colors.blue) else const SizedBox(width: 18),
               const SizedBox(width: 8),
               const Expanded(
                 child: Column(
@@ -501,7 +536,7 @@ class _LumaraChatRedesignScreenState extends State<LumaraChatRedesignScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text('Detailed analysis', style: TextStyle(fontWeight: FontWeight.w500)),
-                    Text('Full master prompt, temporal/phase-aware analysis.', style: TextStyle(fontSize: 11, color: Colors.grey)),
+                    Text('Full master prompt with temporal context.', style: TextStyle(fontSize: 11, color: Colors.grey)),
                   ],
                 ),
               ),

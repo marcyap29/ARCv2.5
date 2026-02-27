@@ -2,9 +2,8 @@
 ///
 /// Core service that implements the ECHO system for generating dignified,
 /// phase-aware responses that maintain LUMARA's voice across all interactions.
+library;
 
-import 'dart:convert';
-import 'package:my_app/services/gemini_send.dart';
 import 'package:my_app/services/llm_bridge_adapter.dart';
 
 import 'core/atlas_phase_integration.dart';

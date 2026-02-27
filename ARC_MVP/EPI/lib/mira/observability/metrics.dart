@@ -187,16 +187,16 @@ class PolicyMetricsCollector {
     }
 
     // Record by domain
-    _metrics.incrementCounter('policy_decisions_${domain}');
+    _metrics.incrementCounter('policy_decisions_$domain');
     
     // Record by privacy level
-    _metrics.incrementCounter('policy_decisions_${privacyLevel}');
+    _metrics.incrementCounter('policy_decisions_$privacyLevel');
     
     // Record by actor
-    _metrics.incrementCounter('policy_decisions_${actor}');
+    _metrics.incrementCounter('policy_decisions_$actor');
     
     // Record by purpose
-    _metrics.incrementCounter('policy_decisions_${purpose}');
+    _metrics.incrementCounter('policy_decisions_$purpose');
 
     _metrics.recordEvent('policy_decision', {
       'allowed': decision.allowed,

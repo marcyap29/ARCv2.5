@@ -24,7 +24,7 @@ class PersonaSelectorWidget extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
+        color: Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.3),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Row(
@@ -51,7 +51,7 @@ class PersonaSelectorWidget extends StatelessWidget {
                 fontWeight: FontWeight.w500,
               ),
               isExpanded: true, // Prevent overflow issues
-              items: [
+              items: const [
                 DropdownMenuItem(
                   value: LumaraPersona.companion,
                   child: Text('Companion'),

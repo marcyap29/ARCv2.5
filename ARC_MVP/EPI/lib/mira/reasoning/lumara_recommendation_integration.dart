@@ -387,7 +387,7 @@ class LumaraRecommendationIntegration {
           sentenceLower.contains('choice') ||
           sentenceLower.contains('should') ||
           sentenceLower.contains('important')) {
-        return sentence.length > 150 ? sentence.substring(0, 147) + '...' : sentence;
+        return sentence.length > 150 ? '${sentence.substring(0, 147)}...' : sentence;
       }
     }
 
@@ -397,7 +397,7 @@ class LumaraRecommendationIntegration {
       orElse: () => content,
     );
 
-    return firstMeaningful.length > 150 ? firstMeaningful.substring(0, 147) + '...' : firstMeaningful;
+    return firstMeaningful.length > 150 ? '${firstMeaningful.substring(0, 147)}...' : firstMeaningful;
   }
 
   static String _extractRecommendationExcerpt(String content) {
@@ -408,11 +408,11 @@ class LumaraRecommendationIntegration {
       if (sentenceLower.contains('recommend') ||
           sentenceLower.contains('suggest') ||
           sentenceLower.contains('advise')) {
-        return sentence.length > 150 ? sentence.substring(0, 147) + '...' : sentence;
+        return sentence.length > 150 ? '${sentence.substring(0, 147)}...' : sentence;
       }
     }
 
-    return content.length > 150 ? content.substring(0, 147) + '...' : content;
+    return content.length > 150 ? '${content.substring(0, 147)}...' : content;
   }
 
   /// Create enhanced attribution for the recommendation response

@@ -1494,7 +1494,7 @@ class _LumaraFolderViewState extends State<LumaraFolderView> {
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
             child: Row(
               children: [
-                Icon(
+                const Icon(
                   Icons.theater_comedy,
                   color: kcAccentColor,
                   size: 24,
@@ -1561,7 +1561,7 @@ class _LumaraFolderViewState extends State<LumaraFolderView> {
                       child: Container(
                         width: 10,
                         height: 10,
-                        decoration: BoxDecoration(
+                        decoration: const BoxDecoration(
                           shape: BoxShape.circle,
                           color: kcAccentColor,
                         ),
@@ -1618,7 +1618,7 @@ class _LumaraFolderViewState extends State<LumaraFolderView> {
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
             child: Row(
               children: [
-                Icon(Icons.memory, color: kcAccentColor, size: 24),
+                const Icon(Icons.memory, color: kcAccentColor, size: 24),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
@@ -1682,7 +1682,7 @@ class _LumaraFolderViewState extends State<LumaraFolderView> {
                       child: Container(
                         width: 10,
                         height: 10,
-                        decoration: BoxDecoration(
+                        decoration: const BoxDecoration(
                           shape: BoxShape.circle,
                           color: kcAccentColor,
                         ),
@@ -1959,7 +1959,7 @@ class _LumaraFolderViewState extends State<LumaraFolderView> {
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
             child: Row(
               children: [
-                Icon(Icons.tune, color: kcAccentColor, size: 24),
+                const Icon(Icons.tune, color: kcAccentColor, size: 24),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
@@ -2022,7 +2022,7 @@ class _LumaraFolderViewState extends State<LumaraFolderView> {
                       child: Container(
                         width: 10,
                         height: 10,
-                        decoration: BoxDecoration(
+                        decoration: const BoxDecoration(
                           shape: BoxShape.circle,
                           color: kcAccentColor,
                         ),
@@ -2102,7 +2102,7 @@ class _LumaraFolderViewState extends State<LumaraFolderView> {
         onChanged: _crossModalLoading
             ? null
             : (value) => _setCrossModalEnabled(value),
-        secondary: Icon(
+        secondary: const Icon(
           Icons.perm_media,
           color: kcAccentColor,
           size: 24,
@@ -2149,7 +2149,7 @@ class _LumaraFolderViewState extends State<LumaraFolderView> {
         children: [
           Row(
             children: [
-              Icon(
+              const Icon(
                 Icons.psychology,
                 color: kcAccentColor,
                 size: 24,
@@ -2259,7 +2259,7 @@ class _LumaraFolderViewState extends State<LumaraFolderView> {
         onChanged: _lumaraSettingsLoading
             ? null
             : (value) => _setWebAccessEnabled(value),
-        secondary: Icon(
+        secondary: const Icon(
           Icons.language,
           color: kcAccentColor,
           size: 24,
@@ -2306,7 +2306,7 @@ class _LumaraFolderViewState extends State<LumaraFolderView> {
                 height: 24,
                 child: CircularProgressIndicator(strokeWidth: 2),
               )
-            : Icon(
+            : const Icon(
                 Icons.volume_up,
                 color: kcAccentColor,
                 size: 24,
@@ -2354,7 +2354,7 @@ class _LumaraFolderViewState extends State<LumaraFolderView> {
                 height: 24,
                 child: CircularProgressIndicator(strokeWidth: 2),
               )
-            : Icon(
+            : const Icon(
                 Icons.share,
                 color: kcAccentColor,
                 size: 24,
@@ -2496,7 +2496,7 @@ class _BugReportingFolderViewState extends State<BugReportingFolderView> {
                         height: 24,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
-                    : Icon(
+                    : const Icon(
                         Icons.vibration,
                         color: kcAccentColor,
                         size: 24,
@@ -2740,7 +2740,7 @@ class _AccountTile extends StatelessWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: Text('Cancel', style: TextStyle(color: kcSecondaryTextColor)),
+            child: const Text('Cancel', style: TextStyle(color: kcSecondaryTextColor)),
           ),
           ElevatedButton(
             onPressed: () => Navigator.of(context).pop(true),

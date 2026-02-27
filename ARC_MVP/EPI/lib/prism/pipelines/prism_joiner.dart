@@ -60,7 +60,7 @@ class PrismJoiner {
     final metrics = (h['metrics'] as Map<String, dynamic>);
     final derived = (h['derived'] as Map<String, dynamic>? ?? {});
 
-    num? _mVal(String key) {
+    num? mVal(String key) {
       final v = metrics[key];
       if (v is Map && v.containsKey('value')) return v['value'] as num?;
       if (v is num) return v;
@@ -68,16 +68,16 @@ class PrismJoiner {
     }
 
     // Raw pulls (null-safe)
-    final steps = _mVal('steps') ?? 0;
-    final activeKcal = _mVal('active_energy') ?? 0;
-    final basalKcal = _mVal('resting_energy') ?? 0;
-    final exMin = _mVal('exercise_minutes') ?? 0;
-    final restHr = _mVal('resting_hr');
-    final avgHr = _mVal('avg_hr');
-    final hrv = _mVal('hrv_sdnn');
-    final rec1m = _mVal('cardio_recovery_1min');
+    final steps = mVal('steps') ?? 0;
+    final activeKcal = mVal('active_energy') ?? 0;
+    final basalKcal = mVal('resting_energy') ?? 0;
+    final exMin = mVal('exercise_minutes') ?? 0;
+    final restHr = mVal('resting_hr');
+    final avgHr = mVal('avg_hr');
+    final hrv = mVal('hrv_sdnn');
+    final rec1m = mVal('cardio_recovery_1min');
     final sleepMin = (metrics['sleep_total_minutes'] ?? 0) as int;
-    final standMin = _mVal('stand_minutes') ?? 0;
+    final standMin = mVal('stand_minutes') ?? 0;
     final workouts = (metrics['workouts'] as List?)?.cast<Map<String, dynamic>>() ?? const [];
 
     // Simple derived from health

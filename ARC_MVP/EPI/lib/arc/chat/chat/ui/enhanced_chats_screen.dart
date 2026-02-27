@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
 import '../chat_models.dart';
-import '../chat_category_models.dart';
 import '../enhanced_chat_repo.dart';
 import '../chat_repo_impl.dart';
 import 'archive_screen.dart';
-import 'session_view.dart';
-import 'category_management_screen.dart';
+import '../../bloc/lumara_assistant_cubit.dart';
+import '../../ui/lumara_chat_redesign_screen.dart';
 import 'chat_export_import_screen.dart';
 import '../../services/favorites_service.dart';
 import '../../data/models/lumara_favorite.dart';
@@ -26,19 +26,14 @@ class EnhancedChatsScreen extends StatefulWidget {
   State<EnhancedChatsScreen> createState() => _EnhancedChatsScreenState();
 }
 
-class _EnhancedChatsScreenState extends State<EnhancedChatsScreen>
-    with TickerProviderStateMixin {
+class _EnhancedChatsScreenState extends State<EnhancedChatsScreen> {
   final TextEditingController _searchController = TextEditingController();
 
   List<ChatSession> _sessions = [];
-  List<ChatCategory> _categories = [];
   List<ChatSession> _filteredSessions = [];
   List<LumaraFavorite> _allSavedChats = []; // Keep track of all saved chats for display
   bool _isLoading = true;
   String? _error;
-  
-  // Category filtering
-  String? _selectedCategoryId;
   
   // Batch selection state
   bool _isSelectionMode = false;
@@ -46,12 +41,9 @@ class _EnhancedChatsScreenState extends State<EnhancedChatsScreen>
   
   final FavoritesService _favoritesService = FavoritesService.instance;
 
-  late TabController _tabController;
-
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
     _searchController.addListener(_filterSessions);
     _initializeAndLoad();
   }
@@ -65,7 +57,6 @@ class _EnhancedChatsScreenState extends State<EnhancedChatsScreen>
   @override
   void dispose() {
     _searchController.dispose();
-    _tabController.dispose();
     super.dispose();
   }
 
@@ -83,7 +74,6 @@ class _EnhancedChatsScreenState extends State<EnhancedChatsScreen>
 
   Future<void> _loadData() async {
     try {
-      final categories = await widget.chatRepo.getCategories();
       // Include archived so all chats (400+) are visible in Chat History, not just recent/active
       final sessions = await widget.chatRepo.listAll(includeArchived: true);
       
@@ -92,7 +82,6 @@ class _EnhancedChatsScreenState extends State<EnhancedChatsScreen>
       final savedChats = await _favoritesService.getSavedChats();
       
       setState(() {
-        _categories = categories;
         _sessions = sessions;
         _filteredSessions = sessions;
         _allSavedChats = savedChats; // Keep all saved chats for display count
@@ -110,32 +99,20 @@ class _EnhancedChatsScreenState extends State<EnhancedChatsScreen>
   void _filterSessions() {
     final query = _searchController.text.toLowerCase();
     setState(() {
-      if (query.isEmpty && _selectedCategoryId == null) {
+      if (query.isEmpty) {
         _filteredSessions = _sessions;
       } else {
-        _filteredSessions = _sessions.where((session) {
-          final matchesQuery = query.isEmpty || 
-              session.subject.toLowerCase().contains(query) ||
-              session.tags.any((tag) => tag.toLowerCase().contains(query));
-          
-          // TODO: Add category filtering when category assignment is implemented
-          return matchesQuery;
-        }).toList();
+        _filteredSessions = _sessions.where((session) =>
+            session.subject.toLowerCase().contains(query) ||
+            session.tags.any((tag) => tag.toLowerCase().contains(query))).toList();
       }
     });
-  }
-
-  void _selectCategory(String? categoryId, String categoryName) {
-    setState(() {
-      _selectedCategoryId = categoryId;
-    });
-    _filterSessions();
   }
 
   Future<void> _createNewChat() async {
     final result = await showDialog<Map<String, dynamic>>(
       context: context,
-      builder: (context) => _NewChatDialog(categories: _categories),
+      builder: (context) => _NewChatDialog(),
     );
 
     if (result != null) {
@@ -145,22 +122,15 @@ class _EnhancedChatsScreenState extends State<EnhancedChatsScreen>
           tags: result['tags'],
         );
         
-        // Assign to category if selected
-        if (result['categoryId'] != null) {
-          await widget.chatRepo.assignSessionToCategory(
-            sessionId, 
-            result['categoryId']!,
-          );
-        }
-        
         if (mounted) {
+          try {
+            await context.read<LumaraAssistantCubit>().switchToSession(sessionId);
+          } catch (_) {}
+          if (!mounted) return;
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => SessionView(
-                sessionId: sessionId,
-                chatRepo: ChatRepoImpl.instance,
-              ),
+              builder: (context) => const LumaraChatRedesignScreen(),
             ),
           );
         }
@@ -393,16 +363,6 @@ class _EnhancedChatsScreenState extends State<EnhancedChatsScreen>
               PopupMenuButton<String>(
                 onSelected: (value) {
                   switch (value) {
-                    case 'categories':
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => CategoryManagementScreen(
-                            chatRepo: widget.chatRepo,
-                          ),
-                        ),
-                      );
-                      break;
                     case 'export':
                       Navigator.push(
                         context,
@@ -424,16 +384,6 @@ class _EnhancedChatsScreenState extends State<EnhancedChatsScreen>
                   }
                 },
                 itemBuilder: (context) => [
-                  const PopupMenuItem(
-                    value: 'categories',
-                    child: Row(
-                      children: [
-                        Icon(Icons.category, size: 16),
-                        SizedBox(width: 8),
-                        Text('Manage Categories'),
-                      ],
-                    ),
-                  ),
                   const PopupMenuItem(
                     value: 'export',
                     child: Row(
@@ -457,34 +407,8 @@ class _EnhancedChatsScreenState extends State<EnhancedChatsScreen>
                 ],
               ),
             ],
-        bottom: TabBar(
-          controller: _tabController,
-          labelPadding: const EdgeInsets.symmetric(vertical: 8),
-          tabs: const [
-            Tab(
-              child: Text(
-                'All Chats',
-                style: TextStyle(fontSize: 13),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            Tab(
-              child: Text(
-                'Categories',
-                style: TextStyle(fontSize: 13),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ],
         ),
-      ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          _buildAllChatsTab(),
-          _buildCategoriesTab(),
-        ],
-      ),
+      body: _buildAllChatsTabContent(),
       floatingActionButton: FloatingActionButton(
         onPressed: _createNewChat,
         backgroundColor: kcPrimaryColor,
@@ -493,7 +417,7 @@ class _EnhancedChatsScreenState extends State<EnhancedChatsScreen>
     );
   }
 
-  Widget _buildAllChatsTab() {
+  Widget _buildAllChatsTabContent() {
     return Column(
       children: [
         // Search bar
@@ -521,51 +445,6 @@ class _EnhancedChatsScreenState extends State<EnhancedChatsScreen>
           child: _buildContent(),
         ),
       ],
-    );
-  }
-
-  Widget _buildCategoriesTab() {
-    return Column(
-      children: [
-        // Category filter chips
-        Container(
-          height: 60,
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: ListView(
-            scrollDirection: Axis.horizontal,
-            children: [
-              _buildCategoryChip('All Chats', null),
-              const SizedBox(width: 8),
-              ..._categories.map((category) => 
-                _buildCategoryChip(category.name, category.id)),
-            ],
-          ),
-        ),
-
-        // Content
-        Expanded(
-          child: _buildContent(),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildCategoryChip(String name, String? categoryId) {
-    final isSelected = _selectedCategoryId == categoryId;
-    return Padding(
-      padding: const EdgeInsets.only(right: 8),
-      child: FilterChip(
-        label: Text(name),
-        selected: isSelected,
-        onSelected: (selected) {
-          _selectCategory(categoryId, name);
-        },
-        selectedColor: kcPrimaryColor.withOpacity(0.2),
-        checkmarkColor: kcPrimaryColor,
-        side: BorderSide(
-          color: isSelected ? kcPrimaryColor : kcTextSecondaryColor.withOpacity(0.3),
-        ),
-      ),
     );
   }
 
@@ -646,15 +525,15 @@ class _EnhancedChatsScreenState extends State<EnhancedChatsScreen>
             const Icon(Icons.chat_bubble_outline, color: kcTextSecondaryColor, size: 48),
             const SizedBox(height: 16),
             Text(
-              _searchController.text.isNotEmpty || _selectedCategoryId != null
+              _searchController.text.isNotEmpty
                 ? 'No chats found'
                 : 'No chat history yet',
               style: heading2Style(context),
             ),
             const SizedBox(height: 8),
             Text(
-              _searchController.text.isNotEmpty || _selectedCategoryId != null
-                ? 'Try a different search term or category'
+              _searchController.text.isNotEmpty
+                ? 'Try a different search term'
                 : 'Start a new conversation with LUMARA',
               style: bodyStyle(context).copyWith(color: kcTextSecondaryColor),
             ),
@@ -681,15 +560,18 @@ class _EnhancedChatsScreenState extends State<EnhancedChatsScreen>
             isSelected: _selectedSessionIds.contains(session.id),
             onTap: _isSelectionMode
               ? () => _toggleSessionSelection(session.id)
-              : () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => SessionView(
-                      sessionId: session.id,
-                      chatRepo: ChatRepoImpl.instance,
+              : () async {
+                  try {
+                    await context.read<LumaraAssistantCubit>().switchToSession(session.id);
+                  } catch (_) {}
+                  if (!context.mounted) return;
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const LumaraChatRedesignScreen(),
                     ),
-                  ),
-                ),
+                  );
+                },
             onPin: () => _pinSession(session),
             onArchive: () => _archiveSession(session),
             onDelete: () => _deleteSession(session),
@@ -728,7 +610,7 @@ class _ChatSessionCard extends StatelessWidget {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
         side: isSelected 
-          ? BorderSide(color: kcPrimaryColor, width: 2)
+          ? const BorderSide(color: kcPrimaryColor, width: 2)
           : BorderSide.none,
       ),
       child: isSelectionMode
@@ -765,8 +647,6 @@ class _ChatSessionCard extends StatelessWidget {
                         style: captionStyle(context),
                       ),
                     ),
-                    if (session.displayPhase != null)
-                      _buildPhaseChip(session.displayPhase!),
                   ],
                 ),
                 if (session.tags.isNotEmpty) ...[
@@ -881,8 +761,6 @@ class _ChatSessionCard extends StatelessWidget {
                           style: captionStyle(context),
                         ),
                       ),
-                      if (session.displayPhase != null)
-                        _buildPhaseChip(session.displayPhase!),
                     ],
                   ),
                   if (session.tags.isNotEmpty) ...[
@@ -905,44 +783,6 @@ class _ChatSessionCard extends StatelessWidget {
     );
   }
 
-  Widget _buildPhaseChip(String phase) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      decoration: BoxDecoration(
-        color: _getPhaseColor(phase).withOpacity(0.12),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: _getPhaseColor(phase).withOpacity(0.4)),
-      ),
-      child: Text(
-        phase,
-        style: TextStyle(
-          fontSize: 10,
-          fontWeight: FontWeight.w600,
-          color: _getPhaseColor(phase),
-        ),
-      ),
-    );
-  }
-
-  Color _getPhaseColor(String phase) {
-    switch (phase.toLowerCase()) {
-      case 'discovery':
-        return const Color(0xFF7C3AED);
-      case 'expansion':
-        return const Color(0xFF059669);
-      case 'transition':
-        return const Color(0xFFD97706);
-      case 'consolidation':
-        return const Color(0xFF2563EB);
-      case 'recovery':
-        return const Color(0xFFDC2626);
-      case 'breakthrough':
-        return const Color(0xFFFBBF24);
-      default:
-        return Colors.grey;
-    }
-  }
-
   String _formatDate(DateTime date) {
     final now = DateTime.now();
     final difference = now.difference(date);
@@ -962,9 +802,7 @@ class _ChatSessionCard extends StatelessWidget {
 
 
 class _NewChatDialog extends StatefulWidget {
-  final List<ChatCategory> categories;
-
-  const _NewChatDialog({required this.categories});
+  const _NewChatDialog();
 
   @override
   State<_NewChatDialog> createState() => _NewChatDialogState();
@@ -973,7 +811,6 @@ class _NewChatDialog extends StatefulWidget {
 class _NewChatDialogState extends State<_NewChatDialog> {
   final TextEditingController _subjectController = TextEditingController();
   final TextEditingController _tagsController = TextEditingController();
-  String? _selectedCategoryId;
 
   @override
   void dispose() {
@@ -1010,34 +847,6 @@ class _NewChatDialogState extends State<_NewChatDialog> {
                 border: OutlineInputBorder(),
               ),
             ),
-            const SizedBox(height: 16),
-            Text(
-              'Category',
-              style: bodyStyle(context).copyWith(fontWeight: FontWeight.w500),
-            ),
-            const SizedBox(height: 8),
-            DropdownButtonFormField<String>(
-              value: _selectedCategoryId,
-              decoration: const InputDecoration(
-                border: OutlineInputBorder(),
-                hintText: 'Select category (optional)',
-              ),
-              items: [
-                const DropdownMenuItem(
-                  value: null,
-                  child: Text('No category'),
-                ),
-                ...widget.categories.map((category) => DropdownMenuItem(
-                  value: category.id,
-                  child: Text(category.name),
-                )),
-              ],
-              onChanged: (value) {
-                setState(() {
-                  _selectedCategoryId = value;
-                });
-              },
-            ),
           ],
         ),
       ),
@@ -1059,7 +868,6 @@ class _NewChatDialogState extends State<_NewChatDialog> {
               Navigator.pop(context, {
                 'subject': subject,
                 'tags': tags,
-                'categoryId': _selectedCategoryId,
               });
             }
           },

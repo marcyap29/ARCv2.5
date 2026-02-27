@@ -1,6 +1,7 @@
 /// AURORA - Circadian Intelligence Module
 /// 
 /// Models for circadian context and rhythm analysis
+library;
 
 /// Circadian context containing window, chronotype, and rhythm score
 class CircadianContext {

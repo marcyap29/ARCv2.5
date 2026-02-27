@@ -1,7 +1,7 @@
 import 'chat_models.dart';
-import 'chat_category_models.dart';
+import 'chat_export_models.dart';
 
-/// Enhanced repository interface for chat session persistence with category support
+/// Enhanced repository interface for chat session persistence
 abstract class EnhancedChatRepo {
   // Basic ChatRepo methods
   /// Create a new chat session
@@ -78,52 +78,6 @@ abstract class EnhancedChatRepo {
 
   /// Close repository connections
   Future<void> close();
-  // Category Management
-  /// Create a new chat category
-  Future<String> createCategory({
-    required String name,
-    String? description,
-    required String color,
-    required String icon,
-    int sortOrder = 0,
-  });
-
-  /// Get all categories
-  Future<List<ChatCategory>> getCategories();
-
-  /// Get a category by ID
-  Future<ChatCategory?> getCategory(String categoryId);
-
-  /// Update a category
-  Future<void> updateCategory(String categoryId, {
-    String? name,
-    String? description,
-    String? color,
-    String? icon,
-    int? sortOrder,
-  });
-
-  /// Delete a category (moves sessions to General category)
-  Future<void> deleteCategory(String categoryId);
-
-  /// Reorder categories
-  Future<void> reorderCategories(List<String> categoryIds);
-
-  // Session-Category Management
-  /// Assign a session to a category
-  Future<void> assignSessionToCategory(String sessionId, String categoryId);
-
-  /// Remove a session from a category (moves to General)
-  Future<void> removeSessionFromCategory(String sessionId);
-
-  /// Get sessions in a specific category
-  Future<List<ChatSession>> getSessionsInCategory(String categoryId, {String? query});
-
-  /// Get category for a session
-  Future<ChatCategory?> getSessionCategory(String sessionId);
-
-  /// Move session between categories
-  Future<void> moveSessionToCategory(String sessionId, String categoryId);
 
   // Export/Import
   /// Export all chat data
@@ -135,23 +89,13 @@ abstract class EnhancedChatRepo {
   /// Export specific sessions
   Future<ChatExportData> exportSessions(List<String> sessionIds);
 
-  /// Export sessions by category
-  Future<ChatExportData> exportCategory(String categoryId);
-
-  // Enhanced Statistics
-  /// Get category statistics
-  Future<Map<String, int>> getCategoryStats();
-
-  /// Get session count by category
-  Future<Map<String, int>> getSessionCountByCategory();
-
   // Search and Filter
-  /// Search sessions across all categories
-  Future<List<ChatSession>> searchSessions(String query, {String? categoryId});
+  /// Search sessions
+  Future<List<ChatSession>> searchSessions(String query);
 
   /// Get recent sessions across categories
   Future<List<ChatSession>> getRecentSessions({int limit = 10});
 
-  /// Get pinned sessions across categories
+  /// Get pinned sessions
   Future<List<ChatSession>> getPinnedSessions();
 }

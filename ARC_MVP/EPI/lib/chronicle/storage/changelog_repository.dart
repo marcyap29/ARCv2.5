@@ -115,7 +115,7 @@ class ChangelogRepository {
     final line = '${entry.toJson()}\n';
     await file.writeAsString(line, mode: FileMode.append);
     
-    print('📝 ChangelogRepository: Logged ${action} for ${layer.name}');
+    print('📝 ChangelogRepository: Logged $action for ${layer.name}');
   }
 
   /// Get last synthesis date for a layer

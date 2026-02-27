@@ -1,7 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:my_app/lumara/models/command_intent.dart';
 import 'package:my_app/lumara/models/intent_type.dart';
-import 'package:my_app/lumara/models/orchestration_result.dart';
 import 'package:my_app/lumara/models/subsystem_result.dart';
 import 'package:my_app/lumara/orchestrator/command_parser.dart';
 import 'package:my_app/lumara/orchestrator/lumara_orchestrator.dart';
@@ -25,7 +24,7 @@ void main() {
     test('execute routes to subsystem that canHandle and returns aggregated result', () async {
       final fakeSubsystem = _FakeSubsystem(
         handles: {IntentType.temporalQuery, IntentType.recentContext},
-        result: SubsystemResult(
+        result: const SubsystemResult(
           source: 'FAKE',
           data: {'aggregations': 'Fake CHRONICLE content'},
         ),
@@ -47,7 +46,7 @@ void main() {
       String? capturedUserId;
       final fakeSubsystem = _FakeSubsystem(
         handles: {IntentType.temporalQuery},
-        result: SubsystemResult(source: 'FAKE', data: {}),
+        result: const SubsystemResult(source: 'FAKE', data: {}),
         onQuery: (intent) => capturedUserId = intent.userId,
       );
       final orchestrator = LumaraOrchestrator(
@@ -63,7 +62,7 @@ void main() {
       final chronicle = _FakeSubsystem(
         name: 'CHRONICLE',
         handles: {IntentType.temporalQuery},
-        result: SubsystemResult(
+        result: const SubsystemResult(
           source: 'CHRONICLE',
           data: {'aggregations': 'Chronicle text'},
         ),
@@ -71,7 +70,7 @@ void main() {
       final arc = _FakeSubsystem(
         name: 'ARC',
         handles: {IntentType.temporalQuery, IntentType.recentContext},
-        result: SubsystemResult(
+        result: const SubsystemResult(
           source: 'ARC',
           data: {'entries': ['e1', 'e2']},
         ),
@@ -161,6 +160,6 @@ class _FakeSubsystem implements Subsystem {
   Future<SubsystemResult> query(CommandIntent intent) async {
     onQuery?.call(intent);
     if (throwOnQuery) throw Exception('fake failure');
-    return result!;
+    return result;
   }
 }

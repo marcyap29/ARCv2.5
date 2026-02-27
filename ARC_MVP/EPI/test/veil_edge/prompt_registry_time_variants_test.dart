@@ -1,9 +1,10 @@
 /// Tests for VEIL-EDGE Prompt Registry Time Variants
 /// 
 /// Tests for time-aware prompt variants and circadian guidance
+library;
 
 import 'package:flutter_test/flutter_test.dart';
-import '../../lib/lumara/veil_edge/registry/prompt_registry.dart';
+import 'package:my_app/lumara/veil_edge/registry/prompt_registry.dart';
 
 void main() {
   group('VeilEdgePromptRenderer Time Variants', () {

@@ -5,6 +5,7 @@
 /// - Daily and hourly limits
 /// - Warns users when approaching limits
 /// - Graceful degradation when limits exceeded
+library;
 
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';

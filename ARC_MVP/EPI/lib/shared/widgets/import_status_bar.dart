@@ -28,7 +28,7 @@ class ImportStatusBar extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               child: Row(
                 children: [
-                  Icon(Icons.cloud_download_outlined, size: 20, color: kcPrimaryColor),
+                  const Icon(Icons.cloud_download_outlined, size: 20, color: kcPrimaryColor),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Column(
@@ -38,7 +38,7 @@ class ImportStatusBar extends StatelessWidget {
                       children: [
                         Text(
                           state.message,
-                          style: TextStyle(
+                          style: const TextStyle(
                             color: kcPrimaryTextColor,
                             fontSize: 12,
                             fontWeight: FontWeight.w500,
@@ -74,7 +74,7 @@ class ImportStatusBar extends StatelessWidget {
                     hasFraction
                         ? '${(state.fraction * 100).round()}%'
                         : '0%',
-                    style: TextStyle(
+                    style: const TextStyle(
                       color: kcSecondaryTextColor,
                       fontSize: 11,
                       fontWeight: FontWeight.w500,

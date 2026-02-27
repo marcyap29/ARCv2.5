@@ -3,6 +3,7 @@
 /// Represents a single item in the unified LUMARA feed.
 /// Can represent: active conversations, saved conversations,
 /// voice memos, written journal entries, or LUMARA-initiated prompts.
+library;
 
 import 'package:flutter/material.dart';
 import 'package:my_app/data/models/media_item.dart';

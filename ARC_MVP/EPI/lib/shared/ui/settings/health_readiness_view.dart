@@ -195,7 +195,7 @@ class _HealthReadinessViewState extends State<HealthReadinessView> {
                     color: _getReadinessColor(score),
                   ),
                 ),
-                Text(
+                const Text(
                   '/ 100',
                   style: TextStyle(
                     fontSize: 24,
@@ -980,7 +980,7 @@ class _HealthReadinessViewState extends State<HealthReadinessView> {
                   padding: const EdgeInsets.only(top: 4),
                   child: Text(
                     dayLabel,
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontSize: 10,
                       color: kcSecondaryTextColor,
                     ),
@@ -997,7 +997,7 @@ class _HealthReadinessViewState extends State<HealthReadinessView> {
               getTitlesWidget: (value, meta) {
                 return Text(
                   value.toInt().toString(),
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 10,
                     color: kcSecondaryTextColor,
                   ),
@@ -1055,7 +1055,7 @@ class _HealthReadinessViewState extends State<HealthReadinessView> {
                 final entry = validEntries[index];
                 return LineTooltipItem(
                   '${entry.operationalReadinessScore}\n${_formatDate(entry.timestamp)}',
-                  TextStyle(
+                  const TextStyle(
                     color: kcPrimaryTextColor,
                     fontWeight: FontWeight.bold,
                     fontSize: 12,
@@ -1445,7 +1445,7 @@ class _HealthReadinessViewState extends State<HealthReadinessView> {
       return FlSpot(entry.key.toDouble(), healthFactor);
     }).toList();
 
-    final maxY = 100.0;
+    const maxY = 100.0;
     final maxX = (healthRatings.length - 1).toDouble();
 
     return LineChart(
@@ -1470,7 +1470,7 @@ class _HealthReadinessViewState extends State<HealthReadinessView> {
                   padding: const EdgeInsets.only(top: 4),
                   child: Text(
                     '${date.month}/${date.day}',
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontSize: 9,
                       color: kcSecondaryTextColor,
                     ),
@@ -1487,7 +1487,7 @@ class _HealthReadinessViewState extends State<HealthReadinessView> {
               getTitlesWidget: (value, meta) {
                 return Text(
                   value.toInt().toString(),
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 9,
                     color: kcSecondaryTextColor,
                   ),
@@ -1518,7 +1518,7 @@ class _HealthReadinessViewState extends State<HealthReadinessView> {
             isCurved: true,
             color: kcAccentColor,
             barWidth: 2,
-            dotData: FlDotData(show: false),
+            dotData: const FlDotData(show: false),
           ),
           // Health factor line
           LineChartBarData(
@@ -1526,7 +1526,7 @@ class _HealthReadinessViewState extends State<HealthReadinessView> {
             isCurved: true,
             color: kcSuccessColor.withOpacity(0.6),
             barWidth: 2,
-            dotData: FlDotData(show: false),
+            dotData: const FlDotData(show: false),
             dashArray: [5, 5],
           ),
         ],

@@ -15,11 +15,11 @@ class _UnifiedJournalViewState extends State<UnifiedJournalView> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return const Scaffold(
       body: SafeArea(
         top: false,
         bottom: true,
-        child: const TimelineWithIdeasView(), // Shows Timeline + Voice Notes tabs
+        child: TimelineWithIdeasView(), // Shows Timeline + Voice Notes tabs
       ),
     );
   }

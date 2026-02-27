@@ -186,7 +186,7 @@ class MultimodalChatService {
       sessionId: sessionId,
       role: MessageRole.user,
       contentParts: contentParts,
-      provenance: provenance != null ? provenance.toString() : null,
+      provenance: provenance?.toString(),
     );
     
     // Process through OCP + PRISM pipeline
@@ -241,7 +241,7 @@ class MultimodalChatService {
       sessionId: sessionId,
       role: MessageRole.assistant,
       contentParts: ContentPartUtils.fromLegacyContent(responseText),
-      provenance: '${_config.config.currentProvider.value}',
+      provenance: _config.config.currentProvider.value,
     );
     
     // RIVET-lite assessment

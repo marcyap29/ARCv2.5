@@ -10,6 +10,7 @@
 /// ✅ KEPT: Memory Focus (maps to ContextScope)
 /// ✅ KEPT: Web Access (important privacy setting)
 /// ✅ MOVED: Advanced settings to separate screen
+library;
 
 import 'dart:io';
 import 'package:flutter/material.dart';
@@ -517,7 +518,7 @@ class _SimplifiedSettingsViewState extends State<SimplifiedSettingsView> {
                     onChanged: _lumaraSettingsLoading
                         ? null
                         : (value) => _setWebAccessEnabled(value),
-                    secondary: Icon(
+                    secondary: const Icon(
                       Icons.language,
                       color: kcAccentColor,
                       size: 24,
@@ -654,7 +655,7 @@ class _SimplifiedSettingsViewState extends State<SimplifiedSettingsView> {
                             height: 24,
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
-                        : Icon(
+                        : const Icon(
                             Icons.vibration,
                             color: kcAccentColor,
                             size: 24,
@@ -755,7 +756,7 @@ class _SimplifiedSettingsViewState extends State<SimplifiedSettingsView> {
                 height: 24,
                 child: CircularProgressIndicator(strokeWidth: 2),
               )
-            : Icon(
+            : const Icon(
                 Icons.share,
                 color: kcAccentColor,
                 size: 24,
@@ -784,7 +785,7 @@ class _SimplifiedSettingsViewState extends State<SimplifiedSettingsView> {
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
             child: Row(
               children: [
-                Icon(Icons.memory, color: kcAccentColor, size: 24),
+                const Icon(Icons.memory, color: kcAccentColor, size: 24),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
@@ -847,7 +848,7 @@ class _SimplifiedSettingsViewState extends State<SimplifiedSettingsView> {
                       child: Container(
                         width: 10,
                         height: 10,
-                        decoration: BoxDecoration(
+                        decoration: const BoxDecoration(
                           shape: BoxShape.circle,
                           color: kcAccentColor,
                         ),
@@ -925,7 +926,7 @@ class _SimplifiedSettingsViewState extends State<SimplifiedSettingsView> {
         onChanged: _crossModalLoading
             ? null
             : (value) => _setCrossModalEnabled(value),
-        secondary: Icon(
+        secondary: const Icon(
           Icons.perm_media,
           color: kcAccentColor,
           size: 24,
@@ -1115,7 +1116,7 @@ class _SimplifiedSettingsViewState extends State<SimplifiedSettingsView> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: Text('Cancel', style: TextStyle(color: kcSecondaryTextColor)),
+            child: const Text('Cancel', style: TextStyle(color: kcSecondaryTextColor)),
           ),
           ElevatedButton(
             onPressed: () => Navigator.of(context).pop(true),

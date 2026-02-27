@@ -45,7 +45,7 @@ class ImportStatusScreen extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(
+          const Text(
             'Import in progress',
             style: TextStyle(
               color: kcPrimaryTextColor,
@@ -56,7 +56,7 @@ class ImportStatusScreen extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             state.message,
-            style: TextStyle(
+            style: const TextStyle(
               color: kcSecondaryTextColor,
               fontSize: 14,
             ),
@@ -84,7 +84,7 @@ class ImportStatusScreen extends StatelessWidget {
             ),
           if (state.fileItems != null && state.fileItems!.isNotEmpty) ...[
             const SizedBox(height: 24),
-            Text(
+            const Text(
               'Files',
               style: TextStyle(
                 color: kcPrimaryTextColor,
@@ -119,7 +119,7 @@ class ImportStatusScreen extends StatelessWidget {
           const SizedBox(height: 16),
           Text(
             isError ? 'Import failed' : 'Import complete',
-            style: TextStyle(
+            style: const TextStyle(
               color: kcPrimaryTextColor,
               fontSize: 18,
               fontWeight: FontWeight.w600,
@@ -128,14 +128,14 @@ class ImportStatusScreen extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             isError ? (state.error ?? state.message) : state.message,
-            style: TextStyle(
+            style: const TextStyle(
               color: kcSecondaryTextColor,
               fontSize: 14,
             ),
           ),
           if (state.fileItems != null && state.fileItems!.isNotEmpty) ...[
             const SizedBox(height: 24),
-            Text(
+            const Text(
               'Files',
               style: TextStyle(
                 color: kcPrimaryTextColor,
@@ -190,7 +190,7 @@ class ImportStatusScreen extends StatelessWidget {
             color: kcSecondaryTextColor.withOpacity(0.7),
           ),
           const SizedBox(height: 16),
-          Text(
+          const Text(
             'No import in progress',
             style: TextStyle(
               color: kcPrimaryTextColor,
@@ -199,7 +199,7 @@ class ImportStatusScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 8),
-          Text(
+          const Text(
             'Restore from .zip, .mcpkg, or .arcx backup files.',
             style: TextStyle(
               color: kcSecondaryTextColor,
@@ -275,7 +275,7 @@ class _FileStatusRow extends StatelessWidget {
               Expanded(
                 child: Text(
                   fileName,
-                  style: TextStyle(
+                  style: const TextStyle(
                     color: kcPrimaryTextColor,
                     fontSize: 14,
                   ),

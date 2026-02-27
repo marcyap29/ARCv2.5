@@ -5,6 +5,7 @@
 /// - Subscription tier (FREE, BETA, PRO)
 /// - Network availability
 /// - Provider availability
+library;
 
 import 'dart:async';
 import 'dart:io';

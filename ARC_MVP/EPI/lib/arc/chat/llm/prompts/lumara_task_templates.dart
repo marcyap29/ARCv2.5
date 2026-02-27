@@ -1,6 +1,7 @@
 /// LUMARA Task Templates for On-Device LLMs
 /// 
 /// Provides structured task wrappers that help small models produce better outputs
+library;
 
 class LumaraTaskTemplates {
   static const String generalChat = '''

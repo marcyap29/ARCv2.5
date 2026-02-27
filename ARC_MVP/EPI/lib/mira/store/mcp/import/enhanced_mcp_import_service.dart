@@ -6,20 +6,12 @@ library;
 
 import 'dart:io';
 import 'dart:convert';
-import '../models/mcp_schemas.dart';
 import '../models/mcp_enhanced_nodes.dart';
-import '../services/mcp_node_factory.dart';
-import '../validation/mcp_validator.dart';
 import 'mcp_import_service.dart';
 import 'package:my_app/arc/chat/chat/chat_repo.dart';
-import 'package:my_app/arc/chat/chat/enhanced_chat_repo.dart';
-import 'package:my_app/arc/chat/chat/chat_category_models.dart';
-import 'package:my_app/arc/chat/chat/chat_models.dart';
 import 'package:my_app/models/journal_entry_model.dart';
 import 'package:my_app/core/services/draft_cache_service.dart';
 
-/// Import for JournalDraft
-import 'package:my_app/core/services/draft_cache_service.dart' show JournalDraft;
 
 /// Enhanced MCP Import Service with support for all node types
 class EnhancedMcpImportService {
@@ -143,59 +135,6 @@ class EnhancedMcpImportService {
       }
     }
 
-    // Import categories if EnhancedChatRepo is available
-    final enhancedRepo = chatRepo is EnhancedChatRepo ? chatRepo as EnhancedChatRepo : null;
-    final categoryMap = <String, String>{}; // categoryNodeId -> categoryId
-    if (enhancedRepo != null) {
-      try {
-        final edgesFile = File('${bundleDir.path}/edges.jsonl');
-        if (await edgesFile.exists()) {
-          final lines = await edgesFile.readAsLines();
-          for (final line in lines) {
-            if (line.trim().isEmpty) continue;
-            try {
-              final edgeData = jsonDecode(line) as Map<String, dynamic>;
-              final relation = edgeData['relation'] as String?;
-              if (relation == 'category_metadata') {
-                final metadata = edgeData['metadata'] as Map<String, dynamic>?;
-                if (metadata != null) {
-                  final categoryId = metadata['category_id'] as String?;
-                  final name = metadata['name'] as String?;
-                  final description = metadata['description'] as String?;
-                  final color = metadata['color'] as String?;
-                  final icon = metadata['icon'] as String?;
-                  final sortOrder = metadata['sort_order'] as int?;
-                  
-                  if (categoryId != null && name != null) {
-                    // Create or get category
-                    final existingCategory = await enhancedRepo.getCategory(categoryId);
-                    if (existingCategory == null) {
-                      // Create new category
-                      final createdId = await enhancedRepo.createCategory(
-                        name: name,
-                        description: description,
-                        color: color ?? '#3B82F6',
-                        icon: icon ?? 'chat',
-                        sortOrder: sortOrder ?? 0,
-                      );
-                      categoryMap[edgeData['source'] as String] = createdId;
-                    } else {
-                      categoryMap[edgeData['source'] as String] = categoryId;
-                    }
-                  }
-                }
-              }
-            } catch (e) {
-              continue;
-            }
-          }
-          print('📁 Chat Import: Imported ${categoryMap.length} categories');
-        }
-      } catch (e) {
-        print('⚠️ Chat Import: Failed to import categories: $e');
-      }
-    }
-
     // Second pass: Import messages and link them to sessions using edges
     for (final messageData in messageNodes) {
       try {
@@ -211,41 +150,6 @@ class EnhancedMcpImportService {
       }
     }
     
-    // Third pass: Assign categories to sessions if EnhancedChatRepo is available
-    if (enhancedRepo != null && categoryMap.isNotEmpty) {
-      try {
-        final edgesFile = File('${bundleDir.path}/edges.jsonl');
-        if (await edgesFile.exists()) {
-          final lines = await edgesFile.readAsLines();
-          for (final line in lines) {
-            if (line.trim().isEmpty) continue;
-            try {
-              final edgeData = jsonDecode(line) as Map<String, dynamic>;
-              final relation = edgeData['relation'] as String?;
-              if (relation == 'belongs_to_category') {
-                final source = edgeData['source'] as String?; // session node ID
-                final target = edgeData['target'] as String?; // category node ID
-                
-                if (source != null && target != null) {
-                  final sessionId = sessionMap[source];
-                  final categoryId = categoryMap[target];
-                  
-                  if (sessionId != null && categoryId != null) {
-                    await enhancedRepo.assignSessionToCategory(sessionId, categoryId);
-                  }
-                }
-              }
-            } catch (e) {
-              continue;
-            }
-          }
-          print('📁 Chat Import: Assigned categories to sessions');
-        }
-      } catch (e) {
-        print('⚠️ Chat Import: Failed to assign categories to sessions: $e');
-      }
-    }
-
     return EnhancedImportData(
       chatSessionsImported: chatSessionsImported,
       chatMessagesImported: chatMessagesImported,
@@ -312,7 +216,7 @@ class EnhancedMcpImportService {
       // Find the session this message belongs to by looking at edges
       final sessionId = await _findSessionForMessage(bundleDir, messageNodeId, sessionMap);
       if (sessionId == null) {
-        print('⚠️ Chat Import: No session found for message ${messageNodeId} - skipping');
+        print('⚠️ Chat Import: No session found for message $messageNodeId - skipping');
         return false;
       }
       
@@ -426,12 +330,12 @@ class EnhancedMcpImportService {
         content: lumaraNode.content,
         createdAt: lumaraNode.timestamp,
         updatedAt: lumaraNode.timestamp,
-        tags: [],
+        tags: const [],
         mood: '',
         phase: lumaraNode.phasePrediction ?? 'Transition',
         keywords: lumaraNode.suggestedKeywords ?? [],
-        emotion: lumaraNode.emotionalAnalysis?.isNotEmpty == true 
-            ? lumaraNode.emotionalAnalysis!.entries.first.value.toString()
+        emotion: lumaraNode.emotionalAnalysis.isNotEmpty == true 
+            ? lumaraNode.emotionalAnalysis.entries.first.value.toString()
             : null,
         metadata: {
           'lumaraEnhanced': true,
@@ -445,7 +349,7 @@ class EnhancedMcpImportService {
       // Save enhanced entry (this would need to be implemented in the journal service)
       print('✅ LUMARA Import: Would import enhanced journal entry');
       print('🌹 Rosebud: ${lumaraNode.rosebud}');
-      print('💡 Insights: ${lumaraNode.lumaraInsights?.join(', ') ?? 'none'}');
+      print('💡 Insights: ${lumaraNode.lumaraInsights.join(', ') ?? 'none'}');
 
     } catch (e) {
       print('❌ LUMARA Import: Failed to import enhanced journal entry: $e');

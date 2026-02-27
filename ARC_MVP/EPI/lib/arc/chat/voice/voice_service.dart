@@ -5,6 +5,7 @@
 /// 
 /// @see UnifiedVoiceService for the implementation
 /// @see VoiceMode for available modes (journal, chat)
+library;
 
 export 'voice_journal/voice_journal.dart';
 

@@ -73,7 +73,7 @@ class _FavoriteJournalEntriesViewState extends State<FavoriteJournalEntriesView>
   @override
   Widget build(BuildContext context) {
     final count = _favoriteEntries.length;
-    final maxCount = 20;
+    const maxCount = 20;
 
     return Scaffold(
       backgroundColor: kcBackgroundColor,

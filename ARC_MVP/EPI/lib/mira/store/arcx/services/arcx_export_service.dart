@@ -116,7 +116,7 @@ class ARCXExportService {
               await File(extractedPath).writeAsBytes(file.content);
               // Debug: Log photo file extractions
               if (file.name.contains('media/photos/') || file.name.contains('photos/')) {
-                print('ARCX Export: Extracted photo file: ${file.name} -> ${extractedPath}');
+                print('ARCX Export: Extracted photo file: ${file.name} -> $extractedPath');
               }
             }
           }
@@ -312,7 +312,7 @@ class ARCXExportService {
                 }
               }
               
-              await File(path.join(payloadJournalDir.path, '${nodeId}.json'))
+              await File(path.join(payloadJournalDir.path, '$nodeId.json'))
                   .writeAsString(jsonEncode(node));
               entriesCount++;
             }
@@ -329,7 +329,7 @@ class ARCXExportService {
         int photosCount = 0;
         for (final node in photoNodes) {
           final nodeId = node['id'] as String? ?? 'unknown';
-          await File(path.join(payloadPhotoDir.path, '${nodeId}.json'))
+          await File(path.join(payloadPhotoDir.path, '$nodeId.json'))
               .writeAsString(jsonEncode(node));
           photosCount++;
           
@@ -367,7 +367,7 @@ class ARCXExportService {
               print('ARCX Export:     2. ${path.join(tempDir.path, "media", "photos", filename)}');
             }
           } else {
-            print('ARCX Export: ⚠️ Photo node ${nodeId} has no filename field');
+            print('ARCX Export: ⚠️ Photo node $nodeId has no filename field');
           }
         }
 

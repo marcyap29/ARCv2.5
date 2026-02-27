@@ -513,11 +513,11 @@ class _PhaseAnalysisViewState extends State<PhaseAnalysisView> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Row(
+        title: const Row(
           children: [
-            const Icon(Icons.check_circle, color: Colors.green),
-            const SizedBox(width: 8),
-            const Expanded(child: Text('Phase Analysis Complete')),
+            Icon(Icons.check_circle, color: Colors.green),
+            SizedBox(width: 8),
+            Expanded(child: Text('Phase Analysis Complete')),
           ],
         ),
         content: SingleChildScrollView(
@@ -626,7 +626,7 @@ class _PhaseAnalysisViewState extends State<PhaseAnalysisView> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.error_outline, size: 64, color: Colors.red),
+              const Icon(Icons.error_outline, size: 64, color: Colors.red),
               const SizedBox(height: 16),
               Text('Error loading phase data: $_error'),
               const SizedBox(height: 16),
@@ -726,13 +726,13 @@ class _PhaseAnalysisViewState extends State<PhaseAnalysisView> {
         ],
       ),
               ),
-              PopupMenuItem<String>(
+              const PopupMenuItem<String>(
                 value: 'settings',
                 child: Row(
                   children: [
-                    const Icon(Icons.settings, size: 20),
-                    const SizedBox(width: 12),
-                    const Text('Settings'),
+                    Icon(Icons.settings, size: 20),
+                    SizedBox(width: 12),
+                    Text('Settings'),
                   ],
                 ),
               ),
@@ -850,7 +850,7 @@ class _PhaseAnalysisViewState extends State<PhaseAnalysisView> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.info_outline, size: 64, color: Colors.grey),
+                  const Icon(Icons.info_outline, size: 64, color: Colors.grey),
                   const SizedBox(height: 16),
                   Text(
                     'No phase data available',
@@ -1371,7 +1371,7 @@ class _PhaseAnalysisViewState extends State<PhaseAnalysisView> {
                 size: 20,
               ),
               const SizedBox(width: 8),
-              Expanded(
+              const Expanded(
                 child: Text(
                   'Phase Transition Readiness',
                   style: TextStyle(
@@ -1397,7 +1397,7 @@ class _PhaseAnalysisViewState extends State<PhaseAnalysisView> {
             hasTrend
                 ? 'Your reflection patterns have shifted $_trendPercent% toward $_approachingPhase'
                 : 'Your reflection patterns are stable in ${currentPhaseName ?? "your current phase"}',
-            style: TextStyle(
+            style: const TextStyle(
               color: Colors.white,
               fontSize: 13,
             ),
@@ -1456,7 +1456,7 @@ class _PhaseAnalysisViewState extends State<PhaseAnalysisView> {
           children: [
             Icon(Icons.info_outline, color: Theme.of(context).primaryColor),
             const SizedBox(width: 8),
-            Text(
+            const Text(
               'Phase Transition Readiness',
               style: TextStyle(color: Colors.white),
             ),
@@ -1466,7 +1466,7 @@ class _PhaseAnalysisViewState extends State<PhaseAnalysisView> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
+            const Text(
               'This indicator shows how your recent journal entries align with different phases.',
               style: TextStyle(color: Colors.white),
             ),
@@ -1591,7 +1591,7 @@ class _PhaseAnalysisViewState extends State<PhaseAnalysisView> {
                           child: Container(
                             width: 8,
                             height: 8,
-                            decoration: BoxDecoration(
+                            decoration: const BoxDecoration(
                               color: Colors.green,
                               shape: BoxShape.circle,
                             ),

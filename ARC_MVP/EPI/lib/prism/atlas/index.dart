@@ -30,6 +30,7 @@
 /// // SENTINEL risk analysis
 /// final risk = await SentinelRiskDetector.analyzeRisk(...);
 /// ```
+library;
 
 // Phase detection exports
 // Handles phase identification, scoring, and transition tracking

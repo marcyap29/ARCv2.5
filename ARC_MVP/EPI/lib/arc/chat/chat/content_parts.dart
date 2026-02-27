@@ -62,6 +62,7 @@ class TextContentPart extends ContentPart {
 /// Media content part (images, audio, video)
 @HiveType(typeId: 82)
 class MediaContentPart extends ContentPart {
+  @override
   @HiveField(0)
   final String mime;
   

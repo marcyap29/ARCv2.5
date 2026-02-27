@@ -575,7 +575,7 @@ class _AgentConnectionCard extends StatelessWidget {
                     label: const Text('Connect'),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: kcPrimaryColor,
-                      side: BorderSide(color: kcPrimaryColor),
+                      side: const BorderSide(color: kcPrimaryColor),
                     ),
                   ),
               ],

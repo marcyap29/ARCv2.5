@@ -1,6 +1,7 @@
 /// LUMARA Model Presets for On-Device LLMs
 /// 
 /// Optimized inference parameters for different model types
+library;
 
 class LumaraModelPresets {
 

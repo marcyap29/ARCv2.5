@@ -2,6 +2,7 @@
 ///
 /// Shared card wrapper with phase-colored left border indicator.
 /// All feed entry cards extend from this base to get consistent styling.
+library;
 
 import 'package:flutter/material.dart';
 import 'package:my_app/shared/app_colors.dart';

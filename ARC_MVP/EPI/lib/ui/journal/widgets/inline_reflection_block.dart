@@ -19,7 +19,8 @@ class InlineReflectionBlock extends StatefulWidget {
   final String intent; // ideas | think | perspective | next | analyze
   final String? phase; // e.g., "Recovery"
   final bool isLoading; // Whether LUMARA is currently generating insights
-  final String? loadingMessage; // Optional loading message
+  final String? loadingMessage; // Optional loading message (used when processingSteps is empty)
+  final List<String>? processingSteps; // Step-by-step status (same as chat thinking bubble)
   final VoidCallback onRegenerate;
   final VoidCallback onReflectDeeply; // NEW: Reflect more deeply button
   final VoidCallback onContinueThought;
@@ -38,6 +39,7 @@ class InlineReflectionBlock extends StatefulWidget {
     this.phase,
     this.isLoading = false,
     this.loadingMessage,
+    this.processingSteps,
     required this.onRegenerate,
     required this.onReflectDeeply,
     required this.onContinueThought,
@@ -155,12 +157,12 @@ class _InlineReflectionBlockState extends State<InlineReflectionBlock> with Sing
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     // Remove card styling - make transparent and minimal (Rosebud style)
-    final bg = Colors.transparent; 
+    const bg = Colors.transparent; 
     
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 8),
       // Minimal container without border or shadow
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         color: bg,
       ),
       child: Padding(
@@ -174,13 +176,14 @@ class _InlineReflectionBlockState extends State<InlineReflectionBlock> with Sing
                 LumaraThinkingIndicator(
                   customMessage: widget.loadingMessage,
                   showProgressBar: false,
+                  processingSteps: widget.processingSteps,
                 )
               else ...[
                 // Mode indicator badge
                 FutureBuilder<EngagementSettings>(
                   future: LumaraReflectionSettingsService.instance.getEngagementSettings(),
                   builder: (context, snapshot) {
-                    if (!snapshot.hasData) return SizedBox.shrink();
+                    if (!snapshot.hasData) return const SizedBox.shrink();
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 8),
                       child: EngagementModeBadge(mode: snapshot.data!.activeMode),
@@ -446,7 +449,7 @@ class _InlineReflectionBlockState extends State<InlineReflectionBlock> with Sing
 
       // Add second sentence if available
       if (i + 1 < sentences.length) {
-        paragraphText += ' ' + sentences[i + 1];
+        paragraphText += ' ${sentences[i + 1]}';
       }
 
       paragraphs.add(paragraphText.trim());
@@ -493,7 +496,7 @@ class _InlineReflectionBlockState extends State<InlineReflectionBlock> with Sing
 
         // Add second sentence if available
         if (i + 1 < sentences.length) {
-          paragraphText += ' ' + sentences[i + 1];
+          paragraphText += ' ${sentences[i + 1]}';
         }
 
         paragraphs.add(paragraphText.trim());
@@ -661,16 +664,16 @@ class _InlineReflectionBlockState extends State<InlineReflectionBlock> with Sing
   void _showFavoriteAddedSnackbar(BuildContext context) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Column(
+        content: const Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'Added to Favorites',
               style: TextStyle(fontWeight: FontWeight.bold),
             ),
-            const SizedBox(height: 4),
-            const Text(
+            SizedBox(height: 4),
+            Text(
               'LUMARA will now adapt its style based on your favorites. Tap to manage them.',
             ),
           ],

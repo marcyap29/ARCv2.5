@@ -2,7 +2,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:my_app/core/services/photo_library_service.dart';
 import 'package:my_app/data/models/photo_metadata.dart';
-import 'package:permission_handler/permission_handler.dart';
 
 void main() {
   group('PhotoLibraryService Metadata', () {
@@ -13,7 +12,7 @@ void main() {
     });
     
     setUp(() {
-      mockChannel = MethodChannel('photo_library_service');
+      mockChannel = const MethodChannel('photo_library_service');
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(mockChannel, (MethodCall methodCall) async {
         switch (methodCall.method) {
@@ -110,7 +109,7 @@ void main() {
     });
     
     test('findPhotoByMetadata finds similar metadata', () async {
-      final searchMetadata = PhotoMetadata(
+      const searchMetadata = PhotoMetadata(
         localIdentifier: 'search-photo-id',
         filename: 'IMG_1234.JPG', // This should match
         fileSize: 1000000, // Different size
@@ -122,7 +121,7 @@ void main() {
     });
     
     test('findPhotoByMetadata returns null when no match', () async {
-      final searchMetadata = PhotoMetadata(
+      const searchMetadata = PhotoMetadata(
         localIdentifier: 'search-photo-id',
         filename: 'NONEXISTENT.JPG',
       );
@@ -158,7 +157,7 @@ void main() {
       expect(metadata, isNull);
       
       final foundId = await PhotoLibraryService.findPhotoByMetadata(
-        PhotoMetadata(localIdentifier: 'test'),
+        const PhotoMetadata(localIdentifier: 'test'),
       );
       expect(foundId, isNull);
       
@@ -180,7 +179,7 @@ void main() {
       expect(metadata, isNull);
       
       final foundId = await PhotoLibraryService.findPhotoByMetadata(
-        PhotoMetadata(localIdentifier: 'test'),
+        const PhotoMetadata(localIdentifier: 'test'),
       );
       expect(foundId, isNull);
       

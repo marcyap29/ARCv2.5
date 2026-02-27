@@ -367,18 +367,18 @@ class _HealthDetailScreenBodyState extends State<HealthDetailScreenBody> {
     if (n == 0) {
       return ListView(
         padding: const EdgeInsets.all(16),
-        children: [
-          const Text(
+        children: const [
+          Text(
             'No data available',
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
           ),
-          const SizedBox(height: 12),
-          const Text(
+          SizedBox(height: 12),
+          Text(
             'Health data files were not found. To view health analytics:',
             style: TextStyle(fontSize: 14),
           ),
-          const SizedBox(height: 8),
-          const Text(
+          SizedBox(height: 8),
+          Text(
             '1. Go to Health tab → Settings icon\n'
             '2. Import health data (30, 60, or 90 days)\n'
             '3. Ensure Apple Health integration is enabled\n'

@@ -2,6 +2,7 @@
 ///
 /// Integrates with LUMARA's MASTERPROMPT control state system to provide
 /// user-controlled engagement boundaries while preserving temporal intelligence.
+library;
 
 enum EngagementMode {
   reflect,    // Default: direct, concise, minimal connections

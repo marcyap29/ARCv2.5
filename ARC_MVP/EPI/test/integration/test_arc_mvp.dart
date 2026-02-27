@@ -90,7 +90,7 @@ void main() {
   
   // Test 6: Geometry Patterns
   print('6. Testing Geometry Patterns:');
-  final geometries = ArcformGeometry.values;
+  const geometries = ArcformGeometry.values;
   for (final geometry in geometries) {
     print('   - ${geometry.name}: ${geometry.description}');
   }

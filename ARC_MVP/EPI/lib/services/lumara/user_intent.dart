@@ -1,5 +1,6 @@
 /// User Intent Detection - Maps button interactions to intent types
 /// Part of LUMARA Response Generation System v2.1
+library;
 
 import 'entry_classifier.dart';
 

@@ -4,6 +4,7 @@
 /// - Provides partial transcript updates for live display
 /// - Detects end-of-turn using silence/endpoint detection
 /// - Accumulates full transcript across multiple speech segments
+library;
 
 import 'dart:async';
 import 'package:flutter/foundation.dart';
@@ -169,9 +170,7 @@ class AssemblyAISttService {
 
   void _handlePartialResult(TranscriptSegment segment) {
     // Track first partial timestamp
-    if (_metrics.firstPartialTranscript == null) {
-      _metrics.firstPartialTranscript = DateTime.now();
-    }
+    _metrics.firstPartialTranscript ??= DateTime.now();
     
     _currentPartial = segment.text;
     _hasSpoken = true;

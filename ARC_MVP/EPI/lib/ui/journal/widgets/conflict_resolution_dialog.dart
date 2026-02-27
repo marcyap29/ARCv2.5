@@ -1,6 +1,7 @@
 /// Conflict Resolution Dialog
 ///
 /// Shows a dialog when conflicts are detected between local and remote drafts
+library;
 
 import 'package:flutter/material.dart';
 import 'package:my_app/core/services/journal_version_service.dart';

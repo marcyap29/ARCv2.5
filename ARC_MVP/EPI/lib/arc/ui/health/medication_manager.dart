@@ -228,7 +228,7 @@ class _MedicationManagerState extends State<MedicationManager> {
                       onPressed: () {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
-                            content: Text('Medications are managed in the Apple Health app'),
+                            content: const Text('Medications are managed in the Apple Health app'),
                             action: SnackBarAction(
                               label: 'Refresh',
                               onPressed: _refreshMedications,

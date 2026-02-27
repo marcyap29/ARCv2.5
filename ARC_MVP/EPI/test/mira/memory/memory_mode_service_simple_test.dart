@@ -3,11 +3,10 @@
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
-import 'package:path_provider/path_provider.dart';
 import 'dart:io';
-import '../../../lib/mira/memory/memory_mode_service.dart';
-import '../../../lib/mira/memory/enhanced_memory_schema.dart';
-import '../../../lib/mira/core/schema.dart';
+import 'package:my_app/mira/memory/memory_mode_service.dart';
+import 'package:my_app/mira/memory/enhanced_memory_schema.dart';
+import 'package:my_app/mira/core/schema.dart';
 
 void main() {
   group('MemoryModeService (Simple)', () {
@@ -365,7 +364,7 @@ void main() {
 
   group('MemoryModeConfig', () {
     test('should serialize to JSON', () {
-      final config = MemoryModeConfig(
+      const config = MemoryModeConfig(
         globalMode: MemoryMode.alwaysOn,
         domainModes: {
           MemoryDomain.work: MemoryMode.hard,
@@ -423,7 +422,7 @@ void main() {
     });
 
     test('copyWith should create new instance', () {
-      final original = const MemoryModeConfig(
+      const original = MemoryModeConfig(
         globalMode: MemoryMode.alwaysOn,
         highConfidenceThreshold: 0.75,
       );
@@ -461,7 +460,7 @@ EnhancedMiraNode _createTestNode(String id, {String? content}) {
       decayTriggers: [],
       veilHooks: {},
     ),
-    provenance: ProvenanceData(
+    provenance: const ProvenanceData(
       source: 'test',
       version: '1.0.0',
       device: 'test_device',

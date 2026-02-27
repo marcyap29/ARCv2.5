@@ -1,6 +1,7 @@
 /// AURORA - Circadian Profile Service
 /// 
 /// Service for computing circadian context from journal entry timestamps
+library;
 
 import 'dart:math';
 import 'package:collection/collection.dart';

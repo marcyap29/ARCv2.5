@@ -25,7 +25,7 @@ class MediaConversionUtils {
       type: MediaType.image, // Scan attachments are images
       createdAt: DateTime.now(),
       ocrText: attachment.text,
-      altText: 'Scanned text: ${attachment.text.length > 50 ? attachment.text.substring(0, 50) + '...' : attachment.text}',
+      altText: 'Scanned text: ${attachment.text.length > 50 ? '${attachment.text.substring(0, 50)}...' : attachment.text}',
     );
   }
 
@@ -228,9 +228,9 @@ class MediaConversionUtils {
     final seconds = duration.inSeconds.remainder(60);
     
     if (hours > 0) {
-      return '${hours}:${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+      return '$hours:${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
     } else {
-      return '${minutes}:${seconds.toString().padLeft(2, '0')}';
+      return '$minutes:${seconds.toString().padLeft(2, '0')}';
     }
   }
 

@@ -3,6 +3,7 @@
 /// Full-screen modal bottom sheet for navigating the user's history.
 /// Three tabs: Timeline (year/month browser), Phase (phase-grouped view),
 /// Search (text search across all entries).
+library;
 
 import 'package:flutter/material.dart';
 import 'package:my_app/shared/app_colors.dart';

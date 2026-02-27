@@ -332,13 +332,13 @@ class _SimplifiedArcformView3DState extends State<SimplifiedArcformView3D> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      final loading = const Center(
+      const loading = Center(
         child: CircularProgressIndicator(
           valueColor: AlwaysStoppedAnimation<Color>(kcPrimaryColor),
         ),
       );
       if (widget.cardOnly) {
-        return SizedBox(height: 260, child: loading);
+        return const SizedBox(height: 260, child: loading);
       }
       return loading;
     }
@@ -431,7 +431,7 @@ class _SimplifiedArcformView3DState extends State<SimplifiedArcformView3D> {
               // Header: constellation icon + color-coded phase badge only (no white phase name text)
               Row(
                 children: [
-                  Icon(
+                  const Icon(
                     Icons.auto_awesome,
                     color: kcPrimaryColor,
                     size: 20,
@@ -514,7 +514,7 @@ class _SimplifiedArcformView3DState extends State<SimplifiedArcformView3D> {
                               ),
                               Text(
                                 '${keywords.length} stars',
-                                style: TextStyle(
+                                style: const TextStyle(
                                   color: kcSecondaryTextColor,
                                   fontSize: 10,
                                 ),
@@ -750,7 +750,7 @@ class _SimplifiedArcformView3DState extends State<SimplifiedArcformView3D> {
                 .toList();
             
             if (entriesInRegime.isNotEmpty) {
-              print('DEBUG: _hasEntriesForPhase($phase) - Found ${entriesInRegime.length} entries in regime (${regimeStart} to ${regimeEnd})');
+              print('DEBUG: _hasEntriesForPhase($phase) - Found ${entriesInRegime.length} entries in regime ($regimeStart to $regimeEnd)');
               return true;
             }
           }
@@ -1134,7 +1134,7 @@ class _SimplifiedArcformView3DState extends State<SimplifiedArcformView3D> {
             style: OutlinedButton.styleFrom(
               foregroundColor: kcPrimaryColor,
               backgroundColor: Colors.black,
-              side: BorderSide(color: kcPrimaryColor, width: 1.5),
+              side: const BorderSide(color: kcPrimaryColor, width: 1.5),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(8),
               ),
@@ -1204,7 +1204,7 @@ class _SimplifiedArcformView3DState extends State<SimplifiedArcformView3D> {
                 ),
               ),
               trailing: currentPhase.toLowerCase() == phase.toLowerCase()
-                  ? Icon(Icons.check, color: kcPrimaryColor)
+                  ? const Icon(Icons.check, color: kcPrimaryColor)
                   : null,
               onTap: () async {
                 Navigator.of(ctx).pop();
@@ -1284,7 +1284,7 @@ class _SimplifiedArcformView3DState extends State<SimplifiedArcformView3D> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
+        const Text(
           'Past Phases:',
           style: TextStyle(
             fontWeight: FontWeight.bold,
@@ -1335,7 +1335,7 @@ class _SimplifiedArcformView3DState extends State<SimplifiedArcformView3D> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
+        const Text(
           'Example Phases:',
           style: TextStyle(
             fontWeight: FontWeight.bold,

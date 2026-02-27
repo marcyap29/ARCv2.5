@@ -14,7 +14,7 @@ class CachedThumbnail extends StatefulWidget {
   final bool showTapIndicator;
 
   const CachedThumbnail({
-    Key? key,
+    super.key,
     required this.imagePath,
     this.width = 80,
     this.height = 80,
@@ -24,7 +24,7 @@ class CachedThumbnail extends StatefulWidget {
     this.errorWidget,
     this.onTap,
     this.showTapIndicator = false,
-  }) : super(key: key);
+  });
 
   @override
   State<CachedThumbnail> createState() => _CachedThumbnailState();

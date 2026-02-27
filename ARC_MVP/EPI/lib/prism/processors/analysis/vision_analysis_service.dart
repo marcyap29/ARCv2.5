@@ -1,10 +1,8 @@
-import 'dart:io';
 import 'dart:typed_data';
 // import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 // import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
 import 'package:image/image.dart' as img;
 import '../pointer/pointer_models.dart';
-import 'package:my_app/arc/chat/llm/bridge.pigeon.dart';
 
 // Stub classes for ML Kit functionality
 class TextRecognizer {

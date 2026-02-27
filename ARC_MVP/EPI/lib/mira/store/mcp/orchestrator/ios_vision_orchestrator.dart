@@ -284,7 +284,7 @@ class IOSVisionOrchestrator {
       }
       // IfdValues for rational (degrees, minutes, seconds)
       final list = tag.values.toList();
-      if (list.length >= 1) {
+      if (list.isNotEmpty) {
         final d = _rationalToDouble(list[0]);
         if (d != null && list.length >= 3) {
           final m = _rationalToDouble(list[1]);
@@ -477,7 +477,7 @@ class IOSVisionOrchestrator {
     // Add feature summary
     final kp = featureResult['kp'] as int? ?? 0;
     if (kp > 0) {
-      parts.add('Features: ${kp} keypoints');
+      parts.add('Features: $kp keypoints');
     }
 
     if (parts.isEmpty) {

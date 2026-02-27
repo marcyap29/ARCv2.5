@@ -3,7 +3,6 @@
 
 import 'dart:collection';
 import 'enhanced_attribution_schema.dart';
-import 'enhanced_memory_schema.dart';
 import 'conversation_context_service.dart';
 import '../../arc/chat/data/models/lumara_message.dart';
 import '../../arc/chat/services/lumara_reflection_settings_service.dart';
@@ -232,7 +231,7 @@ class EnhancedAttributionService {
     String responseId
   ) {
     final confidence = _calculateMediaConfidence(media);
-    final relation = 'supports';
+    const relation = 'supports';
     final sourceType = _getMediaSourceType(media['type']);
     final excerpt = media['text_content'] ?? media['description'] ?? '';
 
@@ -379,15 +378,17 @@ class EnhancedAttributionService {
         ? entry['createdAt'] as DateTime
         : DateTime.tryParse(entry['createdAt']?.toString() ?? '') ?? DateTime.now();
     final daysSince = DateTime.now().difference(createdAt).inDays;
-    if (daysSince <= 7) confidence += 0.3;
-    else if (daysSince <= 30) confidence += 0.2;
+    if (daysSince <= 7) {
+      confidence += 0.3;
+    } else if (daysSince <= 30) confidence += 0.2;
     else if (daysSince <= 90) confidence += 0.1;
 
     // Higher confidence for longer entries
     final content = entry['content']?.toString() ?? '';
     final wordCount = content.split(' ').length;
-    if (wordCount > 200) confidence += 0.2;
-    else if (wordCount > 100) confidence += 0.1;
+    if (wordCount > 200) {
+      confidence += 0.2;
+    } else if (wordCount > 100) confidence += 0.1;
 
     // Higher confidence if keywords match
     final keywords = entry['keywords'] as List<dynamic>? ?? [];
@@ -405,8 +406,9 @@ class EnhancedAttributionService {
 
     // Higher confidence for recent messages
     final daysSince = DateTime.now().difference(message.timestamp).inDays;
-    if (daysSince <= 1) confidence += 0.3;
-    else if (daysSince <= 7) confidence += 0.2;
+    if (daysSince <= 1) {
+      confidence += 0.3;
+    } else if (daysSince <= 7) confidence += 0.2;
     else if (daysSince <= 30) confidence += 0.1;
 
     // Higher confidence for longer messages
@@ -456,16 +458,16 @@ class EnhancedAttributionService {
     // Extract first meaningful sentence or up to 200 characters
     final sentences = content.split(RegExp(r'[.!?]\s+'));
     if (sentences.isNotEmpty && sentences.first.length <= 200) {
-      return sentences.first + '.';
+      return '${sentences.first}.';
     }
 
-    return content.substring(0, 197) + '...';
+    return '${content.substring(0, 197)}...';
   }
 
   /// Extract excerpt from chat message
   String? _extractChatExcerpt(LumaraMessage message) {
     if (message.content.length <= 150) return message.content;
-    return message.content.substring(0, 147) + '...';
+    return '${message.content.substring(0, 147)}...';
   }
 
   /// Get media source type from media type string

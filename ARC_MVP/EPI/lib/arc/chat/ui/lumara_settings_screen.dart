@@ -33,10 +33,10 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
   Timer? _refreshDebounceTimer;
   
   // Track previous download states to detect completion
-  Map<String, double> _previousProgress = {};
+  final Map<String, double> _previousProgress = {};
   
   // Track which models have already been processed to prevent infinite loops
-  Set<String> _processedCompletions = {};
+  final Set<String> _processedCompletions = {};
   
   // Flag to prevent multiple simultaneous API refreshes
   bool _isRefreshing = false;
@@ -912,11 +912,11 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
                     color: Colors.green.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Row(
+                  child: const Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(Icons.check_circle, color: Colors.green, size: 14),
-                      const SizedBox(width: 4),
+                      SizedBox(width: 4),
                       Text(
                         'Saved',
                         style: TextStyle(
@@ -939,7 +939,7 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
                   decoration: InputDecoration(
                     hintText: 'Enter $displayName API key',
                     suffixIcon: isConfigured
-                        ? Icon(Icons.check_circle, color: Colors.green, size: 20)
+                        ? const Icon(Icons.check_circle, color: Colors.green, size: 20)
                         : Icon(Icons.key, color: theme.colorScheme.onSurfaceVariant.withOpacity(0.5), size: 20),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
@@ -957,12 +957,12 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
                 onPressed: () async {
                   await _saveSpecificApiKey(provider);
                 },
-                icon: Icon(Icons.save, size: 18),
+                icon: const Icon(Icons.save, size: 18),
                 label: Text(controller.text.trim().isEmpty ? 'Clear' : 'Save'),
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                   backgroundColor: controller.text.trim().isEmpty
-                      ? theme.colorScheme.surfaceVariant
+                      ? theme.colorScheme.surfaceContainerHighest
                       : theme.colorScheme.primary,
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
@@ -1050,7 +1050,7 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
           SnackBar(
             content: Row(
               children: [
-                Icon(Icons.error, color: Colors.white),
+                const Icon(Icons.error, color: Colors.white),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text('Error saving API key: $e'),
@@ -1095,11 +1095,11 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
                     color: Colors.green.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Row(
+                  child: const Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(Icons.check_circle, color: Colors.green, size: 14),
-                      const SizedBox(width: 4),
+                      SizedBox(width: 4),
                       Text(
                         'Configured',
                         style: TextStyle(
@@ -1129,7 +1129,7 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
                   decoration: InputDecoration(
                     hintText: 'Paste API key from wisprflow.ai (only the key, no instructions)',
                     suffixIcon: _wisprApiKeyConfigured
-                        ? Icon(Icons.check_circle, color: Colors.green, size: 20)
+                        ? const Icon(Icons.check_circle, color: Colors.green, size: 20)
                         : Icon(Icons.key, color: theme.colorScheme.onSurfaceVariant.withOpacity(0.5), size: 20),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
@@ -1147,12 +1147,12 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
                 onPressed: () async {
                   await _saveWisprApiKey();
                 },
-                icon: Icon(Icons.save, size: 18),
+                icon: const Icon(Icons.save, size: 18),
                 label: Text(_wisprApiKeyController.text.trim().isEmpty ? 'Clear' : 'Save'),
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                   backgroundColor: _wisprApiKeyController.text.trim().isEmpty
-                      ? theme.colorScheme.surfaceVariant
+                      ? theme.colorScheme.surfaceContainerHighest
                       : theme.colorScheme.secondary,
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
@@ -1255,10 +1255,10 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Row(
+            content: const Row(
               children: [
                 Icon(Icons.check_circle, color: Colors.white),
-                const SizedBox(width: 12),
+                SizedBox(width: 12),
                 Expanded(
                   child: Text('Wispr Flow API key saved! Voice mode will use your key.'),
                 ),
@@ -1279,7 +1279,7 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
           SnackBar(
             content: Row(
               children: [
-                Icon(Icons.error, color: Colors.white),
+                const Icon(Icons.error, color: Colors.white),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text('Error saving Wispr API key: $e'),
@@ -1440,7 +1440,7 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
                 margin: const EdgeInsets.only(top: 8),
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.surfaceVariant.withOpacity(0.3),
+                  color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.3),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
                     color: theme.colorScheme.outline.withOpacity(0.2),
@@ -1596,7 +1596,7 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceVariant.withOpacity(0.3),
+        color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.3),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
           color: theme.colorScheme.outline.withOpacity(0.2),
@@ -1659,7 +1659,7 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceVariant.withOpacity(0.3),
+        color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.3),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
           color: theme.colorScheme.outline.withOpacity(0.2),
@@ -1680,7 +1680,7 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
         ),
         value: value,
         onChanged: onChanged,
-        activeColor: theme.colorScheme.primary,
+        activeThumbColor: theme.colorScheme.primary,
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 16,
           vertical: 8,

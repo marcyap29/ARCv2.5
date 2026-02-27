@@ -81,8 +81,7 @@ class McpImportScreen extends StatefulWidget {
                         Text('Your data has been successfully restored!', style: bodyStyle(ctx)),
                         const SizedBox(height: 16),
                         summaryRow('Entries restored:', result.entriesTotalInArchive != null
-                            ? '${result.entriesImported} of ${result.entriesTotalInArchive}'
-                                + (result.entriesFailed != null && result.entriesFailed! > 0 ? ' (${result.entriesFailed} failed)' : '')
+                            ? '${result.entriesImported} of ${result.entriesTotalInArchive}${result.entriesFailed != null && result.entriesFailed! > 0 ? ' (${result.entriesFailed} failed)' : ''}'
                             : '${result.entriesImported}'),
                         summaryRow('Media restored:', '${result.mediaImported}'),
                         if (result.chatsImported > 0) summaryRow('Chat sessions:', '${result.chatsImported}'),
@@ -614,7 +613,7 @@ class _McpImportScreenState extends State<McpImportScreen> {
                 
                 final enhancedResult = await enhancedImportService.importBundle(
                   bundleDir,
-                  McpImportOptions(strictMode: false, maxErrors: 100),
+                  const McpImportOptions(strictMode: false, maxErrors: 100),
                 );
                 
                 chatSessionsImported = enhancedResult.chatSessionsImported;
@@ -1442,8 +1441,7 @@ class _McpImportScreenState extends State<McpImportScreen> {
                       _buildSummaryRow(
                         'Entries restored:',
                         result.entriesTotalInArchive != null
-                            ? '${result.entriesImported} of ${result.entriesTotalInArchive}'
-                                + (result.entriesFailed != null && result.entriesFailed! > 0 ? ' (${result.entriesFailed} failed)' : '')
+                            ? '${result.entriesImported} of ${result.entriesTotalInArchive}${result.entriesFailed != null && result.entriesFailed! > 0 ? ' (${result.entriesFailed} failed)' : ''}'
                             : '${result.entriesImported}',
                       ),
                       _buildSummaryRow('Media restored:', '${result.mediaImported}'),

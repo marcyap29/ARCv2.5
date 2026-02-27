@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
 import '../chat_models.dart';
 import '../chat_repo.dart';
 import '../chat_repo_impl.dart';
 import 'archive_screen.dart';
-import 'session_view.dart';
+import '../../bloc/lumara_assistant_cubit.dart';
+import '../../ui/lumara_chat_redesign_screen.dart';
 
 /// Screen showing active chat sessions
 class ChatsScreen extends StatefulWidget {
@@ -104,13 +106,14 @@ class _ChatsScreenState extends State<ChatsScreen> {
       try {
         final sessionId = await _chatRepo.createSession(subject: subject);
         if (mounted) {
+          try {
+            await context.read<LumaraAssistantCubit>().switchToSession(sessionId);
+          } catch (_) {}
+          if (!mounted) return;
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => SessionView(
-                sessionId: sessionId,
-                chatRepo: _chatRepo,
-              ),
+              builder: (context) => const LumaraChatRedesignScreen(),
             ),
           );
         }
@@ -409,15 +412,18 @@ class _ChatsScreenState extends State<ChatsScreen> {
             isSelected: _selectedSessionIds.contains(session.id),
             onTap: _isSelectionMode
               ? () => _toggleSessionSelection(session.id)
-              : () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => SessionView(
-                      sessionId: session.id,
-                      chatRepo: _chatRepo,
+              : () async {
+                  try {
+                    await context.read<LumaraAssistantCubit>().switchToSession(session.id);
+                  } catch (_) {}
+                  if (!context.mounted) return;
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const LumaraChatRedesignScreen(),
                     ),
-                  ),
-                ),
+                  );
+                },
             onPin: () => _pinSession(session),
             onArchive: () => _archiveSession(session),
           );
@@ -452,7 +458,7 @@ class _ChatSessionCard extends StatelessWidget {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
         side: isSelected 
-          ? BorderSide(color: kcPrimaryColor, width: 2)
+          ? const BorderSide(color: kcPrimaryColor, width: 2)
           : BorderSide.none,
       ),
       child: isSelectionMode
@@ -489,8 +495,6 @@ class _ChatSessionCard extends StatelessWidget {
                         style: captionStyle(context),
                       ),
                     ),
-                    if (session.displayPhase != null)
-                      _buildPhaseChip(session.displayPhase!),
                   ],
                 ),
                 if (session.tags.isNotEmpty) ...[
@@ -586,8 +590,6 @@ class _ChatSessionCard extends StatelessWidget {
                           style: captionStyle(context),
                         ),
                       ),
-                      if (session.displayPhase != null)
-                        _buildPhaseChip(session.displayPhase!),
                     ],
                   ),
                   if (session.tags.isNotEmpty) ...[
@@ -608,44 +610,6 @@ class _ChatSessionCard extends StatelessWidget {
             ),
           ),
     );
-  }
-
-  Widget _buildPhaseChip(String phase) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      decoration: BoxDecoration(
-        color: _getPhaseColor(phase).withOpacity(0.12),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: _getPhaseColor(phase).withOpacity(0.4)),
-      ),
-      child: Text(
-        phase,
-        style: TextStyle(
-          fontSize: 10,
-          fontWeight: FontWeight.w600,
-          color: _getPhaseColor(phase),
-        ),
-      ),
-    );
-  }
-
-  Color _getPhaseColor(String phase) {
-    switch (phase.toLowerCase()) {
-      case 'discovery':
-        return const Color(0xFF7C3AED);
-      case 'expansion':
-        return const Color(0xFF059669);
-      case 'transition':
-        return const Color(0xFFD97706);
-      case 'consolidation':
-        return const Color(0xFF2563EB);
-      case 'recovery':
-        return const Color(0xFFDC2626);
-      case 'breakthrough':
-        return const Color(0xFFFBBF24);
-      default:
-        return Colors.grey;
-    }
   }
 
   String _formatDate(DateTime date) {

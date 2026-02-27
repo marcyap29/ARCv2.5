@@ -280,7 +280,7 @@ class _ThrottleSettingsViewState extends State<ThrottleSettingsView> {
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(
+                          borderSide: const BorderSide(
                             color: kcAccentColor,
                             width: 2,
                           ),

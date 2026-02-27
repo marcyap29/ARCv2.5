@@ -24,7 +24,7 @@ class UnifiedReflectiveAnalysisService {
     allEntries.sort((a, b) => a.timestamp.compareTo(b.timestamp));
 
     // Run SENTINEL analysis on combined data
-    final sentinelAnalysis = await SentinelRiskDetector.analyzeRisk(
+    final sentinelAnalysis = SentinelRiskDetector.analyzeRisk(
       entries: allEntries,
       timeWindow: timeWindow,
       config: config,

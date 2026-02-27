@@ -407,7 +407,7 @@ class _ChronicleLayersViewerState extends State<ChronicleLayersViewer>
               children: [
                 Row(
                   children: [
-                    Icon(
+                    const Icon(
                       Icons.description,
                       size: 18,
                       color: kcSecondaryTextColor,
@@ -637,7 +637,7 @@ class _SourceEntriesSection extends StatelessWidget {
         ),
         child: Row(
           children: [
-            Icon(Icons.article_outlined, size: 18, color: kcSecondaryTextColor),
+            const Icon(Icons.article_outlined, size: 18, color: kcSecondaryTextColor),
             const SizedBox(width: 8),
             Text(
               '${aggregation.sourceEntryIds.length} source ${aggregation.sourceEntryIds.length == 1 ? 'period' : 'periods'}',
@@ -874,7 +874,7 @@ class _ChronicleContentSheetState extends State<_ChronicleContentSheet> {
                 if (_isEditing) ...[
                   TextButton(
                     onPressed: _isSaving ? null : () => setState(() => _isEditing = false),
-                    child: Text('Cancel', style: TextStyle(color: kcSecondaryTextColor)),
+                    child: const Text('Cancel', style: TextStyle(color: kcSecondaryTextColor)),
                   ),
                   const SizedBox(width: 8),
                   FilledButton(
@@ -911,7 +911,7 @@ class _ChronicleContentSheetState extends State<_ChronicleContentSheet> {
                         height: 1.8,
                         fontSize: 15,
                       ),
-                      decoration: InputDecoration(
+                      decoration: const InputDecoration(
                         hintText: 'Edit your CHRONICLE summary...',
                         border: InputBorder.none,
                         alignLabelWithHint: true,

@@ -39,7 +39,7 @@ void main() {
     });
     
     test('PhotoMetadata handles minimal data', () {
-      final minimalMetadata = PhotoMetadata(
+      const minimalMetadata = PhotoMetadata(
         localIdentifier: 'minimal-id',
       );
       
@@ -56,21 +56,21 @@ void main() {
       expect(withDate.hasMinimumData, isTrue);
       
       // Test with filename
-      final withFilename = PhotoMetadata(
+      const withFilename = PhotoMetadata(
         localIdentifier: 'test-id',
         filename: 'test.jpg',
       );
       expect(withFilename.hasMinimumData, isTrue);
       
       // Test with file size
-      final withFileSize = PhotoMetadata(
+      const withFileSize = PhotoMetadata(
         localIdentifier: 'test-id',
         fileSize: 123456,
       );
       expect(withFileSize.hasMinimumData, isTrue);
       
       // Test with only identifier
-      final onlyId = PhotoMetadata(
+      const onlyId = PhotoMetadata(
         localIdentifier: 'test-id',
       );
       expect(onlyId.hasMinimumData, isFalse);

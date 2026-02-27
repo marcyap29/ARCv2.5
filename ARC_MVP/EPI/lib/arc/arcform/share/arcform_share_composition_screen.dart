@@ -52,7 +52,7 @@ class _ArcformShareCompositionScreenState extends State<ArcformShareCompositionS
   bool _includeDuration = false;
   bool _includePhaseCount = false;
   bool _includeDateRange = true;
-  bool _showLabels = false; // Hide labels by default for privacy on public networks
+  final bool _showLabels = false; // Hide labels by default for privacy on public networks
   bool _isGenerating = false;
   bool _isSharing = false;
   Uint8List? _generatedImage;
@@ -110,9 +110,7 @@ class _ArcformShareCompositionScreenState extends State<ArcformShareCompositionS
       }
       
       // Otherwise, use pre-captured image if available
-      if (arcformImage == null) {
-        arcformImage = widget.preCapturedImage;
-      }
+      arcformImage ??= widget.preCapturedImage;
       
       // Try capturing from provided repaintBoundaryKey first
       if (arcformImage == null && widget.repaintBoundaryKey != null) {

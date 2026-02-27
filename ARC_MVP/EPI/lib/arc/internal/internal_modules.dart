@@ -7,6 +7,7 @@
 /// - MIRA (Internal): Memory and security of files
 /// - AURORA (Internal): Handles time when user is active
 /// - ECHO (Internal): Provides PII and security
+library;
 
 export 'prism/prism_internal.dart';
 export 'mira/mira_internal.dart';

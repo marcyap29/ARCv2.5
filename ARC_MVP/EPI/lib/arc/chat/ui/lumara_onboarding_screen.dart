@@ -194,7 +194,7 @@ class LumaraOnboardingScreen extends StatelessWidget {
       // Navigate to HomeView, replacing the onboarding screen
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
-          builder: (context) => HomeView(),
+          builder: (context) => const HomeView(),
         ),
       );
     }

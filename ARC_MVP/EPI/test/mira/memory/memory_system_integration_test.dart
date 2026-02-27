@@ -6,7 +6,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:my_app/arc/chat/bloc/lumara_assistant_cubit.dart';
 import 'package:my_app/arc/chat/data/context_provider.dart';
 import 'package:my_app/arc/chat/data/context_scope.dart';
-import 'package:my_app/arc/chat/data/models/lumara_message.dart';
 import 'package:my_app/mira/memory/enhanced_mira_memory_service.dart';
 import 'package:my_app/mira/memory/enhanced_memory_schema.dart';
 import 'package:my_app/mira/mira_service.dart';
@@ -180,7 +179,7 @@ void main() {
 
       test('should maintain phase awareness in memory storage', () async {
         // Set specific phase context
-        final testPhase = 'Expansion';
+        const testPhase = 'Expansion';
 
         await lumaraCubit.sendMessage('I am exploring new creative projects');
 

@@ -3,6 +3,7 @@
 /// Initializes all voice components with proper configuration
 /// - Sets up transcription (Wispr optional, Apple On-Device default)
 /// - Handles initialization failures gracefully
+library;
 
 import 'package:flutter/foundation.dart';
 import '../audio/audio_capture_service.dart';

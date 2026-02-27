@@ -532,7 +532,7 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
     final autoScrollController = scrollController is AutoScrollController ? scrollController : null;
 
     bool handleScroll(ScrollNotification notification) {
-      if (notification.metrics.axis != Axis.vertical || sortedEntries.length == 0) {
+      if (notification.metrics.axis != Axis.vertical || sortedEntries.isEmpty) {
         return false;
       }
       final offset = notification.metrics.pixels.clamp(0.0, notification.metrics.maxScrollExtent);
@@ -890,7 +890,7 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
                                         ),
                                       ),
                                     if (entry.hasArcform)
-                                  Icon(
+                                  const Icon(
                                     Icons.auto_awesome,
                                     size: 16,
                                     color: kcPrimaryColor,
@@ -1024,7 +1024,7 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
                                           const SizedBox(width: 8),
                                         ],
                                         if (entry.media.any((m) => m.type == MediaType.image)) ...[
-                                          Icon(
+                                          const Icon(
                                             Icons.photo,
                                             size: 14,
                                             color: kcSecondaryTextColor,
@@ -1032,7 +1032,7 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
                                           const SizedBox(width: 4),
                                         ],
                                         if (entry.media.any((m) => m.type == MediaType.video)) ...[
-                                          Icon(
+                                          const Icon(
                                             Icons.videocam,
                                             size: 14,
                                             color: kcSecondaryTextColor,
@@ -1040,7 +1040,7 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
                                           const SizedBox(width: 4),
                                         ],
                                         if (entry.keywords.isNotEmpty) ...[
-                                          Icon(
+                                          const Icon(
                                             Icons.tag,
                                             size: 14,
                                             color: kcSecondaryTextColor,
@@ -1063,6 +1063,37 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
                                 ),
                               ],
                             ),
+                            // Entry type indicator: Chat, Reflection, or Voice Note
+                            if (entry.entryFormat == 'chat' ||
+                                entry.entryFormat == 'reflection' ||
+                                entry.entryFormat == 'voice') ...[
+                              const SizedBox(height: 10),
+                              Row(
+                                children: [
+                                  Icon(
+                                    entry.entryFormat == 'chat'
+                                        ? Icons.chat_bubble_outline
+                                        : entry.entryFormat == 'reflection'
+                                            ? Icons.auto_awesome
+                                            : Icons.mic_none,
+                                    size: 14,
+                                    color: kcSecondaryTextColor,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    entry.entryFormat == 'chat'
+                                        ? 'Chat'
+                                        : entry.entryFormat == 'reflection'
+                                            ? 'Reflection'
+                                            : 'Voice note',
+                                    style: captionStyle(context).copyWith(
+                                      color: kcSecondaryTextColor,
+                                      fontSize: 11,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
                           ],
                         ),
                       ),
@@ -1466,6 +1497,39 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
                 height: 1.4,
               ),
             ),
+          ),
+        ],
+
+        // Entry type indicator: Chat, Reflection, or Voice Note
+        if (entry.entryFormat == 'chat' ||
+            entry.entryFormat == 'reflection' ||
+            entry.entryFormat == 'voice') ...[
+          const SizedBox(height: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                entry.entryFormat == 'chat'
+                    ? Icons.chat_bubble_outline
+                    : entry.entryFormat == 'reflection'
+                        ? Icons.auto_awesome
+                        : Icons.mic_none,
+                size: 14,
+                color: kcSecondaryTextColor.withOpacity(0.8),
+              ),
+              const SizedBox(width: 4),
+              Text(
+                entry.entryFormat == 'chat'
+                    ? 'Chat'
+                    : entry.entryFormat == 'reflection'
+                        ? 'Reflection'
+                        : 'Voice note',
+                style: captionStyle(context).copyWith(
+                  color: kcSecondaryTextColor.withOpacity(0.8),
+                  fontSize: 11,
+                ),
+              ),
+            ],
           ),
         ],
       ],
@@ -2030,8 +2094,8 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Entry deleted successfully'),
+          const SnackBar(
+            content: Text('Entry deleted successfully'),
             backgroundColor: kcSuccessColor,
           ),
         );
@@ -2582,7 +2646,7 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
       
       // Show success message
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
+        const SnackBar(
           content: Text('Photo relinked successfully!'),
           backgroundColor: Colors.green,
           duration: Duration(seconds: 2),
@@ -3611,7 +3675,7 @@ class _BrokenImageDialogState extends State<BrokenImageDialog> {
                         label: const Text('Manual Insert'),
                         style: OutlinedButton.styleFrom(
                           foregroundColor: kcPrimaryColor,
-                          side: BorderSide(color: kcPrimaryColor),
+                          side: const BorderSide(color: kcPrimaryColor),
                         ),
                       ),
                     ),

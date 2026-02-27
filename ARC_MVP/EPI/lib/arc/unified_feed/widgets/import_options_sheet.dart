@@ -5,6 +5,7 @@
 /// import logic that Settings → Import & Export → Import Data uses
 /// (ARCXImportServiceV2 / McpPackImportService). For third-party formats
 /// (Day One, Journey, text, CSV), uses UniversalImporterService.
+library;
 
 import 'dart:io';
 import 'package:flutter/material.dart';

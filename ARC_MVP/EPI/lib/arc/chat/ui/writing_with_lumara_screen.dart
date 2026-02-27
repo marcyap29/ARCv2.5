@@ -56,7 +56,7 @@ class _WritingWithLumaraScreenState extends State<WritingWithLumaraScreen> {
             ),
             Container(
               width: 360,
-              decoration: BoxDecoration(
+              decoration: const BoxDecoration(
                 color: kcSurfaceColor,
                 border: Border(
                   left: BorderSide(color: kcBorderColor),

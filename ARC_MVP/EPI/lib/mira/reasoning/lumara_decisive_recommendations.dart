@@ -517,7 +517,7 @@ class LumaraDecisiveRecommendations {
     required List<EnhancedAttributionTrace> contextTraces,
     required RecommendationType type,
   }) {
-    return ECHOResponse(
+    return const ECHOResponse(
       experience: 'Your past experiences have prepared you for this moment of choice and growth.',
       context: 'The current circumstances provide an optimal opportunity for positive change and development.',
       harmony: 'This recommendation aligns your actions with your values while honoring your growth trajectory.',

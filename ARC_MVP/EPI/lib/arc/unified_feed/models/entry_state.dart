@@ -6,6 +6,7 @@
 /// - saved:    Persisted to timeline
 /// - edited:   User has modified after save
 /// - archived: Hidden from default feed view
+library;
 
 enum EntryState {
   active,   // 🟢 Currently happening

@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
 import '../chat_models.dart';
 import '../chat_repo.dart';
-import 'session_view.dart';
+import '../../bloc/lumara_assistant_cubit.dart';
+import '../../ui/lumara_chat_redesign_screen.dart';
 
 /// Screen showing archived chat sessions
 class ArchiveScreen extends StatefulWidget {
@@ -88,15 +90,18 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
             content: const Text('Chat restored'),
             action: SnackBarAction(
               label: 'View',
-              onPressed: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => SessionView(
-                    sessionId: session.id,
-                    chatRepo: widget.chatRepo,
+              onPressed: () async {
+                try {
+                  await context.read<LumaraAssistantCubit>().switchToSession(session.id);
+                } catch (_) {}
+                if (!context.mounted) return;
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const LumaraChatRedesignScreen(),
                   ),
-                ),
-              ),
+                );
+              },
             ),
           ),
         );
@@ -386,15 +391,18 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
             isSelected: _selectedSessionIds.contains(session.id),
             onTap: _isSelectionMode
               ? () => _toggleSessionSelection(session.id)
-              : () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => SessionView(
-                      sessionId: session.id,
-                      chatRepo: widget.chatRepo,
+              : () async {
+                  try {
+                    await context.read<LumaraAssistantCubit>().switchToSession(session.id);
+                  } catch (_) {}
+                  if (!context.mounted) return;
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const LumaraChatRedesignScreen(),
                     ),
-                  ),
-                ),
+                  );
+                },
             onRestore: () => _restoreSession(session),
             onPin: () => _pinSession(session),
             onDelete: () => _deleteSession(session),
@@ -432,7 +440,7 @@ class _ArchivedChatCard extends StatelessWidget {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
         side: isSelected 
-          ? BorderSide(color: kcPrimaryColor, width: 2)
+          ? const BorderSide(color: kcPrimaryColor, width: 2)
           : BorderSide.none,
       ),
       child: Column(

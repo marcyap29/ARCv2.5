@@ -169,7 +169,7 @@ Return only the caption text, no explanation.
 
     // Limit length
     if (sanitized.length > 500) {
-      sanitized = sanitized.substring(0, 497) + '...';
+      sanitized = '${sanitized.substring(0, 497)}...';
     }
 
     return sanitized;

@@ -95,7 +95,7 @@ List<ArcNode3D> _layoutHelix(
     // HELIX PARAMETERS: Clean spiral ascending vertically
     // With 10 nodes, this creates 1.5 full turns of the helix
     final angle = t * 1.5 * 2 * math.pi; // 1.5 complete turns
-    final radius = 0.8;  // Constant radius for clean cylinder shape
+    const radius = 0.8;  // Constant radius for clean cylinder shape
 
     // Helix coordinates - perfect cylinder spiral
     final x = radius * math.cos(angle);
@@ -258,7 +258,7 @@ List<ArcNode3D> _layoutLattice(
   final count = keywords.length;
 
   // Create a geodesic pattern with MORE rings for better visibility
-  final latitudes = 4;  // Increased from 3 to 4 rings for denser lattice
+  const latitudes = 4;  // Increased from 3 to 4 rings for denser lattice
   final longitudesPerLat = (count / latitudes).ceil();
 
   int idx = 0;
@@ -322,7 +322,7 @@ List<ArcNode3D> _layoutAscendingSpiral(
     
     final x = baseRadius * math.cos(angle);
     final z = baseRadius * math.sin(angle);
-    final y = baseY; // Base at bottom
+    const y = baseY; // Base at bottom
     
     nodes.add(ArcNode3D(
       id: keyword,
@@ -343,7 +343,7 @@ List<ArcNode3D> _layoutAscendingSpiral(
     
     final x = middleRadius * math.cos(angle);
     final z = middleRadius * math.sin(angle);
-    final y = middleY;
+    const y = middleY;
     
     nodes.add(ArcNode3D(
       id: keyword,
@@ -454,7 +454,7 @@ List<ArcNode3D> _layoutSupernova(
   
   // Calculate circled area position (enso center) - between Awakening (0°) and Liberation (72°)
   final ensoAngle = (starAngles[1] + starAngles[2]) / 2; // Average = 36°
-  final ensoRadius = (outerRadius + innerRadius) / 2 * 0.7;
+  const ensoRadius = (outerRadius + innerRadius) / 2 * 0.7;
   final circledAreaX = ensoRadius * math.cos(ensoAngle);
   final circledAreaY = ensoRadius * math.sin(ensoAngle);
   
@@ -494,7 +494,7 @@ List<ArcNode3D> _layoutSupernova(
       weight: (weights[keyword] ?? 0.5) * 1.1,
       valence: valences[keyword] ?? 0.0,
     ));
-    print('✨ Placed node "${keyword}" in circled area (enso center) at ($circledAreaX, $circledAreaY)');
+    print('✨ Placed node "$keyword" in circled area (enso center) at ($circledAreaX, $circledAreaY)');
   }
 
   print('⭐ Created Breakthrough simplified star: $count nodes (center: 1, star points: 10, circled area: 1, total: 12)');
@@ -914,8 +914,8 @@ List<ArcEdge3D> _generateHelixEdges(List<ArcNode3D> nodes) {
 List<ArcEdge3D> _generatePetalRingsEdges(List<ArcNode3D> nodes) {
   final edges = <ArcEdge3D>[];
   // Dense connections - k-NN approach
-  final maxEdgesPerNode = 3;
-  final maxDist = 1.5;
+  const maxEdgesPerNode = 3;
+  const maxDist = 1.5;
   
   for (int i = 0; i < nodes.length; i++) {
     final distances = <({int idx, double dist})>[];
@@ -953,8 +953,8 @@ List<ArcEdge3D> _generatePetalRingsEdges(List<ArcNode3D> nodes) {
 /// Consolidation: Lattice - connect in geodesic pattern
 List<ArcEdge3D> _generateLatticeEdges(List<ArcNode3D> nodes) {
   final edges = <ArcEdge3D>[];
-  final maxDist = 3.0; // Increased to connect nodes in larger lattice (nodes spread up to ±2.0)
-  final maxEdgesPerNode = 5; // More connections for denser lattice look
+  const maxDist = 3.0; // Increased to connect nodes in larger lattice (nodes spread up to ±2.0)
+  const maxEdgesPerNode = 5; // More connections for denser lattice look
   
   for (int i = 0; i < nodes.length; i++) {
     final distances = <({int idx, double dist})>[];

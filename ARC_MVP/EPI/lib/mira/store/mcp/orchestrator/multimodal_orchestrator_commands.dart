@@ -282,7 +282,7 @@ class CommandResult extends Equatable {
   final bool critical;
   final Map<String, dynamic> data;
 
-  CommandResult({
+  const CommandResult({
     required this.command,
     required this.success,
     required this.error,
@@ -299,7 +299,7 @@ class CommandExecutionResult extends Equatable {
   final List<CommandResult> results;
   final bool overallSuccess;
 
-  CommandExecutionResult({
+  const CommandExecutionResult({
     required this.results,
     required this.overallSuccess,
   });

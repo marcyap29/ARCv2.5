@@ -86,7 +86,7 @@ class PrivateNotesStorage {
       final encrypted = _encrypt(contentBytes, key);
       
       // Save to isolated file
-      final file = File('${dir.path}/${entryId}.encrypted');
+      final file = File('${dir.path}/$entryId.encrypted');
       await file.writeAsBytes(encrypted);
       
       // Update metadata (entryId -> timestamp mapping, no content)
@@ -103,7 +103,7 @@ class PrivateNotesStorage {
   Future<String?> loadPrivateNote(String entryId) async {
     try {
       final dir = await _getPrivateNotesDirectory();
-      final file = File('${dir.path}/${entryId}.encrypted');
+      final file = File('${dir.path}/$entryId.encrypted');
       
       if (!await file.exists()) {
         return null;
@@ -124,7 +124,7 @@ class PrivateNotesStorage {
   Future<void> deletePrivateNote(String entryId) async {
     try {
       final dir = await _getPrivateNotesDirectory();
-      final file = File('${dir.path}/${entryId}.encrypted');
+      final file = File('${dir.path}/$entryId.encrypted');
       
       if (await file.exists()) {
         await file.delete();
@@ -139,7 +139,7 @@ class PrivateNotesStorage {
   /// Check if entry has private notes
   Future<bool> hasPrivateNote(String entryId) async {
     final dir = await _getPrivateNotesDirectory();
-    final file = File('${dir.path}/${entryId}.encrypted');
+    final file = File('${dir.path}/$entryId.encrypted');
     return await file.exists();
   }
   

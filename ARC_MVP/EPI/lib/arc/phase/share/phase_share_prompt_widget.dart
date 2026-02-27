@@ -180,9 +180,9 @@ class PhaseSharePromptController {
         isScrollControlled: true,
         backgroundColor: Colors.transparent,
         builder: (context) => Container(
-          decoration: BoxDecoration(
+          decoration: const BoxDecoration(
             color: kcBackgroundColor,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
           ),
           child: SafeArea(
             child: PhaseSharePromptWidget(

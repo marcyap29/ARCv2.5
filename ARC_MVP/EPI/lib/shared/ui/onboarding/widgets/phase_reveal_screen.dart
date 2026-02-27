@@ -124,9 +124,9 @@ class _PhaseRevealScreenState extends State<PhaseRevealScreen>
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       // LUMARA symbol faded to background (20% opacity)
-                      Opacity(
+                      const Opacity(
                         opacity: 0.2,
-                        child: const LumaraPulsingSymbol(size: 120),
+                        child: LumaraPulsingSymbol(size: 120),
                       ),
                       const SizedBox(height: 48),
 

@@ -2,8 +2,6 @@ import 'dart:io';
 import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:my_app/mira/store/mcp/adapters/journal_entry_projector.dart';
-import 'package:my_app/core/services/photo_library_service.dart';
-import 'package:my_app/data/models/photo_metadata.dart';
 import 'package:my_app/data/models/media_item.dart';
 import 'package:my_app/models/journal_entry_model.dart';
 import 'package:my_app/arc/core/journal_repository.dart' as arc;
@@ -19,7 +17,7 @@ void main() {
     });
     
     setUp(() {
-      mockChannel = MethodChannel('photo_library_service');
+      mockChannel = const MethodChannel('photo_library_service');
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(mockChannel, (MethodCall methodCall) async {
         if (methodCall.method == 'getPhotoMetadata') {
@@ -56,11 +54,11 @@ void main() {
         content: 'This is a test entry with a photo [PHOTO:photo-1]',
         createdAt: DateTime(2025, 1, 15, 10, 30, 0),
         updatedAt: DateTime(2025, 1, 15, 10, 30, 0),
-        tags: [],
+        tags: const [],
         mood: 'happy',
         emotion: 'joy',
         emotionReason: 'Testing the system',
-        keywords: ['test', 'photo'],
+        keywords: const ['test', 'photo'],
         media: [
           MediaItem(
             id: 'photo-1',
@@ -127,7 +125,7 @@ void main() {
         content: 'Another test entry',
         createdAt: DateTime(2025, 1, 15, 10, 30, 0),
         updatedAt: DateTime(2025, 1, 15, 10, 30, 0),
-        tags: [],
+        tags: const [],
         mood: 'happy',
         media: [
           MediaItem(
@@ -164,7 +162,7 @@ void main() {
         content: 'Another test entry',
         createdAt: DateTime(2025, 1, 15, 10, 30, 0),
         updatedAt: DateTime(2025, 1, 15, 10, 30, 0),
-        tags: [],
+        tags: const [],
         mood: 'happy',
         media: [
           MediaItem(
@@ -202,7 +200,7 @@ void main() {
         content: 'Test entry $index with photo [PHOTO:photo-$index]',
         createdAt: DateTime(2025, 1, 15, 10, 30, 0),
         updatedAt: DateTime(2025, 1, 15, 10, 30, 0),
-        tags: [],
+        tags: const [],
         mood: 'happy',
         media: [
           MediaItem(
@@ -248,7 +246,7 @@ void main() {
         content: 'Test entry with missing metadata photo',
         createdAt: DateTime(2025, 1, 15, 10, 30, 0),
         updatedAt: DateTime(2025, 1, 15, 10, 30, 0),
-        tags: [],
+        tags: const [],
         mood: 'happy',
         media: [
           MediaItem(

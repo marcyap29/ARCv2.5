@@ -5,10 +5,7 @@ import 'package:path/path.dart' as path;
 import '../models/mcp_schemas.dart';
 import '../validation/mcp_validator.dart';
 import 'ndjson_writer.dart';
-import 'manifest_builder.dart';
-import 'checksum_utils.dart';
 import 'package:my_app/arc/chat/chat/chat_models.dart';
-import 'package:my_app/arc/chat/chat/content_parts.dart';
 
 /// MCP exporter for chat sessions and messages
 class ChatMcpExporter {
@@ -151,7 +148,7 @@ class ChatMcpExporter {
           essence: 'Personal AI interaction',
         ),
         emotions: _extractSessionEmotions(session),
-        provenance: McpProvenance(
+        provenance: const McpProvenance(
           source: 'lumara_chat',
           device: 'mobile',
           app: 'EPI',
@@ -263,13 +260,13 @@ class ChatMcpExporter {
             bytes: 0, // Will be updated when file is processed
             createdAt: DateTime.now(),
           ),
-          provenance: McpProvenance(
+          provenance: const McpProvenance(
             source: 'lumara_chat',
             device: 'mobile',
             app: 'EPI',
             userId: null,
           ),
-          privacy: McpPrivacy(
+          privacy: const McpPrivacy(
             containsPii: false, // Will be updated by PRISM analysis
             facesDetected: false, // Will be updated by PRISM analysis
             sharingPolicy: 'private',
@@ -345,9 +342,9 @@ class ChatMcpExporter {
         pointers: pointers.length,
         embeddings: embeddings.length,
       ),
-      checksums: McpChecksums(), // Will be calculated by writer
+      checksums: const McpChecksums(), // Will be calculated by writer
       encoderRegistry: [
-        McpEncoderRegistry(
+        const McpEncoderRegistry(
           modelId: 'text-embedding-ada-002',
           embeddingVersion: '1.0',
           dim: 1536,

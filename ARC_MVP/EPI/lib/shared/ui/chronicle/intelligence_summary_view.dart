@@ -114,7 +114,7 @@ class _IntelligenceSummaryViewState extends State<IntelligenceSummaryView> {
                     ),
                     const SizedBox(height: 16),
                     DropdownButtonFormField<IntelligenceSummaryCadence>(
-                      value: cadence,
+                      initialValue: cadence,
                       decoration: const InputDecoration(labelText: 'Frequency'),
                       items: IntelligenceSummaryCadence.values
                           .map((c) => DropdownMenuItem(
@@ -392,7 +392,7 @@ class _IntelligenceSummaryViewState extends State<IntelligenceSummaryView> {
         ),
         child: Row(
           children: [
-            Icon(Icons.schedule, color: kcAccentColor, size: 20),
+            const Icon(Icons.schedule, color: kcAccentColor, size: 20),
             const SizedBox(width: 10),
             Expanded(
               child: Column(
@@ -419,7 +419,7 @@ class _IntelligenceSummaryViewState extends State<IntelligenceSummaryView> {
                 ],
               ),
             ),
-            Icon(Icons.edit, size: 18, color: kcSecondaryTextColor),
+            const Icon(Icons.edit, size: 18, color: kcSecondaryTextColor),
           ],
         ),
       ),

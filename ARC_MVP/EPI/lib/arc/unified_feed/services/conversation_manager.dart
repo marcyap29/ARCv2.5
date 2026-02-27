@@ -6,6 +6,7 @@
 /// - Conversation analysis via LLM for title/summary generation
 /// - Transition from active conversation → saved journal entry
 /// - Message tracking and state management
+library;
 
 import 'dart:async';
 import 'package:flutter/foundation.dart';

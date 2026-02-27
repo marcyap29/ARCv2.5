@@ -427,25 +427,25 @@ class _OnboardingPermissionsPageState extends State<_OnboardingPermissionsPage> 
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 40),
-          _PermissionItem(
+          const _PermissionItem(
             icon: Icons.mic,
             title: 'Microphone',
             description: 'For voice conversations with LUMARA',
           ),
           const SizedBox(height: 16),
-          _PermissionItem(
+          const _PermissionItem(
             icon: Icons.photo_library,
             title: 'Photos',
             description: 'To share photos in your conversations',
           ),
           const SizedBox(height: 16),
-          _PermissionItem(
+          const _PermissionItem(
             icon: Icons.camera_alt,
             title: 'Camera',
             description: 'To capture moments directly in the app',
           ),
           const SizedBox(height: 16),
-          _PermissionItem(
+          const _PermissionItem(
             icon: Icons.location_on,
             title: 'Location',
             description: 'To add context to your conversations',

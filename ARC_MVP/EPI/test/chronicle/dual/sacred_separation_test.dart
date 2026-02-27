@@ -99,8 +99,8 @@ void main() {
         id: 'gf_promote',
         type: GapFillEventType.clarification,
         trigger: GapFillEventTrigger(originalQuery: 'q', identifiedGap: gap),
-        process: GapFillEventProcess(userResponse: 'Work is meaningless'),
-        extractedSignal: BiographicalSignal(
+        process: const GapFillEventProcess(userResponse: 'Work is meaningless'),
+        extractedSignal: const BiographicalSignal(
           concepts: ['work', 'meaning'],
           causalChain: CausalChainSignal(
             trigger: 'work',
@@ -144,8 +144,8 @@ void main() {
         id: 'gf_dismiss',
         type: GapFillEventType.clarification,
         trigger: GapFillEventTrigger(originalQuery: 'q', identifiedGap: gap),
-        process: GapFillEventProcess(userResponse: 'Okay'),
-        extractedSignal: BiographicalSignal(concepts: ['work']),
+        process: const GapFillEventProcess(userResponse: 'Okay'),
+        extractedSignal: const BiographicalSignal(concepts: ['work']),
         updates: GapFillEventUpdates(gapsFilled: [gap.id]),
         recordedAt: DateTime.now(),
         promotableToAnnotation: true,
@@ -182,8 +182,8 @@ void main() {
         id: 'gf_keep',
         type: GapFillEventType.clarification,
         trigger: GapFillEventTrigger(originalQuery: 'q', identifiedGap: gap),
-        process: GapFillEventProcess(userResponse: 'Stress'),
-        extractedSignal: BiographicalSignal(
+        process: const GapFillEventProcess(userResponse: 'Stress'),
+        extractedSignal: const BiographicalSignal(
           concepts: ['stress'],
           causalChain: CausalChainSignal(trigger: 'work', response: 'stress'),
         ),

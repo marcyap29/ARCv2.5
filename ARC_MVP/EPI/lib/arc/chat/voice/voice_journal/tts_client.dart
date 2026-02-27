@@ -2,6 +2,7 @@
 /// 
 /// Handles text-to-speech for LUMARA responses.
 /// Uses flutter_tts for local TTS playback.
+library;
 
 import 'dart:async';
 import 'package:flutter/foundation.dart';
@@ -86,9 +87,7 @@ class TtsJournalClient {
         _isPaused = false;
         
         // Track first audio timing
-        if (_metrics.ttsFirstAudio == null) {
-          _metrics.ttsFirstAudio = DateTime.now();
-        }
+        _metrics.ttsFirstAudio ??= DateTime.now();
         
         _onStart?.call();
       });

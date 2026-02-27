@@ -1,6 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:my_app/mira/store/mcp/import/mcp_import_service.dart';
-import 'package:my_app/data/models/photo_metadata.dart';
 
 void main() {
   group('Photo Metadata Extraction Tests', () {
@@ -12,7 +11,7 @@ void main() {
 
     test('_metaFromPlaceholder extracts timestamp correctly', () {
       // Test with a valid timestamp placeholder
-      final placeholderId = 'photo_1760654962279';
+      const placeholderId = 'photo_1760654962279';
       final result = importService.metaFromPlaceholder(placeholderId);
       
       expect(result['placeholder_id'], equals(placeholderId));
@@ -32,7 +31,7 @@ void main() {
 
     test('_metaFromPlaceholder handles invalid placeholder IDs', () {
       // Test with invalid format
-      final invalidId = 'invalid_photo_id';
+      const invalidId = 'invalid_photo_id';
       final result = importService.metaFromPlaceholder(invalidId);
       
       expect(result['placeholder_id'], equals(invalidId));
@@ -41,7 +40,7 @@ void main() {
 
     test('_metaFromPlaceholder handles non-numeric timestamp', () {
       // Test with non-numeric timestamp
-      final invalidId = 'photo_abc123';
+      const invalidId = 'photo_abc123';
       final result = importService.metaFromPlaceholder(invalidId);
       
       expect(result['placeholder_id'], equals(invalidId));
@@ -50,7 +49,7 @@ void main() {
 
     test('_metaFromPlaceholder handles empty placeholder ID', () {
       // Test with empty string
-      final emptyId = '';
+      const emptyId = '';
       final result = importService.metaFromPlaceholder(emptyId);
       
       expect(result['placeholder_id'], equals(emptyId));

@@ -407,7 +407,7 @@ class _AdvancedSettingsViewState extends State<AdvancedSettingsView> {
         children: [
           Row(
             children: [
-              Icon(
+              const Icon(
                 Icons.psychology,
                 color: kcAccentColor,
                 size: 24,

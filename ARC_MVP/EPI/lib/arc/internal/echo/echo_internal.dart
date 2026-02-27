@@ -2,6 +2,7 @@
 /// 
 /// Barrel export for ECHO internal module
 /// Provides PII protection and security within ARC
+library;
 
 export 'prism_adapter.dart';
 export 'correlation_resistant_transformer.dart';

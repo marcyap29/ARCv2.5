@@ -353,7 +353,7 @@ class _PhaseArcform3DScreenState extends State<PhaseArcform3DScreen> {
             children: [
               Row(
                 children: [
-                  Icon(Icons.auto_awesome, color: kcPrimaryColor),
+                  const Icon(Icons.auto_awesome, color: kcPrimaryColor),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
@@ -371,7 +371,7 @@ class _PhaseArcform3DScreenState extends State<PhaseArcform3DScreen> {
                     ),
                     child: Text(
                       arcform.phase.toUpperCase(),
-                      style: TextStyle(
+                      style: const TextStyle(
                         color: kcPrimaryColor,
                         fontSize: 12,
                         fontWeight: FontWeight.bold,

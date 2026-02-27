@@ -2,6 +2,7 @@
 /// 
 /// Simplifies memory retrieval settings by providing presets that combine
 /// lookback years, similarity threshold, and max matches into intuitive options.
+library;
 
 enum MemoryFocusPreset {
   focused,        // 30 days, 0.7 precision, 10 entries - for direct questions

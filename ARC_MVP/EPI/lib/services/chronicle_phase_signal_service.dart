@@ -6,7 +6,6 @@
 import 'package:my_app/models/phase_models.dart';
 import 'package:my_app/chronicle/dual/services/dual_chronicle_services.dart';
 import 'package:my_app/chronicle/dual/models/chronicle_models.dart';
-import 'package:my_app/chronicle/dual/repositories/lumara_chronicle_repository.dart';
 import 'package:my_app/chronicle/dual/services/lumara_connection_fade_preferences.dart';
 
 /// Minimum number of Chronicle items (after optional time filter) to return scores.

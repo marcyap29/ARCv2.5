@@ -168,10 +168,12 @@ class PhaseInfo {
   });
 
   factory PhaseInfo.fromJson(Map<String, dynamic>? json) {
-    if (json == null) return const PhaseInfo(
+    if (json == null) {
+      return const PhaseInfo(
       label: PhaseLabel.discovery,
       source: PhaseSource.user,
     );
+    }
     
     return PhaseInfo(
       label: PhaseLabel.values.firstWhere(

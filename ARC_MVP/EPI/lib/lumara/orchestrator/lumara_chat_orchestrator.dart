@@ -154,7 +154,7 @@ class LumaraChatOrchestrator {
         "Research encountered an error: $e\n\n"
         "You can try rephrasing your question or ask me to reflect on the topic instead.",
       );
-      return ChatOrchestratorResponse(
+      return const ChatOrchestratorResponse(
         type: ChatResponseType.useReflectionPath,
         message: '',
       );
@@ -204,7 +204,7 @@ class LumaraChatOrchestrator {
         "Writing encountered an error: $e\n\n"
         "You can try again or ask me to reflect on the topic.",
       );
-      return ChatOrchestratorResponse(
+      return const ChatOrchestratorResponse(
         type: ChatResponseType.useReflectionPath,
         message: '',
       );
@@ -241,8 +241,8 @@ Content draft ready! ✍️
 
 **Draft**
 
-Voice match: ${voicePct}%
-Theme alignment: ${themePct}%
+Voice match: $voicePct%
+Theme alignment: $themePct%
 Word count: ${d.metadata.wordCount}
 
 Preview:

@@ -324,7 +324,7 @@ class ResearchReportDetailScreen extends StatelessWidget {
                       ],
                     ),
                   ),
-                  Icon(Icons.open_in_new,
+                  const Icon(Icons.open_in_new,
                       size: 16, color: kcSecondaryColor),
                 ],
               ),

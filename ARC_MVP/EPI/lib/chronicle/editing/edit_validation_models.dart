@@ -1,5 +1,6 @@
 /// Models for CHRONICLE edit validation and intelligent pushback.
 /// Used by ChronicleEditingService and EditValidator.
+library;
 
 /// Type of warning when a user edit may break temporal intelligence.
 enum EditWarningType {

@@ -132,12 +132,12 @@ class EnhancedMiraNode extends MiraNode {
   final PIIFlags piiFlags;
 
   const EnhancedMiraNode({
-    required String id,
-    required NodeType type,
-    required int schemaVersion,
-    required Map<String, dynamic> data,
-    required DateTime createdAt,
-    required DateTime updatedAt,
+    required super.id,
+    required super.type,
+    required super.schemaVersion,
+    required super.data,
+    required super.createdAt,
+    required super.updatedAt,
     required this.domain,
     required this.privacy,
     this.phaseContext,
@@ -147,14 +147,7 @@ class EnhancedMiraNode extends MiraNode {
     required this.lifecycle,
     required this.provenance,
     required this.piiFlags,
-  }) : super(
-    id: id,
-    type: type,
-    schemaVersion: schemaVersion,
-    data: data,
-    createdAt: createdAt,
-    updatedAt: updatedAt,
-  );
+  });
 
   /// Get content from data map (backward compatibility)
   String get content => data['content'] ?? data['text'] ?? '';
@@ -206,6 +199,10 @@ class AttributionTrace {
   final String? reasoning;
   final String? phaseContext; // ATLAS phase when memory node was created
   final String? excerpt; // Excerpt from the memory node for direct attribution
+  /// Resolved journal entry ID (when nodeRef points to an entry)
+  final String? entryId;
+  /// Human-readable journal entry title for display (instead of UUID)
+  final String? displayTitle;
 
   const AttributionTrace({
     required this.nodeRef,
@@ -215,6 +212,8 @@ class AttributionTrace {
     this.reasoning,
     this.phaseContext,
     this.excerpt,
+    this.entryId,
+    this.displayTitle,
   });
 
   Map<String, dynamic> toJson() => {
@@ -225,6 +224,8 @@ class AttributionTrace {
     'reasoning': reasoning,
     'phase_context': phaseContext,
     'excerpt': excerpt,
+    'entry_id': entryId,
+    'display_title': displayTitle,
   };
 
   factory AttributionTrace.fromJson(Map<String, dynamic> json) {
@@ -236,6 +237,8 @@ class AttributionTrace {
       reasoning: json['reasoning'],
       phaseContext: json['phase_context'],
       excerpt: json['excerpt'],
+      entryId: json['entry_id'],
+      displayTitle: json['display_title'],
     );
   }
 }
@@ -592,7 +595,7 @@ class EnhancedMiraNodeFactory {
       privacy: privacy,
       phaseContext: phaseContext,
       sage: sage,
-      lifecycle: LifecycleMetadata(
+      lifecycle: const LifecycleMetadata(
         accessCount: 0,
         reinforcementScore: 1.0,
       ),
@@ -601,7 +604,7 @@ class EnhancedMiraNodeFactory {
         device: device,
         version: version,
       ),
-      piiFlags: PIIFlags(), // TODO: Implement PII detection
+      piiFlags: const PIIFlags(), // TODO: Implement PII detection
     );
   }
 
@@ -633,7 +636,7 @@ class EnhancedMiraNodeFactory {
       updatedAt: now,
       domain: domain,
       privacy: privacy,
-      lifecycle: LifecycleMetadata(
+      lifecycle: const LifecycleMetadata(
         accessCount: 0,
         reinforcementScore: 1.0,
       ),
@@ -643,7 +646,7 @@ class EnhancedMiraNodeFactory {
         version: version,
         sessionId: sessionId,
       ),
-      piiFlags: PIIFlags(), // TODO: Implement PII detection
+      piiFlags: const PIIFlags(), // TODO: Implement PII detection
     );
   }
 }

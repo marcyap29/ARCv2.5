@@ -5,6 +5,7 @@
 /// - Monthly: Layer 1 aggregations (monthly summaries)
 /// - Yearly: Layer 2 aggregations (yearly summaries)
 /// - MultiYear: Layer 3 aggregations (multi-year summaries)
+library;
 
 enum ChronicleLayer {
   layer0,    // Raw entries

@@ -1,13 +1,12 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:my_app/mira/store/mcp/adapters/journal_entry_projector.dart';
 import 'package:my_app/data/models/media_item.dart';
-import 'package:my_app/data/models/photo_metadata.dart';
 
 void main() {
   group('Photo Metadata Export Tests', () {
     test('_extractPhotoMetadataFromContent extracts placeholders correctly', () async {
       // Test content with photo placeholders
-      final content = 'This is a test entry with [PHOTO:photo_1760654962279] and [PHOTO:photo_1760654963373] photos.';
+      const content = 'This is a test entry with [PHOTO:photo_1760654962279] and [PHOTO:photo_1760654963373] photos.';
       
       // Create mock media items
       final mediaItems = [
@@ -47,7 +46,7 @@ void main() {
     });
 
     test('_extractPhotoMetadataFromContent handles content without placeholders', () async {
-      final content = 'This is a test entry without any photos.';
+      const content = 'This is a test entry without any photos.';
       final mediaItems = <MediaItem>[];
 
       final result = await McpEntryProjector.extractPhotoMetadataFromContent(content, mediaItems);
@@ -56,7 +55,7 @@ void main() {
     });
 
     test('_extractPhotoMetadataFromContent handles mismatched media items', () async {
-      final content = 'This is a test entry with [PHOTO:photo_1760654962279] photo.';
+      const content = 'This is a test entry with [PHOTO:photo_1760654962279] photo.';
       
       // Create media item with different ID
       final mediaItems = [
@@ -76,7 +75,7 @@ void main() {
     });
 
     test('_extractPhotoMetadataFromContent handles non-ph:// URIs', () async {
-      final content = 'This is a test entry with [PHOTO:photo_1760654962279] photo.';
+      const content = 'This is a test entry with [PHOTO:photo_1760654962279] photo.';
       
       // Create media item with file:// URI instead of ph://
       final mediaItems = [
@@ -96,7 +95,7 @@ void main() {
     });
 
     test('_extractPhotoMetadataFromContent handles duplicate placeholders', () async {
-      final content = 'This is a test entry with [PHOTO:photo_1760654962279] and [PHOTO:photo_1760654962279] duplicate photos.';
+      const content = 'This is a test entry with [PHOTO:photo_1760654962279] and [PHOTO:photo_1760654962279] duplicate photos.';
       
       final mediaItems = [
         MediaItem(
@@ -114,7 +113,7 @@ void main() {
     });
 
     test('_extractPhotoMetadataFromContent handles malformed placeholders', () async {
-      final content = 'This is a test entry with [PHOTO:] and [PHOTO:photo_1760654962279] photos.';
+      const content = 'This is a test entry with [PHOTO:] and [PHOTO:photo_1760654962279] photos.';
       
       final mediaItems = <MediaItem>[];
 

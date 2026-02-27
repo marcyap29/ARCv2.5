@@ -141,7 +141,7 @@ class _PatternIndexViewerState extends State<PatternIndexViewer> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.error_outline, color: Colors.red, size: 48),
+                      const Icon(Icons.error_outline, color: Colors.red, size: 48),
                       const SizedBox(height: 16),
                       Text(
                         'Could not load pattern index',
@@ -294,7 +294,7 @@ class _PatternIndexViewerState extends State<PatternIndexViewer> {
       color: kcSurfaceColor.withOpacity(0.7),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: ListTile(
-        leading: Icon(Icons.block, color: kcSecondaryTextColor, size: 20),
+        leading: const Icon(Icons.block, color: kcSecondaryTextColor, size: 20),
         title: Text(
           cluster.canonicalLabel,
           style: captionStyle(context).copyWith(color: kcSecondaryTextColor),
@@ -327,7 +327,7 @@ class _PatternIndexViewerState extends State<PatternIndexViewer> {
           children: [
             Row(
               children: [
-                Icon(Icons.psychology, color: kcPrimaryColor, size: 24),
+                const Icon(Icons.psychology, color: kcPrimaryColor, size: 24),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(

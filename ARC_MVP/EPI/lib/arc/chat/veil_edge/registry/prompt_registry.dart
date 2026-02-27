@@ -2,6 +2,7 @@
 /// 
 /// Contains the prompt families for each phase group (D-B, T-D, R-T, C-R)
 /// with their system prompts, styles, and block templates.
+library;
 
 import 'dart:convert';
 import '../models/veil_edge_models.dart';
@@ -25,7 +26,7 @@ class VeilEdgePromptRegistry {
 
   /// D-B (Discovery ↔ Breakthrough) family
   static PhaseFamily _createDBFamily() {
-    return PhaseFamily(
+    return const PhaseFamily(
       system: "You are LUMARA in Exploration mode. Expand options, then converge on one tractable experiment.",
       style: "Upbeat, concrete, time-boxed.",
       blocks: {
@@ -60,7 +61,7 @@ class VeilEdgePromptRegistry {
 
   /// T-D (Transition ↔ Discovery) family
   static PhaseFamily _createTDFamily() {
-    return PhaseFamily(
+    return const PhaseFamily(
       system: "You are LUMARA in Bridge mode. Normalize uncertainty; preserve optionality.",
       style: "Gentle, exploratory, non-committal.",
       blocks: {
@@ -95,7 +96,7 @@ class VeilEdgePromptRegistry {
 
   /// R-T (Recovery ↔ Transition) family
   static PhaseFamily _createRTFamily() {
-    return PhaseFamily(
+    return const PhaseFamily(
       system: "You are LUMARA in Restore mode. Prioritize body-first restoration.",
       style: "Compassionate, grounding, restorative.",
       blocks: {
@@ -130,7 +131,7 @@ class VeilEdgePromptRegistry {
 
   /// C-R (Consolidation ↔ Recovery) family
   static PhaseFamily _createCRFamily() {
-    return PhaseFamily(
+    return const PhaseFamily(
       system: "You are LUMARA in Consolidate mode. Lock gains and document playbooks.",
       style: "Methodical, reflective, systematic.",
       blocks: {
@@ -286,13 +287,13 @@ class VeilEdgePromptRenderer {
   PromptBlock? _getMirrorVariant(String circadianWindow) {
     switch (circadianWindow) {
       case 'morning':
-        return PromptBlock(
+        return const PromptBlock(
           name: 'Mirror',
           template: "I am hearing clarity and intention around {themes}.",
           requiredVariables: ['themes'],
         );
       case 'evening':
-        return PromptBlock(
+        return const PromptBlock(
           name: 'Mirror',
           template: "I am hearing reflection and integration around {themes}.",
           requiredVariables: ['themes'],
@@ -306,19 +307,19 @@ class VeilEdgePromptRenderer {
   PromptBlock? _getOrientVariant(String circadianWindow) {
     switch (circadianWindow) {
       case 'morning':
-        return PromptBlock(
+        return const PromptBlock(
           name: 'Orient',
           template: "Two clear paths are {A} and {B}. Which aligns with your energy this morning?",
           requiredVariables: ['A', 'B'],
         );
       case 'afternoon':
-        return PromptBlock(
+        return const PromptBlock(
           name: 'Orient',
           template: "Let us synthesize {A} and {B} into a clear direction.",
           requiredVariables: ['A', 'B'],
         );
       case 'evening':
-        return PromptBlock(
+        return const PromptBlock(
           name: 'Orient',
           template: "Two gentle options are {A} and {B}. Which feels right for winding down?",
           requiredVariables: ['A', 'B'],
@@ -332,13 +333,13 @@ class VeilEdgePromptRenderer {
   PromptBlock? _getCommitVariant(String circadianWindow) {
     switch (circadianWindow) {
       case 'morning':
-        return PromptBlock(
+        return const PromptBlock(
           name: 'Commit',
           template: "Confirm start {start}, stop {stop}, and a morning check-in at {checkpoint}.",
           requiredVariables: ['start', 'stop', 'checkpoint'],
         );
       case 'evening':
-        return PromptBlock(
+        return const PromptBlock(
           name: 'Commit',
           template: "Set a gentle intention: start {start}, pause {stop}, and a soft check-in at {checkpoint}.",
           requiredVariables: ['start', 'stop', 'checkpoint'],
@@ -352,13 +353,13 @@ class VeilEdgePromptRenderer {
   PromptBlock? _getNudgeVariant(String circadianWindow) {
     switch (circadianWindow) {
       case 'afternoon':
-        return PromptBlock(
+        return const PromptBlock(
           name: 'Nudge',
           template: "Choose one decision point and a clear success metric.",
           requiredVariables: [],
         );
       case 'evening':
-        return PromptBlock(
+        return const PromptBlock(
           name: 'Nudge',
           template: "Pick one gentle step and a simple completion marker.",
           requiredVariables: [],
@@ -372,7 +373,7 @@ class VeilEdgePromptRenderer {
   PromptBlock? _getSafeguardVariant(String circadianWindow) {
     switch (circadianWindow) {
       case 'evening':
-        return PromptBlock(
+        return const PromptBlock(
           name: 'Safeguard',
           template: "Choose one calming action in 5 minutes or less.",
           requiredVariables: [],
@@ -386,7 +387,7 @@ class VeilEdgePromptRenderer {
   PromptBlock? _getLogVariant(String circadianWindow) {
     switch (circadianWindow) {
       case 'evening':
-        return PromptBlock(
+        return const PromptBlock(
           name: 'Log',
           template: "Record outcome, ease(1-5), and one gentle reflection for closure.",
           requiredVariables: [],

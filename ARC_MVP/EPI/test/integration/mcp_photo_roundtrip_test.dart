@@ -14,7 +14,7 @@ void main() {
     late MethodChannel mockChannel;
     
     setUp(() {
-      mockChannel = MethodChannel('photo_library_service');
+      mockChannel = const MethodChannel('photo_library_service');
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(mockChannel, (MethodCall methodCall) async {
         switch (methodCall.method) {
@@ -66,11 +66,11 @@ void main() {
         content: 'This entry has photos [PHOTO:photo-1] and [PHOTO:photo-2]',
         createdAt: DateTime(2025, 1, 15, 10, 30, 0),
         updatedAt: DateTime(2025, 1, 15, 10, 30, 0),
-        tags: ['test', 'photos'],
+        tags: const ['test', 'photos'],
         mood: 'happy',
         emotion: 'joy',
         emotionReason: 'Testing photo persistence',
-        keywords: ['test', 'photos', 'persistence'],
+        keywords: const ['test', 'photos', 'persistence'],
         media: [
           MediaItem(
             id: 'photo-1',
@@ -197,7 +197,7 @@ void main() {
             content: node['content'] as String,
             createdAt: DateTime.parse(node['timestamp'] as String),
             updatedAt: DateTime.parse(node['timestamp'] as String),
-            tags: [],
+            tags: const [],
             mood: node['emotions']['mood'] as String,
             emotion: node['emotions']['primary'] as String?,
             emotionReason: node['emotions']['reason'] as String?,
@@ -237,7 +237,7 @@ void main() {
         content: 'This entry has a photo that will be missing [PHOTO:missing-photo]',
         createdAt: DateTime(2025, 1, 15, 10, 30, 0),
         updatedAt: DateTime(2025, 1, 15, 10, 30, 0),
-        tags: [],
+        tags: const [],
         mood: 'sad',
         media: [
           MediaItem(
@@ -320,7 +320,7 @@ void main() {
         content: 'This entry has 10 photos for performance testing',
         createdAt: DateTime(2025, 1, 15, 10, 30, 0),
         updatedAt: DateTime(2025, 1, 15, 10, 30, 0),
-        tags: [],
+        tags: const [],
         mood: 'excited',
         media: media,
       );

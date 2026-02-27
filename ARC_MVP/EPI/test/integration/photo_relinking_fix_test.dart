@@ -6,7 +6,7 @@ void main() {
   group('Photo Relinking Fix Tests', () {
     test('metaFromPlaceholder includes timestampMs', () {
       // Test that metaFromPlaceholder extracts timestampMs correctly
-      final placeholderId = 'photo_1760666100393';
+      const placeholderId = 'photo_1760666100393';
       final metadata = LazyPhotoRelinkService.metaFromPlaceholder(placeholderId);
       
       expect(metadata['placeholder_id'], equals(placeholderId));
@@ -130,7 +130,7 @@ void main() {
         ]
       };
       
-      final placeholderId = 'photo_1760666100393';
+      const placeholderId = 'photo_1760666100393';
       final photos = (nodeMetadata['photos'] as List).cast<Map<String, dynamic>>();
       final found = photos.firstWhere(
         (m) => m['placeholder_id'] == placeholderId,

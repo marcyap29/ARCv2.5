@@ -457,7 +457,7 @@ class TestResults {
     final total = _results.length;
     final passRate = passed / total;
 
-    print('\n' + '=' * 60);
+    print('\n${'=' * 60}');
     print('🏁 Enhanced MIRA Memory System Test Results');
     print('=' * 60);
     print('⏱️  Total Duration: ${duration.inMinutes}m ${duration.inSeconds % 60}s');

@@ -8,7 +8,6 @@ import 'package:my_app/services/phase_regime_service.dart';
 import 'package:my_app/services/analytics_service.dart';
 import 'package:my_app/services/rivet_sweep_service.dart';
 import 'package:my_app/services/phase_index.dart';
-import 'package:my_app/models/journal_entry_model.dart';
 
 class MockAnalyticsService extends Mock implements AnalyticsService {}
 class MockRivetSweepService extends Mock implements RivetSweepService {}

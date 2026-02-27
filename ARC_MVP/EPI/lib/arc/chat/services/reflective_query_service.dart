@@ -87,7 +87,7 @@ class ReflectiveQueryService {
         
         // Match memory nodes to journal entries
         final entryIds = memoryResult.nodes
-            .map((node) => node.metadata?['entryId'] as String?)
+            .map((node) => node.metadata['entryId'] as String?)
             .whereType<String>()
             .toSet();
         
@@ -183,7 +183,7 @@ class ReflectiveQueryService {
     }).toList();
 
     if (temporalEntries.isEmpty) {
-      return TemporalStruggleQueryResult(
+      return const TemporalStruggleQueryResult(
         themes: [],
         isGriefAnniversary: false,
         groundingPreface: 'There is not much here from around this time in your past entries. '
@@ -268,7 +268,7 @@ class ReflectiveQueryService {
     ).toList();
 
     if (recentEntries.isEmpty || pastEntries.isEmpty) {
-      return ThemeSofteningQueryResult(
+      return const ThemeSofteningQueryResult(
         themes: [],
         hasFalsePositives: true,
         note: 'Not enough entries in both time periods for comparison.',
@@ -476,7 +476,7 @@ class ReflectiveQueryService {
     }
     
     // Fallback: first N words
-    return words.take(maxWords).join(' ') + '...';
+    return '${words.take(maxWords).join(' ')}...';
   }
 
   String _generateContext(JournalEntry entry, SAGEAnnotation? sage) {

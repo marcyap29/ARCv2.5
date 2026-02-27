@@ -1,8 +1,6 @@
 import 'package:my_app/arc/chat/chat/chat_repo.dart';
 import 'package:my_app/arc/chat/chat/chat_models.dart';
 import '../../insights/models/insight_card.dart';
-import '../core/schema.dart';
-import '../ingest/chat_ingest.dart';
 import '../graph/chat_graph_builder.dart';
 
 /// Service for generating chat-based insights and metrics

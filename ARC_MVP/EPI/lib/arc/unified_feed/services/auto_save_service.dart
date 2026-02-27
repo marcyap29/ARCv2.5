@@ -7,6 +7,7 @@
 /// This service is intentionally thin - the heavy lifting is in
 /// ConversationManager. This service handles the app lifecycle hooks
 /// and provides a clean API for the UI layer.
+library;
 
 import 'dart:async';
 import 'package:flutter/widgets.dart' show AppLifecycleState;

@@ -77,7 +77,7 @@ class _TrialExpiredDialogState extends State<TrialExpiredDialog> {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       title: Row(
         children: [
-          Icon(Icons.stars, color: kcAccentColor, size: 28),
+          const Icon(Icons.stars, color: kcAccentColor, size: 28),
           const SizedBox(width: 12),
           Expanded(
             child: Text(
@@ -105,7 +105,7 @@ class _TrialExpiredDialogState extends State<TrialExpiredDialog> {
             ),
             child: Row(
               children: [
-                Icon(Icons.info_outline, color: kcAccentColor, size: 20),
+                const Icon(Icons.info_outline, color: kcAccentColor, size: 20),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
@@ -128,7 +128,7 @@ class _TrialExpiredDialogState extends State<TrialExpiredDialog> {
       actions: [
         TextButton(
           onPressed: _isLoading ? null : _navigateToEmailSignIn,
-          child: Text(
+          child: const Text(
             'Sign in with Email',
             style: TextStyle(color: kcSecondaryTextColor),
           ),

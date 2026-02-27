@@ -175,7 +175,7 @@ class TextProcessing {
 
     // Truncate if too long
     if (excerpt.length > maxLength) {
-      excerpt = excerpt.substring(0, maxLength) + '...';
+      excerpt = '${excerpt.substring(0, maxLength)}...';
     }
 
     // Add ellipsis if not at start/end

@@ -210,7 +210,7 @@ class _CombinedAnalysisViewState extends State<CombinedAnalysisView> {
                     ],
                   ),
                 ),
-                Icon(
+                const Icon(
                   Icons.arrow_forward_ios,
                   size: 16,
                   color: kcSecondaryTextColor,

@@ -10,10 +10,10 @@
 /// 7. Play TTS response
 /// 8. Save turn
 /// 9. Loop or finalize session
+library;
 
 import 'dart:async';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart';
 import 'package:uuid/uuid.dart';
 import '../audio/audio_capture_service.dart';
 import '../endpoint/smart_endpoint_detector.dart';
@@ -489,7 +489,7 @@ class VoiceSessionService {
     
     // Timeout - process whatever we have (or empty)
     if (_waitingForFinalTranscript) {
-      debugPrint('VoiceSession: Timeout after ${elapsed.inMilliseconds}ms, transcript: "${_currentTranscript}"');
+      debugPrint('VoiceSession: Timeout after ${elapsed.inMilliseconds}ms, transcript: "$_currentTranscript"');
       _waitingForFinalTranscript = false;
       await _processTranscript();
     }

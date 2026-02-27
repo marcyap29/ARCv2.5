@@ -5,7 +5,6 @@
 import 'dart:convert';
 import 'package:hive/hive.dart';
 import '../core/schema.dart';
-import '../core/mira_repo.dart';
 import '../mira_service.dart';
 import 'enhanced_memory_schema.dart';
 import 'attribution_service.dart';
@@ -255,52 +254,41 @@ class EnhancedMiraMemoryService {
       
       if (isLumaraResponse) {
         // Try to get actual journal entry content from node data
-        if (node is EnhancedMiraNode) {
-          final nodeData = node.data;
-          // Try to get content from data fields
-          final content = nodeData['content'] as String? ?? 
-                         nodeData['text'] as String? ?? 
-                         node.content;
-          
-          if (content.isNotEmpty && content != node.narrative) {
-            excerpt = content;
-            print('LUMARA Debug:   - Using node content instead of LUMARA response narrative');
-          } else {
-            // Try to extract entry ID and look it up
-            String? entryId;
-            if (nodeData.containsKey('original_entry_id')) {
-              entryId = nodeData['original_entry_id'] as String?;
-            } else if (node.id.startsWith('entry:')) {
-              entryId = node.id.replaceFirst('entry:', '');
-            } else if (node.id.contains('_')) {
-              final parts = node.id.split('_');
-              if (parts.length > 1) {
-                entryId = parts.last;
-              }
-            }
-            
-            if (entryId != null) {
-              // Note: We can't access JournalRepository here, but we can mark this
-              // for the journal screen to handle. For now, use a placeholder.
-              excerpt = '[Journal entry content - see entry $entryId]';
-              print('LUMARA Debug:   - Found entry ID $entryId but cannot access repository here');
-            } else {
-              // If we can't find the actual content, use a generic message
-              excerpt = '[Memory reference - content not available]';
-              print('LUMARA Debug:   - Could not extract journal entry content from LUMARA response node');
+        final nodeData = node.data;
+        // Try to get content from data fields
+        final content = nodeData['content'] as String? ?? 
+                       nodeData['text'] as String? ?? 
+                       node.content;
+        
+        if (content.isNotEmpty && content != node.narrative) {
+          excerpt = content;
+          print('LUMARA Debug:   - Using node content instead of LUMARA response narrative');
+        } else {
+          // Try to extract entry ID and look it up
+          String? entryId;
+          if (nodeData.containsKey('original_entry_id')) {
+            entryId = nodeData['original_entry_id'] as String?;
+          } else if (node.id.startsWith('entry:')) {
+            entryId = node.id.replaceFirst('entry:', '');
+          } else if (node.id.contains('_')) {
+            final parts = node.id.split('_');
+            if (parts.length > 1) {
+              entryId = parts.last;
             }
           }
-        } else {
-          // For non-enhanced nodes, try node.content
-          if (node.content.isNotEmpty && node.content != node.narrative) {
-            excerpt = node.content;
-            print('LUMARA Debug:   - Using node.content instead of LUMARA response narrative');
+          
+          if (entryId != null) {
+            // Note: We can't access JournalRepository here, but we can mark this
+            // for the journal screen to handle. For now, use a placeholder.
+            excerpt = '[Journal entry content - see entry $entryId]';
+            print('LUMARA Debug:   - Found entry ID $entryId but cannot access repository here');
           } else {
+            // If we can't find the actual content, use a generic message
             excerpt = '[Memory reference - content not available]';
             print('LUMARA Debug:   - Could not extract journal entry content from LUMARA response node');
           }
         }
-      }
+            }
       
       // Extract 2-3 most relevant sentences instead of just first 200 chars
       if (excerpt.isNotEmpty && excerpt != '[Journal entry content - see entry' && 
@@ -1270,7 +1258,7 @@ class EnhancedMiraMemoryService {
 
     final age = DateTime.now().toUtc().difference(node.createdAt).inDays;
     if (age < 7) {
-      reasons.add('Recent memory (${age} days old)');
+      reasons.add('Recent memory ($age days old)');
     }
 
     if (node.lifecycle.reinforcementScore > 1.5) {
@@ -1297,7 +1285,7 @@ class EnhancedMiraMemoryService {
       domain: MemoryDomain.personal, // Default domain
       privacy: PrivacyLevel.personal, // Default privacy
       phaseContext: _currentPhase,
-      lifecycle: LifecycleMetadata(
+      lifecycle: const LifecycleMetadata(
         accessCount: 1,
         reinforcementScore: 1.0,
       ),
@@ -1306,7 +1294,7 @@ class EnhancedMiraMemoryService {
         device: _getDeviceInfo(),
         version: _getAppVersion(),
       ),
-      piiFlags: PIIFlags(),
+      piiFlags: const PIIFlags(),
     );
   }
 
@@ -1338,17 +1326,17 @@ class EnhancedMiraMemoryService {
     EnhancedMiraNode nodeB,
   ) {
     return [
-      ConflictAction(
+      const ConflictAction(
         type: ConflictActionType.keep_both,
         description: 'Keep both memories as they represent different aspects of your experience',
         impact: 'Preserves complexity and growth',
       ),
-      ConflictAction(
+      const ConflictAction(
         type: ConflictActionType.merge_insights,
         description: 'Combine the insights from both memories into a synthesized understanding',
         impact: 'Creates integrated wisdom',
       ),
-      ConflictAction(
+      const ConflictAction(
         type: ConflictActionType.context_both,
         description: 'Keep both but add context about when each applies',
         impact: 'Maintains nuance while clarifying boundaries',

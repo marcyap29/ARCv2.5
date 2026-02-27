@@ -681,7 +681,7 @@ class _ConstellationPainter extends CustomPainter {
   }
 
   void _drawLabels(Canvas canvas, Size size, Offset center, double scale, vm.Matrix4 rotation) {
-    final textStyle = TextStyle(
+    const textStyle = TextStyle(
       color: Colors.white,
       fontSize: 12,
       fontWeight: FontWeight.w500,
@@ -762,7 +762,7 @@ class _LabelsPainter extends CustomPainter {
     final center = Offset(size.width / 2, size.height / 2);
     final scale = size.width / 6.0;
 
-    final textStyle = TextStyle(
+    const textStyle = TextStyle(
       color: Colors.white,
       fontSize: 12,
       fontWeight: FontWeight.w500,

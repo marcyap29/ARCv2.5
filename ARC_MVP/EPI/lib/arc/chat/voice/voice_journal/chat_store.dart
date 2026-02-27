@@ -4,6 +4,7 @@
 /// IMPORTANT: This saves ONLY to chat, NOT to journal.
 /// 
 /// Uses LumaraAssistantCubit for chat persistence.
+library;
 
 import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
@@ -122,7 +123,7 @@ class VoiceChatStore {
     if (state is LumaraAssistantLoaded) {
       return state.messages.map((m) => {
         'role': m.role as String,
-        'content': m.content as String,
+        'content': m.content,
       }).toList();
     }
     

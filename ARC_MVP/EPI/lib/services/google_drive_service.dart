@@ -554,7 +554,7 @@ final title = (pair.file.name ?? 'Note').replaceAll(RegExp(r'\.(txt|md)$'), '').
         updatedRecords[fileId] = SyncedTxtRecord(
           driveFileId: fileId,
           journalEntryId: entry.id,
-          modifiedTimeIso: driveModified != null ? driveModified.toIso8601String() : null,
+          modifiedTimeIso: driveModified?.toIso8601String(),
           syncFolderId: folderId,
         );
         createdOrUpdated++;

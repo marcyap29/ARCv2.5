@@ -1,6 +1,5 @@
 import 'dart:io';
 import 'dart:typed_data';
-import 'dart:convert';
 
 /// Enhanced OCP services supporting PaddleOCR, RapidOCR, ZXing, OpenCV ORB/AKAZE, PySceneDetect
 class EnhancedOcpServices {
@@ -384,7 +383,7 @@ class EnhancedOcpServices {
     for (int i = 0; i < trackCount; i++) {
       tracks.add({
         'id': i + 1,
-        'label': classes?[i % (classes?.length ?? 1)] ?? 'object',
+        'label': classes?[i % (classes.length ?? 1)] ?? 'object',
         'duration': '${2.0 + i * 1.5}s',
         'confidence': 0.8 + (i * 0.1),
       });

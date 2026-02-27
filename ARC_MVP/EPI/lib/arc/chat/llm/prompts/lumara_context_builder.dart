@@ -1,6 +1,7 @@
 /// LUMARA Context Builder for On-Device LLMs
 /// 
 /// Builds structured context blocks that help small models understand user state
+library;
 
 class LumaraContextBuilder {
   final String userName;
@@ -51,7 +52,7 @@ class LumaraContextBuilder {
     buffer.writeln('[JOURNAL_CONTEXT]');
     if (journalExcerpts.isNotEmpty) {
       for (final excerpt in journalExcerpts.take(3)) {
-        buffer.writeln('$excerpt');
+        buffer.writeln(excerpt);
         buffer.writeln();
       }
     } else {

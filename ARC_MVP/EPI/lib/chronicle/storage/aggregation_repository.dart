@@ -160,12 +160,12 @@ user_id: ${aggregation.userId}
   ) {
     // Split frontmatter and markdown
     if (!content.startsWith('---')) {
-      throw FormatException('Invalid aggregation format: missing frontmatter');
+      throw const FormatException('Invalid aggregation format: missing frontmatter');
     }
 
     final parts = content.split('---');
     if (parts.length < 3) {
-      throw FormatException('Invalid aggregation format: malformed frontmatter');
+      throw const FormatException('Invalid aggregation format: malformed frontmatter');
     }
 
     final frontmatter = parts[1].trim();

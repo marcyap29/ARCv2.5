@@ -7,6 +7,7 @@
 /// - Integration with SeekingType for personalized responses
 /// 
 /// Each prompt is ~500 words (vs 260KB master prompt) for faster voice latency.
+library;
 
 import '../../../../models/engagement_discipline.dart';
 import '../../../../services/lumara/entry_classifier.dart';

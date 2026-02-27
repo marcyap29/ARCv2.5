@@ -34,7 +34,7 @@ class ChatRepoImpl implements ChatRepo {
       if (!Hive.isAdapterRegistered(70)) {
         Hive.registerAdapter(ChatMessageAdapter());
       }
-      // Note: Other adapters (ChatCategory, etc.) may use different type IDs
+      // Note: Other adapters may use different type IDs
 
       // Open boxes
       _sessionsBox = await Hive.openBox<ChatSession>(_sessionsBoxName);

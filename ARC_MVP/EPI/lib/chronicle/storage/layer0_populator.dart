@@ -173,7 +173,11 @@ class Layer0Populator {
     int succeeded = 0, failed = 0;
     for (final entry in entries) {
       final ok = await populateFromJournalEntry(journalEntry: entry, userId: userId);
-      if (ok) succeeded++; else failed++;
+      if (ok) {
+        succeeded++;
+      } else {
+        failed++;
+      }
     }
     return (succeeded: succeeded, failed: failed);
   }

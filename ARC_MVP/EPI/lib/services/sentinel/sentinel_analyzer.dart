@@ -159,7 +159,7 @@ class SentinelAnalyzer {
   /// Get recent journal entries with crisis indicators
   static Future<List<CrisisEntry>> _getRecentCrisisEntries(String userId) async {
     try {
-      final thirtyDaysAgo = DateTime.now().subtract(Duration(days: SentinelConfig.WINDOW_30_DAY));
+      final thirtyDaysAgo = DateTime.now().subtract(const Duration(days: SentinelConfig.WINDOW_30_DAY));
       
       final snapshot = await _firestore
         .collection('users')

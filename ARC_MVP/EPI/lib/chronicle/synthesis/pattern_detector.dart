@@ -100,7 +100,7 @@ class PatternDetector {
   /// Calculate SENTINEL trend (average emotional intensity over time)
   SentinelTrend calculateSentinelTrend(List<RawEntrySchema> entries) {
     if (entries.isEmpty) {
-      return SentinelTrend(
+      return const SentinelTrend(
         average: 0.0,
         peak: 0.0,
         low: 0.0,
@@ -114,7 +114,7 @@ class PatternDetector {
         .toList();
 
     if (scores.isEmpty) {
-      return SentinelTrend(
+      return const SentinelTrend(
         average: 0.0,
         peak: 0.0,
         low: 0.0,

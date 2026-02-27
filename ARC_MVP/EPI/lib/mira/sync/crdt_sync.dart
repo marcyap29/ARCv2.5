@@ -206,7 +206,7 @@ class CrdtSyncEngine {
     ).toList();
 
     if (conflictingOps.isEmpty) {
-      return SyncConflictResult(hasConflict: false);
+      return const SyncConflictResult(hasConflict: false);
     }
 
     // Resolve conflicts using CRDT-lite rules
@@ -238,7 +238,7 @@ class CrdtSyncEngine {
       );
     } else {
       // Local operation wins, but we need to merge
-      return SyncConflictResult(
+      return const SyncConflictResult(
         hasConflict: true,
         conflictType: 'scalar_conflict',
         resolutionStrategy: 'local_wins',

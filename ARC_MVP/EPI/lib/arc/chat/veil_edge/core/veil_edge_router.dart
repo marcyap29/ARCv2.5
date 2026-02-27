@@ -2,6 +2,7 @@
 /// 
 /// Implements the core routing algorithm that maps ATLAS phases to phase groups
 /// with hysteresis, cooldown, and SENTINEL safety modifiers.
+library;
 
 import '../models/veil_edge_models.dart';
 
@@ -14,7 +15,7 @@ class VeilEdgeConfig {
   static const int cooldownHours = 48;
   static const int watchModeMaxMinutes = 10;
   
-  static Duration get cooldownDuration => Duration(hours: cooldownHours);
+  static Duration get cooldownDuration => const Duration(hours: cooldownHours);
 }
 
 /// Phase group mapping for ATLAS phases

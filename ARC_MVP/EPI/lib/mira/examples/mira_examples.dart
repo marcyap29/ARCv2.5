@@ -3,7 +3,6 @@
 // Comprehensive examples for all major features
 
 import '../core/schema_v2.dart';
-import '../retrieval/retrieval_engine.dart';
 import '../policy/policy_engine.dart';
 import '../veil/veil_jobs.dart';
 import '../sync/crdt_sync.dart';
@@ -102,10 +101,10 @@ class RetrievalExample {
     // final retrievalEngine = RetrievalEngine(policyEngine: policyEngine);
     
     // Simulate retrieval (in real implementation, this would query the repository)
-    final query = 'breakthrough work creativity';
+    const query = 'breakthrough work creativity';
     final domains = [MemoryDomain.personal, MemoryDomain.work];
-    final actor = 'user';
-    final purpose = Purpose.retrieval;
+    const actor = 'user';
+    const purpose = Purpose.retrieval;
     
     print('Query: "$query"');
     print('Domains: ${domains.map((d) => d.name).join(', ')}');
@@ -305,7 +304,7 @@ class SyncExample {
       data: {
         'content': 'Updated content from desktop',
         'device_id': 'desktop_002',
-        'timestamp': DateTime.now().add(Duration(minutes: 1)).toUtc().toIso8601String(),
+        'timestamp': DateTime.now().add(const Duration(minutes: 1)).toUtc().toIso8601String(),
       },
     );
     
@@ -502,12 +501,12 @@ class MetricsExample {
       resultCount: 5,
       consideredCount: 20,
       results: [], // Mock results
-      duration: Duration(milliseconds: 150),
+      duration: const Duration(milliseconds: 150),
     );
     
     // Simulate policy metrics
     metrics.policy.recordPolicyDecision(
-      decision: PolicyDecision(
+      decision: const PolicyDecision(
         allowed: true,
         reason: 'Policy rule allows access',
       ),
@@ -561,25 +560,25 @@ void main() async {
   print('MIRA v0.2 Examples\n');
   
   await BasicMemoryExample.runExample();
-  print('\n' + '='*50 + '\n');
+  print('\n${'='*50}\n');
   
   await RetrievalExample.runExample();
-  print('\n' + '='*50 + '\n');
+  print('\n${'='*50}\n');
   
   await PolicyExample.runExample();
-  print('\n' + '='*50 + '\n');
+  print('\n${'='*50}\n');
   
   await VeilJobsExample.runExample();
-  print('\n' + '='*50 + '\n');
+  print('\n${'='*50}\n');
   
   await SyncExample.runExample();
-  print('\n' + '='*50 + '\n');
+  print('\n${'='*50}\n');
   
   await MultimodalExample.runExample();
-  print('\n' + '='*50 + '\n');
+  print('\n${'='*50}\n');
   
   await MigrationExample.runExample();
-  print('\n' + '='*50 + '\n');
+  print('\n${'='*50}\n');
   
   await MetricsExample.runExample();
   

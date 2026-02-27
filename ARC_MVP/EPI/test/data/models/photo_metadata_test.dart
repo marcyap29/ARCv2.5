@@ -112,7 +112,7 @@ void main() {
     });
 
     test('hasMinimumData returns true with filename', () {
-      final metadataWithFilename = PhotoMetadata(
+      const metadataWithFilename = PhotoMetadata(
         localIdentifier: 'ABC123',
         filename: 'IMG_1234.JPG',
       );
@@ -121,7 +121,7 @@ void main() {
     });
 
     test('hasMinimumData returns true with fileSize', () {
-      final metadataWithFileSize = PhotoMetadata(
+      const metadataWithFileSize = PhotoMetadata(
         localIdentifier: 'ABC123',
         fileSize: 1234567,
       );
@@ -130,7 +130,7 @@ void main() {
     });
 
     test('hasMinimumData returns false with only identifier', () {
-      final metadataWithOnlyId = PhotoMetadata(
+      const metadataWithOnlyId = PhotoMetadata(
         localIdentifier: 'ABC123',
       );
       
@@ -157,7 +157,7 @@ void main() {
     });
 
     test('description handles minimal data', () {
-      final minimalMetadata = PhotoMetadata(
+      const minimalMetadata = PhotoMetadata(
         localIdentifier: 'ABC123',
       );
       

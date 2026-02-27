@@ -14,9 +14,9 @@ void main() {
 
   group('ResultAggregator', () {
     test('aggregate returns OrchestrationResult with same results and intent', () {
-      final intent = CommandIntent(type: IntentType.temporalQuery, rawQuery: 'Tell me about January');
+      const intent = CommandIntent(type: IntentType.temporalQuery, rawQuery: 'Tell me about January');
       final results = [
-        SubsystemResult(
+        const SubsystemResult(
           source: 'CHRONICLE',
           data: {'aggregations': 'January 2025 summary...', 'layers': ['Monthly']},
         ),
@@ -29,10 +29,10 @@ void main() {
     });
 
     test('aggregate preserves multiple results', () {
-      final intent = CommandIntent(type: IntentType.decisionSupport, rawQuery: 'Decision support for X');
+      const intent = CommandIntent(type: IntentType.decisionSupport, rawQuery: 'Decision support for X');
       final results = [
-        SubsystemResult(source: 'ARC', data: {'entries': ['e1', 'e2']}),
-        SubsystemResult(source: 'CHRONICLE', data: {'aggregations': 'Context from CHRONICLE'}),
+        const SubsystemResult(source: 'ARC', data: {'entries': ['e1', 'e2']}),
+        const SubsystemResult(source: 'CHRONICLE', data: {'aggregations': 'Context from CHRONICLE'}),
       ];
       final out = aggregator.aggregate(results, intent);
       expect(out.subsystemResults.length, 2);
@@ -42,12 +42,12 @@ void main() {
   group('OrchestrationResult', () {
     test('toContextMap includes CHRONICLE when aggregations present', () {
       final results = [
-        SubsystemResult(
+        const SubsystemResult(
           source: 'CHRONICLE',
           data: {'aggregations': 'Monthly summary text'},
         ),
       ];
-      final intent = CommandIntent(type: IntentType.temporalQuery, rawQuery: 'q');
+      const intent = CommandIntent(type: IntentType.temporalQuery, rawQuery: 'q');
       final out = OrchestrationResult(
         intent: intent,
         subsystemResults: results,
@@ -60,10 +60,10 @@ void main() {
     test('toContextMap omits error results', () {
       final results = [
         SubsystemResult.error(source: 'CHRONICLE', message: 'failed'),
-        SubsystemResult(source: 'ARC', data: {'entries': ['a']}),
+        const SubsystemResult(source: 'ARC', data: {'entries': ['a']}),
       ];
       final out = OrchestrationResult(
-        intent: CommandIntent(type: IntentType.recentContext, rawQuery: 'q'),
+        intent: const CommandIntent(type: IntentType.recentContext, rawQuery: 'q'),
         subsystemResults: results,
         timestamp: DateTime.now(),
       );
@@ -74,10 +74,10 @@ void main() {
 
     test('getSubsystemResult returns result by source', () {
       final results = [
-        SubsystemResult(source: 'CHRONICLE', data: {'aggregations': 'x'}),
+        const SubsystemResult(source: 'CHRONICLE', data: {'aggregations': 'x'}),
       ];
       final out = OrchestrationResult(
-        intent: CommandIntent(type: IntentType.temporalQuery, rawQuery: 'q'),
+        intent: const CommandIntent(type: IntentType.temporalQuery, rawQuery: 'q'),
         subsystemResults: results,
         timestamp: DateTime.now(),
       );
@@ -87,10 +87,10 @@ void main() {
 
     test('getSubsystemData returns data map by source', () {
       final results = [
-        SubsystemResult(source: 'CHRONICLE', data: {'aggregations': 'y', 'layers': ['Monthly']}),
+        const SubsystemResult(source: 'CHRONICLE', data: {'aggregations': 'y', 'layers': ['Monthly']}),
       ];
       final out = OrchestrationResult(
-        intent: CommandIntent(type: IntentType.temporalQuery, rawQuery: 'q'),
+        intent: const CommandIntent(type: IntentType.temporalQuery, rawQuery: 'q'),
         subsystemResults: results,
         timestamp: DateTime.now(),
       );
@@ -99,7 +99,7 @@ void main() {
     });
 
     test('OrchestrationResult.error creates error result', () {
-      final intent = CommandIntent(type: IntentType.recentContext, rawQuery: 'q');
+      const intent = CommandIntent(type: IntentType.recentContext, rawQuery: 'q');
       final out = OrchestrationResult.error(intent: intent, message: 'No subsystems');
       expect(out.isError, isTrue);
       expect(out.subsystemResults.single.source, 'ORCHESTRATOR');

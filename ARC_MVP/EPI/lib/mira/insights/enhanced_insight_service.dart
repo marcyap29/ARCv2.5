@@ -1,8 +1,6 @@
 import 'package:my_app/arc/chat/chat/chat_repo.dart';
 import '../../insights/models/insight_card.dart';
 import '../../insights/insight_service.dart';
-import 'package:my_app/arc/core/journal_repository.dart';
-import 'package:my_app/prism/atlas/rivet/rivet_provider.dart';
 import 'chat_metrics_service.dart';
 
 /// Enhanced insight service that combines journal and chat insights
@@ -13,13 +11,10 @@ class EnhancedInsightService extends InsightService {
   EnhancedInsightService({
     required super.journalRepository,
     required ChatRepo chatRepo,
-    RivetProvider? rivetProvider,
+    super.rivetProvider,
     required super.userId,
   }) : _chatRepo = chatRepo,
-       _chatMetricsService = ChatMetricsService(chatRepo: chatRepo),
-       super(
-         rivetProvider: rivetProvider,
-       );
+       _chatMetricsService = ChatMetricsService(chatRepo: chatRepo);
 
   /// Generate combined insights from journals and chat sessions
   @override

@@ -40,11 +40,11 @@ class _McpExportScreenState extends State<McpExportScreen> {
   // Always using ARCX secure format (per spec - .zip option removed)
   
   // Chat export settings - always include archived chats
-  bool _includeArchivedChats = true;
+  final bool _includeArchivedChats = true;
   
   // Multi-select for entries
   bool _useMultiSelect = false;
-  Set<String> _selectedEntryIds = {};
+  final Set<String> _selectedEntryIds = {};
   List<JournalEntry> _allEntries = [];
   
   // Password-based encryption (only for .arcx format)
@@ -52,7 +52,7 @@ class _McpExportScreenState extends State<McpExportScreen> {
   String? _exportPassword;
   
   // ARCX V2 export options
-  ARCXExportStrategy _exportStrategy = ARCXExportStrategy.together; // Export strategy
+  final ARCXExportStrategy _exportStrategy = ARCXExportStrategy.together; // Export strategy
   
   // Date range filtering
   String _dateRangeSelection = 'all'; // 'all', 'custom'
@@ -228,7 +228,7 @@ class _McpExportScreenState extends State<McpExportScreen> {
         final outputDir = await getApplicationDocumentsDirectory();
         final exportDir = Directory(path.join(outputDir.path, 'Exports', 'txt_${DateTime.now().millisecondsSinceEpoch}'));
         await exportDir.create(recursive: true);
-        final safeName = (String s) => s.replaceAll(RegExp(r'[/\\:*?"<>|]'), '_').trim();
+        String safeName(String s) => s.replaceAll(RegExp(r'[/\\:*?"<>|]'), '_').trim();
         final files = <XFile>[];
         for (var i = 0; i < filteredEntries.length; i++) {
           final e = filteredEntries[i];
@@ -680,8 +680,8 @@ class _McpExportScreenState extends State<McpExportScreen> {
       // Show confirmation after successful share (only if still mounted)
       if (mounted && messenger != null && messenger.mounted) {
         messenger.showSnackBar(
-          SnackBar(
-            content: const Row(
+          const SnackBar(
+            content: Row(
               children: [
                 Icon(Icons.check_circle, color: Colors.white),
                 SizedBox(width: 8),
@@ -689,7 +689,7 @@ class _McpExportScreenState extends State<McpExportScreen> {
               ],
             ),
             backgroundColor: Colors.green,
-            duration: const Duration(seconds: 2),
+            duration: Duration(seconds: 2),
           ),
         );
       }
@@ -1189,7 +1189,7 @@ class _McpExportScreenState extends State<McpExportScreen> {
       trailing: Switch(
         value: value,
         onChanged: onChanged,
-        activeColor: kcAccentColor,
+        activeThumbColor: kcAccentColor,
       ),
       contentPadding: EdgeInsets.zero,
       dense: true,

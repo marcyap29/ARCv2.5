@@ -374,7 +374,7 @@ class _TemporalNotificationSettingsViewState extends State<TemporalNotificationS
                 Switch(
                   value: enabled,
                   onChanged: onToggle,
-                  activeColor: kcPrimaryColor,
+                  activeThumbColor: kcPrimaryColor,
                 ),
               ],
             ),

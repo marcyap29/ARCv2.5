@@ -69,7 +69,7 @@ class PatternQueryRouter {
       themeSummary: theme,
       embedding: embedding,
       confidence: 1.0,
-      evidenceRefs: [],
+      evidenceRefs: const [],
     );
 
     final matchResult = await _matcher.findMatch(

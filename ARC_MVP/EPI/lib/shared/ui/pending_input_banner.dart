@@ -2,6 +2,7 @@
 /// 
 /// Shows a banner when there's a pending input that didn't receive a response,
 /// allowing the user to resubmit it.
+library;
 
 import 'package:flutter/material.dart';
 import '../../../services/pending_conversation_service.dart';
@@ -11,10 +12,10 @@ class PendingInputBanner extends StatefulWidget {
   final String mode; // 'voice' or 'chat'
 
   const PendingInputBanner({
-    Key? key,
+    super.key,
     this.onResubmit,
     required this.mode,
-  }) : super(key: key);
+  });
 
   @override
   State<PendingInputBanner> createState() => _PendingInputBannerState();

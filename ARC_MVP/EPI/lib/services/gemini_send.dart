@@ -129,7 +129,7 @@ Future<String> lumaraSend({
 
   if (!prismAdapter.isSafeToSend(userPrismResult.scrubbedText) ||
       (system.trim().isNotEmpty && !prismAdapter.isSafeToSend(systemPrismResult.scrubbedText))) {
-    throw SecurityException('SECURITY: PII still detected after PRISM scrubbing');
+    throw const SecurityException('SECURITY: PII still detected after PRISM scrubbing');
   }
 
   // Step 2: Optional correlation-resistant transformation
@@ -240,7 +240,7 @@ Future<String> geminiSend({
   // SECURITY: Validate scrubbing passed
   if (!prismAdapter.isSafeToSend(userPrismResult.scrubbedText) ||
       (system.trim().isNotEmpty && !prismAdapter.isSafeToSend(systemPrismResult.scrubbedText))) {
-    throw SecurityException('SECURITY: PII still detected after PRISM scrubbing');
+    throw const SecurityException('SECURITY: PII still detected after PRISM scrubbing');
   }
 
   // Step 2: Correlation-Resistant Transformation
@@ -413,7 +413,7 @@ Stream<String> geminiSendStream({
   // SECURITY: Validate scrubbing passed
   if (!prismAdapter.isSafeToSend(userPrismResult.scrubbedText) ||
       (system.trim().isNotEmpty && !prismAdapter.isSafeToSend(systemPrismResult.scrubbedText))) {
-    throw SecurityException('SECURITY: PII still detected after PRISM scrubbing');
+    throw const SecurityException('SECURITY: PII still detected after PRISM scrubbing');
   }
 
   // Step 2: Correlation-Resistant Transformation

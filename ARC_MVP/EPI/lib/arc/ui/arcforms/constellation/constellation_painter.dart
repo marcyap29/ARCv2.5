@@ -313,7 +313,7 @@ class ConstellationPainter extends CustomPainter {
     
     // Test each star for tap hits
     for (final node in nodes) {
-      final center = Offset(200, 300); // Use reasonable center coordinates
+      const center = Offset(200, 300); // Use reasonable center coordinates
       final starPos = center + node.pos;
       
       // Expand hit area for better touch interaction

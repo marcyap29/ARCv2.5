@@ -25,7 +25,7 @@ class ArcformLegendWidget extends StatelessWidget {
           children: [
             Row(
               children: [
-                Icon(
+                const Icon(
                   Icons.info_outline,
                   color: Colors.white70,
                   size: 20,
@@ -40,7 +40,7 @@ class ArcformLegendWidget extends StatelessWidget {
                 ),
                 const Spacer(),
                 IconButton(
-                  icon: Icon(Icons.close, color: Colors.white70, size: 20),
+                  icon: const Icon(Icons.close, color: Colors.white70, size: 20),
                   onPressed: () {
                     Navigator.of(context).pop();
                   },
@@ -167,7 +167,7 @@ class ArcformLegendWidget extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(width: 8),
-                      Expanded(
+                      const Expanded(
                         child: Text(
                           'Thick lines (2-8px): Strong relationships (high edge weight)',
                           style: TextStyle(
@@ -190,7 +190,7 @@ class ArcformLegendWidget extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(width: 8),
-                      Expanded(
+                      const Expanded(
                         child: Text(
                           'Thin lines (0.5-2.5px): Weaker associations (low edge weight)',
                           style: TextStyle(
@@ -258,7 +258,7 @@ class ArcformLegendWidget extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   description,
-                  style: TextStyle(
+                  style: const TextStyle(
                     color: Colors.white70,
                     fontSize: 11,
                   ),
@@ -284,7 +284,7 @@ class ArcformLegendWidget extends StatelessWidget {
             width: 12,
             height: 12,
             margin: const EdgeInsets.only(top: 4),
-            decoration: BoxDecoration(
+            decoration: const BoxDecoration(
               color: Colors.white70,
               shape: BoxShape.circle,
             ),
@@ -305,7 +305,7 @@ class ArcformLegendWidget extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   description,
-                  style: TextStyle(
+                  style: const TextStyle(
                     color: Colors.white70,
                     fontSize: 11,
                   ),

@@ -7,6 +7,7 @@
 /// - Raw transcript is stored locally only
 /// - Scrubbed transcript is safe for sync/backup
 /// - PRISM reversible map is never persisted remotely
+library;
 
 import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';

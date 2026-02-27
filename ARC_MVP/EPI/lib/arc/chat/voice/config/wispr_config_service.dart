@@ -6,6 +6,7 @@
 /// 
 /// Note: Wispr Flow API is for personal use only. Users must provide
 /// their own API key from wisprflow.ai
+library;
 
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';

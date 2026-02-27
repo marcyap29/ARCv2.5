@@ -135,7 +135,7 @@ class _SentinelAnalysisViewState extends State<SentinelAnalysisView> {
           children: [
             Row(
               children: [
-                Icon(Icons.shield, color: Colors.blue),
+                const Icon(Icons.shield, color: Colors.blue),
                 const SizedBox(width: 8),
                 const Text(
                   'SENTINEL Analysis',
@@ -303,22 +303,22 @@ class _SentinelAnalysisViewState extends State<SentinelAnalysisView> {
     final analysis = _currentAnalysis!;
     
     if (analysis.patterns.isEmpty) {
-      return Card(
+      return const Card(
         child: Padding(
-          padding: const EdgeInsets.all(16.0),
+          padding: EdgeInsets.all(16.0),
           child: Column(
             children: [
               Icon(Icons.check_circle, color: Colors.green, size: 48),
-              const SizedBox(height: 12),
-              const Text(
+              SizedBox(height: 12),
+              Text(
                 'No concerning patterns detected',
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              const SizedBox(height: 8),
-              const Text(
+              SizedBox(height: 8),
+              Text(
                 'Your emotional patterns appear stable within the selected time window.',
                 textAlign: TextAlign.center,
               ),
@@ -334,11 +334,11 @@ class _SentinelAnalysisViewState extends State<SentinelAnalysisView> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
+            const Row(
               children: [
                 Icon(Icons.psychology, color: Colors.orange),
-                const SizedBox(width: 8),
-                const Text(
+                SizedBox(width: 8),
+                Text(
                   'Detected Patterns',
                   style: TextStyle(
                     fontSize: 18,
@@ -371,11 +371,11 @@ class _SentinelAnalysisViewState extends State<SentinelAnalysisView> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
+            const Row(
               children: [
                 Icon(Icons.lightbulb, color: Colors.amber),
-                const SizedBox(width: 8),
-                const Text(
+                SizedBox(width: 8),
+                Text(
                   'Recommendations',
                   style: TextStyle(
                     fontSize: 18,
@@ -396,7 +396,7 @@ class _SentinelAnalysisViewState extends State<SentinelAnalysisView> {
                     Container(
                       width: 24,
                       height: 24,
-                      decoration: BoxDecoration(
+                      decoration: const BoxDecoration(
                         color: Colors.amber,
                         shape: BoxShape.circle,
                       ),
@@ -437,11 +437,11 @@ class _SentinelAnalysisViewState extends State<SentinelAnalysisView> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
+            const Row(
               children: [
                 Icon(Icons.summarize, color: Colors.blue),
-                const SizedBox(width: 8),
-                const Text(
+                SizedBox(width: 8),
+                Text(
                   'Analysis Summary',
                   style: TextStyle(
                     fontSize: 18,

@@ -19,10 +19,10 @@ class ChronicleIndex {
   });
 
   factory ChronicleIndex.empty() => ChronicleIndex(
-        themeClusters: {},
-        labelToClusterId: {},
-        pendingEchoes: {},
-        arcs: {},
+        themeClusters: const {},
+        labelToClusterId: const {},
+        pendingEchoes: const {},
+        arcs: const {},
         lastUpdated: DateTime.now(),
       );
 

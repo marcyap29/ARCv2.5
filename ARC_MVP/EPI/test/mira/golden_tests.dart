@@ -117,8 +117,8 @@ class RetrievalGoldenTests {
         final candidates = GoldenTestData.sampleNodes;
 
         // Expected results should be consistent
-        final expectedNodeCount = 1; // Only the entry node should match
-        final expectedMinScore = 0.5; // Minimum expected composite score
+        const expectedNodeCount = 1; // Only the entry node should match
+        const expectedMinScore = 0.5; // Minimum expected composite score
 
         // Note: In a real test, we would mock the repository to return candidates
         // and verify the actual retrieval results match expected values
@@ -130,7 +130,7 @@ class RetrievalGoldenTests {
       test('should maintain score consistency across multiple runs', () {
         // Test that scoring algorithm is deterministic
         final node = GoldenTestData.sampleNodes[0];
-        final query = 'breakthrough';
+        const query = 'breakthrough';
         
         // Simulate scoring calculation
         final semanticScore = _calculateSemanticScore(node, query);
@@ -148,7 +148,7 @@ class RetrievalGoldenTests {
 
       test('should respect memory cap of 8 per response', () {
         // Test that retrieval never exceeds 8 memories per response
-        final maxMemories = RetrievalEngine.MAX_MEMORIES_PER_RESPONSE;
+        const maxMemories = RetrievalEngine.MAX_MEMORIES_PER_RESPONSE;
         expect(maxMemories, equals(8));
       });
     });

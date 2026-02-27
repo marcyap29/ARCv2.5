@@ -4,7 +4,6 @@ import 'package:my_app/mira/store/mcp/import/mcp_import_service.dart';
 import 'package:my_app/models/journal_entry_model.dart';
 import 'package:my_app/mira/store/mcp/models/mcp_schemas.dart';
 import 'package:my_app/mira/store/mcp/utils/chat_journal_detector.dart';
-import 'dart:io';
 
 void main() {
   group('MCP Chat/Journal Separation', () {
@@ -17,12 +16,12 @@ void main() {
           content: 'I had a great day today. Went for a walk and felt refreshed.',
           createdAt: DateTime.now(),
           updatedAt: DateTime.now(),
-          tags: [],
+          tags: const [],
           mood: 'happy',
           phase: 'Discovery',
-          keywords: ['walk', 'refreshed'],
-          media: [],
-          metadata: {'source': 'ARC'},
+          keywords: const ['walk', 'refreshed'],
+          media: const [],
+          metadata: const {'source': 'ARC'},
         ),
         JournalEntry(
           id: '2',
@@ -30,12 +29,12 @@ void main() {
           content: 'Hello! I\'m LUMARA, your personal assistant. What would you like to know?',
           createdAt: DateTime.now(),
           updatedAt: DateTime.now(),
-          tags: [],
+          tags: const [],
           mood: 'neutral',
           phase: 'Discovery',
-          keywords: [],
-          media: [],
-          metadata: {'source': 'LUMARA_Assistant'},
+          keywords: const [],
+          media: const [],
+          metadata: const {'source': 'LUMARA_Assistant'},
         ),
         JournalEntry(
           id: '3',
@@ -43,12 +42,12 @@ void main() {
           content: 'Tell me about my patterns',
           createdAt: DateTime.now(),
           updatedAt: DateTime.now(),
-          tags: [],
+          tags: const [],
           mood: 'neutral',
           phase: 'Discovery',
-          keywords: [],
-          media: [],
-          metadata: {'source': 'LUMARA_Chat'},
+          keywords: const [],
+          media: const [],
+          metadata: const {'source': 'LUMARA_Chat'},
         ),
       ];
 

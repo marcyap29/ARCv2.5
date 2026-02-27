@@ -3,6 +3,7 @@
 /// Shown for a minimum of 4 seconds when moving from main menu to voice mode.
 /// Gives Wispr (and other services) time to connect before the user sees the
 /// talk button, avoiding "press talk too fast before service is ready" issues.
+library;
 
 import 'package:flutter/material.dart';
 import '../services/voice_session_service.dart';

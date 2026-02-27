@@ -41,7 +41,7 @@ class QwenProvider extends LLMProviderBase {
       final bridge = LumaraNative();
       
       // First, ensure the model is initialized
-      final modelId = 'Qwen3-4B-Instruct-2507-Q4_K_S.gguf';
+      const modelId = 'Qwen3-4B-Instruct-2507-Q4_K_S.gguf';
       final initialized = await bridge.initModel(modelId);
       
       if (!initialized) {

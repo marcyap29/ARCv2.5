@@ -12,7 +12,7 @@ void main() {
         shareMode: ArcShareMode.social,
         arcformId: 'test-id',
         phase: 'Discovery',
-        keywords: ['growth', 'insight'],
+        keywords: const ['growth', 'insight'],
       );
 
       expect(payload.shareMode, ArcShareMode.social);
@@ -26,7 +26,7 @@ void main() {
         shareMode: ArcShareMode.direct,
         arcformId: 'test-id',
         phase: 'Discovery',
-        keywords: ['growth'],
+        keywords: const ['growth'],
         systemMessage: 'System message',
         userMessage: 'User message',
       );
@@ -39,7 +39,7 @@ void main() {
         shareMode: ArcShareMode.direct,
         arcformId: 'test-id',
         phase: 'Discovery',
-        keywords: ['growth'],
+        keywords: const ['growth'],
         systemMessage: 'System message',
       );
 
@@ -51,7 +51,7 @@ void main() {
         shareMode: ArcShareMode.social,
         arcformId: 'test-id',
         phase: 'Discovery',
-        keywords: ['growth'],
+        keywords: const ['growth'],
         systemCaptionShort: 'System caption',
         userCaption: 'User caption',
       );
@@ -64,7 +64,7 @@ void main() {
         shareMode: ArcShareMode.social,
         arcformId: 'test-id',
         phase: 'Discovery',
-        keywords: ['growth'],
+        keywords: const ['growth'],
         systemCaptionShort: 'Short caption',
         systemCaptionReflective: 'Reflective caption',
         systemCaptionTechnical: 'Technical caption',
@@ -81,7 +81,7 @@ void main() {
         shareMode: ArcShareMode.direct,
         arcformId: 'test-id',
         phase: 'Discovery',
-        keywords: ['growth'],
+        keywords: const ['growth'],
       );
 
       final updated = payload.copyWith(
@@ -102,7 +102,7 @@ void main() {
         shareMode: ArcShareMode.social,
         arcformId: 'test-id',
         phase: 'Discovery',
-        keywords: ['growth'],
+        keywords: const ['growth'],
         userCaption: 'Sharing my Discovery phase journey',
       );
 
@@ -115,7 +115,7 @@ void main() {
         shareMode: ArcShareMode.social,
         arcformId: 'test-id',
         phase: 'Discovery',
-        keywords: ['growth'],
+        keywords: const ['growth'],
         userCaption: 'I wrote in my journal today about growth',
       );
 
@@ -128,7 +128,7 @@ void main() {
         shareMode: ArcShareMode.social,
         arcformId: 'test-id',
         phase: 'Discovery',
-        keywords: ['growth'],
+        keywords: const ['growth'],
         userCaption: 'My medical diagnosis shows growth',
       );
 

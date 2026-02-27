@@ -1,7 +1,5 @@
 import 'dart:io';
-import 'dart:convert';
 import 'dart:async';
-import 'package:path/path.dart' as path;
 import '../../../../core/llm/model_adapter.dart';
 
 /// Llama.cpp adapter for on-device inference
@@ -41,7 +39,7 @@ class LlamaAdapter implements ModelAdapter {
 
   /// Dispose resources
   static Future<void> dispose() async {
-    await _llamaProcess?.kill();
+    _llamaProcess?.kill();
     await _responseController?.close();
     _isInitialized = false;
   }
