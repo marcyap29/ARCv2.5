@@ -1,0 +1,117 @@
+# ============================================
+# Universal .gitignore — Starter Repo Pack
+# Copy and merge with your existing .gitignore
+# Remove sections that don't apply to your stack
+# ============================================
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.cursor/
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+ehthumbs.db
+
+# Logs
+*.log
+logs/
+log/
+
+# Temporary
+*.tmp
+*.temp
+temp/
+tmp/
+*.bak
+*.backup
+
+# Environment & secrets
+.env
+.env.local
+.env.*.local
+*.pem
+secrets/
+
+# ========== Language-specific (uncomment as needed) ==========
+
+# --- Node.js ---
+# node_modules/
+# npm-debug.log*
+# .npm
+# yarn.lock
+# .yarn/
+# package-lock.json
+
+# --- Python ---
+# __pycache__/
+# *.py[cod]
+# *.pyo
+# .venv/
+# venv/
+# .env
+# *.egg-info/
+# .eggs/
+# dist/
+# build/
+
+# --- Flutter/Dart ---
+# .dart_tool/
+# .packages
+# .pub-cache/
+# .pub/
+# build/
+# *.dill
+# *.snapshot
+# *.app
+# *.ipa
+# *.apk
+# *.aab
+# coverage/
+
+# --- Go ---
+# *.exe
+# *.test
+# vendor/
+
+# --- Rust ---
+# target/
+# Cargo.lock
+
+# --- Java/Kotlin ---
+# *.class
+# *.jar
+# *.war
+# .gradle/
+# build/
+# out/
+
+# --- .NET ---
+# bin/
+# obj/
+# *.user
+# *.suo
+# packages/
+
+# ========== Large / binary files ==========
+
+# Models
+# *.gguf
+# *.bin
+# *.safetensors
+# *.tflite
+# *.mlmodel
+
+# Archives (uncomment if you don't want to track)
+# *.zip
+# *.tar
+# *.tar.gz
+# *.rar

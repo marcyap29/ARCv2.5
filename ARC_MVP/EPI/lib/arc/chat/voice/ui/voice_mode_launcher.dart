@@ -5,11 +5,9 @@
 library;
 
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import '../config/voice_system_initializer.dart';
-import '../services/voice_session_service.dart';
-import '../../../services/enhanced_lumara_api.dart';
-import '../../voice_journal/prism_adapter.dart';
+import 'package:my_app/arc/chat/services/enhanced_lumara_api.dart';
+import '../voice_journal/prism_adapter.dart';
 import 'voice_mode_screen.dart';
 import 'package:my_app/services/firebase_auth_service.dart';
 
@@ -77,7 +75,6 @@ class VoiceModeLauncher extends StatelessWidget {
       // Initialize voice system
       final initializer = VoiceSystemInitializer(
         userId: userId,
-        firestore: FirebaseFirestore.instance,
         lumaraApi: lumaraApi,
         prism: prism,
       );

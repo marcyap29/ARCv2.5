@@ -221,8 +221,14 @@ class LumaraNotificationService {
       );
     }
 
-    // Use the most confident window
-    windows.sort((a, b) => (b?.confidence ?? 0.0).compareTo((a?.confidence ?? 0.0)));
+    // Use the most confident window (elements may be ActiveWindow or dynamic)
+    windows.sort((a, b) {
+      final aConf = (a != null && (a as dynamic).confidence != null)
+          ? ((a as dynamic).confidence as num).toDouble() : 0.0;
+      final bConf = (b != null && (b as dynamic).confidence != null)
+          ? ((b as dynamic).confidence as num).toDouble() : 0.0;
+      return bConf.compareTo(aConf);
+    });
     final bestWindow = windows.first;
 
     return DateTime(

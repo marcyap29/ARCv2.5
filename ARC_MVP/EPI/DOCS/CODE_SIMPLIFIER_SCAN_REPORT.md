@@ -2,13 +2,14 @@
 
 **Project:** EPI at `/Users/mymac/Software/Development/ARCv2.5/ARC_MVP/EPI`  
 **Scan Date:** 2026-02-25  
+**Last Code Simplifier Run:** 2026-02-26  
 **Reference:** DOCS/CODE_SIMPLIFIER_CONSOLIDATION_PLAN.md
 
 ---
 
 ## 1. Executive Summary
 
-The scan identifies one significant duplicate file (SentinelRiskDetector), several overlapping widget/service patterns, many analyzer warnings (including unused code and broken URIs), and multiple large files. Phase 1 consolidation items (JournalVersionService, QuickActionsService) are already completed per CHANGELOG and ARCHITECTURE.
+Phase 1 consolidation items (JournalVersionService, QuickActionsService) and the SentinelRiskDetector duplicate are completed. Broken URIs have been fixed. Remaining: several overlapping widget/service patterns, many analyzer hints (avoid_print, deprecated_member_use), and multiple large files. Full Code Simplifier run (2026-02-26) consolidated SentinelRiskDetector and corrected import paths.
 
 ---
 
@@ -16,7 +17,7 @@ The scan identifies one significant duplicate file (SentinelRiskDetector), sever
 
 | Finding | File Path(s) | Line Count | Status | Impact | Risk |
 |---------|--------------|------------|--------|--------|------|
-| **SentinelRiskDetector duplicate** | `lib/prism/extractors/sentinel_risk_detector.dart` and `lib/prism/atlas/sentinel/sentinel_risk_detector.dart` | 1393 each (2786 total) | **OPEN** | ~1400 duplicate lines; `prism/atlas/index.dart` exports atlas version; 6+ files import `prism/extractors` version | **Medium** – divergence risk if only one is updated |
+| **SentinelRiskDetector duplicate** | `lib/prism/extractors/sentinel_risk_detector.dart` (canonical) | 1393 | **DONE** | Removed duplicate; `prism/atlas/index.dart` now re-exports from extractors | — |
 | JournalVersionService | `lib/core/services/journal_version_service.dart` (canonical) | 1308 | **DONE** | — | — |
 | QuickActionsService | `lib/arc/ui/quick_actions_service.dart` (single source) | 117 | **DONE** | — | — |
 
@@ -37,13 +38,16 @@ The scan identifies one significant duplicate file (SentinelRiskDetector), sever
 
 ## 4. Build / Import Findings
 
-### 4.1 Broken URIs (errors)
+### 4.1 Broken URIs (errors) — FIXED 2026-02-26
 
-| File | Missing URI | Risk |
-|------|-------------|------|
-| `lib/arc/chat/llm/lumara_native.dart` | `../../core/app_flags.dart` | **High** |
-| `lib/arc/chat/llm/qwen_adapter.dart` | `model_adapter.dart`, `app_flags.dart`, `prompts_arc.dart` | **High** |
-| `lib/arc/chat/prompts/archive/lumara_unified_prompts.dart` | `lumara_prompt_encouragement.dart`, `lumara_therapeutic_presence.dart` | **Medium** |
+| File | Resolution |
+|------|------------|
+| `lib/arc/chat/llm/lumara_native.dart` | Switched to `package:my_app/core/app_flags.dart` |
+| `lib/arc/chat/llm/qwen_adapter.dart` | Switched to `package:my_app/core/llm/model_adapter.dart`, `package:my_app/core/app_flags.dart`, `package:my_app/core/prompts_arc.dart` |
+| `lib/arc/chat/prompts/archive/lumara_unified_prompts.dart` | Fixed to `../lumara_prompt_encouragement.dart`, `../lumara_therapeutic_presence.dart` |
+| `lib/arc/chat/voice/ui/voice_mode_launcher.dart` | Switched to `package:my_app/arc/chat/services/enhanced_lumara_api.dart`, `../voice_journal/prism_adapter.dart` |
+| `lib/arc/chat/veil_edge/core/rivet_policy_engine.dart` | Switched to `package:my_app/aurora/models/circadian_context.dart` |
+| `lib/arc/chat/veil_edge/services/veil_edge_service.dart` | Switched to `package:my_app/aurora/` imports |
 
 ### 4.2 Unused / dead code (sample)
 
@@ -78,9 +82,9 @@ The scan identifies one significant duplicate file (SentinelRiskDetector), sever
 
 ### High priority
 
-1. **Consolidate SentinelRiskDetector** – Keep prism/extractors version; re-export from atlas; remove duplicate (~1393 lines).
-2. **Fix broken URIs** – Restore or add missing files for lumara_native, qwen_adapter, lumara_unified_prompts.
-3. **Split journal_screen.dart** – Extract logical blocks.
+1. ~~**Consolidate SentinelRiskDetector**~~ – **DONE** 2026-02-26.
+2. ~~**Fix broken URIs**~~ – **DONE** 2026-02-26.
+3. **Split journal_screen.dart** – Extract logical blocks (Phase 2).
 4. **Reduce lumara_assistant_cubit.dart** – Move logic to services; remove unused elements.
 
 ### Medium priority
@@ -108,7 +112,9 @@ The scan identifies one significant duplicate file (SentinelRiskDetector), sever
 | P2-REPOS (AppRepos / ChronicleRepos) | Done |
 | P1-SHARED-UI | Partial |
 | P1-IMPORTS | Addressed in 2026-02-25 run (23 files, unused imports removed) |
+| **SentinelRiskDetector consolidation** | **Done 2026-02-26** – Removed atlas duplicate; atlas re-exports from extractors |
+| **Broken URIs** | **Done 2026-02-26** – lumara_native, qwen_adapter, voice_mode_launcher, veil_edge, lumara_unified_prompts |
 
 ---
 
-*Generated for Code Simplifier. Update as work is completed.*
+*Generated for Code Simplifier. Last updated: 2026-02-26.*

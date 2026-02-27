@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'package:my_app/arc/ui/quick_actions_service.dart';
-import '../../core/mcp/orchestrator/multimodal_integration_service.dart';
+import 'package:my_app/mira/store/mcp/orchestrator/multimodal_integration_service.dart';
 
 /// iOS Widget Extension and Quick Actions Integration
 class IOSWidgetQuickActionsIntegration {

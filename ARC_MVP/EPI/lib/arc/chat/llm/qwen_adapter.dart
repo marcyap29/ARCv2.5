@@ -1,9 +1,9 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
-import 'model_adapter.dart';
+import 'package:my_app/core/llm/model_adapter.dart';
 import 'lumara_native.dart';
-import '../../core/app_flags.dart';
-import '../../core/prompts_arc.dart';
+import 'package:my_app/core/app_flags.dart';
+import 'package:my_app/core/prompts_arc.dart';
 
 /// Qwen3 chat adapter for on-device text generation and reasoning
 class QwenAdapter implements ModelAdapter {

@@ -4,6 +4,7 @@
 // Now with MIRA semantic memory integration.
 
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:my_app/core/prompts_arc.dart';
 import 'package:my_app/mira/mira_service.dart';
 
@@ -28,14 +29,14 @@ class ArcLLM {
     bool isContinuation = false,
     String? previousAssistantReply,
   }) {
-    print('ArcLLM Bridge: ===== CHAT REQUEST =====');
-    print('ArcLLM Bridge: User intent: $userIntent');
-    print('ArcLLM Bridge: Entry text length: ${entryText.length}');
-    print('ArcLLM Bridge: Phase hint: $phaseHintJson');
-    print('ArcLLM Bridge: Keywords: $lastKeywordsJson');
-    
+    if (kDebugMode) {
+      print('ArcLLM Bridge: ===== CHAT REQUEST =====');
+      print('ArcLLM Bridge: User intent length: ${userIntent.length}');
+      print('ArcLLM Bridge: Entry text length: ${entryText.length}');
+    }
+
     try {
-      print('ArcLLM Bridge: Building user prompt...');
+      if (kDebugMode) print('ArcLLM Bridge: Building user prompt...');
       
       var userPrompt = ArcPrompts.chat
           .replaceAll('{{user_intent}}', userIntent)
@@ -65,7 +66,7 @@ Continue the response naturally with no limit on length. Complete the thought fu
       //   print('ArcLLM Bridge: Added in-journal brevity constraint');
       // }
       
-      print('ArcLLM Bridge: Calling send() function...');
+      if (kDebugMode) print('ArcLLM Bridge: Calling send() function...');
       final result = send(
         system: ArcPrompts.system,
         user: userPrompt,
@@ -73,16 +74,19 @@ Continue the response naturally with no limit on length. Complete the thought fu
       );
       
       result.then((response) {
-        print('ArcLLM Bridge: ✓ Send completed');
-        print('ArcLLM Bridge: Response length: ${response.length}');
-        print('ArcLLM Bridge: Response preview: ${response.substring(0, response.length > 100 ? 100 : response.length)}...');
+        if (kDebugMode) {
+          print('ArcLLM Bridge: ✓ Send completed');
+          print('ArcLLM Bridge: Response length: ${response.length}');
+        }
       });
       
       return result;
     } catch (e) {
-      print('ArcLLM Bridge: ✗✗✗ EXCEPTION in chat ✗✗✗');
-      print('ArcLLM Bridge: Exception type: ${e.runtimeType}');
-      print('ArcLLM Bridge: Exception: $e');
+      if (kDebugMode) {
+        print('ArcLLM Bridge: ✗✗✗ EXCEPTION in chat ✗✗✗');
+        print('ArcLLM Bridge: Exception type: ${e.runtimeType}');
+        print('ArcLLM Bridge: Exception: $e');
+      }
       rethrow;
     }
   }

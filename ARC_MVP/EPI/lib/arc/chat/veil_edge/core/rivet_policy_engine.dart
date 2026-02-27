@@ -7,7 +7,7 @@ library;
 
 import 'dart:math';
 import '../models/veil_edge_models.dart';
-import '../../../aurora/models/circadian_context.dart';
+import 'package:my_app/aurora/models/circadian_context.dart';
 
 /// RIVET Policy Engine for managing phase transitions and alignment tracking with circadian awareness
 class RivetPolicyEngine {

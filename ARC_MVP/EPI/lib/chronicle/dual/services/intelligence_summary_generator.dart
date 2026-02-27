@@ -7,8 +7,11 @@
 
 import 'dart:convert';
 import 'package:crypto/crypto.dart';
+import 'package:flutter/foundation.dart';
 import 'package:my_app/arc/chat/config/api_config.dart';
 import 'package:my_app/arc/chat/services/groq_service.dart';
+import 'package:my_app/arc/internal/echo/prism_adapter.dart';
+import 'package:my_app/services/lumara/pii_scrub.dart';
 import 'package:my_app/chronicle/core/chronicle_repos.dart';
 import 'package:my_app/chronicle/models/chronicle_aggregation.dart';
 import 'package:my_app/chronicle/models/chronicle_layer.dart';
@@ -48,21 +51,40 @@ class IntelligenceSummaryGenerator {
       await LumaraAPIConfig.instance.initialize();
       final groqKey = LumaraAPIConfig.instance.getApiKey(LLMProvider.groq);
       if (groqKey != null && groqKey.isNotEmpty) {
+        final rawPrompt = _buildSynthesisPrompt(intelligence);
+        final prismAdapter = PrismAdapter();
+        final promptPrism = prismAdapter.scrub(rawPrompt);
+        final systemPrism = prismAdapter.scrub(_systemPrompt);
+
+        if (!prismAdapter.isSafeToSend(promptPrism.scrubbedText) ||
+            !prismAdapter.isSafeToSend(systemPrism.scrubbedText)) {
+          throw const SecurityException(
+            'SECURITY: PII still detected after PRISM scrubbing',
+          );
+        }
+
+        final combinedMap = <String, String>{
+          ...promptPrism.reversibleMap,
+          ...systemPrism.reversibleMap,
+        };
+
         final groq = GroqService(apiKey: groqKey);
-        final result = await groq.generateContent(
-          prompt: _buildSynthesisPrompt(intelligence),
-          systemPrompt: _systemPrompt,
+        final rawResult = await groq.generateContent(
+          prompt: promptPrism.scrubbedText,
+          systemPrompt: systemPrism.scrubbedText,
           temperature: 0.3,
           maxTokens: 4096,
         );
-        final trimmed = result.trim();
+
+        final restored = PiiScrubber.restore(rawResult, combinedMap);
+        final trimmed = restored.trim();
         if (trimmed.isNotEmpty) {
           content = trimmed;
           usedGroq = true;
         }
       }
     } catch (e) {
-      print('[IntelligenceSummary] Groq generation failed: $e');
+      if (kDebugMode) print('[IntelligenceSummary] Groq generation failed: $e');
     }
     final metadata = _buildMetadata(intelligence, startTime, usedGroq);
     final nextVersion = await _getNextVersion(userId);
@@ -116,7 +138,7 @@ class IntelligenceSummaryGenerator {
         if (a != null) multiyear.add(a);
       }
     } catch (e) {
-      print('[IntelligenceSummary] Could not load CHRONICLE Layer 1–3: $e');
+      if (kDebugMode) print('[IntelligenceSummary] Could not load CHRONICLE Layer 1–3: $e');
     }
 
     DateTime? earliest;

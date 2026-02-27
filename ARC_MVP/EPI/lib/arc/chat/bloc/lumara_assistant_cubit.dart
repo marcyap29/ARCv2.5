@@ -57,7 +57,6 @@ import 'package:my_app/prism/atlas/rivet/rivet_models.dart';
 import 'package:my_app/prism/atlas/rivet/rivet_decision_analyzer.dart';
 import 'package:my_app/models/phase_models.dart';
 import 'package:my_app/services/user_phase_service.dart';
-import 'package:my_app/arc/chat/services/groq_service.dart';
 import 'package:my_app/arc/chat/services/lumara_cloud_generate.dart';
 import 'package:my_app/arc/agents/drafts/agent_draft.dart';
 import 'package:my_app/arc/agents/drafts/draft_repository.dart';
@@ -2707,31 +2706,20 @@ Your exported MCP bundle can be imported into any MCP-compatible system, ensurin
 
       final classifier = ChatIntentClassifier(
         generate: ({required systemPrompt, required userPrompt, maxTokens}) async {
-          if (useCloud) {
-            return generateWithLumaraCloud(
-              systemPrompt: systemPrompt,
-              userPrompt: userPrompt,
-              maxTokens: maxTokens ?? 600,
-            );
-          }
-          return lumaraSend(system: systemPrompt, user: userPrompt);
+          return generateWithLumaraCloud(
+            systemPrompt: systemPrompt,
+            userPrompt: userPrompt,
+            maxTokens: maxTokens ?? 600,
+          );
         },
       );
 
       final researchAgent = ResearchAgent(
         getAgentOsPrefix: () => LumaraReflectionSettingsService.instance.getAgentOsPrefix(),
         generate: ({required systemPrompt, required userPrompt, maxTokens}) async {
-          if (useCloud) {
-            return generateWithLumaraCloud(
-              systemPrompt: systemPrompt,
-              userPrompt: userPrompt,
-              maxTokens: maxTokens ?? 1200,
-            );
-          }
-          final groq = GroqService(apiKey: apiKey!);
-          return groq.generateContent(
-            prompt: userPrompt,
+          return generateWithLumaraCloud(
             systemPrompt: systemPrompt,
+            userPrompt: userPrompt,
             maxTokens: maxTokens ?? 1200,
           );
         },
@@ -2742,17 +2730,9 @@ Your exported MCP bundle can be imported into any MCP-compatible system, ensurin
         draftRepository: WritingDraftRepositoryImpl(),
         getAgentOsPrefix: () => LumaraReflectionSettingsService.instance.getAgentOsPrefix(),
         generateContent: ({required systemPrompt, required userPrompt, maxTokens}) async {
-          if (useCloud) {
-            return generateWithLumaraCloud(
-              systemPrompt: systemPrompt,
-              userPrompt: userPrompt,
-              maxTokens: maxTokens ?? 800,
-            );
-          }
-          final groq = GroqService(apiKey: apiKey!);
-          return groq.generateContent(
-            prompt: userPrompt,
+          return generateWithLumaraCloud(
             systemPrompt: systemPrompt,
+            userPrompt: userPrompt,
             maxTokens: maxTokens ?? 800,
           );
         },

@@ -22,7 +22,7 @@ class EPIJournalRepository implements JournalRepository {
   @override
   Future<List<JournalEntry>> getAll() async {
     try {
-      final arcEntries = _arcRepo.getAllJournalEntries();
+      final arcEntries = await _arcRepo.getAllJournalEntries();
       return arcEntries.map((entry) => JournalEntry(
         id: entry.id,
         title: entry.title,

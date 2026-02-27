@@ -4,8 +4,8 @@
 
 import 'dart:convert';
 import 'package:flutter/services.dart';
-import 'lumara_prompt_encouragement.dart';
-import 'lumara_therapeutic_presence.dart';
+import '../lumara_prompt_encouragement.dart';
+import '../lumara_therapeutic_presence.dart';
 
 /// Context tags for LUMARA prompts
 enum LumaraContext {

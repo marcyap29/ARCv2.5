@@ -1,11 +1,13 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/services/firebase_auth_service.dart';
+import 'package:my_app/services/lumara/pii_scrub.dart';
+import 'package:my_app/shared/app_colors.dart';
 
 /// Google Apps Script URL for bug report submissions
 /// This endpoint appends bug reports to a Google Sheet
@@ -19,11 +21,11 @@ class BugReportDialog extends StatefulWidget {
   static bool _isDialogOpen = false;
   
   static Future<void> show(BuildContext context) async {
-    print('DEBUG: BugReportDialog.show() called');
-    
+    if (kDebugMode) print('DEBUG: BugReportDialog.show() called');
+
     // Prevent multiple dialogs from opening
     if (_isDialogOpen) {
-      print('DEBUG: Bug report dialog already open, ignoring shake');
+      if (kDebugMode) print('DEBUG: Bug report dialog already open, ignoring shake');
       return;
     }
     
@@ -31,15 +33,15 @@ class BugReportDialog extends StatefulWidget {
     final prefs = await SharedPreferences.getInstance();
     final isEnabled = prefs.getBool('shake_to_report_enabled') ?? true;
     
-    print('DEBUG: shake_to_report_enabled = $isEnabled');
-    
+    if (kDebugMode) print('DEBUG: shake_to_report_enabled = $isEnabled');
+
     if (!isEnabled) {
-      print('DEBUG: Shake to report is disabled, not showing dialog');
+      if (kDebugMode) print('DEBUG: Shake to report is disabled, not showing dialog');
       return;
     }
     
     if (context.mounted) {
-      print('DEBUG: Showing bug report dialog');
+      if (kDebugMode) print('DEBUG: Showing bug report dialog');
       _isDialogOpen = true;
       await showModalBottomSheet(
         context: context,
@@ -47,12 +49,11 @@ class BugReportDialog extends StatefulWidget {
         backgroundColor: Colors.transparent,
         builder: (context) => const BugReportDialog(),
       ).whenComplete(() {
-        // Reset flag when dialog is closed
         _isDialogOpen = false;
-        print('DEBUG: Bug report dialog closed, flag reset');
+        if (kDebugMode) print('DEBUG: Bug report dialog closed, flag reset');
       });
     } else {
-      print('DEBUG: Context not mounted, cannot show dialog');
+      if (kDebugMode) print('DEBUG: Context not mounted, cannot show dialog');
     }
   }
 
@@ -94,7 +95,7 @@ class _BugReportDialogState extends State<BugReportDialog> {
         _appVersion = 'v${packageInfo.version} (${packageInfo.buildNumber})';
       });
     } catch (e) {
-      print('Error loading device info: $e');
+      if (kDebugMode) print('Error loading device info: $e');
     }
   }
 
@@ -120,14 +121,16 @@ class _BugReportDialogState extends State<BugReportDialog> {
     setState(() => _isSubmitting = true);
 
     try {
-      // Get user info if available
       final authService = FirebaseAuthService.instance;
       final userId = authService.currentUser?.uid ?? 'anonymous';
       final userEmail = authService.currentUser?.email ?? '';
-      
-      // Build the bug report payload
+
+      // Scrub PII from description before send/storage (users may paste journal content)
+      final rawDescription = _descriptionController.text.trim();
+      final scrubbedDescription = PiiScrubber.rivetScrub(rawDescription);
+
       final reportData = {
-        'description': _descriptionController.text.trim(),
+        'description': scrubbedDescription,
         'device': _includeDeviceInfo ? (_deviceInfo ?? 'Unknown') : 'Not included',
         'appVersion': _includeDeviceInfo ? (_appVersion ?? 'Unknown') : 'Not included',
         'userId': userId,
@@ -147,7 +150,7 @@ class _BugReportDialogState extends State<BugReportDialog> {
       // Check response
       final success = response.statusCode == 200 || response.statusCode == 302;
       
-      // Also store locally as backup
+      // Store locally as backup (description already scrubbed in reportData)
       final prefs = await SharedPreferences.getInstance();
       final existingReports = prefs.getStringList('bug_reports') ?? [];
       existingReports.add('${DateTime.now().toIso8601String()}: ${reportData.toString()}');
@@ -172,11 +175,13 @@ class _BugReportDialogState extends State<BugReportDialog> {
         }
       }
     } catch (e) {
-      // Store locally on error
+      // Store locally on error (scrub description before storing)
       try {
         final prefs = await SharedPreferences.getInstance();
         final existingReports = prefs.getStringList('bug_reports') ?? [];
-        existingReports.add('${DateTime.now().toIso8601String()}: ${_descriptionController.text.trim()}');
+        final scrubbedDesc =
+            PiiScrubber.rivetScrub(_descriptionController.text.trim());
+        existingReports.add('${DateTime.now().toIso8601String()}: $scrubbedDesc');
         await prefs.setStringList('bug_reports', existingReports);
       } catch (_) {}
       

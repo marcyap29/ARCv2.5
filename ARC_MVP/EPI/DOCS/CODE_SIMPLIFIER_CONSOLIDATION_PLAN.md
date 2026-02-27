@@ -131,6 +131,7 @@ Agents operate in parallel where dependencies allow. Each agent should follow th
 | Work package | Files removed | Lines removed (approx) | Notable changed files |
 |--------------|---------------|------------------------|------------------------|
 | P1-DUP | 1 | ~400 | Deleted `lib/arc/internal/mira/version_service.dart`; `mira_internal.dart` exports `journal_version_service.dart` |
+| **SentinelRiskDetector** | 1 | ~1393 | Deleted `lib/prism/atlas/sentinel/sentinel_risk_detector.dart`; `prism/atlas/index.dart` re-exports from `prism/extractors` (2026-02-26) |
 | P1-QUICK | 0 | — | Single QuickActionsService in `lib/arc/ui/quick_actions_service.dart`; widget_* import it |
 | P1-IMPORTS | 0 | varies | Analyzer-driven unused imports/dead code (per Agent E run) |
 | P1-CHRONICLE / P1-PHASE | 0 | — | Repo/phase wiring; see P2-REPOS |

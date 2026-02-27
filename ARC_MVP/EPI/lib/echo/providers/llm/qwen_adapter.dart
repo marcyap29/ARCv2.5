@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'model_adapter.dart';
+import 'package:my_app/core/llm/model_adapter.dart';
 import 'lumara_native.dart';
 import 'prompt_templates.dart';
 import 'package:my_app/core/app_flags.dart';

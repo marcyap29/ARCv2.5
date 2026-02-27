@@ -51,8 +51,8 @@ export 'rivet/rivet_service.dart';
 export 'rivet/rivet_storage.dart';
 export 'rivet/rivet_telemetry.dart';
 
-// SENTINEL risk detection exports
+// SENTINEL risk detection exports (canonical: prism/extractors)
 // Severity Evaluation and Negative Trend Identification
 // Monitors keyword patterns over time to detect escalating risk levels
-export 'sentinel/sentinel_risk_detector.dart';
+export 'package:my_app/prism/extractors/sentinel_risk_detector.dart';
 

@@ -1,6 +1,6 @@
 # DevSecOps Security Audit
 
-**Date:** 2026-02-19 (audit run)  
+**Date:** 2026-02-26 (audit run; fixes applied)  
 **Scope:** Full security audit — all 20 domains (PII/egress, auth, secrets, input, storage, network, logging, flags, dependencies, rate limit, errors, session, crypto, retention, compliance, permissions, sensitive UI, build/CI, audit trail, deep links).  
 **Intent:** Maximize security, minimize leakage, ensure users are protected.  
 **Reference:** `DOCS/claude.md` — DevSecOps Security Audit Role (Universal Prompt).
@@ -26,6 +26,9 @@
 | **lumara_veil_edge_integration.dart** | — | N/A — geminiSend call commented out | Active path uses fallback only |
 | **PrivacyGuardrailInterceptor** | system, user | Block-on-PII (no scrub) | Not used in main flow |
 | **AssemblyAI / STT** | Audio | N/A — transcript then scrubbed before LUMARA | — |
+| **lumara_cloud_generate.dart** (Groq direct path) | system, user | ✅ Yes — **FIXED 2026-02-26:** PRISM scrub + `isSafeToSend` before `GroqService`; PII restore on response. When signed in, uses `lumaraSend` (already scrubbed). | Direct Groq path (API key, not proxy) now scrubs before send |
+| **intelligence_summary_generator.dart** | Entries, annotations, CHRONICLE, patterns | ✅ Yes — **FIXED 2026-02-26:** PRISM scrub + `isSafeToSend` before Groq; PII restore on response | Was bypassing scrubbing; now scrubs synthesis prompt |
+| **bug_report_dialog.dart** | description, userId, userEmail | ✅ Yes — **FIXED 2026-02-26:** Description scrubbed via `PiiScrubber.rivetScrub` before send and local storage | userId/email retained for support follow-up |
 
 **Reversible maps:** Local restore only; never in request payloads. `VoiceConversationTurn.toRemoteJson()` and `VoiceSession.toRemoteJson()` omit `prism_reversible_map`; local JSON may include it for restore only — ensure backup/export flows that sync to cloud use remote serialization.
 
@@ -91,7 +94,8 @@
 
 ## 7. Logging & Observability
 
-- **Finding — PII in logs:** Several files log user identifiers or tokens: `firebase_auth_service.dart` and `subscription_service.dart` log email and UID in debugPrint; `subscription_management_view.dart` logs email and token length/preview; `unified_transcription_service.dart` logs currentUser email. `gemini_send.dart` uses `print()` for DEBUG GEMINI, PRISM redaction counts, and LOCAL AUDIT (window ID, token classes) — no raw user content but verbose. **Recommendation:** Guard all such logs with `kReleaseMode` or a log level so production builds do not emit PII, UID, email, or token hints.
+- **FIXED 2026-02-26:** `llm_bridge_adapter.dart` — logs now guarded with `kDebugMode`; removed response preview (could contain PII); user intent/phase/keywords no longer logged verbatim in production. `bug_report_dialog.dart` — debug prints guarded with `kDebugMode`.
+- **Finding — PII in logs:** Several other files may still log user identifiers: `firebase_auth_service.dart`, `subscription_service.dart`, `subscription_management_view.dart`, `unified_transcription_service.dart`. `gemini_send.dart` uses `print()` for DEBUG GEMINI (guarded with `kDebugMode`). **Recommendation:** Continue guarding sensitive logs with `kDebugMode`.
 - **Token/keys:** API key is not logged raw; WisprFlow redacts key with `'***'`. AssemblyAI provider logs token substring — reduce for production. api_config uses masked key.
 - **Sentry:** Commented out in pubspec (`# sentry_flutter`); when enabled, ensure no PII or full request/response in breadcrumbs or context.
 - **Recommendation:** Use release-mode guards or log levels to avoid logging email/UID/token in production; avoid logging request/response bodies; remove or guard `print()` in production for security-sensitive files.
@@ -196,7 +200,7 @@
 
 ## Summary
 
-- **PII/egress:** Implemented and verified; all frontier-model paths scrub before send; reversible maps local-only. **Fixed:** LumaraInlineApi now passes scrubbed text in `generateSofterReflection` and `generateDeeperReflection`. Streaming path uses client-side API key — prefer proxy when possible.
+- **PII/egress:** Implemented and verified; all frontier-model paths scrub before send; reversible maps local-only. **Fixed:** LumaraInlineApi, lumara_cloud_generate (Groq direct path), intelligence_summary_generator, bug_report_dialog. Streaming path uses client-side API key — prefer proxy when possible.
 - **Auth:** Backend callables enforce `request.auth`; signOut clears subscription and AssemblyAI caches; token refresh and dispose in place.
 - **Secrets:** Gemini key in Firebase secrets for non-streaming path; streaming uses LumaraAPIConfig. AssemblyAI via callable; API config masks keys in logs. Recommendation: mask or disable token substring and email/UID in production logs.
 - **Storage/crypto:** Flutter secure storage and Keychain/Secure Enclave used for sensitive data; no reversible maps in remote/backup payloads; `toRemoteJson()` correctly omits prism maps.
@@ -213,9 +217,13 @@
 | Priority | Item | Action |
 |----------|------|--------|
 | High | LumaraInlineApi PII leak | **Done** — generateSofterReflection and generateDeeperReflection now pass scrubbed text. |
+| High | lumara_cloud_generate Groq path | **Done 2026-02-26** — PRISM scrub + isSafeToSend before GroqService; PII restore on response. |
+| High | Intelligence summary PII egress | **Done 2026-02-26** — PrismAdapter scrub before Groq; PII restore on response. |
+| Medium | Bug report PII | **Done 2026-02-26** — Description scrubbed with PiiScrubber before send and local storage. |
+| Medium | llm_bridge_adapter logging | **Done 2026-02-26** — Logs guarded with kDebugMode; response preview removed. |
 | Medium | Streaming path API key | Documented in `geminiSendStream` doc comment; prefer non-streaming proxy when possible. |
 | Medium | Production logging | **Done** — gemini_send, firebase_auth_service, subscription_service, assemblyai_service guard print/debugPrint with `kDebugMode`. |
-| Medium | Rate limiting | **Done** — proxyGemini enforces free-tier daily limit (50/day) via Firestore `lumaraDailyUsage`. |
+| Medium | Rate limiting | **Done** — proxyGroq enforces free-tier daily limit (50/day) via Firestore `lumaraDailyUsage`. |
 | Low | Egress payload test | **Done** — `test/services/egress_pii_and_lumara_inline_test.dart`: PrismAdapter and PiiScrubber egress tests. |
 | Low | LumaraInlineApi test | **Done** — same file: rivetScrub used for softer/deeper reflection removes PII. |
 | Low | Dependency checks | Use dart pub outdated and/or Dependabot/Snyk; no dart pub audit in SDK. |

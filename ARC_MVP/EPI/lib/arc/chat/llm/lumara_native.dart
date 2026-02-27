@@ -4,7 +4,7 @@
 import 'dart:async';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
-import '../../core/app_flags.dart';
+import 'package:my_app/core/app_flags.dart';
 
 class DeviceCapabilities {
   final int totalRamMB;

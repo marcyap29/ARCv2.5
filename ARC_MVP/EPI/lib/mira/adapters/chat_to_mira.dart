@@ -81,7 +81,7 @@ class ChatToMiraAdapter {
           timestamp: message.createdAt,
           messageOrder: i,
         );
-        await _miraService.addEdge(containsEdge);
+        await _miraService.repo.upsertEdge(containsEdge);
         result.syncedEdges++;
       }
 

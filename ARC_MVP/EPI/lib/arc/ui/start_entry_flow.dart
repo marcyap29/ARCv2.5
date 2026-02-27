@@ -11,8 +11,8 @@ import 'package:my_app/shared/text_style.dart';
 import 'package:my_app/core/i18n/copy.dart';
 import 'package:my_app/data/models/media_item.dart';
 import 'package:my_app/arc/core/media/media_capture_sheet.dart';
-import 'package:my_app/arc/core/media/media_strip.dart';
-import 'package:my_app/arc/core/media/media_preview_dialog.dart';
+import 'package:my_app/arc/ui/media/media_strip.dart';
+import 'package:my_app/arc/ui/media/media_preview_dialog.dart';
 import 'package:my_app/core/services/media_store.dart';
 
 class StartEntryFlow extends StatefulWidget {

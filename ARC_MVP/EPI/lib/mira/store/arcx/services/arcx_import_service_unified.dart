@@ -162,7 +162,7 @@ class UnifiedARCXImportService {
           arcxPath: arcxPath,
           options: v2Options,
           password: password,
-          onProgress: onProgress != null ? (msg, [f]) => onProgress(msg) : null,
+          onProgress: onProgress != null ? (msg, [f = 0.0]) => onProgress(msg) : null,
         );
         
         return UnifiedARCXImportResult.fromV2(result);

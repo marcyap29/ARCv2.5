@@ -8,8 +8,8 @@ import '../models/veil_edge_models.dart';
 import '../core/veil_edge_router.dart';
 import '../core/rivet_policy_engine.dart';
 import '../registry/prompt_registry.dart';
-import '../../../aurora/services/circadian_profile_service.dart';
-import '../../../aurora/models/circadian_context.dart';
+import 'package:my_app/aurora/services/circadian_profile_service.dart';
+import 'package:my_app/aurora/models/circadian_context.dart';
 import 'package:my_app/services/app_repos.dart';
 
 /// Main VEIL-EDGE service for phase-reactive restorative layer with AURORA integration
@@ -45,7 +45,7 @@ class VeilEdgeService {
   }) async {
     try {
       // Get recent journal entries for circadian analysis
-      final recentEntries = _journalRepo.getAllJournalEntries();
+      final recentEntries = await _journalRepo.getAllJournalEntries();
       
       // Compute circadian context
       final circadianContext = await _aurora.compute(recentEntries);
@@ -183,19 +183,19 @@ class VeilEdgeService {
 
   /// Get current circadian context
   Future<CircadianContext> getCurrentCircadianContext() async {
-    final recentEntries = _journalRepo.getAllJournalEntries();
+    final recentEntries = await _journalRepo.getAllJournalEntries();
     return await _aurora.compute(recentEntries);
   }
 
   /// Get circadian profile with detailed analysis
   Future<CircadianProfile> getCircadianProfile() async {
-    final recentEntries = _journalRepo.getAllJournalEntries();
+    final recentEntries = await _journalRepo.getAllJournalEntries();
     return await _aurora.computeProfile(recentEntries);
   }
 
   /// Check if journal entries provide sufficient data for reliable circadian analysis
-  bool hasSufficientCircadianData() {
-    final entries = _journalRepo.getAllJournalEntries();
+  Future<bool> hasSufficientCircadianData() async {
+    final entries = await _journalRepo.getAllJournalEntries();
     return _aurora.hasSufficientData(entries);
   }
 
@@ -203,7 +203,7 @@ class VeilEdgeService {
   Future<Map<String, dynamic>> getStatus() async {
     final rivetState = getCurrentRivetState();
     final circadianContext = await getCurrentCircadianContext();
-    final hasData = hasSufficientCircadianData();
+    final hasData = await hasSufficientCircadianData();
 
     return {
       'service': 'veil_edge',
@@ -300,7 +300,7 @@ class VeilEdgeApi {
       final context = await _service.getCurrentCircadianContext();
       return {
         'circadian_context': context.toJson(),
-        'data_sufficient': _service.hasSufficientCircadianData(),
+        'data_sufficient': await _service.hasSufficientCircadianData(),
       };
     } catch (e) {
       return {
@@ -318,7 +318,7 @@ class VeilEdgeApi {
       final profile = await _service.getCircadianProfile();
       return {
         'circadian_profile': profile.toJson(),
-        'data_sufficient': _service.hasSufficientCircadianData(),
+        'data_sufficient': await _service.hasSufficientCircadianData(),
       };
     } catch (e) {
       return {

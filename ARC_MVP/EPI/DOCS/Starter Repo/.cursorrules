@@ -1,0 +1,18 @@
+# Cursor Rules — [Project Name]
+
+# Documentation
+- Update DOCS/ when making architectural or behavioral changes.
+- Run doc sync before significant git pushes (see claude.md).
+- Keep CHANGELOG.md, CONFIGURATION_MANAGEMENT.md, and bugtracker/ in sync with code changes.
+
+# Code style
+- Follow existing conventions in the codebase.
+- Prefer readability and maintainability over cleverness.
+
+# Bug tracking
+- Add a bug record in DOCS/bugtracker/records/ when fixing a non-trivial bug.
+- Link fixes to CHANGELOG entries in the "Recent code changes" table.
+
+# Architecture
+- Respect module boundaries and data flow (see ARCHITECTURE.md).
+- Do not introduce dependencies that conflict with documented architecture.

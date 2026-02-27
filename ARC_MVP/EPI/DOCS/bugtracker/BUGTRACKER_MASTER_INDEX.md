@@ -1,8 +1,8 @@
 # EPI MVP – Bugtracker Master Index
 
-**Document Version:** 1.4.0  
-**Last Updated:** 2026-02-25  
-**Change Summary:** Bugtracker-consolidator run 2026-02-25: 1 new record indexed (BUG-LUMARA-GTM-001 — lumara-gtm-double-groq-call.md); record count 38 → 39; master index synced  
+**Document Version:** 1.5.0  
+**Last Updated:** 2026-02-26  
+**Change Summary:** Bugtracker Discovery & Consolidation run 2026-02-26: 1 new record (BUG-ANALYZER-001 — static-analysis-findings-feb-2026.md); record count 39 → 40; BUGTRACKER_TRIAGE_BACKLOG added; static analysis 349+ errors documented  
 **Editor:** Bugtracker-consolidator (DOCS/claude.md)
 
 ---
@@ -11,9 +11,9 @@
 
 This is the **canonical master index** for the EPI MVP Bug Tracker. The bugtracker consolidates all bug information into a standardized, versioned structure with a primary category index, individual records, and chronological/chronicle-style parts.
 
-### Consolidation Statistics (2026-02-25)
+### Consolidation Statistics (2026-02-26)
 
-- **Individual records:** 39 detailed bug reports in [records/](records/)
+- **Individual records:** 40 detailed bug reports in [records/](records/)
 - **Primary index:** [bug_tracker.md](bug_tracker.md) — category index, links to all records, recent code changes table
 - **Changelog-style parts:** [bug_tracker_part1.md](bug_tracker_part1.md), [bug_tracker_part2.md](bug_tracker_part2.md), [bug_tracker_part3.md](bug_tracker_part3.md) (by date range)
 - **Audit:** [BUGTRACKER_AUDIT_REPORT.md](BUGTRACKER_AUDIT_REPORT.md) — full inventory and format analysis
@@ -27,12 +27,13 @@ This is the **canonical master index** for the EPI MVP Bug Tracker. The bugtrack
 
 | Document | Coverage | Description |
 |----------|----------|-------------|
-| **[bug_tracker.md](bug_tracker.md)** | Main index | Category index (LUMARA, Timeline & UI, Export/Import, CHRONICLE, etc.), links to all 39 records, recent code changes, archive note. **Start here.** |
+| **[bug_tracker.md](bug_tracker.md)** | Main index | Category index (LUMARA, Timeline & UI, Export/Import, CHRONICLE, Build & Platform, etc.), links to all 40 records, recent code changes, archive note. **Start here.** |
 | **[bug_tracker_part1.md](bug_tracker_part1.md)** | Dec 2025 – Jan 2026 | v2.1.43 – v2.1.86 (recent) |
 | **[bug_tracker_part2.md](bug_tracker_part2.md)** | Nov 2025 | v2.1.27 – v2.1.42 |
 | **[bug_tracker_part3.md](bug_tracker_part3.md)** | Jan – Oct 2025 | v2.0.0 – v2.1.26 & earlier |
-| **records/** | Per-bug | 39 detailed bug reports; each linked from bug_tracker.md |
-| **[BUGTRACKER_AUDIT_REPORT.md](BUGTRACKER_AUDIT_REPORT.md)** | Audit | Inventory, format analysis, recommendations (consolidator Phase 1) |
+| **records/** | Per-bug | 40 detailed bug reports; each linked from bug_tracker.md |
+| **[BUGTRACKER_AUDIT_REPORT.md](BUGTRACKER_AUDIT_REPORT.md)** | Audit | Inventory, format analysis, static analysis findings, recommendations (consolidator Phase 1) |
+| **[BUGTRACKER_TRIAGE_BACKLOG.md](BUGTRACKER_TRIAGE_BACKLOG.md)** | Triage | Prioritized backlog for BUG-ANALYZER-001 and related fixes |
 | **archive/** | Legacy | BUG_TRACKER_MASTER_INDEX (superseded by this file), BUG_TRACKER_PART1_CRITICAL, Bug_Tracker.md, Bug_Tracker-1..9 |
 
 ---
@@ -176,6 +177,6 @@ Common fix types observed across records (details in [archive/BUG_TRACKER_PART1_
 
 ---
 
-**Last synchronized:** 2026-02-25  
+**Last synchronized:** 2026-02-26  
 **Next review due:** 2026-03-20  
-**Master index version:** 1.4.0
+**Master index version:** 1.5.0

@@ -86,7 +86,7 @@ class TestingModeDisplay extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: _getInterventionColor(_getInterventionLevel()).shade100,
+                color: (_getInterventionColor(_getInterventionLevel()) as MaterialColor).shade100,
                 border: Border.all(
                   color: _getInterventionColor(_getInterventionLevel()),
                   width: 2
@@ -107,7 +107,7 @@ class TestingModeDisplay extends StatelessWidget {
                         'INTERVENTION LEVEL ${_getInterventionLevel()}',
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
-                          color: _getInterventionColor(_getInterventionLevel()).shade900,
+                          color: (_getInterventionColor(_getInterventionLevel()) as MaterialColor).shade900,
                         ),
                       ),
                     ],

@@ -1,7 +1,29 @@
 # EPI LUMARA MVP - Changelog
 
-**Version:** 3.3.59
-**Last Updated:** February 25, 2026
+**Version:** 3.3.59.1
+**Last Updated:** February 26, 2026
+
+---
+
+## [3.3.59.1] - February 26, 2026
+
+### DevSecOps Security Audit Fixes
+
+Addresses findings from the DevSecOps Security Audit (DOCS/DEVSECOPS_SECURITY_AUDIT.md):
+
+#### PII Egress
+- **lumara_cloud_generate.dart:** Groq direct path (when user has API key but not signed in) now scrubs via PrismAdapter before send; `isSafeToSend` guard; PII restore on response.
+- **intelligence_summary_generator.dart:** Synthesis prompt (entries, annotations, CHRONICLE, patterns) now scrubbed via PrismAdapter before Groq; PII restore on response.
+- **lumara_assistant_cubit.dart:** Chat orchestrator (classifier, ResearchAgent, WritingAgent) now routes all LLM calls through `generateWithLumaraCloud` (scrubbed) instead of direct GroqService.
+- **bug_report_dialog.dart:** Description scrubbed via `PiiScrubber.rivetScrub` before webhook send and local backup storage.
+
+#### Logging
+- **llm_bridge_adapter.dart:** Logs guarded with `kDebugMode`; removed response preview; user intent/phase/keywords no longer logged verbatim in production.
+- **bug_report_dialog.dart, intelligence_summary_generator.dart:** Debug prints guarded with `kDebugMode`.
+
+**Process applied to this iteration:** Code consolidation prompts (CODE_SIMPLIFIER_CONSOLIDATION_PLAN, CODE_SIMPLIFIER_SCAN_REPORT), bug tracking prompts (bugtracker triage, BUGTRACKER_TRIAGE_BACKLOG, static-analysis-findings-feb-2026), and DevSecOps security audit prompts (DEVSECOPS_SECURITY_AUDIT.md) have been applied to the current repo state.
+
+**Design validation (Feb 2026):** This version of LUMARA is possibly the most powerful and helpful instance to date. It has done more in recent answers to serve as a viable thinking partner than any other iteration — a strong signal that the vision reposition, dual prompt mode, personality onboarding, and GPT-OSS 120B architecture are delivering on the "lifetime personal AI" promise.
 
 ---
 

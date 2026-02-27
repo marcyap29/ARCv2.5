@@ -1,9 +1,9 @@
 # Bugtracker Consolidation Audit Report
 
-**Document Version:** 1.2.0  
-**Last Updated:** 2026-02-25  
-**Change Summary:** Consolidator run 2026-02-25: 1 new record indexed (BUG-LUMARA-GTM-001 — lumara-gtm-double-groq-call.md); record count 38 → 39; inventory updated  
-**Methodology:** Phase 1 – Comprehensive scan, archive mining, format analysis, data inventory
+**Document Version:** 1.3.0  
+**Last Updated:** 2026-02-26  
+**Change Summary:** Bugtracker Discovery & Consolidation run 2026-02-26: 1 new record (BUG-ANALYZER-001 — static-analysis-findings-feb-2026.md); record count 39 → 40; static analysis run (349+ errors); git commit 7ab2a51dd since last update; triage backlog created  
+**Methodology:** Phase 1 – Comprehensive scan, archive mining, format analysis, data inventory, static analysis
 
 ---
 
@@ -24,10 +24,11 @@ The EPI MVP bugtracker has been audited against the bugtracker-consolidator meth
 | **bug_tracker_part2.md** | DOCS/bugtracker/ | Chronological: Nov 2025 (v2.1.27–v2.1.42) | — |
 | **bug_tracker_part3.md** | DOCS/bugtracker/ | Chronological: Jan–Oct 2025 (v2.0.0–v2.1.26 & earlier) | — |
 
-### 2.2 Individual Bug Records (39 files)
+### 2.2 Individual Bug Records (40 files)
 
 All in **DOCS/bugtracker/records/**:
 
+- static-analysis-findings-feb-2026.md *(BUG-ANALYZER-001 — added 2026-02-26; dart analyze 349+ errors)*
 - lumara-gtm-double-groq-call.md *(BUG-LUMARA-GTM-001 — added 2026-02-25)*
 - build-fixes-session-feb-2026.md  
 - ollama-serve-address-in-use-and-quit-command.md  
@@ -134,6 +135,10 @@ No **loss of bug data** was identified; all 38 records are referenced from the m
 
 **Consolidator run 2026-02-25 additions:** One record indexed: `lumara-gtm-double-groq-call.md` (BUG-LUMARA-GTM-001 — MEDIUM GTMSessionFetcher "already running" warning caused by duplicate proxyGroq calls via `_tryChatAgentPath` LLM classifier + TCP dirty-state; fixed 2026-02-24 with keyword pre-filter, `_savePendingInput` race fix, and `groqSend` retry). No new component tags. Record count 38 → 39.
 
+**Discovery run 2026-02-26 additions:**
+- **Git since last update (2026-02-25):** Commit 7ab2a51dd — feat: chat refactor — remove category management/session_view; add chat_export_models, CHAT_CONTEXT_ARCHITECTURE; lumara_chat_redesign as main; Code Simplifier metrics/docs; LUMARA, voice, feed, onboarding, settings updates. May contribute to static analysis errors (package/import changes).
+- **Static analysis:** `dart analyze` reports 349+ errors in lib/, test/, tool/. New record `static-analysis-findings-feb-2026.md` (BUG-ANALYZER-001) documents all findings with context, root cause, and fix guidance. Record count 39 → 40.
+
 ---
 
 ## 5. Historical Timeline and Evolution
@@ -159,10 +164,27 @@ No **loss of bug data** was identified; all 38 records are referenced from the m
 - **Comprehensive scan:** Done (all bugtracker dirs, archive, CHANGELOG, DOCS references).
 - **Archive mining:** Done (archive list and role of each document).
 - **Format analysis:** Done (mandatory structure vs current state by asset).
-- **Data inventory:** Done (39 records listed; primary and archive documents listed).
+- **Data inventory:** Done (40 records listed; primary and archive documents listed).
 - **Zero information loss:** Confirmed (no bugs removed; master index and audit report add traceability).
+- **Static analysis:** Done (dart analyze 2026-02-26; findings in BUG-ANALYZER-001).
+
+---
+
+## 8. Static Analysis Findings (2026-02-26)
+
+**Command run:** `dart analyze` in ARC_MVP/EPI  
+**Result:** 349+ errors (exit code 3)
+
+**Summary by location:**
+- **lib/:** ~53 errors — broken imports, missing files, type mismatches (Ollama, Veil Edge, Aurora, ECHO, MIRA, PRISM, Onboarding, Start Entry Flow, Widget Quick Actions)
+- **test/:** ~290+ errors — stale tests (package paths, removed enums/params, missing mocks, First Responder mode removed)
+- **tool/:** ~6+ errors — MCP CLI import paths
+
+**Artifacts produced:**
+- `records/static-analysis-findings-feb-2026.md` (BUG-ANALYZER-001) — full inventory with fix guidance
+- `BUGTRACKER_TRIAGE_BACKLOG.md` — prioritized backlog for resolution
 
 ---
 
 **Next Review:** Align with BUGTRACKER_MASTER_INDEX.md "Next Review Due" (2026-03-20).
-**Documentation Updated:** 2026-02-25
+**Documentation Updated:** 2026-02-26
