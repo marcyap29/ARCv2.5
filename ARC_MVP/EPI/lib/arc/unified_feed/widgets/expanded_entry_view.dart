@@ -23,6 +23,7 @@ import 'package:my_app/ui/widgets/full_image_viewer.dart';
 import 'package:my_app/arc/chat/chat/chat_repo_impl.dart';
 import 'package:my_app/arc/chat/bloc/lumara_assistant_cubit.dart';
 import 'package:my_app/arc/chat/ui/lumara_chat_redesign_screen.dart';
+import 'package:my_app/arc/chat/widgets/lumara_message_body.dart';
 
 class ExpandedEntryView extends StatelessWidget {
   final FeedEntry entry;
@@ -341,7 +342,16 @@ class ExpandedEntryView extends StatelessWidget {
           fontSize: 14,
           height: 1.5,
         );
-        final paragraphWidgets = _buildParagraphWidgets(context, msg.content, msgStyle);
+        final Widget contentWidget = isUser
+            ? Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: _buildParagraphWidgets(context, msg.content, msgStyle),
+              )
+            : LumaraMessageBody(
+                content: msg.content,
+                textStyle: msgStyle,
+                linkColor: kcPrimaryColor,
+              );
         return Padding(
           padding: const EdgeInsets.only(bottom: 16),
           child: Row(
@@ -370,10 +380,7 @@ class ExpandedEntryView extends StatelessWidget {
                         : kcSurfaceAltColor,
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: paragraphWidgets,
-                  ),
+                  child: contentWidget,
                 ),
               ),
               if (!isUser) const SizedBox(width: 32),
@@ -586,14 +593,14 @@ class ExpandedEntryView extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 10),
-          ..._buildParagraphWidgets(
-            context,
-            block.content,
-            TextStyle(
+          LumaraMessageBody(
+            content: block.content,
+            textStyle: TextStyle(
               color: kcPrimaryTextColor.withOpacity(0.9),
               fontSize: 14,
               height: 1.55,
             ),
+            linkColor: kcPrimaryColor,
           ),
         ],
       ),
@@ -614,9 +621,10 @@ class ExpandedEntryView extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: kcPrimaryColor.withOpacity(0.12)),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: _buildParagraphWidgets(context, raw, baseStyle),
+      child: LumaraMessageBody(
+        content: raw,
+        textStyle: baseStyle,
+        linkColor: kcPrimaryColor,
       ),
     );
   }

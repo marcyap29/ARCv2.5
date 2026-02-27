@@ -1,7 +1,7 @@
 # EPI MVP - Bug Tracker
 
 **Version:** 3.5.0  
-**Last Updated:** 2026-02-26  
+**Last Updated:** 2026-02-25  
 **Record count:** 40 individual bug records in [records/](records/). Index below matches all files in records/.
 
 **Master index & format:** For overview, document structure, standardized bug entry format, and maintenance procedures see [BUGTRACKER_MASTER_INDEX.md](BUGTRACKER_MASTER_INDEX.md). New records should follow the BUG-[ID] format (🐛🔧🎯📋) when possible; see audit [BUGTRACKER_AUDIT_REPORT.md](BUGTRACKER_AUDIT_REPORT.md).
@@ -158,8 +158,9 @@ This section is derived from the repo and [CHANGELOG.md](../CHANGELOG.md) to kee
 | Chat refactor (category mgmt, lumara_chat_redesign) | 7ab2a51dd | — | 2026-02-26: Remove category management/session_view; add chat_export_models, CHAT_CONTEXT_ARCHITECTURE; lumara_chat_redesign as main; Code Simplifier metrics/docs. |
 | Static analysis 349+ errors | — | [static-analysis-findings-feb-2026.md](records/static-analysis-findings-feb-2026.md) | 2026-02-26: BUG-ANALYZER-001 — dart analyze reports lib/test/tool errors; BUGTRACKER_TRIAGE_BACKLOG created. |
 | Bugtracker Discovery & Consolidation run | — | — | 2026-02-26: BUG-ANALYZER-001 indexed; record count 39 → 40; BUGTRACKER_AUDIT_REPORT, BUGTRACKER_MASTER_INDEX, BUGTRACKER_TRIAGE_BACKLOG, bug_tracker refreshed. |
+| Entry citation format; chat/timeline/journal UI refinements | v3.3.59.2 | — | 2026-02-25: lumara_master_prompt ENTRY CITATION FORMAT; lumara_chat_redesign_screen, lumara_message_body, interactive_timeline_view, expanded_entry_view, journal_screen, inline_reflection_block; pubspec. |
 
-**Source:** `git log --oneline`, [CHANGELOG.md](../CHANGELOG.md), terminal build log. Last synced: 2026-02-26.
+**Source:** `git log --oneline`, [CHANGELOG.md](../CHANGELOG.md), terminal build log. Last synced: 2026-02-25.
 
 ---
 
@@ -174,4 +175,4 @@ Individual bug records stay in [records/](records/); only the legacy multi-part 
 ---
 
 **Status**: ✅ Active - All resolved issues documented; Build & Platform: 6 records (incl. BUG-ANALYZER-001 ⏳); Environment: 1 (Ollama); CHRONICLE: 1 (BUG-CHRONICLE-001 ✅); Privacy: 1 (BUG-PRISM-001 ✅); LUMARA chat/networking: 1 (BUG-LUMARA-GTM-001 ✅). Bugtracker Discovery run 2026-02-26: 1 new record indexed (40 total); BUGTRACKER_TRIAGE_BACKLOG created.  
-**Last Updated**: 2026-02-26
+**Last Updated**: 2026-02-25

@@ -16,6 +16,7 @@ import 'package:my_app/arc/chat/chat/chat_repo_impl.dart';
 import 'package:my_app/shared/widgets/lumara_icon.dart';
 import 'package:my_app/shared/widgets/lumara_thinking_dialog.dart';
 import 'package:my_app/arc/chat/widgets/attribution_display_widget.dart';
+import 'package:my_app/arc/chat/widgets/lumara_message_body.dart';
 
 class LumaraChatRedesignScreen extends StatefulWidget {
   final String? initialMessage;
@@ -396,14 +397,24 @@ class _LumaraChatRedesignScreenState extends State<LumaraChatRedesignScreen> {
                         ),
                       ),
                     ),
-                  Text(
-                    message.content,
-                    style: TextStyle(
-                      color: isUser ? Colors.white : kcPrimaryTextColor,
-                      fontSize: 15,
-                      height: 1.4,
-                    ),
-                  ),
+                  isUser
+                      ? Text(
+                          message.content,
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 15,
+                            height: 1.4,
+                          ),
+                        )
+                      : LumaraMessageBody(
+                          content: message.content,
+                          textStyle: TextStyle(
+                            color: kcPrimaryTextColor,
+                            fontSize: 15,
+                            height: 1.4,
+                          ),
+                          linkColor: kcPrimaryColor,
+                        ),
                   if (!isUser && message.attributionTraces != null && message.attributionTraces!.isNotEmpty)
                     AttributionDisplayWidget(
                       traces: message.attributionTraces!,
@@ -432,6 +443,7 @@ class _LumaraChatRedesignScreenState extends State<LumaraChatRedesignScreen> {
         border: Border(top: BorderSide(color: kcBorderColor)),
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           IconButton(
             icon: const Icon(Icons.add_circle_outline, color: kcSecondaryTextColor),
@@ -456,6 +468,10 @@ class _LumaraChatRedesignScreenState extends State<LumaraChatRedesignScreen> {
                 isDense: true,
               ),
               textCapitalization: TextCapitalization.sentences,
+              minLines: 1,
+              maxLines: 6,
+              keyboardType: TextInputType.multiline,
+              textInputAction: TextInputAction.send,
               onSubmitted: (_) => _send(_controller.text),
             ),
           ),

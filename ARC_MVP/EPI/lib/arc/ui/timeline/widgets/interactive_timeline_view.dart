@@ -17,6 +17,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:my_app/arc/ui/arcforms/arcform_renderer_state.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/widgets/lumara_icon.dart';
+import 'package:my_app/arc/chat/widgets/lumara_message_body.dart';
 import 'package:my_app/shared/text_style.dart';
 import 'package:my_app/prism/atlas/rivet/rivet_provider.dart';
 import 'package:my_app/prism/atlas/rivet/rivet_models.dart';
@@ -2899,17 +2900,14 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
             ],
           ),
           const SizedBox(height: 10),
-          Text(
-            block.content.length > 150
-                ? '${block.content.substring(0, 150)}...'
-                : block.content,
-            style: TextStyle(
+          LumaraMessageBody(
+            content: block.content,
+            textStyle: TextStyle(
               fontSize: 13,
               color: Colors.grey[800],
               height: 1.5,
             ),
-            maxLines: 4,
-            overflow: TextOverflow.ellipsis,
+            linkColor: Colors.purple[700],
           ),
           // Show user comment if present
           if (block.userComment != null && block.userComment!.trim().isNotEmpty) ...[

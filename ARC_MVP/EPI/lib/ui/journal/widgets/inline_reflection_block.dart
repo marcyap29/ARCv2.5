@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:my_app/mira/memory/enhanced_memory_schema.dart';
 import 'package:my_app/arc/chat/widgets/attribution_display_widget.dart';
+import 'package:my_app/arc/chat/widgets/lumara_message_body.dart';
 import 'package:my_app/arc/chat/services/favorites_service.dart';
 import 'package:my_app/arc/chat/data/models/lumara_favorite.dart';
 import 'package:my_app/shared/widgets/lumara_action_menu.dart';
@@ -190,8 +191,16 @@ class _InlineReflectionBlockState extends State<InlineReflectionBlock> with Sing
                     );
                   },
                 ),
-                // Reflection content (Blue color for LUMARA, distinct from user text)
-                ..._buildParagraphs(widget.content, theme),
+                // Reflection content (purple for LUMARA) with clickable entry refs
+                LumaraMessageBody(
+                  content: widget.content,
+                  textStyle: theme.textTheme.bodyMedium?.copyWith(
+                    height: 1.6,
+                    fontSize: 16,
+                    color: const Color(0xFF7C3AED),
+                    fontWeight: FontWeight.w400,
+                  ),
+                ),
                 
                 // Web source indicator
                 if (_hasWebSource()) ...[

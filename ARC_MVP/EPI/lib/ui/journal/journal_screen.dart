@@ -2363,6 +2363,15 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
                         if (_entryState.attachments.whereType<PhotoAttachment>().isNotEmpty)
                           const SizedBox(height: 16),
 
+                        // File attachments (PDF, DocX, etc.) — displayed below photos, before main text
+                        if (_entryState.attachments.whereType<FileAttachment>().isNotEmpty) ...[
+                          _buildFileAttachmentList(
+                            _entryState.attachments.whereType<FileAttachment>().toList(),
+                            theme,
+                          ),
+                          const SizedBox(height: 16),
+                        ],
+
                         // Always show the TextField (handles view-only vs edit mode internally)
                         _buildAITextField(theme),
                         const SizedBox(height: 16),
@@ -2939,12 +2948,8 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
       widgets.add(const SizedBox(height: 16));
     }
 
-    // Show file attachments (PDF, .md, Doc)
-    final fileAttachments = _entryState.attachments.whereType<FileAttachment>().toList();
-    if (fileAttachments.isNotEmpty) {
-      widgets.add(_buildFileAttachmentList(fileAttachments, theme));
-      widgets.add(const SizedBox(height: 16));
-    }
+    // File attachments are now displayed at top (after photos, before main text)
+    // — removed from interleaved content to avoid duplication
 
     // Add inline reflection blocks with continuation field after each
     for (int index = 0; index < _entryState.blocks.length; index++) {

@@ -1,7 +1,7 @@
 # EPI LUMARA MVP - Changelog
 
-**Version:** 3.3.59.1
-**Last Updated:** February 26, 2026
+**Version:** 3.3.59.2
+**Last Updated:** February 25, 2026
 
 ---
 
@@ -24,6 +24,24 @@ Addresses findings from the DevSecOps Security Audit (DOCS/DEVSECOPS_SECURITY_AU
 **Process applied to this iteration:** Code consolidation prompts (CODE_SIMPLIFIER_CONSOLIDATION_PLAN, CODE_SIMPLIFIER_SCAN_REPORT), bug tracking prompts (bugtracker triage, BUGTRACKER_TRIAGE_BACKLOG, static-analysis-findings-feb-2026), and DevSecOps security audit prompts (DEVSECOPS_SECURITY_AUDIT.md) have been applied to the current repo state.
 
 **Design validation (Feb 2026):** This version of LUMARA is possibly the most powerful and helpful instance to date. It has done more in recent answers to serve as a viable thinking partner than any other iteration — a strong signal that the vision reposition, dual prompt mode, personality onboarding, and GPT-OSS 120B architecture are delivering on the "lifetime personal AI" promise.
+
+---
+
+## [3.3.59.2] - February 25, 2026
+
+### Entry citation format; chat/timeline/journal UI refinements
+
+**Master prompt:**
+- **lumara_master_prompt.dart:** Added ENTRY CITATION FORMAT — use entry titles or descriptive phrases when citing journal entries (never raw UUIDs); for clickable links use markdown `[title or description](entry:uuid)`; applied in both intellectual_honesty and reflection sections.
+
+**UI:**
+- **lumara_chat_redesign_screen.dart, lumara_message_body.dart:** Chat layout and message body refinements.
+- **interactive_timeline_view.dart, expanded_entry_view.dart:** Timeline and feed entry view adjustments.
+- **journal_screen.dart, inline_reflection_block.dart:** Journal capture and reflection block refinements.
+
+**Dependencies:** pubspec.yaml / pubspec.lock updated.
+
+**Design validation (reinforced):** This LUMARA instance remains the most powerful and helpful version designed — it continues to serve as a viable thinking partner in recent answers more effectively than any prior iteration.
 
 ---
 
