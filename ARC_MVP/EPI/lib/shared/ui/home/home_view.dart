@@ -42,7 +42,6 @@ import 'package:my_app/core/feature_flags.dart' as core_flags;
 import 'package:my_app/arc/unified_feed/widgets/unified_feed_screen.dart';
 import 'package:my_app/core/models/entry_mode.dart';
 import 'package:my_app/shared/ui/settings/settings_view.dart';
-import 'package:my_app/lumara/agents/screens/agents_screen.dart';
 import 'package:my_app/chronicle/dual/services/dual_chronicle_services.dart';
 import 'package:my_app/chronicle/integration/veil_chronicle_factory.dart';
 import 'package:my_app/chronicle/scheduling/synthesis_scheduler.dart' show SynthesisTier;
@@ -87,7 +86,6 @@ class _HomeViewState extends State<HomeView> {
     if (core_flags.FeatureFlags.USE_UNIFIED_FEED) {
       return const [
         TabItem(icon: Icons.auto_awesome, text: 'LUMARA'),
-        TabItem(icon: Icons.workspaces_outlined, text: 'Agents'),
         TabItem(icon: Icons.settings_outlined, text: 'Settings'),
       ];
     }
@@ -99,7 +97,7 @@ class _HomeViewState extends State<HomeView> {
 
   List<String> get _tabNames {
     if (core_flags.FeatureFlags.USE_UNIFIED_FEED) {
-      return const ['LUMARA', 'Agents', 'Settings'];
+      return const ['LUMARA', 'Settings'];
     }
     return const ['LUMARA', 'Conversations'];
   }
@@ -478,8 +476,6 @@ class _HomeViewState extends State<HomeView> {
             },
           );
         case 1:
-          return const AgentsScreen();
-        case 2:
           return const SettingsView();
         default:
           return UnifiedFeedScreen(

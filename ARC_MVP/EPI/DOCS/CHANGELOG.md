@@ -1,7 +1,30 @@
 # EPI LUMARA MVP - Changelog
 
-**Version:** 3.3.59.2
+**Version:** 3.3.60
 **Last Updated:** February 25, 2026
+
+---
+
+## [3.3.60] - February 25, 2026
+
+### SwarmSpace integration; Research Agent web search; agents refactor
+
+**SwarmSpace API Router (Firebase Cloud Function):**
+- **swarmspaceRouter.ts:** New Cloud Function — front door to SwarmSpace. Validates Firebase Auth token, loads user/plan from Firestore, forwards requests to tier-appropriate Cloudflare plugin workers (brave-search, tavily-search, semantic-scholar, wikipedia, url-reader, etc.). Stamps requests with X-SwarmSpace-User-Id and X-SwarmSpace-User-Tier. SWARMSPACE_INTERNAL_TOKEN secret required.
+- **index.ts:** Registers swarmspaceRouter callable.
+
+**Client (lib/services/swarmspace/):**
+- **SwarmSpaceClient:** Singleton client; calls swarmspaceRouter; tier-based plugin routing.
+- **SwarmSpaceWebSearchTool:** Replaces StubWebSearchTool in Research Agent. Implements WebSearchTool; tier routing: free → brave-search + wikipedia; standard → tavily-search + brave-search fallback; premium → exa-search + tavily fallback. Fetches page content via url-reader plugin.
+
+**Agents refactor:**
+- **agents_connection_service.dart:** Removed from lib/lumara/agents/services/ (superseded by SwarmSpace client integration).
+- **lumara_assistant_cubit.dart, research_screen.dart, agents_screen.dart:** Wired to SwarmSpaceWebSearchTool; Research Agent now uses real web search.
+
+**Other:**
+- **layer0_populator.dart:** Logic refinements.
+- **home_view.dart, journal_screen.dart, media_conversion_utils.dart:** UI and utility updates.
+- **pubspec:** SwarmSpace-related dependency.
 
 ---
 

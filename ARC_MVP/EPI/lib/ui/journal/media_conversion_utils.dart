@@ -107,6 +107,7 @@ class MediaConversionUtils {
     switch (ext) {
       case 'pdf': return 'application/pdf';
       case 'md': return 'text/markdown';
+      case 'txt': return 'text/plain';
       case 'doc': return 'application/msword';
       case 'docx': return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
       default: return 'application/octet-stream';

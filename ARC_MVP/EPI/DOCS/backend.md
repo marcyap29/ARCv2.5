@@ -1,6 +1,6 @@
 # Backend Architecture & Setup
 
-**Version:** 3.3.59
+**Version:** 3.3.60
 **Last Updated:** February 25, 2026
 **Status:** ✅ Production Ready with Adaptive Framework, Companion-First LUMARA, Validation & Logging, Health Integration, AssemblyAI v3, Internet Access, Enhanced Classification-Aware PRISM Privacy Protection, Stripe Integration (web), RevenueCat (in-app purchases), Local Backup Services, and Groq API Proxy (GPT-OSS 120B primary)
 
@@ -170,6 +170,7 @@ LUMARA's web access is governed by a comprehensive 10-rule safety layer that ens
 2. **Cloud Functions**
    - `proxyGroq` - API key proxy for Groq API (Llama 3.3 70B / Mixtral) — **primary for LUMARA (v3.3.24)**
    - `proxyGemini` - API key proxy for Gemini API — **fallback when Groq unavailable**
+   - `swarmspaceRouter` - SwarmSpace API front door; validates auth, routes to tier-appropriate Cloudflare plugin workers (brave-search, tavily-search, semantic-scholar, wikipedia, url-reader, etc.); used by Research Agent web search
    - `getAssemblyAIToken` - Returns AssemblyAI API key for premium users (Universal Streaming v3)
    - `sendChatMessage` - LUMARA chat (currently deprecated, uses proxy instead)
    - `generateJournalReflection` - In-journal reflections (currently deprecated, uses proxy instead)
@@ -361,6 +362,7 @@ firebase deploy --only functions:proxyGemini
 |----------|--------|----------|-------|
 | `proxyGroq` | ✅ Deployed | YES | API key proxy for Groq (Llama 3.3 70B / Mixtral) — **primary** |
 | `proxyGemini` | ✅ Deployed | YES | API key proxy for Gemini — **fallback** |
+| `swarmspaceRouter` | ✅ New (v3.3.60) | NO | SwarmSpace API router; tier-based plugin routing (brave-search, tavily-search, etc.); Research Agent web search |
 | `getAssemblyAIToken` | ✅ Deployed | YES | AssemblyAI API key for premium users (v3) |
 | `sendChatMessage` | ✅ Deployed | NO | Deprecated, uses proxy |
 | `generateJournalReflection` | ✅ Deployed | NO | Deprecated, uses proxy |

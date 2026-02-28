@@ -7,7 +7,7 @@ import 'package:my_app/arc/agents/drafts/new_draft_screen.dart';
 import 'package:my_app/arc/chat/ui/lumara_settings_screen.dart';
 import 'package:my_app/arc/chat/ui/research_screen.dart';
 import 'package:my_app/arc/chat/ui/writing_screen.dart';
-import 'package:my_app/lumara/agents/services/agents_connection_service.dart';
+import 'package:my_app/services/swarmspace/agents_connection_service.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
 

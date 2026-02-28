@@ -1,3 +1,4 @@
+import 'package:my_app/lumara/agents/research/swarmspace_web_search_tool.dart';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -24,6 +25,7 @@ import 'package:my_app/services/app_repos.dart';
 import 'package:my_app/chronicle/core/chronicle_repos.dart';
 import 'package:my_app/chronicle/layer0_retrieval/chronicle_layer0_retrieval_service.dart';
 import '../services/lumara_reflection_settings_service.dart';
+import 'package:my_app/data/models/media_item.dart';
 import 'package:my_app/models/journal_entry_model.dart';
 import '../../../services/pending_conversation_service.dart';
 import 'package:my_app/shared/ui/settings/voiceover_preference_service.dart';
@@ -1802,12 +1804,13 @@ Continue naturally.''';
       );
       buffer.writeln(currentExcerpt);
       
-      // Include media content (OCR, captions, transcripts)
+      // Include media content (OCR, file text, captions, transcripts)
       if (currentEntry.media.isNotEmpty) {
         buffer.writeln('\n=== MEDIA CONTENT FROM CURRENT ENTRY ===');
         for (final mediaItem in currentEntry.media) {
           if (mediaItem.ocrText != null && mediaItem.ocrText!.isNotEmpty) {
-            buffer.writeln('Photo OCR: ${mediaItem.ocrText}');
+            final label = mediaItem.type == MediaType.file ? 'File content' : 'Photo OCR';
+            buffer.writeln('$label: ${mediaItem.ocrText}');
           }
           if (mediaItem.altText != null && mediaItem.altText!.isNotEmpty) {
             buffer.writeln('Photo description: ${mediaItem.altText}');
@@ -2723,7 +2726,7 @@ Your exported MCP bundle can be imported into any MCP-compatible system, ensurin
             maxTokens: maxTokens ?? 1200,
           );
         },
-        searchTool: StubWebSearchTool(),
+        searchTool: SwarmSpaceWebSearchTool(),
       );
 
       final writingAgent = WritingAgent(

@@ -1,6 +1,6 @@
 # EPI MVP - Comprehensive Features Guide
 
-**Version:** 3.3.59
+**Version:** 3.3.60
 **Last Updated:** February 25, 2026
 
 ---
@@ -205,6 +205,7 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 - **CHRONICLE Import (v3.3.26)**: Import aggregations from a previously exported directory. New "Import Aggregations" button in CHRONICLE Management.
 - **LUMARA Agents: Writing Drafts & Research (v3.3.38)**: Writing Agent drafts stored in `writing_drafts/{userId}/` with status (draft/finished), archive, and delete. Research reports persisted to `research_artifacts.json` with archive/delete. Agents tab: Active and Archived sections; card actions (Mark finished, Archive/Unarchive, Delete with confirm); Created date and metadata. ARCX and ZIP export/import include `extensions/agents/writing_drafts/` and `research_artifacts.json` so drafts and research reports are backed up and restorable.
 - **LUMARA Agents Expansion (v3.3.39–v3.3.40)**: Research/writing prompt expansion (research_prompts.dart, writing_prompts.dart); Agent OS prefix, Chat Intent Classifier, Research Query Planner, Dual Chronicle Intelligence Summary generator added to orchestration layer.
+- **SwarmSpace Research Web Search (v3.3.60)**: Research Agent uses real web search via SwarmSpace — SwarmSpaceClient and SwarmSpaceWebSearchTool replace StubWebSearchTool; swarmspaceRouter Cloud Function routes to tier-appropriate plugins (brave-search, tavily-search, semantic-scholar, wikipedia, url-reader); agents_connection_service removed.
 - **Dual CHRONICLE (v3.3.41–v3.3.47)**: Full dual CHRONICLE system — agentic loop orchestrator, intelligence summary generation/scheduling, CHRONICLE search (hybrid BM25 + semantic + adaptive fusion + reranking), dual_chronicle_view, writing with LUMARA, and CHRONICLE phase signal service.
 - **CHRONICLE Search (v3.3.44)**: Hybrid search engine combining BM25 lexical index, semantic embeddings, and adaptive fusion. Feature-based reranker for relevance scoring. Integrated into unified feed and LUMARA query pipeline.
 - **CHRONICLE Intelligence Summary (v3.3.45–v3.3.47)**: Automated intelligence summary generation from CHRONICLE data. Models, repository, generator, scheduling preferences, and dedicated intelligence summary view.

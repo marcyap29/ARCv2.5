@@ -159,6 +159,7 @@ This section is derived from the repo and [CHANGELOG.md](../CHANGELOG.md) to kee
 | Static analysis 349+ errors | — | [static-analysis-findings-feb-2026.md](records/static-analysis-findings-feb-2026.md) | 2026-02-26: BUG-ANALYZER-001 — dart analyze reports lib/test/tool errors; BUGTRACKER_TRIAGE_BACKLOG created. |
 | Bugtracker Discovery & Consolidation run | — | — | 2026-02-26: BUG-ANALYZER-001 indexed; record count 39 → 40; BUGTRACKER_AUDIT_REPORT, BUGTRACKER_MASTER_INDEX, BUGTRACKER_TRIAGE_BACKLOG, bug_tracker refreshed. |
 | Entry citation format; chat/timeline/journal UI refinements | v3.3.59.2 | — | 2026-02-25: lumara_master_prompt ENTRY CITATION FORMAT; lumara_chat_redesign_screen, lumara_message_body, interactive_timeline_view, expanded_entry_view, journal_screen, inline_reflection_block; pubspec. |
+| SwarmSpace integration; Research Agent web search | v3.3.60 | — | 2026-02-25: swarmspaceRouter Cloud Function; SwarmSpaceClient, SwarmSpaceWebSearchTool; agents_connection_service removed; layer0_populator, journal, home_view updates. |
 
 **Source:** `git log --oneline`, [CHANGELOG.md](../CHANGELOG.md), terminal build log. Last synced: 2026-02-25.
 

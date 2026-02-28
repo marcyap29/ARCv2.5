@@ -1,3 +1,4 @@
+import 'package:my_app/lumara/agents/research/swarmspace_web_search_tool.dart';
 // lib/arc/chat/ui/research_screen.dart
 // Dedicated screen for the LUMARA Research Agent (Agents tab).
 
@@ -66,7 +67,7 @@ class _ResearchScreenState extends State<ResearchScreen> {
             maxTokens: maxTokens ?? 1200,
           );
         },
-        searchTool: StubWebSearchTool(),
+        searchTool: SwarmSpaceWebSearchTool(),
       );
       final result = await agent.conductResearch(
         userId: userId,

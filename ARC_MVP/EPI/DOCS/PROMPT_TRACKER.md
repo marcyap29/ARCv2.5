@@ -1,6 +1,6 @@
 # Prompt Tracker
 
-**Version:** 1.9.0  
+**Version:** 1.10.0  
 **Last Updated:** February 25, 2026  
 **Purpose:** Prompt change tracking and quick reference. Full prompt catalog and version history live in [PROMPT_REFERENCES.md](PROMPT_REFERENCES.md).
 
@@ -16,6 +16,7 @@
 ## Recent prompt-related changes
 
 | Date | Change | Source / doc |
+| 2026-02-25 | Doc sync v3.3.60: SwarmSpace integration, Research Agent web search; no new prompts (SwarmSpace is tool layer) | CHANGELOG v3.3.60 |
 | 2026-02-25 | Doc sync v3.3.59.2: master prompt ENTRY CITATION FORMAT (use titles not UUIDs; `[title](entry:uuid)` for clickable links); no PROMPT_REFERENCES bump | CHANGELOG v3.3.59.2 |
 | 2026-02-25 | Doc sync v3.3.59: Prompt audit v2.9.0 — `prompts_arc.dart` rewritten (LUMARA identity, journal context, Bible retrieval removed); master prompt: USER PERSONALITY CONFIG, INFERRED PREFERENCES, phase de-emphasis, Claude branding removed, `<response_shape>` section; GPT-OSS 120B default; `lumara_cloud_generate.dart` simplified | PROMPT_REFERENCES.md v2.9.0 |
 | 2026-02-24 | Doc sync: Prompt audit v2.8.0 — added LUMARA Groq Cached Prompt (`lumara_groq_cached_prompt.dart`, used by groq_send.dart) | PROMPT_REFERENCES.md v2.8.0 |

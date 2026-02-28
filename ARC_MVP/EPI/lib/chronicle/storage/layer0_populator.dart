@@ -34,36 +34,42 @@ class Layer0Populator {
       String content = _safeContent(journalEntry);
       List<String> keywords = List<String>.from(_safeKeywords(journalEntry));
 
-      // Enrich from PDF attachments so LUMARA can read text and infer from images for chronicle
+      // Enrich from file attachments (PDF, txt, md, docx) so LUMARA can scan text for chronicle
       for (final media in journalEntry.media) {
         if (media.type != MediaType.file) continue;
         final path = media.uri.replaceFirst(RegExp(r'^file://'), '');
+        final name = media.altText ?? path.split(RegExp(r'[/\\]')).last;
         final isPdf = path.toLowerCase().endsWith('.pdf') ||
-            (media.altText?.toLowerCase().endsWith('.pdf') ?? false);
-        if (!isPdf) continue;
-        try {
-          final file = File(path);
-          if (!await file.exists()) continue;
-          final result = await PdfContentService.extractForChronicle(
-            path,
-            includePageImageAnalysis: true,
-          );
-          if (!result.hasContent) continue;
-          final name = media.altText ?? path.split(RegExp(r'[/\\]')).last;
-          content += '\n\n[Attachment: $name]\n';
-          if (result.text.trim().isNotEmpty) {
-            content += result.text.trim();
-          }
-          if (result.pageImageInsights.trim().isNotEmpty) {
-            content += '\n\n[From PDF pages]\n${result.pageImageInsights.trim()}';
-          }
-          for (final k in result.keywords) {
-            if (k.length > 1 && !keywords.contains(k) && keywords.length < 50) {
-              keywords.add(k);
+            name.toLowerCase().endsWith('.pdf');
+
+        if (isPdf) {
+          // PDF: re-extract for page image analysis and keywords
+          try {
+            final file = File(path);
+            if (!await file.exists()) continue;
+            final result = await PdfContentService.extractForChronicle(
+              path,
+              includePageImageAnalysis: true,
+            );
+            if (!result.hasContent) continue;
+            content += '\n\n[Attachment: $name]\n';
+            if (result.text.trim().isNotEmpty) {
+              content += result.text.trim();
             }
+            if (result.pageImageInsights.trim().isNotEmpty) {
+              content += '\n\n[From PDF pages]\n${result.pageImageInsights.trim()}';
+            }
+            for (final k in result.keywords) {
+              if (k.length > 1 && !keywords.contains(k) && keywords.length < 50) {
+                keywords.add(k);
+              }
+            }
+          } catch (_) {
+            // Non-fatal: skip this attachment
           }
-        } catch (_) {
-          // Non-fatal: skip this attachment
+        } else if (media.ocrText != null && media.ocrText!.trim().isNotEmpty) {
+          // txt, md, docx: use pre-extracted text from MediaItem.ocrText
+          content += '\n\n[Attachment: $name]\n${media.ocrText!.trim()}';
         }
       }
 

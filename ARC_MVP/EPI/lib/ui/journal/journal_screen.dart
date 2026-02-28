@@ -49,6 +49,7 @@ import 'package:my_app/arc/core/journal_repository.dart';
 import '../../arc/core/widgets/keyword_analysis_view.dart';
 import 'package:my_app/arc/ui/timeline/timeline_cubit.dart';
 import 'package:my_app/core/services/draft_cache_service.dart';
+import 'package:docx_to_text/docx_to_text.dart';
 import 'package:my_app/core/services/pdf_content_service.dart';
 import 'package:my_app/core/services/photo_library_service.dart';
 import 'package:my_app/aurora/services/circadian_profile_service.dart';
@@ -3136,7 +3137,13 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     IconData icon = Icons.insert_drive_file;
     if (file.fileName.toLowerCase().endsWith('.pdf')) {
       icon = Icons.picture_as_pdf;
-    } else if (file.fileName.toLowerCase().endsWith('.md')) icon = Icons.description;
+    } else if (file.fileName.toLowerCase().endsWith('.md')) {
+      icon = Icons.description;
+    } else if (file.fileName.toLowerCase().endsWith('.txt')) {
+      icon = Icons.text_snippet;
+    } else if (file.fileName.toLowerCase().endsWith('.docx') || file.fileName.toLowerCase().endsWith('.doc')) {
+      icon = Icons.description;
+    }
     return GestureDetector(
       onTap: () async {
         final path = file.filePath.replaceFirst(RegExp(r'^file://'), '');
@@ -5957,14 +5964,14 @@ $originalEntryTextToInclude
     }
   }
 
-  /// Handle file selection (PDF, .md, Doc, Docx) — explicitly enabled for conversations/entries.
-  /// For PDFs, extracts text and page-image insights so LUMARA can read and infer for chronicle.
+  /// Handle file selection (PDF, .md, .txt, Doc, Docx) — explicitly enabled for conversations/entries.
+  /// Extracts text from all supported types so LUMARA can scan and use for reflection and chronicle.
   Future<void> _handleFile() async {
     try {
       _analytics.logJournalEvent('file_button_pressed');
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
-        allowedExtensions: ['pdf', 'md', 'doc', 'docx'],
+        allowedExtensions: ['pdf', 'md', 'txt', 'doc', 'docx'],
         allowMultiple: true,
       );
       if (result != null && result.files.isNotEmpty) {
@@ -5977,9 +5984,15 @@ $originalEntryTextToInclude
           String mimeType = 'application/octet-stream';
           if (ext == 'pdf') {
             mimeType = 'application/pdf';
-          } else if (ext == 'md') mimeType = 'text/markdown';
-          else if (ext == 'doc') mimeType = 'application/msword';
-          else if (ext == 'docx') mimeType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+          } else if (ext == 'md') {
+            mimeType = 'text/markdown';
+          } else if (ext == 'txt') {
+            mimeType = 'text/plain';
+          } else if (ext == 'doc') {
+            mimeType = 'application/msword';
+          } else if (ext == 'docx') {
+            mimeType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+          }
 
           String? extractedText;
           if (ext == 'pdf') {
@@ -6001,11 +6014,19 @@ $originalEntryTextToInclude
                 extractedText += '\n\n[From PDF pages]\n${pdfResult.pageImageInsights.trim()}';
               }
             }
-          } else if (ext == 'md') {
+          } else if (ext == 'md' || ext == 'txt') {
             try {
               final file = File(path);
               if (await file.exists()) {
                 extractedText = await file.readAsString();
+              }
+            } catch (_) {}
+          } else if (ext == 'docx') {
+            try {
+              final file = File(path);
+              if (await file.exists()) {
+                final bytes = await file.readAsBytes();
+                extractedText = docxToText(bytes);
               }
             } catch (_) {}
           }

@@ -1,7 +1,7 @@
 "use strict";
 // index.ts - Main entry point for Cloud Functions
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getWisprApiKey = exports.getAssemblyAIToken = exports.proxyGemini = exports.createCheckoutSession = exports.getUserSubscription = exports.generateJournalReflection = exports.generateJournalPrompts = exports.checkThrottleStatus = exports.lockThrottle = exports.unlockThrottle = exports.stripeWebhook = exports.sendChatMessage = exports.analyzeJournalEntry = void 0;
+exports.swarmspacePluginStatus = exports.swarmspaceRouter = exports.getWisprApiKey = exports.getAssemblyAIToken = exports.proxyGemini = exports.createCheckoutSession = exports.getUserSubscription = exports.generateJournalReflection = exports.generateJournalPrompts = exports.checkThrottleStatus = exports.lockThrottle = exports.unlockThrottle = exports.stripeWebhook = exports.sendChatMessage = exports.analyzeJournalEntry = void 0;
 /**
  * Firebase Cloud Functions - ARC Backend
  *
@@ -69,4 +69,7 @@ Object.defineProperty(exports, "getWisprApiKey", { enumerable: true, get: functi
  * - Per-user rate limiting tied to real identity
  * - Firestore rules enforce data isolation
  */
+const swarmspaceRouter_1 = require("./functions/swarmspaceRouter");
+Object.defineProperty(exports, "swarmspaceRouter", { enumerable: true, get: function () { return swarmspaceRouter_1.swarmspaceRouter; } });
+Object.defineProperty(exports, "swarmspacePluginStatus", { enumerable: true, get: function () { return swarmspaceRouter_1.swarmspacePluginStatus; } });
 //# sourceMappingURL=index.js.map
